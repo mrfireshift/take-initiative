@@ -384,6 +384,9 @@ export async function executeSpellUnifiedLifecycle({
     request = {
       ...request,
       ...(runtime.sceneEpoch == null ? {} : { sceneEpoch: runtime.sceneEpoch }),
+      ...(runtime.visualSceneEpoch == null
+        ? {}
+        : { visualSceneEpoch: runtime.visualSceneEpoch }),
       ...(runtime.sceneIdentity ? { sceneIdentity: runtime.sceneIdentity } : {}),
       ...(runtime.commandId ? { commandId: runtime.commandId } : {}),
     };

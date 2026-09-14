@@ -110,6 +110,18 @@ test("produce applicazioni separate per outcome e traccia solo gli outcome confi
   }]);
 });
 
+test("il resolver generico non trasforma un esito iniziale mancante in failed", () => {
+  const result = resolveSaveSpellResolution({
+    spell: areaSpell({ saveAutomation: { failed: ["Trattenuto"] } }),
+    casterId: "caster",
+    targetIds: ["target"],
+    outcomes: {},
+  });
+
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.includes("outcomes-incomplete"));
+});
+
 test("un incantesimo a concentrazione richiede un caster", () => {
   const result = resolveSaveSpellResolution({
     spell: areaSpell({

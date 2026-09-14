@@ -45,6 +45,7 @@ import {
 } from "./hpConditionRulesCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { emitMatchedSpellVisual } from "./embersMatchedVisualRenderer.js";
+import { currentSceneEpoch } from "./sceneEpoch.js";
 import {
   requestSpellAreaPlacement,
   requestSpellZoneMovement,
@@ -1949,6 +1950,7 @@ export async function executeSpellApplication({
   appliedAt = undefined,
   casterName = "",
   sceneEpoch = null,
+  visualSceneEpoch = null,
   sceneIdentity = null,
   commandId = "",
   isCurrent = null,
@@ -1961,6 +1963,9 @@ export async function executeSpellApplication({
   manualAttackOutcomeRequired = false,
   ignoreTargetLimit = false,
 } = {}) {
+  const matchedVisualSceneEpoch = Number.isInteger(visualSceneEpoch)
+    ? visualSceneEpoch
+    : currentSceneEpoch();
   const intent = buildSpellApplicationIntent({
     spell,
     enteredName,
@@ -2171,7 +2176,7 @@ export async function executeSpellApplication({
       targetIds,
       eventId: instanceId,
       lifecycleId: instanceId,
-      sceneEpoch,
+      sceneEpoch: matchedVisualSceneEpoch,
     }).catch((error) => {
       console.warn("[spell] matched visual:", error?.message || error);
     });

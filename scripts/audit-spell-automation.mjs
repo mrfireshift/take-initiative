@@ -247,6 +247,7 @@ const CURATED_COVERAGE_STATUS = Object.freeze({
   "holy-aura": "CLOSED",
   "tasha-sudario-spirituale": "CLOSED",
   "xanathar-scossa-tellurica": "CLOSED",
+  "dimension-door": "CLOSED",
 });
 
 const CURATED_AUTOMATION_LEVEL = Object.freeze({
@@ -266,6 +267,7 @@ const CURATED_AUTOMATION_LEVEL = Object.freeze({
   "holy-aura": "PARTIAL",
   "tasha-sudario-spirituale": "PARTIAL",
   "xanathar-scossa-tellurica": "PARTIAL",
+  "dimension-door": "PARTIAL",
 });
 
 const CURATED_COMPLETE = Object.freeze({
@@ -290,6 +292,7 @@ const CURATED_COMPLETE = Object.freeze({
   "xanathar-investitura-del-vento": "PASS: Investitura del Vento è accettata. Il self-buff persistente, il volo, il cubo di vento come active action ripetibile, la geometria, il TS, il danno, la spinta e il prompt di turno sono esposti attraverso i contratti runtime esistenti; i limiti e le conseguenze gestite manualmente restano nel riferimento RAW.",
   "xanathar-investitura-della-pietra": "PASS: Investitura della Pietra è accettata. Il self-buff persistente e Scossa tellurica come active action ripetibile usano il lifecycle e il prompt condivisi; il raggio fisso sul caster, il TS, Prono e il riferimento alle interazioni con terreno e roccia restano coerenti con il contratto runtime e con la gestione manuale al tavolo.",
   "xanathar-scossa-tellurica": "PASS: Scossa Tellurica è PARTIAL/CLOSED. Il workflow area-save espone il danno contundente 1d6 sui fallimenti, zero sui successi e scaling di +1d6 per slot sopra il 1°. Prono resta collegato ai fallimenti. Il terreno difficile su pietra o terra smossa e lo sgombero restano un reminder/manuale ambientale: la spell è istantanea e non crea una zona persistente o un attachment di scena.",
+  "dimension-door": "PASS: Porta Dimensionale è PARTIAL/CLOSED per decisione di prodotto. Il workflow unificato espone il caster, un punto di arrivo entro 150 m e un passeggero opzionale; il comando serializzabile porta destinazione, passeggero, offset relativo e contesto di scena in una singola area transaction. Il plugin verifica l'identità del caster, il limite di un passeggero, il layer CHARACTER, l'esclusione del caster e l'adiacenza a griglia (laterale o diagonale, non sovrapposta) quando sono disponibili footprint affidabili; se il footprint non è misurabile, il selettore non offre passeggeri e resta valido il cast caster-only. La regola RAW aggiuntiva di 1,5 m, la gittata e l'adiacenza restano GM-assisted quando la scena non fornisce misure autorevoli. Il passeggero viene collocato alla destinazione del caster più l'offset di partenza, così non si sovrappone al caster. Consenso, capacità di trasporto, visibilità/visualizzazione/descrizione del punto e occupazione del luogo d'arrivo restano decisioni del GM; il plugin non raccoglie un esito destinazione e non applica automaticamente il danno RAW da luogo occupato. Caster e passeggero usano side effect token:teleport condivisi, un solo owner History/Undo, recovery durevole e matched VFX cosmetico; retry e restart non duplicano il movimento.",
   "xanathar-anatema-elementale": "PASS: il workflow batch del TS Costituzione, la scelta condivisa del tipo, il limite con slot superiori e la validazione pairwise entro 9 m sono operativi. Il danno aggiuntivo e la rimozione della resistenza restano manuali per scelta di perimetro: il plugin non dispone degli strumenti per automatizzarli.",
   "xanathar-gabbia-dellanima": "PASS: Gabbia dell'Anima è intenzionalmente TRACK_ONLY/ACCEPTED. Il registro conserva l'anima intrappolata per 8 ore senza concentrazione e il riferimento RAW ricorda il limite complessivo di sei utilizzi e le quattro modalità (Rubare Vita, Interrogare Anima, Esperienza in Prestito e Occhi dei Morti); consumo e conseguenze restano manuali, senza workflow di reazione, risorsa, cura, vantaggio, interrogazione, sensore o concentrazione figlia.",
   "wall-of-fire": "PASS: il placement obbligatorio espone muro lineare o circolare ad anello e conserva il lato caldo scelto; il corpo, la fascia adiacente di 3 m e l'attraversamento continuo alimentano trigger distinti con deduplicazione una-volta-per-turno. Il danno iniziale e persistente usa input manuale con scaling 5d8 +1d8 per slot sopra il 4°; il plugin non automatizza il tiro o l'applicazione dei danni.",
@@ -618,9 +621,10 @@ function validSyntheticContextValue(field) {
 function syntheticTargetIds(contract) {
   const inputs = contract?.presentation?.inputs || {};
   const targeting = contract?.presentation?.targeting || {};
+  const selfTargeting = targeting.subjectMode === "self";
   const required = inputs.targets?.required === true
-    || targeting.mode !== "none"
-    || targeting.confirmTargets === true;
+    || targeting.confirmTargets === true
+    || (!selfTargeting && targeting.mode !== "none");
   if (!required) return [];
   const maximum = Number.isInteger(inputs.targets?.maximum) && inputs.targets.maximum > 0
     ? inputs.targets.maximum

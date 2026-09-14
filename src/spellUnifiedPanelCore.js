@@ -23,7 +23,10 @@ import {
   getSpellAreaRules,
   spellPlacedDamageCastAllowsEmptyTargets,
 } from "./spellAreaRules.js";
-import { isTeleportSpell } from "./spellTeleportCore.js";
+import {
+  getSpellTeleportRule,
+  isTeleportSpell,
+} from "./spellTeleportCore.js";
 import {
   getSpellSaveWorkflowChoiceOptions,
   getSpellSaveWorkflowRule,
@@ -109,6 +112,7 @@ export const SPELL_PANEL_VALIDATION_LABELS = Object.freeze({
   "slot-level": "livello dello slot",
   duration: "durata",
   variant: "variante",
+  passenger: "passeggero",
   "rule-choice": "variante della sagoma",
   targets: "bersagli",
   "primary-target": "bersaglio primario",
@@ -126,6 +130,7 @@ const SPELL_PANEL_VALIDATION_MESSAGES = Object.freeze({
   "slot-level": "Scegli il livello dello slot",
   duration: "Inserisci la durata",
   variant: "Scegli una variante",
+  passenger: "Scegli un eventuale passeggero",
   "rule-choice": "Scegli la forma e il lato caldo della sagoma",
   targets: "Seleziona almeno un bersaglio",
   "primary-target": "Seleziona il bersaglio primario",
@@ -153,6 +158,7 @@ const CONTROL_ORDER = Object.freeze([
   "slot-level",
   "duration",
   "concentration",
+  "passenger",
   "targets",
   "primary-target",
   "placement",
@@ -502,11 +508,14 @@ function placementDescriptor(rule, primaryTargetAnchor = false) {
     ruleId: text(rule.id),
     spellId: text(rule.spellId),
     kind: text(rule.kind),
-    mode: rule.kind === "board-token" ? "board-token" : "area",
+    mode: rule.kind === "board-token"
+      ? "board-token"
+      : text(placement.mode) || "area",
     shape: text(geometry.shape),
     origin: primaryTargetAnchor ? "primary-target" : text(placement.origin),
     direction: text(placement.direction),
     anchor: primaryTargetAnchor ? "primary-target" : text(placement.anchor),
+    centered: placement.centered === true,
     range: placement.range ? cloneValue(placement.range) : null,
     choice: text(rule.placementChoice) || null,
     policy,
@@ -689,6 +698,7 @@ function primaryTargetDescriptor({ chainRule, selectedAction, spell, phasePlan }
 }
 
 function targetingSpatialRules({
+  teleportRule,
   selectedAction,
   chainRule,
   workflowTargeting,
@@ -703,6 +713,16 @@ function targetingSpatialRules({
       selectionMode: text(chainRule.selectionMode) || "primary-then-secondary",
       unit: "meters",
       source: "chain-lightning-targeting",
+    };
+  }
+  if (teleportRule && !selectedAction) {
+    return {
+      mode: "teleport",
+      maxMeters: numericOrNull(teleportRule.rangeMeters),
+      passengerMaxMeters: numericOrNull(teleportRule.passengerMaxDistanceMeters),
+      passengerAdjacency: teleportRule.passenger?.adjacency || null,
+      unit: "meters",
+      source: "spell-teleport",
     };
   }
   if (workflowTargeting?.spatial) return cloneValue(workflowTargeting.spatial);
@@ -722,6 +742,7 @@ function targetingSpatialRules({
 
 function targetingDescriptor({
   spell,
+  teleportRule,
   phasePlan,
   castRules,
   boardTokenPlacementRule,
@@ -737,7 +758,8 @@ function targetingDescriptor({
   const actionRule = selectedAction
     ? actionPlacementRule(selectedAction, choiceValue)
     : null;
-  const subjectMode = text(selectedAction?.subjectMode) || text(phasePlan.subjectMode) || "selected";
+  const subjectMode = text(selectedAction?.subjectMode)
+    || (!selectedAction && teleportRule ? "self" : text(phasePlan.subjectMode) || "selected");
   let mode = SPELL_UNIFIED_TARGETING_MODES.NONE;
   let source = "subject-mode";
   let rule = actionRule || castRules[0] || null;
@@ -808,6 +830,7 @@ function targetingDescriptor({
     phasePlan,
   });
   const spatialRules = targetingSpatialRules({
+    teleportRule,
     selectedAction,
     chainRule,
     workflowTargeting,
@@ -841,6 +864,8 @@ function hasExplicitDamage({
   actions,
   castRules,
 }) {
+  const teleportRule = getSpellTeleportRule(spell);
+  if (teleportRule) return false;
   const explicitPolicy = spellHasExplicitInitialHPPolicy(spell);
   if (explicitPolicy !== null) return explicitPolicy;
   if (getSpellAttackResolution(spell)) return true;
@@ -1064,6 +1089,7 @@ function manualSpellEffectCapability({ spell, phasePlan, selectedAction, workflo
 
 function inputDescriptor({
   spell,
+  teleport,
   phasePlan,
   duration,
   slot,
@@ -1124,6 +1150,11 @@ function inputDescriptor({
     },
     variant: { required: choiceRequired, visible: choices.length > 0 },
     composition: { required: compositionRequired, visible: compositionRequired },
+    passenger: {
+      required: false,
+      visible: teleport?.available === true && teleport?.passenger?.available === true,
+      maximum: teleport?.passenger?.maximum ?? null,
+    },
     targets: {
       required: targetSelectionRequired,
       visible: targetSelectionRequired,
@@ -1151,7 +1182,10 @@ function inputDescriptor({
       visible: damageRequired || healingRequired,
       mode: healing ? "healing" : "damage",
     },
-    damage: { required: damageRequired, visible: damageRequired },
+    damage: {
+      required: damageRequired,
+      visible: damageRequired,
+    },
     primaryDamage: {
       required: primaryDamageRequired,
       visible: primaryDamageRequired,
@@ -1258,6 +1292,7 @@ function initialSaveDescriptor(castRules = []) {
 
 function controlList({
   spell,
+  teleport,
   phaseOptions: phases,
   phasePlan,
   targeting,
@@ -1274,6 +1309,9 @@ function controlList({
   const controls = new Set();
   if (phases.length > 1) controls.add("phase");
   if (Number(spell?.level) > 0) controls.add("slot-level");
+  if (teleport?.available === true && teleport?.passenger?.available === true) {
+    controls.add("passenger");
+  }
   if (
     spell?.concentration === true
     || ["self", "caster"].includes(targeting.subjectMode)
@@ -1313,6 +1351,7 @@ function controlList({
 
 function executionDescriptor({
   spell,
+  castContext = {},
   phasePlan,
   castRules,
   allAreaRules,
@@ -1401,6 +1440,31 @@ export function buildSpellUnifiedPanelContract({
   const spell = resolveSpell(spellValue, spellId);
   if (!spell) return null;
 
+  const teleportRule = getSpellTeleportRule(spell);
+  const teleport = teleportRule
+    ? {
+      available: true,
+      spellId: teleportRule.spellId,
+      rangeMeters: teleportRule.rangeMeters,
+      destination: {
+        required: true,
+        source: "placement",
+      },
+      passenger: teleportRule.allowPassenger === true
+        ? {
+          available: true,
+          optional: teleportRule.passenger?.optional !== false,
+          maximum: Number(teleportRule.passenger?.maximum) || 1,
+          requireCreature: teleportRule.passenger?.requireCreature === true,
+          maxSizeRelation: teleportRule.passenger?.maxSizeRelation || null,
+          maxDistanceMeters: teleportRule.passengerMaxDistanceMeters ?? null,
+          adjacency: teleportRule.passenger?.adjacency || null,
+          destinationPlacement: teleportRule.passenger?.destinationPlacement || null,
+        }
+        : { available: false, optional: true, maximum: 0 },
+    }
+    : null;
+
   const phases = phaseOptions(spell, phase);
   const selected = selectedPhase(phases, phase);
   const phasePlan = getSpellCastPhasePlan(
@@ -1446,6 +1510,7 @@ export function buildSpellUnifiedPanelContract({
   ], "value");
   const targeting = targetingDescriptor({
     spell,
+    teleportRule,
     phasePlan,
     castRules: presentationCastRules,
     boardTokenPlacementRule,
@@ -1478,6 +1543,7 @@ export function buildSpellUnifiedPanelContract({
   const automation = automationDescriptor({ spell, phasePlan });
   const controls = controlList({
     spell,
+    teleport,
     phaseOptions: phases,
     phasePlan,
     targeting,
@@ -1500,6 +1566,7 @@ export function buildSpellUnifiedPanelContract({
   });
   const execution = executionDescriptor({
     spell,
+    castContext,
     phasePlan,
     castRules: presentationCastRules,
     allAreaRules,
@@ -1529,6 +1596,7 @@ export function buildSpellUnifiedPanelContract({
   const composition = boardTokenRule?.composition || null;
   const inputs = inputDescriptor({
     spell,
+    teleport,
     phasePlan,
     duration,
     slot,
@@ -1570,6 +1638,7 @@ export function buildSpellUnifiedPanelContract({
         },
       },
       subjectMode: targeting.subjectMode,
+      ...(teleport ? { teleport } : {}),
       choice: text(choiceValue) || null,
       variant: {
         selected: variantPresentation.options.some((option) => (
@@ -1645,6 +1714,13 @@ function recordValue(value) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? cloneValue(value)
     : {};
+}
+
+function recordWithoutTeleportOutcome(value) {
+  return Object.fromEntries(
+    Object.entries(recordValue(value))
+      .filter(([key]) => key !== "teleportOutcome"),
+  );
 }
 
 function normalizedActiveConcentration(value) {
@@ -1795,6 +1871,7 @@ export function createSpellPanelSession({
   activeConcentration = null,
   durationTurns,
   targetIds = [],
+  passengerId = "",
   ignoreTargetLimit = false,
   primaryTargetId = "",
   outcomes = {},
@@ -1831,11 +1908,12 @@ export function createSpellPanelSession({
     enteredName: text(enteredName || contract?.spell?.label),
     slotLevel: resolvedSlot,
     variant: resolvedVariant,
-    castContext: recordValue(castContext),
+    castContext: recordWithoutTeleportOutcome(castContext),
     applyAutomatedConditions: applyAutomatedConditions !== false,
     requestedConcentration: requestedConcentration === true,
     activeConcentration: normalizedActiveConcentration(activeConcentration),
     targetIds: unique(targetIds),
+    passengerId: text(passengerId),
     ignoreTargetLimit: ignoreTargetLimit === true,
     primaryTargetId: text(primaryTargetId),
     outcomes: recordValue(outcomes),
@@ -1866,11 +1944,12 @@ export function updateSpellPanelSession(session, patch = {}) {
     ...patch,
     castContext: patch.castContext === undefined
       ? current.castContext
-      : {
+      : recordWithoutTeleportOutcome({
         ...recordValue(current.castContext),
         ...recordValue(patch.castContext),
-      },
+      }),
     hpValues: patch.hpValues === undefined ? current.hpValues : patch.hpValues,
+    passengerId: patch.passengerId === undefined ? current.passengerId : patch.passengerId,
     targetIds: patch.targetIds === undefined ? current.targetIds : patch.targetIds,
     outcomes: patch.outcomes === undefined ? current.outcomes : patch.outcomes,
     attackOutcome: patch.attackOutcome === undefined
@@ -1913,6 +1992,7 @@ function resetRuntimeState(current) {
     activeInstanceId: "",
     activeActionState: normalizedActiveActionState(null),
     targetIds: [],
+    passengerId: "",
     ignoreTargetLimit: false,
     primaryTargetId: "",
     outcomes: {},
@@ -1965,6 +2045,7 @@ function transitionSession(currentSession, contract, {
     slotLevel,
     variant: text(variant),
     targetIds: preserveTargets ? current.targetIds : next.targetIds,
+    passengerId: preserveTargets ? current.passengerId : next.passengerId,
     primaryTargetId: preserveTargets ? current.primaryTargetId : next.primaryTargetId,
     castContext: {
       ...(resetCastContext ? {} : recordValue(current.castContext)),
@@ -2233,6 +2314,11 @@ function validationFor(contract, session, placement) {
     && !placedDamageCastMayHaveNoTargets(contract)) {
     add("targets", "targets-required");
   }
+  if (inputs.passenger?.visible
+    && session.passengerId
+    && !session.targetIds.includes(session.passengerId)) {
+    add("passenger", "passenger-invalid");
+  }
   const targetingCapacity = applyTargetingLimitState(
     contract.presentation?.targeting?.limit || {
       maximum: inputs.targets?.maximum,
@@ -2306,6 +2392,7 @@ function visibleControlsFor(contract, session, placement) {
   };
   addInputControl("duration");
   if (contract.presentation.concentration?.required) controls.add("concentration");
+  addInputControl("passenger");
   addInputControl("targets");
   addInputControl("primaryTarget", "primary-target");
   addInputControl("variant");

@@ -3,7 +3,6 @@ import {
   SPELL_PANEL_PLACEMENT_POLICIES,
   SPELL_UNIFIED_PANEL_LANES,
 } from "./spellUnifiedPanelCore.js";
-
 export const SPELL_UNIFIED_PANEL_DESTINATION = "spell-unified-panel";
 
 export const SPELL_UNIFIED_PANEL_ROUTE_STATUS = Object.freeze({
@@ -93,16 +92,19 @@ export function normalizeSpellUnifiedPanelOpenRequest(request = {}) {
   const quickActionId = text(
     request.quickActionId || payload.quickActionId || request.quickAction,
   );
+  const passengerId = text(request.passengerId || payload.passengerId);
+  const spellId = text(request.spellId || payload.spellId);
   return {
     intent: text(request.intent || payload.intent) || "spell",
     sourceId: text(request.sourceId || payload.sourceId || request.source),
-    spellId: text(request.spellId || payload.spellId),
+    spellId,
     phase: text(request.phase || payload.phase),
     actionId: text(request.actionId || payload.actionId),
     activeInstanceId: text(request.activeInstanceId || payload.activeInstanceId),
     activeActionId: text(request.activeActionId || payload.activeActionId),
     quickActionId,
     casterId: text(request.casterId || payload.casterId || request.sourceId || payload.sourceId),
+    passengerId,
     slotLevel: integerOrNull(request.slotLevel ?? payload.slotLevel),
     variant: text(request.variant || payload.variant || request.choiceValue || payload.choiceValue),
     durationTurns: integerOrNull(request.durationTurns ?? payload.durationTurns),
@@ -201,6 +203,7 @@ export function routeSpellUnifiedPanelOpenRequest(
       durationTurns: normalized.durationTurns,
       applyAutomatedConditions: normalized.applyAutomatedConditions,
       targetIds: normalized.targetIds,
+      passengerId: normalized.passengerId,
       targetContext: normalized.targetContext,
       placement: normalized.placement,
       activeInstanceId: normalized.activeInstanceId,
@@ -216,10 +219,12 @@ export function routeSpellUnifiedPanelOpenRequest(
         ...(normalized.slotLevel === null ? {} : { slotLevel: normalized.slotLevel }),
         ...(normalized.variant ? { choice: normalized.variant } : {}),
         ...(normalized.phase ? { phase: normalized.phase } : {}),
+        ...(normalized.passengerId ? { passengerId: normalized.passengerId } : {}),
       },
     },
     context: {
       casterId: normalized.casterId,
+      ...(normalized.passengerId ? { passengerId: normalized.passengerId } : {}),
       targetIds: normalized.targetIds,
       targetContext: normalized.targetContext,
       placement: normalized.placement,
@@ -240,9 +245,10 @@ export function routeSpellUnifiedPanelOpenRequest(
     phase: normalized.phase,
     actionId: normalized.actionId || normalized.activeActionId,
     choiceValue: normalized.variant,
-    castContext: normalized.slotLevel === null
-      ? {}
-      : { slotLevel: normalized.slotLevel },
+    castContext: {
+      ...(normalized.slotLevel === null ? {} : { slotLevel: normalized.slotLevel }),
+      ...(normalized.passengerId ? { passengerId: normalized.passengerId } : {}),
+    },
   });
   if (!contract) {
     return {
@@ -273,6 +279,7 @@ export function routeSpellUnifiedPanelOpenRequest(
           spellId: contract.spell?.id || normalized.spellId,
         }
         : null,
+      passengerId: normalized.passengerId,
     },
   };
 }
@@ -285,6 +292,7 @@ export function buildSpellUnifiedPanelRouteQuery(request = {}) {
     ["source", normalized.sourceId],
     ["spellId", normalized.spellId],
     ["casterId", normalized.casterId],
+    ["passengerId", normalized.passengerId],
     ["phase", normalized.phase],
     ["actionId", normalized.actionId],
     ["activeInstanceId", normalized.activeInstanceId],

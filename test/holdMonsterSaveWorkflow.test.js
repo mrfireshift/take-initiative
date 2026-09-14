@@ -11,6 +11,7 @@ import { getAreaSaveAutomation, getSpellDefinition } from "../src/spells-srd.js"
 import { resolveSaveSpellResolution } from "../src/saveSpellCore.js";
 import { saveSpellResolutionOperations } from "../src/saveSpellOperationsCore.js";
 import { buildEffectsMutationPlan } from "../src/effectsMutationCore.js";
+import { buildQuickActionSpellLaunchPlan } from "../src/quickActionSpellExecutionCore.js";
 
 const SPELL_ID = "hold-monster";
 
@@ -98,6 +99,22 @@ test("SP-B05A — pannello cast espone bersagli ed esiti TS come Blocca Persone"
 test("SP-B05A — fallimento applica Paralizzato con repeat save e cleanup target indipendente", () => {
   const spell = getSpellDefinition(SPELL_ID);
   const automation = getAreaSaveAutomation(spell);
+  const quickAction = buildQuickActionSpellLaunchPlan({
+    action: {
+      id: "quick-hold-monster",
+      label: spell.displayName,
+      kind: "spell",
+      spellId: SPELL_ID,
+      targetMode: "selection",
+      slotLevel: 5,
+      launchMode: "auto",
+    },
+    sourceId: "caster",
+    selectedTargetIds: ["target"],
+  });
+  assert.equal(quickAction.mode, "direct");
+  assert.deepEqual(quickAction.session.outcomes, { target: "failed" });
+
   assert.deepEqual(automation.trackOutcomes, ["failed"]);
   assert.equal(automation.failed.length, 1);
   assert.equal(automation.failed[0].condition, "Paralizzato");
@@ -114,7 +131,7 @@ test("SP-B05A — fallimento applica Paralizzato con repeat save e cleanup targe
     spell,
     casterId: "caster",
     targetIds: ["target"],
-    outcomes: { target: "failed" },
+    outcomes: quickAction.session.outcomes,
     automation,
     saveWorkflowRule: getSpellSaveWorkflowRule(SPELL_ID),
     slotLevel: 5,
@@ -137,6 +154,15 @@ test("SP-B05A — fallimento applica Paralizzato con repeat save e cleanup targe
 
   assert.equal(state(initial, "target").conditions[0].condition, "Paralizzato");
   assert.equal(state(initial, "target").conditions[0].parentEffectId, "hold-monster-1");
+  assert.deepEqual(state(initial, "target").conditions[0].saveReminder, {
+    ability: "wis",
+    timing: "turn-end",
+    actor: "target",
+    success: "remove-effect",
+    dcSource: "source-spell",
+    label: "Se supera il TS, termina Blocca Mostri.",
+  });
+  assert.ok(state(initial, "caster").concentrations["blocca mostri"]);
   assert.equal(state(initial, "caster").spells.length, 0);
   assert.equal(state(initial, "target").spells.length, 1);
 });

@@ -28,7 +28,7 @@ plugin.
 Il [Backlog](../BACKLOG.md) descrive il lavoro ancora incompleto e non è una
 guida al comportamento già disponibile.
 
-Fonti semantiche verificate il 2026-09-09: [477 schede spell](../data/spell-implementation-status.json), [capability e gap](../data/spell-capability-map.json), [report e roadmap A–L](AUDIT_AUTOMAZIONE_INCANTESIMI.md). Le classificazioni dello snapshot generato restano secondarie.
+Fonti semantiche verificate il 2026-09-14: [477 schede spell](../data/spell-implementation-status.json), [capability e gap](../data/spell-capability-map.json), [report e roadmap A–L](AUDIT_AUTOMAZIONE_INCANTESIMI.md). Le classificazioni dello snapshot generato restano secondarie.
 
 ## Fonti autorevoli dei conteggi
 
@@ -52,9 +52,9 @@ automatizzata.
 
 | Area | Stato corrente |
 | --- | --- |
-| Incantesimi | 477 definizioni, 358 opzioni trackable, 392 voci nel pannello unificato. |
+| Incantesimi | 477 definizioni, 358 opzioni trackable, 393 voci nel pannello unificato. |
 | Tracking persistente audit | 355 definizioni; è un sottoinsieme più restrittivo delle 358 opzioni trackable. |
-| Regole di area | 139 regole per 134 incantesimi distinti. |
+| Regole di area | 140 regole per 135 incantesimi distinti. |
 | Tiri salvezza spell | 81 definizioni con `saveAutomation` nel catalogo runtime. |
 | Azioni spell successive | 32 definizioni con activeActions nel catalogo runtime. |
 | Capacità di classe | 551 record runtime, 59 pronti all'attivazione, 492 non automatizzati. |

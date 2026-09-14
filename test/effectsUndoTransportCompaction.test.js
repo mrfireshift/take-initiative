@@ -138,8 +138,8 @@ test("il broker background usa il payload compatto per le risposte Undo", async 
   const { readFile } = await import("node:fs/promises");
   const source = await readFile(new URL("../src/effectsMutations.js", import.meta.url), "utf8");
   assert.match(source, /data\.kind === "undo"[\s\S]{0,160}compactBackgroundUndoTransportResult\(result\)/u);
-  assert.match(source, /const responsePayload = \{ requestId: data\.requestId, result: transportResult \}/u);
-  assert.match(source, /EFFECTS_MUTATION_RESULT_CHANNEL,[\s\S]{0,120}responsePayload/u);
+  assert.match(source, /buildEffectsMutationResultMessages\([\s\S]{0,100}data\.requestId,[\s\S]{0,100}transportResult/u);
+  assert.match(source, /for \(const responsePayload of responsePayloads\)[\s\S]{0,180}EFFECTS_MUTATION_RESULT_CHANNEL/u);
 });
 
 

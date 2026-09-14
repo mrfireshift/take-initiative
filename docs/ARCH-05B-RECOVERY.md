@@ -1,6 +1,6 @@
 # ARCH-05B — recovery persistente post-commit
 
-Baseline: Take Initiative 1.3.0, HEAD `356ef2a68da050fb788988395c0b1bac4bb03ac2`, con il diagnostico ARCH-05A già presente e non tracciato. Nessuna baseline precedente ripristinata.
+Baseline: Take Initiative 1.3.0, HEAD `085e3a84e1edcac915cb49a3d069b453843aae56`, con il solo `test/shieldVfxRegression.test.js` non tracciato nella working tree iniziale. Nessuna baseline precedente ripristinata.
 
 ## 1. Root cause refinement
 
@@ -10,7 +10,7 @@ Il fix conserva planner, commit con controllo delle precondizioni e History owne
 
 ## 2. Recovery architecture
 
-**Owner:** background GM, nella lane del coordinator Effects. Nessuna seconda queue, subscription o owner nei pannelli. Il bootstrap attende caricamento/recovery nella lane prima di esporre il listener dei comandi; `background.js` monta già History owner prima di Effects e i controller successivi dopo Effects. Il retry riutilizza il timer post-commit esistente; nessun timer quando non c'è lavoro ritentabile. I conflitti restano persistenti senza retry periodico automatico.
+**Owner:** background GM, nella lane del coordinator Effects. Nessuna seconda queue, subscription o owner nei pannelli. Il bootstrap attende il caricamento/recovery nella lane prima di esporre il listener dei comandi; se il bootstrap fallisce, l'errore viene registrato ma il mount completa e il listener viene comunque esposto, così il trasporto Effects non resta senza endpoint. Recovery e comandi restano serializzati nella stessa lane. `background.js` monta già History owner prima di Effects e i controller successivi dopo Effects. Il retry riutilizza il timer post-commit esistente; nessun timer quando non c'è lavoro ritentabile. I conflitti restano persistenti senza retry periodico automatico.
 
 **Storage:** scene metadata, nuova chiave versionata `com.thebigpicture.initiative/effects-recovery-v1`, scritta tramite l'autorità `writeSceneMetadataKey`. Non viene sostituito l'oggetto metadata di scena. Room metadata non è adatto al lifecycle delle scene e ha già un budget condiviso; IndexedDB non è necessario per dati recuperabili dal background della scena attraverso reload.
 
@@ -52,7 +52,7 @@ Precondition/canonical failure senza commit mantiene le semantics esistenti. Err
 | `src/metadataKeyScoped.js` | Registro `METADATA_OWNERSHIP.EFFECTS_RECOVERY`, owner unico della nuova chiave. |
 | `src/history.js` | `reannounceHistoryReminderEntries`: riassocia al runtime corrente il replay di reminder da History durevole solo dopo verifica room/scope. History legacy conserva il controllo epoch precedente. |
 | `src/quick-hp-modal.js` | `applyOperation`: passa la History al background insieme al comando; usa l'entry restituita per Undo e warning correlati. Rimossi helper/import del wrapper locale ormai inutilizzati. Preview, HP memory e UI restano nei percorsi esistenti. |
-| `test/arch05aPostCommitRecoveryDiagnostic.test.js` | Diagnostico preesistente adattato in regression produttive e ampliato: 33 test. |
+| `test/arch05aPostCommitRecoveryDiagnostic.test.js` | Diagnostico adattato in regression produttive e ampliato a 40 test, incluso il recovery composito di Porta Dimensionale. |
 | `test/reminderResolutionBrokerReplay.test.js` | `runReplayCombination` può sostituire il runtime prima dell'Undo; aggiunto replay reminder dopo restart. Totale 9 test. |
 | `test/concentrationSaveReminderRuntime.test.js`, `test/effectsMutationArchitectureContract.test.js`, `test/historyOwnerInventory.test.js` | Assert/inventario aggiornati al nuovo owner Quick HP. |
 | `test/hpBatchResponsiveness.test.js`, `test/quickHpConcentrationBadge.test.js`, `test/quickHpModalDefaultMode.test.js`, `test/spellUnifiedPanelFase11Integration.test.js` | Sostituito l'assert testuale sul wrapper locale con History nel comando. Conservati preview-prima-del-commit, API canoniche e Undo. |
@@ -60,7 +60,14 @@ Precondition/canonical failure senza commit mantiene le semantics esistenti. Err
 
 ## 5. Workflow migrated
 
-Protezione per comandi Effects con History abilitata e senza side effect non supportati: condition/HP/effects semplici; risoluzione reminder con marker canonico e consume di zone activation; teleport fisici sequenziali. `spell-active-resolution:validate` resta validation, senza lavoro persistente da ripetere. Quick HP/manual effects passa una singola azione HP/conditions con History al background prima del commit.
+Protezione per comandi Effects con History abilitata e senza side effect non supportati: condition/HP/effects semplici; risoluzione reminder con marker canonico e consume di zone activation; teleport fisici sequenziali, incluso il cast composito di Porta Dimensionale. `spell-active-resolution:validate` resta validation, senza lavoro persistente da ripetere. Quick HP/manual effects passa una singola azione HP/conditions con History al background prima del commit.
+
+Porta Dimensionale produce un record unico con due side effect indicizzati
+`token:teleport`: caster e passeggero condividono command/correlation/operation
+identity, ma il recovery confronta e completa ogni posizione separatamente.
+Se il primo soggetto è già arrivato e il secondo fallisce, il record resta
+pendente e al riavvio viene applicato soltanto il secondo; non viene introdotto
+un rollback compensativo del caster e History viene appesa una sola volta.
 
 Sono esclusi Undo stesso come nuova operazione di recovery, workflow `history:false`, soppressione History per terminal accumulation e piani con altri tipi di side effect. Gli altri wrapper locali non vengono migrati universalmente. Il dispatch delimita esplicitamente questa tranche; non è una outbox di tutte le spell/aree. Nessun record per visual, pill, label o reconcile derivato.
 
@@ -91,12 +98,12 @@ Failure injection aggiuntive: envelope pre-commit rifiutato, phase write fallita
 
 | Verifica | Risultato |
 | --- | --- |
-| Regression recovery + reminder replay | 42/42 (33 + 9) |
-| Suite collegate HP/Effects/History/Undo/reminder/area/teleport | 625/625 |
-| Invariant/epoch/inventory/stabilization subset | 52/52 |
-| Full suite | 2870/2870 |
+| Regression recovery + reminder replay | 49/49 (40 + 9) |
+| Dimension Door behavioral/E2E + donor/unified subset | 140/140 |
+| Dimension Door composite recovery regression | 1/1 (incluso nei 40 test recovery) |
+| Full suite | 2950/2950 |
 | Performance harness | status=ok, 1777 SDK calls |
-| Build Vite | riuscita, 3.90 s (ultima esecuzione) |
+| Build Vite | riuscita, 4.03 s (ultima esecuzione) |
 | verify:version / verify:dist | riusciti, 1.3.0 |
 | git diff --check | riuscito |
 
@@ -124,6 +131,6 @@ Versione, token metadata, condition schema, actorVitals e API pubbliche rimangon
 
 ## 12. Working tree integrity e verdict
 
-All'inizio l'unico file dirty era `test/arch05aPostCommitRecoveryDiagnostic.test.js`, non tracciato. Il suo contenuto originale è stato conservato nell'istantanea esterna della baseline e adattato qui, come richiesto. Tutti gli altri file elencati sopra sono modifiche 05B; gli altri file src/test coincidono byte per byte con l'istantanea iniziale. Nessun revert, commit, bump di versione o normalizzazione estranea. Dist è rigenerata dalla build, non è un ripristino di baseline.
+All'inizio l'unico file preesistente dirty era `test/shieldVfxRegression.test.js`, non tracciato; nessun file tracciato era modificato. Tutti gli altri file elencati sopra sono modifiche di questa tranche o estensioni condivise necessarie al workflow; nessun file preesistente è stato ripristinato o sovrascritto. Nessun revert, commit, bump di versione o normalizzazione estranea. Dist è rigenerata dalla build, non è un ripristino di baseline.
 
 **ARCH-05B completato per i workflow protetti:** before e lavoro necessario sopravvivono al caller; i failure window post-commit dimostrati convergono attraverso restart e rimangono idempotenti. La chiusura è scoped, con i limiti espliciti sopra. Nessun intervento su ARCH-06.

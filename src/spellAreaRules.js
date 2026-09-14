@@ -2346,6 +2346,8 @@ function catalogAreaRule(spec) {
       ...(spec.origin === "point"
         ? { range: meters(spec.rangeMeters, "range") }
         : {}),
+      ...(isTeleportSpell(spec.spellId) ? { mode: "point" } : {}),
+      ...(spec.centered === true ? { centered: true } : {}),
       ...(spec.snapOrigin === "vertex" ? { snapOrigin: "vertex" } : {}),
     },
     lifecycle: persistent ? SPELL_LIFECYCLE : PREVIEW_LIFECYCLE,

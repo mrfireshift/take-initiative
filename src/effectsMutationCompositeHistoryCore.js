@@ -65,6 +65,38 @@ export function decorateCompositeEffectsHistoryEntry({
       sideEffects.push(clone(sideEffect));
     }
   }
+  const coordinatedItemSideEffects = sideEffects.filter(
+    (sideEffect) => sideEffect?.type === "item" && String(sideEffect.id || "").trim(),
+  );
+  const coordinatedItemIds = new Set(
+    sideEffects
+      .filter((sideEffect) => sideEffect?.type === "item")
+      .map((sideEffect) => String(sideEffect.id || "").trim())
+      .filter(Boolean),
+  );
+  // A coordinated scene-item create/delete is already represented by the
+  // item side effect. The outer capture can also see the same lifecycle, but
+  // its SDK-normalized snapshot is not necessarily byte-identical to the
+  // pre-add builder snapshot. Keep one owner for that transition so the Undo
+  // planner cannot process it once as a scene lifecycle and once as a side
+  // effect with a different snapshot.
+  const entryChanges = (entry?.changes || []).filter((change) => {
+    const hasSceneLifecycle = Object.prototype.hasOwnProperty.call(change || {}, "sceneBefore")
+      && Object.prototype.hasOwnProperty.call(change || {}, "sceneAfter");
+    if (!hasSceneLifecycle || !coordinatedItemIds.has(String(change?.id || "").trim())) return true;
+    const matchingSideEffect = coordinatedItemSideEffects.find((sideEffect) => (
+      String(sideEffect.id || "").trim() === String(change.id || "").trim()
+      && (
+        change.sceneBefore === null
+          && (sideEffect.before ?? null) === null
+          && sideEffect.after?.id === change.sceneAfter?.id
+        || change.sceneAfter === null
+          && (sideEffect.after ?? null) === null
+          && sideEffect.before?.id === change.sceneBefore?.id
+      )
+    ));
+    return !matchingSideEffect;
+  });
   for (const change of entry?.changes || []) {
     if (
       Object.prototype.hasOwnProperty.call(change || {}, "sceneBefore")
@@ -110,7 +142,7 @@ export function decorateCompositeEffectsHistoryEntry({
       afterPosition: clone(s.afterPosition || s.after?.position),
     }));
   const effectiveChanges = (Array.isArray(entry?.changes) && entry.changes.length > 0)
-    ? entry.changes
+    ? entryChanges
     : sideEffectItemChanges;
   const fields = Array.from(new Set(changes.flatMap((change) => [
     ...Object.keys(change.fields || {}).filter((field) => change.fields[field]),
@@ -129,6 +161,7 @@ export function decorateCompositeEffectsHistoryEntry({
       targetIds: Array.from(new Set([
         ...changes.map((change) => change.id),
         ...effectiveChanges.map((change) => change.id),
+        ...sideEffects.map((sideEffect) => sideEffect?.id),
       ].filter(Boolean))),
       fields,
       changes,

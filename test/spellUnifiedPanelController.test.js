@@ -999,3 +999,429 @@ test("ARCH-07 T6: riaprire il pannello non accumula subscription initiative/stat
     assert.equal(turnListeners.size, 0);
   }
 });
+
+test("passando a Dimension Door ricarica i candidati prima di calcolare i passeggeri", async () => {
+  const provider = createProvider();
+  const requestedSpellIds = [];
+  const casterCandidate = {
+    key: "caster-a",
+    label: "Caster A",
+    layer: "CHARACTER",
+    isCreature: true,
+  };
+  const diagonalCandidate = {
+    key: "diagonal-existing",
+    label: "Diagonale già presente",
+    layer: "CHARACTER",
+    isCreature: true,
+  };
+  provider.getCatalogEntries = () => [
+    { key: "fireball", label: "Palla di fuoco", flags: { placement: true, targeting: true } },
+    { key: "dimension-door", label: "Porta Dimensionale", flags: { placement: true, targeting: true } },
+  ];
+  provider.getTargetCandidates = async (spellId) => {
+    requestedSpellIds.push(spellId);
+    return spellId === "dimension-door"
+      ? [casterCandidate, diagonalCandidate]
+      : [casterCandidate];
+  };
+  provider.getTeleportPassengerCandidateIds = async (casterId, candidates) => (
+    casterId === "caster-a"
+      ? candidates.map((candidate) => candidate.key).filter((id) => id !== casterId)
+      : []
+  );
+
+  const { root, panel } = boot({
+    provider,
+    route: { status: "ready", spellId: "fireball", session: { casterId: "caster-a" } },
+  });
+  await settle();
+  assert.deepEqual(panel.state.targetCandidates.map((candidate) => candidate.key), ["caster-a"]);
+
+  await requiredNode(root, ".unified-combobox-toggle").click();
+  await requiredNode(root, '[data-catalog-key="dimension-door"]').click();
+  await settle();
+
+  assert.equal(requestedSpellIds.at(-1), "dimension-door");
+  assert.deepEqual(
+    panel.state.targetCandidates.map((candidate) => candidate.key),
+    ["caster-a", "diagonal-existing"],
+  );
+  assert.deepEqual(panel.state.teleportPassengerCandidateIds, ["diagonal-existing"]);
+  assert.deepEqual(
+    panel.state.model.targets.teleport.passenger.options.map((option) => option.value),
+    ["", "diagonal-existing"],
+  );
+  await panel.destroy();
+});
+
+test("Dimension Door mantiene il passeggero dal selettore fino al command dopo il placement", async () => {
+  const provider = createProvider();
+  let passengerCandidateIds = ["target-a"];
+  let notifySceneChange = null;
+  provider.targetCandidate = (item) => ({
+    key: item.id,
+    label: item.name,
+    subtitle: "Creatura",
+    faction: item.metadata?.[META_KEY]?.faction || "neutral",
+    layer: item.layer,
+    isCreature: item.layer === "CHARACTER",
+  });
+  provider.getTeleportPassengerCandidateIds = async (casterId) => (
+    casterId === "caster-a" ? passengerCandidateIds : []
+  );
+  provider.onSceneItemsChange = (callback) => {
+    notifySceneChange = callback;
+    return () => {};
+  };
+  provider.validateTargetSelection = async () => ({
+    valid: true,
+    errors: [],
+    invalidPassengerIds: [],
+  });
+
+  const broadcast = new FakeBroadcast();
+  broadcast.sendMessage = async (channel, data) => {
+    broadcast.calls.push({ channel, data });
+    if (channel !== SPELL_AREA_PLACEMENT_CHANNEL) return;
+    if (data.type === "start") {
+      broadcast.pendingPlacement = data;
+      return;
+    }
+    if (data.type === "confirm" || data.type === "cancel") {
+      broadcast.pendingPlacement = null;
+      broadcast.emit(channel, {
+        type: "result",
+        requestId: data.requestId,
+        status: data.type === "confirm" ? "confirmed" : "cancelled",
+        preview: data.type === "confirm"
+          ? {
+            type: "square",
+            start: { x: 225, y: 225 },
+            end: { x: 375, y: 375 },
+            position: { x: 300, y: 300 },
+            targetIds: [],
+          }
+          : null,
+      });
+    }
+  };
+
+  let command = null;
+  const { root, panel } = boot({
+    provider,
+    broadcast,
+    route: {
+      status: "ready",
+      spellId: "dimension-door",
+      session: { casterId: "caster-a" },
+    },
+    areaExecutor: async (nextCommand) => {
+      command = nextCommand;
+      return {
+        status: "applied",
+        changedIds: ["caster-a", "target-a"],
+        historyEntryId: "dimension-door-history",
+        undoAvailable: true,
+      };
+    },
+  });
+  await settle(10);
+
+  const passenger = requiredNode(root, "#spell-unified-teleport-passenger");
+  passenger.value = "target-a";
+  await passenger.emit("change");
+  await settle(6);
+  assert.equal(panel.state.session.passengerId, "target-a");
+  assert.deepEqual(panel.state.session.targetIds, ["target-a"]);
+
+  // Una lettura del footprint può essere vuota durante l'interazione di
+  // placement. Non deve trasformare questo stesso cast in caster-only.
+  passengerCandidateIds = [];
+  notifySceneChange?.();
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  await settle(6);
+  assert.equal(panel.state.session.passengerId, "target-a");
+  assert.deepEqual(panel.state.session.targetIds, ["target-a"]);
+  passengerCandidateIds = ["target-a"];
+  notifySceneChange?.();
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  await settle(6);
+
+  await requiredNode(root, '[data-placement-action="required"]').click();
+  await settle(5);
+  await requiredNode(root, "[data-placement-confirm]").click();
+  await settle(8);
+  assert.equal(panel.state.session.placement.state, "confirmed");
+  assert.equal(panel.state.session.passengerId, "target-a");
+  assert.deepEqual(panel.state.session.targetIds, ["target-a"]);
+
+  // Il punto è bloccato, ma il passeggero resta modificabile fino al commit.
+  passenger.value = "";
+  await passenger.emit("change");
+  await settle(6);
+  assert.equal(panel.state.session.passengerId, "");
+  assert.deepEqual(panel.state.session.targetIds, []);
+  passenger.value = "target-a";
+  await passenger.emit("change");
+  await settle(6);
+  assert.equal(panel.state.session.passengerId, "target-a");
+  assert.deepEqual(panel.state.session.targetIds, ["target-a"]);
+
+  await requiredNode(root, '[data-primary-action="apply"]').click();
+  await settle(10);
+  assert.equal(command?.teleport?.passengerId, "target-a", JSON.stringify(command));
+  assert.deepEqual(command?.teleport?.affectedTargetIds, ["caster-a", "target-a"]);
+  await panel.destroy();
+});
+
+test("Dimension Door ignora le selezioni spurie della mappa dopo la scelta del passeggero", async () => {
+  const provider = createProvider();
+  const selectionListeners = [];
+  provider.targetCandidate = (item) => ({
+    key: item.id,
+    label: item.name,
+    subtitle: "Creatura",
+    faction: item.metadata?.[META_KEY]?.faction || "neutral",
+    layer: item.layer,
+    isCreature: item.layer === "CHARACTER",
+  });
+  provider.getTeleportPassengerCandidateIds = async (casterId) => (
+    casterId === "caster-a" ? ["target-a"] : []
+  );
+  provider.validateTargetSelection = async () => ({
+    valid: true,
+    errors: [],
+    invalidPassengerIds: [],
+  });
+  provider.onSelectionChange = (callback) => {
+    selectionListeners.push(callback);
+    return () => {};
+  };
+  let currentSelection = [];
+  provider.setSelection = async (ids) => {
+    const echoedIds = [...ids];
+    if (JSON.stringify(echoedIds) === JSON.stringify(currentSelection)) return;
+    currentSelection = echoedIds;
+    setImmediate(() => selectionListeners[0]?.(echoedIds));
+  };
+
+  const broadcast = new FakeBroadcast();
+  broadcast.sendMessage = async (channel, data) => {
+    broadcast.calls.push({ channel, data });
+    if (channel !== SPELL_AREA_PLACEMENT_CHANNEL) return;
+    if (data.type === "start") {
+      broadcast.pendingPlacement = data;
+      return;
+    }
+    if (data.type === "confirm" || data.type === "cancel") {
+      broadcast.pendingPlacement = null;
+      broadcast.emit(channel, {
+        type: "result",
+        requestId: data.requestId,
+        status: data.type === "confirm" ? "confirmed" : "cancelled",
+        preview: data.type === "confirm"
+          ? {
+            type: "square",
+            start: { x: 225, y: 225 },
+            end: { x: 375, y: 375 },
+            position: { x: 300, y: 300 },
+            targetIds: [],
+          }
+          : null,
+      });
+    }
+  };
+  let command = null;
+  const { root, panel } = boot({
+    provider,
+    broadcast,
+    route: {
+      status: "ready",
+      spellId: "dimension-door",
+      session: { casterId: "caster-a" },
+    },
+    areaExecutor: async (nextCommand) => {
+      command = nextCommand;
+      return {
+        status: "applied",
+        changedIds: ["caster-a", "target-a"],
+        historyEntryId: "dimension-door-selection-echo-history",
+        undoAvailable: true,
+      };
+    },
+  });
+  await settle(10);
+
+  const passenger = requiredNode(root, "#spell-unified-teleport-passenger");
+  passenger.value = "target-a";
+  await passenger.emit("change");
+  await settle(6);
+
+  selectionListeners[0]?.([]);
+  selectionListeners[0]?.(["caster-a"]);
+  await settle(6);
+  assert.equal(panel.state.session.passengerId, "target-a");
+  assert.deepEqual(panel.state.session.targetIds, ["target-a"]);
+
+  await requiredNode(root, '[data-placement-action="required"]').click();
+  await settle(6);
+
+  assert.equal(panel.state.session.placement.state, "pending");
+  assert.equal(panel.state.session.passengerId, "target-a");
+  assert.deepEqual(panel.state.session.targetIds, ["target-a"]);
+  selectionListeners[0]?.([]);
+  await settle(6);
+  assert.equal(panel.state.session.passengerId, "target-a");
+  assert.deepEqual(panel.state.session.targetIds, ["target-a"]);
+
+  await requiredNode(root, "[data-placement-confirm]").click();
+  await settle(8);
+  selectionListeners[0]?.(["caster-a"]);
+  await settle(6);
+  assert.equal(panel.state.session.passengerId, "target-a");
+  assert.deepEqual(panel.state.session.targetIds, ["target-a"]);
+
+  await requiredNode(root, '[data-primary-action="apply"]').click();
+  await settle(10);
+
+  assert.equal(command?.teleport?.passengerId, "target-a", JSON.stringify(command));
+  assert.deepEqual(command?.teleport?.affectedTargetIds, ["caster-a", "target-a"]);
+  await panel.destroy();
+});
+
+test("Dimension Door non perde il passeggero se il placement viene avviato durante la validazione", async () => {
+  const provider = createProvider();
+  provider.targetCandidate = (item) => ({
+    key: item.id,
+    label: item.name,
+    subtitle: "Creatura",
+    faction: item.metadata?.[META_KEY]?.faction || "neutral",
+    layer: item.layer,
+    isCreature: item.layer === "CHARACTER",
+  });
+  provider.getTeleportPassengerCandidateIds = async (casterId) => (
+    casterId === "caster-a" ? ["target-a"] : []
+  );
+  let resolveValidationStarted;
+  const validationStarted = new Promise((resolve) => {
+    resolveValidationStarted = resolve;
+  });
+  let resolveValidation;
+  const validation = new Promise((resolve) => {
+    resolveValidation = resolve;
+  });
+  provider.validateTargetSelection = async () => {
+    resolveValidationStarted();
+    return validation;
+  };
+
+  const broadcast = new FakeBroadcast();
+  broadcast.sendMessage = async (channel, data) => {
+    broadcast.calls.push({ channel, data });
+    if (channel !== SPELL_AREA_PLACEMENT_CHANNEL) return;
+    if (data.type === "start") {
+      broadcast.pendingPlacement = data;
+      return;
+    }
+    if (data.type === "confirm" || data.type === "cancel") {
+      broadcast.pendingPlacement = null;
+      broadcast.emit(channel, {
+        type: "result",
+        requestId: data.requestId,
+        status: data.type === "confirm" ? "confirmed" : "cancelled",
+        preview: data.type === "confirm"
+          ? {
+            type: "square",
+            start: { x: 225, y: 225 },
+            end: { x: 375, y: 375 },
+            position: { x: 300, y: 300 },
+            targetIds: [],
+          }
+          : null,
+      });
+    }
+  };
+
+  let command = null;
+  const { root, panel } = boot({
+    provider,
+    broadcast,
+    route: {
+      status: "ready",
+      spellId: "dimension-door",
+      session: { casterId: "caster-a" },
+    },
+    areaExecutor: async (nextCommand) => {
+      command = nextCommand;
+      return {
+        status: "applied",
+        changedIds: ["caster-a", "target-a"],
+        historyEntryId: "dimension-door-race-history",
+        undoAvailable: true,
+      };
+    },
+  });
+  await settle(10);
+
+  const passenger = requiredNode(root, "#spell-unified-teleport-passenger");
+  passenger.value = "target-a";
+  const changePromise = passenger.listeners.get("change")[0](
+    { type: "change", target: passenger, currentTarget: passenger },
+  );
+  await validationStarted;
+  assert.equal(panel.state.session.passengerId, "target-a");
+  assert.deepEqual(panel.state.session.targetIds, ["target-a"]);
+
+  await requiredNode(root, '[data-placement-action="required"]').click();
+  await settle(3);
+  assert.equal(panel.state.session.placement.state, "pending");
+
+  resolveValidation({ valid: true, errors: [], invalidPassengerIds: [] });
+  await changePromise;
+  await requiredNode(root, "[data-placement-confirm]").click();
+  await settle(8);
+  await requiredNode(root, '[data-primary-action="apply"]').click();
+  await settle(10);
+
+  assert.equal(command?.teleport?.passengerId, "target-a", JSON.stringify(command));
+  assert.deepEqual(command?.teleport?.affectedTargetIds, ["caster-a", "target-a"]);
+  await panel.destroy();
+});
+
+test("Dimension Door reidrata il passeggero dalla selezione scena iniziale", async () => {
+  const provider = createProvider();
+  provider.targetCandidate = (item) => ({
+    key: item.id,
+    label: item.name,
+    subtitle: "Creatura",
+    faction: item.metadata?.[META_KEY]?.faction || "neutral",
+    layer: item.layer,
+    isCreature: item.layer === "CHARACTER",
+  });
+  provider.getSelection = async () => ["caster-a", "target-a"];
+  provider.getTeleportPassengerCandidateIds = async (casterId) => (
+    casterId === "caster-a" ? ["target-a"] : []
+  );
+  provider.validateTargetSelection = async () => ({
+    valid: true,
+    errors: [],
+    invalidPassengerIds: [],
+  });
+
+  const { root, panel } = boot({
+    provider,
+    broadcast: new FakeBroadcast(),
+    route: {
+      status: "ready",
+      spellId: "dimension-door",
+      session: { casterId: "caster-a" },
+    },
+  });
+  await settle(10);
+
+  assert.equal(panel.state.session.passengerId, "target-a");
+  assert.deepEqual(panel.state.session.targetIds, ["target-a"]);
+  assert.equal(requiredNode(root, "#spell-unified-teleport-passenger").value, "target-a");
+  await panel.destroy();
+});

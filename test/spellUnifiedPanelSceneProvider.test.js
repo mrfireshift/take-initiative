@@ -13,6 +13,7 @@ import {
   getContextOrSelectionIds,
   getSpellAreaSpatialValidation,
   getSpellOverviewSnapshot,
+  getSpellTeleportPassengerCandidateIds,
   reprojectSpellOverviewForInitiativeState,
   validateSpellUnifiedTargetSelection,
   validateSpellAreaSceneSpatial,
@@ -604,4 +605,268 @@ test("l'area ancorata mantiene il primary di una pedina grande e rifiuta anchor 
     targetIds: ["large-primary", "nearby"],
   });
   assert.deepEqual(stale, { valid: false, errors: ["placement-anchor-stale"] });
+});
+
+test("Dimension Door misura separatamente gittata della destinazione e prossimità del passeggero", async () => {
+  const contract = buildSpellUnifiedPanelContract({ spellId: "dimension-door" });
+  const items = [
+    character("caster", "Caster"),
+    character("passenger", "Passeggero"),
+  ];
+  const placement = {
+    status: "confirmed",
+    confirmed: true,
+    spellId: "dimension-door",
+    ruleId: "dimension-door:cast",
+    casterId: "caster",
+    preview: {
+      type: "square",
+      position: { x: 1500, y: 0 },
+      start: { x: 1500, y: 0 },
+      end: { x: 1650, y: 150 },
+      gridOrigin: { x: 0, y: 0 },
+      dpi: 150,
+    },
+  };
+  const obr = fakeObr(items, {
+    geometryById: {
+      caster: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+      passenger: { min: { x: 150, y: 0 }, max: { x: 300, y: 150 } },
+    },
+  });
+  const spatial = await getSpellAreaSpatialValidation(obr, {
+    contract,
+    session: {
+      casterId: "caster",
+      passengerId: "passenger",
+      placement,
+    },
+    items,
+  });
+  assert.equal(spatial.mode, "teleport");
+  assert.equal(spatial.invalidDestination, false);
+  assert.deepEqual(spatial.invalidPassengerIds, []);
+  assert.equal(spatial.passengerAdjacent, true);
+  assert.deepEqual(spatial.passengerRelativeOffset, { x: 150, y: 0 });
+  assert.equal(spatial.destinationDistanceMeters <= 150, true);
+  assert.equal(spatial.passengerDistanceMeters <= 1.5, true);
+
+  const selection = await validateSpellUnifiedTargetSelection(obr, {
+    contract,
+    session: { casterId: "caster", passengerId: "passenger", placement },
+    targetIds: ["passenger"],
+  });
+  assert.equal(selection.valid, true, selection.errors?.join(", "));
+
+  const diagonalPassengerObr = fakeObr(items, {
+    geometryById: {
+      caster: { min: { x: 0.2, y: -0.2 }, max: { x: 150.2, y: 149.8 } },
+      passenger: { min: { x: 150.6, y: 150.2 }, max: { x: 300.6, y: 300.2 } },
+    },
+  });
+  const diagonalPassenger = await getSpellAreaSpatialValidation(diagonalPassengerObr, {
+    contract,
+    session: { casterId: "caster", passengerId: "passenger", placement },
+    items,
+  });
+  assert.equal(diagonalPassenger.passengerAdjacent, true);
+  assert.equal(diagonalPassenger.passengerDistanceMeters > 1.5, true);
+  assert.deepEqual(diagonalPassenger.invalidPassengerIds, []);
+
+  const farPassengerObr = fakeObr([
+    items[0],
+    { ...items[1], position: { x: 600, y: 0 } },
+  ], {
+    geometryById: {
+      caster: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+      passenger: { min: { x: 600, y: 0 }, max: { x: 750, y: 150 } },
+    },
+  });
+  const farPassenger = await getSpellAreaSpatialValidation(farPassengerObr, {
+    contract,
+    session: { casterId: "caster", passengerId: "passenger", placement },
+    items: farPassengerObr.scene.items
+      ? await farPassengerObr.scene.items.getItems()
+      : [],
+  });
+  assert.deepEqual(farPassenger.invalidPassengerIds, ["passenger"]);
+
+  const farDestination = await getSpellAreaSpatialValidation(obr, {
+    contract,
+    session: {
+      casterId: "caster",
+      placement: {
+        ...placement,
+        preview: {
+          ...placement.preview,
+          position: { x: 20000, y: 0 },
+          start: { x: 20000, y: 0 },
+          end: { x: 20150, y: 150 },
+        },
+      },
+    },
+    items,
+  });
+  assert.equal(farDestination.invalidDestination, true);
+
+  const overlappingPassenger = await getSpellAreaSpatialValidation(fakeObr(items, {
+    geometryById: {
+      caster: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+      passenger: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+    },
+  }), {
+    contract,
+    session: { casterId: "caster", passengerId: "passenger", placement },
+  });
+  assert.equal(overlappingPassenger.passengerAdjacent, false);
+  assert.deepEqual(overlappingPassenger.invalidPassengerIds, ["passenger"]);
+
+  const distantPassenger = await getSpellAreaSpatialValidation(fakeObr(items, {
+    geometryById: {
+      caster: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+      passenger: { min: { x: 300, y: 0 }, max: { x: 450, y: 150 } },
+    },
+  }), {
+    contract,
+    session: { casterId: "caster", passengerId: "passenger", placement },
+  });
+  assert.equal(distantPassenger.passengerAdjacent, false);
+  assert.deepEqual(distantPassenger.invalidPassengerIds, ["passenger"]);
+});
+
+test("Dimension Door non blocca il cast se la geometria live non è leggibile: resta GM-assisted", async () => {
+  const contract = buildSpellUnifiedPanelContract({ spellId: "dimension-door" });
+  const obr = fakeObr([character("caster", "Caster")]);
+  obr.scene.items.getItems = async () => {
+    throw new Error("scene-read-unavailable");
+  };
+  obr.scene.items.getItemBounds = () => {
+    throw new Error("bounds-read-unavailable");
+  };
+  obr.scene.grid.getDpi = () => {
+    throw new Error("dpi-read-unavailable");
+  };
+  obr.scene.grid.getScale = () => {
+    throw new Error("scale-read-unavailable");
+  };
+
+  const spatial = await getSpellAreaSpatialValidation(obr, {
+    contract,
+    session: {
+      casterId: "caster",
+      placement: {
+        status: "confirmed",
+        preview: {
+          type: "square",
+          start: { x: 1500, y: 0 },
+          end: { x: 1650, y: 150 },
+          gridOrigin: { x: 1500, y: 0 },
+        },
+      },
+    },
+  });
+
+  assert.equal(spatial.invalidDestination, false);
+  assert.deepEqual(spatial.invalidPassengerIds, []);
+  assert.equal(spatial.destinationDistanceMeters, null);
+});
+
+test("Dimension Door espone soltanto i passeggeri nelle caselle adiacenti", async () => {
+  const items = [
+    character("caster", "Caster"),
+    character("side", "Laterale"),
+    character("diagonal", "Diagonale"),
+    character("far", "Lontano"),
+    character("overlap", "Sovrapposto"),
+  ];
+  const obr = fakeObr(items, {
+    geometryById: {
+      caster: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+      side: { min: { x: 150, y: 0 }, max: { x: 300, y: 150 } },
+      diagonal: { min: { x: 152.5, y: 152 }, max: { x: 302.5, y: 302 } },
+      far: { min: { x: 450, y: 0 }, max: { x: 600, y: 150 } },
+      overlap: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+    },
+  });
+  const candidates = items.map((item) => ({
+    key: item.id,
+    label: item.name,
+    isCreature: true,
+  }));
+
+  assert.deepEqual(
+    await getSpellTeleportPassengerCandidateIds(obr, {
+      casterId: "caster",
+      candidates,
+    }),
+    ["side", "diagonal"],
+  );
+});
+
+test("Dimension Door considera anche una creatura fuori iniziativa se è adiacente", async () => {
+  const items = [
+    character("caster", "Caster", { inInitiative: true }),
+    character("adjacent", "Adiacente"),
+    character("far", "Lontano"),
+  ];
+  const obr = fakeObr(items, {
+    order: ["caster"],
+    geometryById: {
+      caster: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+      adjacent: { min: { x: 150, y: 0 }, max: { x: 300, y: 150 } },
+      far: { min: { x: 600, y: 0 }, max: { x: 750, y: 150 } },
+    },
+  });
+  const provider = createSpellUnifiedPanelSceneProvider(obr);
+  const candidates = await provider.getTargetCandidates("dimension-door");
+
+  assert.deepEqual(
+    await provider.getTeleportPassengerCandidateIds("caster", candidates),
+    ["adjacent"],
+  );
+});
+
+test("Dimension Door considera una creatura CHARACTER senza metadata del tracker", async () => {
+  const items = [
+    character("caster", "Caster", { inInitiative: true }),
+    {
+      id: "untracked-adjacent",
+      name: "Creatura adiacente",
+      layer: "CHARACTER",
+      position: { x: 150, y: 0 },
+    },
+  ];
+  const obr = fakeObr(items, {
+    order: ["caster"],
+    geometryById: {
+      caster: { min: { x: 0, y: 0 }, max: { x: 150, y: 150 } },
+      "untracked-adjacent": { min: { x: 150, y: 0 }, max: { x: 300, y: 150 } },
+    },
+  });
+  const provider = createSpellUnifiedPanelSceneProvider(obr);
+  const candidates = await provider.getTargetCandidates("dimension-door");
+
+  assert.equal(candidates.some((candidate) => candidate.key === "untracked-adjacent"), true);
+  assert.deepEqual(
+    await provider.getTeleportPassengerCandidateIds("caster", candidates),
+    ["untracked-adjacent"],
+  );
+});
+
+test("Dimension Door non offre passeggeri se il footprint del caster non è misurabile", async () => {
+  const items = [character("caster", "Caster"), character("passenger", "Passeggero")];
+  const obr = fakeObr(items);
+  const candidates = items.map((item) => ({
+    key: item.id,
+    label: item.name,
+    isCreature: true,
+  }));
+
+  assert.deepEqual(
+    await getSpellTeleportPassengerCandidateIds(obr, {
+      casterId: "caster",
+      candidates,
+    }),
+    [],
+  );
 });

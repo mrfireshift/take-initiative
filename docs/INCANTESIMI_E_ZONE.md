@@ -36,18 +36,17 @@ Il catalogo runtime contiene **477 definizioni**:
 | Alias legacy di compatibilità | 2 |
 
 Di queste, **358 definizioni sono disponibili come opzioni trackable** e il
-pannello unificato espone **392 voci** dopo la deduplicazione tra catalogo
+pannello unificato espone **393 voci** dopo la deduplicazione tra catalogo
 spell e workflow ad area. Gli istantanei senza stato persistente restano nel
 riferimento o nei workflow ad area, ma non creano necessariamente una spell
 attiva.
 
 Il catalogo dichiara inoltre:
 
-  67 zone persistenti, 12 aure mobili e 4 emissioni;
-- 138 regole geometriche per 133 incantesimi distinti: 54 effetti istantanei,
-  68 zone persistenti, 12 aure mobili e 4 emissioni;
+- 140 regole geometriche per 135 incantesimi distinti: 55 effetti istantanei,
+  68 zone persistenti, 13 aure mobili e 4 emissioni;
 - 81 definizioni con `saveAutomation` nel catalogo runtime;
-- 26 definizioni con azioni attive esposte dal contratto del pannello unificato.
+- 32 definizioni con azioni attive esposte dal contratto del pannello unificato.
 
 Questi numeri descrivono il catalogo tecnico, non il numero di incantesimi
 completamente automatizzati. Alcune geometrie possono essere disegnate senza
@@ -160,6 +159,33 @@ volatile. Le transizioni, il token teleport e il ritorno terminale usano la
 History condivisa; il tick di round non rende più stale gli Undo di cast,
 esito d20 e ritorno.
 
+### Porta Dimensionale — `dimension-door`
+
+Porta Dimensionale usa il pannello spell unificato con caster, punto di arrivo
+obbligatorio entro 150 m e passeggero opzionale. Il passeggero è un solo token
+`CHARACTER`, diverso dal caster, e può essere scelto soltanto se la scena rende
+verificabile l'adiacenza a griglia: una casella laterale o diagonale adiacente
+è valida, una sovrapposizione o un intervallo è rifiutato. Quando la geometria
+non è leggibile, il selettore non offre passeggeri e il cast caster-only resta
+valido; il plugin non inventa
+una collisione o una linea di vista.
+
+La destinazione entra nel command come punto serializzabile. Al momento del
+cast viene salvato l'offset tra caster e passeggero; il secondo token arriva a
+`destinazione caster + offset`, mantenendo la disposizione iniziale e senza
+sovrapporsi al caster. Caster e passeggero sono due side effect
+`token:teleport` della stessa transazione, command identity e History entry:
+Undo ripristina entrambi e il recovery ARCH-05B completa soltanto il side
+effect ancora pendente dopo un restart.
+
+Occupazione del punto, consenso, peso trasportato e possibilità di vedere,
+visualizzare o descrivere il luogo sono decisioni RAW del GM. Se il GM sceglie
+l'adjudication di luogo occupato, il plugin non raccoglie un controllo "Esito
+Destinazione" e non applica automaticamente i 4d6 danni da forza: la
+conseguenza resta una decisione del GM e qualsiasi eventuale danno inserito
+successivamente segue il normale workflow Effects/HP.
+Il matched VFX è cosmetico: un errore visuale non annulla il teleport riuscito.
+
 ## Incantesimi preparati e risoluzione differita
 
 Gli incantesimi con una fase di preparazione possono essere registrati sul
@@ -184,11 +210,26 @@ Un'azione rapida può:
 - aprire o precompilare il workflow di un incantesimo;
 - aprire o precompilare una spell ad area;
 - applicare una condizione al caster o alla selezione;
-- eseguire direttamente il caso semplice con un solo bersaglio;
+- eseguire direttamente un cast completamente determinato, anche su più
+  bersagli discreti;
 - conservare slot, durata, automazioni e scadenza configurati.
 
 Le azioni rapide fanno parte del profilo persistente della card e seguono
 l'attore tra le scene.
+
+### Policy del tiro salvezza iniziale
+
+Nel percorso `source = QUICK_ACTION`, quando il contratto della spell dichiara
+un tiro salvezza iniziale, i bersagli già selezionati dalla card ricevono
+esplicitamente `initialSaveOutcome: "failed"`. Questo vale per ogni bersaglio
+della selezione e soltanto per il cast iniziale: non tira dadi, non calcola la
+CD e non modifica il resolver globale `passed` / `failed` / `immune`.
+
+Il piano passa comunque dal command e dall'executor area canonici, quindi
+restano attivi limite bersagli, validazioni spaziali, automazioni, condizioni,
+concentrazione, History/Undo, reminder dei repeat save e cleanup. Se il
+contratto richiede placement, variante, contesto, danno o un altro input
+necessario, l'azione rapida ricade nel Pannello Spell con i dati già noti.
 
 ## Reminder di tiro salvezza ed effetti
 

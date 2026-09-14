@@ -19,6 +19,7 @@ import {
   SPELL_AREA_PLACEMENT_CHANNEL,
   completeSpellAreaPlacement as completePlacementSession,
   constrainedSpellAreaEnd,
+  centeredSquarePlacementBounds,
   createSpellAreaPlacementSession,
   nearestGridCellCenter,
   nearestGridCellSideCenter,
@@ -94,6 +95,16 @@ function isBoardTokenPlacement(value = spellPlacementSession?.rule) {
 
 function isPointPlacement(value = spellPlacementSession?.rule) {
   return value?.placement?.mode === "point";
+}
+
+function isCenteredPointPlacement(value = spellPlacementSession?.rule) {
+  return isPointPlacement(value) && value?.placement?.centered === true;
+}
+
+function pointPlacementPosition(state) {
+  return point(state?.pointPosition)
+    || point(state?.originCellCenter)
+    || point(state?.start);
 }
 
 function isDirectPointSelection(state) {
@@ -811,6 +822,24 @@ function renderDrag(state) {
         state.start = endpoints.start;
         state.end = endpoints.end;
       }
+    } else if (isCenteredPointPlacement(state)) {
+      const snapped = nearestGridFootprintCenter(
+        state.rawEnd || state.rawStart,
+        state.gridOrigin,
+        state.dpi,
+        { widthCells: 1, heightCells: 1 },
+      );
+      const position = snapped?.position || pointPlacementPosition(state);
+      const bounds = centeredSquarePlacementBounds(
+        position,
+        state.dpi,
+        state.sizeCells,
+      );
+      if (bounds) {
+        state.pointPosition = bounds.position;
+        state.start = bounds.start;
+        state.end = bounds.end;
+      }
     } else {
       state.end = constrainedSpellAreaEnd({
         shape: state.type,
@@ -985,6 +1014,7 @@ async function prepareDrag(state) {
       })
       : 0;
     const pointPlacement = isPointPlacement(state.rule);
+    const centeredPointPlacement = isCenteredPointPlacement(state.rule);
     const snapToVertex = state.rule?.placement?.snapOrigin === "vertex"
       || state.rule?.placement?.snap === "vertex"
       || (state.spellPlacementRequestId && state.type === "square")
@@ -994,7 +1024,9 @@ async function prepareDrag(state) {
         state.rawStart,
         corner,
         state.dpi,
-        gridFootprintCells(state.casterBounds, state.dpi),
+        centeredPointPlacement
+          ? { widthCells: 1, heightCells: 1 }
+          : gridFootprintCells(state.casterBounds, state.dpi),
       )
       : state.rule?.placement?.origin === "caster-adjacent"
       ? nearestGridCellCenter(state.rawStart, corner, state.dpi)
@@ -1010,6 +1042,7 @@ async function prepareDrag(state) {
           : nearestGridSnap(state.rawStart, corner, state.dpi);
     state.originCellCenter = snapped?.position || corner;
     state.originSnapKind = snapped?.kind || (pointPlacement ? "center" : snapToVertex ? "corner" : "center");
+    state.pointPosition = state.originCellCenter;
     state.start = state.originCellCenter;
     state.gridOrigin = snapped?.gridOrigin || corner;
     if (state.spellPlacementRequestId) {
@@ -1028,6 +1061,18 @@ async function prepareDrag(state) {
         multiplier: state.multiplier,
         unit: state.unit,
       });
+      if (centeredPointPlacement) {
+        const bounds = centeredSquarePlacementBounds(
+          state.pointPosition,
+          state.dpi,
+          state.sizeCells,
+        );
+        if (bounds) {
+          state.pointPosition = bounds.position;
+          state.start = bounds.start;
+          state.end = bounds.end;
+        }
+      }
       state.measureLabel = `${formatMeasure(state.rule.geometry.size.value)} m`;
       if (
         state.rule.placement.origin === "caster-adjacent"
@@ -1047,7 +1092,7 @@ async function prepareDrag(state) {
       }
       updateConeOrigin(state);
       const inRange = spellAreaOriginWithinRange({
-        origin: state.start,
+        origin: pointPlacementPosition(state),
         casterOrigin: state.casterOrigin,
         range: state.rule.placement.range,
         dpi: state.dpi,
@@ -1430,7 +1475,7 @@ async function finishDrag(state) {
         type: state.type,
         start: state.start,
         end: state.start,
-        position: state.start,
+        position: pointPlacementPosition(state),
         dpi: state.dpi,
         gridOrigin: state.gridOrigin,
         targetIds: [],
@@ -1454,7 +1499,7 @@ async function finishDrag(state) {
           type: state.type,
           start: state.start,
           end: state.end,
-          position: state.start,
+          position: pointPlacementPosition(state),
           dpi: state.dpi,
           gridOrigin: state.gridOrigin,
           targetIds: [],
@@ -1629,6 +1674,7 @@ function startDrag(type, event) {
     interaction: null,
     area: null,
     originCellCenter: null,
+    pointPosition: null,
     originSnapKind: "center",
     spellPlacementRequestId: constrained ? placement.session.requestId : "",
     rule: constrained ? placement.rule : null,
@@ -1719,7 +1765,7 @@ async function confirmSpellPlacement() {
       type: state.type,
       start: state.start,
       end: state.end,
-      position: state.start,
+      position: pointPlacementPosition(state),
       dpi: state.dpi,
       gridOrigin: state.gridOrigin,
       targetIds: [],

@@ -122,6 +122,37 @@ test("Palla di fuoco senza bersagli ignora un valore danno rimasto in sessione",
   assert.equal(command.hp.amount, null);
 });
 
+test("Dimension Door ricava il passeggero dal target selezionato se il campo dedicato è vuoto", () => {
+  const command = buildSpellAreaResolutionCommand({
+    contract: contract("dimension-door"),
+    spellId: "dimension-door",
+    casterId,
+    passengerId: "",
+    targetIds: ["passenger-1"],
+    placement: {
+      status: "confirmed",
+      spellId: "dimension-door",
+      ruleId: "dimension-door:cast",
+      casterId,
+      preview: {
+        position: { x: 300, y: 300 },
+        targetIds: [],
+      },
+    },
+    spatialValidation: {
+      mode: "teleport",
+      destination: { x: 300, y: 300 },
+      passengerAdjacent: true,
+      invalidPassengerIds: [],
+    },
+  });
+
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.equal(command.teleport.passengerId, "passenger-1");
+  assert.deepEqual(command.teleport.affectedTargetIds, [casterId, "passenger-1"]);
+  assert.deepEqual(command.targeting.targetIds, ["passenger-1"]);
+});
+
 test("Palla di fuoco invalida senza placement", () => {
   const command = buildSpellAreaResolutionCommand(fireballInput({ placement: null }));
 

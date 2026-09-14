@@ -182,7 +182,8 @@ function placementLabels(placement, contract = null) {
     ? asText(placement.preview.label) || "Anteprima aggiornata"
     : "";
   const isTeleport = isTeleportSpell(contract?.spell?.id || placement?.spellId);
-    return {
+  const teleportRange = placement?.rules?.[0]?.range?.value;
+  return {
     visible: policy !== "unavailable",
     policy,
     policyLabel: PLACEMENT_POLICY_LABELS[policy] || policy,
@@ -195,7 +196,7 @@ function placementLabels(placement, contract = null) {
       : isBatch
         ? "Posiziona tutti gli oggetti sulla mappa e conferma il gruppo."
       : isTeleport
-        ? "Seleziona la casella libera di destinazione sulla mappa entro 9 metri."
+        ? `Seleziona il punto di arrivo sulla mappa entro ${teleportRange || "la portata"} metri.`
       : "Disegna l'area sulla mappa e confermala per acquisire i bersagli.",
     rules: clone(placement?.rules || []),
     rulesLabel: ruleNames.join(" / "),
@@ -273,6 +274,8 @@ function normalizeTargetCandidates(
       hp: numberOrNull(candidate?.hp),
       hpMax: numberOrNull(candidate?.hpMax),
       turbineSize: asText(candidate?.turbineSize) || null,
+      layer: asText(candidate?.layer) || null,
+      isCreature: candidate?.isCreature === true || asText(candidate?.layer) === "CHARACTER",
       eligible: candidate?.eligible !== false && !outsideSubset,
       selected: isSelected,
       disabled: outsideSubset || targetLocked || (!isSelected
@@ -335,6 +338,16 @@ function spatialRuleLabel(spatial = null) {
     return primary ? `Distanza massima tra bersagli: ${primary} m` : "Distanze tra bersagli";
   }
   if (mode === "action-range") return primary ? `Portata: ${primary} m` : "";
+  if (mode === "teleport") {
+    const passenger = asText(spatial.passengerAdjacency) === "grid-adjacent"
+      ? "Passeggero adiacente al caster"
+      : secondary
+        ? `Passeggero entro ${secondary} m`
+        : "";
+    return primary
+      ? `Destinazione entro ${primary} m${passenger ? ` · ${passenger}` : ""}`
+      : "Destinazione entro la portata della spell";
+  }
   return "";
 }
 
@@ -638,6 +651,7 @@ export function buildUnifiedPanelViewModel({
   selectedCatalogKey = "",
   casterOptions = [],
   targetCandidates = [],
+  teleportPassengerCandidateIds = [],
   targetFilters = {},
   concentrationSummary = [],
   activeOverview = [],
@@ -646,6 +660,7 @@ export function buildUnifiedPanelViewModel({
   const presentation = contract?.presentation || {};
   const executionContract = contract?.execution || {};
   const targeting = presentation.targeting || {};
+  const teleport = presentation.teleport || null;
   const targetingMode = asText(targeting.mode) || "none";
   const inputs = presentation.inputs || {};
   const selectedTargetIds = Array.isArray(session?.targetIds) ? session.targetIds : [];
@@ -817,6 +832,18 @@ export function buildUnifiedPanelViewModel({
     ...candidate,
     hpPreview: hpPreviewByKey.get(candidate.key) || null,
   }));
+  const eligiblePassengerIds = new Set(
+    (Array.isArray(teleportPassengerCandidateIds) ? teleportPassengerCandidateIds : [])
+      .map(asText)
+      .filter(Boolean),
+  );
+  const passengerCandidates = allCandidates
+    .filter((candidate) => (
+      candidate.isCreature === true
+      && candidate.key !== asText(session?.casterId)
+      && eligiblePassengerIds.has(candidate.key)
+    ))
+    .map((candidate) => ({ value: candidate.key, label: candidate.label }));
   const activeZoneInstances = normalizedActiveOverview.filter((overview) => (
     ["zone", "aura"].includes(asText(overview.persistent?.kind))
       && asText(overview.persistent?.state) !== "orphaned"
@@ -964,6 +991,8 @@ export function buildUnifiedPanelViewModel({
       selectedIds: [...selectedTargetIds],
       countLabel: selectionPolarity === "exclude"
         ? `${selectedTargetIds.length} escluse`
+        : teleport?.available === true
+          ? (asText(session?.passengerId) ? "1 passeggero selezionato" : "Solo caster · passeggero opzionale")
         : `${selectedTargetIds.length}${targetCapacity.maximum === null
           ? ""
           : `/${targetCapacity.maximum}`} bersagli`,
@@ -981,9 +1010,30 @@ export function buildUnifiedPanelViewModel({
         : "",
       ruleLabel: selectionPolarity === "exclude"
         ? "Creature escluse dall'effetto"
+        : teleport?.available === true
+          ? "Porta Dimensionale"
         : targeting.filter ? `Filtro: ${targeting.filter}` : "Bersagli compatibili",
       spatialRules: clone(targeting.spatialRules),
       spatialLabel: spatialRuleLabel(targeting.spatialRules),
+      teleport: teleport?.available === true
+        ? {
+          available: true,
+          passenger: {
+            visible: inputs.passenger?.visible === true,
+            required: inputs.passenger?.required === true,
+            label: "Passeggero (opzionale)",
+            hint: teleport.passenger?.adjacency === "grid-adjacent"
+              ? `Una creatura consenziente adiacente al caster${teleport.passenger?.maxDistanceMeters
+                ? ` (entro ${teleport.passenger.maxDistanceMeters} m)`
+                : ""}; taglia pari o inferiore. Consenso, peso e capacità di trasporto restano al GM.`
+              : teleport.passenger?.maxDistanceMeters
+                ? `Una creatura consenziente entro ${teleport.passenger.maxDistanceMeters} m; taglia pari o inferiore. Consenso, peso e capacità di trasporto restano al GM.`
+              : "Seleziona una creatura, se prevista dal testo.",
+            value: asText(session?.passengerId),
+            options: optionList(passengerCandidates, "Nessun passeggero"),
+          },
+        }
+        : null,
       selection: primarySecondarySelection
         ? {
           mode: selectionMode,

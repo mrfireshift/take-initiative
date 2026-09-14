@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "807a0a5583d7742f",
+  "fingerprint": "bb9b989653c31663",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -18,41 +18,41 @@
     },
     "currentAutomationLevel": {
       "FULL": 66,
-      "MANUAL": 88,
-      "PARTIAL": 180,
+      "MANUAL": 87,
+      "PARTIAL": 181,
       "TRACK_ONLY": 143
     },
     "coverageStatus": {
       "ACCEPTED": 71,
-      "CLOSED": 13,
+      "CLOSED": 14,
       "GAP": 11,
-      "UNREVIEWED": 382
+      "UNREVIEWED": 381
     },
     "targetAutomationLevel": {
       "FULL": 66,
       "MANUAL": 3,
-      "PARTIAL": 12,
+      "PARTIAL": 13,
       "TRACK_ONLY": 3,
-      "UNREVIEWED": 393
+      "UNREVIEWED": 392
     },
     "currentUiExposure": {
-      "REFERENCE_ONLY": 85,
-      "UNIFIED": 392
+      "REFERENCE_ONLY": 84,
+      "UNIFIED": 393
     },
     "targetUiExposure": {
-      "UNIFIED": 392,
-      "UNREVIEWED": 85
+      "UNIFIED": 393,
+      "UNREVIEWED": 84
     },
     "trackableOptions": 358,
     "trackable": 355,
-    "withAreaRules": 134,
-    "areaRuleEntries": 139,
+    "withAreaRules": 135,
+    "areaRuleEntries": 140,
     "openRows": 11,
     "confirmed": 10,
     "highConfidence": 1,
     "reviewCandidates": 0,
     "curatedP1": 10,
-    "manuallyReviewed": 94,
+    "manuallyReviewed": 95,
     "knownIntegrationGaps": 0,
     "knownRawGaps": 11,
     "byPriority": {
@@ -92,29 +92,29 @@
     },
     "byIntegrationStatus": {
       "partial": 11,
-      "reachable": 381,
-      "unexposed": 85
+      "reachable": 382,
+      "unexposed": 84
     },
     "byIntegrationPriority": {
       "—": 477
     },
     "byIntegrationIssue": {
       "CAST_NO_MUTATIONS": 3,
-      "UNIFIED_CATALOG_MISSING": 85
+      "UNIFIED_CATALOG_MISSING": 84
     },
     "smokeCategories": {
       "ACTIVE_ACTION": 40,
-      "AREA_GEOMETRY": 134,
+      "AREA_GEOMETRY": 135,
       "CAST": 222,
       "CLEANUP": 107,
       "CONCENTRATION": 218,
       "PERSISTENCE": 355,
       "TURN_TRIGGER": 89
     },
-    "unifiedCatalogExposed": 392,
+    "unifiedCatalogExposed": 393,
     "integrationDisconnected": 0,
     "integrationFragile": 0,
-    "runtimeSmokeRequired": 389,
+    "runtimeSmokeRequired": 390,
     "releaseReady": false
   },
   "rows": [
@@ -39250,17 +39250,23 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "MANUAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
-      "smokeCategories": [],
-      "verificationEvidence": [],
-      "reviewBasis": "screening testuale conservativo",
+      "currentAutomationLevel": "PARTIAL",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
+      "smokeCategories": [
+        "AREA_GEOMETRY"
+      ],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [],
-      "coverage": [],
+      "coverage": [
+        "aree:instant"
+      ],
       "assessment": "istantaneo: gestione manuale",
       "priority": "—",
       "gaps": [],
@@ -39270,8 +39276,12 @@
       },
       "runtime": {
         "trackable": false,
-        "areaRuleIds": [],
-        "areaKinds": [],
+        "areaRuleIds": [
+          "dimension-door:cast"
+        ],
+        "areaKinds": [
+          "instant"
+        ],
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
@@ -39279,43 +39289,41 @@
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
-        "smokeCategories": []
+        "smokeCategories": [
+          "AREA_GEOMETRY"
+        ]
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "legacy-area-console"
+          ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
-          "placementPolicy": "unavailable",
+          "lane": "area-transaction",
+          "targetingMode": "geometric",
+          "placementPolicy": "required",
           "visibleInputs": [
+            "caster",
             "slot",
-            "targets"
+            "passenger",
+            "placement"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
           "required": false,
-          "declared": true,
+          "declared": false,
           "ruleIds": []
         },
         "actions": {
@@ -39325,8 +39333,10 @@
           "unreachableActionIds": [],
           "mode": "none"
         },
-        "smokeRequired": false,
-        "smokeCategories": []
+        "smokeRequired": true,
+        "smokeCategories": [
+          "AREA_GEOMETRY"
+        ]
       },
       "evidence": {
         "area": [
@@ -39338,7 +39348,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: Porta Dimensionale è PARTIAL/CLOSED per decisione di prodotto. Il workflow unificato espone il caster, un punto di arrivo entro 150 m e un passeggero opzionale; il comando serializzabile porta destinazione, passeggero, offset relativo e contesto di scena in una singola area transaction. Il plugin verifica l'identità del caster, il limite di un passeggero, il layer CHARACTER, l'esclusione del caster e l'adiacenza a griglia (laterale o diagonale, non sovrapposta) quando sono disponibili footprint affidabili; se il footprint non è misurabile, il selettore non offre passeggeri e resta valido il cast caster-only. La regola RAW aggiuntiva di 1,5 m, la gittata e l'adiacenza restano GM-assisted quando la scena non fornisce misure autorevoli. Il passeggero viene collocato alla destinazione del caster più l'offset di partenza, così non si sovrappone al caster. Consenso, capacità di trasporto, visibilità/visualizzazione/descrizione del punto e occupazione del luogo d'arrivo restano decisioni del GM; il plugin non raccoglie un esito destinazione e non applica automaticamente il danno RAW da luogo occupato. Caster e passeggero usano side effect token:teleport condivisi, un solo owner History/Undo, recovery durevole e matched VFX cosmetico; retry e restart non duplicano il movimento."
     },
     {
       "id": "gate",

@@ -41,6 +41,12 @@ import { pendingSpellZoneTriggerActivations } from "./spellZoneTriggerCore.js";
 import { turbineSizeFromToken } from "./xanatharTurbineCore.js";
 import { blinkSemanticDetail } from "./blinkRules.js";
 import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
+import {
+  getSpellTeleportRule,
+  spellTeleportGeometriesAdjacent,
+  spellTeleportDestinationPosition,
+  spellTeleportRelativeOffset,
+} from "./spellTeleportCore.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -247,11 +253,21 @@ function targetCandidate(item, dpi = 150) {
     hp: Number.isFinite(hp) ? hp : null,
     hpMax: Number.isFinite(hpMax) ? hpMax : null,
     turbineSize: turbineSizeFromToken({ item, dpi }) || null,
+    layer: item?.layer || null,
+    isCreature: item?.layer === "CHARACTER",
   };
 }
 
-export async function getAllSpellTargetItems(obr) {
-  const characters = await getAllInitiativeCharacters(obr, "");
+export async function getAllSpellTargetItems(obr, spellId = "") {
+  const characters = String(spellId || "").trim() === "dimension-door"
+    ? await sceneApi(obr).getItems((item) => (
+      // For Dimension Door, CHARACTER is the authoritative token identity
+      // available to the plugin. A passenger does not need to be in the
+      // initiative tracker (or even have initiative metadata) to be a
+      // nearby creature that can be selected for this cast.
+      item?.layer === "CHARACTER"
+    )).catch(() => [])
+    : await getAllInitiativeCharacters(obr, "");
   const boardTokens = await sceneApi(obr).getItems((item) => (
     item?.layer === "PROP"
       && item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.kind === "spell-board-token"
@@ -264,9 +280,40 @@ export async function getAllSpellTargetItems(obr) {
   return [...byId.values()];
 }
 
+export async function getSpellTeleportPassengerCandidateIds(
+  obr,
+  { casterId = "", candidates = [] } = {},
+) {
+  const normalizedCasterId = text(casterId);
+  if (!normalizedCasterId) return [];
+  const passengerCandidates = (Array.isArray(candidates) ? candidates : [])
+    .filter((candidate) => (
+      candidate?.isCreature === true
+      && text(candidate?.key)
+      && text(candidate.key) !== normalizedCasterId
+    ));
+  if (!passengerCandidates.length) return [];
+  const geometry = await sceneGeometry(obr, [
+    normalizedCasterId,
+    ...passengerCandidates.map((candidate) => candidate.key),
+  ]);
+  const casterGeometry = geometry.byId.get(normalizedCasterId);
+  // Adjacency is the deterministic product rule for this selector. If the
+  // scene cannot expose the caster footprint, fail closed so the panel never
+  // offers a passenger whose eligibility has not been measured.
+  if (!casterGeometry) return [];
+  return passengerCandidates
+    .filter((candidate) => spellTeleportGeometriesAdjacent(
+      casterGeometry,
+      geometry.byId.get(candidate.key),
+      geometry.dpi,
+    ) === true)
+    .map((candidate) => candidate.key);
+}
+
 async function getAllSpellTargetCandidates(obr, spellId = "") {
   const [items, dpi] = await Promise.all([
-    getAllSpellTargetItems(obr),
+    getAllSpellTargetItems(obr, spellId),
     obr?.scene?.grid?.getDpi?.().catch?.(() => 150) || Promise.resolve(150),
   ]);
   const candidates = String(spellId || "").trim() === "telekinesis"
@@ -300,19 +347,32 @@ function itemGeometry(item, bounds, dpi) {
   return null;
 }
 
+async function safeSceneRead(read, fallback) {
+  try {
+    return await read();
+  } catch {
+    return fallback;
+  }
+}
+
 async function sceneGeometry(obr, ids = [], items = null) {
   const normalizedIds = uniqueSceneIds(ids);
   if (!normalizedIds.length) return { dpi: 150, metersPerCell: 1.5, byId: new Map() };
   const [liveItems, dpiValue, scale, bounds] = await Promise.all([
     Array.isArray(items)
       ? Promise.resolve(items.filter((item) => normalizedIds.includes(item?.id)))
-      : sceneApi(obr).getItems(normalizedIds),
-    obr?.scene?.grid?.getDpi?.().catch?.(() => 150) || Promise.resolve(150),
-    obr?.scene?.grid?.getScale?.().catch?.(() => ({ parsed: { multiplier: 1.5, unit: "m" } }))
-      || Promise.resolve({ parsed: { multiplier: 1.5, unit: "m" } }),
+      : safeSceneRead(() => sceneApi(obr).getItems(normalizedIds), []),
+    safeSceneRead(() => obr?.scene?.grid?.getDpi?.(), 150),
+    safeSceneRead(
+      () => obr?.scene?.grid?.getScale?.(),
+      { parsed: { multiplier: 1.5, unit: "m" } },
+    ),
     Promise.all(normalizedIds.map(async (id) => [
       id,
-      await obr?.scene?.items?.getItemBounds?.([id]).catch?.(() => null) || null,
+      await safeSceneRead(
+        () => obr?.scene?.items?.getItemBounds?.([id]),
+        null,
+      ) || null,
     ])),
   ]);
   const dpi = Math.max(1, Number(dpiValue) || 150);
@@ -407,7 +467,7 @@ function isChainSpatial({ contract = null, command = null } = {}) {
 
 export async function getSpellAreaSpatialValidation(
   obr,
-  { contract = null, session = {}, command = null } = {},
+  { contract = null, session = {}, command = null, items = null } = {},
 ) {
   const spell = getSpellDefinition(
     contract?.spell?.id || command?.spell?.spellId,
@@ -416,6 +476,7 @@ export async function getSpellAreaSpatialValidation(
     command?.targeting?.targetIds || session?.targetIds,
   );
   const casterId = text(command?.spell?.casterId || session?.casterId);
+  const passengerId = text(command?.teleport?.passengerId || session?.passengerId);
   const primaryId = text(
     command?.targeting?.primaryTargetId
       || session?.primaryTargetId,
@@ -437,6 +498,96 @@ export async function getSpellAreaSpatialValidation(
   }
 
   const contractSpatial = contract?.presentation?.targeting?.spatialRules;
+  const teleportMode = text(contractSpatial?.mode) === "teleport"
+    || !!command?.teleport?.spellId;
+  if (teleportMode) {
+    const teleportRule = getSpellTeleportRule(spell);
+    const maxMeters = Number(contractSpatial?.maxMeters ?? teleportRule?.rangeMeters);
+    const passengerMaxMeters = Number(
+      contractSpatial?.passengerMaxMeters ?? teleportRule?.passengerMaxDistanceMeters,
+    );
+    const preview = command?.placement?.preview
+      || session?.placement?.preview
+      || null;
+    let destination = null;
+    let destinationDistanceMeters = null;
+    let passengerDistanceMeters = null;
+    let passengerAdjacent = null;
+    let passengerRelativeOffset = null;
+    const readDestination = () => {
+      try {
+        return spellTeleportDestinationPosition(preview);
+      } catch {
+        return null;
+      }
+    };
+    try {
+      destination = readDestination();
+      const geometry = await sceneGeometry(
+        obr,
+        [casterId, passengerId].filter(Boolean),
+        items,
+      );
+      const casterGeometry = geometry.byId.get(casterId);
+      const passengerGeometry = passengerId
+        ? geometry.byId.get(passengerId)
+        : null;
+      destinationDistanceMeters = destination && casterGeometry
+        ? gridPlanarDistance(
+          destination,
+          casterGeometry.position,
+          geometry.dpi,
+          geometry.metersPerCell,
+          { width: geometry.dpi, height: geometry.dpi },
+          casterGeometry.size,
+        ).distance
+        : null;
+      passengerDistanceMeters = passengerId
+        ? distanceBetween(casterId, passengerId, geometry)
+        : null;
+      if (passengerId && teleportRule?.passenger?.adjacency === "grid-adjacent") {
+        passengerAdjacent = spellTeleportGeometriesAdjacent(
+          casterGeometry,
+          passengerGeometry,
+          geometry.dpi,
+        );
+        passengerRelativeOffset = spellTeleportRelativeOffset(
+          casterGeometry?.position,
+          passengerGeometry?.position,
+        );
+      }
+    } catch {
+      // Geometry is advisory here. If a live SDK read or a transient scene
+      // shape prevents measurement, keep the RAW decision GM-assisted.
+      destination = readDestination();
+    }
+    // A missing bounds/grid read means that the plugin cannot authoritatively
+    // measure the point in this scene. Keep the RAW decision GM-assisted; only
+    // a finite measured distance can be rejected automatically.
+    const invalidDestination = destination !== null
+      && Number.isFinite(destinationDistanceMeters)
+      && (!(maxMeters > 0) || destinationDistanceMeters > maxMeters + 1e-6);
+    const passengerOutOfRange = Number.isFinite(passengerDistanceMeters)
+      && (!(passengerMaxMeters > 0) || passengerDistanceMeters > passengerMaxMeters + 1e-6);
+    const invalidPassengerIds = passengerId
+      && (passengerAdjacent === false
+        || (passengerAdjacent !== true && passengerOutOfRange))
+      ? [passengerId]
+      : [];
+    return {
+      mode: "teleport",
+      destination,
+      maxMeters,
+      destinationDistanceMeters,
+      invalidDestination,
+      passengerId: passengerId || null,
+      passengerMaxMeters,
+      passengerDistanceMeters,
+      passengerAdjacent,
+      passengerRelativeOffset,
+      invalidPassengerIds,
+    };
+  }
   if (text(contractSpatial?.mode) === "placement-range") {
     const placementPosition = session?.placement?.preview?.position
       || session?.placement?.position
@@ -452,7 +603,7 @@ export async function getSpellAreaSpatialValidation(
         invalidTargetIds: targetIds,
       };
     }
-    const geometry = await sceneGeometry(obr, targetIds);
+    const geometry = await sceneGeometry(obr, targetIds, items);
     const handPosition = { x, y };
     const handSize = { width: geometry.dpi, height: geometry.dpi };
     const distancesMeters = Object.fromEntries(targetIds.map((id) => {
@@ -489,6 +640,7 @@ export async function getSpellAreaSpatialValidation(
       ...(spatial.mode === "caster-range" ? [casterId] : []),
       ...targetIds,
     ],
+    items,
   );
   if (spatial.mode === "pairwise-distance") {
     const pairwiseDistancesMeters = [];
@@ -520,6 +672,26 @@ export async function validateSpellUnifiedTargetSelection(
   { contract = null, session = {}, targetIds = [] } = {},
 ) {
   const spatialRules = contract?.presentation?.targeting?.spatialRules;
+  if (text(spatialRules?.mode) === "teleport") {
+    const passengerId = text(session?.passengerId || targetIds[0]);
+    const spatial = await getSpellAreaSpatialValidation(obr, {
+      contract,
+      session: { ...session, passengerId },
+    });
+    const invalidPassengerIds = Array.isArray(spatial?.invalidPassengerIds)
+      ? spatial.invalidPassengerIds
+      : [];
+    return {
+      valid: invalidPassengerIds.length === 0,
+      errors: invalidPassengerIds.length
+        ? [spatial?.passengerAdjacent === false
+          ? "passenger-not-adjacent"
+          : "passenger-out-of-range"]
+        : [],
+      invalidDistanceTargetIds: invalidPassengerIds,
+      invalidPassengerIds,
+    };
+  }
   if (text(spatialRules?.mode) === "placement-range") {
     const normalizedTargetIds = uniqueSceneIds(targetIds);
     const spatial = await getSpellAreaSpatialValidation(obr, { contract, session });
@@ -657,6 +829,32 @@ export async function validateSpellAreaSceneSpatial(
     if (placementIds.some((id) => liveIds.size > 0 && !liveIds.has(id))) {
       return { valid: false, errors: ["target-missing"] };
     }
+    if (command?.teleport?.spellId) {
+      const passengerId = text(command.teleport.passengerId);
+      if (passengerId && liveIds.size > 0 && !liveIds.has(passengerId)) {
+        return { valid: false, errors: ["target-missing"] };
+      }
+      const spatial = await getSpellAreaSpatialValidation(obr, {
+        command,
+        spell,
+        items,
+      });
+      if (!spatial?.destination) {
+        return { valid: false, errors: ["teleport-destination-required"] };
+      }
+      if (spatial.invalidDestination) {
+        return { valid: false, errors: ["teleport-destination-out-of-range"] };
+      }
+      if (spatial.invalidPassengerIds?.length) {
+        return {
+          valid: false,
+          errors: [spatial.passengerAdjacent === false
+            ? "passenger-not-adjacent"
+            : "passenger-out-of-range"],
+        };
+      }
+      return { valid: true, errors: [] };
+    }
     if (command?.targeting?.areaAnchor === "primary-target") {
       const primaryId = text(command?.targeting?.primaryTargetId);
       const anchorTargetId = text(
@@ -719,6 +917,7 @@ export async function validateSpellAreaSceneSpatial(
         ...(command?.targeting || {}),
         targetIds: uniqueSceneIds(targetIds),
       },
+      items,
     },
   });
   if (isChainSpatial({ command })) {
@@ -1157,6 +1356,9 @@ export function createSpellUnifiedPanelSceneProvider(obr, { sceneLifecycle = nul
     getCatalogEntries: () => buildSpellCatalogEntries(),
     getCasters: (sourceId = "") => getAllInitiativeCharacters(obr, sourceId),
     getTargetCandidates: (spellId = "") => getAllSpellTargetCandidates(obr, spellId),
+    getTeleportPassengerCandidateIds: (casterId, candidates = []) => (
+      getSpellTeleportPassengerCandidateIds(obr, { casterId, candidates })
+    ),
     getContextOrSelectionIds: () => getContextOrSelectionIds(obr),
     getCardTargetIds: (sourceId, casters) => getCardTargetIds(obr, sourceId, casters),
     getAppliedAt: () => getAppliedAt(obr),

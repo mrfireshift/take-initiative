@@ -500,6 +500,100 @@ test("R3/F3 — restart completes only the missing physical side effect", async 
   assert.equal(pendingRecovery().length, 0);
 });
 
+test("R3/F3 — Dimension Door composite conserva l'offset e completa il solo passeggero pendente", async () => {
+  const first = await bootRuntime("dimension-door-composite-old");
+  const commandId = "dimension-door-composite-recovery";
+  const casterOrigin = { x: 0, y: 0 };
+  const passengerOrigin = { x: 200, y: 200 };
+  const casterDestination = { x: 600, y: 450 };
+  const passengerDestination = {
+    x: casterDestination.x + passengerOrigin.x - casterOrigin.x,
+    y: casterDestination.y + passengerOrigin.y - casterOrigin.y,
+  };
+  fault.failUpdateAt = 2;
+
+  const result = await first.client.runEffectsMutation([], {
+    commandId,
+    correlationId: commandId,
+    kind: "spell",
+    label: "Lancio incantesimo · Porta Dimensionale",
+    targetIds: ["caster", "secondary"],
+    sideEffects: [
+      {
+        type: "token:teleport",
+        targetId: "caster",
+        position: casterDestination,
+        operationId: commandId,
+        skipAnimation: true,
+      },
+      {
+        type: "token:teleport",
+        targetId: "secondary",
+        position: passengerDestination,
+        operationId: commandId,
+        skipAnimation: true,
+      },
+    ],
+    history: {
+      kind: "spell",
+      label: "Lancio incantesimo · Porta Dimensionale",
+      payload: {
+        causality: {
+          source: "spell-area",
+          spellId: "dimension-door",
+          casterId: "caster",
+          passengerId: "secondary",
+          destination: casterDestination,
+          passengerRelativeOffset: {
+            x: passengerOrigin.x - casterOrigin.x,
+            y: passengerOrigin.y - casterOrigin.y,
+          },
+        },
+      },
+    },
+  });
+
+  assert.equal(result.status, "applied", JSON.stringify(result));
+  assert.equal(result.commitResult.sideEffectChanges.length, 1);
+  assert.equal(result.commitResult.sideEffectsPending.length, 1);
+  assert.deepEqual(item("caster").position, casterDestination);
+  assert.deepEqual(item("secondary").position, passengerOrigin);
+  assert.equal(historyEntries().length, 0);
+  assert.equal(pendingRecovery().length, 1);
+  assert.deepEqual(
+    pendingRecovery()[0].sideEffects.map((effect) => effect.afterPosition),
+    [casterDestination, passengerDestination],
+  );
+
+  stopRuntime(first);
+  fault.failUpdateAt = 0;
+  const second = await bootRuntime("dimension-door-composite-new");
+  await new Promise((resolve) => setTimeout(resolve, 850));
+
+  assert.deepEqual(item("caster").position, casterDestination);
+  assert.deepEqual(item("secondary").position, passengerDestination);
+  assert.equal(historyEntries().length, 1);
+  assert.equal(pendingRecovery().length, 0);
+  assert.deepEqual(
+    historyEntries()[0].effectsMutation.sideEffects
+      .filter((effect) => effect.type === "token:teleport")
+      .map((effect) => effect.id),
+    ["caster", "secondary"],
+  );
+  assert.deepEqual(
+    historyEntries()[0].effectsMutation.sideEffects
+      .filter((effect) => effect.type === "token:teleport")
+      .map((effect) => effect.afterPosition),
+    [casterDestination, passengerDestination],
+  );
+  assert.deepEqual(
+    new Set(historyEntries()[0].effectsMutation.sideEffects
+      .filter((effect) => effect.type === "token:teleport")
+      .map((effect) => effect.operationId)),
+    new Set([commandId]),
+  );
+});
+
 test("token:teleport — incomplete recovery descriptor fails without a write", async () => {
   const first = await bootRuntime("teleport-invalid-old");
   const commandId = "arch05b-teleport-invalid";

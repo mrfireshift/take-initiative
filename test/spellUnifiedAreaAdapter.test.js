@@ -6,6 +6,9 @@ import {
   createSpellPanelSession,
 } from "../src/spellUnifiedPanelCore.js";
 import {
+  createSpellUnifiedPanelSceneProvider,
+} from "../src/spellUnifiedPanelSceneProvider.js";
+import {
   executeSpellUnifiedArea,
   getSpellUnifiedAreaEligibility,
   SPELL_UNIFIED_AREA_ERROR_CODES,
@@ -118,6 +121,164 @@ test("Palla di fuoco collega placement, esiti, HP e executor condiviso", async (
   assert.deepEqual(result.targetIds, ["target-a", "target-b"]);
 });
 
+test("Dimension Door attraversa l'adapter anche quando la geometria live è temporaneamente illeggibile", async () => {
+  const contract = buildSpellUnifiedPanelContract({ spellId: "dimension-door" });
+  const session = createSpellPanelSession({
+    contract,
+    casterId: "caster",
+    placement: {
+      status: "confirmed",
+      confirmed: true,
+      targetLocked: true,
+      ruleId: "dimension-door:cast",
+      spellId: "dimension-door",
+      casterId: "caster",
+      preview: {
+        type: "square",
+        start: { x: 300, y: 300 },
+        end: { x: 450, y: 450 },
+        gridOrigin: { x: 0, y: 0 },
+        position: { x: 300, y: 300 },
+        dpi: 150,
+        targetIds: [],
+      },
+    },
+  });
+  const obr = {
+    scene: {
+      items: {
+        getItems: async () => { throw new Error("live-items-unavailable"); },
+        getItemBounds: () => { throw new Error("live-bounds-unavailable"); },
+      },
+      grid: {
+        getDpi: async () => { throw new Error("live-dpi-unavailable"); },
+        getScale: async () => { throw new Error("live-scale-unavailable"); },
+      },
+    },
+  };
+  const provider = createSpellUnifiedPanelSceneProvider(obr);
+  const runtime = provider.getAreaExecutionRuntime();
+  const result = await executeSpellUnifiedArea({
+    contract,
+    session,
+    runtime: {
+      ...runtime,
+      executor: async (command) => ({
+        status: SPELL_UNIFIED_AREA_STATUS.APPLIED,
+        changedIds: [command.spell.casterId],
+        historyEntryId: "dimension-history",
+        undoAvailable: true,
+      }),
+    },
+  });
+
+  assert.equal(result.status, SPELL_UNIFIED_AREA_STATUS.APPLIED, JSON.stringify(result));
+  assert.deepEqual(result.command.teleport.destination, { x: 300, y: 300 });
+  assert.equal(result.errors.length, 0);
+});
+
+test("Dimension Door conserva passeggero e offset nel command dell'adapter", async () => {
+  const contract = buildSpellUnifiedPanelContract({ spellId: "dimension-door" });
+  const session = createSpellPanelSession({
+    contract,
+    casterId: "caster",
+    passengerId: "passenger",
+    targetIds: ["passenger"],
+    placement: {
+      status: "confirmed",
+      confirmed: true,
+      targetLocked: true,
+      ruleId: "dimension-door:cast",
+      spellId: "dimension-door",
+      casterId: "caster",
+      preview: {
+        type: "square",
+        start: { x: 225, y: 225 },
+        end: { x: 375, y: 375 },
+        gridOrigin: { x: 0, y: 0 },
+        position: { x: 300, y: 300 },
+        dpi: 150,
+        targetIds: [],
+      },
+    },
+  });
+  let observed = null;
+  const result = await executeSpellUnifiedArea({
+    contract,
+    session,
+    source: { sceneEpoch: 9, commandId: "dimension-door-adapter-command" },
+    runtime: {
+      getSpatialValidation: async () => ({
+        mode: "teleport",
+        destination: { x: 300, y: 300 },
+        passengerAdjacent: true,
+        passengerRelativeOffset: { x: 150, y: 0 },
+        invalidPassengerIds: [],
+      }),
+      executor: async (command) => {
+        observed = command;
+        return {
+          status: SPELL_UNIFIED_AREA_STATUS.APPLIED,
+          changedIds: ["caster", "passenger"],
+          historyEntryId: "dimension-history",
+          undoAvailable: true,
+        };
+      },
+    },
+  });
+
+  assert.equal(result.status, SPELL_UNIFIED_AREA_STATUS.APPLIED);
+  assert.equal(observed.teleport.passengerId, "passenger");
+  assert.deepEqual(observed.teleport.affectedTargetIds, ["caster", "passenger"]);
+  assert.deepEqual(observed.teleport.passengerRelativeOffset, { x: 150, y: 0 });
+  assert.deepEqual(observed.targeting.targetIds, ["passenger"]);
+  assert.equal(observed.commandId, "dimension-door-adapter-command");
+});
+
+test("Dimension Door mantiene il cast se la lettura spaziale solleva un errore SDK", async () => {
+  const contract = buildSpellUnifiedPanelContract({ spellId: "dimension-door" });
+  const session = createSpellPanelSession({
+    contract,
+    casterId: "caster",
+    placement: {
+      status: "confirmed",
+      confirmed: true,
+      targetLocked: true,
+      ruleId: "dimension-door:cast",
+      spellId: "dimension-door",
+      casterId: "caster",
+      preview: {
+        type: "square",
+        position: { x: 300, y: 300 },
+        start: { x: 300, y: 300 },
+        end: { x: 450, y: 450 },
+      },
+    },
+  });
+  let executorCalls = 0;
+  const result = await executeSpellUnifiedArea({
+    contract,
+    session,
+    runtime: {
+      getSpatialValidation: async () => {
+        throw new Error("SDK spatial read failed");
+      },
+      executor: async (command) => {
+        executorCalls += 1;
+        return {
+          status: SPELL_UNIFIED_AREA_STATUS.APPLIED,
+          changedIds: [command.spell.casterId],
+          historyEntryId: "dimension-history",
+          undoAvailable: true,
+        };
+      },
+    },
+  });
+  assert.equal(result.status, SPELL_UNIFIED_AREA_STATUS.APPLIED, JSON.stringify(result));
+  assert.equal(executorCalls, 1);
+  assert.equal(result.command.targeting.spatialValidation.unavailable, true);
+});
+
 test("Freccia Folgorante trasporta zero e non richiede attack outcome", async () => {
   const { contract, session } = setup("phb2014-freccia-folgorante", {
     phase: "resolve",
@@ -177,6 +338,56 @@ test("Anatema usa targeting discreto e conserva gli esiti TS", async () => {
     "target-b": "passed",
     "target-c": "immune",
   });
+});
+
+test("Quick Action Hold Monster passa tutti i target al ramo failed dell'area executor", async () => {
+  const contract = buildSpellUnifiedPanelContract({
+    spellId: "hold-monster",
+    phase: "cast",
+    castContext: { slotLevel: 6 },
+  });
+  const session = {
+    spellId: "hold-monster",
+    phase: "cast",
+    casterId: CASTER_ID,
+    slotLevel: 6,
+    targetIds: ["target-a", "target-b"],
+    targetContext: {},
+    primaryTargetId: "",
+    variant: "",
+    placement: null,
+    outcomes: {
+      "target-a": "failed",
+      "target-b": "failed",
+    },
+    castContext: { slotLevel: 6 },
+  };
+  let observedCommand = null;
+  const result = await executeSpellUnifiedArea({
+    contract,
+    session,
+    source: { sceneEpoch: 7 },
+    runtime: {
+      getSpatialValidation: async () => ({
+        pairwiseDistancesMeters: [
+          { targetIds: ["target-a", "target-b"], distanceMeters: 6 },
+        ],
+      }),
+      executor: async (command) => {
+        observedCommand = command;
+        return appliedExecutor()(command);
+      },
+    },
+  });
+
+  assert.equal(result.status, SPELL_UNIFIED_AREA_STATUS.APPLIED);
+  assert.equal(observedCommand.targeting.mode, "discrete");
+  assert.deepEqual(observedCommand.targeting.targetIds, ["target-a", "target-b"]);
+  assert.deepEqual(observedCommand.outcomes.byTarget, {
+    "target-a": "failed",
+    "target-b": "failed",
+  });
+  assert.equal(observedCommand.targeting.capacity.maximum, 2);
 });
 
 test("Catena di fulmini delega la distanza e il primario alla command lane", async () => {

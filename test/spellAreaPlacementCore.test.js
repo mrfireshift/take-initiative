@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildCallLightningCloudPreview,
+  centeredSquarePlacementBounds,
   completeSpellAreaPlacement,
   constrainedSpellAreaEnd,
   createSpellAreaPlacementSession,
@@ -195,6 +196,18 @@ test("il punto di ritorno usa il centro del footprint dispari e il centro geomet
     widthCells: 4,
     heightCells: 4,
   }).position, { x: 150, y: 150 });
+});
+
+test("Porta Dimensionale costruisce il quadrato attorno al centro della casella", () => {
+  assert.deepEqual(centeredSquarePlacementBounds(
+    { x: 225, y: 225 },
+    150,
+    1,
+  ), {
+    position: { x: 225, y: 225 },
+    start: { x: 150, y: 150 },
+    end: { x: 300, y: 300 },
+  });
 });
 
 test("accetta soltanto la corona di caselle immediatamente attorno al caster", () => {

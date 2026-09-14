@@ -76,6 +76,10 @@ import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { suppressMovementHistory } from "./history.js";
 import { compactBackgroundReminderTransportResult } from "./effectsReminderTransportCore.js";
 import {
+  buildEffectsMutationResultMessages,
+  createEffectsMutationResultAssembler,
+} from "./effectsMutationTransportCore.js";
+import {
   elevationInputToCanonical,
   normalizeElevation,
 } from "./distance3dCore.js";
@@ -471,10 +475,16 @@ function mountBackgroundResultListener() {
       const data = event?.data;
       const request = backgroundPendingRequests.get(data?.requestId);
       if (!request) return;
+      const assembled = backgroundResultAssembler.push(data);
+      if (!assembled.complete) return;
       backgroundPendingRequests.delete(data.requestId);
+      backgroundResultAssembler.clear(data.requestId);
       clearTimeout(request.timer);
       request.resolve(
-        data.result || backgroundResultError(request.commandId, "Risposta coordinatore mancante."),
+        assembled.result || backgroundResultError(
+          request.commandId,
+          assembled.error || "Risposta coordinatore mancante.",
+        ),
       );
     },
   );
@@ -499,6 +509,7 @@ function requestBackgroundMutation(
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         backgroundPendingRequests.delete(requestId);
+        backgroundResultAssembler.clear(requestId);
         resolve(backgroundResultError(
           commandId,
           "Timeout del coordinatore effetti in background.",
@@ -513,6 +524,7 @@ function requestBackgroundMutation(
         const request = backgroundPendingRequests.get(requestId);
         if (!request) return;
         backgroundPendingRequests.delete(requestId);
+        backgroundResultAssembler.clear(requestId);
         clearTimeout(request.timer);
         request.resolve(backgroundResultError(
           commandId,
@@ -1858,6 +1870,7 @@ let backgroundResultUnsubscribe = null;
 let backgroundServiceMounted = false;
 let backgroundSceneIdentity = null;
 const backgroundPendingRequests = new Map();
+const backgroundResultAssembler = createEffectsMutationResultAssembler();
 const pendingHistoryRecords = new Map();
 const pendingSideEffectRecords = new Map();
 const recoveredPostCommitResults = new Map();
@@ -3549,7 +3562,8 @@ async function runPostCommitSideEffects(sideEffects, isCurrent) {
 function recoverySideEffectHistory(sideEffects) {
   return sideEffects.flatMap((effect) => {
     if (effect.type === "token:teleport") return [{
-      id: effect.id, type: "token:teleport", before: clone(effect.before), after: clone(effect.after),
+      id: effect.id, type: "token:teleport", operationId: effect.operationId,
+      before: clone(effect.before), after: clone(effect.after),
       beforePosition: clone(effect.beforePosition), afterPosition: clone(effect.afterPosition),
     }];
     if (effect.type === "reminder:consume-zone-activation") return [{
@@ -3628,7 +3642,7 @@ async function mountEffectsRecovery() {
   const identity = backgroundSceneIdentity;
   const epoch = currentSceneEpoch();
   const isCurrent = () => backgroundServiceMounted && backgroundSceneIdentity === identity && isCurrentSceneEpoch(epoch);
-  effectsRecovery = createEffectsRecovery({
+  const recovery = createEffectsRecovery({
     obr: OBR,
     buildHistory: async (command, plan, sideEffectChanges) => {
       const { buildEffectsMutationHistoryEntry } = await import("./history.js");
@@ -3642,9 +3656,10 @@ async function mountEffectsRecovery() {
     inspectCanonical: inspectRecoveryCanonical,
     applySideEffect: applyRecoverySideEffect,
   });
-  await effectsRecovery.load(isCurrent);
-  await effectsRecovery.recover(isCurrent);
-  if (effectsRecovery.retryPending()) schedulePendingEffectsHistoryRetry();
+  effectsRecovery = recovery;
+  await recovery.load(isCurrent);
+  await recovery.recover(isCurrent);
+  if (effectsRecovery === recovery && recovery.retryPending()) schedulePendingEffectsHistoryRetry();
 }
 
 async function recoverPendingEffects() {
@@ -4005,7 +4020,11 @@ export async function mountEffectsMutationCoordinatorService() {
     },
   });
   backgroundCommandBroker.setSceneIdentity(backgroundSceneIdentity);
-  if (sceneReady) await effectsMutationCoordinator.enqueueMaintenance(mountEffectsRecovery);
+  if (sceneReady) {
+    await effectsMutationCoordinator.enqueueMaintenance(mountEffectsRecovery).catch((error) => {
+      console.warn("[effects-recovery] initial bootstrap:", error?.message || error);
+    });
+  }
 
   backgroundServiceUnsubscribe = OBR.broadcast.onMessage(
     EFFECTS_MUTATION_COMMAND_CHANNEL,
@@ -4083,24 +4102,32 @@ export async function mountEffectsMutationCoordinatorService() {
               && handledCommand?.kind === "initiative-card"
               ? compactBackgroundInitiativeCardTransportResult(result)
             : result;
-        const responsePayload = { requestId: data.requestId, result: transportResult };
+        const responsePayloads = buildEffectsMutationResultMessages(
+          data.requestId,
+          transportResult,
+        );
         console.debug("[effects-coordinator] response-size", backgroundResultDiagnostics({
           requestId: data.requestId,
           kind: data.kind,
           command: handledCommand,
           result: transportResult,
         }));
-        await OBR.broadcast.sendMessage(
-          EFFECTS_MUTATION_RESULT_CHANNEL,
-          responsePayload,
-          { destination: "LOCAL" },
-        ).catch((error) => {
-          console.warn("[effects-coordinator] response", {
-            ...backgroundResponseErrorDetails(error),
-            "command.kind": handledCommand?.kind || data.kind || null,
-            responseBytes: jsonUtf8Bytes(responsePayload),
+        for (const responsePayload of responsePayloads) {
+          const sent = await OBR.broadcast.sendMessage(
+            EFFECTS_MUTATION_RESULT_CHANNEL,
+            responsePayload,
+            { destination: "LOCAL" },
+          ).then(() => true).catch((error) => {
+            console.warn("[effects-coordinator] response", {
+              ...backgroundResponseErrorDetails(error),
+              "command.kind": handledCommand?.kind || data.kind || null,
+              responseBytes: jsonUtf8Bytes(responsePayload),
+              responseChunks: responsePayloads.length,
+            });
+            return false;
           });
-        });
+          if (!sent) break;
+        }
       })();
     },
   );
@@ -4144,6 +4171,7 @@ export function unmountEffectsMutationCoordinatorService() {
   backgroundSceneReadyUnsubscribe = null;
   backgroundResultUnsubscribe?.();
   backgroundResultUnsubscribe = null;
+  backgroundResultAssembler.clearAll();
   backgroundServiceMounted = false;
   effectsMutationCoordinator = null;
   backgroundSceneIdentity = null;

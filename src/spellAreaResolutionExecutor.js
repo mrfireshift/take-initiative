@@ -79,6 +79,8 @@ import {
   getSpellTeleportRule,
   isTeleportSpell,
   spellTeleportDestinationPosition,
+  spellTeleportDestinationForSubject,
+  validateSpellTeleportPassenger,
 } from "./spellTeleportCore.js";
 import { expandAnimatedObjectComposition } from "./animatedObjectsCore.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
@@ -148,6 +150,15 @@ function clone(value) {
   if (value === undefined) return undefined;
   if (typeof globalThis.structuredClone === "function") return globalThis.structuredClone(value);
   return JSON.parse(JSON.stringify(value));
+}
+
+function teleportDestinationFromCommand(command, placement) {
+  const explicit = command?.teleport?.destination;
+  const x = Number(explicit?.x);
+  const y = Number(explicit?.y);
+  return Number.isFinite(x) && Number.isFinite(y)
+    ? { x, y }
+    : spellTeleportDestinationPosition(placement?.preview);
 }
 
 function normalizedError(error, fallbackCode = "spell-area-resolution-failed") {
@@ -516,8 +527,9 @@ async function defaultReadAuthoritativeHPVisualUpdates(
 
 function defaultRuntime(overrides = {}) {
   const epoch = currentSceneEpoch();
-  return {
+  const runtime = {
     sceneEpoch: epoch,
+    visualSceneEpoch: epoch,
     isCurrent: (value = epoch) => isCurrentSceneEpoch(value),
     readItems: (ids = []) => ids.length ? OBR.scene.items.getItems(ids) : Promise.resolve([]),
     readAllItems: () => OBR.scene.items.getItems(),
@@ -570,6 +582,10 @@ function defaultRuntime(overrides = {}) {
     ),
     ...overrides,
   };
+  if (!Number.isInteger(overrides.visualSceneEpoch)) {
+    runtime.visualSceneEpoch = runtime.sceneEpoch;
+  }
+  return runtime;
 }
 
 async function defaultZoneTriggerRootItems(activation, runtime) {
@@ -702,7 +718,16 @@ async function buildPlan(command, runtime) {
   const spellId = text(command?.spell?.spellId);
   const spell = getSpellDefinition(spellId);
   if (!spell) return { valid: false, errors: [{ code: "spell-not-found", message: "Spell non trovato." }] };
-  const targetIds = uniqueIds(command?.targeting?.targetIds);
+  const teleportRule = getSpellTeleportRule(spell.id);
+  const commandTargetIds = uniqueIds(command?.targeting?.targetIds);
+  const passengerId = text(
+    command?.teleport?.passengerId
+      || (teleportRule && commandTargetIds.length === 1 ? commandTargetIds[0] : ""),
+  );
+  const targetIds = uniqueIds([
+    ...commandTargetIds,
+    ...(teleportRule && passengerId ? [passengerId] : []),
+  ]);
   const liveItems = targetIds.length ? await runtime.readItems(targetIds) : [];
   const liveById = new Map(liveItems.map((item) => [item.id, item]));
   const missingTargetIds = targetIds.filter((id) => !liveById.has(id));
@@ -724,6 +749,43 @@ async function buildPlan(command, runtime) {
       || (await runtime.readItems([casterId]))[0]
       || null
     : null;
+  const passenger = passengerId
+    ? allById.get(passengerId) || liveById.get(passengerId) || null
+    : null;
+  if (teleportRule) {
+    if (passengerId && !passenger) {
+      return {
+        valid: false,
+        errors: [{
+          code: "target-missing",
+          message: `Passeggero non più presente: ${passengerId}.`,
+        }],
+      };
+    }
+    const passengerValidation = validateSpellTeleportPassenger({
+      rule: teleportRule,
+      caster,
+      passenger,
+    });
+    if (!passengerValidation.valid) {
+      return {
+        valid: false,
+        errors: errorList(passengerValidation.errors, "passenger-invalid"),
+      };
+    }
+    if (command?.targeting?.spatialValidation?.passengerAdjacent === false) {
+      return {
+        valid: false,
+        errors: [{
+          code: "passenger-not-adjacent",
+          message: "Il passeggero deve essere adiacente al caster.",
+        }],
+      };
+    }
+  }
+  const teleportSubjectIds = teleportRule
+    ? uniqueIds([casterId, passengerId])
+    : [];
   const placement = command?.placement || null;
   const placementRuleChoice = text(
     placement?.ruleChoice || command?.spell?.choiceValue,
@@ -781,20 +843,47 @@ async function buildPlan(command, runtime) {
       trackOutcomes: [],
     }
     : configuredAutomation;
-  const validation = await runtime.validateSpatial({
-    command,
-    spell,
-    items: allItems,
-    targetIds,
-    caster,
-  });
+  let validation;
+  try {
+    validation = await runtime.validateSpatial({
+      command,
+      spell,
+      items: allItems,
+      targetIds,
+      caster,
+    });
+  } catch (error) {
+    if (!teleportRule) throw error;
+    // Range/occupancy/visibility decisions that cannot be measured by the
+    // plugin stay GM-assisted. The explicit destination and the shared
+    // teleport side effect remain executable; a deterministic validation
+    // result is still honored above this fallback.
+    validation = {
+      valid: true,
+      errors: [],
+      unavailable: true,
+      diagnostic: error?.message || error?.name || "spatial-validation-unavailable",
+    };
+  }
   if (validation?.valid === false) {
     return {
       valid: false,
       errors: errorList(validation.errors, "spatial-validation-failed"),
     };
   }
-  const resolution = terminalResolutionRequest
+  const resolution = teleportRule
+    ? {
+      valid: true,
+      errors: [],
+      spellId: spell.id,
+      spellName: spell.displayName || spell.name,
+      concentration: false,
+      casterId,
+      targetIds,
+      spellTargetIds: [],
+      conditionApplications: [],
+    }
+    : terminalResolutionRequest
     ? {
       valid: true,
       errors: [],
@@ -974,6 +1063,7 @@ async function buildPlan(command, runtime) {
   const effectSubjectIds = uniqueIds([
     ...resolved.spellTargetIds,
     ...(resolved.conditionApplications || []).flatMap((application) => application.targetIds || []),
+    ...teleportSubjectIds,
   ]);
   let effectOperations = [];
   if (terminalResolutionRequest) {
@@ -1119,10 +1209,15 @@ async function buildPlan(command, runtime) {
     effectSubjectIds.push(casterId);
   }
 
-  const teleportRule = getSpellTeleportRule(spell.id);
   const teleportDestination = teleportRule
-    ? spellTeleportDestinationPosition(placement?.preview)
+    ? teleportDestinationFromCommand(command, placement)
     : null;
+  const teleportOperationId = text(
+    command?.commandId
+      || command?.correlationId
+      || runtime.operationId
+      || runtime.commandId,
+  );
   const teleportOrigin = caster?.position
     && Number.isFinite(Number(caster.position.x))
     && Number.isFinite(Number(caster.position.y))
@@ -1131,21 +1226,58 @@ async function buildPlan(command, runtime) {
       y: Number(caster.position.y),
     }
     : null;
-  const teleportSideEffects = teleportDestination && casterId
-    ? [{
+  const passengerRelativeOffset = command?.teleport?.passengerRelativeOffset
+    && Number.isFinite(Number(command.teleport.passengerRelativeOffset.x))
+    && Number.isFinite(Number(command.teleport.passengerRelativeOffset.y))
+    ? {
+      x: Number(command.teleport.passengerRelativeOffset.x),
+      y: Number(command.teleport.passengerRelativeOffset.y),
+    }
+    : null;
+  const livePassengerDestination = passengerId && teleportDestination
+    ? spellTeleportDestinationForSubject(
+      teleportDestination,
+      teleportOrigin,
+      passenger?.position,
+    )
+    : null;
+  const passengerDestination = passengerId && teleportDestination
+    ? livePassengerDestination
+      || (passengerRelativeOffset ? {
+        x: teleportDestination.x + passengerRelativeOffset.x,
+        y: teleportDestination.y + passengerRelativeOffset.y,
+      } : null)
+    : null;
+  if (teleportRule && passengerId && !passengerDestination) {
+    return {
+      valid: false,
+      errors: [{
+        code: "passenger-relative-position-missing",
+        message: "La posizione relativa del passeggero non è disponibile.",
+      }],
+    };
+  }
+  const teleportSideEffects = teleportRule && teleportDestination && casterId
+    ? teleportSubjectIds.map((targetId) => ({
       type: "token:teleport",
       spellId: spell.id,
-      targetId: casterId,
-      position: teleportDestination,
-    }]
+      targetId,
+      position: targetId === casterId ? teleportDestination : passengerDestination,
+      skipAnimation: true,
+      ...(teleportOperationId ? { operationId: teleportOperationId } : {}),
+    }))
     : [];
+
+  const visualSceneEpoch = Number.isInteger(runtime.visualSceneEpoch)
+    ? runtime.visualSceneEpoch
+    : runtime.sceneEpoch;
 
   const fireballVisualContext = spell.id === "fireball" && placement?.preview
     ? {
       casterId,
       eventId: spellInstanceId,
       preview: clone(placement.preview),
-      sceneEpoch: runtime.sceneEpoch,
+      sceneEpoch: visualSceneEpoch,
     }
     : null;
   let matchedVisualContext = null;
@@ -1157,7 +1289,7 @@ async function buildPlan(command, runtime) {
     matchedVisualContext = {
       spellId: spell.id,
       casterId,
-      targetIds: [casterId],
+      targetIds: casterId ? [casterId] : [],
       eventId: spellInstanceId,
       lifecycleId: spellInstanceId,
       preview: {
@@ -1167,7 +1299,7 @@ async function buildPlan(command, runtime) {
         end: teleportDestination,
         type: "circle",
       },
-      sceneEpoch: runtime.sceneEpoch,
+      sceneEpoch: visualSceneEpoch,
     };
   } else if (spell.id === "chain-lightning" && chainLightningVisualTargetIds.length) {
     matchedVisualContext = {
@@ -1176,7 +1308,7 @@ async function buildPlan(command, runtime) {
       targetIds: chainLightningVisualTargetIds,
       eventId: spellInstanceId,
       lifecycleId: spellInstanceId,
-      sceneEpoch: runtime.sceneEpoch,
+      sceneEpoch: visualSceneEpoch,
     };
   } else if (
     !placement?.preview
@@ -1189,9 +1321,9 @@ async function buildPlan(command, runtime) {
       targetIds: resolved.spellTargetIds,
       eventId: spellInstanceId,
       lifecycleId: spellInstanceId,
-      sceneEpoch: runtime.sceneEpoch,
+      sceneEpoch: visualSceneEpoch,
     };
-  } else if (placement?.preview && !boardToken && spell.id !== "call-lightning") {
+  } else if (placement?.preview && !teleportRule && !boardToken && spell.id !== "call-lightning") {
     const matchedVisualPreview = clone(placement.preview);
     if (spell.id === "wall-of-fire" && placementRule?.geometry?.widthAnchor) {
       matchedVisualPreview.widthAnchor = placementRule.geometry.widthAnchor;
@@ -1206,7 +1338,7 @@ async function buildPlan(command, runtime) {
       ...(matchedVisualPlacementChoice
         ? { placementChoice: matchedVisualPlacementChoice }
         : {}),
-      sceneEpoch: runtime.sceneEpoch,
+      sceneEpoch: visualSceneEpoch,
     };
   }
 
@@ -1416,9 +1548,10 @@ async function buildPlan(command, runtime) {
       ...(Array.isArray(operation?.subjectIds) ? operation.subjectIds : []),
     ]),
   );
+  const teleportHPItems = liveItems;
   const entries = hpEntries({
     command,
-    items: liveItems,
+    items: teleportHPItems,
     spell,
     prismaticSprayPlan: resolution.prismaticSpray,
   });
@@ -1484,7 +1617,7 @@ async function buildPlan(command, runtime) {
     ...ids,
     ...effectSubjectIds,
     ...(command?.source?.kind === "prepared-resolution" && casterId ? [casterId] : []),
-    ...(cloudPlacement || teleportRule ? [casterId] : []),
+    ...(cloudPlacement || teleportRule ? teleportSubjectIds : []),
     ...await runtime.getZeroHPConditionHistoryIds(ids),
   ]);
   const staticZoneSceneItemIds = uniqueIds([
@@ -1494,7 +1627,7 @@ async function buildPlan(command, runtime) {
     ...boardTokenEntityIds,
     ...zeroHPBoardTokenIds,
     ...triggerRootItems.map((item) => item.id),
-    ...(teleportRule ? [casterId] : []),
+    ...(teleportRule ? teleportSubjectIds : []),
   ]);
   return {
     valid: true,
@@ -1631,7 +1764,18 @@ function spellAreaCausality(plan) {
     spellName: plan?.spell?.displayName || plan?.spell?.name || plan?.spell?.id || "",
     casterId: plan?.caster?.id || "",
     ...(plan?.caster?.name ? { casterName: plan.caster.name } : {}),
-    ...(teleportRule ? { teleport: true, destination: spellTeleportDestinationPosition(command?.placement?.preview) } : {}),
+    ...(teleportRule
+      ? {
+        teleport: true,
+        destination: teleportDestinationFromCommand(command, placement),
+        ...(command?.teleport?.passengerId
+          ? { passengerId: text(command.teleport.passengerId) }
+          : {}),
+        ...(command?.teleport?.passengerRelativeOffset
+          ? { passengerRelativeOffset: clone(command.teleport.passengerRelativeOffset) }
+          : {}),
+      }
+      : {}),
     targets,
     outcomes: outcomeMap,
     ...(attackOutcome ? { attackOutcome } : {}),
@@ -1839,6 +1983,8 @@ export async function executeSpellAreaResolution(
   let removedPreviousZone = false;
   let addedNextZone = false;
   let canonicalCommitted = false;
+  let suppressMatchedVisual = false;
+  let teleportHistoryPending = false;
   const sceneEpoch = plan.operationSceneEpoch;
   const optimisticUpdates = quickHPVisualUpdates(entries);
   if (optimisticUpdates.length && runtime.isCurrent(sceneEpoch)) {
@@ -1864,11 +2010,75 @@ export async function executeSpellAreaResolution(
   }
   try {
     const isTeleport = isTeleportSpell(plan.spell.id);
-    const historyResult = await runtime.withItemMetaHistory({
-      kind: isTeleport ? "spell" : "save-resolution",
-      label: isTeleport
-        ? `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Passo Velato"}`
-        : `Effetti ad area · ${plan.spell.displayName || plan.spell.name || plan.spell.id}`,
+    let historyResult;
+    if (isTeleport) {
+      const hpUpdates = entries.map((entry) => ({
+        itemId: entry.item.id,
+        hp: entry.change.afterHP,
+        hpMax: entry.change.hpMax,
+        expectedHP: entry.change.hp,
+        expectedHPMax: entry.change.hpMax,
+      }));
+      const operations = [
+        ...(hpUpdates.length ? [{
+          type: "hp:set",
+          updates: hpUpdates,
+        }] : []),
+        ...(plan.zeroHPReconcileIds.length ? [{
+          type: "condition:reconcile-zero-hp",
+          targetIds: plan.zeroHPReconcileIds,
+        }] : []),
+        ...(plan.damageEndsRemovals?.length ? [{
+          type: "condition:remove-instances",
+          removals: plan.damageEndsRemovals,
+        }] : []),
+        ...effectOperations,
+      ];
+      const coordinatedSideEffects = spellBoardTokenSideEffects;
+      const mutation = await runtime.runEffectsMutation(operations, {
+        history: {
+          kind: "spell",
+          label: `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Porta Dimensionale"}`,
+          payload: { causality: spellAreaCausality(plan) },
+        },
+        kind: "spell",
+        label: `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Porta Dimensionale"}`,
+        targetIds: uniqueIds([
+          ...plan.ids,
+          ...plan.effectSubjectIds,
+          plan.caster?.id,
+          plan.command?.teleport?.passengerId,
+        ]),
+        sideEffects: coordinatedSideEffects,
+        sceneEpoch,
+        ...(runtime.sceneIdentity ? { sceneIdentity: runtime.sceneIdentity } : {}),
+        ...((command?.commandId || runtime.operationId)
+          ? { commandId: command.commandId || runtime.operationId }
+          : {}),
+        ...((command?.correlationId || command?.commandId || runtime.operationId)
+          ? { correlationId: command.correlationId || command.commandId || runtime.operationId }
+          : {}),
+      });
+      if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-teleport");
+      runtime.requireAppliedEffectsMutation(mutation);
+      coordinatedMutation = mutation.commitResult || mutation;
+      canonicalCommitted = mutation.committed === true
+        || mutation.commitResult?.committed === true;
+      recordedEntry = mutation.historyEntry || null;
+      suppressMatchedVisual = mutation.duplicate === true;
+      teleportHistoryPending = mutation.historyPending === true;
+      warnings.push(...warningsFromMutation(mutation));
+      historyResult = {
+        partial: false,
+        committed: canonicalCommitted,
+        historyEntryId: recordedEntry?.id || null,
+        historyPending: mutation.historyPending === true,
+        changes: mutation.changes || mutation.commitResult?.changes || [],
+      };
+    } else {
+      historyResult = await runtime.withItemMetaHistory({
+        kind: "save-resolution",
+        label: `Effetti ad area · ${plan.spell.displayName || plan.spell.name || plan.spell.id}`,
       itemIds: plan.historyIds,
       sceneItemIds: plan.staticZoneSceneItemIds,
       fields: ["hp", "hpMax", "conditions", SPELLS_KEY, CONCENTRATION_KEY],
@@ -1929,10 +2139,21 @@ export async function executeSpellAreaResolution(
             label: isTeleport
               ? `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Passo Velato"}`
               : "Effetti collegati alla risoluzione spell",
-            targetIds: uniqueIds([...plan.ids, ...plan.effectSubjectIds, ...(isTeleport ? [plan.caster?.id] : [])]),
+            targetIds: uniqueIds([
+              ...plan.ids,
+              ...plan.effectSubjectIds,
+              ...(isTeleport
+                ? [plan.caster?.id, plan.command?.teleport?.passengerId]
+                : []),
+            ]),
             sideEffects: coordinatedSideEffects,
             ...(runtime.sceneIdentity ? { sceneIdentity: runtime.sceneIdentity } : {}),
-            ...(runtime.operationId ? { commandId: runtime.operationId } : {}),
+            ...((command?.commandId || runtime.operationId)
+              ? { commandId: command.commandId || runtime.operationId }
+              : {}),
+            ...((command?.correlationId || command?.commandId || runtime.operationId)
+              ? { correlationId: command.correlationId || command.commandId || runtime.operationId }
+              : {}),
           });
           if (coordinatedMutation?.committed === true
             || coordinatedMutation?.commitResult?.committed === true) canonicalCommitted = true;
@@ -1962,7 +2183,8 @@ export async function executeSpellAreaResolution(
         }
         throw error;
       }
-    });
+      });
+    }
     if (historyResult?.partial) {
       if (hpVisualTransaction) {
         await hpVisualTransaction.recover((ids) => runtime.readAuthoritativeHPVisualUpdates(
@@ -2033,7 +2255,7 @@ export async function executeSpellAreaResolution(
     });
   }
 
-  if (plan.matchedVisualContext) {
+  if (plan.matchedVisualContext && !suppressMatchedVisual) {
     visualEvents.push({ type: "matched-spell", phase: "post-commit", spellId: plan.spell.id });
     void runtime.emitMatchedSpellVisual(plan.matchedVisualContext).catch((error) => {
       warnings.push(normalizedError(error, "matched-spell-visual"));
@@ -2098,6 +2320,9 @@ export async function executeSpellAreaResolution(
     triggerChanges: triggerResultChanges(plan),
     historyEntryId: recordedEntry?.id,
     undoAvailable,
+    ...(isTeleportSpell(plan.spell.id) && teleportHistoryPending
+      ? { historyPending: true, recoveryPending: coordinatedMutation?.recoveryPending === true }
+      : {}),
     visualEvents,
     warnings,
   });

@@ -47,6 +47,7 @@ const CASTS_WITHOUT_INITIAL_HP = [
 function targetIdsFor(contract) {
   const inputs = contract.presentation.inputs || {};
   const targeting = contract.presentation.targeting || {};
+  if (contract.presentation.teleport?.available === true) return [];
   const required = inputs.targets?.required === true
     || targeting.mode !== "none"
     || targeting.confirmTargets === true;
@@ -211,7 +212,7 @@ test("il catalogo completo ha un percorso canonico senza whitelist di eccezioni"
     })
     .filter(Boolean);
 
-  assert.equal(entries.length, 392);
+  assert.equal(entries.length, 393);
   assert.deepEqual(unhandled, []);
 });
 

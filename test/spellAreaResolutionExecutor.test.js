@@ -19,6 +19,10 @@ const executorSource = fs.readFileSync(
   path.join(root, "src", "spellAreaResolutionExecutor.js"),
   "utf8",
 );
+const panelSource = fs.readFileSync(
+  path.join(root, "src", "spell-unified-panel.js"),
+  "utf8",
+);
 const consoleSource = fs.readFileSync(
   path.join(root, "src", "quick-hp-modal.js"),
   "utf8",
@@ -122,6 +126,22 @@ test("una nuova zona persiste l'owner prima di aggiungere il root osservabile", 
   assert.ok(effectCommit >= 0, "manca il commit coordinato prima della zona");
   assert.ok(zoneAdd >= 0, "manca l'aggiunta della zona");
   assert.ok(effectCommit < zoneAdd, "il root non deve essere osservabile prima dell'owner");
+});
+
+test("i visual area usano l'epoch del renderer e non quello privato del workflow", () => {
+  assert.match(
+    panelSource,
+    /const areaRuntime = [\s\S]*?visualSceneEpoch: currentSceneEpoch\(\),[\s\S]*?sceneEpoch: operation\.epoch/,
+  );
+  assert.match(
+    executorSource,
+    /const visualSceneEpoch = Number\.isInteger\(runtime\.visualSceneEpoch\)[\s\S]*?: runtime\.sceneEpoch/,
+  );
+  assert.equal(
+    [...executorSource.matchAll(/sceneEpoch: visualSceneEpoch/gu)].length,
+    5,
+    "fireball, teletrasporto e tutti i rami matched devono condividere l'epoch visuale",
+  );
 });
 
 test("il cast area inoltra le summaryParts presentation-only nel lifecycle persistito", () => {

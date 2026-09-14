@@ -107,6 +107,34 @@ test("Muro di Fuoco proietta le scelte di placement nel modello visuale", () => 
   assert.equal(selected.placement.rules[0].shape, "line");
 });
 
+test("Porta Dimensionale mostra soltanto i passeggeri eleggibili", () => {
+  const currentContract = contract("dimension-door");
+  const view = buildUnifiedPanelViewModel({
+    contract: currentContract,
+    session: createSpellPanelSession({
+      contract: currentContract,
+      casterId: "caster-a",
+      passengerId: "adjacent",
+      targetIds: ["adjacent"],
+    }),
+    targetCandidates: [
+      { key: "caster-a", label: "Caster", layer: "CHARACTER", isCreature: true },
+      { key: "adjacent", label: "Adiacente", layer: "CHARACTER", isCreature: true },
+      { key: "far", label: "Lontano", layer: "CHARACTER", isCreature: true },
+      { key: "prop", label: "Oggetto", layer: "PROP", isCreature: false },
+    ],
+    teleportPassengerCandidateIds: ["adjacent"],
+  });
+
+  assert.deepEqual(
+    view.targets.teleport.passenger.options
+      .filter((option) => option.value)
+      .map((option) => option.value),
+    ["adjacent"],
+  );
+  assert.equal(view.targets.teleport.passenger.value, "adjacent");
+});
+
 test("il view model del batch 7 non duplica label e placeholder e conserva il detail", () => {
   const curse = modelFor("bestow-curse");
   assert.equal(curse.context.variant.visible, true);

@@ -24,9 +24,12 @@ import {
 import {
   buildSpellUnifiedPanelRouteQuery,
 } from "./spellUnifiedPanelRoutingCore.js";
+import { applyTargetingLimitState } from "./spellTargetingCapacityCore.js";
 
 const META_KEY = `${ID}/meta`;
 const CONC_META_KEY = `${ID}/concentration`;
+
+export const QUICK_ACTION_INITIAL_SAVE_OUTCOME = "failed";
 
 function text(value) {
   return String(value ?? "").trim();
@@ -40,8 +43,8 @@ function uniqueIds(values = []) {
   ));
 }
 
-function review({ normalized, spell, contract, session, initialTargetIds, reason }) {
-  const routeRequest = {
+function spellReviewRoute({ normalized, spell, session, initialTargetIds }) {
+  const request = {
     intent: "spell-cast",
     sourceId: session.casterId,
     casterId: session.casterId,
@@ -54,7 +57,16 @@ function review({ normalized, spell, contract, session, initialTargetIds, reason
     origin: "quick-action",
     quickActionId: normalized.id,
   };
-  const query = buildSpellUnifiedPanelRouteQuery(routeRequest);
+  const query = buildSpellUnifiedPanelRouteQuery(request);
+  return {
+    destination: "spell-unified-panel",
+    request,
+    query: Object.fromEntries(query.entries()),
+    queryString: query.toString(),
+  };
+}
+
+function review({ normalized, spell, contract, session, initialTargetIds, reason }) {
   return {
     mode: "review",
     reason,
@@ -63,12 +75,7 @@ function review({ normalized, spell, contract, session, initialTargetIds, reason
     spellId: spell.id,
     contract,
     session,
-    route: {
-      destination: "spell-unified-panel",
-      request: routeRequest,
-      query: Object.fromEntries(query.entries()),
-      queryString: query.toString(),
-    },
+    route: spellReviewRoute({ normalized, spell, session, initialTargetIds }),
   };
 }
 
@@ -139,6 +146,107 @@ function quickActionEligibilityReason(contract, eligibility) {
     return "area-review-required";
   }
   return text(eligibility?.code) || "lifecycle-review-required";
+}
+
+function hasRequiredInput(inputs, key) {
+  return inputs?.[key]?.required === true;
+}
+
+function phaseRequiresReview(presentation) {
+  const phase = presentation?.phase || {};
+  const phaseValues = Array.isArray(phase.options)
+    ? phase.options.map((option) => text(option?.value)).filter(Boolean)
+    : [];
+  return Boolean(
+    (phase.selected && phase.selected !== "cast")
+      || phaseValues.some((value) => value !== "cast")
+      || (phase.plan?.phase && phase.plan.phase !== "cast")
+      || phase.plan?.subjectMode === "caster",
+  );
+}
+
+/**
+ * A Quick Action can skip only the initial save outcome picker when the
+ * contract leaves no other cast input to resolve. The normal area command
+ * and save resolver still validate the target set and consume the explicit
+ * outcome map.
+ */
+export function getQuickActionDirectSaveEligibility({
+  contract = null,
+  targetIds = [],
+} = {}) {
+  const execution = contract?.execution || {};
+  const presentation = contract?.presentation || {};
+  const inputs = presentation.inputs || {};
+  const placement = presentation.placement || {};
+  const targeting = presentation.targeting || {};
+  const variant = presentation.variant || {};
+  const outcomes = presentation.outcomes || {};
+
+  const reject = (reason) => ({ eligible: false, reason });
+  if (execution.lane !== SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION) {
+    return reject("lane-not-supported");
+  }
+  if (execution.hasZones === true) return reject("zones-required");
+  if (execution.hasTokens === true) return reject("tokens-required");
+  if (execution.activeResolution === true || text(execution.selectedActionId)) {
+    return reject("active-resolution-required");
+  }
+  if (phaseRequiresReview(presentation)) return reject("prepared-resolution-required");
+  if (targeting.mode !== "discrete") return reject("spatial-targeting-review-required");
+  if (targeting.confirmTargets === true) return reject("target-confirmation-required");
+  if (placement.policy && placement.policy !== "unavailable") {
+    return reject("placement-required");
+  }
+  if (hasRequiredInput(inputs, "placement")) return reject("placement-required");
+  if (variant.required === true || (Array.isArray(variant.options) && variant.options.length)) {
+    return reject("variant-review-required");
+  }
+  if (hasRequiredInput(inputs, "composition")) return reject("composition-review-required");
+  if (hasRequiredInput(inputs, "duration")) return reject("duration-review-required");
+  if (hasRequiredInput(inputs, "primaryTarget") || targeting.primaryTarget?.required === true) {
+    return reject("primary-target-review-required");
+  }
+  if (hasRequiredInput(inputs, "targetContext")) return reject("target-context-review-required");
+  if (
+    execution.hasHP === true
+    || execution.castHasHP === true
+    || execution.phaseHasHP === true
+    || execution.deferredHP === true
+    || hasRequiredInput(inputs, "hp")
+    || hasRequiredInput(inputs, "damage")
+    || hasRequiredInput(inputs, "primaryDamage")
+    || hasRequiredInput(inputs, "healing")
+  ) {
+    return reject("hp-input-required");
+  }
+  if (presentation.capabilities?.saveOutcomes !== true
+    || inputs.outcomes?.required !== true
+    || outcomes.mode !== "save") {
+    return reject("outcomes-required");
+  }
+
+  const capacity = applyTargetingLimitState(
+    targeting.limit || {},
+    { targetIds },
+  );
+  if (capacity.errors?.length) return reject("target-capacity-invalid");
+  if (capacity.resolved === false || capacity.contextMissing === true) {
+    return reject("target-capacity-context-required");
+  }
+  if (capacity.exceeded) return reject("target-limit-exceeded");
+  return {
+    eligible: true,
+    reason: "direct-safe",
+    targetingCapacity: capacity,
+  };
+}
+
+function quickActionInitialSaveOutcomes(targetIds = []) {
+  return Object.fromEntries(uniqueIds(targetIds).map((targetId) => [
+    targetId,
+    QUICK_ACTION_INITIAL_SAVE_OUTCOME,
+  ]));
 }
 
 function isDirectAutomaticAreaCast(contract) {
@@ -242,7 +350,11 @@ export function buildQuickActionSpellLaunchPlan({
     });
   }
 
-  const contract = buildSpellUnifiedPanelContract({ spellId: spell.id });
+  const slotLevel = resolveSpellSlotLevel(spell, normalized.slotLevel);
+  const contract = buildSpellUnifiedPanelContract({
+    spellId: spell.id,
+    castContext: { slotLevel },
+  });
   if (!contract) return invalid("spell-contract-missing", { spellId: spell.id });
 
   const initialTargetIds = quickActionInitialTargetIds(
@@ -303,6 +415,48 @@ export function buildQuickActionSpellLaunchPlan({
       session,
       areaExecution: true,
       initialTargetIds,
+      replacesConcentration: resolveSpellConcentration(spell, false) === true
+        && session.phasePlan?.concentrationAction === "replace",
+    };
+  }
+
+  const directSaveEligibility = getQuickActionDirectSaveEligibility({
+    contract,
+    targetIds: initialTargetIds,
+  });
+  if (directSaveEligibility.eligible) {
+    if (!initialTargetIds.length) {
+      return review({
+        normalized,
+        spell,
+        contract,
+        session: reviewSession,
+        initialTargetIds,
+        reason: "targets-missing",
+      });
+    }
+    const session = candidateSession({
+      normalized,
+      spell,
+      contract,
+      casterId,
+      targetIds: initialTargetIds,
+    });
+    session.outcomes = quickActionInitialSaveOutcomes(initialTargetIds);
+    return {
+      mode: "direct",
+      reason: "direct-safe",
+      kind: "spell",
+      launchMode: normalized.launchMode,
+      spellId: spell.id,
+      contract,
+      session,
+      areaExecution: true,
+      initialTargetIds,
+      initialSaveOutcome: QUICK_ACTION_INITIAL_SAVE_OUTCOME,
+      initialSaveOutcomeSource: "quick-action",
+      targetingCapacity: directSaveEligibility.targetingCapacity,
+      fallbackRoute: spellReviewRoute({ normalized, spell, session, initialTargetIds }),
       replacesConcentration: resolveSpellConcentration(spell, false) === true
         && session.phasePlan?.concentrationAction === "replace",
     };
@@ -383,6 +537,7 @@ export function buildQuickActionSpellLaunchPlan({
     session,
     lifecycleRequest,
     initialTargetIds,
+    fallbackRoute: spellReviewRoute({ normalized, spell, session, initialTargetIds }),
     replacesConcentration,
   };
 }

@@ -14,9 +14,13 @@ import {
   getCurrentSpellAppliedAt,
 } from "./spellApplicationExecutor.js";
 import { findActiveSpellConcentration } from "./spellCastPhaseCore.js";
-import { currentSceneEpoch } from "./sceneEpoch.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { executeSpellUnifiedArea } from "./spellUnifiedAreaAdapter.js";
 import { executeSpellUnifiedLifecycle } from "./spellUnifiedLifecycleAdapter.js";
+import {
+  getSpellAreaSpatialValidation,
+  validateSpellAreaSceneSpatial,
+} from "./spellUnifiedPanelSceneProvider.js";
 import { getSpellDefinition } from "./spells-srd.js";
 
 const META_KEY = `${ID}/meta`;
@@ -27,6 +31,7 @@ export async function executeDirectQuickAction({
   selectedTargetIds = null,
   confirmConcentration = null,
 } = {}) {
+  const sceneEpoch = currentSceneEpoch();
   const normalized = sanitizeQuickAction(action);
   const resolvedSelectedTargetIds = normalized?.targetMode === "selection"
     ? Array.isArray(selectedTargetIds)
@@ -112,14 +117,22 @@ export async function executeDirectQuickAction({
     const areaResult = await executeSpellUnifiedArea({
       contract: decision.contract,
       session: decision.session,
-      source: { sceneEpoch: currentSceneEpoch() },
-      runtime: { spell },
+      source: { sceneEpoch },
+      runtime: {
+        spell,
+        sceneEpoch,
+        isCurrent: isCurrentSceneEpoch,
+        getSpatialValidation: (input) => getSpellAreaSpatialValidation(OBR, input),
+        validateSpatial: (input) => validateSpellAreaSceneSpatial(OBR, input),
+        getInitiativeActorId: async () => (await getCurrentSpellAppliedAt())?.actorId || null,
+      },
     });
     if (areaResult.status === "rejected") {
       return {
         ...decision,
         mode: "review",
         reason: areaResult.errors?.[0]?.code || "area-session-incomplete",
+        route: decision.fallbackRoute,
         areaResult,
       };
     }
@@ -142,6 +155,9 @@ export async function executeDirectQuickAction({
     runtime: {
       spell,
       appliedAt,
+      sceneEpoch,
+      visualSceneEpoch: sceneEpoch,
+      isCurrent: isCurrentSceneEpoch,
       casterName: freshSource.name || "",
       resolveActiveConcentration: async () => findActiveSpellConcentration(
         freshSource.metadata?.[META_KEY]?.[`${ID}/concentration`],
@@ -155,6 +171,7 @@ export async function executeDirectQuickAction({
       ...decision,
       mode: "review",
       reason: lifecycleResult.error?.code || "session-incomplete",
+      route: decision.fallbackRoute,
       lifecycleResult,
     };
   }
@@ -166,6 +183,7 @@ export async function executeDirectQuickAction({
       ...decision,
       mode: "review",
       reason: lifecycleResult.reason || "spell-resolution-noop",
+      route: decision.fallbackRoute,
       lifecycleResult,
     };
   }

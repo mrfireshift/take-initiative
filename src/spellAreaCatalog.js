@@ -243,6 +243,14 @@ const AREA_OVERRIDES = Object.freeze({
     rangeMeters: 9,
     note: "Seleziona la casella libera di destinazione entro 9 metri",
   },
+  "dimension-door": {
+    shape: "square",
+    sizeMeters: 1.5,
+    origin: "point",
+    rangeMeters: 150,
+    centered: true,
+    note: "Seleziona il punto di arrivo entro 150 metri; visibilità, visualizzazione, descrizione e spazio libero restano assistiti dal GM.",
+  },
   "move-earth": {
     shape: "square",
     sizeMeters: 12,
@@ -531,6 +539,7 @@ function catalogSpec(spell) {
     origin,
     ...(origin === "point" ? { rangeMeters: resolvedRange } : {}),
     ...(override.snapOrigin === "vertex" ? { snapOrigin: "vertex" } : {}),
+    ...(override.centered === true ? { centered: true } : {}),
     ...(override.widthAnchor === "edge" ? { widthAnchor: "edge" } : {}),
     kind: MOBILE_AURA_SPELL_IDS.has(spell.id)
       ? "aura"

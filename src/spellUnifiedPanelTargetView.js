@@ -141,7 +141,9 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
     children: [
       createNode(documentRef, "h2", {
         id: "unified-targets-heading",
-        text: negativeSelection ? "Creature esenti" : "Bersagli",
+        text: negativeSelection
+          ? "Creature esenti"
+          : targets.teleport?.available ? "Porta Dimensionale" : "Bersagli",
       }),
       createNode(documentRef, "span", {
         className: "unified-section__eyebrow unified-target-count",
@@ -183,6 +185,36 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
       attributes: { role: "alert" },
       text: targets.limitWarning,
     }));
+  }
+
+  if (targets.teleport?.available === true) {
+    const spatialLabel = String(targets.spatialLabel || "").trim();
+    if (spatialLabel) {
+      section.append(createNode(documentRef, "div", {
+        className: "unified-target-spatial",
+        text: spatialLabel,
+      }));
+    }
+    const passenger = targets.teleport.passenger || {};
+    const passengerSelect = createSelect(documentRef, {
+      id: "spell-unified-teleport-passenger",
+      options: passenger.options || [{ value: "", label: "Nessun passeggero" }],
+      value: passenger.value || "",
+      invalid: model.workflow.validation.firstInvalidField === "passenger",
+      attributes: { "data-field": "passenger" },
+    });
+    passengerSelect.addEventListener("change", (event) => callbacks.onPassengerChange?.(
+      event.target.value,
+    ));
+    section.append(createField(documentRef, {
+      id: passengerSelect.id,
+      label: passenger.label || "Passeggero (opzionale)",
+      control: passengerSelect,
+      hint: passenger.hint,
+      invalid: model.workflow.validation.firstInvalidField === "passenger",
+    }));
+
+    return section;
   }
 
   const filters = targets.filters || {};

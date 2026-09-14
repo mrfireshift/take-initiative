@@ -29,7 +29,7 @@ test("il catalogo unificato coincide con l'unione deduplicata delle due fonti le
     intersection: [...spellsPanelIds].filter((id) => areaConsoleIds.has(id)).length,
     union: expectedIds.size,
   });
-  assert.equal(entries.length, 392);
+  assert.equal(entries.length, 393);
   assert.equal(
     entries.filter((entry) => entry.sources.length > 1).length,
     [...spellsPanelIds].filter((id) => areaConsoleIds.has(id)).length,
@@ -42,7 +42,7 @@ test("i record recuperati dalla Console area mantengono lane e contratto", () =>
     entry.sources.length === 1
       && entry.sources[0] === SPELL_UNIFIED_CATALOG_SOURCES.AREA_CONSOLE
   ));
-  assert.equal(recovered.length, 34);
+  assert.equal(recovered.length, 35);
   for (const id of ["fireball", "chain-lightning", "mass-cure-wounds", "misty-step"]) {
     const entry = entries.find((candidate) => candidate.key === id);
     assert.ok(entry, id);
@@ -63,12 +63,12 @@ test("ogni voce esposta ha un ID stabile, contratto e executor dichiarato", () =
   }
 });
 
-test("gli 85 record del catalogo generale non esposti restano esclusioni esplicite", () => {
+test("gli 84 record del catalogo generale non esposti restano esclusioni esplicite", () => {
   const entries = buildSpellUnifiedCatalogEntries();
   const exclusions = buildSpellUnifiedCatalogExclusions({ currentEntries: entries });
   const audit = buildSpellUnifiedCatalogAudit({ currentEntries: entries });
   assert.equal(exclusions.length, getSpellCatalog().length - entries.length);
-  assert.equal(exclusions.length, 85);
+  assert.equal(exclusions.length, 84);
   assert.ok(exclusions.includes("acid-splash"));
   assert.equal(entries.some((entry) => entry.key === "acid-splash"), false);
   const excludedRow = audit.find((row) => row.spellId === "acid-splash");

@@ -20,7 +20,11 @@ import {
   getSpellAreaRuleById,
   spellPlacedDamageCastAllowsEmptyTargets,
 } from "./spellAreaRules.js";
-import { isTeleportSpell } from "./spellTeleportCore.js";
+import {
+  getSpellTeleportRule,
+  isTeleportSpell,
+  spellTeleportDestinationPosition,
+} from "./spellTeleportCore.js";
 import {
   spellBoardTokenPlacementPosition,
 } from "./spellBoardTokenCore.js";
@@ -76,6 +80,14 @@ export const SPELL_AREA_RESOLUTION_ERROR_CODES = Object.freeze({
   CHOICE_INVALID: "choice-invalid",
   TARGETS_REQUIRED: "targets-required",
   TARGET_LIMIT: "target-limit-exceeded",
+  TELEPORT_DESTINATION_REQUIRED: "teleport-destination-required",
+  TELEPORT_DESTINATION_OUT_OF_RANGE: "teleport-destination-out-of-range",
+  PASSENGER_NOT_ALLOWED: "passenger-not-allowed",
+  PASSENGER_LIMIT: "passenger-limit-exceeded",
+  PASSENGER_IS_CASTER: "passenger-is-caster",
+  PASSENGER_NOT_CREATURE: "passenger-not-creature",
+  PASSENGER_NOT_ADJACENT: "passenger-not-adjacent",
+  PASSENGER_OUT_OF_RANGE: "passenger-out-of-range",
   PRIMARY_REQUIRED: "primary-required",
   PRIMARY_NOT_SELECTED: "primary-not-selected",
   DUPLICATE_TARGETS: "duplicate-targets",
@@ -173,6 +185,13 @@ function recordValue(value) {
   return Object.fromEntries(recordEntries(value)
     .map(([key, entry]) => [text(key), entry])
     .filter(([key]) => key));
+}
+
+function recordWithoutTeleportOutcome(value) {
+  return Object.fromEntries(
+    Object.entries(recordValue(value))
+      .filter(([key]) => key !== "teleportOutcome"),
+  );
 }
 
 function serializable(value, seen = new WeakSet()) {
@@ -403,6 +422,27 @@ function placementPayload(value) {
     ...(anchorTargetId ? { anchorTargetId } : {}),
     previewSnapshot: preview ? normalizePreview(preview) : null,
   };
+}
+
+function teleportPassengerId(input, session) {
+  const explicitPassengerId = text(firstDefined(
+    input?.passengerId,
+    input?.teleport?.passengerId,
+    session?.passengerId,
+    session?.placement?.passengerId,
+    session?.castContext?.passengerId,
+    "",
+  ));
+  if (explicitPassengerId) return explicitPassengerId;
+
+  // Keep the DTO resilient to callers that still carry the passenger in the
+  // ordinary target selection while the dedicated field is empty. The caster
+  // must never be inferred as its own passenger.
+  const targetIds = normalizeTargetIds(input, session);
+  const casterId = text(firstDefined(input?.casterId, session?.casterId, ""));
+  return targetIds.length === 1 && targetIds[0] !== casterId && casterId
+    ? targetIds[0]
+    : "";
 }
 
 function normalizePreview(value) {
@@ -831,6 +871,7 @@ function normalizeHp(
   primaryTargetId = "",
   legacyPreparedArea = false,
   omitDamageInput = false,
+  forceDamageInput = false,
 ) {
   const rawHp = input.hp && typeof input.hp === "object" ? input.hp : {
     ...(input.hp === null || input.hp === undefined ? {} : { amount: input.hp }),
@@ -838,7 +879,8 @@ function normalizeHp(
   const healing = AREA_HEALING_SPELL_ID_SET.has(text(contract?.spell?.id));
   const boardTokenInitial = rule?.kind === "board-token" && !activeAction;
   const automaticAuraInitial = rule?.kind === "aura" && !activeAction;
-  const contractHpRequired = contract?.presentation?.inputs?.hp?.required === true;
+  const contractHpRequired = contract?.presentation?.inputs?.hp?.required === true
+    || forceDamageInput;
   const targeting = contract?.presentation?.targeting || {};
   const emptyInitialZone = targetIds.length === 0
     && rule?.kind === "zone"
@@ -859,6 +901,8 @@ function normalizeHp(
       || input.hpMode
       || (healing ? "heal" : contract?.presentation?.inputs?.healing?.required
         ? "heal"
+      : forceDamageInput
+        ? "damage"
         : contract?.presentation?.inputs?.damage?.required || contract?.execution?.hasHP
           ? "damage"
           : "none"),
@@ -1201,6 +1245,21 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       ? sourceInput.spell
       : null
   );
+  const teleportRule = getSpellTeleportRule(spell || spellId);
+  const passengerId = teleportPassengerId(sourceInput, session);
+  const commandId = text(firstDefined(
+    sourceInput.commandId,
+    sourceInput.operationId,
+    sourceInput.source?.commandId,
+    sourceInput.source?.operationId,
+    "",
+  ));
+  const correlationId = text(firstDefined(
+    sourceInput.correlationId,
+    sourceInput.source?.correlationId,
+    commandId,
+    "",
+  ));
   if (spellId && !spell) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.SPELL_NOT_FOUND);
   if (!contract) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.SPELL_REQUIRED);
   const contractPhase = text(contract?.presentation?.phase?.selected);
@@ -1344,6 +1403,9 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     targetMode,
     errors,
   });
+  const teleportDestination = teleportRule
+    ? spellTeleportDestinationPosition(placement.payload?.previewSnapshot)
+    : null;
   const expectedRuleId = placement.expectedRuleId;
   const validatedTrigger = sourceKind === "zone-trigger"
     ? validateZoneTrigger(trigger, {
@@ -1373,6 +1435,64 @@ export function buildSpellAreaResolutionCommand(input = {}) {
         ? placement.targetIds
         : rawTargetIds;
   targetIds = uniqueIds(targetIds);
+
+  // Teleport subjects are explicit command data, not a consequence of the
+  // placement preview. A legacy caller that still supplies one target can be
+  // read as the optional passenger, but the normalized DTO keeps the role
+  // separate from ordinary area targets.
+  const selectedPassengerId = teleportRule
+    ? passengerId || (rawTargetIds.length === 1 ? rawTargetIds[0] : "")
+    : "";
+  const requestedPassengerIds = firstDefined(
+    sourceInput.passengerIds,
+    sourceInput.teleport?.passengerIds,
+    null,
+  );
+  if (teleportRule) {
+    if (Array.isArray(requestedPassengerIds) && requestedPassengerIds.length > 1) {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PASSENGER_LIMIT);
+    }
+    if (selectedPassengerId && teleportRule.allowPassenger !== true) {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PASSENGER_NOT_ALLOWED);
+    }
+    if (selectedPassengerId && selectedPassengerId === casterId) {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PASSENGER_IS_CASTER);
+    }
+    const passengerValue = firstDefined(
+      sourceInput.passenger,
+      sourceInput.teleport?.passenger,
+      null,
+    );
+    if (selectedPassengerId
+      && teleportRule.passenger?.requireCreature === true
+      && passengerValue?.layer !== undefined
+      && passengerValue.layer !== "CHARACTER") {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PASSENGER_NOT_CREATURE);
+    }
+    if (placement.payload && !teleportDestination) {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.TELEPORT_DESTINATION_REQUIRED);
+    }
+    const spatial = sourceInput.validateSpatial === false
+      ? null
+      : sourceInput.spatialValidation || sourceInput.spatial;
+    if (spatial?.invalidDestination === true) {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.TELEPORT_DESTINATION_OUT_OF_RANGE);
+    }
+    if (selectedPassengerId && spatial?.passengerAdjacent === false) {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PASSENGER_NOT_ADJACENT);
+    }
+    if (Array.isArray(spatial?.invalidPassengerIds)
+      && selectedPassengerId
+      && spatial.invalidPassengerIds.includes(selectedPassengerId)) {
+      addError(
+        errors,
+        spatial.passengerAdjacent === false
+          ? SPELL_AREA_RESOLUTION_ERROR_CODES.PASSENGER_NOT_ADJACENT
+          : SPELL_AREA_RESOLUTION_ERROR_CODES.PASSENGER_OUT_OF_RANGE,
+      );
+    }
+    targetIds = selectedPassengerId ? [selectedPassengerId] : [];
+  }
 
   if (isAreaSubset && placement.payload && placementIsConfirmed(placement.payload)) {
     const candidateTargetIds = uniqueIds(firstDefined(
@@ -1557,7 +1677,19 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   );
 
   let resolutionResult = null;
-  if (spell && !attackRequired && directDamageCast) {
+  if (spell && teleportRule) {
+    resolutionResult = {
+      valid: true,
+      errors: [],
+      spellId: spell.id,
+      spellName: spell.displayName || spell.name,
+      concentration: false,
+      casterId,
+      targetIds,
+      spellTargetIds: [],
+      conditionApplications: [],
+    };
+  } else if (spell && !attackRequired && directDamageCast) {
     const postDamageEffects = Array.isArray(castResolutionRule?.postDamageEffects)
       ? castResolutionRule.postDamageEffects
       : [];
@@ -1634,6 +1766,21 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       || sourceInput.spatial
       || null,
   );
+  const rawPassengerRelativeOffset = teleportRule
+    ? firstDefined(
+      sourceInput.spatialValidation?.passengerRelativeOffset,
+      sourceInput.spatial?.passengerRelativeOffset,
+    )
+    : null;
+  const passengerRelativeOffset = rawPassengerRelativeOffset
+    ? {
+      x: finiteOrNull(rawPassengerRelativeOffset.x),
+      y: finiteOrNull(rawPassengerRelativeOffset.y),
+    }
+    : null;
+  const hasPassengerRelativeOffset = passengerRelativeOffset
+    && passengerRelativeOffset.x !== null
+    && passengerRelativeOffset.y !== null;
   if (
     contract?.presentation?.targeting?.spatialRules?.mode === "placement-range"
     && sourceInput.validateSpatial !== false
@@ -1662,8 +1809,14 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       ownerContext: { instanceId: validatedTrigger.instanceId, casterId: casterId || null },
     } : {}),
   };
+  const effectiveCastContext = recordWithoutTeleportOutcome({
+    ...recordValue(sourceInput.castContext),
+    ...recordValue(session.castContext),
+  });
   const command = {
     type: SPELL_AREA_RESOLUTION_COMMAND_TYPE,
+    ...(commandId ? { commandId } : {}),
+    ...(correlationId ? { correlationId } : {}),
     source: {
       kind: SOURCE_KIND_SET.has(sourceKind) ? sourceKind : null,
       sceneEpoch: sceneEpoch ?? null,
@@ -1683,12 +1836,24 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       phase: phase || null,
       actionId: actionId || null,
       choiceValue: choiceValue || null,
-      ...(session.castContext && Object.keys(session.castContext).length
-        ? { castContext: serializable(session.castContext) }
-        : sourceInput.castContext && Object.keys(sourceInput.castContext).length
-          ? { castContext: serializable(sourceInput.castContext) }
-          : {}),
+      ...(Object.keys(effectiveCastContext).length
+        ? { castContext: serializable(effectiveCastContext) }
+        : {}),
     },
+    ...(teleportRule ? {
+      teleport: {
+        spellId: spellId || null,
+        destination: teleportDestination,
+        passengerId: selectedPassengerId || null,
+        affectedTargetIds: uniqueIds([casterId, selectedPassengerId]),
+        ...(teleportRule.passenger?.destinationPlacement
+          ? { passengerPlacement: teleportRule.passenger.destinationPlacement }
+          : {}),
+        ...(hasPassengerRelativeOffset
+          ? { passengerRelativeOffset }
+          : {}),
+      },
+    } : {}),
     targeting: {
       mode: [
         SPELL_UNIFIED_TARGETING_MODES.DISCRETE,

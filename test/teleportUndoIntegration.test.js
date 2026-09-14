@@ -97,10 +97,98 @@ const combatLog = await import("../src/combatLog.js");
 const { currentSceneEpoch } = await import("../src/sceneEpoch.js");
 const { normalizeHistoryUndoResult, HISTORY_UNDO_OUTCOME } = await import("../src/historyUndoResultCore.js");
 const { decorateCompositeEffectsHistoryEntry } = await import("../src/effectsMutationCompositeHistoryCore.js");
+const {
+  buildSpellUnifiedPanelContract,
+  createSpellPanelSession,
+} = await import("../src/spellUnifiedPanelCore.js");
+const { buildSpellAreaResolutionCommand } = await import("../src/spellAreaResolutionCommandCore.js");
+const { executeSpellAreaResolution } = await import("../src/spellAreaResolutionExecutor.js");
+const { executeSpellUnifiedArea } = await import("../src/spellUnifiedAreaAdapter.js");
 
 function resetScene(initialToken = null) {
   sceneState.metadata = {};
   sceneState.items = initialToken ? [clone(initialToken)] : [];
+}
+
+function dimensionDoorCommand({
+  casterId = "dimension-caster",
+  passengerId = "",
+  destination = { x: 300, y: 300 },
+  commandId = "dimension-door-command",
+  hp = null,
+  passengerRelativeOffset = null,
+} = {}) {
+  const contract = buildSpellUnifiedPanelContract({
+    spellId: "dimension-door",
+  });
+  return buildSpellAreaResolutionCommand({
+    contract,
+    spellId: "dimension-door",
+    phase: "cast",
+    source: {
+      kind: "cast",
+      sceneEpoch: currentSceneEpoch(),
+      commandId,
+      correlationId: commandId,
+    },
+    commandId,
+    correlationId: commandId,
+    casterId,
+    passengerId,
+    targetIds: passengerId ? [passengerId] : [],
+    passenger: passengerId ? { id: passengerId, layer: "CHARACTER" } : null,
+    targetLocked: true,
+    ...(hp ? { hp } : {}),
+    placement: {
+      status: "confirmed",
+      confirmed: true,
+      targetLocked: true,
+      ruleId: contract.presentation.placement.ruleId,
+      spellId: "dimension-door",
+      casterId,
+      preview: {
+        type: "square",
+        start: { ...destination },
+        end: { x: destination.x + 150, y: destination.y + 150 },
+        position: { ...destination },
+        gridOrigin: { x: 0, y: 0 },
+        dpi: 150,
+        targetIds: [],
+      },
+    },
+    sceneEpoch: currentSceneEpoch(),
+    currentSceneEpoch: currentSceneEpoch(),
+    validateSpatial: false,
+    ...(passengerRelativeOffset ? {
+      spatialValidation: { passengerRelativeOffset },
+    } : {}),
+  });
+}
+
+function dimensionDoorToken(id, position) {
+  return {
+    id,
+    name: id,
+    layer: "CHARACTER",
+    position: clone(position),
+    metadata: { [META_KEY]: { hp: 20, hpMax: 20, conditions: [] } },
+  };
+}
+
+async function waitForPositions(ids, expectedPositions, timeoutMs = 3500) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const items = await sdkStub.scene.items.getItems(ids);
+    if (items.length === ids.length
+      && items.every((item, index) => (
+        item?.position?.x === expectedPositions[index]?.x
+        && item?.position?.y === expectedPositions[index]?.y
+      ))) {
+      return items;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return sdkStub.scene.items.getItems(ids);
 }
 
 test.before(async () => {
@@ -339,4 +427,347 @@ test("Combat Log integration: il Combat Log traccia l'evento di lancio e l'event
   const logDataAfterUndo = await combatLog.getActiveCombatLogData({ sceneEpoch: currentSceneEpoch() });
   const undoEvent = logDataAfterUndo.events.find((e) => e.kind === "undo" && e.payload?.historyEntryIds?.includes(targetEntryId));
   assert.ok(undoEvent, "L'evento di Undo deve essere registrato con riferimento alla History entry originale");
+});
+
+test("Dimension Door E2E caster-only: contract, command, Effects, History e Undo sono una sola azione", async () => {
+  const origin = { x: 0, y: 0 };
+  const destination = { x: 300, y: 300 };
+  resetScene(dimensionDoorToken("dimension-caster", origin));
+
+  const contract = buildSpellUnifiedPanelContract({ spellId: "dimension-door" });
+  assert.equal(contract.execution.lane, "area-transaction");
+  assert.equal(contract.presentation.placement.required, true);
+  assert.equal(contract.presentation.teleport.passenger.optional, true);
+  const session = createSpellPanelSession({
+    contract,
+    casterId: "dimension-caster",
+    targetIds: [],
+    placement: {
+      status: "confirmed",
+      confirmed: true,
+      targetLocked: true,
+      ruleId: contract.presentation.placement.ruleId,
+      spellId: "dimension-door",
+      casterId: "dimension-caster",
+      preview: {
+        type: "square",
+        start: { x: destination.x - 75, y: destination.y - 75 },
+        end: { x: destination.x + 75, y: destination.y + 75 },
+        position: { ...destination },
+        gridOrigin: { x: 0, y: 0 },
+        dpi: 150,
+        targetIds: [],
+      },
+    },
+  });
+  const commandId = "dimension-door-unified-caster-command";
+  const result = await executeSpellUnifiedArea({
+    contract,
+    session,
+    source: {
+      sceneEpoch: currentSceneEpoch(),
+      commandId,
+      correlationId: commandId,
+    },
+    runtime: {
+      getSpatialValidation: async () => ({
+        mode: "teleport",
+        destination,
+        invalidDestination: false,
+        invalidPassengerIds: [],
+      }),
+      executor: executeSpellAreaResolution,
+      getItems: sdkStub.scene.items.getItems,
+      updateItems: sdkStub.scene.items.updateItems,
+      getSceneMetadata: sdkStub.scene.getMetadata,
+      currentSceneEpoch,
+      isCurrent: () => true,
+      syncHPVisuals: async () => {},
+      readAuthoritativeHPVisualUpdates: async () => [],
+      syncHPBatchToMemory: async () => {},
+      emitFireballVisual: async () => {},
+      emitMatchedSpellVisual: async () => {},
+      onConcentrationWarnings: async () => {},
+      onEffectSaveWarnings: async () => {},
+    },
+  });
+  assert.equal(result.status, "applied", JSON.stringify(result));
+  const command = result.command;
+  assert.equal(command.valid, true, JSON.stringify(command.errors));
+  assert.deepEqual(command.teleport.affectedTargetIds, ["dimension-caster"]);
+  assert.equal(command.teleport.destination.x, destination.x);
+  const afterCast = await waitForPositions(["dimension-caster"], [destination]);
+  assert.deepEqual(afterCast[0].position, destination, JSON.stringify(result));
+  const entries = await history.getHistoryEntries();
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].effectsMutation.commandId, command.commandId);
+  assert.deepEqual(
+    entries[0].effectsMutation.sideEffects.filter((effect) => effect.type === "token:teleport").map((effect) => effect.id),
+    ["dimension-caster"],
+  );
+
+  const undone = await history.undoHistoryThrough(entries[0].id, {
+    sceneEpoch: currentSceneEpoch(),
+  });
+  assert.equal(normalizeHistoryUndoResult(undone).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
+  assert.deepEqual((await sdkStub.scene.items.getItems(["dimension-caster"]))[0].position, origin);
+});
+
+test("Dimension Door E2E composite: caster e passeggero condividono command identity, History e Undo", async () => {
+  const casterOrigin = { x: 0, y: 0 };
+  const passengerOrigin = { x: 150, y: 0 };
+  const destination = { x: 450, y: 300 };
+  resetScene(dimensionDoorToken("dimension-caster", casterOrigin));
+  sceneState.items.push(dimensionDoorToken("dimension-passenger", passengerOrigin));
+
+  const contract = buildSpellUnifiedPanelContract({ spellId: "dimension-door" });
+  const session = createSpellPanelSession({
+    contract,
+    casterId: "dimension-caster",
+    passengerId: "dimension-passenger",
+    targetIds: ["dimension-passenger"],
+    placement: {
+      status: "confirmed",
+      confirmed: true,
+      targetLocked: true,
+      ruleId: contract.presentation.placement.ruleId,
+      spellId: "dimension-door",
+      casterId: "dimension-caster",
+      preview: {
+        type: "square",
+        start: { x: destination.x - 75, y: destination.y - 75 },
+        end: { x: destination.x + 75, y: destination.y + 75 },
+        position: { ...destination },
+        gridOrigin: { x: 0, y: 0 },
+        dpi: 150,
+        targetIds: [],
+      },
+    },
+  });
+  const commandId = "dimension-door-composite-command";
+  const passengerOffset = {
+    x: passengerOrigin.x - casterOrigin.x,
+    y: passengerOrigin.y - casterOrigin.y,
+  };
+  const result = await executeSpellUnifiedArea({
+    contract,
+    session,
+    source: {
+      sceneEpoch: currentSceneEpoch(),
+      commandId,
+      correlationId: commandId,
+    },
+    runtime: {
+      getSpatialValidation: async () => ({
+        mode: "teleport",
+        destination,
+        invalidDestination: false,
+        passengerAdjacent: true,
+        passengerRelativeOffset: passengerOffset,
+        invalidPassengerIds: [],
+      }),
+      executor: executeSpellAreaResolution,
+      getItems: sdkStub.scene.items.getItems,
+      updateItems: sdkStub.scene.items.updateItems,
+      getSceneMetadata: sdkStub.scene.getMetadata,
+      currentSceneEpoch,
+      isCurrent: () => true,
+      syncHPVisuals: async () => {},
+      readAuthoritativeHPVisualUpdates: async () => [],
+      syncHPBatchToMemory: async () => {},
+      emitFireballVisual: async () => {},
+      emitMatchedSpellVisual: async () => {},
+      onConcentrationWarnings: async () => {},
+      onEffectSaveWarnings: async () => {},
+    },
+  });
+  const command = result.command;
+  assert.equal(command.valid, true, JSON.stringify(command.errors));
+  assert.deepEqual(command.teleport.affectedTargetIds, ["dimension-caster", "dimension-passenger"]);
+  const passengerDestination = {
+    x: destination.x + passengerOrigin.x - casterOrigin.x,
+    y: destination.y + passengerOrigin.y - casterOrigin.y,
+  };
+
+  assert.equal(result.status, "applied", JSON.stringify(result));
+  const afterCast = await waitForPositions(
+    ["dimension-caster", "dimension-passenger"],
+    [destination, passengerDestination],
+  );
+  assert.deepEqual(
+    afterCast.map((item) => item.position),
+    [destination, passengerDestination],
+    JSON.stringify(result),
+  );
+  const entries = await history.getHistoryEntries();
+  assert.equal(entries.length, 1);
+  const teleports = entries[0].effectsMutation.sideEffects
+    .filter((effect) => effect.type === "token:teleport");
+  assert.deepEqual(teleports.map((effect) => effect.id), ["dimension-caster", "dimension-passenger"]);
+  assert.deepEqual(
+    teleports.map((effect) => effect.afterPosition),
+    [destination, passengerDestination],
+  );
+  assert.deepEqual(
+    new Set(teleports.map((effect) => effect.operationId)),
+    new Set([command.commandId]),
+  );
+  assert.deepEqual(
+    entries[0].effectsMutation.targetIds.sort(),
+    ["dimension-caster", "dimension-passenger"],
+  );
+
+  const undone = await history.undoHistoryThrough(entries[0].id, {
+    sceneEpoch: currentSceneEpoch(),
+  });
+  assert.equal(normalizeHistoryUndoResult(undone).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
+  const afterUndo = await sdkStub.scene.items.getItems(["dimension-caster", "dimension-passenger"]);
+  assert.deepEqual(afterUndo.map((item) => item.position), [casterOrigin, passengerOrigin]);
+});
+
+test("Dimension Door applica al passeggero lo stesso delta reale del caster", async () => {
+  const casterOrigin = { x: 300, y: 300 };
+  const passengerOrigin = { x: 150, y: 300 };
+  const destination = { x: 1800, y: 900 };
+  const passengerDestination = { x: 1650, y: 900 };
+  resetScene(dimensionDoorToken("dimension-caster", casterOrigin));
+  sceneState.items.push(dimensionDoorToken("dimension-passenger", passengerOrigin));
+
+  const command = dimensionDoorCommand({
+    passengerId: "dimension-passenger",
+    destination,
+    commandId: "dimension-door-live-translation-command",
+    // Simula un offset dei bounding box diverso da quello tra le item.position.
+    passengerRelativeOffset: { x: -75, y: 0 },
+  });
+  assert.equal(command.valid, true, JSON.stringify(command.errors));
+
+  const result = await executeSpellAreaResolution(command, {
+    getItems: sdkStub.scene.items.getItems,
+    updateItems: sdkStub.scene.items.updateItems,
+    getSceneMetadata: sdkStub.scene.getMetadata,
+    currentSceneEpoch,
+    isCurrent: () => true,
+    syncHPVisuals: async () => {},
+    readAuthoritativeHPVisualUpdates: async () => [],
+    syncHPBatchToMemory: async () => {},
+    emitFireballVisual: async () => {},
+    emitMatchedSpellVisual: async () => {},
+    onConcentrationWarnings: async () => {},
+    onEffectSaveWarnings: async () => {},
+  });
+  assert.equal(result.status, "applied", JSON.stringify(result));
+
+  const afterCast = await waitForPositions(
+    ["dimension-caster", "dimension-passenger"],
+    [destination, passengerDestination],
+  );
+  assert.deepEqual(afterCast.map((item) => item.position), [destination, passengerDestination]);
+  assert.deepEqual({
+    x: afterCast[1].position.x - afterCast[0].position.x,
+    y: afterCast[1].position.y - afterCast[0].position.y,
+  }, {
+    x: passengerOrigin.x - casterOrigin.x,
+    y: passengerOrigin.y - casterOrigin.y,
+  });
+});
+
+test("Dimension Door non raccoglie più un esito destinazione nel command", async () => {
+  const casterOrigin = { x: 0, y: 0 };
+  const passengerOrigin = { x: 150, y: 0 };
+  resetScene(dimensionDoorToken("dimension-caster", casterOrigin));
+  sceneState.items.push(dimensionDoorToken("dimension-passenger", passengerOrigin));
+  const command = dimensionDoorCommand({
+    passengerId: "dimension-passenger",
+    commandId: "dimension-door-failure-command",
+  });
+  assert.equal(command.valid, true, JSON.stringify(command.errors));
+  assert.equal(command.teleport.outcome, undefined);
+  assert.equal(command.teleport.failure, undefined);
+
+  const result = await executeSpellAreaResolution(command, {
+    getItems: sdkStub.scene.items.getItems,
+    updateItems: sdkStub.scene.items.updateItems,
+    getSceneMetadata: sdkStub.scene.getMetadata,
+    currentSceneEpoch,
+    isCurrent: () => true,
+    syncHPVisuals: async () => {},
+    readAuthoritativeHPVisualUpdates: async () => [],
+    syncHPBatchToMemory: async () => {},
+    emitFireballVisual: async () => {},
+    emitMatchedSpellVisual: async () => {},
+    onConcentrationWarnings: async () => {},
+    onEffectSaveWarnings: async () => {},
+  });
+  assert.equal(result.status, "applied", JSON.stringify(result));
+  const items = await sdkStub.scene.items.getItems(["dimension-caster", "dimension-passenger"]);
+  assert.deepEqual(items.map((item) => item.position), [
+    { x: 300, y: 300 },
+    { x: 450, y: 300 },
+  ]);
+  assert.equal((await history.getHistoryEntries()).length, 1);
+});
+
+test("Dimension Door mantiene il teleport se il VFX matched fallisce", async () => {
+  const origin = { x: 0, y: 0 };
+  const destination = { x: 600, y: 300 };
+  resetScene(dimensionDoorToken("dimension-caster", origin));
+  const command = dimensionDoorCommand({
+    destination,
+    commandId: "dimension-door-vfx-failure-command",
+  });
+  const result = await executeSpellAreaResolution(command, {
+    getItems: sdkStub.scene.items.getItems,
+    updateItems: sdkStub.scene.items.updateItems,
+    getSceneMetadata: sdkStub.scene.getMetadata,
+    currentSceneEpoch,
+    isCurrent: () => true,
+    syncHPVisuals: async () => {},
+    readAuthoritativeHPVisualUpdates: async () => [],
+    syncHPBatchToMemory: async () => {},
+    emitFireballVisual: async () => {},
+    emitMatchedSpellVisual: async () => {
+      throw new Error("dimension-door-vfx-failure");
+    },
+    onConcentrationWarnings: async () => {},
+    onEffectSaveWarnings: async () => {},
+  });
+  assert.equal(result.status, "applied", JSON.stringify(result));
+  assert.deepEqual(
+    (await sdkStub.scene.items.getItems(["dimension-caster"]))[0].position,
+    destination,
+  );
+  assert.equal(result.visualEvents.some((event) => event.type === "matched-spell"), true);
+  assert.equal((await history.getHistoryEntries()).length, 1);
+});
+
+test("Dimension Door stale non applica il comando alla scena successiva", async () => {
+  const origin = { x: 0, y: 0 };
+  resetScene(dimensionDoorToken("dimension-caster", origin));
+  const command = dimensionDoorCommand({
+    destination: { x: 300, y: 300 },
+    commandId: "dimension-door-stale-command",
+  });
+  const result = await executeSpellAreaResolution(command, {
+    getItems: sdkStub.scene.items.getItems,
+    updateItems: async () => {
+      throw new Error("stale-command-must-not-write");
+    },
+    getSceneMetadata: sdkStub.scene.getMetadata,
+    currentSceneEpoch,
+    isCurrent: () => false,
+    syncHPVisuals: async () => {},
+    readAuthoritativeHPVisualUpdates: async () => [],
+    syncHPBatchToMemory: async () => {},
+    emitFireballVisual: async () => {},
+    emitMatchedSpellVisual: async () => {},
+    onConcentrationWarnings: async () => {},
+    onEffectSaveWarnings: async () => {},
+  });
+  assert.equal(result.status, "rejected");
+  assert.deepEqual(
+    (await sdkStub.scene.items.getItems(["dimension-caster"]))[0].position,
+    origin,
+  );
+  assert.equal((await history.getHistoryEntries()).length, 0);
 });

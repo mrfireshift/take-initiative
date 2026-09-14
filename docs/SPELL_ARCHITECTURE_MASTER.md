@@ -7,10 +7,10 @@ per polishing, nuove implementazioni e scelta dei batch futuri.
 | Campo | Valore |
 | --- | --- |
 | Stato | Riferimento operativo corrente |
-| Ultima verifica | 2026-09-09 |
+| Ultima verifica | 2026-09-14 |
 | Fonte primaria | Codice runtime in `src/` |
 | Perimetro | Cast, targeting, aree, zone, aure, trigger, reminder, TS, danni, cure, condizioni, azioni successive, cleanup e mutation |
-| Baseline verificata | 2889/2889 test; stato semantico per ogni spell in [matrice](../data/spell-implementation-status.json) |
+| Baseline verificata | 2893/2893 test; verifica finale 2950/2950; stato semantico per ogni spell in [matrice](../data/spell-implementation-status.json) |
 | Confine esplicito | History/Undo condivisi verificati; recovery limitata al relativo envelope, multi-GM fuori contratto |
 
 > Questo documento descrive il runtime esistente. Non è una proposta di
@@ -128,7 +128,7 @@ Cleanup per expiry, save, removal, invalid source/target, counter o parent end
 | Command area | `buildSpellUnifiedAreaCommand`; `src/spellAreaResolutionCommandCore.js` — `buildSpellAreaResolutionCommand` | contract, session, placement, target IDs, outcome/HP → comando serializzabile | `spell-unified-panel.js`, quick action, trigger resolution | Nessuna scrittura |
 | Executor area | `src/spellUnifiedAreaAdapter.js` — `executeSpellUnifiedArea`; `src/spellAreaResolutionExecutor.js` — `executeSpellAreaResolution` | comando + runtime/scene epoch → result, changes, instance, trigger changes | pannello e adapter | Item zona/token possono essere aggiunti/aggiornati dall'executor; metadata, condizioni, spell e side effect passano dal mutation coordinator. L'helper HP locale dell'executor è un'eccezione da non copiare. |
 | Executor lifecycle | `src/spellUnifiedLifecycleAdapter.js` — `executeSpellUnifiedLifecycle`; `src/spellApplicationExecutor.js` — `executeSpellApplication` | cast non geometrico/prepared → application result | pannello unificato | `runEffectsMutation` per le operations |
-| Quick action | `src/quickActionSpellExecutionCore.js` — `buildQuickActionSpellLaunchPlan`; `src/quickActionExecution.js` — `executeDirectQuickAction` | card action + source + target → area/lifecycle request/result | card iniziativa e `initiativeList.js` | Delegata agli executor; non deve diventare un terzo executor |
+| Quick action | `src/quickActionSpellExecutionCore.js` — `buildQuickActionSpellLaunchPlan`; `src/quickActionExecution.js` — `executeDirectQuickAction` | card action + source + target → area/lifecycle request/result; per il cast con TS iniziale, target selezionati → `failed` esplicito | card iniziativa e `initiativeList.js` | Delegata agli executor; non deve diventare un terzo executor |
 | Membership | `src/spellAreaMembershipCore.js` — `areaMembershipTargetIds`, `areaMembershipPlan` | rule, area, candidati, source → target IDs, entering/leaving, operations | static zone, aura controller, area executor | Le operations di condizioni vengono applicate da `runEffectsMutation` |
 | Aura runtime | `src/spellAuraCore.js` — `collectActiveMobileAuras`, `mobileAuraMembershipPlan`; `src/spellAuraController.js` — `reconcileSpellAuras` | spell attive + bounds + scena → aura item, membership, trigger runtime | controller GM su movimento/grid/metadata | Il controller aggiorna item aura e accoda le operations effetti; token metadata tramite mutation |
 | Zona statica | `src/spellStaticZone.js` — `buildStaticSpellZoneItems`, `reconcileStaticSpellZones` | placement + spell instance + scena → root/subzone/child zone e membership | area executor e controller GM | Item scena e `triggerRuntime` sono scritti dal controller/executor; effetti token tramite mutation |
@@ -167,7 +167,7 @@ Formato interrogabile: [spell-capability-map.json](../data/spell-capability-map.
 | Capability | Owner / API | Spell rappresentative | Test comportamentali | Limiti |
 | --- | --- | --- | --- | --- |
 | C-CATALOG — Catalog / rules / aliases | [src/spells-srd.js](../src/spells-srd.js) — `getSpellCatalog/getSpellDefinition; merged SRD + PHB extras + supplements + legacy` | hold-person, fireball | [spellUnifiedExecutionParity.test.js](../test/spellUnifiedExecutionParity.test.js) | Catalog presence and a valid route do not prove semantic completeness. |
-| C-DIRECT — Direct persistent effect / GM outcome | [src/spellApplicationPlanCore.js](../src/spellApplicationPlanCore.js) — `buildSpellApplicationIntent → buildSpellApplicationPlan; proposed effects/conditions, castContext` | bless, hold-person | [spellApplicationPlanCore.test.js](../test/spellApplicationPlanCore.test.js), [spellCastAutomationCore.test.js](../test/spellCastAutomationCore.test.js) | Initial save-or-suck at table; selected targets are failed outcomes. |
+| C-DIRECT — Direct persistent effect / GM outcome | [src/spellApplicationPlanCore.js](../src/spellApplicationPlanCore.js) — `buildSpellApplicationIntent → buildSpellApplicationPlan; proposed effects/conditions, castContext`; Quick Action policy in [src/quickActionSpellExecutionCore.js](../src/quickActionSpellExecutionCore.js) | bless, hold-person, hold-monster | [spellApplicationPlanCore.test.js](../test/spellApplicationPlanCore.test.js), [quickActionSpellExecutionCore.test.js](../test/quickActionSpellExecutionCore.test.js) | Initial save-or-suck at table; in `source = QUICK_ACTION`, selected targets become explicit failed outcomes for the initial cast only. |
 | C-SAVE — Initial save, success/failure/immune, half/zero/full damage | [src/saveSpellCore.js](../src/saveSpellCore.js) — `resolveSaveSpellResolution; saveAutomation rulesByOutcome + getSpellSaveWorkflowRule` | phb2014-raggio-di-infermita, bane | [rayOfSicknessWorkflow.test.js](../test/rayOfSicknessWorkflow.test.js), [holdPersonSaveWorkflow.test.js](../test/holdPersonSaveWorkflow.test.js) | Area-transaction also supports discrete targeting; no need for fictional geometry. |
 | C-CASTHP — Instant damage/healing, final numeric GM input | [src/spellAreaResolutionCommandCore.js](../src/spellAreaResolutionCommandCore.js) — `buildSpellAreaResolutionCommand → executeSpellAreaResolution; hp.mode/amount/outcomeFactors` | fireball, mass-cure-wounds | [spellAreaResolutionCommandCore.test.js](../test/spellAreaResolutionCommandCore.test.js), [spellUnifiedExecutionParity.test.js](../test/spellUnifiedExecutionParity.test.js) | Lifecycle adapter alone rejects ordinary HP input. Register proper lane and explicit initialHP/healing policy. |
 | C-ATTACK — Hit/miss cast | [src/spellAttackResolutionCore.js](../src/spellAttackResolutionCore.js) — `getSpellAttackResolution; initialDamage + effect/deferredEffect` | acid-arrow, guiding-bolt | [spellUnifiedExecutionParity.test.js](../test/spellUnifiedExecutionParity.test.js) | BLOCKER: acid deferred effect leaks into guiding-bolt/chill-touch/ray-of-frost. Not a safe generic attack template. |
@@ -364,9 +364,22 @@ seconda action executor.
 ### Quick actions
 
 Extension point reale in `buildQuickActionSpellLaunchPlan`: il caso automatico
-area caster-centered senza scelte utente può delegare direttamente a
-`executeSpellUnifiedArea`. Gli altri casi devono ricadere nel pannello o nel
-lifecycle adapter. Avoid: aggiungere un terzo percorso di cast.
+area caster-centered senza scelte utente e il caso discreto con TS iniziale,
+bersagli già selezionati e nessun input aggiuntivo possono delegare direttamente
+a `executeSpellUnifiedArea`. Nel secondo caso il planner costruisce una mappa
+`targetId → "failed"` per il solo TS iniziale del cast. Il command, il save
+resolver e l'executor restano quelli canonici: repeat save, concentrazione,
+History/Undo e cleanup non hanno un percorso Quick Action separato.
+
+La detection usa lane, targeting, input e capability del contratto, oltre al
+target cap risolto allo slot corrente; non contiene una lista di spell. Se resta
+placement, variante, contesto target, danno/guarigione, active action, fase
+preparata o altro input obbligatorio, la richiesta ricade nel pannello con i
+dati già precompilati. Il pannello normale continua a determinare gli esiti
+secondo il proprio workflow.
+
+Avoid: aggiungere un terzo percorso di cast, defaultare a `failed` nel resolver
+generico o far fallire automaticamente i repeat save.
 
 ### Extension point non chiaro
 
@@ -525,6 +538,35 @@ vincolo di tavolo, non usata per rifiutare automaticamente la destinazione.
 La regressione Undo dopo il tick di round è coperta dal contratto shared:
 il semplice avanzamento dei contatori runtime non blocca gli Undo di cast,
 esito d20 e ritorno, mentre le modifiche semantiche stale restano protette.
+
+### Porta Dimensionale — `dimension-door`
+
+```text
+Spell
+├─ raw: src/spell-reference-it.json → punto entro 150 m, una creatura consenziente entro 1,5 m, conseguenza RAW per destinazione occupata: 4d6 forza e fallimento
+├─ catalog/contract: catalogo unificato → area-transaction, Self caster, placement puntuale obbligatorio
+├─ targeting: caster distinto da passeggero opzionale; massimo uno, CHARACTER, adiacenza a griglia quando misurabile
+├─ placement: punto esplicito serializzato nel command, con contesto sceneEpoch/scene identity
+├─ passenger: snapshot dell'offset relativo di partenza; destinazione = caster destination + offset
+├─ execution: spellAreaResolutionExecutor → due token:teleport indicizzati con command/operation identity condivisa
+├─ mutation: Effects coordinator → una transazione e una History action per caster e passeggero
+├─ recovery: envelope ARCH-05B → progress individuale dei side effect, restart/retry senza duplicare il soggetto già arrivato
+├─ failure: destination-occupied → decisione e conseguenza restano GM-assisted; il pannello non raccoglie un esito destinazione né scrive danno automaticamente
+├─ vfx: matched teleport visual emesso per il cast, dopo il commit canonico e senza possedere la mechanic
+└─ stale/undo: scene guards e shared History ripristinano uno o entrambi i token, senza rollback compensativo improvvisato
+```
+
+Il pannello unificato conserva il cast come una sola identità: la scelta del
+passeggero non apre una seconda azione. L'adiacenza automatica usa gli ingombri
+alla griglia: casella laterale o diagonale sì, sovrapposizione e gap no. Se la
+scena non espone geometria affidabile, il selettore non offre passeggeri e il
+cast caster-only resta valido, invece di produrre una falsa validazione spaziale;
+le decisioni RAW non misurabili restano GM-assisted. Il passeggero mantiene la propria
+posizione relativa al caster e quindi non viene collocato sopra di lui alla
+destinazione; peso, consenso, visibilità/visualizzazione/descrizione e spazio
+libero restano decisioni del GM secondo il testo RAW. L'eventuale spazio
+d'arrivo occupato viene adjudicato dal GM: il plugin non espone più il vecchio
+controllo "Esito Destinazione" e non applica in autonomia i 4d6 da forza.
 
 ### Turbine — `xanathar-turbine`
 
@@ -972,8 +1014,8 @@ Prima di modificare una spell:
 ### Snapshot di verifica usato come baseline
 
 La verifica corrente include le suite mirate area/aura/zone/quick action,
-Blink, Turbine e History/Undo, oltre alla suite completa e alla build. La suite
-completa corrente è verde (2790/2790); la build Vite è riuscita con il solo
+Blink, Misty Step, Porta Dimensionale, Turbine e History/Undo, oltre alla suite
+completa e alla build. La suite completa corrente è verde (2950/2950); la build Vite è riuscita con il solo
 warning sui chunk grandi. Blink e Turbine sono quindi documentati come
 `FULL / ACCEPTED`, con i soli confini manuali già esplicitati nella mappa di
 riferimento.

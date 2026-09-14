@@ -406,6 +406,7 @@ const SRD_ACTIVE_ACTIONS = Object.freeze({
 });
 
 const TARGET_MODE_OVERRIDES = Object.freeze({
+  "dimension-door": "self",
   "sunbeam": "selected",
   "phb2014-punizione-collerica": "selected",
   "phb2014-punizione-tonante": "selected",

@@ -168,7 +168,7 @@ L'indebolimento è gestito direttamente nella scheda iniziativa con un controllo
 
 Apri **Incantesimi** dalla toolbar. Il catalogo runtime contiene 477
 definizioni tratte dal catalogo base SRD 5.1 e dalle integrazioni 2014; il
-pannello unificato espone 392 voci, di cui 358 provengono dal catalogo
+pannello unificato espone 393 voci, di cui 358 provengono dal catalogo
 trackable. Gli istantanei senza stato persistente restano soprattutto nel
 riferimento o nei workflow ad area.
 

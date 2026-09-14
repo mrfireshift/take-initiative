@@ -170,6 +170,25 @@ export function nearestGridCorner(rawPosition, cornerAnchor, dpi = 1) {
   };
 }
 
+export function centeredSquarePlacementBounds(center, dpi = 1, sizeCells = 1) {
+  const position = finitePointOrNull(center);
+  if (!position) return null;
+  const safeDpi = Math.max(1, Number(dpi) || 1);
+  const cells = Math.max(1, Math.round(Number(sizeCells) || 1));
+  const halfSide = cells * safeDpi / 2;
+  return {
+    position,
+    start: {
+      x: position.x - halfSide,
+      y: position.y - halfSide,
+    },
+    end: {
+      x: position.x + halfSide,
+      y: position.y + halfSide,
+    },
+  };
+}
+
 export function spellAreaOriginAdjacentToCaster({
   origin = null,
   casterBounds = null,

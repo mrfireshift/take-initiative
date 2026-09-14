@@ -10,7 +10,9 @@ import {
   updateSpellPanelSession,
   SPELL_UNIFIED_PANEL_LANES,
 } from "./spellUnifiedPanelCore.js";
-import { isTeleportSpell } from "./spellTeleportCore.js";
+import {
+  isTeleportSpell,
+} from "./spellTeleportCore.js";
 import {
   executeSpellUnifiedArea,
   getSpellUnifiedAreaEligibility,
@@ -244,6 +246,16 @@ const AREA_FEEDBACK_MESSAGES = Object.freeze({
   "target-lock-required": "Conferma i bersagli dell'area prima di applicare.",
   "targets-required": "Seleziona almeno un bersaglio.",
   "target-limit-exceeded": "Il numero di bersagli supera il limite dichiarato.",
+  "teleport-destination-required": "Scegli un punto di arrivo valido.",
+  "teleport-destination-out-of-range": "La destinazione supera la portata di Porta Dimensionale.",
+  "passenger-not-allowed": "Questa spell non consente un passeggero.",
+  "passenger-limit-exceeded": "È consentito un solo passeggero.",
+  "passenger-is-caster": "Il caster non può essere selezionato come passeggero.",
+  "passenger-not-creature": "Il passeggero deve essere una creatura.",
+  "passenger-not-adjacent": "Il passeggero deve essere adiacente al caster.",
+  "passenger-out-of-range": "Il passeggero deve trovarsi entro 1,5 m dal caster.",
+  "passenger-relative-position-missing": "La posizione relativa del passeggero non è disponibile.",
+  "passenger-invalid": "Seleziona il passeggero nel controllo dedicato.",
   "primary-required": "Seleziona il bersaglio primario.",
   "primary-not-selected": "Il bersaglio primario deve appartenere alla selezione.",
   "outcomes-incomplete": "Registra un esito per ogni bersaglio.",
@@ -312,6 +324,7 @@ function initialState(contract, catalogEntries, sourceId, route = {}) {
     catalogEntries,
     casters: [],
     targetCandidates: [],
+    teleportPassengerCandidateIds: [],
     concentrationSummary: [],
     activeOverview: [],
     sourceId,
@@ -439,6 +452,7 @@ export function bootSpellUnifiedPanel(
       selectedCatalogKey: state.contract?.spell?.id,
       casterOptions: casterOptions(state.casters),
       targetCandidates: state.targetCandidates,
+      teleportPassengerCandidateIds: state.teleportPassengerCandidateIds,
       targetFilters: state.targetFilters,
       concentrationSummary: state.concentrationSummary,
       activeOverview: state.activeOverview,
@@ -736,8 +750,132 @@ export function bootSpellUnifiedPanel(
     }
   };
 
+  const applyTeleportPassengerSelection = async (ids) => {
+    const commitLocked = state.committing
+      || ["committing", "committed"].includes(String(state.session.commitState?.state || "").trim());
+    if (!sceneAvailable() || commitLocked) return;
+    const operation = captureSceneOperation("spell-panel-teleport-passenger");
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    const requestSequence = ++targetingSelectionSequence;
+    const eligiblePassengerIds = Array.isArray(state.teleportPassengerCandidateIds)
+      ? new Set(state.teleportPassengerCandidateIds)
+      : null;
+    const selectedIds = targetIdsForCandidates(ids, state.targetCandidates)
+      .filter((id) => id !== String(state.session.casterId || "").trim())
+      .filter((id) => !eligiblePassengerIds || eligiblePassengerIds.has(id));
+    if (selectedIds.length > 1) {
+      patchSession({
+        ...(state.session.placement
+          ? {
+            placement: {
+              ...state.session.placement,
+              passengerId: "",
+            },
+          }
+          : {}),
+        passengerId: "",
+        targetIds: [],
+        feedback: {
+          state: "error",
+          message: "Porta Dimensionale consente un solo passeggero.",
+        },
+      }, { clearFeedback: false });
+      await writeSelection([]);
+      return;
+    }
+    const passengerId = selectedIds[0] || "";
+    const candidate = passengerId
+      ? state.targetCandidates.find((entry) => entry.key === passengerId)
+      : null;
+    if (candidate?.isCreature === false) {
+      patchSession({
+        ...(state.session.placement
+          ? {
+            placement: {
+              ...state.session.placement,
+              passengerId: "",
+            },
+          }
+          : {}),
+        passengerId: "",
+        targetIds: [],
+        feedback: {
+          state: "error",
+          message: "Il passeggero deve essere una creatura.",
+        },
+      }, { clearFeedback: false });
+      await writeSelection([]);
+      return;
+    }
+
+    // Make the passenger part of the current cast before any live geometry
+    // read. The browser does not await a <select> change listener, so a user
+    // can legitimately confirm placement while the advisory validation is
+    // still in flight. The later result may only clear this same selection;
+    // it must never let an older request silently turn the cast into a
+    // caster-only teleport.
+    patchSession({
+      ...(state.session.placement
+        ? {
+          placement: {
+            ...state.session.placement,
+            passengerId,
+          },
+        }
+        : {}),
+      passengerId,
+      targetIds: passengerId ? [passengerId] : [],
+      primaryTargetId: "",
+      outcomes: {},
+      targetContext: {},
+    });
+    if (passengerId) {
+      const validation = await validateTargetSelection({
+        contract: state.contract,
+        session: { ...state.session, passengerId, targetIds: [passengerId] },
+        targetIds: [passengerId],
+      });
+      if (requestSequence !== targetingSelectionSequence || !sceneLifecycle.isCurrent(operation)) return;
+      if (validation?.valid === false || validation?.errors?.length) {
+        const adjacentError = validation?.errors?.includes("passenger-not-adjacent");
+        patchSession({
+          ...(state.session.placement
+            ? {
+              placement: {
+                ...state.session.placement,
+                passengerId: "",
+              },
+            }
+            : {}),
+          passengerId: "",
+          targetIds: [],
+          feedback: {
+            state: "error",
+            message: adjacentError
+              ? "Il passeggero deve essere adiacente al caster."
+              : "Il passeggero deve trovarsi entro 1,5 m dal caster.",
+          },
+        }, { clearFeedback: false });
+        await writeSelection([]);
+        return;
+      }
+    }
+    if (requestSequence !== targetingSelectionSequence || !sceneLifecycle.isCurrent(operation)) return;
+    await writeSelection(passengerId ? [passengerId] : []);
+  };
+
   const applySelection = (ids) => {
-    if (!sceneAvailable() || state.session.placement?.targetLocked === true) return;
+    const teleport = isTeleportSpell(state.contract?.spell?.id);
+    if (!sceneAvailable()
+      || (!teleport && state.session.placement?.targetLocked === true)) return;
+    if (teleport) {
+      // Porta Dimensionale ha un controllo passeggero dedicato. L'attivazione
+      // e la chiusura dello strumento di placement possono produrre eventi
+      // player.selection vuoti o contenenti solo il caster: non devono
+      // trasformare silenziosamente il cast in un teletrasporto solo-caster.
+      // La selezione iniziale viene comunque importata durante il bootstrap.
+      return;
+    }
     const nextIds = targetIdsForCandidates(ids, state.targetCandidates);
     const targetSet = new Set(nextIds);
     const outcomes = Object.fromEntries(
@@ -760,6 +898,44 @@ export function bootSpellUnifiedPanel(
       outcomes,
       targetContext,
     });
+  };
+
+  const refreshTeleportPassengerCandidates = async (operation = null) => {
+    if (!isTeleportSpell(state.contract?.spell?.id)
+      || typeof provider.getTeleportPassengerCandidateIds !== "function") {
+      state.teleportPassengerCandidateIds = null;
+      return true;
+    }
+    const casterId = String(state.session?.casterId || "").trim();
+    const candidateIds = casterId
+      ? await provider.getTeleportPassengerCandidateIds(casterId, state.targetCandidates)
+      : [];
+    if (operation && !sceneLifecycle.isCurrent(operation)) return false;
+    state.teleportPassengerCandidateIds = Array.isArray(candidateIds)
+      ? candidateIds.map((id) => String(id || "").trim()).filter(Boolean)
+      : [];
+    const placementActive = ["pending", "placing", "review", "confirmed"]
+      .includes(String(state.session.placement?.state || "").trim());
+    const persistedPassengerId = String(
+      state.session.passengerId || state.session.placement?.passengerId || "",
+    ).trim();
+    if (persistedPassengerId && !state.session.passengerId && placementActive) {
+      state.session = updateSpellPanelSession(state.session, {
+        passengerId: persistedPassengerId,
+        targetIds: [persistedPassengerId],
+      });
+    }
+    const sceneCandidateIds = new Set(
+      state.targetCandidates.map((candidate) => String(candidate?.key || "").trim())
+        .filter(Boolean),
+    );
+    if (persistedPassengerId && !sceneCandidateIds.has(persistedPassengerId)) {
+      state.session = updateSpellPanelSession(state.session, {
+        passengerId: "",
+        targetIds: [],
+      });
+    }
+    return true;
   };
 
   const refreshSceneData = async ({ initial = false } = {}) => {
@@ -800,12 +976,23 @@ export function bootSpellUnifiedPanel(
         || sourceId
         || selectedIds[0]
         || "";
+      const selectedPassengerId = isTeleportSpell(state.contract?.spell?.id)
+        ? state.session.passengerId
+          || selectedIds.find((id) => id !== String(preferredCaster || "").trim())
+          || ""
+        : "";
+      const initialTargetIds = isTeleportSpell(state.contract?.spell?.id)
+        ? (selectedPassengerId ? [selectedPassengerId] : [])
+        : selectedIds;
       state.session = updateSpellPanelSession(state.session, {
         casterId: firstValidCaster(state.casters, preferredCaster),
-        targetIds: selectedIds,
+        ...(isTeleportSpell(state.contract?.spell?.id)
+          ? { passengerId: selectedPassengerId }
+          : {}),
+        targetIds: initialTargetIds,
         targetContext: automaticTargetContextFor(
           state.contract,
-          selectedIds,
+          initialTargetIds,
           state.targetCandidates,
           state.session.targetContext,
         ),
@@ -815,6 +1002,7 @@ export function bootSpellUnifiedPanel(
         casterId: firstValidCaster(state.casters, sourceId),
       });
     }
+    if (!await refreshTeleportPassengerCandidates(operation)) return false;
     const concentrations = await provider.getCasterConcentrations?.(state.session.casterId) || {};
     if (!sceneLifecycle.isCurrent(operation)) return false;
     state.concentrationSummary = concentrationSummary(concentrations);
@@ -936,6 +1124,7 @@ export function bootSpellUnifiedPanel(
     return {
       ...providerRuntime,
       ...areaOverrides,
+      visualSceneEpoch: currentSceneEpoch(),
       ...(operation ? {
         sceneEpoch: operation.epoch,
         isCurrent: () => sceneLifecycle.isCurrent(operation),
@@ -973,12 +1162,45 @@ export function bootSpellUnifiedPanel(
     casterId: state.session.casterId || null,
     ruleChoice: state.session.variant || placementDescriptor().choice || null,
     phase: state.session.phase || null,
+    ...(isTeleportSpell(state.contract?.spell?.id) && state.session.passengerId
+      ? { passengerId: state.session.passengerId }
+      : {}),
     confirmed: false,
     targetLocked: false,
     preview: null,
   });
 
   const updateTargetsFromPlacement = (targetIds) => {
+    if (isTeleportSpell(state.contract?.spell?.id)) {
+      const casterId = String(state.session.casterId || "").trim();
+      const eligiblePassengerIds = Array.isArray(state.teleportPassengerCandidateIds)
+        ? new Set(state.teleportPassengerCandidateIds)
+        : null;
+      const passengerCandidates = targetIdsForCandidates([
+        state.session.passengerId,
+        state.session.placement?.passengerId,
+        ...(Array.isArray(state.session.targetIds) ? state.session.targetIds : []),
+        ...(Array.isArray(targetIds) ? targetIds : []),
+      ], state.targetCandidates);
+      const persistedPassengerId = String(
+        state.session.passengerId || state.session.placement?.passengerId || "",
+      ).trim();
+      const passengerId = passengerCandidates.includes(persistedPassengerId)
+        && persistedPassengerId !== casterId
+        ? persistedPassengerId
+        : passengerCandidates.find((id) => (
+          id !== casterId
+          && (!eligiblePassengerIds || eligiblePassengerIds.has(id))
+        )) || "";
+      state.session = updateSpellPanelSession(state.session, {
+        passengerId,
+        targetIds: passengerId ? [passengerId] : [],
+        primaryTargetId: "",
+        outcomes: {},
+        targetContext: {},
+      });
+      return state.session.targetIds;
+    }
     const isAreaSubset = state.contract?.presentation?.targeting?.selectionMode === "area-subset";
     const nextCandidateIds = targetIdsForCandidates(targetIds, state.targetCandidates);
     const candidateSet = new Set(nextCandidateIds);
@@ -1211,6 +1433,7 @@ export function bootSpellUnifiedPanel(
     const negativeTargetSelection = state.contract?.presentation?.targeting?.selectionPolarity === "exclude";
     const preparedHitArea = state.session?.phase === "resolve"
       && state.contract?.presentation?.targeting?.areaAnchor === "primary-target";
+    const isTeleport = isTeleportSpell(state.contract?.spell?.id);
     const primaryTargetId = String(state.session?.primaryTargetId || "").trim();
     if (preparedHitArea && !primaryTargetId) {
       patchSession({
@@ -1225,7 +1448,9 @@ export function bootSpellUnifiedPanel(
       ? uniqueIds(state.session.targetIds)
       : preparedHitArea
         ? uniqueIds([primaryTargetId])
-        : [];
+        : isTeleport
+          ? uniqueIds([state.session.passengerId])
+          : [];
     if (!eligibility.eligible || !descriptor.ruleId || state.committing) return;
     if (descriptor.policy === "automatic") return;
     if (state.session.placement?.state === "pending") return;
@@ -1251,7 +1476,6 @@ export function bootSpellUnifiedPanel(
     }
 
     const requestId = createSpellAreaPlacementRequestId();
-    const isTeleport = isTeleportSpell(state.contract?.spell?.id);
     pendingPlacementRequests.add(requestId);
     state.session = updateSpellPanelSession(state.session, {
       placement: {
@@ -1260,7 +1484,7 @@ export function bootSpellUnifiedPanel(
         error: null,
         targetIds: retainedTargetIds,
       },
-      ...(manualTargetSelection || preparedHitArea
+      ...(manualTargetSelection || preparedHitArea || isTeleport
         ? {}
         : {
           targetIds: [],
@@ -1395,7 +1619,11 @@ export function bootSpellUnifiedPanel(
       const result = await executeSpellUnifiedArea({
         contract: state.contract,
         session: state.session,
-        source: { sceneEpoch },
+        source: {
+          sceneEpoch,
+          commandId: operation.operationId,
+          correlationId: operation.operationId,
+        },
         runtime,
         candidateTargetIds: candidateTargetIds(),
       });
@@ -2231,12 +2459,14 @@ export function bootSpellUnifiedPanel(
     sourceId = "";
     state.casters = [];
     state.targetCandidates = [];
+    state.teleportPassengerCandidateIds = [];
     state.activeOverview = [];
     state.concentrationSummary = {};
     state.loading = !nextReady;
     state.committing = false;
     state.session = updateSpellPanelSession(state.session, {
       casterId: "",
+      passengerId: "",
       targetIds: [],
       primaryTargetId: "",
       outcomes: {},
@@ -2300,6 +2530,7 @@ export function bootSpellUnifiedPanel(
       activeInstanceId: "",
       activeActionState: null,
       variant: "",
+      passengerId: "",
       targetIds: [],
       primaryTargetId: "",
       outcomes: {},
@@ -2379,6 +2610,7 @@ export function bootSpellUnifiedPanel(
       session: state.session,
         runtime: {
           sceneEpoch: operation.epoch,
+          visualSceneEpoch: currentSceneEpoch(),
           sceneIdentity: ownerSceneContext?.sceneIdentity || null,
           isCurrent: () => sceneLifecycle.isCurrent(operation),
           spell: getSpellDefinition(state.contract?.spell?.id),
@@ -2484,6 +2716,16 @@ export function bootSpellUnifiedPanel(
         validCasterIds: validCasterIds(),
         validSlotLevels: slotOptions(nextContract),
       });
+      const operation = captureSceneOperation("spell-panel-spell-change");
+      if (sceneLifecycle.isCurrent(operation)) {
+        const targetItems = await provider.getTargetCandidates?.(nextContract.spell.id) || null;
+        if (!sceneLifecycle.isCurrent(operation)) return;
+        const candidateItems = Array.isArray(targetItems) ? targetItems : state.casters;
+        state.targetCandidates = candidateItems
+          .map((item) => item?.key ? item : provider.targetCandidate?.(item))
+          .filter(Boolean);
+        await refreshTeleportPassengerCandidates(operation);
+      }
       state.catalogState = { ...state.catalogState, expanded: false, query: "", activeIndex: -1 };
       ++targetingSelectionSequence;
       provider.clearTargetingReference?.();
@@ -2514,8 +2756,14 @@ export function bootSpellUnifiedPanel(
       const isArea = usesPersistentCastAdapter();
       ++targetingSelectionSequence;
       provider.clearTargetingReference?.();
+      if (isTeleportSpell(state.contract?.spell?.id)) {
+        state.teleportPassengerCandidateIds = [];
+      }
       patchSession({
         casterId,
+        ...(isTeleportSpell(state.contract?.spell?.id)
+          ? { passengerId: "", targetIds: [] }
+          : {}),
         ...(isArea ? {
           placement: null,
           targetIds: [],
@@ -2524,9 +2772,17 @@ export function bootSpellUnifiedPanel(
           targetContext: {},
         } : {}),
       });
+      const operation = captureSceneOperation("spell-panel-teleport-passenger-refresh");
+      if (sceneLifecycle.isCurrent(operation)) {
+        await refreshTeleportPassengerCandidates(operation);
+      }
       const concentrations = await provider.getCasterConcentrations?.(casterId) || {};
       state.concentrationSummary = concentrationSummary(concentrations);
       render();
+    },
+    onPassengerChange: async (passengerId) => {
+      if (!isTeleportSpell(state.contract?.spell?.id)) return;
+      await applyTeleportPassengerSelection(passengerId ? [passengerId] : []);
     },
     onSlotChange: (value) => {
       const slotLevel = numeric(value);
@@ -2561,7 +2817,10 @@ export function bootSpellUnifiedPanel(
     },
     onAutomationChange: (enabled) => patchSession({ applyAutomatedConditions: enabled }),
     onPhaseChange: async (phase) => {
-      const nextContract = buildContract(state.contract.spell.id, { phase });
+      const nextContract = buildContract(state.contract.spell.id, {
+        phase,
+        castContext: state.session.castContext,
+      });
       ++targetingSelectionSequence;
       provider.clearTargetingReference?.();
       state.session = changeSpellPanelPhase(state.session, nextContract, phase, {
@@ -2577,6 +2836,7 @@ export function bootSpellUnifiedPanel(
       const nextContract = buildContract(state.contract.spell.id, {
         phase: state.session.phase,
         variant,
+        castContext: state.session.castContext,
       });
       ++targetingSelectionSequence;
       provider.clearTargetingReference?.();
@@ -3005,7 +3265,22 @@ export function bootSpellUnifiedPanel(
         state.targetCandidates,
       );
       if (selectedIds.length && !state.session.targetIds.length) {
-        patchSession({ targetIds: selectedIds });
+        if (isTeleportSpell(state.contract?.spell?.id)) {
+          const casterId = String(state.session.casterId || selectedIds[0] || "").trim();
+          const eligiblePassengerIds = Array.isArray(state.teleportPassengerCandidateIds)
+            ? new Set(state.teleportPassengerCandidateIds)
+            : null;
+          const passengerId = selectedIds.find((id) => (
+            id !== casterId
+            && (!eligiblePassengerIds || eligiblePassengerIds.has(id))
+          )) || "";
+          patchSession({
+            passengerId,
+            targetIds: passengerId ? [passengerId] : [],
+          });
+        } else {
+          patchSession({ targetIds: selectedIds });
+        }
       }
       if (spellUnifiedPanelShouldAutoStartPlacement(route)) {
         await startPlacement();

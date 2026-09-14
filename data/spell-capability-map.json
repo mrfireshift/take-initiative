@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "auditDate": "2026-09-09",
+  "auditDate": "2026-09-14",
   "capabilities": [
     {
       "id": "C-CATALOG",
@@ -9,10 +9,12 @@
       "contract": "getSpellCatalog/getSpellDefinition; merged SRD + PHB extras + supplements + legacy",
       "representativeSpells": [
         "hold-person",
-        "fireball"
+        "fireball",
+        "dimension-door"
       ],
       "representativeBehavioralTests": [
-        "test/spellUnifiedExecutionParity.test.js"
+        "test/spellUnifiedExecutionParity.test.js",
+        "test/spellTeleportCore.test.js"
       ],
       "limits": "Catalog presence and a valid route do not prove semantic completeness."
     },
@@ -258,10 +260,12 @@
       "contract": "resolveTargetingCapacity/applyTargetingLimitState/validateTargetingCapacity; maximum/baseMaximum/baseSlot/additionalPerSlotAbove",
       "representativeSpells": [
         "hold-person",
-        "chain-lightning"
+        "chain-lightning",
+        "dimension-door"
       ],
       "representativeBehavioralTests": [
-        "test/spellTargetingCapacityCore.test.js"
+        "test/spellTargetingCapacityCore.test.js",
+        "test/spellTeleportCore.test.js"
       ],
       "limits": "ignoreTargetLimit never changes canonical max; self from spellCastContextCore; no physical line-of-sight engine."
     },
@@ -272,11 +276,13 @@
       "contract": "SPELL_AREA_RULES; validateSpellAreaRule; geometry/placement/targeting selectionMode selectionPolarity",
       "representativeSpells": [
         "fireball",
-        "spirit-guardians"
+        "spirit-guardians",
+        "dimension-door"
       ],
       "representativeBehavioralTests": [
         "test/spellAreaRules.test.js",
-        "test/spellAreaPlacementCore.test.js"
+        "test/spellAreaPlacementCore.test.js",
+        "test/spellTeleportCore.test.js"
       ],
       "limits": "One cast geometry vs child zones; multiple arbitrary instant centers still a gap."
     },
@@ -464,11 +470,15 @@
       "contract": "buildSpellUnifiedPanelContract/createSpellPanelSession/buildSpellPanelViewModel",
       "representativeSpells": [
         "eyebite",
-        "fireball"
+        "fireball",
+        "dimension-door"
       ],
       "representativeBehavioralTests": [
         "test/spellUnifiedPanelCore.test.js",
-        "test/spellUnifiedPanelController.test.js"
+        "test/spellUnifiedPanelController.test.js",
+        "test/spellTeleportCore.test.js",
+        "test/spellUnifiedPanelViewCore.test.js",
+        "test/spellUnifiedAreaAdapter.test.js"
       ],
       "limits": "No polishing required; declarative input visibility is runtime contract, not proof of mechanics."
     },
@@ -494,11 +504,13 @@
       "contract": "getMatchedSpellVisualDefinition/buildMatchedVisualEvent + emitMatchedSpellVisual",
       "representativeSpells": [
         "fireball",
-        "hunters-mark"
+        "hunters-mark",
+        "dimension-door"
       ],
       "representativeBehavioralTests": [
         "test/embersMatchedVisualCore.test.js",
-        "test/embersMatchedVisualSceneEpoch.test.js"
+        "test/embersMatchedVisualSceneEpoch.test.js",
+        "test/teleportUndoIntegration.test.js"
       ],
       "limits": "Registration-specific mappings; a missing VFX does not mean missing mechanic."
     },
@@ -508,7 +520,8 @@
       "owner": "src/embersMatchedVisualRenderer.js",
       "contract": "visual execution identity and sceneEpoch; fireball controller separate",
       "representativeSpells": [
-        "fireball"
+        "fireball",
+        "dimension-door"
       ],
       "representativeBehavioralTests": [
         "test/fireballVisualSceneEpoch.test.js",
@@ -523,11 +536,13 @@
       "contract": "runEffectsMutation → createEffectsMutationCoordinator; commandId/correlationId/sceneEpoch",
       "representativeSpells": [
         "hold-person",
-        "fireball"
+        "fireball",
+        "dimension-door"
       ],
       "representativeBehavioralTests": [
         "test/effectsMutationArchitectureContract.test.js",
-        "test/effectsMutationCore.test.js"
+        "test/effectsMutationCore.test.js",
+        "test/teleportUndoIntegration.test.js"
       ],
       "limits": "Merge token metadata; preserve hp/hpMax and initiative state keys."
     },
@@ -538,12 +553,14 @@
       "contract": "History owner + Effects undo lane; spellExecutionHistoryDetails normalizes executor result",
       "representativeSpells": [
         "blink",
-        "wall-of-fire"
+        "wall-of-fire",
+        "dimension-door"
       ],
       "representativeBehavioralTests": [
         "test/historyOwnerCore.test.js",
         "test/historyUndoFailureInjection.test.js",
-        "test/spellStaticZoneMovementUndoIntegration.test.js"
+        "test/spellStaticZoneMovementUndoIntegration.test.js",
+        "test/teleportUndoIntegration.test.js"
       ],
       "limits": "VFX projections are not independent history; new spells cannot invent history/recovery writers."
     },
@@ -553,11 +570,13 @@
       "owner": "src/effectsRecovery.js",
       "contract": "createEffectsRecovery/supportsEffectsRecovery; PREPARED→CANONICAL_COMMITTED→SIDE_EFFECTS_PENDING→HISTORY_PENDING→COMPLETE",
       "representativeSpells": [
-        "blink"
+        "blink",
+        "dimension-door"
       ],
       "representativeBehavioralTests": [
         "test/arch05aPostCommitRecoveryDiagnostic.test.js",
-        "test/historyOwnerEffectsPostCommit.test.js"
+        "test/historyOwnerEffectsPostCommit.test.js",
+        "test/teleportUndoIntegration.test.js"
       ],
       "limits": "Limited envelope: token:teleport, reminder:consume-zone-activation, spell-active-resolution:validate; history:false and undoSideEffects excluded. No universal crash recovery promise."
     },
@@ -568,11 +587,13 @@
       "contract": "scene epoch boundary + coordinator isCurrent checks; owner reconciliation",
       "representativeSpells": [
         "fireball",
-        "blink"
+        "blink",
+        "dimension-door"
       ],
       "representativeBehavioralTests": [
         "test/staticSpellZoneRecovery.test.js",
-        "test/reconcilerRecoveryContract.test.js"
+        "test/reconcilerRecoveryContract.test.js",
+        "test/teleportUndoIntegration.test.js"
       ],
       "limits": "Old-scene completion cannot publish new-scene writes. Simulated tests do not certify live Owlbear network."
     }

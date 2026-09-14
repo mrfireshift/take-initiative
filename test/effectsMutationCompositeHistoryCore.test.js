@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { decorateCompositeEffectsHistoryEntry } from "../src/effectsMutationCompositeHistoryCore.js";
+import { buildHistoryUndoPlan } from "../src/historyUndoCore.js";
 
 const present = (value) => ({ present: true, value });
 
@@ -54,4 +55,59 @@ test("la History composita usa gli effects before/after del piano background", (
   assert.equal(decorated.changes[1].id, "zone-1");
   assert.equal(decorated.changes[1].sceneBefore, null);
   assert.equal(decorated.changes[1].sceneAfter.id, "zone-1");
+});
+
+test("un lifecycle SDK-normalizzato già presente come side effect item non viene duplicato", () => {
+  const boardToken = {
+    id: "board-token-1",
+    type: "IMAGE",
+    layer: "PROP",
+    position: { x: 75, y: 75 },
+    metadata: {
+      "com.thebigpicture.initiative/spellBoardToken": {
+        kind: "spell-board-token",
+        spellId: "animate-objects",
+        instanceId: "spell-instance-1",
+        casterId: "caster-1",
+      },
+    },
+  };
+  const sdkSnapshot = { ...boardToken, zIndex: 0 };
+  const decorated = decorateCompositeEffectsHistoryEntry({
+    entry: {
+      id: "outer-create",
+      kind: "save-resolution",
+      changes: [{
+        id: boardToken.id,
+        sceneBefore: null,
+        sceneAfter: sdkSnapshot,
+      }],
+    },
+    mutation: {
+      commandId: "background-create",
+      commitResult: {
+        sideEffectChanges: [{
+          id: boardToken.id,
+          type: "item",
+          before: null,
+          after: boardToken,
+        }],
+      },
+    },
+  });
+
+  assert.deepEqual(decorated.changes, []);
+  assert.deepEqual(decorated.effectsMutation.targetIds, [boardToken.id]);
+  assert.equal(decorated.effectsMutation.sideEffects.length, 1);
+  const plan = buildHistoryUndoPlan({
+    sceneItems: [sdkSnapshot],
+    entryOrEntries: [decorated],
+  });
+  assert.equal(plan.status, undefined);
+  assert.deepEqual(plan.lifecycle[0], {
+    id: boardToken.id,
+    entryIds: [decorated.id],
+    before: sdkSnapshot,
+    after: null,
+  });
 });

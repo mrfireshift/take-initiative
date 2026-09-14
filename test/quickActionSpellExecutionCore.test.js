@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 
 import {
   buildQuickActionSpellLaunchPlan,
+  getQuickActionDirectSaveEligibility,
   quickActionConcentrationNames,
 } from "../src/quickActionSpellExecutionCore.js";
 import { ID } from "../src/constants.js";
-import { getSpellDefinition } from "../src/spells-srd.js";
+import { getSpellCatalog, getSpellDefinition } from "../src/spells-srd.js";
+import { buildSpellUnifiedPanelContract } from "../src/spellUnifiedPanelCore.js";
 
 function spellAction(spellId, overrides = {}) {
   const spell = getSpellDefinition(spellId);
@@ -69,10 +71,9 @@ test("mantiene in revisione una selezione vuota o multipla", () => {
   assert.equal(multiple.reason, "single-target-required");
 });
 
-test("le spell ad area e le spell con regole di area aprono sempre il pannello", () => {
+test("le spell ad area che richiedono placement o input restano nel pannello", () => {
   for (const spellId of [
     "fireball",
-    "bane",
     "chain-lightning",
     "xanathar-sfera-della-tempesta",
   ]) {
@@ -83,6 +84,107 @@ test("le spell ad area e le spell con regole di area aprono sempre il pannello",
     assert.equal(decision.mode, "review", spellId);
     assert.equal(decision.route.destination, "spell-unified-panel", spellId);
     assert.equal(decision.route.request.intent, "spell-cast", spellId);
+  }
+});
+
+test("Hold Monster usa il ramo failed implicito e rispetta lo scaling del target cap", () => {
+  const single = buildQuickActionSpellLaunchPlan({
+    action: spellAction("hold-monster", {
+      targetMode: "selection",
+      slotLevel: 5,
+    }),
+    sourceId: "wizard",
+    selectedTargetIds: ["target-a"],
+  });
+  assert.equal(single.mode, "direct");
+  assert.equal(single.areaExecution, true);
+  assert.equal(single.initialSaveOutcome, "failed");
+  assert.equal(single.initialSaveOutcomeSource, "quick-action");
+  assert.deepEqual(single.session.outcomes, { "target-a": "failed" });
+  assert.equal(single.contract.presentation.inputs.targets.maximum, 1);
+
+  const upcast = buildQuickActionSpellLaunchPlan({
+    action: spellAction("hold-monster", {
+      targetMode: "selection",
+      slotLevel: 6,
+    }),
+    sourceId: "wizard",
+    selectedTargetIds: ["target-a", "target-b"],
+  });
+  assert.equal(upcast.mode, "direct");
+  assert.deepEqual(upcast.session.targetIds, ["target-a", "target-b"]);
+  assert.deepEqual(upcast.session.outcomes, {
+    "target-a": "failed",
+    "target-b": "failed",
+  });
+  assert.equal(upcast.contract.presentation.inputs.targets.maximum, 2);
+
+  const overCap = buildQuickActionSpellLaunchPlan({
+    action: spellAction("hold-monster", {
+      targetMode: "selection",
+      slotLevel: 6,
+    }),
+    sourceId: "wizard",
+    selectedTargetIds: ["target-a", "target-b", "target-c"],
+  });
+  assert.equal(overCap.mode, "review");
+  assert.deepEqual(overCap.route.request.targetIds, [
+    "target-a",
+    "target-b",
+    "target-c",
+  ]);
+});
+
+test("Anatema applica failed a tutti i target discreti selezionati", () => {
+  const decision = buildQuickActionSpellLaunchPlan({
+    action: spellAction("bane", {
+      targetMode: "selection",
+      slotLevel: 1,
+    }),
+    sourceId: "cleric",
+    selectedTargetIds: ["target-a", "target-b", "target-c"],
+  });
+
+  assert.equal(decision.mode, "direct");
+  assert.equal(decision.targetingCapacity.maximum, 3);
+  assert.deepEqual(decision.session.outcomes, {
+    "target-a": "failed",
+    "target-b": "failed",
+    "target-c": "failed",
+  });
+});
+
+test("le spell save discrete senza input irrisolti diventano direct in modo parametrico dal catalogo", () => {
+  const candidates = getSpellCatalog().filter((spell) => {
+    const contract = buildSpellUnifiedPanelContract({
+      spellId: spell.id,
+      castContext: { slotLevel: spell.level },
+    });
+    return getQuickActionDirectSaveEligibility({
+      contract,
+      targetIds: ["target"],
+    }).eligible;
+  });
+  assert.deepEqual(candidates.map((spell) => spell.id), [
+    "bane",
+    "compulsion",
+    "flesh-to-stone",
+    "hold-monster",
+    "hold-person",
+  ]);
+
+  for (const spell of candidates) {
+    const decision = buildQuickActionSpellLaunchPlan({
+      action: spellAction(spell.id, {
+        targetMode: "selection",
+        slotLevel: spell.level,
+      }),
+      sourceId: "wizard",
+      selectedTargetIds: ["target"],
+    });
+    assert.equal(decision.mode, "direct", spell.id);
+    assert.equal(decision.initialSaveOutcome, "failed", spell.id);
+    assert.deepEqual(decision.session.outcomes, { target: "failed" }, spell.id);
   }
 });
 

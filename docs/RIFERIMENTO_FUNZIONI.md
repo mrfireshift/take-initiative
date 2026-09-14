@@ -114,9 +114,9 @@ Condizioni, Incantesimi e Console HP condividono la stessa logica:
 | Alias legacy | 2 |
 | **Totale runtime** | **477** |
 
-Il pannello unificato espone 392 voci, di cui 358 provengono dalle opzioni
-trackable. Il catalogo comprende inoltre 137 regole di area per 132 incantesimi
-distinti, 81 definizioni con `saveAutomation` e 26 definizioni con azioni
+Il pannello unificato espone 393 voci, di cui 358 provengono dalle opzioni
+trackable. Il catalogo comprende inoltre 140 regole di area per 135 incantesimi
+distinti, 81 definizioni con `saveAutomation` e 32 definizioni con azioni
 attive esposte dal contratto unificato. La presenza di una
 geometria non implica che ogni clausola RAW dell'incantesimo sia già
 automatizzata.
@@ -227,12 +227,16 @@ esiti non deterministici restano conferme del GM. Il riferimento completo è in
 | Massimo per profilo | 12 |
 | Tipi | Incantesimo, condizione, capacità di classe supportata |
 | Bersaglio | Caster oppure selezione |
-| Workflow spell | Pannello Incantesimi oppure Console effetti ad area |
+| Workflow spell | Fast path diretto quando completo; altrimenti Pannello Incantesimi o Console effetti ad area |
 | Scadenza condizione | Manuale, round, inizio turno, fine turno |
 | Persistenza | Profilo della card tra scene |
 
-Un'azione sul caster o su un solo bersaglio può essere eseguita direttamente;
-negli altri casi apre il pannello corretto con i dati precompilati.
+Un'azione sul caster o su un solo bersaglio può essere eseguita direttamente.
+Inoltre, una spell con TS iniziale, targeting discreto e nessun input
+aggiuntivo irrisolto può eseguire direttamente il ramo `failed` per tutti i
+bersagli selezionati. Placement, varianti, contesto, danno, active action e
+altri input necessari mantengono il fallback al pannello corretto con i dati
+precompilati.
 
 ## Risorse boss
 

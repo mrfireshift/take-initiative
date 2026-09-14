@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 const ID = "com.thebigpicture.initiative";
 const META_KEY = `${ID}/meta`;
+const SPELLS_META_KEY = `${ID}/spells`;
 const RESULT_CHANNEL = `${ID}/effects-mutation-result`;
 const COMMAND_CHANNEL = `${ID}/effects-mutation-command`;
 const clone = (value) => value === undefined ? undefined : structuredClone(value);
@@ -13,6 +14,7 @@ const room = { metadata: {} };
 const trace = [];
 const transport = {
   maxResponseBytes: 1400,
+  maxBroadcastBytes: 16 * 1024,
   dropInitiativeCardResponses: false,
   responseDrops: 0,
   itemWrites: 0,
@@ -82,6 +84,10 @@ const sdkStub = {
         tracePoint("T1 background-receive", { requestId: data.requestId, kind: data.kind });
       }
       if (channel === RESULT_CHANNEL) {
+        if (bytes > transport.maxBroadcastBytes) {
+          transport.responseDrops += 1;
+          throw new Error("injected-broadcast-payload-too-large");
+        }
         const isInitiativeCard = data?.result?.kind === "initiative-card";
         if (isInitiativeCard && (transport.dropInitiativeCardResponses || bytes > transport.maxResponseBytes)) {
           transport.responseDrops += 1;
@@ -131,6 +137,21 @@ function quickActions() {
     kind: "feature",
     featureId: `feature-${index}-${"y".repeat(160)}`,
     targetMode: "self",
+  }));
+}
+
+function oversizedSpellList() {
+  return Array.from({ length: 12 }, (_, index) => ({
+    id: `spell-entry-${index}`,
+    name: `Effetto persistente ${index}`,
+    turns: 10,
+    casterId: "hero",
+    instanceId: `spell-instance-${index}`,
+    spellId: `spell-${index}`,
+    castContext: {
+      summary: `Contesto ${index}: ${"x".repeat(1200)}`,
+      presentation: `Dettaglio ${index}: ${"y".repeat(1200)}`,
+    },
   }));
 }
 
@@ -230,6 +251,48 @@ test("R1/R2/R3: Character Sheet ACK compatto attraversa il broker async e chiude
       .filter((entry) => /^T[0-6] /u.test(entry.point))
       .map((entry) => entry.at);
     assert.ok(points.every((at, index) => index === 0 || at >= points[index - 1]));
+  } finally {
+    await stopRuntime(runtime);
+  }
+});
+
+test("un ACK spell oltre 16 KB viene ricomposto dopo il commit senza timeout", async () => {
+  reset();
+  scene.items[0].metadata[META_KEY][SPELLS_META_KEY] = oversizedSpellList();
+  const runtime = await startRuntime();
+  try {
+    const result = await runtime.client.runEffectsMutation([{
+      type: "spell:upsert",
+      targetIds: ["hero"],
+      name: "Scudo",
+      turns: 1,
+      source: "hero",
+      instanceId: "shield-large-ack",
+      spellId: "shield",
+    }], {
+      kind: "spell",
+      label: "Incantesimo: Scudo",
+      targetIds: ["hero"],
+      commandId: "shield-large-ack",
+      transportTimeoutMs: 250,
+    });
+
+    assert.equal(result.status, "applied");
+    assert.equal(transport.responseDrops, 0);
+    assert.equal(transport.itemWrites, 1);
+    assert.equal(
+      scene.items[0].metadata[META_KEY][SPELLS_META_KEY]
+        .some((spell) => spell.instanceId === "shield-large-ack"),
+      true,
+    );
+    const applyRequestId = trace.find((entry) => (
+      entry.point === "T0 send" && entry.kind === "apply"
+    ))?.requestId;
+    const responseMessages = trace.filter((entry) => (
+      entry.point === "T4 response-emit" && entry.requestId === applyRequestId
+    ));
+    assert.ok(responseMessages.length > 1, "the oversized result must cross the broker in chunks");
+    assert.ok(responseMessages.every((entry) => entry.bytes <= transport.maxBroadcastBytes));
   } finally {
     await stopRuntime(runtime);
   }

@@ -6,6 +6,7 @@ import {
   SPELL_UNIFIED_PANEL_LANES,
   SPELL_UNIFIED_TARGETING_MODES,
 } from "./spellUnifiedPanelCore.js";
+import { isTeleportSpell } from "./spellTeleportCore.js";
 
 export const SPELL_UNIFIED_AREA_STATUS = Object.freeze({
   APPLIED: "applied",
@@ -52,6 +53,10 @@ function uniqueIds(values = []) {
       .map((value) => text(value))
       .filter(Boolean),
   ));
+}
+
+function isTeleportContract(contract) {
+  return isTeleportSpell(contract?.spell?.id);
 }
 
 function normalizedError(error, fallbackCode = SPELL_UNIFIED_AREA_ERROR_CODES.EXECUTOR_FAILED) {
@@ -279,6 +284,8 @@ export function buildSpellUnifiedAreaCommand({
     : preparedResolution
       ? "prepared-resolution"
       : "cast";
+  const commandId = text(source?.commandId || source?.operationId);
+  const correlationId = text(source?.correlationId || commandId);
   const parentInstanceId = text(session?.activeConcentration?.instanceId);
   const locked = targetingMode === SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
     ? placement?.targetLocked === true || placement?.confirmed === true
@@ -290,9 +297,13 @@ export function buildSpellUnifiedAreaCommand({
     source: {
       kind: sourceKind,
       sceneEpoch,
+      ...(commandId ? { commandId } : {}),
+      ...(correlationId ? { correlationId } : {}),
       ...(parentInstanceId ? { parentInstanceId } : {}),
       ...(trigger?.activationId ? { activationId: trigger.activationId } : {}),
     },
+    ...(commandId ? { commandId } : {}),
+    ...(correlationId ? { correlationId } : {}),
     sourceKind,
     automation: preparedResolution
       ? {
@@ -307,6 +318,7 @@ export function buildSpellUnifiedAreaCommand({
     ...(trigger?.activationId ? { activationId: trigger.activationId } : {}),
     ...(trigger?.instanceId ? { expectedZoneInstanceId: trigger.instanceId } : {}),
     casterId: text(session?.casterId),
+    passengerId: text(session?.passengerId),
     slotLevel: session?.slotLevel,
     choiceValue: text(session?.variant),
     castContext: session?.castContext || {},
@@ -440,15 +452,26 @@ export async function executeSpellUnifiedArea({
         };
       }
     } catch (error) {
-      return {
-        ...resultBase({}),
-        status: SPELL_UNIFIED_AREA_STATUS.REJECTED,
-        errors: [normalizedError(
-          error,
-          SPELL_UNIFIED_AREA_ERROR_CODES.SPATIAL_VALIDATION_FAILED,
-        )],
-        eligibility,
-      };
+      // Teleport geometry is advisory for the RAW checks that require GM
+      // judgment. If the live SDK cannot be read at this boundary, preserve
+      // the explicit destination and let the canonical executor continue;
+      // deterministic passenger/range failures still reject when returned.
+      if (isTeleportContract(contract)) {
+        spatialValidation = {
+          mode: "teleport",
+          unavailable: true,
+        };
+      } else {
+        return {
+          ...resultBase({}),
+          status: SPELL_UNIFIED_AREA_STATUS.REJECTED,
+          errors: [normalizedError(
+            error,
+            SPELL_UNIFIED_AREA_ERROR_CODES.SPATIAL_VALIDATION_FAILED,
+          )],
+          eligibility,
+        };
+      }
     }
   }
 

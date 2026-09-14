@@ -1,7 +1,7 @@
 <!-- SPELL-COMPOSITION-AUDIT:BEGIN -->
 # Audit indipendente: completamento compositivo del catalogo
 
-Verifica: **2026-09-09**, working tree Take Initiative **1.3.0**, non soltanto HEAD.
+Verifica: **2026-09-14**, working tree Take Initiative **1.3.0**, non soltanto HEAD.
 Questo blocco è la valutazione semantica mantenuta dall'audit; lo snapshot generato
 in fondo conserva gli assi storici, senza determinare COMPLETE o GREEN.
 
@@ -70,21 +70,22 @@ VFX, family, effort, batch, fonte delle regole e prove. `annotation` è umana;
 
 | Baseline rilevata | Risultato |
 | --- | --- |
-| HEAD | `356ef2a68da050fb788988395c0b1bac4bb03ac2`, working tree già dirty |
-| Modifiche preesistenti | Conservate, incluse History, Effects, recovery, UI e test; nessun revert |
-| Node / suite completa | v24.15.0; `npm test`: **2889/2889**, 0 fail, 0 skip, circa 23,9 s |
-| Performance harness | `npm run perf:harness -- --runs 1`: correctness **ok** |
+| HEAD | `085e3a84e1edcac915cb49a3d069b453843aae56`, working tree iniziale con il solo `test/shieldVfxRegression.test.js` non tracciato |
+| Modifiche preesistenti | Nessun file tracciato modificato; il file non tracciato è stato conservato |
+| Node / suite completa (baseline) | v24.15.0; `npm test`: **2893/2893**, 0 fail, 0 skip, circa 23,6 s |
+| Node / suite completa (finale) | v24.15.0; `npm test`: **2950/2950**, 0 fail, 0 skip, circa 22,9 s |
+| Performance harness finale | `npm run perf:harness`: status **ok**, seed `take-initiative-step-6`, **1777 SDK calls** |
 | Scenario harness | 40 token, 10 zone, 100 effetti, 100 movimenti, 100 cambi HP, 30 avanzamenti turno e cambio scena |
 | Tempo harness | 329,444 ms del driver simulato; non latenza reale browser/rete |
 | Versione / dist iniziale | `verify:version` e `verify:dist` passati, 1.3.0 |
-| Provenienza dist iniziale | HEAD uguale, `dirty: true`, builtAt `2026-09-07T17:09:41.000Z`; la sola versione non prova parità dei byte col runtime |
-| Catalogo / aree rilevati | 477 spell, 139 regole geometriche per 134 spell; 81 saveAutomation, 32 definizioni con activeActions |
+| Provenienza dist iniziale | HEAD `085e3a84e1ed`, `dirty: true`, builtAt `2026-09-13T17:43:09.000Z`; la sola versione non prova parità dei byte col runtime |
+| Catalogo / aree rilevati | 477 spell, 140 regole geometriche per 135 spell; 81 saveAutomation, 32 definizioni con activeActions |
 | Controllo diagnostico aggiuntivo | 9 probe read-only passati; risultati nel capability JSON |
 | Audit generator test finale | 36/36 passati; blocco semantico preservato dopo rigenerazione |
-| Integrità produzione | SHA-256 dei file src identico prima/dopo; fingerprint strutturale 807a0a5583d7742f invariato |
-| Build finale | PASS: Vite in 5,13 s; warning chunk >500 kB. verify:version / verify:dist PASS |
+| Integrità produzione | Runtime modificato intenzionalmente per il workflow Dimension Door; audit strutturale finale `bb9b989653c31663` |
+| Build finale | PASS: Vite in 4,06 s; warning chunk >500 kB. verify:version / verify:dist PASS |
 
-Il vecchio audit ricostruito conserva 382 `UNREVIEWED`: i suoi 285 `coperto` e
+Il vecchio audit ricostruito conserva 381 `UNREVIEWED`: i suoi 285 `coperto` e
 66 `FULL` non sono numeri di completezza. Il suo fingerprint resta utile come
 controllo strutturale, non come certificazione del catalogo.
 
@@ -634,11 +635,11 @@ da questo audit.
 
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
-- Esposti nella console unificata: **392**; disconnessi: **0**; fragili: **0**.
-- Opzioni trackable del runtime: **358**; definizioni con tracking persistente verificate dall'audit: **355**; definizioni con regole d'area: **134** (139 regole).
-- Workflow che richiedono smoke test runtime: **389**.
+- Esposti nella console unificata: **393**; disconnessi: **0**; fragili: **0**.
+- Opzioni trackable del runtime: **358**; definizioni con tracking persistente verificate dall'audit: **355**; definizioni con regole d'area: **135** (140 regole).
+- Workflow che richiedono smoke test runtime: **390**.
 - Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `807a0a5583d7742f`.
+- Impronta deterministica: `bb9b989653c31663`.
 
 ## Decisioni di prodotto chiuse
 
@@ -651,8 +652,8 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 88 |
-| PARTIAL | 180 |
+| MANUAL | 87 |
+| PARTIAL | 181 |
 | TRACK_ONLY | 143 |
 
 ### Stato di copertura (coverageStatus)
@@ -662,9 +663,9 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | ACCEPTED | 71 |
-| CLOSED | 13 |
+| CLOSED | 14 |
 | GAP | 11 |
-| UNREVIEWED | 382 |
+| UNREVIEWED | 381 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
@@ -672,30 +673,30 @@ da questo audit.
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 3 |
-| PARTIAL | 12 |
+| PARTIAL | 13 |
 | TRACK_ONLY | 3 |
-| UNREVIEWED | 393 |
+| UNREVIEWED | 392 |
 
 ### Esposizione UI attuale (currentUiExposure)
 
 | Stato | Totale |
 | --- | ---: |
-| REFERENCE_ONLY | 85 |
-| UNIFIED | 392 |
+| REFERENCE_ONLY | 84 |
+| UNIFIED | 393 |
 
 ### Esposizione UI target (targetUiExposure)
 
 | Stato | Totale |
 | --- | ---: |
-| UNIFIED | 392 |
-| UNREVIEWED | 85 |
+| UNIFIED | 393 |
+| UNREVIEWED | 84 |
 
 ### Categorie di Smoke Test richieste
 
 | Stato | Totale |
 | --- | ---: |
 | ACTIVE_ACTION | 40 |
-| AREA_GEOMETRY | 134 |
+| AREA_GEOMETRY | 135 |
 | CAST | 222 |
 | CLEANUP | 107 |
 | CONCENTRATION | 218 |
@@ -707,15 +708,15 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | partial | 11 |
-| reachable | 381 |
-| unexposed | 85 |
+| reachable | 382 |
+| unexposed | 84 |
 
 ### Problemi di integrazione
 
 | Stato | Totale |
 | --- | ---: |
 | CAST_NO_MUTATIONS | 3 |
-| UNIFIED_CATALOG_MISSING | 85 |
+| UNIFIED_CATALOG_MISSING | 84 |
 
 ## Integrazione con la console unificata
 
@@ -780,7 +781,6 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Parola del ritiro | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Parola guaritrice | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Parola guaritrice di massa | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
-| Porta dimensionale | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Preghiera di guarigione | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Presagio | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Purificare cibo e bevande | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
@@ -1164,7 +1164,7 @@ Nessuna voce.
 | Piaga degli insetti | `insect-plague` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Pietra Magica | `xanathar-pietra-magica` | Xanathar / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Pirotecnica | `xanathar-pirotecnica` | Xanathar / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Porta dimensionale | `dimension-door` | SRD 5.1 / 4 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
+| Porta dimensionale | `dimension-door` | SRD 5.1 / 4 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Portale | `gate` | SRD 5.1 / 9 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Portale Arcano | `phb2014-portale-arcano` | PHB 2014 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Preghiera di guarigione | `prayer-of-healing` | SRD 5.1 / 2 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
@@ -1322,4 +1322,3 @@ Nessuna voce.
 ## Dati macchina
 
 La versione completa con condizioni rilevate, ID delle regole, trigger ed estratti di evidenza è in `data/spell-automation-audit.json`.
-

@@ -1,22 +1,22 @@
 {
   "schemaVersion": 1,
-  "auditDate": "2026-09-09",
+  "auditDate": "2026-09-14",
   "authority": "Human semantic annotations + runtime observations; generated old audit is secondary, not completeness truth.",
   "ruleset": "Repository-local 2014 text; no inferred missing canonical rules",
   "scope": "Assisted tracker, not full D&D rules automation. Manual dice/LOS/statblock/environment remain explicit.",
   "baseline": {
-    "date": "2026-09-09",
+    "date": "2026-09-14",
     "version": "1.3.0",
-    "head": "356ef2a68da050fb788988395c0b1bac4bb03ac2",
+    "head": "085e3a84e1edcac915cb49a3d069b453843aae56",
     "dirty": true,
     "node": "v24.15.0",
     "tests": {
       "command": "npm test",
-      "total": 2889,
-      "pass": 2889,
+      "total": 2893,
+      "pass": 2893,
       "fail": 0,
       "skipped": 0,
-      "durationMs": 23905.8839
+      "durationMs": 23630.6882
     },
     "versionVerified": true,
     "distVersionVerified": true,
@@ -2701,18 +2701,18 @@
     "productionFingerprint": "5d6b9764194e4df8097159a8007236a8c688cf3927079cfd7a94e51100205c1c",
     "finalVerification": {
       "build": "PASS",
-      "buildDurationSeconds": 5.13,
+      "buildDurationSeconds": 4.52,
       "buildWarning": "Chunk sizes >500 kB",
       "version": "PASS",
       "dist": "PASS",
       "distAfter": {
         "schemaVersion": 1,
         "version": "1.3.0",
-        "commit": "356ef2a68da050fb788988395c0b1bac4bb03ac2",
-        "shortCommit": "356ef2a68da0",
+        "commit": "085e3a84e1edcac915cb49a3d069b453843aae56",
+        "shortCommit": "085e3a84e1ed",
         "dirty": true,
-        "sourceDateEpoch": 1788800981,
-        "builtAt": "2026-09-07T17:09:41.000Z"
+        "sourceDateEpoch": 1789321389,
+        "builtAt": "2026-09-13T17:43:09.000Z"
       },
       "auditGeneratorTests": {
         "pass": 36,
@@ -2722,7 +2722,7 @@
       "requiredFieldsVerified": true,
       "scenarioDependenciesVerified": true,
       "semanticBlockPreserved": true,
-      "productionUnchanged": true,
+      "productionUnchanged": false,
       "structuralFingerprint": "807a0a5583d7742f"
     }
   },
@@ -12876,10 +12876,20 @@
       "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellTeleportCore.js",
+        "src/spellAreaRules.js",
+        "src/spellAreaPlacementCore.js",
+        "src/aoeTargetTool.js",
+        "src/spellUnifiedPanelCore.js",
+        "src/spellUnifiedPanelViewCore.js",
+        "src/spellUnifiedAreaAdapter.js",
+        "src/spellAreaResolutionCommandCore.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellUnifiedPanelSceneProvider.js"
       ],
       "mechanicsRequired": [
-        "Spostamento punto/passeggero tramite SPELL_TELEPORT_RULES e token:teleport; mismatch/occupazione/LOS GM-assisted, test spellTeleportCore.",
+        "Destinazione puntuale tramite unified area placement, con quadrato di anteprima centrato sulla casella scelta; passeggero opzionale, una sola creatura nelle caselle adiacenti su griglia, traslata alla stessa posizione relativa tramite SPELL_TELEPORT_RULES e token:teleport.",
+        "Occupazione/visibilità/visualizzazione/descrizione, consenso, peso e capacità di trasporto restano GM-assisted; in caso di destinazione occupata il GM registra 4d6 forza e il teleport fallisce.",
         "Damage type: force"
       ],
       "existingReusableCapabilities": [
@@ -12888,19 +12898,24 @@
         "C-EFFECT",
         "C-INSTANCE",
         "C-EXPIRY",
-        "C-TARGET",
-        "C-EFFECTS",
-        "C-HISTORY"
+    "C-TARGET",
+    "C-PLACEMENT",
+    "C-PRESENT",
+    "C-EFFECTS",
+        "C-HISTORY",
+        "C-RECOVERY",
+        "C-VFX",
+        "C-SCENE"
       ],
       "missingCapabilities": [],
       "legacyBespokePath": null,
-      "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
+      "historyUndoImplications": "Shared Effects/History; caster e passeggero sono una sola azione e Undo ripristina entrambe le posizioni con le guardie di conflitto esistenti.",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
       "targetingImplications": {
-        "mode": "discrete",
+        "mode": "geometric",
         "rule": null,
-        "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Spostamento punto/passeggero tramite SPELL_TELEPORT_RULES e token:teleport; mismatch/occupazione/LOS GM-assisted, test spellTeleportCore."
+        "contract": "Unified area contract con placement point, caster self e passenger opzionale; la destinazione non è un target token.",
+        "required": "Una sola creatura CHARACTER adiacente al caster quando la geometria è misurabile; offset relativo serializzabile/derivato al commit."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -12915,7 +12930,24 @@
         "effectSaveReminder": false,
         "required": []
       },
-      "areaAura": [],
+      "areaAura": [
+        {
+          "id": "dimension-door:cast",
+          "kind": "instant",
+          "geometry": {
+            "shape": "square",
+            "size": {
+              "value": 1.5,
+              "unit": "m",
+              "measure": "side"
+            }
+          },
+          "lifecycle": {
+            "persistence": "preview",
+            "endsWithSpell": false
+          }
+        }
+      ],
       "scaling": {
         "slotContext": true,
         "damage": null,
@@ -12929,8 +12961,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "TELEPORT",
-      "estimatedEffort": "No implementation work",
-      "recommendedBatch": "Maintain / no migration",
+      "estimatedEffort": "Implemented: configuration + shared teleport command/executor; maintain regression coverage",
+      "recommendedBatch": "Maintain / unified workflow",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "dimension-door",
@@ -12954,19 +12986,24 @@
           "test/spellStaticZoneMovementUndoIntegration.test.js"
         ],
         "literalTestCandidates": [
-          "test/spellTeleportCore.test.js"
+      "test/spellTeleportCore.test.js",
+      "test/spellUnifiedAreaAdapter.test.js",
+      "test/spellUnifiedPanelSceneProvider.test.js",
+      "test/spellUnifiedPanelViewCore.test.js",
+      "test/spellAreaPlacementCore.test.js",
+      "test/teleportUndoIntegration.test.js"
         ],
-        "qualification": "Family test demonstrates primitive; literal candidate references are navigation only, not proof. Semantic annotation is manual and scoped to assisted tracker behavior."
+        "qualification": "Unified contract, adapter, live spatial validation e Effects/History E2E coprono il workflow reale; occupancy/LOS/consenso/peso restano assistiti dal GM."
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Spostamento punto/passeggero tramite SPELL_TELEPORT_RULES e token:teleport; mismatch/occupazione/LOS GM-assisted, test spellTeleportCore.",
+        "reason": "Workflow unified area-transaction raggiungibile dal catalogo: destinazione point, passeggero opzionale adiacente e offset relativo; Effects/History/recovery/VFX condivisi. Occupazione/LOS/consenso/peso restano GM-assisted.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
         "generatedFrom": "getSpellCatalog + getSpellAreaRules + getSpellSaveWorkflowRule + buildSpellAutomationAudit runtime fields",
         "operationTypes": [
-          "spell:upsert"
+          "token:teleport"
         ],
         "effects": [],
         "effectChoices": [],
