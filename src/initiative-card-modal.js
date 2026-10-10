@@ -1935,6 +1935,7 @@ function renderClassFeatures() {
           activate.type = "button";
           const activeInstance = active.find((entry) => entry.featureId === feature.id) || null;
           const alreadyActive = Boolean(activeInstance);
+          const canGrantInspiration = adapter === "bardic-inspiration";
           activate.textContent = !runtimeSupport.ready
             ? "Non disponibile"
             : feature.trackingMode === "instant"
@@ -1953,7 +1954,7 @@ function renderClassFeatures() {
           ) || "";
           const parentActive = !missingRequiredFeatureId;
           activate.disabled = classFeatureMutating
-            || (!isAuraToggle && alreadyActive)
+            || (!isAuraToggle && alreadyActive && !canGrantInspiration)
             || !runtimeSupport.ready
             || !parentActive;
           if (isAuraToggle) {
@@ -1965,7 +1966,7 @@ function renderClassFeatures() {
               ? `Richiede prima ${CLASS_FEATURE_BY_ID.get(missingRequiredFeatureId)?.name || "la capacità collegata"}`
             : isAuraToggle
               ? alreadyActive ? "Disattiva l’aura" : "Attiva l’aura"
-            : alreadyActive
+            : alreadyActive && !canGrantInspiration
               ? "La capacità è già attiva"
             : classFeatureTargetMode(feature, profile?.characterBuild) === "selection"
               ? "Usa i token selezionati come bersagli"
