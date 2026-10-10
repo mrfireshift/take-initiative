@@ -140,7 +140,7 @@ const effects = await import("../src/effectsMutations.js");
 const history = await import("../src/history.js");
 const historyOwner = await import("../src/historyOwner.js");
 const combatLog = await import("../src/combatLog.js");
-const { currentSceneEpoch } = await import("../src/sceneEpoch.js");
+const { currentSceneEpoch, invalidateSceneEpoch, markSceneEpochReady } = await import("../src/sceneEpoch.js");
 
 test.before(async () => {
   await historyOwner.mountHistoryOwner();
@@ -255,4 +255,41 @@ test("una entry movimento legacy usa il DPI reale senza assumere una distanza fi
 
   gridDpi = 1;
   gridDistanceAvailable = true;
+});
+
+test("first movement after scene reload is recorded with its true origin and remains undoable", async () => {
+  invalidateSceneEpoch("movement-regression-reload");
+  sceneState.metadata = {};
+  sceneState.items[0].position = { x: 0, y: 0 };
+  markSceneEpochReady("movement-regression-ready");
+  await wait(30);
+  await sdkStub.scene.items.updateItems(["token-movement"], (drafts) => {
+    drafts[0].position = { x: 1, y: 0 };
+  });
+  await wait(450);
+  const movement = (await history.getHistoryEntries()).find((entry) => entry.kind === "move");
+  assert.ok(movement, "first segment must be recorded after reload");
+  assert.deepEqual(movement.changes[0].beforePosition, { x: 0, y: 0 });
+  assert.deepEqual(movement.changes[0].afterPosition, { x: 1, y: 0 });
+  const undone = await history.undoHistoryThrough(movement.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(undone.status, "applied");
+  assert.deepEqual(sceneState.items[0].position, { x: 0, y: 0 });
+});
+
+test("metadata-only updates preserve the first movement origin after scene reload", async () => {
+  invalidateSceneEpoch("metadata-movement-regression-reload");
+  sceneState.metadata = {};
+  sceneState.items[0].position = { x: 0, y: 0 };
+  markSceneEpochReady("metadata-movement-regression-ready");
+  await wait(30);
+  await sdkStub.scene.items.updateItems(["token-movement"], (drafts) => {
+    drafts[0].metadata[META_KEY].hp = 9;
+  });
+  await sdkStub.scene.items.updateItems(["token-movement"], (drafts) => {
+    drafts[0].position = { x: 1, y: 0 };
+  });
+  await wait(450);
+  const movement = (await history.getHistoryEntries()).find((entry) => entry.kind === "move");
+  assert.ok(movement);
+  assert.deepEqual(movement.changes[0].beforePosition, { x: 0, y: 0 });
 });

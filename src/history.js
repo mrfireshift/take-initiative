@@ -263,6 +263,12 @@ async function acquireSceneHistoryBaseline(epoch) {
   const items = await OBR.scene.items.getItems();
   if (!isCurrentSceneEpoch(epoch) || __sceneHistoryBaselineEpoch !== epoch) return;
   replaceSceneHistorySnapshot(items);
+  for (const item of items) {
+    const position = itemPosition(item);
+    if (item.metadata?.[META_KEY] && position && !__movementPositions.has(item.id)) {
+      __movementPositions.set(item.id, position);
+    }
+  }
   __sceneHistoryBaselineEpoch = null;
 }
 
@@ -1477,7 +1483,7 @@ export async function mountMovementHistoryWatcher() {
     for (const item of initial) __movementPositions.set(item.id, itemPosition(item));
   }
 
-  subscribeSceneItemChanges(async ({ items: changes, sceneEpoch }) => {
+  subscribeSceneItemChanges(async ({ items: changes, changedRecords = [], sceneEpoch }) => {
     const eventEpoch = sceneEpoch ?? currentSceneEpoch();
     if (!isCurrentSceneEpoch(eventEpoch)) return;
     const now = Date.now();
@@ -1494,7 +1500,8 @@ export async function mountMovementHistoryWatcher() {
       const next = itemPosition(item);
       if (!next) continue;
 
-      const previous = __movementPositions.get(item.id);
+      const previous = __movementPositions.get(item.id)
+        || itemPosition(changedRecords.find((record) => record?.before?.id === item.id)?.before?.item);
       __movementPositions.set(item.id, next);
 
       const suppression = __suppressedMovements.get(item.id);

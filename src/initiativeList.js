@@ -52,7 +52,7 @@ import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegm
 import { decorateCompositeEffectsHistoryEntry } from "./effectsMutationCompositeHistoryCore.js";
 import { recordCombatTurn } from "./combatLog.js";
 import { shouldHandleHistoryUndoShortcut } from "./historyUndoUiCore.js";
-import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckEnabledSync, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, prewarmSpeedCheckTurn, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
+import { adjustSpeedCheckBonus, adjustSpeedCheckDash, clearSpeedCheckCombatMovement, enableSpeedCheckProcessor, mountSpeedCheckEnabledSync, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, prewarmSpeedCheckTurn, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
 import { shouldKeepSpeedReadoutOpen } from "./speedCheckCore.js";
 import {
   makeMovementStepper,
@@ -1606,9 +1606,10 @@ function makeClearInitiativeBtn() {
     try {
       const items = await OBR.scene.items.getItems(
         it => it.metadata?.[META_KEY]?.inInitiative === true
+          || !!it.metadata?.[META_KEY]?.speedCheckMovement
       );
       if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative")) return;
-      const ids = items.map(it => it.id);
+      const ids = items.filter(it => it.metadata?.[META_KEY]?.inInitiative === true).map(it => it.id);
       if (ids.length) {
         await OBR.scene.items.updateItems(ids, (drafts) => {
           for (const it of drafts) {
@@ -1620,6 +1621,8 @@ function makeClearInitiativeBtn() {
       }
       if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative")) return;
       await resetTrackerState(sceneEpoch);
+      if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative")) return;
+      await clearSpeedCheckCombatMovement(items.map(it => it.id), { sceneEpoch });
       if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative")) return;
       await renderAll();
     } catch (err) {

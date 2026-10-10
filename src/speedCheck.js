@@ -10,6 +10,7 @@ import {
 } from "./conditionSpeedCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { suppressMovementHistory } from "./history.js";
+import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import {
   advanceSpeedCycle,
   buildSpeedCheckSnapshot,
@@ -80,12 +81,43 @@ let speedCheckControlUpdatedAt = 0;
 let speedCheckControlWriteQueue = Promise.resolve();
 let remoteMovementSnapshot = null;
 let movementPersistQueue = Promise.resolve();
+let movementGeneration = 0;
+let speedSceneListenerMounted = false;
 const trackedDrags = new Map();
 const rejectedMovementRollbacks = new Map();
 const rejectedElevationRollbacks = new Map();
 const suppressedElevationResets = new Map();
 const movementStateListeners = new Set();
 const speedCheckEnabledListeners = new Set();
+const pendingMovementOrigins = new Map();
+
+function isCurrentSpeedOperation(sceneEpoch, generation) {
+  return isCurrentSceneEpoch(sceneEpoch) && generation === movementGeneration;
+}
+
+function invalidateSpeedMovementRuntime({ clearTurn = false } = {}) {
+  movementGeneration += 1;
+  movementState = null;
+  movementStatePromise = null;
+  movementStatePrefetch = null;
+  remoteMovementSnapshot = null;
+  pendingMovementOrigins.clear();
+  trackedDrags.clear();
+  rejectedMovementRollbacks.clear();
+  rejectedElevationRollbacks.clear();
+  suppressedElevationResets.clear();
+  if (clearTurn) currentTurn = null;
+}
+
+function mountSpeedSceneLifecycle() {
+  if (speedSceneListenerMounted) return;
+  speedSceneListenerMounted = true;
+  subscribeSceneEpoch(({ phase }) => {
+    if (phase !== "unload") return;
+    invalidateSpeedMovementRuntime({ clearTurn: true });
+    notifyMovementState();
+  });
+}
 
 function notifySpeedCheckEnabled() {
   for (const listener of speedCheckEnabledListeners) {
@@ -97,10 +129,7 @@ function applySpeedCheckEnabled(enabled) {
   const next = !!enabled;
   if (speedCheckEnabled === next) return false;
   speedCheckEnabled = next;
-  movementState = null;
-  movementStatePromise = null;
-  movementStatePrefetch = null;
-  trackedDrags.clear();
+  invalidateSpeedMovementRuntime();
   notifySpeedCheckEnabled();
   notifyMovementState();
   if (next && processorEnabled) {
@@ -214,6 +243,7 @@ export function subscribeSpeedCheckState(listener) {
 }
 
 export function mountSpeedCheckStateBroadcast() {
+  mountSpeedSceneLifecycle();
   if (speedStateListenerMounted) return;
   speedStateListenerMounted = true;
   OBR.broadcast.onMessage(SPEED_STATE_CHANNEL, (event) => {
@@ -330,6 +360,7 @@ async function liveDirectionalMovementModifiers(state) {
 
 function movementResolutionSignature(source) {
   return JSON.stringify({
+    baseSpeedMeters: source?.baseSpeedMeters,
     activeMode: source?.activeMode,
     climbing: source?.climbing === true,
     speedMeters: source?.speedMeters,
@@ -374,40 +405,61 @@ function applyResolvedMovementState(state, resolved, totalMeters) {
     : totalMeters;
 }
 
-async function applyConditionSpeedItem(item) {
-  if (!movementState || item?.id !== movementState.itemId || movementState.disabled) return;
-  const totalMeters = movementTotalMeters(movementState);
-  const wasProne = movementState.prone === true;
-  const previousMode = movementState.activeMode;
+async function applyConditionSpeedItem(item, { refreshProfile = false } = {}) {
+  const state = movementState;
+  if (!state || item?.id !== state.itemId) return;
+  state.profileItem = item;
+  if (state.disabled || (refreshProfile
+    && String(item.metadata?.[META_KEY]?.attitude || "").toLowerCase() !== "pc")) {
+    if (!refreshProfile || !currentTurn) return;
+    movementState = null;
+    movementStatePromise = null;
+    await ensureMovementState({ ...currentTurn });
+    return;
+  }
+  let baseSpeedMeters = state.baseSpeedMeters;
+  if (refreshProfile) {
+    const revision = (state.profileRevision || 0) + 1;
+    state.profileRevision = revision;
+    const profile = await loadInitiativeCard(item, { hydrate: false });
+    if (movementState !== state || state.profileRevision !== revision
+      || !isCurrentSpeedOperation(state.sceneEpoch, state.generation)) return;
+    baseSpeedMeters = Math.max(0, Number(profile?.speed) || 0);
+    item = state.profileItem;
+  }
+  const totalMeters = movementTotalMeters(state);
+  const wasProne = state.prone === true;
+  const previousMode = state.activeMode;
   const climbing = item?.metadata?.[META_KEY]?.[CLIMBING_META_FIELD] === true;
   const resolved = conditionSpeedForItem(
     item,
-    movementState.baseSpeedMeters,
-    movementState.activeMode,
+    baseSpeedMeters,
+    state.activeMode,
   );
-  const previousSignature = movementResolutionSignature(movementState);
-  const nextSignature = movementResolutionSignature({ ...resolved, climbing });
+  const previousSignature = movementResolutionSignature(state);
+  const nextSignature = movementResolutionSignature({ ...resolved, climbing, baseSpeedMeters });
   if (previousSignature === nextSignature) return;
 
-  applyResolvedMovementState(movementState, resolved, totalMeters);
-  movementState.climbing = climbing;
+  state.baseSpeedMeters = baseSpeedMeters;
+  applyResolvedMovementState(state, resolved, totalMeters);
+  state.climbing = climbing;
 
   const standingCostMeters = wasProne && !resolved.prone
     ? proneStandingCostMeters(resolved.speedMeters)
     : 0;
   if (standingCostMeters > 0) {
     Object.assign(
-      movementState,
+      state,
       advanceSpeedCycle(
-        movementState,
+        state,
         standingCostMeters / SPEED_CHECK_METERS_PER_CELL,
-        movementState.speedMeters
+        state.speedMeters
       )
     );
   }
   notifyMovementState();
   if (standingCostMeters > 0 || previousMode !== resolved.activeMode) {
-    await persistMovementState(movementState);
+    await persistMovementState(state);
   }
 }
 
@@ -488,17 +540,22 @@ function applyPersistedMovementItem(item) {
 
 function persistMovementState(state) {
   if (!state?.itemId || !state?.turnKey || state.disabled) return Promise.resolve();
+  const { sceneEpoch, generation } = state;
   const payload = persistedMovementPayload(state);
   state.persistedSignature = persistedMovementSignature(payload);
-  const write = () => OBR.scene.items.updateItems([state.itemId], (drafts) => {
-    for (const item of drafts) {
-      const previous = { ...(item.metadata?.[META_KEY] || {}) };
-      item.metadata = {
-        ...(item.metadata || {}),
-        [META_KEY]: { ...previous, [SPEED_CHECK_META_FIELD]: payload },
-      };
-    }
-  });
+  const write = () => {
+    if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
+    return OBR.scene.items.updateItems([state.itemId], (drafts) => {
+      if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
+      for (const item of drafts) {
+        const previous = { ...(item.metadata?.[META_KEY] || {}) };
+        item.metadata = {
+          ...(item.metadata || {}),
+          [META_KEY]: { ...previous, [SPEED_CHECK_META_FIELD]: payload },
+        };
+      }
+    });
+  };
   movementPersistQueue = movementPersistQueue.then(write, write);
   return movementPersistQueue;
 }
@@ -511,13 +568,34 @@ function mountSpeedMetadataListener() {
   if (speedMetadataListenerMounted) return;
   speedMetadataListenerMounted = true;
   subscribeSceneItemChanges((event) => {
-    if (!movementState?.itemId) return;
-    const item = event.items.find((candidate) => candidate?.id === movementState.itemId);
+    if (event.sceneEpoch !== undefined && !isCurrentSceneEpoch(event.sceneEpoch)) return;
+    const state = movementState;
+    const itemId = state?.itemId || currentTurn?.actorId;
+    if (!itemId) return;
+    const item = event.items.find((candidate) => candidate?.id === itemId);
     if (!item) return;
+    const records = event.changedRecords || [];
+    const refreshProfile = event.flags.tracker && (!records.length || records.some((record) => (
+      record?.after?.id === item.id && (
+        !record.before
+        || record.before.cardSignature !== record.after.cardSignature
+        || record.before.attitudeSignature !== record.after.attitudeSignature
+        || record.before.actorProfileSignature !== record.after.actorProfileSignature
+      )
+    )));
+    if (!state) {
+      if (currentTurn && (refreshProfile || event.flags.conditions || event.flags.concentration)) {
+        movementStatePromise = null;
+        movementStatePrefetch = null;
+        void ensureMovementState({ ...currentTurn }).catch(() => {});
+      }
+      return;
+    }
     if (event.flags.speedCheck) applyPersistedMovementItem(item);
     if (event.flags.conditions || event.flags.concentration || event.flags.tracker) {
-      void applyConditionSpeedItem(item).catch(() => {});
+      void applyConditionSpeedItem(item, { refreshProfile }).catch(() => {});
     }
+    if (movementState !== state) return;
     for (const record of event.changedRecords || []) {
       const itemId = record?.after?.id || record?.before?.id;
       if (itemId !== movementState.itemId || !record?.before || !record?.after) continue;
@@ -586,11 +664,14 @@ async function prepareMovementSample(movement) {
 async function loadMovementState(turn) {
   const { actorId, turnKey } = turn || {};
   if (!actorId || !turnKey) return null;
+  const sceneEpoch = currentSceneEpoch();
+  const generation = movementGeneration;
 
   const [item] = await OBR.scene.items.getItems([actorId]);
+  if (!isCurrentSpeedOperation(sceneEpoch, generation)) return null;
   const meta = item?.metadata?.[META_KEY] || {};
   if (!item || String(meta.attitude || "").toLowerCase() !== "pc") {
-    return { turnKey, itemId: actorId, disabled: true, path: [] };
+    return { turnKey, itemId: actorId, sceneEpoch, generation, disabled: true, path: [] };
   }
 
   const [profile, gridDpi, lastCell] = await Promise.all([
@@ -607,7 +688,7 @@ async function loadMovementState(turn) {
     persistedMatches ? persisted.activeMode : "walk",
   );
   if (!resolvedSpeed.hasMovementModes) {
-    return { turnKey, itemId: actorId, disabled: true, path: [] };
+    return { turnKey, itemId: actorId, sceneEpoch, generation, disabled: true, path: [] };
   }
   const speedMeters = resolvedSpeed.speedMeters;
   const initialPosition = validPoint(item.position);
@@ -624,6 +705,8 @@ async function loadMovementState(turn) {
   return {
     turnKey,
     itemId: actorId,
+    sceneEpoch,
+    generation,
     disabled: false,
     baseSpeedMeters,
     modeBaseSpeedMeters: resolvedSpeed.modeBaseSpeedMeters,
@@ -659,6 +742,8 @@ async function loadMovementState(turn) {
       || !persistedStartPosition
       || !validPoint(persisted.startCell)
       || storedStartElevation === null,
+    needsMovementOrigin: !persistedMatches,
+    awaitingFirstMovement: !persistedMatches,
   };
 }
 
@@ -673,8 +758,32 @@ async function ensureMovementState(turn) {
   }
 
   const pending = movementStatePromise;
-  const loaded = await pending.promise;
-  if (currentTurn?.turnKey !== turnKey) return null;
+  const generation = movementGeneration;
+  const sceneEpoch = currentSceneEpoch();
+  let loaded;
+  try {
+    loaded = await pending.promise;
+  } catch (error) {
+    if (movementStatePromise !== pending && currentTurn?.turnKey === turnKey
+      && isCurrentSpeedOperation(sceneEpoch, generation)) return ensureMovementState(turn);
+    if (movementStatePromise === pending) movementStatePromise = null;
+    throw error;
+  }
+  if (currentTurn?.turnKey !== turnKey || !isCurrentSpeedOperation(sceneEpoch, generation)) return null;
+  if (movementStatePromise !== pending && movementState !== loaded) return ensureMovementState(turn);
+  if (loaded?.needsMovementOrigin) {
+    const origin = pendingMovementOrigins.get(turnKey);
+    if (origin?.actorId === actorId) {
+      const sample = await origin.samplePromise;
+      if (currentTurn?.turnKey !== turnKey || !isCurrentSpeedOperation(sceneEpoch, generation)) return null;
+      if (movementStatePromise !== pending && movementState !== loaded) return ensureMovementState(turn);
+      loaded.startPosition = validPoint(sample.beforePosition) || loaded.startPosition;
+      loaded.startCell = validPoint(sample.beforeCell) || loaded.startCell;
+      loaded.lastCell = loaded.startCell;
+    }
+    delete loaded.needsMovementOrigin;
+  }
+  pendingMovementOrigins.delete(turnKey);
   if (movementStatePromise === pending) movementStatePromise = null;
   movementState = loaded;
   if (movementState?.needsBaselinePersist) {
@@ -712,6 +821,7 @@ export function syncSpeedCheckTurn(state) {
       ? { turnKey: prefetched.turnKey, promise: prefetched.promise }
       : null;
     movementStatePrefetch = null;
+    pendingMovementOrigins.clear();
   }
   currentTurn = next.turnKey ? next : null;
   if (changed && processorEnabled) {
@@ -748,7 +858,10 @@ function finishTrackedDrag(itemId, dragId) {
   const entry = trackedDrags.get(itemId);
   if (!entry || entry.dragId !== dragId) return;
   entry.until = Date.now() + 1000;
+  const sceneEpoch = currentSceneEpoch();
+  const generation = movementGeneration;
   void movementQueue.then(() => {
+    if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
     if (movementState?.itemId === itemId) return persistMovementState(movementState);
   }).catch(() => {});
   setTimeout(() => {
@@ -815,6 +928,7 @@ function mountSpeedDragListener() {
 export function enableSpeedCheckProcessor() {
   if (processorEnabled) return;
   processorEnabled = true;
+  mountSpeedSceneLifecycle();
   mountSpeedMetadataListener();
   mountSpeedDragListener();
   if (speedCheckEnabled) {
@@ -838,8 +952,12 @@ export function setSpeedCheckMovementLimit(enabled) {
 }
 
 async function readSpeedCheckTurn() {
+  const sceneEpoch = currentSceneEpoch();
+  const generation = movementGeneration;
+  if (!isCurrentSpeedOperation(sceneEpoch, generation)) return null;
   if (currentTurn?.turnKey) return { ...currentTurn };
   const metadata = await OBR.scene.getMetadata();
+  if (!isCurrentSpeedOperation(sceneEpoch, generation)) return null;
   syncSpeedCheckTurn(metadata?.[STATE_KEY]);
   return currentTurn ? { ...currentTurn } : null;
 }
@@ -854,12 +972,15 @@ async function ensureSpeedCheckMovementState() {
 
 async function processSpeedCheckMovement(movement, turn) {
   if (!speedCheckEnabled) return;
+  const sceneEpoch = currentSceneEpoch();
+  const generation = movementGeneration;
   const { actorId, turnKey } = turn || {};
   if (!actorId || !turnKey) return;
   if (currentTurn?.turnKey !== turnKey || movement?.id !== actorId) return;
 
   const state = await ensureMovementState(turn);
-  if (!state || state.disabled || currentTurn?.turnKey !== turnKey) return;
+  if (!state || state.disabled || currentTurn?.turnKey !== turnKey
+    || !isCurrentSpeedOperation(sceneEpoch, generation)) return;
 
   const verticalMode = String(
     movement?.verticalMode
@@ -870,6 +991,19 @@ async function processSpeedCheckMovement(movement, turn) {
     && (verticalMode === "fly" || verticalMode === "climb");
   if (verticalMovement && verticalMode === "fly" && state.activeMode !== "fly") return;
   if (verticalMovement && verticalMode === "climb" && state.climbing !== true) return;
+  // History may deliver the first segment after the initial item read completed.
+  // Only a fresh turn can adopt that segment's origin; restored turns keep theirs.
+  if (state.awaitingFirstMovement && !verticalMovement && movement?.undo !== true
+    && validPoint(movement?.beforeCell) && validPoint(movement?.beforePosition)) {
+    state.awaitingFirstMovement = false;
+    if (!samePosition(state.startCell, movement.beforeCell)) {
+      state.startPosition = validPoint(movement.beforePosition);
+      state.startCell = validPoint(movement.beforeCell);
+      state.lastCell = state.startCell;
+      await persistMovementState(state);
+      if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
+    }
+  }
   const beforeCell = state.lastCell || movement?.beforeCell;
   const afterCell = verticalMovement ? beforeCell : movement?.afterCell;
   const rawBefore = validPoint(movement?.beforePosition);
@@ -890,6 +1024,7 @@ async function processSpeedCheckMovement(movement, turn) {
       movedCells = measureSquareGridCells(beforeCell, afterCell, state.gridDpi);
     }
   }
+  if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
   if (movedCells < 0.001) return;
 
   const toolUndoIndex = movement?.undo === true && movement?.toolDragId
@@ -913,6 +1048,7 @@ async function processSpeedCheckMovement(movement, turn) {
   const directionalModifiers = verticalMovement
     ? []
     : await liveDirectionalMovementModifiers(state);
+  if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
   const climbingMovement = verticalMovement
     ? verticalMode === "climb"
     : state.climbing === true;
@@ -937,6 +1073,7 @@ async function processSpeedCheckMovement(movement, turn) {
         until: Date.now() + 2500,
       });
       await OBR.scene.items.updateItems([state.itemId], (drafts) => {
+        if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
         for (const item of drafts) {
           const previous = { ...(item.metadata?.[META_KEY] || {}) };
           item.metadata = {
@@ -953,9 +1090,11 @@ async function processSpeedCheckMovement(movement, turn) {
       });
       suppressMovementHistory(state.itemId, rollbackPosition, 2500);
       await OBR.scene.items.updateItems([state.itemId], (drafts) => {
+        if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
         for (const item of drafts) item.position = { ...rollbackPosition };
       });
     }
+    if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
     notifyMovementState();
     if (rejection.blocked) state.blockedWarningSent = true;
     await broadcastSpeedWarning({
@@ -1034,6 +1173,9 @@ async function processSpeedCheckMovement(movement, turn) {
 
 export function queueSpeedCheckMovements(changes) {
   if (!processorEnabled || !speedCheckEnabled) return movementQueue;
+  const sceneEpoch = currentSceneEpoch();
+  const generation = movementGeneration;
+  if (!isCurrentSpeedOperation(sceneEpoch, generation)) return movementQueue;
   for (const movement of Array.isArray(changes) ? changes : []) {
     const rejectedRollback = rejectedMovementRollbacks.get(movement?.id);
     if (rejectedRollback) {
@@ -1048,11 +1190,22 @@ export function queueSpeedCheckMovements(changes) {
       const tracked = trackedDragFor(movement?.id);
       if (tracked && !passiveMovementIsUndo(tracked, movement)) continue;
     }
-    const turnPromise = currentTurn?.turnKey
+    const turnPromise = (currentTurn?.turnKey
       ? Promise.resolve({ ...currentTurn })
-      : readSpeedCheckTurn();
+      : readSpeedCheckTurn()).then((turn) => {
+        if (isCurrentSpeedOperation(sceneEpoch, generation)
+          && !movementState && turn?.actorId === movement?.id && movement?.undo !== true
+          && !pendingMovementOrigins.has(turn.turnKey)) {
+          pendingMovementOrigins.set(turn.turnKey, { actorId: turn.actorId, samplePromise });
+        }
+        return turn;
+      });
     const samplePromise = prepareMovementSample(movement);
-    const run = async () => processSpeedCheckMovement(await samplePromise, await turnPromise);
+    const run = async () => {
+      const [sample, turn] = await Promise.all([samplePromise, turnPromise]);
+      if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
+      await processSpeedCheckMovement(sample, turn);
+    };
     movementQueue = movementQueue.then(run, run);
   }
   return movementQueue;
@@ -1060,10 +1213,13 @@ export function queueSpeedCheckMovements(changes) {
 
 function queueSpeedCheckElevationChange(change) {
   if (!processorEnabled || !speedCheckEnabled) return movementQueue;
+  const sceneEpoch = currentSceneEpoch();
+  const generation = movementGeneration;
   const turnPromise = currentTurn?.turnKey
     ? Promise.resolve({ ...currentTurn })
     : readSpeedCheckTurn();
   const run = async () => {
+    if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
     const turn = await turnPromise;
     const state = await ensureMovementState(turn);
     if (!state || state.disabled) return;
@@ -1073,6 +1229,7 @@ function queueSpeedCheckElevationChange(change) {
     if (!verticalMode) return;
     const scale = await OBR.scene.grid.getScale()
       .catch(() => ({ parsed: { multiplier: SPEED_CHECK_METERS_PER_CELL } }));
+    if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
     const verticalCells = elevationMovementCells(
       change.beforeElevation,
       change.afterElevation,
@@ -1118,7 +1275,10 @@ export function adjustSpeedCheckBonus(deltaMeters) {
 
 export function setSpeedCheckMovementMode(mode) {
   const requestedMode = String(mode || "").trim().toLocaleLowerCase("it");
+  const sceneEpoch = currentSceneEpoch();
+  const generation = movementGeneration;
   const changeMode = async () => {
+    if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
     const state = movementState;
     if (!state || state.disabled || state.activeMode === requestedMode) return;
     const selected = state.movementModes?.find((entry) => entry.id === requestedMode);
@@ -1154,10 +1314,13 @@ export function setSpeedCheckMovementMode(mode) {
 }
 
 export function resetSpeedCheckMovement() {
+  const sceneEpoch = currentSceneEpoch();
+  const generation = movementGeneration;
   movementStatePromise = null;
   movementStatePrefetch = null;
   trackedDrags.clear();
   const reset = async () => {
+    if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
     if (movementState && !movementState.disabled) {
       const state = movementState;
       state.cycle = 0;
@@ -1176,6 +1339,7 @@ export function resetSpeedCheckMovement() {
         until: Date.now() + 2500,
       });
       await OBR.scene.items.updateItems([state.itemId], (drafts) => {
+        if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
         for (const item of drafts) {
           if (startPosition) item.position = { ...startPosition };
           const previous = { ...(item.metadata?.[META_KEY] || {}) };
@@ -1185,6 +1349,7 @@ export function resetSpeedCheckMovement() {
           };
         }
       });
+      if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
       notifyMovementState();
       await persistMovementState(state);
       return;
@@ -1198,6 +1363,28 @@ export function resetSpeedCheckMovement() {
   };
   movementQueue = movementQueue.then(reset, reset);
   void movementQueue.catch((error) => console.warn("[speed-check] reset movement:", error?.message || error));
+}
+
+export async function clearSpeedCheckCombatMovement(itemIds, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+  invalidateSpeedMovementRuntime({ clearTurn: true });
+  const generation = movementGeneration;
+  notifyMovementState();
+  // Drain writes already submitted before deleting the old combat counters.
+  await movementPersistQueue.catch(() => {});
+  if (!isCurrentSpeedOperation(sceneEpoch, generation)) return false;
+  const ids = [...new Set((itemIds || []).filter(Boolean))];
+  if (ids.length) {
+    await OBR.scene.items.updateItems(ids, (drafts) => {
+      if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
+      for (const item of drafts) {
+        const previous = { ...(item.metadata?.[META_KEY] || {}) };
+        delete previous[SPEED_CHECK_META_FIELD];
+        item.metadata = { ...(item.metadata || {}), [META_KEY]: previous };
+      }
+    });
+  }
+  return isCurrentSpeedOperation(sceneEpoch, generation);
 }
 
 export function mountSpeedWarningBroadcast() {
