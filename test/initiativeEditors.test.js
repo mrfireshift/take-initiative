@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { concentrationSaveWarningsForItems } from "../src/concentrationSaveReminderCore.js";
 import {
   bindClassicHPEditor,
   bindClassicInitiativeEditor,
@@ -145,6 +147,132 @@ function createTestEvent(overrides = {}) {
 function flushAsyncEvents() {
   return new Promise((resolve) => setImmediate(resolve));
 }
+
+// Exercise the tracker callbacks together with the real editor: the standalone
+// editor tests do not model the tracker epoch being cleared during cleanup.
+function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDuringSave = false } = {}) {
+  const source = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
+  const start = source.indexOf("function bindHPEditorForEntry(");
+  const end = source.indexOf("function bindSpellBoardTokenHPEditor(", start);
+  assert.ok(start >= 0 && end > start);
+  const documentRef = createTestDocument();
+  const pill = documentRef.createElement("div");
+  pill.textContent = "40/40";
+  pill.innerHTML = "40/40";
+  const META_KEY = "com.thebigpicture.initiative/meta";
+  const CONC_META_KEY = "com.thebigpicture.initiative/concentration";
+  const token = {
+    id: "concentrating-caster",
+    name: "Caster",
+    metadata: { [META_KEY]: {
+      hp: 40,
+      hpMax: 40,
+      [CONC_META_KEY]: { web: { instanceId: "web-1", name: "Ragnatela" } },
+    } },
+  };
+  let sceneEpoch = 7;
+  const warnings = [];
+  const noop = () => {};
+  const dependencies = {
+    bindClassicHPEditor: (options) => bindClassicHPEditor({
+      ...options,
+      documentRef,
+      requestAnimationFrameRef: noop,
+      setTimeoutRef: noop,
+    }),
+    currentSceneEpoch: () => sceneEpoch,
+    isCurrentSceneEpoch: (epoch) => epoch === sceneEpoch,
+    armDocClickIgnore: noop,
+    closeOpenEditors: async () => {},
+    __scheduleEditorDirtyFlush: noop,
+    syncHPBarNow: noop,
+    syncHPTextNow: noop,
+    syncTrackerHPNow: noop,
+    parseRelativeHPDelta: (value) => /^[+\-]\d+$/.test(value) ? Number(value) : null,
+    formatHPHTML: (hp, maximum) => `${hp}/${maximum}`,
+    hpColorByPct: () => "#yellow",
+    OBR: { scene: { items: { getItems: async () => [token] } } },
+    META_KEY,
+    CONC_META_KEY,
+    SPELLS_META_KEY: "com.thebigpicture.initiative/spells",
+    _getGroupForItemId: async () => null,
+    getZeroHPConditionHistoryIds: async (ids) => ids,
+    withItemMetaHistory: async (options, action) => {
+      await action();
+      const entry = { id: "hp-damage-history" };
+      options.onHistoryStatus({ entry });
+      options.onRecorded(entry);
+      return {};
+    },
+    updateHP: async (id, hp, hpMax) => {
+      assert.equal(id, token.id);
+      if (saveFails) throw new Error("injected-hp-save-failure");
+      Object.assign(token.metadata[META_KEY], { hp, hpMax });
+      if (changeSceneDuringSave) sceneEpoch += 1;
+      return {};
+    },
+    trySeedGroupHP: async () => {},
+    showConcentrationDamageWarning: async (changes, options) => {
+      warnings.push(...concentrationSaveWarningsForItems({
+        items: [token],
+        changes,
+        eventId: "inline-damage",
+        causeHistoryEntryId: options.causeHistoryEntryId,
+      }));
+    },
+  };
+  const bind = new Function("dependencies", "pill", "entry", `
+    const { ${Object.keys(dependencies).join(",")} } = dependencies;
+    let __editingHPForId = null, __suspendRenders = false, __ignoreDocClickUntil = 0;
+    ${source.slice(start, end)}
+    bindHPEditorForEntry(pill, null, () => {}, entry);
+  `);
+  bind(dependencies, pill, { id: token.id, hp: 40, hpMax: 40 });
+  return {
+    pill,
+    warnings,
+    meta: token.metadata[META_KEY],
+    async damage(input) {
+      await pill.dispatch("pointerdown", createTestEvent({ clientX: 5 }));
+      pill.__iHP.value = input;
+      return pill.__commitFn();
+    },
+  };
+}
+
+for (const input of ["-10", "30"]) {
+  test(`il danno inline ${input} invia il reminder di concentrazione dopo il cleanup`, async () => {
+    const harness = createTrackerHPConcentrationHarness();
+    const committed = await harness.damage(input);
+    assert.equal(harness.meta.hp, 30);
+    assert.equal(harness.meta.hpMax, 40);
+    assert.ok(harness.meta["com.thebigpicture.initiative/concentration"].web);
+    assert.equal(harness.pill.dataset.hpEditing, undefined);
+    assert.equal(harness.pill.__commitFn, undefined);
+    assert.equal(harness.warnings.length, 1);
+    assert.equal(harness.warnings[0].damage, 10);
+    assert.equal(harness.warnings[0].dc, 10);
+    assert.equal(harness.warnings[0].notice.causeHistoryEntryId, "hp-damage-history");
+    assert.equal(committed, true);
+  });
+}
+
+test("il danno inline non invia il reminder se cambia scena durante il salvataggio", async () => {
+  const harness = createTrackerHPConcentrationHarness({ changeSceneDuringSave: true });
+  assert.equal(await harness.damage("-10"), false);
+  assert.equal(harness.meta.hp, 30);
+  assert.equal(harness.pill.__commitFn, undefined);
+  assert.deepEqual(harness.warnings, []);
+});
+
+test("il danno inline non invia il reminder se il salvataggio HP fallisce", async () => {
+  const harness = createTrackerHPConcentrationHarness({ saveFails: true });
+  assert.equal(await harness.damage("-10"), false);
+  assert.equal(harness.meta.hp, 40);
+  assert.equal(harness.pill.innerHTML, "40/40");
+  assert.equal(harness.pill.__commitFn, undefined);
+  assert.deepEqual(harness.warnings, []);
+});
 
 test("parseInlineMath conserva assoluti, delta e clamp a zero", () => {
   assert.equal(parseInlineMath("", 12), 12);

@@ -6413,7 +6413,6 @@ function bindHPEditorForEntry(
     cleanupEdit: () => {
       const operationSceneEpoch = editorSceneEpoch;
       __editingHPForId = null;
-      editorSceneEpoch = null;
       if (Number.isSafeInteger(operationSceneEpoch) &&
           isCurrentSceneEpoch(operationSceneEpoch)) {
         __scheduleEditorDirtyFlush();
