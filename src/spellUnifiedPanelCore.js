@@ -1,3 +1,4 @@
+import { normalizeMonsterActionContext } from "./monsterActionContextCore.js";
 import {
   getAreaSaveRuleChoices,
   getSpellDefinition,
@@ -1853,6 +1854,8 @@ function contractSlotDefault(contract) {
 }
 
 export function createSpellPanelSession({
+  monsterActionContext = null,
+  monsterActionCompleted = false,
   contract = null,
   spellId = "",
   phase = "",
@@ -1890,6 +1893,8 @@ export function createSpellPanelSession({
   executionGate = null,
 } = {}) {
   const resolvedSpellId = text(spellId || contract?.spell?.id);
+  const actionContext = monsterActionContext == null ? null : normalizeMonsterActionContext(monsterActionContext, { casterId: text(casterId), spellId: resolvedSpellId });
+  if (monsterActionContext != null && !actionContext) throw new Error("monster-action-context-invalid");
   const resolvedSlot = slotLevel === undefined
     ? contractSlotDefault(contract)
     : optionalInteger(slotLevel);
@@ -1900,6 +1905,7 @@ export function createSpellPanelSession({
     || text(contract?.presentation?.variant?.options?.[0]?.value);
   return immutable({
     spellId: resolvedSpellId,
+    ...(actionContext ? { monsterActionContext: actionContext, monsterActionCompleted: monsterActionCompleted === true } : {}),
     phase: contractPhase(contract, phase),
     activeActionId: text(activeActionId || actionId),
     activeInstanceId: text(activeInstanceId),
@@ -2454,6 +2460,9 @@ function primaryActionFor(contract, session, validation, placement, activeAction
     return "Applica incantesimo";
   };
 
+  if (session.monsterActionContext && session.monsterActionCompleted) {
+    return { id: "unavailable", label: "Azione risolta — riapri Spellcasting", disabled: true };
+  }
   const commitState = session.commitState?.state;
   if (commitState === SPELL_PANEL_COMMIT_STATES.COMMITTING) {
     return { id: "commit", label: "Applicazione in corso", disabled: true };

@@ -64,6 +64,11 @@ function effectThemeMatches(currentTheme, expectedTheme) {
   );
 }
 
+// Player characters only (attitude pc), for an aura that only the heroes resist.
+function isPlayerCharacter(item, metaKey) {
+  return String(item?.metadata?.[metaKey]?.attitude || "").toLocaleLowerCase("it") === "pc";
+}
+
 function attitudeGroup(item, metaKey) {
   const attitude = String(
     item?.metadata?.[metaKey]?.attitude || "neutral"
@@ -100,6 +105,7 @@ function effectMembershipTargetIds(
     if (filter === "hostile" && targetGroup === sourceGroup) return false;
     if (filter === "friendly" && targetGroup !== sourceGroup) return false;
     if (filter === "non-hostile" && targetGroup === "enemy") return false;
+    if (filter === "pc" && !isPlayerCharacter(target, metaKey)) return false;
     return true;
   });
 }
@@ -221,6 +227,7 @@ export function areaMembershipTargetIds({
       if (filter === "hostile" && targetGroup === sourceGroup) return false;
       if (filter === "friendly" && targetGroup !== sourceGroup) return false;
       if (filter === "non-hostile" && targetGroup === "enemy") return false;
+      if (filter === "pc" && !isPlayerCharacter(item, metaKey)) return false;
       return targeting.containment === "fully-inside"
         ? areaContainsBounds(membershipArea, bounds)
         : areaHitsBounds(membershipArea, bounds);

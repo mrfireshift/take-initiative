@@ -3376,7 +3376,73 @@ export function getSpellAreaRuleById(ruleId) {
   const normalizedRuleId = String(ruleId || "").trim();
   return RULES_BY_ID.get(normalizedRuleId)
     || getSpellBoardTokenPlacementRuleById(normalizedRuleId)
+    || getBossActionAreaRuleById(normalizedRuleId)
     || null;
+}
+
+// Boss Action areas reuse the shared placement tool with a free origin: the GM picks the
+// point (a multi-token boss has no single caster cell) and the pointer gives the direction.
+// Feet from the stat block become the same metres used by the spell catalog (5 ft = 1.5 m).
+// A circle is centred on a free point (like Fireball); an emanation is centred on the boss token
+// (like the Spirit Guardians aura), which is passed as the caster and so never hit.
+export const BOSS_ACTION_AREA_SPELL_ID = "boss-action-area";
+const BOSS_ACTION_AREA_RULE_PATTERN = /^boss-action-area:(cone|circle|emanation):([1-9]\d{0,2})ft$/;
+const BOSS_ACTION_AREA_RULES = new Map();
+const BOSS_ACTION_AREA_SHAPES = Object.freeze({
+  cone: (metres) => ({ geometry: { shape: "cone", size: meters(metres, "length") },
+    placement: { origin: "point", direction: "pointer", anchor: "world", range: null } }),
+  circle: (metres) => ({ geometry: { shape: "circle", size: meters(metres, "radius") },
+    placement: { origin: "point", direction: "none", anchor: "world", range: null } }),
+  emanation: (metres) => ({ geometry: { shape: "circle", size: meters(metres, "radius") },
+    placement: { origin: "caster", direction: "none", anchor: "caster", range: null } }),
+});
+
+// A line between two free points, up to the printed length (Cucitura del Non-Luogo), and the wider line laid
+// on that seam (Strappare la Cucitura: the console gives the tool the seam's two points).
+const BOSS_ACTION_LINE_RULE_PATTERN = /^boss-action-area:(?:line:([1-9]\d{0,2})ft:([1-9]\d?)ft|seam:([1-9]\d?)ft)$/;
+const BOSS_SEAM_LINE_MAX_FEET = 300;
+function bossActionLineRule(ruleId) {
+  const match = String(ruleId || "").trim().match(BOSS_ACTION_LINE_RULE_PATTERN);
+  if (!match) return null;
+  const [lengthFeet, widthFeet] = match[3] ? [BOSS_SEAM_LINE_MAX_FEET, Number(match[3])] : [Number(match[1]), Number(match[2])];
+  if (lengthFeet % 5 !== 0 || widthFeet % 5 !== 0) return null;
+  const id = match[0];
+  if (!BOSS_ACTION_AREA_RULES.has(id)) {
+    BOSS_ACTION_AREA_RULES.set(id, defineRule({
+      id,
+      spellId: BOSS_ACTION_AREA_SPELL_ID,
+      trigger: CAST_TRIGGER,
+      kind: "instant",
+      geometry: { shape: "line", size: meters((lengthFeet / 5) * 1.5, "length"), width: meters((widthFeet / 5) * 1.5, "width"), lengthUpTo: true },
+      placement: { origin: "point", direction: "pointer", anchor: "world", range: null },
+      lifecycle: PREVIEW_LIFECYCLE,
+      targeting: COMMON_TARGETING,
+      effectPolicy: ON_CONFIRM,
+    }));
+  }
+  return BOSS_ACTION_AREA_RULES.get(id);
+}
+
+export function getBossActionAreaRuleById(ruleId) {
+  const match = String(ruleId || "").trim().match(BOSS_ACTION_AREA_RULE_PATTERN);
+  if (!match) return bossActionLineRule(ruleId);
+  const shape = match[1];
+  const feet = Number(match[2]);
+  if (feet % 5 !== 0) return null;
+  const id = `boss-action-area:${shape}:${feet}ft`;
+  if (!BOSS_ACTION_AREA_RULES.has(id)) {
+    BOSS_ACTION_AREA_RULES.set(id, defineRule({
+      id,
+      spellId: BOSS_ACTION_AREA_SPELL_ID,
+      trigger: CAST_TRIGGER,
+      kind: "instant",
+      ...BOSS_ACTION_AREA_SHAPES[shape]((feet / 5) * 1.5),
+      lifecycle: PREVIEW_LIFECYCLE,
+      targeting: COMMON_TARGETING,
+      effectPolicy: ON_CONFIRM,
+    }));
+  }
+  return BOSS_ACTION_AREA_RULES.get(id);
 }
 
 export function getSpellAreaPlacementChoices(value) {

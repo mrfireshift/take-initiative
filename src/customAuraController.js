@@ -5,7 +5,7 @@ import {
   REMINDER_HISTORY_REARM_CHANNEL,
   SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
 } from "./constants.js";
-import { buildArea } from "./aoeGeometryCore.js";
+import { buildFootprintEmanationArea, gridFootprintCells } from "./aoeGeometryCore.js";
 import {
   CUSTOM_AURAS_FIELD,
   CUSTOM_AURA_META_KEY,
@@ -36,6 +36,7 @@ import {
 import { spellAreaGridCells } from "./spellAreaPlacementCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { getSpatialSceneSnapshotService } from "./spatialSceneSnapshot.js";
+import { broadcastConcentrationWarnings } from "./concentrationSaveReminder.js";
 import {
   createSceneMetadataKeyWatcher,
   sceneMetadataKeyDigest,
@@ -83,6 +84,26 @@ function boundsCenter(bounds) {
   );
 }
 
+// The emanation outline of a token larger than 1x1: the rectangle through its edge-cell centres grown by
+// the radius, with rounded corners (a circle for a 1x1 token).
+function footprintCommands(radius, halfWidth = 0, halfHeight = 0) {
+  if (!(halfWidth > 0) && !(halfHeight > 0)) return circleCommands(radius);
+  const k = radius * 0.5522847498;
+  const x = halfWidth, y = halfHeight, r = radius;
+  return [
+    [Command.MOVE, x + r, -y],
+    [Command.LINE, x + r, y],
+    [Command.CUBIC, x + r, y + k, x + k, y + r, x, y + r],
+    [Command.LINE, -x, y + r],
+    [Command.CUBIC, -x - k, y + r, -x - r, y + k, -x - r, y],
+    [Command.LINE, -x - r, -y],
+    [Command.CUBIC, -x - r, -y - k, -x - k, -y - r, -x, -y - r],
+    [Command.LINE, x, -y - r],
+    [Command.CUBIC, x + k, -y - r, x + r, -y - k, x + r, -y],
+    [Command.CLOSE],
+  ];
+}
+
 function circleCommands(radius) {
   const handle = radius * 0.5522847498;
   return [
@@ -125,7 +146,7 @@ function historyCustomAuraRearmRequest(data) {
     : null;
 }
 
-function auraVisualMetadata(aura, dpi, sizeCells) {
+function auraVisualMetadata(aura, dpi, sizeCells, footprint = null) {
   return {
     version: 1,
     instanceId: aura.instanceId,
@@ -139,6 +160,9 @@ function auraVisualMetadata(aura, dpi, sizeCells) {
     fillOpacity: aura.style.fillOpacity,
     strokeColor: aura.style.strokeColor,
     strokeWidth: aura.style.strokeWidth,
+    // A larger token radiates from its edges: the outline follows its footprint.
+    footprintWidthCells: footprint?.widthCells || 1,
+    footprintHeightCells: footprint?.heightCells || 1,
   };
 }
 
@@ -148,15 +172,16 @@ function buildAuraVisual({
   source,
   dpi,
   sizeCells,
+  footprint = null,
   reminderUpdate = null,
 }) {
   const radius = sizeCells * dpi;
   const metadata = mergeCustomAuraReminderMetadata(
-    auraVisualMetadata(aura, dpi, sizeCells),
+    auraVisualMetadata(aura, dpi, sizeCells, footprint),
     reminderUpdate,
   );
   return buildPath()
-    .commands(circleCommands(radius))
+    .commands(footprintCommands(radius, footprint?.halfWidth || 0, footprint?.halfHeight || 0))
     .fillRule("evenodd")
     .fillColor(aura.style.fillColor)
     .fillOpacity(aura.style.fillOpacity)
@@ -181,6 +206,7 @@ function auraVisualIsCompatible(item, desired) {
     desired.aura,
     desired.dpi,
     desired.sizeCells,
+    desired.footprint,
   );
   const actual = item?.metadata?.[CUSTOM_AURA_META_KEY] || {};
   return item.layer === "DRAWING"
@@ -190,6 +216,9 @@ function auraVisualIsCompatible(item, desired) {
     && Number(actual.radiusMeters) === expected.radiusMeters
     && Number(actual.dpi) === expected.dpi
     && Number(actual.sizeCells) === expected.sizeCells
+    // Outlines drawn before the footprint was recorded were 1x1 circles.
+    && (Number(actual.footprintWidthCells) || 1) === expected.footprintWidthCells
+    && (Number(actual.footprintHeightCells) || 1) === expected.footprintHeightCells
     && actual.fillColor === expected.fillColor
     && Number(actual.fillOpacity) === expected.fillOpacity
     && actual.strokeColor === expected.strokeColor
@@ -368,6 +397,8 @@ async function reconcileCustomAuras({
   const operations = [];
   const desiredVisuals = [];
   const newTriggerNotices = [];
+  // Concentration saves from auras (e.g. Primal Blizzard): only for concentrating creatures.
+  const newConcentrationWarnings = [];
   const rearmedTriggerNotices = [];
   const canonicalPendingActivationIds = new Set();
   const existingAuraVisualByInstance = new Map(
@@ -413,13 +444,9 @@ async function reconcileCustomAuras({
       await OBR.scene.grid.snapPosition(center, 1, true, false).catch(() => center),
     ) || center;
     if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
-    const area = buildArea(
-      "circle",
-      center,
-      { x: center.x + sizeCells * dpi, y: center.y },
-      dpi,
-      gridOrigin,
-    );
+    // Distances are measured from the cells the source token occupies, not from its centre.
+    const footprint = gridFootprintCells(sourceBounds, dpi);
+    const area = buildFootprintEmanationArea(center, footprint, sizeCells, dpi, gridOrigin);
     const desiredTargetIds = customAuraTargetIds({
       aura,
       area,
@@ -453,6 +480,7 @@ async function reconcileCustomAuras({
       preservePendingActivationIds,
     });
     newTriggerNotices.push(...reminderUpdate.notices);
+    newConcentrationWarnings.push(...(reminderUpdate.concentrationWarnings || []));
     for (const activation of reminderUpdate.runtime.pending) {
       const activationId = String(activation?.id || "").trim();
       if (activationId) canonicalPendingActivationIds.add(activationId);
@@ -469,6 +497,7 @@ async function reconcileCustomAuras({
       source,
       dpi,
       sizeCells,
+      footprint: area.footprint || null,
       reminderUpdate,
     });
   }
@@ -530,6 +559,11 @@ async function reconcileCustomAuras({
     [...newTriggerNotices, ...rearmedTriggerNotices]
       .map((notice) => [notice.activationId, notice]),
   ).values()];
+  if (newConcentrationWarnings.length) {
+    void broadcastConcentrationWarnings(newConcentrationWarnings, { sceneEpoch }).catch((error) => {
+      console.warn("[custom-aura] concentration warning:", error?.message || error);
+    });
+  }
   if (deliveryNotices.length) {
     void sendProjectedReminderPayload(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,

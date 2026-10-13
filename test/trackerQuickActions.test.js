@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildBossActionsLauncher,
   buildTrackerQuickActionLauncher,
   trackerQuickActionSummary,
 } from "../src/trackerQuickActions.js";
@@ -115,4 +116,38 @@ test("riassume tipo e bersaglio senza dipendere dal pannello", () => {
     conditionName: "Giuramento di Inimicizia",
     targetMode: "self",
   }), "Giuramento di Inimicizia · su di sé");
+});
+
+test("Boss Actions: icona tonda nello slot delle azioni rapide, rossa se collegata, attenuata senza profilo", async () => {
+  const documentRef = createTestDocument();
+  const opened = [];
+  const button = buildBossActionsLauncher({ bound: true, iconUrl: "/boss.svg", documentRef, onOpen: () => opened.push(true) });
+  assert.equal(button.tagName, "BUTTON");
+  assert.equal(button.title, "Boss Actions");
+  assert.equal(button.attributes["aria-label"], "Boss Actions");
+  assert.equal(button.dataset.bossActionsLauncher, "bound");
+  assert.equal(button.dataset.cardSelectionIgnore, "1");
+  assert.equal(button.style.position, "absolute");
+  assert.equal(button.style.left, "-17px", "same slot as the quick-actions toggle");
+  assert.equal(button.style.top, "2px");
+  assert.equal(button.style.width, "22px");
+  assert.equal(button.style.borderRadius, "50%");
+  assert.equal(button.style.border, "2px solid #f87171");
+  assert.equal(button.textContent, "", "an icon, not a text label");
+  assert.equal(button.children[0].attributes["aria-hidden"], "true");
+  assert.match(button.children[0].style.mask, /url\("\/boss\.svg"\)/);
+  let stopped = 0;
+  await button.dispatch("click", { stopPropagation() { stopped += 1; } });
+  assert.equal(opened.length, 1);
+  assert.equal(stopped, 1, "the click never selects the card");
+
+  const unbound = buildBossActionsLauncher({ bound: false, documentRef });
+  assert.equal(unbound.title, "Boss Actions: collega un profilo");
+  assert.equal(unbound.dataset.bossActionsLauncher, "unbound");
+  assert.equal(unbound.style.border, "2px solid rgba(248,113,113,.45)");
+
+  const beside = buildBossActionsLauncher({ bound: true, offset: 1, documentRef });
+  assert.equal(beside.style.left, "9px", "one slot to the right of ⚡");
+  const compact = buildBossActionsLauncher({ bound: true, compact: true, documentRef });
+  assert.deepEqual([compact.style.left, compact.style.right, compact.style.top], ["auto", "18px", "35px"]);
 });

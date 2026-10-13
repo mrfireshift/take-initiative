@@ -398,3 +398,25 @@ test("Gabbia di forza conserva la variante scelta nella sessione", () => {
   assert.equal(session.ruleChoice, "box");
   assert.equal(session.shape, "square");
 });
+
+test("la revisione conserva le sagome confermate insieme (areaBatch) e senza aree resta invariata", () => {
+  const session = createSpellAreaPlacementSession({
+    requestId: "request-meteor",
+    rule: getSpellAreaRuleById("boss-action-area:circle:40ft"),
+  });
+  const base = { type: "circle", start: { x: 0, y: 0 }, end: { x: 1200, y: 0 }, radius: 1200, gridOrigin: { x: 0, y: 0 }, dpi: 150 };
+  const review = reviewSpellAreaPlacement(session, {
+    ...base,
+    targetIds: ["a", "b"],
+    areas: [
+      { start: { x: 0, y: 0 }, end: { x: 1200, y: 0 }, radius: 1200, targetIds: ["a", "a", "b"] },
+      { start: { x: 3000, y: 0 }, end: { x: 4200, y: 0 }, radius: 1200, targetIds: [] },
+      { start: null, end: { x: 1, y: 1 }, targetIds: ["c"] },
+    ],
+  });
+  assert.deepEqual(review.preview.areas, [
+    { start: { x: 0, y: 0 }, end: { x: 1200, y: 0 }, radius: 1200, targetIds: ["a", "b"] },
+    { start: { x: 3000, y: 0 }, end: { x: 4200, y: 0 }, radius: 1200, targetIds: [] },
+  ]);
+  assert.equal("areas" in reviewSpellAreaPlacement(session, { ...base, targetIds: [] }).preview, false);
+});

@@ -430,3 +430,52 @@ test("il movimento nella fascia adiacente a un anello non conta come attraversam
     false,
   );
 });
+
+// ---- emanations from a token's space (custom auras) ----
+const geometry = await import("../src/aoeGeometryCore.js");
+const reach = (area, dpi, row = 0) => {
+  const columns = area.cells.filter((cell) => cell.row === row).map((cell) => cell.column);
+  return [Math.min(...columns), Math.max(...columns)];
+};
+
+test("un token 1x1 emana esattamente come il cerchio dal suo centro", () => {
+  const dpi = 100;
+  const center = { x: 50, y: 50 };
+  const footprint = geometry.gridFootprintCells({ min: { x: 0, y: 0 }, max: { x: 100, y: 100 } }, dpi);
+  assert.deepEqual(footprint, { widthCells: 1, heightCells: 1 });
+  const emanation = geometry.buildFootprintEmanationArea(center, footprint, 2, dpi, { x: 0, y: 0 });
+  const circle = geometry.buildCircleArea(center, { x: 250, y: 50 }, dpi, { x: 0, y: 0 });
+  assert.deepEqual(emanation, circle);
+});
+
+test("un token più grande emana dalle caselle del bordo: stessa portata oltre il bordo per 2x2 e 3x3", () => {
+  const dpi = 100;
+  // 2x2 on columns 0..1: two cells beyond each side for a 10 ft (2-cell) aura.
+  const large = geometry.gridFootprintCells({ min: { x: 0, y: 0 }, max: { x: 200, y: 200 } }, dpi);
+  assert.deepEqual(large, { widthCells: 2, heightCells: 2 });
+  const two = geometry.buildFootprintEmanationArea({ x: 100, y: 100 }, large, 2, dpi, { x: 0, y: 0 });
+  assert.deepEqual(reach(two, dpi, 0), [-2, 3]);
+  assert.deepEqual(reach(two, dpi, 1), [-2, 3]);
+  assert.deepEqual(reach(two, dpi, -2), [0, 1], "straight above the token: only over its own columns");
+  assert.equal(two.cells.some((cell) => cell.column === 2 && cell.row === -1), true, "a diagonal cell within reach of the corner cell");
+  assert.equal(two.cells.some((cell) => cell.column === 3 && cell.row === -1), false, "the corner keeps the circular reach of a 1x1 token");
+  assert.deepEqual(two.footprint, { widthCells: 2, heightCells: 2, halfWidth: 50, halfHeight: 50 });
+  // The old centre-based circle reached less beyond a large token's edge.
+  const centred = geometry.buildCircleArea({ x: 100, y: 100 }, { x: 300, y: 100 }, dpi, { x: 0, y: 0 });
+  assert.ok(reach(centred, dpi, 0)[1] < 3);
+  // 3x3 on columns 0..2: the same two cells beyond each edge.
+  const huge = geometry.buildFootprintEmanationArea({ x: 150, y: 150 }, { widthCells: 3, heightCells: 3 }, 2, dpi, { x: 0, y: 0 });
+  assert.deepEqual(reach(huge, dpi, 1), [-2, 4]);
+  // A hit test sees a creature two cells from the edge, not three.
+  assert.equal(geometry.areaHitsBounds(two, { min: { x: 300, y: 0 }, max: { x: 400, y: 100 } }), true);
+  assert.equal(geometry.areaHitsBounds(two, { min: { x: 400, y: 0 }, max: { x: 500, y: 100 } }), false);
+});
+
+test("l'emanazione da un token grande non dipende da dove sta l'origine della griglia", () => {
+  const dpi = 70;
+  const near = geometry.buildFootprintEmanationArea({ x: 770, y: 280 }, { widthCells: 2, heightCells: 2 }, 6, dpi, { x: 700, y: 210 });
+  const far = geometry.buildFootprintEmanationArea({ x: 770, y: 280 }, { widthCells: 2, heightCells: 2 }, 6, dpi, { x: 0, y: 0 });
+  const key = (cell) => `${cell.x},${cell.y}`;
+  assert.deepEqual(far.cells.map(key).sort(), near.cells.map(key).sort());
+  assert.ok(far.cells.length > geometry.buildCircleArea({ x: 770, y: 280 }, { x: 770 + 6 * dpi, y: 280 }, dpi).cells.length, "a 2x2 token reaches more cells than its centre circle");
+});

@@ -41,6 +41,7 @@ import {
   SAVE_SPELL_OUTCOMES,
 } from "./saveSpellCore.js";
 import { QUICK_HP_FACTORS } from "./quickHpCore.js";
+import { normalizeMonsterActionContext } from "./monsterActionContextCore.js";
 import {
   getSpellCastResolutionRule,
   spellSaveDamageFactor,
@@ -75,6 +76,7 @@ export const SPELL_AREA_RESOLUTION_ERROR_CODES = Object.freeze({
   ACTIVE_ACTION_INVALID: "active-action-invalid",
   ACTIVE_ACTION_MISMATCH: "active-action-mismatch",
   CASTER_REQUIRED: "caster-required",
+  MONSTER_ACTION_CONTEXT_INVALID: "monster-action-context-invalid",
   SLOT_INVALID: "slot-level-invalid",
   CHOICE_REQUIRED: "choice-required",
   CHOICE_INVALID: "choice-invalid",
@@ -1296,6 +1298,13 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.ACTIVE_ACTION_MISMATCH);
   }
   const casterId = text(firstDefined(sourceInput.casterId, session.casterId, ""));
+  const monsterActionSource = sourceInput.monsterActionContext ?? session.monsterActionContext;
+  const monsterActionContext = monsterActionSource == null
+    ? null
+    : normalizeMonsterActionContext(monsterActionSource, { casterId, spellId });
+  if (monsterActionSource != null && !monsterActionContext) {
+    addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.MONSTER_ACTION_CONTEXT_INVALID);
+  }
   const slotLevel = integerOrNull(firstDefined(
     sourceInput.slotLevel,
     session.slotLevel,
@@ -1815,6 +1824,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   });
   const command = {
     type: SPELL_AREA_RESOLUTION_COMMAND_TYPE,
+    ...(monsterActionContext ? { monsterActionContext } : {}),
     ...(commandId ? { commandId } : {}),
     ...(correlationId ? { correlationId } : {}),
     source: {

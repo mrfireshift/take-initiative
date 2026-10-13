@@ -6,6 +6,7 @@
     unmountElevationLabelWatcher,
   } from "./elevationLabel.js";
   import OBR from "@owlbear-rodeo/sdk";
+  import { openBossActionsPopover } from "./bossActionsLauncher.js";
   import { ID } from "./constants.js";
   import { openTrackedPopover } from "./popoverDragHost.js";
   import {
@@ -260,6 +261,17 @@ async function toggleEpicBossOn(ids) {
       service: runtimeOptionsService,
       selector: selectElevationLabelsEnabled,
       lifecycle: elevationLabelsLifecycle,
+    });
+
+    OBR.contextMenu.create({
+      id: `${ID}/boss-actions`,
+      group: MENU_GROUP,
+      icons: [{ icon: ICON_BOSS, label: "Boss Actions", filter: { every: [
+        isCharacter(), { key: "type", value: "IMAGE" },
+      ] } }],
+      onClick: async (context) => {
+        if (context.items?.length === 1) await openBossActionsPopover(context.items[0].id);
+      },
     });
 
     /* ======================= “Segna come…” (EMBED) ======================= */

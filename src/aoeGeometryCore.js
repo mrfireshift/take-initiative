@@ -163,6 +163,61 @@ export function buildCircleArea(start, end, dpi, gridOrigin = start, options = {
   );
 }
 
+// Grid cells a token occupies, from its bounds (a Large token is 2x2, a Huge one 3x3).
+export function gridFootprintCells(bounds, dpi) {
+  const safeDpi = Math.max(1, Number(dpi) || 1);
+  const minX = Number(bounds?.min?.x), minY = Number(bounds?.min?.y);
+  const maxX = Number(bounds?.max?.x), maxY = Number(bounds?.max?.y);
+  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return { widthCells: 1, heightCells: 1 };
+  return {
+    widthCells: Math.max(1, Math.round(Math.abs(maxX - minX) / safeDpi)),
+    heightCells: Math.max(1, Math.round(Math.abs(maxY - minY) / safeDpi)),
+  };
+}
+
+// An emanation from a token's space: a cell is inside when its centre is within the radius of the
+// centre of the nearest cell the token occupies. For a 1x1 token this is exactly buildCircleArea from
+// the token centre; a larger token radiates from its edge cells, so the reach beyond its border is the
+// same whatever its size.
+export function buildFootprintEmanationArea(center, footprint, squares, dpi, gridOrigin = center) {
+  const origin = finitePoint(center);
+  const safeDpi = Math.max(1, Number(dpi) || 1);
+  const outer = Math.max(1, Math.round(Number(squares) || 1));
+  const widthCells = Math.max(1, Math.round(Number(footprint?.widthCells) || 1));
+  const heightCells = Math.max(1, Math.round(Number(footprint?.heightCells) || 1));
+  if (widthCells === 1 && heightCells === 1) {
+    return buildCircleArea(origin, { x: origin.x + outer * safeDpi, y: origin.y }, safeDpi, gridOrigin);
+  }
+  const cellsOrigin = finitePoint(gridOrigin);
+  // The rectangle through the centres of the occupied cells.
+  const halfWidth = ((widthCells - 1) / 2) * safeDpi;
+  const halfHeight = ((heightCells - 1) / 2) * safeDpi;
+  const radius = outer * safeDpi;
+  const reachX = outer + Math.ceil(widthCells / 2) + 2;
+  const reachY = outer + Math.ceil(heightCells / 2) + 2;
+  // Scan around the token, wherever the grid origin is.
+  const baseColumn = Math.floor((origin.x - cellsOrigin.x) / safeDpi);
+  const baseRow = Math.floor((origin.y - cellsOrigin.y) / safeDpi);
+  const cells = [];
+  for (let column = baseColumn - reachX; column <= baseColumn + reachX; column += 1) {
+    for (let row = baseRow - reachY; row <= baseRow + reachY; row += 1) {
+      const cell = cellRect(cellsOrigin, column, row, safeDpi);
+      const point = cellCenter(cell);
+      const dx = Math.max(0, Math.abs(point.x - origin.x) - halfWidth);
+      const dy = Math.max(0, Math.abs(point.y - origin.y) - halfHeight);
+      if (Math.hypot(dx, dy) <= radius + EPSILON) cells.push(cell);
+    }
+  }
+  return {
+    type: "circle",
+    origin,
+    radius,
+    squares: outer,
+    cells,
+    footprint: { widthCells, heightCells, halfWidth, halfHeight },
+  };
+}
+
 export function buildCircleBandArea(
   start,
   end,

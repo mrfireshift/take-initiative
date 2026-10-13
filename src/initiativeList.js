@@ -1,4 +1,5 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
+import { openBossActionsPopover } from "./bossActionsLauncher.js";
 import {
   ID,
   ACTIVE_TURN_LABEL_META,
@@ -176,7 +177,7 @@ import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { executeSpellBoardTokenStateUpdate } from "./spellApplicationExecutor.js";
 import { DELAYED_BLAST_FIREBALL_ID } from "./delayedBlastFireballRules.js";
 import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
-import { buildTrackerQuickActionLauncher } from "./trackerQuickActions.js";
+import { buildBossActionsLauncher, buildTrackerQuickActionLauncher } from "./trackerQuickActions.js";
 import {
   CLASS_FEATURE_BY_ID,
   buildClassFeatureContextEntries,
@@ -4700,6 +4701,7 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
         : max;
       return { max, current };
     })(),
+    bossActionBinding: initiativeCard.bossActionBinding || null,
     quickActions: IS_GM
       ? initiativeCard.quickActions
       : initiativeCard.quickActions.filter((action) => action?.kind !== "feature"),
@@ -5425,6 +5427,8 @@ function normalizeConcentrationWarnings(values = [], defaultWarningRuntimeScope 
   return (Array.isArray(values) ? values : []).slice(0, 20).map((warning) => ({
     name: String(warning?.name || "Token").trim().slice(0, 80) || "Token",
     damage: Math.max(0, Math.floor(Number(warning?.damage) || 0)),
+    // A concentration save without damage carries its cause (an aura such as Primal Blizzard).
+    ...(String(warning?.cause || "").trim() ? { cause: String(warning.cause).trim().slice(0, 120) } : {}),
     dc: Math.max(10, Math.floor(Number(warning?.dc) || 10)),
     portrait: String(warning?.portrait || "").trim().slice(0, 2048),
     attitude: String(warning?.attitude || "neutral").trim().toLowerCase(),
@@ -5435,7 +5439,7 @@ function normalizeConcentrationWarnings(values = [], defaultWarningRuntimeScope 
     notice: warning?.notice && typeof warning.notice === "object"
       ? warning.notice
       : null,
-  })).filter((warning) => warning.damage > 0);
+  })).filter((warning) => warning.damage > 0 || !!warning.cause);
 }
 
 function isCurrentConcentrationWarningEpoch(value) {
@@ -8001,6 +8005,19 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {})
   if (launcher) {
     if (expanded) __trackerQuickActionsButton = launcher.__quickActionToggle;
     card.appendChild(launcher);
+  }
+  // Boss Actions: a round icon in the quick-actions slot (Epic Bosses have no quick actions; otherwise beside ⚡).
+  if (sourceEntry.isEpic || sourceEntry.bossActionBinding) {
+    const bossLauncher = buildBossActionsLauncher({
+      bound: !!sourceEntry.bossActionBinding,
+      compact,
+      offset: launcher ? 1 : 0,
+      iconUrl: (import.meta.env.BASE_URL || "/") + "boss.svg",
+      onOpen: () => {
+        void openBossActionsPopover(sourceId);
+      },
+    });
+    if (bossLauncher) card.appendChild(bossLauncher);
   }
 }
 

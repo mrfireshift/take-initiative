@@ -1585,6 +1585,7 @@ export function bootSpellUnifiedPanel(
   };
 
   const commitArea = async () => {
+    if (state.session.monsterActionContext && state.session.monsterActionCompleted) return;
     if (!sceneAvailable()
       || state.committing
       || state.session.commitState.state === "committing") return;
@@ -1635,6 +1636,7 @@ export function bootSpellUnifiedPanel(
         if (usesPrimarySecondarySelection()) provider.clearTargetingReference?.();
         const hasUndo = result.undoAvailable === true && !!result.historyEntryId;
         state.session = updateSpellPanelSession(state.session, {
+          ...(state.session.monsterActionContext ? { monsterActionCompleted: true } : {}),
           commitState: {
             state: "committed",
             activationId: result.historyEntryId || result.instanceId || null,
@@ -2701,6 +2703,10 @@ export function bootSpellUnifiedPanel(
       render();
     },
     onSelect: async (spellKey) => {
+      if (state.session.monsterActionContext && spellKey !== state.session.spellId) {
+        patchSession({ feedback: { state: "info", message: "Questa risoluzione appartiene a Spellcasting del boss. Apri il catalogo normale per un altro incantesimo." } }, { clearFeedback: false });
+        return;
+      }
       const nextContract = buildContract(spellKey);
       if (!nextContract) {
         patchSession({
@@ -2753,6 +2759,10 @@ export function bootSpellUnifiedPanel(
       render();
     },
     onCasterChange: async (casterId) => {
+      if (state.session.monsterActionContext && casterId !== state.session.casterId) {
+        patchSession({ feedback: { state: "info", message: "Questa azione appartiene al token reale del boss." } }, { clearFeedback: false });
+        return;
+      }
       const isArea = usesPersistentCastAdapter();
       ++targetingSelectionSequence;
       provider.clearTargetingReference?.();

@@ -14,7 +14,13 @@ const THEMES = Object.freeze({
   silence: Object.freeze({ fillColor: "#475569", strokeColor: "#cbd5e1" }),
   storm: Object.freeze({ fillColor: "#2563eb", strokeColor: "#93c5fd" }),
   water: Object.freeze({ fillColor: "#0284c7", strokeColor: "#7dd3fc" }),
+  // Boss areas only (chosen by the boss console, e.g. Auril): pale glacial blue with a frost-white edge.
+  frost: Object.freeze({ fillColor: "#7dd3fc", strokeColor: "#f0f9ff" }),
+  // Boss areas only (Shothragoth): a deep void violet with a pale violet edge.
+  void: Object.freeze({ fillColor: "#2e1065", strokeColor: "#c4b5fd" }),
 });
+// Themes a placement may request explicitly instead of the one derived from the spell id.
+export const SPELL_AREA_REQUESTABLE_THEMES = Object.freeze(["frost", "void"]);
 
 const EXPLICIT_THEMES = new Map([
   ["antimagic-field", "arcane"],
@@ -67,10 +73,11 @@ export function spellAreaTheme(spellId) {
   return PATTERNS.find(([, pattern]) => pattern.test(id))?.[0] || "arcane";
 }
 
-export function spellAreaStyle(spellId, baseStyle = {}) {
+export function spellAreaStyle(spellId, baseStyle = {}, requestedTheme = "") {
   const normalized = normalizeAoEStyle(baseStyle);
+  const theme = SPELL_AREA_REQUESTABLE_THEMES.includes(requestedTheme) ? requestedTheme : spellAreaTheme(spellId);
   return {
     ...normalized,
-    ...THEMES[spellAreaTheme(spellId)],
+    ...THEMES[theme],
   };
 }

@@ -223,6 +223,7 @@
     textarea { min-height:58px; resize:none; line-height:1.35; }
     input:focus,textarea:focus { border-color:var(--accent); outline:none; box-shadow:0 0 0 2px rgba(var(--faction-rgb),.14); }
     .save-inputs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+    .defense-inputs select { width:100%; min-height:32px; padding:6px 8px; border-radius:10px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; }
     .quick-actions-editor { margin-top:0; }
     .quick-actions-editor-list { display:grid; gap:10px; margin-top:9px; padding:0 1px 2px; }
     .quick-action-editor-row { min-width:0; padding:10px; display:grid; gap:9px; overflow:hidden; border:1px solid rgba(var(--faction-rgb),.24); border-radius:10px; background:rgba(0,0,0,.18); }
@@ -316,6 +317,7 @@
       </div>
       <span class="section-title">Tiri salvezza</span>
       <div id="saves" class="saves"></div>
+      <div id="damageDefensesBlock" class="notes" hidden><span>Difese ai danni</span><p id="damageDefenses"></p></div>
       <div id="notesBlock" class="notes" hidden><span>Note</span><p id="notes"></p></div>
     </section>
     <section id="quickActionsView" role="tabpanel" aria-labelledby="quickActionsTab" hidden>
@@ -348,6 +350,8 @@
         </div>
         <span class="section-title">Modificatori tiri salvezza</span>
         <div id="saveInputs" class="save-inputs"></div>
+        <span class="section-title">Difese ai danni</span>
+        <div id="defenseInputs" class="save-inputs defense-inputs"></div>
       </div>
       <section id="quickActionsEditPane" class="quick-actions-editor edit-pane" hidden>
         <div class="quick-actions-heading">

@@ -614,6 +614,17 @@ function zoneFailureActions({
     : null;
   const name = text(condition?.condition || condition?.name, "", 160);
   if (!name) return [];
+  // A standalone condition (a custom aura's failed save, e.g. Prono) outlives the zone: a standard,
+  // independent condition removed by hand, never tied to the aura's membership or cleanup.
+  if (condition?.standalone === true) {
+    return [{
+      kind: "condition",
+      action: "apply",
+      targetId,
+      name,
+      options: { type: "automatic", sourceId, sourceName, parentEffectId: "", manualRemoval: true, expiry: { mode: "manual" } },
+    }];
+  }
   const conditionOptions = condition?.options && typeof condition.options === "object"
     ? clone(condition.options)
     : {};

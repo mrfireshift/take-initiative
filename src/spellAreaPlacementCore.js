@@ -235,6 +235,7 @@ export function constrainedSpellAreaEnd({
   pointer = null,
   dpi = 1,
   sizeCells = 1,
+  upTo = false,
 } = {}) {
   const origin = finitePoint(start);
   const cursor = finitePoint(pointer, { x: origin.x + 1, y: origin.y });
@@ -263,12 +264,17 @@ export function constrainedSpellAreaEnd({
   }
   if (["line", "rectangle"].includes(shape)) {
     const denominator = Math.hypot(raw.x, raw.y) || 1;
+    // A line "up to" its size (a seam between two chosen points): whole cells, at least one.
+    const cell = Math.max(1, Number(dpi) || 1);
+    const length = upTo
+      ? Math.max(1, Math.min(Math.round(extent / cell), Math.round(denominator / cell))) * cell
+      : extent;
     if (raw.x === 0 && raw.y === 0) {
-      return { x: origin.x + extent, y: origin.y };
+      return { x: origin.x + length, y: origin.y };
     }
     return {
-      x: origin.x + raw.x * extent / denominator,
-      y: origin.y + raw.y * extent / denominator,
+      x: origin.x + raw.x * length / denominator,
+      y: origin.y + raw.y * length / denominator,
     };
   }
   return {
@@ -381,6 +387,23 @@ export function reviewSpellAreaPlacement(session, preview) {
         ? { anchorTargetId: String(preview.anchorTargetId).trim() }
         : {}),
       ...(preview.anchorOrigin ? { anchorOrigin: finitePoint(preview.anchorOrigin) } : {}),
+      // Several shapes confirmed together: each keeps its own origin and hit targets.
+      ...(Array.isArray(preview.areas) && preview.areas.length
+        ? {
+          areas: preview.areas
+            .map((entry) => ({
+              start: finitePointOrNull(entry?.start),
+              end: finitePointOrNull(entry?.end),
+              ...(Number(entry?.radius) > 0 ? { radius: Number(entry.radius) } : {}),
+              targetIds: Array.from(new Set(
+                (Array.isArray(entry?.targetIds) ? entry.targetIds : [])
+                  .map((id) => String(id || "").trim())
+                  .filter(Boolean)
+              )),
+            }))
+            .filter((entry) => entry.start && entry.end),
+        }
+        : {}),
       targetIds: Array.from(new Set(
         (Array.isArray(preview.targetIds) ? preview.targetIds : [])
           .map((id) => String(id || "").trim())

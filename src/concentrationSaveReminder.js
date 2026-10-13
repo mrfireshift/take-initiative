@@ -48,6 +48,15 @@ export async function broadcastConcentrationSaveWarnings(changes = [], options =
     causeHistoryEntryId: String(options.causeHistoryEntryId || "").trim(),
   });
   if (!warnings.length) return [];
+  return broadcastConcentrationWarnings(warnings, { ...options, eventId, now });
+}
+
+// Already built warnings (e.g. an aura's concentration save, without damage) on the same channel.
+export async function broadcastConcentrationWarnings(warnings = [], options = {}) {
+  if (!Array.isArray(warnings) || !warnings.length) return [];
+  const sceneEpoch = Number(options.sceneEpoch);
+  if (!Number.isSafeInteger(sceneEpoch) || sceneEpoch < 0) return [];
+  const now = Math.max(0, Math.floor(Number(options.now) || Date.now()));
   const warningRuntimeScope = await warningRuntimeScopeFor(options);
   const scopedWarnings = warnings.map((warning) => ({
     ...warning,

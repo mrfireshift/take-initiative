@@ -318,6 +318,7 @@ export function buildSpellUnifiedAreaCommand({
     ...(trigger?.activationId ? { activationId: trigger.activationId } : {}),
     ...(trigger?.instanceId ? { expectedZoneInstanceId: trigger.instanceId } : {}),
     casterId: text(session?.casterId),
+    ...(session?.monsterActionContext != null ? { monsterActionContext: session.monsterActionContext } : {}),
     passengerId: text(session?.passengerId),
     slotLevel: session?.slotLevel,
     choiceValue: text(session?.variant),

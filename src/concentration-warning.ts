@@ -37,6 +37,7 @@ const runtimeScope = readRuntimeScope();
 type Warning = {
   name: string;
   damage: number;
+  cause?: string;
   dc: number;
   portrait: string;
   attitude: string;
@@ -75,6 +76,7 @@ function normalizeWarnings(values: any): Warning[] {
   return (Array.isArray(values) ? values : []).slice(0, 20).map((warning: any) => ({
     name: String(warning?.name || "Token").trim().slice(0, 80) || "Token",
     damage: Math.max(0, Math.floor(Number(warning?.damage) || 0)),
+    ...(String(warning?.cause || "").trim() ? { cause: String(warning.cause).trim().slice(0, 120) } : {}),
     dc: Math.max(10, Math.floor(Number(warning?.dc) || 10)),
     portrait: String(warning?.portrait || "").trim().slice(0, 2048),
     attitude: String(warning?.attitude || "neutral").trim().toLowerCase(),
@@ -84,7 +86,7 @@ function normalizeWarnings(values: any): Warning[] {
       : {}),
     createdAt: Math.max(0, Math.floor(Number(warning?.createdAt) || 0)),
     notice: warning?.notice && typeof warning.notice === "object" ? warning.notice : null,
-  })).filter((warning: Warning) => warning.damage > 0);
+  })).filter((warning: Warning) => warning.damage > 0 || !!warning.cause);
 }
 
 function warningsFromURL(): Warning[] {
@@ -196,7 +198,8 @@ function render(role: string, warnings: Warning[] = warningsFromURL()) {
     }
     const damage = document.createElement("div");
     damage.className = "damage";
-    damage.textContent = warning.damage + " danni";
+    // A save without damage shows its cause instead (e.g. "Primal Blizzard").
+    damage.textContent = warning.damage > 0 ? warning.damage + " danni" : String(warning.cause || "");
     row.append(identity, damage);
     if (warnings.length > 1) {
       const dc = document.createElement("div");

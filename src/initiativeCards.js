@@ -7,6 +7,7 @@ import {
 } from "./effectsMutations.js";
 import { normalizeSpeedMeters } from "./speedCheckCore.js";
 import {
+  getConditionInstances,
   getExhaustionContributionLevel,
   getExhaustionLevel,
   reconcileExhaustionCondition,
@@ -34,6 +35,8 @@ import {
   normalizeActorProfileId,
 } from "./actorIdentityCore.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
+import { sanitizeBossActionBinding } from "./bossActionProfileCore.js";
+import { DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
 import {
   sanitizeCharacterBuild,
   sanitizeEnabledClassFeatureIds,
@@ -95,6 +98,9 @@ export function sanitizeInitiativeCard(value) {
       SAVE_KEYS.map((key) => [key, optionalInteger(saves[key], -99, 99)])
     ),
   };
+  if (Object.hasOwn(source, "bossActionBinding")) normalized.bossActionBinding = sanitizeBossActionBinding(source.bossActionBinding);
+  // Optional like the boss binding: profiles without defenses keep their previous shape.
+  if (Object.hasOwn(source, DAMAGE_DEFENSES_FIELD)) normalized[DAMAGE_DEFENSES_FIELD] = sanitizeDamageDefenses(source[DAMAGE_DEFENSES_FIELD]);
   const actorProfileId = actorProfileIdFromProfile(source);
   if (actorProfileId) normalized[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
   return normalized;
@@ -144,6 +150,12 @@ function mergeProfile(base, value) {
         : cleanBase.savingThrows[key],
     ])),
   };
+  if (Object.hasOwn(value, "bossActionBinding") || Object.hasOwn(base || {}, "bossActionBinding")) {
+    merged.bossActionBinding = value.bossActionBinding !== undefined ? cleanValue.bossActionBinding : cleanBase.bossActionBinding;
+  }
+  if (Object.hasOwn(value, DAMAGE_DEFENSES_FIELD) || Object.hasOwn(base || {}, DAMAGE_DEFENSES_FIELD)) {
+    merged[DAMAGE_DEFENSES_FIELD] = value[DAMAGE_DEFENSES_FIELD] !== undefined ? cleanValue[DAMAGE_DEFENSES_FIELD] : cleanBase[DAMAGE_DEFENSES_FIELD];
+  }
   const actorProfileId = actorProfileIdFromProfile(value) || actorProfileIdFromProfile(base);
   if (actorProfileId) merged[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
   return merged;
@@ -205,6 +217,8 @@ const INITIATIVE_CARD_KNOWN_FIELDS = new Set([
   "notes",
   "exhaustion",
   "quickActions",
+  "bossActionBinding",
+  DAMAGE_DEFENSES_FIELD,
   "characterBuild",
   "enabledClassFeatureIds",
   "classFeaturesConfigured",
@@ -666,6 +680,8 @@ export function hasInitiativeCardValues(profile) {
     profile?.spellSaveDC !== null ||
     profile?.spellAttackBonus !== null ||
     Boolean(profile?.notes) ||
+    Boolean(profile?.bossActionBinding) ||
+    hasDamageDefenses(profile?.[DAMAGE_DEFENSES_FIELD]) ||
     Number(profile?.exhaustion) > 0 ||
     Array.isArray(profile?.quickActions) && profile.quickActions.length > 0 ||
     Array.isArray(profile?.characterBuild) && profile.characterBuild.length > 0 ||
@@ -682,6 +698,7 @@ export async function saveInitiativeCard(
     commandId = "",
     sceneIdentity = null,
     transportTimeoutMs = undefined,
+    preserveExhaustion = false,
   } = {},
 ) {
   if (!isCurrent()) throw new Error("scene-stale-before-card-save");
@@ -708,7 +725,14 @@ export async function saveInitiativeCard(
   );
   const storedBaseProfile = {
     ...profile,
-    exhaustion: Math.max(0, Number(profile.exhaustion || 0) - contributionLevel),
+    // A partial profile update can preserve the stored base, even when effective
+    // exhaustion has reached its cap or contributions changed during the workflow.
+    exhaustion: preserveExhaustion
+      ? Object.hasOwn(sourceRawProfile || {}, "exhaustion")
+        ? sanitizeInitiativeCard(sourceRawProfile).exhaustion
+        : getExhaustionLevel({ instances: getConditionInstances(sourceItem?.metadata?.[META_KEY]?.conditions)
+          .filter(instance => instance.exhaustionContribution !== true) })
+      : Math.max(0, Number(profile.exhaustion || 0) - contributionLevel),
   };
   const identity = sourceItem || { name };
   const keys = initiativeCardRegistryKeys(identity);

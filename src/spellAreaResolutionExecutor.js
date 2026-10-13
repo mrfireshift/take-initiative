@@ -103,6 +103,13 @@ import {
   decorateCompositeEffectsHistoryEntry,
 } from "./effectsMutationCompositeHistoryCore.js";
 import { buildSpellCausality } from "./combatLogCausalityCore.js";
+import {
+  applyMonsterActionContext,
+  normalizeMonsterActionContext,
+} from "./monsterActionContextCore.js";
+import { BOSS_ACTION_STATE_FIELD, bossInstanceForItem, buildBossActionUse, isBossActionCreature } from "./bossActionExecutionCore.js";
+import { validateBossActionProfile, bossSpellReferenceIds } from "./bossActionProfileCore.js";
+import { createBossActionProfileStore } from "./bossActionProfileStore.js";
 import { syncHPBatchToMemory } from "./hpMemory.js";
 import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { emitFireballVisual } from "./fireballVisualRenderer.js";
@@ -398,6 +405,7 @@ function hpEntries({ command, items, spell, prismaticSprayPlan = null }) {
 }
 
 function castContextFor({ spell, resolution, command, mobileAura, boardToken, placement, caster }) {
+  const monsterActionSaveDC = command?.monsterActionContext?.spellcasting?.saveDC;
   const hasActiveResolution = Array.isArray(spell?.activeActions)
     && spell.activeActions.some((action) => action?.resolutionKind);
   const spiritShroudContext = mobileAura && spell?.id === "tasha-sudario-spirituale"
@@ -464,6 +472,14 @@ function castContextFor({ spell, resolution, command, mobileAura, boardToken, pl
         ?? (Number.isFinite(casterSaveDC) ? casterSaveDC : null),
       accumulatedDice: command?.spell?.castContext?.delayedBlastFireball?.accumulatedDice,
     });
+  }
+  if (monsterActionSaveDC !== undefined) {
+    return {
+      ...(command?.spell?.castContext && typeof command.spell.castContext === "object"
+        ? clone(command.spell.castContext)
+        : {}),
+      spellSaveDC: monsterActionSaveDC,
+    };
   }
   if (!hasActiveResolution && !mobileAura && !boardToken
     && !resolution?.targeting && !resolution?.choice) return null;
@@ -534,6 +550,7 @@ function defaultRuntime(overrides = {}) {
     readItems: (ids = []) => ids.length ? OBR.scene.items.getItems(ids) : Promise.resolve([]),
     readAllItems: () => OBR.scene.items.getItems(),
     readSceneMetadata: () => OBR.scene.getMetadata(),
+    readBossActionProfile: (binding) => createBossActionProfileStore().get(binding.profileId, binding.profileRevision),
     updateItems: (ids, callback) => OBR.scene.items.updateItems(ids, callback),
     addItems: (items) => OBR.scene.items.addItems(items),
     deleteItems: (ids) => OBR.scene.items.deleteItems(ids),
@@ -749,6 +766,36 @@ async function buildPlan(command, runtime) {
       || (await runtime.readItems([casterId]))[0]
       || null
     : null;
+  let bossActionProfile = null;
+  let bossAction = null;
+  if (command.monsterActionContext) {
+    const binding = caster?.metadata?.[META_KEY]?.initiativeCard?.bossActionBinding;
+    const cause = command.monsterActionContext.cause;
+    if (!isBossActionCreature(caster) || !binding || binding.profileId !== cause.profileId || binding.profileRevision !== cause.profileRevision
+        || binding.phaseId !== cause.phaseId || bossInstanceForItem(caster,binding) !== cause.bossInstanceId) {
+      return { valid: false, errors: [{ code: "monster-action-binding-stale", message: "Il binding del boss è cambiato: riapri Spellcasting." }] };
+    }
+    try {
+      bossActionProfile = validateBossActionProfile(await runtime.readBossActionProfile(binding));
+      bossAction = bossActionProfile.abilities.find((action) => action.id === cause.actionId);
+      if (bossActionProfile.profileId !== binding.profileId
+        || bossActionProfile.profileRevision !== binding.profileRevision
+        || bossActionProfile.phaseId !== binding.phaseId
+        || bossActionProfile.bossDefinitionId !== binding.bossDefinitionId
+        || !bossAction || bossAction.name !== cause.actionName
+        || !["SUPPORTED", "PARTIAL"].includes(bossAction.automation)
+        || bossAction.execution?.kind !== "spell-reference"
+        // The cast spell must be one the Spellcasting action lists, and the one the context names.
+        || !bossSpellReferenceIds(bossAction.execution).includes(spell.id)
+        || command.monsterActionContext.referencedSpell?.id !== spell.id
+        || bossAction.execution.saveDC !== command.monsterActionContext.spellcasting?.saveDC
+        || bossAction.execution.attackBonus !== command.monsterActionContext.spellcasting?.attackBonus) {
+        throw new Error("monster-action-definition-invalid");
+      }
+    } catch {
+      return { valid: false, errors: [{ code: "monster-action-definition-invalid", message: "La definizione locale dell’azione boss non corrisponde: riapri Spellcasting." }] };
+    }
+  }
   const passenger = passengerId
     ? allById.get(passengerId) || liveById.get(passengerId) || null
     : null;
@@ -972,6 +1019,18 @@ async function buildPlan(command, runtime) {
   if (!resolution.valid) {
     return { valid: false, errors: errorList(resolution.errors, "spell-resolution-invalid") };
   }
+  const monsterActionSaveDC = command?.monsterActionContext?.spellcasting?.saveDC;
+  if (monsterActionSaveDC !== undefined) {
+    for (const application of resolution.conditionApplications || []) {
+      if (!application.options?.saveReminder) continue;
+      application.options = {
+        ...application.options,
+        saveReminder: spellEffectConditionOptions({
+          saveReminder: application.options.saveReminder,
+        }, { spellSaveDC: monsterActionSaveDC }).saveReminder,
+      };
+    }
+  }
 
   const turbineChains = spell.id === "xanathar-turbine" && !zoneTriggerResolution
     ? resolveTurbineTargetChains({
@@ -993,6 +1052,19 @@ async function buildPlan(command, runtime) {
   }
 
   const stateMetadata = await runtime.readSceneMetadata();
+  let bossActionUse = null;
+  if (bossAction) {
+    try {
+      bossActionUse = buildBossActionUse({
+        profile: bossActionProfile, action: bossAction, sourceItem: caster,
+        actionInstanceId: command.monsterActionContext.cause.actionInstanceId,
+        round: stateMetadata?.[`${ID}/state`]?.round,
+        spellId: spell.id,
+      });
+    } catch (error) {
+      return { valid: false, errors: [{ code: "monster-action-usage-unavailable", message: normalizedError(error).message }] };
+    }
+  }
   const appliedAt = appliedAtForState(
     stateMetadata?.[`${ID}/state`] || {},
     await runtime.getInitiativeActorId(),
@@ -1611,11 +1683,13 @@ async function buildPlan(command, runtime) {
   const affectedIds = uniqueIds([
     ...ids,
     ...effectSubjectIds,
+    ...(bossActionUse ? [casterId] : []),
     ...(requestedZoneTrigger ? targetIds : []),
   ]);
   const historyIds = uniqueIds([
     ...ids,
     ...effectSubjectIds,
+    ...(bossActionUse ? [casterId] : []),
     ...(command?.source?.kind === "prepared-resolution" && casterId ? [casterId] : []),
     ...(cloudPlacement || teleportRule ? teleportSubjectIds : []),
     ...await runtime.getZeroHPConditionHistoryIds(ids),
@@ -1635,6 +1709,7 @@ async function buildPlan(command, runtime) {
     runtime,
     spell,
     caster,
+    bossActionUse,
     allItems,
     liveItems,
     entries,
@@ -1758,7 +1833,7 @@ function spellAreaCausality(plan) {
   );
   const primaryAmount = Number(command?.hp?.primaryAmount);
   const primaryFactor = causalDamageFactor(command?.hp?.primaryOutcomeFactor);
-  return {
+  return applyMonsterActionContext({
     source: "spell-area",
     spellId: plan?.spell?.id || "",
     spellName: plan?.spell?.displayName || plan?.spell?.name || plan?.spell?.id || "",
@@ -1794,7 +1869,8 @@ function spellAreaCausality(plan) {
     concentrationInstanceId: plan?.spellInstanceId,
     zone,
     reminder: trigger?.activationId ? { activationId: trigger.activationId } : undefined,
-  };
+    ...(plan?.bossActionUse ? { resources: clone(plan.bossActionUse.resources) } : {}),
+  }, plan?.bossActionUse?.context || command.monsterActionContext);
 }
 
 async function updateHP(runtime, entries) {
@@ -1911,6 +1987,16 @@ export async function buildSpellAreaResolutionExecutionPlan(
       runtime,
     };
   }
+  if (command.monsterActionContext != null
+    && !normalizeMonsterActionContext(command.monsterActionContext, {
+      casterId: command.spell?.casterId, spellId: command.spell?.spellId,
+    })) {
+    return {
+      valid: false,
+      errors: [{ code: "monster-action-context-invalid", message: "Contesto azione del mostro non valido." }],
+      runtime,
+    };
+  }
   const lane = command.execution?.lane;
   const boardTokenLifecycle = lane === "spell-lifecycle"
     && command.execution?.hasTokens === true;
@@ -1968,7 +2054,8 @@ export async function executeSpellAreaResolution(
     && !plan.nextStaticZoneItems.length && !plan.requestedZoneTrigger
     && !spellBoardTokenSideEffects.length
     && !plan.fireballVisualContext
-    && !plan.matchedVisualContext) {
+    && !plan.matchedVisualContext
+    && !plan.bossActionUse?.metadataPatches.length) {
     return resultBase(command, RESULT_STATUSES.NOOP, {
       instanceId: plan.spellInstanceId,
       warnings: [],
@@ -2081,13 +2168,37 @@ export async function executeSpellAreaResolution(
         label: `Effetti ad area · ${plan.spell.displayName || plan.spell.name || plan.spell.id}`,
       itemIds: plan.historyIds,
       sceneItemIds: plan.staticZoneSceneItemIds,
-      fields: ["hp", "hpMax", "conditions", SPELLS_KEY, CONCENTRATION_KEY],
+      fields: ["hp", "hpMax", "conditions", SPELLS_KEY, CONCENTRATION_KEY,
+        ...(plan.bossActionUse ? [BOSS_ACTION_STATE_FIELD] : [])],
       onRecorded: (entry) => { recordedEntry = entry; },
       decorateEntry: (entry) => {
+        // The coordinator owns boss usage. Keep an outer snapshot only when
+        // a lost acknowledgement still proves this action's exact commit.
+        const bossStatePatch = plan.bossActionUse?.metadataPatches
+          .find((patch) => patch.id === plan.caster.id)?.fields[BOSS_ACTION_STATE_FIELD];
+        const ownedEntry = bossStatePatch ? {
+          ...entry,
+          changes: (entry.changes || []).map((change) => {
+            if (Object.hasOwn(change, "sceneBefore") || Object.hasOwn(change, "sceneAfter")) return change;
+            const before = { ...change.before };
+            const after = { ...change.after };
+            const unknownAcknowledgement = !coordinatedMutation
+              || (coordinatedMutation.status === "failed"
+                && coordinatedMutation.error?.name === "BackgroundTransportError");
+            const lostAcknowledgement = unknownAcknowledgement && change.id === plan.caster.id
+              && JSON.stringify(before[BOSS_ACTION_STATE_FIELD]) === JSON.stringify(bossStatePatch.expected)
+              && JSON.stringify(after[BOSS_ACTION_STATE_FIELD]) === JSON.stringify({ present: true, value: bossStatePatch.value });
+            if (!lostAcknowledgement) {
+              delete before[BOSS_ACTION_STATE_FIELD];
+              delete after[BOSS_ACTION_STATE_FIELD];
+            }
+            return JSON.stringify(before) === JSON.stringify(after) ? null : { ...change, before, after };
+          }).filter(Boolean),
+        } : entry;
         const decorated = decorateCompositeEffectsHistoryEntry({
-          entry,
+          entry: ownedEntry,
           mutation: coordinatedMutation,
-          effectMetadataFields: ["conditions", SPELLS_KEY, CONCENTRATION_KEY],
+          effectMetadataFields: ["conditions", SPELLS_KEY, CONCENTRATION_KEY, BOSS_ACTION_STATE_FIELD],
         });
         return {
           ...decorated,
@@ -2132,9 +2243,13 @@ export async function executeSpellAreaResolution(
           ...zoneTriggerSideEffects,
         ];
         const commitCoordinatedEffects = async () => {
-          if (!operations.length && !coordinatedSideEffects.length) return true;
+          if (!operations.length && !coordinatedSideEffects.length && !plan.bossActionUse?.metadataPatches.length) return true;
           coordinatedMutation = await runtime.runEffectsMutation(operations, {
             history: false,
+            ...(plan.bossActionUse ? {
+              metadataPatches: plan.bossActionUse.metadataPatches,
+              sceneMetadataPreconditions: plan.bossActionUse.sceneMetadataPreconditions,
+            } : {}),
             kind: isTeleport ? "spell" : "save-resolution",
             label: isTeleport
               ? `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Passo Velato"}`
@@ -2142,6 +2257,7 @@ export async function executeSpellAreaResolution(
             targetIds: uniqueIds([
               ...plan.ids,
               ...plan.effectSubjectIds,
+              ...(plan.bossActionUse ? [plan.caster.id] : []),
               ...(isTeleport
                 ? [plan.caster?.id, plan.command?.teleport?.passengerId]
                 : []),

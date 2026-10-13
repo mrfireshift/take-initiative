@@ -52,7 +52,7 @@ function normalizedPosition(value) {
 function normalizePerson(value) {
   if (!isObject(value)) return null;
   const result = {};
-  for (const key of ["id", "name", "role", "kind"]) {
+  for (const key of ["id", "name", "role", "kind", "tokenId", "bossInstanceId"]) {
     const normalized = textOrNull(value[key]);
     if (normalized !== null) result[key] = normalized;
   }

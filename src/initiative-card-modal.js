@@ -19,6 +19,7 @@ import {
   getQuickActionSpellOptions,
 } from "./spells-srd.js";
 import { getSpellsFromItem } from "./spells.js";
+import { DAMAGE_TYPES, DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, damageDefenseFor, damageDefenseTag, hasDamageDefenses } from "./damageDefensesCore.js";
 import {
   MAX_QUICK_ACTIONS,
   findQuickAction,
@@ -99,6 +100,8 @@ const sourceId = initiativeCardSearchParams.get("source") || "";
 const requestedQuickActionId = initiativeCardSearchParams.get("quickAction") || "";
 let requestedQuickActionHandled = false;
 const labels = { str: "FOR", dex: "DES", con: "COS", int: "INT", wis: "SAG", cha: "CAR" };
+const DEFENSE_CHOICES = [["", "—"], ["resistance", "Res."], ["immunity", "Imm."], ["vulnerability", "Vuln."]];
+const DEFENSE_LIST_BY_KIND = { resistance: "resistances", immunity: "immunities", vulnerability: "vulnerabilities" };
 const $ = (id) => document.getElementById(id);
 
 let item = null;
@@ -2628,6 +2631,39 @@ function renderView() {
     row.append(label, value);
     return row;
   }));
+  renderDamageDefenses();
+}
+
+// Actor Profile damage defenses: read by Boss Actions per damage type.
+function renderDamageDefenses() {
+  const defenses = sanitizeDamageDefenses(profile?.[DAMAGE_DEFENSES_FIELD]);
+  const tags = DAMAGE_TYPES
+    .map((type) => ({ type: type.id, defense: damageDefenseFor(defenses, type.id) }))
+    .filter((row) => row.defense)
+    .map(damageDefenseTag);
+  $("damageDefenses").textContent = tags.join(" · ");
+  $("damageDefensesBlock").hidden = tags.length === 0;
+}
+
+function buildDefenseInputs() {
+  $("defenseInputs").replaceChildren(...DAMAGE_TYPES.map((type) => {
+    const label = document.createElement("label");
+    label.textContent = type.label;
+    const select = document.createElement("select");
+    select.id = `defense-${type.id}`;
+    for (const [value, text] of DEFENSE_CHOICES) select.appendChild(new Option(text, value));
+    label.appendChild(select);
+    return label;
+  }));
+}
+
+function collectDamageDefenses() {
+  const result = { resistances: [], immunities: [], vulnerabilities: [] };
+  for (const type of DAMAGE_TYPES) {
+    const list = DEFENSE_LIST_BY_KIND[$(`defense-${type.id}`).value];
+    if (list) result[list].push(type.id);
+  }
+  return sanitizeDamageDefenses(result);
 }
 
 function setEditing(active) {
@@ -2648,6 +2684,8 @@ function setEditing(active) {
   buildQuickActionEditor();
   buildClassBuildEditor();
   for (const key of SAVE_KEYS) $(`save-${key}`).value = profile.savingThrows[key] ?? "";
+  const defenses = sanitizeDamageDefenses(profile?.[DAMAGE_DEFENSES_FIELD]);
+  for (const type of DAMAGE_TYPES) $(`defense-${type.id}`).value = damageDefenseFor(defenses, type.id) || "";
   $("status").textContent = "";
   syncCardTabs();
 }
@@ -2761,6 +2799,7 @@ OBR.onReady(async () => {
     profile = await loadInitiativeCard(item, { hydrate: isGM });
     populateQuickActionDatalists();
     buildSaveInputs();
+    buildDefenseInputs();
     subscribeToSourceItemChanges();
     subscribeToSceneStateChanges();
     renderView();
@@ -2813,6 +2852,10 @@ $("form").addEventListener("submit", async (event) => {
     if (!sceneLifecycle.isCurrent(operation)) return;
     const savingThrows = Object.fromEntries(SAVE_KEYS.map((key) => [key, $(`save-${key}`).value]));
     const characterBuild = collectCharacterBuildEditor({ validate: true });
+    const damageDefenses = collectDamageDefenses();
+    // Only profiles that use defenses (or already had the field) store it.
+    const defensePatch = hasDamageDefenses(damageDefenses) || Object.hasOwn(profile || {}, DAMAGE_DEFENSES_FIELD)
+      ? { [DAMAGE_DEFENSES_FIELD]: damageDefenses } : {};
     await saveInitiativeCard(item.id, item.name, {
       armorClass: $("armorClassInput").value,
       passivePerception: $("passivePerceptionInput").value,
@@ -2826,6 +2869,7 @@ $("form").addEventListener("submit", async (event) => {
       enabledClassFeatureIds: collectEnabledClassFeatureIds(characterBuild),
       classFeaturesConfigured: true,
       savingThrows,
+      ...defensePatch,
     }, {
       isCurrent: () => sceneLifecycle.isCurrent(operation),
       commandId: ownerSceneContext.commandId,

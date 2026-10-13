@@ -1,7 +1,7 @@
 import { ID } from "./constants.js";
 
 const META_KEY = `${ID}/meta`;
-const CONCENTRATION_KEY = `${ID}/concentration`;
+export const CONCENTRATION_KEY = `${ID}/concentration`;
 const text = (value, fallback = "") => String(value ?? fallback).trim();
 
 function concentrationSaveDC(damage) {
@@ -14,6 +14,11 @@ function portraitUrl(item) {
     || item?.image?.src
     || item?.asset?.image?.url,
   );
+}
+
+// Whether the token holds at least one concentration (the same reading as the save warning).
+export function isConcentrating(item) {
+  return concentrationDescriptors(item?.metadata?.[META_KEY]?.[CONCENTRATION_KEY]).length > 0;
 }
 
 function concentrationDescriptors(value) {
@@ -39,11 +44,14 @@ export function buildConcentrationSaveWarning({
   attitude = "neutral",
   eventId = "",
   causeHistoryEntryId = "",
+  cause = "",
 } = {}) {
   const normalizedCasterId = text(casterId);
   const descriptors = concentrationDescriptors(concentration);
   const normalizedDamage = Math.max(0, Math.floor(Number(damage) || 0));
-  if (!normalizedCasterId || !descriptors.length || normalizedDamage <= 0) return null;
+  // A save without damage needs a named cause (e.g. an aura: "Primal Blizzard").
+  const normalizedCause = text(cause).slice(0, 120);
+  if (!normalizedCasterId || !descriptors.length || (normalizedDamage <= 0 && !normalizedCause)) return null;
 
   const normalizedName = text(casterName, "Token") || "Token";
   const normalizedDC = Math.max(10, Math.floor(Number(dc) || 10));
@@ -64,6 +72,7 @@ export function buildConcentrationSaveWarning({
   return {
     name: normalizedName,
     damage: normalizedDamage,
+    ...(normalizedCause ? { cause: normalizedCause } : {}),
     dc: normalizedDC,
     portrait: text(portrait),
     attitude: text(attitude, "neutral").toLowerCase() || "neutral",

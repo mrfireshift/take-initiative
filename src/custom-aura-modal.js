@@ -182,6 +182,8 @@ function formatReminderSummary(rem) {
   } else if (rem.resolution === "manual-damage") {
     const dmg = [rem.damage?.dice, rem.damage?.type].filter(Boolean).join(" ");
     resText = `Danno ${dmg || "diretto"}`;
+  } else if (rem.resolution === "concentration-save") {
+    resText = `TS concentrazione CD ${rem.dc ?? 10}`;
   }
   return `${eventText} · ${resText}`;
 }
@@ -190,6 +192,7 @@ function reminderTemplate(rem, remIndex, readOnly = false) {
   const isExpanded = expandedReminders.has(remIndex);
   const isManualSave = rem.resolution === "manual-save";
   const isManualDamage = rem.resolution === "manual-damage";
+  const isConcentrationSave = rem.resolution === "concentration-save";
   const isFixedDC = rem.dcMode === "fixed";
   const damageDice = rem.damage?.dice || "";
   const damageType = rem.damage?.type || "";
@@ -226,6 +229,7 @@ function reminderTemplate(rem, remIndex, readOnly = false) {
                 ${option("informational", rem.resolution, "Avviso informativo")}
                 ${option("manual-save", rem.resolution, "Tiro salvezza (TS)")}
                 ${option("manual-damage", rem.resolution, "Danno diretto (senza TS)")}
+                ${option("concentration-save", rem.resolution, "TS concentrazione (solo chi si concentra)")}
               </select>
             </label>
           </div>
@@ -273,6 +277,14 @@ function reminderTemplate(rem, remIndex, readOnly = false) {
             <label class="field">Condizione su fallimento TS (opzionale)
               <input type="text" maxlength="100" data-field="reminders.${remIndex}.failureCondition.condition" value="${escapeAttribute(failCondition)}" placeholder="es. Prono"${disabled(readOnly)}>
             </label>
+          ` : ""}
+          ${isConcentrationSave ? `
+            <div class="grid">
+              <label class="field">Valore CD
+                <input type="number" min="1" max="99" data-field="reminders.${remIndex}.dc" value="${escapeAttribute(rem.dc ?? 10)}"${disabled(readOnly)}>
+              </label>
+              <div class="sub-empty">Compare solo a chi mantiene la concentrazione; se il TS fallisce la concentrazione si interrompe.</div>
+            </div>
           ` : ""}
           ${isManualDamage ? `
             <div class="grid">
@@ -372,6 +384,7 @@ function auraTemplate(aura, index, { isNew = false } = {}) {
                 ${option("all", aura.targeting?.filter, "Tutti")}
                 ${option("friendly", aura.targeting?.filter, "Alleati")}
                 ${option("hostile", aura.targeting?.filter, "Ostili")}
+                ${option("pc", aura.targeting?.filter, "Personaggi (PG)")}
               </select>
             </label>
             <label class="inline targeting-include-source"><input type="checkbox" data-field="targeting.includeSource"${checked(aura.targeting?.includeSource)}${disabled(readOnly)}> Includi anche il token sorgente</label>

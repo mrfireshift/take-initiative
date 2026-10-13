@@ -3,6 +3,7 @@ import {
   SPELL_PANEL_PLACEMENT_POLICIES,
   SPELL_UNIFIED_PANEL_LANES,
 } from "./spellUnifiedPanelCore.js";
+import { normalizeMonsterActionContext } from "./monsterActionContextCore.js";
 export const SPELL_UNIFIED_PANEL_DESTINATION = "spell-unified-panel";
 
 export const SPELL_UNIFIED_PANEL_ROUTE_STATUS = Object.freeze({
@@ -94,6 +95,17 @@ export function normalizeSpellUnifiedPanelOpenRequest(request = {}) {
   );
   const passengerId = text(request.passengerId || payload.passengerId);
   const spellId = text(request.spellId || payload.spellId);
+  const casterId = text(request.casterId || payload.casterId || request.sourceId || payload.sourceId);
+  const monsterActionSource = request.monsterActionContext ?? payload.monsterActionContext;
+  const monsterActionContext = monsterActionSource === undefined || monsterActionSource === null
+    ? null
+    : normalizeMonsterActionContext(
+      typeof monsterActionSource === "string" ? parseJson(monsterActionSource) : monsterActionSource,
+      { casterId, spellId },
+    );
+  if (monsterActionSource != null && !monsterActionContext) {
+    throw new Error("monster-action-context-invalid");
+  }
   return {
     intent: text(request.intent || payload.intent) || "spell",
     sourceId: text(request.sourceId || payload.sourceId || request.source),
@@ -103,7 +115,8 @@ export function normalizeSpellUnifiedPanelOpenRequest(request = {}) {
     activeInstanceId: text(request.activeInstanceId || payload.activeInstanceId),
     activeActionId: text(request.activeActionId || payload.activeActionId),
     quickActionId,
-    casterId: text(request.casterId || payload.casterId || request.sourceId || payload.sourceId),
+    casterId,
+    ...(monsterActionContext ? { monsterActionContext } : {}),
     passengerId,
     slotLevel: integerOrNull(request.slotLevel ?? payload.slotLevel),
     variant: text(request.variant || payload.variant || request.choiceValue || payload.choiceValue),
@@ -198,6 +211,7 @@ export function routeSpellUnifiedPanelOpenRequest(
       spellId: normalized.spellId,
       phase: normalized.phase,
       casterId: normalized.casterId,
+      ...(normalized.monsterActionContext ? { monsterActionContext: normalized.monsterActionContext } : {}),
       slotLevel: normalized.slotLevel,
       variant: normalized.variant,
       durationTurns: normalized.durationTurns,
@@ -318,6 +332,9 @@ export function buildSpellUnifiedPanelRouteQuery(request = {}) {
   }
   if (normalized.placement) query.set("placement", JSON.stringify(normalized.placement));
   if (normalized.zoneTrigger) query.set("zoneTrigger", JSON.stringify(normalized.zoneTrigger));
+  if (normalized.monsterActionContext) {
+    query.set("monsterActionContext", JSON.stringify(normalized.monsterActionContext));
+  }
   return query;
 }
 

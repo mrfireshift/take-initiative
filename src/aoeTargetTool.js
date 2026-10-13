@@ -6,6 +6,7 @@ import {
   areaHitsBounds,
   buildArea,
   buildCellBoundaryLoops,
+  buildFootprintEmanationArea,
   nearestGridSnap,
 } from "./aoeGeometryCore.js";
 import {
@@ -33,6 +34,7 @@ import {
   spellAreaOriginWithinRange,
 } from "./spellAreaPlacementCore.js";
 import {
+  BOSS_ACTION_AREA_SPELL_ID,
   getSpellAreaRuleById,
   getSpellAreaRuleForPlacement,
 } from "./spellAreaRules.js";
@@ -76,6 +78,16 @@ const SPELL_PLACEMENT_CANCEL_ACTION_ID = `${ID}/spell-area-cancel`;
 const SPELL_MOVEMENT_CONFIRM_ACTION_ID = `${ID}/spell-zone-move-confirm`;
 const SPELL_MOVEMENT_CANCEL_ACTION_ID = `${ID}/spell-zone-move-cancel`;
 let activeDrag = null;
+// The extra-damage circle of a batch; the frost theme uses a deep ice core instead of orange.
+const AREA_BATCH_INNER_STYLES = Object.freeze({
+  default: Object.freeze({ fillColor: "#f97316", strokeColor: "#f97316", fillOpacity: 0.38 }),
+  frost: Object.freeze({ fillColor: "#1e3a8a", strokeColor: "#bfdbfe", fillOpacity: 0.45 }),
+});
+
+// Only a Boss Action area may request a theme (the console sends it, e.g. frost for Auril).
+function requestedAreaTheme(state) {
+  return state?.rule?.spellId === BOSS_ACTION_AREA_SPELL_ID ? String(state?.context?.areaTheme || "") : "";
+}
 let spellPlacementSession = null;
 let spellMovementSession = null;
 const spellPlacementStartingRequests = new Set();
@@ -176,10 +188,153 @@ function currentBatchObject(runtime) {
   return objects[index] || null;
 }
 
+// A line laid on two given points (Strappare la Cucitura on the seam): the pointer never moves it.
+// Only a line placement whose context carries presetLine uses it; every other placement is unchanged.
+function normalizedPresetLine(context, rule) {
+  const start = point(context?.presetLine?.start);
+  const end = point(context?.presetLine?.end);
+  if (rule?.geometry?.shape !== "line" || !start || !end || (start.x === end.x && start.y === end.y)) return null;
+  return { start, end };
+}
+
+// A confirmed shape kept on the map as a plain area (Cucitura del Non-Luogo): the requester names the item,
+// so it can remove exactly that drawing later. Only a placement whose context carries keepOnMap uses it.
+function normalizedKeepOnMap(context) {
+  const id = String(context?.keepOnMap?.id || "").trim();
+  const metadata = context?.keepOnMap?.metadata;
+  if (!/^[A-Za-z0-9:_-]{8,120}$/.test(id) || !metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  return { id, name: String(context.keepOnMap.name || "Area").slice(0, 80), metadata };
+}
+
+// Several shapes of one rule drawn before a single confirmation (e.g. Meteor Swarm).
+// Only a placement whose context carries areaBatch uses it; every other placement is unchanged.
+function normalizedAreaBatch(context, rule) {
+  const count = Math.round(Number(context?.areaBatch?.count));
+  if (!(count >= 2 && count <= 12) || isBoardTokenPlacement(rule) || isPointPlacement(rule)) return null;
+  return {
+    count,
+    minDistanceFeet: Math.max(0, Number(context.areaBatch.minDistanceFeet) || 0),
+    innerRadiusFeet: Math.max(0, Number(context.areaBatch.innerRadiusFeet) || 0),
+    shapes: [],
+  };
+}
+
+function gridFeetPerCell(multiplier, unit) {
+  const value = Number(multiplier);
+  const normalized = String(unit || "").trim().toLowerCase();
+  if (!(value > 0)) return null;
+  if (["ft", "feet", "piedi"].includes(normalized)) return value;
+  if (normalized === "m") return (value / 1.5) * 5;
+  return null;
+}
+
+// Index of the fixed shape whose origin is closer than minDistanceFeet, or -1.
+function areaBatchTooClose(areaBatch, state) {
+  const feetPerCell = gridFeetPerCell(state?.multiplier, state?.unit);
+  if (!(areaBatch?.minDistanceFeet > 0) || !feetPerCell || !(state?.dpi > 0) || !state?.start) return -1;
+  return areaBatch.shapes.findIndex((shape) => (
+    Math.hypot(shape.start.x - state.start.x, shape.start.y - state.start.y) / state.dpi * feetPerCell
+  ) < areaBatch.minDistanceFeet);
+}
+
+// The handle of a fixed shape is its inner circle (without one, one cell around the origin):
+// inner circles never overlap, so a pointer picks at most one shape. Index or -1.
+function areaBatchShapeAt(areaBatch, pointer) {
+  let found = -1;
+  let nearest = Infinity;
+  areaBatch?.shapes.forEach((shape, index) => {
+    const handleFeet = Math.max(areaBatch.innerRadiusFeet, shape.feetPerCell || 0);
+    const distanceFeet = Math.hypot(shape.start.x - pointer.x, shape.start.y - pointer.y) / shape.dpi * (shape.feetPerCell || 0);
+    if (shape.feetPerCell && distanceFeet <= handleFeet && distanceFeet < nearest) {
+      found = index;
+      nearest = distanceFeet;
+    }
+  });
+  return found;
+}
+
+function freeAreaBatchOrdinal(areaBatch) {
+  for (let ordinal = 1; ordinal <= areaBatch.count; ordinal += 1) {
+    if (!areaBatch.shapes.some((shape) => shape.ordinal === ordinal)) return ordinal;
+  }
+  return 0;
+}
+
+// The extra-damage circle around the origin, on the same cells the hit test uses.
+function areaBatchInnerArea(state) {
+  const innerRadiusFeet = spellPlacementSession?.areaBatch?.innerRadiusFeet;
+  const feetPerCell = gridFeetPerCell(state?.multiplier, state?.unit);
+  if (!(innerRadiusFeet > 0) || !feetPerCell || !state?.start) return null;
+  const radius = (innerRadiusFeet / feetPerCell) * state.dpi;
+  return buildArea("circle", state.start, { x: state.start.x + radius, y: state.start.y }, state.dpi, state.gridOrigin);
+}
+
+function releaseAreaBatchShape(runtime, shape) {
+  if (!shape?.interaction) return;
+  shape.interaction[1]?.();
+  runtime.previewInteractions = (runtime.previewInteractions || []).filter((entry) => entry !== shape.interaction);
+}
+
+// A released shape stays on the map with its number; dragging its inner circle moves it again.
+async function fixAreaBatchShape(state, area) {
+  const runtime = spellPlacementSession;
+  const areaBatch = runtime?.areaBatch;
+  if (!areaBatch || areaBatch.shapes.length >= areaBatch.count) return;
+  const close = areaBatchTooClose(areaBatch, state);
+  if (close >= 0) {
+    // It stays the active shape: the next drag replaces it and the confirmation refuses it.
+    state.finishing = false;
+    await OBR.notification.show(
+      `Troppo vicina all'esplosione ${areaBatch.shapes[close].ordinal}: i centri devono distare almeno ${formatMeasure(areaBatch.minDistanceFeet)} ft. Ridisegnala.`,
+      "WARNING",
+    );
+    return;
+  }
+  const ordinal = areaBatch.shapes.some((shape) => shape.ordinal === state.batchOrdinal)
+    ? freeAreaBatchOrdinal(areaBatch)
+    : state.batchOrdinal || freeAreaBatchOrdinal(areaBatch);
+  const shape = {
+    ordinal,
+    type: state.type,
+    start: point(state.start),
+    end: point(state.end),
+    dpi: state.dpi,
+    feetPerCell: gridFeetPerCell(state.multiplier, state.unit),
+    gridOrigin: point(state.gridOrigin),
+    area,
+    interaction: state.interaction,
+  };
+  areaBatch.shapes.push(shape);
+  areaBatch.shapes.sort((a, b) => a.ordinal - b.ordinal);
+  if (state.interaction) runtime.previewInteractions.push(state.interaction);
+  state.interaction = null;
+  activeDrag = null;
+  shape.interaction?.[0]?.((items) => {
+    if (items[2]?.text) items[2].text.plainText = `${ordinal}/${areaBatch.count}`;
+  });
+  runtime.session = reviewSpellAreaPlacement(runtime.session, {
+    type: shape.type,
+    start: shape.start,
+    end: shape.end,
+    ...(area.type === "circle" ? { radius: area.radius } : {}),
+    dpi: shape.dpi,
+    gridOrigin: shape.gridOrigin,
+    targetIds: [],
+  });
+  await sendSpellPlacementProgress(runtime);
+  if (areaBatch.shapes.length === areaBatch.count) {
+    await OBR.notification.show(
+      `Tutte le ${areaBatch.count} esplosioni sono sulla mappa: conferma, oppure trascina il centro di una per spostarla.`,
+      "INFO",
+    );
+  }
+}
+
 async function sendSpellPlacementProgress(runtime) {
   const batch = runtime?.batch;
+  const areaBatch = runtime?.areaBatch;
   const anchoredPreview = runtime?.context?.autoConfirmAnchor === true;
-  if (!batch?.objects?.length && !anchoredPreview) return;
+  if (!batch?.objects?.length && !anchoredPreview && !areaBatch) return;
   const placed = batch?.positions?.length || 0;
   const next = currentBatchObject(runtime);
   await OBR.broadcast.sendMessage(
@@ -193,9 +348,13 @@ async function sendSpellPlacementProgress(runtime) {
       status: "placing",
       context: runtime.context,
       preview: runtime.session.preview,
-      batchIndex: placed,
-      batchTotal: batch?.objects?.length || 0,
-      message: anchoredPreview
+      batchIndex: areaBatch ? areaBatch.shapes.length : placed,
+      batchTotal: areaBatch ? areaBatch.count : batch?.objects?.length || 0,
+      message: areaBatch
+        ? areaBatch.shapes.length < areaBatch.count
+          ? `Esplosioni sulla mappa: ${areaBatch.shapes.length}/${areaBatch.count}. Disegna la successiva.`
+          : `Tutte le ${areaBatch.count} esplosioni sono sulla mappa: conferma.`
+        : anchoredPreview
         ? "Area ancorata al bersaglio dell'attacco."
         : next
           ? `Posiziona ${next.label.toLocaleLowerCase("it")} (${placed + 1}/${batch.objects.length}).`
@@ -424,6 +583,8 @@ async function beginSpellPlacement(data) {
           positions: [],
         }
         : null,
+      areaBatch: normalizedAreaBatch(data?.context, rule),
+      presetLine: normalizedPresetLine(data?.context, rule),
       previewInteractions: [],
     };
     spellPlacementSession = runtime;
@@ -461,6 +622,10 @@ async function beginSpellPlacement(data) {
       // selected token supplies the origin and the live preview is prepared
       // without activating the interactive placement tool.
       startDrag(rule.geometry.shape, { pointerPosition: anchorBounds.center });
+    } else if (runtime.presetLine) {
+      // The line is already on its two points: the GM only reviews and confirms it.
+      startDrag(rule.geometry.shape, { pointerPosition: runtime.presetLine.end });
+      if (activeDrag?.presetLine) activeDrag.ended = true;
     }
   } catch (error) {
     if (spellPlacementSession !== runtime) return;
@@ -586,6 +751,9 @@ function geometryCommands(area) {
   if (area?.clippedToParent || area?.ring || area?.areaRole === "side-band") {
     return boundaryCommands(area.cells);
   }
+  if (area?.type === "circle" && (area.footprint?.halfWidth > 0 || area.footprint?.halfHeight > 0)) {
+    return footprintEmanationCommands(area);
+  }
   if (area?.type === "circle") {
     const { x, y } = area.origin;
     const radius = area.radius;
@@ -606,6 +774,34 @@ function geometryCommands(area) {
   }
   commands.push([Command.CLOSE]);
   return commands;
+}
+
+// Boss Action emanations (Blinding Gleam, Divine Brilliance): centred on the boss token, which may be large.
+function isBossEmanation(state) {
+  return state?.rule?.spellId === BOSS_ACTION_AREA_SPELL_ID
+    && state.rule.placement?.origin === "caster"
+    && state.type === "circle"
+    && !!state.casterBounds;
+}
+
+// The outline of an emanation from a large token: the rectangle through its edge-cell centres grown by
+// the radius, with rounded corners.
+function footprintEmanationCommands(area) {
+  const { x: cx, y: cy } = area.origin;
+  const x = area.footprint.halfWidth, y = area.footprint.halfHeight, r = area.radius;
+  const k = r * 0.5522847498;
+  return [
+    [Command.MOVE, cx + x + r, cy - y],
+    [Command.LINE, cx + x + r, cy + y],
+    [Command.CUBIC, cx + x + r, cy + y + k, cx + x + k, cy + y + r, cx + x, cy + y + r],
+    [Command.LINE, cx - x, cy + y + r],
+    [Command.CUBIC, cx - x - k, cy + y + r, cx - x - r, cy + y + k, cx - x - r, cy + y],
+    [Command.LINE, cx - x - r, cy - y],
+    [Command.CUBIC, cx - x - r, cy - y - k, cx - x - k, cy - y - r, cx - x, cy - y - r],
+    [Command.LINE, cx + x, cy - y - r],
+    [Command.CUBIC, cx + x + k, cy - y - r, cx + x + r, cy - y - k, cx + x + r, cy - y],
+    [Command.CLOSE],
+  ];
 }
 
 function spellAreaGeometryOptions(rule, state = {}) {
@@ -840,6 +1036,9 @@ function renderDrag(state) {
         state.start = bounds.start;
         state.end = bounds.end;
       }
+    } else if (state.presetLine) {
+      state.start = state.presetLine.start;
+      state.end = state.presetLine.end;
     } else {
       state.end = constrainedSpellAreaEnd({
         shape: state.type,
@@ -847,6 +1046,7 @@ function renderDrag(state) {
         pointer: state.rawEnd,
         dpi: state.dpi,
         sizeCells: state.sizeCells,
+        upTo: state.rule?.geometry?.lengthUpTo === true,
       });
     }
   }
@@ -860,6 +1060,11 @@ function renderDrag(state) {
       ...spellAreaGeometryOptions(state.rule, state),
     },
   );
+  // A Boss Action emanation radiates from the cells the boss token occupies, not from its centre
+  // (same rule as the custom auras); a 1x1 token keeps exactly the circle above.
+  if (isBossEmanation(state)) {
+    area = buildFootprintEmanationArea(state.start, gridFootprintCells(state.casterBounds, state.dpi), state.sizeCells, state.dpi, state.gridOrigin);
+  }
   if (state.context?.childKind === "fissure") {
     area = clipChildZoneAreaToParent({
       parentArea: state.parentArea,
@@ -871,10 +1076,12 @@ function renderDrag(state) {
     });
   }
   state.area = area;
+  const innerArea = state.spellPlacementRequestId && spellPlacementSession?.areaBatch?.innerRadiusFeet > 0 ? areaBatchInnerArea(state) : null;
   const [update] = state.interaction;
   update((items) => {
     if (items[0]) items[0].commands = boundaryCommands(area.cells);
     if (items[1]) items[1].commands = geometryCommands(area);
+    if (items[3] && innerArea) items[3].commands = boundaryCommands(innerArea.cells);
     if (items[2]) {
       const worldDistance = area.squares * state.multiplier;
       items[2].text.plainText = state.measureLabel
@@ -1073,7 +1280,8 @@ async function prepareDrag(state) {
           state.end = bounds.end;
         }
       }
-      state.measureLabel = `${formatMeasure(state.rule.geometry.size.value)} m`;
+      // A line up to its size shows the length actually drawn.
+      state.measureLabel = state.rule.geometry.lengthUpTo === true ? "" : `${formatMeasure(state.rule.geometry.size.value)} m`;
       if (
         state.rule.placement.origin === "caster-adjacent"
         && !spellAreaOriginAdjacentToCaster({
@@ -1114,7 +1322,7 @@ async function prepareDrag(state) {
       return;
     }
     state.style = state.spellPlacementRequestId
-      ? spellAreaStyle(state.rule?.spellId, currentStyle)
+      ? spellAreaStyle(state.rule?.spellId, currentStyle, requestedAreaTheme(state))
       : { ...currentStyle };
     if (boardTokenPlacement) {
       const { buildSpellBoardTokenItem } = await import("./spellBoardToken.js");
@@ -1145,10 +1353,17 @@ async function prepareDrag(state) {
       return;
     }
     const outlineWidth = Math.max(2, state.dpi * 0.035 * state.style.strokeWidth);
+    const innerPreview = state.spellPlacementRequestId
+      && spellPlacementSession?.session?.requestId === state.spellPlacementRequestId
+      && spellPlacementSession.areaBatch?.innerRadiusFeet > 0;
     state.interaction = await OBR.interaction.startItemInteraction([
       previewPath("Area sagomata", state.style.fillOpacity, 0.95, outlineWidth, state.style.fillColor, state.style.strokeColor),
       previewPath("Sagoma geometrica", 0, 0.9, Math.max(2, outlineWidth * 0.72), state.style.fillColor, state.style.strokeColor),
       radiusLabel(state.dpi),
+      ...(innerPreview
+        ? [(({ fillColor, strokeColor, fillOpacity }) => previewPath("Centro del danno extra", fillOpacity, 1, Math.max(3, outlineWidth * 1.4), fillColor, strokeColor))(
+          AREA_BATCH_INNER_STYLES[requestedAreaTheme(state)] || AREA_BATCH_INNER_STYLES.default)]
+        : []),
     ]);
     if (activeDrag !== state || state.cancelled) {
       state.interaction[1]();
@@ -1243,20 +1458,23 @@ function persistentAreaMetadata(state) {
   };
 }
 
-async function persistArea(state, area) {
-  const metadata = persistentAreaMetadata(state);
+async function persistArea(state, area, keep = null) {
+  // A kept area (keepOnMap) keeps the requester's id, name, metadata and themed style.
+  const metadata = { ...persistentAreaMetadata(state), ...(keep ? { fixedStyle: true } : {}) };
   const outlineWidth = Math.max(2, state.dpi * 0.035 * state.style.strokeWidth);
-  const fill = previewPath("Area sagomata", state.style.fillOpacity, 0.95, outlineWidth, state.style.fillColor, state.style.strokeColor);
+  const fill = previewPath(keep?.name || "Area sagomata", state.style.fillOpacity, 0.95, outlineWidth, state.style.fillColor, state.style.strokeColor);
+  if (keep) fill.id = keep.id;
   fill.locked = false;
   fill.disableHit = false;
   fill.commands = boundaryCommands(area.cells);
   fill.position = { x: 0, y: 0 };
-  fill.metadata = { [AREA_META_KEY]: metadata };
+  fill.metadata = { ...(keep ? keep.metadata : {}), [AREA_META_KEY]: metadata };
   const geometry = previewPath("Sagoma geometrica", 0, 0.9, Math.max(2, outlineWidth * 0.72), state.style.fillColor, state.style.strokeColor);
+  if (keep) geometry.id = `${keep.id}-geometry`;
   geometry.commands = geometryCommands(area);
   geometry.position = { x: 0, y: 0 };
   geometry.attachedTo = fill.id;
-  geometry.metadata = { [AREA_META_KEY]: { parentId: fill.id, dpi: state.dpi, visual: "geometry" } };
+  geometry.metadata = { ...(keep ? keep.metadata : {}), [AREA_META_KEY]: { parentId: fill.id, dpi: state.dpi, visual: "geometry", ...(keep ? { fixedStyle: true } : {}) } };
   await OBR.scene.items.addItems([fill, geometry]);
   areaTransforms.set(fill.id, { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 });
 }
@@ -1288,7 +1506,7 @@ async function applyStyleToExistingAreas(style) {
   await OBR.scene.items.updateItems(
     (item) => {
       const metadata = item?.metadata?.[AREA_META_KEY];
-      return !!metadata?.type || !!metadata?.parentId;
+      return (!!metadata?.type || !!metadata?.parentId) && metadata?.fixedStyle !== true;
     },
     (items) => {
       for (const item of items) {
@@ -1546,6 +1764,10 @@ async function finishDrag(state) {
       await sendSpellPlacementProgress(spellPlacementSession);
       return;
     }
+    if (spellPlacementSession.areaBatch) {
+      await fixAreaBatchShape(state, area);
+      return;
+    }
     spellPlacementSession.session = reviewSpellAreaPlacement(
       spellPlacementSession.session,
       {
@@ -1615,6 +1837,24 @@ function cancelDrag() {
 }
 
 function startDrag(type, event) {
+  const areaBatch = spellMovementSession ? null : spellPlacementSession?.areaBatch;
+  let batchOrdinal = 0;
+  if (areaBatch) {
+    const batchPointer = point(event?.pointerPosition);
+    const grabbed = batchPointer ? areaBatchShapeAt(areaBatch, batchPointer) : -1;
+    if (grabbed >= 0) {
+      // Dragging the inner circle of a fixed shape moves that shape, which keeps its number.
+      const [shape] = areaBatch.shapes.splice(grabbed, 1);
+      releaseAreaBatchShape(spellPlacementSession, shape);
+      batchOrdinal = shape.ordinal;
+    } else if (areaBatch.shapes.length >= areaBatch.count) {
+      void OBR.notification.show(
+        `Le ${areaBatch.count} esplosioni sono tutte sulla mappa: trascina il centro di una per spostarla, oppure conferma.`,
+        "INFO",
+      );
+      return;
+    }
+  }
   cancelDrag();
   const pointer = point(event?.pointerPosition);
   if (!pointer) return;
@@ -1638,7 +1878,9 @@ function startDrag(type, event) {
   const placement = spellPlacementSession;
   const constrained = !!placement;
   const effectiveType = constrained ? placement.rule.geometry.shape : type;
-  const rawStart = constrained && placement.anchorOrigin
+  const rawStart = constrained && placement.presetLine
+    ? placement.presetLine.start
+    : constrained && placement.anchorOrigin
     ? placement.anchorOrigin
     : constrained && placement.rule.placement.origin === "caster"
       ? placement.casterOrigin
@@ -1683,9 +1925,11 @@ function startDrag(type, event) {
     casterOrigin: constrained ? placement.casterOrigin : null,
     casterBounds: constrained ? placement.casterBounds : null,
     anchorOrigin: constrained ? placement.anchorOrigin : null,
+    presetLine: constrained ? placement.presetLine || null : null,
     sizeCells: 0,
     widthCells: 0,
     measureLabel: "",
+    ...(batchOrdinal ? { batchOrdinal } : {}),
   };
   activeDrag = state;
   void prepareDrag(state);
@@ -1693,7 +1937,7 @@ function startDrag(type, event) {
 
 function moveDrag(event) {
   const pointer = point(event?.pointerPosition);
-  if (!activeDrag || !pointer) return;
+  if (!activeDrag || !pointer || activeDrag.presetLine) return;
   activeDrag.rawEnd = pointer;
   activeDrag.end = pointer;
   if (activeDrag.movement) renderMovementDrag(activeDrag);
@@ -1704,7 +1948,7 @@ function moveDrag(event) {
 function endDrag(event) {
   const state = activeDrag;
   if (!state) return;
-  const pointer = point(event?.pointerPosition);
+  const pointer = state.presetLine ? null : point(event?.pointerPosition);
   state.rawEnd = pointer || state.rawEnd;
   state.end = pointer || state.end;
   state.ended = true;
@@ -1747,6 +1991,42 @@ async function confirmSpellPlacement() {
       await OBR.notification.show("Scegli prima la casella del token.", "WARNING");
       return;
     }
+    await closeSpellPlacement("confirmed");
+    return;
+  }
+  if (runtime?.areaBatch) {
+    const areaBatch = runtime.areaBatch;
+    if (areaBatch.shapes.length !== areaBatch.count) {
+      await OBR.notification.show(
+        `Posiziona tutte le sagome prima di confermare (${areaBatch.shapes.length}/${areaBatch.count}).`,
+        "WARNING",
+      );
+      return;
+    }
+    const areas = [];
+    for (const shape of areaBatch.shapes) {
+      const hitTargetIds = await findHitTargetIds(shape.area, runtime.rule);
+      if (spellPlacementSession !== runtime) return;
+      areas.push({
+        start: shape.start,
+        end: shape.end,
+        ...(shape.area.type === "circle" ? { radius: shape.area.radius } : {}),
+        targetIds: runtime.rule.targeting.includeCaster
+          ? hitTargetIds
+          : hitTargetIds.filter((id) => id !== runtime.session.casterId),
+      });
+    }
+    const [first] = areaBatch.shapes;
+    runtime.session = reviewSpellAreaPlacement(runtime.session, {
+      type: first.type,
+      start: first.start,
+      end: first.end,
+      ...(first.area.type === "circle" ? { radius: first.area.radius } : {}),
+      dpi: first.dpi,
+      gridOrigin: first.gridOrigin,
+      targetIds: areas.flatMap((entry) => entry.targetIds),
+      areas,
+    });
     await closeSpellPlacement("confirmed");
     return;
   }
@@ -1822,6 +2102,16 @@ async function confirmSpellPlacement() {
       : {}),
     targetIds,
   });
+  const keep = normalizedKeepOnMap(runtime.context);
+  if (keep) {
+    try {
+      await persistArea(state, area, keep);
+    } catch (error) {
+      console.warn("[aoe-target] keep area error:", error?.message || error);
+      await OBR.notification.show("La sagoma confermata non è rimasta sulla mappa.", "WARNING");
+    }
+    if (spellPlacementSession !== runtime) return;
+  }
   await closeSpellPlacement("confirmed");
 }
 

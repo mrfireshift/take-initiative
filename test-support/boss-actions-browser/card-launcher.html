@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boss launcher preview</title>
+<style>
+  body { margin: 0; padding: 40px 60px; background: #111318; font-family: system-ui, sans-serif; color: #f1efe8; display: grid; gap: 34px; }
+  .card { position: relative; width: 420px; height: 96px; border-radius: 16px; background: linear-gradient(180deg, #4a1d24, #2a1418); border: 1px solid #7a2e35; }
+  .avatar { position: absolute; left: -28px; top: -6px; width: 104px; height: 104px; border-radius: 50%; background: #5b5048; border: 6px solid #5a2328; }
+  .pill { position: absolute; left: 110px; top: -12px; background: red; color: #fff; font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 999px; border: 1px solid #000; }
+  .name { position: absolute; left: 130px; top: 26px; font-size: 20px; font-weight: 700; }
+  .hp { position: absolute; left: 130px; top: 54px; font-size: 14px; }
+  .bar { position: absolute; left: 130px; right: 80px; bottom: 14px; height: 6px; border-radius: 4px; background: #16a34a; }
+  .init { position: absolute; right: 16px; top: 26px; width: 44px; height: 44px; border-radius: 50%; border: 2px solid #ef4444; display: grid; place-items: center; font-size: 20px; font-weight: 700; }
+  .caption { font-size: 12px; color: #9ca3af; margin: 0 0 -26px; }
+</style>
+</head>
+<body>
+<script type="module">
+  // Real helper on a mock Epic Boss card: bound, unbound, and beside the quick-actions toggle.
+  import { buildBossActionsLauncher, buildTrackerQuickActionLauncher } from "/src/trackerQuickActions.js";
+  const variants = [
+    ["Profilo collegato", { bound: true }],
+    ["Boss Epico senza profilo", { bound: false }],
+    ["Con azioni rapide (non capita per gli Epic Boss)", { bound: true, quick: true }],
+  ];
+  for (const [caption, options] of variants) {
+    document.body.insertAdjacentHTML("beforeend", `<p class="caption">${caption}</p>`);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = '<div class="avatar"></div><span class="pill">Boss Epico</span><span class="name">Zombie Clot</span><span class="hp">HP 251/251</span><div class="bar"></div><div class="init">20</div>';
+    const quick = options.quick ? buildTrackerQuickActionLauncher({ actions: [{ id: "a", label: "Scudo", kind: "spell", spellId: "shield-of-faith", workflow: "spell", targetMode: "selection" }] }) : null;
+    if (quick) card.appendChild(quick);
+    const launcher = buildBossActionsLauncher({ bound: options.bound, offset: quick ? 1 : 0, iconUrl: "/boss.svg", onOpen: () => { document.title = "OPENED " + caption; } });
+    launcher.dataset.variant = caption;
+    card.appendChild(launcher);
+    document.body.appendChild(card);
+  }
+  document.body.dataset.ready = "1";
+</script>
+</body>
+</html>

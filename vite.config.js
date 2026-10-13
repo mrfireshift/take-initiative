@@ -35,6 +35,7 @@ export default defineConfig(() => {
     rollupOptions: {
       // 👇 usa percorsi ASSOLUTI (Windows-friendly)
       input: {
+        bossActions: path.resolve(process.cwd(), "boss-actions.html"),
         main:    path.resolve(process.cwd(), "index.html"),
         actionLauncher: path.resolve(process.cwd(), "action-launcher.html"),
         background: path.resolve(process.cwd(), "background.html"),

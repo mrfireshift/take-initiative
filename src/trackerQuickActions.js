@@ -90,3 +90,76 @@ export function buildTrackerQuickActionLauncher({
   container.__quickActionToggle = toggle;
   return container;
 }
+
+// Boss Actions entry on an Epic Boss card: the same round control as the quick-actions toggle, red like
+// the "Boss Epico" pill. Without a bound profile it is dimmed and still opens the console (to bind one).
+// offset moves it one slot aside when the card also shows the quick-actions toggle.
+export function buildBossActionsLauncher({
+  bound = false,
+  compact = false,
+  offset = 0,
+  iconUrl = "",
+  onOpen = () => {},
+  documentRef = globalThis.document,
+} = {}) {
+  if (!documentRef) return null;
+  const button = documentRef.createElement("button");
+  button.type = "button";
+  button.title = bound ? "Boss Actions" : "Boss Actions: collega un profilo";
+  button.setAttribute("aria-label", button.title);
+  button.dataset.cardSelectionIgnore = "1";
+  button.dataset.bossActionsLauncher = bound ? "bound" : "unbound";
+  const step = Math.max(0, Number(offset) || 0) * (QUICK_ACTION_BUTTON_SIZE + 4);
+  Object.assign(button.style, {
+    position: "absolute",
+    left: compact ? "auto" : `${CLASSIC_QUICK_ACTION_LEFT + step}px`,
+    right: compact ? `${18 + step}px` : "auto",
+    top: compact ? "35px" : "2px",
+    zIndex: "12",
+    pointerEvents: "auto",
+    boxSizing: "border-box",
+    minWidth: `${QUICK_ACTION_BUTTON_SIZE}px`,
+    width: `${QUICK_ACTION_BUTTON_SIZE}px`,
+    height: `${QUICK_ACTION_BUTTON_SIZE}px`,
+    padding: "0",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: `2px solid ${bound ? "#f87171" : "rgba(248,113,113,.45)"}`,
+    borderRadius: "50%",
+    background: "linear-gradient(180deg,rgba(51,65,85,.98),rgba(15,23,42,.98))",
+    color: bound ? "#fecaca" : "rgba(254,202,202,.5)",
+    fontSize: "11px",
+    lineHeight: "1",
+    cursor: "pointer",
+    boxShadow: "0 2px 7px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.12)",
+  });
+  if (iconUrl) {
+    // The boss.svg outline, painted in the button colour through a mask.
+    const icon = documentRef.createElement("span");
+    icon.setAttribute("aria-hidden", "true");
+    const mask = `url("${iconUrl}") center / contain no-repeat`;
+    Object.assign(icon.style, {
+      display: "block",
+      width: "14px",
+      height: "14px",
+      backgroundColor: "currentColor",
+      mask,
+      WebkitMask: mask,
+    });
+    button.appendChild(icon);
+  } else {
+    button.textContent = "B";
+  }
+  const stopPointer = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  button.addEventListener("pointerdown", stopPointer);
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onOpen(event);
+  });
+  return button;
+}

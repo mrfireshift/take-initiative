@@ -16,9 +16,12 @@ export const DEFAULT_CUSTOM_AURA_STYLE = Object.freeze({
   strokeWidth: 1.4,
 });
 
-const TARGET_FILTERS = new Set(["all", "friendly", "hostile"]);
+// "pc": player characters only (attitude pc), e.g. a push that only the heroes resist.
+const TARGET_FILTERS = new Set(["all", "friendly", "hostile", "pc"]);
 const REMINDER_EVENTS = new Set(["turn-start", "turn-end", "enter", "leave"]);
-const REMINDER_RESOLUTIONS = new Set(["informational", "manual-save", "manual-damage", "manual-effect"]);
+// "concentration-save": a Constitution save asked only of a creature that is concentrating; a failure
+// breaks the concentration (the shared concentration warning, not a zone notice).
+const REMINDER_RESOLUTIONS = new Set(["informational", "manual-save", "manual-damage", "manual-effect", "concentration-save"]);
 const REMINDER_ABILITIES = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const REMINDER_DAMAGE_ON_SAVE = new Set(["half", "zero", "none"]);
 
@@ -74,6 +77,13 @@ export function normalizeCustomAuraReminder(
     label,
     resolution: resolution === "manual-effect" ? "manual-damage" : resolution,
   };
+
+  if (result.resolution === "concentration-save") {
+    const numDc = Number(value?.dc);
+    result.dcMode = "fixed";
+    result.dc = Number.isFinite(numDc) ? Math.max(1, Math.min(99, Math.round(numDc))) : 10;
+    return result;
+  }
 
   if (result.resolution === "manual-save") {
     const rawAbility = String(value?.ability || "dex").trim().toLowerCase();
@@ -260,9 +270,13 @@ export function customAuraRule(aura = null) {
     .filter((reminder) => reminder?.enabled === true)
     .map((reminder) => {
       const triggerId = `${aura.id}:${reminder.id}`;
+      // A concentration save never waits as a zone notice: the controller turns its activation into a
+      // concentration warning for a concentrating target (planCustomAuraReminder).
       const resolution = reminder.resolution === "manual-damage"
         ? "manual-effect"
-        : (reminder.resolution || "informational");
+        : reminder.resolution === "concentration-save"
+          ? "informational"
+          : (reminder.resolution || "informational");
       const trigger = {
         id: triggerId,
         event: reminder.event,
@@ -287,10 +301,11 @@ export function customAuraRule(aura = null) {
         };
       }
       if (reminder.failureCondition) {
-        trigger.failureCondition = { ...reminder.failureCondition };
+        // Standalone: the aura's cleanup keeps only its pills, so a condition tied to it would vanish.
+        trigger.failureCondition = { ...reminder.failureCondition, standalone: true };
         trigger.resolutionData = {
           ...(trigger.resolutionData || {}),
-          failureCondition: { ...reminder.failureCondition },
+          failureCondition: { ...reminder.failureCondition, standalone: true },
         };
       }
       return trigger;

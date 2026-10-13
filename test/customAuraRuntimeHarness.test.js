@@ -143,6 +143,7 @@ const {
   normalizeCustomAura,
   collectActiveCustomAuras,
   customAuraRule,
+  staleCustomAuraEffectRemovals,
 } = await import("../src/customAuraCore.js");
 const {
   mergeCustomAuraReminderMetadata,
@@ -321,9 +322,15 @@ test("Custom Aura runtime harness: turn-start save reaches mutation, condition, 
     assert.equal(updatedTarget.metadata[META_KEY].hp, 14);
     const prone = conditionInstances(updatedTarget).find((entry) => entry.condition === "Prono");
     assert.ok(prone, "failed save must add Prono through Effects Mutation");
-    assert.equal(prone.type, "custom-aura");
+    // A failed save leaves a standard condition, independent of the aura: tied to the aura (custom-aura
+    // type, aura parent) the aura cleanup, which keeps only the pills, removed it at the next reconcile.
+    assert.equal(prone.type, "automatic");
     assert.equal(prone.sourceId, "source");
-    assert.equal(prone.parentEffectId, "source:aura-1");
+    assert.equal(prone.parentEffectId || "", "", "not tied to the aura");
+    assert.equal(prone.manualRemoval, true);
+    assert.deepEqual(staleCustomAuraEffectRemovals([updatedTarget], {
+      activeInstanceIds: ["source:aura-1"], activeEffectKeys: new Set(), metaKey: META_KEY,
+    }), [], "the aura cleanup leaves the Prono alone");
     assert.equal(updatedVisual.metadata[CUSTOM_AURA_META_KEY].triggerRuntime.pending.length, 0);
   } finally {
     unmountEffectsMutationCoordinatorService();

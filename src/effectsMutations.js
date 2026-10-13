@@ -753,7 +753,13 @@ function applyMetadataPatchesToPlan(plan, sceneItems, metadataPatches = []) {
         conflicts.push({ itemId: id, field, reason: "current-value-mismatch" });
         continue;
       }
-      if (descriptor?.mode === "assert") continue;
+      if (descriptor?.mode === "assert") {
+        // A read precondition must survive preparation and be checked again in the
+        // SDK commit callback. It is never a mutation or an Undo/History field.
+        plan.metadataAssertions ||= [];
+        plan.metadataAssertions.push({ id, field, expected: clone(actual) });
+        continue;
+      }
       const after = descriptor?.mode === "delete"
         ? { present: false }
         : { present: true, value: clone(descriptor?.value) };
@@ -1148,7 +1154,9 @@ async function commitEffectsMutationPlan(plan, { isCurrent = null } = {}) {
   }
 
   const byId = new Map(changes.map((change) => [change.id, change]));
-  const ids = [...byId.keys()];
+  const changedIds = [...byId.keys()];
+  const assertions = Array.isArray(plan.metadataAssertions) ? plan.metadataAssertions : [];
+  const ids = uniqueIds([...changedIds, ...assertions.map(assertion => assertion.id)]);
   let writeAuthorized = false;
   try {
     if (!canCommit()) {
@@ -1165,6 +1173,14 @@ async function commitEffectsMutationPlan(plan, { isCurrent = null } = {}) {
       if (!canCommit()) return;
       const conflicts = [];
       const draftsById = new Map(drafts.map((item) => [item.id, item]));
+      for (const assertion of assertions) {
+        const item = draftsById.get(assertion.id);
+        if (!item) { conflicts.push({ itemId: assertion.id, reason: "missing-item" }); continue; }
+        const snapshot = isDraft(item) ? current(item) : item;
+        if (!metadataSnapshotMatches(metadataFieldSnapshot(snapshot.metadata?.[META_KEY], assertion.field), assertion.expected)) {
+          conflicts.push({ itemId: assertion.id, field: assertion.field });
+        }
+      }
       for (const change of changes) {
         const item = draftsById.get(change.id);
         if (!item) {
@@ -1233,9 +1249,9 @@ async function commitEffectsMutationPlan(plan, { isCurrent = null } = {}) {
     effectsDiagnostics.event("mutation:commit", {
       mutationId,
       updateCalls: 1,
-      changedItems: ids.length,
+      changedItems: changedIds.length,
     });
-    return { changedIds: ids, committed: true };
+    return { changedIds, committed: true };
   } catch (error) {
     if (error?.message === "stale-effects-plan" && !writeAuthorized) {
       return { status: EFFECTS_MUTATION_STATUS.CONFLICT, reason: "stale-effects-plan", committed: false, conflicts: error.conflicts };
@@ -3674,6 +3690,17 @@ async function recoverPendingEffects() {
   }
 }
 
+async function checkEffectsSceneMetadataPreconditions(command, isCurrent) {
+  const entries=Array.isArray(command?.sceneMetadataPreconditions) ? command.sceneMetadataPreconditions : [];
+  if(!entries.length) return null;
+  const metadata=await OBR.scene.getMetadata();
+  if(!isCurrent()) return {status:EFFECTS_MUTATION_STATUS.REJECTED};
+  const conflicts=entries.filter(entry=>{
+    const actual=metadata?.[entry?.key];
+    return !sameValue(entry?.field ? actual?.[entry.field] : actual,entry?.value);
+  }).map(entry=>({key:entry?.key || null,...(entry?.field?{field:entry.field}:{}),reason:"scene-metadata-mismatch"}));
+  return conflicts.length ? {status:EFFECTS_MUTATION_STATUS.CONFLICT,conflicts,committed:false,changedIds:[]} : null;
+}
 async function commitCoordinatedEffectsPlan(plan, { isCurrent, command = {} }) {
   if (!isCurrent()) {
     return {
@@ -3690,6 +3717,12 @@ async function commitCoordinatedEffectsPlan(plan, { isCurrent, command = {} }) {
   const recoveryRecord = recovery && supportsEffectsRecovery(command, plan)
     ? await recovery.prepare(command, plan, recoverySideEffectHistory(plan.preparedSideEffects || []), isCurrent)
     : null;
+  // Scene metadata and items are separate SDK writes: recheck immediately before item commit.
+  const preconditionFailure=await checkEffectsSceneMetadataPreconditions(command,isCurrent);
+  if(preconditionFailure) {
+    if(recoveryRecord && isCurrent()) await recovery.abandon(recoveryRecord,isCurrent);
+    return preconditionFailure;
+  }
   const effectsCommit = await commitEffectsMutationPlan(plan, { isCurrent });
   if ([EFFECTS_MUTATION_STATUS.CONFLICT, EFFECTS_MUTATION_STATUS.REJECTED].includes(effectsCommit?.status)) {
     if (recoveryRecord && isCurrent()) await recovery.abandon(recoveryRecord, isCurrent);
@@ -3723,17 +3756,8 @@ function createBackgroundEffectsMutationCoordinator() {
   return createEffectsMutationCoordinator({
   beforeCommand: (command, isCurrent) => effectsRecovery?.beforeCommand(command, isCurrent),
   prepare: async (operations, context) => {
-    const preconditions = Array.isArray(context.command?.sceneMetadataPreconditions)
-      ? context.command.sceneMetadataPreconditions
-      : [];
-    if (preconditions.length) {
-      const metadata = await OBR.scene.getMetadata();
-      if (!context.isCurrent()) return { status: EFFECTS_MUTATION_STATUS.REJECTED };
-      const conflicts = preconditions
-        .filter((entry) => !sameValue(metadata?.[entry?.key], entry?.value))
-        .map((entry) => ({ key: entry?.key || null, reason: "scene-metadata-mismatch" }));
-      if (conflicts.length) return { status: EFFECTS_MUTATION_STATUS.CONFLICT, conflicts };
-    }
+    const preconditionFailure=await checkEffectsSceneMetadataPreconditions(context.command,context.isCurrent);
+    if(preconditionFailure) return preconditionFailure;
     const plan = await prepareEffectsMutation(operations, context);
     if (plan?.status) return plan;
     if (context.command?.requireChanges === true && !plan.changedIds?.length) {
