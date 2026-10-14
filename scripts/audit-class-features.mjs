@@ -159,6 +159,66 @@ const CUSTOM_ADAPTERS = new Set([
   "bardic-inspiration",
 ]);
 
+// Primitive runtime con cui un batch può implementare una capacità. `available`
+// indica se basta un override in runtime-feature-overrides.json; le altre
+// richiedono codice condiviso prima di poter essere usate dai dati.
+const BACKLOG_PRIMITIVES = Object.freeze({
+  "reference-only": { label: "Carta descrittiva", available: true },
+  "resource-only": { label: "Consumo risorsa", available: true },
+  condition: { label: "Pill con durata", available: true },
+  "condition-choice": { label: "Pill con esito scelto dal GM (choiceOptions)", available: true },
+  aura: { label: "Aura dinamica", available: true },
+  "custom-adapter": { label: "Adapter dedicato esistente", available: true },
+  "value-input": { label: "Valore numerico inserito dal GM (cura/PF temporanei)", available: false },
+  "linked-token": { label: "Compagno o evocazione su token esistente", available: false },
+  transformation: { label: "Trasformazione", available: false },
+  "spell-bridge": { label: "Ponte verso il sistema Incantesimi", available: false },
+});
+
+const BACKLOG_ARCHETYPES = Object.freeze({
+  reference: { label: "Descrittiva / passiva", primitive: "reference-only" },
+  "instant-reminder": { label: "Reazione o effetto istantaneo da ricordare", primitive: "reference-only" },
+  movement: { label: "Movimento / teletrasporto", primitive: "reference-only" },
+  "resource-only": { label: "Solo consumo risorsa", primitive: "resource-only" },
+  "timed-condition": { label: "Buff o marker con durata", primitive: "condition" },
+  "save-outcome-condition": { label: "Condizione dopo tiro salvezza", primitive: "condition-choice" },
+  aura: { label: "Aura", primitive: "aura" },
+  "hp-change": { label: "Cura o PF temporanei", primitive: "value-input" },
+  "companion-summon": { label: "Compagno / evocazione", primitive: "linked-token" },
+  transformation: { label: "Trasformazione", primitive: "transformation" },
+  "spell-bridge": { label: "Lancio o slot tramite capacità", primitive: "spell-bridge" },
+  "custom-adapter": { label: "Adapter dedicato", primitive: "custom-adapter" },
+});
+
+const PASSIVE_ACTIVATIONS = new Set([
+  "passiva",
+  "passiva_o_non_specificata",
+  "contenitore_opzioni",
+  "sistema_incantesimi",
+  "attivita_fuori_servizio",
+]);
+
+const BACKLOG_TEXT_RULES = Object.freeze({
+  // Il nome identifica la trasformazione: nel testo "forma" ed "evocare"
+  // compaiono anche nelle capacità figlie e in Incanalare Divinità.
+  transformationName: /forma selvatica|forma siderale|forma d'ombra|rivelazione della carne|colosso runico/u,
+  transformation: /\bassum\w* (?:la |una )?forma (?:di una bestia|bestiale|siderale|d'ombra)|\btrasformarti\b|\bti trasformi\b/u,
+  companionSummon: /\bcompagn[oi] (?:animale|bestiale|del ranger|della morte|draconico)|\bfamiglio\b|\bservitor[ei]\b|\bsegugio\b|spirito (?:della fiamma|guardiano)|totem spirituale|\bdrake\b|mente manifesta|\btentacolo\b|evoc\w* (?:un|uno|una) (?:spirito|creatura|bestia|tentacolo)/u,
+  spellBridge: /senza (?:spendere|usare|consumare) (?:uno |alcuno )?slot|recuper\w* (?:alcuni |uno |gli )?slot|(?:crea|ottien\w*|riguadagn\w*) (?:uno |alcuni )?slot|lanciar\w* (?:l'|un |questo |quell')?incantesim\w* .*(?:una volta|senza)/u,
+  hpChange: /punti ferita temporanei|(?:recuper|riguadagn|ripristin)\w* .{0,40}punti ferita|\bcur(?:a|are|arsi)\b.{0,40}punti ferita/u,
+  aura: /\baura\b/u,
+  saveOutcome: /tiro salvezza.{0,240}(?:spaventat|affascinat|prono|pron[ai]\b|stordit|accecat|trattenut|paralizzat|avvelenat|incapacitat|assordat|pietrificat|afferrat)|(?:spaventat|affascinat|stordit|accecat|trattenut|paralizzat|incapacitat|afferrat).{0,240}tiro salvezza/u,
+  timed: /per 1 minuto|per un minuto|per 10 minuti|per 1 ora|per un'ora|fino (?:alla fine|all'inizio|al termine) del|\bfinché\b/u,
+  movement: /teletrasport|\bti muovi\b|\bmuoverti\b|\bspostar\w*|velocità (?:aumenta|raddoppia|di volare)|\bscatto\b|\bdisimpegno\b/u,
+});
+
+// Decisioni manuali che prevalgono sulle regole testuali. Ogni batch di classe
+// aggiunge qui gli archetipi confermati durante la revisione.
+const BACKLOG_ARCHETYPE_OVERRIDES = Object.freeze({
+  "druido-circolo-della-fiamma-evocare-spirito-della-fiamma": "companion-summon",
+  "monaco-via-della-mano-aperta-tranquillita": "timed-condition",
+});
+
 const DIRECT_TEST_FILES = [
   "barbarianCombatAudit.test.js",
   "barbarianFeatureRuntime.test.js",
@@ -371,6 +431,134 @@ function classifyCombatFeature({ mechanic, record, identity, runtimeEntry }) {
   };
 }
 
+function implementedArchetype(runtimeEntry, text) {
+  const adapter = asString(runtimeEntry?.runtimeSupport?.adapter);
+  if (CUSTOM_ADAPTERS.has(adapter)) return "custom-adapter";
+  if (adapter === "resource-only") return "resource-only";
+  const plan = runtimeEntry?.effectPlan || {};
+  if (adapter === "aura" || plan.kind === "aura" || runtimeEntry?.targeting?.mode === "aura") return "aura";
+  if (Array.isArray(runtimeEntry?.choiceOptions)
+    && runtimeEntry.choiceOptions.length
+    && BACKLOG_TEXT_RULES.saveOutcome.test(text)) {
+    return "save-outcome-condition";
+  }
+  return "timed-condition";
+}
+
+function backlogArchetype({ mechanic, record, runtimeEntry, recommendation, parentImplemented }) {
+  const name = asString(record?.nome).toLowerCase();
+  const text = `${name} ${asString(record?.descrizione)}`.toLowerCase();
+  if (runtimeEntry?.runtimeSupport?.status === "implemented") {
+    return { archetype: implementedArchetype(runtimeEntry, text), evidence: ["runtime-implemented"] };
+  }
+  const manualArchetype = BACKLOG_ARCHETYPE_OVERRIDES[asString(record?.id)];
+  if (manualArchetype) {
+    return { archetype: manualArchetype, evidence: ["decisione-manuale"] };
+  }
+  const activation = asString(runtimeEntry?.activation?.primary || mechanic?.activation?.primary)
+    || "non_specificata";
+  const effectTypeSet = new Set(effectTypes(mechanic));
+  const hasAuraEffect = effectTypeSet.has("aura")
+    || effectTypeSet.has("create_aura")
+    || effectTypeSet.has("aura_bonus_iniziativa")
+    || runtimeEntry?.targeting?.mode === "aura";
+  const passive = PASSIVE_ACTIVATIONS.has(activation)
+    || recommendation.scopeExclusion === "solo_riferimento";
+
+  // Le opzioni di una capacità già implementata sono gestite dal suo adapter
+  // (choiceOptions) e restano carte descrittive.
+  if (parentImplemented) {
+    return { archetype: "reference", evidence: ["opzione-di-capacita-implementata"] };
+  }
+  // Le passive restano carte descrittive; solo un'aura dichiarata nel testo o
+  // negli effetti diventa un candidato attivabile (modello Aura di Protezione).
+  if (passive) {
+    if (hasAuraEffect || BACKLOG_TEXT_RULES.aura.test(text)) {
+      return { archetype: "aura", evidence: [`attivazione:${activation}`, "aura"] };
+    }
+    return { archetype: "reference", evidence: [`attivazione:${activation}`] };
+  }
+  if (effectTypeSet.has("transform")
+    || BACKLOG_TEXT_RULES.transformationName.test(name)
+    || BACKLOG_TEXT_RULES.transformation.test(text)) {
+    return { archetype: "transformation", evidence: ["testo:trasformazione"] };
+  }
+  if (BACKLOG_TEXT_RULES.companionSummon.test(text)) {
+    return { archetype: "companion-summon", evidence: ["testo:compagno-evocazione"] };
+  }
+  if (["create_spell_slot", "restore_spell_slots"].some((type) => effectTypeSet.has(type))
+    || BACKLOG_TEXT_RULES.spellBridge.test(text)) {
+    return { archetype: "spell-bridge", evidence: ["testo:incantesimo-slot"] };
+  }
+  if (hasAuraEffect || BACKLOG_TEXT_RULES.aura.test(text)) {
+    return { archetype: "aura", evidence: ["aura"] };
+  }
+  if (effectTypeSet.has("healing")
+    || effectTypeSet.has("temporary_hp")
+    || BACKLOG_TEXT_RULES.hpChange.test(text)) {
+    return { archetype: "hp-change", evidence: ["testo:punti-ferita"] };
+  }
+  if (recommendation.resourceOnly) {
+    return { archetype: "resource-only", evidence: ["effetti:solo-risorse"] };
+  }
+  if (BACKLOG_TEXT_RULES.saveOutcome.test(text)) {
+    return { archetype: "save-outcome-condition", evidence: ["testo:tiro-salvezza-condizione"] };
+  }
+  if (recommendation.mode === "token_marker"
+    || runtimeEntry?.trackingMode === "active"
+    || BACKLOG_TEXT_RULES.timed.test(text)) {
+    return { archetype: "timed-condition", evidence: [`mode:${recommendation.mode}`] };
+  }
+  if (BACKLOG_TEXT_RULES.movement.test(text)) {
+    return { archetype: "movement", evidence: ["testo:movimento"] };
+  }
+  const costs = runtimeEntry?.resourceCosts || mechanic?.resource_costs || [];
+  if (Array.isArray(costs) && costs.length) {
+    return { archetype: "resource-only", evidence: ["costo-senza-effetto-persistente"] };
+  }
+  return { archetype: "instant-reminder", evidence: [`attivazione:${activation}`] };
+}
+
+function classifyBacklog({
+  mechanic,
+  record,
+  runtimeEntry,
+  recommendation,
+  poolById,
+  parentImplemented = false,
+}) {
+  const { archetype, evidence } = backlogArchetype({
+    mechanic,
+    record,
+    runtimeEntry,
+    recommendation,
+    parentImplemented,
+  });
+  const implemented = runtimeEntry?.runtimeSupport?.status === "implemented";
+  const requiredPrimitive = archetype === "custom-adapter"
+    ? "custom-adapter"
+    : BACKLOG_ARCHETYPES[archetype].primitive;
+  const costPoolIds = uniqueStrings([
+    ...(runtimeEntry?.resourceCosts || []).map((cost) => cost?.poolId),
+    ...(Array.isArray(mechanic?.resource_costs) ? mechanic.resource_costs : [])
+      .map((cost) => cost?.pool_id || cost?.poolId),
+  ]);
+  const abilityModifierPools = costPoolIds.filter((poolId) =>
+    /modificatore_/u.test(asString(poolById.get(poolId)?.capacity?.expression))
+  );
+  return {
+    archetype,
+    archetypeLabel: BACKLOG_ARCHETYPES[archetype].label,
+    requiredPrimitive,
+    dataOnlyCandidate: !implemented && BACKLOG_PRIMITIVES[requiredPrimitive].available,
+    archetypeEvidence: uniqueStrings([
+      ...evidence,
+      ...(runtimeEntry ? [] : ["richiede-include"]),
+      ...abilityModifierPools.map((poolId) => `pool-modificatore:${poolId}`),
+    ]),
+  };
+}
+
 function increment(map, key, amount = 1) {
   map[key] = (map[key] || 0) + amount;
 }
@@ -475,6 +663,16 @@ for (const [id, record] of recordsById) {
   const identity = resolveIdentity(record, mechanic, recordsById);
   const runtimeEntry = runtimeById.get(id) || null;
   const recommendation = classifyCombatFeature({ mechanic, record, identity, runtimeEntry });
+  const backlog = classifyBacklog({
+    mechanic,
+    record,
+    runtimeEntry,
+    recommendation,
+    poolById: resourcePoolMap,
+    parentImplemented: runtimeById.get(
+      asString(record?.parent_id || mechanic?.source?.parent_id)
+    )?.runtimeSupport?.status === "implemented",
+  });
   const catalogSource = recordSourceById.get(id) || {};
   const className = classMap.get(identity.classId) || identity.classId || "";
   const subclassName = subclassMap.get(identity.subclassId) || identity.subclassId || null;
@@ -761,6 +959,7 @@ for (const [id, record] of recordsById) {
     minimumLevel: levelOf(record, mechanic),
     page: Number(record?.pagina || mechanic?.source?.page || mechanic?.source?.pagina) || null,
     recommendation,
+    ...backlog,
     runtime: {
       exposed: Boolean(runtimeEntry),
       status: runtimeEntry?.runtimeSupport?.status || null,
@@ -863,9 +1062,61 @@ const resourcePools = (Array.isArray(runtime.resourcePools) ? runtime.resourcePo
   };
 });
 
+const openFeatures = features.filter((feature) => feature.runtime.status !== "implemented");
+const backlogPrimitives = Object.fromEntries(Object.entries(BACKLOG_PRIMITIVES)
+  .map(([id, primitive]) => [id, {
+    label: primitive.label,
+    available: primitive.available,
+    implemented: features.filter((feature) =>
+      feature.requiredPrimitive === id && feature.runtime.status === "implemented"
+    ).length,
+    open: openFeatures.filter((feature) => feature.requiredPrimitive === id).length,
+  }]));
+const backlogArchetypes = Object.fromEntries(Object.entries(BACKLOG_ARCHETYPES)
+  .map(([id, archetype]) => [id, {
+    label: archetype.label,
+    primitive: archetype.primitive,
+    implemented: features.filter((feature) =>
+      feature.archetype === id && feature.runtime.status === "implemented"
+    ).length,
+    open: openFeatures.filter((feature) => feature.archetype === id).length,
+  }]));
+const backlogByClass = {};
+for (const feature of features) {
+  const classId = feature.classId || "non_risolta";
+  const entry = backlogByClass[classId] ||= {
+    className: feature.className || classId,
+    implemented: 0,
+    dataOnlyReference: 0,
+    dataOnlyAutomation: 0,
+    needsPrimitive: 0,
+    needsPrimitiveByPrimitive: {},
+  };
+  if (feature.runtime.status === "implemented") entry.implemented++;
+  else if (feature.dataOnlyCandidate && feature.requiredPrimitive === "reference-only") {
+    entry.dataOnlyReference++;
+  } else if (feature.dataOnlyCandidate) entry.dataOnlyAutomation++;
+  else {
+    entry.needsPrimitive++;
+    increment(entry.needsPrimitiveByPrimitive, feature.requiredPrimitive);
+  }
+}
+const backlog = {
+  primitives: backlogPrimitives,
+  archetypes: backlogArchetypes,
+  dataOnlyCandidateCount: openFeatures.filter((feature) => feature.dataOnlyCandidate).length,
+  dataOnlyAutomationCount: openFeatures.filter((feature) =>
+    feature.dataOnlyCandidate && feature.requiredPrimitive !== "reference-only"
+  ).length,
+  needsPrimitiveCount: openFeatures.filter((feature) => !feature.dataOnlyCandidate).length,
+  manualDecisionCount: Object.keys(BACKLOG_ARCHETYPE_OVERRIDES).length,
+  byClass: Object.fromEntries(Object.entries(backlogByClass)
+    .sort(([left], [right]) => left.localeCompare(right, "it"))),
+};
+
 const report = {
-  version: 2,
-  generatedAt: "2026-08-16",
+  version: 3,
+  generatedAt: "2026-10-14",
   scope: {
     sources: SOURCE_CONFIGS.map(({ id, label, catalog, mechanics }) => ({
       id,
@@ -887,6 +1138,7 @@ const report = {
     resourceRule: "Le risorse non sono un criterio di priorità: vengono conservate nei metadati solo per documentazione futura.",
     deterministicRule: "Le tre candidate deterministiche individuate nell'audit precedente sono escluse da questa roadmap.",
     safetyRule: "Nessun marker viene promosso a runtime finché bersaglio e durata non sono espliciti o coperti da un adapter già verificato.",
+    backlogRule: "archetype e requiredPrimitive sono euristiche da confermare nel batch di classe; dataOnlyCandidate è vero quando la primitiva richiesta esiste già e basta un override.",
   },
   summary: {
     byCombatTracking: sortedCounts(modeCounts),
@@ -908,7 +1160,9 @@ const report = {
       && feature.recommendation.activeActivation
     ).length,
     resourceCriterionIgnored: true,
+    byArchetype: sortedCounts(countBy(features, (feature) => feature.archetype)),
   },
+  backlog,
   reconciledSummary,
   resourcePools,
   roadmap: [
@@ -975,7 +1229,33 @@ const markdown = `# Audit capacità di classe\n\n` +
   `\nIl dettaglio per ogni record, inclusi segnali testuali, effetti marker, bersaglio, durata e stato runtime, ` +
   `è disponibile in [class-feature-automation-audit.json](../data/class-features/class-feature-automation-audit.json).\n\n` +
   `## Stato runtime\n\n` +
-  markdownTable(runtimeRows) + `\n`;
+  markdownTable(runtimeRows) + `\n\n` +
+  `## Backlog per primitiva\n\n` +
+  `Capacità non implementate: **${openFeatures.length}**. Raggiungibili con soli override: ` +
+  `**${backlog.dataOnlyCandidateCount}** (di cui automazione: **${backlog.dataOnlyAutomationCount}**, ` +
+  `il resto carte descrittive). Bloccate da una primitiva mancante: **${backlog.needsPrimitiveCount}**. ` +
+  `Archetipo e primitiva sono euristiche da confermare nel batch; le decisioni manuali confermate sono ` +
+  `${backlog.manualDecisionCount}.\n\n` +
+  `| Primitiva | Disponibile | Implementate | Da fare |\n` +
+  `|---|---|---:|---:|\n` +
+  Object.entries(backlog.primitives)
+    .map(([id, entry]) => `| ${entry.label} (\`${id}\`) | ${entry.available ? "sì" : "no"} | ${entry.implemented} | ${entry.open} |`)
+    .join("\n") + `\n\n` +
+  `| Archetipo | Primitiva | Implementate | Da fare |\n` +
+  `|---|---|---:|---:|\n` +
+  Object.entries(backlog.archetypes)
+    .map(([id, entry]) => `| ${entry.label} (\`${id}\`) | \`${entry.primitive}\` | ${entry.implemented} | ${entry.open} |`)
+    .join("\n") + `\n\n` +
+  `## Backlog per classe\n\n` +
+  `| Classe | Implementate | Carte descrittive | Automazione con dati | Richiede primitiva | Primitive mancanti |\n` +
+  `|---|---:|---:|---:|---:|---|\n` +
+  Object.values(backlog.byClass)
+    .map((entry) => `| ${entry.className} | ${entry.implemented} | ${entry.dataOnlyReference} | ` +
+      `${entry.dataOnlyAutomation} | ${entry.needsPrimitive} | ` +
+      (Object.entries(sortedCounts(entry.needsPrimitiveByPrimitive))
+        .map(([primitive, count]) => `${primitive} ${count}`)
+        .join(", ") || "—") + ` |`)
+    .join("\n") + `\n`;
 
 fs.writeFileSync(MARKDOWN_PATH, markdown, "utf8");
 console.log(JSON.stringify({

@@ -1,6 +1,6 @@
 # Audit capacità di classe
 
-Report generato il 2026-08-16 dai tre overlay meccanici locali.
+Report generato il 2026-10-14 dai tre overlay meccanici locali.
 
 ## Perimetro
 
@@ -67,3 +67,53 @@ Il dettaglio per ogni record, inclusi segnali testuali, effetti marker, bersagli
 | not-automated | 492 |
 | implemented | 59 |
 | non_esposta | 309 |
+
+## Backlog per primitiva
+
+Capacità non implementate: **801**. Raggiungibili con soli override: **736** (di cui automazione: **148**, il resto carte descrittive). Bloccate da una primitiva mancante: **65**. Archetipo e primitiva sono euristiche da confermare nel batch; le decisioni manuali confermate sono 2.
+
+| Primitiva | Disponibile | Implementate | Da fare |
+|---|---|---:|---:|
+| Carta descrittiva (`reference-only`) | sì | 0 | 588 |
+| Consumo risorsa (`resource-only`) | sì | 11 | 48 |
+| Pill con durata (`condition`) | sì | 23 | 61 |
+| Pill con esito scelto dal GM (choiceOptions) (`condition-choice`) | sì | 1 | 25 |
+| Aura dinamica (`aura`) | sì | 11 | 14 |
+| Adapter dedicato esistente (`custom-adapter`) | sì | 13 | 0 |
+| Valore numerico inserito dal GM (cura/PF temporanei) (`value-input`) | no | 0 | 28 |
+| Compagno o evocazione su token esistente (`linked-token`) | no | 0 | 17 |
+| Trasformazione (`transformation`) | no | 0 | 6 |
+| Ponte verso il sistema Incantesimi (`spell-bridge`) | no | 0 | 14 |
+
+| Archetipo | Primitiva | Implementate | Da fare |
+|---|---|---:|---:|
+| Descrittiva / passiva (`reference`) | `reference-only` | 0 | 430 |
+| Reazione o effetto istantaneo da ricordare (`instant-reminder`) | `reference-only` | 0 | 137 |
+| Movimento / teletrasporto (`movement`) | `reference-only` | 0 | 21 |
+| Solo consumo risorsa (`resource-only`) | `resource-only` | 11 | 48 |
+| Buff o marker con durata (`timed-condition`) | `condition` | 23 | 61 |
+| Condizione dopo tiro salvezza (`save-outcome-condition`) | `condition-choice` | 1 | 25 |
+| Aura (`aura`) | `aura` | 11 | 14 |
+| Cura o PF temporanei (`hp-change`) | `value-input` | 0 | 28 |
+| Compagno / evocazione (`companion-summon`) | `linked-token` | 0 | 17 |
+| Trasformazione (`transformation`) | `transformation` | 0 | 6 |
+| Lancio o slot tramite capacità (`spell-bridge`) | `spell-bridge` | 0 | 14 |
+| Adapter dedicato (`custom-adapter`) | `custom-adapter` | 13 | 0 |
+
+## Backlog per classe
+
+| Classe | Implementate | Carte descrittive | Automazione con dati | Richiede primitiva | Primitive mancanti |
+|---|---:|---:|---:|---:|---|
+| Barbaro | 20 | 42 | 5 | 1 | spell-bridge 1 |
+| Bardo | 5 | 28 | 10 | 3 | value-input 2, spell-bridge 1 |
+| Chierico | 3 | 55 | 15 | 5 | value-input 4, spell-bridge 1 |
+| Druido | 0 | 36 | 7 | 13 | linked-token 5, transformation 3, value-input 3, spell-bridge 2 |
+| Guerriero | 0 | 63 | 25 | 5 | value-input 3, spell-bridge 1, transformation 1 |
+| Ladro | 4 | 47 | 11 | 1 | linked-token 1 |
+| Mago | 0 | 44 | 12 | 5 | linked-token 2, spell-bridge 2, value-input 1 |
+| Monaco | 0 | 54 | 23 | 2 | value-input 2 |
+| Paladino | 12 | 24 | 17 | 3 | value-input 3 |
+| Ranger | 0 | 57 | 4 | 4 | spell-bridge 3, linked-token 1 |
+| Ranger (Revised) | 2 | 38 | 2 | 3 | linked-token 3 |
+| Stregone | 13 | 30 | 8 | 5 | transformation 2, value-input 2, linked-token 1 |
+| Warlock | 0 | 70 | 9 | 15 | value-input 8, linked-token 4, spell-bridge 3 |

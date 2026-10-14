@@ -237,3 +237,100 @@ test("CF-001B.20: determinismo delle metriche canoniche", () => {
     UNREVIEWED: 0,
   });
 });
+
+// ==========================================
+// FASE 0: BACKLOG PER ARCHETIPO E PRIMITIVA
+// ==========================================
+
+test("Backlog.1: ogni record dichiara archetipo e primitiva noti", () => {
+  const archetypes = new Set(Object.keys(audit.backlog.archetypes));
+  const primitives = new Set(Object.keys(audit.backlog.primitives));
+  for (const f of audit.features) {
+    assert.ok(archetypes.has(f.archetype), `Archetipo sconosciuto: ${f.archetype} su ${f.id}`);
+    assert.ok(primitives.has(f.requiredPrimitive), `Primitiva sconosciuta: ${f.requiredPrimitive} su ${f.id}`);
+    assert.equal(typeof f.dataOnlyCandidate, "boolean");
+    assert.ok(Array.isArray(f.archetypeEvidence) && f.archetypeEvidence.length > 0, f.id);
+  }
+});
+
+test("Backlog.2: dataOnlyCandidate vale solo per capacità aperte con primitiva disponibile", () => {
+  for (const f of audit.features) {
+    const implemented = f.runtime.status === "implemented";
+    const available = audit.backlog.primitives[f.requiredPrimitive].available;
+    assert.equal(f.dataOnlyCandidate, !implemented && available, f.id);
+  }
+});
+
+test("Backlog.3: i riepiloghi coincidono con le righe", () => {
+  const open = audit.features.filter((f) => f.runtime.status !== "implemented");
+  assert.equal(audit.backlog.dataOnlyCandidateCount, open.filter((f) => f.dataOnlyCandidate).length);
+  assert.equal(audit.backlog.needsPrimitiveCount, open.filter((f) => !f.dataOnlyCandidate).length);
+  for (const [id, entry] of Object.entries(audit.backlog.primitives)) {
+    assert.equal(entry.open, open.filter((f) => f.requiredPrimitive === id).length, id);
+  }
+  const classTotal = Object.values(audit.backlog.byClass).reduce((total, entry) =>
+    total + entry.implemented + entry.dataOnlyReference + entry.dataOnlyAutomation + entry.needsPrimitive, 0);
+  assert.equal(classTotal, 860);
+});
+
+test("Backlog.4: le capacità implementate derivano l'archetipo dall'adapter", () => {
+  const byId = (id) => audit.features.find((f) => f.id === id);
+  assert.equal(byId("barbaro-ira").archetype, "timed-condition");
+  assert.equal(byId("paladino-aura-di-protezione").archetype, "aura");
+  assert.equal(byId("bardo-ispirazione-bardica").archetype, "custom-adapter");
+  assert.equal(byId("paladino-percezione-del-divino").archetype, "resource-only");
+  const implemented = audit.features.filter((f) => f.runtime.status === "implemented");
+  assert.equal(implemented.length, 59);
+  assert.ok(implemented.every((f) => f.dataOnlyCandidate === false));
+});
+
+test("Backlog.5: capacità di riferimento per archetipo", () => {
+  const expectations = {
+    "monaco-colpo-stordente": ["save-outcome-condition", "condition-choice", true],
+    "guerriero-azione-impetuosa": ["resource-only", "resource-only", true],
+    "ladro-elusione": ["reference", "reference-only", true],
+    "druido-forma-selvatica": ["transformation", "transformation", false],
+    "guerriero-recuperare-energie": ["hp-change", "value-input", false],
+    "ranger-signore-delle-bestie-compagno-del-ranger": ["companion-summon", "linked-token", false],
+    "mago-recupero-arcano": ["spell-bridge", "spell-bridge", false],
+  };
+  for (const [id, [archetype, primitive, dataOnly]] of Object.entries(expectations)) {
+    const feature = audit.features.find((f) => f.id === id);
+    assert.equal(feature.archetype, archetype, id);
+    assert.equal(feature.requiredPrimitive, primitive, id);
+    assert.equal(feature.dataOnlyCandidate, dataOnly, id);
+  }
+});
+
+test("Backlog.6: le opzioni di una capacità implementata restano descrittive", () => {
+  const option = audit.features.find((f) =>
+    f.id === "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-mare"
+  );
+  assert.equal(option.archetype, "reference");
+  assert.deepEqual(option.archetypeEvidence, ["opzione-di-capacita-implementata"]);
+});
+
+test("Backlog.7: i pool basati su modificatori di caratteristica sono segnalati", () => {
+  const inspiration = audit.features.find((f) => f.id === "bardo-ispirazione-bardica");
+  assert.ok(inspiration.archetypeEvidence.includes("pool-modificatore:bardo-ispirazione-bardica-usi"));
+});
+
+test("Backlog.8: determinismo della distribuzione per archetipo", () => {
+  assert.deepEqual(audit.summary.byArchetype, {
+    reference: 430,
+    "instant-reminder": 137,
+    "timed-condition": 84,
+    "resource-only": 59,
+    "hp-change": 28,
+    "save-outcome-condition": 26,
+    aura: 25,
+    movement: 21,
+    "companion-summon": 17,
+    "spell-bridge": 14,
+    "custom-adapter": 13,
+    transformation: 6,
+  });
+  assert.equal(audit.backlog.dataOnlyCandidateCount, 736);
+  assert.equal(audit.backlog.dataOnlyAutomationCount, 148);
+  assert.equal(audit.backlog.needsPrimitiveCount, 65);
+});
