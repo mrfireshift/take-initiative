@@ -2313,6 +2313,4207 @@
       "automationLevel": "riferimento",
       "defaultEnabled": true,
       "quickActionEligible": false
+    },
+    "barbaro-cammino-primordiale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "barbaro-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "barbaro-cammino-del-guardiano-ancestrale-spiriti-protettori": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "barbaro-cammino-del-guardiano-ancestrale-consultare-gli-spiriti": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-cammino-del-guardiano-ancestrale-antenati-vendicativi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "barbaro-cammino-dell-araldo-della-tempesta-anima-tempestosa": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-cammino-dell-araldo-della-tempesta-tempesta-furibonda": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-cammino-della-bestia-anima-bestiale": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-cammino-della-bestia-furia-contagiosa": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-cammino-della-magia-selvaggia-consapevolezza-magica": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-cammino-della-magia-selvaggia-reazione-instabile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "barbaro-cammino-della-magia-selvaggia-impeto-controllato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "barbaro-cammino-dello-zelota-furia-divina": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "barbaro-cammino-dello-zelota-guerriero-degli-dei": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "barbaro-cammino-dello-zelota-concentrazione-fanatica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "barbaro-cammino-dello-zelota-ira-imperitura": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-collegio-dei-sussurri-lame-psichiche": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-dei-sussurri-parole-di-terrore": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-dei-sussurri-manto-di-sussurri": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-collegio-dei-sussurri-conoscenze-dell-ombra": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-del-valore-competenze-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-collegio-del-valore-ispirazione-in-combattimento": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-del-valore-attacco-extra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-collegio-del-valore-magia-da-battaglia": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-collegio-dell-incanto-esibizione-estasiante": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-dell-incanto-manto-di-ispirazione": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-dell-incanto-manto-di-maesta": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-dell-incanto-maesta-inviolabile": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-della-creazione-compimento-della-creazione": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-della-creazione-granello-di-potenziale": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-della-creazione-creazione-animata": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-della-creazione-crescendo-creativo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-collegio-delle-spade-competenze-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-collegio-delle-spade-stile-di-combattimento": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-collegio-delle-spade-stile-di-combattimento-combattere-con-due-armi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "bardo-collegio-delle-spade-stile-di-combattimento",
+      "quickActionEligible": false
+    },
+    "bardo-collegio-delle-spade-stile-di-combattimento-duellare": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "bardo-collegio-delle-spade-stile-di-combattimento",
+      "quickActionEligible": false
+    },
+    "bardo-collegio-delle-spade-virtuosismo-della-lama": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-difensivo": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-mobile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-tagliente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-collegio-delle-spade-attacco-extra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-collegio-delle-spade-virtuosismo-del-maestro": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-dell-inganno-benedizione-dell-ingannatore": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-dell-inganno-incanalare-divinita-invocare-duplicato": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-dell-inganno-incanalare-divinita-manto-di-ombre": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-dell-inganno-colpo-divino": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-dell-inganno-duplicato-migliorato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-dell-ordine-competenze-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-dell-ordine-voce-dell-autorita": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-dell-ordine-incanalare-divinita-pretesa-dell-ordine": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-dell-ordine-incarnazione-della-legge": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-dell-ordine-colpo-divino": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-dell-ordine-ira-dell-ordine": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-conoscenza-benedizioni-della-conoscenza": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-conoscenza-incanalare-divinita-conoscenze-secolari": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-conoscenza-incanalare-divinita-lettura-del-pensiero": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-conoscenza-incantesimi-potenti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-conoscenza-visioni-del-passato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-forgia-benedizione-della-forgia": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-forgia-competenze-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-forgia-incanalare-divinita-benedizione-dell-artigiano": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-forgia-anima-della-forgia": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-forgia-colpo-divino": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-forgia-santo-della-forgia-e-del-fuoco": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-guerra-competenze-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-guerra-sacerdote-di-guerra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-guerra-incanalare-divinita-colpo-guidato": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-guerra-incanalare-divinita-benedizione-del-dio-della-guerra": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-guerra-colpo-divino": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-guerra-avatar-della-battaglia": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-luce-lampo-di-interdizione": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-luce-trucchetto-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-luce-incanalare-divinita-fulgore-dell-alba": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-luce-lampo-migliorato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-luce-incantesimi-potenti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-luce-corona-di-luce": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-natura-accolito-della-natura": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-natura-competenza-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-natura-incanalare-divinita-charme-su-animali-e-vegetali": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-natura-mitigare-elementi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-natura-colpo-divino": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-natura-maestro-della-natura": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-pace-legame-incoraggiante": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-pace-strumento-di-pace": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-pace-incanalare-divinita-balsamo-della-pace": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-pace-legame-protettivo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-pace-incantesimi-potenti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-pace-legame-espansivo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-tempesta-collera-della-tempesta": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-tempesta-competenze-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-tempesta-incanalare-divinita-collera-distruttiva": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-tempesta-colpo-del-tuono-e-del-fulmine": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-tempesta-colpo-divino": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-tempesta-nato-dalla-tempesta": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-tomba-cerchio-di-mortalita": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-tomba-occhi-della-tomba": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-tomba-incanalare-divinita-verso-la-tomba": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-tomba-sentinella-alla-porta-della-morte": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-tomba-incantesimi-potenti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-tomba-custode-delle-anime": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-vita-competenza-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-vita-discepolo-della-vita": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-vita-incanalare-divinita-preservare-vita": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "chierico-dominio-della-vita-guaritore-benedetto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-vita-colpo-divino": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-della-vita-guarigione-suprema": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-druidico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-druidico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-forma-selvatica": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-corpo-senza-tempo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-incantesimi-bestiali": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-arcidruido": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-dei-sogni-balsamo-della-corte-dell-estate": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-dei-sogni-focolare-della-luce-lunare-e-dellombra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-dei-sogni-sentieri-nascosti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-dei-sogni-viandante-dei-sogni": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-del-pastore-lingua-dei-boschi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-del-pastore-totem-spirituale": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-del-pastore-totem-spirituale-spirito-falco": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-del-pastore-totem-spirituale-spirito-orso": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-del-pastore-totem-spirituale-spirito-unicorno": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-del-pastore-evocatore-possente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-del-pastore-spirito-guardiano": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-del-pastore-evocazioni-fedeli": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-della-fiamma-evocare-spirito-della-fiamma": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-della-fiamma-legame-migliorato": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-della-fiamma-fiamme-cauterizzanti": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-della-fiamma-recupero-ardente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-luna-forma-selvatica-da-combattimento": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-della-luna-forme-del-circolo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-luna-colpo-primordiale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-luna-forma-selvatica-elementale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-luna-mille-forme": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-recupero-naturale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-trucchetto-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-incantesimi-del-circolo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-incantesimi-del-circolo-artico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "druido-circolo-della-terra-incantesimi-del-circolo",
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-incantesimi-del-circolo-costa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "druido-circolo-della-terra-incantesimi-del-circolo",
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-incantesimi-del-circolo-deserto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "druido-circolo-della-terra-incantesimi-del-circolo",
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-incantesimi-del-circolo-foresta": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "druido-circolo-della-terra-incantesimi-del-circolo",
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-incantesimi-del-circolo-montagna": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "druido-circolo-della-terra-incantesimi-del-circolo",
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-incantesimi-del-circolo-palude": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "druido-circolo-della-terra-incantesimi-del-circolo",
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-incantesimi-del-circolo-prateria": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "druido-circolo-della-terra-incantesimi-del-circolo",
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-incantesimi-del-circolo-underdark": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "druido-circolo-della-terra-incantesimi-del-circolo",
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-andatura-sul-territorio": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-interdizione-della-natura": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-della-terra-rifugio-della-natura": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-delle-spore-alone-di-spore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-delle-spore-entita-simbiotica": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-delle-spore-infestazione-fungina": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-delle-spore-diffusione-di-spore": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-delle-spore-corpo-fungino": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-delle-stelle-carta-celeste": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-delle-stelle-forma-siderale": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-delle-stelle-forma-siderale-arciere": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-delle-stelle-forma-siderale-calice": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-delle-stelle-forma-siderale-drago": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-delle-stelle-profezia-cosmica": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "druido-circolo-delle-stelle-costellazioni-scintillanti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "druido-circolo-delle-stelle-manto-di-stelle": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-recuperare-energie": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-stile-di-combattimento": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-stile-di-combattimento-combattere-con-armi-possenti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-stile-di-combattimento-combattere-con-due-armi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-stile-di-combattimento-difesa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-stile-di-combattimento-duellare": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-stile-di-combattimento-protezione": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-stile-di-combattimento-tiro": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-azione-impetuosa": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-archetipo-marziale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-attacco-extra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-indomito": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-arciere-arcano-conoscenze-dell-arciere-arcano": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-arciere-arcano-tiro-arcano": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-arciere-arcano-tiro-arcano-freccia-afferrante": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-arciere-arcano-tiro-arcano-freccia-ammaliante": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-arciere-arcano-tiro-arcano-freccia-cercatrice": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-arciere-arcano-tiro-arcano-freccia-d-ombra": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-arciere-arcano-tiro-arcano-freccia-esiliante": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-arciere-arcano-tiro-arcano-freccia-esplosiva": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-arciere-arcano-tiro-arcano-freccia-indebolente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-arciere-arcano-tiro-arcano-freccia-perforante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-arciere-arcano-freccia-magica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-arciere-arcano-tiro-curvo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-arciere-arcano-tiro-sempre-pronto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-campione-critico-migliorato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-campione-atleta-straordinario": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-campione-stile-di-combattimento-aggiuntivo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-campione-critico-superiore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-campione-sopravvissuto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-errante-competenza-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-errante-marchio-incrollabile": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-cavaliere-errante-nato-in-sella": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-errante-manovra-protettrice": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-errante-mantenere-la-posizione": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-cavaliere-errante-carica-feroce": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-errante-difensore-vigile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-mistico-arma-vincolata": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-cavaliere-mistico-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-mistico-magia-da-guerra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-mistico-colpo-mistico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-mistico-carica-arcana": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-mistico-magia-da-guerra-migliorata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-runico-competenze-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-runico-intagliatore-di-rune": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-runico-intagliatore-di-rune-runa-del-fuoco": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-cavaliere-runico-intagliatore-di-rune-runa-del-gelo": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-cavaliere-runico-intagliatore-di-rune-runa-della-pietra": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-cavaliere-runico-intagliatore-di-rune-runa-delle-nuvole": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-runico-potenza-del-gigante": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-cavaliere-runico-intagliatore-di-rune-runa-delle-colline": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-cavaliere-runico-intagliatore-di-rune-runa-delle-tempeste": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-cavaliere-runico-scudo-runico": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-cavaliere-runico-statura-torreggiante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-runico-maestro-delle-rune": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-cavaliere-runico-colosso-runico": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-guerriero-psionico-potere-psionico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-guerriero-psionico-potere-psionico-campo-protettivo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-guerriero-psionico-potere-psionico-colpo-psionico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-guerriero-psionico-potere-psionico-movimento-telecinetico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-guerriero-psionico-adepto-telecinetico": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-guerriero-psionico-scudo-mentale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-guerriero-psionico-baluardo-della-forza": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-guerriero-psionico-maestro-della-telecinesi": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-maestro-di-battaglia-manovre": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-attacco-adescante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-attacco-con-affondo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-attacco-con-finta": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-attacco-con-manovra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-attacco-con-spazzata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-attacco-con-spinta": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-attacco-disarmante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-attacco-minaccioso": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-attacco-preciso": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-attacco-sbilanciante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-colpo-del-comandante": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-colpo-distraente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-incoraggiamento": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-parata": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-replica": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "guerriero-maestro-di-battaglia-manovre-scarto-elusivo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-studioso-di-guerra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-superiorita-in-combattimento": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-conosci-il-tuo-nemico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-superiorita-in-combattimento-migliorata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-maestro-di-battaglia-implacabile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-samurai-competenza-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-samurai-spirito-combattivo": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "guerriero-samurai-cortigiano-elegante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-samurai-spirito-instancabile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-samurai-colpo-rapido": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "guerriero-samurai-forza-di-fronte-alla-morte": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-assassino-assassinare": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-assassino-competenze-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-assassino-maestro-infiltrato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-assassino-impostore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-assassino-colpo-mortale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-esploratore-schermagliatore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-esploratore-survivalista": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-esploratore-mobilita-superiore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-esploratore-maestro-di-imboscate": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-esploratore-colpo-improvviso": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-fantasma-lamenti-dalla-tomba": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-fantasma-sussurri-dei-morti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-fantasma-pegni-dei-defunti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-fantasma-cammino-fantasma": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-fantasma-compagno-della-morte": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-furfante-lavoro-al-secondo-piano": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-furfante-mani-veloci": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-furfante-furtivita-suprema": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-furfante-usare-oggetto-magico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-furfante-riflessi-da-furfante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-indagatore-combattimento-intuitivo": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-indagatore-occhio-per-i-dettagli": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-indagatore-orecchio-per-l-inganno": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-indagatore-occhio-infallibile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-indagatore-occhio-di-lince": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-indagatore-individuare-il-punto-debole": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-lama-spirituale-lame-psichiche": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-lama-spirituale-potere-psionico": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-lama-spirituale-potere-psionico-abilita-psicorinforzata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-lama-spirituale-potere-psionico-sussurri-psichici": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-lama-spirituale-lame-dell-anima": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-lama-spirituale-lame-dell-anima-colpi-guidati": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-lama-spirituale-lame-dell-anima-teletrasporto-psichico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-lama-spirituale-velo-psichico": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-lama-spirituale-squarciare-la-mente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-pianificatore-maestro-di-intrighi": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-pianificatore-maestro-di-tattiche": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-pianificatore-manipolatore-intuitivo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-pianificatore-fuorviare": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-pianificatore-anima-ingannevole": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-spadaccino-audacia-del-fanfarone": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-spadaccino-gioco-di-gambe": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-spadaccino-spavalderia": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ladro-spadaccino-manovra-elegante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-spadaccino-maestro-duellante": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-canto-della-lama-arte-della-guerra-e-del-canto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-canto-della-lama-melodia-della-lama": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-canto-della-lama-attacco-extra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-canto-della-lama-canzone-di-difesa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-canto-della-lama-canzone-di-vittoria": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-magia-della-guerra-deviazione-arcana": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-magia-della-guerra-ingegno-tattico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-magia-della-guerra-impulso-di-potere": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-magia-della-guerra-magia-durevole": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-magia-della-guerra-sudario-di-deviazione": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-ordine-degli-scribi-calamo-incantato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-ordine-degli-scribi-libro-degli-incantesimi-risvegliato": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-ordine-degli-scribi-mente-manifesta": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-ordine-degli-scribi-scrivano-arcano": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-ordine-degli-scribi-comunione-con-il-testo": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-scuola-di-abiurazione-abiuratore-sapiente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-abiurazione-interdizione-arcana": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-scuola-di-abiurazione-interdizione-proiettata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-abiurazione-abiurazione-migliorata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-abiurazione-resistenza-agli-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-ammaliamento-ammaliatore-sapiente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-ammaliamento-sguardo-ipnotico": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-scuola-di-ammaliamento-fascino-istintivo": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-scuola-di-ammaliamento-ammaliamento-condiviso": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-ammaliamento-alterare-ricordi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-divinazione-divinatore-sapiente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-divinazione-portento": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-scuola-di-divinazione-divinazione-esperta": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-divinazione-terzo-occhio": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-scuola-di-divinazione-portento-superiore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-evocazione-evocatore-sapiente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-evocazione-evocazione-minore": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-scuola-di-evocazione-trasposizione-benevola": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-evocazione-evocazione-focalizzata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-evocazione-evocazioni-perduranti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-illusione-illusione-minore-migliorata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-illusione-illusionista-sapiente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-illusione-illusioni-duttili": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-scuola-di-illusione-sosia-illusorio": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-scuola-di-illusione-realta-illusoria": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-scuola-di-negromanzia-negromante-sapiente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-negromanzia-raccolto-macabro": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-negromanzia-servitori-non-morti": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "mago-scuola-di-negromanzia-impervio-alla-non-morte": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-negromanzia-comandare-non-morti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-trasmutazione-alchimia-minore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-trasmutazione-trasmutatore-sapiente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-trasmutazione-pietra-del-trasmutatore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-trasmutazione-mutaforma": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-trasmutazione-maestro-trasmutatore": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-arti-marziali": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-difesa-senza-armatura": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-ki": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-ki-difesa-paziente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-ki-passo-del-vento": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-ki-raffica-di-colpi": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-movimento-senza-armatura": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-deviare-proiettili": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-tradizione-monastica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-caduta-lenta": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-attacco-extra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-colpo-stordente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-colpi-ki-potenziati": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-elusione": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-mente-lucida": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-purezza-del-corpo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-lingua-del-sole-e-della-luna": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-anima-adamantina": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-corpo-senza-tempo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-corpo-vuoto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-perfezione-interiore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discepolo-degli-elementi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-colpo-della-cenere-turbinante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-forma-del-fiume-fluente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-frusta-d-acqua": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-pugno-dei-quattro-tuoni": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-pugno-dell-aria-inviolabile": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-sintonia-elementale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-spiriti-della-burrasca-impetuosa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-zanne-del-serpente-di-fuoco": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-gong-della-sommita": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-morsa-del-vento-del-nord": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-cavalcare-il-vento": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-fiamme-della-fenice": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-postura-della-nebbia": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-difesa-della-montagna-eterna": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-fiume-della-fiamma-famelica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-onda-della-terra-tumultuosa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-dei-quattro-elementi-discipline-elementali-soffio-dell-inverno": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-kensei-cammino-del-kensei": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-del-kensei-cammino-del-kensei-armi-da-kensei": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-kensei-cammino-del-kensei-parata-agile": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-del-kensei-cammino-del-kensei-tiro-del-kensei": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-del-kensei-cammino-del-kensei-via-del-pennello": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-kensei-tutt-uno-con-la-lama": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-kensei-affilare-la-lama": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-del-kensei-precisione-infallibile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-maestro-ubriaco-competenze-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-maestro-ubriaco-tecnica-dell-ubriaco": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-del-maestro-ubriaco-andatura-ondeggiante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-maestro-ubriaco-fortuna-dell-ubriacone": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-del-maestro-ubriaco-frenesia-intossicata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-se-astrale-braccia-del-se-astrale": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-del-se-astrale-volto-del-se-astrale": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-del-se-astrale-volto-del-se-astrale-parola-dello-spirito": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-se-astrale-volto-del-se-astrale-saggezza-dello-spirito": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-se-astrale-volto-del-se-astrale-vista-astrale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-se-astrale-corpo-del-se-astrale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-del-se-astrale-se-astrale-risvegliato": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-dell-anima-solare-dardo-del-sole-radioso": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-dell-anima-solare-colpo-dell-onda-incandescente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-dell-anima-solare-esplosione-solare-incandescente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-dell-anima-solare-scudo-solare": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-dell-ombra-arti-dell-ombra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-dell-ombra-passo-dell-ombra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-dell-ombra-manto-di-ombre": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-dell-ombra-opportunista": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-della-mano-aperta-tecnica-della-mano-aperta": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-della-mano-aperta-integrita-del-corpo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-della-mano-aperta-tranquillita": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-della-mano-aperta-palmo-tremante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-della-misericordia-mano-del-dolore": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-della-misericordia-mano-guaritrice": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-della-misericordia-strumenti-di-misericordia": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-della-misericordia-tocco-del-medico": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "monaco-via-della-misericordia-raffica-di-guarigione-e-dolore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "monaco-via-della-misericordia-mano-della-misericordia-suprema": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-degli-antichi-incanalare-divinita-collera-della-natura": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-degli-antichi-incanalare-divinita-scacciare-gli-infedeli": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-degli-antichi-aura-di-interdizione": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-degli-antichi-sentinella-imperitura": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "paladino-giuramento-degli-antichi-campione-degli-antichi": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-delle-sentinelle-incanalare-divinita": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-delle-sentinelle-incanalare-divinita-abiurare-creature-extraplanari": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-delle-sentinelle-incanalare-divinita-volonta-della-sentinella": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-delle-sentinelle-aura-della-sentinella": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-delle-sentinelle-punizione-solerte": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "paladino-giuramento-delle-sentinelle-baluardo-dei-mortali": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-conquista-incanalare-divinita": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-conquista-incanalare-divinita-colpo-guidato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "paladino-giuramento-di-conquista-incanalare-divinita-presenza-conquistatrice": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-conquista-aura-di-conquista": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-conquista-intimorire-sprezzante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "paladino-giuramento-di-conquista-conquistatore-invincibile": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-gloria-incanalare-divinita": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-gloria-incanalare-divinita-atleta-impareggiabile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-gloria-aura-di-alacrita": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-gloria-difesa-gloriosa": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-gloria-leggenda-vivente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-redenzione-incanalare-divinita": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-redenzione-incanalare-divinita-emissario-di-pace": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "paladino-giuramento-di-redenzione-incanalare-divinita-intimorire-i-violenti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "paladino-giuramento-di-redenzione-aura-del-guardiano": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "paladino-giuramento-di-redenzione-spirito-protettivo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "paladino-giuramento-di-redenzione-emissario-di-redenzione": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-esploratore-nato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-nemico-prescelto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-stile-di-combattimento": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-stile-di-combattimento-combattere-con-due-armi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-stile-di-combattimento",
+      "quickActionEligible": false
+    },
+    "ranger-stile-di-combattimento-difesa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-stile-di-combattimento",
+      "quickActionEligible": false
+    },
+    "ranger-stile-di-combattimento-duellare": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-stile-di-combattimento",
+      "quickActionEligible": false
+    },
+    "ranger-stile-di-combattimento-tiro": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-stile-di-combattimento",
+      "quickActionEligible": false
+    },
+    "ranger-archetipo-ranger": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-consapevolezza-primordiale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-attacco-extra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-andatura-sul-territorio": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-nascondersi-in-piena-vista": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-svanire": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-sensi-ferini": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-sterminatore-di-nemici": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-preda-del-cacciatore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-preda-del-cacciatore-devastatore-dell-orda": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-cacciatore-preda-del-cacciatore",
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-preda-del-cacciatore-sterminatore-di-colossi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-cacciatore-preda-del-cacciatore",
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-preda-del-cacciatore-uccisore-di-giganti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-cacciatore-preda-del-cacciatore",
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-tattiche-difensive": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-tattiche-difensive-difesa-dal-multiattacco": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-cacciatore-tattiche-difensive",
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-tattiche-difensive-sfuggire-all-orda": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-cacciatore-tattiche-difensive",
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-tattiche-difensive-volonta-di-acciaio": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-cacciatore-tattiche-difensive",
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-multiattacco": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-multiattacco-attacco-turbinante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-cacciatore-multiattacco",
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-multiattacco-raffica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-cacciatore-multiattacco",
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-difesa-del-cacciatore-superiore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-difesa-del-cacciatore-superiore-elusione": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-cacciatore-difesa-del-cacciatore-superiore",
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-difesa-del-cacciatore-superiore-opporsi-alla-marea": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-cacciatore-difesa-del-cacciatore-superiore",
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-difesa-del-cacciatore-superiore-schivata-prodigiosa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "ranger-cacciatore-difesa-del-cacciatore-superiore",
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-delle-tenebre-imboscata-terrificante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-delle-tenebre-vista-dell-ombra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-delle-tenebre-mente-di-ferro": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-delle-tenebre-raffica-del-cacciatore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-cacciatore-delle-tenebre-schivata-dell-ombra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-custode-degli-sciami-magia-del-custode-degli-sciami": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-custode-degli-sciami-sciame-riunito": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-custode-degli-sciami-sciame-riunito-danni-aggiuntivi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-custode-degli-sciami-sciame-riunito-muovere-il-ranger": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-custode-degli-sciami-sciame-riunito-spostare-il-bersaglio": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-custode-degli-sciami-marea-avvolgente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ranger-custode-degli-sciami-sciame-possente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ranger-custode-degli-sciami-dispersione-brulicante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-signore-delle-bestie-compagno-del-ranger": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ranger-signore-delle-bestie-addestramento-straordinario": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-signore-delle-bestie-furia-bestiale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-signore-delle-bestie-condividere-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-uccisore-di-mostri-percezione-del-cacciatore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-uccisore-di-mostri-preda-dell-uccisore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-uccisore-di-mostri-difesa-soprannaturale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-uccisore-di-mostri-nemesi-degli-incantatori": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-uccisore-di-mostri-contrattacco-dell-uccisore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-viandante-dell-orizzonte-combattente-planare": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-viandante-dell-orizzonte-individuazione-dei-portali": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ranger-viandante-dell-orizzonte-passo-etereo": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ranger-viandante-dell-orizzonte-colpo-distante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-viandante-dell-orizzonte-difesa-spettrale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-viandante-fatato-colpi-terribili": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-viandante-fatato-fascino-ultraterreno": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-viandante-fatato-magia-del-viandante-fatato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-viandante-fatato-scambio-seducente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ranger-viandante-fatato-rinforzi-fatati": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "ranger-viandante-fatato-viandante-velato": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-anima-divina-magia-divina": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-anima-divina-magia-divina-bene": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "stregone-anima-divina-magia-divina",
+      "quickActionEligible": false
+    },
+    "stregone-anima-divina-magia-divina-caos": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "stregone-anima-divina-magia-divina",
+      "quickActionEligible": false
+    },
+    "stregone-anima-divina-magia-divina-legge": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "stregone-anima-divina-magia-divina",
+      "quickActionEligible": false
+    },
+    "stregone-anima-divina-magia-divina-male": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "stregone-anima-divina-magia-divina",
+      "quickActionEligible": false
+    },
+    "stregone-anima-divina-magia-divina-neutralita": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "stregone-anima-divina-magia-divina",
+      "quickActionEligible": false
+    },
+    "stregone-anima-divina-prescelto-dagli-dei": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-anima-divina-guarigione-potenziata": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-anima-divina-ali-ultraterrene": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-anima-divina-recupero-ultraterreno": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-anima-meccanica-magia-meccanica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-anima-meccanica-ripristino-dell-equilibrio": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-anima-meccanica-bastione-della-legge": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-anima-meccanica-trance-dell-ordine": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-anima-meccanica-cavalleria-meccanica": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-discendenza-draconica-antenato-draconico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-discendenza-draconica-resilienza-draconica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-discendenza-draconica-affinita-elementale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-discendenza-draconica-ali-di-drago": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-discendenza-draconica-presenza-draconica": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-magia-delle-ombre-forza-della-tomba": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-magia-delle-ombre-occhi-dell-oscuro": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-magia-delle-ombre-segugio-dei-presagi-nefasti": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-magia-delle-ombre-camminare-nelle-ombre": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-magia-delle-ombre-forma-d-ombra": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-mente-aberrante-conversazione-telepatica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-mente-aberrante-incantesimi-psionici": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-mente-aberrante-difese-psichiche": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-mente-aberrante-stregoneria-psionica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-mente-aberrante-rivelazione-della-carne": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-mente-aberrante-implosione-distorcente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-stregoneria-della-tempesta-magia-tempestosa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-stregoneria-della-tempesta-portavoce-del-vento": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-stregoneria-della-tempesta-cuore-della-tempesta": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-stregoneria-della-tempesta-guida-della-tempesta": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "stregone-stregoneria-della-tempesta-furia-della-tempesta": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-stregoneria-della-tempesta-anima-del-vento": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-suppliche-occulte-armatura-delle-ombre": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-deflagrazione-agonizzante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-deflagrazione-respingente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-influenza-seducente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-ladro-dei-cinque-fati": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-lancia-occulta": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-libro-degli-antichi-segreti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-lingue-delle-bestie": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-maschera-dei-molti-volti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-occhi-del-custode-delle-rune": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-sguardo-delle-due-menti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-vigore-immondo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-visioni-velate": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-vista-del-diavolo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-vista-dell-occulto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-voce-del-signore-delle-catene": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-magia-del-patto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-patrono-ultraterreno": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-arma-del-patto-migliorata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-aspetto-della-luna": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-dono-degli-imperituri": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "warlock-suppliche-occulte-lancia-della-letargia": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "warlock-suppliche-occulte-stretta-di-hadar": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-dono-del-patto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-dono-del-patto-patto-del-tomo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "warlock-dono-del-patto",
+      "quickActionEligible": false
+    },
+    "warlock-dono-del-patto-patto-della-catena": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false,
+      "optionGroup": "warlock-dono-del-patto"
+    },
+    "warlock-dono-del-patto-patto-della-lama": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "warlock-dono-del-patto",
+      "quickActionEligible": false
+    },
+    "warlock-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-dono-delle-profondita": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "warlock-suppliche-occulte-fardello-mentale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-lama-assetata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-mantello-di-mosche": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "warlock-suppliche-occulte-presagio-di-sventura": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-punizione-occulta": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-sortilegio-della-pazzia": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-tomba-di-levistus": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "warlock-suppliche-occulte-tutt-uno-con-le-ombre": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-fuga-dell-ingannatore": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "warlock-suppliche-occulte-parola-temibile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-scultore-della-carne": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-sguardo-fantasma": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "warlock-suppliche-occulte-sortilegio-implacabile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-sussurri-stregati": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-balzo-ultraterreno": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-passo-ascendente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-servitori-del-caos": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-sussurri-dalla-tomba": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-arcanum-mistico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-succhiavita": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-catene-di-carceri": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-maestro-di-mille-forme": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-sudario-delle-ombre": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-visione-dei-reami-lontani": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-suppliche-occulte-vista-stregata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false
+    },
+    "warlock-maestro-dell-occulto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-il-celestiale-luce-guaritrice": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-il-celestiale-trucchetti-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-il-celestiale-anima-radiosa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-il-celestiale-resilienza-celestiale": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-il-celestiale-vendetta-incandescente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-il-genio-lista-degli-incantesimi-espansa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-il-genio-lista-degli-incantesimi-espansa-dao": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "warlock-il-genio-lista-degli-incantesimi-espansa",
+      "quickActionEligible": false
+    },
+    "warlock-il-genio-lista-degli-incantesimi-espansa-djinni": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "warlock-il-genio-lista-degli-incantesimi-espansa",
+      "quickActionEligible": false
+    },
+    "warlock-il-genio-lista-degli-incantesimi-espansa-efreeti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "warlock-il-genio-lista-degli-incantesimi-espansa",
+      "quickActionEligible": false
+    },
+    "warlock-il-genio-lista-degli-incantesimi-espansa-marid": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "optionGroup": "warlock-il-genio-lista-degli-incantesimi-espansa",
+      "quickActionEligible": false
+    },
+    "warlock-il-genio-recipiente-del-genio": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-il-genio-dono-elementale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-il-genio-santuario-del-recipiente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-il-genio-desiderio-limitato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-il-grande-antico-mente-risvegliata": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-il-grande-antico-interdizione-entropica": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-il-grande-antico-scudo-del-pensiero": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-il-grande-antico-creare-servitore": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-il-signore-fatato-presenza-fatata": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-il-signore-fatato-fuga-velata": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-il-signore-fatato-difese-seducenti": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-il-signore-fatato-delirio-oscuro": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-l-immondo-benedizione-dell-oscuro": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-l-immondo-fortuna-dell-oscuro": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-l-immondo-resilienza-immonda": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-l-immondo-scagliare-all-inferno": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-l-insondabile-dono-del-mare": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-l-insondabile-lista-degli-incantesimi-espansa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-l-insondabile-tentacoli-delle-profondita": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-l-insondabile-anima-oceanica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-l-insondabile-spirale-guardiana": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-l-insondabile-presa-dei-tentacoli": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-l-insondabile-immersione-insondabile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-la-lama-del-sortilegio-combattente-del-sortilegio": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-la-lama-del-sortilegio-maledizione-della-lama-del-sortilegio": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-la-lama-del-sortilegio-spettro-maledetto": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "warlock-la-lama-del-sortilegio-armatura-dei-sortilegi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "warlock-la-lama-del-sortilegio-maestro-dei-sortilegi": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
     }
   }
 }

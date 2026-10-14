@@ -4,7 +4,7 @@ Report generato il 2026-10-14 dai tre overlay meccanici locali.
 
 ## Perimetro
 
-Il catalogo contiene **860 record**. Il catalogo runtime attuale ne espone **551**. Le risorse non sono un obiettivo di questo audit.
+Il catalogo contiene **860 record**. Il catalogo runtime attuale ne espone **860**. Le risorse non sono un obiettivo di questo audit.
 
 | Categoria | Record |
 |---|---:|
@@ -64,9 +64,8 @@ Il dettaglio per ogni record, inclusi segnali testuali, effetti marker, bersagli
 
 | Categoria | Record |
 |---|---:|
-| not-automated | 492 |
+| not-automated | 801 |
 | implemented | 59 |
-| non_esposta | 309 |
 
 ## Backlog per primitiva
 

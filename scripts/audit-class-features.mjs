@@ -884,10 +884,10 @@ for (const [id, record] of recordsById) {
     sourceConflict = true;
     sourceConflictDetails = {
       sourceA: "DB PHB2014: activation='passiva', completeness='riferimento'",
-      sourceB: "Runtime catalog: non esposta (manca override include:true), feature-matrix §762: 'descriptive surprise reminder'",
-      runtimeTruth: "Non presente nel catalogo runtime 551 né nella UI",
+      sourceB: "Runtime catalog: esposta dalla Fase 1 con include:true e automationLevel riferimento, feature-matrix §762: 'descriptive surprise reminder'",
+      runtimeTruth: "Carta descrittiva nella scheda Capacità, senza adapter",
       intendedDecision: "targetAutomationLevel: MANUAL (reminder passivo descrittivo al tavolo, non automatizzabile)",
-      reconciliationRecommendation: "Mantenere target MANUAL; se desiderato sulla scheda, aggiungere include:true in overrides",
+      reconciliationRecommendation: "Mantenere target MANUAL come carta descrittiva",
     };
   }
 
@@ -932,7 +932,7 @@ for (const [id, record] of recordsById) {
 
   const evidence = {
     catalog: [source.label, `Pagina ${record?.pagina || mechanic?.source?.page || "N/D"}`],
-    runtime: runtimeEntry ? [`src/class-features-runtime.json (status: ${runtimeEntry.runtimeSupport?.status})`] : ["Non presente nel runtime catalog 551"],
+    runtime: runtimeEntry ? [`src/class-features-runtime.json (status: ${runtimeEntry.runtimeSupport?.status})`] : ["Non presente nel catalogo runtime"],
     ui: runtimeExposed ? ["initiativeCardModal (Scheda Capacità)", "trackerQuickActions"] : ["Non esposta nella UI"],
     tests: [...directTests, ...indirectTests].map((t) => `test/${t}`),
   };

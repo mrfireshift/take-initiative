@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<title>Capacità di classe — anteprima card (SDK simulato)</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1b1d22; font: 12px "Helvetica Neue", Arial, sans-serif; color: #fff; }
+  #toolbar { display: flex; gap: 6px; padding: 8px 10px; background: rgba(42,47,64,.85); }
+  #toolbar a { padding: 4px 9px; border-radius: 8px; border: 1px solid rgba(148,163,184,.3); background: #0f172a; color: #fff; text-decoration: none; }
+  iframe { display: block; width: 420px; height: calc(100% - 44px); border: 0; margin: 0 auto; }
+</style>
+</head>
+<body>
+<!--
+  Anteprima della scheda Capacità della card iniziativa, fuori da Owlbear.
+  npx vite --config test-support/boss-actions-browser/vite.config.mjs --port 5199
+  poi /test-support/boss-actions-browser/class-features-card.html?pc=warlock
+  ?pc= sceglie il personaggio di prova; ?role=PLAYER mostra la vista player.
+-->
+<div id="toolbar"></div>
+<script type="module">
+  import { fakeHost } from "@owlbear-rodeo/sdk";
+  import { markSceneEpochReady } from "/src/sceneEpoch.js";
+  import { mountEffectsMutationCoordinatorService } from "/src/effectsMutations.js";
+  import { mountHistoryOwner } from "/src/historyOwner.js";
+
+  const META = "com.thebigpicture.initiative/meta";
+  const STATE = "com.thebigpicture.initiative/state";
+  const params = new URLSearchParams(location.search);
+  const characters = {
+    warlock: { name: "Vesper", build: [{ classId: "warlock", level: 11, subclassId: "warlock-l-immondo" }] },
+    monaco: { name: "Kaito", build: [{ classId: "monaco", level: 6, subclassId: "monaco-via-della-mano-aperta" }] },
+    guerriero: { name: "Bryn", build: [{ classId: "guerriero", level: 10, subclassId: "guerriero-campione" }] },
+    druido: { name: "Ilse", build: [{ classId: "druido", level: 6, subclassId: "druido-circolo-della-terra" }] },
+    ranger: { name: "Tamsin", build: [{ classId: "ranger", level: 7, subclassId: "ranger-cacciatore" }] },
+  };
+  const selected = characters[params.get("pc")] ? params.get("pc") : "warlock";
+  fakeHost.state.role = params.get("role") === "PLAYER" ? "PLAYER" : "GM";
+  fakeHost.setItems(Object.entries(characters).map(([id, pc], index) => ({
+    id, name: pc.name, type: "IMAGE", layer: "CHARACTER", visible: true,
+    position: { x: 200 + index * 120, y: 300 }, preview: { size: 70, color: "#0e7490" },
+    metadata: { [META]: { hp: 40, hpMax: 40, attitude: "pc", inInitiative: true, initiativeCard: { characterBuild: pc.build } } },
+  })));
+  fakeHost.setSceneMetadata({ [STATE]: { round: 1, order: Object.keys(characters), currentId: selected } });
+
+  const toolbar = document.getElementById("toolbar");
+  for (const id of Object.keys(characters)) {
+    const link = document.createElement("a");
+    link.href = `?pc=${id}`;
+    link.textContent = `${characters[id].name} (${id})`;
+    toolbar.appendChild(link);
+  }
+  // Il background dell'estensione: owner della history e coordinatore effetti.
+  markSceneEpochReady("preview");
+  await mountHistoryOwner();
+  await mountEffectsMutationCoordinatorService();
+  const frame = document.createElement("iframe");
+  frame.src = `/initiative-card-modal.html?source=${encodeURIComponent(selected)}`;
+  document.body.appendChild(frame);
+</script>
+</body>
+</html>

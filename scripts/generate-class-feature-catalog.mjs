@@ -775,7 +775,24 @@ function bandLevelValues(bands) {
   return Object.keys(values).length ? values : null;
 }
 
-function normalizePool(pool, classesById, recordIdentityById) {
+// Formule lineari sul livello di classe ("livello_druido", "1 + livello_warlock"):
+// dipendono solo dal livello della classe, quindi diventano una tabella.
+// Il bonus di competenza dipende dal livello totale e resta al runtime.
+function linearClassLevelValues(capacity) {
+  if (capacity?.type !== "formula") return null;
+  const match = String(capacity.expression || "")
+    .trim()
+    .toLowerCase()
+    .match(/^(?:(\d+)\s*\+\s*)?(?:(\d+)\s*\*\s*)?livello_([a-z-]+)$/u);
+  if (!match) return null;
+  const offset = Number(match[1] || 0);
+  const factor = Number(match[2] || 1);
+  return Object.fromEntries(
+    Array.from({ length: 20 }, (_, index) => [String(index + 1), offset + factor * (index + 1)])
+  );
+}
+
+function normalizePool(pool, classesById, recordIdentityById, subclassById = new Map()) {
   const id = String(pool?.id || "").trim();
   if (!id) return null;
   const capacity = pool.capacity && typeof pool.capacity === "object"
@@ -786,7 +803,11 @@ function normalizePool(pool, classesById, recordIdentityById) {
   const ownerIdentity = recordIdentityById.get(ownerId) || {};
   const ownerClassId = ownerType === "classe"
     ? ownerId
-    : String(ownerIdentity.classId || "").trim();
+    : String(
+      ownerIdentity.classId
+        || (ownerType === "sottoclasse" ? subclassById.get(ownerId)?.classId : "")
+        || ""
+    ).trim();
   const capacityClassId = String(
     capacity?.class_id || ownerClassId || ""
   ).trim();
@@ -812,16 +833,20 @@ function normalizePool(pool, classesById, recordIdentityById) {
       field: String(rawDie.field || rawDie.progression_field || "").trim(),
     }
     : null;
-  const dieByClassLevel = die?.type === "class_progression" && die.field
+  const dieByClassLevel = (die?.type === "class_progression" && die.field
     ? classLevelValues(die, classesById, die.class_id || ownerClassId)
-    : null;
+    : null)
+    || bandLevelValues(pool.die_by_class_level);
   const specialRefresh = normalizeSpecialRefresh(pool.special_refresh);
   return {
     id,
     name: shortText(pool.nome || id, 120),
     capacity: normalizedCapacity,
+    // Senza capacity il runtime ricava la classe da owner per leggere le tabelle.
+    ...(!normalizedCapacity && capacityClassId ? { owner: { classId: capacityClassId } } : {}),
     maximumByClassLevel:
       classLevelValues(capacity, classesById, capacityClassId)
+      || linearClassLevelValues(capacity)
       || bandLevelValues(pool.capacity_by_class_level),
     refresh: Array.isArray(pool.refresh) ? pool.refresh : [],
     refreshByClassLevel: Array.isArray(pool.refresh_by_class_level)
@@ -1117,7 +1142,7 @@ for (const source of loaded) {
   for (const rawPool of Array.isArray(source.mechanicData?.resource_pools)
     ? source.mechanicData.resource_pools
     : []) {
-    const normalized = normalizePool(rawPool, classesById, recordIdentityById);
+    const normalized = normalizePool(rawPool, classesById, recordIdentityById, subclassById);
     if (!normalized) continue;
     if (UNTRACKED_RESOURCE_POOL_IDS.has(normalized.id)) continue;
     const previous = poolById.get(normalized.id);

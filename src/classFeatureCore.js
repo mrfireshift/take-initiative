@@ -386,10 +386,12 @@ export function resolveClassFeatureResourceMaximum(pool, characterBuild) {
     .replace(/[\s-]+/gu, "_");
   const totalCharacterLevel = Math.min(20, sanitizeCharacterBuild(characterBuild)
     .reduce((total, entry) => total + entry.level, 0));
+  // "bonus_competenza" o "N * bonus_competenza": dipende dal livello totale.
+  const proficiencyMatch = normalizedExpression.match(/^(?:(\d+)_\*_)?bonus_competenza$/u);
   const formulaValue = capacity.type === "formula"
-    && normalizedExpression === "bonus_competenza"
+    && proficiencyMatch
     && totalCharacterLevel > 0
-    ? 2 + Math.floor((totalCharacterLevel - 1) / 4)
+    ? Number(proficiencyMatch[1] || 1) * (2 + Math.floor((totalCharacterLevel - 1) / 4))
     : null;
   const classId = String(
     capacity.class_id

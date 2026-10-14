@@ -14,6 +14,10 @@ import {
   getEnabledClassFeatures,
 } from "../src/classFeatureCatalog.js";
 import { getSpellDefinition } from "../src/spells-srd.js";
+import {
+  resolveClassFeatureResourceDie,
+  resolveClassFeatureResourceMaximum,
+} from "../src/classFeatureCore.js";
 
 const rageId = "barbaro-ira";
 const vowId = "paladino-giuramento-di-vendetta-incanalare-divinita-giuramento-di-inimicizia";
@@ -27,7 +31,7 @@ test("il catalogo runtime copre PHB, Xanathar, Tasha e Ranger Revised", () => {
   );
   assert.equal(CLASS_FEATURE_CATALOG.validation.catalogRecords, 860);
   assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 59);
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 492);
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 801);
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === rageId));
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === vowId));
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === twilightId));
@@ -378,7 +382,9 @@ test("il catalogo non proietta condizioni per Feature prive di adapter", () => {
   );
   assert.equal(classFeatureRuntimeSupport(unsupported).ready, false);
   assert.equal(unsupported.effectPlan, null);
-  assert.equal(unsupported.defaultEnabled, false);
+  // Fase 1: il privilegio resta sulla card come gestione manuale, così il suo
+  // pool è tracciato di default, ma non proietta alcun effetto.
+  assert.equal(unsupported.defaultEnabled, true);
   assert.equal(unsupported.completenessStatus, "curated");
 });
 
@@ -422,4 +428,94 @@ test("il catalogo distingue bersaglio singolo e aura", () => {
     resolution: "informational",
     label: "Santuario: per questa creatura, tira manualmente 1d6 + livello da Chierico e applica PF temporanei, oppure termina Affascinata o Spaventata.",
   });
+});
+
+// ==========================================
+// FASE 1: COPERTURA DESCRITTIVA UNIVERSALE
+// ==========================================
+
+test("Fase 1: tutte le capacità del catalogo sono esposte nel runtime", () => {
+  assert.equal(CLASS_FEATURE_CATALOG.validation.activeFeatures, 860);
+  assert.equal(CLASS_FEATURE_CATALOG.features.length, 860);
+  for (const subclassId of [
+    "druido-circolo-della-terra",
+    "guerriero-campione",
+    "ladro-assassino",
+    "warlock-l-immondo",
+  ]) {
+    assert.ok(
+      CLASS_FEATURE_CATALOG.features.some((entry) => entry.subclassId === subclassId),
+      subclassId,
+    );
+  }
+  const rangerBase = getAvailableClassFeatures([{ classId: "ranger", level: 1 }]);
+  assert.ok(rangerBase.some((entry) => entry.id === "ranger-nemico-prescelto"));
+});
+
+test("Fase 1: le nuove carte descrittive non diventano azioni", () => {
+  const build = [{ classId: "warlock", level: 20, subclassId: "warlock-l-immondo" }];
+  const profile = { characterBuild: build };
+  const enabled = getEnabledClassFeatures(profile);
+  const references = enabled.filter((entry) => classFeatureIsReferenceOnly(entry));
+  assert.ok(references.length > 0);
+  for (const feature of references) {
+    assert.equal(classFeatureRuntimeSupport(feature).ready, false, feature.id);
+    assert.equal(feature.effectPlan, null, feature.id);
+  }
+  const referenceIds = new Set(references.map((entry) => entry.id));
+  for (const action of buildClassFeatureQuickActions(profile)) {
+    assert.equal(referenceIds.has(action.featureId), false, action.featureId);
+  }
+});
+
+test("Fase 1: i pool delle capacità manuali sono tracciati di default", () => {
+  const monk = getEnabledClassFeatures({ characterBuild: [{ classId: "monaco", level: 2 }] })
+    .map((entry) => entry.id);
+  assert.ok(monk.includes("monaco-ki-raffica-di-colpi"));
+  assert.ok(monk.includes("monaco-ki-difesa-paziente"));
+  const fighter = getEnabledClassFeatures({ characterBuild: [{ classId: "guerriero", level: 2 }] })
+    .map((entry) => entry.id);
+  assert.ok(fighter.includes("guerriero-azione-impetuosa"));
+  assert.ok(fighter.includes("guerriero-recuperare-energie"));
+});
+
+test("Fase 1: scelte singole esclusive, scelte multiple libere", () => {
+  const pactBoons = CLASS_FEATURE_CATALOG.features
+    .filter((entry) => entry.id.startsWith("warlock-dono-del-patto-"));
+  assert.equal(pactBoons.length, 3);
+  assert.ok(pactBoons.every((entry) =>
+    entry.optionGroup === "warlock-dono-del-patto" && entry.defaultEnabled === false
+  ));
+  // Il Campione sceglie un secondo Stile di Combattimento: niente radio esclusivo.
+  const fighterStyles = CLASS_FEATURE_CATALOG.features
+    .filter((entry) => entry.id.startsWith("guerriero-stile-di-combattimento-"));
+  assert.equal(fighterStyles.length, 6);
+  assert.ok(fighterStyles.every((entry) => !entry.optionGroup && entry.defaultEnabled === false));
+  const invocations = CLASS_FEATURE_CATALOG.features
+    .filter((entry) => entry.id.startsWith("warlock-suppliche-occulte-"));
+  assert.equal(invocations.length, 46);
+  assert.ok(invocations.every((entry) => !entry.optionGroup && entry.defaultEnabled === false));
+});
+
+test("Fase 1: i pool resi visibili hanno un massimo calcolabile", () => {
+  const pool = (id) => CLASS_FEATURE_RESOURCE_POOL_BY_ID.get(id);
+  const maximum = (id, build) => resolveClassFeatureResourceMaximum(pool(id), build).maximum;
+  // Pool di sottoclasse: la classe arriva da owner.
+  assert.equal(maximum("guerriero-dadi-superiorita", [{ classId: "guerriero", level: 3 }]), 4);
+  assert.equal(maximum("guerriero-dadi-superiorita", [{ classId: "guerriero", level: 15 }]), 6);
+  assert.equal(resolveClassFeatureResourceDie(pool("guerriero-dadi-superiorita"), [{ classId: "guerriero", level: 10 }]), "d10");
+  assert.equal(maximum("mago-portento-dadi", [{ classId: "mago", level: 14 }]), 3);
+  assert.equal(maximum("druido-forma-selvatica-usi", [{ classId: "druido", level: 2 }]), 2);
+  // Arcanum Mistico: un uso per ogni livello di Arcanum ottenuto.
+  assert.equal(maximum("warlock-arcanum-mistico-usi", [{ classId: "warlock", level: 11 }]), 1);
+  assert.equal(maximum("warlock-arcanum-mistico-usi", [{ classId: "warlock", level: 17 }]), 4);
+  // Formule lineari sul livello di classe.
+  assert.equal(maximum("warlock-il-celestiale-luce-guaritrice-usi", [{ classId: "warlock", level: 3 }]), 4);
+  assert.equal(maximum("druido-circolo-dei-sogni-balsamo-della-corte-dell-estate-usi", [{ classId: "druido", level: 6 }]), 6);
+  // N × bonus di competenza: dipende dal livello totale del personaggio.
+  assert.equal(maximum("guerriero-guerriero-psionico-potere-psionico-usi", [{ classId: "guerriero", level: 5 }]), 6);
+  assert.equal(maximum("guerriero-guerriero-psionico-potere-psionico-usi", [
+    { classId: "guerriero", level: 5 },
+    { classId: "mago", level: 4 },
+  ]), 8);
 });

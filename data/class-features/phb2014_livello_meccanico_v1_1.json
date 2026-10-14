@@ -553,6 +553,27 @@
           9
         ]
       },
+      "capacity_by_class_level": [
+        {
+          "min_level": 11,
+          "max_level": 12,
+          "value": 1
+        },
+        {
+          "min_level": 13,
+          "max_level": 14,
+          "value": 2
+        },
+        {
+          "min_level": 15,
+          "max_level": 16,
+          "value": 3
+        },
+        {
+          "min_level": 17,
+          "value": 4
+        }
+      ],
       "refresh": [
         {
           "event": "riposo_lungo",

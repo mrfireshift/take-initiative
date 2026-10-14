@@ -9,7 +9,7 @@ const audit = JSON.parse(fs.readFileSync(
 
 test("l'audit copre tutti i record dei quattro overlay", () => {
   assert.equal(audit.scope.totalMechanics, 860);
-  assert.equal(audit.scope.runtimeCatalogRecords, 551);
+  assert.equal(audit.scope.runtimeCatalogRecords, 860);
   assert.equal(audit.features.length, 860);
   assert.equal(new Set(audit.features.map((feature) => feature.id)).size, 860);
 });
@@ -126,10 +126,10 @@ test("CF-001B.8: resourcePoolCount === resourceMatrix.length === 104", () => {
   assert.equal(audit.reconciledSummary.resourcePoolCount, 104);
 });
 
-test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 67", () => {
+test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 83", () => {
   const persistent = audit.features.filter((f) => f.persistentCategory !== null);
-  assert.equal(persistent.length, 67);
-  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 67);
+  assert.equal(persistent.length, 83);
+  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 83);
 });
 
 test("CF-001B.10: catalogGapCount === 0", () => {
@@ -138,10 +138,10 @@ test("CF-001B.10: catalogGapCount === 0", () => {
   assert.equal(audit.reconciledSummary.catalogGapCount, 0);
 });
 
-test("CF-001B.11: functionalGapCount === 463", () => {
+test("CF-001B.11: functionalGapCount === 434", () => {
   const functionalGaps = audit.features.filter((f) => f.coverageStatus === "GAP");
-  assert.equal(functionalGaps.length, 463);
-  assert.equal(audit.reconciledSummary.functionalGapCount, 463);
+  assert.equal(functionalGaps.length, 434);
+  assert.equal(audit.reconciledSummary.functionalGapCount, 434);
 });
 
 test("CF-001B.12: testGapCount === 0 (all test gaps closed in CF-B01)", () => {
@@ -182,7 +182,7 @@ test("CF-001B.16: Assassinare invariants", () => {
   assert.equal(assassinate.catalogStatus, "CATALOGED");
   assert.equal(assassinate.currentAutomationLevel, "MANUAL");
   assert.equal(assassinate.targetAutomationLevel, "MANUAL");
-  assert.equal(assassinate.runtimeExposed, false);
+  assert.equal(assassinate.runtimeExposed, true);
   assert.equal(assassinate.sourceConflict, true);
   assert.equal(assassinate.coverageStatus, "ACCEPTED");
 });
@@ -220,9 +220,9 @@ test("CF-001B.20: determinismo delle metriche canoniche", () => {
   assert.deepEqual(audit.reconciledSummary.currentAutomation, {
     FULL: 8,
     PARTIAL: 40,
-    TRACK_ONLY: 148,
-    MANUAL: 630,
-    NONE: 34,
+    TRACK_ONLY: 180,
+    MANUAL: 632,
+    NONE: 0,
   });
   assert.deepEqual(audit.reconciledSummary.targetAutomation, {
     FULL: 30,
@@ -232,8 +232,8 @@ test("CF-001B.20: determinismo delle metriche canoniche", () => {
     UNREVIEWED: 0,
   });
   assert.deepEqual(audit.reconciledSummary.coverageStatus, {
-    ACCEPTED: 397,
-    GAP: 463,
+    ACCEPTED: 426,
+    GAP: 434,
     UNREVIEWED: 0,
   });
 });

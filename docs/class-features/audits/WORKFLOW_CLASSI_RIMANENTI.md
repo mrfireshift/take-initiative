@@ -138,20 +138,62 @@ archetipo, la decisione va in `BACKLOG_ARCHETYPE_OVERRIDES` nello script e
 l'audit si rigenera con `npm run audit:class-features`. Nessun impatto sul
 runtime.
 
-### Fase 1 — Copertura descrittiva universale (dati, rischio nullo)
+### Fase 1 — Copertura descrittiva universale (completata il 14 ottobre 2026)
 
-Per ogni classe non curata, una passata che aggiunge agli override:
+Aggiunti 654 override in `runtime-feature-overrides.json` per tutti i record
+che non ne avevano uno; le 203 voci curate in precedenza non sono state
+toccate. Il catalogo runtime passa da 551 a **860 capacità** (59 implementate,
+801 `not-automated`). Regole applicate:
 
-- `include: true` + `automationLevel: "riferimento"` per passive e reazioni;
-- `defaultEnabled` deciso per classe (base sì, opzioni esclusive no);
-- `optionGroup` per scelte esclusive (Stili di Combattimento, Manovre,
-  Suppliche, Discipline Elementali, Rune, Frecce Arcane);
-- correzione dei refusi alla fonte, non nell'override.
+- **primitiva `reference-only`** (passive, reazioni, effetti istantanei,
+  movimento): `include`, `automationLevel: "riferimento"`,
+  `quickActionEligible: false` → carta **Promemoria descrittivo**, senza
+  pulsanti né azioni rapide;
+- **candidati della Fase 2** (buff, TS, aure, risorse, cure, compagni…):
+  `include` e `defaultEnabled` senza cambiare il livello di automazione → la
+  carta resta "gestione manuale al tavolo" e il suo pool (Ki, Azione Impetuosa,
+  Superiorità…) è tracciato di default;
+- **privilegi**: `defaultEnabled: true`;
+- **opzioni a scelta singola** (`optionGroup` = capacità madre,
+  `defaultEnabled: false`): Circolo della Terra, Stile di Combattimento del
+  Ranger e del Collegio delle Spade, opzioni del Cacciatore, Dono del Patto,
+  Lista Espansa del Genio, Magia Divina dell'Anima Divina;
+- **opzioni ottenute tutte** (`defaultEnabled: true`): azioni Ki, Potere
+  Psionico, Lame dell'Anima, Volto del Sé Astrale, Incanalare Divinità dei
+  giuramenti, Sciame Riunito, Virtuosismo della Lama, Cammino del Kensei, Totem
+  Spirituale, Forma Siderale;
+- **opzioni a scelta multipla** (nessun gruppo, `defaultEnabled: false`):
+  Manovre, Discipline Elementali, Suppliche Occulte, Rune, Tiri Arcani e Stile
+  di Combattimento del Guerriero (il Campione ne sceglie un secondo);
+- le opzioni di capacità già implementate (Forma della Bestia) restano gestite
+  dai `choiceOptions` della capacità madre.
 
-Chiude i buchi del §1.4.1 e rende ogni build completa nella tab Capacità.
-Un batch per classe, 6 classi (Druido, Guerriero, Monaco, Ranger, Warlock,
-Mago) più le sottoclassi mancanti delle altre 5. Non tocca HP, turno, ordine
-di iniziativa, barre HP né loop metadata.
+Effetti da sapere:
+
+- un profilo già configurato (`classFeaturesConfigured`) conserva la propria
+  selezione: le nuove carte compaiono nell'editor ma vanno abilitate dal GM;
+- gli ID abilitati finiscono nel registry delle card della room (budget 4.450
+  byte). Una build di livello 20 arriva a ~850 byte di ID, come le classi già
+  curate: il limite esiste già, la Fase 1 lo estende alle classi nuove;
+- Elusione del Monaco è ora una carta, ma i danni applicano Elusione solo per
+  `ladro-elusione` (`damageDefensesCore.js`): lacuna preesistente;
+- refusi nelle fonti: non corretti in questa passata, restano da segnalare nei
+  batch della Fase 2.
+
+Pool resi visibili dalla Fase 1 e corretti nella stessa passata (prima
+mostravano `– / –`):
+
+- il generatore emette `owner.classId` quando il pool non ha `capacity`, anche
+  per i pool di sottoclasse (Dadi di Superiorità, Dadi di Portento, Forma
+  Selvatica), e converte `die_by_class_level` (d8/d10/d12 della Superiorità);
+- formule lineari sul livello di classe (`livello_druido`,
+  `1 + livello_warlock`) diventano tabelle per livello;
+- `N * bonus_competenza` è calcolato dal runtime sul livello totale
+  (`resolveClassFeatureResourceMaximum`), come già `bonus_competenza`;
+- Arcanum Mistico: aggiunto `capacity_by_class_level` alla fonte PHB.
+
+Restano senza massimo i 9 pool che dipendono da un modificatore di
+caratteristica: servono la primitiva P1.
 
 ### Fase 2 — Automazione dati per classe (archetipi A, C, D, E-fisso, F)
 

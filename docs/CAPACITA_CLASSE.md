@@ -8,24 +8,27 @@ bersagli e reminder, ma non tira dadi e non decide gli esiti di gioco.
 ## Stato corrente del catalogo
 
 Il catalogo runtime è `src/class-features-runtime.json`, versione `4`.
-Contiene **551 capacità**, **104 pool di risorse** e 13 identificatori di
+Contiene **860 capacità**, **104 pool di risorse** e 13 identificatori di
 classe. L'identificatore `ranger-revised` è il dataset opzionale Unearthed
 Arcana 2016 e non è la stessa progressione del Ranger 2014.
 
 | Sorgente | Record runtime |
 | --- | ---: |
-| Manuale del Giocatore 2014 | 206 |
-| Guida Omnicomprensiva di Xanathar | 144 |
-| Calderone Omnicomprensivo di Tasha | 156 |
+| Manuale del Giocatore 2014 | 440 |
+| Guida Omnicomprensiva di Xanathar | 199 |
+| Calderone Omnicomprensivo di Tasha | 176 |
 | Unearthed Arcana: Ranger, Revised (2016) | 45 |
-| **Totale** | **551** |
+| **Totale** | **860** |
 
 Lo stato di supporto è intenzionalmente esplicito:
 
 - **59 `implemented`**: la capacità può essere attivata dal runtime secondo
   l'adapter dichiarato;
-- **492 `not-automated`**: la voce resta consultabile e gestibile manualmente,
-  ma il pulsante di attivazione non applica una meccanica automatica;
+- **801 `not-automated`**: la voce resta consultabile e gestibile manualmente,
+  ma il pulsante di attivazione non applica una meccanica automatica. Le
+  passive, le reazioni e gli effetti istantanei compaiono come
+  **Promemoria descrittivo**; le altre come gestione manuale al tavolo, con il
+  loro pool di risorse tracciato;
 - anche una capacità `implemented` può chiedere al GM un tiro, una scelta o una
   conferma manuale.
 
@@ -46,7 +49,11 @@ Il GM apre la card del token e seleziona la scheda **Capacità**.
 
 Le capacità con `defaultEnabled` possono essere proposte automaticamente al
 primo profilo; una configurazione esplicita diventa la selezione persistente
-del personaggio. Le voci non automatizzate rimangono descrittive e non devono
+del personaggio. Tutti i privilegi sono proposti di default; le opzioni a scelta
+(Stili di Combattimento, Manovre, Suppliche, Discipline, Rune, Tiri Arcani, Dono
+del Patto…) restano da abilitare, e quelle a scelta singola sono esclusive. Un
+profilo già configurato conserva la propria selezione: le carte aggiunte dopo
+vanno abilitate dal GM. Le voci non automatizzate rimangono descrittive e non devono
 essere abilitate aspettandosi un adapter che il catalogo non dichiara.
 
 Il player può vedere le informazioni rese disponibili dalla card e i reminder,
