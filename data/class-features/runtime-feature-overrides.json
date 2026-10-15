@@ -8514,50 +8514,293 @@
     },
     "paladino-giuramento-degli-antichi-incanalare-divinita-collera-della-natura": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 3,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {},
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌿"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Trattenuto",
+        "displayLabel": "Trattenuto · Collera della Natura",
+        "detail": "TS Forza o Destrezza (a scelta del bersaglio) fallito: trattenuto dai rampicanti; ripete il TS alla fine di ogni suo turno e se lo supera si libera. Con TS superato non applicare la pill."
+      }
     },
     "paladino-giuramento-degli-antichi-incanalare-divinita-scacciare-gli-infedeli": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 10,
+        "end_conditions": [
+          "danno al bersaglio"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🧚"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Scacciato",
+        "detail": "Folletto o immondo entro 9 m che sente il paladino, TS Saggezza fallito: scacciato per 1 minuto o finché subisce danni. Si allontana il più possibile, non termina il movimento entro 9 m, come azione solo Scatto o liberarsi; senza vie di fuga può Schivare. Con TS superato non applicare la pill a chi supera. Non può effettuare reazioni; la vera forma celata da illusioni o mutamenti viene rivelata.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      }
     },
     "paladino-giuramento-degli-antichi-aura-di-interdizione": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "status": "implemented",
+      "adapter": "aura",
+      "suppressSourceCardPill": true,
+      "defaultEnabled": true,
+      "automationLevel": "automatica",
+      "quickActionEligible": false,
+      "targeting": {
+        "mode": "aura",
+        "maxTargets": null,
+        "excludeSource": false
+      },
+      "duration": {
+        "end_conditions": [
+          "privo_di_sensi"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🔰"
+      },
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Aura di Interdizione",
+        "radiusByClassLevel": [
+          {
+            "minLevel": 7,
+            "maxLevel": 17,
+            "value": 3
+          },
+          {
+            "minLevel": 18,
+            "maxLevel": 20,
+            "value": 9
+          }
+        ],
+        "detail": "Il paladino e le creature amiche nell'aura hanno resistenza ai danni inflitti dagli incantesimi.",
+        "targetEffect": {
+          "conditionName": "Resistenza ai danni degli incantesimi",
+          "effectKind": "buff",
+          "detail": "Resistenza ai danni inflitti dagli incantesimi.",
+          "targeting": {
+            "filter": "friendly",
+            "includeCaster": true
+          }
+        }
+      }
     },
     "paladino-giuramento-degli-antichi-sentinella-imperitura": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "♾️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "paladino-giuramento-degli-antichi-campione-degli-antichi": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌳"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Campione degli Antichi",
+        "detail": "Per 1 minuto: recupera 10 PF all'inizio di ogni turno (controllo HP), lancia come azione bonus gli incantesimi da paladino da 1 azione, i nemici entro 3 m hanno svantaggio ai TS contro i suoi incantesimi e Incanalare Divinità."
+      }
     },
     "paladino-giuramento-delle-sentinelle-incanalare-divinita": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false,
+      "resourceCosts": []
     },
     "paladino-giuramento-delle-sentinelle-incanalare-divinita-abiurare-creature-extraplanari": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "paladino-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 10,
+        "end_conditions": [
+          "danno al bersaglio"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌌"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Scacciato",
+        "detail": "Aberrazione, celestiale, elementale, folletto o immondo entro 9 m che sente il paladino, TS Saggezza fallito: scacciato per 1 minuto o finché subisce danni. Si allontana il più possibile, non termina il movimento entro 9 m, come azione solo Scatto o liberarsi; senza vie di fuga può Schivare. Con TS superato non applicare la pill a chi supera.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      }
     },
     "paladino-giuramento-delle-sentinelle-incanalare-divinita-volonta-della-sentinella": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "paladino-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🧿"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Volontà della Sentinella",
+        "detail": "Per 1 minuto: vantaggio ai TS su Intelligenza, Saggezza e Carisma. Bersagli: il paladino e fino al modificatore di Carisma (minimo 1) creature entro 9 m."
+      }
     },
     "paladino-giuramento-delle-sentinelle-aura-della-sentinella": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "status": "implemented",
+      "adapter": "aura",
+      "suppressSourceCardPill": true,
+      "defaultEnabled": true,
+      "automationLevel": "automatica",
+      "quickActionEligible": false,
+      "targeting": {
+        "mode": "aura",
+        "maxTargets": null,
+        "excludeSource": false
+      },
+      "duration": {
+        "end_conditions": [
+          "privo_di_sensi"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "⏰"
+      },
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Aura della Sentinella",
+        "radiusByClassLevel": [
+          {
+            "minLevel": 7,
+            "maxLevel": 17,
+            "value": 3
+          },
+          {
+            "minLevel": 18,
+            "maxLevel": 20,
+            "value": 9
+          }
+        ],
+        "detail": "Se il paladino non è incapacitato, lui e le creature scelte nell'aura aggiungono il suo bonus di competenza ai tiri per l'iniziativa.",
+        "targetEffect": {
+          "conditionName": "Bonus all'iniziativa",
+          "effectKind": "buff",
+          "detail": "Aggiungi il bonus di competenza del paladino al tiro per l'iniziativa.",
+          "targeting": {
+            "filter": "friendly",
+            "includeCaster": true
+          }
+        }
+      }
     },
     "paladino-giuramento-delle-sentinelle-punizione-solerte": {
       "include": true,
@@ -8568,30 +8811,108 @@
     },
     "paladino-giuramento-delle-sentinelle-baluardo-dei-mortali": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🏰"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Baluardo dei Mortali",
+        "detail": "Per 1 minuto: vista pura entro 36 m, vantaggio agli attacchi contro aberrazioni, celestiali, folletti e immondi; quando colpisce e danneggia può imporre un TS Carisma (CD incantesimi) per esiliarla sul suo piano nativo. Riuso prima del riposo lungo con uno slot di 5° livello."
+      }
     },
     "paladino-giuramento-di-conquista-incanalare-divinita": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false,
+      "resourceCosts": []
     },
     "paladino-giuramento-di-conquista-incanalare-divinita-colpo-guidato": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "paladino-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🎯"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "paladino-giuramento-di-conquista-incanalare-divinita-presenza-conquistatrice": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "paladino-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "😱"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Spaventato",
+        "displayLabel": "Spaventato · Presenza Conquistatrice",
+        "detail": "Creature scelte entro 9 m con TS Saggezza fallito: spaventate dal paladino per 1 minuto; ripetono il TS alla fine di ogni loro turno. Con TS superato non applicare la pill a chi supera."
+      }
     },
     "paladino-giuramento-di-conquista-aura-di-conquista": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "paladino-giuramento-di-conquista-intimorire-sprezzante": {
       "include": true,
@@ -8602,30 +8923,153 @@
     },
     "paladino-giuramento-di-conquista-conquistatore-invincibile": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "👑"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Conquistatore Invincibile",
+        "detail": "Per 1 minuto: resistenza a tutti i danni, un attacco aggiuntivo con l'azione Attacco, critico con 19-20 negli attacchi in mischia con le armi."
+      }
     },
     "paladino-giuramento-di-gloria-incanalare-divinita": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false,
+      "resourceCosts": []
     },
     "paladino-giuramento-di-gloria-incanalare-divinita-atleta-impareggiabile": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "paladino-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 100
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🏃"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Atleta Impareggiabile",
+        "detail": "Per 10 minuti: vantaggio ad Atletica e Acrobazia, capacità di carico doppia, +3 m ai salti in lungo e in alto."
+      }
     },
     "paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "paladino-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "💫"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "paladino-giuramento-di-gloria-aura-di-alacrita": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "status": "implemented",
+      "adapter": "aura",
+      "suppressSourceCardPill": true,
+      "defaultEnabled": true,
+      "automationLevel": "automatica",
+      "quickActionEligible": false,
+      "targeting": {
+        "mode": "aura",
+        "maxTargets": null,
+        "excludeSource": false
+      },
+      "duration": {
+        "end_conditions": [
+          "privo_di_sensi"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "💨"
+      },
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Aura di Alacrità",
+        "radiusByClassLevel": [
+          {
+            "minLevel": 7,
+            "maxLevel": 17,
+            "value": 1.5
+          },
+          {
+            "minLevel": 18,
+            "maxLevel": 20,
+            "value": 4.5
+          }
+        ],
+        "detail": "La velocità base del paladino aumenta di 3 m. Se non è incapacitato, gli alleati che iniziano il turno entro l'aura ottengono +3 m fino alla fine di quel turno.",
+        "targetEffect": {
+          "conditionName": "Aura di Alacrità",
+          "effectKind": "buff",
+          "detail": "+3 m alla velocità; per gli alleati vale fino alla fine del turno iniziato nell'aura.",
+          "mechanics": {
+            "movement": {
+              "addMeters": 3
+            }
+          },
+          "targeting": {
+            "filter": "friendly",
+            "includeCaster": true
+          }
+        }
+      }
     },
     "paladino-giuramento-di-gloria-difesa-gloriosa": {
       "include": true,
@@ -8634,32 +9078,106 @@
     },
     "paladino-giuramento-di-gloria-leggenda-vivente": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌟"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Leggenda Vivente",
+        "detail": "Per 1 minuto: vantaggio alle prove di Carisma; una volta per turno un attacco con un'arma mancato va a segno; con la reazione ripete un TS fallito. Riuso prima del riposo lungo con uno slot di 5° livello."
+      }
     },
     "paladino-giuramento-di-redenzione-incanalare-divinita": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false,
+      "resourceCosts": []
     },
     "paladino-giuramento-di-redenzione-incanalare-divinita-emissario-di-pace": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "paladino-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 100
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🤝"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Emissario di Pace",
+        "detail": "Per 10 minuti: +5 alle prove di Carisma (Persuasione)."
+      }
     },
     "paladino-giuramento-di-redenzione-incanalare-divinita-intimorire-i-violenti": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "paladino-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "reazione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "💢"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "paladino-giuramento-di-redenzione-aura-del-guardiano": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "paladino-giuramento-di-redenzione-spirito-protettivo": {
       "include": true,

@@ -252,6 +252,14 @@ const BACKLOG_ARCHETYPE_OVERRIDES = Object.freeze({
   "ladro-lama-spirituale-potere-psionico": "reference",
   "ladro-fantasma-compagno-della-morte": "reference",
   "ladro-pianificatore-maestro-di-intrighi": "reference",
+  // Batch Paladino (Fase 2): i contenitori passano il costo alle opzioni.
+  "paladino-giuramento-delle-sentinelle-incanalare-divinita": "reference",
+  "paladino-giuramento-di-gloria-incanalare-divinita": "reference",
+  "paladino-giuramento-di-conquista-incanalare-divinita": "reference",
+  "paladino-giuramento-di-redenzione-incanalare-divinita": "reference",
+  // Colpisce solo le creature spaventate: l'aura non filtra per condizione.
+  "paladino-giuramento-di-conquista-aura-di-conquista": "reference",
+  "paladino-giuramento-di-redenzione-aura-del-guardiano": "instant-reminder",
 });
 
 const DIRECT_TEST_FILES = [
@@ -270,6 +278,7 @@ const DIRECT_TEST_FILES = [
   "wizardSchoolsFeatureRuntime.test.js",
   "warlockFeatureRuntime.test.js",
   "paladinDevotionFeatureRuntime.test.js",
+  "paladinOathsFeatureRuntime.test.js",
   "rangerRevisedFeatureRuntime.test.js",
   "rogueArcaneTricksterFeatureRuntime.test.js",
   "sorcererWildMagicFeatureRuntime.test.js",

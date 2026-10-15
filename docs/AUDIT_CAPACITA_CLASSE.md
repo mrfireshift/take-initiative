@@ -72,36 +72,36 @@ Il dettaglio per ogni record, inclusi segnali testuali, effetti marker, bersagli
 
 | Categoria | Record |
 |---|---:|
-| not-automated | 629 |
-| implemented | 231 |
+| not-automated | 611 |
+| implemented | 249 |
 
 ## Backlog per primitiva
 
-Capacità non implementate: **629**. Raggiungibili con soli override: **589** (di cui automazione: **34**, il resto carte descrittive). Bloccate da una primitiva mancante: **40**. Archetipo e primitiva sono euristiche da confermare nel batch; le decisioni manuali confermate sono 23.
+Capacità non implementate: **611**. Raggiungibili con soli override: **574** (di cui automazione: **18**, il resto carte descrittive). Bloccate da una primitiva mancante: **37**. Archetipo e primitiva sono euristiche da confermare nel batch; le decisioni manuali confermate sono 29.
 
 | Primitiva | Disponibile | Implementate | Da fare |
 |---|---|---:|---:|
-| Carta descrittiva (`reference-only`) | sì | 0 | 555 |
-| Consumo risorsa (`resource-only`) | sì | 94 | 8 |
-| Pill con durata (`condition`) | sì | 107 | 14 |
-| Pill con esito scelto dal GM (choiceOptions) (`condition-choice`) | sì | 4 | 3 |
-| Aura dinamica (`aura`) | sì | 13 | 9 |
+| Carta descrittiva (`reference-only`) | sì | 0 | 556 |
+| Consumo risorsa (`resource-only`) | sì | 98 | 7 |
+| Pill con durata (`condition`) | sì | 118 | 7 |
+| Pill con esito scelto dal GM (choiceOptions) (`condition-choice`) | sì | 4 | 0 |
+| Aura dinamica (`aura`) | sì | 16 | 4 |
 | Adapter dedicato esistente (`custom-adapter`) | sì | 13 | 0 |
-| Valore numerico inserito dal GM (cure, PF temporanei, costi variabili) (`value-input`) | no | 0 | 20 |
+| Valore numerico inserito dal GM (cure, PF temporanei, costi variabili) (`value-input`) | no | 0 | 17 |
 | Compagno o evocazione su token esistente (`linked-token`) | no | 0 | 10 |
 | Trasformazione (`transformation`) | no | 0 | 2 |
 | Ponte verso il sistema Incantesimi (`spell-bridge`) | no | 0 | 8 |
 
 | Archetipo | Primitiva | Implementate | Da fare |
 |---|---|---:|---:|
-| Descrittiva / passiva (`reference`) | `reference-only` | 0 | 419 |
-| Reazione o effetto istantaneo da ricordare (`instant-reminder`) | `reference-only` | 0 | 122 |
+| Descrittiva / passiva (`reference`) | `reference-only` | 0 | 422 |
+| Reazione o effetto istantaneo da ricordare (`instant-reminder`) | `reference-only` | 0 | 120 |
 | Movimento / teletrasporto (`movement`) | `reference-only` | 0 | 14 |
-| Solo consumo risorsa (`resource-only`) | `resource-only` | 94 | 8 |
-| Buff o marker con durata (`timed-condition`) | `condition` | 107 | 14 |
-| Condizione dopo tiro salvezza (`save-outcome-condition`) | `condition-choice` | 4 | 3 |
-| Aura (`aura`) | `aura` | 13 | 9 |
-| Cura o PF temporanei (`hp-change`) | `value-input` | 0 | 19 |
+| Solo consumo risorsa (`resource-only`) | `resource-only` | 98 | 7 |
+| Buff o marker con durata (`timed-condition`) | `condition` | 118 | 7 |
+| Condizione dopo tiro salvezza (`save-outcome-condition`) | `condition-choice` | 4 | 0 |
+| Aura (`aura`) | `aura` | 16 | 4 |
+| Cura o PF temporanei (`hp-change`) | `value-input` | 0 | 16 |
 | Costo variabile scelto dal GM (`variable-cost`) | `value-input` | 0 | 1 |
 | Compagno / evocazione (`companion-summon`) | `linked-token` | 0 | 10 |
 | Trasformazione (`transformation`) | `transformation` | 0 | 2 |
@@ -120,7 +120,7 @@ Capacità non implementate: **629**. Raggiungibili con soli override: **589** (d
 | Ladro | 16 | 47 | 0 | 0 | — |
 | Mago | 11 | 46 | 0 | 4 | spell-bridge 2, linked-token 1, value-input 1 |
 | Monaco | 42 | 35 | 1 | 1 | value-input 1 |
-| Paladino | 12 | 24 | 17 | 3 | value-input 3 |
+| Paladino | 30 | 25 | 1 | 0 | — |
 | Ranger | 10 | 54 | 0 | 1 | spell-bridge 1 |
 | Ranger (Revised) | 2 | 38 | 2 | 3 | linked-token 3 |
 | Stregone | 13 | 30 | 8 | 5 | transformation 2, value-input 2, linked-token 1 |

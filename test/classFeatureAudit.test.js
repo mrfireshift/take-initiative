@@ -126,10 +126,10 @@ test("CF-001B.8: resourcePoolCount === resourceMatrix.length === 104", () => {
   assert.equal(audit.reconciledSummary.resourcePoolCount, 104);
 });
 
-test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 144", () => {
+test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 155", () => {
   const persistent = audit.features.filter((f) => f.persistentCategory !== null);
-  assert.equal(persistent.length, 144);
-  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 144);
+  assert.equal(persistent.length, 155);
+  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 155);
 });
 
 test("CF-001B.10: catalogGapCount === 0", () => {
@@ -138,10 +138,10 @@ test("CF-001B.10: catalogGapCount === 0", () => {
   assert.equal(audit.reconciledSummary.catalogGapCount, 0);
 });
 
-test("CF-001B.11: functionalGapCount === 367", () => {
+test("CF-001B.11: functionalGapCount === 358", () => {
   const functionalGaps = audit.features.filter((f) => f.coverageStatus === "GAP");
-  assert.equal(functionalGaps.length, 367);
-  assert.equal(audit.reconciledSummary.functionalGapCount, 367);
+  assert.equal(functionalGaps.length, 358);
+  assert.equal(audit.reconciledSummary.functionalGapCount, 358);
 });
 
 test("CF-001B.12: testGapCount === 0 (all test gaps closed in CF-B01)", () => {
@@ -219,9 +219,9 @@ test("CF-001B.19: Spirito del Lupo invariants", () => {
 test("CF-001B.20: determinismo delle metriche canoniche", () => {
   assert.deepEqual(audit.reconciledSummary.currentAutomation, {
     FULL: 8,
-    PARTIAL: 129,
-    TRACK_ONLY: 146,
-    MANUAL: 577,
+    PARTIAL: 143,
+    TRACK_ONLY: 139,
+    MANUAL: 570,
     NONE: 0,
   });
   assert.deepEqual(audit.reconciledSummary.targetAutomation, {
@@ -232,8 +232,8 @@ test("CF-001B.20: determinismo delle metriche canoniche", () => {
     UNREVIEWED: 0,
   });
   assert.deepEqual(audit.reconciledSummary.coverageStatus, {
-    ACCEPTED: 493,
-    GAP: 367,
+    ACCEPTED: 502,
+    GAP: 358,
     UNREVIEWED: 0,
   });
 });
@@ -330,21 +330,21 @@ test("Backlog.7: i pool basati su modificatori di caratteristica sono segnalati"
 
 test("Backlog.8: determinismo della distribuzione per archetipo", () => {
   assert.deepEqual(audit.summary.byArchetype, {
-    reference: 419,
-    "instant-reminder": 122,
-    "timed-condition": 121,
-    "resource-only": 102,
-    aura: 22,
-    "hp-change": 19,
+    reference: 422,
+    "timed-condition": 125,
+    "instant-reminder": 120,
+    "resource-only": 105,
+    aura: 20,
+    "hp-change": 16,
     movement: 14,
     "custom-adapter": 13,
     "companion-summon": 10,
     "spell-bridge": 8,
-    "save-outcome-condition": 7,
+    "save-outcome-condition": 4,
     transformation: 2,
     "variable-cost": 1,
   });
-  assert.equal(audit.backlog.dataOnlyCandidateCount, 589);
-  assert.equal(audit.backlog.dataOnlyAutomationCount, 34);
-  assert.equal(audit.backlog.needsPrimitiveCount, 40);
+  assert.equal(audit.backlog.dataOnlyCandidateCount, 574);
+  assert.equal(audit.backlog.dataOnlyAutomationCount, 18);
+  assert.equal(audit.backlog.needsPrimitiveCount, 37);
 });

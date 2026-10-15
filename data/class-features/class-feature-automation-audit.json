@@ -34,7 +34,7 @@
     ],
     "totalMechanics": 860,
     "runtimeCatalogRecords": 860,
-    "runtimeImplemented": 231
+    "runtimeImplemented": 249
   },
   "criteria": {
     "token_marker": "La capacità viene usata su un token e lascia uno stato/promemoria visibile per la durata dello scontro o finché non viene consumata.",
@@ -71,11 +71,11 @@
       "curata": 109
     },
     "byRuntimeStatus": {
-      "not-automated": 629,
-      "implemented": 231
+      "not-automated": 611,
+      "implemented": 249
     },
     "blockerCounts": {
-      "adapter_runtime_mancante": 629,
+      "adapter_runtime_mancante": 611,
       "scelta_giocatore_o_opzione": 146
     },
     "dataBlockerCounts": {
@@ -123,17 +123,17 @@
     "deterministicExcludedCount": 4,
     "resourceCriterionIgnored": true,
     "byArchetype": {
-      "reference": 419,
-      "instant-reminder": 122,
-      "timed-condition": 121,
-      "resource-only": 102,
-      "aura": 22,
-      "hp-change": 19,
+      "reference": 422,
+      "timed-condition": 125,
+      "instant-reminder": 120,
+      "resource-only": 105,
+      "aura": 20,
+      "hp-change": 16,
       "movement": 14,
       "custom-adapter": 13,
       "companion-summon": 10,
       "spell-bridge": 8,
-      "save-outcome-condition": 7,
+      "save-outcome-condition": 4,
       "transformation": 2,
       "variable-cost": 1
     }
@@ -144,31 +144,31 @@
         "label": "Carta descrittiva",
         "available": true,
         "implemented": 0,
-        "open": 555
+        "open": 556
       },
       "resource-only": {
         "label": "Consumo risorsa",
         "available": true,
-        "implemented": 94,
-        "open": 8
+        "implemented": 98,
+        "open": 7
       },
       "condition": {
         "label": "Pill con durata",
         "available": true,
-        "implemented": 107,
-        "open": 14
+        "implemented": 118,
+        "open": 7
       },
       "condition-choice": {
         "label": "Pill con esito scelto dal GM (choiceOptions)",
         "available": true,
         "implemented": 4,
-        "open": 3
+        "open": 0
       },
       "aura": {
         "label": "Aura dinamica",
         "available": true,
-        "implemented": 13,
-        "open": 9
+        "implemented": 16,
+        "open": 4
       },
       "custom-adapter": {
         "label": "Adapter dedicato esistente",
@@ -180,7 +180,7 @@
         "label": "Valore numerico inserito dal GM (cure, PF temporanei, costi variabili)",
         "available": false,
         "implemented": 0,
-        "open": 20
+        "open": 17
       },
       "linked-token": {
         "label": "Compagno o evocazione su token esistente",
@@ -206,13 +206,13 @@
         "label": "Descrittiva / passiva",
         "primitive": "reference-only",
         "implemented": 0,
-        "open": 419
+        "open": 422
       },
       "instant-reminder": {
         "label": "Reazione o effetto istantaneo da ricordare",
         "primitive": "reference-only",
         "implemented": 0,
-        "open": 122
+        "open": 120
       },
       "movement": {
         "label": "Movimento / teletrasporto",
@@ -223,32 +223,32 @@
       "resource-only": {
         "label": "Solo consumo risorsa",
         "primitive": "resource-only",
-        "implemented": 94,
-        "open": 8
+        "implemented": 98,
+        "open": 7
       },
       "timed-condition": {
         "label": "Buff o marker con durata",
         "primitive": "condition",
-        "implemented": 107,
-        "open": 14
+        "implemented": 118,
+        "open": 7
       },
       "save-outcome-condition": {
         "label": "Condizione dopo tiro salvezza",
         "primitive": "condition-choice",
         "implemented": 4,
-        "open": 3
+        "open": 0
       },
       "aura": {
         "label": "Aura",
         "primitive": "aura",
-        "implemented": 13,
-        "open": 9
+        "implemented": 16,
+        "open": 4
       },
       "hp-change": {
         "label": "Cura o PF temporanei",
         "primitive": "value-input",
         "implemented": 0,
-        "open": 19
+        "open": 16
       },
       "variable-cost": {
         "label": "Costo variabile scelto dal GM",
@@ -281,10 +281,10 @@
         "open": 0
       }
     },
-    "dataOnlyCandidateCount": 589,
-    "dataOnlyAutomationCount": 34,
-    "needsPrimitiveCount": 40,
-    "manualDecisionCount": 23,
+    "dataOnlyCandidateCount": 574,
+    "dataOnlyAutomationCount": 18,
+    "needsPrimitiveCount": 37,
+    "manualDecisionCount": 29,
     "byClass": {
       "barbaro": {
         "className": "Barbaro",
@@ -371,13 +371,11 @@
       },
       "paladino": {
         "className": "Paladino",
-        "implemented": 12,
-        "dataOnlyReference": 24,
-        "dataOnlyAutomation": 17,
-        "needsPrimitive": 3,
-        "needsPrimitiveByPrimitive": {
-          "value-input": 3
-        }
+        "implemented": 30,
+        "dataOnlyReference": 25,
+        "dataOnlyAutomation": 1,
+        "needsPrimitive": 0,
+        "needsPrimitiveByPrimitive": {}
       },
       "ranger": {
         "className": "Ranger",
@@ -431,9 +429,9 @@
     "runtimeNotExposedCount": 0,
     "currentAutomation": {
       "FULL": 8,
-      "PARTIAL": 129,
-      "TRACK_ONLY": 146,
-      "MANUAL": 577,
+      "PARTIAL": 143,
+      "TRACK_ONLY": 139,
+      "MANUAL": 570,
       "NONE": 0
     },
     "targetAutomation": {
@@ -444,21 +442,21 @@
       "UNREVIEWED": 0
     },
     "coverageStatus": {
-      "ACCEPTED": 493,
-      "GAP": 367,
+      "ACCEPTED": 502,
+      "GAP": 358,
       "UNREVIEWED": 0
     },
     "testCoverageStatus": {
-      "DIRECT": 363,
+      "DIRECT": 389,
       "INDIRECT": 33,
-      "NONE": 464
+      "NONE": 438
     },
-    "functionalGapCount": 367,
+    "functionalGapCount": 358,
     "testGapCount": 0,
     "sourceConflictCount": 3,
     "catalogGapCount": 0,
     "customCodeCount": 15,
-    "persistentLifecycleCount": 144,
+    "persistentLifecycleCount": 155,
     "resourcePoolCount": 104
   },
   "resourcePools": [
@@ -952,16 +950,20 @@
       "name": "Incanalare Divinità",
       "classId": "paladino",
       "featureIds": [
-        "paladino-giuramento-di-conquista-incanalare-divinita",
-        "paladino-giuramento-di-redenzione-incanalare-divinita",
-        "paladino-giuramento-delle-sentinelle-incanalare-divinita",
-        "paladino-giuramento-di-gloria-incanalare-divinita",
+        "paladino-giuramento-delle-sentinelle-incanalare-divinita-abiurare-creature-extraplanari",
+        "paladino-giuramento-di-gloria-incanalare-divinita-atleta-impareggiabile",
+        "paladino-giuramento-di-conquista-incanalare-divinita-colpo-guidato",
+        "paladino-giuramento-di-redenzione-incanalare-divinita-emissario-di-pace",
         "paladino-giuramento-di-vendetta-incanalare-divinita-abiurare-nemico",
         "paladino-giuramento-di-devozione-incanalare-divinita-arma-consacrata",
         "paladino-giuramento-degli-antichi-incanalare-divinita-collera-della-natura",
         "paladino-giuramento-di-vendetta-incanalare-divinita-giuramento-di-inimicizia",
         "paladino-giuramento-degli-antichi-incanalare-divinita-scacciare-gli-infedeli",
-        "paladino-giuramento-di-devozione-incanalare-divinita-scacciare-i-sacrileghi"
+        "paladino-giuramento-di-devozione-incanalare-divinita-scacciare-i-sacrileghi",
+        "paladino-giuramento-di-redenzione-incanalare-divinita-intimorire-i-violenti",
+        "paladino-giuramento-di-conquista-incanalare-divinita-presenza-conquistatrice",
+        "paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice",
+        "paladino-giuramento-delle-sentinelle-incanalare-divinita-volonta-della-sentinella"
       ],
       "capacityModel": "fixed",
       "maximumRule": "class_level_table",
@@ -38891,8 +38893,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "completezza_non_curata",
@@ -38921,22 +38922,22 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "save-outcome-condition",
-      "archetypeLabel": "Condizione dopo tiro salvezza",
-      "requiredPrimitive": "condition-choice",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:tiro-salvezza-condizione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -38954,40 +38955,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "SHORT_REST",
       "activationType": "ACTION",
-      "targetingMode": "SELF",
+      "targetingMode": "SINGLE_TARGET",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Manuale del Giocatore 2014",
           "Pagina 100"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -39140,8 +39143,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "completezza_non_curata",
@@ -39171,7 +39173,7 @@
           "finché",
           "per 1 minuto"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -39179,14 +39181,14 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -39205,40 +39207,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "SHORT_REST",
       "activationType": "ACTION",
-      "targetingMode": "SELF",
+      "targetingMode": "SINGLE_TARGET",
       "durationMode": "ROUND_BASED",
       "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
       "hasCleanup": true,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Manuale del Giocatore 2014",
           "Pagina 100"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -39975,9 +39979,7 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -40002,7 +40004,7 @@
         "textMarkerSignals": [
           "aura"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -40010,15 +40012,14 @@
       "archetype": "aura",
       "archetypeLabel": "Aura",
       "requiredPrimitive": "aura",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "attivazione:passiva",
-        "aura"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "aura"
       },
       "sourceData": {
         "completenessMissing": [
@@ -40037,40 +40038,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "MANUAL",
-      "coverageStatus": "ACCEPTED",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "PASSIVE"
+        "AURA"
       ],
       "resourceModel": "NONE",
       "activationType": "PASSIVE",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "targetingMode": "AURA",
+      "durationMode": "PERSISTENT",
+      "persistentCategory": "SPATIAL_AURA",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": null,
-      "severity": null,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": "OTHER",
+      "severity": "P2",
       "evidence": {
         "catalog": [
           "Manuale del Giocatore 2014",
           "Pagina 100"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -40804,9 +40807,7 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "passiva_o_contenitore",
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -40833,22 +40834,22 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "reference",
-      "archetypeLabel": "Descrittiva / passiva",
-      "requiredPrimitive": "reference-only",
-      "dataOnlyCandidate": true,
+      "archetype": "resource-only",
+      "archetypeLabel": "Solo consumo risorsa",
+      "requiredPrimitive": "resource-only",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "attivazione:passiva"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -40868,22 +40869,22 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "TRACK_ONLY",
       "coverageStatus": "ACCEPTED",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "PASSIVE"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "LONG_REST",
-      "activationType": "PASSIVE",
+      "activationType": "FREE",
       "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": null,
       "severity": null,
       "evidence": {
@@ -40892,13 +40893,15 @@
           "Pagina 100"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -41052,8 +41055,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "completezza_non_curata",
@@ -41082,22 +41084,22 @@
         "textMarkerSignals": [
           "per 1 minuto"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "hp-change",
-      "archetypeLabel": "Cura o PF temporanei",
-      "requiredPrimitive": "value-input",
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:punti-ferita"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -41120,40 +41122,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "LONG_REST",
-      "activationType": "BONUS_ACTION",
+      "activationType": "ACTION",
       "targetingMode": "SELF",
       "durationMode": "ROUND_BASED",
       "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
       "hasCleanup": true,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Manuale del Giocatore 2014",
           "Pagina 100"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -74592,9 +74596,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -74620,7 +74622,7 @@
           "finché",
           "per 1 minuto"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -74628,14 +74630,14 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -74653,40 +74655,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
-      "resourceModel": "NONE",
+      "resourceModel": "SHORT_REST",
       "activationType": "ACTION",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Calderone Omnicomprensivo di Tasha",
           "Pagina 61"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -74711,9 +74715,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -74735,22 +74737,22 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "instant-reminder",
-      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
-      "requiredPrimitive": "reference-only",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "attivazione:azione_bonus"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -74767,40 +74769,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
-      "resourceModel": "NONE",
+      "resourceModel": "SHORT_REST",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Calderone Omnicomprensivo di Tasha",
           "Pagina 62"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -74861,12 +74865,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "timed-condition",
-      "archetypeLabel": "Buff o marker con durata",
-      "requiredPrimitive": "condition",
+      "archetype": "reference",
+      "archetypeLabel": "Descrittiva / passiva",
+      "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -74890,10 +74894,10 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -74901,14 +74905,14 @@
       "executionPath": [
         "REMINDER"
       ],
-      "resourceModel": "SHORT_REST",
+      "resourceModel": "NONE",
       "activationType": "ACTION",
       "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -74923,7 +74927,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -74979,12 +74985,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "hp-change",
-      "archetypeLabel": "Cura o PF temporanei",
-      "requiredPrimitive": "value-input",
-      "dataOnlyCandidate": false,
+      "archetype": "reference",
+      "archetypeLabel": "Descrittiva / passiva",
+      "requiredPrimitive": "reference-only",
+      "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "testo:punti-ferita"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -75009,10 +75015,10 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -75020,14 +75026,14 @@
       "executionPath": [
         "REMINDER"
       ],
-      "resourceModel": "SHORT_REST",
+      "resourceModel": "NONE",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -75042,7 +75048,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -75067,9 +75075,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -75091,22 +75097,22 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "hp-change",
-      "archetypeLabel": "Cura o PF temporanei",
-      "requiredPrimitive": "value-input",
+      "archetype": "resource-only",
+      "archetypeLabel": "Solo consumo risorsa",
+      "requiredPrimitive": "resource-only",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:punti-ferita"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -75124,25 +75130,25 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
-      "resourceModel": "NONE",
+      "resourceModel": "SHORT_REST",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -75151,13 +75157,15 @@
           "Pagina 62"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -75182,9 +75190,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -75210,7 +75216,7 @@
           "fino a",
           "per 1 minuto"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -75218,14 +75224,14 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -75241,40 +75247,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
-      "resourceModel": "NONE",
+      "resourceModel": "SHORT_REST",
       "activationType": "ACTION",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Calderone Omnicomprensivo di Tasha",
           "Pagina 61"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -75299,9 +75307,7 @@
         "rationale": "Esclusa dal perimetro: le capacità dichiarate deterministiche non sono prioritarie per il tracciamento manuale su token.",
         "scopeExclusion": "automazione_deterministica_scartata",
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "bersaglio_da_specificare",
           "durata_da_specificare"
@@ -75327,7 +75333,7 @@
           "fino a",
           "aura"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [
           "aura_bonus_iniziativa"
         ],
@@ -75339,15 +75345,14 @@
       "archetype": "aura",
       "archetypeLabel": "Aura",
       "requiredPrimitive": "aura",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "attivazione:passiva",
-        "aura"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "aura"
       },
       "sourceData": {
         "completenessMissing": [],
@@ -75363,25 +75368,25 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "FULL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "PASSIVE"
+        "AURA"
       ],
       "resourceModel": "NONE",
       "activationType": "PASSIVE",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "targetingMode": "AURA",
+      "durationMode": "PERSISTENT",
+      "persistentCategory": "SPATIAL_AURA",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -75390,13 +75395,15 @@
           "Pagina 61"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -75421,9 +75428,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -75452,7 +75457,7 @@
           "aura",
           "alleat"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -75460,14 +75465,14 @@
       "archetype": "aura",
       "archetypeLabel": "Aura",
       "requiredPrimitive": "aura",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "aura"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "aura"
       },
       "sourceData": {
         "completenessMissing": [
@@ -75485,40 +75490,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "AURA"
       ],
       "resourceModel": "NONE",
       "activationType": "FREE",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "targetingMode": "AURA",
+      "durationMode": "PERSISTENT",
+      "persistentCategory": "SPATIAL_AURA",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Calderone Omnicomprensivo di Tasha",
           "Pagina 62"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -75608,7 +75615,7 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -75623,7 +75630,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -75638,7 +75645,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -75779,9 +75788,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -75808,7 +75815,7 @@
         "textMarkerSignals": [
           "per 1 minuto"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -75816,14 +75823,14 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -75845,40 +75852,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Calderone Omnicomprensivo di Tasha",
           "Pagina 61"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -75903,9 +75912,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -75933,7 +75940,7 @@
           "per 1 minuto",
           "bersaglio"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -75941,14 +75948,14 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -75969,40 +75976,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Calderone Omnicomprensivo di Tasha",
           "Pagina 63"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -95758,9 +95767,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -95782,22 +95789,22 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "instant-reminder",
-      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
-      "requiredPrimitive": "reference-only",
-      "dataOnlyCandidate": true,
+      "archetype": "resource-only",
+      "archetypeLabel": "Solo consumo risorsa",
+      "requiredPrimitive": "resource-only",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "attivazione:innesco"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -95813,25 +95820,25 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
-      "resourceModel": "NONE",
+      "resourceModel": "SHORT_REST",
       "activationType": "FREE",
       "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -95840,13 +95847,15 @@
           "Pagina 45"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -95871,9 +95880,7 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -95895,22 +95902,22 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "reference",
-      "archetypeLabel": "Descrittiva / passiva",
-      "requiredPrimitive": "reference-only",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "attivazione:azione_bonus"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -95924,40 +95931,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "MANUAL",
-      "coverageStatus": "ACCEPTED",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
-      "resourceModel": "NONE",
+      "resourceModel": "SHORT_REST",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": null,
-      "severity": null,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": "OTHER",
+      "severity": "P2",
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 46"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -96016,12 +96025,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "save-outcome-condition",
-      "archetypeLabel": "Condizione dopo tiro salvezza",
-      "requiredPrimitive": "condition-choice",
+      "archetype": "reference",
+      "archetypeLabel": "Descrittiva / passiva",
+      "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "testo:tiro-salvezza-condizione"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -96046,10 +96055,10 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -96057,14 +96066,14 @@
       "executionPath": [
         "REMINDER"
       ],
-      "resourceModel": "SHORT_REST",
+      "resourceModel": "NONE",
       "activationType": "ACTION",
       "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -96079,7 +96088,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -96135,12 +96146,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "resource-only",
-      "archetypeLabel": "Solo consumo risorsa",
-      "requiredPrimitive": "resource-only",
+      "archetype": "reference",
+      "archetypeLabel": "Descrittiva / passiva",
+      "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -96165,10 +96176,10 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -96176,14 +96187,14 @@
       "executionPath": [
         "REMINDER"
       ],
-      "resourceModel": "SHORT_REST",
+      "resourceModel": "NONE",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -96198,7 +96209,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -96223,9 +96236,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -96247,22 +96258,22 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "instant-reminder",
-      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
-      "requiredPrimitive": "reference-only",
-      "dataOnlyCandidate": true,
+      "archetype": "resource-only",
+      "archetypeLabel": "Solo consumo risorsa",
+      "requiredPrimitive": "resource-only",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "attivazione:reazione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -96279,25 +96290,25 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
-      "resourceModel": "NONE",
+      "resourceModel": "SHORT_REST",
       "activationType": "REACTION",
       "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -96306,13 +96317,15 @@
           "Pagina 46"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -96337,9 +96350,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -96364,22 +96375,22 @@
         "textMarkerSignals": [
           "per 1 minuto"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "save-outcome-condition",
-      "archetypeLabel": "Condizione dopo tiro salvezza",
-      "requiredPrimitive": "condition-choice",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:tiro-salvezza-condizione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -96398,40 +96409,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
-      "resourceModel": "NONE",
+      "resourceModel": "SHORT_REST",
       "activationType": "ACTION",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 45"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -96488,12 +96501,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "aura",
-      "archetypeLabel": "Aura",
-      "requiredPrimitive": "aura",
+      "archetype": "instant-reminder",
+      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
+      "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "aura"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -96520,7 +96533,7 @@
       "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -96535,7 +96548,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -96550,7 +96563,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -96612,13 +96627,12 @@
           "aura"
         ]
       },
-      "archetype": "aura",
-      "archetypeLabel": "Aura",
-      "requiredPrimitive": "aura",
+      "archetype": "reference",
+      "archetypeLabel": "Descrittiva / passiva",
+      "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "attivazione:passiva",
-        "aura"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -96643,7 +96657,7 @@
       "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "FULL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -96658,7 +96672,7 @@
       "persistentCategory": "SPATIAL_AURA",
       "usesCustomCode": false,
       "hasCleanup": true,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -96673,7 +96687,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -96928,9 +96944,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -96958,7 +96972,7 @@
           "finché",
           "per 1 minuto"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -96966,14 +96980,14 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -96992,40 +97006,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 45"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -97113,7 +97129,7 @@
       "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -97128,7 +97144,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -97143,7 +97159,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/paladinOathsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
