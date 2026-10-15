@@ -232,6 +232,10 @@ const BACKLOG_ARCHETYPE_OVERRIDES = Object.freeze({
   "monaco-via-dell-anima-solare-esplosione-solare-incandescente": "reference",
   // Spende da 1 a 3 Ki a scelta: la card non chiede ancora il valore.
   "monaco-via-del-kensei-affilare-la-lama": "variable-cost",
+  // Batch Druido (Fase 2).
+  "druido-circolo-della-luna-forma-selvatica-da-combattimento": "reference",
+  // Anima uno zombi: un compagno su token, usi pari alla Saggezza senza pool.
+  "druido-circolo-delle-spore-infestazione-fungina": "companion-summon",
 });
 
 const DIRECT_TEST_FILES = [
@@ -241,6 +245,7 @@ const DIRECT_TEST_FILES = [
   "bardLoreFeatureRuntime.test.js",
   "clericDomainsFeatureRuntime.test.js",
   "clericTwilightFeatureRuntime.test.js",
+  "druidFeatureRuntime.test.js",
   "fighterFeatureRuntime.test.js",
   "monkFeatureRuntime.test.js",
   "warlockFeatureRuntime.test.js",

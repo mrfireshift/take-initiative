@@ -15352,7 +15352,7 @@
       "page": 40,
       "collection": "opzioni",
       "defaultEnabled": true,
-      "automationLevel": "tracciamento",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -15366,6 +15366,7 @@
       "activation": {
         "primary": "innesco"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -15551,9 +15552,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -15569,17 +15570,21 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🍄",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Entità Simbiotica",
+        "detail": "Per 10 minuti, finché ha PF temporanei di questo privilegio o finché usa di nuovo Forma Selvatica: 4 PF temporanei per livello da druido (controllo HP), Alone di Spore tira due volte i danni, +1d6 necrotici con le armi da mischia."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 100
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "druido-forma-selvatica-usi",
@@ -15604,9 +15609,9 @@
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -15622,17 +15627,25 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔥",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Spirito della Fiamma",
+        "detail": "Spirito entro 9 m per 1 ora (posiziona il token): all'arrivo le creature entro 3 m tranne il druido fanno un TS Destrezza o subiscono 2d6 fuoco. Agisce subito dopo il druido; senza un'azione bonus del druido può solo Schivare. Termina se scende a 0 PF, se il druido lo evoca di nuovo o muore."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 600,
+        "endConditions": [
+          "0_pf_spirito",
+          "morte"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "druido-forma-selvatica-usi",
@@ -15663,9 +15676,9 @@
       ],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -15681,17 +15694,20 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🐺",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Forma Selvatica",
+        "detail": "Trasformato in una bestia per un massimo di metà livello da druido in ore. Statistiche e PF della bestia restano al GM: il plugin non sostituisce i PF del druido. Termina con un'azione bonus, se cade privo di sensi, scende a 0 PF o muore; i danni in eccesso passano alla forma normale."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": null,
         "endConditions": [
-          "scadenza",
           "privo_di_sensi",
           "0_pf_forma_bestiale",
           "morte",
@@ -15718,7 +15734,7 @@
       "page": 69,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -15733,6 +15749,7 @@
       "activation": {
         "primary": "azione_bonus"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -15771,9 +15788,9 @@
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -15789,15 +15806,55 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌌",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Forma Siderale",
+        "displayLabel": "Forma Siderale · Arciere",
+        "detail": "Per 10 minuti: luce intensa entro 3 m e fioca per altri 3 m. Azione bonus (anche all'attivazione): attacco a distanza con incantesimo entro 18 m, 1d8 radiosi + Saggezza (2d8 dal 10°). Termina se il druido la congeda, è incapacitato, muore o usa di nuovo il privilegio."
+      },
+      "choiceOptions": [
+        {
+          "id": "arciere",
+          "label": "Arciere",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Forma Siderale",
+            "displayLabel": "Forma Siderale · Arciere",
+            "detail": "Per 10 minuti: luce intensa entro 3 m e fioca per altri 3 m. Azione bonus (anche all'attivazione): attacco a distanza con incantesimo entro 18 m, 1d8 radiosi + Saggezza (2d8 dal 10°). Termina se il druido la congeda, è incapacitato, muore o usa di nuovo il privilegio."
+          }
+        },
+        {
+          "id": "calice",
+          "label": "Calice",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Forma Siderale",
+            "displayLabel": "Forma Siderale · Calice",
+            "detail": "Per 10 minuti: luce intensa entro 3 m e fioca per altri 3 m. Quando cura con uno slot, il druido o una creatura entro 9 m recupera anche 1d8 + Saggezza PF (2d8 dal 10°), da applicare con il controllo HP. Termina se il druido la congeda, è incapacitato, muore o usa di nuovo il privilegio."
+          }
+        },
+        {
+          "id": "drago",
+          "label": "Drago",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Forma Siderale",
+            "displayLabel": "Forma Siderale · Drago",
+            "detail": "Per 10 minuti: luce intensa entro 3 m e fioca per altri 3 m. Prove di Intelligenza e Saggezza e TS su Costituzione per la concentrazione: un 9 o meno sul d20 conta come 10 (dal 10°: volo 6 m e fluttuare). Termina se il druido la congeda, è incapacitato, muore o usa di nuovo il privilegio."
+          }
+        }
+      ],
       "breaksConcentration": false,
       "duration": {
-        "rounds": 100
+        "rounds": 100,
+        "endConditions": [
+          "incapacitato"
+        ]
       },
       "trackingMode": "active",
       "resourceCosts": [
@@ -15916,7 +15973,7 @@
       "page": 68,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -15924,17 +15981,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "nessuna_azione"
       },
       "trackedResourcePoolIds": [
         "druido-recupero-naturale-usi"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -15943,7 +15999,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌿",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -15974,7 +16030,7 @@
       "page": 23,
       "collection": "opzioni",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -15988,6 +16044,7 @@
       "activation": {
         "primary": "reazione"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -16022,7 +16079,7 @@
       "page": 23,
       "collection": "opzioni",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -16036,6 +16093,7 @@
       "activation": {
         "primary": "innesco"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -16084,6 +16142,7 @@
       "activation": {
         "primary": "passiva_o_non_specificata"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -16122,9 +16181,9 @@
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -16140,17 +16199,57 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🐾",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Totem Spirituale",
+        "displayLabel": "Totem Spirituale · Falco",
+        "detail": "Spirito in un punto entro 18 m con aura di 9 m attorno allo spirito (posizionalo sulla mappa), mobile di 18 m con azione bonus. Reazione: vantaggio a un tiro per colpire contro un bersaglio nell'aura; vantaggio a Percezione per il druido e gli alleati nell'aura. Dura 1 minuto o finché il druido è incapacitato."
+      },
+      "choiceOptions": [
+        {
+          "id": "falco",
+          "label": "Falco",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Totem Spirituale",
+            "displayLabel": "Totem Spirituale · Falco",
+            "detail": "Spirito in un punto entro 18 m con aura di 9 m attorno allo spirito (posizionalo sulla mappa), mobile di 18 m con azione bonus. Reazione: vantaggio a un tiro per colpire contro un bersaglio nell'aura; vantaggio a Percezione per il druido e gli alleati nell'aura. Dura 1 minuto o finché il druido è incapacitato."
+          }
+        },
+        {
+          "id": "orso",
+          "label": "Orso",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Totem Spirituale",
+            "displayLabel": "Totem Spirituale · Orso",
+            "detail": "Spirito in un punto entro 18 m con aura di 9 m attorno allo spirito (posizionalo sulla mappa), mobile di 18 m con azione bonus. All'evocazione le creature scelte nell'aura ottengono 5 + livello da druido PF temporanei (controllo HP); vantaggio a prove e TS su Forza nell'aura. Dura 1 minuto o finché il druido è incapacitato."
+          }
+        },
+        {
+          "id": "unicorno",
+          "label": "Unicorno",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Totem Spirituale",
+            "displayLabel": "Totem Spirituale · Unicorno",
+            "detail": "Spirito in un punto entro 18 m con aura di 9 m attorno allo spirito (posizionalo sulla mappa), mobile di 18 m con azione bonus. Vantaggio alle prove per individuare creature nell'aura; quando il druido cura con uno slot, le creature scelte nell'aura recuperano PF pari al livello da druido (controllo HP). Dura 1 minuto o finché il druido è incapacitato."
+          }
+        }
+      ],
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10,
+        "endConditions": [
+          "incapacitato"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "druido-circolo-del-pastore-totem-spirituale-usi",
@@ -16919,7 +17018,7 @@
       "page": 39,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -16933,6 +17032,7 @@
       "activation": {
         "primary": "reazione"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -17020,9 +17120,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -17038,7 +17138,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔮",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -17123,13 +17223,14 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
       },
+      "requiresActiveFeatureId": "druido-circolo-delle-spore-entita-simbiotica",
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -17138,17 +17239,21 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌫️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Diffusione di Spore",
+        "detail": "Cubo di spore di 3 m fino a 9 m dal druido per 1 minuto: chi vi entra o inizia il turno al suo interno fa un TS Costituzione (CD incantesimi) o subisce i danni di Alone di Spore, al massimo una volta per turno. Nel frattempo il druido non può usare la reazione di Alone di Spore."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -17170,9 +17275,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -17188,7 +17293,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "❤️‍🔥",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -17218,7 +17323,7 @@
       "page": 69,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -17226,17 +17331,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "druido-forma-selvatica-usi"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -17245,17 +17349,28 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌪️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Forma Selvatica",
+        "displayLabel": "Forma Selvatica · Elementale",
+        "detail": "Due usi di Forma Selvatica: elementale dell'acqua, dell'aria, del fuoco o della terra. Statistiche e PF dell'elementale restano al GM."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "endConditions": [
+          "privo_di_sensi",
+          "0_pf_forma_bestiale",
+          "morte",
+          "terminazione_volontaria"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "druido-forma-selvatica-usi",
@@ -17482,9 +17597,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -17500,7 +17615,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🦁",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -17627,24 +17742,23 @@
       "page": 38,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva_o_non_specificata"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "druido-circolo-della-fiamma-recupero-ardente-usi"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -17653,7 +17767,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🕯️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -17739,12 +17853,12 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "innesco"
+        "primary": "nessuna_azione"
       },
       "trackedResourcePoolIds": [
         "druido-circolo-dei-sogni-viandante-dei-sogni-usi"
@@ -17757,7 +17871,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌙",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -49822,7 +49936,7 @@
     "mechanicRecords": 860,
     "activeFeatures": 860,
     "resourcePools": 104,
-    "runtimeImplemented": 175,
-    "runtimeNotAutomated": 685
+    "runtimeImplemented": 188,
+    "runtimeNotAutomated": 672
   }
 }

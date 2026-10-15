@@ -22,9 +22,9 @@ Arcana 2016 e non è la stessa progressione del Ranger 2014.
 
 Lo stato di supporto è intenzionalmente esplicito:
 
-- **175 `implemented`**: la capacità può essere attivata dal runtime secondo
+- **188 `implemented`**: la capacità può essere attivata dal runtime secondo
   l'adapter dichiarato;
-- **685 `not-automated`**: la voce resta consultabile e gestibile manualmente,
+- **672 `not-automated`**: la voce resta consultabile e gestibile manualmente,
   ma il pulsante di attivazione non applica una meccanica automatica. Le
   passive, le reazioni e gli effetti istantanei compaiono come
   **Promemoria descrittivo**; le altre come gestione manuale al tavolo, con il
@@ -125,6 +125,7 @@ capacità già coperte dai test e dagli adapter:
 | Bardo | Ispirazione Bardica, Parole Inquietanti, Controfascino, Linguaggio Universale, Ispirazione Contagiosa. |
 | Guerriero | Azione Impetuosa, Indomito, tutte le Manovre (dadi di Superiorità), Frecce del Tiro Arcano, Potenza del Gigante e Rune, Potere Psionico, Baluardo della Forza, Marchio Incrollabile, Forza di Fronte alla Morte. |
 | Chierico | Santuario del Crepuscolo, Scacciare Non Morti, Passi nella Notte e le opzioni di Incanalare Divinità di tutti i domini; Legame Incoraggiante, Benedizione dell'Ingannatore, Ira dell'Ordine, Corona di Luce. |
+| Druido | Forma Selvatica e Forma Elementale come marker (i PF della bestia restano al GM), Forma Siderale e Totem Spirituale con scelta della variante, Entità Simbiotica, Diffusione di Spore, Spirito della Fiamma e gli usi dei circoli. |
 | Ladro | Imboscata Magica, Ingannatore Versatile, Ladro di Incantesimi e Colpo di Fortuna. |
 | Monaco | Ogni uso RAW del Ki: Difesa Paziente, Passo del Vento, Raffica di Colpi, Colpo Stordente, Corpo Vuoto, le discipline elementali e le capacità di tutte le tradizioni, con le pill di Schivata, Stordito, Sé Astrale, Palmo Tremante e Tranquillità. |
 | Paladino | Imposizione delle Mani, Percezione del Divino, varianti di Incanalare Divinità, aure, Tocco Purificatore, Angelo Vendicatore e Nube Sacra. |

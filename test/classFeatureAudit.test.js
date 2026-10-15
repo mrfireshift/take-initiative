@@ -17,12 +17,12 @@ test("l'audit copre tutti i record dei quattro overlay", () => {
 test("l'audit separa marker token, effetti istantanei e gestione al tavolo", () => {
   assert.deepEqual(audit.summary.byCombatTracking, {
     tavolo: 649,
-    token_marker_review: 155,
+    token_marker_review: 154,
     instant_effect: 43,
-    token_marker: 13,
+    token_marker: 14,
   });
-  assert.equal(audit.summary.tokenMarkerCandidateCount, 13);
-  assert.equal(audit.summary.structuredMarkerReviewCount, 8);
+  assert.equal(audit.summary.tokenMarkerCandidateCount, 14);
+  assert.equal(audit.summary.structuredMarkerReviewCount, 7);
   assert.equal(audit.summary.textualMarkerReviewCount, 147);
   assert.equal(audit.summary.deterministicExcludedCount, 4);
   assert.equal(audit.summary.resourceCriterionIgnored, true);
@@ -126,10 +126,10 @@ test("CF-001B.8: resourcePoolCount === resourceMatrix.length === 104", () => {
   assert.equal(audit.reconciledSummary.resourcePoolCount, 104);
 });
 
-test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 118", () => {
+test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 123", () => {
   const persistent = audit.features.filter((f) => f.persistentCategory !== null);
-  assert.equal(persistent.length, 118);
-  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 118);
+  assert.equal(persistent.length, 123);
+  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 123);
 });
 
 test("CF-001B.10: catalogGapCount === 0", () => {
@@ -138,10 +138,10 @@ test("CF-001B.10: catalogGapCount === 0", () => {
   assert.equal(audit.reconciledSummary.catalogGapCount, 0);
 });
 
-test("CF-001B.11: functionalGapCount === 394", () => {
+test("CF-001B.11: functionalGapCount === 390", () => {
   const functionalGaps = audit.features.filter((f) => f.coverageStatus === "GAP");
-  assert.equal(functionalGaps.length, 394);
-  assert.equal(audit.reconciledSummary.functionalGapCount, 394);
+  assert.equal(functionalGaps.length, 390);
+  assert.equal(audit.reconciledSummary.functionalGapCount, 390);
 });
 
 test("CF-001B.12: testGapCount === 0 (all test gaps closed in CF-B01)", () => {
@@ -219,21 +219,21 @@ test("CF-001B.19: Spirito del Lupo invariants", () => {
 test("CF-001B.20: determinismo delle metriche canoniche", () => {
   assert.deepEqual(audit.reconciledSummary.currentAutomation, {
     FULL: 8,
-    PARTIAL: 95,
-    TRACK_ONLY: 162,
-    MANUAL: 595,
+    PARTIAL: 102,
+    TRACK_ONLY: 156,
+    MANUAL: 594,
     NONE: 0,
   });
   assert.deepEqual(audit.reconciledSummary.targetAutomation, {
-    FULL: 35,
-    PARTIAL: 378,
+    FULL: 36,
+    PARTIAL: 377,
     TRACK_ONLY: 87,
     MANUAL: 360,
     UNREVIEWED: 0,
   });
   assert.deepEqual(audit.reconciledSummary.coverageStatus, {
-    ACCEPTED: 466,
-    GAP: 394,
+    ACCEPTED: 470,
+    GAP: 390,
     UNREVIEWED: 0,
   });
 });
@@ -289,7 +289,7 @@ test("Backlog.5: capacità di riferimento per archetipo", () => {
     "mago-scuola-di-ammaliamento-sguardo-ipnotico": ["save-outcome-condition", "condition-choice", true],
     "bardo-collegio-del-valore-ispirazione-in-combattimento": ["resource-only", "resource-only", true],
     "ladro-elusione": ["reference", "reference-only", true],
-    "druido-forma-selvatica": ["transformation", "transformation", false],
+    "stregone-magia-delle-ombre-forma-d-ombra": ["transformation", "transformation", false],
     "guerriero-recuperare-energie": ["hp-change", "value-input", false],
     "ranger-signore-delle-bestie-compagno-del-ranger": ["companion-summon", "linked-token", false],
     "mago-recupero-arcano": ["spell-bridge", "spell-bridge", false],
@@ -317,21 +317,21 @@ test("Backlog.7: i pool basati su modificatori di caratteristica sono segnalati"
 
 test("Backlog.8: determinismo della distribuzione per archetipo", () => {
   assert.deepEqual(audit.summary.byArchetype, {
-    reference: 409,
-    "instant-reminder": 127,
-    "timed-condition": 105,
-    "resource-only": 96,
-    aura: 25,
-    "hp-change": 21,
+    reference: 413,
+    "instant-reminder": 125,
+    "timed-condition": 109,
+    "resource-only": 101,
+    aura: 22,
+    "hp-change": 19,
     movement: 17,
-    "companion-summon": 15,
     "save-outcome-condition": 14,
+    "companion-summon": 13,
     "custom-adapter": 13,
-    "spell-bridge": 12,
-    transformation: 5,
+    "spell-bridge": 11,
+    transformation: 2,
     "variable-cost": 1,
   });
-  assert.equal(audit.backlog.dataOnlyCandidateCount, 631);
-  assert.equal(audit.backlog.dataOnlyAutomationCount, 78);
-  assert.equal(audit.backlog.needsPrimitiveCount, 54);
+  assert.equal(audit.backlog.dataOnlyCandidateCount, 626);
+  assert.equal(audit.backlog.dataOnlyAutomationCount, 71);
+  assert.equal(audit.backlog.needsPrimitiveCount, 46);
 });

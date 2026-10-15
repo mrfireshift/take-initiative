@@ -3388,8 +3388,41 @@
     },
     "druido-forma-selvatica": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "druido-forma-selvatica-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "end_conditions": [
+          "privo_di_sensi",
+          "0_pf_forma_bestiale",
+          "morte",
+          "terminazione_volontaria"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🐺"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Forma Selvatica",
+        "detail": "Trasformato in una bestia per un massimo di metà livello da druido in ore. Statistiche e PF della bestia restano al GM: il plugin non sostituisce i PF del druido. Termina con un'azione bonus, se cade privo di sensi, scende a 0 PF o muore; i danni in eccesso passano alla forma normale."
+      }
     },
     "druido-aumento-dei-punteggi-di-caratteristica": {
       "include": true,
@@ -3440,8 +3473,25 @@
     },
     "druido-circolo-dei-sogni-viandante-dei-sogni": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "nessuna_azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🌙"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "druido-circolo-del-pastore-lingua-dei-boschi": {
       "include": true,
@@ -3452,23 +3502,87 @@
     },
     "druido-circolo-del-pastore-totem-spirituale": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "choiceOptions": [
+        {
+          "id": "falco",
+          "label": "Falco",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Totem Spirituale",
+            "displayLabel": "Totem Spirituale · Falco",
+            "detail": "Spirito in un punto entro 18 m con aura di 9 m attorno allo spirito (posizionalo sulla mappa), mobile di 18 m con azione bonus. Reazione: vantaggio a un tiro per colpire contro un bersaglio nell'aura; vantaggio a Percezione per il druido e gli alleati nell'aura. Dura 1 minuto o finché il druido è incapacitato."
+          }
+        },
+        {
+          "id": "orso",
+          "label": "Orso",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Totem Spirituale",
+            "displayLabel": "Totem Spirituale · Orso",
+            "detail": "Spirito in un punto entro 18 m con aura di 9 m attorno allo spirito (posizionalo sulla mappa), mobile di 18 m con azione bonus. All'evocazione le creature scelte nell'aura ottengono 5 + livello da druido PF temporanei (controllo HP); vantaggio a prove e TS su Forza nell'aura. Dura 1 minuto o finché il druido è incapacitato."
+          }
+        },
+        {
+          "id": "unicorno",
+          "label": "Unicorno",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Totem Spirituale",
+            "displayLabel": "Totem Spirituale · Unicorno",
+            "detail": "Spirito in un punto entro 18 m con aura di 9 m attorno allo spirito (posizionalo sulla mappa), mobile di 18 m con azione bonus. Vantaggio alle prove per individuare creature nell'aura; quando il druido cura con uno slot, le creature scelte nell'aura recuperano PF pari al livello da druido (controllo HP). Dura 1 minuto o finché il druido è incapacitato."
+          }
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10,
+        "end_conditions": [
+          "incapacitato"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🐾"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Totem Spirituale",
+        "displayLabel": "Totem Spirituale · Falco",
+        "detail": "Spirito in un punto entro 18 m con aura di 9 m attorno allo spirito (posizionalo sulla mappa), mobile di 18 m con azione bonus. Reazione: vantaggio a un tiro per colpire contro un bersaglio nell'aura; vantaggio a Percezione per il druido e gli alleati nell'aura. Dura 1 minuto o finché il druido è incapacitato."
+      }
     },
     "druido-circolo-del-pastore-totem-spirituale-spirito-falco": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "druido-circolo-del-pastore-totem-spirituale-spirito-orso": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "druido-circolo-del-pastore-totem-spirituale-spirito-unicorno": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "druido-circolo-del-pastore-evocatore-possente": {
       "include": true,
@@ -3484,13 +3598,62 @@
     },
     "druido-circolo-del-pastore-evocazioni-fedeli": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🦁"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "druido-circolo-della-fiamma-evocare-spirito-della-fiamma": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "druido-forma-selvatica-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 600,
+        "end_conditions": [
+          "0_pf_spirito",
+          "morte"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🔥"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Spirito della Fiamma",
+        "detail": "Spirito entro 9 m per 1 ora (posiziona il token): all'arrivo le creature entro 3 m tranne il druido fanno un TS Destrezza o subiscono 2d6 fuoco. Agisce subito dopo il druido; senza un'azione bonus del druido può solo Schivare. Termina se scende a 0 PF, se il druido lo evoca di nuovo o muore."
+      }
     },
     "druido-circolo-della-fiamma-legame-migliorato": {
       "include": true,
@@ -3499,20 +3662,54 @@
     },
     "druido-circolo-della-fiamma-fiamme-cauterizzanti": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "reazione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "❤️‍🔥"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "druido-circolo-della-fiamma-recupero-ardente": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🕯️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "druido-circolo-della-luna-forma-selvatica-da-combattimento": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "druido-circolo-della-luna-forme-del-circolo": {
       "include": true,
@@ -3530,10 +3727,42 @@
     },
     "druido-circolo-della-luna-forma-selvatica-elementale": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "druido-forma-selvatica-usi",
+          "amount": 2
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "end_conditions": [
+          "privo_di_sensi",
+          "0_pf_forma_bestiale",
+          "morte",
+          "terminazione_volontaria"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌪️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Forma Selvatica",
+        "displayLabel": "Forma Selvatica · Elementale",
+        "detail": "Due usi di Forma Selvatica: elementale dell'acqua, dell'aria, del fuoco o della terra. Statistiche e PF dell'elementale restano al GM."
+      }
     },
     "druido-circolo-della-luna-mille-forme": {
       "include": true,
@@ -3544,10 +3773,25 @@
     },
     "druido-circolo-della-terra-recupero-naturale": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "nessuna_azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🌿"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "druido-circolo-della-terra-trucchetto-bonus": {
       "include": true,
@@ -3657,18 +3901,71 @@
     },
     "druido-circolo-delle-spore-entita-simbiotica": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "druido-forma-selvatica-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 100
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🍄"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Entità Simbiotica",
+        "detail": "Per 10 minuti, finché ha PF temporanei di questo privilegio o finché usa di nuovo Forma Selvatica: 4 PF temporanei per livello da druido (controllo HP), Alone di Spore tira due volte i danni, +1d6 necrotici con le armi da mischia."
+      }
     },
     "druido-circolo-delle-spore-infestazione-fungina": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "druido-circolo-delle-spore-diffusione-di-spore": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌫️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Diffusione di Spore",
+        "detail": "Cubo di spore di 3 m fino a 9 m dal druido per 1 minuto: chi vi entra o inizia il turno al suo interno fa un TS Costituzione (CD incantesimi) o subisce i danni di Alone di Spore, al massimo una volta per turno. Nel frattempo il druido non può usare la reazione di Alone di Spore."
+      },
+      "requiresActiveFeatureId": "druido-circolo-delle-spore-entita-simbiotica"
     },
     "druido-circolo-delle-spore-corpo-fungino": {
       "include": true,
@@ -3684,8 +3981,72 @@
     },
     "druido-circolo-delle-stelle-forma-siderale": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "choiceOptions": [
+        {
+          "id": "arciere",
+          "label": "Arciere",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Forma Siderale",
+            "displayLabel": "Forma Siderale · Arciere",
+            "detail": "Per 10 minuti: luce intensa entro 3 m e fioca per altri 3 m. Azione bonus (anche all'attivazione): attacco a distanza con incantesimo entro 18 m, 1d8 radiosi + Saggezza (2d8 dal 10°). Termina se il druido la congeda, è incapacitato, muore o usa di nuovo il privilegio."
+          }
+        },
+        {
+          "id": "calice",
+          "label": "Calice",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Forma Siderale",
+            "displayLabel": "Forma Siderale · Calice",
+            "detail": "Per 10 minuti: luce intensa entro 3 m e fioca per altri 3 m. Quando cura con uno slot, il druido o una creatura entro 9 m recupera anche 1d8 + Saggezza PF (2d8 dal 10°), da applicare con il controllo HP. Termina se il druido la congeda, è incapacitato, muore o usa di nuovo il privilegio."
+          }
+        },
+        {
+          "id": "drago",
+          "label": "Drago",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Forma Siderale",
+            "displayLabel": "Forma Siderale · Drago",
+            "detail": "Per 10 minuti: luce intensa entro 3 m e fioca per altri 3 m. Prove di Intelligenza e Saggezza e TS su Costituzione per la concentrazione: un 9 o meno sul d20 conta come 10 (dal 10°: volo 6 m e fluttuare). Termina se il druido la congeda, è incapacitato, muore o usa di nuovo il privilegio."
+          }
+        }
+      ],
+      "resourceCosts": [
+        {
+          "poolId": "druido-forma-selvatica-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 100,
+        "end_conditions": [
+          "incapacitato"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌌"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Forma Siderale",
+        "displayLabel": "Forma Siderale · Arciere",
+        "detail": "Per 10 minuti: luce intensa entro 3 m e fioca per altri 3 m. Azione bonus (anche all'attivazione): attacco a distanza con incantesimo entro 18 m, 1d8 radiosi + Saggezza (2d8 dal 10°). Termina se il druido la congeda, è incapacitato, muore o usa di nuovo il privilegio."
+      }
     },
     "druido-circolo-delle-stelle-forma-siderale-arciere": {
       "include": true,
@@ -3696,8 +4057,10 @@
     },
     "druido-circolo-delle-stelle-forma-siderale-calice": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "druido-circolo-delle-stelle-forma-siderale-drago": {
       "include": true,
@@ -3708,8 +4071,25 @@
     },
     "druido-circolo-delle-stelle-profezia-cosmica": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "reazione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🔮"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "druido-circolo-delle-stelle-costellazioni-scintillanti": {
       "include": true,
