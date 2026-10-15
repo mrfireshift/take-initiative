@@ -126,6 +126,10 @@ export function selectTrackerPlacementSyncEnabled(options) {
   return resolved(options).shared.uiSync.trackerPlacement;
 }
 
+export function selectPlayerTrackerScale(options) {
+  return resolved(options).shared.playerView.trackerScale;
+}
+
 export function selectSceneOverriddenPaths(options) {
   return [...resolved(options).source.overriddenPaths];
 }
@@ -174,6 +178,7 @@ export function selectOptionsPanelModel(options) {
     room: {
       trackerOpen: room.uiSync.trackerOpen,
       trackerPlacement: room.uiSync.trackerPlacement,
+      trackerScale: room.playerView.trackerScale,
       knownFactionAssignment: room.automation.knownFactionAssignment,
       embersAnimations: room.integrations.embersAnimations,
       hp: room.playerView.hp,

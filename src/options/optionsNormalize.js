@@ -5,6 +5,7 @@ import {
   OPTIONS_SCHEMA_VERSION,
   SCENE_OVERRIDE_PATHS,
 } from "./optionsDefaults.js";
+import { normalizeTrackerScale } from "../trackerScaleCore.js";
 
 export function isPlainObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -241,6 +242,9 @@ export function normalizeRoomOptions(value) {
         BOSS_VISIBILITY,
         defaults.playerView.bossDetails,
       ),
+      trackerScale: Object.hasOwn(playerView, "trackerScale")
+        ? normalizeTrackerScale(playerView.trackerScale)
+        : defaults.playerView.trackerScale,
     },
     turn: {
       ...turn,

@@ -15,7 +15,7 @@ import {
   toggleClassicTrackerSide,
 } from "./trackerPopover.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
-import { selectTrackerOpenSyncEnabled, selectTrackerPlacementSyncEnabled } from "./options/optionsSelectors.js";
+import { selectPlayerTrackerScale, selectTrackerOpenSyncEnabled, selectTrackerPlacementSyncEnabled } from "./options/optionsSelectors.js";
 import { METADATA_OWNERSHIP, writeRoomMetadataKey } from "./metadataKeyScoped.js";
 
 const UI_KEY = `${ID}/ui`;
@@ -107,6 +107,12 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
       if (!enabled) return;
       if (role === "GM") afterLocalChange();
       else void OBR.room.getMetadata().then(applyTrackerOpenState).catch(() => {});
+    }, { emitCurrent: false });
+
+    // Players' table screen: a new tracker scale redraws the open tracker at the new size.
+    runtimeOptionsService.subscribe(selectPlayerTrackerScale, () => {
+      if (role !== "PLAYER" || !isTrackerPopoverOpen()) return;
+      void setTrackerPopoverOpen(true, { refresh: true });
     }, { emitCurrent: false });
 
     if (role === "GM") {

@@ -21,14 +21,16 @@ function fixedChromeWidth(showToolbar) {
     + COLUMN_PADDING_AND_BORDER;
 }
 
-export function compactTrackerViewportWidth(width, viewportWidth) {
-  const requested = Math.round(Number(width) || COMPACT_TRACKER_MIN_WIDTH);
+// `scale` (player tracker scale, 1 by default) widens the bar's own limits; the screen limit stays.
+export function compactTrackerViewportWidth(width, viewportWidth, scale = 1) {
+  const factor = Math.max(1, Number(scale) || 1);
+  const requested = Math.round(Number(width) || COMPACT_TRACKER_MIN_WIDTH * factor);
   const viewportLimit = Math.max(
     260,
     Math.floor((Number(viewportWidth) || 1200) - COMPACT_TRACKER_VIEWPORT_MARGIN),
   );
-  const maximum = Math.min(COMPACT_TRACKER_MAX_WIDTH, viewportLimit);
-  const minimum = Math.min(COMPACT_TRACKER_MIN_WIDTH, maximum);
+  const maximum = Math.min(Math.round(COMPACT_TRACKER_MAX_WIDTH * factor), viewportLimit);
+  const minimum = Math.min(Math.round(COMPACT_TRACKER_MIN_WIDTH * factor), maximum);
   return Math.max(minimum, Math.min(maximum, requested));
 }
 
