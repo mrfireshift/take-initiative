@@ -204,6 +204,7 @@ Avanzamento:
 | Guerriero | 15 ottobre 2026 | 38 | [GUERRIERO_FASE2.md](GUERRIERO_FASE2.md) |
 | Chierico | 15 ottobre 2026 | 17 | [CHIERICO_FASE2.md](CHIERICO_FASE2.md) |
 | Warlock | 15 ottobre 2026 | 19 | [WARLOCK_FASE2.md](WARLOCK_FASE2.md) |
+| Monaco | 15 ottobre 2026 | 42 | [MONACO_FASE2.md](MONACO_FASE2.md) |
 
 Un batch = una classe base + tutte le sue sottoclassi, limitato alle feature
 `dataOnlyCandidate`. Per ogni batch:

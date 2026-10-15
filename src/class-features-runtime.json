@@ -29107,9 +29107,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -29125,17 +29125,23 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🧘",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Schivata",
+        "displayLabel": "Schivata · Difesa Paziente",
+        "detail": "Azione Schivare fino all'inizio del prossimo turno: gli attacchi contro il monaco hanno svantaggio se li vede, vantaggio ai TS su Destrezza. Termina se è incapacitato o la velocità scende a 0."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "monaco-punti-ki",
@@ -29259,9 +29265,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -29277,7 +29283,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💨",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -29316,9 +29322,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -29334,7 +29340,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "👊",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -29413,7 +29419,7 @@
       "page": 93,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -29421,14 +29427,16 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "monaco-punti-ki"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -29437,7 +29445,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌑",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -29448,7 +29456,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 2
+        }
+      ]
     },
     {
       "id": "monaco-via-del-se-astrale-braccia-del-se-astrale",
@@ -29467,9 +29480,9 @@
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -29485,15 +29498,22 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🦾",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Braccia del Sé Astrale",
+        "detail": "Per 10 minuti: Saggezza al posto di Forza per prove e TS su Forza; colpi senz'armi con portata +1,5 m, Saggezza per colpire e danni, danni da forza. All'evocazione: creature scelte entro 3 m TS Destrezza o 2 dadi di Arti Marziali di danni da forza (manuale). CD Ki = 8 + bonus di competenza + modificatore di Saggezza."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": 100
+        "rounds": 100,
+        "endConditions": [
+          "incapacitato"
+        ]
       },
       "trackingMode": "active",
       "resourceCosts": [
@@ -29515,7 +29535,7 @@
       "page": 41,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -29529,6 +29549,7 @@
       "activation": {
         "primary": "azione_bonus"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -29563,7 +29584,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -29571,17 +29592,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -29590,7 +29610,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔥",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -29668,21 +29688,23 @@
       "page": 42,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "monaco-punti-ki"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -29691,7 +29713,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "☀️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -29702,7 +29724,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "monaco-deviare-proiettili",
@@ -29872,9 +29899,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -29890,7 +29917,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🧊",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -29929,9 +29956,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -29947,7 +29974,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💧",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -29977,16 +30004,16 @@
       "page": 58,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "tracciamento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -30002,7 +30029,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🖐️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -30039,9 +30066,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -30057,7 +30084,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🤲",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -30095,9 +30122,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -30110,17 +30137,25 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🤺",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Parata Agile",
+        "detail": "+2 alla CA fino all'inizio del prossimo turno, mentre impugna l'arma da kensei da mischia e non è incapacitato."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn",
+        "endConditions": [
+          "incapacitato"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -30136,7 +30171,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -30144,17 +30179,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -30163,7 +30197,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⚡",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -30202,9 +30236,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -30220,7 +30254,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌬️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -30300,7 +30334,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -30308,17 +30342,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -30327,7 +30360,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌪️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -30412,9 +30445,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -30427,17 +30460,27 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🍶",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Tecnica dell'Ubriaco",
+        "detail": "Con Raffica di Colpi: beneficio di Disimpegno e +3 m alla velocità sul terreno fino alla fine del turno.",
+        "mechanics": {
+          "movement": {
+            "addMeters": 3
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "turn-end"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -30509,9 +30552,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -30524,17 +30567,22 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🏹",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Tiro del Kensei",
+        "detail": "Fino alla fine del turno: +1d4 danni del tipo dell'arma con gli attacchi a distanza delle armi da kensei."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "turn-end"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -30656,12 +30704,12 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "azione"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
@@ -30674,17 +30722,22 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🐍",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Zanne del Serpente di Fuoco",
+        "detail": "Fino alla fine del turno: portata dei colpi senz'armi +3 m, danni da fuoco; 1 Ki in più al colpo per +1d10 fuoco (dal pool)."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "turn-end"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "monaco-punti-ki",
@@ -30860,9 +30913,9 @@
       ],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -30878,17 +30931,23 @@
         "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💫",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Stordito",
+        "displayLabel": "Stordito · Colpo Stordente",
+        "detail": "TS Costituzione fallito: stordito fino alla fine del prossimo turno del monaco. Con TS superato non applicare la pill: il Ki è comunque speso. CD Ki = 8 + bonus di competenza + modificatore di Saggezza."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn-end"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "monaco-punti-ki",
@@ -30908,21 +30967,23 @@
       "page": 42,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "monaco-punti-ki"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -30931,7 +30992,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔀",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -30942,7 +31003,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "monaco-colpi-ki-potenziati",
@@ -31012,9 +31078,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -31030,7 +31096,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌅",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -31044,9 +31110,7 @@
       "resourceCosts": [
         {
           "poolId": "monaco-punti-ki",
-          "amount": 1,
-          "variable": true,
-          "valueInput": "positive-integer"
+          "amount": 2
         }
       ]
     },
@@ -31063,7 +31127,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -31071,17 +31135,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -31090,7 +31153,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔔",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -31170,7 +31233,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -31178,17 +31241,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -31197,7 +31259,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🥶",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -31276,7 +31338,7 @@
       "page": 93,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -31284,14 +31346,13 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
       },
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -31300,17 +31361,22 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌒",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Passo dell'Ombra",
+        "detail": "Teletrasporto fino a 18 m tra luce fioca e oscurità (sulla mappa); vantaggio al primo attacco in mischia prima della fine del turno."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "turn-end"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -31374,39 +31440,45 @@
       "page": 58,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "tracciamento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🧪",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Avvelenato",
+        "displayLabel": "Avvelenato · Tocco del Medico",
+        "detail": "Con Mano del Dolore: avvelenato fino alla fine del prossimo turno del monaco. Con Mano Guaritrice il monaco può invece terminare una malattia o una condizione (accecato, assordato, paralizzato, avvelenato, stordito): rimuovila dalle Condizioni."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn-end"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -31421,21 +31493,23 @@
       "page": 41,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "monaco-punti-ki"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -31444,7 +31518,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⚔️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -31455,7 +31529,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "monaco-via-del-se-astrale-volto-del-se-astrale-vista-astrale",
@@ -31525,13 +31604,16 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
       },
+      "trackedResourcePoolIds": [
+        "monaco-punti-ki"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -31540,18 +31622,30 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🎭",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Volto del Sé Astrale",
+        "detail": "Per 10 minuti: vista nell'oscurità (anche magica) entro 36 m, vantaggio a Intuizione e Intimidire, voce mirata entro 18 m o amplificata fino a 180 m."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 100,
+        "endConditions": [
+          "incapacitato"
+        ]
       },
-      "trackingMode": "instant",
-      "resourceCosts": []
+      "trackingMode": "active",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "monaco-elusione",
@@ -31770,7 +31864,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -31778,17 +31872,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -31797,7 +31890,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🪽",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -31875,7 +31968,7 @@
       "page": 42,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -31892,6 +31985,7 @@
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -31911,14 +32005,7 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": [
-        {
-          "poolId": "monaco-punti-ki",
-          "amount": 1,
-          "variable": true,
-          "valueInput": "positive-integer"
-        }
-      ]
+      "resourceCosts": []
     },
     {
       "id": "monaco-via-dei-quattro-elementi-discipline-elementali-fiamme-della-fenice",
@@ -31933,7 +32020,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -31941,17 +32028,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -31960,7 +32046,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🐦‍🔥",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -31997,9 +32083,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -32015,7 +32101,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🍀",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -32029,9 +32115,7 @@
       "resourceCosts": [
         {
           "poolId": "monaco-punti-ki",
-          "amount": 1,
-          "variable": true,
-          "valueInput": "positive-integer"
+          "amount": 2
         }
       ]
     },
@@ -32047,7 +32131,7 @@
       "page": 93,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -32055,14 +32139,13 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
       },
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -32071,17 +32154,22 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌘",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Invisibile",
+        "displayLabel": "Invisibile · Manto di Ombre",
+        "detail": "Invisibile finché attacca, lancia un incantesimo o entra in luce intensa: termina la pill in quel momento."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": null
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -32097,7 +32185,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -32105,17 +32193,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -32124,7 +32211,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌫️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -32202,7 +32289,7 @@
       "page": 93,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "reference",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -32210,12 +32297,12 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "nessuna_azione"
       },
       "targetMode": "self",
       "targeting": {
@@ -32225,17 +32312,22 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🕊️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Tranquillità",
+        "displayLabel": "Santuario · Tranquillità",
+        "detail": "Santuario fino all'inizio del prossimo riposo lungo: chi bersaglia il monaco con un attacco o un incantesimo dannoso fa un TS Saggezza (CD 8 + Saggezza + competenza) o cambia bersaglio. Termina se il monaco attacca o lancia un incantesimo su un nemico."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": null
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -32299,7 +32391,7 @@
       "page": 92,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "reference",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -32307,14 +32399,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "monaco-punti-ki"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -32323,7 +32417,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔁",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -32334,7 +32428,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "monaco-corpo-senza-tempo",
@@ -32398,7 +32497,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -32406,17 +32505,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -32425,7 +32523,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⛰️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -32456,7 +32554,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -32464,17 +32562,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -32483,7 +32580,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌋",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -32568,15 +32665,16 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
       },
       "trackedResourcePoolIds": [
-        "monaco-via-della-misericordia-mano-della-misericordia-suprema-usi"
+        "monaco-via-della-misericordia-mano-della-misericordia-suprema-usi",
+        "monaco-punti-ki"
       ],
       "targetMode": "self",
       "targeting": {
@@ -32586,7 +32684,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💖",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -32601,6 +32699,10 @@
         {
           "poolId": "monaco-via-della-misericordia-mano-della-misericordia-suprema-usi",
           "amount": 1
+        },
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 5
         }
       ]
     },
@@ -32617,7 +32719,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -32625,17 +32727,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -32644,7 +32745,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🪨",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -32722,7 +32823,7 @@
       "page": 93,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -32730,34 +32831,46 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "azione"
+        "primary": "innesco"
       },
-      "quickActionEligible": false,
-      "targetMode": "self",
+      "trackedResourcePoolIds": [
+        "monaco-punti-ki"
+      ],
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🫳",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Palmo Tremante",
+        "effectKind": "debuff",
+        "detail": "Vibrazioni per un numero di giorni pari al livello da monaco; una sola creatura alla volta. Con un'azione il monaco le termina: TS Costituzione fallito → 0 PF, superato → 10d10 necrotici. Può terminarle senza effetto. CD Ki = 8 + bonus di competenza + modificatore di Saggezza."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": null
       },
-      "trackingMode": "instant",
-      "resourceCosts": []
+      "trackingMode": "active",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 3
+        }
+      ]
     },
     {
       "id": "monaco-via-del-kensei-precisione-infallibile",
@@ -32873,13 +32986,16 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
       },
+      "trackedResourcePoolIds": [
+        "monaco-punti-ki"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -32888,18 +33004,30 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌟",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Sé Astrale Risvegliato",
+        "detail": "Per 10 minuti: braccia, volto e corpo astrali; +2 alla CA e tre attacchi con Attacco Extra usando le braccia astrali."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 100,
+        "endConditions": [
+          "incapacitato"
+        ]
       },
-      "trackingMode": "instant",
-      "resourceCosts": []
+      "trackingMode": "active",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 5
+        }
+      ]
     },
     {
       "id": "monaco-via-dei-quattro-elementi-discipline-elementali-soffio-dell-inverno",
@@ -32914,7 +33042,7 @@
       "page": 94,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -32922,17 +33050,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "monaco-punti-ki"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -32941,7 +33068,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "❄️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -32971,7 +33098,7 @@
       "page": 92,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "reference",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -32979,14 +33106,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "monaco-punti-ki"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -32995,18 +33124,28 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "👻",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Invisibile",
+        "displayLabel": "Invisibile · Corpo Vuoto",
+        "detail": "Per 1 minuto: invisibile e resistenza a tutti i danni tranne forza. Proiezione astrale (8 Ki) si spende a mano dal pool."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": 10
       },
       "trackingMode": "active",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 4
+        }
+      ]
     },
     {
       "id": "monaco-perfezione-interiore",
@@ -49683,7 +49822,7 @@
     "mechanicRecords": 860,
     "activeFeatures": 860,
     "resourcePools": 104,
-    "runtimeImplemented": 133,
-    "runtimeNotAutomated": 727
+    "runtimeImplemented": 175,
+    "runtimeNotAutomated": 685
   }
 }

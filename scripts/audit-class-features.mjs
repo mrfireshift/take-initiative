@@ -169,7 +169,7 @@ const BACKLOG_PRIMITIVES = Object.freeze({
   "condition-choice": { label: "Pill con esito scelto dal GM (choiceOptions)", available: true },
   aura: { label: "Aura dinamica", available: true },
   "custom-adapter": { label: "Adapter dedicato esistente", available: true },
-  "value-input": { label: "Valore numerico inserito dal GM (cura/PF temporanei)", available: false },
+  "value-input": { label: "Valore numerico inserito dal GM (cure, PF temporanei, costi variabili)", available: false },
   "linked-token": { label: "Compagno o evocazione su token esistente", available: false },
   transformation: { label: "Trasformazione", available: false },
   "spell-bridge": { label: "Ponte verso il sistema Incantesimi", available: false },
@@ -184,6 +184,7 @@ const BACKLOG_ARCHETYPES = Object.freeze({
   "save-outcome-condition": { label: "Condizione dopo tiro salvezza", primitive: "condition-choice" },
   aura: { label: "Aura", primitive: "aura" },
   "hp-change": { label: "Cura o PF temporanei", primitive: "value-input" },
+  "variable-cost": { label: "Costo variabile scelto dal GM", primitive: "value-input" },
   "companion-summon": { label: "Compagno / evocazione", primitive: "linked-token" },
   transformation: { label: "Trasformazione", primitive: "transformation" },
   "spell-bridge": { label: "Lancio o slot tramite capacità", primitive: "spell-bridge" },
@@ -225,6 +226,12 @@ const BACKLOG_ARCHETYPE_OVERRIDES = Object.freeze({
   "guerriero-arciere-arcano-tiro-arcano": "reference",
   // La durata segue il turno della creatura colpita: non rappresentabile.
   "guerriero-cavaliere-errante-mantenere-la-posizione": "instant-reminder",
+  // Batch Monaco (Fase 2).
+  "monaco-via-del-kensei-cammino-del-kensei": "reference",
+  // La base è gratuita: il Ki serve solo a potenziare i danni.
+  "monaco-via-dell-anima-solare-esplosione-solare-incandescente": "reference",
+  // Spende da 1 a 3 Ki a scelta: la card non chiede ancora il valore.
+  "monaco-via-del-kensei-affilare-la-lama": "variable-cost",
 });
 
 const DIRECT_TEST_FILES = [
@@ -235,6 +242,7 @@ const DIRECT_TEST_FILES = [
   "clericDomainsFeatureRuntime.test.js",
   "clericTwilightFeatureRuntime.test.js",
   "fighterFeatureRuntime.test.js",
+  "monkFeatureRuntime.test.js",
   "warlockFeatureRuntime.test.js",
   "paladinDevotionFeatureRuntime.test.js",
   "rangerRevisedFeatureRuntime.test.js",

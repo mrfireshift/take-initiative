@@ -17,13 +17,13 @@ Il catalogo contiene **860 record**. Il catalogo runtime attuale ne espone **860
 
 | Categoria | Record |
 |---|---:|
-| Tracciamento su token | 12 |
-| Candidato token da curare | 156 |
+| Tracciamento su token | 13 |
+| Candidato token da curare | 155 |
 | Effetto istantaneo | 43 |
 | Gestione al tavolo | 649 |
 
-- Marker ad alta confidenza: **12**.
-- Marker da curare prima dell'esposizione: **156** (strutturati: 9, testuali: 147).
+- Marker ad alta confidenza: **13**.
+- Marker da curare prima dell'esposizione: **155** (strutturati: 8, testuali: 147).
 - Effetti istantanei senza pill persistente: **43**.
 - Risorse escluse come criterio: **sì**.
 
@@ -40,6 +40,7 @@ Il catalogo contiene **860 record**. Il catalogo runtime attuale ne espone **860
 | Legame Incoraggiante | chierico-dominio-della-pace-legame-incoraggiante |
 | Incanalare Divinità: Santuario del Crepuscolo | chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-del-crepuscolo |
 | Potenza del Gigante | guerriero-cavaliere-runico-potenza-del-gigante |
+| Braccia del Sé Astrale | monaco-via-del-se-astrale-braccia-del-se-astrale |
 | Protettori Ancestrali | barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali |
 | Maledizione della Lama del Sortilegio | warlock-la-lama-del-sortilegio-maledizione-della-lama-del-sortilegio |
 | Tomba di Levistus | warlock-suppliche-occulte-tomba-di-levistus |
@@ -54,9 +55,9 @@ Il catalogo contiene **860 record**. Il catalogo runtime attuale ne espone **860
 
 ## Roadmap
 
-### 1. Marker token ad alta confidenza (12)
+### 1. Marker token ad alta confidenza (13)
 
-### 2. Curare i marker suggeriti dal testo o da effetti incompleti (156)
+### 2. Curare i marker suggeriti dal testo o da effetti incompleti (155)
 
 ### 3. Lasciare gli effetti istantanei alla risoluzione manuale (43)
 
@@ -68,36 +69,37 @@ Il dettaglio per ogni record, inclusi segnali testuali, effetti marker, bersagli
 
 | Categoria | Record |
 |---|---:|
-| not-automated | 727 |
-| implemented | 133 |
+| not-automated | 685 |
+| implemented | 175 |
 
 ## Backlog per primitiva
 
-Capacità non implementate: **727**. Raggiungibili con soli override: **672** (di cui automazione: **100**, il resto carte descrittive). Bloccate da una primitiva mancante: **55**. Archetipo e primitiva sono euristiche da confermare nel batch; le decisioni manuali confermate sono 8.
+Capacità non implementate: **685**. Raggiungibili con soli override: **631** (di cui automazione: **78**, il resto carte descrittive). Bloccate da una primitiva mancante: **54**. Archetipo e primitiva sono euristiche da confermare nel batch; le decisioni manuali confermate sono 11.
 
 | Primitiva | Disponibile | Implementate | Da fare |
 |---|---|---:|---:|
-| Carta descrittiva (`reference-only`) | sì | 0 | 572 |
-| Consumo risorsa (`resource-only`) | sì | 45 | 33 |
-| Pill con durata (`condition`) | sì | 59 | 41 |
-| Pill con esito scelto dal GM (choiceOptions) (`condition-choice`) | sì | 3 | 14 |
+| Carta descrittiva (`reference-only`) | sì | 0 | 553 |
+| Consumo risorsa (`resource-only`) | sì | 72 | 24 |
+| Pill con durata (`condition`) | sì | 74 | 31 |
+| Pill con esito scelto dal GM (choiceOptions) (`condition-choice`) | sì | 3 | 11 |
 | Aura dinamica (`aura`) | sì | 13 | 12 |
 | Adapter dedicato esistente (`custom-adapter`) | sì | 13 | 0 |
-| Valore numerico inserito dal GM (cura/PF temporanei) (`value-input`) | no | 0 | 23 |
+| Valore numerico inserito dal GM (cure, PF temporanei, costi variabili) (`value-input`) | no | 0 | 22 |
 | Compagno o evocazione su token esistente (`linked-token`) | no | 0 | 15 |
 | Trasformazione (`transformation`) | no | 0 | 5 |
 | Ponte verso il sistema Incantesimi (`spell-bridge`) | no | 0 | 12 |
 
 | Archetipo | Primitiva | Implementate | Da fare |
 |---|---|---:|---:|
-| Descrittiva / passiva (`reference`) | `reference-only` | 0 | 421 |
-| Reazione o effetto istantaneo da ricordare (`instant-reminder`) | `reference-only` | 0 | 134 |
+| Descrittiva / passiva (`reference`) | `reference-only` | 0 | 409 |
+| Reazione o effetto istantaneo da ricordare (`instant-reminder`) | `reference-only` | 0 | 127 |
 | Movimento / teletrasporto (`movement`) | `reference-only` | 0 | 17 |
-| Solo consumo risorsa (`resource-only`) | `resource-only` | 45 | 33 |
-| Buff o marker con durata (`timed-condition`) | `condition` | 59 | 41 |
-| Condizione dopo tiro salvezza (`save-outcome-condition`) | `condition-choice` | 3 | 14 |
+| Solo consumo risorsa (`resource-only`) | `resource-only` | 72 | 24 |
+| Buff o marker con durata (`timed-condition`) | `condition` | 74 | 31 |
+| Condizione dopo tiro salvezza (`save-outcome-condition`) | `condition-choice` | 3 | 11 |
 | Aura (`aura`) | `aura` | 13 | 12 |
-| Cura o PF temporanei (`hp-change`) | `value-input` | 0 | 23 |
+| Cura o PF temporanei (`hp-change`) | `value-input` | 0 | 21 |
+| Costo variabile scelto dal GM (`variable-cost`) | `value-input` | 0 | 1 |
 | Compagno / evocazione (`companion-summon`) | `linked-token` | 0 | 15 |
 | Trasformazione (`transformation`) | `transformation` | 0 | 5 |
 | Lancio o slot tramite capacità (`spell-bridge`) | `spell-bridge` | 0 | 12 |
@@ -114,7 +116,7 @@ Capacità non implementate: **727**. Raggiungibili con soli override: **672** (d
 | Guerriero | 38 | 52 | 0 | 3 | value-input 2, spell-bridge 1 |
 | Ladro | 4 | 47 | 11 | 1 | linked-token 1 |
 | Mago | 0 | 44 | 12 | 5 | linked-token 2, spell-bridge 2, value-input 1 |
-| Monaco | 0 | 54 | 23 | 2 | value-input 2 |
+| Monaco | 42 | 35 | 1 | 1 | value-input 1 |
 | Paladino | 12 | 24 | 17 | 3 | value-input 3 |
 | Ranger | 0 | 57 | 4 | 4 | spell-bridge 3, linked-token 1 |
 | Ranger (Revised) | 2 | 38 | 2 | 3 | linked-token 3 |

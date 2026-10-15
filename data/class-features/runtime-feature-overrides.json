@@ -5842,18 +5842,81 @@
     },
     "monaco-ki-difesa-paziente": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "next-turn"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🧘"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Schivata",
+        "displayLabel": "Schivata · Difesa Paziente",
+        "detail": "Azione Schivare fino all'inizio del prossimo turno: gli attacchi contro il monaco hanno svantaggio se li vede, vantaggio ai TS su Destrezza. Termina se è incapacitato o la velocità scende a 0."
+      }
     },
     "monaco-ki-passo-del-vento": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "💨"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-ki-raffica-di-colpi": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "👊"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-movimento-senza-armatura": {
       "include": true,
@@ -5899,8 +5962,31 @@
     },
     "monaco-colpo-stordente": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "timing": "next-turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "💫"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Stordito",
+        "displayLabel": "Stordito · Colpo Stordente",
+        "detail": "TS Costituzione fallito: stordito fino alla fine del prossimo turno del monaco. Con TS superato non applicare la pill: il Ki è comunque speso. CD Ki = 8 + bonus di competenza + modificatore di Saggezza."
+      }
     },
     "monaco-colpi-ki-potenziati": {
       "include": true,
@@ -5939,10 +6025,31 @@
     },
     "monaco-anima-adamantina": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🔁"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-corpo-senza-tempo": {
       "include": true,
@@ -5953,10 +6060,37 @@
     },
     "monaco-corpo-vuoto": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 4
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "👻"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Invisibile",
+        "displayLabel": "Invisibile · Corpo Vuoto",
+        "detail": "Per 1 minuto: invisibile e resistenza a tutti i danni tranne forza. Proiezione astrale (8 Ki) si spende a mano dal pool."
+      }
     },
     "monaco-perfezione-interiore": {
       "include": true,
@@ -5981,32 +6115,143 @@
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-colpo-della-cenere-turbinante": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 2
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🔥"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-forma-del-fiume-fluente": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🧊"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-frusta-d-acqua": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 2
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "💧"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-pugno-dei-quattro-tuoni": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 2
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "⚡"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-pugno-dell-aria-inviolabile": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 2
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🌬️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-sintonia-elementale": {
       "include": true,
@@ -6017,83 +6262,323 @@
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-spiriti-della-burrasca-impetuosa": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 2
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🌪️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-zanne-del-serpente-di-fuoco": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🐍"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Zanne del Serpente di Fuoco",
+        "detail": "Fino alla fine del turno: portata dei colpi senz'armi +3 m, danni da fuoco; 1 Ki in più al colpo per +1d10 fuoco (dal pool)."
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-gong-della-sommita": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 3
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🔔"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-morsa-del-vento-del-nord": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 3
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🥶"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-cavalcare-il-vento": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 4
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🪽"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-fiamme-della-fenice": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 4
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🐦‍🔥"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-postura-della-nebbia": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 4
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🌫️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-difesa-della-montagna-eterna": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 5
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "⛰️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-fiume-della-fiamma-famelica": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 5
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🌋"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-onda-della-terra-tumultuosa": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 6
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🪨"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dei-quattro-elementi-discipline-elementali-soffio-dell-inverno": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": false,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 6
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "❄️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-del-kensei-cammino-del-kensei": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "monaco-via-del-kensei-cammino-del-kensei-armi-da-kensei": {
       "include": true,
@@ -6104,13 +6589,60 @@
     },
     "monaco-via-del-kensei-cammino-del-kensei-parata-agile": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "next-turn",
+        "end_conditions": [
+          "incapacitato"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🤺"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Parata Agile",
+        "detail": "+2 alla CA fino all'inizio del prossimo turno, mentre impugna l'arma da kensei da mischia e non è incapacitato."
+      }
     },
     "monaco-via-del-kensei-cammino-del-kensei-tiro-del-kensei": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🏹"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Tiro del Kensei",
+        "detail": "Fino alla fine del turno: +1d4 danni del tipo dell'arma con gli attacchi a distanza delle armi da kensei."
+      }
     },
     "monaco-via-del-kensei-cammino-del-kensei-via-del-pennello": {
       "include": true,
@@ -6121,10 +6653,31 @@
     },
     "monaco-via-del-kensei-tutt-uno-con-la-lama": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "⚔️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-del-kensei-affilare-la-lama": {
       "include": true,
@@ -6147,20 +6700,91 @@
     },
     "monaco-via-del-maestro-ubriaco-tecnica-dell-ubriaco": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🍶"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Tecnica dell'Ubriaco",
+        "detail": "Con Raffica di Colpi: beneficio di Disimpegno e +3 m alla velocità sul terreno fino alla fine del turno.",
+        "mechanics": {
+          "movement": {
+            "addMeters": 3
+          }
+        }
+      }
     },
     "monaco-via-del-maestro-ubriaco-andatura-ondeggiante": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "reazione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🔀"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-del-maestro-ubriaco-fortuna-dell-ubriacone": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 2
+        }
+      ],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🍀"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-del-maestro-ubriaco-frenesia-intossicata": {
       "include": true,
@@ -6171,13 +6795,75 @@
     },
     "monaco-via-del-se-astrale-braccia-del-se-astrale": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 100,
+        "end_conditions": [
+          "incapacitato"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🦾"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Braccia del Sé Astrale",
+        "detail": "Per 10 minuti: Saggezza al posto di Forza per prove e TS su Forza; colpi senz'armi con portata +1,5 m, Saggezza per colpire e danni, danni da forza. All'evocazione: creature scelte entro 3 m TS Destrezza o 2 dadi di Arti Marziali di danni da forza (manuale). CD Ki = 8 + bonus di competenza + modificatore di Saggezza."
+      }
     },
     "monaco-via-del-se-astrale-volto-del-se-astrale": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 100,
+        "end_conditions": [
+          "incapacitato"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🎭"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Volto del Sé Astrale",
+        "detail": "Per 10 minuti: vista nell'oscurità (anche magica) entro 36 m, vantaggio a Intuizione e Intimidire, voce mirata entro 18 m o amplificata fino a 180 m."
+      }
     },
     "monaco-via-del-se-astrale-volto-del-se-astrale-parola-dello-spirito": {
       "include": true,
@@ -6209,25 +6895,103 @@
     },
     "monaco-via-del-se-astrale-se-astrale-risvegliato": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 5
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 100,
+        "end_conditions": [
+          "incapacitato"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌟"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Sé Astrale Risvegliato",
+        "detail": "Per 10 minuti: braccia, volto e corpo astrali; +2 alla CA e tre attacchi con Attacco Extra usando le braccia astrali."
+      }
     },
     "monaco-via-dell-anima-solare-dardo-del-sole-radioso": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "☀️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dell-anima-solare-colpo-dell-onda-incandescente": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 2
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🌅"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dell-anima-solare-esplosione-solare-incandescente": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false,
+      "resourceCosts": []
     },
     "monaco-via-dell-anima-solare-scudo-solare": {
       "include": true,
@@ -6236,24 +7000,84 @@
     },
     "monaco-via-dell-ombra-arti-dell-ombra": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 2
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🌑"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-dell-ombra-passo-dell-ombra": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌒"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Passo dell'Ombra",
+        "detail": "Teletrasporto fino a 18 m tra luce fioca e oscurità (sulla mappa); vantaggio al primo attacco in mischia prima della fine del turno."
+      }
     },
     "monaco-via-dell-ombra-manto-di-ombre": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {},
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌘"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Invisibile",
+        "displayLabel": "Invisibile · Manto di Ombre",
+        "detail": "Invisibile finché attacca, lancia un incantesimo o entra in luce intensa: termina la pill in quel momento."
+      }
     },
     "monaco-via-dell-ombra-opportunista": {
       "include": true,
@@ -6278,25 +7102,117 @@
     },
     "monaco-via-della-mano-aperta-tranquillita": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "nessuna_azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {},
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🕊️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Tranquillità",
+        "displayLabel": "Santuario · Tranquillità",
+        "detail": "Santuario fino all'inizio del prossimo riposo lungo: chi bersaglia il monaco con un attacco o un incantesimo dannoso fa un TS Saggezza (CD 8 + Saggezza + competenza) o cambia bersaglio. Termina se il monaco attacca o lancia un incantesimo su un nemico."
+      }
     },
     "monaco-via-della-mano-aperta-palmo-tremante": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 3
+        }
+      ],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {},
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🫳"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Palmo Tremante",
+        "effectKind": "debuff",
+        "detail": "Vibrazioni per un numero di giorni pari al livello da monaco; una sola creatura alla volta. Con un'azione il monaco le termina: TS Costituzione fallito → 0 PF, superato → 10d10 necrotici. Può terminarle senza effetto. CD Ki = 8 + bonus di competenza + modificatore di Saggezza."
+      }
     },
     "monaco-via-della-misericordia-mano-del-dolore": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🖐️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-della-misericordia-mano-guaritrice": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🤲"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "monaco-via-della-misericordia-strumenti-di-misericordia": {
       "include": true,
@@ -6307,8 +7223,31 @@
     },
     "monaco-via-della-misericordia-tocco-del-medico": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "timing": "next-turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🧪"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Avvelenato",
+        "displayLabel": "Avvelenato · Tocco del Medico",
+        "detail": "Con Mano del Dolore: avvelenato fino alla fine del prossimo turno del monaco. Con Mano Guaritrice il monaco può invece terminare una malattia o una condizione (accecato, assordato, paralizzato, avvelenato, stordito): rimuovila dalle Condizioni."
+      }
     },
     "monaco-via-della-misericordia-raffica-di-guarigione-e-dolore": {
       "include": true,
@@ -6319,8 +7258,35 @@
     },
     "monaco-via-della-misericordia-mano-della-misericordia-suprema": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "monaco-via-della-misericordia-mano-della-misericordia-suprema-usi",
+          "amount": 1
+        },
+        {
+          "poolId": "monaco-punti-ki",
+          "amount": 5
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "💖"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "paladino-giuramento-degli-antichi-incanalare-divinita-collera-della-natura": {
       "include": true,
