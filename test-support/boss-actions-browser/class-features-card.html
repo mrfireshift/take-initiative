@@ -23,6 +23,7 @@
   import { markSceneEpochReady } from "/src/sceneEpoch.js";
   import { mountEffectsMutationCoordinatorService } from "/src/effectsMutations.js";
   import { mountHistoryOwner } from "/src/historyOwner.js";
+  import { getAvailableClassFeatures } from "/src/classFeatureCatalog.js";
 
   const META = "com.thebigpicture.initiative/meta";
   const STATE = "com.thebigpicture.initiative/state";
@@ -31,15 +32,35 @@
     warlock: { name: "Vesper", build: [{ classId: "warlock", level: 11, subclassId: "warlock-l-immondo" }] },
     monaco: { name: "Kaito", build: [{ classId: "monaco", level: 6, subclassId: "monaco-via-della-mano-aperta" }] },
     guerriero: { name: "Bryn", build: [{ classId: "guerriero", level: 10, subclassId: "guerriero-campione" }] },
+    battaglia: {
+      name: "Dars",
+      build: [{ classId: "guerriero", level: 7, subclassId: "guerriero-maestro-di-battaglia" }],
+      options: [
+        "guerriero-maestro-di-battaglia-manovre-parata",
+        "guerriero-maestro-di-battaglia-manovre-attacco-minaccioso",
+        "guerriero-maestro-di-battaglia-manovre-attacco-preciso",
+      ],
+    },
     druido: { name: "Ilse", build: [{ classId: "druido", level: 6, subclassId: "druido-circolo-della-terra" }] },
     ranger: { name: "Tamsin", build: [{ classId: "ranger", level: 7, subclassId: "ranger-cacciatore" }] },
   };
   const selected = characters[params.get("pc")] ? params.get("pc") : "warlock";
   fakeHost.state.role = params.get("role") === "PLAYER" ? "PLAYER" : "GM";
+  // options: opzioni a scelta da abilitare oltre alle capacità di default.
+  const cardFor = (pc) => (pc.options
+    ? {
+      characterBuild: pc.build,
+      classFeaturesConfigured: true,
+      enabledClassFeatureIds: [
+        ...getAvailableClassFeatures(pc.build).filter((entry) => entry.defaultEnabled).map((entry) => entry.id),
+        ...pc.options,
+      ],
+    }
+    : { characterBuild: pc.build });
   fakeHost.setItems(Object.entries(characters).map(([id, pc], index) => ({
     id, name: pc.name, type: "IMAGE", layer: "CHARACTER", visible: true,
     position: { x: 200 + index * 120, y: 300 }, preview: { size: 70, color: "#0e7490" },
-    metadata: { [META]: { hp: 40, hpMax: 40, attitude: "pc", inInitiative: true, initiativeCard: { characterBuild: pc.build } } },
+    metadata: { [META]: { hp: 40, hpMax: 40, attitude: "pc", inInitiative: true, initiativeCard: cardFor(pc) } },
   })));
   fakeHost.setSceneMetadata({ [STATE]: { round: 1, order: Object.keys(characters), currentId: selected } });
 

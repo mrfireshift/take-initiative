@@ -217,6 +217,14 @@ const BACKLOG_TEXT_RULES = Object.freeze({
 const BACKLOG_ARCHETYPE_OVERRIDES = Object.freeze({
   "druido-circolo-della-fiamma-evocare-spirito-della-fiamma": "companion-summon",
   "monaco-via-della-mano-aperta-tranquillita": "timed-condition",
+  // Batch Guerriero (Fase 2).
+  "guerriero-cavaliere-mistico-arma-vincolata": "reference",
+  "guerriero-cavaliere-runico-colosso-runico": "reference",
+  "guerriero-guerriero-psionico-adepto-telecinetico": "reference",
+  "guerriero-guerriero-psionico-potere-psionico": "reference",
+  "guerriero-arciere-arcano-tiro-arcano": "reference",
+  // La durata segue il turno della creatura colpita: non rappresentabile.
+  "guerriero-cavaliere-errante-mantenere-la-posizione": "instant-reminder",
 });
 
 const DIRECT_TEST_FILES = [
@@ -225,6 +233,7 @@ const DIRECT_TEST_FILES = [
   "bardEloquenceFeatureRuntime.test.js",
   "bardLoreFeatureRuntime.test.js",
   "clericTwilightFeatureRuntime.test.js",
+  "fighterFeatureRuntime.test.js",
   "paladinDevotionFeatureRuntime.test.js",
   "rangerRevisedFeatureRuntime.test.js",
   "rogueArcaneTricksterFeatureRuntime.test.js",

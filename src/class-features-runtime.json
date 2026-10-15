@@ -18271,9 +18271,9 @@
       ],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "nessuna_azione"
@@ -18289,7 +18289,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⚡",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -18368,7 +18368,7 @@
       "page": 75,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -18383,6 +18383,7 @@
       "activation": {
         "primary": "azione_bonus"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -18417,7 +18418,7 @@
       "page": 74,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -18425,35 +18426,38 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
       ],
-      "quickActionEligible": false,
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🧲",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Attacco Adescante",
+        "detail": "TS Saggezza fallito: svantaggio ai tiri per colpire contro bersagli diversi dal guerriero fino alla fine del suo prossimo turno. Con TS superato non applicare la pill: spendi il dado dal pool."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": null,
-        "timing": "turn-end"
+        "timing": "next-turn-end"
       },
       "trackingMode": "active",
       "resourceCosts": [
@@ -18476,7 +18480,7 @@
       "page": 74,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -18484,17 +18488,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -18503,7 +18506,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🤺",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -18542,9 +18545,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -18560,7 +18563,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🎭",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -18591,7 +18594,7 @@
       "page": 74,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -18599,17 +18602,16 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "reazione"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -18618,7 +18620,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔀",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -18649,7 +18651,7 @@
       "page": 74,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -18657,17 +18659,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -18676,7 +18677,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌪️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -18707,7 +18708,7 @@
       "page": 74,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -18715,17 +18716,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -18734,7 +18734,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💨",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -18765,7 +18765,7 @@
       "page": 74,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -18773,17 +18773,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -18792,7 +18791,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🗡️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -18823,7 +18822,7 @@
       "page": 74,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -18831,35 +18830,39 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
       ],
-      "quickActionEligible": false,
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "😱",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Spaventato",
+        "displayLabel": "Spaventato · Attacco Minaccioso",
+        "detail": "TS Saggezza fallito: spaventato dal guerriero fino alla fine del suo prossimo turno. Con TS superato non applicare la pill: spendi il dado dal pool."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": null,
-        "timing": "turn-end"
+        "timing": "next-turn-end"
       },
       "trackingMode": "active",
       "resourceCosts": [
@@ -18882,7 +18885,7 @@
       "page": 74,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -18890,17 +18893,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -18909,7 +18911,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🎯",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -18940,7 +18942,7 @@
       "page": 74,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -18948,17 +18950,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -18967,7 +18968,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🤸",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -18998,21 +18999,23 @@
       "page": 45,
       "collection": "opzioni",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "guerriero-guerriero-psionico-potere-psionico-usi"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -19021,7 +19024,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🧿",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -19032,7 +19035,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "guerriero-guerriero-psionico-potere-psionico-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "guerriero-maestro-di-battaglia-manovre-colpo-del-comandante",
@@ -19055,12 +19063,12 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "reazione"
+        "primary": "azione_bonus"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
@@ -19073,7 +19081,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "📯",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -19104,7 +19112,7 @@
       "page": 74,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -19112,36 +19120,40 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
       ],
-      "quickActionEligible": false,
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💫",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Colpo Distraente",
+        "detail": "Il prossimo tiro per colpire contro il bersaglio da parte di un attaccante diverso dal guerriero ha vantaggio, se effettuato prima dell'inizio del prossimo turno del guerriero. Termina la pill dopo quell'attacco."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "guerriero-dadi-superiorita",
@@ -19162,21 +19174,23 @@
       "page": 45,
       "collection": "opzioni",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva_o_non_specificata"
+        "primary": "innesco"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "guerriero-guerriero-psionico-potere-psionico-usi"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -19185,7 +19199,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🧠",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -19196,7 +19210,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "guerriero-guerriero-psionico-potere-psionico-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "guerriero-cavaliere-errante-competenza-bonus",
@@ -19459,33 +19478,50 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "targetMode": "self",
+      "trackedResourcePoolIds": [
+        "guerriero-arciere-arcano-tiro-arcano-usi"
+      ],
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌿",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Rovi Afferranti",
+        "detail": "Velocità ridotta di 3 m; subisce danni taglienti (2d6, 4d6 dal 18°) la prima volta in ogni turno in cui si muove di almeno 30 cm senza teletrasportarsi. Fino a 1 minuto: termina con una prova di Forza (Atletica) riuscita o se il guerriero usa di nuovo questa freccia.",
+        "mechanics": {
+          "movement": {
+            "addMeters": -3
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10
       },
-      "trackingMode": "instant",
-      "resourceCosts": []
+      "trackingMode": "active",
+      "resourceCosts": [
+        {
+          "poolId": "guerriero-arciere-arcano-tiro-arcano-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-ammaliante",
@@ -19507,33 +19543,47 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "targetMode": "self",
+      "trackedResourcePoolIds": [
+        "guerriero-arciere-arcano-tiro-arcano-usi"
+      ],
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💘",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Freccia Ammaliante",
+        "detail": "TS Saggezza fallito: affascinato dall'alleato scelto entro 9 m fino all'inizio del prossimo turno del guerriero. Termina prima se quell'alleato lo attacca, lo danneggia o gli impone un TS. Con TS superato non applicare la pill."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn"
       },
-      "trackingMode": "instant",
-      "resourceCosts": []
+      "trackingMode": "active",
+      "resourceCosts": [
+        {
+          "poolId": "guerriero-arciere-arcano-tiro-arcano-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-cercatrice",
@@ -19548,21 +19598,23 @@
       "page": 29,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "guerriero-arciere-arcano-tiro-arcano-usi"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -19571,7 +19623,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🧭",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -19582,7 +19634,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "guerriero-arciere-arcano-tiro-arcano-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-d-ombra",
@@ -19604,33 +19661,46 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "targetMode": "self",
+      "trackedResourcePoolIds": [
+        "guerriero-arciere-arcano-tiro-arcano-usi"
+      ],
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌑",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Freccia d'Ombra",
+        "detail": "TS Saggezza fallito: non vede oltre 1,5 m fino all'inizio del prossimo turno del guerriero. Con TS superato non applicare la pill."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn"
       },
-      "trackingMode": "instant",
-      "resourceCosts": []
+      "trackingMode": "active",
+      "resourceCosts": [
+        {
+          "poolId": "guerriero-arciere-arcano-tiro-arcano-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-esiliante",
@@ -19652,33 +19722,52 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "targetMode": "self",
+      "trackedResourcePoolIds": [
+        "guerriero-arciere-arcano-tiro-arcano-usi"
+      ],
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌀",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Esiliato",
+        "displayLabel": "Esiliato · Incapacitato",
+        "detail": "TS Carisma fallito: esiliato nella Selva Fatata, incapacitato e con velocità 0. Ricompare alla fine del suo prossimo turno: termina la pill in quel momento. Con TS superato non applicare la pill.",
+        "mechanics": {
+          "movement": {
+            "setMeters": 0
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn"
       },
-      "trackingMode": "instant",
-      "resourceCosts": []
+      "trackingMode": "active",
+      "resourceCosts": [
+        {
+          "poolId": "guerriero-arciere-arcano-tiro-arcano-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-esplosiva",
@@ -19693,21 +19782,23 @@
       "page": 29,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "guerriero-arciere-arcano-tiro-arcano-usi"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -19716,7 +19807,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💥",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -19727,7 +19818,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "guerriero-arciere-arcano-tiro-arcano-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-indebolente",
@@ -19749,33 +19845,46 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "targetMode": "self",
+      "trackedResourcePoolIds": [
+        "guerriero-arciere-arcano-tiro-arcano-usi"
+      ],
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🥀",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Freccia Indebolente",
+        "detail": "TS Costituzione fallito: i danni dei suoi attacchi con le armi sono dimezzati fino all'inizio del prossimo turno del guerriero. Con TS superato non applicare la pill."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn"
       },
-      "trackingMode": "instant",
-      "resourceCosts": []
+      "trackingMode": "active",
+      "resourceCosts": [
+        {
+          "poolId": "guerriero-arciere-arcano-tiro-arcano-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-perforante",
@@ -19790,21 +19899,23 @@
       "page": 30,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "guerriero-arciere-arcano-tiro-arcano-usi"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -19813,7 +19924,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🏹",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -19824,7 +19935,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "guerriero-arciere-arcano-tiro-arcano-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "guerriero-cavaliere-mistico-incantesimi",
@@ -19896,9 +20012,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -19914,7 +20030,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "📣",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -20048,32 +20164,40 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "azione_bonus"
+        "primary": "innesco"
       },
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🎖️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Marchio Incrollabile",
+        "detail": "Entro 1,5 m dal guerriero ha svantaggio ai tiri per colpire che non bersagliano lui. Se danneggia un altro, il guerriero può fare l'attacco speciale come azione bonus. Fino alla fine del prossimo turno del guerriero; termina se è incapacitato o se un altro marchia la creatura."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn-end",
+        "endConditions": [
+          "incapacitato"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -20194,9 +20318,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -20212,7 +20336,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🛡️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -20247,9 +20371,9 @@
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -20265,12 +20389,16 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🗿",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Potenza del Gigante",
+        "detail": "Per 1 minuto: taglia Grande se c'è spazio, vantaggio alle prove e ai TS su Forza, una volta per turno +1d6 danni con un'arma o un colpo senz'armi (1d8 dal 10°, 1d10 dal 18°)."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": 10
@@ -20330,12 +20458,7 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": [
-        {
-          "poolId": "guerriero-guerriero-psionico-potere-psionico-usi",
-          "amount": 1
-        }
-      ]
+      "resourceCosts": []
     },
     {
       "id": "guerriero-maestro-di-battaglia-manovre-replica",
@@ -20358,9 +20481,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -20376,7 +20499,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "↩️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -20407,39 +20530,44 @@
       "page": 43,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "tracciamento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔥",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Trattenuto",
+        "displayLabel": "Trattenuto · Catene di Fuoco",
+        "detail": "TS Forza fallito: trattenuto per 1 minuto, subisce 2d6 danni da fuoco all'inizio di ogni suo turno e ripete il TS alla fine di ogni suo turno. Con TS superato non applicare la pill. Uso per riposo breve da segnare al tavolo."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -20462,9 +20590,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -20477,17 +20605,21 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "❄️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Runa del Gelo",
+        "detail": "Per 10 minuti: +2 a tutte le prove di caratteristica e ai TS su Forza e Costituzione. Uso per riposo breve da segnare al tavolo."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 100
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -20510,32 +20642,42 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
       },
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
+        "mode": "single-target",
+        "rangeMeters": 9,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🪨",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Runa della Pietra",
+        "detail": "TS Saggezza fallito: affascinato dal guerriero per 1 minuto, velocità 0 e incapacitato; ripete il TS alla fine di ogni suo turno. Con TS superato non applicare la pill. Uso per riposo breve da segnare al tavolo.",
+        "mechanics": {
+          "movement": {
+            "setMeters": 0
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -20600,7 +20742,7 @@
       "page": 74,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -20608,17 +20750,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "guerriero-dadi-superiorita"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -20627,7 +20768,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🦶",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -20805,7 +20946,7 @@
       "page": 28,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "curated",
       "runtimeRequirements": [],
       "missingForExecution": [],
@@ -20820,6 +20961,7 @@
       "trackedResourcePoolIds": [
         "guerriero-arciere-arcano-tiro-arcano-usi"
       ],
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -20839,12 +20981,7 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": [
-        {
-          "poolId": "guerriero-arciere-arcano-tiro-arcano-usi",
-          "amount": 1
-        }
-      ]
+      "resourceCosts": []
     },
     {
       "id": "guerriero-aumento-dei-punteggi-di-caratteristica",
@@ -20955,7 +21092,7 @@
       "page": 46,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -20969,6 +21106,7 @@
       "activation": {
         "primary": "azione_bonus"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -21300,9 +21438,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -21315,17 +21453,21 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⛰️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Runa delle Colline",
+        "detail": "Per 1 minuto: resistenza ai danni contundenti, perforanti e taglienti. Uso per riposo breve da segnare al tavolo."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -21348,9 +21490,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -21366,17 +21508,24 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⛈️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Stato Profetico",
+        "detail": "Per 1 minuto o finché è incapacitato: con la reazione impone vantaggio o svantaggio a un tiro per colpire, TS o prova di una creatura visibile entro 18 m."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10,
+        "endConditions": [
+          "incapacitato"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "guerriero-cavaliere-runico-intagliatore-di-rune-runa-delle-tempeste-usi",
@@ -21403,9 +21552,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -21421,7 +21570,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔰",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -21504,9 +21653,9 @@
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -21522,7 +21671,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔁",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -21601,7 +21750,7 @@
       "page": 30,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -21615,6 +21764,7 @@
       "activation": {
         "primary": "innesco"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -21897,32 +22047,40 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
       },
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
-        "maxTargets": 1,
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🧱",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Baluardo della Forza",
+        "displayLabel": "Mezza copertura",
+        "detail": "Mezza copertura per 1 minuto o finché il guerriero è incapacitato. Bersagli: fino al modificatore di Intelligenza (minimo 1), guerriero incluso. Uso per riposo lungo o un dado di Energia Psionica, da segnare al tavolo."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10,
+        "endConditions": [
+          "incapacitato"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -22276,7 +22434,7 @@
       "page": 45,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "tracciamento",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -22290,6 +22448,7 @@
       "activation": {
         "primary": "innesco"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -22378,9 +22537,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -22396,7 +22555,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "☠️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -49262,7 +49421,7 @@
     "mechanicRecords": 860,
     "activeFeatures": 860,
     "resourcePools": 104,
-    "runtimeImplemented": 59,
-    "runtimeNotAutomated": 801
+    "runtimeImplemented": 97,
+    "runtimeNotAutomated": 763
   }
 }
