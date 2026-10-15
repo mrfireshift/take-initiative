@@ -1,5 +1,6 @@
 import { gridPlanarDistance } from "./distance3dCore.js";
 import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
+import { abilityModifier } from "./abilityModifiersCore.js";
 
 export const CLASS_FEATURE_STATE_FIELD = "classFeatureState";
 export const CLASS_FEATURE_STATE_VERSION = 1;
@@ -374,7 +375,31 @@ function finiteResourceValue(value) {
   return Number.isFinite(numeric) && numeric >= 0 ? Math.round(numeric) : null;
 }
 
-export function resolveClassFeatureResourceMaximum(pool, characterBuild) {
+// Formule con modificatore di caratteristica: "max(N, modificatore_X)",
+// "[N +] modificatore_X" e "[a *] livello_<classe> + modificatore_X".
+// Senza il modificatore sulla card il massimo resta sconosciuto.
+function abilityModifierFormulaValue(expression, characterBuild, abilityModifiers) {
+  const modifierOf = (name) => abilityModifier(abilityModifiers, name);
+  let match = expression.match(/^max\(\s*(\d+)\s*,\s*modificatore_([a-z]+)\s*\)$/u);
+  if (match) {
+    const modifier = modifierOf(match[2]);
+    return modifier === null ? null : Math.max(Number(match[1]), modifier);
+  }
+  match = expression.match(/^(?:(\d+)\s*\+\s*)?modificatore_([a-z]+)$/u);
+  if (match) {
+    const modifier = modifierOf(match[2]);
+    return modifier === null ? null : Math.max(0, Number(match[1] || 0) + modifier);
+  }
+  match = expression.match(/^(?:(\d+)\s*\*\s*)?livello_([a-z_]+?)\s*\+\s*modificatore_([a-z]+)$/u);
+  if (match) {
+    const level = characterClassLevel(characterBuild, match[2]);
+    const modifier = modifierOf(match[3]);
+    return modifier === null || !level ? null : Math.max(0, Number(match[1] || 1) * level + modifier);
+  }
+  return null;
+}
+
+export function resolveClassFeatureResourceMaximum(pool, characterBuild, abilityModifiers = null) {
   if (!pool || typeof pool !== "object") {
     return { maximum: null, unlimited: false };
   }
@@ -393,7 +418,13 @@ export function resolveClassFeatureResourceMaximum(pool, characterBuild) {
     && proficiencyMatch
     && totalCharacterLevel > 0
     ? Number(proficiencyMatch[1] || 1) * (2 + Math.floor((totalCharacterLevel - 1) / 4))
-    : null;
+    : capacity.type === "formula"
+      ? abilityModifierFormulaValue(
+        String(capacity.expression || "").trim().toLowerCase(),
+        characterBuild,
+        abilityModifiers,
+      )
+      : null;
   const classId = String(
     capacity.class_id
     || pool.owner?.classId
@@ -492,9 +523,9 @@ export function classFeatureResourceRefreshEvents(pool, characterBuild) {
   ));
 }
 
-function resourceEntryForCost(state, pool, characterBuild) {
+function resourceEntryForCost(state, pool, characterBuild, abilityModifiers = null) {
   const stored = state.resources[pool.id];
-  const resolved = resolveClassFeatureResourceMaximum(pool, characterBuild);
+  const resolved = resolveClassFeatureResourceMaximum(pool, characterBuild, abilityModifiers);
   if (resolved.unlimited) {
     return {
       current: null,
@@ -525,6 +556,7 @@ export function classFeatureResourceEntries(
   features,
   poolsById,
   characterBuild,
+  abilityModifiers = null,
 ) {
   const state = normalizeClassFeatureState(stateValue);
   const poolIds = Array.from(new Set(
@@ -546,7 +578,7 @@ export function classFeatureResourceEntries(
     const refreshEvents = classFeatureResourceRefreshEvents(pool, characterBuild);
     return {
       pool,
-      ...resourceEntryForCost(state, pool, characterBuild),
+      ...resourceEntryForCost(state, pool, characterBuild, abilityModifiers),
       ...(die ? { die } : {}),
       ...(refreshEvents.length ? { refreshEvents } : {}),
     };
@@ -1075,6 +1107,7 @@ export function planClassFeatureSpecialRefresh(
   pool,
   characterBuild,
   { event = "riposo_breve" } = {},
+  abilityModifiers = null,
 ) {
   const refresh = classFeatureSpecialRefresh(pool, characterBuild, event);
   if (!refresh) {
@@ -1089,6 +1122,7 @@ export function planClassFeatureSpecialRefresh(
     pool,
     characterBuild,
     { delta: Number(refresh.amount) || 0 },
+    abilityModifiers,
   );
   return { ...result, refresh };
 }
@@ -1098,6 +1132,7 @@ export function planClassFeatureActivation({
   feature,
   poolsById,
   characterBuild,
+  abilityModifiers = null,
   sourceId,
   targetIds = [],
   currentRound = 1,
@@ -1192,7 +1227,7 @@ export function planClassFeatureActivation({
     if (amount === null) {
       return { ok: false, reason: "resource-value-required", poolId: cost.poolId };
     }
-    const entry = resourceEntryForCost(state, pool, characterBuild);
+    const entry = resourceEntryForCost(state, pool, characterBuild, abilityModifiers);
     if (!entry.unlimited && entry.current !== null && entry.current < amount) {
       return { ok: false, reason: "resource-empty", poolId: cost.poolId };
     }
@@ -1282,10 +1317,11 @@ export function planClassFeatureResourceAdjustment(
   pool,
   characterBuild,
   { delta = 0, current = null, maximum = null, reset = false } = {},
+  abilityModifiers = null,
 ) {
   const state = normalizeClassFeatureState(stateValue);
   if (!pool?.id) return { changed: false, state };
-  const resolved = resourceEntryForCost(state, pool, characterBuild);
+  const resolved = resourceEntryForCost(state, pool, characterBuild, abilityModifiers);
   const nextMaximum = maximum === null
     ? resolved.maximum
     : optionalInteger(maximum, 0, 9999);
@@ -1321,6 +1357,7 @@ export function planClassFeatureResourceReset(
   poolsById,
   characterBuild,
   poolIds = [],
+  abilityModifiers = null,
 ) {
   let state = normalizeClassFeatureState(stateValue);
   let changed = false;
@@ -1338,6 +1375,7 @@ export function planClassFeatureResourceReset(
       pool,
       characterBuild,
       { reset: true },
+      abilityModifiers,
     );
     if (result.changed) changed = true;
     state = result.state;

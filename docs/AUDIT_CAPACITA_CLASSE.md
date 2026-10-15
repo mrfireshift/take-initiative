@@ -72,17 +72,17 @@ Il dettaglio per ogni record, inclusi segnali testuali, effetti marker, bersagli
 
 | Categoria | Record |
 |---|---:|
-| not-automated | 599 |
-| implemented | 261 |
+| not-automated | 596 |
+| implemented | 264 |
 
 ## Backlog per primitiva
 
-Capacità non implementate: **599**. Raggiungibili con soli override: **564** (di cui automazione: **11**, il resto carte descrittive). Bloccate da una primitiva mancante: **35**. Archetipo e primitiva sono euristiche da confermare nel batch; le decisioni manuali confermate sono 30.
+Capacità non implementate: **596**. Raggiungibili con soli override: **562** (di cui automazione: **9**, il resto carte descrittive). Bloccate da una primitiva mancante: **34**. Archetipo e primitiva sono euristiche da confermare nel batch; le decisioni manuali confermate sono 30.
 
 | Primitiva | Disponibile | Implementate | Da fare |
 |---|---|---:|---:|
 | Carta descrittiva (`reference-only`) | sì | 0 | 553 |
-| Consumo risorsa (`resource-only`) | sì | 103 | 3 |
+| Consumo risorsa (`resource-only`) | sì | 106 | 1 |
 | Pill con durata (`condition`) | sì | 124 | 5 |
 | Pill con esito scelto dal GM (choiceOptions) (`condition-choice`) | sì | 4 | 0 |
 | Aura dinamica (`aura`) | sì | 17 | 3 |
@@ -90,14 +90,14 @@ Capacità non implementate: **599**. Raggiungibili con soli override: **564** (d
 | Valore numerico inserito dal GM (cure, PF temporanei, costi variabili) (`value-input`) | no | 0 | 17 |
 | Compagno o evocazione su token esistente (`linked-token`) | no | 0 | 9 |
 | Trasformazione (`transformation`) | no | 0 | 1 |
-| Ponte verso il sistema Incantesimi (`spell-bridge`) | no | 0 | 8 |
+| Ponte verso il sistema Incantesimi (`spell-bridge`) | no | 0 | 7 |
 
 | Archetipo | Primitiva | Implementate | Da fare |
 |---|---|---:|---:|
 | Descrittiva / passiva (`reference`) | `reference-only` | 0 | 421 |
 | Reazione o effetto istantaneo da ricordare (`instant-reminder`) | `reference-only` | 0 | 119 |
 | Movimento / teletrasporto (`movement`) | `reference-only` | 0 | 13 |
-| Solo consumo risorsa (`resource-only`) | `resource-only` | 103 | 3 |
+| Solo consumo risorsa (`resource-only`) | `resource-only` | 106 | 1 |
 | Buff o marker con durata (`timed-condition`) | `condition` | 124 | 5 |
 | Condizione dopo tiro salvezza (`save-outcome-condition`) | `condition-choice` | 4 | 0 |
 | Aura (`aura`) | `aura` | 17 | 3 |
@@ -105,7 +105,7 @@ Capacità non implementate: **599**. Raggiungibili con soli override: **564** (d
 | Costo variabile scelto dal GM (`variable-cost`) | `value-input` | 0 | 2 |
 | Compagno / evocazione (`companion-summon`) | `linked-token` | 0 | 9 |
 | Trasformazione (`transformation`) | `transformation` | 0 | 1 |
-| Lancio o slot tramite capacità (`spell-bridge`) | `spell-bridge` | 0 | 8 |
+| Lancio o slot tramite capacità (`spell-bridge`) | `spell-bridge` | 0 | 7 |
 | Adapter dedicato (`custom-adapter`) | `custom-adapter` | 13 | 0 |
 
 ## Backlog per classe
@@ -114,14 +114,14 @@ Capacità non implementate: **599**. Raggiungibili con soli override: **564** (d
 |---|---:|---:|---:|---:|---|
 | Barbaro | 20 | 42 | 5 | 1 | spell-bridge 1 |
 | Bardo | 15 | 29 | 0 | 2 | value-input 2 |
-| Chierico | 20 | 53 | 1 | 4 | value-input 4 |
+| Chierico | 21 | 53 | 0 | 4 | value-input 4 |
 | Druido | 13 | 38 | 0 | 5 | linked-token 3, spell-bridge 1, value-input 1 |
 | Guerriero | 38 | 52 | 0 | 3 | value-input 2, spell-bridge 1 |
 | Ladro | 16 | 47 | 0 | 0 | — |
 | Mago | 11 | 46 | 0 | 4 | spell-bridge 2, linked-token 1, value-input 1 |
 | Monaco | 42 | 35 | 1 | 1 | value-input 1 |
-| Paladino | 30 | 25 | 1 | 0 | — |
-| Ranger | 10 | 54 | 0 | 1 | spell-bridge 1 |
+| Paladino | 31 | 25 | 0 | 0 | — |
+| Ranger | 11 | 54 | 0 | 0 | — |
 | Ranger (Revised) | 2 | 38 | 2 | 3 | linked-token 3 |
 | Stregone | 25 | 27 | 1 | 3 | value-input 2, transformation 1 |
 | Warlock | 19 | 67 | 0 | 8 | value-input 4, linked-token 2, spell-bridge 2 |

@@ -65,7 +65,8 @@ test("Ranger: il batch implementa 10 capacità senza adapter nuovi", () => {
   const implemented = CLASS_FEATURE_CATALOG.features.filter((entry) =>
     entry.classId === "ranger" && entry.runtimeSupport.status === "implemented"
   );
-  assert.equal(implemented.length, 10);
+  // 10 dal batch, più Viandante Velato sbloccato da P1.
+  assert.equal(implemented.length, 11);
   for (const [id, conditionName] of Object.entries(CONDITIONS)) {
     assert.equal(feature(id).runtimeSupport.adapter, "condition", id);
     assert.equal(feature(id).effectPlan.conditionName, conditionName, id);
@@ -116,8 +117,8 @@ test("Imboscata Terrificante e Marea Avvolgente modificano il movimento", () => 
   assert.equal(resolveMovementProfile(9, swarm.conditions, [], "fly").modes.fly.speedMeters, 3);
 });
 
-test("le capacità senza pool o con usi legati alla Saggezza restano fuori", () => {
-  assert.equal(classFeatureRuntimeSupport(feature("ranger-viandante-fatato-viandante-velato")).ready, false);
+test("le capacità senza pool restano fuori; Viandante Velato è sbloccato da P1", () => {
+  assert.equal(classFeatureRuntimeSupport(feature("ranger-viandante-fatato-viandante-velato")).ready, true);
   for (const id of [
     "ranger-custode-degli-sciami-sciame-possente",
     "ranger-uccisore-di-mostri-percezione-del-cacciatore",

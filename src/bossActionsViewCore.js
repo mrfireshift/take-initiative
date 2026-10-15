@@ -135,7 +135,8 @@ export function validateBossActionSelection({ sourceId, action, targetId, target
   const kind = bossActionExecutionKind(action);
   if (!["attack-damage", "save-damage"].includes(kind) || !action?.id) return reject("Questa abilità richiede una risoluzione manuale.");
   if (!realId(sourceId)) return reject("Il boss deve essere un token reale.");
-  const requiresManual=kind==="attack-damage" && !action.execution?.drain && !action.execution?.onHit && action.automation==="PARTIAL" && !!String(action.manualText || "").trim();
+  // v20: a requirement on the round's sequence (Rock while Gather is active) is checked from the round log.
+  const requiresManual=kind==="attack-damage" && !action.execution?.drain && !action.execution?.onHit && !action.sequence && action.automation==="PARTIAL" && !!String(action.manualText || "").trim();
   if(requiresManual && manualConfirmed!==true)return reject("Conferma il prerequisito manuale prima di risolvere l’azione.");
   if (!bossActionTargets(targets, sourceId).some((item) => item.id === targetId)) return reject("Seleziona una creatura reale presente nel tracker.");
   if (kind === "attack-damage" && !(action.execution.attack?.modes || []).includes(mode)) return reject("Seleziona la modalità di attacco.");
@@ -235,7 +236,8 @@ export function bossActionAutomationSummary(action, availability = {}) {
     const conditions = (action.execution.onFailed?.conditions || []).map((entry) => `${entry.condition} sui falliti ${bossConditionDurationText(entry)}`);
     const area = action.execution.target?.area;
     const parts = [
-      ...(area?.shape === "seam" ? ["la linea segue la cucitura del round", "sequenza verificata (dopo la cucitura; l’ultimo slot del round si conferma se l’ordine dice altro)"] : []),
+      ...(area?.shape === "seam" ? ["la linea segue la cucitura del round", "sequenza verificata (dopo la cucitura; l’ultimo slot del round si conferma se l’ordine dice altro)"]
+        : action.sequence ? ["sequenza e ricarica verificate dal registro del round (l’ultimo slot si conferma se l’ordine dice altro)"] : []),
       "danni per tipo a ogni bersaglio (metà su TS superato)",
       ...(area?.innerRadius ? [`componenti "entro ${area.innerRadius} ft" calcolate dai centri disegnati`] : []),
       ...conditions,
@@ -257,10 +259,11 @@ export function bossActionAutomationSummary(action, availability = {}) {
   if (action.execution?.requiresMark) automatic.push("solo su una creatura marchiata dal boss; il marchio viene rimosso");
   if (action.execution?.drain) automatic.push("il boss recupera i PF pari ai danni necrotici subiti");
   if (action.execution?.onHit) automatic.push("sul colpo l'effetto scelto: Afferrato (una creatura alla volta) oppure il promemoria del trascinamento");
+  if (action.sequence) automatic.push("requisito di sequenza verificato dal registro del round");
   if (availability?.tracked) automatic.push(`uso ${availability.limit}/${availability.period === "round" ? "round" : "fase"} registrato`);
   automatic.push("una voce History annullabile");
   const manual = [kind === "save-damage" ? "tiro salvezza del bersaglio" : "tiro per colpire", "danni tirati (o medie)", "distanza e visibilità"];
-  if (kind === "attack-damage" && action.automation === "PARTIAL" && String(action.manualText || "").trim()) manual.push("prerequisito da confermare");
+  if (kind === "attack-damage" && action.automation === "PARTIAL" && String(action.manualText || "").trim() && !action.sequence) manual.push("prerequisito da confermare");
   if (kind === "save-damage" && String(action.manualText || "").trim()) manual.push("effetti testuali su TS fallito");
   return { automatic: "Automatico al commit: " + automatic.join(", ") + ".", manual: "Resta manuale: " + manual.join(", ") + "." };
 }
@@ -404,7 +407,7 @@ export function bossActionRowMeta(action, availability = {}) {
   } else if (usage.limit) badge = `${usage.limit}/${period(usage.period)}`;
   else if (usage.note) badge = "Ricarica";
   // v19: the place in the round's Epic Actions; a sequence block (from the round log or the seam) disables it.
-  if (action?.sequence) tag += action.sequence.slot === "first" ? " · prima del round" : " · ultima del round";
+  if (action?.sequence?.slot) tag += action.sequence.slot === "first" ? " · prima del round" : " · ultima del round";
   if (availability?.sequenceBlocked) { exhausted = true; badge = "Bloccata"; }
   return { kind, tag, badge, exhausted };
 }

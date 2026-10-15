@@ -13629,9 +13629,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -13647,7 +13647,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "📏",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -20838,6 +20838,8 @@
           },
           {
             "ability": "str",
+            "dcSource": "source-ability",
+            "dcAbility": "con",
             "timing": "turn-end",
             "success": "remove-effect",
             "label": "CD 8 + competenza + Costituzione del guerriero. Se supera, le catene di fuoco svaniscono."
@@ -20951,6 +20953,8 @@
         "saveReminder": [
           {
             "ability": "wis",
+            "dcSource": "source-ability",
+            "dcAbility": "con",
             "timing": "turn-end",
             "success": "remove-effect",
             "label": "CD 8 + competenza + Costituzione del guerriero. Se supera, l'effetto termina."
@@ -26137,6 +26141,8 @@
         "saveReminder": [
           {
             "ability": "wis",
+            "dcSource": "source-ability",
+            "dcAbility": "dex",
             "timing": "turn-end",
             "success": "remove-effect",
             "label": "CD 8 + competenza + Destrezza del ladro. Se supera, l'effetto termina."
@@ -36184,9 +36190,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -36202,7 +36208,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🏅",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -40083,16 +40089,16 @@
       "page": 68,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "tracciamento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -40108,7 +40114,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌁",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -50658,7 +50664,7 @@
     "mechanicRecords": 860,
     "activeFeatures": 860,
     "resourcePools": 104,
-    "runtimeImplemented": 261,
-    "runtimeNotAutomated": 599
+    "runtimeImplemented": 264,
+    "runtimeNotAutomated": 596
   }
 }

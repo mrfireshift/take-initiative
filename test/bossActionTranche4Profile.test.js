@@ -132,7 +132,8 @@ test("the fixtures carry the canonical V10 mechanics with the English ability na
   assert.match(ability(p2, "Titan's Grasp").rawText, /Successo: Nessun danno e il bersaglio non viene afferrato\./);
   assert.deepEqual(ability(p2, "Meteor Swarm").usage, { limit: 1, period: "phase" });
   assert.deepEqual(ability(p2, "Breathe Deep").usage, { limit: 1, period: "round" });
-  assert.match(ability(p2, "Breath of the Long Night").manualText, /ha usato Breathe Deep come prima Azione Epica dello stesso round/);
+  assert.match(ability(p2, "Breath of the Long Night").rawText, /ha usato Breathe Deep come prima Azione Epica dello stesso round/);
+  assert.deepEqual(ability(p2, "Breath of the Long Night").sequence, { slot: "last", after: "breathe-deep" }, "v20: the printed sequence is data");
   assert.match(ability(p2, "Aura Gelida").rawText, /Il Titano non emana quest'aura\./);
   assert.match(phase2HTML, /<b>CA<\/b> 20</);
   assert.match(phase3HTML, /<b>CA<\/b> 17</);

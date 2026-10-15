@@ -92,6 +92,7 @@ function planOperation(state, operation) {
       feature: operation.feature,
       poolsById: poolsById(operation.pools),
       characterBuild: operation.characterBuild,
+      abilityModifiers: operation.abilityModifiers,
       sourceId: operation.sourceId,
       targetIds: operation.targetIds,
       currentRound: operation.currentRound,
@@ -113,6 +114,7 @@ function planOperation(state, operation) {
       operation.pool,
       operation.characterBuild,
       operation.adjustment,
+      operation.abilityModifiers,
     );
     return { ok: true, changed: result.changed, result };
   }
@@ -122,6 +124,7 @@ function planOperation(state, operation) {
       poolsById(operation.pools),
       operation.characterBuild,
       operation.poolIds,
+      operation.abilityModifiers,
     );
     return { ok: true, changed: result.changed, result };
   }
@@ -132,6 +135,7 @@ function planOperation(state, operation) {
       operation.pool,
       operation.characterBuild,
       { event: operation.event },
+      operation.abilityModifiers,
     );
     return result.refresh
       ? { ok: true, changed: result.changed, result }

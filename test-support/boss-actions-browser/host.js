@@ -8,6 +8,9 @@ import { importBossActionHTML } from "/src/bossActionProfileCore.js";
 import { createBossActionProfileStore } from "/src/bossActionProfileStore.js";
 import { createBossActionRuntime } from "/src/bossActionExecution.js";
 import { openBossActionsPopover } from "/src/bossActionsLauncher.js";
+import { openTrackerPopover, toggleClassicTrackerSide, moveClassicTrackerPopover } from "/src/trackerPopover.js";
+// The background listener of the tracker handle (drag, side switch), as in the real extension.
+if (new URLSearchParams(location.search).get("scenario")?.startsWith("tracker")) import("/src/sync-open.js").catch((error) => console.warn("sync-open", error));
 import "/src/popoverDragHost.js";
 import { SPELL_AREA_PLACEMENT_CHANNEL } from "/src/spellAreaPlacementCore.js";
 import { buildConeArea, buildCircleArea, buildFootprintEmanationArea, buildLineArea, areaHitsBounds } from "/src/aoeGeometryCore.js";
@@ -248,7 +251,10 @@ fakeHost.onPopover = (type, options, previous) => {
     frame.setAttribute("allowtransparency", "true"); if (params.has("shots")) frame.addEventListener("load", () => frame.contentDocument.head.insertAdjacentHTML("beforeend", "<style>*{transition:none!important}</style>")); document.body.appendChild(frame); frames.set(options.id, frame);
   }
   const current = fakeHost.state.popovers.get(options.id) || options;
-  Object.assign(frame.style, { left: current.anchorPosition?.left + "px", top: current.anchorPosition?.top + "px", width: current.width + "px", height: current.height + "px" });
+  // A right-anchored popover (the extended tracker docked right) puts its right edge on the anchor.
+  const left = current.transformOrigin?.horizontal === "RIGHT" ? current.anchorPosition?.left - current.width
+    : current.transformOrigin?.horizontal === "CENTER" ? current.anchorPosition?.left - current.width / 2 : current.anchorPosition?.left;
+  Object.assign(frame.style, { left: left + "px", top: current.anchorPosition?.top + "px", width: current.width + "px", height: current.height + "px" });
 };
 
 async function boot() {
@@ -283,12 +289,26 @@ async function waitFor(check, timeout = 6000) {
 const row = (name) => waitFor(() => [...(doc()?.querySelectorAll(".action-row") || [])].find((b) => b.querySelector(".action-name")?.textContent === name));
 const press = async (selector) => { (await waitFor(() => doc()?.querySelector(selector))).click(); await sleep(150); };
 async function openBoss() { await openBossActionsPopover("auril"); await waitFor(() => doc()?.querySelector(".action-row") || doc()?.querySelector("#boss-manage-view:not([hidden])")); await sleep(250); }
+// v20: a manual registration from the console (Breathe Deep, Gather the Winter Sky open the round).
+async function registerManual(name) {
+  await sleep(300);
+  (await row(name)).click(); await sleep(250);
+  await press("#boss-manual-confirmed");
+  (await waitFor(() => { const button = doc()?.querySelector("#boss-register"); return button && !button.disabled && button; })).click();
+  await waitFor(() => /Uso registrato/.test(doc()?.getElementById("boss-status")?.textContent || "")); await sleep(500);
+}
+// The turn after Mira's: the last Epic Action slot of the round (Sera, Dars and Mira are the characters).
+async function lastSlot() { fakeHost.setSceneMetadata({ [STATE]: { ...fakeHost.state.sceneMetadata[STATE], current: 3 } }); await sleep(600); }
 const scenarios = {
   async list() { await openBoss(); },
   async "list-target"() { fakeHost.setSelection(["dars"]); await openBoss(); },
   async icekiss() { fakeHost.setSelection(["dars"]); await openBoss(); (await row("Icekiss +2")).click(); await sleep(200); await press('[data-outcome="hit"]'); },
   async "icekiss-applied"() { await scenarios.icekiss(); await press("#boss-apply"); await sleep(400); },
-  async rock() { fakeHost.setSelection(["sera"]); await openBoss(); (await row("Rock")).click(); await sleep(200); await press('[data-outcome="hit"]'); },
+  async rock() { fakeHost.setSelection(["sera"]); await openBoss(); await registerManual("Gather the Winter Sky"); (await row("Rock")).click(); await sleep(200); await press('[data-outcome="hit"]'); },
+  // Tranche 12: Rock before Gather the Winter Sky, then Breath without Breathe Deep (both blocked).
+  async "rock-blocked"() { fakeHost.setSelection(["sera"]); await openBoss(); (await row("Rock")).click(); await sleep(200); await press('[data-outcome="hit"]'); },
+  // During Gather the Winter Sky: Icekiss, Spellcasting and Breath are blocked.
+  async "gather-list"() { await openBoss(); await registerManual("Gather the Winter Sky"); },
   async slow() { await openBoss(); (await row("Spellcasting")).click(); await sleep(200); },
   async "no-target"() { await openBoss(); (await row("Icekiss +2")).click(); await sleep(200); },
   async multi() { fakeHost.setSelection(["goblin-a", "goblin-b"]); await openBoss(); (await row("Icekiss +2")).click(); await sleep(200); },
@@ -299,9 +319,11 @@ const scenarios = {
   async minimized() { await scenarios.icekiss(); await press("#boss-minimize"); await sleep(200); },
   async manage() { await openBoss(); await press("#boss-manage-open"); },
   async unbound() { await openBoss(); },
+  // v20: Breathe Deep opens the round; in Mira's slot (the last one) Breath of the Long Night closes it.
   async "breath-drawing"() {
-    await openBoss(); (await row("Breath of the Long Night")).click(); await sleep(250);
-    await press("#boss-manual-confirmed"); await press("#boss-draw-area");
+    await openBoss(); await registerManual("Breathe Deep"); await lastSlot();
+    (await row("Breath of the Long Night")).click(); await sleep(250);
+    await press("#boss-draw-area");
     await drawCone({ x: 770, y: 345 }, { x: 830, y: 900 }); },
   async "breath-drawn"() { await scenarios["breath-drawing"](); confirmButton.click(); await sleep(600); },
   async "breath-saves"() {
@@ -354,8 +376,9 @@ const scenarios = {
   async "meteor-drawing"() {
     const mira = fakeHost.state.items.find((item) => item.id === "mira");
     mira.metadata[META].initiativeCard = { characterBuild: [{ classId: "ladro", level: 7 }] };
-    await openBoss(); (await row("Meteor Swarm")).click(); await sleep(300);
-    await press("#boss-manual-confirmed");
+    // v20: Gather the Winter Sky opens the round; Meteor Swarm closes it in the last slot.
+    await openBoss(); await registerManual("Gather the Winter Sky"); await lastSlot();
+    (await row("Meteor Swarm")).click(); await sleep(300);
     await press("#boss-draw-area"); await waitFor(() => placement);
     for (const point of [{ x: 980, y: 560 }, { x: 620, y: 600 }, { x: 1300, y: 300 }, { x: 300, y: 300 }]) {
       placementClick({ clientX: point.x, clientY: point.y }); await sleep(120);
@@ -441,6 +464,10 @@ const scenarios = {
     await press('[data-group-all="failed"]');
   },
   async "strappare-final"() { await scenarios["strappare-ready"](); await press("#boss-apply"); await sleep(900); },
+  // The extended tracker: docked left (default), then right with the handle's click, then dragged.
+  async tracker() { localStorage.removeItem("com.thebigpicture.initiative/tracker-classic-placement"); await openTrackerPopover({ refresh: true }); await sleep(1500); },
+  async "tracker-right"() { await scenarios.tracker(); await toggleClassicTrackerSide(); await sleep(1500); },
+  async "tracker-dragged"() { await scenarios["tracker-right"](); await moveClassicTrackerPopover(-200, 60); await sleep(1500); },
   async "meteor-final"() { await scenarios["meteor-drawn"](); await press('[data-group-all="failed"]'); await press("#boss-apply"); await sleep(800); },
   async compare() { document.getElementById("open-hp").click(); await sleep(600); fakeHost.setSelection(["dars"]); await openBossActionsPopover("auril"); await sleep(400);
     const frame = bossFrame(); fakeHost.state.popovers.get("com.thebigpicture.initiative/boss-actions").anchorPosition = { left: 600, top: 60 }; frame.style.left = "600px"; frame.style.top = "60px";

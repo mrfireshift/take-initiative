@@ -39,6 +39,7 @@ import {
 import { sanitizeQuickActions } from "./quickActionsCore.js";
 import { sanitizeBossActionBinding } from "./bossActionProfileCore.js";
 import { DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
+import { ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import {
   sanitizeCharacterBuild,
   sanitizeEnabledClassFeatureIds,
@@ -103,6 +104,8 @@ export function sanitizeInitiativeCard(value) {
   if (Object.hasOwn(source, "bossActionBinding")) normalized.bossActionBinding = sanitizeBossActionBinding(source.bossActionBinding);
   // Optional like the boss binding: profiles without defenses keep their previous shape.
   if (Object.hasOwn(source, DAMAGE_DEFENSES_FIELD)) normalized[DAMAGE_DEFENSES_FIELD] = sanitizeDamageDefenses(source[DAMAGE_DEFENSES_FIELD]);
+  // Opzionale come le difese: i profili senza modificatori mantengono la forma precedente.
+  if (Object.hasOwn(source, ABILITY_MODIFIERS_FIELD)) normalized[ABILITY_MODIFIERS_FIELD] = sanitizeAbilityModifiers(source[ABILITY_MODIFIERS_FIELD]);
   const actorProfileId = actorProfileIdFromProfile(source);
   if (actorProfileId) normalized[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
   return normalized;
@@ -157,6 +160,9 @@ function mergeProfile(base, value) {
   }
   if (Object.hasOwn(value, DAMAGE_DEFENSES_FIELD) || Object.hasOwn(base || {}, DAMAGE_DEFENSES_FIELD)) {
     merged[DAMAGE_DEFENSES_FIELD] = value[DAMAGE_DEFENSES_FIELD] !== undefined ? cleanValue[DAMAGE_DEFENSES_FIELD] : cleanBase[DAMAGE_DEFENSES_FIELD];
+  }
+  if (Object.hasOwn(value, ABILITY_MODIFIERS_FIELD) || Object.hasOwn(base || {}, ABILITY_MODIFIERS_FIELD)) {
+    merged[ABILITY_MODIFIERS_FIELD] = value[ABILITY_MODIFIERS_FIELD] !== undefined ? cleanValue[ABILITY_MODIFIERS_FIELD] : cleanBase[ABILITY_MODIFIERS_FIELD];
   }
   const actorProfileId = actorProfileIdFromProfile(value) || actorProfileIdFromProfile(base);
   if (actorProfileId) merged[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
@@ -221,6 +227,7 @@ const INITIATIVE_CARD_KNOWN_FIELDS = new Set([
   "quickActions",
   "bossActionBinding",
   DAMAGE_DEFENSES_FIELD,
+  ABILITY_MODIFIERS_FIELD,
   "characterBuild",
   "enabledClassFeatureIds",
   "classFeaturesConfigured",
@@ -696,6 +703,7 @@ export function hasInitiativeCardValues(profile) {
     Boolean(profile?.notes) ||
     Boolean(profile?.bossActionBinding) ||
     hasDamageDefenses(profile?.[DAMAGE_DEFENSES_FIELD]) ||
+    hasAbilityModifiers(profile?.[ABILITY_MODIFIERS_FIELD]) ||
     Number(profile?.exhaustion) > 0 ||
     Array.isArray(profile?.quickActions) && profile.quickActions.length > 0 ||
     Array.isArray(profile?.characterBuild) && profile.characterBuild.length > 0 ||

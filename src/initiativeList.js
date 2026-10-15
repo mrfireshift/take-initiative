@@ -86,6 +86,7 @@ import {
   getCompactTrackerPopoverAnchor,
   getCompactTrackerManualWidth,
   getTrackerLayout,
+  getTrackerSidePanelAnchor,
   setTrackerLayout,
 } from "./trackerPopover.js";
 import { mountCompactTrackerResizeHandles } from "./trackerCompactResize.js";
@@ -1258,11 +1259,8 @@ Object.assign(trackerDragHandle.style, {
 });
 
 let __compactDragStart = null;
+// Both layouts: a drag moves the tracker (the extended one docks to the nearer side of the screen).
 trackerDragHandle.addEventListener("dragstart", (event) => {
-  if (!isCompactTrackerLayout()) {
-    event.preventDefault();
-    return;
-  }
   event.stopPropagation();
   const rect = col.getBoundingClientRect();
   __compactDragStart = {
@@ -1293,6 +1291,15 @@ trackerDragHandle.addEventListener("dragend", (event) => {
     type: "tracker-position-change",
     deltaX,
     deltaY,
+  }, { destination: "LOCAL" });
+});
+// Extended tracker: a click (without a drag) moves it to the other side of the screen.
+trackerDragHandle.addEventListener("click", (event) => {
+  if (isCompactTrackerLayout()) return;
+  event.preventDefault();
+  event.stopPropagation();
+  void OBR.broadcast.sendMessage(TRACKER_LAYOUT_CHANNEL, {
+    type: "tracker-side-toggle",
   }, { destination: "LOCAL" });
 });
 trackerDragHandle.addEventListener("dblclick", (event) => {
@@ -1343,7 +1350,11 @@ layoutToggleButton.append(layoutToggleIcon);
 
 function updateLayoutToggleButton() {
   const compact = isCompactTrackerLayout();
-  trackerDragHandle.style.display = compact ? "inline-flex" : "none";
+  trackerDragHandle.style.display = "inline-flex";
+  trackerDragHandle.title = compact
+    ? "Trascina per spostare il tracker. Doppio click per ricentrare"
+    : "Trascina per spostare il tracker. Click per portarlo sull'altro lato dello schermo";
+  trackerDragHandle.setAttribute("aria-label", trackerDragHandle.title);
   layoutToggleIcon.src = compact
     ? "/modalita-estesa.svg"
     : "/modalita-compatta.svg";
@@ -3246,11 +3257,12 @@ function applyHeaderLayoutPresentation(compact) {
     });
   }
 
+  // The handle moves the tracker in both layouts (extended: drag, or a click to switch side).
   Object.assign(trackerDragHandle.style, {
-    display: compact ? "flex" : "none",
-    width: compact ? "26px" : "",
-    minWidth: compact ? "26px" : "",
-    height: compact ? "26px" : "",
+    display: "flex",
+    width: compact ? "26px" : "28px",
+    minWidth: compact ? "26px" : "28px",
+    height: compact ? "26px" : "28px",
     justifyContent: "center",
     padding: "0",
     border: compact ? "none" : "1px solid rgba(148,163,184,.28)",
@@ -3340,7 +3352,6 @@ function restoreClassicHeader() {
     layoutToggleButton,
     roundActions,
     roundHistorySlot,
-    trackerDragHandle,
   );
   topRow.replaceChildren(roundPill, viewOptionsRow, movementReadout);
 }
@@ -3619,15 +3630,18 @@ function applyTrackerLayout() {
       width: "calc(100% - 12px)",
       height: "30px",
       display: "grid",
-      gridTemplateColumns: "1fr 1fr",
+      // The tracker handle sits in the middle (GM) or alone (players): it moves the extended tracker.
+      gridTemplateColumns: IS_GM ? "1fr 28px 1fr" : "28px",
+      justifyContent: "center",
+      alignItems: "center",
       gap: "4px",
-      padding: "2px",
+      padding: "0 2px",
       boxSizing: "border-box",
       border: "1px solid rgba(148,163,184,.20)",
       borderRadius: "10px",
       background: "rgba(9,13,21,.44)",
     });
-    classicNavigationRow.style.display = IS_GM ? "grid" : "none";
+    classicNavigationRow.style.display = "grid";
     for (const [button, text, label, primary] of [
       [btnPrev, "▲", "Turno precedente", false],
       [btnNext, "▼", "Turno successivo", true],
@@ -3649,7 +3663,7 @@ function applyTrackerLayout() {
         fontSize: "15px",
       });
     }
-    classicNavigationRow.replaceChildren(...(IS_GM ? [btnPrev, btnNext] : []));
+    classicNavigationRow.replaceChildren(...(IS_GM ? [btnPrev, trackerDragHandle, btnNext] : [trackerDragHandle]));
     col.replaceChildren(topRow, trackWrap, classicNavigationRow);
   }
   movementReadout.style.display = movementReadoutVisible && !compact ? "flex" : "none";
@@ -7032,6 +7046,8 @@ async function getTrackerPopoverAnchor() {
     Number(document.body?.getBoundingClientRect?.().width) || 0,
   );
   trackerWidth = Math.max(trackerWidth, viewportWidth);
+  // The extended tracker may dock right: the panel opens on its free side.
+  if (!isCompactTrackerLayout()) return getTrackerSidePanelAnchor({ trackerWidth });
   return { left: Math.ceil(trackerWidth) + 14, top: 52 };
 }
 

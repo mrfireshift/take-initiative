@@ -12,6 +12,7 @@ import {
   REMINDER_RESOLUTIONS_FIELD,
 } from "./reminderResolutionCore.js";
 import { normalizeDeferredEffects } from "./spellLifecycleContracts.js";
+import { abilitySaveDC } from "./abilityModifiersCore.js";
 
 const META_KEY = `${ID}/meta`;
 const CONC_META_KEY = `${ID}/concentration`;
@@ -81,7 +82,11 @@ export function normalizeEffectSaveReminder(value) {
   const actionableChoice = mode === "choice";
   if ((!ability && !hasValidDamage && !informational && !actionableChoice) || !TIMINGS.has(timing)) return null;
   const dc = optionalDC(value.dc);
-  const dcSource = value.dcSource === "source-spell" ? "source-spell" : "";
+  // "source-ability": CD 8 + competenza + modificatore della card della sorgente.
+  const dcAbility = value.dcSource === "source-ability" ? normalizedAbility(value.dcAbility) : null;
+  const dcSource = value.dcSource === "source-spell"
+    ? "source-spell"
+    : dcAbility ? "source-ability" : "";
   const resolution = normalizeReminderResolution(value.resolution);
   return {
     ...(ability ? { ability: ability.key } : {}),
@@ -91,6 +96,7 @@ export function normalizeEffectSaveReminder(value) {
     ...(ability ? { success: value.success === "keep-effect" ? "keep-effect" : "remove-effect" } : {}),
     ...(dc !== null ? { dc } : {}),
     ...(dcSource ? { dcSource } : {}),
+    ...(dcAbility ? { dcAbility: dcAbility.key } : {}),
     ...(value.label ? { label: String(value.label).trim().slice(0, 160) } : {}),
     ...(value.failure ? {
       failure: String(value.failure).trim().slice(0, 160),
@@ -273,7 +279,7 @@ export function effectSaveReminderSourceIds(items = []) {
       .filter((instance) => (
         instance?.active !== false
         && normalizeEffectSaveReminders(instance?.saveReminder)
-          .some((reminder) => reminder.dcSource === "source-spell")
+          .some((reminder) => reminder.dcSource === "source-spell" || reminder.dcSource === "source-ability")
       ))
       .map((instance) => instance?.sourceId)
   )));
@@ -365,8 +371,12 @@ function spellSaveDC(item) {
 function reminderDC(reminder, instance, itemsById) {
   const explicit = optionalDC(reminder.dc);
   if (explicit !== null) return explicit;
+  const source = itemsById.get(String(instance?.sourceId || "").trim());
+  if (reminder.dcSource === "source-ability") {
+    return optionalDC(abilitySaveDC(source?.metadata?.[META_KEY]?.initiativeCard, reminder.dcAbility));
+  }
   if (reminder.dcSource !== "source-spell") return null;
-  return spellSaveDC(itemsById.get(String(instance?.sourceId || "").trim()));
+  return spellSaveDC(source);
 }
 
 function reminderNotice({

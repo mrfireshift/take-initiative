@@ -56,6 +56,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
     },
     uiSync: {
       trackerOpen: roomInput.trackerOpen,
+      trackerPlacement: roomInput.trackerPlacement,
       showEffectSummaryParts: roomInput.summaryParts,
     },
   });
@@ -75,6 +76,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,
+      trackerPlacement: room.uiSync.trackerPlacement,
       knownFactionAssignment: room.automation.knownFactionAssignment,
       embersAnimations: room.integrations.embersAnimations,
       hp: room.playerView.hp,
@@ -141,6 +143,7 @@ export function buildOptionsPanelPatches(draft) {
       },
       uiSync: {
         trackerOpen: normalized.room.trackerOpen,
+        trackerPlacement: normalized.room.trackerPlacement,
         showEffectSummaryParts: normalized.room.summaryParts,
       },
     },

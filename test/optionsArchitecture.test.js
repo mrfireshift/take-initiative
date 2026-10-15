@@ -73,6 +73,7 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
   assert.equal(room.integrations.embersAnimations, true);
   assert.deepEqual(room.uiSync, {
     trackerOpen: true,
+    trackerPlacement: true,
     effectsDisplayMode: "selected",
     showEffectSummaryParts: true,
   });

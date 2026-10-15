@@ -185,7 +185,8 @@ test("group validation requires tracked creatures, every outcome, confirmation a
   assert.match(validateBossActionGroupSelection({ ...base, area: null }).error, /Disegna il cono/);
   assert.equal(validateBossActionGroupSelection({ ...base, targetIds: ["auril"], outcomes: { auril: "failed" } }).ok, false);
   assert.equal(validateBossActionGroupSelection({ ...base, outcomes: { dars: "failed" } }).ok, false);
-  assert.equal(validateBossActionGroupSelection({ ...base, manualConfirmed: false }).ok, false);
+  // v20: Breath's recharge and sequence come from the round log, not from a manual confirmation.
+  assert.equal(validateBossActionGroupSelection({ ...base, manualConfirmed: false }).ok, true);
   assert.equal(validateBossActionGroupSelection({ ...base, componentAmounts: { cold: "33", necrotic: "" } }).ok, false);
   assert.equal(bossActionResultSummary({ groupTargets: [{ id: "dars", name: "Dars", outcome: "failed", damage: 46, hpBefore: 60, hpAfter: 14, conditions: ["Accecato"] },
     { id: "mira", name: "Mira", outcome: "passed", damage: 22, hpBefore: 45, hpAfter: 23, conditions: [] }] }),

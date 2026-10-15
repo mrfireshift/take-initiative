@@ -26,7 +26,8 @@ function isTopLeftPopover(options) {
 }
 
 function withStoredPosition(options) {
-  if (!isTopLeftPopover(options)) return options;
+  // The tracker keeps its own placement (side and distance): never a stale generic position.
+  if (!isTopLeftPopover(options) || options.id === `${ID}/tracker-popover`) return options;
   const stored = readStoredPosition(options.id);
   return stored ? { ...options, anchorPosition: stored } : options;
 }

@@ -24,8 +24,8 @@ for (const [label, html, counts] of [
     assert.equal(profile.rawSource.html, html);
     assert.equal(profile.rawSource.sourceName, `${label}.html`);
     assert.equal(profile.rawSource.sourceHash, createHash("sha256").update(html).digest("hex"));
-    assert.equal(profile.parserVersion, 19);
-    assert.equal(profile.profileVersion, 19);
+    assert.equal(profile.parserVersion, 20);
+    assert.equal(profile.profileVersion, 20);
     assert.equal(new Set(profile.abilities.map((entry) => entry.id)).size, profile.abilities.length);
     assert.ok(profile.abilities.every((entry) => entry.rawText.includes(entry.name)));
     assert.match(ability(profile, "Epic Resistance").rawText, /altera le sue statistiche\. Il tiro non è una prova con il d20: .*farlo ripetere\./);
@@ -41,7 +41,7 @@ test("phase identity is explicit and shares only the boss definition identity", 
   assert.notEqual(first.profileId, second.profileId);
   assert.match(first.profileRevision, /^[a-f0-9]{64}$/);
   assert.notEqual(first.profileRevision, first.rawSource.sourceHash);
-  assert.equal(first.profileRevision, createHash("sha256").update(`19\n${phase2HTML}`).digest("hex"));
+  assert.equal(first.profileRevision, createHash("sha256").update(`20\n${phase2HTML}`).digest("hex"));
   assert.deepEqual(await importBossActionHTML(phase2HTML), first);
 });
 
@@ -77,7 +77,7 @@ test("Polar Ray derives separate component averages without assigning its printe
   assert.equal(action.manualText, undefined);
 });
 
-test("Rock keeps its printed single damage pool and literal Gather prerequisite", async () => {
+test("Rock keeps its printed single damage pool; its Gather prerequisite is the round's sequence (v20)", async () => {
   const action = ability(await importBossActionHTML(phase2HTML), "Rock");
   assert.equal(action.automation, "PARTIAL");
   assert.deepEqual(action.execution, {
@@ -86,7 +86,12 @@ test("Rock keeps its printed single damage pool and literal Gather prerequisite"
     target: { mode: "single", maxTargets: 1 },
     damage: [{ id: "bludgeoning", formula: "7d6+5", printedAverage: 29, type: "bludgeoning" }],
   });
-  assert.equal(action.manualText, "Auril può usare questa Azione Epica soltanto mentre Gather the Winter Sky è attivo.");
+  assert.deepEqual(action.sequence, { after: "gather-the-winter-sky" });
+  assert.equal(action.manualText, "Solo nel round in cui Gather the Winter Sky è attivo: verificato dal registro del round.");
+  // Without Gather the Winter Sky in the profile, Rock keeps the printed prerequisite to confirm.
+  const alone = ability(await importBossActionHTML(phase2HTML.replace("Gather the Winter Sky (1/Phase).", "Raccolta del Cielo (1/Phase).")), "Rock");
+  assert.equal(alone.sequence, undefined);
+  assert.equal(alone.manualText, "Auril può usare questa Azione Epica soltanto mentre Gather the Winter Sky è attivo.");
 });
 
 test("ranged grammars reject unknown suffixes and inconsistent Polar Ray splits as wholly manual", async () => {
@@ -201,10 +206,13 @@ test("unrecognized powers never acquire mechanics from coincidental dice or keyw
     [phase3HTML, ["Blizzard Strike", "Polar Ray", "Blinding Gleam", "Soul-Numbing Cold", "Detonation of the Mark", "Divine Brilliance", "Aura Gelida", "Primal Blizzard", "Epic Resistance"]],
   ]) {
     const profile = await importBossActionHTML(html);
+    // v20: Breathe Deep and Gather the Winter Sky stay manual registrations with only a sequence.
+    const sequenced = ["Breathe Deep", "Gather the Winter Sky"];
     for (const entry of profile.abilities.filter((row) => !supported.includes(row.name))) {
       assert.equal(entry.automation, "UNSUPPORTED", entry.name);
       assert.equal(entry.execution, undefined, entry.name);
-      assert.equal(entry.manualText, entry.rawText, entry.name);
+      if (sequenced.includes(entry.name)) assert.equal(entry.sequence?.slot, "first", entry.name);
+      else assert.equal(entry.manualText, entry.rawText, entry.name);
     }
   }
   const modified = phase2HTML.replace("danni da freddo.</p>\n<p class=\"entry\"><span class=\"title\">Frostmaiden", "danni da freddo. Inoltre il bersaglio muore.</p>\n<p class=\"entry\"><span class=\"title\">Frostmaiden");

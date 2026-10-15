@@ -2,12 +2,21 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import {
   TRACKER_LAYOUT_CHANNEL,
+  TRACKER_LAYOUT_COMPACT,
+  getTrackerLayout,
+  isTrackerPopoverOpen,
+  moveClassicTrackerPopover,
   moveCompactTrackerPopover,
+  openTrackerPopover,
+  readSharedTrackerView,
   resetCompactTrackerPopoverPosition,
   setTrackerPopoverOpen,
+  storeSharedTrackerView,
+  toggleClassicTrackerSide,
 } from "./trackerPopover.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
-import { selectTrackerOpenSyncEnabled } from "./options/optionsSelectors.js";
+import { selectTrackerOpenSyncEnabled, selectTrackerPlacementSyncEnabled } from "./options/optionsSelectors.js";
+import { METADATA_OWNERSHIP, writeRoomMetadataKey } from "./metadataKeyScoped.js";
 
 const UI_KEY = `${ID}/ui`;
 
@@ -15,24 +24,74 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
   window.__TBP_SYNC_OPEN_MOUNTED = true;
 
   OBR.onReady(async () => {
+    let role = "";
+
+    // GM -> players: the GM's tracker view (layout, side, positions) in the shared UI record, merged with the
+    // open state. Written only when the GM changes it, and only when it differs from the shared one.
+    const publishTrackerView = async ({ onlyIfMissing = false } = {}) => {
+      if (role !== "GM" || !runtimeOptionsService.get(selectTrackerPlacementSyncEnabled)) return;
+      const view = await readSharedTrackerView();
+      const metadata = await OBR.room.getMetadata();
+      const current = metadata?.[UI_KEY] && typeof metadata[UI_KEY] === "object" ? metadata[UI_KEY] : {};
+      if (onlyIfMissing && current.view) return;
+      if (JSON.stringify(current.view) === JSON.stringify(view)) return;
+      await writeRoomMetadataKey(OBR.room, METADATA_OWNERSHIP.SHARED_UI, { ...current, view }, { runtime: "sync-open" });
+    };
+    const afterLocalChange = (work) => {
+      void Promise.resolve(work).then(() => publishTrackerView()).catch((error) => {
+        console.warn("[tracker-sync] vista del GM non pubblicata:", error?.message || error);
+      });
+    };
+
     OBR.broadcast.onMessage(TRACKER_LAYOUT_CHANNEL, (event) => {
       if (event?.data?.type === "tracker-layout-change") {
-        void setTrackerPopoverOpen(true, { refresh: true });
+        afterLocalChange(setTrackerPopoverOpen(true, { refresh: true }));
       } else if (event?.data?.type === "tracker-position-change") {
-        void moveCompactTrackerPopover(event.data.deltaX, event.data.deltaY);
+        // The handle moves whichever layout is shown: the compact bar or the extended tracker.
+        afterLocalChange(getTrackerLayout() === TRACKER_LAYOUT_COMPACT
+          ? moveCompactTrackerPopover(event.data.deltaX, event.data.deltaY)
+          : moveClassicTrackerPopover(event.data.deltaX, event.data.deltaY));
       } else if (event?.data?.type === "tracker-position-reset") {
-        void resetCompactTrackerPopoverPosition();
+        afterLocalChange(resetCompactTrackerPopoverPosition());
+      } else if (event?.data?.type === "tracker-side-toggle") {
+        afterLocalChange(toggleClassicTrackerSide());
       }
     });
 
     await startRuntimeOptions().catch(() => {});
-    const role = await OBR.player.getRole().catch(() => "PLAYER");
+    role = await OBR.player.getRole().catch(() => "PLAYER");
 
-    const applyTrackerOpenState = async (metadata) => {
+    // Players: the GM's view first (stored on this screen, redrawn only when it changed), then the open state.
+    // Room metadata changes often: an unchanged view never reopens or redraws the tracker.
+    const applySharedState = async (metadata) => {
       const state = metadata?.[UI_KEY];
       if (!state || role === "GM") return;
-      if (!runtimeOptionsService.get(selectTrackerOpenSyncEnabled)) return;
-      await setTrackerPopoverOpen(!!state.open);
+      let redraw = false;
+      if (state.view && runtimeOptionsService.get(selectTrackerPlacementSyncEnabled)) {
+        const result = await storeSharedTrackerView(state.view);
+        if (result.layoutChanged) {
+          // The tracker page reads its layout from the local options too.
+          await runtimeOptionsService.updateLocal((current) => ({
+            ...current,
+            tracker: { ...current.tracker, layout: result.layout },
+          })).catch((error) => console.warn("[tracker-sync] layout locale non salvato:", error?.message || error));
+        }
+        redraw = result.changed;
+      }
+      if (runtimeOptionsService.get(selectTrackerOpenSyncEnabled)) {
+        if (state.open && redraw && isTrackerPopoverOpen()) await openTrackerPopover({ refresh: true });
+        else await setTrackerPopoverOpen(!!state.open);
+      } else if (redraw && isTrackerPopoverOpen()) {
+        await openTrackerPopover({ refresh: true });
+      }
+    };
+    // One application at a time: bursts of room metadata changes never redraw twice in parallel.
+    let applying = Promise.resolve();
+    const applyTrackerOpenState = (metadata) => {
+      applying = applying.then(() => applySharedState(metadata)).catch((error) => {
+        console.warn("[tracker-sync] stato del GM non applicato:", error?.message || error);
+      });
+      return applying;
     };
 
     OBR.room.onMetadataChange((metadata) => {
@@ -43,8 +102,18 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
       if (!enabled || role === "GM") return;
       void OBR.room.getMetadata().then(applyTrackerOpenState).catch(() => {});
     }, { emitCurrent: false });
+    // Turning the layout and position sync on: the GM publishes, the players follow.
+    runtimeOptionsService.subscribe(selectTrackerPlacementSyncEnabled, (enabled) => {
+      if (!enabled) return;
+      if (role === "GM") afterLocalChange();
+      else void OBR.room.getMetadata().then(applyTrackerOpenState).catch(() => {});
+    }, { emitCurrent: false });
 
-    if (role === "GM") return;
+    if (role === "GM") {
+      // A room without a shared view yet receives the GM's current one.
+      await publishTrackerView({ onlyIfMissing: true }).catch(() => {});
+      return;
+    }
     const metadata = await OBR.room.getMetadata();
     await applyTrackerOpenState(metadata);
   });

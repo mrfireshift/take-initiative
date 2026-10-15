@@ -66,10 +66,18 @@ export function bossSequenceBlocker(profile, action, runtimeState, round, source
   const seam = bossActiveSeam(runtimeState, round);
   const seamAbility = seam ? profile.abilities.find((entry) => entry.id === seam.actionId && entry.execution?.kind === "seam") : null;
   if (seamAbility?.execution.seam.blocks.includes(action.id)) return `Finché la cucitura esiste, ${boss} non può usare ${action.name}.`;
+  const log = bossEpicRoundLog(runtimeState, round);
+  // v20: a first Epic Action that allows only some epic actions until the end of the round (Gather the Winter Sky);
+  // the actions that follow it (Meteor Swarm, Rock) are allowed too.
+  for (const id of new Set(log)) {
+    const opener = profile.abilities.find((entry) => entry.id === id && entry.sequence?.allowOnly);
+    if (!opener || opener.id === action.id || opener.sequence.allowOnly.includes(action.id) || action.sequence?.after === opener.id) continue;
+    const allowed = [...new Set([...opener.sequence.allowOnly, ...profile.abilities.filter((entry) => entry.sequence?.after === opener.id).map((entry) => entry.id)])].map(name);
+    return `Durante ${opener.name} ${boss} può usare soltanto ${allowed.join(", ")}.`;
+  }
   const sequence = action.sequence;
   if (!sequence) return "";
   if (!Number.isSafeInteger(round) || round < 1) return "Round canonico non impostato: la sequenza delle Azioni Epiche si verifica solo in combattimento.";
-  const log = bossEpicRoundLog(runtimeState, round);
   if (sequence.slot === "first" && log.length)
     return `${action.name} dev’essere la prima Azione Epica del round: nel round ${round} ${boss} ha già usato ${name(log[0])}.`;
   if (sequence.after && !log.includes(sequence.after)) return `${action.name} richiede ${name(sequence.after)} nello stesso round.`;
@@ -106,9 +114,11 @@ export function buildBossActionUse({profile,action,sourceItem,actionInstanceId,r
     throw new Error("Identità azione boss mancante.");
   const sourceMeta=sourceItem.metadata?.[META_KEY] || {};
   const before=bossRuntimeStateForItem(sourceItem,profile);
+  const availability=bossActionUsageAvailability(action,before,{phaseId:profile.phaseId,round});
+  // A spent counter is named first; then the Epic Action sequence of the round (profile v19+).
+  if (availability.tracked && !availability.available) throw new Error(availability.reason || "Risorsa esaurita.");
   const blocked=bossSequenceBlocker(profile,action,before,round,sourceItem.name);
   if (blocked) throw new Error(blocked);
-  const availability=bossActionUsageAvailability(action,before,{phaseId:profile.phaseId,round});
   const runtimeState=consumeBossActionUsage(action,before,{phaseId:profile.phaseId,round});
   // v19: the round log of Epic Actions; a line on the seam tears it (the seam is gone).
   const logged=bossProfileUsesSequence(profile) && action.category==="epic-action" && Number.isSafeInteger(round) && round>0;
@@ -274,7 +284,7 @@ export function buildBossActionMutation({
     throw new Error("Questa capacità resta un riferimento manuale.");
   const attack = execution.kind === "attack-damage";
   // Frostmaiden's Kiss and an attack with a chosen effect on a hit: their manual text is a follow-up, not a prerequisite.
-  if (attack && !execution.drain && !execution.onHit && action.automation==="PARTIAL" && action.manualText && manualConfirmed!==true)
+  if (attack && !execution.drain && !execution.onHit && !action.sequence && action.automation==="PARTIAL" && action.manualText && manualConfirmed!==true)
     throw new Error("Conferma manualmente la restrizione dell’azione prima di risolverla.");
   if (attack && (!execution.attack?.modes?.includes(mode) || !["hit","miss"].includes(outcome)))
     throw new Error("Scegli modalità e risultato dell'attacco.");
@@ -652,10 +662,11 @@ export function buildBossActionGroupMutation({
     multiArea
       ? `Area: ${multiArea.count} cerchi di ${area.size} ft. disegnati dal GM su punti liberi; bersagli dall'unione delle esplosioni, ciascuno contato una volta${addedManually.length || removedManually.length ? `, ${addedManually.length} aggiunti e ${removedManually.length} tolti a mano` : ""}. Entro ${area.innerRadius} ft. da un punto: ${finalInner.length} (calcolati dai centri disegnati${innerAdded.length || innerRemoved.length ? `, ${innerAdded.length} aggiunti e ${innerRemoved.length} tolti a mano` : ""}).`
     : placement
-      ? `Area: ${bossAreaShapeLabel(area)} di ${area.size} ft. ${area.shape === "emanation" ? "posizionata" : "disegnato"} dal GM (${where}); bersagli dal disegno${addedManually.length || removedManually.length ? `, ${addedManually.length} aggiunti e ${removedManually.length} tolti a mano` : ""}.`
+      ? `Area: ${bossAreaShapeLabel(area)} di ${area.size} ft. ${["emanation", "seam"].includes(area.shape) ? area.shape === "seam" ? "posata sulla cucitura" : "posizionata" : "disegnato"} dal GM (${where}); bersagli dal disegno${addedManually.length || removedManually.length ? `, ${addedManually.length} aggiunti e ${removedManually.length} tolti a mano` : ""}.`
       : area ? `Area: ${bossAreaShapeLabel(area)} di ${area.size} ft. da ${area.origin}; creature incluse scelte dal GM.`
         : `Bersagli scelti dal GM: ${causalTargets.length} su un massimo di ${execution.target.maxTargets}, entro ${execution.target.range} ft. e visibili.`,
-    ...(action.usage?.note ? [`${action.usage.note}: disponibilità verificata dal GM.`] : []),
+    // v19+: a recharge that follows the sequence is verified from the round log, not by the GM.
+    ...(action.usage?.note ? [action.sequence ? `${action.usage.note}: verificata dal registro del round (sequenza delle Azioni Epiche).` : `${action.usage.note}: disponibilità verificata dal GM.`] : []),
     ...(action.manualText ? [action.manualText] : []),
   ];
   const causality = {

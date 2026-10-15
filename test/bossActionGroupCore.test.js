@@ -3,12 +3,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { importBossActionHTML } from "../src/bossActionProfileCore.js";
 import { buildBossActionGroupMutation, bossConditionAppliedAt, isBossActionGroupExecution } from "../src/bossActionExecutionCore.js";
+import { withEpicLog } from "../test-support/bossSequenceState.js";
 
 const META = "com.thebigpicture.initiative/meta";
 const profile = await importBossActionHTML(await readFile(new URL("fixtures/boss-actions/auril-phase-2.html", import.meta.url), "utf8"));
 const breath = profile.abilities.find((entry) => entry.name === "Breath of the Long Night");
 const creature = (id, hp) => ({ id, name: id, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true } } });
-const boss = creature("auril", 580);
+// v20: Breath of the Long Night follows Breathe Deep in the same round (the round log on the boss token).
+const boss = withEpicLog(creature("auril", 580), profile, 1, ["breathe-deep"]);
 const turnState = { round: 1, order: ["auril", "dars", "__EPIC__:auril:1", "mira"], current: 2 };
 const build = (overrides = {}) => buildBossActionGroupMutation({ profile, action: breath, sourceItem: boss,
   targetItems: [creature("dars", 60), creature("mira", 45), creature("sera", 38)],
@@ -45,7 +47,8 @@ test("all passed saves add no condition; incomplete or unconfirmed decisions bui
   const passed = build({ outcomes: { dars: "passed", mira: "passed", sera: "passed" } });
   assert.deepEqual(passed.operations.map((operation) => operation.type), ["hp:set"]);
   assert.throws(() => build({ outcomes: { dars: "failed", mira: "passed" } }), /Manca l’esito/);
-  assert.throws(() => build({ manualConfirmed: false }), /Conferma/);
+  assert.doesNotThrow(() => build({ manualConfirmed: false }), "v20: the recharge and the sequence come from the round log");
+  assert.throws(() => build({ sourceItem: creature("auril", 580) }), /richiede Breathe Deep nello stesso round/);
   assert.throws(() => build({ componentAmounts: { cold: 7 } }), /danno/i);
   assert.throws(() => build({ targetItems: [] }), /almeno un bersaglio/);
   assert.throws(() => build({ targetItems: [{ ...creature("__EPIC__:auril:1", 1) }] }), /creatura reale/);

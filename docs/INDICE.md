@@ -57,7 +57,7 @@ automatizzata.
 | Regole di area | 140 regole per 135 incantesimi distinti. |
 | Tiri salvezza spell | 81 definizioni con `saveAutomation` nel catalogo runtime. |
 | Azioni spell successive | 32 definizioni con activeActions nel catalogo runtime. |
-| Capacità di classe | 860 record runtime, 261 pronti all'attivazione, 599 non automatizzati. |
+| Capacità di classe | 860 record runtime, 264 pronti all'attivazione, 596 non automatizzati. |
 | Risorse di classe | 104 pool definiti nel catalogo runtime. |
 
 Dopo una modifica ai dati, rigenerare i cataloghi e rieseguire i controlli

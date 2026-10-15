@@ -1,6 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
+import { TRACKER_LAYOUT_COMPACT, getTrackerLayout, getTrackerSidePanelAnchor } from "./trackerPopover.js";
 
 export const REFERENCE_POPUP_ID = `${ID}/reference-modal`;
 const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
@@ -13,6 +14,10 @@ async function getReferenceAnchor() {
     Number(document.documentElement?.getBoundingClientRect?.().width) || 0,
     Number(document.body?.getBoundingClientRect?.().width) || 0,
   );
+  // The extended tracker may dock right: the reference opens on its free side.
+  if (getTrackerLayout() !== TRACKER_LAYOUT_COMPACT) {
+    return getTrackerSidePanelAnchor({ trackerWidth: Math.max(trackerWidth, viewportWidth) });
+  }
   return {
     left: Math.ceil(Math.max(trackerWidth, viewportWidth)) + 14,
     top: 52,

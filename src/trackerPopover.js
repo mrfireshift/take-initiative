@@ -2,6 +2,8 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { compactTrackerViewportWidth } from "./trackerCompactSizingCore.js";
+import { localTrackerView, moveTrackerPlacement, normalizeTrackerPlacement, sharedTrackerView, toggleTrackerSide, trackerPlacementFrame,
+  trackerSidePanelAnchor } from "./trackerPlacementCore.js";
 
 export const TRACKER_POPOVER_ID = `${ID}/tracker-popover`;
 export const COMPACT_ROUND_TAB_POPOVER_ID = `${ID}/compact-round-tab`;
@@ -14,6 +16,9 @@ export const TRACKER_LAYOUT_COMPACT = "compact";
 const TRACKER_LAYOUT_KEY = `${ID}/tracker-layout`;
 const TRACKER_COMPACT_POSITION_KEY = `${ID}/tracker-compact-position`;
 const TRACKER_COMPACT_MANUAL_WIDTH_KEY = `${ID}/tracker-compact-manual-width`;
+// Extended (classic) tracker: docked side and distance, per browser (online, e.g. away from OBR's extension panels).
+const TRACKER_CLASSIC_PLACEMENT_KEY = `${ID}/tracker-classic-placement`;
+const CLASSIC_WIDTH = 340;
 const COMPACT_DEFAULT_WIDTH = 1180;
 const COMPACT_MAX_WIDTH = 1180;
 const COMPACT_HEIGHT = 156;
@@ -108,6 +113,81 @@ export async function resetCompactTrackerPopoverPosition() {
   localStorage.removeItem(TRACKER_COMPACT_POSITION_KEY);
   await refreshCompactTrackerPopoverAtStoredPosition();
 }
+export function getClassicTrackerPlacement() {
+  try {
+    return normalizeTrackerPlacement(JSON.parse(localStorage.getItem(TRACKER_CLASSIC_PLACEMENT_KEY) || "null"));
+  } catch {
+    return normalizeTrackerPlacement(null);
+  }
+}
+
+function storeClassicTrackerPlacement(placement) {
+  localStorage.setItem(TRACKER_CLASSIC_PLACEMENT_KEY, JSON.stringify(normalizeTrackerPlacement(placement)));
+}
+
+function storedCompactPosition() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(TRACKER_COMPACT_POSITION_KEY) || "null");
+    return Number.isFinite(stored?.left) && Number.isFinite(stored?.top) ? { left: stored.left, top: stored.top } : null;
+  } catch {
+    return null;
+  }
+}
+
+// GM -> players: this screen's tracker view as the proportional shared view (layout, side, positions).
+export async function readSharedTrackerView() {
+  const { viewportWidth, viewportHeight } = await viewportSize();
+  return sharedTrackerView({ layout: getTrackerLayout(), classic: getClassicTrackerPlacement(),
+    compact: storedCompactPosition(), viewportWidth, viewportHeight });
+}
+
+// A shared view stored on this screen (browser storage only, no reopening). Returns what changed: the layout
+// (the caller also updates the local options) and whether the open tracker must be redrawn.
+export async function storeSharedTrackerView(view) {
+  const { viewportWidth, viewportHeight } = await viewportSize();
+  const local = localTrackerView(view, { viewportWidth, viewportHeight });
+  if (!local) return { layoutChanged: false, changed: false };
+  const layoutChanged = local.layout !== getTrackerLayout();
+  if (layoutChanged) localStorage.setItem(TRACKER_LAYOUT_KEY, local.layout);
+  const classicChanged = JSON.stringify(local.classic) !== JSON.stringify(getClassicTrackerPlacement());
+  if (classicChanged) storeClassicTrackerPlacement(local.classic);
+  const compactNow = storedCompactPosition();
+  const compactChanged = local.compact ? JSON.stringify(local.compact) !== JSON.stringify(compactNow) : !!compactNow;
+  if (compactChanged) {
+    if (local.compact) localStorage.setItem(TRACKER_COMPACT_POSITION_KEY, JSON.stringify(local.compact));
+    else localStorage.removeItem(TRACKER_COMPACT_POSITION_KEY);
+  }
+  return { layoutChanged, layout: local.layout, changed: layoutChanged || (local.layout === TRACKER_LAYOUT_COMPACT ? compactChanged : classicChanged) };
+}
+
+async function viewportSize() {
+  let viewportHeight = 900;
+  let viewportWidth = 1200;
+  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+  return { viewportWidth, viewportHeight };
+}
+
+// A drag of the extended tracker: it docks to the nearer side at the dropped distance.
+export async function moveClassicTrackerPopover(deltaX, deltaY) {
+  const { viewportWidth, viewportHeight } = await viewportSize();
+  storeClassicTrackerPlacement(moveTrackerPlacement(getClassicTrackerPlacement(), deltaX, deltaY,
+    { width: CLASSIC_WIDTH, viewportWidth, viewportHeight }));
+  await openTrackerPopover({ refresh: true });
+}
+
+// A click on the handle of the extended tracker: the other side of the screen.
+export async function toggleClassicTrackerSide() {
+  storeClassicTrackerPlacement(toggleTrackerSide(getClassicTrackerPlacement()));
+  await openTrackerPopover({ refresh: true });
+}
+
+// Where a side panel (spells, references, effects) opens next to the extended tracker.
+export async function getTrackerSidePanelAnchor({ trackerWidth = CLASSIC_WIDTH, panelWidth = 560 } = {}) {
+  const { viewportWidth } = await viewportSize();
+  return trackerSidePanelAnchor(getClassicTrackerPlacement(), { trackerWidth, viewportWidth, panelWidth });
+}
+
 const TRACKER_OPEN_KEY = `${ID}/tracker-popover-open`;
 
 export function isTrackerPopoverOpen() {
@@ -200,19 +280,21 @@ export async function openTrackerPopover({ refresh = false, compactSize = null }
   const preferredCompactWidth = Number(compactSize?.width)
     || getCompactTrackerManualWidth()
     || COMPACT_DEFAULT_WIDTH;
+  // The extended tracker docks to its stored side (left at 22 px by default, as before).
+  const classic = compact ? null : trackerPlacementFrame(getClassicTrackerPlacement(), { width: CLASSIC_WIDTH, viewportWidth, viewportHeight });
   const width = compact
     ? compactTrackerViewportWidth(
       Math.min(preferredCompactWidth, COMPACT_MAX_WIDTH),
       viewportWidth,
     )
-    : 340;
+    : classic.width;
   const height = compact
     ? Math.min(
       Math.max(150, Math.round(Number(compactSize?.height) || COMPACT_HEIGHT)),
       COMPACT_HEIGHT,
       Math.max(150, Math.floor(viewportHeight - 32)),
     )
-    : Math.max(360, Math.floor(viewportHeight - 124));
+    : classic.height;
   const compactAnchor = compactAnchorPosition(viewportWidth, viewportHeight);
   await openTrackedPopover({
     id: TRACKER_POPOVER_ID,
@@ -220,13 +302,13 @@ export async function openTrackerPopover({ refresh = false, compactSize = null }
     width,
     height,
     anchorReference: "POSITION",
-    anchorPosition: compact ? compactAnchor : { left: 22, top: 52 },
+    anchorPosition: compact ? compactAnchor : classic.anchorPosition,
     anchorOrigin: compact
       ? { horizontal: "CENTER", vertical: "BOTTOM" }
-      : { horizontal: "LEFT", vertical: "TOP" },
+      : { ...classic.origin },
     transformOrigin: compact
       ? { horizontal: "CENTER", vertical: "BOTTOM" }
-      : { horizontal: "LEFT", vertical: "TOP" },
+      : { ...classic.origin },
     disableClickAway: true,
     marginThreshold: 12,
     hidePaper: true,

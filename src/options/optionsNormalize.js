@@ -280,6 +280,7 @@ export function normalizeRoomOptions(value) {
     uiSync: {
       ...uiSync,
       trackerOpen: booleanOr(uiSync.trackerOpen, defaults.uiSync.trackerOpen),
+      trackerPlacement: booleanOr(uiSync.trackerPlacement, defaults.uiSync.trackerPlacement),
       effectsDisplayMode: enumOr(
         uiSync.effectsDisplayMode,
         ["selected", "all", "compact"],

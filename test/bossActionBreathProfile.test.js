@@ -16,6 +16,7 @@ function asVersion(profile, version) {
     profileRevision: createHash("sha256").update(`${version}\n${phase2HTML}`).digest("hex") });
   for (const entry of legacy.abilities) {
     delete entry.group; // the presentation group arrived with v7
+    delete entry.sequence; // the Epic Action sequence arrived with v19 (Auril's with v20)
     // Hurl and Epic Resistance arrived with v16: before, they were manual text.
     if (["throw", "effect-end"].includes(entry.execution?.kind)) { entry.automation = "UNSUPPORTED"; delete entry.execution; entry.manualText = entry.rawText; }
     // The at-will spell arrived with v15.
@@ -34,8 +35,8 @@ function asVersion(profile, version) {
 test("the real Breath description becomes a PARTIAL multi-target CON save with printed components and Accecato on failure", async () => {
   const profile = await importBossActionHTML(phase2HTML, { sourceName: "auril-phase-2.html" });
   const breath = ability(profile, BREATH);
-  assert.equal(profile.profileVersion, 19);
-  assert.equal(profile.parserVersion, 19);
+  assert.equal(profile.profileVersion, 20);
+  assert.equal(profile.parserVersion, 20);
   assert.equal(breath.automation, "PARTIAL");
   assert.equal(breath.category, "epic-action");
   assert.deepEqual(breath.usage, { limit: 1, period: "round", note: "Special Recharge" }, "1/Round is counted; the recharge stays a manual note");
@@ -50,7 +51,9 @@ test("the real Breath description becomes a PARTIAL multi-target CON save with p
     success: "half",
     onFailed: { conditions: [{ condition: "Accecato", expiry: { mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" } }] },
   });
-  assert.equal(breath.manualText, "Auril può usare questa Azione Epica soltanto se ha usato Breathe Deep come prima Azione Epica dello stesso round e soltanto se è l'ultima Azione Epica che usa nel round.");
+  // v20: the printed requirement is the sequence; the manual text only names where the recharge comes from.
+  assert.deepEqual(breath.sequence, { slot: "last", after: "breathe-deep" });
+  assert.equal(breath.manualText, "La ricarica viene da Breathe Deep, usata come prima Azione Epica dello stesso round: verificata dal registro del round.");
   assert.match(breath.rawText, /^Breath of the Long Night \(1\/Round, Special Recharge\)\. Tiro Salvezza su Costituzione: CD 19, ogni creatura in un Cono di 60 ft\. che origina dal Titano\..*che usa nel round\.$/);
   assert.equal(profile.rawSource.html, phase2HTML);
   assert.equal(profile.rawSource.sourceHash, createHash("sha256").update(phase2HTML).digest("hex"));
@@ -81,6 +84,7 @@ test("corrected combo: Breathe Deep opens and Breath closes every round, both co
   const deep = ability(profile, "Breathe Deep");
   assert.deepEqual(deep.usage, { limit: 1, period: "round" });
   assert.equal(deep.automation, "UNSUPPORTED", "Breathe Deep stays a manual registration");
+  assert.deepEqual(deep.sequence, { slot: "first" }, "v20: the first Epic Action of the round, checked when it is registered");
   assert.match(deep.rawText, /si ricarica fino alla fine del round; la ricarica non si trasferisce al round successivo\. .*soltanto se è la prima Azione Epica che usa nel round, e non nello stesso round di Gather the Winter Sky\./);
   assert.doesNotMatch(phase2HTML, /1\/Phase\)\.<\/span> Breath of the Long Night si ricarica/);
 });
@@ -94,6 +98,7 @@ test("the original round-1 wording and plain Special Recharge title still parse 
   assert.equal(breath.automation, "PARTIAL");
   assert.deepEqual(breath.usage, { note: "Special Recharge" });
   assert.match(breath.manualText, /durante il round 1\.$/);
+  assert.equal(breath.sequence, undefined, "a round-numbered requirement stays a manual confirmation");
 });
 
 test("version 3 validation accepts only the exact group contract", async () => {
@@ -133,7 +138,7 @@ test("v2 profiles stay readable without Breath mechanics and cannot carry the v3
   assert.throws(() => validateBossActionProfile(forged), /unexpected|unsupported|invalid/i);
   const store = createBossActionProfileStore({ storage: memoryStorage() });
   store.put(legacy); store.put(current);
-  assert.deepEqual(store.list().map((profile) => profile.profileVersion), [2, 19], "both revisions of the same phase coexist");
+  assert.deepEqual(store.list().map((profile) => profile.profileVersion), [2, 20], "both revisions of the same phase coexist");
 });
 
 test("v3 export/import keeps HTML, raw text and the normalized group contract without truncation", async () => {

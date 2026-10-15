@@ -481,24 +481,26 @@ for(const [name,amounts,remaining] of [
 ]) test(name+" uses real parsed components, one entry and Undo",async()=>{
   const profile=name==="Rock"?p2:p3;
   await runtime.bindBossActionProfile("auril",profile);
+  // v20: Rock only in the round of Gather the Winter Sky (registered first, as the first Epic Action).
+  if(name==="Rock")await runtime.registerBossActionUse({sourceId:"auril",actionId:p2.abilities.find(a=>a.name==="Gather the Winter Sky").id,manualConfirmed:true});
   baselineCount=(await history.getHistoryEntries()).length;
   const action=profile.abilities.find(a=>a.name===name);
   const result=await runtime.executeBossAction({sourceId:"auril",actionId:action.id,targetId:"dars",
-    mode:"ranged",outcome:"hit",componentAmounts:amounts,manualConfirmed:name==="Rock"});
+    mode:"ranged",outcome:"hit",componentAmounts:amounts});
   assert.equal(meta("dars").hp,remaining);
   assert.deepEqual(result.damageComponents.map(c=>[c.id,c.formula,c.type,c.amount]),
     action.execution.damage.map(c=>[c.id,c.formula,c.type,amounts[c.id]]));
   const entries=await history.getHistoryEntries();assert.equal(entries.length,baselineCount+1);
-  const entry=entries.find(e=>e.kind==="monster-action");
+  const entry=entries.filter(e=>e.kind==="monster-action").at(-1);
   assert.equal(entry.payload.causality.actor.id,"auril");
   assert.equal(entry.payload.causality.attack.type,name==="Rock"?"weapon":"spell");
   await history.undoHistoryThrough(entry.id,{sceneEpoch:currentSceneEpoch()});
   assert.equal(meta("dars").hp,60);
 });
-test("Rock requires manual prerequisite confirmation before any mutation",async()=>{
+test("Rock requires Gather the Winter Sky in the same round before any mutation",async()=>{
   const rock=p2.abilities.find(a=>a.name==="Rock");
   await assert.rejects(()=>runtime.executeBossAction({sourceId:"auril",actionId:rock.id,targetId:"dars",
-    mode:"ranged",outcome:"hit",componentAmounts:{bludgeoning:29}}),/conferma|restrizione/i);
+    mode:"ranged",outcome:"hit",componentAmounts:{bludgeoning:29},manualConfirmed:true}),/Rock richiede Gather the Winter Sky nello stesso round/);
   assert.equal(meta("dars").hp,60);assert.equal((await history.getHistoryEntries()).length,baselineCount);
 });
 test("manual resource use is undoable and cannot be registered without confirmation",async()=>{

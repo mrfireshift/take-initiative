@@ -110,6 +110,12 @@ async function setup(profile, extra = {}, { bossHp = 580 } = {}) {
 test.after(() => { effects.unmountEffectsMutationCoordinatorService(); historyOwner.unmountHistoryOwner(); });
 const setRound = (round) => { sceneMetadata[STATE_KEY] = { ...sceneMetadata[STATE_KEY], round }; };
 
+// A manual registration (Breathe Deep, Gather the Winter Sky) with the bound identity.
+async function registerUse(profile, action, id) {
+  const presentation = await runtime.getBossActionPresentation("auril");
+  return runtime.registerBossActionUse({ sourceId: "auril", actionId: action.id, manualConfirmed: true, actionInstanceId: id,
+    profileId: profile.profileId, profileRevision: profile.profileRevision, bossInstanceId: presentation.bossInstanceId, sceneIdentity: presentation.sceneIdentity });
+}
 async function resolve(profile, action, request) {
   const presentation = await runtime.getBossActionPresentation("auril");
   return runtime.executeBossAction({ sourceId: "auril", actionId: action.id, profileId: profile.profileId,
@@ -178,7 +184,9 @@ test("immunity becomes resistance for the marked hit; a miss or a stale preview 
 
 test("an area action applies the rule per marked creature (Breath)", async () => {
   await setup(p2, { dars: { ...defenses({ resistances: ["cold"] }), ...marked }, mira: defenses({ resistances: ["cold"] }) });
-  const result = await resolve(p2, breath, { manualConfirmed: true, targetIds: ["dars", "mira"], outcomes: { dars: "failed", mira: "failed" },
+  // v20: Breathe Deep opens the round; no character is in the order, so the GM confirms the last Epic Action.
+  await registerUse(p2, named2("Breathe Deep"), "deep-mark");
+  const result = await resolve(p2, breath, { manualConfirmed: true, sequenceConfirmed: true, targetIds: ["dars", "mira"], outcomes: { dars: "failed", mira: "failed" },
     componentAmounts: { cold: 33, necrotic: 13 }, areaPlacement: { ruleId: "boss-action-area:cone:60ft", start: { x: 0, y: 0 }, end: { x: 600, y: 0 }, areaTargetIds: ["dars", "mira"] } });
   assert.equal(meta("dars").hp, 14, "33 + 13: marked");
   assert.equal(meta("mira").hp, 16, "16 + 13: resisted");
@@ -246,6 +254,8 @@ test("Breathe Deep: the manual 1/Round use recharges every round; an old 1/Phase
   assert.deepEqual(await remaining(breatheDeep), { tracked: true, available: true, remaining: 1, used: 0, period: "round", limit: 1, round: 2 });
   await register(p2, breatheDeep, "deep-2");
   // The original stat block said (1/Phase): a token still bound to such a revision stays spent for the whole phase.
+  // (Round 3: Breathe Deep already opened round 2.)
+  setRound(3);
   const original = await importBossActionHTML((await readFile(new URL("./fixtures/boss-actions/auril-phase-2.html", import.meta.url), "utf8"))
     .replace("Breathe Deep (1/Round).", "Breathe Deep (1/Phase)."));
   store.put(original);
@@ -253,7 +263,7 @@ test("Breathe Deep: the manual 1/Round use recharges every round; an old 1/Phase
   const oldDeep = original.abilities.find((entry) => entry.name === "Breathe Deep");
   assert.deepEqual(oldDeep.usage, { limit: 1, period: "phase" });
   await register(original, oldDeep, "old-1");
-  setRound(3);
+  setRound(4);
   assert.equal((await remaining(oldDeep)).available, false, "1/Phase: spent until the phase ends");
 });
 
@@ -268,12 +278,16 @@ test("a new combat back at round 1 meets leftover counters: they are flagged, an
   await setup(p2, { dars: { ...defenses({ resistances: ["cold"] }), ...marked } });
   setRound(2);
   await register(breatheDeep, "deep-r2");
-  await register(gather, "gather-r2");
+  // v20: both open a round (the first Epic Action): Gather in the next one.
+  setRound(3);
+  await register(gather, "gather-r3");
+  setRound(2);
   await stab();
   // The GM starts a new combat (or presses ↺): round 1, then round 2 again.
   setRound(1);
   let presentation = await runtime.getBossActionPresentation("auril");
   assert.deepEqual(presentation.usageSummary, { valid: true, rounds: [2], futureRounds: [2], phaseUses: 1, markUses: 1, total: 3 });
+  assert.equal(meta("auril").bossActionState.epicLog.round, 2, "the round log of the earlier combat (Icekiss in round 2)");
   setRound(2);
   presentation = await runtime.getBossActionPresentation("auril");
   assert.equal(presentation.availability[breatheDeep.id].available, false, "the leftover round-2 use makes it look spent");
@@ -333,13 +347,15 @@ test("Meteor Swarm: one command for the union of four explosions, inner bludgeon
   const request = { manualConfirmed: true, targetIds: ["dars", "mira", "sera"], outcomes: { dars: "failed", mira: "passed", sera: "failed" },
     componentAmounts: { cold: 49, bludgeoning: 33 }, innerIds: ["dars"], expectedEvasionIds: ["mira"],
     areaPlacements: [circle(0, ["dars", "mira"], ["dars"]), circle(1000, ["mira"], []), circle(2000, ["sera"], []), circle(3000, [], [])] };
-  const result = await resolve(p2, meteorSwarm, request);
+  // v20: Gather the Winter Sky opens the round; no character is in the order, so the GM confirms the last Epic Action.
+  await registerUse(p2, named2("Gather the Winter Sky"), "gather-meteor");
+  const result = await resolve(p2, meteorSwarm, { ...request, sequenceConfirmed: true });
   assert.equal(meta("dars").hp, 0, "49 + 33 on a failure, within 10 ft");
   assert.equal(meta("mira").hp, 45, "Evasion: a success takes nothing");
   assert.equal(meta("sera").hp, 0, "49 cold only (38 HP)");
   assert.deepEqual(result.groupTargets.map((target) => [target.id, target.damage, !!target.inner, !!target.evasion]),
     [["dars", 82, true, false], ["mira", 0, false, true], ["sera", 49, false, false]]);
-  assert.equal((await monsterEntries()).length, 1);
+  assert.equal((await monsterEntries()).length, 2, "Gather and Meteor Swarm");
   assert.equal((await runtime.getBossActionPresentation("auril")).availability[meteorSwarm.id].available, false, "1/Phase");
   setRound(5);
   await assert.rejects(resolve(p2, meteorSwarm, { ...request, actionInstanceId: "meteor-again" }), /esaurit/i);

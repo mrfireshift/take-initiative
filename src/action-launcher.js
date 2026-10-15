@@ -60,10 +60,13 @@ async function toggleTracker() {
     if (!sceneLifecycle.isCurrent(operation)) return false;
     if (await OBR.player.getRole() === "GM") {
       if (!sceneLifecycle.isCurrent(operation)) return false;
+      // Merged: the shared record also carries the GM's tracker view (sync-open.js).
+      const previous = (await OBR.room.getMetadata().catch(() => ({})))?.[UI_KEY];
+      if (!sceneLifecycle.isCurrent(operation)) return false;
       await writeRoomMetadataKey(
         OBR.room,
         METADATA_OWNERSHIP.SHARED_UI,
-        { open: nextOpen, at: Date.now() },
+        { ...(previous && typeof previous === "object" ? previous : {}), open: nextOpen, at: Date.now() },
         { runtime: "action-launcher" },
       );
     }

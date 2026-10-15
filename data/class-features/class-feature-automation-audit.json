@@ -34,7 +34,7 @@
     ],
     "totalMechanics": 860,
     "runtimeCatalogRecords": 860,
-    "runtimeImplemented": 261
+    "runtimeImplemented": 264
   },
   "criteria": {
     "token_marker": "La capacità viene usata su un token e lascia uno stato/promemoria visibile per la durata dello scontro o finché non viene consumata.",
@@ -71,11 +71,11 @@
       "curata": 109
     },
     "byRuntimeStatus": {
-      "not-automated": 599,
-      "implemented": 261
+      "not-automated": 596,
+      "implemented": 264
     },
     "blockerCounts": {
-      "adapter_runtime_mancante": 599,
+      "adapter_runtime_mancante": 596,
       "scelta_giocatore_o_opzione": 146
     },
     "dataBlockerCounts": {
@@ -126,13 +126,13 @@
       "reference": 421,
       "timed-condition": 129,
       "instant-reminder": 119,
-      "resource-only": 106,
+      "resource-only": 107,
       "aura": 20,
       "hp-change": 15,
       "custom-adapter": 13,
       "movement": 13,
       "companion-summon": 9,
-      "spell-bridge": 8,
+      "spell-bridge": 7,
       "save-outcome-condition": 4,
       "variable-cost": 2,
       "transformation": 1
@@ -149,8 +149,8 @@
       "resource-only": {
         "label": "Consumo risorsa",
         "available": true,
-        "implemented": 103,
-        "open": 3
+        "implemented": 106,
+        "open": 1
       },
       "condition": {
         "label": "Pill con durata",
@@ -198,7 +198,7 @@
         "label": "Ponte verso il sistema Incantesimi",
         "available": false,
         "implemented": 0,
-        "open": 8
+        "open": 7
       }
     },
     "archetypes": {
@@ -223,8 +223,8 @@
       "resource-only": {
         "label": "Solo consumo risorsa",
         "primitive": "resource-only",
-        "implemented": 103,
-        "open": 3
+        "implemented": 106,
+        "open": 1
       },
       "timed-condition": {
         "label": "Buff o marker con durata",
@@ -272,7 +272,7 @@
         "label": "Lancio o slot tramite capacità",
         "primitive": "spell-bridge",
         "implemented": 0,
-        "open": 8
+        "open": 7
       },
       "custom-adapter": {
         "label": "Adapter dedicato",
@@ -281,9 +281,9 @@
         "open": 0
       }
     },
-    "dataOnlyCandidateCount": 564,
-    "dataOnlyAutomationCount": 11,
-    "needsPrimitiveCount": 35,
+    "dataOnlyCandidateCount": 562,
+    "dataOnlyAutomationCount": 9,
+    "needsPrimitiveCount": 34,
     "manualDecisionCount": 30,
     "byClass": {
       "barbaro": {
@@ -308,9 +308,9 @@
       },
       "chierico": {
         "className": "Chierico",
-        "implemented": 20,
+        "implemented": 21,
         "dataOnlyReference": 53,
-        "dataOnlyAutomation": 1,
+        "dataOnlyAutomation": 0,
         "needsPrimitive": 4,
         "needsPrimitiveByPrimitive": {
           "value-input": 4
@@ -371,21 +371,19 @@
       },
       "paladino": {
         "className": "Paladino",
-        "implemented": 30,
+        "implemented": 31,
         "dataOnlyReference": 25,
-        "dataOnlyAutomation": 1,
+        "dataOnlyAutomation": 0,
         "needsPrimitive": 0,
         "needsPrimitiveByPrimitive": {}
       },
       "ranger": {
         "className": "Ranger",
-        "implemented": 10,
+        "implemented": 11,
         "dataOnlyReference": 54,
         "dataOnlyAutomation": 0,
-        "needsPrimitive": 1,
-        "needsPrimitiveByPrimitive": {
-          "spell-bridge": 1
-        }
+        "needsPrimitive": 0,
+        "needsPrimitiveByPrimitive": {}
       },
       "ranger-revised": {
         "className": "Ranger (Revised)",
@@ -64765,9 +64763,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -64791,7 +64787,7 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -64799,15 +64795,15 @@
       "archetype": "resource-only",
       "archetypeLabel": "Solo consumo risorsa",
       "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente",
+        "runtime-implemented",
         "pool-modificatore:chierico-dominio-dell-ordine-incarnazione-della-legge-usi"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -64834,7 +64830,7 @@
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "BONUS_ACTION",
@@ -64852,7 +64848,7 @@
           "Pagina 33"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
@@ -75550,9 +75546,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -75578,7 +75572,7 @@
         "textMarkerSignals": [
           "bersaglio"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -75586,15 +75580,15 @@
       "archetype": "resource-only",
       "archetypeLabel": "Solo consumo risorsa",
       "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente",
+        "runtime-implemented",
         "pool-modificatore:paladino-giuramento-di-gloria-difesa-gloriosa-usi"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -75621,7 +75615,7 @@
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "REACTION",
@@ -75639,7 +75633,7 @@
           "Pagina 63"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
@@ -77548,9 +77542,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -77574,23 +77566,23 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "spell-bridge",
-      "archetypeLabel": "Lancio o slot tramite capacità",
-      "requiredPrimitive": "spell-bridge",
+      "archetype": "resource-only",
+      "archetypeLabel": "Solo consumo risorsa",
+      "requiredPrimitive": "resource-only",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:incantesimo-slot",
+        "runtime-implemented",
         "pool-modificatore:ranger-viandante-fatato-viandante-velato-usi"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -77616,7 +77608,7 @@
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "FREE",
@@ -77634,7 +77626,7 @@
           "Pagina 68"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",

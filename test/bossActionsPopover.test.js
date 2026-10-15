@@ -185,15 +185,14 @@ test("Polar Ray shows printed total separately, ranged only, and submits edited 
   f.controller.destroy();
 });
 
-test("Rock requires the manual prerequisite and an uncertain retry keeps the same identity",async()=>{
+test("Rock: no manual prerequisite (Gather is checked from the round log) and an uncertain retry keeps the same identity",async()=>{
   const f=fixture({selection:["dars"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   await open(f,"Rock");await outcome(f,"hit").click();
-  assert.equal(apply(f).disabled,true);assert.match(f.$("boss-apply-hint").textContent,/prerequisito/);
-  await submit(f);assert.equal(f.calls.length,0);
-  const confirm=f.$("boss-manual-confirmed");confirm.checked=true;await confirm.emit("change");
+  assert.equal(f.$("boss-manual-confirmed"),null,"v20: no prerequisite to tick");
+  assert.equal(apply(f).disabled,false);
   f.runtime.executeBossAction=async request=>{f.calls.push(request);throw new Error("Conferma incerta");};
   await submit(f);await submit(f);
-  assert.equal(f.calls.length,2);assert.equal(f.calls[0].manualConfirmed,true);
+  assert.equal(f.calls.length,2);assert.equal(f.calls[0].manualConfirmed,undefined);
   assert.equal(f.calls[0].actionInstanceId,f.calls[1].actionInstanceId);
   assert.ok(f.$("boss-resolution").querySelector("#boss-action-form"),"uncertain confirmation keeps the draft");
   f.controller.destroy();
@@ -359,16 +358,16 @@ async function drawCone(f,targetIds,{status="confirmed"}={}){
 }
 function addSera(f){f.items.push({id:"sera",name:"Sera",type:"IMAGE",layer:"CHARACTER",metadata:{[META]:{hp:38,hpMax:38,inInitiative:true}}});}
 
-test("Breath: confirm, draw the cone, enter saves, apply — the drawn hits become the group",async()=>{
+test("Breath: draw the cone, enter saves, apply — the drawn hits become the group",async()=>{
   const f=fixture({selection:["dars","mira"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");addSera(f);
   await open(f,"Breath of the Long Night");
   assert.equal(groupRows(f).length,0,"the map selection does not build the group before a drawing");
-  assert.match(textOf(f.$("boss-group-restrictions")),/1 · Verificato da me: Ricarica speciale.*ultima Azione Epica che usa nel round/);
+  // v20: the recharge and the sequence come from the round log: no confirmation step, a reminder only.
+  assert.equal(f.$("boss-manual-confirmed"),null);
+  assert.match(textOf(f.$("boss-group-restrictions")),/A mano: La ricarica viene da Breathe Deep/);
   assert.doesNotMatch(textOf(f.$("boss-group-restrictions")),/scegli tu le creature/);
-  assert.equal(f.$("boss-draw-area").disabled,true,"drawing waits for the confirmation");
-  assert.match(f.$("boss-apply-hint").textContent,/Conferma ricarica/);
-  await confirmGroup(f);
   assert.equal(f.$("boss-draw-area").disabled,false);
+  assert.match(f.$("boss-apply-hint").textContent,/Disegna il cono/);
   const request=await drawCone(f,["auril","dars","mira","sera","dars","__EPIC__:x"]);
   assert.equal(request.ruleId,"boss-action-area:cone:60ft");assert.equal(request.casterId,"auril");
   assert.deepEqual(f.heights.map(([,height])=>height),[46,500],"the console steps aside while drawing");
@@ -388,7 +387,7 @@ test("Breath: confirm, draw the cone, enter saves, apply — the drawn hits beco
 
 test("Breath: a cancelled drawing changes nothing; back during a drawing cancels the tool request",async()=>{
   const f=fixture({selection:["dars"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
-  await open(f,"Breath of the Long Night");await confirmGroup(f);
+  await open(f,"Breath of the Long Night");
   await drawCone(f,[],{status:"cancelled"});
   assert.equal(groupRows(f).length,0);assert.match(f.$("boss-status").textContent,/Disegno annullato/);
   await f.$("boss-draw-area").click();await tick();
@@ -401,7 +400,7 @@ test("Breath: a cancelled drawing changes nothing; back during a drawing cancels
 
 test("Breath: after the drawing the map selection only adds creatures; removing and redrawing are explicit",async()=>{
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");addSera(f);
-  await open(f,"Breath of the Long Night");await confirmGroup(f);
+  await open(f,"Breath of the Long Night");
   await drawCone(f,["dars","mira"]);
   await groupOutcome(f,"dars","failed").click();
   await f.select(["sera","dars"]);
@@ -410,7 +409,6 @@ test("Breath: after the drawing the map selection only adds creatures; removing 
   await f.$("boss-group-use-selection").click();
   assert.deepEqual(groupRows(f).map(row=>row.dataset.targetId),["dars","mira","sera"]);
   assert.equal(groupOutcome(f,"dars","failed").getAttribute("aria-pressed"),"true","existing outcomes stay with their creature");
-  assert.equal(f.$("boss-manual-confirmed").checked,true,"the confirmation covers recharge and sequence, not the group");
   await groupRows(f)[1].querySelector(".group-remove").click();
   assert.deepEqual(groupRows(f).map(row=>row.dataset.targetId),["dars","sera"]);
   await drawCone(f,["mira"]);
@@ -421,7 +419,7 @@ test("Breath: after the drawing the map selection only adds creatures; removing 
 
 test("Breath: bulk outcomes and edited base damage keep shared halving per row",async()=>{
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
-  await open(f,"Breath of the Long Night");await confirmGroup(f);await drawCone(f,["dars","mira"]);
+  await open(f,"Breath of the Long Night");await drawCone(f,["dars","mira"]);
   await f.$("boss-resolution").querySelector('[data-group-all="passed"]').click();
   const cold=f.$("boss-resolution").querySelector('[data-component-id="cold"]');cold.value="7";await cold.emit("input");
   const necrotic=f.$("boss-resolution").querySelector('[data-component-id="necrotic"]');necrotic.value="5";await necrotic.emit("input");
@@ -434,7 +432,7 @@ test("Breath: bulk outcomes and edited base damage keep shared halving per row",
 test("Breath: back before Applica sends nothing and the drawn group survives a reload until sent",async()=>{
   globalThis.sessionStorage.clear();
   const first=fixture({selection:[]});await first.controller.ready;await importAndBind(first,"auril-phase-2.html");
-  await open(first,"Breath of the Long Night");await confirmGroup(first);await drawCone(first,["dars","mira"]);
+  await open(first,"Breath of the Long Night");await drawCone(first,["dars","mira"]);
   await groupOutcome(first,"dars","failed").click();
   const bound=first.getBound();first.controller.destroy();
   const second=fixture({selection:["mira"],bound});await second.controller.ready;await tick();
@@ -464,7 +462,7 @@ test("defenses: Icekiss shows the target's cold resistance, previews it and can 
 
 test("defenses: Breath rows apply each creature's resistance and send the frozen defenses per target",async()=>{
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");resistCold(f,"dars");
-  await f.controller.refresh();await open(f,"Breath of the Long Night");await confirmGroup(f);await drawCone(f,["dars","mira"]);
+  await f.controller.refresh();await open(f,"Breath of the Long Night");await drawCone(f,["dars","mira"]);
   await f.$("boss-resolution").querySelector('[data-group-all="failed"]').click();
   assert.match(textOf(groupRows(f)[0]),/Res\. freddo.*−29/);
   assert.match(textOf(groupRows(f)[1]),/−46/);assert.doesNotMatch(textOf(groupRows(f)[1]),/Res\./);
@@ -660,7 +658,7 @@ test("library: a token on a superseded revision is flagged; cleanup is two-step 
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   await importVariant(f,"auril-phase-2.html",html=>html.replace("Auril occupa due","Auril ora occupa due"));
   await f.controller.refresh();
-  assert.match(optionTexts(f)[0],/v19 · [a-f0-9]{8} · collegata qui · superata/);
+  assert.match(optionTexts(f)[0],/v20 · [a-f0-9]{8} · collegata qui · superata/);
   assert.doesNotMatch(optionTexts(f)[1],/superata/);
   assert.equal(f.$("boss-profile-warning").hidden,false);
   assert.match(f.$("boss-profile-warning").textContent,/Il token usa una revisione superata/);
@@ -793,7 +791,7 @@ test("Meteor Swarm: one drawing asks for every point and one confirmation return
   f.api.scene.grid={getDpi:async()=>150,getScale:async()=>({parsed:{multiplier:5,unit:"ft"}})};
   const positions={dars:{x:150,y:0},mira:{x:1200,y:0}};
   f.api.scene.items.getItemBounds=async([id])=>({min:{x:positions[id].x-75,y:-75},max:{x:positions[id].x+75,y:75}});
-  await open(f,"Meteor Swarm");await confirmGroup(f);
+  await open(f,"Meteor Swarm");
   assert.equal(f.$("boss-draw-area").textContent,"Disegna le 4 esplosioni");
   await f.$("boss-draw-area").click();await tick();
   assert.deepEqual(f.placements.at(-1).request.context.areaBatch,{count:4,minDistanceFeet:20,innerRadiusFeet:10});
@@ -819,15 +817,15 @@ test("Meteor Swarm: one drawing asks for every point and one confirmation return
   f.controller.destroy();
 });
 
-test("Meteor Swarm: confirm the requirement, draw four spaced points, within 10 ft from the drawn centres, then apply",async()=>{
+test("Meteor Swarm: draw four spaced points, within 10 ft from the drawn centres, then apply",async()=>{
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   f.api.scene.grid={getDpi:async()=>150,getScale:async()=>({parsed:{multiplier:5,unit:"ft"}})};
   const positions={dars:{x:150,y:0},mira:{x:1200,y:0}};
   f.api.scene.items.getItemBounds=async([id])=>({min:{x:positions[id].x-75,y:-75},max:{x:positions[id].x+75,y:75}});
   await open(f,"Meteor Swarm");
-  assert.match(f.$("boss-apply-hint").textContent,/Conferma requisito e sequenza/);
-  assert.equal(f.$("boss-draw-area").disabled,true);
-  await confirmGroup(f);
+  // v20: Gather the Winter Sky and the last slot are checked from the round log, not confirmed by hand.
+  assert.equal(f.$("boss-manual-confirmed"),null);
+  assert.equal(f.$("boss-draw-area").disabled,false);
   const point=async(x,ids)=>{await f.$("boss-draw-area").click();await tick();
     f.placements.at(-1).resolve({status:"confirmed",preview:{start:{x,y:0},end:{x:x+1200,y:0},targetIds:ids}});await tick();await tick();await tick();};
   assert.equal(f.$("boss-draw-area").textContent,"Disegna le 4 esplosioni");
@@ -855,7 +853,7 @@ test("Meteor Swarm: confirm the requirement, draw four spaced points, within 10 
   assert.equal(f.calls[0].areaPlacements.length,4);
   assert.deepEqual(f.calls[0].areaPlacements[0].innerTargetIds,["dars"]);
   assert.deepEqual([...f.calls[0].innerIds].sort(),["dars","mira"]);
-  assert.equal(f.calls[0].manualConfirmed,true);
+  assert.equal(f.calls[0].manualConfirmed,false,"v20: nothing to confirm by hand");
   f.controller.destroy();
 });
 

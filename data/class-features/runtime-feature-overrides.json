@@ -2986,8 +2986,22 @@
     },
     "chierico-dominio-dell-ordine-incarnazione-della-legge": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "status": "implemented",
+      "defaultEnabled": true,
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "📏"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "chierico-dominio-dell-ordine-colpo-divino": {
       "include": true,
@@ -4983,6 +4997,8 @@
           },
           {
             "ability": "str",
+            "dcSource": "source-ability",
+            "dcAbility": "con",
             "timing": "turn-end",
             "success": "remove-effect",
             "label": "CD 8 + competenza + Costituzione del guerriero. Se supera, le catene di fuoco svaniscono."
@@ -5047,6 +5063,8 @@
         "saveReminder": [
           {
             "ability": "wis",
+            "dcSource": "source-ability",
+            "dcAbility": "con",
             "timing": "turn-end",
             "success": "remove-effect",
             "label": "CD 8 + competenza + Costituzione del guerriero. Se supera, l'effetto termina."
@@ -6332,6 +6350,8 @@
         "saveReminder": [
           {
             "ability": "wis",
+            "dcSource": "source-ability",
+            "dcAbility": "dex",
             "timing": "turn-end",
             "success": "remove-effect",
             "label": "CD 8 + competenza + Destrezza del ladro. Se supera, l'effetto termina."
@@ -9124,8 +9144,22 @@
     },
     "paladino-giuramento-di-gloria-difesa-gloriosa": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "status": "implemented",
+      "defaultEnabled": true,
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🏅"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "paladino-giuramento-di-gloria-leggenda-vivente": {
       "include": true,
@@ -9945,8 +9979,22 @@
     },
     "ranger-viandante-fatato-viandante-velato": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "status": "implemented",
+      "defaultEnabled": true,
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🌁"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "stregone-anima-divina-magia-divina": {
       "include": true,

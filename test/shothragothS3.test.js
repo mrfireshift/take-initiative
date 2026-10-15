@@ -26,7 +26,7 @@ const seam = { round: 2, actionId: cucitura.id, actionInstanceId: "boss-action:c
 const state = (round, actionIds, extra = {}) => ({ epicLog: { round, actionIds }, ...extra });
 
 test("Cucitura and Strappare as closed v19 data; the names they refer to are resolved inside the profile", async () => {
-  assert.deepEqual([profile.profileVersion, profile.parserVersion], [19, 19]);
+  assert.deepEqual([profile.profileVersion, profile.parserVersion], [20, 20]);
   assert.deepEqual(cucitura.sequence, { slot: "first" });
   assert.deepEqual(cucitura.execution, { kind: "seam", seam: { width: 5, maxLength: 60, range: 60, blocks: [corpo.id] } });
   assert.match(cucitura.manualText, /Terreno Difficile/);
@@ -41,13 +41,14 @@ test("Cucitura and Strappare as closed v19 data; the names they refer to are res
   assert.equal(bossActionExecutionKind(strappare), "group-save");
   // The sequence replaces the manual "recharge and sequence verified" step of a Special Recharge.
   assert.equal(bossGroupRequiresConfirmation(strappare), false);
-  assert.equal(bossGroupRequiresConfirmation(auril.abilities.find((entry) => entry.name === "Breath of the Long Night")), true, "Auril keeps her v18 confirmation");
+  assert.equal(bossGroupRequiresConfirmation(auril.abilities.find((entry) => entry.name === "Breath of the Long Night")), false, "v20: Auril's sequence too");
   assert.ok(!bossGroupRestrictions(strappare).some((line) => /Ricarica speciale/.test(line)));
   assert.equal(bossActionRowMeta(cucitura, {}).tag, "Cucitura fino a 60 ft · prima del round");
   assert.equal(bossActionRowMeta(strappare, {}).tag, "TS INT 18 · linea sulla cucitura 20 ft · ultima del round");
   assert.deepEqual(bossActionRowMeta(corpo, { tracked: true, available: false, remaining: 1, limit: 1, period: "round", sequenceBlocked: true }),
     { kind: "save-damage", tag: "TS DES 18", badge: "Bloccata", exhausted: true });
-  assert.ok(auril.abilities.every((entry) => entry.sequence === undefined), "Auril's sequences arrive with tranche 12");
+  assert.deepEqual(auril.abilities.filter((entry) => entry.sequence).map((entry) => entry.name),
+    ["Breathe Deep", "Breath of the Long Night", "Rock", "Meteor Swarm", "Gather the Winter Sky"], "tranche 12: Auril's sequence");
 
   for (const [from, to, name] of [
     ["soltanto se è la prima Azione Epica che usa nel round. Sceglie", "soltanto se è l'ultima Azione Epica che usa nel round. Sceglie", "Cucitura del Non-Luogo"],
@@ -108,10 +109,10 @@ test("the round log blocks Cucitura after another Epic Action, Strappare without
   assert.match(bossSequenceBlocker(profile, corpo, runtime(state(2, [cucitura.id], { seam })), 2), /Finché la cucitura esiste, .* non può usare Il Corpo Non Era Qui/);
   assert.equal(bossSequenceBlocker(profile, corpo, runtime(state(2, [cucitura.id], { seam })), 3), "", "the seam collapses at the end of its round");
   assert.match(bossSequenceBlocker(profile, cucitura, runtime({}), undefined), /Round canonico non impostato/);
-  assert.equal(bossSequenceBlocker(auril, auril.abilities.find((entry) => entry.name === "Breath of the Long Night"), {}, 1), "");
+  assert.match(bossSequenceBlocker(auril, auril.abilities.find((entry) => entry.name === "Breath of the Long Night"), {}, 1), /richiede Breathe Deep/);
 });
 
-test("every Epic Action is logged in its round; a profile without sequences logs nothing; a reset clears the log and the seam", () => {
+test("every Epic Action is logged in its round; a profile without sequences logs nothing; a reset clears the log and the seam", async () => {
   const use = buildBossActionUse({ profile, action: fauce, sourceItem: withState(state(2, [cucitura.id], { seam })), actionInstanceId: "boss-action:f", round: 2 });
   assert.deepEqual(use.runtimeState.epicLog, { round: 2, actionIds: [cucitura.id, fauce.id] });
   assert.deepEqual(use.sceneMetadataPreconditions, [{ key: "com.thebigpicture.initiative/state", field: "round", value: 2 }]);
@@ -119,9 +120,10 @@ test("every Epic Action is logged in its round; a profile without sequences logs
   assert.deepEqual(next.runtimeState.epicLog, { round: 2, actionIds: [fauce.id] });
   assert.throws(() => buildBossActionUse({ profile, action: corpo, sourceItem: withState(state(2, [cucitura.id], { seam })), actionInstanceId: "boss-action:c", round: 2 }),
     /Finché la cucitura esiste/);
-  const icekiss = auril.abilities.find((entry) => entry.name === "Icekiss +2");
-  const aurilItem = creature("auril", 580);
-  const aurilUse = buildBossActionUse({ profile: auril, action: icekiss, sourceItem: aurilItem, actionInstanceId: "boss-action:i", round: 1 });
+  // A profile without any sequence (Auril's phase 3) keeps no round log.
+  const p3 = await importBossActionHTML(await readFile(new URL("fixtures/boss-actions/auril-phase-3.html", import.meta.url), "utf8"));
+  const polar = p3.abilities.find((entry) => entry.name === "Polar Ray");
+  const aurilUse = buildBossActionUse({ profile: p3, action: polar, sourceItem: creature("auril", 580), actionInstanceId: "boss-action:i", round: 1 });
   assert.equal(aurilUse.runtimeState.epicLog, undefined);
   assert.deepEqual(aurilUse.sceneMetadataPreconditions, []);
   const reset = buildBossResourceReset({ profile, sourceItem: withState(state(2, [cucitura.id], { seam })), actionInstanceId: "boss-action:reset", round: 2 });

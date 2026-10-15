@@ -267,8 +267,10 @@ export function createBossActionRuntime({
         throw new Error("Le decisioni o la scena del draft sono cambiate: riapri l'azione.");
       if(draft?.result) return {...structuredClone(draft.result),duplicate:true};
       if(!draft) {
-        // v19: the last Epic Action of the round is confirmed by the GM when the order says otherwise.
-        if(action?.sequence?.slot==="last" && bossProfileUsesSequence(profile)) {
+        // v19: the last Epic Action of the round is confirmed by the GM when the order says otherwise (a spent
+        // counter is reported by the plan first).
+        const spent=action?bossActionUsageAvailability(action,bossRuntimeStateForItem(scope.item,profile),{phaseId:profile.phaseId,round:scope.round}).available===false:false;
+        if(!spent && action?.sequence?.slot==="last" && bossProfileUsesSequence(profile)) {
           const warning=bossSequenceWarning(action,await epicSlotFor(scope));
           if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri Boss Actions.");
           if(warning && request.sequenceConfirmed!==true) throw new Error(`Conferma che è l’ultima Azione Epica del round. ${warning}`);

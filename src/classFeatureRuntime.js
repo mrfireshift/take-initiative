@@ -336,6 +336,7 @@ async function applyLayOnHandsResolved({
   const activationInput = {
     feature,
     characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
     sourceId: sourceItem.id,
     targetIds: resolvedTargetIds,
     currentRound: turnState.round,
@@ -460,6 +461,7 @@ export async function purifyClassFeatureSpell({
   const activationInput = {
     feature,
     characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
     sourceId: sourceItem.id,
     targetIds: resolvedTargetIds,
     currentRound: turnState.round,
@@ -823,6 +825,7 @@ async function createSorcerySlot({ sourceId, feature, slotLevel } = {}) {
     feature: reminderFeature,
     pools: classFeatureMutationPools(reminderFeature),
     characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
     targetIds: [sourceItem.id],
     currentRound: turnState.round,
     currentTurnKey: turnState.turnKey,
@@ -875,6 +878,7 @@ export async function convertClassFeatureSpellSlot({
     sourceId: sourceItem.id,
     pool,
     characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
     adjustment: { delta: level },
   }], {
     kind: "class-feature",
@@ -905,6 +909,7 @@ export async function applySorcerousRestoration({
     sourceId: sourceItem.id,
     pool,
     characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
     event: "riposo_breve",
   }], {
     kind: "class-feature",
@@ -1034,6 +1039,7 @@ export async function activateClassFeature({
     const prepared = prepareUnsettlingWordsFeatureActivation({
       feature,
       characterBuild: profile.characterBuild,
+      abilityModifiers: profile.abilityModifiers,
       value,
     });
     const result = await activateClassFeature({
@@ -1172,6 +1178,7 @@ export async function activateClassFeature({
     feature,
     poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
     characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
     sourceId: sourceItem.id,
     targetIds: resolvedTargetIds,
     currentRound: round,
@@ -1534,6 +1541,7 @@ export async function adjustClassFeatureResource(
     sourceId,
     pool,
     characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
     adjustment,
   }], {
     kind: "class-feature",
@@ -1570,6 +1578,7 @@ export async function resetClassFeatureResources(sourceId) {
     sourceId,
     pools,
     characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
     poolIds: [...poolIds],
   }], {
     kind: "class-feature",

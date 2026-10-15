@@ -127,7 +127,7 @@ test.after(() => { effects.unmountEffectsMutationCoordinatorService(); historyOw
 test("phase 2: Icekiss with the selected creature is three interactions and Undo from the console restores HP", async () => {
   const ui = await popover();
   await ui.importFile("auril-phase-2.html"); await ui.bind(0);
-  assert.equal(ui.controller.getPresentation().profile.profileVersion, 19);
+  assert.equal(ui.controller.getPresentation().profile.profileVersion, 20);
   await select(["auril-bar", "mira"]);
   await ui.open("Icekiss +2");                 // 1
   assert.equal(ui.target(), "Mira");
@@ -168,18 +168,28 @@ test("phase 2: Rock requires the prerequisite, Slow opens the spell workflow wit
     const ui = await popover();
     await ui.importFile("auril-phase-2.html"); await ui.bind(0);
     await select(["dars"]);
+    // v20: Rock only in the round of Gather the Winter Sky, read from the round log.
     await ui.open("Rock"); await ui.choose("hit");
     assert.equal(ui.apply().disabled, true);
+    assert.match(ui.$("boss-apply-hint").textContent, /Rock richiede Gather the Winter Sky nello stesso round/);
     await ui.submit(); assert.equal(meta("dars").hp, 60);
-    await ui.confirm(); await ui.submit();
+    await ui.$("boss-back").click(); await settle();
+    await ui.open("Gather the Winter Sky"); await ui.confirm();
+    await ui.$("boss-resolution").querySelector("#boss-register").click(); await settle();
+    await ui.open("Rock"); await ui.choose("hit");
+    assert.equal(ui.$("boss-manual-confirmed"), null, "no prerequisite to tick");
+    await ui.submit();
     assert.equal(meta("dars").hp, 31);
+    // During Gather the Winter Sky only the listed actions: Spellcasting waits for the next round.
+    assert.match(textOf(ui.row("Spellcasting")), /Bloccata/);
+    await sdk.scene.setMetadata({ [STATE]: { ...sceneMetadata[STATE], round: 2 } }); await settle();
     await ui.open("Spellcasting");
     await ui.$("boss-resolution").querySelector("#boss-cast-slow").click(); await settle();
     assert.match(opened[0].url, /spell-unified-panel\.html\?.*monster-action/);
     await ui.$("boss-resolution").querySelector("#boss-cast-freezing-sphere").click(); await settle();
     assert.match(opened[1].url, /spellId=freezing-sphere/);
     assert.match(textOf(ui.$("boss-resolution")), /1\/1 round/);
-    assert.equal((await bossEntries()).length, 1);
+    assert.equal((await bossEntries()).length, 2, "Gather the Winter Sky and Rock");
     ui.controller.destroy();
   } finally { sdk.popover.open = open; }
 });
@@ -230,20 +240,36 @@ test("export, fresh browser storage and reload restore the bound definition", as
   reopened.controller.destroy();
 });
 
-test("phase 2: Breath — confirm, draw a real cone, saves, damage — one History entry and one console Undo restores all", async () => {
+test("phase 2: Breathe Deep opens the round, Breath closes it in the last slot — real cone, saves, damage, one console Undo", async () => {
   // Origin at (0,0) pointing east: 60 ft = 12 cells. Lyra stands behind the origin, outside the cone.
   const place = (item, x, y) => ({ ...item, position: { x, y } });
   sceneItems = sceneItems.map((item) => item.id === "dars" ? place(item, 450, 0) : item.id === "mira" ? place(item, 1200, 300) : item.id === "auril" ? place(item, -300, 0) : item);
   sceneItems.push(place(creature("sera", "Sera", 38), 1500, -500), place(creature("lyra", "Lyra", 30), -900, 0));
   nextCone = { origin: { x: 0, y: 0 }, direction: { x: 1, y: 0 } };
-  sceneMetadata[STATE] = { ...sceneMetadata[STATE], order: ["auril", "dars", "__EPIC__:auril:1", "mira", "sera", "__EPIC__:auril:2"], current: 5 };
+  // Dars, Mira and Sera are the characters: three Epic Action slots. The round starts after Dars's turn.
+  for (const item of sceneItems) if (["dars", "mira", "sera"].includes(item.id)) item.metadata[META].attitude = "pc";
+  sceneMetadata[STATE] = { ...sceneMetadata[STATE], order: ["auril", "dars", "__EPIC__:auril:1", "mira", "sera", "__EPIC__:auril:2"], current: 1 };
   const ui = await popover();
   await ui.importFile("auril-phase-2.html"); await ui.bind(0);
+  assert.match(ui.$("boss-phase").textContent, /Azione Epica 1\/3/);
+  // Breath waits for Breathe Deep in the same round.
+  await ui.open("Breath of the Long Night");
+  assert.match(ui.$("boss-apply-hint").textContent, /richiede Breathe Deep nello stesso round/);
+  await ui.$("boss-back").click(); await settle();
+  await ui.open("Breathe Deep"); await ui.confirm();
+  await ui.$("boss-resolution").querySelector("#boss-register").click(); await settle();
+  assert.deepEqual(ui.controller.getPresentation().sequence.log, ["breathe-deep"]);
+  // A second first Epic Action in the same round is refused.
+  assert.match(textOf(ui.row("Gather the Winter Sky")), /Bloccata/);
+  // The turn moves to the end of Sera's: the last slot of the round.
+  await sdk.scene.setMetadata({ [STATE]: { ...sceneMetadata[STATE], current: 5 } }); await settle();
+  assert.match(ui.$("boss-phase").textContent, /Azione Epica 3\/3 \(ultima\)/);
   await select(["lyra"]);
   await ui.open("Breath of the Long Night");
   const rows = () => ui.$("boss-group-targets").querySelectorAll("[data-target-id]");
   assert.equal(rows().length, 0, "no group before drawing");
-  await ui.confirm();
+  assert.equal(ui.$("boss-manual-confirmed"), null, "no recharge to tick: it comes from the round log");
+  assert.equal(ui.$("boss-sequence-confirmed"), null, "the last slot needs no confirmation");
   await ui.$("boss-draw-area").click(); await settle();
   assert.deepEqual(rows().map((row) => row.dataset.targetId), ["dars", "mira", "sera"], "hits from the real cone geometry");
   const choose = async (id, value) => { await rows().find((row) => row.dataset.targetId === id).querySelector(`[data-group-outcome="${value}"]`).click(); };
@@ -254,14 +280,15 @@ test("phase 2: Breath — confirm, draw a real cone, saves, damage — one Histo
   const blinded = (id) => (meta(id).conditions?.instances || []).filter((entry) => entry.condition === "Accecato");
   assert.equal(blinded("dars").length, 1); assert.equal(blinded("mira").length, 1); assert.equal(blinded("sera").length, 0);
   assert.equal(meta("lyra").hp, 30);
-  assert.equal((await bossEntries()).length, 1);
-  assert.equal((await bossEntries())[0].payload.causality.area.verification, "placed");
+  assert.equal((await bossEntries()).length, 2, "Breathe Deep and Breath");
+  assert.equal((await bossEntries())[1].payload.causality.area.verification, "placed");
   assert.match(ui.status(), /Dars · TS fallito · 46 danni · PF 60 → 14 · Accecato/);
   assert.match(ui.status(), /Sera · TS superato · 22 danni · PF 38 → 16/);
   assert.equal(ui.$("boss-undo").hidden, false);
   await ui.$("boss-undo").click(); await settle();
   assert.equal(meta("dars").hp, 60); assert.equal(meta("mira").hp, 45); assert.equal(meta("sera").hp, 38);
   for (const id of ["dars", "mira", "sera"]) assert.equal(blinded(id).length, 0, id);
+  assert.deepEqual(meta("auril").bossActionState.epicLog, { round: 1, actionIds: ["breathe-deep"] }, "Undo keeps Breathe Deep");
   ui.controller.destroy();
 });
 

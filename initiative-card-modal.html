@@ -315,6 +315,10 @@
         <div class="stat stat-wide"><span>CD incantesimi</span><strong id="spellSaveDC">-</strong></div>
         <div class="stat stat-wide"><span>Attacco incantesimi</span><strong id="spellAttackBonus">-</strong></div>
       </div>
+      <div id="abilityModifiersBlock" hidden>
+        <span class="section-title">Caratteristiche</span>
+        <div id="abilityModifiers" class="saves"></div>
+      </div>
       <span class="section-title">Tiri salvezza</span>
       <div id="saves" class="saves"></div>
       <div id="damageDefensesBlock" class="notes" hidden><span>Difese ai danni</span><p id="damageDefenses"></p></div>
@@ -348,6 +352,8 @@
           <label>Bonus attacco incantesimi<input id="spellAttackBonusInput" type="number" min="-99" max="99" inputmode="numeric" /></label>
           <label class="label-wide">Note brevi<textarea id="notesInput" maxlength="280" rows="2"></textarea></label>
         </div>
+        <span class="section-title">Modificatori di caratteristica</span>
+        <div id="abilityModifierInputs" class="save-inputs"></div>
         <span class="section-title">Modificatori tiri salvezza</span>
         <div id="saveInputs" class="save-inputs"></div>
         <span class="section-title">Difese ai danni</span>

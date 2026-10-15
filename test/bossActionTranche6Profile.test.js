@@ -155,6 +155,7 @@ test("v15 Spellcasting: passo velato at will, last in the list, a catalog spell 
     assert.throws(() => validateBossActionProfile(invalid), /unsupported|unexpected|invalid/i);
   }
   const v14 = structuredClone({ ...p2, profileVersion: 14, parserVersion: 14 });
+  for (const entry of v14.abilities) delete entry.sequence; // v20 shapes
   for (const entry of v14.abilities.filter((row) => ["throw", "effect-end"].includes(row.execution?.kind))) {
     entry.automation = "UNSUPPORTED"; delete entry.execution; entry.manualText = entry.rawText; // v16 shapes
   }

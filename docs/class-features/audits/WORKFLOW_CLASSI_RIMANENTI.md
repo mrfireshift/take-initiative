@@ -241,9 +241,8 @@ Lezioni dai batch:
 - molti dati sorgente vanno corretti contro il RAW (costi variabili o assenti,
   attivazioni "passive", pool per creatura trattati come giornalieri): ogni
   correzione è documentata nell'audit del batch;
-- i TS ripetuti e i danni a inizio turno sono solo nel testo della pill: per
-  un popup serve far arrivare `saveReminder` alle pill di classe (vedi la
-  proposta discussa durante la Fase 2).
+- i TS ripetuti e i danni a inizio turno mostrano ora un popup: le pill di
+  classe ricevono `saveReminder` (commit `43b1cfc`).
 
 Un batch = una classe base + tutte le sue sottoclassi, limitato alle feature
 `dataOnlyCandidate`. Per ogni batch:
@@ -266,7 +265,8 @@ primitiva corrispondente: il batch dati non introduce adapter.
 
 ### Fase 3 — Primitive condivise (codice, una alla volta)
 
-Ordine consigliato per sblocco/rischio:
+Ordine consigliato per sblocco/rischio. **P1 completata il 15 ottobre 2026**:
+vedi [P1_MODIFICATORI_CARATTERISTICA.md](P1_MODIFICATORI_CARATTERISTICA.md).
 
 | # | Primitiva | Sblocca | Rischio | Note |
 |---|---|---|---|---|

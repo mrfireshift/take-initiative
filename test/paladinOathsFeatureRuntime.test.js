@@ -76,7 +76,8 @@ test("Paladino: il batch implementa 18 capacità dei giuramenti non curati", () 
   const implemented = CLASS_FEATURE_CATALOG.features.filter((entry) =>
     entry.classId === "paladino" && entry.runtimeSupport.status === "implemented"
   );
-  assert.equal(implemented.length, 30);
+  // 30 dopo il batch, più Difesa Gloriosa sbloccata da P1.
+  assert.equal(implemented.length, 31);
   assert.equal(CHANNEL_OPTIONS.length + Object.keys(AURAS).length + CAPSTONES.length + 1, 18);
   for (const id of CHANNEL_OPTIONS) {
     assert.ok(classFeatureRuntimeSupport(feature(id)).ready, id);
@@ -156,6 +157,6 @@ test("le capacità non rappresentabili restano carte o aspettano una primitiva",
   ]) {
     assert.equal(classFeatureIsReferenceOnly(feature(id)), true, id);
   }
-  // Difesa Gloriosa: usi pari al Carisma, primitiva P1.
-  assert.equal(classFeatureRuntimeSupport(feature("paladino-giuramento-di-gloria-difesa-gloriosa")).ready, false);
+  // Difesa Gloriosa: usi pari al Carisma, sbloccata da P1 (massimo dai modificatori della card).
+  assert.equal(classFeatureRuntimeSupport(feature("paladino-giuramento-di-gloria-difesa-gloriosa")).ready, true);
 });

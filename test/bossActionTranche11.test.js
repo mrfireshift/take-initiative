@@ -65,6 +65,7 @@ test("altered Hurl or Epic Resistance texts stay manual; v15 profiles cannot car
     assert.throws(() => validateBossActionProfile(invalid), /invalid|unsupported|unexpected/i);
   }
   const v15 = structuredClone({ ...p2, profileVersion: 15, parserVersion: 15 });
+  for (const entry of v15.abilities) delete entry.sequence; // v20 shapes
   assert.throws(() => validateBossActionProfile(v15), /unexpected field (grapple|roll)/);
 });
 

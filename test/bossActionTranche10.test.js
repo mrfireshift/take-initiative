@@ -78,6 +78,7 @@ test("altered aura clauses stay manual; the v11 aura contract is closed", async 
   assert.throws(() => validateBossActionProfile(structuredClone({ ...p3, profileVersion: 10, parserVersion: 10 })), /unexpected/i, "a v10 profile cannot carry auras");
   // The at-will spell arrived with v15: a v11 copy keeps the three daily spells.
   const v11 = structuredClone({ ...p2, profileVersion: 11, parserVersion: 11 });
+  for (const entry of v11.abilities) delete entry.sequence; // v20 shapes
   ability(v11, "Spellcasting").execution.spells = ability(v11, "Spellcasting").execution.spells.filter((spell) => !spell.atWill);
   for (const entry of v11.abilities.filter((row) => ["throw", "effect-end"].includes(row.execution?.kind))) {
     entry.automation = "UNSUPPORTED"; delete entry.execution; entry.manualText = entry.rawText; // v16 shapes

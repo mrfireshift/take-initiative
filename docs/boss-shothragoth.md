@@ -103,7 +103,7 @@ Regola dei boss epici: un'Azione Epica alla fine del turno di ogni personaggio. 
 
 ## Prossimi passi
 
-- **Tranche 12 (Auril):** stessa sequenza per Breathe Deep e Gather the Winter Sky (prime), Breath of the Long Night e Meteor Swarm (ultime, dopo la rispettiva prima). Rock solo con Gather attivo. Sostituisce la spunta manuale.
+- **Tranche 12 (Auril):** fatta, vedi `boss-action-profile-tranche-12.md` (profilo v20).
 - **S4:** Manifestazione Disgregabile e Concordia, da valutare.
 
 ## Verifica (13 ottobre 2026)

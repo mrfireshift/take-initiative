@@ -20,6 +20,7 @@ import {
 } from "./spells-srd.js";
 import { getSpellsFromItem } from "./spells.js";
 import { DAMAGE_TYPES, DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, damageDefenseFor, damageDefenseTag, hasDamageDefenses } from "./damageDefensesCore.js";
+import { ABILITY_KEYS, ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import {
   MAX_QUICK_ACTIONS,
   findQuickAction,
@@ -354,6 +355,7 @@ function classFeatureResourceRemaining(feature, state = getClassFeatureState(ite
     [feature],
     CLASS_FEATURE_RESOURCE_POOL_BY_ID,
     profile?.characterBuild,
+    profile?.abilityModifiers,
   ).find((value) => value.pool.id === cost.poolId);
   return entry?.unlimited ? null : entry?.current ?? null;
 }
@@ -876,7 +878,7 @@ function buildClassFeatureResourceRow(entry) {
   value.className = "class-feature-resource-value";
   const resolvedMaximum = entry.unlimited
     ? null
-    : resolveClassFeatureResourceMaximum(entry.pool, profile?.characterBuild).maximum;
+    : resolveClassFeatureResourceMaximum(entry.pool, profile?.characterBuild, profile?.abilityModifiers).maximum;
   const maximumEditable = !entry.unlimited
     && entry.pool.capacity?.type === "formula"
     && resolvedMaximum === null;
@@ -1172,6 +1174,7 @@ function buildWildMagicTidesControls() {
     [CLASS_FEATURE_BY_ID.get(WILD_MAGIC_TIDES_FEATURE_ID)],
     CLASS_FEATURE_RESOURCE_POOL_BY_ID,
     profile?.characterBuild,
+    profile?.abilityModifiers,
   ).find((value) => value.pool.id === WILD_MAGIC_TIDES_POOL_ID);
   const current = entry?.current ?? 0;
   const button = classFeatureButton(
@@ -1197,6 +1200,7 @@ function buildSorcerousRestorationControls(feature, state) {
     [{ trackedResourcePoolIds: [SORCERY_POINTS_POOL_ID] }],
     CLASS_FEATURE_RESOURCE_POOL_BY_ID,
     profile?.characterBuild,
+    profile?.abilityModifiers,
   ).find((value) => value.pool.id === SORCERY_POINTS_POOL_ID);
   const special = classFeatureSpecialRefresh(pool, profile?.characterBuild, "riposo_breve");
   const unavailable = !special || (entry?.maximum !== null && entry?.current >= entry?.maximum);
@@ -1733,6 +1737,7 @@ function renderClassFeatures() {
     enabled,
     CLASS_FEATURE_RESOURCE_POOL_BY_ID,
     profile.characterBuild,
+    profile?.abilityModifiers,
   );
   $("classFeatureResources").replaceChildren(...(
     resources.length
@@ -2631,7 +2636,39 @@ function renderView() {
     row.append(label, value);
     return row;
   }));
+  renderAbilityModifiers();
   renderDamageDefenses();
+}
+
+// Modificatori di caratteristica: massimi dei pool a formula e CD delle capacità di classe.
+function renderAbilityModifiers() {
+  const modifiers = sanitizeAbilityModifiers(profile?.[ABILITY_MODIFIERS_FIELD]);
+  $("abilityModifiers").replaceChildren(...ABILITY_KEYS.map((key) => {
+    const row = document.createElement("div");
+    row.className = "save";
+    const label = document.createElement("span");
+    label.textContent = labels[key];
+    const value = document.createElement("strong");
+    value.textContent = signedText(modifiers[key]);
+    row.append(label, value);
+    return row;
+  }));
+  $("abilityModifiersBlock").hidden = !hasAbilityModifiers(modifiers);
+}
+
+function buildAbilityModifierInputs() {
+  $("abilityModifierInputs").replaceChildren(...ABILITY_KEYS.map((key) => {
+    const label = document.createElement("label");
+    label.textContent = labels[key];
+    const input = document.createElement("input");
+    input.id = `ability-${key}`;
+    input.type = "number";
+    input.min = "-5";
+    input.max = "10";
+    input.inputMode = "numeric";
+    label.appendChild(input);
+    return label;
+  }));
 }
 
 // Actor Profile damage defenses: read by Boss Actions per damage type.
@@ -2683,6 +2720,8 @@ function setEditing(active) {
   $("notesInput").value = profile.notes ?? "";
   buildQuickActionEditor();
   buildClassBuildEditor();
+  const abilityModifiers = sanitizeAbilityModifiers(profile?.[ABILITY_MODIFIERS_FIELD]);
+  for (const key of ABILITY_KEYS) $(`ability-${key}`).value = abilityModifiers[key] ?? "";
   for (const key of SAVE_KEYS) $(`save-${key}`).value = profile.savingThrows[key] ?? "";
   const defenses = sanitizeDamageDefenses(profile?.[DAMAGE_DEFENSES_FIELD]);
   for (const type of DAMAGE_TYPES) $(`defense-${type.id}`).value = damageDefenseFor(defenses, type.id) || "";
@@ -2798,6 +2837,7 @@ OBR.onReady(async () => {
     applyFactionTheme();
     profile = await loadInitiativeCard(item, { hydrate: isGM });
     populateQuickActionDatalists();
+    buildAbilityModifierInputs();
     buildSaveInputs();
     buildDefenseInputs();
     subscribeToSourceItemChanges();
@@ -2856,6 +2896,12 @@ $("form").addEventListener("submit", async (event) => {
     // Only profiles that use defenses (or already had the field) store it.
     const defensePatch = hasDamageDefenses(damageDefenses) || Object.hasOwn(profile || {}, DAMAGE_DEFENSES_FIELD)
       ? { [DAMAGE_DEFENSES_FIELD]: damageDefenses } : {};
+    const abilityModifiers = sanitizeAbilityModifiers(
+      Object.fromEntries(ABILITY_KEYS.map((key) => [key, $(`ability-${key}`).value])),
+    );
+    // Come le difese: il campo si scrive solo se usato o già presente.
+    const abilityPatch = hasAbilityModifiers(abilityModifiers) || Object.hasOwn(profile || {}, ABILITY_MODIFIERS_FIELD)
+      ? { [ABILITY_MODIFIERS_FIELD]: abilityModifiers } : {};
     await saveInitiativeCard(item.id, item.name, {
       armorClass: $("armorClassInput").value,
       passivePerception: $("passivePerceptionInput").value,
@@ -2870,6 +2916,7 @@ $("form").addEventListener("submit", async (event) => {
       classFeaturesConfigured: true,
       savingThrows,
       ...defensePatch,
+      ...abilityPatch,
     }, {
       isCurrent: () => sceneLifecycle.isCurrent(operation),
       commandId: ownerSceneContext.commandId,

@@ -186,6 +186,7 @@ function classFeatureResourceStatus(feature, profile, stateValue) {
     [feature],
     CLASS_FEATURE_RESOURCE_POOL_BY_ID,
     profile?.characterBuild,
+    profile?.abilityModifiers,
   );
   const byId = new Map(entries.map((entry) => [entry.pool.id, entry]));
   const resourceEntries = costs.map((cost) => {

@@ -10,6 +10,11 @@ import {
   jsonBytes,
 } from "./roomMetadataBudget.js";
 import { sanitizeEnabledClassFeatureIds } from "./classFeatureCore.js";
+import {
+  ABILITY_MODIFIERS_FIELD,
+  compactAbilityModifiers,
+  sanitizeAbilityModifiers,
+} from "./abilityModifiersCore.js";
 
 // Nel registry Room un profilo configurato salva soltanto la differenza dai
 // default del catalogo; token e copia locale conservano l'elenco completo.
@@ -218,15 +223,29 @@ function resolveInitiativeCardRoomAliases(value) {
   return registry;
 }
 
+// Nel registry Room i modificatori di caratteristica sono un array di sei
+// valori; token e copia locale conservano l'oggetto con le chiavi.
+function compactRoomAbilityModifiers(profile) {
+  if (!profile || typeof profile !== "object" || !Object.hasOwn(profile, ABILITY_MODIFIERS_FIELD)) return profile;
+  const value = profile[ABILITY_MODIFIERS_FIELD];
+  if (Array.isArray(value)) return profile;
+  return { ...profile, [ABILITY_MODIFIERS_FIELD]: compactAbilityModifiers(value) };
+}
+
+function expandRoomAbilityModifiers(profile) {
+  if (!profile || typeof profile !== "object" || !Array.isArray(profile[ABILITY_MODIFIERS_FIELD])) return profile;
+  return { ...profile, [ABILITY_MODIFIERS_FIELD]: sanitizeAbilityModifiers(profile[ABILITY_MODIFIERS_FIELD]) };
+}
+
 export function encodeInitiativeCardRegistryForRoom(value, defaultClassFeatureIds) {
   return aliasInitiativeCardRegistryForRoom(mapInitiativeCardRegistryProfiles(value, (profile) =>
-    encodeInitiativeCardRoomProfile(profile, defaultClassFeatureIds)
+    compactRoomAbilityModifiers(encodeInitiativeCardRoomProfile(profile, defaultClassFeatureIds))
   ));
 }
 
 export function decodeInitiativeCardRegistryFromRoom(value, defaultClassFeatureIds) {
   return mapInitiativeCardRegistryProfiles(resolveInitiativeCardRoomAliases(value), (profile) =>
-    decodeInitiativeCardRoomProfile(profile, defaultClassFeatureIds)
+    expandRoomAbilityModifiers(decodeInitiativeCardRoomProfile(profile, defaultClassFeatureIds))
   );
 }
 

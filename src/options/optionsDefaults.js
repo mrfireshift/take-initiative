@@ -119,6 +119,8 @@ export const DEFAULT_ROOM_OPTIONS = deepFreeze({
   },
   uiSync: {
     trackerOpen: true,
+    // Players follow the GM's tracker layout (extended/compact) and position (proportional to the screen).
+    trackerPlacement: true,
     effectsDisplayMode: "selected",
     showEffectSummaryParts: true,
   },

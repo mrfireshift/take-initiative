@@ -77,6 +77,7 @@ const { readFile } = await import("node:fs/promises");
 
 const p2 = await importBossActionHTML(await readFile(new URL("./fixtures/boss-actions/auril-phase-2.html", import.meta.url), "utf8"));
 const breath = p2.abilities.find((entry) => entry.name === "Breath of the Long Night");
+const { bossStateWithEpicLog } = await import("../test-support/bossSequenceState.js");
 const memory = new Map();
 const store = createBossActionProfileStore({ storage: { getItem: (k) => memory.get(k) ?? null, setItem: (k, v) => memory.set(k, v) } });
 let runtime;
@@ -92,13 +93,16 @@ test.beforeEach(async () => {
   effects.unmountEffectsMutationCoordinatorService(); historyOwner.unmountHistoryOwner();
   sdk.room.id = `boss-group-${++testSequence}`;
   memory.clear(); store.put(p2);
+  // v20: the three heroes are player characters (one Epic Action slot each; current 6 is the last one) and
+  // Breathe Deep already opened the round, so Breath of the Long Night may close it.
   sceneItems = [
     creature("auril", "Auril", 580, { epic: true }),
-    creature("dars", "Dars", 60),
-    creature("mira", "Mira", 45),
-    creature("sera", "Sera", 38),
+    creature("dars", "Dars", 60, { attitude: "pc" }),
+    creature("mira", "Mira", 45, { attitude: "pc" }),
+    creature("sera", "Sera", 38, { attitude: "pc" }),
     { id: "auril-bar", type: "SHAPE", layer: "ATTACHMENT", attachedTo: "auril", metadata: {} },
   ];
+  sceneItems[0].metadata[META_KEY].bossActionState = bossStateWithEpicLog(sceneItems[0], p2, 1, ["breathe-deep"]);
   sceneMetadata = { [STATE_KEY]: { round: 1, order: ORDER, current: 6 }, [HISTORY_KEY]: { version: 1, roomId: sdk.room.id, entries: [] } };
   roomMetadata = {};
   markSceneEpochReady("boss-group-test");
@@ -186,7 +190,7 @@ test("one Undo restores every target HP, conditions and boss state", async () =>
     assert.equal(blinded(id).length, 0, id);
     assert.equal(instances(id).length, 0, `${id} keeps no zero-HP consequence or Breath condition`);
   }
-  assert.equal(Object.hasOwn(meta("auril"), "bossActionState"), false);
+  assert.deepEqual(meta("auril").bossActionState, before.auril.bossActionState, "Undo restores the counters and the round log (Breathe Deep only)");
   assert.equal((await runtime.getBossActionPresentation("auril")).availability[breath.id].remaining, 1, "Undo restores the 1/Round use");
 });
 
@@ -200,9 +204,12 @@ test("an Accecato from another source survives the Breath condition and its Undo
   assert.deepEqual(blinded("dars").map((entry) => entry.id), ["other-blind"]);
 });
 
-test("a missing outcome or missing confirmation applies nothing", async () => {
+test("a missing outcome, a missing Breathe Deep or a missing drawing applies nothing", async () => {
   await assert.rejects(() => resolveBreath({ outcomes: { dars: "failed", mira: "failed" } }), /Manca l’esito.*Sera/);
-  await assert.rejects(() => resolveBreath({ actionInstanceId: "unconfirmed", manualConfirmed: false }), /Conferma ricarica/);
+  // v20: Breathe Deep must open the round (the round log replaces the manual recharge confirmation).
+  sceneItems[0].metadata[META_KEY].bossActionState.epicLog = { round: 1, actionIds: [] };
+  await assert.rejects(() => resolveBreath({ actionInstanceId: "without-breathe-deep" }), /richiede Breathe Deep nello stesso round/);
+  sceneItems[0].metadata[META_KEY].bossActionState.epicLog = { round: 1, actionIds: ["breathe-deep"] };
   await assert.rejects(() => resolveBreath({ actionInstanceId: "undrawn", areaPlacement: null }), /Disegna l’area/);
   for (const id of ["dars", "mira", "sera"]) assert.equal(instances(id).length, 0);
   assert.equal(meta("dars").hp, 60); assert.equal(meta("sera").hp, 38);
@@ -274,8 +281,8 @@ test("Combat Log v3: real boss actor, full provenance, per-target saves, compone
   assert.deepEqual(causality.targets[2].damageComponents.map((c) => [c.type, c.formula, c.printedAverage, c.inputAmount, c.amount]), [["cold", "6d10", 33, 33, 16], ["necrotic", "3d8", 13, 13, 6]]);
   assert.deepEqual(causality.conditionsApplied.map((c) => [c.targetId, c.condition, c.expiry.actorId, c.expiry.anchor]), [["dars", "Accecato", "auril", "next-turn"], ["mira", "Accecato", "auril", "next-turn"]]);
   assert.equal(causality.manualVerification.automated, false);
-  assert.ok(causality.manualVerification.steps.some((step) => /Special Recharge.*GM/.test(step)));
-  assert.ok(causality.manualVerification.steps.some((step) => /ultima Azione Epica che usa nel round/.test(step)));
+  assert.ok(causality.manualVerification.steps.some((step) => /Special Recharge: verificata dal registro del round/.test(step)));
+  assert.ok(causality.manualVerification.steps.some((step) => /La ricarica viene da Breathe Deep/.test(step)));
   assert.equal(causality.area.verification, "placed");
   assert.deepEqual(causality.area.placement, { ruleId: "boss-action-area:cone:60ft", start: { x: 0, y: 0 }, end: { x: 600, y: 0 } });
   assert.deepEqual(causality.resources.map((r) => [r.period, r.round, r.beforeUsed, r.afterUsed]), [["round", 1, 0, 1]]);
@@ -300,7 +307,7 @@ test("timing: Accecato from the last Epic slot of round 1 ends at the end of Aur
 
 test("timing: Epic slots never advance the expiry and an application inside Auril's turn waits for her next one", async () => {
   sceneMetadata[STATE_KEY] = { ...sceneMetadata[STATE_KEY], current: 0 };
-  await resolveBreath();
+  await resolveBreath({ sequenceConfirmed: true }); // Auril's own turn: the GM confirms the last Epic Action
   assert.equal(blinded("dars")[0].appliedAt.turnKey, "1:0:auril");
   await advance({ round: 1, current: 0 }, { round: 1, current: 1 });
   assert.equal(blinded("dars").length, 1, "the end of the turn in progress is not the next turn");

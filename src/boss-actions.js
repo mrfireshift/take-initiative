@@ -706,7 +706,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   }
   // Titan's Grasp: a passed save means no damage at all.
   const noDamageOutcome=()=>draft?.kind==="save-damage" && draft.outcome==="passed" && draft.action.execution.success==="none";
-  const manualPrerequisite=action=>bossActionExecutionKind(action)==="attack-damage" && !action.execution?.drain && !action.execution?.onHit && action.automation==="PARTIAL" && !!String(action.manualText || "").trim();
+  const manualPrerequisite=action=>bossActionExecutionKind(action)==="attack-damage" && !action.execution?.drain && !action.execution?.onHit && !action.sequence && action.automation==="PARTIAL" && !!String(action.manualText || "").trim();
   function detailsBlock(action) {
     const details=node("details","","details");details.id="boss-action-details";
     details.appendChild(node("summary","Dettagli e testo originale"));

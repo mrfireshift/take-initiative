@@ -22,9 +22,9 @@ Arcana 2016 e non è la stessa progressione del Ranger 2014.
 
 Lo stato di supporto è intenzionalmente esplicito:
 
-- **261 `implemented`**: la capacità può essere attivata dal runtime secondo
+- **264 `implemented`**: la capacità può essere attivata dal runtime secondo
   l'adapter dichiarato;
-- **599 `not-automated`**: la voce resta consultabile e gestibile manualmente,
+- **596 `not-automated`**: la voce resta consultabile e gestibile manualmente,
   ma il pulsante di attivazione non applica una meccanica automatica. Le
   passive, le reazioni e gli effetti istantanei compaiono come
   **Promemoria descrittivo**; le altre come gestione manuale al tavolo, con il
@@ -46,6 +46,19 @@ Il GM apre la card del token e seleziona la scheda **Capacità**.
 3. Controlla le capacità filtrate dalla combinazione classe/livello/sottoclasse.
 4. Abilita esplicitamente le capacità che devono comparire sulla card.
 5. Salva la scheda e verifica le risorse iniziali proposte dal catalogo.
+
+Nella scheda delle statistiche, in modalità modifica, il GM può compilare i
+**Modificatori di caratteristica**. Servono a due cose:
+
+- calcolare il massimo dei pool che dipendono da una caratteristica, per
+  esempio Ispirazione Bardica, Percezione del Divino, Tocco Purificatore,
+  Difesa Gloriosa e Viandante Velato;
+- mostrare nel popup del TS la CD 8 + competenza + modificatore di Runa del
+  Fuoco, Runa della Pietra e Squarciare la Mente.
+
+Senza modificatori, il massimo di quei pool resta da scrivere a mano nella
+card, come prima. Quando il GM li compila, il massimo calcolato sostituisce
+quello scritto a mano.
 
 Le capacità con `defaultEnabled` possono essere proposte automaticamente al
 primo profilo; una configurazione esplicita diventa la selezione persistente
@@ -124,13 +137,13 @@ capacità già coperte dai test e dagli adapter:
 | Barbaro | Ira, Attacco Irruento, Frenesia, Forma della Bestia, Impeto Selvaggio, Protettori Ancestrali, scelte totemiche e alcune aure. |
 | Bardo | Ispirazione Bardica, Parole Inquietanti, Controfascino, Linguaggio Universale, Ispirazione Contagiosa; Parole di Terrore, Conoscenze dell'Ombra, Esibizione Estasiante, Manto di Maestà, Maestà Inviolabile, Creazione Animata e Virtuosismo della Lama. |
 | Guerriero | Azione Impetuosa, Indomito, tutte le Manovre (dadi di Superiorità), Frecce del Tiro Arcano, Potenza del Gigante e Rune, Potere Psionico, Baluardo della Forza, Marchio Incrollabile, Forza di Fronte alla Morte. |
-| Chierico | Santuario del Crepuscolo, Scacciare Non Morti, Passi nella Notte e le opzioni di Incanalare Divinità di tutti i domini; Legame Incoraggiante, Benedizione dell'Ingannatore, Ira dell'Ordine, Corona di Luce. |
+| Chierico | Santuario del Crepuscolo, Scacciare Non Morti, Passi nella Notte e le opzioni di Incanalare Divinità di tutti i domini; Legame Incoraggiante, Benedizione dell'Ingannatore, Ira dell'Ordine, Corona di Luce, Incarnazione della Legge. |
 | Druido | Forma Selvatica e Forma Elementale come marker (i PF della bestia restano al GM), Forma Siderale e Totem Spirituale con scelta della variante, Entità Simbiotica, Diffusione di Spore, Spirito della Fiamma e gli usi dei circoli. |
 | Ladro | Imboscata Magica, Ingannatore Versatile, Ladro di Incantesimi e Colpo di Fortuna; i poteri della Lama Spirituale, Velo Psichico, Squarciare la Mente, Cammino Fantasma, Spavalderia, Combattimento Intuitivo e Maestro di Imboscate. |
 | Mago | Portento, Terzo Occhio, Sguardo Ipnotico, Deviazione Arcana, Melodia della Lama, Comandare Non Morti e gli usi delle scuole (Trasposizione Benevola, Sosia Illusorio, Ordine degli Scribi). |
 | Monaco | Ogni uso RAW del Ki: Difesa Paziente, Passo del Vento, Raffica di Colpi, Colpo Stordente, Corpo Vuoto, le discipline elementali e le capacità di tutte le tradizioni, con le pill di Schivata, Stordito, Sé Astrale, Palmo Tremante e Tranquillità. |
-| Paladino | Imposizione delle Mani, Percezione del Divino, varianti di Incanalare Divinità, aure, Tocco Purificatore, Angelo Vendicatore e Nube Sacra; le opzioni di Incanalare Divinità di tutti i giuramenti, le aure della Sentinella, di Alacrità e di Interdizione e i capstone dei giuramenti. |
-| Ranger | Compagno del Ranger, Imboscata Terrificante, Preda dell'Uccisore, Combattente Planare, Passo Etereo, Scambio Seducente, Marea Avvolgente e gli usi delle sottoclassi. |
+| Paladino | Imposizione delle Mani, Percezione del Divino, varianti di Incanalare Divinità, aure, Tocco Purificatore, Angelo Vendicatore e Nube Sacra; le opzioni di Incanalare Divinità di tutti i giuramenti, le aure della Sentinella, di Alacrità e di Interdizione, Difesa Gloriosa e i capstone dei giuramenti. |
+| Ranger | Compagno del Ranger, Imboscata Terrificante, Preda dell'Uccisore, Combattente Planare, Passo Etereo, Scambio Seducente, Marea Avvolgente, Viandante Velato e gli usi delle sottoclassi. |
 | Ranger Revised | Compagno Animale e Nascondersi in Piena Vista. |
 | Stregone | Impulso/Onde di Magia Selvaggia, Fonte di Magia, metamagie supportate, Piegare la Fortuna e Ripristino Stregonesco; Presenza Draconica (aura con scelta), Ali di Drago e Ali Ultraterrene, Forma d'Ombra, Segugio dei Presagi Nefasti, Trance dell'Ordine, Anima del Vento e gli usi delle origini. |
 | Warlock | Presenza Fatata e Delirio Oscuro (affascinato o spaventato), Fuga Velata, Maledizione della Lama del Sortilegio, Dono Elementale, Tentacoli delle Profondità, Scagliare all'Inferno, Mantello di Mosche, Tomba di Levistus, Sguardo Fantasma e gli usi dei patroni. |

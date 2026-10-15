@@ -57,7 +57,8 @@ export const METADATA_OWNERSHIP = Object.freeze({
   SHARED_UI: Object.freeze({
     key: `${ID}/ui`,
     domain: "shared-ui",
-    owners: Object.freeze(["action-launcher.js"]),
+    // action-launcher.js: tracker open/closed; sync-open.js: the GM's tracker view (layout and position).
+    owners: Object.freeze(["action-launcher.js", "sync-open.js"]),
   }),
   ROOM_MEMORY: Object.freeze({
     key: `${ID}/hpMemory`,

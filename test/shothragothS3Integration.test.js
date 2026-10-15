@@ -201,10 +201,11 @@ test("a seam not torn collapses at the end of the round; its drawing is offered 
   assert.deepEqual(sceneItems.filter((item) => item.id.startsWith("boss-seam")).map((item) => item.id), ["boss-seam-other", "boss-seam-other-geometry"]);
 });
 
-test("Auril's profile keeps no round log and reads no slot", async () => {
-  await setup(p2, { dars: PC, mira: PC, sera: PC });
+test("Auril's phase 3 has no sequence: no round log and no slot", async () => {
+  await setup(p3, { dars: PC, mira: PC, sera: PC });
   const presentation = await runtime.getBossActionPresentation("auril");
   assert.equal(presentation.sequence, undefined);
-  await resolve(p2, icekiss, { targetId: "dars", mode: "melee", outcome: "hit", componentAmounts: Object.fromEntries(icekiss.execution.damage.map((part) => [part.id, 5])) });
+  const polar = p3.abilities.find((entry) => entry.name === "Polar Ray");
+  await resolve(p3, polar, { targetId: "dars", mode: "ranged", outcome: "hit", componentAmounts: { cold: 5, necrotic: 5 } });
   assert.equal(meta("auril").bossActionState.epicLog, undefined);
 });

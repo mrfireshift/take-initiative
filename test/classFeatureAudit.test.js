@@ -333,18 +333,18 @@ test("Backlog.8: determinismo della distribuzione per archetipo", () => {
     reference: 421,
     "timed-condition": 129,
     "instant-reminder": 119,
-    "resource-only": 106,
+    "resource-only": 107,
     aura: 20,
     "hp-change": 15,
     "custom-adapter": 13,
     movement: 13,
     "companion-summon": 9,
-    "spell-bridge": 8,
+    "spell-bridge": 7,
     "save-outcome-condition": 4,
     "variable-cost": 2,
     transformation: 1,
   });
-  assert.equal(audit.backlog.dataOnlyCandidateCount, 564);
-  assert.equal(audit.backlog.dataOnlyAutomationCount, 11);
-  assert.equal(audit.backlog.needsPrimitiveCount, 35);
+  assert.equal(audit.backlog.dataOnlyCandidateCount, 562);
+  assert.equal(audit.backlog.dataOnlyAutomationCount, 9);
+  assert.equal(audit.backlog.needsPrimitiveCount, 34);
 });

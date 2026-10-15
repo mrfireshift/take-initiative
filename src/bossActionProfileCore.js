@@ -1,6 +1,6 @@
 // Definition-only parsing and validation. No DOM, SDK, token mutation, or runtime state.
-export const BOSS_ACTION_PROFILE_VERSION = 19;
-export const BOSS_ACTION_PARSER_VERSION = 19;
+export const BOSS_ACTION_PROFILE_VERSION = 20;
+export const BOSS_ACTION_PARSER_VERSION = 20;
 // Version 3 adds one multi-target save shape: explicit GM-chosen targets, area metadata only
 // (never geometry), and a single on-failure condition with an actor-turn expiry.
 // Version 4 widens that shape to a closed set: cone, circle on a point or emanation from the boss;
@@ -43,6 +43,10 @@ export const BOSS_ACTION_PARSER_VERSION = 19;
 // Version 19 adds the Epic Action sequence (`sequence`: the first or the last Epic Action of the round, optionally
 // after another one in the same round), a seam that lasts until the end of the round and blocks other actions
 // (Cucitura del Non-Luogo, `seam`) and a group save in a line along that seam (`area.shape: "seam"`, INT saves).
+// Version 20 applies the sequence to Auril (tranche 12): an epic action may need another one in the same round
+// without a slot of its own (Rock while Gather the Winter Sky is active), and a first Epic Action may allow only
+// some epic actions for the rest of the round (`allowOnly`, Gather the Winter Sky). Breathe Deep and Gather stay
+// manual registrations with a sequence; Breath of the Long Night and Meteor Swarm follow them as the last one.
 export const BOSS_ACTION_SPELLS = Object.freeze({ lentezza: "slow", "tempesta di ghiaccio": "ice-storm", "sfera congelante di otiluke": "freezing-sphere", "passo velato": "misty-step" });
 export const BOSS_ACTION_SPELL_IDS = Object.freeze(Object.values(BOSS_ACTION_SPELLS));
 export const BOSS_ACTION_GROUP_CONDITIONS = Object.freeze(["Accecato", "Prono"]);
@@ -492,10 +496,17 @@ function seamExecution(value) {
     range: number(value.seam.range, "seam range", 5, 300), blocks } };
 }
 // The Epic Action sequence (v19): the first or the last Epic Action of the round, optionally after another one.
-function sequence(value) {
-  object(value, ["slot", "after"], "sequence");
-  if (!["first", "last"].includes(value.slot)) fail("sequence slot is invalid");
-  return { slot: value.slot, ...(value.after !== undefined ? { after: identity(value.after, "sequence.after") } : {}) };
+// v20: `after` alone (no slot of its own) and `allowOnly` on a first Epic Action.
+function sequence(value, version) {
+  object(value, ["slot", "after", ...(version >= 20 ? ["allowOnly"] : [])], "sequence");
+  if (!(version >= 20 && value.slot === undefined && value.after !== undefined) && !["first", "last"].includes(value.slot)) fail("sequence slot is invalid");
+  const result = { ...(value.slot !== undefined ? { slot: value.slot } : {}), ...(value.after !== undefined ? { after: identity(value.after, "sequence.after") } : {}) };
+  if (value.allowOnly !== undefined) {
+    const ids = list(value.allowOnly, "sequence.allowOnly").map((id) => identity(id, "sequence.allowOnly"));
+    if (value.slot !== "first" || !ids.length || ids.length > 12 || new Set(ids).size !== ids.length) fail("sequence.allowOnly is invalid");
+    result.allowOnly = ids;
+  }
+  return result;
 }
 export function bossSpellReferenceIds(execution) {
   if (execution?.kind !== "spell-reference") return [];
@@ -576,7 +587,7 @@ export function sanitizeBossActionBinding(value) {
 // Only strict structured data is consumed here; validation never interprets HTML or prose.
 export function validateBossActionProfile(value) {
   object(value, ["profileVersion", "parserVersion", ...IDENTITY_KEYS, "name", "type", "rawSource", "diagnostics", "abilities"], "profile");
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
   const binding = sanitizeBossActionBinding(value);
   if (!binding) fail("profile identity is invalid");
   object(value.rawSource, ["html", "sourceName", "sourceHash"], "rawSource");
@@ -608,7 +619,7 @@ export function validateBossActionProfile(value) {
     }
     if (entry.sequence !== undefined) {
       if (entry.category !== "epic-action") fail("only an epic action has a sequence");
-      result.sequence = sequence(entry.sequence);
+      result.sequence = sequence(entry.sequence, value.profileVersion);
     }
     if (entry.manualText !== undefined) result.manualText = string(entry.manualText, "manualText");
     if (entry.automation !== "SUPPORTED" && !result.manualText) fail("manual text is required for incomplete automation");
@@ -618,7 +629,9 @@ export function validateBossActionProfile(value) {
   // epic actions of the same profile; a line on the seam is the last Epic Action, after a seam ability.
   const epicAction = (id) => abilities.find((entry) => entry.id === id && entry.category === "epic-action");
   for (const ability of abilities) {
-    if (ability.sequence?.after && (ability.sequence.after === ability.id || !epicAction(ability.sequence.after))) fail("sequence.after is invalid");
+    // "After" names a first Epic Action of the round (the seam, Breathe Deep, Gather the Winter Sky).
+    if (ability.sequence?.after && (ability.sequence.after === ability.id || epicAction(ability.sequence.after)?.sequence?.slot !== "first")) fail("sequence.after is invalid");
+    if (ability.sequence?.allowOnly?.some((id) => id === ability.id || !epicAction(id))) fail("sequence.allowOnly is invalid");
     if (ability.execution?.kind === "seam"
       && (ability.sequence?.slot !== "first" || ability.sequence.after || ability.execution.seam.blocks.some((id) => id === ability.id || !epicAction(id)))) fail("seam is invalid");
     if (ability.execution?.target?.area?.shape === "seam"
@@ -758,14 +771,25 @@ function grammar(body, category, { bossName = "", actionName = "" } = {}) {
   let match = body.match(/^Tiro per Colpire in Mischia o a Distanza: ([+-]\d+), portata (\d+) ft\. o gittata (\d+)\/(\d+) ft\. Colpito: (\d+) \((\d+d\d+(?:\s*[+-]\s*\d+)?)\) danni taglienti più (\d+) \((\d+d\d+)\) danni da freddo\.$/i);
   if (match) return { automation: "SUPPORTED", execution: { kind: "attack-damage", attack: { bonus: Number(match[1]), modes: ["melee", "ranged"], reach: Number(match[2]), range: { normal: Number(match[3]), long: Number(match[4]) } }, target: { mode: "single", maxTargets: 1 }, damage: [{ id: "slashing", formula: match[6].replace(/\s+/g, ""), printedAverage: Number(match[5]), type: "slashing" }, { id: "cold", formula: match[8], printedAverage: Number(match[7]), type: "cold" }] } };
   match = body.match(/^Tiro per Colpire a Distanza: ([+-]\d+), gittata (\d+)\/(\d+) ft\. Colpito: (\d+) \((\d+d\d+(?:\s*[+-]\s*\d+)?)\) danni contundenti\. (Auril può usare questa Azione Epica soltanto mentre Gather the Winter Sky è attivo\.)$/i);
-  if (match) return { automation: "PARTIAL", execution: { kind: "attack-damage", attack: { bonus: Number(match[1]), type: "weapon", modes: ["ranged"], range: { normal: Number(match[2]), long: Number(match[3]) } }, target: { mode: "single", maxTargets: 1 }, damage: [{ id: "bludgeoning", formula: match[5].replace(/\s+/g, ""), printedAverage: Number(match[4]), type: "bludgeoning" }] }, manualText: match[6] };
+  if (match) {
+    // v20: "while Gather the Winter Sky is active" is that first Epic Action in the same round's log.
+    const gather = /soltanto mentre (.+) è attivo\.$/.exec(match[6])?.[1];
+    return { automation: "PARTIAL", execution: { kind: "attack-damage", attack: { bonus: Number(match[1]), type: "weapon", modes: ["ranged"], range: { normal: Number(match[2]), long: Number(match[3]) } }, target: { mode: "single", maxTargets: 1 }, damage: [{ id: "bludgeoning", formula: match[5].replace(/\s+/g, ""), printedAverage: Number(match[4]), type: "bludgeoning" }] },
+      manualText: `Solo nel round in cui ${gather} è attivo: verificato dal registro del round.`, sequence: {}, afterName: gather, fallback: { manualText: match[6] } };
+  }
   match = body.match(/^Tiro per Colpire con Incantesimo a Distanza: ([+-]\d+), gittata (\d+) ft\. Colpito: (\d+) \((\d+)d(\d+)\) danni, di cui (\d+)d(\d+) da freddo e (\d+)d(\d+) necrotici\.$/i);
   if (match && Number(match[4]) === Number(match[6]) + Number(match[8]) && match[5] === match[7] && match[5] === match[9]) return { automation: "SUPPORTED", execution: { kind: "attack-damage", printedTotalAverage: Number(match[3]), attack: { bonus: Number(match[1]), type: "spell", modes: ["ranged"], range: { normal: Number(match[2]) } }, target: { mode: "single", maxTargets: 1 }, damage: [{ id: "cold", formula: `${match[6]}d${match[7]}`, average: Math.floor(Number(match[6]) * (Number(match[7]) + 1) / 2), type: "cold" }, { id: "necrotic", formula: `${match[8]}d${match[9]}`, average: Math.floor(Number(match[8]) * (Number(match[9]) + 1) / 2), type: "necrotic" }] } };
   match = body.match(/^Tiro Salvezza su Forza: CD (\d+), una creatura entro (\d+) ft\. da ([^.]+)\. Fallimento: (\d+) \((\d+)d(\d+) contundenti più (\d+)d(\d+) da freddo\) danni, e (il bersaglio viene spinto fino a (\d+) ft\. in una direzione scelta da \3\.) Successo: Metà danni soltanto\.$/i);
   if (match) return { automation: "PARTIAL", execution: { kind: "save-damage", save: { ability: "str", dc: Number(match[1]) }, target: { mode: "single", maxTargets: 1, range: Number(match[2]) }, damage: [{ id: "bludgeoning", formula: `${match[5]}d${match[6]}`, average: Math.floor(Number(match[5]) * (Number(match[6]) + 1) / 2), type: "bludgeoning" }, { id: "cold", formula: `${match[7]}d${match[8]}`, average: Math.floor(Number(match[7]) * (Number(match[8]) + 1) / 2), type: "cold" }], success: "half" }, manualText: match[9][0].toUpperCase() + match[9].slice(1) };
   // Breath of the Long Night: the whole description is anchored; the duration must name this boss.
   match = body.match(/^Tiro Salvezza su Costituzione: CD (\d+), ogni creatura in un Cono di (\d+) ft\. che origina dal ([^.,]+)\. Fallimento: (\d+) \((\d+d\d+)\) danni da freddo più (\d+) \((\d+d\d+)\) danni necrotici, e il bersaglio ha la condizione (Accecato) fino alla fine del turno successivo di ([^.,]+)\. Successo: Metà danni soltanto\. (\9 può usare questa Azione Epica soltanto se (?:ha usato Breathe Deep come prima Azione Epica dello stesso round e soltanto se )?è l'ultima Azione Epica che usa (?:nel round|durante il round \d+)\.)$/i);
-  if (match && bossName && match[9] === bossName) return { automation: "PARTIAL", execution: { kind: "save-damage", save: { ability: "con", dc: Number(match[1]) }, target: { mode: "multiple", selection: "area", area: { shape: "cone", size: Number(match[2]), origin: match[3] } }, damage: [{ id: "cold", formula: match[5], printedAverage: Number(match[4]), type: "cold" }, { id: "necrotic", formula: match[7], printedAverage: Number(match[6]), type: "necrotic" }], success: "half", onFailed: { conditions: [{ condition: match[8], expiry: { ...NEXT_ACTOR_TURN_END } }] } }, manualText: match[10] };
+  if (match && bossName && match[9] === bossName) {
+    // v20: "after Breathe Deep, as the last Epic Action of the round" is the sequence; a round-numbered text stays manual.
+    const sequenced = /ha usato Breathe Deep come prima Azione Epica dello stesso round e soltanto se è l'ultima Azione Epica che usa nel round\.$/.test(match[10]);
+    return { automation: "PARTIAL", execution: { kind: "save-damage", save: { ability: "con", dc: Number(match[1]) }, target: { mode: "multiple", selection: "area", area: { shape: "cone", size: Number(match[2]), origin: match[3] } }, damage: [{ id: "cold", formula: match[5], printedAverage: Number(match[4]), type: "cold" }, { id: "necrotic", formula: match[7], printedAverage: Number(match[6]), type: "necrotic" }], success: "half", onFailed: { conditions: [{ condition: match[8], expiry: { ...NEXT_ACTOR_TURN_END } }] } },
+      manualText: sequenced ? "La ricarica viene da Breathe Deep, usata come prima Azione Epica dello stesso round: verificata dal registro del round." : match[10],
+      ...(sequenced ? { sequence: { slot: "last" }, afterName: "Breathe Deep", fallback: { manualText: match[10] } } : {}) };
+  }
   // Frostmaiden's Kiss: the necrotic damage taken heals this boss; the maximum-HP reduction stays manual.
   match = body.match(/^Tiro per Colpire con Incantesimo in Mischia: ([+-]\d+), portata (\d+) ft\. Colpito: (\d+) \((\d+d\d+)\) danni necrotici più (\d+) \((\d+d\d+)\) danni da freddo\. Il massimo dei Punti Ferita del bersaglio è ridotto di un ammontare pari ai danni necrotici subiti, e ([^.,]+) recupera altrettanti Punti Ferita\. La riduzione dura finché il bersaglio non completa un Riposo Lungo\. Questo attacco origina dalla Proiezione Fatata\.$/i);
   if (match && bossName && match[7] === bossName) return { automation: "PARTIAL", execution: { kind: "attack-damage", attack: { bonus: Number(match[1]), type: "spell", modes: ["melee"], reach: Number(match[2]) }, target: { mode: "single", maxTargets: 1 }, damage: [{ id: "necrotic", formula: match[4], printedAverage: Number(match[3]), type: "necrotic" }, { id: "cold", formula: match[6], printedAverage: Number(match[5]), type: "cold" }], drain: { component: "necrotic", healsSource: true, maxHpReduction: "manual" } }, manualText: "Riduci a mano il massimo dei Punti Ferita del bersaglio dei danni necrotici subiti, fino al suo Riposo Lungo. L'attacco origina dalla Proiezione Fatata." };
@@ -777,7 +801,16 @@ function grammar(body, category, { bossName = "", actionName = "" } = {}) {
   if (match) return { automation: "PARTIAL", execution: { kind: "save-damage", save: { ability: "con", dc: Number(match[1]) }, target: { mode: "single", maxTargets: 1 }, damage: [{ id: "cold", formula: match[4], printedAverage: Number(match[3]), type: "cold" }, { id: "radiant", formula: match[6], printedAverage: Number(match[5]), type: "radiant" }], success: "half", onFailed: { conditions: [{ condition: "Trattenuto", expiry: { ...NEXT_TARGET_TURN_END } }] }, requiresMark: { id: slug(match[2]) }, consumesMark: true }, manualText: `${match[7]} Se il bersaglio ne è protetto, rimuovi Trattenuto a mano.` };
   // Meteor Swarm: N free points, each a circle; the inner circles may not overlap; bludgeoning only near a point.
   match = body.match(/^(La Proiezione Fatata lancia meteor swarm; in quel momento l['’]incantesimo può essere bersagliato da controincantesimo, con la gittata misurata dalla Proiezione Fatata\. ([^.,;]+) può usare questa Azione Epica soltanto se ha usato Gather the Winter Sky come prima Azione Epica dello stesso round, e deve usarla come ultima Azione Epica del round \d+\.) \2 sceglie (due|tre|quattro|cinque|sei) punti che può vedere; ciascuno genera un['’]esplosione con Raggio di (\d+) ft\., e le aree con Raggio di (\d+) ft\. centrate sui punti scelti non possono sovrapporsi\. Tiro Salvezza su Destrezza: CD (\d+), ogni creatura in una o più esplosioni\. Fallimento: (\d+) \((\d+d\d+)\) danni da freddo, più (\d+) \((\d+d\d+)\) danni contundenti se il bersaglio si trova entro \5 ft\. da almeno uno dei punti scelti\. Successo: Metà danni soltanto\. Una creatura subisce ciascuna componente di danno una sola volta, anche se è inclusa in più esplosioni\. Elusione si applica normalmente\.$/i);
-  if (match && bossName && match[2] === bossName) return { automation: "PARTIAL", execution: { kind: "save-damage", save: { ability: "dex", dc: Number(match[6]) }, target: { mode: "multiple", selection: "area", area: { shape: "circle", size: Number(match[4]), origin: "punti scelti", count: COUNT_WORDS[match[3].toLowerCase()], innerRadius: Number(match[5]) } }, damage: [{ id: "cold", formula: match[8], printedAverage: Number(match[7]), type: "cold" }, { id: "bludgeoning", formula: match[10], printedAverage: Number(match[9]), type: "bludgeoning", scope: "inner" }], success: "half", requiresConfirmation: true }, manualText: match[1] };
+  if (match && bossName && match[2] === bossName) {
+    const execution = { kind: "save-damage", save: { ability: "dex", dc: Number(match[6]) }, target: { mode: "multiple", selection: "area", area: { shape: "circle", size: Number(match[4]), origin: "punti scelti", count: COUNT_WORDS[match[3].toLowerCase()], innerRadius: Number(match[5]) } }, damage: [{ id: "cold", formula: match[8], printedAverage: Number(match[7]), type: "cold" }, { id: "bludgeoning", formula: match[10], printedAverage: Number(match[9]), type: "bludgeoning", scope: "inner" }], success: "half" };
+    // v20: the requirement is the sequence (after Gather the Winter Sky, the last Epic Action); without Gather in the
+    // profile it stays the v9 confirmation.
+    const gather = /soltanto se ha usato (.+?) come prima Azione Epica dello stesso round/.exec(match[1])?.[1];
+    const round = /come ultima Azione Epica del round (\d+)\.$/.exec(match[1])?.[1];
+    const counterspell = match[1].slice(0, match[1].indexOf(`${match[2]} può usare`)).trim();
+    return { automation: "PARTIAL", execution, manualText: `${counterspell} Nel round ${round} è l'ultima Azione Epica obbligatoria.`,
+      sequence: { slot: "last" }, afterName: gather, fallback: { execution: { ...execution, requiresConfirmation: true }, manualText: match[1] } };
+  }
   // Titan's Grasp: Afferrato (escape DC) and Trattenuto on a failure, nothing on a success; reach and suspension stay manual.
   match = body.match(/^Tiro Salvezza su Destrezza: CD (\d+), una creatura (entro \d+ ft\. dal bordo della piattaforma ed entro la portata di una delle mani esposte del Titano)\. Fallimento: (\d+) \((\d+d\d+)\) danni contundenti più (\d+) \((\d+d\d+)\) danni da freddo, e il bersaglio ha le condizioni Afferrato \(CD (\d+) per sfuggire\) e Trattenuto ed (è sospeso fino a \d+ ft\. sopra la piattaforma)\. Successo: Nessun danno e il bersaglio non viene afferrato\. Il Titano può tenere una sola creatura Afferrata in questo modo alla volta\.$/i);
   if (match) return { automation: "PARTIAL", execution: { kind: "save-damage", save: { ability: "dex", dc: Number(match[1]) }, target: { mode: "single", maxTargets: 1 }, damage: [{ id: "bludgeoning", formula: match[4], printedAverage: Number(match[3]), type: "bludgeoning" }, { id: "cold", formula: match[6], printedAverage: Number(match[5]), type: "cold" }], success: "none", onFailed: { conditions: [{ condition: "Afferrato", expiry: { ...MANUAL_EXPIRY }, escapeDC: Number(match[7]) }, { condition: "Trattenuto", expiry: { ...MANUAL_EXPIRY } }] }, grapple: "grab" }, manualText: `Verifica che il bersaglio sia ${match[2]}. Su TS fallito il bersaglio ${match[8]}.` };
@@ -854,6 +887,17 @@ function grammar(body, category, { bossName = "", actionName = "" } = {}) {
       damage: [{ id: "bludgeoning", formula: match[4], printedAverage: Number(match[3]), type: "bludgeoning" }], onLanding: { condition: "Prono" },
       edge: { save: { ability: "dex", dc: Number(match[6]) } } },
     manualText: `Direzione e punto d'arrivo si scelgono sulla mappa. Oltre il bordo, il TS DES CD ${match[6]} arriva come promemoria: chi fallisce precipita, chi lo supera resta appeso.` };
+  // Breathe Deep: the first Epic Action of the round; it recharges Breath of the Long Night for this round only.
+  // A manual registration with a sequence (v20).
+  match = body.match(/^([^.,]+) si ricarica fino alla fine del round; la ricarica non si trasferisce al round successivo\. ([^.,]+) può usare questa Azione Epica soltanto se è la prima Azione Epica che usa nel round, e non nello stesso round di ([^.,]+)\. (Nel primo round della Fase \d+ la sua scelta è obbligatoria\.)$/i);
+  if (match && bossName && match[2] === bossName && category === "epic-action") return { automation: "UNSUPPORTED", sequence: { slot: "first" },
+    manualText: `Registra l'uso come prima Azione Epica del round: abilita ${match[1]} come ultima. ${match[4]}` };
+  // Gather the Winter Sky: the first Epic Action of the round; until its end only the listed epic actions, and the
+  // recharged one as the last. A manual registration with a sequence (v20); round 2 stays the GM's reminder.
+  match = body.match(/^([^.,]+) si ricarica\. ([^.,]+) deve usare questa Azione Epica come prima Azione Epica del round (\d+), anche se lo slot appartiene a un personaggio che agisce prima dell['’]iniziativa 20, e non può usarla nello stesso round di ([^.,]+)\. Fino alla fine del round, la Proiezione Fatata non può usare Azioni Epiche e \2 può usare soltanto ([^;]+); come ultima Azione Epica del round deve usare \1\. (Se la Fase \d+ termina prima, ([^.,]+) termina senza ulteriori effetti\.)$/i);
+  if (match && bossName && match[2] === bossName && match[7] === actionName && category === "epic-action") return { automation: "UNSUPPORTED", sequence: { slot: "first" },
+    allowNames: match[5].split(/, | o /).map((name) => name.trim()).filter(Boolean),
+    manualText: `Nel round ${match[3]} è obbligatoria come prima Azione Epica, anche se lo slot appartiene a un personaggio che agisce prima dell'iniziativa 20. Fino alla fine del round la console accetta soltanto ${match[5]} e, come ultima Azione Epica, ${match[1]}. ${match[6]}` };
   // Cucitura del Non-Luogo: the first Epic Action of the round; the seam lasts until the end of the round and
   // blocks the epic action it names (resolved by name after the import loop).
   match = body.match(/^([^.,]+) può usare questa Azione Epica soltanto se è la prima Azione Epica che usa nel round\. Sceglie due punti su superfici che può percepire entro (\d+) ft\. da sé, distanti non più di (\d+) ft\. l['’]uno dall['’]altro\. Fra i due punti compare una cucitura nera larga (\d+) ft\., chiaramente visibile, che rimane fino alla fine del round\. (Il suo spazio è Terreno Difficile\.) Finché la cucitura esiste, \1 non può usare ([^.]+)\.$/i);
@@ -925,13 +969,14 @@ export async function importBossActionHTML(html, { sourceName = "" } = {}) {
     ids.add(id);
     const recognized = grammar(body, category, { bossName: name.split(",")[0].trim(), actionName });
     const entry = { id, name: actionName, category, automation: "UNSUPPORTED", rawText, usage: actionUsage, ...(group ? { group } : {}), ...(recognized || { manualText: rawText }) };
-    if (!recognized) diagnostics.push({ code: "UNSUPPORTED_ABILITY", abilityId: id, message: `${actionName}: esecuzione manuale; grammatica non supportata.` });
+    // A recognized manual registration (Breathe Deep, Gather the Winter Sky: a sequence only) is still manual.
+    if (!recognized || recognized.automation === "UNSUPPORTED") diagnostics.push({ code: "UNSUPPORTED_ABILITY", abilityId: id, message: `${actionName}: esecuzione manuale; grammatica non supportata.` });
     abilities.push(entry);
   }
   // A seam names the epic action it blocks and a line on the seam names the seam: both by printed name.
   // A name that is not another epic action of this profile leaves the ability manual.
   const manual = (entry, message) => {
-    for (const key of ["seamBlocks", "afterName", "execution", "sequence"]) delete entry[key];
+    for (const key of ["seamBlocks", "afterName", "allowNames", "execution", "sequence"]) delete entry[key];
     Object.assign(entry, { automation: "UNSUPPORTED", manualText: entry.rawText });
     diagnostics.push({ code: "UNSUPPORTED_ABILITY", abilityId: entry.id, message });
   };
@@ -943,12 +988,29 @@ export async function importBossActionHTML(html, { sourceName = "" } = {}) {
     entry.execution.seam.blocks = [blocked.id];
     delete entry.seamBlocks;
   }
+  // A first Epic Action may allow only some epic actions for the rest of the round (Gather the Winter Sky):
+  // every printed name must resolve, otherwise the restriction stays manual text.
   for (const entry of abilities) {
-    if (entry.afterName === undefined) continue;
-    const seam = epicByName(entry.afterName);
-    if (!seam || seam.execution?.kind !== "seam") { manual(entry, `${entry.name}: cucitura di riferimento non trovata nel profilo.`); continue; }
-    entry.sequence = { ...entry.sequence, after: seam.id };
+    if (entry.allowNames === undefined) continue;
+    const allowed = entry.allowNames.map(epicByName);
+    if (allowed.every((other) => other && other !== entry)) entry.sequence = { ...entry.sequence, allowOnly: allowed.map((other) => other.id) };
+    delete entry.allowNames;
+  }
+  for (const entry of abilities) {
+    if (entry.afterName === undefined && entry.fallback === undefined) continue;
+    const before = entry.afterName ? epicByName(entry.afterName) : null;
     delete entry.afterName;
+    if (entry.execution?.target?.area?.shape === "seam") {
+      if (!before || before.execution?.kind !== "seam") { manual(entry, `${entry.name}: cucitura di riferimento non trovata nel profilo.`); continue; }
+    } else if (!before || before === entry || before.sequence?.slot !== "first") {
+      // v20 (Auril): without its first Epic Action the action keeps its v19 shape and its manual confirmation.
+      delete entry.sequence;
+      if (entry.fallback) Object.assign(entry, entry.fallback);
+      delete entry.fallback;
+      continue;
+    }
+    entry.sequence = { ...entry.sequence, after: before.id };
+    delete entry.fallback;
   }
   // Group attacks copy the printed attack of the ability they name; without it they stay manual.
   for (const entry of abilities) {

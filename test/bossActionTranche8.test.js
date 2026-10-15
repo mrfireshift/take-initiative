@@ -6,6 +6,7 @@ import { importBossActionHTML, validateBossActionProfile, BOSS_ACTION_PROFILE_VE
 import { buildBossActionGroupMutation } from "../src/bossActionExecutionCore.js";
 import { actorHasEvasion, evasionAppliesTo, EVASION_FEATURE, EVASION_DEFENSE } from "../src/damageDefensesCore.js";
 import { bossFeetPerCell, bossInnerTargetIds, bossPointTooClose, bossDefendedDamage, validateBossActionGroupSelection } from "../src/bossActionsViewCore.js";
+import { withEpicLog } from "../test-support/bossSequenceState.js";
 
 const META = "com.thebigpicture.initiative/meta";
 const phase2HTML = await readFile(new URL("fixtures/boss-actions/auril-phase-2.html", import.meta.url), "utf8");
@@ -14,7 +15,8 @@ const ability = (profile, name) => profile.abilities.find((entry) => entry.name 
 const meteor = ability(p2, "Meteor Swarm");
 const card = (extra) => ({ initiativeCard: extra });
 const creature = (id, hp, extra = {}) => ({ id, name: id, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
-const boss = creature("auril", 580);
+// v20: Meteor Swarm follows Gather the Winter Sky in the same round (the round log on the boss token).
+const boss = withEpicLog(creature("auril", 580), p2, 2, ["gather-the-winter-sky"]);
 const rogue = (level, more = {}) => card({ characterBuild: [{ classId: "ladro", level }], ...more });
 const circle = (x, areaTargetIds, innerTargetIds) => ({ ruleId: "boss-action-area:circle:40ft", start: { x, y: 0 }, end: { x: x + 600, y: 0 }, areaTargetIds, innerTargetIds });
 const FOUR = [circle(0, ["a", "b"], ["a"]), circle(1000, ["b", "c"], []), circle(2000, ["d"], ["d"]), circle(3000, [], [])];
@@ -28,16 +30,18 @@ test("every profile version from 1 to the current one stays readable (a stored l
   }
 });
 
-test("Meteor Swarm: four 40 ft circles on free points, bludgeoning only within 10 ft, DEX 19, 1/Phase, a requirement to confirm", () => {
+test("Meteor Swarm: four 40 ft circles on free points, bludgeoning only within 10 ft, DEX 19, 1/Phase, last after Gather the Winter Sky", () => {
   assert.equal(meteor.automation, "PARTIAL");
   assert.deepEqual(meteor.usage, { limit: 1, period: "phase" });
   assert.deepEqual(meteor.execution, {
     kind: "save-damage", save: { ability: "dex", dc: 19 },
     target: { mode: "multiple", selection: "area", area: { shape: "circle", size: 40, origin: "punti scelti", count: 4, innerRadius: 10 } },
     damage: [{ id: "cold", formula: "14d6", type: "cold", printedAverage: 49 }, { id: "bludgeoning", formula: "6d10", type: "bludgeoning", printedAverage: 33, scope: "inner" }],
-    success: "half", requiresConfirmation: true,
+    success: "half",
   });
-  assert.match(meteor.manualText, /Gather the Winter Sky come prima Azione Epica.*ultima Azione Epica del round 2\.$/);
+  // v20: the requirement is the sequence (the v9 confirmation remains only without Gather in the profile).
+  assert.deepEqual(meteor.sequence, { slot: "last", after: "gather-the-winter-sky" });
+  assert.match(meteor.manualText, /^La Proiezione Fatata lancia meteor swarm; .* Nel round 2 è l'ultima Azione Epica obbligatoria\.$/);
 });
 
 test("altered Meteor Swarm clauses stay manual; the v9 contract is closed", async () => {
@@ -99,7 +103,7 @@ test("the plan needs all four points; the group is their union; bludgeoning only
   const base = { profile: p2, action: meteor, sourceItem: boss, targetItems: targets, outcomes: { a: "failed", b: "failed", c: "passed", d: "failed" },
     componentAmounts: { cold: 49, bludgeoning: 33 }, actionInstanceId: "meteor-1", round: 2, manualConfirmed: true };
   assert.throws(() => buildBossActionGroupMutation({ ...base, areaPlacements: FOUR.slice(0, 3), innerIds: ["a"] }), /tutte le 4 esplosioni/);
-  assert.throws(() => buildBossActionGroupMutation({ ...base, manualConfirmed: false, areaPlacements: FOUR, innerIds: ["a"] }), /Conferma/);
+  assert.throws(() => buildBossActionGroupMutation({ ...base, sourceItem: creature("auril", 580), areaPlacements: FOUR, innerIds: ["a"] }), /richiede Gather the Winter Sky nello stesso round/);
   // The GM drops "d" from the computed inner set and adds "b".
   const plan = buildBossActionGroupMutation({ ...base, areaPlacements: FOUR, innerIds: ["a", "b"] });
   assert.deepEqual(plan.causality.targets.map((target) => [target.id, target.requestedDamage, target.inner]),
@@ -148,6 +152,6 @@ test("the console preview uses the same arithmetic and the selection carries the
   assert.equal(ready.ok, true, ready.error);
   assert.equal(ready.value.areaPlacements.length, 4);
   assert.deepEqual(ready.value.innerIds, ["a"]);
-  assert.match(validateBossActionGroupSelection({ sourceId: "auril", action: meteor, targetIds: ["a"], targets: [creature("a", 10)],
-    outcomes: { a: "failed" }, componentAmounts: { cold: 49, bludgeoning: 33 }, manualConfirmed: false, areas: FOUR }).error, /Conferma requisito e sequenza/);
+  assert.equal(validateBossActionGroupSelection({ sourceId: "auril", action: meteor, targetIds: ["a"], targets: [creature("a", 10)],
+    outcomes: { a: "failed" }, componentAmounts: { cold: 49, bludgeoning: 33 }, manualConfirmed: false, areas: FOUR }).ok, true, "v20: no manual confirmation");
 });
