@@ -340,3 +340,140 @@ test("failure prima del commit non converge falsamente dopo il reread", async ()
     await stopRuntime(runtime);
   }
 });
+
+const ROOM_CARD_KEY = `${ID}/initiativeCards`;
+const BATTLE_MASTER_20 = [{ classId: "guerriero", level: 20, subclassId: "guerriero-maestro-di-battaglia" }];
+
+async function battleMasterFeatureIds() {
+  const { getAvailableClassFeatures, getEnabledClassFeatures } = await import("../src/classFeatureCatalog.js");
+  const defaults = getEnabledClassFeatures({ characterBuild: BATTLE_MASTER_20 }).map((feature) => feature.id);
+  const extra = getAvailableClassFeatures(BATTLE_MASTER_20)
+    .find((feature) => !defaults.includes(feature.id)).id;
+  return { defaults, extra, enabled: [...defaults.slice(1), extra] };
+}
+
+function sceneTwoHero() {
+  return {
+    id: "hero-scene-2",
+    name: "Hero",
+    layer: "CHARACTER",
+    metadata: { [META_KEY]: { actorProfileId: "actor-hero" } },
+  };
+}
+
+test("registry Room: salva solo il delta delle capacità, token e nuova scena vedono l'elenco completo", async () => {
+  reset();
+  // Le quick action giganti dell'harness superano da sole il budget Room.
+  storedProfile().quickActions = [];
+  const runtime = await startRuntime();
+  try {
+    const { defaults, extra, enabled } = await battleMasterFeatureIds();
+    await runtime.cards.saveInitiativeCard("hero", "Hero", {
+      characterBuild: BATTLE_MASTER_20,
+      enabledClassFeatureIds: enabled,
+      classFeaturesConfigured: true,
+    }, { commandId: "room-delta-save", transportTimeoutMs: 100 });
+
+    assert.deepEqual(storedProfile().enabledClassFeatureIds, enabled);
+    assert.equal(storedProfile().classFeaturesConfigured, true);
+
+    const roomProfile = room.metadata[ROOM_CARD_KEY].hero.profile;
+    assert.equal(roomProfile.classFeaturesConfigured, false);
+    assert.deepEqual(roomProfile.enabledClassFeatureIds, [extra]);
+    assert.deepEqual(roomProfile.disabledDefaultClassFeatureIds, [defaults[0]]);
+
+    const profile = await runtime.cards.loadInitiativeCard(sceneTwoHero());
+    assert.equal(profile.classFeaturesConfigured, true);
+    assert.deepEqual([...profile.enabledClassFeatureIds].sort(), [...enabled].sort());
+  } finally {
+    await stopRuntime(runtime);
+  }
+});
+
+test("registry Room: un profilo legacy con l'elenco completo resta leggibile e migra al delta", async () => {
+  reset();
+  const { defaults, extra, enabled } = await battleMasterFeatureIds();
+  room.metadata[ROOM_CARD_KEY] = {
+    hero: {
+      actorProfileId: "actor-hero",
+      name: "Hero",
+      profile: {
+        actorProfileId: "actor-hero",
+        armorClass: 16,
+        characterBuild: BATTLE_MASTER_20,
+        enabledClassFeatureIds: enabled,
+        classFeaturesConfigured: true,
+      },
+      updatedAt: 50,
+    },
+  };
+  scene.items.push(sceneTwoHero());
+  const runtime = await startRuntime();
+  try {
+    const profile = await runtime.cards.loadInitiativeCard(sceneTwoHero());
+    assert.equal(profile.armorClass, 16);
+    assert.equal(profile.classFeaturesConfigured, true);
+    assert.deepEqual(profile.enabledClassFeatureIds, enabled);
+
+    await runtime.cards.loadInitiativeCard(sceneTwoHero(), { hydrate: true });
+    const roomProfile = room.metadata[ROOM_CARD_KEY].hero.profile;
+    assert.equal(roomProfile.classFeaturesConfigured, false);
+    assert.deepEqual(roomProfile.enabledClassFeatureIds, [extra]);
+    assert.deepEqual(roomProfile.disabledDefaultClassFeatureIds, [defaults[0]]);
+    const hydratedToken = scene.items.find((item) => item.id === "hero-scene-2")
+      .metadata[META_KEY].initiativeCard;
+    assert.equal(hydratedToken.classFeaturesConfigured, true);
+    assert.deepEqual([...hydratedToken.enabledClassFeatureIds].sort(), [...enabled].sort());
+  } finally {
+    await stopRuntime(runtime);
+  }
+});
+
+test("registry Room: la chiave nome diventa un alias, localStorage e token restano completi", async () => {
+  reset();
+  storedProfile().quickActions = [];
+  scene.items[0].image = { url: "https://assets.test/hero.png?v=1" };
+  const local = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => (local.has(key) ? local.get(key) : null),
+    setItem: (key, value) => { local.set(key, String(value)); },
+  };
+  const runtime = await startRuntime();
+  try {
+    const { enabled } = await battleMasterFeatureIds();
+    await runtime.cards.saveInitiativeCard("hero", "Hero", {
+      characterBuild: BATTLE_MASTER_20,
+      enabledClassFeatureIds: enabled,
+      classFeaturesConfigured: true,
+    }, { commandId: "room-alias-save", transportTimeoutMs: 100 });
+
+    const assetKey = "asset:https://assets.test/hero.png";
+    const roomCards = room.metadata[ROOM_CARD_KEY];
+    assert.deepEqual(Object.keys(roomCards).sort(), [assetKey, "hero"].sort());
+    assert.deepEqual(roomCards.hero, { sameAs: assetKey, updatedAt: roomCards[assetKey].updatedAt });
+    assert.equal(roomCards[assetKey].profile.armorClass, 14);
+
+    const localCards = JSON.parse([...local.values()][0]);
+    assert.equal(localCards.hero.profile.classFeaturesConfigured, true);
+    assert.deepEqual(localCards.hero.profile.enabledClassFeatureIds, enabled);
+    assert.equal(Object.hasOwn(localCards.hero, "sameAs"), false);
+    assert.deepEqual(storedProfile().enabledClassFeatureIds, enabled);
+
+    // Un altro dispositivo, senza copia locale: un token con immagine diversa
+    // e senza actorProfileId risolve la scheda dall'alias del nome.
+    delete globalThis.localStorage;
+    const profile = await runtime.cards.loadInitiativeCard({
+      id: "hero-other-device",
+      name: "Hero",
+      layer: "CHARACTER",
+      image: { url: "https://assets.test/hero-alt.png" },
+      metadata: {},
+    });
+    assert.equal(profile.armorClass, 14);
+    assert.equal(profile.actorProfileId, "actor-hero");
+    assert.deepEqual([...profile.enabledClassFeatureIds].sort(), [...enabled].sort());
+  } finally {
+    delete globalThis.localStorage;
+    await stopRuntime(runtime);
+  }
+});

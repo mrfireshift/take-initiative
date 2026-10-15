@@ -15,6 +15,8 @@ import {
 } from "./conditions.js";
 import { shouldRoomInitiativeCardWin } from "./initiativeCardConflict.js";
 import {
+  decodeInitiativeCardRegistryFromRoom,
+  encodeInitiativeCardRegistryForRoom,
   findInitiativeCardRegistryEntry,
   initiativeCardQuickActionMemoryEligibleItems,
   initiativeCardQuickActionMemoryCandidates,
@@ -322,23 +324,35 @@ function writeLocalInitiativeCards(registry) {
   }
 }
 
+// Il catalogo è grande: le pagine che non lo usano già lo caricano soltanto
+// quando leggono o scrivono il registry Room.
+async function roomClassFeatureDefaults() {
+  const { getEnabledClassFeatures } = await import("./classFeatureCatalog.js");
+  return (characterBuild) => getEnabledClassFeatures({ characterBuild }).map((feature) => feature.id);
+}
+
 async function readInitiativeCardRegistry() {
   const local = readLocalInitiativeCards();
+  const classFeatureDefaults = await roomClassFeatureDefaults();
   const metadata = await OBR.room.getMetadata().catch(() => ({}));
   return {
     metadata,
-    registry: mergeInitiativeCardRegistries(local, metadata?.[ROOM_CARD_KEY]),
+    registry: mergeInitiativeCardRegistries(
+      local,
+      decodeInitiativeCardRegistryFromRoom(metadata?.[ROOM_CARD_KEY], classFeatureDefaults),
+    ),
   };
 }
 
 async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
   const write = async () => {
     if (!isCurrent()) return null;
+    const classFeatureDefaults = await roomClassFeatureDefaults();
     const metadata = await OBR.room.getMetadata().catch(() => ({}));
     if (!isCurrent()) return null;
     const previous = mergeInitiativeCardRegistries(
       readLocalInitiativeCards(),
-      metadata?.[ROOM_CARD_KEY]
+      decodeInitiativeCardRegistryFromRoom(metadata?.[ROOM_CARD_KEY], classFeatureDefaults)
     );
     const next = normalizeInitiativeCardRegistry(updater({ ...previous }) || previous);
     const localWritten = writeLocalInitiativeCards(next);
@@ -347,7 +361,7 @@ async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
       await writeRoomMetadataKey(
         OBR.room,
         METADATA_OWNERSHIP.INITIATIVE_CARDS,
-        next,
+        encodeInitiativeCardRegistryForRoom(next, classFeatureDefaults),
         {
           runtime: "initiativeCards",
           roomBudget: {

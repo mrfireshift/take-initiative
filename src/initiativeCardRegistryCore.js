@@ -9,6 +9,35 @@ import {
   ROOM_METADATA_DOMAIN_MAX_BYTES,
   jsonBytes,
 } from "./roomMetadataBudget.js";
+import { sanitizeEnabledClassFeatureIds } from "./classFeatureCore.js";
+
+// Nel registry Room un profilo configurato salva soltanto la differenza dai
+// default del catalogo; token e copia locale conservano l'elenco completo.
+export const ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD = "disabledDefaultClassFeatureIds";
+
+// Nel registry Room una chiave secondaria con la stessa voce della primaria
+// salva soltanto `{ sameAs: <chiave primaria>, updatedAt }`. L'alias non porta
+// actorProfileId: un client precedente che cerca per attore trova la primaria.
+export const ROOM_CARD_ALIAS_FIELD = "sameAs";
+
+function roomCardAliasTarget(entry) {
+  if (!entry || typeof entry !== "object" || !Object.hasOwn(entry, ROOM_CARD_ALIAS_FIELD)) return null;
+  return String(entry[ROOM_CARD_ALIAS_FIELD] || "");
+}
+
+// Un alias vale soltanto se punta a una voce piena con lo stesso updatedAt:
+// se un client precedente ha riscritto la primaria, l'alias è pendente.
+function resolvedRoomCardAliasTarget(registry, entry) {
+  const targetKey = roomCardAliasTarget(entry);
+  if (targetKey === null) return null;
+  const target = targetKey ? registry[targetKey] : null;
+  if (
+    !target
+    || roomCardAliasTarget(target) !== null
+    || Number(target.updatedAt || 0) !== Number(entry.updatedAt || 0)
+  ) return "";
+  return targetKey;
+}
 
 export function initiativeCardRegistryKeys(item) {
   const imageKey = canonicalImageUrl(item);
@@ -37,14 +66,28 @@ export function retainInitiativeCardRegistryWithinByteBudget(
   const budget = Math.max(2, Math.floor(Number(maxBytes) || 0));
   if (jsonBytes(source) <= budget) return { ...source };
 
-  const ordered = Object.entries(source).sort(([leftKey, left], [rightKey, right]) => {
+  // Gli alias Room seguono la propria voce: entrano subito dopo di lei e
+  // soltanto se lei è stata conservata. Gli alias pendenti si scartano.
+  const aliasesByTarget = new Map();
+  const entries = [];
+  for (const [key, entry] of Object.entries(source)) {
+    const targetKey = resolvedRoomCardAliasTarget(source, entry);
+    if (targetKey === null) entries.push([key, entry]);
+    else if (targetKey) aliasesByTarget.set(targetKey, [...(aliasesByTarget.get(targetKey) || []), key]);
+  }
+  const ordered = entries.sort(([leftKey, left], [rightKey, right]) => {
     const updatedAt = (Number(right?.updatedAt) || 0) - (Number(left?.updatedAt) || 0);
     return updatedAt || leftKey.localeCompare(rightKey);
   });
   const retained = {};
   for (const [key, entry] of ordered) {
     const candidate = { ...retained, [key]: entry };
-    if (jsonBytes(candidate) <= budget) retained[key] = entry;
+    if (jsonBytes(candidate) > budget) continue;
+    retained[key] = entry;
+    for (const aliasKey of (aliasesByTarget.get(key) || []).sort((left, right) => left.localeCompare(right))) {
+      const aliasCandidate = { ...retained, [aliasKey]: source[aliasKey] };
+      if (jsonBytes(aliasCandidate) <= budget) retained[aliasKey] = source[aliasKey];
+    }
   }
   return retained;
 }
@@ -60,6 +103,131 @@ export function mergeInitiativeCardRegistries(...sources) {
     }
   }
   return merged;
+}
+
+function expandRoomClassFeatureIds(profile, defaultClassFeatureIds) {
+  const disabled = new Set(sanitizeEnabledClassFeatureIds(
+    profile[ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD],
+  ));
+  const defaults = sanitizeEnabledClassFeatureIds(defaultClassFeatureIds(profile.characterBuild));
+  return sanitizeEnabledClassFeatureIds([
+    ...defaults.filter((id) => !disabled.has(id)),
+    ...sanitizeEnabledClassFeatureIds(profile.enabledClassFeatureIds),
+  ]);
+}
+
+/**
+ * `defaultClassFeatureIds(characterBuild)` restituisce gli ID abilitati di
+ * default dal catalogo. Il profilo codificato dichiara
+ * `classFeaturesConfigured: false`, così un client che non conosce la
+ * codifica ricade sui default invece che su un elenco vuoto.
+ */
+export function encodeInitiativeCardRoomProfile(profile, defaultClassFeatureIds) {
+  if (
+    !profile
+    || typeof profile !== "object"
+    || profile.classFeaturesConfigured !== true
+    || typeof defaultClassFeatureIds !== "function"
+  ) return profile;
+  const { [ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD]: _stale, ...base } = profile;
+  const enabled = sanitizeEnabledClassFeatureIds(base.enabledClassFeatureIds);
+  const enabledSet = new Set(enabled);
+  const defaults = sanitizeEnabledClassFeatureIds(defaultClassFeatureIds(base.characterBuild));
+  const defaultSet = new Set(defaults);
+  const encoded = {
+    ...base,
+    classFeaturesConfigured: false,
+    enabledClassFeatureIds: enabled.filter((id) => !defaultSet.has(id)),
+    [ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD]: defaults.filter((id) => !enabledSet.has(id)),
+  };
+  const decoded = expandRoomClassFeatureIds(encoded, defaultClassFeatureIds);
+  const exact = decoded.length === enabled.length && decoded.every((id) => enabledSet.has(id));
+  return exact && jsonBytes(encoded) < jsonBytes(profile) ? encoded : profile;
+}
+
+export function decodeInitiativeCardRoomProfile(profile, defaultClassFeatureIds) {
+  if (
+    !profile
+    || typeof profile !== "object"
+    || !Object.hasOwn(profile, ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD)
+  ) return profile;
+  const { [ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD]: _disabled, ...legacy } = profile;
+  // Un client precedente può aver riscritto l'elenco completo: vale quello.
+  if (profile.classFeaturesConfigured === true) return legacy;
+  return {
+    ...legacy,
+    classFeaturesConfigured: true,
+    enabledClassFeatureIds: expandRoomClassFeatureIds(profile, defaultClassFeatureIds),
+  };
+}
+
+function mapInitiativeCardRegistryProfiles(value, mapProfile) {
+  const mappedEntries = new Map();
+  const registry = {};
+  for (const [key, entry] of Object.entries(normalizeInitiativeCardRegistry(value))) {
+    if (!mappedEntries.has(entry)) {
+      const profile = entry.profile && typeof entry.profile === "object" ? entry.profile : null;
+      const mapped = profile ? mapProfile(profile) : profile;
+      mappedEntries.set(entry, mapped === profile ? entry : { ...entry, profile: mapped });
+    }
+    registry[key] = mappedEntries.get(entry);
+  }
+  return registry;
+}
+
+// La primaria è la chiave asset: a parità di updatedAt un client precedente
+// la legge per prima e non si ferma sull'alias privo di valori.
+function compareRoomCardAliasPrimaryKeys(left, right) {
+  const leftAsset = left.startsWith("asset:");
+  const rightAsset = right.startsWith("asset:");
+  if (leftAsset !== rightAsset) return leftAsset ? -1 : 1;
+  return left.localeCompare(right);
+}
+
+function aliasInitiativeCardRegistryForRoom(value) {
+  const source = normalizeInitiativeCardRegistry(value);
+  const jsonByEntry = new Map();
+  const entryJson = (entry) => {
+    if (!jsonByEntry.has(entry)) jsonByEntry.set(entry, JSON.stringify(entry));
+    return jsonByEntry.get(entry);
+  };
+  const primaryByJson = new Map();
+  for (const key of Object.keys(source).sort(compareRoomCardAliasPrimaryKeys)) {
+    const json = entryJson(source[key]);
+    if (!primaryByJson.has(json)) primaryByJson.set(json, key);
+  }
+  const registry = {};
+  for (const [key, entry] of Object.entries(source)) {
+    const primaryKey = primaryByJson.get(entryJson(entry));
+    const alias = { [ROOM_CARD_ALIAS_FIELD]: primaryKey, updatedAt: entry.updatedAt };
+    registry[key] = primaryKey !== key && jsonBytes(alias) < jsonBytes(entry) ? alias : entry;
+  }
+  return registry;
+}
+
+// Gli alias si risolvono sul valore grezzo, prima di qualunque lettura; quelli
+// pendenti (primaria scartata o riscritta) spariscono dal registry decodificato.
+function resolveInitiativeCardRoomAliases(value) {
+  const source = normalizeInitiativeCardRegistry(value);
+  const registry = {};
+  for (const [key, entry] of Object.entries(source)) {
+    const targetKey = resolvedRoomCardAliasTarget(source, entry);
+    if (targetKey === null) registry[key] = entry;
+    else if (targetKey) registry[key] = source[targetKey];
+  }
+  return registry;
+}
+
+export function encodeInitiativeCardRegistryForRoom(value, defaultClassFeatureIds) {
+  return aliasInitiativeCardRegistryForRoom(mapInitiativeCardRegistryProfiles(value, (profile) =>
+    encodeInitiativeCardRoomProfile(profile, defaultClassFeatureIds)
+  ));
+}
+
+export function decodeInitiativeCardRegistryFromRoom(value, defaultClassFeatureIds) {
+  return mapInitiativeCardRegistryProfiles(resolveInitiativeCardRoomAliases(value), (profile) =>
+    decodeInitiativeCardRoomProfile(profile, defaultClassFeatureIds)
+  );
 }
 
 export function findInitiativeCardRegistryEntry(registry, item) {

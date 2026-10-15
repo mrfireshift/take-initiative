@@ -1,12 +1,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  ROOM_CARD_ALIAS_FIELD,
+  ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD,
+  decodeInitiativeCardRegistryFromRoom,
+  decodeInitiativeCardRoomProfile,
+  encodeInitiativeCardRegistryForRoom,
+  encodeInitiativeCardRoomProfile,
   findInitiativeCardRegistryEntry,
   initiativeCardQuickActionMemoryCandidates,
   initiativeCardRegistryKeys,
   mergeInitiativeCardRegistries,
   resolveInitiativeCardActorMatch,
+  retainInitiativeCardRegistryWithinByteBudget,
 } from "../src/initiativeCardRegistryCore.js";
+import { getAvailableClassFeatures, getEnabledClassFeatures } from "../src/classFeatureCatalog.js";
+import { jsonBytes } from "../src/roomMetadataBudget.js";
+import { shouldRoomInitiativeCardWin } from "../src/initiativeCardConflict.js";
 import { isLegacyActorMigrationEligible } from "../src/actorIdentityCore.js";
 
 test("initiative card identity survives scene-specific names and URL query changes", () => {
@@ -170,5 +180,265 @@ test("un profilo token vuoto non impedisce il recupero delle azioni rapide dalla
       { metadataKey },
     ).map((item) => item.id),
     ["token-with-empty-profile"],
+  );
+});
+
+const ROOM_CODEC_BUILD = [{ classId: "guerriero", level: 20, subclassId: "guerriero-maestro-di-battaglia" }];
+const roomCodecDefaults = (characterBuild) =>
+  getEnabledClassFeatures({ characterBuild }).map((feature) => feature.id);
+
+function roomCodecProfile(enabledClassFeatureIds = roomCodecDefaults(ROOM_CODEC_BUILD)) {
+  return {
+    armorClass: 18,
+    characterBuild: ROOM_CODEC_BUILD,
+    enabledClassFeatureIds,
+    classFeaturesConfigured: true,
+    actorProfileId: "actor-room-codec",
+  };
+}
+
+function sortedIds(ids) {
+  return [...ids].sort();
+}
+
+test("registry Room: un profilo configurato salva soltanto la differenza dai default", () => {
+  const defaults = roomCodecDefaults(ROOM_CODEC_BUILD);
+  const extra = getAvailableClassFeatures(ROOM_CODEC_BUILD)
+    .find((feature) => !defaults.includes(feature.id)).id;
+  const enabled = [...defaults.slice(1), extra];
+  const profile = roomCodecProfile(enabled);
+
+  const encoded = encodeInitiativeCardRoomProfile(profile, roomCodecDefaults);
+  assert.equal(encoded.classFeaturesConfigured, false);
+  assert.deepEqual(encoded.enabledClassFeatureIds, [extra]);
+  assert.deepEqual(encoded[ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD], [defaults[0]]);
+  assert.ok(jsonBytes(encoded) < jsonBytes(profile) / 2);
+
+  const decoded = decodeInitiativeCardRoomProfile(encoded, roomCodecDefaults);
+  assert.equal(decoded.classFeaturesConfigured, true);
+  assert.equal(Object.hasOwn(decoded, ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD), false);
+  assert.deepEqual(sortedIds(decoded.enabledClassFeatureIds), sortedIds(enabled));
+  assert.deepEqual(
+    getEnabledClassFeatures(decoded).map((feature) => feature.id),
+    getEnabledClassFeatures(profile).map((feature) => feature.id),
+  );
+});
+
+test("registry Room: un client senza decodifica ricade sui default, non su un elenco vuoto", () => {
+  const profile = roomCodecProfile();
+  const encoded = encodeInitiativeCardRoomProfile(profile, roomCodecDefaults);
+  assert.deepEqual(encoded.enabledClassFeatureIds, []);
+  assert.deepEqual(encoded[ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD], []);
+  assert.deepEqual(
+    getEnabledClassFeatures(encoded).map((feature) => feature.id),
+    getEnabledClassFeatures(profile).map((feature) => feature.id),
+  );
+});
+
+test("registry Room: i profili legacy con l'elenco completo restano leggibili", () => {
+  const legacy = roomCodecProfile();
+  assert.equal(decodeInitiativeCardRoomProfile(legacy, roomCodecDefaults), legacy);
+
+  // Un client precedente ha riscritto l'elenco completo conservando il campo sconosciuto.
+  const rewritten = {
+    ...legacy,
+    enabledClassFeatureIds: legacy.enabledClassFeatureIds.slice(0, 2),
+    [ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD]: [],
+  };
+  const decoded = decodeInitiativeCardRoomProfile(rewritten, roomCodecDefaults);
+  assert.deepEqual(decoded.enabledClassFeatureIds, legacy.enabledClassFeatureIds.slice(0, 2));
+  assert.equal(decoded.classFeaturesConfigured, true);
+  assert.equal(Object.hasOwn(decoded, ROOM_DISABLED_DEFAULT_CLASS_FEATURES_FIELD), false);
+});
+
+test("registry Room: profili non configurati o senza risparmio restano nel formato legacy", () => {
+  const unconfigured = { ...roomCodecProfile(), classFeaturesConfigured: false };
+  assert.equal(encodeInitiativeCardRoomProfile(unconfigured, roomCodecDefaults), unconfigured);
+  const noBuild = { armorClass: 12, characterBuild: [], enabledClassFeatureIds: [], classFeaturesConfigured: true };
+  assert.equal(encodeInitiativeCardRoomProfile(noBuild, roomCodecDefaults), noBuild);
+  assert.equal(encodeInitiativeCardRoomProfile(roomCodecProfile(), undefined).classFeaturesConfigured, true);
+});
+
+test("registry Room: la codifica riduce il peso di cinque PG di 20° e il round-trip è esatto", () => {
+  const registry = {};
+  for (let index = 0; index < 5; index += 1) {
+    const entry = {
+      actorProfileId: `actor-${index}`,
+      name: `PG ${index}`,
+      profile: roomCodecProfile(),
+      updatedAt: 100 + index,
+    };
+    registry[`asset:https://assets.test/pg-${index}.png`] = entry;
+    registry[`pg ${index}`] = entry;
+  }
+  const encoded = encodeInitiativeCardRegistryForRoom(registry, roomCodecDefaults);
+  assert.ok(jsonBytes(encoded) < jsonBytes(registry) * 0.6);
+  const decoded = decodeInitiativeCardRegistryFromRoom(encoded, roomCodecDefaults);
+  assert.deepEqual(Object.keys(decoded), Object.keys(registry));
+  for (const [key, entry] of Object.entries(decoded)) {
+    assert.equal(entry.updatedAt, registry[key].updatedAt);
+    assert.deepEqual(
+      sortedIds(entry.profile.enabledClassFeatureIds),
+      sortedIds(registry[key].profile.enabledClassFeatureIds),
+    );
+    assert.equal(entry.profile.classFeaturesConfigured, true);
+  }
+  const retained = retainInitiativeCardRegistryWithinByteBudget(encoded);
+  assert.ok(Object.keys(retained).length > Object.keys(retainInitiativeCardRegistryWithinByteBudget(registry)).length);
+});
+
+test("registry Room: voci eliminate e voci legacy piatte attraversano la codifica invariate", () => {
+  const deleted = { name: "Gone", deleted: true, updatedAt: 5 };
+  const flat = { armorClass: 13, updatedAt: 6 };
+  const registry = { gone: deleted, flat };
+  assert.deepEqual(encodeInitiativeCardRegistryForRoom(registry, roomCodecDefaults), registry);
+  assert.deepEqual(decodeInitiativeCardRegistryFromRoom(registry, roomCodecDefaults), registry);
+  assert.deepEqual(decodeInitiativeCardRegistryFromRoom(undefined, roomCodecDefaults), {});
+});
+
+const ROOM_ALIAS_ASSET_KEY = "asset:https://assets.test/alias-hero.png";
+
+function roomAliasRegistry({ updatedAt = 200 } = {}) {
+  const entry = {
+    actorProfileId: "actor-alias-hero",
+    name: "Alias Hero",
+    profile: roomCodecProfile(),
+    updatedAt,
+  };
+  return { [ROOM_ALIAS_ASSET_KEY]: entry, "alias hero": entry };
+}
+
+test("registry Room: la chiave secondaria identica diventa un alias della chiave asset", () => {
+  const registry = roomAliasRegistry();
+  const encoded = encodeInitiativeCardRegistryForRoom(registry, roomCodecDefaults);
+  assert.deepEqual(encoded["alias hero"], { [ROOM_CARD_ALIAS_FIELD]: ROOM_ALIAS_ASSET_KEY, updatedAt: 200 });
+  assert.equal(encoded[ROOM_ALIAS_ASSET_KEY].profile.actorProfileId, "actor-room-codec");
+  assert.ok(jsonBytes(encoded["alias hero"]) < 80);
+
+  const decoded = decodeInitiativeCardRegistryFromRoom(encoded, roomCodecDefaults);
+  assert.deepEqual(Object.keys(decoded), Object.keys(registry));
+  assert.deepEqual(decoded["alias hero"], decoded[ROOM_ALIAS_ASSET_KEY]);
+  assert.equal(Object.hasOwn(decoded["alias hero"], ROOM_CARD_ALIAS_FIELD), false);
+  assert.deepEqual(
+    sortedIds(decoded["alias hero"].profile.enabledClassFeatureIds),
+    sortedIds(registry["alias hero"].profile.enabledClassFeatureIds),
+  );
+  // Una scena con un'immagine diversa trova la scheda dal nome.
+  const renamedAsset = { name: "Alias Hero", image: { url: "https://assets.test/other.png" } };
+  assert.equal(findInitiativeCardRegistryEntry(decoded, renamedAsset).name, "Alias Hero");
+});
+
+test("registry Room: voci diverse sotto le due chiavi restano piene", () => {
+  const registry = roomAliasRegistry();
+  registry["alias hero"] = { ...registry["alias hero"], name: "Altro nome" };
+  const encoded = encodeInitiativeCardRegistryForRoom(registry, roomCodecDefaults);
+  assert.equal(Object.hasOwn(encoded["alias hero"], ROOM_CARD_ALIAS_FIELD), false);
+  assert.equal(Object.hasOwn(encoded[ROOM_ALIAS_ASSET_KEY], ROOM_CARD_ALIAS_FIELD), false);
+  // Senza chiave asset la primaria è la prima in ordine alfabetico.
+  const entry = { name: "N", profile: { armorClass: 11 }, updatedAt: 3 };
+  const byName = encodeInitiativeCardRegistryForRoom({ zeta: entry, alfa: entry }, roomCodecDefaults);
+  assert.deepEqual(byName.zeta, { [ROOM_CARD_ALIAS_FIELD]: "alfa", updatedAt: 3 });
+  assert.equal(byName.alfa, entry);
+});
+
+test("registry Room: gli alias pendenti spariscono in decodifica", () => {
+  const encoded = encodeInitiativeCardRegistryForRoom(roomAliasRegistry(), roomCodecDefaults);
+  const alias = encoded["alias hero"];
+
+  // Primaria scartata dalla retain di un client precedente.
+  assert.deepEqual(decodeInitiativeCardRegistryFromRoom({ "alias hero": alias }, roomCodecDefaults), {});
+  // Primaria riscritta da un client precedente con un'altra voce.
+  const rewritten = {
+    [ROOM_ALIAS_ASSET_KEY]: { name: "Altro PG", profile: { armorClass: 9 }, updatedAt: 999 },
+    "alias hero": alias,
+  };
+  assert.deepEqual(
+    Object.keys(decodeInitiativeCardRegistryFromRoom(rewritten, roomCodecDefaults)),
+    [ROOM_ALIAS_ASSET_KEY],
+  );
+  // Catene e alias senza destinazione non si risolvono.
+  const chained = {
+    ...encoded,
+    third: { [ROOM_CARD_ALIAS_FIELD]: "alias hero", updatedAt: 200 },
+    empty: { [ROOM_CARD_ALIAS_FIELD]: "", updatedAt: 200 },
+  };
+  assert.deepEqual(
+    Object.keys(decodeInitiativeCardRegistryFromRoom(chained, roomCodecDefaults)),
+    [ROOM_ALIAS_ASSET_KEY, "alias hero"],
+  );
+});
+
+test("registry Room: le copie doppie legacy restano leggibili e migrano agli alias", () => {
+  const raw = JSON.parse(JSON.stringify(roomAliasRegistry()));
+  const decoded = decodeInitiativeCardRegistryFromRoom(raw, roomCodecDefaults);
+  assert.deepEqual(decoded, raw);
+  const encoded = encodeInitiativeCardRegistryForRoom(decoded, roomCodecDefaults);
+  assert.equal(encoded["alias hero"][ROOM_CARD_ALIAS_FIELD], ROOM_ALIAS_ASSET_KEY);
+  assert.ok(jsonBytes(encoded) < jsonBytes(raw) / 3);
+});
+
+test("registry Room: un client precedente sul valore grezzo legge la voce piena, non l'alias", () => {
+  const encoded = encodeInitiativeCardRegistryForRoom(roomAliasRegistry(), roomCodecDefaults);
+  const sameToken = { name: "Alias Hero", image: { url: "https://assets.test/alias-hero.png?v=2" } };
+  assert.equal(findInitiativeCardRegistryEntry(encoded, sameToken), encoded[ROOM_ALIAS_ASSET_KEY]);
+  // L'alias non ha actorProfileId: la ricerca per attore lo ignora.
+  const linkedToken = {
+    name: "Alias Hero",
+    metadata: { "com.thebigpicture.initiative/meta": { actorProfileId: "actor-alias-hero" } },
+  };
+  assert.equal(findInitiativeCardRegistryEntry(encoded, linkedToken), encoded[ROOM_ALIAS_ASSET_KEY]);
+  // Caso limite: solo il nome coincide. L'alias non ha valori e non batte un token compilato.
+  const nameOnly = { name: "Alias Hero" };
+  assert.equal(findInitiativeCardRegistryEntry(encoded, nameOnly), encoded["alias hero"]);
+  assert.equal(shouldRoomInitiativeCardWin({
+    hasRoomVersion: true,
+    hasTokenProfile: true,
+    roomDeleted: false,
+    roomHasValues: false,
+    tokenHasValues: true,
+    roomUpdatedAt: 200,
+    tokenUpdatedAt: 1,
+  }), false);
+});
+
+test("registry Room: la retain tiene ogni alias accanto alla sua voce", () => {
+  const registry = {};
+  for (let index = 0; index < 6; index += 1) {
+    const entry = {
+      actorProfileId: `actor-${index}`,
+      name: `PG ${index}`,
+      profile: roomCodecProfile(),
+      // Stesso timestamp per tutti: l'ordine per chiave separerebbe asset e nomi.
+      updatedAt: 500,
+    };
+    registry[`asset:https://assets.test/pg-${index}.png`] = entry;
+    registry[`pg ${index}`] = entry;
+  }
+  const encoded = encodeInitiativeCardRegistryForRoom(registry, roomCodecDefaults);
+  const fullBytes = jsonBytes(encoded);
+  const budget = Math.floor(fullBytes / 2);
+  const retained = retainInitiativeCardRegistryWithinByteBudget(encoded, budget);
+  assert.ok(jsonBytes(retained) <= budget);
+  const keys = Object.keys(retained);
+  assert.ok(keys.length >= 2);
+  for (const [key, entry] of Object.entries(retained)) {
+    const target = entry[ROOM_CARD_ALIAS_FIELD];
+    if (target === undefined) continue;
+    assert.ok(Object.hasOwn(retained, target), `${key} senza la sua voce`);
+    assert.equal(keys.indexOf(key), keys.indexOf(target) + 1);
+  }
+  const pairs = Object.values(retained).filter((entry) => !Object.hasOwn(entry, ROOM_CARD_ALIAS_FIELD));
+  const aliases = keys.length - pairs.length;
+  // Al limite del budget l'ultima voce può entrare senza alias: resta trovabile per asset e attore.
+  assert.ok(aliases >= pairs.length - 1, "le voci conservate portano con sé il proprio alias");
+
+  // Con budget eccedente la retain scarta gli alias pendenti.
+  const dangling = {
+    ...encoded,
+    orphan: { [ROOM_CARD_ALIAS_FIELD]: "asset:https://assets.test/gone.png", updatedAt: 900 },
+  };
+  assert.equal(
+    Object.hasOwn(retainInitiativeCardRegistryWithinByteBudget(dangling, fullBytes), "orphan"),
+    false,
   );
 });
