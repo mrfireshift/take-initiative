@@ -5890,8 +5890,39 @@
     },
     "mago-canto-della-lama-melodia-della-lama": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10,
+        "end_conditions": [
+          "incapacitato",
+          "armatura media o pesante, scudo o arma a due mani"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🎶"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Melodia della Lama",
+        "detail": "Per 1 minuto: CA + modificatore di Intelligenza (minimo +1), velocità +3 m, vantaggio ad Acrobazia, + Intelligenza ai TS su Costituzione per la concentrazione. Usi pari al bonus di competenza per riposo lungo, da segnare al tavolo.",
+        "mechanics": {
+          "movement": {
+            "addMeters": 3
+          }
+        }
+      }
     },
     "mago-canto-della-lama-attacco-extra": {
       "include": true,
@@ -5916,8 +5947,31 @@
     },
     "mago-magia-della-guerra-deviazione-arcana": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "reazione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "next-turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🛡️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Deviazione Arcana",
+        "displayLabel": "Deviazione Arcana · Solo trucchetti",
+        "detail": "+2 alla CA contro l'attacco che lo ha colpito o +4 al TS fallito. Fino alla fine del prossimo turno del mago può lanciare solo trucchetti."
+      }
     },
     "mago-magia-della-guerra-ingegno-tattico": {
       "include": true,
@@ -5956,13 +6010,47 @@
     },
     "mago-ordine-degli-scribi-libro-degli-incantesimi-risvegliato": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "📖"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "mago-ordine-degli-scribi-mente-manifesta": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🧠"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "mago-ordine-degli-scribi-scrivano-arcano": {
       "include": true,
@@ -5973,8 +6061,25 @@
     },
     "mago-ordine-degli-scribi-comunione-con-il-testo": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "reazione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "📜"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "mago-scuola-di-abiurazione-abiuratore-sapiente": {
       "include": true,
@@ -6018,13 +6123,56 @@
     },
     "mago-scuola-di-ammaliamento-sguardo-ipnotico": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 1.5,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "timing": "next-turn-end",
+        "end_conditions": [
+          "danno al bersaglio"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "👁️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Sguardo Ipnotico",
+        "detail": "TS Saggezza fallito: affascinato fino alla fine del prossimo turno del mago, velocità 0 e incapacitato. Il mago può prolungarlo con la sua azione (riattiva la capacità). Termina se il mago si allontana oltre 1,5 m, se il bersaglio non lo vede o sente più o subisce danni. Con TS superato non applicare la pill: la creatura è immune fino al riposo lungo.",
+        "mechanics": {
+          "endsOnDamage": true,
+          "movement": {
+            "setMeters": 0
+          }
+        }
+      },
+      "excludeResourcePoolIds": [
+        "mago-scuola-di-ammaliamento-sguardo-ipnotico-usi"
+      ]
     },
     "mago-scuola-di-ammaliamento-fascino-istintivo": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false,
+      "resourceCosts": [],
+      "excludeResourcePoolIds": [
+        "mago-scuola-di-ammaliamento-fascino-istintivo-usi"
+      ]
     },
     "mago-scuola-di-ammaliamento-ammaliamento-condiviso": {
       "include": true,
@@ -6049,8 +6197,25 @@
     },
     "mago-scuola-di-divinazione-portento": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "prima_del_tiro"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🔮"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "mago-scuola-di-divinazione-divinazione-esperta": {
       "include": true,
@@ -6061,8 +6226,76 @@
     },
     "mago-scuola-di-divinazione-terzo-occhio": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "choiceOptions": [
+        {
+          "id": "comprensione",
+          "label": "Comprensione Superiore",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Terzo Occhio",
+            "displayLabel": "Terzo Occhio · Comprensione Superiore",
+            "detail": "Legge qualsiasi linguaggio. Dura finché il mago è incapacitato o completa un riposo breve o lungo."
+          }
+        },
+        {
+          "id": "scurovisione",
+          "label": "Scurovisione",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Terzo Occhio",
+            "displayLabel": "Terzo Occhio · Scurovisione",
+            "detail": "Scurovisione entro 18 m. Dura finché il mago è incapacitato o completa un riposo breve o lungo."
+          }
+        },
+        {
+          "id": "invisibilita",
+          "label": "Vedere Invisibilità",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Terzo Occhio",
+            "displayLabel": "Terzo Occhio · Vedere Invisibilità",
+            "detail": "Vede creature e oggetti invisibili entro 3 m in linea di vista. Dura finché il mago è incapacitato o completa un riposo breve o lungo."
+          }
+        },
+        {
+          "id": "eterea",
+          "label": "Vista Eterea",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Terzo Occhio",
+            "displayLabel": "Terzo Occhio · Vista Eterea",
+            "detail": "Vede sul Piano Etereo entro 18 m. Dura finché il mago è incapacitato o completa un riposo breve o lungo."
+          }
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "end_conditions": [
+          "incapacitato",
+          "riposo breve o lungo"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🔭"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Terzo Occhio",
+        "displayLabel": "Terzo Occhio · Comprensione Superiore",
+        "detail": "Legge qualsiasi linguaggio. Dura finché il mago è incapacitato o completa un riposo breve o lungo."
+      }
     },
     "mago-scuola-di-divinazione-portento-superiore": {
       "include": true,
@@ -6080,15 +6313,32 @@
     },
     "mago-scuola-di-evocazione-evocazione-minore": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "mago-scuola-di-evocazione-trasposizione-benevola": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🔄"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "mago-scuola-di-evocazione-evocazione-focalizzata": {
       "include": true,
@@ -6120,18 +6370,39 @@
     },
     "mago-scuola-di-illusione-illusioni-duttili": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "mago-scuola-di-illusione-sosia-illusorio": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "reazione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🪞"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "mago-scuola-di-illusione-realta-illusoria": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "mago-scuola-di-negromanzia-negromante-sapiente": {
       "include": true,
@@ -6161,10 +6432,30 @@
     },
     "mago-scuola-di-negromanzia-comandare-non-morti": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 18,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {},
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "💀"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Comandare Non Morti",
+        "displayLabel": "Non morto comandato",
+        "detail": "TS Carisma fallito (vantaggio con Intelligenza 8 o più): amichevole e obbedisce al mago finché questi usa di nuovo il privilegio. Con Intelligenza 12 o più ripete il TS ogni ora. Con TS superato non applicare la pill: la creatura è immune al privilegio."
+      }
     },
     "mago-scuola-di-trasmutazione-alchimia-minore": {
       "include": true,

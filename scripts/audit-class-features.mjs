@@ -238,6 +238,12 @@ const BACKLOG_ARCHETYPE_OVERRIDES = Object.freeze({
   "druido-circolo-delle-spore-infestazione-fungina": "companion-summon",
   // Batch Ranger (Fase 2): potenziamento di Sciame Riunito.
   "ranger-custode-degli-sciami-sciame-possente": "reference",
+  // Batch Mago (Fase 2).
+  // Reazione con TS e limite per creatura: il pool sorgente non è RAW.
+  "mago-scuola-di-ammaliamento-fascino-istintivo": "instant-reminder",
+  "mago-scuola-di-evocazione-evocazione-minore": "reference",
+  "mago-scuola-di-illusione-illusioni-duttili": "reference",
+  "mago-scuola-di-illusione-realta-illusoria": "reference",
 });
 
 const DIRECT_TEST_FILES = [
@@ -251,6 +257,7 @@ const DIRECT_TEST_FILES = [
   "fighterFeatureRuntime.test.js",
   "monkFeatureRuntime.test.js",
   "rangerFeatureRuntime.test.js",
+  "wizardSchoolsFeatureRuntime.test.js",
   "warlockFeatureRuntime.test.js",
   "paladinDevotionFeatureRuntime.test.js",
   "rangerRevisedFeatureRuntime.test.js",

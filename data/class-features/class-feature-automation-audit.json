@@ -34,7 +34,7 @@
     ],
     "totalMechanics": 860,
     "runtimeCatalogRecords": 860,
-    "runtimeImplemented": 198
+    "runtimeImplemented": 209
   },
   "criteria": {
     "token_marker": "La capacità viene usata su un token e lascia uno stato/promemoria visibile per la durata dello scontro o finché non viene consumata.",
@@ -49,9 +49,9 @@
   "summary": {
     "byCombatTracking": {
       "tavolo": 649,
-      "token_marker_review": 153,
+      "token_marker_review": 152,
       "instant_effect": 43,
-      "token_marker": 15
+      "token_marker": 16
     },
     "bySource": {
       "phb2014": 440,
@@ -71,11 +71,11 @@
       "curata": 109
     },
     "byRuntimeStatus": {
-      "not-automated": 662,
-      "implemented": 198
+      "not-automated": 651,
+      "implemented": 209
     },
     "blockerCounts": {
-      "adapter_runtime_mancante": 662,
+      "adapter_runtime_mancante": 651,
       "scelta_giocatore_o_opzione": 146
     },
     "dataBlockerCounts": {
@@ -114,25 +114,25 @@
       "temporary_hp_and_reaction_move": 1,
       "transform": 1
     },
-    "tokenMarkerCandidateCount": 15,
-    "tokenMarkerReviewCount": 153,
-    "structuredMarkerReviewCount": 6,
+    "tokenMarkerCandidateCount": 16,
+    "tokenMarkerReviewCount": 152,
+    "structuredMarkerReviewCount": 5,
     "textualMarkerReviewCount": 147,
     "instantEffectCount": 43,
     "tokenMarkerRuntimeGapCount": 0,
     "deterministicExcludedCount": 4,
     "resourceCriterionIgnored": true,
     "byArchetype": {
-      "reference": 414,
+      "reference": 417,
       "instant-reminder": 122,
       "timed-condition": 114,
       "resource-only": 103,
       "aura": 22,
       "hp-change": 19,
-      "movement": 16,
+      "movement": 15,
       "custom-adapter": 13,
-      "save-outcome-condition": 13,
-      "companion-summon": 12,
+      "save-outcome-condition": 12,
+      "companion-summon": 11,
       "spell-bridge": 9,
       "transformation": 2,
       "variable-cost": 1
@@ -144,25 +144,25 @@
         "label": "Carta descrittiva",
         "available": true,
         "implemented": 0,
-        "open": 552
+        "open": 554
       },
       "resource-only": {
         "label": "Consumo risorsa",
         "available": true,
-        "implemented": 81,
-        "open": 22
+        "implemented": 87,
+        "open": 16
       },
       "condition": {
         "label": "Pill con durata",
         "available": true,
-        "implemented": 87,
-        "open": 27
+        "implemented": 92,
+        "open": 22
       },
       "condition-choice": {
         "label": "Pill con esito scelto dal GM (choiceOptions)",
         "available": true,
         "implemented": 4,
-        "open": 9
+        "open": 8
       },
       "aura": {
         "label": "Aura dinamica",
@@ -186,7 +186,7 @@
         "label": "Compagno o evocazione su token esistente",
         "available": false,
         "implemented": 0,
-        "open": 12
+        "open": 11
       },
       "transformation": {
         "label": "Trasformazione",
@@ -206,7 +206,7 @@
         "label": "Descrittiva / passiva",
         "primitive": "reference-only",
         "implemented": 0,
-        "open": 414
+        "open": 417
       },
       "instant-reminder": {
         "label": "Reazione o effetto istantaneo da ricordare",
@@ -218,25 +218,25 @@
         "label": "Movimento / teletrasporto",
         "primitive": "reference-only",
         "implemented": 0,
-        "open": 16
+        "open": 15
       },
       "resource-only": {
         "label": "Solo consumo risorsa",
         "primitive": "resource-only",
-        "implemented": 81,
-        "open": 22
+        "implemented": 87,
+        "open": 16
       },
       "timed-condition": {
         "label": "Buff o marker con durata",
         "primitive": "condition",
-        "implemented": 87,
-        "open": 27
+        "implemented": 92,
+        "open": 22
       },
       "save-outcome-condition": {
         "label": "Condizione dopo tiro salvezza",
         "primitive": "condition-choice",
         "implemented": 4,
-        "open": 9
+        "open": 8
       },
       "aura": {
         "label": "Aura",
@@ -260,7 +260,7 @@
         "label": "Compagno / evocazione",
         "primitive": "linked-token",
         "implemented": 0,
-        "open": 12
+        "open": 11
       },
       "transformation": {
         "label": "Trasformazione",
@@ -281,10 +281,10 @@
         "open": 0
       }
     },
-    "dataOnlyCandidateCount": 619,
-    "dataOnlyAutomationCount": 67,
-    "needsPrimitiveCount": 43,
-    "manualDecisionCount": 14,
+    "dataOnlyCandidateCount": 609,
+    "dataOnlyAutomationCount": 55,
+    "needsPrimitiveCount": 42,
+    "manualDecisionCount": 18,
     "byClass": {
       "barbaro": {
         "className": "Barbaro",
@@ -352,14 +352,14 @@
       },
       "mago": {
         "className": "Mago",
-        "implemented": 0,
-        "dataOnlyReference": 44,
-        "dataOnlyAutomation": 12,
-        "needsPrimitive": 5,
+        "implemented": 11,
+        "dataOnlyReference": 46,
+        "dataOnlyAutomation": 0,
+        "needsPrimitive": 4,
         "needsPrimitiveByPrimitive": {
           "spell-bridge": 2,
           "value-input": 1,
-          "linked-token": 2
+          "linked-token": 1
         }
       },
       "monaco": {
@@ -434,34 +434,34 @@
     "runtimeNotExposedCount": 0,
     "currentAutomation": {
       "FULL": 8,
-      "PARTIAL": 109,
-      "TRACK_ONLY": 155,
-      "MANUAL": 588,
+      "PARTIAL": 114,
+      "TRACK_ONLY": 152,
+      "MANUAL": 586,
       "NONE": 0
     },
     "targetAutomation": {
-      "FULL": 37,
-      "PARTIAL": 376,
+      "FULL": 38,
+      "PARTIAL": 375,
       "TRACK_ONLY": 87,
       "MANUAL": 360,
       "UNREVIEWED": 0
     },
     "coverageStatus": {
-      "ACCEPTED": 476,
-      "GAP": 384,
+      "ACCEPTED": 480,
+      "GAP": 380,
       "UNREVIEWED": 0
     },
     "testCoverageStatus": {
-      "DIRECT": 318,
-      "INDIRECT": 36,
-      "NONE": 506
+      "DIRECT": 330,
+      "INDIRECT": 34,
+      "NONE": 496
     },
-    "functionalGapCount": 384,
+    "functionalGapCount": 380,
     "testGapCount": 0,
     "sourceConflictCount": 3,
     "catalogGapCount": 0,
     "customCodeCount": 15,
-    "persistentLifecycleCount": 127,
+    "persistentLifecycleCount": 129,
     "resourcePoolCount": 104
   },
   "resourcePools": [
@@ -827,19 +827,17 @@
       "resourceId": "mago-scuola-di-ammaliamento-fascino-istintivo-usi",
       "name": "Fascino Istintivo - utilizzi",
       "classId": "mago",
-      "featureIds": [
-        "mago-scuola-di-ammaliamento-fascino-istintivo"
-      ],
+      "featureIds": [],
       "capacityModel": "fixed",
       "maximumRule": "class_level_table",
       "refreshResetRule": "riposo_lungo:massimo",
       "runtimeReadable": true,
       "runtimeWritable": true,
-      "consumptionPath": "activateClassFeature (resourceCosts) / initiativeCardModal",
+      "consumptionPath": "initiativeCardModal (manual)",
       "resetPath": "resetClassFeatureResources / initiativeCardModal",
       "uiExposure": "initiativeCardClassic / initiativeCardModal",
       "testCoverage": "INDIRECT",
-      "classification": "CONNECTED"
+      "classification": "UNREVIEWED"
     },
     {
       "resourceId": "druido-forma-selvatica-usi",
@@ -1671,19 +1669,17 @@
       "resourceId": "mago-scuola-di-ammaliamento-sguardo-ipnotico-usi",
       "name": "Sguardo Ipnotico - utilizzi",
       "classId": "mago",
-      "featureIds": [
-        "mago-scuola-di-ammaliamento-sguardo-ipnotico"
-      ],
+      "featureIds": [],
       "capacityModel": "fixed",
       "maximumRule": "class_level_table",
       "refreshResetRule": "riposo_lungo:massimo",
       "runtimeReadable": true,
       "runtimeWritable": true,
-      "consumptionPath": "activateClassFeature (resourceCosts) / initiativeCardModal",
+      "consumptionPath": "initiativeCardModal (manual)",
       "resetPath": "resetClassFeatureResources / initiativeCardModal",
       "uiExposure": "initiativeCardClassic / initiativeCardModal",
       "testCoverage": "INDIRECT",
-      "classification": "CONNECTED"
+      "classification": "UNREVIEWED"
     },
     {
       "resourceId": "mago-scuola-di-illusione-sosia-illusorio-usi",
@@ -2451,7 +2447,7 @@
     {
       "phase": 1,
       "label": "Marker token ad alta confidenza",
-      "count": 15,
+      "count": 16,
       "candidates": [
         "Ira (barbaro-ira)",
         "Ispirazione Bardica (bardo-ispirazione-bardica)",
@@ -2462,6 +2458,7 @@
         "Legame Incoraggiante (chierico-dominio-della-pace-legame-incoraggiante)",
         "Incanalare Divinità: Santuario del Crepuscolo (chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-del-crepuscolo)",
         "Potenza del Gigante (guerriero-cavaliere-runico-potenza-del-gigante)",
+        "Melodia della Lama (mago-canto-della-lama-melodia-della-lama)",
         "Braccia del Sé Astrale (monaco-via-del-se-astrale-braccia-del-se-astrale)",
         "Protettori Ancestrali (barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali)",
         "Totem Spirituale (druido-circolo-del-pastore-totem-spirituale)",
@@ -2473,7 +2470,7 @@
     {
       "phase": 2,
       "label": "Curare i marker suggeriti dal testo o da effetti incompleti",
-      "count": 153,
+      "count": 152,
       "candidates": [
         "Aquila (barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila)",
         "Presenza Intimidatoria (barbaro-cammino-del-berserker-presenza-intimidatoria)",
@@ -2540,7 +2537,6 @@
         "Potere Psionico (ladro-lama-spirituale-potere-psionico)",
         "Velo Psichico (ladro-lama-spirituale-velo-psichico)",
         "Squarciare la Mente (ladro-lama-spirituale-squarciare-la-mente)",
-        "Melodia della Lama (mago-canto-della-lama-melodia-della-lama)",
         "Comunione con il Testo (mago-ordine-degli-scribi-comunione-con-il-testo)",
         "Tocco del Medico (monaco-via-della-misericordia-tocco-del-medico)",
         "Corpo del Sé Astrale (monaco-via-del-se-astrale-corpo-del-se-astrale)",
@@ -7407,7 +7403,7 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "INDIRECT",
+      "testCoverageStatus": "NONE",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -7437,9 +7433,7 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": [
-          "test/classFeatureAudit.test.js"
-        ]
+        "tests": []
       },
       "notes": []
     },
@@ -26464,6 +26458,7 @@
           "trackerQuickActions"
         ],
         "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js",
           "test/wizardEvocationFeatureRuntime.test.js",
           "test/classFeatureAudit.test.js"
         ]
@@ -27102,12 +27097,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "timed-condition",
-      "archetypeLabel": "Buff o marker con durata",
-      "requiredPrimitive": "condition",
+      "archetype": "reference",
+      "archetypeLabel": "Descrittiva / passiva",
+      "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "mode:tavolo"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -27890,8 +27885,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "durata_da_specificare"
@@ -27916,7 +27910,7 @@
         "durationType": "non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [
           "replace_roll"
@@ -27928,14 +27922,14 @@
       "archetype": "resource-only",
       "archetypeLabel": "Solo consumo risorsa",
       "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [],
@@ -27959,22 +27953,22 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "DICE_POOL",
       "activationType": "OTHER",
-      "targetingMode": "SINGLE_TARGET",
+      "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -27983,13 +27977,15 @@
           "Pagina 86"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -28131,8 +28127,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "completezza_non_curata",
@@ -28165,22 +28160,22 @@
           "fino all",
           "bersaglio"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "save-outcome-condition",
-      "archetypeLabel": "Condizione dopo tiro salvezza",
-      "requiredPrimitive": "condition-choice",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:tiro-salvezza-condizione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -28200,41 +28195,41 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "INDIRECT",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
-      "resourceModel": "LONG_REST",
+      "resourceModel": "NONE",
       "activationType": "ACTION",
-      "targetingMode": "SELF",
+      "targetingMode": "SINGLE_TARGET",
       "durationMode": "UNTIL_TURN",
       "persistentCategory": "TURN_BOUND_STATE",
       "usesCustomCode": false,
       "hasCleanup": true,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Manuale del Giocatore 2014",
           "Pagina 85"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
         "tests": [
-          "test/classFeatureAudit.test.js"
+          "test/wizardSchoolsFeatureRuntime.test.js"
         ]
       },
       "notes": []
@@ -28758,12 +28753,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "resource-only",
-      "archetypeLabel": "Solo consumo risorsa",
-      "requiredPrimitive": "resource-only",
+      "archetype": "instant-reminder",
+      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
+      "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -28791,10 +28786,10 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -28802,14 +28797,14 @@
       "executionPath": [
         "REMINDER"
       ],
-      "resourceModel": "LONG_REST",
+      "resourceModel": "NONE",
       "activationType": "REACTION",
       "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -28824,7 +28819,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -28880,12 +28877,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "timed-condition",
-      "archetypeLabel": "Buff o marker con durata",
-      "requiredPrimitive": "condition",
+      "archetype": "reference",
+      "archetypeLabel": "Descrittiva / passiva",
+      "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "mode:tavolo"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -29316,8 +29313,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "completezza_non_curata",
@@ -29347,22 +29343,22 @@
           "finché",
           "fino a"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "movement",
-      "archetypeLabel": "Movimento / teletrasporto",
-      "requiredPrimitive": "reference-only",
-      "dataOnlyCandidate": true,
+      "archetype": "resource-only",
+      "archetypeLabel": "Solo consumo risorsa",
+      "requiredPrimitive": "resource-only",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:movimento"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -29385,13 +29381,13 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "ACTION",
@@ -29400,7 +29396,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -29409,13 +29405,15 @@
           "Pagina 86"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -30260,8 +30258,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "completezza_non_curata",
@@ -30290,7 +30287,7 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -30298,14 +30295,14 @@
       "archetype": "resource-only",
       "archetypeLabel": "Solo consumo risorsa",
       "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -30327,13 +30324,13 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "SHORT_REST",
       "activationType": "REACTION",
@@ -30342,7 +30339,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -30351,13 +30348,15 @@
           "Pagina 87"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -30383,8 +30382,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "completezza_non_curata",
@@ -30413,22 +30411,22 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "resource-only",
-      "archetypeLabel": "Solo consumo risorsa",
-      "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -30447,40 +30445,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "SHORT_REST",
       "activationType": "ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "PERSISTENT",
+      "persistentCategory": "PERSISTENT_EFFECT",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Manuale del Giocatore 2014",
           "Pagina 86"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -30625,8 +30625,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "completezza_non_curata",
@@ -30654,22 +30653,22 @@
           "finché",
           "bersaglio"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "instant-reminder",
-      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
-      "requiredPrimitive": "reference-only",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "attivazione:azione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -30689,40 +30688,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "NONE",
       "activationType": "ACTION",
-      "targetingMode": "SELF",
+      "targetingMode": "SINGLE_TARGET",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Manuale del Giocatore 2014",
           "Pagina 88"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -31131,12 +31132,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "timed-condition",
-      "archetypeLabel": "Buff o marker con durata",
-      "requiredPrimitive": "condition",
+      "archetype": "reference",
+      "archetypeLabel": "Descrittiva / passiva",
+      "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -72153,9 +72154,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -72179,7 +72178,7 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -72187,14 +72186,14 @@
       "archetype": "resource-only",
       "archetypeLabel": "Solo consumo risorsa",
       "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -72214,13 +72213,13 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "TRACK_ONLY",
       "coverageStatus": "ACCEPTED",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "SHORT_REST",
       "activationType": "FREE",
@@ -72229,7 +72228,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": null,
       "severity": null,
       "evidence": {
@@ -72238,13 +72237,15 @@
           "Pagina 54"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -72263,15 +72264,13 @@
       "minimumLevel": 2,
       "page": 52,
       "recommendation": {
-        "mode": "token_marker_review",
-        "modeLabel": "Candidato token da curare",
-        "priority": "media",
-        "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
+        "mode": "token_marker",
+        "modeLabel": "Tracciamento su token",
+        "priority": "alta",
+        "rationale": "L'attivazione applica uno stato, un'aura o un promemoria a un token e la durata/bersaglio sono sufficientemente identificabili.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "bersaglio_da_specificare",
           "durata_da_specificare"
@@ -72294,7 +72293,7 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [
           "apply_state"
         ],
@@ -72306,14 +72305,14 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [],
@@ -72331,16 +72330,16 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
-      "targetAutomationLevel": "PARTIAL",
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "FULL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "NONE",
       "activationType": "BONUS_ACTION",
@@ -72349,7 +72348,7 @@
       "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
       "hasCleanup": true,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -72358,13 +72357,15 @@
           "Pagina 52"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -72500,9 +72501,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -72528,22 +72527,22 @@
         "textMarkerSignals": [
           "fino a"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "companion-summon",
-      "archetypeLabel": "Compagno / evocazione",
-      "requiredPrimitive": "linked-token",
+      "archetype": "resource-only",
+      "archetypeLabel": "Solo consumo risorsa",
+      "requiredPrimitive": "resource-only",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:compagno-evocazione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -72565,22 +72564,22 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "LONG_REST",
-      "activationType": "BONUS_ACTION",
+      "activationType": "FREE",
       "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -72589,13 +72588,15 @@
           "Pagina 54"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -72962,9 +72963,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -72991,7 +72990,7 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -72999,14 +72998,14 @@
       "archetype": "resource-only",
       "archetypeLabel": "Solo consumo risorsa",
       "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -73028,13 +73027,13 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "REACTION",
@@ -73043,7 +73042,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -73052,13 +73051,15 @@
           "Pagina 55"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -93154,8 +93155,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "bersaglio_da_specificare",
@@ -93184,7 +93184,7 @@
           "fino al",
           "fino all"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [
           "choice",
@@ -93198,14 +93198,14 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:instant_effect"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [],
@@ -93220,40 +93220,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "NONE",
       "activationType": "REACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "UNTIL_TURN",
+      "persistentCategory": "TURN_BOUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 37"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/wizardSchoolsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -95122,7 +95124,8 @@
           "trackerQuickActions"
         ],
         "tests": [
-          "test/monkFeatureRuntime.test.js"
+          "test/monkFeatureRuntime.test.js",
+          "test/classFeatureAudit.test.js"
         ]
       },
       "notes": []

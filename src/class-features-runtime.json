@@ -26434,9 +26434,9 @@
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -26449,17 +26449,23 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🛡️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Deviazione Arcana",
+        "displayLabel": "Deviazione Arcana · Solo trucchetti",
+        "detail": "+2 alla CA contro l'attacco che lo ha colpito o +4 al TS fallito. Fino alla fine del prossimo turno del mago può lanciare solo trucchetti."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn-end"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -26572,7 +26578,7 @@
       "page": 86,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -26587,6 +26593,7 @@
       "activation": {
         "primary": "azione"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -26864,16 +26871,16 @@
       "page": 54,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "tracciamento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -26889,7 +26896,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "📖",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -26924,9 +26931,9 @@
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -26939,15 +26946,28 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🎶",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Melodia della Lama",
+        "detail": "Per 1 minuto: CA + modificatore di Intelligenza (minimo +1), velocità +3 m, vantaggio ad Acrobazia, + Intelligenza ai TS su Costituzione per la concentrazione. Usi pari al bonus di competenza per riposo lungo, da segnare al tavolo.",
+        "mechanics": {
+          "movement": {
+            "addMeters": 3
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": 10
+        "rounds": 10,
+        "endConditions": [
+          "incapacitato",
+          "armatura media o pesante, scudo o arma a due mani"
+        ]
       },
       "trackingMode": "active",
       "resourceCosts": []
@@ -27070,9 +27090,9 @@
       ],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "prima_del_tiro"
@@ -27080,15 +27100,15 @@
       "trackedResourcePoolIds": [
         "mago-portento-dadi"
       ],
-      "targetMode": "selection",
+      "targetMode": "self",
       "targeting": {
-        "mode": "single-target",
+        "mode": "self",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": true
+        "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔮",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -27175,42 +27195,48 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
       },
-      "trackedResourcePoolIds": [
-        "mago-scuola-di-ammaliamento-sguardo-ipnotico-usi"
-      ],
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
+        "mode": "single-target",
+        "rangeMeters": 1.5,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "👁️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Sguardo Ipnotico",
+        "detail": "TS Saggezza fallito: affascinato fino alla fine del prossimo turno del mago, velocità 0 e incapacitato. Il mago può prolungarlo con la sua azione (riattiva la capacità). Termina se il mago si allontana oltre 1,5 m, se il bersaglio non lo vede o sente più o subisce danni. Con TS superato non applicare la pill: la creatura è immune fino al riposo lungo.",
+        "mechanics": {
+          "endsOnDamage": true,
+          "movement": {
+            "setMeters": 0
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": null,
-        "timing": "turn-end"
+        "timing": "next-turn-end",
+        "endConditions": [
+          "danno al bersaglio"
+        ]
       },
       "trackingMode": "active",
-      "resourceCosts": [
-        {
-          "poolId": "mago-scuola-di-ammaliamento-sguardo-ipnotico-usi",
-          "amount": 1
-        }
-      ]
+      "resourceCosts": []
     },
     {
       "id": "mago-tradizione-arcana",
@@ -27468,7 +27494,7 @@
       "page": 85,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -27483,9 +27509,7 @@
       "activation": {
         "primary": "reazione"
       },
-      "trackedResourcePoolIds": [
-        "mago-scuola-di-ammaliamento-fascino-istintivo-usi"
-      ],
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -27505,12 +27529,7 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": [
-        {
-          "poolId": "mago-scuola-di-ammaliamento-fascino-istintivo-usi",
-          "amount": 1
-        }
-      ]
+      "resourceCosts": []
     },
     {
       "id": "mago-scuola-di-illusione-illusioni-duttili",
@@ -27524,7 +27543,7 @@
       "page": 86,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -27539,6 +27558,7 @@
       "activation": {
         "primary": "innesco"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -27675,12 +27695,12 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "azione_bonus"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "mago-ordine-degli-scribi-mente-manifesta-usi"
@@ -27693,7 +27713,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🧠",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -27820,7 +27840,7 @@
       "page": 86,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -27828,9 +27848,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -27838,7 +27858,6 @@
       "trackedResourcePoolIds": [
         "mago-scuola-di-evocazione-trasposizione-benevola-usi"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -27847,7 +27866,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔄",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -28372,9 +28391,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -28390,7 +28409,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🪞",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -28428,9 +28447,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -28446,17 +28465,68 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔭",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Terzo Occhio",
+        "displayLabel": "Terzo Occhio · Comprensione Superiore",
+        "detail": "Legge qualsiasi linguaggio. Dura finché il mago è incapacitato o completa un riposo breve o lungo."
+      },
+      "choiceOptions": [
+        {
+          "id": "comprensione",
+          "label": "Comprensione Superiore",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Terzo Occhio",
+            "displayLabel": "Terzo Occhio · Comprensione Superiore",
+            "detail": "Legge qualsiasi linguaggio. Dura finché il mago è incapacitato o completa un riposo breve o lungo."
+          }
+        },
+        {
+          "id": "scurovisione",
+          "label": "Scurovisione",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Terzo Occhio",
+            "displayLabel": "Terzo Occhio · Scurovisione",
+            "detail": "Scurovisione entro 18 m. Dura finché il mago è incapacitato o completa un riposo breve o lungo."
+          }
+        },
+        {
+          "id": "invisibilita",
+          "label": "Vedere Invisibilità",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Terzo Occhio",
+            "displayLabel": "Terzo Occhio · Vedere Invisibilità",
+            "detail": "Vede creature e oggetti invisibili entro 3 m in linea di vista. Dura finché il mago è incapacitato o completa un riposo breve o lungo."
+          }
+        },
+        {
+          "id": "eterea",
+          "label": "Vista Eterea",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Terzo Occhio",
+            "displayLabel": "Terzo Occhio · Vista Eterea",
+            "detail": "Vede sul Piano Etereo entro 18 m. Dura finché il mago è incapacitato o completa un riposo breve o lungo."
+          }
+        }
+      ],
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "endConditions": [
+          "incapacitato",
+          "riposo breve o lungo"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "mago-scuola-di-divinazione-terzo-occhio-usi",
@@ -28573,7 +28643,7 @@
       "page": 88,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -28581,33 +28651,37 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
       },
-      "quickActionEligible": false,
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
+        "mode": "single-target",
+        "rangeMeters": 18,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💀",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Comandare Non Morti",
+        "displayLabel": "Non morto comandato",
+        "detail": "TS Carisma fallito (vantaggio con Intelligenza 8 o più): amichevole e obbedisce al mago finché questi usa di nuovo il privilegio. Con Intelligenza 12 o più ripete il TS ogni ora. Con TS superato non applicare la pill: la creatura è immune al privilegio."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": null
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -28629,9 +28703,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -28647,7 +28721,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "📜",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -28823,7 +28897,7 @@
       "page": 87,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -28838,6 +28912,7 @@
       "activation": {
         "primary": "azione_bonus"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -50007,7 +50082,7 @@
     "mechanicRecords": 860,
     "activeFeatures": 860,
     "resourcePools": 104,
-    "runtimeImplemented": 198,
-    "runtimeNotAutomated": 662
+    "runtimeImplemented": 209,
+    "runtimeNotAutomated": 651
   }
 }

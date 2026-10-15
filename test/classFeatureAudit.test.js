@@ -17,12 +17,12 @@ test("l'audit copre tutti i record dei quattro overlay", () => {
 test("l'audit separa marker token, effetti istantanei e gestione al tavolo", () => {
   assert.deepEqual(audit.summary.byCombatTracking, {
     tavolo: 649,
-    token_marker_review: 153,
+    token_marker_review: 152,
     instant_effect: 43,
-    token_marker: 15,
+    token_marker: 16,
   });
-  assert.equal(audit.summary.tokenMarkerCandidateCount, 15);
-  assert.equal(audit.summary.structuredMarkerReviewCount, 6);
+  assert.equal(audit.summary.tokenMarkerCandidateCount, 16);
+  assert.equal(audit.summary.structuredMarkerReviewCount, 5);
   assert.equal(audit.summary.textualMarkerReviewCount, 147);
   assert.equal(audit.summary.deterministicExcludedCount, 4);
   assert.equal(audit.summary.resourceCriterionIgnored, true);
@@ -126,10 +126,10 @@ test("CF-001B.8: resourcePoolCount === resourceMatrix.length === 104", () => {
   assert.equal(audit.reconciledSummary.resourcePoolCount, 104);
 });
 
-test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 127", () => {
+test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 129", () => {
   const persistent = audit.features.filter((f) => f.persistentCategory !== null);
-  assert.equal(persistent.length, 127);
-  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 127);
+  assert.equal(persistent.length, 129);
+  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 129);
 });
 
 test("CF-001B.10: catalogGapCount === 0", () => {
@@ -138,10 +138,10 @@ test("CF-001B.10: catalogGapCount === 0", () => {
   assert.equal(audit.reconciledSummary.catalogGapCount, 0);
 });
 
-test("CF-001B.11: functionalGapCount === 384", () => {
+test("CF-001B.11: functionalGapCount === 380", () => {
   const functionalGaps = audit.features.filter((f) => f.coverageStatus === "GAP");
-  assert.equal(functionalGaps.length, 384);
-  assert.equal(audit.reconciledSummary.functionalGapCount, 384);
+  assert.equal(functionalGaps.length, 380);
+  assert.equal(audit.reconciledSummary.functionalGapCount, 380);
 });
 
 test("CF-001B.12: testGapCount === 0 (all test gaps closed in CF-B01)", () => {
@@ -219,21 +219,21 @@ test("CF-001B.19: Spirito del Lupo invariants", () => {
 test("CF-001B.20: determinismo delle metriche canoniche", () => {
   assert.deepEqual(audit.reconciledSummary.currentAutomation, {
     FULL: 8,
-    PARTIAL: 109,
-    TRACK_ONLY: 155,
-    MANUAL: 588,
+    PARTIAL: 114,
+    TRACK_ONLY: 152,
+    MANUAL: 586,
     NONE: 0,
   });
   assert.deepEqual(audit.reconciledSummary.targetAutomation, {
-    FULL: 37,
-    PARTIAL: 376,
+    FULL: 38,
+    PARTIAL: 375,
     TRACK_ONLY: 87,
     MANUAL: 360,
     UNREVIEWED: 0,
   });
   assert.deepEqual(audit.reconciledSummary.coverageStatus, {
-    ACCEPTED: 476,
-    GAP: 384,
+    ACCEPTED: 480,
+    GAP: 380,
     UNREVIEWED: 0,
   });
 });
@@ -285,12 +285,13 @@ test("Backlog.4: le capacità implementate derivano l'archetipo dall'adapter", (
 });
 
 test("Backlog.5: capacità di riferimento per archetipo", () => {
+  // Esempi fissi solo per archetipi bloccati da una primitiva o descrittivi:
+  // i batch della Fase 2 implementano via via gli archetipi solo-dati.
   const expectations = {
-    "mago-scuola-di-ammaliamento-sguardo-ipnotico": ["save-outcome-condition", "condition-choice", true],
-    "bardo-collegio-del-valore-ispirazione-in-combattimento": ["resource-only", "resource-only", true],
     "ladro-elusione": ["reference", "reference-only", true],
     "stregone-magia-delle-ombre-forma-d-ombra": ["transformation", "transformation", false],
     "guerriero-recuperare-energie": ["hp-change", "value-input", false],
+    "monaco-via-del-kensei-affilare-la-lama": ["variable-cost", "value-input", false],
     "warlock-dono-del-patto-patto-della-catena": ["companion-summon", "linked-token", false],
     "mago-recupero-arcano": ["spell-bridge", "spell-bridge", false],
   };
@@ -299,6 +300,18 @@ test("Backlog.5: capacità di riferimento per archetipo", () => {
     assert.equal(feature.archetype, archetype, id);
     assert.equal(feature.requiredPrimitive, primitive, id);
     assert.equal(feature.dataOnlyCandidate, dataOnly, id);
+  }
+  // Ogni capacità aperta degli archetipi solo-dati resta un candidato solo-dati.
+  const dataOnlyArchetypes = {
+    "save-outcome-condition": "condition-choice",
+    "resource-only": "resource-only",
+    "timed-condition": "condition",
+    aura: "aura",
+  };
+  for (const f of audit.features) {
+    if (f.runtime.status === "implemented" || !dataOnlyArchetypes[f.archetype]) continue;
+    assert.equal(f.requiredPrimitive, dataOnlyArchetypes[f.archetype], f.id);
+    assert.equal(f.dataOnlyCandidate, true, f.id);
   }
 });
 
@@ -317,21 +330,21 @@ test("Backlog.7: i pool basati su modificatori di caratteristica sono segnalati"
 
 test("Backlog.8: determinismo della distribuzione per archetipo", () => {
   assert.deepEqual(audit.summary.byArchetype, {
-    reference: 414,
+    reference: 417,
     "instant-reminder": 122,
     "timed-condition": 114,
     "resource-only": 103,
     aura: 22,
     "hp-change": 19,
-    movement: 16,
+    movement: 15,
     "custom-adapter": 13,
-    "save-outcome-condition": 13,
-    "companion-summon": 12,
+    "save-outcome-condition": 12,
+    "companion-summon": 11,
     "spell-bridge": 9,
     transformation: 2,
     "variable-cost": 1,
   });
-  assert.equal(audit.backlog.dataOnlyCandidateCount, 619);
-  assert.equal(audit.backlog.dataOnlyAutomationCount, 67);
-  assert.equal(audit.backlog.needsPrimitiveCount, 43);
+  assert.equal(audit.backlog.dataOnlyCandidateCount, 609);
+  assert.equal(audit.backlog.dataOnlyAutomationCount, 55);
+  assert.equal(audit.backlog.needsPrimitiveCount, 42);
 });
