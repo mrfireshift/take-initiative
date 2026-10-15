@@ -211,6 +211,39 @@ Avanzamento:
 | Bardo (collegi rimanenti) | 15 ottobre 2026 | 10 | [BARDO_FASE2.md](BARDO_FASE2.md) |
 | Ladro (archetipi rimanenti) | 15 ottobre 2026 | 12 | [LADRO_FASE2.md](LADRO_FASE2.md) |
 | Paladino (giuramenti rimanenti) | 15 ottobre 2026 | 18 | [PALADINO_FASE2.md](PALADINO_FASE2.md) |
+| Stregone (origini rimanenti) | 15 ottobre 2026 | 12 | [STREGONE_FASE2.md](STREGONE_FASE2.md) |
+
+**Fase 2 completata** per tutte le classi: 202 capacità implementate con soli
+override, catalogo da 59 a 261 `implemented` su 860. Nessun adapter o codice
+runtime nuovo nei batch.
+
+Residuo che il classificatore considera ancora solo-dati (11), da rivedere a
+parte perché appartiene a batch curati in passato con decisioni proprie o
+dipende da caratteristiche non presenti sulla card:
+
+- Barbaro: Consapevolezza Magica, Anima Bestiale, Furia Contagiosa, Anima
+  Tempestosa, Tempesta Furibonda;
+- Ranger Revised: Consapevolezza Primordiale, Difesa dal Multiattacco;
+- Incarnazione della Legge (Chierico) e Difesa Gloriosa (Paladino): pool
+  basati su Saggezza o Carisma, in pratica bloccati da P1;
+- Scudo Solare (Monaco) e Guida della Tempesta (Stregone): luce e meteo, da
+  chiudere come carte descrittive.
+
+Capacità bloccate da una primitiva (Fase 3): `value-input` 17,
+`linked-token` 9, `spell-bridge` 8, `transformation` 1, più i pool che
+dipendono da un modificatore di caratteristica (P1).
+
+Lezioni dai batch:
+
+- prima di ogni batch confrontare le voci con lo stato degli override prima
+  della Fase 1: lo strumento di applicazione non distingue una voce curata ma
+  ancora piatta (caso Recupero Arcano, ripristinato nel batch Mago);
+- molti dati sorgente vanno corretti contro il RAW (costi variabili o assenti,
+  attivazioni "passive", pool per creatura trattati come giornalieri): ogni
+  correzione è documentata nell'audit del batch;
+- i TS ripetuti e i danni a inizio turno sono solo nel testo della pill: per
+  un popup serve far arrivare `saveReminder` alle pill di classe (vedi la
+  proposta discussa durante la Fase 2).
 
 Un batch = una classe base + tutte le sue sottoclassi, limitato alle feature
 `dataOnlyCandidate`. Per ogni batch:

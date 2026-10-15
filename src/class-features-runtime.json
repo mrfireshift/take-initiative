@@ -42598,9 +42598,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -42616,7 +42616,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💀",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -43517,24 +43517,23 @@
       "page": 53,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva_o_non_specificata"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "stregone-anima-divina-prescelto-dagli-dei-usi"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -43543,7 +43542,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🙏",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -43627,9 +43626,9 @@
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -43645,7 +43644,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⚖️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -44519,9 +44518,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -44537,7 +44536,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💗",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -44551,9 +44550,7 @@
       "resourceCosts": [
         {
           "poolId": "stregone-punti-stregoneria",
-          "amount": 1,
-          "variable": true,
-          "valueInput": "positive-integer"
+          "amount": 1
         }
       ]
     },
@@ -44679,9 +44676,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -44689,31 +44686,38 @@
       "trackedResourcePoolIds": [
         "stregone-punti-stregoneria"
       ],
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
+        "mode": "single-target",
+        "rangeMeters": 36,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🐺",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Segugio dei Presagi Nefasti",
+        "effectKind": "debuff",
+        "detail": "Bersaglio del segugio (lupo feroce Medio, posiziona il token entro 9 m dal bersaglio) per 5 minuti: mentre il segugio è entro 1,5 m, svantaggio ai TS contro gli incantesimi dello stregone. Termina se il segugio o il bersaglio scendono a 0 PF."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 50,
+        "endConditions": [
+          "segugio a 0 PF",
+          "bersaglio a 0 PF"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "stregone-punti-stregoneria",
-          "amount": 1,
-          "variable": true,
-          "valueInput": "positive-integer"
+          "amount": 3
         }
       ]
     },
@@ -44780,7 +44784,7 @@
       "page": 111,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -44788,14 +44792,13 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
       },
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -44804,17 +44807,33 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🐲",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Ali di Drago",
+        "detail": "Velocità di volare pari alla velocità attuale finché le congeda con un'azione bonus. Non con un'armatura non progettata per le ali.",
+        "mechanics": {
+          "movement": {
+            "modes": {
+              "fly": {
+                "copyFrom": "walk"
+              }
+            }
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "endConditions": [
+          "congedo con azione bonus"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -44829,21 +44848,20 @@
       "page": 53,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
       },
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -44852,17 +44870,34 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🪽",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Ali Ultraterrene",
+        "detail": "Velocità di volare 9 m finché è incapacitato, muore o le congeda con un'azione bonus.",
+        "mechanics": {
+          "movement": {
+            "modes": {
+              "fly": {
+                "grantMeters": 9
+              }
+            }
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "endConditions": [
+          "incapacitato",
+          "congedo con azione bonus"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -45086,9 +45121,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -45104,23 +45139,22 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🕰️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Trance dell'Ordine",
+        "detail": "Per 1 minuto: gli attacchi contro lo stregone non possono avere vantaggio; ai suoi tiri per colpire, prove e TS un 9 o meno sul d20 conta come 10. Gratuita una volta per riposo lungo; il riuso costa 5 punti stregoneria dal pool."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10
       },
-      "trackingMode": "instant",
-      "resourceCosts": [
-        {
-          "poolId": "stregone-punti-stregoneria",
-          "amount": 5
-        }
-      ]
+      "trackingMode": "active",
+      "resourceCosts": []
     },
     {
       "id": "stregone-stregoneria-della-tempesta-anima-del-vento",
@@ -45141,32 +45175,45 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
       },
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
-        "maxTargets": 1,
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌬️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Anima del Vento",
+        "detail": "Per 1 ora: velocità magica di volare 9 m (lo stregone riduce la propria da 18 a 9 m). Bersagli: lo stregone e fino a 3 + Carisma creature entro 9 m. Uso per riposo breve da segnare al tavolo.",
+        "mechanics": {
+          "movement": {
+            "modes": {
+              "fly": {
+                "grantMeters": 9
+              }
+            }
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 600
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -45292,9 +45339,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -45310,23 +45357,29 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌑",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Forma d'Ombra",
+        "detail": "Per 1 minuto: resistenza a tutti i danni tranne radiosi e da forza, attraversa creature e oggetti come terreno difficile (5 danni da forza se termina il turno in un oggetto)."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10,
+        "endConditions": [
+          "incapacitato",
+          "congedo con azione bonus"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "stregone-punti-stregoneria",
-          "amount": 1,
-          "variable": true,
-          "valueInput": "positive-integer"
+          "amount": 6
         }
       ]
     },
@@ -45406,9 +45459,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "aura",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -45418,23 +45471,116 @@
       ],
       "targetMode": "self",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
-        "maxTargets": 1,
+        "mode": "aura",
+        "rangeMeters": 18,
+        "maxTargets": null,
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🐉",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Presenza Draconica: Paura",
+        "radiusMeters": 18,
+        "detail": "Aura di paura di 18 m per 1 minuto o finché lo stregone perde la concentrazione.",
+        "targetEffect": {
+          "conditionName": "Nella Presenza Draconica (paura)",
+          "effectKind": "debuff",
+          "detail": "A inizio turno TS Saggezza: se fallisce resta spaventato fino al termine dell'aura (applica Spaventato dalle Condizioni); se riesce è immune all'aura per 24 ore.",
+          "targeting": {
+            "filter": "hostile",
+            "includeCaster": false
+          }
+        },
+        "triggerPolicy": {
+          "triggers": [
+            {
+              "id": "presenza-draconica-paura-inizio-turno",
+              "event": "turn-start",
+              "targetMode": "actor",
+              "frequency": "once-per-turn",
+              "resolution": "informational",
+              "label": "Presenza Draconica: TS Saggezza o spaventato fino al termine dell'aura."
+            }
+          ]
+        }
+      },
+      "choiceOptions": [
+        {
+          "id": "venerazione",
+          "label": "Venerazione",
+          "effectPlan": {
+            "kind": "aura",
+            "conditionName": "Presenza Draconica: Venerazione",
+            "radiusMeters": 18,
+            "detail": "Aura di venerazione di 18 m per 1 minuto o finché lo stregone perde la concentrazione.",
+            "targetEffect": {
+              "conditionName": "Nella Presenza Draconica (venerazione)",
+              "effectKind": "debuff",
+              "detail": "A inizio turno TS Saggezza: se fallisce resta affascinato fino al termine dell'aura (applica Affascinato dalle Condizioni); se riesce è immune all'aura per 24 ore.",
+              "targeting": {
+                "filter": "hostile",
+                "includeCaster": false
+              }
+            },
+            "triggerPolicy": {
+              "triggers": [
+                {
+                  "id": "presenza-draconica-venerazione-inizio-turno",
+                  "event": "turn-start",
+                  "targetMode": "actor",
+                  "frequency": "once-per-turn",
+                  "resolution": "informational",
+                  "label": "Presenza Draconica: TS Saggezza o affascinato fino al termine dell'aura."
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "paura",
+          "label": "Paura",
+          "effectPlan": {
+            "kind": "aura",
+            "conditionName": "Presenza Draconica: Paura",
+            "radiusMeters": 18,
+            "detail": "Aura di paura di 18 m per 1 minuto o finché lo stregone perde la concentrazione.",
+            "targetEffect": {
+              "conditionName": "Nella Presenza Draconica (paura)",
+              "effectKind": "debuff",
+              "detail": "A inizio turno TS Saggezza: se fallisce resta spaventato fino al termine dell'aura (applica Spaventato dalle Condizioni); se riesce è immune all'aura per 24 ore.",
+              "targeting": {
+                "filter": "hostile",
+                "includeCaster": false
+              }
+            },
+            "triggerPolicy": {
+              "triggers": [
+                {
+                  "id": "presenza-draconica-paura-inizio-turno",
+                  "event": "turn-start",
+                  "targetMode": "actor",
+                  "frequency": "once-per-turn",
+                  "resolution": "informational",
+                  "label": "Presenza Draconica: TS Saggezza o spaventato fino al termine dell'aura."
+                }
+              ]
+            }
+          }
+        }
+      ],
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10,
+        "endConditions": [
+          "perdita della concentrazione"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "stregone-punti-stregoneria",
@@ -45461,9 +45607,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -45479,7 +45625,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌤️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -50452,7 +50598,7 @@
     "mechanicRecords": 860,
     "activeFeatures": 860,
     "resourcePools": 104,
-    "runtimeImplemented": 249,
-    "runtimeNotAutomated": 611
+    "runtimeImplemented": 261,
+    "runtimeNotAutomated": 599
   }
 }

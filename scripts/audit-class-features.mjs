@@ -260,6 +260,8 @@ const BACKLOG_ARCHETYPE_OVERRIDES = Object.freeze({
   // Colpisce solo le creature spaventate: l'aura non filtra per condizione.
   "paladino-giuramento-di-conquista-aura-di-conquista": "reference",
   "paladino-giuramento-di-redenzione-aura-del-guardiano": "instant-reminder",
+  // Batch Stregone (Fase 2): da 1 a 5 punti stregoneria a scelta.
+  "stregone-anima-meccanica-bastione-della-legge": "variable-cost",
 });
 
 const DIRECT_TEST_FILES = [
@@ -281,6 +283,7 @@ const DIRECT_TEST_FILES = [
   "paladinOathsFeatureRuntime.test.js",
   "rangerRevisedFeatureRuntime.test.js",
   "rogueArcaneTricksterFeatureRuntime.test.js",
+  "sorcererOriginsFeatureRuntime.test.js",
   "sorcererWildMagicFeatureRuntime.test.js",
   "wizardEvocationFeatureRuntime.test.js",
 ];

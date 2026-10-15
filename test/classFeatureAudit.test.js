@@ -126,10 +126,10 @@ test("CF-001B.8: resourcePoolCount === resourceMatrix.length === 104", () => {
   assert.equal(audit.reconciledSummary.resourcePoolCount, 104);
 });
 
-test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 155", () => {
+test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 162", () => {
   const persistent = audit.features.filter((f) => f.persistentCategory !== null);
-  assert.equal(persistent.length, 155);
-  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 155);
+  assert.equal(persistent.length, 162);
+  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 162);
 });
 
 test("CF-001B.10: catalogGapCount === 0", () => {
@@ -138,10 +138,10 @@ test("CF-001B.10: catalogGapCount === 0", () => {
   assert.equal(audit.reconciledSummary.catalogGapCount, 0);
 });
 
-test("CF-001B.11: functionalGapCount === 358", () => {
+test("CF-001B.11: functionalGapCount === 351", () => {
   const functionalGaps = audit.features.filter((f) => f.coverageStatus === "GAP");
-  assert.equal(functionalGaps.length, 358);
-  assert.equal(audit.reconciledSummary.functionalGapCount, 358);
+  assert.equal(functionalGaps.length, 351);
+  assert.equal(audit.reconciledSummary.functionalGapCount, 351);
 });
 
 test("CF-001B.12: testGapCount === 0 (all test gaps closed in CF-B01)", () => {
@@ -219,9 +219,9 @@ test("CF-001B.19: Spirito del Lupo invariants", () => {
 test("CF-001B.20: determinismo delle metriche canoniche", () => {
   assert.deepEqual(audit.reconciledSummary.currentAutomation, {
     FULL: 8,
-    PARTIAL: 143,
-    TRACK_ONLY: 139,
-    MANUAL: 570,
+    PARTIAL: 150,
+    TRACK_ONLY: 135,
+    MANUAL: 567,
     NONE: 0,
   });
   assert.deepEqual(audit.reconciledSummary.targetAutomation, {
@@ -232,8 +232,8 @@ test("CF-001B.20: determinismo delle metriche canoniche", () => {
     UNREVIEWED: 0,
   });
   assert.deepEqual(audit.reconciledSummary.coverageStatus, {
-    ACCEPTED: 502,
-    GAP: 358,
+    ACCEPTED: 509,
+    GAP: 351,
     UNREVIEWED: 0,
   });
 });
@@ -289,7 +289,7 @@ test("Backlog.5: capacità di riferimento per archetipo", () => {
   // i batch della Fase 2 implementano via via gli archetipi solo-dati.
   const expectations = {
     "ladro-elusione": ["reference", "reference-only", true],
-    "stregone-magia-delle-ombre-forma-d-ombra": ["transformation", "transformation", false],
+    "stregone-mente-aberrante-rivelazione-della-carne": ["transformation", "transformation", false],
     "guerriero-recuperare-energie": ["hp-change", "value-input", false],
     "monaco-via-del-kensei-affilare-la-lama": ["variable-cost", "value-input", false],
     "warlock-dono-del-patto-patto-della-catena": ["companion-summon", "linked-token", false],
@@ -330,21 +330,21 @@ test("Backlog.7: i pool basati su modificatori di caratteristica sono segnalati"
 
 test("Backlog.8: determinismo della distribuzione per archetipo", () => {
   assert.deepEqual(audit.summary.byArchetype, {
-    reference: 422,
-    "timed-condition": 125,
-    "instant-reminder": 120,
-    "resource-only": 105,
+    reference: 421,
+    "timed-condition": 129,
+    "instant-reminder": 119,
+    "resource-only": 106,
     aura: 20,
-    "hp-change": 16,
-    movement: 14,
+    "hp-change": 15,
     "custom-adapter": 13,
-    "companion-summon": 10,
+    movement: 13,
+    "companion-summon": 9,
     "spell-bridge": 8,
     "save-outcome-condition": 4,
-    transformation: 2,
-    "variable-cost": 1,
+    "variable-cost": 2,
+    transformation: 1,
   });
-  assert.equal(audit.backlog.dataOnlyCandidateCount, 574);
-  assert.equal(audit.backlog.dataOnlyAutomationCount, 18);
-  assert.equal(audit.backlog.needsPrimitiveCount, 37);
+  assert.equal(audit.backlog.dataOnlyCandidateCount, 564);
+  assert.equal(audit.backlog.dataOnlyAutomationCount, 11);
+  assert.equal(audit.backlog.needsPrimitiveCount, 35);
 });

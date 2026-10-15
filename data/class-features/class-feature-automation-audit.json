@@ -34,7 +34,7 @@
     ],
     "totalMechanics": 860,
     "runtimeCatalogRecords": 860,
-    "runtimeImplemented": 249
+    "runtimeImplemented": 261
   },
   "criteria": {
     "token_marker": "La capacità viene usata su un token e lascia uno stato/promemoria visibile per la durata dello scontro o finché non viene consumata.",
@@ -71,11 +71,11 @@
       "curata": 109
     },
     "byRuntimeStatus": {
-      "not-automated": 611,
-      "implemented": 249
+      "not-automated": 599,
+      "implemented": 261
     },
     "blockerCounts": {
-      "adapter_runtime_mancante": 611,
+      "adapter_runtime_mancante": 599,
       "scelta_giocatore_o_opzione": 146
     },
     "dataBlockerCounts": {
@@ -123,19 +123,19 @@
     "deterministicExcludedCount": 4,
     "resourceCriterionIgnored": true,
     "byArchetype": {
-      "reference": 422,
-      "timed-condition": 125,
-      "instant-reminder": 120,
-      "resource-only": 105,
+      "reference": 421,
+      "timed-condition": 129,
+      "instant-reminder": 119,
+      "resource-only": 106,
       "aura": 20,
-      "hp-change": 16,
-      "movement": 14,
+      "hp-change": 15,
       "custom-adapter": 13,
-      "companion-summon": 10,
+      "movement": 13,
+      "companion-summon": 9,
       "spell-bridge": 8,
       "save-outcome-condition": 4,
-      "transformation": 2,
-      "variable-cost": 1
+      "variable-cost": 2,
+      "transformation": 1
     }
   },
   "backlog": {
@@ -144,19 +144,19 @@
         "label": "Carta descrittiva",
         "available": true,
         "implemented": 0,
-        "open": 556
+        "open": 553
       },
       "resource-only": {
         "label": "Consumo risorsa",
         "available": true,
-        "implemented": 98,
-        "open": 7
+        "implemented": 103,
+        "open": 3
       },
       "condition": {
         "label": "Pill con durata",
         "available": true,
-        "implemented": 118,
-        "open": 7
+        "implemented": 124,
+        "open": 5
       },
       "condition-choice": {
         "label": "Pill con esito scelto dal GM (choiceOptions)",
@@ -167,8 +167,8 @@
       "aura": {
         "label": "Aura dinamica",
         "available": true,
-        "implemented": 16,
-        "open": 4
+        "implemented": 17,
+        "open": 3
       },
       "custom-adapter": {
         "label": "Adapter dedicato esistente",
@@ -186,13 +186,13 @@
         "label": "Compagno o evocazione su token esistente",
         "available": false,
         "implemented": 0,
-        "open": 10
+        "open": 9
       },
       "transformation": {
         "label": "Trasformazione",
         "available": false,
         "implemented": 0,
-        "open": 2
+        "open": 1
       },
       "spell-bridge": {
         "label": "Ponte verso il sistema Incantesimi",
@@ -206,31 +206,31 @@
         "label": "Descrittiva / passiva",
         "primitive": "reference-only",
         "implemented": 0,
-        "open": 422
+        "open": 421
       },
       "instant-reminder": {
         "label": "Reazione o effetto istantaneo da ricordare",
         "primitive": "reference-only",
         "implemented": 0,
-        "open": 120
+        "open": 119
       },
       "movement": {
         "label": "Movimento / teletrasporto",
         "primitive": "reference-only",
         "implemented": 0,
-        "open": 14
+        "open": 13
       },
       "resource-only": {
         "label": "Solo consumo risorsa",
         "primitive": "resource-only",
-        "implemented": 98,
-        "open": 7
+        "implemented": 103,
+        "open": 3
       },
       "timed-condition": {
         "label": "Buff o marker con durata",
         "primitive": "condition",
-        "implemented": 118,
-        "open": 7
+        "implemented": 124,
+        "open": 5
       },
       "save-outcome-condition": {
         "label": "Condizione dopo tiro salvezza",
@@ -241,32 +241,32 @@
       "aura": {
         "label": "Aura",
         "primitive": "aura",
-        "implemented": 16,
-        "open": 4
+        "implemented": 17,
+        "open": 3
       },
       "hp-change": {
         "label": "Cura o PF temporanei",
         "primitive": "value-input",
         "implemented": 0,
-        "open": 16
+        "open": 15
       },
       "variable-cost": {
         "label": "Costo variabile scelto dal GM",
         "primitive": "value-input",
         "implemented": 0,
-        "open": 1
+        "open": 2
       },
       "companion-summon": {
         "label": "Compagno / evocazione",
         "primitive": "linked-token",
         "implemented": 0,
-        "open": 10
+        "open": 9
       },
       "transformation": {
         "label": "Trasformazione",
         "primitive": "transformation",
         "implemented": 0,
-        "open": 2
+        "open": 1
       },
       "spell-bridge": {
         "label": "Lancio o slot tramite capacità",
@@ -281,10 +281,10 @@
         "open": 0
       }
     },
-    "dataOnlyCandidateCount": 574,
-    "dataOnlyAutomationCount": 18,
-    "needsPrimitiveCount": 37,
-    "manualDecisionCount": 29,
+    "dataOnlyCandidateCount": 564,
+    "dataOnlyAutomationCount": 11,
+    "needsPrimitiveCount": 35,
+    "manualDecisionCount": 30,
     "byClass": {
       "barbaro": {
         "className": "Barbaro",
@@ -399,14 +399,13 @@
       },
       "stregone": {
         "className": "Stregone",
-        "implemented": 13,
-        "dataOnlyReference": 30,
-        "dataOnlyAutomation": 8,
-        "needsPrimitive": 5,
+        "implemented": 25,
+        "dataOnlyReference": 27,
+        "dataOnlyAutomation": 1,
+        "needsPrimitive": 3,
         "needsPrimitiveByPrimitive": {
-          "transformation": 2,
           "value-input": 2,
-          "linked-token": 1
+          "transformation": 1
         }
       },
       "warlock": {
@@ -429,9 +428,9 @@
     "runtimeNotExposedCount": 0,
     "currentAutomation": {
       "FULL": 8,
-      "PARTIAL": 143,
-      "TRACK_ONLY": 139,
-      "MANUAL": 570,
+      "PARTIAL": 150,
+      "TRACK_ONLY": 135,
+      "MANUAL": 567,
       "NONE": 0
     },
     "targetAutomation": {
@@ -442,21 +441,21 @@
       "UNREVIEWED": 0
     },
     "coverageStatus": {
-      "ACCEPTED": 502,
-      "GAP": 358,
+      "ACCEPTED": 509,
+      "GAP": 351,
       "UNREVIEWED": 0
     },
     "testCoverageStatus": {
-      "DIRECT": 389,
-      "INDIRECT": 33,
-      "NONE": 438
+      "DIRECT": 406,
+      "INDIRECT": 32,
+      "NONE": 422
     },
-    "functionalGapCount": 358,
+    "functionalGapCount": 351,
     "testGapCount": 0,
     "sourceConflictCount": 3,
     "catalogGapCount": 0,
     "customCodeCount": 15,
-    "persistentLifecycleCount": 155,
+    "persistentLifecycleCount": 162,
     "resourcePoolCount": 104
   },
   "resourcePools": [
@@ -1469,7 +1468,6 @@
         "stregone-magia-selvaggia-piegare-la-fortuna",
         "stregone-magia-delle-ombre-segugio-dei-presagi-nefasti",
         "stregone-mente-aberrante-rivelazione-della-carne",
-        "stregone-anima-meccanica-trance-dell-ordine",
         "stregone-anima-meccanica-cavalleria-meccanica",
         "stregone-magia-delle-ombre-forma-d-ombra",
         "stregone-mente-aberrante-implosione-distorcente",
@@ -47700,8 +47698,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "completezza_non_curata",
@@ -47727,22 +47724,22 @@
         "textMarkerSignals": [
           "fino a"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "instant-reminder",
-      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
-      "requiredPrimitive": "reference-only",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "attivazione:azione_bonus"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -47759,40 +47756,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "NONE",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "PERSISTENT",
+      "persistentCategory": "PERSISTENT_EFFECT",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Manuale del Giocatore 2014",
           "Pagina 111"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -48052,8 +48051,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "completezza_non_curata",
@@ -48086,7 +48084,7 @@
           "per 1 minuto",
           "aura"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -48094,14 +48092,14 @@
       "archetype": "aura",
       "archetypeLabel": "Aura",
       "requiredPrimitive": "aura",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "aura"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "aura"
       },
       "sourceData": {
         "completenessMissing": [
@@ -48124,40 +48122,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "AURA"
       ],
       "resourceModel": "POINT_POOL",
       "activationType": "ACTION",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "targetingMode": "AURA",
+      "durationMode": "PERSISTENT",
+      "persistentCategory": "SPATIAL_AURA",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Manuale del Giocatore 2014",
           "Pagina 111"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -78012,9 +78012,7 @@
         "rationale": "L'effetto si risolve nell'evento (danno, guarigione, tiro o consumo) e non lascia un promemoria persistente da mostrare sul token.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "bersaglio_da_specificare",
           "durata_da_specificare"
@@ -78039,7 +78037,7 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [
           "cancel_advantage_or_disadvantage"
@@ -78051,14 +78049,14 @@
       "archetype": "resource-only",
       "archetypeLabel": "Solo consumo risorsa",
       "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [],
@@ -78077,13 +78075,13 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "REACTION",
@@ -78092,7 +78090,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -78101,13 +78099,15 @@
           "Pagina 71"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -78166,12 +78166,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "resource-only",
-      "archetypeLabel": "Solo consumo risorsa",
-      "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "archetype": "variable-cost",
+      "archetypeLabel": "Costo variabile scelto dal GM",
+      "requiredPrimitive": "value-input",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -78193,7 +78193,7 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -78208,7 +78208,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -78223,7 +78223,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -78424,7 +78426,7 @@
       "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "TRACK_ONLY",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -78439,7 +78441,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "RESOURCE_GAP",
       "severity": "P2",
       "evidence": {
@@ -78454,7 +78456,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -78544,7 +78548,7 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -78559,7 +78563,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -78574,7 +78578,10 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js",
+          "test/classFeatureAudit.test.js"
+        ]
       },
       "notes": []
     },
@@ -78599,9 +78606,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -78628,7 +78633,7 @@
         "textMarkerSignals": [
           "per 1 minuto"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -78636,14 +78641,14 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -78663,40 +78668,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
-      "resourceModel": "POINT_POOL",
+      "resourceModel": "NONE",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Calderone Omnicomprensivo di Tasha",
           "Pagina 71"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -99165,9 +99172,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -99194,7 +99199,7 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -99202,14 +99207,14 @@
       "archetype": "resource-only",
       "archetypeLabel": "Solo consumo risorsa",
       "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -99230,13 +99235,13 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "FREE",
@@ -99245,7 +99250,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -99254,13 +99259,15 @@
           "Pagina 54"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -100078,9 +100085,7 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "passiva_o_contenitore",
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -100106,22 +100111,22 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "reference",
-      "archetypeLabel": "Descrittiva / passiva",
-      "requiredPrimitive": "reference-only",
-      "dataOnlyCandidate": true,
+      "archetype": "resource-only",
+      "archetypeLabel": "Solo consumo risorsa",
+      "requiredPrimitive": "resource-only",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "attivazione:passiva_o_non_specificata"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -100141,22 +100146,22 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "TRACK_ONLY",
       "coverageStatus": "ACCEPTED",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "SHORT_REST",
-      "activationType": "PASSIVE",
+      "activationType": "FREE",
       "targetingMode": "SELF",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": null,
       "severity": null,
       "evidence": {
@@ -100165,13 +100170,15 @@
           "Pagina 53"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -100311,9 +100318,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -100339,7 +100344,7 @@
         "textMarkerSignals": [
           "alleat"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -100347,14 +100352,14 @@
       "archetype": "resource-only",
       "archetypeLabel": "Solo consumo risorsa",
       "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -100375,13 +100380,13 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "POINT_POOL",
       "activationType": "FREE",
@@ -100390,7 +100395,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -100399,13 +100404,15 @@
           "Pagina 53"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -100551,9 +100558,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -100579,22 +100584,22 @@
         "textMarkerSignals": [
           "bersaglio"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "companion-summon",
-      "archetypeLabel": "Compagno / evocazione",
-      "requiredPrimitive": "linked-token",
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:compagno-evocazione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -100617,40 +100622,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "POINT_POOL",
       "activationType": "BONUS_ACTION",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 54"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -100675,9 +100682,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -100702,22 +100707,22 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "movement",
-      "archetypeLabel": "Movimento / teletrasporto",
-      "requiredPrimitive": "reference-only",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:movimento"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -100734,40 +100739,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "NONE",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "PERSISTENT",
+      "persistentCategory": "PERSISTENT_EFFECT",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 53"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -100854,7 +100861,7 @@
       "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -100869,7 +100876,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -100884,7 +100891,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -100971,7 +100980,7 @@
       "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -100986,7 +100995,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -101001,7 +101010,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -101026,9 +101037,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -101053,7 +101062,7 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -101061,14 +101070,14 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -101085,40 +101094,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "NONE",
       "activationType": "ACTION",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 55"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -101143,9 +101154,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -101172,22 +101181,22 @@
         "textMarkerSignals": [
           "per 1 minuto"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "transformation",
-      "archetypeLabel": "Trasformazione",
-      "requiredPrimitive": "transformation",
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:trasformazione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -101205,41 +101214,41 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "INDIRECT",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "POINT_POOL",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 54"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
         "tests": [
-          "test/classFeatureAudit.test.js"
+          "test/sorcererOriginsFeatureRuntime.test.js"
         ]
       },
       "notes": []
@@ -101265,9 +101274,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -101294,22 +101301,22 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "hp-change",
-      "archetypeLabel": "Cura o PF temporanei",
-      "requiredPrimitive": "value-input",
+      "archetype": "resource-only",
+      "archetypeLabel": "Solo consumo risorsa",
+      "requiredPrimitive": "resource-only",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:punti-ferita"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -101330,13 +101337,13 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "BONUS_ACTION",
@@ -101345,7 +101352,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -101354,13 +101361,15 @@
           "Pagina 53"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/sorcererOriginsFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },

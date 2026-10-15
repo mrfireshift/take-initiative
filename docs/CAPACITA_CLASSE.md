@@ -22,9 +22,9 @@ Arcana 2016 e non è la stessa progressione del Ranger 2014.
 
 Lo stato di supporto è intenzionalmente esplicito:
 
-- **249 `implemented`**: la capacità può essere attivata dal runtime secondo
+- **261 `implemented`**: la capacità può essere attivata dal runtime secondo
   l'adapter dichiarato;
-- **611 `not-automated`**: la voce resta consultabile e gestibile manualmente,
+- **599 `not-automated`**: la voce resta consultabile e gestibile manualmente,
   ma il pulsante di attivazione non applica una meccanica automatica. Le
   passive, le reazioni e gli effetti istantanei compaiono come
   **Promemoria descrittivo**; le altre come gestione manuale al tavolo, con il
@@ -132,7 +132,7 @@ capacità già coperte dai test e dagli adapter:
 | Paladino | Imposizione delle Mani, Percezione del Divino, varianti di Incanalare Divinità, aure, Tocco Purificatore, Angelo Vendicatore e Nube Sacra; le opzioni di Incanalare Divinità di tutti i giuramenti, le aure della Sentinella, di Alacrità e di Interdizione e i capstone dei giuramenti. |
 | Ranger | Compagno del Ranger, Imboscata Terrificante, Preda dell'Uccisore, Combattente Planare, Passo Etereo, Scambio Seducente, Marea Avvolgente e gli usi delle sottoclassi. |
 | Ranger Revised | Compagno Animale e Nascondersi in Piena Vista. |
-| Stregone | Impulso/Onde di Magia Selvaggia, Fonte di Magia, metamagie supportate, Piegare la Fortuna e Ripristino Stregonesco. |
+| Stregone | Impulso/Onde di Magia Selvaggia, Fonte di Magia, metamagie supportate, Piegare la Fortuna e Ripristino Stregonesco; Presenza Draconica (aura con scelta), Ali di Drago e Ali Ultraterrene, Forma d'Ombra, Segugio dei Presagi Nefasti, Trance dell'Ordine, Anima del Vento e gli usi delle origini. |
 | Warlock | Presenza Fatata e Delirio Oscuro (affascinato o spaventato), Fuga Velata, Maledizione della Lama del Sortilegio, Dono Elementale, Tentacoli delle Profondità, Scagliare all'Inferno, Mantello di Mosche, Tomba di Levistus, Sguardo Fantasma e gli usi dei patroni. |
 
 L'elenco completo, con ID, adapter, durata, bersaglio e motivo di eventuale
