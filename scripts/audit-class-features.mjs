@@ -235,6 +235,7 @@ const DIRECT_TEST_FILES = [
   "clericDomainsFeatureRuntime.test.js",
   "clericTwilightFeatureRuntime.test.js",
   "fighterFeatureRuntime.test.js",
+  "warlockFeatureRuntime.test.js",
   "paladinDevotionFeatureRuntime.test.js",
   "rangerRevisedFeatureRuntime.test.js",
   "rogueArcaneTricksterFeatureRuntime.test.js",
