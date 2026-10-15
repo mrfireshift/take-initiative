@@ -256,6 +256,25 @@
       ]
     },
     {
+      "id": "druido-circolo-delle-spore-infestazione-fungina-usi",
+      "nome": "Usi Infestazione Fungina",
+      "owner": {
+        "type": "record",
+        "id": "druido-circolo-delle-spore-infestazione-fungina"
+      },
+      "kind": "uses",
+      "capacity": {
+        "type": "formula",
+        "expression": "max(1, modificatore_saggezza)"
+      },
+      "refresh": [
+        {
+          "event": "riposo_lungo",
+          "amount": "massimo"
+        }
+      ]
+    },
+    {
       "id": "druido-circolo-delle-stelle-profezia-cosmica-usi",
       "nome": "Usi Profezia Cosmica",
       "owner": {
@@ -2945,7 +2964,12 @@
         "type": "testuale_o_non_specificata",
         "end_conditions": []
       },
-      "resource_costs": [],
+      "resource_costs": [
+        {
+          "pool_id": "druido-circolo-delle-spore-infestazione-fungina-usi",
+          "amount": 1
+        }
+      ],
       "effects": [],
       "effect_tags": [],
       "runtime_requirements": [],

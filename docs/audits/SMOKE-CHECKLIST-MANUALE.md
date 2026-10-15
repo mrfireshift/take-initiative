@@ -371,6 +371,24 @@ voce), `[-]` non eseguita.
   tracker movimento offre la modalità volo finché la pill è attiva.
 - [ ] **16.7** Capacità «Conferma consumo» e carte descrittive. Atteso: le
   carte non applicano effetti; «Conferma consumo» scala solo il pool.
+- [ ] **16.8 (MAP, PERS)** Modificatori di caratteristica:
+  1. su un paladino inserisci CAR +3;
+  2. ricarica la pagina.
+
+  Atteso: Percezione del Divino ha massimo 4. Con un Cavaliere Runico
+  (COS +3, 9° livello), il popup della Runa del Fuoco mostra CD 15.
+- [ ] **16.9 (MAP)** Patto della Catena su un famiglio **fuori
+  dall'iniziativa**. Atteso:
+  - la pill «Famiglio del Patto» compare sul token del famiglio e lo segue;
+  - termina la pill: sparisce.
+- [ ] **16.10** Limiti noti dei token fuori dall'iniziativa. Atteso,
+  per design:
+  - il famiglio non riceve le aure di classe, per esempio Aura di Protezione;
+  - non compare nella console HP rapida;
+  - non è un bersaglio delle azioni rapide.
+- [ ] **16.11** Legame Migliorato senza Spirito della Fiamma. Atteso:
+  l'attivazione viene rifiutata. Con lo spirito attivo, la pill termina
+  insieme allo spirito.
 
 ## 17. Pannelli recenti
 

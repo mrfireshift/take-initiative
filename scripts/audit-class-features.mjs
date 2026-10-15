@@ -262,6 +262,14 @@ const BACKLOG_ARCHETYPE_OVERRIDES = Object.freeze({
   "paladino-giuramento-di-redenzione-aura-del-guardiano": "instant-reminder",
   // Batch Stregone (Fase 2): da 1 a 5 punti stregoneria a scelta.
   "stregone-anima-meccanica-bastione-della-legge": "variable-cost",
+  // Batch P2-dati: reazioni e azioni istantanee del compagno, senza risorsa.
+  "warlock-l-insondabile-spirale-guardiana": "instant-reminder",
+  "ranger-revised-conclave-della-bestia-attacco-coordinato": "instant-reminder",
+  "ranger-revised-conclave-della-bestia-tempesta-di-artigli-e-zanne": "instant-reminder",
+  "ranger-revised-conclave-della-bestia-difesa-superiore-della-bestia": "instant-reminder",
+  // Riguardano creature evocate o create con incantesimi: ponte incantesimi.
+  "druido-circolo-del-pastore-spirito-guardiano": "spell-bridge",
+  "mago-scuola-di-negromanzia-servitori-non-morti": "spell-bridge",
 });
 
 const DIRECT_TEST_FILES = [
@@ -274,6 +282,7 @@ const DIRECT_TEST_FILES = [
   "clericTwilightFeatureRuntime.test.js",
   "druidFeatureRuntime.test.js",
   "fighterFeatureRuntime.test.js",
+  "linkedTokenFeatureRuntime.test.js",
   "monkFeatureRuntime.test.js",
   "rangerFeatureRuntime.test.js",
   "rogueArchetypesFeatureRuntime.test.js",

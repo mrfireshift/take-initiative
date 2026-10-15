@@ -3932,8 +3932,30 @@
     },
     "druido-circolo-della-fiamma-legame-migliorato": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "status": "implemented",
+      "defaultEnabled": true,
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "untilFeatureId": "druido-circolo-della-fiamma-evocare-spirito-della-fiamma"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "♨️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Legame Migliorato",
+        "detail": "Finché lo Spirito della Fiamma è attivo: +1d8 a un tiro di danno da fuoco o di cura degli incantesimi del druido; gli incantesimi con portata non personale possono partire dallo spirito."
+      }
     },
     "druido-circolo-della-fiamma-fiamme-cauterizzanti": {
       "include": true,
@@ -4210,9 +4232,31 @@
     "druido-circolo-delle-spore-infestazione-fungina": {
       "include": true,
       "defaultEnabled": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "quickActionEligible": false,
+      "adapter": "condition",
+      "activation": {
+        "primary": "reazione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 3,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 600
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🦠"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Zombi Fungino",
+        "detail": "Bestia o umanoide Piccolo o Medio morto entro 3 m dal druido, rianimato con 1 PF e la scheda dello zombi per 1 ora. Agisce subito dopo il druido, obbedisce ai suoi comandi mentali e può solo attaccare in mischia."
+      }
     },
     "druido-circolo-delle-spore-diffusione-di-spore": {
       "include": true,
@@ -10834,9 +10878,29 @@
     },
     "warlock-dono-del-patto-patto-della-catena": {
       "include": true,
-      "status": "not-automated",
+      "status": "implemented",
       "defaultEnabled": false,
-      "optionGroup": "warlock-dono-del-patto"
+      "optionGroup": "warlock-dono-del-patto",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {},
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🦉"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Famiglio del Patto",
+        "detail": "Famiglio di trovare famiglio legato al warlock (forma normale o imp, quasit, pseudodrago, sprite). Quando il warlock usa l'azione Attaccare può rinunciare a un attacco perché il famiglio attacchi con la propria reazione. Termina la pill se il famiglio scompare o viene congedato."
+      }
     },
     "warlock-dono-del-patto-patto-della-lama": {
       "include": true,
@@ -11639,7 +11703,9 @@
     "warlock-l-insondabile-spirale-guardiana": {
       "include": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "warlock-l-insondabile-presa-dei-tentacoli": {
       "include": true,

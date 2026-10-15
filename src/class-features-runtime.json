@@ -4289,6 +4289,23 @@
       "refreshByClassLevel": []
     },
     {
+      "id": "druido-circolo-delle-spore-infestazione-fungina-usi",
+      "name": "Usi Infestazione Fungina",
+      "capacity": {
+        "type": "formula",
+        "expression": "max(1, modificatore_saggezza)",
+        "class_id": "druido"
+      },
+      "maximumByClassLevel": null,
+      "refresh": [
+        {
+          "event": "riposo_lungo",
+          "amount": "massimo"
+        }
+      ],
+      "refreshByClassLevel": []
+    },
+    {
       "id": "bardo-collegio-dell-eloquenza-ispirazione-contagiosa-usi",
       "name": "Usi Ispirazione Contagiosa",
       "capacity": {
@@ -17095,41 +17112,53 @@
       "page": 39,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
       },
+      "trackedResourcePoolIds": [
+        "druido-circolo-delle-spore-infestazione-fungina-usi"
+      ],
       "quickActionEligible": false,
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
+        "mode": "single-target",
+        "rangeMeters": 3,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🦠",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Zombi Fungino",
+        "detail": "Bestia o umanoide Piccolo o Medio morto entro 3 m dal druido, rianimato con 1 PF e la scheda dello zombi per 1 ora. Agisce subito dopo il druido, obbedisce ai suoi comandi mentali e può solo attaccare in mischia."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 600
       },
-      "trackingMode": "instant",
-      "resourceCosts": []
+      "trackingMode": "active",
+      "resourceCosts": [
+        {
+          "poolId": "druido-circolo-delle-spore-infestazione-fungina-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "druido-circolo-della-fiamma-legame-migliorato",
@@ -17143,16 +17172,16 @@
       "page": 37,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "tracciamento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -17165,17 +17194,22 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "♨️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Legame Migliorato",
+        "detail": "Finché lo Spirito della Fiamma è attivo: +1d8 a un tiro di danno da fuoco o di cura degli incantesimi del druido; gli incantesimi con portata non personale possono partire dallo spirito."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "untilFeatureId": "druido-circolo-della-fiamma-evocare-spirito-della-fiamma"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -47937,33 +47971,37 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "reazione"
+        "primary": "innesco"
       },
       "optionGroup": "warlock-dono-del-patto",
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🦉",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Famiglio del Patto",
+        "detail": "Famiglio di trovare famiglio legato al warlock (forma normale o imp, quasit, pseudodrago, sprite). Quando il warlock usa l'azione Attaccare può rinunciare a un attacco perché il famiglio attacchi con la propria reazione. Termina la pill se il famiglio scompare o viene congedato."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": null
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -48958,7 +48996,7 @@
       "page": 78,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "curated",
       "runtimeRequirements": [],
       "missingForExecution": [],
@@ -48970,6 +49008,7 @@
       "activation": {
         "primary": "reazione"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -50663,8 +50702,8 @@
     "catalogRecords": 860,
     "mechanicRecords": 860,
     "activeFeatures": 860,
-    "resourcePools": 104,
-    "runtimeImplemented": 264,
-    "runtimeNotAutomated": 596
+    "resourcePools": 105,
+    "runtimeImplemented": 267,
+    "runtimeNotAutomated": 593
   }
 }

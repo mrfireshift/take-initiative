@@ -73,7 +73,8 @@ test("Druido: il batch implementa 13 capacità senza adapter nuovi", () => {
   const implemented = CLASS_FEATURE_CATALOG.features.filter((entry) =>
     entry.classId === "druido" && entry.runtimeSupport.status === "implemented"
   );
-  assert.equal(implemented.length, 13);
+  // 13 dal batch, più Infestazione Fungina e Legame Migliorato (P2-dati).
+  assert.equal(implemented.length, 15);
   assert.equal(CONDITIONS.length + RESOURCE_ONLY.length, 13);
   for (const id of CONDITIONS) assert.equal(feature(id).runtimeSupport.adapter, "condition", id);
   for (const id of RESOURCE_ONLY) {
@@ -151,7 +152,6 @@ test("le cure variabili e le capacità senza pool restano fuori", () => {
   }
   for (const id of [
     "druido-circolo-della-luna-forma-selvatica-da-combattimento",
-    "druido-circolo-delle-spore-infestazione-fungina",
     "druido-circolo-delle-spore-alone-di-spore",
   ]) {
     assert.equal(classFeatureIsReferenceOnly(feature(id)), true, id);

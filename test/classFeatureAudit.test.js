@@ -121,15 +121,16 @@ test("CF-001B.7: customCodeCount === customCodeMatrix.length === 15", () => {
   assert.equal(audit.reconciledSummary.customCodeCount, 15);
 });
 
-test("CF-001B.8: resourcePoolCount === resourceMatrix.length === 104", () => {
-  assert.equal(audit.resourcePools.length, 104);
-  assert.equal(audit.reconciledSummary.resourcePoolCount, 104);
+test("CF-001B.8: resourcePoolCount === resourceMatrix.length === 105", () => {
+  // 104 + il pool di Infestazione Fungina aggiunto dal batch P2-dati.
+  assert.equal(audit.resourcePools.length, 105);
+  assert.equal(audit.reconciledSummary.resourcePoolCount, 105);
 });
 
-test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 162", () => {
+test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 164", () => {
   const persistent = audit.features.filter((f) => f.persistentCategory !== null);
-  assert.equal(persistent.length, 162);
-  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 162);
+  assert.equal(persistent.length, 164);
+  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 164);
 });
 
 test("CF-001B.10: catalogGapCount === 0", () => {
@@ -138,10 +139,10 @@ test("CF-001B.10: catalogGapCount === 0", () => {
   assert.equal(audit.reconciledSummary.catalogGapCount, 0);
 });
 
-test("CF-001B.11: functionalGapCount === 351", () => {
+test("CF-001B.11: functionalGapCount === 348", () => {
   const functionalGaps = audit.features.filter((f) => f.coverageStatus === "GAP");
-  assert.equal(functionalGaps.length, 351);
-  assert.equal(audit.reconciledSummary.functionalGapCount, 351);
+  assert.equal(functionalGaps.length, 348);
+  assert.equal(audit.reconciledSummary.functionalGapCount, 348);
 });
 
 test("CF-001B.12: testGapCount === 0 (all test gaps closed in CF-B01)", () => {
@@ -219,9 +220,9 @@ test("CF-001B.19: Spirito del Lupo invariants", () => {
 test("CF-001B.20: determinismo delle metriche canoniche", () => {
   assert.deepEqual(audit.reconciledSummary.currentAutomation, {
     FULL: 8,
-    PARTIAL: 150,
+    PARTIAL: 153,
     TRACK_ONLY: 135,
-    MANUAL: 567,
+    MANUAL: 564,
     NONE: 0,
   });
   assert.deepEqual(audit.reconciledSummary.targetAutomation, {
@@ -232,8 +233,8 @@ test("CF-001B.20: determinismo delle metriche canoniche", () => {
     UNREVIEWED: 0,
   });
   assert.deepEqual(audit.reconciledSummary.coverageStatus, {
-    ACCEPTED: 509,
-    GAP: 351,
+    ACCEPTED: 512,
+    GAP: 348,
     UNREVIEWED: 0,
   });
 });
@@ -292,7 +293,7 @@ test("Backlog.5: capacità di riferimento per archetipo", () => {
     "stregone-mente-aberrante-rivelazione-della-carne": ["transformation", "transformation", false],
     "guerriero-recuperare-energie": ["hp-change", "value-input", false],
     "monaco-via-del-kensei-affilare-la-lama": ["variable-cost", "value-input", false],
-    "warlock-dono-del-patto-patto-della-catena": ["companion-summon", "linked-token", false],
+    "druido-circolo-del-pastore-spirito-guardiano": ["spell-bridge", "spell-bridge", false],
     "mago-recupero-arcano": ["spell-bridge", "spell-bridge", false],
   };
   for (const [id, [archetype, primitive, dataOnly]] of Object.entries(expectations)) {
@@ -331,20 +332,19 @@ test("Backlog.7: i pool basati su modificatori di caratteristica sono segnalati"
 test("Backlog.8: determinismo della distribuzione per archetipo", () => {
   assert.deepEqual(audit.summary.byArchetype, {
     reference: 421,
-    "timed-condition": 129,
-    "instant-reminder": 119,
+    "timed-condition": 132,
+    "instant-reminder": 123,
     "resource-only": 107,
     aura: 20,
     "hp-change": 15,
     "custom-adapter": 13,
     movement: 13,
-    "companion-summon": 9,
-    "spell-bridge": 7,
+    "spell-bridge": 9,
     "save-outcome-condition": 4,
     "variable-cost": 2,
     transformation: 1,
   });
-  assert.equal(audit.backlog.dataOnlyCandidateCount, 562);
+  assert.equal(audit.backlog.dataOnlyCandidateCount, 566);
   assert.equal(audit.backlog.dataOnlyAutomationCount, 9);
-  assert.equal(audit.backlog.needsPrimitiveCount, 34);
+  assert.equal(audit.backlog.needsPrimitiveCount, 27);
 });

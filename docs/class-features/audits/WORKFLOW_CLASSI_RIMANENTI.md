@@ -267,6 +267,9 @@ primitiva corrispondente: il batch dati non introduce adapter.
 
 Ordine consigliato per sblocco/rischio. **P1 completata il 15 ottobre 2026**:
 vedi [P1_MODIFICATORI_CARATTERISTICA.md](P1_MODIFICATORI_CARATTERISTICA.md).
+**P2 chiusa senza codice il 15 ottobre 2026**: le capacità `linked-token` sono
+state coperte da un batch di soli dati o riclassificate; vedi
+[P2_TOKEN_COLLEGATO.md](P2_TOKEN_COLLEGATO.md).
 
 | # | Primitiva | Sblocca | Rischio | Note |
 |---|---|---|---|---|

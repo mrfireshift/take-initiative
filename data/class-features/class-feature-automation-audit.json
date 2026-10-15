@@ -34,7 +34,7 @@
     ],
     "totalMechanics": 860,
     "runtimeCatalogRecords": 860,
-    "runtimeImplemented": 264
+    "runtimeImplemented": 267
   },
   "criteria": {
     "token_marker": "La capacità viene usata su un token e lascia uno stato/promemoria visibile per la durata dello scontro o finché non viene consumata.",
@@ -71,11 +71,11 @@
       "curata": 109
     },
     "byRuntimeStatus": {
-      "not-automated": 596,
-      "implemented": 264
+      "not-automated": 593,
+      "implemented": 267
     },
     "blockerCounts": {
-      "adapter_runtime_mancante": 596,
+      "adapter_runtime_mancante": 593,
       "scelta_giocatore_o_opzione": 146
     },
     "dataBlockerCounts": {
@@ -124,15 +124,14 @@
     "resourceCriterionIgnored": true,
     "byArchetype": {
       "reference": 421,
-      "timed-condition": 129,
-      "instant-reminder": 119,
+      "timed-condition": 132,
+      "instant-reminder": 123,
       "resource-only": 107,
       "aura": 20,
       "hp-change": 15,
       "custom-adapter": 13,
       "movement": 13,
-      "companion-summon": 9,
-      "spell-bridge": 7,
+      "spell-bridge": 9,
       "save-outcome-condition": 4,
       "variable-cost": 2,
       "transformation": 1
@@ -144,7 +143,7 @@
         "label": "Carta descrittiva",
         "available": true,
         "implemented": 0,
-        "open": 553
+        "open": 557
       },
       "resource-only": {
         "label": "Consumo risorsa",
@@ -155,7 +154,7 @@
       "condition": {
         "label": "Pill con durata",
         "available": true,
-        "implemented": 124,
+        "implemented": 127,
         "open": 5
       },
       "condition-choice": {
@@ -186,7 +185,7 @@
         "label": "Compagno o evocazione su token esistente",
         "available": false,
         "implemented": 0,
-        "open": 9
+        "open": 0
       },
       "transformation": {
         "label": "Trasformazione",
@@ -198,7 +197,7 @@
         "label": "Ponte verso il sistema Incantesimi",
         "available": false,
         "implemented": 0,
-        "open": 7
+        "open": 9
       }
     },
     "archetypes": {
@@ -212,7 +211,7 @@
         "label": "Reazione o effetto istantaneo da ricordare",
         "primitive": "reference-only",
         "implemented": 0,
-        "open": 119
+        "open": 123
       },
       "movement": {
         "label": "Movimento / teletrasporto",
@@ -229,7 +228,7 @@
       "timed-condition": {
         "label": "Buff o marker con durata",
         "primitive": "condition",
-        "implemented": 124,
+        "implemented": 127,
         "open": 5
       },
       "save-outcome-condition": {
@@ -260,7 +259,7 @@
         "label": "Compagno / evocazione",
         "primitive": "linked-token",
         "implemented": 0,
-        "open": 9
+        "open": 0
       },
       "transformation": {
         "label": "Trasformazione",
@@ -272,7 +271,7 @@
         "label": "Lancio o slot tramite capacità",
         "primitive": "spell-bridge",
         "implemented": 0,
-        "open": 7
+        "open": 9
       },
       "custom-adapter": {
         "label": "Adapter dedicato",
@@ -281,10 +280,10 @@
         "open": 0
       }
     },
-    "dataOnlyCandidateCount": 562,
+    "dataOnlyCandidateCount": 566,
     "dataOnlyAutomationCount": 9,
-    "needsPrimitiveCount": 34,
-    "manualDecisionCount": 30,
+    "needsPrimitiveCount": 27,
+    "manualDecisionCount": 36,
     "byClass": {
       "barbaro": {
         "className": "Barbaro",
@@ -318,13 +317,12 @@
       },
       "druido": {
         "className": "Druido",
-        "implemented": 13,
+        "implemented": 15,
         "dataOnlyReference": 38,
         "dataOnlyAutomation": 0,
-        "needsPrimitive": 5,
+        "needsPrimitive": 3,
         "needsPrimitiveByPrimitive": {
-          "spell-bridge": 1,
-          "linked-token": 3,
+          "spell-bridge": 2,
           "value-input": 1
         }
       },
@@ -354,9 +352,8 @@
         "dataOnlyAutomation": 0,
         "needsPrimitive": 4,
         "needsPrimitiveByPrimitive": {
-          "spell-bridge": 2,
-          "value-input": 1,
-          "linked-token": 1
+          "spell-bridge": 3,
+          "value-input": 1
         }
       },
       "monaco": {
@@ -388,12 +385,10 @@
       "ranger-revised": {
         "className": "Ranger (Revised)",
         "implemented": 2,
-        "dataOnlyReference": 38,
+        "dataOnlyReference": 41,
         "dataOnlyAutomation": 2,
-        "needsPrimitive": 3,
-        "needsPrimitiveByPrimitive": {
-          "linked-token": 3
-        }
+        "needsPrimitive": 0,
+        "needsPrimitiveByPrimitive": {}
       },
       "stregone": {
         "className": "Stregone",
@@ -408,12 +403,11 @@
       },
       "warlock": {
         "className": "Warlock",
-        "implemented": 19,
-        "dataOnlyReference": 67,
+        "implemented": 20,
+        "dataOnlyReference": 68,
         "dataOnlyAutomation": 0,
-        "needsPrimitive": 8,
+        "needsPrimitive": 6,
         "needsPrimitiveByPrimitive": {
-          "linked-token": 2,
           "value-input": 4,
           "spell-bridge": 2
         }
@@ -426,9 +420,9 @@
     "runtimeNotExposedCount": 0,
     "currentAutomation": {
       "FULL": 8,
-      "PARTIAL": 150,
+      "PARTIAL": 153,
       "TRACK_ONLY": 135,
-      "MANUAL": 567,
+      "MANUAL": 564,
       "NONE": 0
     },
     "targetAutomation": {
@@ -439,22 +433,22 @@
       "UNREVIEWED": 0
     },
     "coverageStatus": {
-      "ACCEPTED": 509,
-      "GAP": 351,
+      "ACCEPTED": 512,
+      "GAP": 348,
       "UNREVIEWED": 0
     },
     "testCoverageStatus": {
-      "DIRECT": 406,
-      "INDIRECT": 32,
-      "NONE": 422
+      "DIRECT": 412,
+      "INDIRECT": 30,
+      "NONE": 418
     },
-    "functionalGapCount": 351,
+    "functionalGapCount": 348,
     "testGapCount": 0,
     "sourceConflictCount": 3,
     "catalogGapCount": 0,
     "customCodeCount": 15,
-    "persistentLifecycleCount": 162,
-    "resourcePoolCount": 104
+    "persistentLifecycleCount": 164,
+    "resourcePoolCount": 105
   },
   "resourcePools": [
     {
@@ -1988,6 +1982,24 @@
       "classId": "chierico",
       "featureIds": [
         "chierico-dominio-dell-ordine-incarnazione-della-legge"
+      ],
+      "capacityModel": "formula",
+      "maximumRule": "default",
+      "refreshResetRule": "riposo_lungo:massimo",
+      "runtimeReadable": true,
+      "runtimeWritable": true,
+      "consumptionPath": "activateClassFeature (resourceCosts) / initiativeCardModal",
+      "resetPath": "resetClassFeatureResources / initiativeCardModal",
+      "uiExposure": "initiativeCardClassic / initiativeCardModal",
+      "testCoverage": "INDIRECT",
+      "classification": "CONNECTED"
+    },
+    {
+      "resourceId": "druido-circolo-delle-spore-infestazione-fungina-usi",
+      "name": "Usi Infestazione Fungina",
+      "classId": "druido",
+      "featureIds": [
+        "druido-circolo-delle-spore-infestazione-fungina"
       ],
       "capacityModel": "formula",
       "maximumRule": "default",
@@ -29227,12 +29239,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "companion-summon",
-      "archetypeLabel": "Compagno / evocazione",
-      "requiredPrimitive": "linked-token",
+      "archetype": "spell-bridge",
+      "archetypeLabel": "Lancio o slot tramite capacità",
+      "requiredPrimitive": "spell-bridge",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:compagno-evocazione"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -29259,7 +29271,7 @@
       "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -29274,7 +29286,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -29289,7 +29301,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/linkedTokenFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -49069,7 +49083,7 @@
       "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "MANUAL",
       "coverageStatus": "ACCEPTED",
-      "testCoverageStatus": "INDIRECT",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -49084,7 +49098,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": null,
       "severity": null,
       "evidence": {
@@ -49100,7 +49114,7 @@
           "trackerQuickActions"
         ],
         "tests": [
-          "test/classFeatureAudit.test.js",
+          "test/linkedTokenFeatureRuntime.test.js",
           "test/classFeatureCatalog.test.js"
         ]
       },
@@ -49245,8 +49259,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "completezza_non_curata",
@@ -49270,22 +49283,22 @@
         "durationType": "non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "companion-summon",
-      "archetypeLabel": "Compagno / evocazione",
-      "requiredPrimitive": "linked-token",
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:compagno-evocazione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -49302,41 +49315,41 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "INDIRECT",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "NONE",
-      "activationType": "REACTION",
-      "targetingMode": "SELF",
+      "activationType": "FREE",
+      "targetingMode": "SINGLE_TARGET",
       "durationMode": "NONE",
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Manuale del Giocatore 2014",
           "Pagina 115"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
         "tests": [
-          "test/classFeatureAudit.test.js"
+          "test/linkedTokenFeatureRuntime.test.js"
         ]
       },
       "notes": []
@@ -57013,12 +57026,12 @@
           "companion_melee_attack"
         ]
       },
-      "archetype": "companion-summon",
-      "archetypeLabel": "Compagno / evocazione",
-      "requiredPrimitive": "linked-token",
-      "dataOnlyCandidate": false,
+      "archetype": "instant-reminder",
+      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
+      "requiredPrimitive": "reference-only",
+      "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "testo:compagno-evocazione"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -57076,6 +57089,7 @@
           "trackerQuickActions"
         ],
         "tests": [
+          "test/linkedTokenFeatureRuntime.test.js",
           "test/rangerRevisedFeatureRuntime.test.js"
         ]
       },
@@ -58957,12 +58971,12 @@
           "melee_attack_each_target"
         ]
       },
-      "archetype": "companion-summon",
-      "archetypeLabel": "Compagno / evocazione",
-      "requiredPrimitive": "linked-token",
-      "dataOnlyCandidate": false,
+      "archetype": "instant-reminder",
+      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
+      "requiredPrimitive": "reference-only",
+      "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "testo:compagno-evocazione"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -59019,6 +59033,7 @@
           "trackerQuickActions"
         ],
         "tests": [
+          "test/linkedTokenFeatureRuntime.test.js",
           "test/rangerRevisedFeatureRuntime.test.js"
         ]
       },
@@ -59321,12 +59336,12 @@
           "halve_damage"
         ]
       },
-      "archetype": "companion-summon",
-      "archetypeLabel": "Compagno / evocazione",
-      "requiredPrimitive": "linked-token",
-      "dataOnlyCandidate": false,
+      "archetype": "instant-reminder",
+      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
+      "requiredPrimitive": "reference-only",
+      "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "testo:compagno-evocazione"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -59386,6 +59401,7 @@
           "trackerQuickActions"
         ],
         "tests": [
+          "test/linkedTokenFeatureRuntime.test.js",
           "test/rangerRevisedFeatureRuntime.test.js"
         ]
       },
@@ -66610,7 +66626,8 @@
           "trackerQuickActions"
         ],
         "tests": [
-          "test/druidFeatureRuntime.test.js"
+          "test/druidFeatureRuntime.test.js",
+          "test/linkedTokenFeatureRuntime.test.js"
         ]
       },
       "notes": []
@@ -66762,9 +66779,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -66780,28 +66795,31 @@
         "effectCount": 0,
         "hasMarkerEffect": false,
         "resourceOnly": false,
-        "resourcePoolIds": [],
+        "resourcePoolIds": [
+          "druido-circolo-delle-spore-infestazione-fungina-usi"
+        ],
         "targetType": "non_specificato",
         "knownTarget": false,
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "companion-summon",
-      "archetypeLabel": "Compagno / evocazione",
-      "requiredPrimitive": "linked-token",
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "decisione-manuale"
+        "runtime-implemented",
+        "pool-modificatore:druido-circolo-delle-spore-infestazione-fungina-usi"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -66817,41 +66835,41 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
+      "coverageStatus": "ACCEPTED",
       "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
-      "resourceModel": "NONE",
+      "resourceModel": "LONG_REST",
       "activationType": "REACTION",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
+      "hasCleanup": true,
       "hasDirectTest": true,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Calderone Omnicomprensivo di Tasha",
           "Pagina 39"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
         "tests": [
-          "test/druidFeatureRuntime.test.js"
+          "test/linkedTokenFeatureRuntime.test.js"
         ]
       },
       "notes": []
@@ -66877,9 +66895,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -66904,22 +66920,22 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "companion-summon",
-      "archetypeLabel": "Compagno / evocazione",
-      "requiredPrimitive": "linked-token",
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:compagno-evocazione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -66937,40 +66953,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "NONE",
       "activationType": "FREE",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "TOGGLE",
+      "persistentCategory": "TOGGLE_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Calderone Omnicomprensivo di Tasha",
           "Pagina 37"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/linkedTokenFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -80272,12 +80290,12 @@
           "reduce_damage"
         ]
       },
-      "archetype": "companion-summon",
-      "archetypeLabel": "Compagno / evocazione",
-      "requiredPrimitive": "linked-token",
-      "dataOnlyCandidate": false,
+      "archetype": "instant-reminder",
+      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
+      "requiredPrimitive": "reference-only",
+      "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "testo:compagno-evocazione"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -80299,7 +80317,7 @@
       "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -80314,7 +80332,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -80329,7 +80347,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/linkedTokenFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -87392,12 +87412,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "companion-summon",
-      "archetypeLabel": "Compagno / evocazione",
-      "requiredPrimitive": "linked-token",
+      "archetype": "spell-bridge",
+      "archetypeLabel": "Lancio o slot tramite capacità",
+      "requiredPrimitive": "spell-bridge",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:compagno-evocazione"
+        "decisione-manuale"
       ],
       "runtime": {
         "exposed": true,
@@ -87423,7 +87443,7 @@
       "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -87438,7 +87458,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -87453,7 +87473,10 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/linkedTokenFeatureRuntime.test.js",
+          "test/classFeatureAudit.test.js"
+        ]
       },
       "notes": []
     },

@@ -76,7 +76,8 @@ test("Warlock: il batch implementa 19 capacità senza adapter nuovi", () => {
   const implemented = CLASS_FEATURE_CATALOG.features.filter((entry) =>
     entry.classId === "warlock" && entry.runtimeSupport.status === "implemented"
   );
-  assert.equal(implemented.length, 19);
+  // 19 dal batch, più Patto della Catena (P2-dati).
+  assert.equal(implemented.length, 20);
   assert.equal(Object.keys(CONDITIONS).length + RESOURCE_ONLY.length + 1, 19);
   for (const [id, conditionName] of Object.entries(CONDITIONS)) {
     assert.equal(feature(id).runtimeSupport.adapter, "condition", id);

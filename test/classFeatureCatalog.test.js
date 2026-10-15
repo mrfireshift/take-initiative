@@ -30,8 +30,8 @@ test("il catalogo runtime copre PHB, Xanathar, Tasha e Ranger Revised", () => {
     ["phb2014", "xanathar", "tasha", "ranger-revised"],
   );
   assert.equal(CLASS_FEATURE_CATALOG.validation.catalogRecords, 860);
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 264);
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 596);
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 267);
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 593);
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === rageId));
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === vowId));
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === twilightId));
