@@ -244,11 +244,16 @@ const BACKLOG_ARCHETYPE_OVERRIDES = Object.freeze({
   "mago-scuola-di-evocazione-evocazione-minore": "reference",
   "mago-scuola-di-illusione-illusioni-duttili": "reference",
   "mago-scuola-di-illusione-realta-illusoria": "reference",
+  // Batch Bardo (Fase 2): spendono Ispirazione con effetto istantaneo, come
+  // Parole Taglienti; gli usi restano sulla scheda finché manca il Carisma.
+  "bardo-collegio-del-valore-ispirazione-in-combattimento": "instant-reminder",
+  "bardo-collegio-dei-sussurri-lame-psichiche": "instant-reminder",
 });
 
 const DIRECT_TEST_FILES = [
   "barbarianCombatAudit.test.js",
   "barbarianFeatureRuntime.test.js",
+  "bardCollegesFeatureRuntime.test.js",
   "bardEloquenceFeatureRuntime.test.js",
   "bardLoreFeatureRuntime.test.js",
   "clericDomainsFeatureRuntime.test.js",

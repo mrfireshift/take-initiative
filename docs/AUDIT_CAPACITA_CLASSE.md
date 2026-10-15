@@ -72,40 +72,40 @@ Il dettaglio per ogni record, inclusi segnali testuali, effetti marker, bersagli
 
 | Categoria | Record |
 |---|---:|
-| not-automated | 651 |
-| implemented | 209 |
+| not-automated | 641 |
+| implemented | 219 |
 
 ## Backlog per primitiva
 
-Capacità non implementate: **651**. Raggiungibili con soli override: **609** (di cui automazione: **55**, il resto carte descrittive). Bloccate da una primitiva mancante: **42**. Archetipo e primitiva sono euristiche da confermare nel batch; le decisioni manuali confermate sono 18.
+Capacità non implementate: **641**. Raggiungibili con soli override: **600** (di cui automazione: **45**, il resto carte descrittive). Bloccate da una primitiva mancante: **41**. Archetipo e primitiva sono euristiche da confermare nel batch; le decisioni manuali confermate sono 20.
 
 | Primitiva | Disponibile | Implementate | Da fare |
 |---|---|---:|---:|
-| Carta descrittiva (`reference-only`) | sì | 0 | 554 |
-| Consumo risorsa (`resource-only`) | sì | 87 | 16 |
-| Pill con durata (`condition`) | sì | 92 | 22 |
-| Pill con esito scelto dal GM (choiceOptions) (`condition-choice`) | sì | 4 | 8 |
+| Carta descrittiva (`reference-only`) | sì | 0 | 555 |
+| Consumo risorsa (`resource-only`) | sì | 88 | 12 |
+| Pill con durata (`condition`) | sì | 101 | 20 |
+| Pill con esito scelto dal GM (choiceOptions) (`condition-choice`) | sì | 4 | 4 |
 | Aura dinamica (`aura`) | sì | 13 | 9 |
 | Adapter dedicato esistente (`custom-adapter`) | sì | 13 | 0 |
 | Valore numerico inserito dal GM (cure, PF temporanei, costi variabili) (`value-input`) | no | 0 | 20 |
 | Compagno o evocazione su token esistente (`linked-token`) | no | 0 | 11 |
 | Trasformazione (`transformation`) | no | 0 | 2 |
-| Ponte verso il sistema Incantesimi (`spell-bridge`) | no | 0 | 9 |
+| Ponte verso il sistema Incantesimi (`spell-bridge`) | no | 0 | 8 |
 
 | Archetipo | Primitiva | Implementate | Da fare |
 |---|---|---:|---:|
 | Descrittiva / passiva (`reference`) | `reference-only` | 0 | 417 |
-| Reazione o effetto istantaneo da ricordare (`instant-reminder`) | `reference-only` | 0 | 122 |
+| Reazione o effetto istantaneo da ricordare (`instant-reminder`) | `reference-only` | 0 | 123 |
 | Movimento / teletrasporto (`movement`) | `reference-only` | 0 | 15 |
-| Solo consumo risorsa (`resource-only`) | `resource-only` | 87 | 16 |
-| Buff o marker con durata (`timed-condition`) | `condition` | 92 | 22 |
-| Condizione dopo tiro salvezza (`save-outcome-condition`) | `condition-choice` | 4 | 8 |
+| Solo consumo risorsa (`resource-only`) | `resource-only` | 88 | 12 |
+| Buff o marker con durata (`timed-condition`) | `condition` | 101 | 20 |
+| Condizione dopo tiro salvezza (`save-outcome-condition`) | `condition-choice` | 4 | 4 |
 | Aura (`aura`) | `aura` | 13 | 9 |
 | Cura o PF temporanei (`hp-change`) | `value-input` | 0 | 19 |
 | Costo variabile scelto dal GM (`variable-cost`) | `value-input` | 0 | 1 |
 | Compagno / evocazione (`companion-summon`) | `linked-token` | 0 | 11 |
 | Trasformazione (`transformation`) | `transformation` | 0 | 2 |
-| Lancio o slot tramite capacità (`spell-bridge`) | `spell-bridge` | 0 | 9 |
+| Lancio o slot tramite capacità (`spell-bridge`) | `spell-bridge` | 0 | 8 |
 | Adapter dedicato (`custom-adapter`) | `custom-adapter` | 13 | 0 |
 
 ## Backlog per classe
@@ -113,7 +113,7 @@ Capacità non implementate: **651**. Raggiungibili con soli override: **609** (d
 | Classe | Implementate | Carte descrittive | Automazione con dati | Richiede primitiva | Primitive mancanti |
 |---|---:|---:|---:|---:|---|
 | Barbaro | 20 | 42 | 5 | 1 | spell-bridge 1 |
-| Bardo | 5 | 28 | 10 | 3 | value-input 2, spell-bridge 1 |
+| Bardo | 15 | 29 | 0 | 2 | value-input 2 |
 | Chierico | 20 | 53 | 1 | 4 | value-input 4 |
 | Druido | 13 | 38 | 0 | 5 | linked-token 3, spell-bridge 1, value-input 1 |
 | Guerriero | 38 | 52 | 0 | 3 | value-input 2, spell-bridge 1 |

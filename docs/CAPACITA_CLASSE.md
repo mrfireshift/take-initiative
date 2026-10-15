@@ -22,9 +22,9 @@ Arcana 2016 e non è la stessa progressione del Ranger 2014.
 
 Lo stato di supporto è intenzionalmente esplicito:
 
-- **209 `implemented`**: la capacità può essere attivata dal runtime secondo
+- **219 `implemented`**: la capacità può essere attivata dal runtime secondo
   l'adapter dichiarato;
-- **651 `not-automated`**: la voce resta consultabile e gestibile manualmente,
+- **641 `not-automated`**: la voce resta consultabile e gestibile manualmente,
   ma il pulsante di attivazione non applica una meccanica automatica. Le
   passive, le reazioni e gli effetti istantanei compaiono come
   **Promemoria descrittivo**; le altre come gestione manuale al tavolo, con il
@@ -122,7 +122,7 @@ capacità già coperte dai test e dagli adapter:
 | Area | Esempi di workflow |
 | --- | --- |
 | Barbaro | Ira, Attacco Irruento, Frenesia, Forma della Bestia, Impeto Selvaggio, Protettori Ancestrali, scelte totemiche e alcune aure. |
-| Bardo | Ispirazione Bardica, Parole Inquietanti, Controfascino, Linguaggio Universale, Ispirazione Contagiosa. |
+| Bardo | Ispirazione Bardica, Parole Inquietanti, Controfascino, Linguaggio Universale, Ispirazione Contagiosa; Parole di Terrore, Conoscenze dell'Ombra, Esibizione Estasiante, Manto di Maestà, Maestà Inviolabile, Creazione Animata e Virtuosismo della Lama. |
 | Guerriero | Azione Impetuosa, Indomito, tutte le Manovre (dadi di Superiorità), Frecce del Tiro Arcano, Potenza del Gigante e Rune, Potere Psionico, Baluardo della Forza, Marchio Incrollabile, Forza di Fronte alla Morte. |
 | Chierico | Santuario del Crepuscolo, Scacciare Non Morti, Passi nella Notte e le opzioni di Incanalare Divinità di tutti i domini; Legame Incoraggiante, Benedizione dell'Ingannatore, Ira dell'Ordine, Corona di Luce. |
 | Druido | Forma Selvatica e Forma Elementale come marker (i PF della bestia restano al GM), Forma Siderale e Totem Spirituale con scelta della variante, Entità Simbiotica, Diffusione di Spore, Spirito della Fiamma e gli usi dei circoli. |

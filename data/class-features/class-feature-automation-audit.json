@@ -34,7 +34,7 @@
     ],
     "totalMechanics": 860,
     "runtimeCatalogRecords": 860,
-    "runtimeImplemented": 209
+    "runtimeImplemented": 219
   },
   "criteria": {
     "token_marker": "La capacità viene usata su un token e lascia uno stato/promemoria visibile per la durata dello scontro o finché non viene consumata.",
@@ -71,11 +71,11 @@
       "curata": 109
     },
     "byRuntimeStatus": {
-      "not-automated": 651,
-      "implemented": 209
+      "not-automated": 641,
+      "implemented": 219
     },
     "blockerCounts": {
-      "adapter_runtime_mancante": 651,
+      "adapter_runtime_mancante": 641,
       "scelta_giocatore_o_opzione": 146
     },
     "dataBlockerCounts": {
@@ -124,16 +124,16 @@
     "resourceCriterionIgnored": true,
     "byArchetype": {
       "reference": 417,
-      "instant-reminder": 122,
-      "timed-condition": 114,
-      "resource-only": 103,
+      "instant-reminder": 123,
+      "timed-condition": 121,
+      "resource-only": 100,
       "aura": 22,
       "hp-change": 19,
       "movement": 15,
       "custom-adapter": 13,
-      "save-outcome-condition": 12,
       "companion-summon": 11,
-      "spell-bridge": 9,
+      "save-outcome-condition": 8,
+      "spell-bridge": 8,
       "transformation": 2,
       "variable-cost": 1
     }
@@ -144,25 +144,25 @@
         "label": "Carta descrittiva",
         "available": true,
         "implemented": 0,
-        "open": 554
+        "open": 555
       },
       "resource-only": {
         "label": "Consumo risorsa",
         "available": true,
-        "implemented": 87,
-        "open": 16
+        "implemented": 88,
+        "open": 12
       },
       "condition": {
         "label": "Pill con durata",
         "available": true,
-        "implemented": 92,
-        "open": 22
+        "implemented": 101,
+        "open": 20
       },
       "condition-choice": {
         "label": "Pill con esito scelto dal GM (choiceOptions)",
         "available": true,
         "implemented": 4,
-        "open": 8
+        "open": 4
       },
       "aura": {
         "label": "Aura dinamica",
@@ -198,7 +198,7 @@
         "label": "Ponte verso il sistema Incantesimi",
         "available": false,
         "implemented": 0,
-        "open": 9
+        "open": 8
       }
     },
     "archetypes": {
@@ -212,7 +212,7 @@
         "label": "Reazione o effetto istantaneo da ricordare",
         "primitive": "reference-only",
         "implemented": 0,
-        "open": 122
+        "open": 123
       },
       "movement": {
         "label": "Movimento / teletrasporto",
@@ -223,20 +223,20 @@
       "resource-only": {
         "label": "Solo consumo risorsa",
         "primitive": "resource-only",
-        "implemented": 87,
-        "open": 16
+        "implemented": 88,
+        "open": 12
       },
       "timed-condition": {
         "label": "Buff o marker con durata",
         "primitive": "condition",
-        "implemented": 92,
-        "open": 22
+        "implemented": 101,
+        "open": 20
       },
       "save-outcome-condition": {
         "label": "Condizione dopo tiro salvezza",
         "primitive": "condition-choice",
         "implemented": 4,
-        "open": 8
+        "open": 4
       },
       "aura": {
         "label": "Aura",
@@ -272,7 +272,7 @@
         "label": "Lancio o slot tramite capacità",
         "primitive": "spell-bridge",
         "implemented": 0,
-        "open": 9
+        "open": 8
       },
       "custom-adapter": {
         "label": "Adapter dedicato",
@@ -281,10 +281,10 @@
         "open": 0
       }
     },
-    "dataOnlyCandidateCount": 609,
-    "dataOnlyAutomationCount": 55,
-    "needsPrimitiveCount": 42,
-    "manualDecisionCount": 18,
+    "dataOnlyCandidateCount": 600,
+    "dataOnlyAutomationCount": 45,
+    "needsPrimitiveCount": 41,
+    "manualDecisionCount": 20,
     "byClass": {
       "barbaro": {
         "className": "Barbaro",
@@ -298,13 +298,12 @@
       },
       "bardo": {
         "className": "Bardo",
-        "implemented": 5,
-        "dataOnlyReference": 28,
-        "dataOnlyAutomation": 10,
-        "needsPrimitive": 3,
+        "implemented": 15,
+        "dataOnlyReference": 29,
+        "dataOnlyAutomation": 0,
+        "needsPrimitive": 2,
         "needsPrimitiveByPrimitive": {
-          "value-input": 2,
-          "spell-bridge": 1
+          "value-input": 2
         }
       },
       "chierico": {
@@ -434,9 +433,9 @@
     "runtimeNotExposedCount": 0,
     "currentAutomation": {
       "FULL": 8,
-      "PARTIAL": 114,
-      "TRACK_ONLY": 152,
-      "MANUAL": 586,
+      "PARTIAL": 123,
+      "TRACK_ONLY": 146,
+      "MANUAL": 583,
       "NONE": 0
     },
     "targetAutomation": {
@@ -447,21 +446,21 @@
       "UNREVIEWED": 0
     },
     "coverageStatus": {
-      "ACCEPTED": 480,
-      "GAP": 380,
+      "ACCEPTED": 487,
+      "GAP": 373,
       "UNREVIEWED": 0
     },
     "testCoverageStatus": {
-      "DIRECT": 330,
+      "DIRECT": 344,
       "INDIRECT": 34,
-      "NONE": 496
+      "NONE": 482
     },
-    "functionalGapCount": 380,
+    "functionalGapCount": 373,
     "testGapCount": 0,
     "sourceConflictCount": 3,
     "catalogGapCount": 0,
     "customCodeCount": 15,
-    "persistentLifecycleCount": 129,
+    "persistentLifecycleCount": 138,
     "resourcePoolCount": 104
   },
   "resourcePools": [
@@ -1060,7 +1059,7 @@
         "bardo-collegio-dell-incanto-manto-di-ispirazione",
         "bardo-collegio-dell-eloquenza-parole-inquietanti",
         "bardo-collegio-della-sapienza-parole-taglienti",
-        "bardo-collegio-delle-spade-virtuosismo-della-lama",
+        "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-difensivo",
         "bardo-collegio-della-sapienza-abilita-impareggiabile"
       ],
       "capacityModel": "formula",
@@ -6723,6 +6722,7 @@
           "trackerQuickActions"
         ],
         "tests": [
+          "test/bardCollegesFeatureRuntime.test.js",
           "test/bardEloquenceFeatureRuntime.test.js",
           "test/bardLoreFeatureRuntime.test.js",
           "test/classFeatureAudit.test.js",
@@ -7371,12 +7371,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "resource-only",
-      "archetypeLabel": "Solo consumo risorsa",
-      "requiredPrimitive": "resource-only",
+      "archetype": "instant-reminder",
+      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
+      "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente",
+        "decisione-manuale",
         "pool-modificatore:bardo-ispirazione-bardica-usi"
       ],
       "runtime": {
@@ -7403,7 +7403,7 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -7418,7 +7418,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -7433,7 +7433,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -7687,6 +7689,7 @@
           "trackerQuickActions"
         ],
         "tests": [
+          "test/bardCollegesFeatureRuntime.test.js",
           "test/bardLoreFeatureRuntime.test.js"
         ]
       },
@@ -62614,9 +62617,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -62640,7 +62641,7 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -62648,14 +62649,14 @@
       "archetype": "resource-only",
       "archetypeLabel": "Solo consumo risorsa",
       "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "resource-only"
       },
       "sourceData": {
         "completenessMissing": [
@@ -62677,13 +62678,13 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "RESOURCE_ONLY"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "ACTION",
@@ -62692,7 +62693,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -62701,13 +62702,15 @@
           "Pagina 29"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -62979,9 +62982,7 @@
         "rationale": "La capacità non richiede un promemoria persistente su un token durante il combattimento.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -63005,22 +63006,22 @@
         "durationType": "testuale_o_non_specificata",
         "knownRoundDuration": false,
         "textMarkerSignals": [],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "resource-only",
-      "archetypeLabel": "Solo consumo risorsa",
-      "requiredPrimitive": "resource-only",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -63041,40 +63042,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "LONG_REST",
-      "activationType": "BONUS_ACTION",
+      "activationType": "ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Calderone Omnicomprensivo di Tasha",
           "Pagina 29"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -83053,9 +83056,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -83085,22 +83086,22 @@
           "bersaglio",
           "alleat"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "save-outcome-condition",
-      "archetypeLabel": "Condizione dopo tiro salvezza",
-      "requiredPrimitive": "condition-choice",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:tiro-salvezza-condizione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -83119,40 +83120,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "LONG_REST",
-      "activationType": "FREE",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "activationType": "ACTION",
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 15"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -83216,12 +83219,12 @@
           "extra_damage"
         ]
       },
-      "archetype": "resource-only",
-      "archetypeLabel": "Solo consumo risorsa",
-      "requiredPrimitive": "resource-only",
+      "archetype": "instant-reminder",
+      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
+      "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "costo-senza-effetto-persistente",
+        "decisione-manuale",
         "pool-modificatore:bardo-ispirazione-bardica-usi"
       ],
       "runtime": {
@@ -83244,7 +83247,7 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -83259,7 +83262,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -83274,7 +83277,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -83370,7 +83375,7 @@
       "currentAutomationLevel": "TRACK_ONLY",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -83385,7 +83390,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -83400,7 +83405,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -83425,9 +83432,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -83456,22 +83461,22 @@
           "bersaglio",
           "alleat"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "save-outcome-condition",
-      "archetypeLabel": "Condizione dopo tiro salvezza",
-      "requiredPrimitive": "condition-choice",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:tiro-salvezza-condizione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -83490,40 +83495,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "SHORT_REST",
-      "activationType": "FREE",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "activationType": "ACTION",
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 14"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -83662,8 +83669,7 @@
         "scopeExclusion": null,
         "requiresDataWork": true,
         "blockers": [
-          "scelta_giocatore_o_opzione",
-          "adapter_runtime_mancante"
+          "scelta_giocatore_o_opzione"
         ],
         "dataBlockers": [
           "bersaglio_da_specificare",
@@ -83694,7 +83700,7 @@
           "fino all",
           "bersaglio"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [
           "choose_option"
@@ -83706,15 +83712,15 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:instant_effect",
+        "runtime-implemented",
         "pool-modificatore:bardo-ispirazione-bardica-usi"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [],
@@ -83729,40 +83735,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
-      "resourceModel": "DICE_POOL",
+      "resourceModel": "NONE",
       "activationType": "FREE",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "UNTIL_TURN",
+      "persistentCategory": "TURN_BOUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 16"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -83787,9 +83795,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -83817,7 +83823,7 @@
           "fino all",
           "bersaglio"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
@@ -83825,14 +83831,15 @@
       "archetype": "timed-condition",
       "archetypeLabel": "Buff o marker con durata",
       "requiredPrimitive": "condition",
-      "dataOnlyCandidate": true,
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "mode:token_marker_review"
+        "runtime-implemented",
+        "pool-modificatore:bardo-ispirazione-bardica-usi"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -83848,40 +83855,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
-      "resourceModel": "NONE",
+      "resourceModel": "DICE_POOL",
       "activationType": "FREE",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "UNTIL_TURN",
+      "persistentCategory": "TURN_BOUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 16"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -83939,12 +83948,12 @@
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "instant-reminder",
-      "archetypeLabel": "Reazione o effetto istantaneo da ricordare",
+      "archetype": "reference",
+      "archetypeLabel": "Descrittiva / passiva",
       "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "attivazione:reazione"
+        "opzione-di-capacita-implementata"
       ],
       "runtime": {
         "exposed": true,
@@ -83969,7 +83978,7 @@
       "currentAutomationLevel": "MANUAL",
       "targetAutomationLevel": "PARTIAL",
       "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
@@ -83984,7 +83993,7 @@
       "persistentCategory": null,
       "usesCustomCode": false,
       "hasCleanup": false,
-      "hasDirectTest": false,
+      "hasDirectTest": true,
       "gapCategory": "EXECUTION_GAP",
       "severity": "P2",
       "evidence": {
@@ -83999,7 +84008,9 @@
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -84060,7 +84071,7 @@
       "requiredPrimitive": "reference-only",
       "dataOnlyCandidate": true,
       "archetypeEvidence": [
-        "attivazione:passiva_o_non_specificata"
+        "opzione-di-capacita-implementata"
       ],
       "runtime": {
         "exposed": true,
@@ -84250,9 +84261,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -84280,22 +84289,22 @@
           "finché",
           "per 1 minuto"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "spell-bridge",
-      "archetypeLabel": "Lancio o slot tramite capacità",
-      "requiredPrimitive": "spell-bridge",
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
       "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:incantesimo-slot"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -84313,40 +84322,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 15"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -84371,9 +84382,7 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -84398,22 +84407,22 @@
         "textMarkerSignals": [
           "finché"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "reference",
-      "archetypeLabel": "Descrittiva / passiva",
-      "requiredPrimitive": "reference-only",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "attivazione:azione_bonus"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -84431,40 +84440,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "MANUAL",
-      "coverageStatus": "ACCEPTED",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "NONE",
-      "activationType": "BONUS_ACTION",
+      "activationType": "ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": null,
-      "severity": null,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": "OTHER",
+      "severity": "P2",
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 14"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -84489,9 +84500,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -84521,22 +84530,22 @@
           "bersaglio",
           "alleat"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "save-outcome-condition",
-      "archetypeLabel": "Condizione dopo tiro salvezza",
-      "requiredPrimitive": "condition-choice",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:tiro-salvezza-condizione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -84558,40 +84567,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "LONG_REST",
       "activationType": "ACTION",
-      "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 14"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },
@@ -84616,9 +84627,7 @@
         "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
         "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [
-          "adapter_runtime_mancante"
-        ],
+        "blockers": [],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -84645,22 +84654,22 @@
           "per 1 minuto",
           "bersaglio"
         ],
-        "runtimeImplemented": false,
+        "runtimeImplemented": true,
         "markerEffectTypes": [],
         "nonMarkerEffectTypes": [],
         "sourceEffectTypeSet": []
       },
-      "archetype": "save-outcome-condition",
-      "archetypeLabel": "Condizione dopo tiro salvezza",
-      "requiredPrimitive": "condition-choice",
-      "dataOnlyCandidate": true,
+      "archetype": "timed-condition",
+      "archetypeLabel": "Buff o marker con durata",
+      "requiredPrimitive": "condition",
+      "dataOnlyCandidate": false,
       "archetypeEvidence": [
-        "testo:tiro-salvezza-condizione"
+        "runtime-implemented"
       ],
       "runtime": {
         "exposed": true,
-        "status": "not-automated",
-        "adapter": null
+        "status": "implemented",
+        "adapter": "condition"
       },
       "sourceData": {
         "completenessMissing": [
@@ -84682,40 +84691,42 @@
       },
       "catalogStatus": "CATALOGED",
       "runtimeExposed": true,
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "targetAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "testCoverageStatus": "NONE",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
       "testGap": false,
       "sourceConflict": false,
       "sourceConflictDetails": null,
       "currentUiExposure": "PANEL",
       "executionPath": [
-        "REMINDER"
+        "EFFECTS_MUTATION"
       ],
       "resourceModel": "NONE",
       "activationType": "BONUS_ACTION",
       "targetingMode": "SELF",
-      "durationMode": "NONE",
-      "persistentCategory": null,
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
       "usesCustomCode": false,
-      "hasCleanup": false,
-      "hasDirectTest": false,
-      "gapCategory": "EXECUTION_GAP",
-      "severity": "P2",
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
       "evidence": {
         "catalog": [
           "Guida Omnicomprensiva di Xanathar",
           "Pagina 15"
         ],
         "runtime": [
-          "src/class-features-runtime.json (status: not-automated)"
+          "src/class-features-runtime.json (status: implemented)"
         ],
         "ui": [
           "initiativeCardModal (Scheda Capacità)",
           "trackerQuickActions"
         ],
-        "tests": []
+        "tests": [
+          "test/bardCollegesFeatureRuntime.test.js"
+        ]
       },
       "notes": []
     },

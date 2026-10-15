@@ -2416,25 +2416,107 @@
     },
     "bardo-collegio-dei-sussurri-lame-psichiche": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "bardo-collegio-dei-sussurri-parole-di-terrore": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 600,
+        "end_conditions": [
+          "attaccato o danneggiato",
+          "vede alleati attaccati o danneggiati"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "😨"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Spaventato",
+        "displayLabel": "Spaventato · Parole di Terrore",
+        "detail": "Dopo 1 minuto di conversazione da soli, TS Saggezza fallito: spaventato dal bardo o da una creatura scelta per 1 ora. Termina se viene attaccato o danneggiato o vede i suoi alleati attaccati o danneggiati. Con TS superato non applicare la pill: il bersaglio non si accorge del tentativo.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      }
     },
     "bardo-collegio-dei-sussurri-manto-di-sussurri": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 600
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "👤"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Manto di Sussurri",
+        "detail": "Travestimento con l'ombra di un umanoide morto entro 9 m (catturata con la reazione): per 1 ora sembra quella persona e ne conosce le informazioni condivisibili; +5 alla prova di Inganno contro l'Intuizione altrui. Termina con un'azione bonus. Una cattura per riposo breve, da segnare al tavolo."
+      }
     },
     "bardo-collegio-dei-sussurri-conoscenze-dell-ombra": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 4800,
+        "end_conditions": [
+          "attaccato, danneggiato o costretto a un TS dal bardo o dai suoi alleati"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🤫"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Conoscenze dell'Ombra",
+        "detail": "TS Saggezza fallito (riesce in automatico se non condivide un linguaggio o non sente): affascinato per 8 ore, obbedisce per paura che il bardo riveli il suo segreto, senza rischiare la vita. Termina se il bardo o i suoi alleati lo attaccano, danneggiano o gli impongono un TS. Con TS superato non applicare la pill.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      }
     },
     "bardo-collegio-del-valore-competenze-bonus": {
       "include": true,
@@ -2445,8 +2527,10 @@
     },
     "bardo-collegio-del-valore-ispirazione-in-combattimento": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "bardo-collegio-del-valore-attacco-extra": {
       "include": true,
@@ -2464,8 +2548,39 @@
     },
     "bardo-collegio-dell-incanto-esibizione-estasiante": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 18,
+        "maxTargets": null,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 600,
+        "end_conditions": [
+          "danno al bersaglio",
+          "il bardo lo attacca o attacca un suo alleato"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🎼"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Esibizione Estasiante",
+        "detail": "Dopo un'esibizione di almeno 1 minuto, umanoidi scelti entro 18 m (fino al Carisma, minimo 1) con TS Saggezza fallito: affascinati per 1 ora, idolatrano il bardo senza ricorrere alla violenza. Termina se subiscono danni, se il bardo li attacca o se lo vedono attaccare o danneggiare un loro alleato. Con TS superato non applicare la pill: non si accorgono del tentativo.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      }
     },
     "bardo-collegio-dell-incanto-manto-di-ispirazione": {
       "include": true,
@@ -2474,18 +2589,82 @@
     },
     "bardo-collegio-dell-incanto-manto-di-maesta": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "👑"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Manto di Maestà",
+        "detail": "Per 1 minuto o finché perde la concentrazione: lancia comando senza slot all'attivazione e come azione bonus in ogni turno; le creature affascinate dal bardo falliscono automaticamente il TS contro questo comando."
+      }
     },
     "bardo-collegio-dell-incanto-maesta-inviolabile": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10,
+        "end_conditions": [
+          "incapacitato"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "💎"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Maestà Inviolabile",
+        "detail": "Per 1 minuto o finché è incapacitato: la prima volta in un turno che una creatura tenta di attaccarlo fa un TS Carisma; se fallisce deve scegliere un altro bersaglio, se riesce ha svantaggio ai TS contro gli incantesimi del bardo nel turno successivo di questi. Uso per riposo breve da segnare al tavolo."
+      }
     },
     "bardo-collegio-della-creazione-compimento-della-creazione": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🎨"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "bardo-collegio-della-creazione-granello-di-potenziale": {
       "include": true,
@@ -2494,8 +2673,34 @@
     },
     "bardo-collegio-della-creazione-creazione-animata": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 600,
+        "end_conditions": [
+          "0 PF dell'oggetto",
+          "morte del bardo"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🪄"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Creazione Animata",
+        "detail": "Oggetto non magico Grande o più piccolo entro 9 m animato per 1 ora (posiziona il token): agisce subito dopo il bardo, senza ordini può solo Schivare; un'azione bonus o l'Ispirazione Bardica gli impartiscono ordini. Un solo oggetto alla volta."
+      }
     },
     "bardo-collegio-della-creazione-crescendo-creativo": {
       "include": true,
@@ -2536,19 +2741,75 @@
     },
     "bardo-collegio-delle-spade-virtuosismo-della-lama": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🗡️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Virtuosismo della Lama",
+        "detail": "Con l'azione Attacco: +3 m alla velocità sul terreno fino alla fine del turno; dopo un colpo può usare una sola opzione di Virtuosismo della Lama spendendo un'Ispirazione Bardica.",
+        "mechanics": {
+          "movement": {
+            "addMeters": 3
+          }
+        }
+      }
     },
     "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-difensivo": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "bardo-ispirazione-bardica-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "next-turn"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🛡️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Virtuosismo Difensivo",
+        "detail": "Il dado di Ispirazione Bardica tirato si aggiunge ai danni e alla CA del bardo fino all'inizio del suo prossimo turno. Gli usi di Ispirazione Bardica si gestiscono sulla scheda finché il Carisma non è sulla card."
+      }
     },
     "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-mobile": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
       "automationLevel": "riferimento",
-      "defaultEnabled": true,
       "quickActionEligible": false
     },
     "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-tagliente": {

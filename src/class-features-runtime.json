@@ -9143,9 +9143,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -9161,7 +9161,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🎨",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -9248,35 +9248,47 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "innesco"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "bardo-collegio-dell-incanto-esibizione-estasiante-usi"
       ],
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
-        "maxTargets": 1,
-        "excludeSource": false
+        "mode": "single-target",
+        "rangeMeters": 18,
+        "maxTargets": null,
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🎼",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Esibizione Estasiante",
+        "detail": "Dopo un'esibizione di almeno 1 minuto, umanoidi scelti entro 18 m (fino al Carisma, minimo 1) con TS Saggezza fallito: affascinati per 1 ora, idolatrano il bardo senza ricorrere alla violenza. Termina se subiscono danni, se il bardo li attacca o se lo vedono attaccare o danneggiare un loro alleato. Con TS superato non applicare la pill: non si accorgono del tentativo.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 600,
+        "endConditions": [
+          "danno al bersaglio",
+          "il bardo lo attacca o attacca un suo alleato"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "bardo-collegio-dell-incanto-esibizione-estasiante-usi",
@@ -9351,7 +9363,7 @@
       "page": 55,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -9369,6 +9381,7 @@
       "trackedResourcePoolIds": [
         "bardo-ispirazione-bardica-usi"
       ],
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -9407,7 +9420,7 @@
       "page": 14,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "curated",
       "runtimeRequirements": [],
       "missingForExecution": [],
@@ -9422,6 +9435,7 @@
       "trackedResourcePoolIds": [
         "bardo-ispirazione-bardica-usi"
       ],
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -9568,35 +9582,47 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "innesco"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "bardo-collegio-dei-sussurri-parole-di-terrore-usi"
       ],
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "😨",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Spaventato",
+        "displayLabel": "Spaventato · Parole di Terrore",
+        "detail": "Dopo 1 minuto di conversazione da soli, TS Saggezza fallito: spaventato dal bardo o da una creatura scelta per 1 ora. Termina se viene attaccato o danneggiato o vede i suoi alleati attaccati o danneggiati. Con TS superato non applicare la pill: il bersaglio non si accorge del tentativo.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 600,
+        "endConditions": [
+          "attaccato o danneggiato",
+          "vede alleati attaccati o danneggiati"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "bardo-collegio-dei-sussurri-parole-di-terrore-usi",
@@ -9794,9 +9820,9 @@
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -9812,23 +9838,28 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🗡️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Virtuosismo della Lama",
+        "detail": "Con l'azione Attacco: +3 m alla velocità sul terreno fino alla fine del turno; dopo un colpo può usare una sola opzione di Virtuosismo della Lama spendendo un'Ispirazione Bardica.",
+        "mechanics": {
+          "movement": {
+            "addMeters": 3
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "turn-end"
       },
-      "trackingMode": "instant",
-      "resourceCosts": [
-        {
-          "poolId": "bardo-ispirazione-bardica-usi",
-          "amount": 1
-        }
-      ]
+      "trackingMode": "active",
+      "resourceCosts": []
     },
     {
       "id": "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-difensivo",
@@ -9850,13 +9881,16 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
+      "trackedResourcePoolIds": [
+        "bardo-ispirazione-bardica-usi"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -9865,18 +9899,28 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🛡️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Virtuosismo Difensivo",
+        "detail": "Il dado di Ispirazione Bardica tirato si aggiunge ai danni e alla CA del bardo fino all'inizio del suo prossimo turno. Gli usi di Ispirazione Bardica si gestiscono sulla scheda finché il Carisma non è sulla card."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn"
       },
-      "trackingMode": "instant",
-      "resourceCosts": []
+      "trackingMode": "active",
+      "resourceCosts": [
+        {
+          "poolId": "bardo-ispirazione-bardica-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-mobile",
@@ -10261,12 +10305,12 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "azione_bonus"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "bardo-collegio-della-creazione-creazione-animata-usi"
@@ -10279,17 +10323,25 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🪄",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Creazione Animata",
+        "detail": "Oggetto non magico Grande o più piccolo entro 9 m animato per 1 ora (posiziona il token): agisce subito dopo il bardo, senza ordini può solo Schivare; un'azione bonus o l'Ispirazione Bardica gli impartiscono ordini. Un solo oggetto alla volta."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 600,
+        "endConditions": [
+          "0 PF dell'oggetto",
+          "morte del bardo"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "bardo-collegio-della-creazione-creazione-animata-usi",
@@ -10425,9 +10477,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -10443,17 +10495,21 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "👑",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Manto di Maestà",
+        "detail": "Per 1 minuto o finché perde la concentrazione: lancia comando senza slot all'attivazione e come azione bonus in ogni turno; le creature affascinate dal bardo falliscono automaticamente il TS contro questo comando."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "bardo-collegio-dell-incanto-manto-di-maesta-usi",
@@ -10473,21 +10529,20 @@
       "page": 14,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "reference",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "azione_bonus"
+        "primary": "azione"
       },
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -10496,17 +10551,21 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "👤",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Manto di Sussurri",
+        "detail": "Travestimento con l'ombra di un umanoide morto entro 9 m (catturata con la reazione): per 1 ora sembra quella persona e ne conosce le informazioni condivisibili; +5 alla prova di Inganno contro l'Intuizione altrui. Termina con un'azione bonus. Una cattura per riposo breve, da segnare al tavolo."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 600
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -10683,9 +10742,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -10693,25 +10752,36 @@
       "trackedResourcePoolIds": [
         "bardo-collegio-dei-sussurri-conoscenze-dell-ombra-usi"
       ],
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
+        "mode": "single-target",
+        "rangeMeters": 9,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🤫",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Conoscenze dell'Ombra",
+        "detail": "TS Saggezza fallito (riesce in automatico se non condivide un linguaggio o non sente): affascinato per 8 ore, obbedisce per paura che il bardo riveli il suo segreto, senza rischiare la vita. Termina se il bardo o i suoi alleati lo attaccano, danneggiano o gli impongono un TS. Con TS superato non applicare la pill.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 4800,
+        "endConditions": [
+          "attaccato, danneggiato o costretto a un TS dal bardo o dai suoi alleati"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "bardo-collegio-dei-sussurri-conoscenze-dell-ombra-usi",
@@ -10848,9 +10918,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -10863,17 +10933,24 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💎",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Maestà Inviolabile",
+        "detail": "Per 1 minuto o finché è incapacitato: la prima volta in un turno che una creatura tenta di attaccarlo fa un TS Carisma; se fallisce deve scegliere un altro bersaglio, se riesce ha svantaggio ai TS contro gli incantesimi del bardo nel turno successivo di questi. Uso per riposo breve da segnare al tavolo."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10,
+        "endConditions": [
+          "incapacitato"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -50082,7 +50159,7 @@
     "mechanicRecords": 860,
     "activeFeatures": 860,
     "resourcePools": 104,
-    "runtimeImplemented": 209,
-    "runtimeNotAutomated": 651
+    "runtimeImplemented": 219,
+    "runtimeNotAutomated": 641
   }
 }
