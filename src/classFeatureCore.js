@@ -1,4 +1,5 @@
 import { gridPlanarDistance } from "./distance3dCore.js";
+import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
 
 export const CLASS_FEATURE_STATE_FIELD = "classFeatureState";
 export const CLASS_FEATURE_STATE_VERSION = 1;
@@ -763,6 +764,7 @@ export function classFeatureEffectProjection(
         : {}),
     }
     : null;
+  const saveReminders = normalizeEffectSaveReminders(raw.saveReminder);
   return {
     kind,
     conditionName,
@@ -777,6 +779,9 @@ export function classFeatureEffectProjection(
     secondaryEffects,
     membershipTargeting,
     ...(triggerPolicy ? { triggerPolicy } : {}),
+    ...(saveReminders.length
+      ? { saveReminder: saveReminders.length === 1 ? saveReminders[0] : saveReminders }
+      : {}),
   };
 }
 
@@ -871,6 +876,11 @@ export function classFeatureConditionInstance(
   if (projection.mechanics && Object.keys(projection.mechanics).length) {
     instance.mechanics = { ...projection.mechanics };
   }
+  if (projection.saveReminder) {
+    instance.saveReminder = Array.isArray(projection.saveReminder)
+      ? projection.saveReminder.map((reminder) => ({ ...reminder }))
+      : { ...projection.saveReminder };
+  }
   if (projection.kind === "aura") {
     instance.mechanics = {
       ...(instance.mechanics || {}),
@@ -900,8 +910,10 @@ function classFeatureSecondaryConditionInstance(
     characterBuild,
   );
   if (!primary || !effect?.conditionName) return null;
+  // Il promemoria TS appartiene alla pill primaria: la secondaria non lo eredita.
+  const { saveReminder: _primarySaveReminder, ...primaryFields } = primary;
   return {
-    ...primary,
+    ...primaryFields,
     id: `${primary.id}:secondary:${effect.idSuffix || index + 1}`,
     condition: effect.conditionName,
     effectId: `${String(feature?.id || "capacitÃ ").trim()}:secondary:${effect.idSuffix || index + 1}`,

@@ -20825,7 +20825,24 @@
         "kind": "condition",
         "conditionName": "Trattenuto",
         "displayLabel": "Trattenuto · Catene di Fuoco",
-        "detail": "TS Forza fallito: trattenuto per 1 minuto, subisce 2d6 danni da fuoco all'inizio di ogni suo turno e ripete il TS alla fine di ogni suo turno. Con TS superato non applicare la pill. Uso per riposo breve da segnare al tavolo."
+        "detail": "TS Forza fallito: trattenuto per 1 minuto, subisce 2d6 danni da fuoco all'inizio di ogni suo turno e ripete il TS alla fine di ogni suo turno. Con TS superato non applicare la pill. Uso per riposo breve da segnare al tavolo.",
+        "saveReminder": [
+          {
+            "timing": "turn-start",
+            "mode": "manual-damage",
+            "damage": {
+              "dice": "2d6",
+              "type": "fuoco"
+            },
+            "label": "Le catene di fuoco infliggono 2d6 danni da fuoco all'inizio del suo turno."
+          },
+          {
+            "ability": "str",
+            "timing": "turn-end",
+            "success": "remove-effect",
+            "label": "CD 8 + competenza + Costituzione del guerriero. Se supera, le catene di fuoco svaniscono."
+          }
+        ]
       },
       "breaksConcentration": false,
       "duration": {
@@ -20931,6 +20948,14 @@
         "conditionName": "Affascinato",
         "displayLabel": "Affascinato · Runa della Pietra",
         "detail": "TS Saggezza fallito: affascinato dal guerriero per 1 minuto, velocità 0 e incapacitato; ripete il TS alla fine di ogni suo turno. Con TS superato non applicare la pill. Uso per riposo breve da segnare al tavolo.",
+        "saveReminder": [
+          {
+            "ability": "wis",
+            "timing": "turn-end",
+            "success": "remove-effect",
+            "label": "CD 8 + competenza + Costituzione del guerriero. Se supera, l'effetto termina."
+          }
+        ],
         "mechanics": {
           "movement": {
             "setMeters": 0
@@ -26108,7 +26133,15 @@
         "kind": "condition",
         "conditionName": "Stordito",
         "displayLabel": "Stordito · Squarciare la Mente",
-        "detail": "Attacco Furtivo con le Lame Psichiche, TS Saggezza fallito (CD 8 + competenza + Destrezza): stordito per 1 minuto; ripete il TS alla fine di ogni suo turno e se lo supera l'effetto termina. Con TS superato non applicare la pill. Riuso prima del riposo lungo con tre dadi di Energia Psionica dal pool."
+        "detail": "Attacco Furtivo con le Lame Psichiche, TS Saggezza fallito (CD 8 + competenza + Destrezza): stordito per 1 minuto; ripete il TS alla fine di ogni suo turno e se lo supera l'effetto termina. Con TS superato non applicare la pill. Riuso prima del riposo lungo con tre dadi di Energia Psionica dal pool.",
+        "saveReminder": [
+          {
+            "ability": "wis",
+            "timing": "turn-end",
+            "success": "remove-effect",
+            "label": "CD 8 + competenza + Destrezza del ladro. Se supera, l'effetto termina."
+          }
+        ]
       },
       "breaksConcentration": false,
       "duration": {
@@ -34738,7 +34771,16 @@
         "kind": "condition",
         "conditionName": "Trattenuto",
         "displayLabel": "Trattenuto · Collera della Natura",
-        "detail": "TS Forza o Destrezza (a scelta del bersaglio) fallito: trattenuto dai rampicanti; ripete il TS alla fine di ogni suo turno e se lo supera si libera. Con TS superato non applicare la pill."
+        "detail": "TS Forza o Destrezza (a scelta del bersaglio) fallito: trattenuto dai rampicanti; ripete il TS alla fine di ogni suo turno e se lo supera si libera. Con TS superato non applicare la pill.",
+        "saveReminder": [
+          {
+            "ability": "str",
+            "timing": "turn-end",
+            "dcSource": "source-spell",
+            "success": "remove-effect",
+            "label": "TS Forza o Destrezza a scelta del bersaglio. Se supera, si libera dai rampicanti."
+          }
+        ]
       },
       "breaksConcentration": false,
       "duration": {
@@ -35053,7 +35095,16 @@
         "kind": "condition",
         "conditionName": "Spaventato",
         "displayLabel": "Spaventato · Presenza Conquistatrice",
-        "detail": "Creature scelte entro 9 m con TS Saggezza fallito: spaventate dal paladino per 1 minuto; ripetono il TS alla fine di ogni loro turno. Con TS superato non applicare la pill a chi supera."
+        "detail": "Creature scelte entro 9 m con TS Saggezza fallito: spaventate dal paladino per 1 minuto; ripetono il TS alla fine di ogni loro turno. Con TS superato non applicare la pill a chi supera.",
+        "saveReminder": [
+          {
+            "ability": "wis",
+            "timing": "turn-end",
+            "dcSource": "source-spell",
+            "success": "remove-effect",
+            "label": "Se supera, non è più spaventato."
+          }
+        ]
       },
       "breaksConcentration": false,
       "duration": {
@@ -38790,7 +38841,16 @@
         "kind": "condition",
         "conditionName": "Affascinato",
         "displayLabel": "Affascinato · Scambio Seducente",
-        "detail": "TS Saggezza fallito (CD incantesimi del ranger): affascinato per 1 minuto; ripete il TS alla fine di ogni suo turno e se lo supera l'effetto termina. Con TS superato non applicare la pill."
+        "detail": "TS Saggezza fallito (CD incantesimi del ranger): affascinato per 1 minuto; ripete il TS alla fine di ogni suo turno e se lo supera l'effetto termina. Con TS superato non applicare la pill.",
+        "saveReminder": [
+          {
+            "ability": "wis",
+            "timing": "turn-end",
+            "dcSource": "source-spell",
+            "success": "remove-effect",
+            "label": "Se supera, l'effetto termina."
+          }
+        ]
       },
       "choiceOptions": [
         {

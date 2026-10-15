@@ -21,7 +21,7 @@ passive o reazioni istantanee e restano carte descrittive.
 | Viandante dell'Orizzonte | Combattente Planare | condition, 9 m | fino alla fine del turno |
 | Viandante dell'Orizzonte | Individuazione dei Portali | resource-only | pool esistente |
 | Viandante dell'Orizzonte | Passo Etereo | condition (sé), pool | forma eterea fino alla fine del turno |
-| Viandante Fatato | Scambio Seducente | condition, 36 m, scelta affascinato/spaventato | 10 round; TS ripetuto a fine turno solo nel testo |
+| Viandante Fatato | Scambio Seducente | condition, 36 m, scelta affascinato/spaventato | 10 round; popup TS Saggezza a fine turno con la CD incantesimi del ranger |
 | Viandante Fatato | Rinforzi Fatati | resource-only | l'incantesimo si lancia dal pannello |
 | Custode degli Sciami | Marea Avvolgente | condition (sé) | 10 round, volo 3 m |
 
@@ -42,3 +42,15 @@ passive o reazioni istantanee e restano carte descrittive.
 - conteggi aggiornati; Backlog.5 usa ora il Patto della Catena come esempio
   aperto di compagno;
 - audit rigenerato: implementate 188 → 198, automazione con soli dati 71 → 67.
+
+## Aggiornamento: TS ripetuti
+
+Scambio Seducente mostra il popup del TS Saggezza alla fine di ogni turno del
+bersaglio, per entrambe le scelte, con `dcSource: "source-spell"` (CD
+incantesimi della card del ranger).
+
+Le pill dichiarano `effectPlan.saveReminder` negli override; `classFeatureCore.js`
+lo proietta (anche dalle `choiceOptions`) e lo copia nell'istanza, quindi il
+popup è quello degli incantesimi (`effectSaveReminderCore.js`). Con TS superato
+la pill viene rimossa; con TS fallito resta. Test:
+`test/classFeatureSaveReminder.test.js`.

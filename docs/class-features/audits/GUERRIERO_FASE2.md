@@ -53,9 +53,9 @@ del prossimo turno del guerriero e il dettaglio chiede di terminarla prima.
 | ID | Adapter | Pill / note |
 |---|---|---|
 | Potenza del Gigante | condition (sé) | 10 round, pool esistente |
-| Runa del Fuoco | condition | Trattenuto 10 round (TS fallito) |
+| Runa del Fuoco | condition | Trattenuto 10 round (TS fallito); popup 2d6 fuoco a inizio turno e TS Forza a fine turno |
 | Runa del Gelo | condition (sé) | 100 round (10 minuti) |
-| Runa della Pietra | condition, 9 m | Affascinato 10 round, velocità 0 (TS fallito) |
+| Runa della Pietra | condition, 9 m | Affascinato 10 round, velocità 0 (TS fallito); popup TS Saggezza a fine turno |
 | Runa delle Colline | condition (sé) | 10 round, resistenze |
 | Runa delle Tempeste | condition (sé) | 10 round o incapacitato, pool esistente |
 | Scudo Runico | resource-only | pool esistente |
@@ -101,3 +101,17 @@ Le correzioni di archetipo sono in `BACKLOG_ARCHETYPE_OVERRIDES`
 - conteggi aggiornati in `classFeatureAudit`, `classFeatureCatalog` e
   `paladinDevotionFeatureRuntime`;
 - audit rigenerato: implementate 59 → 97, automazione con soli dati 148 → 123.
+
+## Aggiornamento: TS ripetuti e danni a inizio turno
+
+Runa del Fuoco e Runa della Pietra mostrano ora i popup dei TS ripetuti al
+turno del bersaglio. Runa del Fuoco apre il box danni (2d6 fuoco) all'inizio
+del turno del bersaglio e il TS Forza alla fine; Runa della Pietra il TS
+Saggezza alla fine. La CD delle rune (8 + competenza + Costituzione) non è
+la CD degli incantesimi: il popup non la mostra e la riporta nel testo.
+
+Le pill dichiarano `effectPlan.saveReminder` negli override; `classFeatureCore.js`
+lo proietta (anche dalle `choiceOptions`) e lo copia nell'istanza, quindi il
+popup è quello degli incantesimi (`effectSaveReminderCore.js`). Con TS superato
+la pill viene rimossa; con TS fallito resta. Test:
+`test/classFeatureSaveReminder.test.js`.
