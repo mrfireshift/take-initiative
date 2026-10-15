@@ -93,6 +93,8 @@ determinare lo stato corrente senza confrontarli con i documenti sopra:
 - [Audit integrazione Embers](archive/integrations/EMBERS-INTEGRATION-AUDIT.md)
 - [Compatibilità spell/Embers](archive/integrations/EMBERS-SPELL-COMPATIBILITY.md)
 - [Baseline test closure](audits/BASELINE-TEST-CLOSURE.md)
+- [Audit funzionale ottobre 2026](audits/FUNCTIONAL-AUDIT-2026-10.md)
+- [Smoke test manuale](audits/SMOKE-CHECKLIST-MANUALE.md)
 - [Archivio documentazione](archive/README.md)
 - [Duplicati raw archiviati](archive/raw-duplicates/README.md)
 - [Workspace class features](class-features/README.md)
