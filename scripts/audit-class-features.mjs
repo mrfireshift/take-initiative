@@ -232,6 +232,7 @@ const DIRECT_TEST_FILES = [
   "barbarianFeatureRuntime.test.js",
   "bardEloquenceFeatureRuntime.test.js",
   "bardLoreFeatureRuntime.test.js",
+  "clericDomainsFeatureRuntime.test.js",
   "clericTwilightFeatureRuntime.test.js",
   "fighterFeatureRuntime.test.js",
   "paladinDevotionFeatureRuntime.test.js",

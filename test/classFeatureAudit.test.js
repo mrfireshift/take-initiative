@@ -17,12 +17,12 @@ test("l'audit copre tutti i record dei quattro overlay", () => {
 test("l'audit separa marker token, effetti istantanei e gestione al tavolo", () => {
   assert.deepEqual(audit.summary.byCombatTracking, {
     tavolo: 649,
-    token_marker_review: 159,
+    token_marker_review: 158,
     instant_effect: 43,
-    token_marker: 9,
+    token_marker: 10,
   });
-  assert.equal(audit.summary.tokenMarkerCandidateCount, 9);
-  assert.equal(audit.summary.structuredMarkerReviewCount, 12);
+  assert.equal(audit.summary.tokenMarkerCandidateCount, 10);
+  assert.equal(audit.summary.structuredMarkerReviewCount, 11);
   assert.equal(audit.summary.textualMarkerReviewCount, 147);
   assert.equal(audit.summary.deterministicExcludedCount, 4);
   assert.equal(audit.summary.resourceCriterionIgnored, true);
@@ -126,10 +126,10 @@ test("CF-001B.8: resourcePoolCount === resourceMatrix.length === 104", () => {
   assert.equal(audit.reconciledSummary.resourcePoolCount, 104);
 });
 
-test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 96", () => {
+test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 100", () => {
   const persistent = audit.features.filter((f) => f.persistentCategory !== null);
-  assert.equal(persistent.length, 96);
-  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 96);
+  assert.equal(persistent.length, 100);
+  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 100);
 });
 
 test("CF-001B.10: catalogGapCount === 0", () => {
@@ -138,10 +138,10 @@ test("CF-001B.10: catalogGapCount === 0", () => {
   assert.equal(audit.reconciledSummary.catalogGapCount, 0);
 });
 
-test("CF-001B.11: functionalGapCount === 421", () => {
+test("CF-001B.11: functionalGapCount === 412", () => {
   const functionalGaps = audit.features.filter((f) => f.coverageStatus === "GAP");
-  assert.equal(functionalGaps.length, 421);
-  assert.equal(audit.reconciledSummary.functionalGapCount, 421);
+  assert.equal(functionalGaps.length, 412);
+  assert.equal(audit.reconciledSummary.functionalGapCount, 412);
 });
 
 test("CF-001B.12: testGapCount === 0 (all test gaps closed in CF-B01)", () => {
@@ -219,21 +219,21 @@ test("CF-001B.19: Spirito del Lupo invariants", () => {
 test("CF-001B.20: determinismo delle metriche canoniche", () => {
   assert.deepEqual(audit.reconciledSummary.currentAutomation, {
     FULL: 8,
-    PARTIAL: 56,
-    TRACK_ONLY: 178,
-    MANUAL: 618,
+    PARTIAL: 67,
+    TRACK_ONLY: 170,
+    MANUAL: 615,
     NONE: 0,
   });
   assert.deepEqual(audit.reconciledSummary.targetAutomation, {
-    FULL: 31,
-    PARTIAL: 382,
+    FULL: 32,
+    PARTIAL: 381,
     TRACK_ONLY: 87,
     MANUAL: 360,
     UNREVIEWED: 0,
   });
   assert.deepEqual(audit.reconciledSummary.coverageStatus, {
-    ACCEPTED: 439,
-    GAP: 421,
+    ACCEPTED: 448,
+    GAP: 412,
     UNREVIEWED: 0,
   });
 });
@@ -317,20 +317,20 @@ test("Backlog.7: i pool basati su modificatori di caratteristica sono segnalati"
 
 test("Backlog.8: determinismo della distribuzione per archetipo", () => {
   assert.deepEqual(audit.summary.byArchetype, {
-    reference: 424,
+    reference: 422,
     "instant-reminder": 134,
-    "timed-condition": 90,
-    "resource-only": 72,
+    "timed-condition": 93,
+    "resource-only": 74,
     "hp-change": 27,
     aura: 25,
-    "save-outcome-condition": 20,
     movement: 19,
+    "save-outcome-condition": 18,
     "companion-summon": 17,
-    "spell-bridge": 14,
     "custom-adapter": 13,
+    "spell-bridge": 13,
     transformation: 5,
   });
-  assert.equal(audit.backlog.dataOnlyCandidateCount, 700);
-  assert.equal(audit.backlog.dataOnlyAutomationCount, 123);
-  assert.equal(audit.backlog.needsPrimitiveCount, 63);
+  assert.equal(audit.backlog.dataOnlyCandidateCount, 684);
+  assert.equal(audit.backlog.dataOnlyAutomationCount, 109);
+  assert.equal(audit.backlog.needsPrimitiveCount, 62);
 });

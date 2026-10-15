@@ -11090,27 +11090,31 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
       },
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🤫",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Benedizione dell'Ingannatore",
+        "detail": "Vantaggio alle prove di Destrezza (Furtività) per 1 ora. Termina se il chierico usa di nuovo il privilegio."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": 600
@@ -11137,9 +11141,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -11155,7 +11159,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔨",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -11919,9 +11923,9 @@
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -11929,20 +11933,24 @@
       "trackedResourcePoolIds": [
         "chierico-dominio-della-pace-legame-incoraggiante-usi"
       ],
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
-        "maxTargets": 1,
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🤝",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Legame Incoraggiante",
+        "detail": "Per 10 minuti, mentre è entro 9 m da un'altra creatura vincolata, una volta può aggiungere 1d4 a un tiro per colpire, una prova o un TS. Bersagli: fino al bonus di competenza, chierico incluso. Termina se il chierico usa di nuovo il privilegio."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": 100
@@ -12367,12 +12375,12 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "innesco"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "chierico-incanalare-divinita-usi"
@@ -12385,7 +12393,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⚒️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -12424,9 +12432,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -12434,23 +12442,34 @@
       "trackedResourcePoolIds": [
         "chierico-incanalare-divinita-usi"
       ],
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
-        "maxTargets": 1,
-        "excludeSource": false
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🦌",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Charme su Animali e Vegetali",
+        "detail": "Bestie e vegetali entro 9 m con TS Saggezza fallito: affascinati dal chierico per 1 minuto, amichevoli verso di lui e le creature designate. Termina se il bersaglio subisce danni. Con TS superato non applicare la pill a chi supera.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": 10
+        "rounds": 10,
+        "endConditions": [
+          "danno al bersaglio"
+        ]
       },
       "trackingMode": "active",
       "resourceCosts": [
@@ -12473,7 +12492,7 @@
       "page": 63,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -12481,17 +12500,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "innesco"
       },
       "trackedResourcePoolIds": [
         "chierico-incanalare-divinita-usi"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -12500,7 +12518,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⛈️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -12539,9 +12557,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -12557,7 +12575,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🎯",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -12596,9 +12614,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -12614,12 +12632,16 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "📚",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Conoscenze Secolari",
+        "detail": "Per 10 minuti: competenza nell'abilità o nello strumento scelto."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": 100
@@ -12653,9 +12675,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -12671,7 +12693,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌅",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -12710,12 +12732,12 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "azione_bonus"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "chierico-incanalare-divinita-usi"
@@ -12728,12 +12750,16 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "👥",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Invocare Duplicato",
+        "detail": "Illusione entro 9 m per 1 minuto o finché il chierico perde la concentrazione. Azione bonus: muovila di 9 m (entro 36 m). Lancia incantesimi dal suo spazio; vantaggio agli attacchi contro una creatura entro 1,5 m da entrambi."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": 10
@@ -12823,9 +12849,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -12833,25 +12859,37 @@
       "trackedResourcePoolIds": [
         "chierico-incanalare-divinita-usi"
       ],
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
-        "maxTargets": 1,
-        "excludeSource": false
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⚖️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Pretesa dell'Ordine",
+        "detail": "Creature scelte entro 9 m con TS Saggezza fallito: affascinate fino alla fine del prossimo turno del chierico; possono lasciar cadere ciò che impugnano. Termina se il bersaglio subisce danni. Con TS superato non applicare la pill a chi supera.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn-end",
+        "endConditions": [
+          "danno al bersaglio"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "chierico-incanalare-divinita-usi",
@@ -13028,9 +13066,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -13038,25 +13076,31 @@
       "trackedResourcePoolIds": [
         "chierico-incanalare-divinita-usi"
       ],
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
+        "mode": "single-target",
+        "rangeMeters": 9,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⚰️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Verso la Tomba",
+        "effectKind": "debuff",
+        "detail": "Maledetto fino alla fine del prossimo turno del chierico: il prossimo attacco del chierico o di un alleato che lo colpisce gli infligge vulnerabilità a tutti i danni di quell'attacco; poi la maledizione termina."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn-end"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "chierico-incanalare-divinita-usi",
@@ -13329,9 +13373,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "reazione"
@@ -13347,7 +13391,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "⚔️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -13386,9 +13430,9 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -13396,20 +13440,24 @@
       "trackedResourcePoolIds": [
         "chierico-incanalare-divinita-usi"
       ],
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
+        "mode": "single-target",
+        "rangeMeters": 18,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🧠",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Lettura del Pensiero",
+        "detail": "TS Saggezza fallito: per 1 minuto il chierico legge i pensieri superficiali del bersaglio entro 18 m. Con un'azione può terminare l'effetto e lanciare suggestione senza slot (TS fallito in automatico). Con TS superato non applicare la pill: il bersaglio è immune fino al riposo lungo."
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": 10
@@ -13435,7 +13483,7 @@
       "page": 61,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -13443,17 +13491,16 @@
         "activation_semantics"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva"
+        "primary": "azione"
       },
       "trackedResourcePoolIds": [
         "chierico-incanalare-divinita-usi"
       ],
-      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -13462,17 +13509,23 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌘",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Invisibile",
+        "displayLabel": "Invisibile · Manto di Ombre",
+        "detail": "Invisibile fino alla fine del prossimo turno del chierico. Termina prima se attacca o lancia un incantesimo."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn-end"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "chierico-incanalare-divinita-usi",
@@ -14498,27 +14551,41 @@
         "runtime_requirements"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "aura",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
       },
       "targetMode": "self",
       "targeting": {
-        "mode": "self",
-        "rangeMeters": null,
-        "maxTargets": 1,
+        "mode": "aura",
+        "rangeMeters": 18,
+        "maxTargets": null,
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "👑",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Corona di Luce",
+        "radiusMeters": 18,
+        "detail": "Aura di luce solare per 1 minuto o finché il chierico la congeda con un'azione: luce intensa entro 18 m e fioca per altri 9 m.",
+        "targetEffect": {
+          "conditionName": "Nella luce di Corona di Luce",
+          "effectKind": "debuff",
+          "detail": "Svantaggio ai tiri salvezza contro gli incantesimi che infliggono danni da fuoco o radiosi.",
+          "targeting": {
+            "filter": "hostile",
+            "includeCaster": false
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
         "rounds": 10
@@ -14682,39 +14749,45 @@
       "page": 34,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "tracciamento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌩️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Ira dell'Ordine",
+        "effectKind": "debuff",
+        "detail": "Maledetto fino all'inizio del prossimo turno del chierico: il prossimo alleato che lo colpisce con un attacco gli infligge anche 2d8 danni psichici, poi la maledizione termina. Una volta per turno, dopo Colpo Divino."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -49421,7 +49494,7 @@
     "mechanicRecords": 860,
     "activeFeatures": 860,
     "resourcePools": 104,
-    "runtimeImplemented": 97,
-    "runtimeNotAutomated": 763
+    "runtimeImplemented": 114,
+    "runtimeNotAutomated": 746
   }
 }

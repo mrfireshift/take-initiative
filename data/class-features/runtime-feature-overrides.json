@@ -2574,20 +2574,91 @@
     },
     "chierico-dominio-dell-inganno-benedizione-dell-ingannatore": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 600
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🤫"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Benedizione dell'Ingannatore",
+        "detail": "Vantaggio alle prove di Destrezza (Furtività) per 1 ora. Termina se il chierico usa di nuovo il privilegio."
+      }
     },
     "chierico-dominio-dell-inganno-incanalare-divinita-invocare-duplicato": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "👥"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Invocare Duplicato",
+        "detail": "Illusione entro 9 m per 1 minuto o finché il chierico perde la concentrazione. Azione bonus: muovila di 9 m (entro 36 m). Lancia incantesimi dal suo spazio; vantaggio agli attacchi contro una creatura entro 1,5 m da entrambi."
+      }
     },
     "chierico-dominio-dell-inganno-incanalare-divinita-manto-di-ombre": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "resourceCosts": [
+        {
+          "poolId": "chierico-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "next-turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌘"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Invisibile",
+        "displayLabel": "Invisibile · Manto di Ombre",
+        "detail": "Invisibile fino alla fine del prossimo turno del chierico. Termina prima se attacca o lancia un incantesimo."
+      }
     },
     "chierico-dominio-dell-inganno-colpo-divino": {
       "include": true,
@@ -2619,8 +2690,38 @@
     },
     "chierico-dominio-dell-ordine-incanalare-divinita-pretesa-dell-ordine": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": true
+      },
+      "duration": {
+        "timing": "next-turn-end",
+        "end_conditions": [
+          "danno al bersaglio"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "⚖️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Pretesa dell'Ordine",
+        "detail": "Creature scelte entro 9 m con TS Saggezza fallito: affascinate fino alla fine del prossimo turno del chierico; possono lasciar cadere ciò che impugnano. Termina se il bersaglio subisce danni. Con TS superato non applicare la pill a chi supera.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      }
     },
     "chierico-dominio-dell-ordine-incarnazione-della-legge": {
       "include": true,
@@ -2636,8 +2737,31 @@
     },
     "chierico-dominio-dell-ordine-ira-dell-ordine": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "timing": "next-turn"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌩️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Ira dell'Ordine",
+        "effectKind": "debuff",
+        "detail": "Maledetto fino all'inizio del prossimo turno del chierico: il prossimo alleato che lo colpisce con un attacco gli infligge anche 2d8 danni psichici, poi la maledizione termina. Una volta per turno, dopo Colpo Divino."
+      }
     },
     "chierico-dominio-della-conoscenza-benedizioni-della-conoscenza": {
       "include": true,
@@ -2648,13 +2772,58 @@
     },
     "chierico-dominio-della-conoscenza-incanalare-divinita-conoscenze-secolari": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 100
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "📚"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Conoscenze Secolari",
+        "detail": "Per 10 minuti: competenza nell'abilità o nello strumento scelto."
+      }
     },
     "chierico-dominio-della-conoscenza-incanalare-divinita-lettura-del-pensiero": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 18,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🧠"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Lettura del Pensiero",
+        "detail": "TS Saggezza fallito: per 1 minuto il chierico legge i pensieri superficiali del bersaglio entro 18 m. Con un'azione può terminare l'effetto e lanciare suggestione senza slot (TS fallito in automatico). Con TS superato non applicare la pill: il bersaglio è immune fino al riposo lungo."
+      }
     },
     "chierico-dominio-della-conoscenza-incantesimi-potenti": {
       "include": true,
@@ -2672,8 +2841,25 @@
     },
     "chierico-dominio-della-forgia-benedizione-della-forgia": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🔨"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "chierico-dominio-della-forgia-competenze-bonus": {
       "include": true,
@@ -2684,8 +2870,25 @@
     },
     "chierico-dominio-della-forgia-incanalare-divinita-benedizione-dell-artigiano": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "⚒️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "chierico-dominio-della-forgia-anima-della-forgia": {
       "include": true,
@@ -2724,13 +2927,47 @@
     },
     "chierico-dominio-della-guerra-incanalare-divinita-colpo-guidato": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🎯"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "chierico-dominio-della-guerra-incanalare-divinita-benedizione-del-dio-della-guerra": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "reazione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "⚔️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "chierico-dominio-della-guerra-colpo-divino": {
       "include": true,
@@ -2762,8 +2999,25 @@
     },
     "chierico-dominio-della-luce-incanalare-divinita-fulgore-dell-alba": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🌅"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "chierico-dominio-della-luce-lampo-migliorato": {
       "include": true,
@@ -2781,8 +3035,41 @@
     },
     "chierico-dominio-della-luce-corona-di-luce": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "aura",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "aura",
+        "rangeMeters": 18,
+        "maxTargets": null,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "👑"
+      },
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Corona di Luce",
+        "radiusMeters": 18,
+        "detail": "Aura di luce solare per 1 minuto o finché il chierico la congeda con un'azione: luce intensa entro 18 m e fioca per altri 9 m.",
+        "targetEffect": {
+          "conditionName": "Nella luce di Corona di Luce",
+          "effectKind": "debuff",
+          "detail": "Svantaggio ai tiri salvezza contro gli incantesimi che infliggono danni da fuoco o radiosi.",
+          "targeting": {
+            "filter": "hostile",
+            "includeCaster": false
+          }
+        }
+      }
     },
     "chierico-dominio-della-natura-accolito-della-natura": {
       "include": true,
@@ -2800,8 +3087,38 @@
     },
     "chierico-dominio-della-natura-incanalare-divinita-charme-su-animali-e-vegetali": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 10,
+        "end_conditions": [
+          "danno al bersaglio"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🦌"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Charme su Animali e Vegetali",
+        "detail": "Bestie e vegetali entro 9 m con TS Saggezza fallito: affascinati dal chierico per 1 minuto, amichevoli verso di lui e le creature designate. Termina se il bersaglio subisce danni. Con TS superato non applicare la pill a chi supera.",
+        "mechanics": {
+          "endsOnDamage": true
+        }
+      }
     },
     "chierico-dominio-della-natura-mitigare-elementi": {
       "include": true,
@@ -2826,8 +3143,31 @@
     },
     "chierico-dominio-della-pace-legame-incoraggiante": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 100
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🤝"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Legame Incoraggiante",
+        "detail": "Per 10 minuti, mentre è entro 9 m da un'altra creatura vincolata, una volta può aggiungere 1d4 a un tiro per colpire, una prova o un TS. Bersagli: fino al bonus di competenza, chierico incluso. Termina se il chierico usa di nuovo il privilegio."
+      }
     },
     "chierico-dominio-della-pace-strumento-di-pace": {
       "include": true,
@@ -2878,10 +3218,31 @@
     },
     "chierico-dominio-della-tempesta-incanalare-divinita-collera-distruttiva": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "chierico-incanalare-divinita-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "⛈️"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "chierico-dominio-della-tempesta-colpo-del-tuono-e-del-fulmine": {
       "include": true,
@@ -2918,8 +3279,32 @@
     },
     "chierico-dominio-della-tomba-incanalare-divinita-verso-la-tomba": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "timing": "next-turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "⚰️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Verso la Tomba",
+        "effectKind": "debuff",
+        "detail": "Maledetto fino alla fine del prossimo turno del chierico: il prossimo attacco del chierico o di un alleato che lo colpisce gli infligge vulnerabilità a tutti i danni di quell'attacco; poi la maledizione termina."
+      }
     },
     "chierico-dominio-della-tomba-sentinella-alla-porta-della-morte": {
       "include": true,
