@@ -236,6 +236,8 @@ const BACKLOG_ARCHETYPE_OVERRIDES = Object.freeze({
   "druido-circolo-della-luna-forma-selvatica-da-combattimento": "reference",
   // Anima uno zombi: un compagno su token, usi pari alla Saggezza senza pool.
   "druido-circolo-delle-spore-infestazione-fungina": "companion-summon",
+  // Batch Ranger (Fase 2): potenziamento di Sciame Riunito.
+  "ranger-custode-degli-sciami-sciame-possente": "reference",
 });
 
 const DIRECT_TEST_FILES = [
@@ -248,6 +250,7 @@ const DIRECT_TEST_FILES = [
   "druidFeatureRuntime.test.js",
   "fighterFeatureRuntime.test.js",
   "monkFeatureRuntime.test.js",
+  "rangerFeatureRuntime.test.js",
   "warlockFeatureRuntime.test.js",
   "paladinDevotionFeatureRuntime.test.js",
   "rangerRevisedFeatureRuntime.test.js",

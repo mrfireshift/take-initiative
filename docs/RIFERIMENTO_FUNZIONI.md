@@ -213,8 +213,8 @@ le fazioni già presenti nei metadata dei token.
 ## Capacità di classe
 
 La card può contenere una build fino a quattro classi, con livelli 1–20 e
-sottoclassi. Il catalogo runtime contiene 860 record, 104 pool di risorse, 188
-capacità `implemented` e 672 voci `not-automated`. Le prime sono attivabili dal
+sottoclassi. Il catalogo runtime contiene 860 record, 104 pool di risorse, 198
+capacità `implemented` e 662 voci `not-automated`. Le prime sono attivabili dal
 GM; le seconde restano descrittive o manuali. Le capacità pronte possono usare
 risorse, creare condizioni persistenti o proiettare aure, ma tiri, scelte ed
 esiti non deterministici restano conferme del GM. Il riferimento completo è in

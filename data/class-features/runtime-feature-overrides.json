@@ -8072,10 +8072,35 @@
     },
     "ranger-cacciatore-delle-tenebre-imboscata-terrificante": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "inizio_primo_turno_combattimento"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌑"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Imboscata Terrificante",
+        "detail": "Primo turno del combattimento: +3 m alla velocità sul terreno fino alla fine del turno; con l'azione Attacco un attacco aggiuntivo che, se colpisce, infligge 1d8 danni extra del tipo dell'arma. Bonus all'iniziativa pari alla Saggezza.",
+        "mechanics": {
+          "movement": {
+            "addMeters": 3
+          }
+        }
+      }
     },
     "ranger-cacciatore-delle-tenebre-vista-dell-ombra": {
       "include": true,
@@ -8142,13 +8167,49 @@
     },
     "ranger-custode-degli-sciami-marea-avvolgente": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10,
+        "end_conditions": [
+          "incapacitato"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🐝"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Marea Avvolgente",
+        "detail": "Per 1 minuto o finché è incapacitato: velocità di volare 3 m e può fluttuare.",
+        "mechanics": {
+          "movement": {
+            "modes": {
+              "fly": {
+                "grantMeters": 3
+              }
+            }
+          }
+        }
+      }
     },
     "ranger-custode-degli-sciami-sciame-possente": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "ranger-custode-degli-sciami-dispersione-brulicante": {
       "include": true,
@@ -8159,8 +8220,28 @@
     },
     "ranger-signore-delle-bestie-compagno-del-ranger": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {},
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🐕"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Compagno del Ranger",
+        "detail": "Bestia compagna (GS massimo 1/4) legata al ranger: aggiunge il bonus di competenza del ranger a CA, attacchi, danni, TS e abilità; PF massimi pari al valore della scheda o 4 × livello da ranger, il maggiore. Agisce all'iniziativa del ranger. Termina la pill se la bestia muore."
+      }
     },
     "ranger-signore-delle-bestie-addestramento-straordinario": {
       "include": true,
@@ -8192,10 +8273,30 @@
     },
     "ranger-uccisore-di-mostri-preda-dell-uccisore": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 18,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {},
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🎯"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Preda dell'Uccisore",
+        "effectKind": "debuff",
+        "detail": "La prima volta in ogni turno che il ranger colpisce questo bersaglio con un'arma infligge 1d6 danni extra. Dura fino al riposo breve o lungo del ranger; termina se il ranger designa un'altra creatura."
+      }
     },
     "ranger-uccisore-di-mostri-difesa-soprannaturale": {
       "include": true,
@@ -8206,10 +8307,25 @@
     },
     "ranger-uccisore-di-mostri-nemesi-degli-incantatori": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "reazione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🛑"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "ranger-uccisore-di-mostri-contrattacco-dell-uccisore": {
       "include": true,
@@ -8220,20 +8336,82 @@
     },
     "ranger-viandante-dell-orizzonte-combattente-planare": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "timing": "turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌀"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Combattente Planare",
+        "effectKind": "debuff",
+        "detail": "Il prossimo colpo con un'arma del ranger contro il bersaglio in questo turno infligge solo danni da forza e 1d8 danni da forza extra (2d8 dall'11°)."
+      }
     },
     "ranger-viandante-dell-orizzonte-individuazione-dei-portali": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🚪"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "ranger-viandante-dell-orizzonte-passo-etereo": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "turn-end"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "👻"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Forma Eterea",
+        "displayLabel": "Forma Eterea · Passo Etereo",
+        "detail": "Forma eterea senza slot fino alla fine del turno: il ranger è sul Piano Etereo e torna nello spazio occupato o in quello libero più vicino."
+      }
     },
     "ranger-viandante-dell-orizzonte-colpo-distante": {
       "include": true,
@@ -8272,13 +8450,76 @@
     },
     "ranger-viandante-fatato-scambio-seducente": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "choiceOptions": [
+        {
+          "id": "affascinato",
+          "label": "Affascinato",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Affascinato",
+            "displayLabel": "Affascinato · Scambio Seducente",
+            "detail": "TS Saggezza fallito (CD incantesimi del ranger): affascinato per 1 minuto; ripete il TS alla fine di ogni suo turno e se lo supera l'effetto termina. Con TS superato non applicare la pill."
+          }
+        },
+        {
+          "id": "spaventato",
+          "label": "Spaventato",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Spaventato",
+            "displayLabel": "Spaventato · Scambio Seducente",
+            "detail": "TS Saggezza fallito (CD incantesimi del ranger): spaventato per 1 minuto; ripete il TS alla fine di ogni suo turno e se lo supera l'effetto termina. Con TS superato non applicare la pill."
+          }
+        }
+      ],
+      "activation": {
+        "primary": "reazione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 36,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "💞"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Affascinato",
+        "displayLabel": "Affascinato · Scambio Seducente",
+        "detail": "TS Saggezza fallito (CD incantesimi del ranger): affascinato per 1 minuto; ripete il TS alla fine di ogni suo turno e se lo supera l'effetto termina. Con TS superato non applicare la pill."
+      }
     },
     "ranger-viandante-fatato-rinforzi-fatati": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🧚"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "ranger-viandante-fatato-viandante-velato": {
       "include": true,

@@ -22,9 +22,9 @@ Arcana 2016 e non è la stessa progressione del Ranger 2014.
 
 Lo stato di supporto è intenzionalmente esplicito:
 
-- **188 `implemented`**: la capacità può essere attivata dal runtime secondo
+- **198 `implemented`**: la capacità può essere attivata dal runtime secondo
   l'adapter dichiarato;
-- **672 `not-automated`**: la voce resta consultabile e gestibile manualmente,
+- **662 `not-automated`**: la voce resta consultabile e gestibile manualmente,
   ma il pulsante di attivazione non applica una meccanica automatica. Le
   passive, le reazioni e gli effetti istantanei compaiono come
   **Promemoria descrittivo**; le altre come gestione manuale al tavolo, con il
@@ -129,6 +129,7 @@ capacità già coperte dai test e dagli adapter:
 | Ladro | Imboscata Magica, Ingannatore Versatile, Ladro di Incantesimi e Colpo di Fortuna. |
 | Monaco | Ogni uso RAW del Ki: Difesa Paziente, Passo del Vento, Raffica di Colpi, Colpo Stordente, Corpo Vuoto, le discipline elementali e le capacità di tutte le tradizioni, con le pill di Schivata, Stordito, Sé Astrale, Palmo Tremante e Tranquillità. |
 | Paladino | Imposizione delle Mani, Percezione del Divino, varianti di Incanalare Divinità, aure, Tocco Purificatore, Angelo Vendicatore e Nube Sacra. |
+| Ranger | Compagno del Ranger, Imboscata Terrificante, Preda dell'Uccisore, Combattente Planare, Passo Etereo, Scambio Seducente, Marea Avvolgente e gli usi delle sottoclassi. |
 | Ranger Revised | Compagno Animale e Nascondersi in Piena Vista. |
 | Stregone | Impulso/Onde di Magia Selvaggia, Fonte di Magia, metamagie supportate, Piegare la Fortuna e Ripristino Stregonesco. |
 | Warlock | Presenza Fatata e Delirio Oscuro (affascinato o spaventato), Fuga Velata, Maledizione della Lama del Sortilegio, Dono Elementale, Tentacoli delle Profondità, Scagliare all'Inferno, Mantello di Mosche, Tomba di Levistus, Sguardo Fantasma e gli usi dei patroni. |
