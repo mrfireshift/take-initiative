@@ -248,6 +248,10 @@ const BACKLOG_ARCHETYPE_OVERRIDES = Object.freeze({
   // Parole Taglienti; gli usi restano sulla scheda finché manca il Carisma.
   "bardo-collegio-del-valore-ispirazione-in-combattimento": "instant-reminder",
   "bardo-collegio-dei-sussurri-lame-psichiche": "instant-reminder",
+  // Batch Ladro (Fase 2).
+  "ladro-lama-spirituale-potere-psionico": "reference",
+  "ladro-fantasma-compagno-della-morte": "reference",
+  "ladro-pianificatore-maestro-di-intrighi": "reference",
 });
 
 const DIRECT_TEST_FILES = [
@@ -262,6 +266,7 @@ const DIRECT_TEST_FILES = [
   "fighterFeatureRuntime.test.js",
   "monkFeatureRuntime.test.js",
   "rangerFeatureRuntime.test.js",
+  "rogueArchetypesFeatureRuntime.test.js",
   "wizardSchoolsFeatureRuntime.test.js",
   "warlockFeatureRuntime.test.js",
   "paladinDevotionFeatureRuntime.test.js",

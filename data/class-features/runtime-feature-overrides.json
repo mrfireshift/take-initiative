@@ -5909,8 +5909,31 @@
     },
     "ladro-esploratore-maestro-di-imboscate": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "timing": "next-turn"
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🏹"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Maestro di Imboscate",
+        "effectKind": "debuff",
+        "detail": "Prima creatura colpita dal ladro nel primo round del combattimento: i tiri per colpire contro di lei hanno vantaggio fino all'inizio del prossimo turno del ladro."
+      }
     },
     "ladro-esploratore-colpo-improvviso": {
       "include": true,
@@ -5921,8 +5944,25 @@
     },
     "ladro-fantasma-lamenti-dalla-tomba": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "👻"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "ladro-fantasma-sussurri-dei-morti": {
       "include": true,
@@ -5940,13 +5980,46 @@
     },
     "ladro-fantasma-cammino-fantasma": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 100
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🌫️"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Cammino Fantasma",
+        "detail": "Per 10 minuti o finché vi pone fine con un'azione bonus: volo 3 m e fluttuare, gli attacchi contro il ladro hanno svantaggio, attraversa creature e oggetti come terreno difficile (1d10 forza se termina il turno al loro interno). Uso per riposo lungo o distruggendo un pegno dell'anima, da segnare al tavolo.",
+        "mechanics": {
+          "movement": {
+            "modes": {
+              "fly": {
+                "grantMeters": 3
+              }
+            }
+          }
+        }
+      }
     },
     "ladro-fantasma-compagno-della-morte": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "ladro-furfante-lavoro-al-secondo-piano": {
       "include": true,
@@ -5985,8 +6058,31 @@
     },
     "ladro-indagatore-combattimento-intuitivo": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🔍"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Combattimento Intuitivo",
+        "effectKind": "debuff",
+        "detail": "Dopo una prova di Intuizione vinta contro l'Inganno del bersaglio: per 1 minuto il ladro può usare l'Attacco Furtivo contro di lui senza vantaggio (non con svantaggio). Termina se il ladro usa con successo il privilegio su un altro bersaglio."
+      }
     },
     "ladro-indagatore-occhio-per-i-dettagli": {
       "include": true,
@@ -6032,20 +6128,61 @@
     },
     "ladro-lama-spirituale-potere-psionico": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false,
+      "resourceCosts": []
     },
     "ladro-lama-spirituale-potere-psionico-abilita-psicorinforzata": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "ladro-lama-spirituale-potere-psionico-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🧠"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "ladro-lama-spirituale-potere-psionico-sussurri-psichici": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "📡"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "ladro-lama-spirituale-lame-dell-anima": {
       "include": true,
@@ -6056,32 +6193,125 @@
     },
     "ladro-lama-spirituale-lame-dell-anima-colpi-guidati": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "ladro-lama-spirituale-potere-psionico-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🎯"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "ladro-lama-spirituale-lame-dell-anima-teletrasporto-psichico": {
       "include": true,
-      "status": "not-automated",
-      "automationLevel": "riferimento",
       "defaultEnabled": true,
-      "quickActionEligible": false
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "ladro-lama-spirituale-potere-psionico-usi",
+          "amount": 1
+        }
+      ],
+      "activation": {
+        "primary": "azione_bonus"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🌀"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "ladro-lama-spirituale-velo-psichico": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 600,
+        "end_conditions": [
+          "infligge danni o impone un TS"
+        ]
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🫥"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Invisibile",
+        "displayLabel": "Invisibile · Velo Psichico",
+        "detail": "Invisibile per 1 ora o finché lo congeda. Termina subito se infligge danni a una creatura o la costringe a un TS. Riuso prima del riposo lungo spendendo un dado di Energia Psionica dal pool."
+      }
     },
     "ladro-lama-spirituale-squarciare-la-mente": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "💥"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Stordito",
+        "displayLabel": "Stordito · Squarciare la Mente",
+        "detail": "Attacco Furtivo con le Lame Psichiche, TS Saggezza fallito (CD 8 + competenza + Destrezza): stordito per 1 minuto; ripete il TS alla fine di ogni suo turno e se lo supera l'effetto termina. Con TS superato non applicare la pill. Riuso prima del riposo lungo con tre dadi di Energia Psionica dal pool."
+      }
     },
     "ladro-pianificatore-maestro-di-intrighi": {
       "include": true,
+      "defaultEnabled": true,
       "status": "not-automated",
-      "defaultEnabled": true
+      "automationLevel": "riferimento",
+      "quickActionEligible": false
     },
     "ladro-pianificatore-maestro-di-tattiche": {
       "include": true,
@@ -6127,8 +6357,53 @@
     },
     "ladro-spadaccino-spavalderia": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "choiceOptions": [
+        {
+          "id": "ostile",
+          "label": "Creatura ostile",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Spavalderia",
+            "displayLabel": "Spavalderia · Spavalderia",
+            "detail": "Prova di Persuasione vinta contro una creatura ostile: svantaggio ai tiri per colpire contro bersagli diversi dal ladro e niente attacchi di opportunità contro altri per 1 minuto. Termina se un compagno del ladro la attacca o la influenza con un incantesimo o se si allontanano a più di 18 m."
+          }
+        },
+        {
+          "id": "non-ostile",
+          "label": "Creatura non ostile",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Affascinato",
+            "displayLabel": "Affascinato · Spavalderia",
+            "detail": "Prova di Persuasione vinta contro una creatura non ostile: affascinata per 1 minuto, considera il ladro una conoscenza amichevole. Termina se il ladro o i suoi compagni le fanno qualcosa di dannoso."
+          }
+        }
+      ],
+      "activation": {
+        "primary": "azione"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 10
+      },
+      "trackingMode": "active",
+      "theme": {
+        "emoji": "🎩"
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Spavalderia",
+        "displayLabel": "Spavalderia · Spavalderia",
+        "detail": "Prova di Persuasione vinta contro una creatura ostile: svantaggio ai tiri per colpire contro bersagli diversi dal ladro e niente attacchi di opportunità contro altri per 1 minuto. Termina se un compagno del ladro la attacca o la influenza con un incantesimo o se si allontanano a più di 18 m."
+      }
     },
     "ladro-spadaccino-manovra-elegante": {
       "include": true,
@@ -6139,8 +6414,25 @@
     },
     "ladro-spadaccino-maestro-duellante": {
       "include": true,
-      "status": "not-automated",
-      "defaultEnabled": true
+      "defaultEnabled": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "activation": {
+        "primary": "innesco"
+      },
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "trackingMode": "instant",
+      "theme": {
+        "emoji": "🤺"
+      },
+      "effectPlan": {
+        "kind": "none"
+      }
     },
     "mago-canto-della-lama-arte-della-guerra-e-del-canto": {
       "include": true,

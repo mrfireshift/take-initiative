@@ -373,8 +373,8 @@ test("le capacità di Devozione attivabili hanno emoji calzanti e nessuna tracci
 
 test("il catalogo include le cinque capacità di Devozione e i quattro privilegi implementati incrementano i conteggi derivati", () => {
   assert.equal(DEVOTION_IDS.every((id) => CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === id)), true);
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 219);
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 641);
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 231);
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 629);
 });
 
 test("Abiurare Nemico espone due esiti (TS fallito e TS superato) con movement ed endsOnDamage differenziati", () => {

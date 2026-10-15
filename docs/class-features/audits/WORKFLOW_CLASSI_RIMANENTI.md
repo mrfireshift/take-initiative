@@ -209,6 +209,7 @@ Avanzamento:
 | Ranger | 15 ottobre 2026 | 10 | [RANGER_FASE2.md](RANGER_FASE2.md) |
 | Mago | 15 ottobre 2026 | 11 | [MAGO_FASE2.md](MAGO_FASE2.md) |
 | Bardo (collegi rimanenti) | 15 ottobre 2026 | 10 | [BARDO_FASE2.md](BARDO_FASE2.md) |
+| Ladro (archetipi rimanenti) | 15 ottobre 2026 | 12 | [LADRO_FASE2.md](LADRO_FASE2.md) |
 
 Un batch = una classe base + tutte le sue sottoclassi, limitato alle feature
 `dataOnlyCandidate`. Per ogni batch:

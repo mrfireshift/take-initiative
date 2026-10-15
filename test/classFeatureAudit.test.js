@@ -126,10 +126,10 @@ test("CF-001B.8: resourcePoolCount === resourceMatrix.length === 104", () => {
   assert.equal(audit.reconciledSummary.resourcePoolCount, 104);
 });
 
-test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 138", () => {
+test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 144", () => {
   const persistent = audit.features.filter((f) => f.persistentCategory !== null);
-  assert.equal(persistent.length, 138);
-  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 138);
+  assert.equal(persistent.length, 144);
+  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 144);
 });
 
 test("CF-001B.10: catalogGapCount === 0", () => {
@@ -138,10 +138,10 @@ test("CF-001B.10: catalogGapCount === 0", () => {
   assert.equal(audit.reconciledSummary.catalogGapCount, 0);
 });
 
-test("CF-001B.11: functionalGapCount === 373", () => {
+test("CF-001B.11: functionalGapCount === 367", () => {
   const functionalGaps = audit.features.filter((f) => f.coverageStatus === "GAP");
-  assert.equal(functionalGaps.length, 373);
-  assert.equal(audit.reconciledSummary.functionalGapCount, 373);
+  assert.equal(functionalGaps.length, 367);
+  assert.equal(audit.reconciledSummary.functionalGapCount, 367);
 });
 
 test("CF-001B.12: testGapCount === 0 (all test gaps closed in CF-B01)", () => {
@@ -219,9 +219,9 @@ test("CF-001B.19: Spirito del Lupo invariants", () => {
 test("CF-001B.20: determinismo delle metriche canoniche", () => {
   assert.deepEqual(audit.reconciledSummary.currentAutomation, {
     FULL: 8,
-    PARTIAL: 123,
+    PARTIAL: 129,
     TRACK_ONLY: 146,
-    MANUAL: 583,
+    MANUAL: 577,
     NONE: 0,
   });
   assert.deepEqual(audit.reconciledSummary.targetAutomation, {
@@ -232,8 +232,8 @@ test("CF-001B.20: determinismo delle metriche canoniche", () => {
     UNREVIEWED: 0,
   });
   assert.deepEqual(audit.reconciledSummary.coverageStatus, {
-    ACCEPTED: 487,
-    GAP: 373,
+    ACCEPTED: 493,
+    GAP: 367,
     UNREVIEWED: 0,
   });
 });
@@ -330,21 +330,21 @@ test("Backlog.7: i pool basati su modificatori di caratteristica sono segnalati"
 
 test("Backlog.8: determinismo della distribuzione per archetipo", () => {
   assert.deepEqual(audit.summary.byArchetype, {
-    reference: 417,
-    "instant-reminder": 123,
+    reference: 419,
+    "instant-reminder": 122,
     "timed-condition": 121,
-    "resource-only": 100,
+    "resource-only": 102,
     aura: 22,
     "hp-change": 19,
-    movement: 15,
+    movement: 14,
     "custom-adapter": 13,
-    "companion-summon": 11,
-    "save-outcome-condition": 8,
+    "companion-summon": 10,
     "spell-bridge": 8,
+    "save-outcome-condition": 7,
     transformation: 2,
     "variable-cost": 1,
   });
-  assert.equal(audit.backlog.dataOnlyCandidateCount, 600);
-  assert.equal(audit.backlog.dataOnlyAutomationCount, 45);
-  assert.equal(audit.backlog.needsPrimitiveCount, 41);
+  assert.equal(audit.backlog.dataOnlyCandidateCount, 589);
+  assert.equal(audit.backlog.dataOnlyAutomationCount, 34);
+  assert.equal(audit.backlog.needsPrimitiveCount, 40);
 });

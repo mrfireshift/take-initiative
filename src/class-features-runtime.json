@@ -23229,21 +23229,23 @@
       "page": 50,
       "collection": "opzioni",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "ladro-lama-spirituale-potere-psionico-usi"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -23252,7 +23254,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🧠",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -23263,7 +23265,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "ladro-lama-spirituale-potere-psionico-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "ladro-archetipo-ladresco",
@@ -23430,32 +23437,37 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
       },
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🔍",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Combattimento Intuitivo",
+        "effectKind": "debuff",
+        "detail": "Dopo una prova di Intuizione vinta contro l'Inganno del bersaglio: per 1 minuto il ladro può usare l'Attacco Furtivo contro di lui senza vantaggio (non con svantaggio). Termina se il ladro usa con successo il privilegio su un altro bersaglio."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -23710,16 +23722,16 @@
       "page": 49,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "tracciamento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -23735,7 +23747,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "👻",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -23814,7 +23826,7 @@
       "page": 34,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -23828,6 +23840,7 @@
       "activation": {
         "primary": "innesco"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -24054,7 +24067,7 @@
       "page": 50,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -24071,6 +24084,7 @@
       "trackedResourcePoolIds": [
         "ladro-lama-spirituale-potere-psionico-usi"
       ],
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -24090,12 +24104,7 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": [
-        {
-          "poolId": "ladro-lama-spirituale-potere-psionico-usi",
-          "amount": 1
-        }
-      ]
+      "resourceCosts": []
     },
     {
       "id": "ladro-esploratore-schermagliatore",
@@ -24261,9 +24270,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -24279,7 +24288,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "📡",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -24451,21 +24460,23 @@
       "page": 51,
       "collection": "opzioni",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "reference",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
-        "primary": "passiva_o_non_specificata"
+        "primary": "innesco"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "ladro-lama-spirituale-potere-psionico-usi"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -24474,7 +24485,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🎯",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -24485,7 +24496,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "ladro-lama-spirituale-potere-psionico-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "ladro-furfante-furtivita-suprema",
@@ -24903,32 +24919,59 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
       },
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🎩",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Spavalderia",
+        "displayLabel": "Spavalderia · Spavalderia",
+        "detail": "Prova di Persuasione vinta contro una creatura ostile: svantaggio ai tiri per colpire contro bersagli diversi dal ladro e niente attacchi di opportunità contro altri per 1 minuto. Termina se un compagno del ladro la attacca o la influenza con un incantesimo o se si allontanano a più di 18 m."
+      },
+      "choiceOptions": [
+        {
+          "id": "ostile",
+          "label": "Creatura ostile",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Spavalderia",
+            "displayLabel": "Spavalderia · Spavalderia",
+            "detail": "Prova di Persuasione vinta contro una creatura ostile: svantaggio ai tiri per colpire contro bersagli diversi dal ladro e niente attacchi di opportunità contro altri per 1 minuto. Termina se un compagno del ladro la attacca o la influenza con un incantesimo o se si allontanano a più di 18 m."
+          }
+        },
+        {
+          "id": "non-ostile",
+          "label": "Creatura non ostile",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Affascinato",
+            "displayLabel": "Affascinato · Spavalderia",
+            "detail": "Prova di Persuasione vinta contro una creatura non ostile: affascinata per 1 minuto, considera il ladro una conoscenza amichevole. Termina se il ladro o i suoi compagni le fanno qualcosa di dannoso."
+          }
+        }
+      ],
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -24944,21 +24987,23 @@
       "page": 51,
       "collection": "opzioni",
       "defaultEnabled": true,
-      "automationLevel": "riferimento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
       },
-      "quickActionEligible": false,
+      "trackedResourcePoolIds": [
+        "ladro-lama-spirituale-potere-psionico-usi"
+      ],
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -24967,7 +25012,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌀",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -24978,7 +25023,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "ladro-lama-spirituale-potere-psionico-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "ladro-dote-affidabile",
@@ -25048,9 +25098,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione_bonus"
@@ -25063,17 +25113,30 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🌫️",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Cammino Fantasma",
+        "detail": "Per 10 minuti o finché vi pone fine con un'azione bonus: volo 3 m e fluttuare, gli attacchi contro il ladro hanno svantaggio, attraversa creature e oggetti come terreno difficile (1d10 forza se termina il turno al loro interno). Uso per riposo lungo o distruggendo un pegno dell'anima, da segnare al tavolo.",
+        "mechanics": {
+          "movement": {
+            "modes": {
+              "fly": {
+                "grantMeters": 3
+              }
+            }
+          }
+        }
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 100
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -25250,32 +25313,38 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
       },
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🏹",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Maestro di Imboscate",
+        "effectKind": "debuff",
+        "detail": "Prima creatura colpita dal ladro nel primo round del combattimento: i tiri per colpire contro di lei hanno vantaggio fino all'inizio del prossimo turno del ladro."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": null,
+        "timing": "next-turn"
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": []
     },
     {
@@ -25442,9 +25511,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "azione"
@@ -25460,17 +25529,25 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🫥",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Invisibile",
+        "displayLabel": "Invisibile · Velo Psichico",
+        "detail": "Invisibile per 1 ora o finché lo congeda. Termina subito se infligge danni a una creatura o la costringe a un TS. Riuso prima del riposo lungo spendendo un dado di Energia Psionica dal pool."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 600,
+        "endConditions": [
+          "infligge danni o impone un TS"
+        ]
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "ladro-lama-spirituale-velo-psichico-usi",
@@ -25733,7 +25810,7 @@
       "page": 50,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "tracciamento",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -25747,6 +25824,7 @@
       "activation": {
         "primary": "innesco"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -25899,9 +25977,9 @@
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "resource-only",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -25917,7 +25995,7 @@
         "excludeSource": false
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "🤺",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
@@ -25996,16 +26074,16 @@
       "page": 51,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "tracciamento",
+      "automationLevel": "assistita",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
         "effetti_strutturati"
       ],
       "runtimeSupport": {
-        "status": "not-automated",
-        "adapter": null,
-        "reason": "adapter-not-implemented"
+        "status": "implemented",
+        "adapter": "condition",
+        "reason": null
       },
       "activation": {
         "primary": "innesco"
@@ -26013,25 +26091,30 @@
       "trackedResourcePoolIds": [
         "ladro-lama-spirituale-squarciare-la-mente-usi"
       ],
-      "targetMode": "self",
+      "targetMode": "selection",
       "targeting": {
-        "mode": "self",
+        "mode": "single-target",
         "rangeMeters": null,
         "maxTargets": 1,
-        "excludeSource": false
+        "excludeSource": true
       },
       "theme": {
-        "emoji": "✨",
+        "emoji": "💥",
         "accent": "#38bdf8",
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": null,
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Stordito",
+        "displayLabel": "Stordito · Squarciare la Mente",
+        "detail": "Attacco Furtivo con le Lame Psichiche, TS Saggezza fallito (CD 8 + competenza + Destrezza): stordito per 1 minuto; ripete il TS alla fine di ogni suo turno e se lo supera l'effetto termina. Con TS superato non applicare la pill. Riuso prima del riposo lungo con tre dadi di Energia Psionica dal pool."
+      },
       "breaksConcentration": false,
       "duration": {
-        "rounds": null
+        "rounds": 10
       },
-      "trackingMode": "instant",
+      "trackingMode": "active",
       "resourceCosts": [
         {
           "poolId": "ladro-lama-spirituale-squarciare-la-mente-usi",
@@ -50159,7 +50242,7 @@
     "mechanicRecords": 860,
     "activeFeatures": 860,
     "resourcePools": 104,
-    "runtimeImplemented": 219,
-    "runtimeNotAutomated": 641
+    "runtimeImplemented": 231,
+    "runtimeNotAutomated": 629
   }
 }
