@@ -2,6 +2,14 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { compactTrackerViewportWidth } from "./trackerCompactSizingCore.js";
+import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
+import { selectPlayerTrackerScale } from "./options/optionsSelectors.js";
+import {
+  classicTrackerScaledFrame,
+  compactTrackerScale,
+  compactTrackerScaledHeight,
+  effectiveTrackerScale,
+} from "./trackerScaleCore.js";
 
 export const TRACKER_POPOVER_ID = `${ID}/tracker-popover`;
 export const COMPACT_ROUND_TAB_POPOVER_ID = `${ID}/compact-round-tab`;
@@ -108,6 +116,16 @@ export async function resetCompactTrackerPopoverPosition() {
   localStorage.removeItem(TRACKER_COMPACT_POSITION_KEY);
   await refreshCompactTrackerPopoverAtStoredPosition();
 }
+// Player tracker scale (room option): 1 for the GM, the configured scale for players (table screen).
+export async function getTrackerViewScale() {
+  const role = await Promise.resolve().then(() => OBR.player.getRole()).catch(() => null);
+  if (String(role || "").toUpperCase() !== "PLAYER") return 1;
+  await startRuntimeOptions().catch(() => {});
+  let scale = 1;
+  try { scale = runtimeOptionsService.get(selectPlayerTrackerScale); } catch {}
+  return effectiveTrackerScale(scale, role);
+}
+
 const TRACKER_OPEN_KEY = `${ID}/tracker-popover-open`;
 
 export function isTrackerPopoverOpen() {
@@ -118,18 +136,22 @@ export function markTrackerPopoverClosed() {
   localStorage.setItem(TRACKER_OPEN_KEY, "0");
 }
 
-async function openCompactRoundTabPopover(anchorPosition, trackerHeight) {
+function compactPartUrl(part, scale) {
+  return scale > 1 ? `/compact-round-tab.html?part=${part}&scale=${scale}` : `/compact-round-tab.html?part=${part}`;
+}
+
+async function openCompactRoundTabPopover(anchorPosition, trackerHeight, scale = 1) {
   const top = Math.round(
     Number(anchorPosition?.top || 0)
       - Math.max(0, Number(trackerHeight) || COMPACT_HEIGHT)
-      + COMPACT_ROUND_TAB_OVERLAP,
+      + COMPACT_ROUND_TAB_OVERLAP * scale,
   );
   try {
     await OBR.popover.open({
       id: COMPACT_ROUND_TAB_POPOVER_ID,
-      url: "/compact-round-tab.html?part=round",
-      width: COMPACT_ROUND_TAB_WIDTH,
-      height: COMPACT_ROUND_TAB_HEIGHT,
+      url: compactPartUrl("round", scale),
+      width: Math.round(COMPACT_ROUND_TAB_WIDTH * scale),
+      height: Math.round(COMPACT_ROUND_TAB_HEIGHT * scale),
       anchorReference: "POSITION",
       anchorPosition: {
         left: Math.round(Number(anchorPosition?.left) || 0),
@@ -146,23 +168,23 @@ async function openCompactRoundTabPopover(anchorPosition, trackerHeight) {
   }
 }
 
-async function openCompactSpeedReadoutPopover(anchorPosition, trackerWidth, trackerHeight) {
+async function openCompactSpeedReadoutPopover(anchorPosition, trackerWidth, trackerHeight, scale = 1) {
   const top = Math.round(
     Number(anchorPosition?.top || 0)
       - Math.max(0, Number(trackerHeight) || COMPACT_HEIGHT)
-      + COMPACT_ROUND_TAB_OVERLAP,
+      + COMPACT_ROUND_TAB_OVERLAP * scale,
   );
   const right = Math.round(
     (Number(anchorPosition?.left) || 0)
       + Math.max(0, Number(trackerWidth) || COMPACT_DEFAULT_WIDTH) / 2
-      - COMPACT_SPEED_READOUT_RIGHT_INSET,
+      - COMPACT_SPEED_READOUT_RIGHT_INSET * scale,
   );
   try {
     await OBR.popover.open({
       id: COMPACT_SPEED_READOUT_POPOVER_ID,
-      url: "/compact-round-tab.html?part=speed",
-      width: COMPACT_SPEED_READOUT_WIDTH,
-      height: COMPACT_ROUND_TAB_HEIGHT,
+      url: compactPartUrl("speed", scale),
+      width: Math.round(COMPACT_SPEED_READOUT_WIDTH * scale),
+      height: Math.round(COMPACT_ROUND_TAB_HEIGHT * scale),
       anchorReference: "POSITION",
       anchorPosition: { left: right, top: Math.max(0, top) },
       anchorOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
@@ -197,23 +219,34 @@ export async function openTrackerPopover({ refresh = false, compactSize = null }
   ]);
   viewportHeight = Number(nextHeight) || viewportHeight;
   viewportWidth = Number(nextWidth) || viewportWidth;
+  // Players' table screen: the tracker grows by the room scale (1 for the GM and by default, as before).
+  const viewScale = await getTrackerViewScale();
+  const compactScale = compact ? compactTrackerScale(viewScale, { viewportHeight }) : 1;
+  const classic = compact ? null : classicTrackerScaledFrame(viewScale, { viewportWidth, viewportHeight });
   const preferredCompactWidth = Number(compactSize?.width)
     || getCompactTrackerManualWidth()
-    || COMPACT_DEFAULT_WIDTH;
+    || Math.round(COMPACT_DEFAULT_WIDTH * compactScale);
   const width = compact
     ? compactTrackerViewportWidth(
-      Math.min(preferredCompactWidth, COMPACT_MAX_WIDTH),
+      Math.min(preferredCompactWidth, Math.round(COMPACT_MAX_WIDTH * compactScale)),
       viewportWidth,
+      compactScale,
     )
-    : 340;
+    : classic.width;
   const height = compact
-    ? Math.min(
-      Math.max(150, Math.round(Number(compactSize?.height) || COMPACT_HEIGHT)),
-      COMPACT_HEIGHT,
-      Math.max(150, Math.floor(viewportHeight - 32)),
-    )
-    : Math.max(360, Math.floor(viewportHeight - 124));
-  const compactAnchor = compactAnchorPosition(viewportWidth, viewportHeight);
+    ? compactTrackerScaledHeight(viewScale, { viewportHeight, currentHeight: compactSize?.height })
+    : classic.height;
+  const storedCompactAnchor = compactAnchorPosition(viewportWidth, viewportHeight);
+  // A taller (scaled) bar still fits under the top edge, with its round tab above it.
+  const compactAnchor = compactScale > 1
+    ? {
+      ...storedCompactAnchor,
+      top: Math.max(
+        storedCompactAnchor.top,
+        Math.min(viewportHeight - COMPACT_EDGE_MARGIN, height + Math.round(COMPACT_ROUND_TAB_HEIGHT * compactScale) + 12),
+      ),
+    }
+    : storedCompactAnchor;
   await openTrackedPopover({
     id: TRACKER_POPOVER_ID,
     url: "/?surface=tracker",
@@ -237,11 +270,12 @@ export async function openTrackerPopover({ refresh = false, compactSize = null }
       OBR.popover.getWidth(TRACKER_POPOVER_ID).catch(() => width),
     ]);
     await Promise.all([
-      openCompactRoundTabPopover(compactAnchor, Number(actualHeight) || height),
+      openCompactRoundTabPopover(compactAnchor, Number(actualHeight) || height, compactScale),
       openCompactSpeedReadoutPopover(
         compactAnchor,
         Number(actualWidth) || width,
         Number(actualHeight) || height,
+        compactScale,
       ),
     ]);
   } else {

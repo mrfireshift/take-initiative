@@ -40,7 +40,7 @@ test("OPTIONS-003: il selector del pannello espone i gruppi senza metadata grezz
   assert.deepEqual(model.scene.popup, { mode: "override", value: true });
   assert.equal(model.scene.hp.mode, "inherit");
   assert.deepEqual(Object.keys(model.room).sort(), [
-    "activeTurnLabel", "directResolution", "effects", "embersAnimations", "hp", "knownFactionAssignment", "movementReminder", "popup", "reminders", "summaryParts", "trackerOpen",
+    "activeTurnLabel", "directResolution", "effects", "embersAnimations", "hp", "knownFactionAssignment", "movementReminder", "popup", "reminders", "summaryParts", "trackerOpen", "trackerScale",
   ]);
   assert.deepEqual(Object.keys(model.scene).sort(), [
     "activeTurnLabel", "directResolution", "effects", "hp", "movementReminder", "popup", "reminders", "summaryParts",

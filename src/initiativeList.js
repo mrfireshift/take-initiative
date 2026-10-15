@@ -233,6 +233,11 @@ import {
   compactTrackerViewportWidth,
   compactTrackerWidth,
 } from "./trackerCompactSizingCore.js";
+import {
+  classicTrackerScaledFrame,
+  compactTrackerScale,
+  effectiveTrackerScale,
+} from "./trackerScaleCore.js";
 import { projectTrackerEntries } from "./options/optionsProjection.js";
 import {
   broadcastRuntimeOptionsInvalidation,
@@ -245,6 +250,7 @@ import {
   selectFollowActiveTurn,
   selectKnownFactionAssignmentEnabled,
   selectMapHpBarsEnabled,
+  selectPlayerTrackerScale,
   selectTrackerLayout,
   selectTrackerProjectionPolicy,
 } from "./options/optionsSelectors.js";
@@ -8360,6 +8366,14 @@ function __bindInitiativeCardContextMenu(card, sourceEntry) {
 let __lastCompactPopoverSize = "";
 let __compactPopoverResizeRevision = 0;
 const COMPACT_TRACKER_RESIZE_DURATION_MS = 240;
+// Player tracker scale (room option, table screen): 1 for the GM. The popover grows by the scale that fits the
+// screen and the page is zoomed by the same factor, so the content only gets bigger.
+let __trackerViewScale = 1;
+let __trackerViewScaleUnsubscribe = null;
+
+function __setTrackerViewZoom(scale) {
+  document.documentElement.style.zoom = scale > 1 ? String(scale) : "";
+}
 
 function __syncTrackerPopoverSizeForLayout() {
   __lastCompactPopoverSize = "";
@@ -8373,10 +8387,14 @@ function __syncTrackerPopoverSizeForLayout() {
 
   void (async () => {
     let viewportHeight = 900;
+    let viewportWidth = 1200;
     try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+    try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+    const frame = classicTrackerScaledFrame(__trackerViewScale, { viewportWidth, viewportHeight });
+    if (!isCompactTrackerLayout()) __setTrackerViewZoom(frame.scale);
     await Promise.all([
-      OBR.popover.setWidth(TRACKER_POPOVER_ID, 340),
-      OBR.popover.setHeight(TRACKER_POPOVER_ID, Math.max(360, Math.floor(viewportHeight - 124))),
+      OBR.popover.setWidth(TRACKER_POPOVER_ID, frame.width),
+      OBR.popover.setHeight(TRACKER_POPOVER_ID, frame.height),
     ]);
   })().catch(() => {});
 }
@@ -8422,26 +8440,38 @@ function resizeCompactTrackerPopover(
   entries,
   { syncProgress = null, duration = COMPACT_TRACKER_RESIZE_DURATION_MS } = {},
 ) {
-  const requestedWidth = getCompactTrackerManualWidth()
+  // The manual width is the popover width on screen; the automatic one is unscaled and grows with the scale.
+  const manualWidth = getCompactTrackerManualWidth();
+  const requestedWidth = manualWidth
     || compactTrackerWidth(entries?.length, {
       showToolbar: IS_GM,
       showNavigation: IS_GM,
     });
   const requestedHeight = 156;
-  const requestKey = `${requestedWidth}x${requestedHeight}`;
+  const requestKey = `${requestedWidth}x${requestedHeight}@${__trackerViewScale}`;
   if (__lastCompactPopoverSize === requestKey) return;
   __lastCompactPopoverSize = requestKey;
   const revision = ++__compactPopoverResizeRevision;
 
   void (async () => {
     let viewportWidth = 1200;
+    let viewportHeight = 900;
     try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+    if (__trackerViewScale > 1) {
+      try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+    }
     if (revision !== __compactPopoverResizeRevision || !isCompactTrackerLayout()) return;
-    const width = compactTrackerViewportWidth(requestedWidth, viewportWidth);
+    const scale = compactTrackerScale(__trackerViewScale, { viewportHeight });
+    __setTrackerViewZoom(scale);
+    const width = compactTrackerViewportWidth(
+      manualWidth || Math.round(requestedWidth * scale),
+      viewportWidth,
+      scale,
+    );
     try {
       await Promise.all([
         __animateCompactTrackerPopoverWidth(width, revision, { syncProgress, duration }),
-        OBR.popover.setHeight(TRACKER_POPOVER_ID, requestedHeight),
+        OBR.popover.setHeight(TRACKER_POPOVER_ID, Math.round(requestedHeight * scale)),
       ]);
     } catch (error) {
       if (revision === __compactPopoverResizeRevision) __lastCompactPopoverSize = "";
@@ -10272,6 +10302,24 @@ try {
             __syncTrackerPopoverSizeForLayout();
             void renderAll("options-presentation");
           }
+        },
+        { emitCurrent: false },
+      );
+      const initialTrackerViewScale = effectiveTrackerScale(
+        runtimeOptionsService.get(selectPlayerTrackerScale),
+        IS_GM ? "GM" : "PLAYER",
+      );
+      if (initialTrackerViewScale !== __trackerViewScale) {
+        __trackerViewScale = initialTrackerViewScale;
+        __syncTrackerPopoverSizeForLayout();
+      }
+      __trackerViewScaleUnsubscribe ||= runtimeOptionsService.subscribe(
+        selectPlayerTrackerScale,
+        (scale) => {
+          const nextScale = effectiveTrackerScale(scale, IS_GM ? "GM" : "PLAYER");
+          if (nextScale === __trackerViewScale) return;
+          __trackerViewScale = nextScale;
+          __syncTrackerPopoverSizeForLayout();
         },
         { emitCurrent: false },
       );

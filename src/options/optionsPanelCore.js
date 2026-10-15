@@ -39,6 +39,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
       hp: roomInput.hp,
       effects: roomInput.effects,
       reminders: roomInput.reminders,
+      trackerScale: roomInput.trackerScale,
     },
     turn: {
       popup: roomInput.popup,
@@ -75,6 +76,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,
+      trackerScale: room.playerView.trackerScale,
       knownFactionAssignment: room.automation.knownFactionAssignment,
       embersAnimations: room.integrations.embersAnimations,
       hp: room.playerView.hp,
@@ -126,6 +128,7 @@ export function buildOptionsPanelPatches(draft) {
         hp: clone(normalized.room.hp),
         effects: clone(normalized.room.effects),
         reminders: clone(normalized.room.reminders),
+        trackerScale: normalized.room.trackerScale,
       },
       turn: {
         popup: normalized.room.popup,

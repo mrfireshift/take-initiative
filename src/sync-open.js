@@ -2,12 +2,13 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import {
   TRACKER_LAYOUT_CHANNEL,
+  isTrackerPopoverOpen,
   moveCompactTrackerPopover,
   resetCompactTrackerPopoverPosition,
   setTrackerPopoverOpen,
 } from "./trackerPopover.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
-import { selectTrackerOpenSyncEnabled } from "./options/optionsSelectors.js";
+import { selectPlayerTrackerScale, selectTrackerOpenSyncEnabled } from "./options/optionsSelectors.js";
 
 const UI_KEY = `${ID}/ui`;
 
@@ -42,6 +43,12 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
     runtimeOptionsService.subscribe(selectTrackerOpenSyncEnabled, (enabled) => {
       if (!enabled || role === "GM") return;
       void OBR.room.getMetadata().then(applyTrackerOpenState).catch(() => {});
+    }, { emitCurrent: false });
+
+    // Players' table screen: a new tracker scale redraws the open tracker at the new size.
+    runtimeOptionsService.subscribe(selectPlayerTrackerScale, () => {
+      if (role !== "PLAYER" || !isTrackerPopoverOpen()) return;
+      void setTrackerPopoverOpen(true, { refresh: true });
     }, { emitCurrent: false });
 
     if (role === "GM") return;
