@@ -175,6 +175,11 @@ function placementClick(event) {
     if (getSpellAreaRuleById(placement.ruleId).placement.origin === "caster") return;
     if (placement.batch) return placementDrag(point, point);
     placement.origin = point; Object.assign(placement, circleFor(point));
+  } else if (placementShape() === "square") {
+    // A point cell (the boss's teleport destination): its centre, as the real tool reports it.
+    const centre = { x: (Math.floor(point.x / GRID) + 0.5) * GRID, y: (Math.floor(point.y / GRID) + 0.5) * GRID };
+    Object.assign(placement, { origin: centre, end: centre, area: { cells: [{ x: centre.x - GRID / 2, y: centre.y - GRID / 2, width: GRID, height: GRID }] } });
+    if (placement.autoConfirm) { void finishPlacement("confirmed"); return; }
   } else if (placementShape() === "line") {
     if (placement.preset) return;
     // Like the real tool, a 5 ft line starts from a cell centre.
@@ -217,6 +222,7 @@ OBR.broadcast.onMessage(SPELL_AREA_PLACEMENT_CHANNEL, ({ data }) => {
     placement = { requestId: data.requestId, ruleId: data.ruleId, casterId: data.casterId, origin: null, area: null, end: null, theme: String(data.context?.areaTheme || "") };
     if (Number(data.context?.areaBatch?.count) >= 2) Object.assign(placement, { batch: { count: Number(data.context.areaBatch.count), minDistanceFeet: Number(data.context.areaBatch.minDistanceFeet) || 0, innerRadiusFeet: Number(data.context.areaBatch.innerRadiusFeet) || 0 }, shapes: [] });
     if (data.context?.keepOnMap?.id) placement.keep = structuredClone(data.context.keepOnMap);
+    if (data.context?.autoConfirmPoint === true) placement.autoConfirm = true;
     if (data.context?.presetLine?.start && data.context?.presetLine?.end) {
       placement.preset = structuredClone(data.context.presetLine); placement.origin = placement.preset.start;
       Object.assign(placement, lineFor(placement.origin, placement.preset.end)); drawPlacement();
@@ -468,6 +474,14 @@ const scenarios = {
   async tracker() { localStorage.removeItem("com.thebigpicture.initiative/tracker-classic-placement"); await openTrackerPopover({ refresh: true }); await sleep(1500); },
   async "tracker-right"() { await scenarios.tracker(); await toggleClassicTrackerSide(); await sleep(1500); },
   async "tracker-dragged"() { await scenarios["tracker-right"](); await moveClassicTrackerPopover(-200, 60); await sleep(1500); },
+  // ?boss=shothragoth: Il Corpo Non Era Qui on Mira, the boss teleports to the cell clicked on the map.
+  async "corpo-ready"() {
+    fakeHost.setSelection(["mira"]); await openBoss(); (await row("Il Corpo Non Era Qui")).click(); await sleep(300);
+    await press("#boss-pick-teleport"); await waitFor(() => placement);
+    placementClick({ clientX: 760, clientY: 470 }); await sleep(900); // one click picks and confirms
+    await press('[data-outcome="failed"]');
+  },
+  async "corpo-final"() { await scenarios["corpo-ready"](); await press("#boss-apply"); await sleep(2200); },
   async "meteor-final"() { await scenarios["meteor-drawn"](); await press('[data-group-all="failed"]'); await press("#boss-apply"); await sleep(800); },
   async compare() { document.getElementById("open-hp").click(); await sleep(600); fakeHost.setSelection(["dars"]); await openBossActionsPopover("auril"); await sleep(400);
     const frame = bossFrame(); fakeHost.state.popovers.get("com.thebigpicture.initiative/boss-actions").anchorPosition = { left: 600, top: 60 }; frame.style.left = "600px"; frame.style.top = "60px";

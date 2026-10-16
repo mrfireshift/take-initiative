@@ -1,4 +1,4 @@
-# Boss Actions — Shothragoth, l'Informe (S0–S3, profile/parser v19)
+# Boss Actions — Shothragoth, l'Informe (S0–S3 e teletrasporto, profile/parser v21)
 
 ## S0 · Fixture
 
@@ -100,6 +100,27 @@ Regola dei boss epici: un'Azione Epica alla fine del turno di ogni personaggio. 
   - una cucitura collassata a fine round, o annullata, lascia il disegno: la lista lo segnala con «Rimuovi»;
   - un disegno mai applicato sparisce chiudendo l'azione o ridisegnando.
 - **Undo di Strappare:** ripristina la cucitura ma non il suo disegno. La nota lo dice: «Il disegno non è sulla mappa».
+
+## Il Corpo Non Era Qui con il teletrasporto (parser v21)
+
+Il teletrasporto usa lo stesso motore degli incantesimi (Passo Velato, Porta Dimensionale).
+
+- **Profilo v21:** l'esecuzione dichiara `teleport: { range: 60 }`, letto dallo stat block («si teletrasporta fino a 60 ft.», cioè 18 m: gittata aumentata su decisione del GM, prima era 30 ft). Il contratto è chiuso:
+  - la gittata dev'essere un multiplo di 5;
+  - serve la distanza del bersaglio;
+  - una presa o un marchio non sono ammessi;
+  - un profilo v20 non può contenerlo.
+- **Destinazione:** nella console c'è il passo «Scegli destinazione». Lo strumento d'area chiede una casella entro 60 ft dal boss (regola `boss-action-area:teleport:60ft`).
+  - Basta un clic, niente trascinamento: il clic sceglie e conferma, come il ritorno di Lampeggiare. Lo strumento d'area tratta il clic su un posizionamento a punto come un trascinamento fermo.
+  - La casella si allinea all'ingombro del boss: per un 3×3 il centro cade sul centro di un blocco 3×3, quindi il token resta sulla griglia.
+- **Commit:** TS, danni, Prono e lo spostamento del boss stanno in un solo comando. Lo spostamento è l'effetto collaterale `token:teleport` del coordinatore: dissolvenza del token, nessun movimento conteggiato, registrato nella stessa voce di Cronologia. L'Undo riporta PF, condizione e posizione.
+- **Avviso, non blocco:** se il bersaglio non è entro 5 ft dallo spazio lasciato né da quello d'arrivo, la console lo segnala. Misura sulla griglia; un intervallo inferiore a una casella conta come adiacente.
+- **Resta manuale:** che lo spazio d'arrivo sia libero e percepito dal boss.
+- **Test:**
+  - `shothragothTeleport.test.js`: dati e contratto, regola della destinazione, piano con l'effetto collaterale, distanza;
+  - `shothragothTeleportIntegration.test.js`: commit e Undo reali, compresa la posizione;
+  - un test della console in `bossActionsPopover.test.js`.
+- **Browser di prova:** `corpo-ready` e `corpo-final`. Il token del boss arriva sulla casella scelta; Mira prende 10 danni ed è Prona.
 
 ## Prossimi passi
 

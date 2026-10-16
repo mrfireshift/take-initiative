@@ -162,7 +162,7 @@ test("Cucitura blocks Il Corpo Non Era Qui; Strappare in the last slot hits the 
   assert.deepEqual([presentation.sequence.seam.lengthFeet, presentation.sequence.seam.itemIds], [45, SEAM.itemIds]);
   assert.deepEqual(presentation.sequence.staleSeamItemIds, []);
   assert.match(presentation.availability[namedS("Il Corpo Non Era Qui").id].reason, /Finché la cucitura esiste, Auril non può usare Il Corpo Non Era Qui/);
-  await assert.rejects(resolve(ps, namedS("Il Corpo Non Era Qui"), { targetId: "mira", outcome: "failed", componentAmounts: { force: 10 } }), /Finché la cucitura esiste/);
+  await assert.rejects(resolve(ps, namedS("Il Corpo Non Era Qui"), { targetId: "mira", outcome: "failed", componentAmounts: { force: 10 }, teleport: { x: 300, y: 0 } }), /Finché la cucitura esiste/);
   assert.equal(presentation.availability[namedS("Strappare la Cucitura").id].available, true);
   // Mira and Sera still act this round: the GM confirms, or the tear waits.
   await assert.rejects(tear(), /Conferma che è l’ultima Azione Epica del round/);

@@ -2124,6 +2124,14 @@ function modeDefinition(type, label, icon) {
     onToolDragMove: (_context, event) => moveDrag(event),
     onToolDragEnd: (_context, event) => endDrag(event),
     onToolDragCancel: () => cancelDrag(),
+    // A point placement (e.g. a teleport destination) also takes a plain click: the gesture of a drag that does not move.
+    onToolClick: (_context, event) => {
+      const runtime = spellPlacementSession;
+      if (!runtime || spellMovementSession || !isPointPlacement(runtime.rule) || isBoardTokenPlacement(runtime.rule)) return;
+      startDrag(type, event);
+      endDrag(event);
+      return false;
+    },
     onDeactivate: () => cancelDrag(),
     onKeyDown: (_context, event) => {
       if (event?.key === "Escape" && (spellPlacementSession || spellMovementSession)) {

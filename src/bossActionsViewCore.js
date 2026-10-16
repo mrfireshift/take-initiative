@@ -58,6 +58,16 @@ export function bossCombatGroups(profile) {
 
 // ---- multi-point areas (Meteor Swarm): measured on the scene grid, with the area tool's geometry ----
 // Feet per grid cell from the scene scale: feet as such, metres with the catalog's 5 ft = 1.5 m.
+// Grid distance between two token rectangles (5e: adjacent = one cell), in feet; null without a scale.
+export function bossReachFeet(a, b, dpi, feetPerCell) {
+  const cell = Number(dpi), feet = Number(feetPerCell);
+  if (!(cell > 0) || !(feet > 0) || !a?.min || !a?.max || !b?.min || !b?.max) return null;
+  const gapX = Math.max(0, Number(a.min.x) - Number(b.max.x), Number(b.min.x) - Number(a.max.x));
+  const gapY = Math.max(0, Number(a.min.y) - Number(b.max.y), Number(b.min.y) - Number(a.max.y));
+  // Lenient (a warning only): a gap shorter than a whole cell still counts as adjacent.
+  return (Math.floor(Math.max(gapX, gapY) / cell + 1e-6) + 1) * feet;
+}
+
 export function bossFeetPerCell(scale) {
   const multiplier = Number(scale?.parsed?.multiplier);
   const unit = String(scale?.parsed?.unit || "").trim().toLowerCase();
@@ -130,7 +140,8 @@ export function bossActionAttackSummary(action) {
   return parts.join(" · ")+" (verifica manuale)";
 }
 
-export function validateBossActionSelection({ sourceId, action, targetId, targets = [], mode = "", outcome = "", componentAmounts = {}, manualConfirmed = false, rider = "" } = {}) {
+export function validateBossActionSelection({ sourceId, action, targetId, targets = [], mode = "", outcome = "", componentAmounts = {}, manualConfirmed = false, rider = "",
+  teleport = null } = {}) {
   const reject = (error) => ({ ok: false, error });
   const kind = bossActionExecutionKind(action);
   if (!["attack-damage", "save-damage"].includes(kind) || !action?.id) return reject("Questa abilità richiede una risoluzione manuale.");
@@ -158,7 +169,12 @@ export function validateBossActionSelection({ sourceId, action, targetId, target
       amounts[component.id] = amount;
     }
   }
+  // v21 (Il Corpo Non Era Qui): the destination of the boss's teleport, picked on the map.
+  const destination = action.execution?.teleport && Number.isFinite(Number(teleport?.x)) && Number.isFinite(Number(teleport?.y))
+    ? { x: Number(teleport.x), y: Number(teleport.y) } : null;
+  if (action.execution?.teleport && !destination) return reject("Scegli sulla mappa dove si teletrasporta il boss.");
   return { ok: true, value: { sourceId, actionId: action.id, targetId, mode: kind === "attack-damage" ? mode : "", outcome, componentAmounts: amounts, ...(requiresManual?{manualConfirmed:true}:{}),
+    ...(destination ? { teleport: destination } : {}),
     ...(outcome === "hit" && choices.length ? { rider } : {}) } };
 }
 
@@ -260,6 +276,7 @@ export function bossActionAutomationSummary(action, availability = {}) {
   if (action.execution?.drain) automatic.push("il boss recupera i PF pari ai danni necrotici subiti");
   if (action.execution?.onHit) automatic.push("sul colpo l'effetto scelto: Afferrato (una creatura alla volta) oppure il promemoria del trascinamento");
   if (action.sequence) automatic.push("requisito di sequenza verificato dal registro del round");
+  if (action.execution?.teleport) automatic.push(`teletrasporto del boss sulla casella scelta (entro ${action.execution.teleport.range} ft), annullabile insieme al resto`);
   if (availability?.tracked) automatic.push(`uso ${availability.limit}/${availability.period === "round" ? "round" : "fase"} registrato`);
   automatic.push("una voce History annullabile");
   const manual = [kind === "save-damage" ? "tiro salvezza del bersaglio" : "tiro per colpire", "danni tirati (o medie)", "distanza e visibilità"];
@@ -342,6 +359,7 @@ export function bossActionResultSummary(result = {}) {
   if (result.throw) parts.push(`${result.throw.distance} ft`, result.throw.landing === "edge" ? `oltre il bordo: TS DES CD ${result.throw.edge?.save?.dc} nel promemoria` : "Prono",
     ...(result.throw.releasedConditions?.length ? ["presa terminata"] : []),
     ...(result.throw.collision ? [`contro ${result.throw.collision.name || result.throw.collision.targetId}: TS ${result.throw.collision.outcome === "failed" ? `fallito, ${result.throw.collision.requestedDamage} danni e Prono` : "superato"}`] : []));
+  if (result.teleport) parts.push("boss teletrasportato");
   if (result.onHit) parts.push(result.onHit.choice === "grab" ? `Afferrato (CD ${result.onHit.escapeDC})` : `trascinalo di ${result.onHit.distance} ft sulla mappa`);
   if (result.effectEnd) return `${result.effectEnd.passed ? "riuscita" : "fallita"} (${result.effectEnd.roll} su ${result.effectEnd.threshold}+): ${result.effectEnd.name} ${result.effectEnd.passed ? "termina" : "resta"}`;
   for (const resource of Array.isArray(result.resources) ? result.resources : []) {

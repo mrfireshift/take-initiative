@@ -3423,9 +3423,33 @@ function bossActionLineRule(ruleId) {
   return BOSS_ACTION_AREA_RULES.get(id);
 }
 
+// The boss's teleport destination (Il Corpo Non Era Qui): one cell within range of the boss, like Misty Step.
+// The token is centred on that cell (a Huge 3x3 token stays on the grid).
+const BOSS_ACTION_TELEPORT_RULE_PATTERN = /^boss-action-area:teleport:([1-9]\d{0,2})ft$/;
+function bossActionTeleportRule(ruleId) {
+  const match = String(ruleId || "").trim().match(BOSS_ACTION_TELEPORT_RULE_PATTERN);
+  if (!match || Number(match[1]) % 5 !== 0) return null;
+  const id = match[0];
+  if (!BOSS_ACTION_AREA_RULES.has(id)) {
+    BOSS_ACTION_AREA_RULES.set(id, defineRule({
+      id,
+      spellId: BOSS_ACTION_AREA_SPELL_ID,
+      trigger: CAST_TRIGGER,
+      kind: "instant",
+      geometry: { shape: "square", size: meters(1.5, "side") },
+      placement: { origin: "point", direction: "none", anchor: "world", range: meters((Number(match[1]) / 5) * 1.5, "range"), mode: "point" },
+      lifecycle: PREVIEW_LIFECYCLE,
+      targeting: { filter: "all", includeCaster: false, confirmTargets: false },
+      effectPolicy: ON_CONFIRM,
+      placementNote: "Scegli la casella libera di destinazione del boss",
+    }));
+  }
+  return BOSS_ACTION_AREA_RULES.get(id);
+}
+
 export function getBossActionAreaRuleById(ruleId) {
   const match = String(ruleId || "").trim().match(BOSS_ACTION_AREA_RULE_PATTERN);
-  if (!match) return bossActionLineRule(ruleId);
+  if (!match) return bossActionLineRule(ruleId) || bossActionTeleportRule(ruleId);
   const shape = match[1];
   const feet = Number(match[2]);
   if (feet % 5 !== 0) return null;

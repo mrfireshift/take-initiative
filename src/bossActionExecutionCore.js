@@ -273,7 +273,7 @@ export function bossGrappleBlocker(action, targetId, grappledIds = []) {
 export function buildBossActionMutation({
   profile, action, sourceItem, targetItem, mode = "", outcome = "",
   componentAmounts = {}, actionInstanceId, round, manualConfirmed=false, ignoredDefenses = [], expectedDefenses,
-  turnState = null, grappledIds = [], expectedMarkedIds, expectedEvasion, rider = "",
+  turnState = null, grappledIds = [], expectedMarkedIds, expectedEvasion, rider = "", teleport = null,
 } = {}) {
   if (!isBossActionCreature(sourceItem) || !isBossActionCreature(targetItem))
     throw new Error("Attore e bersaglio devono essere token creatura reali.");
@@ -289,6 +289,9 @@ export function buildBossActionMutation({
   if (attack && (!execution.attack?.modes?.includes(mode) || !["hit","miss"].includes(outcome)))
     throw new Error("Scegli modalità e risultato dell'attacco.");
   if (!attack && !["failed","passed"].includes(outcome)) throw new Error("Scegli l'esito del tiro salvezza.");
+  // v21 (Il Corpo Non Era Qui): the boss teleports first, in the same command as the save (one History entry).
+  const destination = execution.teleport ? placementPoint(teleport) : null;
+  if (execution.teleport && !destination) throw new Error("Scegli sulla mappa dove si teletrasporta il boss.");
   const grappleBlocker = bossGrappleBlocker(action, targetItem.id, Array.isArray(grappledIds) ? grappledIds : [])
     || bossMarkBlocker(action, targetItem, profile);
   if (grappleBlocker) throw new Error(grappleBlocker);
@@ -363,6 +366,7 @@ export function buildBossActionMutation({
     ...(consumedMarks.length?{markConsumed:{targetId:targetItem.id,instanceIds:consumedMarks}}:{}),
     ...(drain?{drain:{component:drain.component,amount:drain.amount,bossHpBefore:drain.healing.hp,bossHpAfter:drain.healing.afterHP,
       healed:drain.healing.afterHP-drain.healing.hp,maxHpReduction:drain.maxHpReduction}}:{}),
+    ...(destination?{teleport:{range:execution.teleport.range,from:placementPoint(sourceItem.position),to:destination}}:{}),
   };
   Object.assign(use.runtimeState.lastAction,{targetId:targetItem.id,outcome,...(attack?{mode}:{})});
   const label = `${sourceItem.name || profile.name}: ${action.name} → ${targetItem.name || targetItem.id}`;
@@ -378,7 +382,9 @@ export function buildBossActionMutation({
     ...(conditionOperations.length || consumedMarks.length?[{type:"condition:automate",subjectIds:[targetItem.id]}]:[])],
     options:{
       commandId:actionInstanceId,correlationId:actionInstanceId,sourceId:sourceItem.id,
-      targetIds:[targetItem.id],kind:"monster-action",label,
+      targetIds:destination?[targetItem.id,sourceItem.id]:[targetItem.id],kind:"monster-action",label,
+      // The spells' teleport: moved after the commit, recorded with the command and undone with it.
+      ...(destination?{sideEffects:[{type:"token:teleport",targetId:sourceItem.id,position:destination,operationId:actionInstanceId}]}:{}),
       metadataPatches:[...use.metadataPatches,...(change?.changed?[targetProfileAssert(targetItem)]:[])],
       sceneMetadataPreconditions:use.sceneMetadataPreconditions,
       history:{kind:"monster-action",label,payload:{causality,damageComponents:clone(damageComponents),

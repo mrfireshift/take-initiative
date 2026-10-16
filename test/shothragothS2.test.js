@@ -27,9 +27,11 @@ test("the three S2 abilities as closed v18 data", async () => {
   assert.deepEqual(arto.execution, { kind: "attack-damage", attack: { bonus: 10, type: "weapon", modes: ["melee"], reach: 20 }, target: { mode: "single", maxTargets: 1 },
     damage: [{ id: "bludgeoning", formula: "2d10+5", type: "bludgeoning", printedAverage: 16 }, { id: "psychic", formula: "2d6", type: "psychic", printedAverage: 7 }],
     onHit: { choices: [{ id: "pull", distance: 10, maxSize: "Enorme" }, { id: "grab", condition: "Afferrato", escapeDC: 18, maxSize: "Grande", single: true }] } });
+  // v21: the teleport is the boss's own, picked on the map and applied with the save.
   assert.deepEqual(corpo.execution, { kind: "save-damage", save: { ability: "dex", dc: 18 }, target: { mode: "single", maxTargets: 1, range: 5 },
-    damage: [{ id: "force", formula: "3d6", type: "force", printedAverage: 10 }], success: "half", onFailed: { conditions: [{ condition: "Prono", expiry: { mode: "manual" } }] } });
-  assert.match(corpo.manualText, /^Teletrasporto fino a 30 ft\. sulla mappa/);
+    damage: [{ id: "force", formula: "3d6", type: "force", printedAverage: 10 }], success: "half", onFailed: { conditions: [{ condition: "Prono", expiry: { mode: "manual" } }] },
+    teleport: { range: 60 } });
+  assert.match(corpo.manualText, /^Lo spazio d'arrivo dev'essere libero e percepito da Shothragoth; il bersaglio è una creatura entro 5 ft\./);
   assert.deepEqual(scagliare.execution, { kind: "throw", target: { mode: "single", maxTargets: 1 }, grapple: "release", distance: { max: 20 },
     damage: [{ id: "force", formula: "3d8", type: "force", printedAverage: 13 }], onLanding: { condition: "Prono" },
     collision: { save: { ability: "dex", dc: 18 }, onFailed: { sameDamage: true, condition: "Prono" } } });
@@ -77,7 +79,7 @@ test("Arto che Precede il Corpo: a hit needs the chosen effect; a grab holds one
 
 test("Il Corpo Non Era Qui: DEX 18, force damage, Prono as a standard condition on a failure, half and nothing else on a success", () => {
   const save = (outcome) => buildBossActionMutation({ profile, action: corpo, sourceItem: boss, targetItem: creature("mira", 45), outcome,
-    componentAmounts: { force: 10 }, actionInstanceId: "boss-action:corpo", round: 1 });
+    componentAmounts: { force: 10 }, actionInstanceId: "boss-action:corpo", round: 1, teleport: { x: 450, y: 150 } });
   const failed = save("failed");
   assert.equal(failed.change.afterHP, 35);
   assert.deepEqual(failed.conditions.map((entry) => entry.condition), ["Prono"]);

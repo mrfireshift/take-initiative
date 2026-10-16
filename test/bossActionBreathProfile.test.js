@@ -35,8 +35,8 @@ function asVersion(profile, version) {
 test("the real Breath description becomes a PARTIAL multi-target CON save with printed components and Accecato on failure", async () => {
   const profile = await importBossActionHTML(phase2HTML, { sourceName: "auril-phase-2.html" });
   const breath = ability(profile, BREATH);
-  assert.equal(profile.profileVersion, 20);
-  assert.equal(profile.parserVersion, 20);
+  assert.equal(profile.profileVersion, 21);
+  assert.equal(profile.parserVersion, 21);
   assert.equal(breath.automation, "PARTIAL");
   assert.equal(breath.category, "epic-action");
   assert.deepEqual(breath.usage, { limit: 1, period: "round", note: "Special Recharge" }, "1/Round is counted; the recharge stays a manual note");
@@ -138,7 +138,7 @@ test("v2 profiles stay readable without Breath mechanics and cannot carry the v3
   assert.throws(() => validateBossActionProfile(forged), /unexpected|unsupported|invalid/i);
   const store = createBossActionProfileStore({ storage: memoryStorage() });
   store.put(legacy); store.put(current);
-  assert.deepEqual(store.list().map((profile) => profile.profileVersion), [2, 20], "both revisions of the same phase coexist");
+  assert.deepEqual(store.list().map((profile) => profile.profileVersion), [2, 21], "both revisions of the same phase coexist");
 });
 
 test("v3 export/import keeps HTML, raw text and the normalized group contract without truncation", async () => {

@@ -261,7 +261,7 @@ export function createBossActionRuntime({
         distance:request.distance ?? null,damage:request.damage ?? null,landing:request.landing ?? null,effect:request.effect ?? null,roll:request.roll ?? null,
         rider:request.rider ?? null,collisionTargetId:request.collisionTargetId ?? null,collisionOutcome:request.collisionOutcome ?? null,
         collisionIgnoredDefenses:request.collisionIgnoredDefenses ?? null,collisionExpectedDefenses:request.collisionExpectedDefenses ?? null,
-        seam:request.seam ?? null,sequenceConfirmed:request.sequenceConfirmed===true});
+        seam:request.seam ?? null,sequenceConfirmed:request.sequenceConfirmed===true,teleport:request.teleport ?? null});
       let draft=drafts.get(actionInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
         throw new Error("Le decisioni o la scena del draft sono cambiate: riapri l'azione.");
@@ -368,6 +368,7 @@ export function createBossActionRuntime({
         ...(plan.causality?.onHit?{onHit:structuredClone(plan.causality.onHit)}:{}),
         ...(plan.causality?.effectEnd?{effectEnd:{name:plan.effect.name,roll:plan.roll,threshold:plan.causality.effectEnd.threshold,passed:plan.passed}}:{}),
         ...(plan.causality?.seam?{seam:{lengthFeet:plan.causality.seam.lengthFeet}}:{}),
+        ...(plan.causality?.teleport?{teleport:structuredClone(plan.causality.teleport)}:{}),
         ...(plan.seamDrawingIds?{seamTorn:true}:{}),
         ...(group?{groupTargets:plan.causality.targets.map(target=>({id:target.id,name:target.name || target.id,outcome:target.outcome,
           ...(target.requestedDamage!==undefined?{damage:target.requestedDamage,hpBefore:target.hpBefore,hpAfter:target.hpAfter}:{}),

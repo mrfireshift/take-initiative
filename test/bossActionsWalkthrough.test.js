@@ -127,7 +127,7 @@ test.after(() => { effects.unmountEffectsMutationCoordinatorService(); historyOw
 test("phase 2: Icekiss with the selected creature is three interactions and Undo from the console restores HP", async () => {
   const ui = await popover();
   await ui.importFile("auril-phase-2.html"); await ui.bind(0);
-  assert.equal(ui.controller.getPresentation().profile.profileVersion, 20);
+  assert.equal(ui.controller.getPresentation().profile.profileVersion, 21);
   await select(["auril-bar", "mira"]);
   await ui.open("Icekiss +2");                 // 1
   assert.equal(ui.target(), "Mira");

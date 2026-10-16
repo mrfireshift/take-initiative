@@ -658,7 +658,7 @@ test("library: a token on a superseded revision is flagged; cleanup is two-step 
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   await importVariant(f,"auril-phase-2.html",html=>html.replace("Auril occupa due","Auril ora occupa due"));
   await f.controller.refresh();
-  assert.match(optionTexts(f)[0],/v20 · [a-f0-9]{8} · collegata qui · superata/);
+  assert.match(optionTexts(f)[0],/v21 · [a-f0-9]{8} · collegata qui · superata/);
   assert.doesNotMatch(optionTexts(f)[1],/superata/);
   assert.equal(f.$("boss-profile-warning").hidden,false);
   assert.match(f.$("boss-profile-warning").textContent,/Il token usa una revisione superata/);
@@ -1086,5 +1086,29 @@ test("a sequence block greys the row; a stale seam drawing is reported and remov
   assert.equal(removals.length,1);
   assert.equal(removals[0].sourceId,"auril");
   assert.match(f.$("boss-status").textContent,/Cucitura rimossa dalla mappa/);
+  f.controller.destroy();
+});
+
+test("Il Corpo Non Era Qui: the destination is picked on the map like Misty Step, then sent with the save",async()=>{
+  const f=fixture({selection:["mira"]});await f.controller.ready;await importAndBind(f,"shothragoth.html");
+  if(f.$("boss-tab-actions"))await f.$("boss-tab-actions").click();await tick();
+  await open(f,"Il Corpo Non Era Qui");
+  assert.equal(f.$("boss-pick-teleport").textContent,"Scegli destinazione");
+  assert.match(f.$("boss-teleport-label").textContent,/Dove si teletrasporta Auril \(entro 60 ft\)/);
+  await outcome(f,"failed").click();await tick();
+  assert.match(f.$("boss-apply-hint").textContent,/Scegli dove si teletrasporta il boss/);
+  assert.equal(apply(f).disabled,true);
+  await f.$("boss-pick-teleport").click();await tick();
+  const pending=f.placements.at(-1);
+  assert.equal(pending.request.ruleId,"boss-action-area:teleport:60ft");
+  // One click on the map picks and confirms the cell.
+  assert.deepEqual([pending.request.context.directPointSelection,pending.request.context.autoConfirmPoint],[true,true]);
+  assert.equal(pending.request.casterId,"auril");
+  pending.resolve({status:"confirmed",preview:{type:"square",position:{x:750,y:300},start:{x:675,y:225},end:{x:825,y:375}}});await tick();await tick();
+  assert.equal(f.$("boss-pick-teleport").textContent,"Cambia");
+  assert.match(f.$("boss-teleport-label").textContent,/Destinazione scelta/);
+  assert.equal(apply(f).disabled,false);
+  await submit(f);
+  assert.deepEqual([f.calls[0].targetId,f.calls[0].outcome,f.calls[0].teleport],["mira","failed",{x:750,y:300}]);
   f.controller.destroy();
 });

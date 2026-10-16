@@ -26,7 +26,7 @@ const seam = { round: 2, actionId: cucitura.id, actionInstanceId: "boss-action:c
 const state = (round, actionIds, extra = {}) => ({ epicLog: { round, actionIds }, ...extra });
 
 test("Cucitura and Strappare as closed v19 data; the names they refer to are resolved inside the profile", async () => {
-  assert.deepEqual([profile.profileVersion, profile.parserVersion], [20, 20]);
+  assert.deepEqual([profile.profileVersion, profile.parserVersion], [21, 21]);
   assert.deepEqual(cucitura.sequence, { slot: "first" });
   assert.deepEqual(cucitura.execution, { kind: "seam", seam: { width: 5, maxLength: 60, range: 60, blocks: [corpo.id] } });
   assert.match(cucitura.manualText, /Terreno Difficile/);

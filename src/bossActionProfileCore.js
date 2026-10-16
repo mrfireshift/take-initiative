@@ -1,6 +1,6 @@
 // Definition-only parsing and validation. No DOM, SDK, token mutation, or runtime state.
-export const BOSS_ACTION_PROFILE_VERSION = 20;
-export const BOSS_ACTION_PARSER_VERSION = 20;
+export const BOSS_ACTION_PROFILE_VERSION = 21;
+export const BOSS_ACTION_PARSER_VERSION = 21;
 // Version 3 adds one multi-target save shape: explicit GM-chosen targets, area metadata only
 // (never geometry), and a single on-failure condition with an actor-turn expiry.
 // Version 4 widens that shape to a closed set: cone, circle on a point or emanation from the boss;
@@ -47,6 +47,8 @@ export const BOSS_ACTION_PARSER_VERSION = 20;
 // without a slot of its own (Rock while Gather the Winter Sky is active), and a first Epic Action may allow only
 // some epic actions for the rest of the round (`allowOnly`, Gather the Winter Sky). Breathe Deep and Gather stay
 // manual registrations with a sequence; Breath of the Long Night and Meteor Swarm follow them as the last one.
+// Version 21 lets a single save start with the boss's own teleport (`teleport: { range }`, Il Corpo Non Era Qui):
+// the GM picks the destination and the token moves in the same command as the save.
 export const BOSS_ACTION_SPELLS = Object.freeze({ lentezza: "slow", "tempesta di ghiaccio": "ice-storm", "sfera congelante di otiluke": "freezing-sphere", "passo velato": "misty-step" });
 export const BOSS_ACTION_SPELL_IDS = Object.freeze(Object.values(BOSS_ACTION_SPELLS));
 export const BOSS_ACTION_GROUP_CONDITIONS = Object.freeze(["Accecato", "Prono"]);
@@ -233,7 +235,8 @@ function groupSaveExecution(value, version) {
 // Grasp grabs (Afferrato with an escape DC, Trattenuto) and may hit nothing on a success; Crush holds a
 // creature the Titan already grabbed and changes no condition. Blizzard Strike keeps its v1-v4 shape.
 function singleSaveExecution(value, version) {
-  object(value, ["kind", "save", "target", "damage", "success", "onFailed", "grapple", ...(version >= 6 ? ["requiresMark", "consumesMark"] : [])], "single save execution");
+  object(value, ["kind", "save", "target", "damage", "success", "onFailed", "grapple", ...(version >= 6 ? ["requiresMark", "consumesMark"] : []),
+    ...(version >= 21 ? ["teleport"] : [])], "single save execution");
   object(value.target, ["mode", "maxTargets", "range"], "target");
   if (value.target.mode !== "single" || value.target.maxTargets !== 1) fail("unsupported target mode");
   const target = { mode: "single", maxTargets: 1, ...(value.target.range !== undefined ? { range: number(value.target.range, "target range", 1) } : {}) };
@@ -270,6 +273,13 @@ function singleSaveExecution(value, version) {
     result.consumesMark = true;
   } else if (value.consumesMark !== undefined) fail("unsupported mark requirement");
   if (target.range === undefined && result.grapple === undefined && result.requiresMark === undefined) fail("single save needs a range, a grapple rule or a mark");
+  // v21: the boss teleports first; the target is then within range of the space left or the one reached.
+  if (value.teleport !== undefined) {
+    object(value.teleport, ["range"], "teleport");
+    const range = number(value.teleport.range, "teleport range", 5, 300);
+    if (range % 5 !== 0 || target.range === undefined || result.grapple || result.requiresMark) fail("unsupported teleport");
+    result.teleport = { range };
+  }
   return result;
 }
 // Frostmaiden's Kiss: melee spell attack; the necrotic damage taken heals the boss. The maximum-HP
@@ -587,7 +597,7 @@ export function sanitizeBossActionBinding(value) {
 // Only strict structured data is consumed here; validation never interprets HTML or prose.
 export function validateBossActionProfile(value) {
   object(value, ["profileVersion", "parserVersion", ...IDENTITY_KEYS, "name", "type", "rawSource", "diagnostics", "abilities"], "profile");
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
   const binding = sanitizeBossActionBinding(value);
   if (!binding) fail("profile identity is invalid");
   object(value.rawSource, ["html", "sourceName", "sourceHash"], "rawSource");
@@ -842,14 +852,14 @@ function grammar(body, category, { bossName = "", actionName = "" } = {}) {
           { id: "grab", condition: "Afferrato", escapeDC: Number(match[13]), maxSize: size(match[12]), single: true }] } },
       manualText: `Sul colpo ${match[9]} sceglie: Trascinare (${match[11]} ft. verso di sé, se ${match[10]} o più piccolo) oppure Afferrare (CD ${match[13]}, se ${match[12]} o più piccolo; una creatura alla volta). La taglia e il trascinamento si verificano sulla mappa.` };
   }
-  // A single save after a teleport, Prono on a failure (v18: Il Corpo Non Era Qui); the teleport stays on the map.
+  // A single save after a teleport, Prono on a failure (v18: Il Corpo Non Era Qui); v21: the teleport is the boss's own.
   match = body.match(/^([^.,]+) si teletrasporta fino a (\d+) ft\. in uno spazio libero che può percepire, poi sceglie una creatura entro (\d+) ft\. dallo spazio che ha lasciato o da quello in cui è comparso\. Tiro Salvezza su (Forza|Destrezza|Costituzione): CD (\d+), quella creatura\. Fallimento: (\d+) \((\d+d\d+(?:\s*[+-]\s*\d+)?)\) danni (da forza|psichici|contundenti|taglienti|da freddo|necrotici|radiosi), e il bersaglio ha la condizione Prono\. Successo: Metà danni soltanto\.$/i);
   if (match && bossName && match[1] === bossName) {
     const type = DAMAGE_PHRASES[match[8].toLowerCase()];
     return { automation: "PARTIAL", execution: { kind: "save-damage", save: { ability: { forza: "str", destrezza: "dex", costituzione: "con" }[match[4].toLowerCase()], dc: Number(match[5]) },
       target: { mode: "single", maxTargets: 1, range: Number(match[3]) }, damage: [{ id: type, formula: match[7].replace(/\s+/g, ""), printedAverage: Number(match[6]), type }],
-      success: "half", onFailed: { conditions: [{ condition: "Prono", expiry: { ...MANUAL_EXPIRY } }] } },
-      manualText: `Teletrasporto fino a ${match[2]} ft. sulla mappa; il bersaglio è una creatura entro ${match[3]} ft. dallo spazio lasciato o da quello d'arrivo.` };
+      success: "half", onFailed: { conditions: [{ condition: "Prono", expiry: { ...MANUAL_EXPIRY } }] }, teleport: { range: Number(match[2]) } },
+      manualText: `Lo spazio d'arrivo dev'essere libero e percepito da ${match[1]}; il bersaglio è una creatura entro ${match[3]} ft. dallo spazio lasciato o da quello d'arrivo.` };
   }
   // A throw with flat damage, always Prono, and a DEX save for a creature it is thrown against (v18: Scagliare).
   match = body.match(/^Una creatura Afferrata da ([^.,]+) viene scagliata fino a (\d+) ft\. in una direzione scelta da \1 e ha la condizione Prono\. La presa termina\. Il bersaglio subisce (\d+) \((\d+d\d+(?:\s*[+-]\s*\d+)?)\) danni (da forza|psichici|contundenti|taglienti|da freddo|necrotici|radiosi)\. Se viene scagliato contro un['’]altra creatura, quella creatura effettua un Tiro Salvezza su Destrezza: CD (\d+)\. Fallimento: subisce gli stessi danni e ha la condizione Prono\.$/i);

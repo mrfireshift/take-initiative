@@ -11,13 +11,14 @@ import { bossActionTargets,bossActionGroups,bossActionExecutionKind,bossActionDa
   reconcileBossDraftGroup,reconcileBossAreaGroup,bossGroupApplyBlocker,bossGroupRestrictions,validateBossActionGroupSelection,
   bossDefendedDamage,bossConditionDurationText,bossAreaNoun,bossCombatGroups,bossPassiveAbilities,
   bossFeetPerCell,bossInnerTargetIds,bossPointTooClose,bossGroupConfirmationText,bossGroupOutcomes,bossGroupMissingDamageIds,bossAreaTheme,bossPointDistanceFeet,
-  validateBossThrowSelection,validateBossEffectEndSelection,
+  validateBossThrowSelection,validateBossEffectEndSelection,bossReachFeet,
   BOSS_ACTIONS_HEIGHT } from "./bossActionsViewCore.js";
 import { damageDefensesForItem, relevantDamageDefenses, damageDefenseTag, EVASION_DEFENSE, evasionAppliesTo, evasionForItem, evasionFactor } from "./damageDefensesCore.js";
 import { bossActionAreaRuleId,bossAreaShapeLabel,bossGroupRequiresConfirmation,bossTargetImmune,bossGrappledIds,bossGrappleBlocker,bossEffectSummaryParts,
   bossMarkApplies,bossMarkReady,bossTargetMarked,bossMarkBlocker,bossMarkedDefenses,bossTriggerMet,bossActiveEffects,bossThrowDistances,
   bossSeamRuleId,BOSS_SEAM_ITEM_KEY } from "./bossActionExecutionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
+import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
 import "./popoverDrag.js";
 
 const POPOVER_ID=`${ID}/boss-actions`;
@@ -116,7 +117,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
       bossInstanceId:presentation?.bossInstanceId,targetId:draft.targetId,locked:draft.locked,mode:draft.mode,
       outcome:draft.outcome,amounts:draft.amounts,manualConfirmed:draft.manualConfirmed,targetIds:draft.targetIds,outcomes:draft.outcomes,area:draft.area,ignoredDefenses:draft.ignoredDefenses,
       areas:draft.areas,innerIds:draft.innerIds,targetAmounts:draft.targetAmounts,distance:draft.distance,damage:draft.damage,landing:draft.landing,effect:draft.effect,roll:draft.roll,
-      rider:draft.rider,collisionTargetId:draft.collisionTargetId,collisionOutcome:draft.collisionOutcome,seam:draft.seam,sequenceConfirmed:draft.sequenceConfirmed});
+      rider:draft.rider,collisionTargetId:draft.collisionTargetId,collisionOutcome:draft.collisionOutcome,seam:draft.seam,sequenceConfirmed:draft.sequenceConfirmed,
+      teleport:draft.teleport});
   }
   function restoreDraft() {
     const saved=readSession(draftStorageKey());
@@ -548,7 +550,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   // ---- resolution ----
   function newDraft(action) {
     return {action,kind:bossActionExecutionKind(action),targetId:null,locked:false,mode:action.execution?.attack?.modes?.[0] || "",
-      outcome:"",targetIds:[],outcomes:{},targetAmounts:{},distance:null,damage:"",landing:"",effect:null,roll:"",rider:"",collisionTargetId:"",collisionOutcome:"",seam:null,sequenceConfirmed:false,groupSuggestion:null,area:null,areas:[],innerIds:[],drawing:null,ignoredDefenses:{},amounts:Object.fromEntries(bossActionDamageComponents(action).map(component=>[component.id,String(component.defaultAmount)])),
+      outcome:"",targetIds:[],outcomes:{},targetAmounts:{},distance:null,damage:"",landing:"",effect:null,roll:"",rider:"",collisionTargetId:"",collisionOutcome:"",seam:null,sequenceConfirmed:false,teleport:null,teleportReach:null,groupSuggestion:null,area:null,areas:[],innerIds:[],drawing:null,ignoredDefenses:{},amounts:Object.fromEntries(bossActionDamageComponents(action).map(component=>[component.id,String(component.defaultAmount)])),
       manualConfirmed:false,picker:false,attempted:false,
       binding:{profileId:presentation.profile.profileId,profileRevision:presentation.profile.profileRevision,
         bossInstanceId:presentation.bossInstanceId,sceneIdentity:presentation.sceneIdentity,
@@ -564,7 +566,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
       targetAmounts:restore.targetAmounts && typeof restore.targetAmounts==="object"?structuredClone(restore.targetAmounts):{},
       distance:restore.distance ?? null,damage:restore.damage ?? "",landing:restore.landing || "",effect:restore.effect || null,roll:restore.roll ?? "",
       rider:restore.rider || "",collisionTargetId:restore.collisionTargetId || "",collisionOutcome:restore.collisionOutcome || "",
-      seam:restore.seam && typeof restore.seam==="object"?structuredClone(restore.seam):null,sequenceConfirmed:restore.sequenceConfirmed===true});
+      seam:restore.seam && typeof restore.seam==="object"?structuredClone(restore.seam):null,sequenceConfirmed:restore.sequenceConfirmed===true,
+      teleport:Number.isFinite(restore.teleport?.x) && Number.isFinite(restore.teleport?.y)?{x:restore.teleport.x,y:restore.teleport.y}:null});
     else applySelectionToDraft();
     setView("resolve");renderResolution();persistDraft();renderHeader();
     resolution.querySelector?.("[data-autofocus]")?.focus?.();
@@ -688,10 +691,92 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const hint=$("boss-apply-hint");if(hint)hint.textContent=busy?"Applicazione in corso…":reason;
     }
     resolution.querySelectorAll?.("[data-resource-commit]").forEach(element=>{if(element!==apply)element.disabled=busy || !available(draft.action);});
+    renderTeleportState();
+  }
+  // ---- Il Corpo Non Era Qui (v21): the destination of the boss's teleport, as with Misty Step ----
+  function teleportStep(teleport) {
+    const wrap=node("div");
+    const step=node("div","","area-step");step.id="boss-teleport-step";
+    const label=node("span","","area-label");label.id="boss-teleport-label";
+    const pick=button("","small");pick.id="boss-pick-teleport";
+    const cancel=button("Annulla","small");cancel.id="boss-cancel-teleport";
+    pick.addEventListener("click",()=>{void pickTeleport(teleport);});
+    cancel.addEventListener("click",()=>{if(draft?.drawing)void cancelArea(draft.drawing).catch(()=>{});});
+    step.append(label,pick,cancel);
+    const warning=node("p","","note warning");warning.id="boss-teleport-warning";warning.hidden=true;
+    wrap.append(step,warning);
+    return wrap;
+  }
+  function renderTeleportState() {
+    const teleport=draft?.action?.execution?.teleport;
+    const label=$("boss-teleport-label");
+    if(!teleport || !label) return;
+    const boss=presentation?.item?.name || "Il boss";
+    label.textContent=draft.drawing?`Sulla mappa: clicca la casella d'arrivo entro ${teleport.range} ft (Esc annulla).`
+      :draft.teleport?`Destinazione scelta: ${boss} si teletrasporta all'Applica.`:`1 · Dove si teletrasporta ${boss} (entro ${teleport.range} ft).`;
+    const pick=$("boss-pick-teleport"),cancel=$("boss-cancel-teleport");
+    if(pick){pick.textContent=draft.teleport?"Cambia":"Scegli destinazione";pick.disabled=busy || !!draft.drawing || !available(draft.action);}
+    if(cancel){cancel.hidden=!draft.drawing;cancel.disabled=busy;}
+    void checkTeleportReach();
+    const warning=$("boss-teleport-warning");
+    if(warning) {
+      const reach=draft.teleportReach,range=draft.action.execution.target.range;
+      const show=!!reach && reach.targetId===draft.targetId && reach.ok===false;
+      warning.hidden=!show;
+      warning.textContent=show?`${targetById(draft.targetId)?.name || "Il bersaglio"} non è entro ${range} ft dallo spazio lasciato né da quello d'arrivo: verifica sulla mappa.`:"";
+    }
+  }
+  // A warning, never a block: the creature must be within range of the space left or the one reached.
+  async function checkTeleportReach() {
+    const active=draft,destination=active?.teleport,targetId=active?.targetId,range=active?.action?.execution?.target?.range;
+    if(!destination || !targetId || !range) return;
+    const key=`${targetId}|${destination.x}|${destination.y}`;
+    if(active.teleportReach?.key===key || active.teleportReachPending===key) return;
+    active.teleportReachPending=key;
+    try {
+      const [dpi,scale,bossBounds,targetBounds]=await Promise.all([api.scene.grid.getDpi(),api.scene.grid.getScale(),
+        api.scene.items.getItemBounds([sourceId]),api.scene.items.getItemBounds([targetId])]);
+      const position=presentation?.item?.position;
+      const dx=Number(destination.x)-Number(position?.x),dy=Number(destination.y)-Number(position?.y);
+      if(!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+      const arrived={min:{x:bossBounds.min.x+dx,y:bossBounds.min.y+dy},max:{x:bossBounds.max.x+dx,y:bossBounds.max.y+dy}};
+      const feetPerCell=bossFeetPerCell(scale);
+      const reaches=[bossReachFeet(bossBounds,targetBounds,dpi,feetPerCell),bossReachFeet(arrived,targetBounds,dpi,feetPerCell)].filter(value=>value!==null);
+      if(draft!==active || !reaches.length) return;
+      active.teleportReach={key,targetId,ok:Math.min(...reaches)<=range};
+      renderTeleportState();
+    } catch {} finally {if(active.teleportReachPending===key)active.teleportReachPending=null;}
+  }
+  async function pickTeleport(teleport) {
+    if(!draft || busy || draft.drawing || !draft.action.execution?.teleport) return;
+    const active=draft,operation=lifecycle.capture(),requestId=createSpellAreaPlacementRequestId();
+    active.drawing=requestId;lockDraft();renderDraftState();
+    setStatus(`Clicca sulla mappa la casella d'arrivo di ${presentation?.item?.name || "boss"} (entro ${teleport.range} ft). Esc annulla.`);
+    const restore=!minimized;
+    if(restore)await setMinimized(true);
+    const theme=bossAreaTheme(presentation?.profile);
+    let result;
+    try {result=await placeArea({ruleId:`boss-action-area:teleport:${teleport.range}ft`,casterId:sourceId,requestId,
+      // One click picks the cell (aligned to the boss's footprint) and confirms it, like Blink's return.
+      context:{phase:"boss-action",actionId:active.action.id,pointSelection:true,directPointSelection:true,autoConfirmPoint:true,...(theme?{areaTheme:theme}:{})}});}
+    catch(error) {result={status:"error",error:String(error?.message || error)};}
+    if(restore && minimized)await setMinimized(false);
+    if(draft!==active || active.drawing!==requestId || !lifecycle.isCurrent(operation) || invalidated) return;
+    active.drawing=null;
+    const destination=result?.status==="confirmed"?spellTeleportDestinationPosition(result.preview):null;
+    if(destination) {
+      active.teleport=destination;active.teleportReach=null;
+      setStatus(`Destinazione scelta: ${presentation?.item?.name || "il boss"} si teletrasporta all'Applica.`);
+    } else setStatus(result?.status==="cancelled"?"Scelta annullata: nessuna modifica.":`Destinazione non scelta${result?.error?": "+result.error:""}.`);
+    renderDraftState();persistDraft();
   }
   function applyBlocker() {
     if(!draft) return "";
     if(!available(draft.action)) return availabilityFor(draft.action)?.reason || "Risorsa esaurita.";
+    if(draft.action.execution?.teleport) {
+      if(draft.drawing) return "Completa o annulla la scelta della destinazione.";
+      if(!draft.teleport) return "Scegli dove si teletrasporta il boss.";
+    }
     if(!targetById(draft.targetId)) return "Seleziona il bersaglio.";
     const grapple=bossGrappleBlocker(draft.action,draft.targetId,bossGrappledIds(targets,sourceId))
       || bossMarkBlocker(draft.action,targetById(draft.targetId),presentation?.profile);
@@ -786,6 +871,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const form=node("form");form.id="boss-action-form";form.className="view";
     const targetBox=node("div","","target-box");targetBox.id="boss-target-box";form.appendChild(targetBox);
     const execution=action.execution;
+    if(execution.teleport)form.appendChild(teleportStep(execution.teleport));
     if(draft.kind==="attack-damage") {
       form.appendChild(node("p",bossActionAttackSummary(action).replace(" (verifica manuale)",""),"stat-line"));
       if(execution.attack.modes.length>1)form.appendChild(segmented("boss-mode","mode",execution.attack.modes.map(value=>[value,value==="melee"?"Mischia":"Distanza"]),draft.mode,
@@ -830,8 +916,10 @@ export function bootBossActions(documentRef=document, overrides={}) {
       input.addEventListener("change",()=>{draft.manualConfirmed=input.checked;lockDraft();renderDraftState();renderTargetBox();persistDraft();});
       label.append(input,node("span","Prerequisito soddisfatto: "+action.manualText));step.appendChild(label);form.appendChild(step);
     } else if(draft.kind==="save-damage" && String(action.manualText || "").trim() && execution.grapple!=="hold") {
-      // Crush's text is already in the stat line; Titan's Grasp mixes a check before rolling with an effect.
-      const note=node("p",(execution.grapple==="grab"?"A mano: ":"Manuale su TS fallito: ")+action.manualText,"manual-step"+(execution.grapple==="grab"?" clamp":""));
+      // Crush's text is already in the stat line; Titan's Grasp mixes a check before rolling with an effect;
+      // the teleport's remainder (a free space, the target's distance) is checked before, not on a failure.
+      const before=execution.grapple==="grab" || execution.teleport;
+      const note=node("p",(before?"A mano: ":"Manuale su TS fallito: ")+action.manualText,"manual-step"+(before?" clamp":""));
       note.title=note.textContent;form.appendChild(note);
     }
     form.appendChild(detailsBlock(action));
@@ -1457,11 +1545,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(!draft || busy) return;
     if(!available(draft.action)){setStatus(availabilityFor(draft.action)?.reason || "Risorsa esaurita.");return;}
     // Freeze every decision before the commit: later selection changes cannot alter this request.
-    const frozen=structuredClone({targetId:draft.targetId,mode:draft.mode,outcome:draft.outcome,amounts:draft.amounts,manualConfirmed:draft.manualConfirmed,rider:draft.rider,
+    const frozen=structuredClone({targetId:draft.targetId,mode:draft.mode,outcome:draft.outcome,amounts:draft.amounts,manualConfirmed:draft.manualConfirmed,rider:draft.rider,teleport:draft.teleport,
       defenses:defensesOf(draft.targetId),marked:markAppliesFor(draft.targetId,draft.outcome),evasion:evasionFor(draft.targetId)});
     const validation=validateBossActionSelection({sourceId,action:draft.action,targetId:frozen.targetId,targets,
       mode:frozen.mode || draft.action.execution.attack?.modes?.[0] || "",outcome:frozen.outcome,manualConfirmed:frozen.manualConfirmed===true,
-      componentAmounts:frozen.amounts,rider:frozen.rider});
+      componentAmounts:frozen.amounts,rider:frozen.rider,teleport:frozen.teleport});
     if(!validation.ok){setStatus(validation.error);return;}
     const active=draft;
     return perform(async operation=>{
