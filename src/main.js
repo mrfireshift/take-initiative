@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import "./buildInfo.js";
+import { BUILD_INFO } from "./buildInfo.js";
 import { setupContextMenu } from "./contextMenu";
 import { mountInitiativeList } from "./initiativeList";
 import { initHPMemory } from "./hpMemory.js";
@@ -37,6 +37,19 @@ root.style.height = "100%";     // ← riempi tutto
 root.style.overflow = "hidden"; // ← niente seconda scrollbar
 
 app.replaceChildren(root);
+
+// Local build only (`npm run dev`): a small badge tells it apart from the online one.
+if (import.meta.env?.DEV) {
+  const badge = document.createElement("div");
+  badge.textContent = `LOCALE · ${String(BUILD_INFO.shortCommit || "").slice(0, 7)}${BUILD_INFO.dirty ? "*" : ""}`;
+  badge.title = `Build locale ${BUILD_INFO.version}, commit ${BUILD_INFO.shortCommit}${BUILD_INFO.dirty ? " con modifiche non committate" : ""}`;
+  Object.assign(badge.style, {
+    position: "fixed", right: "8px", bottom: "1px", zIndex: "2147483000", pointerEvents: "none",
+    padding: "0 5px", borderRadius: "6px", background: "rgba(251,191,36,.9)", color: "#111827",
+    font: "700 9px/12px Arial, sans-serif", letterSpacing: ".04em",
+  });
+  document.body.appendChild(badge);
+}
 
 const list = document.createElement("div");
 list.style.flex = "1 1 auto";   // ← prende tutto lo spazio disponibile

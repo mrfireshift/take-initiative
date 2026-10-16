@@ -2,6 +2,7 @@
 import { defineConfig } from "vite";
 import { readFileSync } from "node:fs";
 import { createBuildMetadata } from "./scripts/build-metadata.mjs";
+import { devManifestPlugin } from "./scripts/dev-manifest.mjs";
 import path from "node:path";   // 👈 usa path cross-platform (Windows ok)
 
 const packageJson = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
@@ -16,16 +17,22 @@ export default defineConfig(() => {
     __TAKE_INITIATIVE_BUILD_INFO__: JSON.stringify(buildInfo),
   },
 
-  plugins: [{
-    name: "take-initiative-build-info",
-    generateBundle() {
-      this.emitFile({
-        type: "asset",
-        fileName: "build-info.json",
-        source: `${JSON.stringify(buildInfo, null, 2)}\n`,
-      });
+  plugins: [
+    // `npm run dev` only: «Take Initiative! (LOCALE)» with amber icons, told apart from the online build in OBR.
+    devManifestPlugin({
+      readManifest: () => JSON.parse(readFileSync(new URL("./public/manifest.json", import.meta.url), "utf8")),
+    }),
+    {
+      name: "take-initiative-build-info",
+      generateBundle() {
+        this.emitFile({
+          type: "asset",
+          fileName: "build-info.json",
+          source: `${JSON.stringify(buildInfo, null, 2)}\n`,
+        });
+      },
     },
-  }],
+  ],
 
   server: {
     cors: { origin: "https://www.owlbear.rodeo" },
