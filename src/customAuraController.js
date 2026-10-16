@@ -84,24 +84,11 @@ function boundsCenter(bounds) {
   );
 }
 
-// The emanation outline of a token larger than 1x1: the rectangle through its edge-cell centres grown by
-// the radius, with rounded corners (a circle for a 1x1 token).
+// The emanation outline: always a circle. For a token larger than 1x1 it is centred on the token and reaches
+// the radius beyond its edge-cell centres along the axes; membership still follows the footprint
+// (buildFootprintEmanationArea), the circle is only the drawing.
 function footprintCommands(radius, halfWidth = 0, halfHeight = 0) {
-  if (!(halfWidth > 0) && !(halfHeight > 0)) return circleCommands(radius);
-  const k = radius * 0.5522847498;
-  const x = halfWidth, y = halfHeight, r = radius;
-  return [
-    [Command.MOVE, x + r, -y],
-    [Command.LINE, x + r, y],
-    [Command.CUBIC, x + r, y + k, x + k, y + r, x, y + r],
-    [Command.LINE, -x, y + r],
-    [Command.CUBIC, -x - k, y + r, -x - r, y + k, -x - r, y],
-    [Command.LINE, -x - r, -y],
-    [Command.CUBIC, -x - r, -y - k, -x - k, -y - r, -x, -y - r],
-    [Command.LINE, x, -y - r],
-    [Command.CUBIC, x + k, -y - r, x + r, -y - k, x + r, -y],
-    [Command.CLOSE],
-  ];
+  return circleCommands(radius + Math.max(0, Number(halfWidth) || 0, Number(halfHeight) || 0));
 }
 
 function circleCommands(radius) {
@@ -163,6 +150,7 @@ function auraVisualMetadata(aura, dpi, sizeCells, footprint = null) {
     // A larger token radiates from its edges: the outline follows its footprint.
     footprintWidthCells: footprint?.widthCells || 1,
     footprintHeightCells: footprint?.heightCells || 1,
+    outlineShape: "circle",
   };
 }
 
@@ -219,6 +207,8 @@ function auraVisualIsCompatible(item, desired) {
     // Outlines drawn before the footprint was recorded were 1x1 circles.
     && (Number(actual.footprintWidthCells) || 1) === expected.footprintWidthCells
     && (Number(actual.footprintHeightCells) || 1) === expected.footprintHeightCells
+    // Larger tokens once had a rounded-rectangle outline: those are redrawn as circles.
+    && (actual.outlineShape === expected.outlineShape || expected.footprintWidthCells * expected.footprintHeightCells === 1)
     && actual.fillColor === expected.fillColor
     && Number(actual.fillOpacity) === expected.fillOpacity
     && actual.strokeColor === expected.strokeColor
