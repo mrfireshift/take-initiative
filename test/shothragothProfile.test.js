@@ -17,24 +17,24 @@ const creature = (id, hp, extra = {}) => ({ id, name: id, type: "IMAGE", layer: 
 const defenses = (list) => ({ initiativeCard: { damageDefenses: { immunities: [], resistances: [], vulnerabilities: [], ...list } } });
 const boss = creature("shothragoth", 406);
 
-test("the fixture imports as one phase of «Shothragoth»: seven traits, eight epic actions, Italian names", () => {
+test("the fixture imports as one phase of «Shothragoth»: seven traits, ten epic actions, Italian names", () => {
   assert.equal(profile.name, "Shothragoth, l'Informe");
   assert.deepEqual([profile.bossDefinitionId, profile.phaseId, profile.profileId], ["shothragoth", "fase1", "shothragoth-fase1"]);
   const counts = {};
   for (const entry of profile.abilities) counts[entry.category] = (counts[entry.category] || 0) + 1;
-  assert.deepEqual(counts, { trait: 7, "epic-action": 8 });
+  assert.deepEqual(counts, { trait: 7, "epic-action": 10 });
   assert.deepEqual(profile.abilities.filter((entry) => entry.category === "epic-action").map((entry) => entry.name), [
     "Arto che Precede il Corpo", "Fauce Impossibile", "Scagliare", "Marea Informe", "Il Corpo Non Era Qui", "Cucitura del Non-Luogo",
-    "Strappare la Cucitura", "Resistenza Epica"]);
+    "Strappare la Cucitura", "Cucitura Spezzata", "Strappare le Cuciture", "Resistenza Epica"]);
   assert.deepEqual(ability("Strappare la Cucitura").usage, { note: "Special Recharge" }, "«(Ricarica Speciale)» is the recharge note");
   assert.deepEqual(ability("Marea Informe").usage, { limit: 1, period: "round" });
 });
 
-test("S1, S2 and S3: nine abilities run on shared shapes; the others stay manual reference text", () => {
+test("S1, S2, S3 and the chained seam: eleven abilities run on shared shapes; the others stay manual reference text", () => {
   const running = profile.abilities.filter((entry) => entry.automation !== "UNSUPPORTED").map((entry) => [entry.name, entry.automation]);
   assert.deepEqual(running, [["Presenza Incompatibile", "PARTIAL"], ["Arto che Precede il Corpo", "PARTIAL"], ["Fauce Impossibile", "SUPPORTED"], ["Scagliare", "PARTIAL"],
     ["Marea Informe", "PARTIAL"], ["Il Corpo Non Era Qui", "PARTIAL"], ["Cucitura del Non-Luogo", "PARTIAL"], ["Strappare la Cucitura", "PARTIAL"],
-    ["Resistenza Epica", "PARTIAL"]]);
+    ["Cucitura Spezzata", "PARTIAL"], ["Strappare le Cuciture", "PARTIAL"], ["Resistenza Epica", "PARTIAL"]]);
   for (const entry of profile.abilities.filter((row) => row.automation === "UNSUPPORTED")) {
     assert.equal(entry.execution, undefined, entry.name);
     assert.equal(entry.manualText, entry.rawText, entry.name);

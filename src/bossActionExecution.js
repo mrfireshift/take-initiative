@@ -5,7 +5,7 @@ import { sanitizeBossActionBinding, bossSpellReferenceIds } from "./bossActionPr
 import { createBossActionProfileStore } from "./bossActionProfileStore.js";
 import { BOSS_ACTION_STATE_FIELD, bossInstanceForItem, isBossActionCreature, buildBossActionMutation, buildBossActionUse, bossRuntimeStateForItem, buildBossResourceReset,
   buildBossActionGroupMutation, isBossActionGroupExecution, bossGrappledIds, buildBossThrowMutation, buildBossEffectEndMutation,
-  bossProfileUsesSequence, bossSequenceBlocker, bossSequenceWarning, bossEpicSlot, bossActiveSeam, buildBossSeamMutation, BOSS_SEAM_ITEM_KEY } from "./bossActionExecutionCore.js";
+  bossProfileUsesSequence, bossSequenceBlocker, bossSequenceWarning, bossHpGateBlocker, bossEpicSlot, bossActiveSeam, buildBossSeamMutation, BOSS_SEAM_ITEM_KEY } from "./bossActionExecutionCore.js";
 import { createMonsterActionContext } from "./monsterActionContextCore.js";
 import { getEffectsMutationSceneContext, runEffectsMutation, requireAppliedEffectsMutation } from "./effectsMutations.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
@@ -107,6 +107,11 @@ export function createBossActionRuntime({
     const state=profile?bossRuntimeStateForItem(scope.item,profile):null;
     const availability=profile?Object.fromEntries(profile.abilities.map(action=>[action.id,
       bossActionUsageAvailability(action,state,{phaseId:profile.phaseId,round:scope.round})])):{};
+    // v22: an ability for the boss above or at/below half its hit points (from the token's canonical HP).
+    if(profile) for(const action of profile.abilities) {
+      const gated=bossHpGateBlocker(action,scope.item);
+      if(gated && availability[action.id]?.available!==false) availability[action.id]={...availability[action.id],available:false,reason:gated,hpGated:true};
+    }
     // v19 Epic Action sequence: a block from the token's round log, a "last slot" warning from the order,
     // the seam of this round and the seam drawings left on the map.
     let sequence=null;
@@ -367,9 +372,9 @@ export function createBossActionRuntime({
         ...(plan.causality?.throw?{throw:structuredClone(plan.causality.throw)}:{}),
         ...(plan.causality?.onHit?{onHit:structuredClone(plan.causality.onHit)}:{}),
         ...(plan.causality?.effectEnd?{effectEnd:{name:plan.effect.name,roll:plan.roll,threshold:plan.causality.effectEnd.threshold,passed:plan.passed}}:{}),
-        ...(plan.causality?.seam?{seam:{lengthFeet:plan.causality.seam.lengthFeet}}:{}),
+        ...(plan.causality?.seam?{seam:{lengthFeet:plan.causality.seam.lengthFeet,...(plan.causality.seam.segmentsFeet?{segments:plan.causality.seam.segmentsFeet.length}:{})}}:{}),
         ...(plan.causality?.teleport?{teleport:structuredClone(plan.causality.teleport)}:{}),
-        ...(plan.seamDrawingIds?{seamTorn:true}:{}),
+        ...(plan.seamDrawingIds?{seamTorn:true,...(action.execution.target?.area?.segments?{seamChain:true}:{})}:{}),
         ...(group?{groupTargets:plan.causality.targets.map(target=>({id:target.id,name:target.name || target.id,outcome:target.outcome,
           ...(target.requestedDamage!==undefined?{damage:target.requestedDamage,hpBefore:target.hpBefore,hpAfter:target.hpAfter}:{}),
           conditions:target.conditions.map(condition=>condition.condition),

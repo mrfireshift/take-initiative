@@ -27,6 +27,7 @@ import {
   shouldRetreatSpeedMovement,
 } from "./speedCheckCore.js";
 import { normalizeElevation } from "./distance3dCore.js";
+import { activeBossSeamTerrainAreas, bossSeamTerrainSourceItems } from "./bossSeamTerrainCore.js";
 import {
   SPELL_STATIC_ZONE_META_KEY,
   translatedZoneArea,
@@ -358,6 +359,17 @@ async function liveDirectionalMovementModifiers(state) {
   }).filter(Boolean);
 }
 
+// Cucitura (Boss Actions): the seams of the current round are difficult terrain for every creature that is not
+// immune to it; only the part of a step inside a seam costs more. The items come from the last scene item event
+// (no extra read per step): the seam drawing and the boss's seam record both arrive as item changes.
+let seamTerrainItems = [];
+async function liveTerrainMovementModifiers(state) {
+  if ((Array.isArray(state?.movementImmunities) ? state.movementImmunities : []).includes("difficult-terrain")) return [];
+  if (!seamTerrainItems.length) return [];
+  const metadata = await OBR.scene.getMetadata().catch(() => ({}));
+  return activeBossSeamTerrainAreas(seamTerrainItems, Number(metadata?.[STATE_KEY]?.round));
+}
+
 function movementResolutionSignature(source) {
   return JSON.stringify({
     baseSpeedMeters: source?.baseSpeedMeters,
@@ -569,6 +581,8 @@ function mountSpeedMetadataListener() {
   speedMetadataListenerMounted = true;
   subscribeSceneItemChanges((event) => {
     if (event.sceneEpoch !== undefined && !isCurrentSceneEpoch(event.sceneEpoch)) return;
+    // Only what the seam terrain needs: boss tokens with a seam record and the seam drawings.
+    seamTerrainItems = bossSeamTerrainSourceItems(event.items);
     const state = movementState;
     const itemId = state?.itemId || currentTurn?.actorId;
     if (!itemId) return;
@@ -1049,6 +1063,10 @@ async function processSpeedCheckMovement(movement, turn) {
     ? []
     : await liveDirectionalMovementModifiers(state);
   if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
+  const terrainModifiers = verticalMovement
+    ? []
+    : await liveTerrainMovementModifiers(state).catch(() => []);
+  if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
   const climbingMovement = verticalMovement
     ? verticalMode === "climb"
     : state.climbing === true;
@@ -1061,6 +1079,7 @@ async function processSpeedCheckMovement(movement, turn) {
         ? climbingMovementCostMultiplier(state.climbing, state.movementModes)
         : 1),
     directionalModifiers,
+    terrainModifiers,
   });
   const chargedCells = movementCost.chargedCells;
   const beforeSnapshot = buildSpeedCheckSnapshot(state, true, movementLimitEnabled);

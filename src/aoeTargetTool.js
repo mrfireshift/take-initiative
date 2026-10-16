@@ -197,6 +197,14 @@ function normalizedPresetLine(context, rule) {
   return { start, end };
 }
 
+// A line that starts on a given point (Cucitura Spezzata: each segment starts where the previous one ended):
+// the start is not snapped and the pointer moves only the end. Only a line placement whose context carries
+// lineStart uses it; every other placement is unchanged.
+function normalizedLineStart(context, rule) {
+  const start = point(context?.lineStart);
+  return rule?.geometry?.shape === "line" && start && !context?.presetLine ? start : null;
+}
+
 // A confirmed shape kept on the map as a plain area (Cucitura del Non-Luogo): the requester names the item,
 // so it can remove exactly that drawing later. Only a placement whose context carries keepOnMap uses it.
 function normalizedKeepOnMap(context) {
@@ -585,6 +593,7 @@ async function beginSpellPlacement(data) {
         : null,
       areaBatch: normalizedAreaBatch(data?.context, rule),
       presetLine: normalizedPresetLine(data?.context, rule),
+      lineStart: normalizedLineStart(data?.context, rule),
       previewInteractions: [],
     };
     spellPlacementSession = runtime;
@@ -1247,7 +1256,7 @@ async function prepareDrag(state) {
         : !state.spellPlacementRequestId && state.type === "cone"
           ? nearestGridSnap(state.rawStart, corner, state.dpi)
           : nearestGridSnap(state.rawStart, corner, state.dpi);
-    state.originCellCenter = snapped?.position || corner;
+    state.originCellCenter = state.lineStart || snapped?.position || corner;
     state.originSnapKind = snapped?.kind || (pointPlacement ? "center" : snapToVertex ? "corner" : "center");
     state.pointPosition = state.originCellCenter;
     state.start = state.originCellCenter;
@@ -1880,6 +1889,8 @@ function startDrag(type, event) {
   const effectiveType = constrained ? placement.rule.geometry.shape : type;
   const rawStart = constrained && placement.presetLine
     ? placement.presetLine.start
+    : constrained && placement.lineStart
+    ? placement.lineStart
     : constrained && placement.anchorOrigin
     ? placement.anchorOrigin
     : constrained && placement.rule.placement.origin === "caster"
@@ -1926,6 +1937,7 @@ function startDrag(type, event) {
     casterBounds: constrained ? placement.casterBounds : null,
     anchorOrigin: constrained ? placement.anchorOrigin : null,
     presetLine: constrained ? placement.presetLine || null : null,
+    lineStart: constrained ? placement.lineStart || null : null,
     sizeCells: 0,
     widthCells: 0,
     measureLabel: "",

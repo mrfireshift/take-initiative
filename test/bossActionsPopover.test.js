@@ -661,7 +661,7 @@ test("library: a token on a superseded revision is flagged; cleanup is two-step 
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   await importVariant(f,"auril-phase-2.html",html=>html.replace("Auril occupa due","Auril ora occupa due"));
   await f.controller.refresh();
-  assert.match(optionTexts(f)[0],/v21 · [a-f0-9]{8} · collegata qui · superata/);
+  assert.match(optionTexts(f)[0],/v22 · [a-f0-9]{8} · collegata qui · superata/);
   assert.doesNotMatch(optionTexts(f)[1],/superata/);
   assert.equal(f.$("boss-profile-warning").hidden,false);
   assert.match(f.$("boss-profile-warning").textContent,/Il token usa una revisione superata/);
@@ -1039,6 +1039,76 @@ test("Cucitura: the slot in the header, the seam drawn up to 120 ft and kept on 
   assert.equal(f.calls.length,1);
   assert.deepEqual(f.calls[0].seam,{...SEAM_LINE,lengthFeet:45,itemIds:[keep.id,`${keep.id}-geometry`,...portalIds]});
   assert.equal(f.calls[0].actionId,actionNamed(f,"Cucitura del Non-Luogo").id);
+  f.controller.destroy();
+});
+
+// Cucitura Spezzata: A–B, B–C, C–D on a 100 px grid of 5 ft cells (20 + 15 + 20 ft).
+const CHAIN=[{x:0,y:0},{x:400,y:0},{x:400,y:300},{x:800,y:300}];
+test("Cucitura Spezzata: three segments one after the other, each from the previous end and up to 120 ft; a portal on every point",async()=>{
+  const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"shothragoth.html");grid(f);
+  withSequence(f,()=>({}));await f.controller.refresh();
+  if(f.$("boss-tab-actions"))await f.$("boss-tab-actions").click();await tick();
+  assert.match(textOf(row(f,"Cucitura Spezzata")),/4 punti · fino a 120 ft per tratto · prima del round/);
+  await open(f,"Cucitura Spezzata");
+  assert.match(textOf(f.$("boss-resolution")),/3 cuciture larghe 5 ft fra 4 punti entro 60 ft · fino a 120 ft ciascuna/);
+  assert.equal(f.$("boss-draw-seam").textContent,"Disegna cuciture");
+  assert.match(f.$("boss-apply-hint").textContent,/Disegna tutte le cuciture \(0\/3\)/);
+  const draw=async(start,end)=>{await f.$("boss-draw-seam").click();await tick();const pending=f.placements.at(-1);
+    pending.resolve({status:"confirmed",preview:{start,end,targetIds:[]}});await tick();await tick();return pending.request;};
+  const [A,B,C,D]=CHAIN;
+  const first=await draw(A,B);
+  assert.equal(first.ruleId,"boss-action-area:line:120ft:5ft");
+  assert.equal(first.context.lineStart,undefined);
+  assert.match(first.context.keepOnMap.id,/^boss-seam-.+-s1$/);
+  assert.equal(f.$("boss-seam-label").textContent,"Cuciture 1/3: 20 ft.");
+  assert.equal(f.$("boss-draw-seam").textContent,"Disegna cucitura 2/3");
+  assert.equal(f.$("boss-restart-seam").hidden,false);
+  const second=await draw(B,C);
+  assert.equal(second.ruleId,"boss-action-area:line:120ft:5ft","every segment reaches the full 120 ft");
+  assert.deepEqual(second.context.lineStart,B,"the segment starts where the previous one ended");
+  assert.equal(f.added.length,0,"the portals wait for the whole chain");
+  const third=await draw(C,D);
+  assert.equal(third.ruleId,"boss-action-area:line:120ft:5ft");
+  assert.deepEqual(third.context.lineStart,C);
+  const base=first.context.keepOnMap.id.replace(/-s1$/,"");
+  assert.deepEqual(f.added.map(item=>[item.id,item.layer,item.attachedTo,item.position]),[[`${base}-portal-1`,"PROP",`${base}-s1`,A],
+    [`${base}-portal-2`,"PROP",`${base}-s1`,B],[`${base}-portal-3`,"PROP",`${base}-s2`,C],[`${base}-portal-4`,"PROP",`${base}-s3`,D]]);
+  assert.equal(f.$("boss-seam-label").textContent,"Cuciture disegnate: 3 tratti, 55 ft in tutto.");
+  assert.equal(f.$("boss-restart-seam").hidden,true);
+  assert.equal(apply(f).disabled,false);
+  await submit(f);
+  assert.deepEqual([f.calls[0].seam.points,f.calls[0].seam.segmentsFeet,f.calls[0].seam.lengthFeet],[CHAIN,[20,15,20],55]);
+  assert.equal(f.calls[0].seam.itemIds.length,10,"three areas, their outlines and four portals");
+  f.controller.destroy();
+});
+
+test("Strappare le Cuciture: the GM picks the segments; a line on each one in turn, the group is their union",async()=>{
+  const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"shothragoth.html");
+  const [A,B,C,D]=CHAIN;
+  const seam={round:3,actionId:actionNamed(f,"Cucitura Spezzata").id,start:A,end:D,points:CHAIN,segmentsFeet:[20,15,20],lengthFeet:55,itemIds:[]};
+  withSequence(f,()=>({seam,slot:{total:3,index:3,last:true,after:"Sera",remaining:[]}}));await f.controller.refresh();
+  if(f.$("boss-tab-actions"))await f.$("boss-tab-actions").click();await tick();
+  await open(f,"Strappare le Cuciture");
+  const boxes=f.$("boss-seam-segments").querySelectorAll("input");
+  assert.deepEqual(boxes.map(box=>[box.dataset.segment,box.checked]),[["0",true],["1",true],["2",true]],"every segment by default");
+  assert.match(textOf(f.$("boss-seam-segments")),/A–B · 20 ft.*B–C · 15 ft.*C–D · 20 ft/);
+  boxes[1].checked=false;await boxes[1].emit("change");await tick();
+  assert.equal(f.$("boss-draw-area").textContent,"Mostra le linee");
+  assert.match(f.$("boss-apply-hint").textContent,/Mostra le linee delle cuciture scelte \(0\/2\)/);
+  await f.$("boss-draw-area").click();await tick();
+  let pending=f.placements.at(-1);
+  assert.equal(pending.request.ruleId,"boss-action-area:seam:20ft");
+  assert.deepEqual(pending.request.context.presetLine,{start:A,end:B});
+  pending.resolve({status:"confirmed",preview:{start:A,end:B,targetIds:["dars","mira"]}});await tick();await tick();await tick();
+  pending=f.placements.at(-1);
+  assert.deepEqual(pending.request.context.presetLine,{start:C,end:D},"the next chosen segment follows on its own");
+  pending.resolve({status:"confirmed",preview:{start:C,end:D,targetIds:["dars"]}});await tick();await tick();
+  assert.equal(f.placements.length,2);
+  assert.match(textOf(f.$("boss-area-step")),/2 linee mostrate: 2 creature colpite/);
+  await groupOutcome(f,"dars","failed").click();await groupOutcome(f,"mira","passed").click();
+  await submit(f);
+  assert.deepEqual(f.calls[0].areaPlacements.map(row=>[row.start,row.end,row.segment,row.areaTargetIds]),[[A,B,0,["dars","mira"]],[C,D,2,["dars"]]]);
+  assert.deepEqual(f.calls[0].targetIds,["dars","mira"],"Dars, in two lines, is one target");
   f.controller.destroy();
 });
 

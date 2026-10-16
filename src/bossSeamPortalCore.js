@@ -37,3 +37,20 @@ export function bossSeamPortalSpecs({ itemId, sourceId, actionInstanceId, start,
     metadata: { [BOSS_SEAM_ITEM_KEY]: { sourceId: String(sourceId), actionInstanceId: String(actionInstanceId || ""), portal: side } },
   }));
 }
+
+// v22 (Cucitura Spezzata): one portal on each point of the chain, attached to the segment that starts or ends there
+// (A and B to the first segment, every other point to the segment that ends on it).
+export function bossSeamChainPortalSpecs({ baseId, segmentIds = [], sourceId, actionInstanceId, points = [], name = "Cucitura Spezzata" } = {}) {
+  const id = String(baseId || "").trim();
+  const values = (Array.isArray(points) ? points : []).map(finitePoint);
+  const segments = (Array.isArray(segmentIds) ? segmentIds : []).map((value) => String(value || "").trim());
+  if (!id || values.length < 2 || values.some((value) => !value) || segments.length !== values.length - 1 || segments.some((value) => !value)
+    || !String(sourceId || "").trim()) return [];
+  return values.map((position, index) => ({
+    id: `${id}-portal-${index + 1}`,
+    attachedTo: segments[Math.max(0, index - 1)],
+    position,
+    name: `${String(name || "Cucitura").slice(0, 60)} · portale ${String.fromCharCode(65 + index)}`,
+    metadata: { [BOSS_SEAM_ITEM_KEY]: { sourceId: String(sourceId), actionInstanceId: String(actionInstanceId || ""), portal: String.fromCharCode(65 + index) } },
+  }));
+}

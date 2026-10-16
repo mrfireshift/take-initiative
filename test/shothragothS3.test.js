@@ -26,8 +26,9 @@ const seam = { round: 2, actionId: cucitura.id, actionInstanceId: "boss-action:c
 const state = (round, actionIds, extra = {}) => ({ epicLog: { round, actionIds }, ...extra });
 
 test("Cucitura and Strappare as closed v19 data; the names they refer to are resolved inside the profile", async () => {
-  assert.deepEqual([profile.profileVersion, profile.parserVersion], [21, 21]);
+  assert.deepEqual([profile.profileVersion, profile.parserVersion], [22, 22]);
   assert.deepEqual(cucitura.sequence, { slot: "first" });
+  assert.equal(cucitura.hpGate, "unbloodied", "v22: above half HP only (the chained seam replaces it)");
   assert.deepEqual(cucitura.execution, { kind: "seam", seam: { width: 5, maxLength: 120, range: 60, blocks: [corpo.id] } });
   assert.match(cucitura.manualText, /Terreno Difficile/);
   assert.deepEqual(strappare.sequence, { slot: "last", after: cucitura.id });
@@ -51,8 +52,8 @@ test("Cucitura and Strappare as closed v19 data; the names they refer to are res
     ["Breathe Deep", "Breath of the Long Night", "Rock", "Meteor Swarm", "Gather the Winter Sky"], "tranche 12: Auril's sequence");
 
   for (const [from, to, name] of [
-    ["soltanto se è la prima Azione Epica che usa nel round. Sceglie", "soltanto se è l'ultima Azione Epica che usa nel round. Sceglie", "Cucitura del Non-Luogo"],
-    ["Shothragoth non può usare Il Corpo Non Era Qui.", "Shothragoth non può usare Il Passo Inesistente.", "Cucitura del Non-Luogo"],
+    ["soltanto se è la prima Azione Epica che usa nel round e se ha più della metà dei suoi Punti Ferita. Sceglie due", "soltanto se è l'ultima Azione Epica che usa nel round e se ha più della metà dei suoi Punti Ferita. Sceglie due", "Cucitura del Non-Luogo"],
+    ["Finché la cucitura esiste, Shothragoth non può usare Il Corpo Non Era Qui.", "Finché la cucitura esiste, Shothragoth non può usare Il Passo Inesistente.", "Cucitura del Non-Luogo"],
     ["ha usato Cucitura del Non-Luogo.", "ha usato Fauce Impossibile.", "Strappare la Cucitura"],
     ["Tiro Salvezza su Intelligenza: CD 18, ogni creatura nella Linea", "Tiro Salvezza su Carisma: CD 18, ogni creatura nella Linea", "Strappare la Cucitura"],
   ]) {
@@ -63,7 +64,7 @@ test("Cucitura and Strappare as closed v19 data; the names they refer to are res
     assert.equal(entry.sequence, undefined, to);
   }
   // Strappare refers to a seam: without it, it stays manual too.
-  const noSeam = await importBossActionHTML(html.replace("prima Azione Epica che usa nel round. Sceglie", "prima Azione Epica del round. Sceglie"));
+  const noSeam = await importBossActionHTML(html.replace("prima Azione Epica che usa nel round e se ha più della metà dei suoi Punti Ferita. Sceglie due", "prima Azione Epica del round e se ha più della metà dei suoi Punti Ferita. Sceglie due"));
   assert.equal(noSeam.abilities.find((row) => row.name === "Strappare la Cucitura").automation, "UNSUPPORTED");
   for (const mutate of [
     (p) => { p.abilities.find((e) => e.name === "Cucitura del Non-Luogo").sequence.slot = "last"; },

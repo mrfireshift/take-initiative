@@ -231,6 +231,8 @@ OBR.broadcast.onMessage(SPELL_AREA_PLACEMENT_CHANNEL, ({ data }) => {
     if (Number(data.context?.areaBatch?.count) >= 2) Object.assign(placement, { batch: { count: Number(data.context.areaBatch.count), minDistanceFeet: Number(data.context.areaBatch.minDistanceFeet) || 0, innerRadiusFeet: Number(data.context.areaBatch.innerRadiusFeet) || 0 }, shapes: [] });
     if (data.context?.keepOnMap?.id) placement.keep = structuredClone(data.context.keepOnMap);
     if (data.context?.autoConfirmPoint === true) placement.autoConfirm = true;
+    // Cucitura Spezzata: a segment starts where the previous one ended; a click sets its end.
+    if (data.context?.lineStart && !data.context?.presetLine) placement.origin = structuredClone(data.context.lineStart);
     if (data.context?.presetLine?.start && data.context?.presetLine?.end) {
       placement.preset = structuredClone(data.context.presetLine); placement.origin = placement.preset.start;
       Object.assign(placement, lineFor(placement.origin, placement.preset.end)); drawPlacement();
@@ -478,6 +480,31 @@ const scenarios = {
     await press('[data-group-all="failed"]');
   },
   async "strappare-final"() { await scenarios["strappare-ready"](); await press("#boss-apply"); await sleep(900); },
+  // Cucitura Spezzata: the boss at half HP or less; four points, three segments drawn one after the other.
+  async "spezzata-drawing"() {
+    fakeHost.setItems(fakeHost.state.items.map((item) => item.id === "auril" ? { ...item, metadata: { ...item.metadata, [META]: { ...item.metadata[META], hp: 250 } } } : item));
+    await sleep(300); await openBoss(); (await row("Cucitura Spezzata")).click(); await sleep(300);
+    const segment = async (clicks) => {
+      await press("#boss-draw-seam"); await waitFor(() => placement);
+      for (const [x, y] of clicks) placementClick({ clientX: x, clientY: y });
+      await sleep(150); confirmButton.click(); await sleep(700);
+    };
+    await segment([[420, 520], [840, 520]]);
+    await segment([[980, 330]]);
+    await segment([[1260, 330]]);
+  },
+  async "spezzata-final"() { await scenarios["spezzata-drawing"](); await press("#boss-apply"); await sleep(800); },
+  // Strappare le Cuciture in the last slot: A–B and C–D torn, B–C left; Mira, Dars, Sera and the goblins fail.
+  async "strappare-cuciture-ready"() {
+    await scenarios["spezzata-final"]();
+    fakeHost.setSceneMetadata({ [STATE]: { ...fakeHost.state.sceneMetadata[STATE], current: 3 } }); await sleep(600);
+    (await row("Strappare le Cuciture")).click(); await sleep(300);
+    await press('#boss-seam-segments input[data-segment="1"]');
+    await press("#boss-draw-area");
+    for (let line = 0; line < 2; line += 1) { await waitFor(() => placement?.area); await sleep(150); confirmButton.click(); await sleep(900); }
+    await press('[data-group-all="failed"]');
+  },
+  async "strappare-cuciture-final"() { await scenarios["strappare-cuciture-ready"](); await press("#boss-apply"); await sleep(900); },
   // The extended tracker: docked left (default), then right with the handle's click, then dragged.
   async tracker() { localStorage.removeItem("com.thebigpicture.initiative/tracker-classic-placement"); await openTrackerPopover({ refresh: true }); await sleep(1500); },
   async "tracker-right"() { await scenarios.tracker(); await toggleClassicTrackerSide(); await sleep(1500); },

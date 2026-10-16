@@ -1,6 +1,6 @@
 // Definition-only parsing and validation. No DOM, SDK, token mutation, or runtime state.
-export const BOSS_ACTION_PROFILE_VERSION = 21;
-export const BOSS_ACTION_PARSER_VERSION = 21;
+export const BOSS_ACTION_PROFILE_VERSION = 22;
+export const BOSS_ACTION_PARSER_VERSION = 22;
 // Version 3 adds one multi-target save shape: explicit GM-chosen targets, area metadata only
 // (never geometry), and a single on-failure condition with an actor-turn expiry.
 // Version 4 widens that shape to a closed set: cone, circle on a point or emanation from the boss;
@@ -197,7 +197,7 @@ function groupImmunity(value, conditions) {
   return { immunity: { condition: value.immunity.condition, duration: "24h" } };
 }
 function groupArea(value, version) {
-  object(value, ["shape", "size", "origin", ...(version >= 9 ? ["count", "innerRadius"] : [])], "target area");
+  object(value, ["shape", "size", "origin", ...(version >= 9 ? ["count", "innerRadius"] : []), ...(version >= 22 ? ["segments"] : [])], "target area");
   if (!(version >= 19 ? [...GROUP_AREA_SHAPES, "seam"] : version >= 4 ? GROUP_AREA_SHAPES : ["cone"]).includes(value.shape)) fail("unsupported area shape");
   const area = { shape: value.shape, size: number(value.size, "area size", 1, 1000), origin: string(value.origin, "area origin") };
   // Meteor Swarm: several circles on free points; the inner radius marks "within N ft of a point".
@@ -205,6 +205,11 @@ function groupArea(value, version) {
     if (value.shape !== "circle" || value.count === undefined) fail("unsupported multi-point area");
     area.count = number(value.count, "area count", 2, 6);
     if (value.innerRadius !== undefined) area.innerRadius = number(value.innerRadius, "inner radius", 1, area.size);
+  }
+  // v22: lines on the segments of a chained seam that the GM chooses (Strappare le Cuciture).
+  if (value.segments !== undefined) {
+    if (value.shape !== "seam" || value.segments !== true) fail("unsupported seam segments");
+    area.segments = true;
   }
   return area;
 }
@@ -497,14 +502,17 @@ function spellListExecution(value, version) {
 // Spells a Spellcasting reference can open: the v8 list, or the single Slow of v1-v7 profiles.
 // Cucitura del Non-Luogo (v19): a line between two points the GM draws, kept until the end of the round;
 // while it exists the listed epic actions of the same profile cannot be used.
-function seamExecution(value) {
+// v22: a chain of points (Cucitura Spezzata), each joined to the next; maxLength is then the length of each segment.
+function seamExecution(value, version) {
   object(value, ["kind", "seam"], "seam execution");
-  object(value.seam, ["width", "maxLength", "range", "blocks"], "seam");
+  object(value.seam, ["width", "maxLength", "range", "blocks", ...(version >= 22 ? ["points"] : [])], "seam");
   const blocks = list(value.seam.blocks, "seam blocks").map((id) => identity(id, "seam block"));
   if (blocks.length > 4 || new Set(blocks).size !== blocks.length) fail("seam blocks are invalid");
   return { kind: "seam", seam: { width: number(value.seam.width, "seam width", 5, 30), maxLength: number(value.seam.maxLength, "seam length", 5, 300),
-    range: number(value.seam.range, "seam range", 5, 300), blocks } };
+    range: number(value.seam.range, "seam range", 5, 300), blocks, ...(value.seam.points !== undefined ? { points: number(value.seam.points, "seam points", 3, 4) } : {}) } };
 }
+// v22: an ability usable only above or at/below half of the boss's hit points (the alternative seam combo).
+const HP_GATES = new Set(["bloodied", "unbloodied"]);
 // The Epic Action sequence (v19): the first or the last Epic Action of the round, optionally after another one.
 // v20: `after` alone (no slot of its own) and `allowOnly` on a first Epic Action.
 function sequence(value, version) {
@@ -531,7 +539,7 @@ function execution(value, version) {
   if (version >= 10 && value?.kind === "attack-damage" && value?.target?.mode === "multiple") return groupAttackExecution(value);
   if (version >= 16 && value?.kind === "throw") return throwExecution(value, version);
   if (version >= 16 && value?.kind === "effect-end") return effectEndExecution(value);
-  if (version >= 19 && value?.kind === "seam") return seamExecution(value);
+  if (version >= 19 && value?.kind === "seam") return seamExecution(value, version);
   if (version >= 17 && value?.kind === "attack-damage" && value?.target?.mode === "single" && value?.drain === undefined
     && Array.isArray(value?.attack?.modes) && value.attack.modes.length === 1 && value.attack.modes[0] === "melee") return meleeAttackExecution(value, version);
   object(value, ["kind", "attack", "save", "target", "damage", "success", "spellId", "saveDC", "attackBonus", ...(version >= 2 ? ["printedTotalAverage"] : [])], "execution");
@@ -597,7 +605,7 @@ export function sanitizeBossActionBinding(value) {
 // Only strict structured data is consumed here; validation never interprets HTML or prose.
 export function validateBossActionProfile(value) {
   object(value, ["profileVersion", "parserVersion", ...IDENTITY_KEYS, "name", "type", "rawSource", "diagnostics", "abilities"], "profile");
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
   const binding = sanitizeBossActionBinding(value);
   if (!binding) fail("profile identity is invalid");
   object(value.rawSource, ["html", "sourceName", "sourceHash"], "rawSource");
@@ -606,7 +614,7 @@ export function validateBossActionProfile(value) {
   const ids = new Set();
   const abilities = list(value.abilities, "abilities").map((entry) => {
     object(entry, ["id", "name", "category", "automation", "rawText", "usage", "execution", "manualText", ...(value.profileVersion >= 7 ? ["group"] : []),
-      ...(value.profileVersion >= 11 ? ["auras"] : []), ...(value.profileVersion >= 19 ? ["sequence"] : [])], "ability");
+      ...(value.profileVersion >= 11 ? ["auras"] : []), ...(value.profileVersion >= 19 ? ["sequence"] : []), ...(value.profileVersion >= 22 ? ["hpGate"] : [])], "ability");
     const id = identity(entry.id, "ability.id");
     if (ids.has(id)) fail("duplicate ability id");
     ids.add(id);
@@ -631,6 +639,10 @@ export function validateBossActionProfile(value) {
       if (entry.category !== "epic-action") fail("only an epic action has a sequence");
       result.sequence = sequence(entry.sequence, value.profileVersion);
     }
+    if (entry.hpGate !== undefined) {
+      if (!HP_GATES.has(entry.hpGate) || entry.category === "trait") fail("ability hpGate is invalid");
+      result.hpGate = entry.hpGate;
+    }
     if (entry.manualText !== undefined) result.manualText = string(entry.manualText, "manualText");
     if (entry.automation !== "SUPPORTED" && !result.manualText) fail("manual text is required for incomplete automation");
     return result;
@@ -646,6 +658,9 @@ export function validateBossActionProfile(value) {
       && (ability.sequence?.slot !== "first" || ability.sequence.after || ability.execution.seam.blocks.some((id) => id === ability.id || !epicAction(id)))) fail("seam is invalid");
     if (ability.execution?.target?.area?.shape === "seam"
       && (ability.category !== "epic-action" || ability.sequence?.slot !== "last" || epicAction(ability.sequence.after)?.execution?.kind !== "seam")) fail("seam line is invalid");
+    // v22: lines on chosen segments only after a chained seam, a single line only after a two-point seam.
+    if (ability.execution?.target?.area?.shape === "seam"
+      && !!ability.execution.target.area.segments !== !!epicAction(ability.sequence.after).execution.seam.points) fail("seam line does not match its seam");
   }
   if (!abilities.length) fail("abilities must not be empty");
   // A group attack repeats another ability of the same profile: same attack and damage, single target.
@@ -910,10 +925,17 @@ function grammar(body, category, { bossName = "", actionName = "" } = {}) {
     manualText: `Nel round ${match[3]} è obbligatoria come prima Azione Epica, anche se lo slot appartiene a un personaggio che agisce prima dell'iniziativa 20. Fino alla fine del round la console accetta soltanto ${match[5]} e, come ultima Azione Epica, ${match[1]}. ${match[6]}` };
   // Cucitura del Non-Luogo: the first Epic Action of the round; the seam lasts until the end of the round and
   // blocks the epic action it names (resolved by name after the import loop).
-  match = body.match(/^([^.,]+) può usare questa Azione Epica soltanto se è la prima Azione Epica che usa nel round\. Sceglie due punti su superfici che può percepire entro (\d+) ft\. da sé, distanti non più di (\d+) ft\. l['’]uno dall['’]altro\. Fra i due punti compare una cucitura nera larga (\d+) ft\., chiaramente visibile, che rimane fino alla fine del round\. (Il suo spazio è Terreno Difficile\.) Finché la cucitura esiste, \1 non può usare ([^.]+)\.$/i);
-  if (match && bossName && match[1] === bossName && category === "epic-action") return { automation: "PARTIAL", sequence: { slot: "first" }, seamBlocks: match[6],
-    execution: { kind: "seam", seam: { width: Number(match[4]), maxLength: Number(match[3]), range: Number(match[2]), blocks: [] } },
-    manualText: `I due punti stanno su superfici che ${match[1]} può percepire entro ${match[2]} ft. da sé. Lo spazio della cucitura è Terreno Difficile.` };
+  // v22: "e se ha più della metà dei suoi Punti Ferita" leaves it to the boss above half HP (the chained seam replaces it).
+  match = body.match(/^([^.,]+) può usare questa Azione Epica soltanto se è la prima Azione Epica che usa nel round( e se ha più della metà dei suoi Punti Ferita)?\. Sceglie due punti su superfici che può percepire entro (\d+) ft\. da sé, distanti non più di (\d+) ft\. l['’]uno dall['’]altro\. Fra i due punti compare una cucitura nera larga (\d+) ft\., chiaramente visibile, che rimane fino alla fine del round\. (Il suo spazio è Terreno Difficile\.) Finché la cucitura esiste, \1 non può usare ([^.]+)\.$/i);
+  if (match && bossName && match[1] === bossName && category === "epic-action") return { automation: "PARTIAL", sequence: { slot: "first" }, seamBlocks: match[7],
+    ...(match[2] ? { hpGate: "unbloodied" } : {}),
+    execution: { kind: "seam", seam: { width: Number(match[5]), maxLength: Number(match[4]), range: Number(match[3]), blocks: [] } },
+    manualText: `I due punti stanno su superfici che ${match[1]} può percepire entro ${match[3]} ft. da sé. Lo spazio della cucitura è Terreno Difficile: il controllo della velocità lo conta da solo.` };
+  // Cucitura Spezzata (v22): at half HP or less, a chain of points joined one to the next, each segment up to its length.
+  match = body.match(/^([^.,]+) può usare questa Azione Epica soltanto se è la prima Azione Epica che usa nel round e se ha la metà o meno dei suoi Punti Ferita\. Sceglie (tre|quattro) punti su superfici che può percepire entro (\d+) ft\. da sé\. Fra ogni punto e il successivo compare una cucitura nera larga (\d+) ft\. e lunga non più di (\d+) ft\., chiaramente visibile; le cuciture rimangono fino alla fine del round\. (Il loro spazio è Terreno Difficile\.) Finché le cuciture esistono, \1 non può usare ([^.]+)\.$/i);
+  if (match && bossName && match[1] === bossName && category === "epic-action") return { automation: "PARTIAL", sequence: { slot: "first" }, seamBlocks: match[7], hpGate: "bloodied",
+    execution: { kind: "seam", seam: { width: Number(match[4]), maxLength: Number(match[5]), range: Number(match[3]), blocks: [], points: match[2].toLowerCase() === "tre" ? 3 : 4 } },
+    manualText: `I punti stanno su superfici che ${match[1]} può percepire entro ${match[3]} ft. da sé. Lo spazio delle cuciture è Terreno Difficile: il controllo della velocità lo conta da solo.` };
   // Strappare la Cucitura: the last Epic Action of the round, after the seam; a line along the whole seam.
   match = body.match(/^([^.,]+) può usare questa Azione Epica soltanto se è l['’]ultima Azione Epica che usa nel round e se nello stesso round ha usato ([^.]+)\. La cucitura si spalanca in una Linea larga (\d+) ft\. lungo l['’]intero percorso\. Tiro Salvezza su Intelligenza: CD (\d+), ogni creatura nella Linea\. Fallimento: (\d+) \((\d+d\d+)\) danni da forza più (\d+) \((\d+d\d+)\) danni psichici, il bersaglio viene spinto fino a (\d+) ft\. perpendicolarmente alla cucitura verso un lato determinato a caso e ha la condizione Prono\. Successo: Metà danni soltanto\. Poi la cucitura scompare\. Se non viene strappata, collassa alla fine del round senza effetto\.$/i);
   if (match && bossName && match[1] === bossName && category === "epic-action") return { automation: "PARTIAL", sequence: { slot: "last" }, afterName: match[2],
@@ -921,6 +943,13 @@ function grammar(body, category, { bossName = "", actionName = "" } = {}) {
       damage: [{ id: "force", formula: match[6], printedAverage: Number(match[5]), type: "force" }, { id: "psychic", formula: match[8], printedAverage: Number(match[7]), type: "psychic" }],
       success: "half", onFailed: { conditions: [{ condition: "Prono", expiry: { ...MANUAL_EXPIRY } }] } },
     manualText: `Sul fallimento il bersaglio viene spinto fino a ${match[9]} ft. perpendicolarmente alla cucitura, verso un lato determinato a caso: la spinta si risolve sulla mappa. Poi la cucitura scompare.` };
+  // Strappare le Cuciture (v22): after the chained seam, lines on the segments the GM chooses; one save per creature.
+  match = body.match(/^([^.,]+) può usare questa Azione Epica soltanto se è l['’]ultima Azione Epica che usa nel round e se nello stesso round ha usato ([^.]+)\. Sceglie una o più cuciture: ciascuna si spalanca in una Linea larga (\d+) ft\. lungo il proprio percorso\. Tiro Salvezza su Intelligenza: CD (\d+), ogni creatura in almeno una Linea\. Fallimento: (\d+) \((\d+d\d+)\) danni da forza più (\d+) \((\d+d\d+)\) danni psichici, il bersaglio viene spinto fino a (\d+) ft\. perpendicolarmente alla cucitura più vicina verso un lato determinato a caso e ha la condizione Prono\. Successo: Metà danni soltanto\. Una creatura in più Linee effettua un solo tiro salvezza e subisce i danni una volta sola\. Poi tutte le cuciture scompaiono\. Se non vengono strappate, collassano alla fine del round senza effetto\.$/i);
+  if (match && bossName && match[1] === bossName && category === "epic-action") return { automation: "PARTIAL", sequence: { slot: "last" }, afterName: match[2],
+    execution: { kind: "save-damage", save: { ability: "int", dc: Number(match[4]) }, target: { mode: "multiple", selection: "area", area: { shape: "seam", size: Number(match[3]), origin: match[2], segments: true } },
+      damage: [{ id: "force", formula: match[6], printedAverage: Number(match[5]), type: "force" }, { id: "psychic", formula: match[8], printedAverage: Number(match[7]), type: "psychic" }],
+      success: "half", onFailed: { conditions: [{ condition: "Prono", expiry: { ...MANUAL_EXPIRY } }] } },
+    manualText: `Sul fallimento il bersaglio viene spinto fino a ${match[9]} ft. perpendicolarmente alla cucitura più vicina, verso un lato determinato a caso: la spinta si risolve sulla mappa. Poi tutte le cuciture scompaiono.` };
   // Epic Resistance: a flat d20; at or above the threshold one effect on the boss ends.
   match = body.match(/^([^.,]+) sceglie una condizione, un incantesimo o un altro effetto che (?:la|lo) influenza e tira 1d20\. Con (\d+)\+, l['’]effetto termina su di (?:lei|lui)\. \1 può usare questa Azione Epica anche se normalmente non potrebbe compiere azioni, se le sue azioni sono controllate da un['’]altra creatura o se un incantesimo o un effetto altera le sue statistiche\. (Il tiro non è una prova con il d20: non può avere Vantaggio o Svantaggio, non riceve bonus o penalità e nessun effetto può sostituirlo, alterarlo o farlo ripetere\.)( Epic Resistance resta disponibile durante Gather the Winter Sky\.)?$/i);
   if (match && bossName && match[1] === bossName && category === "epic-action") return { automation: "PARTIAL",
@@ -1012,6 +1041,8 @@ export async function importBossActionHTML(html, { sourceName = "" } = {}) {
     delete entry.afterName;
     if (entry.execution?.target?.area?.shape === "seam") {
       if (!before || before.execution?.kind !== "seam") { manual(entry, `${entry.name}: cucitura di riferimento non trovata nel profilo.`); continue; }
+      // v22: the lines on chosen segments need the chained seam, the single line the two-point one.
+      if (!!entry.execution.target.area.segments !== !!before.execution.seam.points) { manual(entry, `${entry.name}: la cucitura di riferimento non ha la forma attesa.`); continue; }
     } else if (!before || before === entry || before.sequence?.slot !== "first") {
       // v20 (Auril): without its first Epic Action the action keeps its v19 shape and its manual confirmation.
       delete entry.sequence;

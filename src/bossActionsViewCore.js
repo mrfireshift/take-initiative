@@ -225,8 +225,8 @@ export function bossActionAutomationSummary(action, availability = {}) {
   }
   if (kind === "seam") {
     return {
-      automatic: `Automatico al commit: la cucitura (larga ${action.execution.seam.width} ft, fino a ${action.execution.seam.maxLength} ft) resta registrata sul boss fino alla fine del round e blocca le azioni indicate; il disegno resta sulla mappa. Sequenza verificata: solo come prima Azione Epica del round. Una voce History annullabile.`,
-      manual: `Resta manuale: i due punti (superfici percepite entro ${action.execution.seam.range} ft.), il Terreno Difficile, la rimozione del disegno se la cucitura collassa a fine round.`,
+      automatic: action.execution.seam.points ? `Automatico al commit: le ${action.execution.seam.points - 1} cuciture fra ${action.execution.seam.points} punti (larghe ${action.execution.seam.width} ft, fino a ${action.execution.seam.maxLength} ft ciascuna) restano registrate sul boss fino alla fine del round e bloccano le azioni indicate; i disegni e i portali restano sulla mappa; il loro spazio è Terreno Difficile nel controllo della velocità (costo doppio). Sequenza e soglia dei PF verificate. Una voce History annullabile.` : `Automatico al commit: la cucitura (larga ${action.execution.seam.width} ft, fino a ${action.execution.seam.maxLength} ft) resta registrata sul boss fino alla fine del round e blocca le azioni indicate; il disegno resta sulla mappa; il suo spazio è Terreno Difficile nel controllo della velocità (costo doppio). Sequenza verificata: solo come prima Azione Epica del round. Una voce History annullabile.`,
+      manual: `Resta manuale: ${action.execution.seam.points ? `i ${action.execution.seam.points} punti` : "i due punti"} (superfici percepite entro ${action.execution.seam.range} ft.), la rimozione del disegno se la cucitura collassa a fine round.`,
     };
   }
   if (kind === "effect-end") {
@@ -252,13 +252,14 @@ export function bossActionAutomationSummary(action, availability = {}) {
     const conditions = (action.execution.onFailed?.conditions || []).map((entry) => `${entry.condition} sui falliti ${bossConditionDurationText(entry)}`);
     const area = action.execution.target?.area;
     const parts = [
-      ...(area?.shape === "seam" ? ["la linea segue la cucitura del round", "sequenza verificata (dopo la cucitura; l’ultimo slot del round si conferma se l’ordine dice altro)"]
+      ...(area?.segments ? ["una linea su ogni cucitura scelta del round", "un solo TS e un solo danno per creatura anche in più linee", "sequenza verificata (dopo le cuciture; l’ultimo slot del round si conferma se l’ordine dice altro)"]
+        : area?.shape === "seam" ? ["la linea segue la cucitura del round", "sequenza verificata (dopo la cucitura; l’ultimo slot del round si conferma se l’ordine dice altro)"]
         : action.sequence ? ["sequenza e ricarica verificate dal registro del round (l’ultimo slot si conferma se l’ordine dice altro)"] : []),
       "danni per tipo a ogni bersaglio (metà su TS superato)",
       ...(area?.innerRadius ? [`componenti "entro ${area.innerRadius} ft" calcolate dai centri disegnati`] : []),
       ...conditions,
       ...(action.execution.onPassed?.immunity ? ["Immune sui superati"] : []),
-      ...(area?.shape === "seam" ? ["la cucitura scompare dal boss e dalla mappa"] : []),
+      ...(area?.shape === "seam" ? [area.segments ? "tutte le cuciture scompaiono dal boss e dalla mappa" : "la cucitura scompare dal boss e dalla mappa"] : []),
       "una sola voce History annullabile",
     ];
     return {
@@ -326,7 +327,7 @@ export function validateBossEffectEndSelection({ sourceId, action, effects = [],
 }
 
 export function bossActionResultSummary(result = {}) {
-  if (result.seam) return `cucitura di ${result.seam.lengthFeet} ft fino alla fine del round`;
+  if (result.seam) return result.seam.segments ? `${result.seam.segments} cuciture, ${result.seam.lengthFeet} ft in tutto, fino alla fine del round` : `cucitura di ${result.seam.lengthFeet} ft fino alla fine del round`;
   if (Array.isArray(result.groupTargets)) {
     return [...result.groupTargets.map((target) => [
       target.name || target.id, OUTCOME_LABELS[target.outcome] || "", ...(target.damage !== undefined ? [`${target.damage} danni`] : []),
@@ -337,7 +338,7 @@ export function bossActionResultSummary(result = {}) {
       ...(target.markRule ? ["marchio: Res. freddo ignorata"] : []),
       ...(target.evasion ? ["Elusione"] : []),
       ...(target.alreadyMarked ? ["già marchiato"] : []),
-    ].filter(Boolean).join(" · ")), ...(result.seamTorn ? ["Cucitura strappata: scompare"] : [])].join("\n");
+    ].filter(Boolean).join(" · ")), ...(result.seamTorn ? [result.seamChain ? "Cuciture strappate: scompaiono tutte" : "Cucitura strappata: scompare"] : [])].join("\n");
   }
   const parts = [];
   const target = result.target?.name || result.target?.id;
@@ -408,7 +409,7 @@ export function bossActionRowMeta(action, availability = {}) {
   const execution = action?.execution || {};
   let tag = "Manuale";
   if (kind === "attack-damage") tag = `Attacco ${Number(execution.attack?.bonus) >= 0 ? "+" : ""}${execution.attack?.bonus}`;
-  else if (kind === "seam") tag = `Cucitura fino a ${execution.seam?.maxLength} ft`;
+  else if (kind === "seam") tag = execution.seam?.points ? `${execution.seam.points} punti · fino a ${execution.seam.maxLength} ft per tratto` : `Cucitura fino a ${execution.seam?.maxLength} ft`;
   else if (kind === "save-damage") tag = `TS ${bossAbilityLabel(execution.save?.ability)} ${execution.save?.dc}`;
   else if (kind === "throw") tag = execution.distance?.step ? `Lancio fino a ${execution.distance?.max} ft · ${execution.damage?.[0]?.formula} ogni ${execution.distance?.step} ft`
     : `Lancio fino a ${execution.distance?.max} ft · ${execution.damage?.[0]?.formula}`;
@@ -427,6 +428,9 @@ export function bossActionRowMeta(action, availability = {}) {
   // v19: the place in the round's Epic Actions; a sequence block (from the round log or the seam) disables it.
   if (action?.sequence?.slot) tag += action.sequence.slot === "first" ? " · prima del round" : " · ultima del round";
   if (availability?.sequenceBlocked) { exhausted = true; badge = "Bloccata"; }
+  // v22: the hit point gate (the alternative seam combo below half HP).
+  // The badge names the requirement, not the current state.
+  if (availability?.hpGated) { exhausted = true; badge = action.hpGate === "bloodied" ? "Solo a ½ PF o meno" : "Solo sopra ½ PF"; }
   return { kind, tag, badge, exhausted };
 }
 
@@ -461,6 +465,7 @@ export function bossConditionDurationText(entry, bossName = "") {
 
 // The noun used in the console steps for the action's area.
 export function bossAreaNoun(area) {
+  if (area?.shape === "seam" && area.segments) return "le linee sulle cuciture";
   return { cone: "il cono", circle: "il cerchio", emanation: "l’emanazione", seam: "la linea sulla cucitura" }[area?.shape] || "l’area";
 }
 
@@ -470,6 +475,8 @@ export function bossGroupApplyBlocker({ targetIds = [], outcomes = {}, manualCon
   outcomeValues = ["failed", "passed"], missingDamageIds = [] } = {}) {
   if (areaRequired && confirmationRequired && !manualConfirmed) return confirmationText || "Conferma ricarica e sequenza.";
   if (areaRequired && areaShape?.count && drawnCount < areaShape.count) return `Disegna tutte le ${areaShape.count} esplosioni (${drawnCount}/${areaShape.count}).`;
+  // v22: at least one chosen seam, with its line shown.
+  if (areaRequired && areaShape?.segments && !drawnCount) return "Scegli le cuciture da strappare e mostra le loro linee.";
   if (areaRequired && !area) return `${areaShape?.shape === "emanation" ? "Posiziona" : "Disegna"} ${bossAreaNoun(areaShape || { shape: "cone" })} sulla mappa.`;
   if (!targetIds.length) return areaRequired ? "Nessuna creatura del tracker nell’area." : "Seleziona i bersagli sulla mappa.";
   if (maxTargets && targetIds.length > maxTargets) return maxTargets === 1 ? `Un solo bersaglio: togline ${targetIds.length - 1}.` : `Al massimo ${maxTargets} bersagli: togline ${targetIds.length - maxTargets}.`;
@@ -538,9 +545,10 @@ export function validateBossActionGroupSelection({ sourceId, action, targetIds =
   const areaRequired = action.execution.target?.selection === "area";
   const confirmationRequired = bossGroupRequiresConfirmation(action);
   const multi = action.execution.target?.area?.count || 0;
+  const segments = action.execution.target?.area?.segments === true;
   const drawn = Array.isArray(areas) ? areas.length : 0;
   const attackGroup = action.execution.kind === "attack-damage";
-  const blocker = bossGroupApplyBlocker({ targetIds: ids, outcomes, manualConfirmed, areaRequired, area: multi ? (drawn === multi ? areas : null) : area,
+  const blocker = bossGroupApplyBlocker({ targetIds: ids, outcomes, manualConfirmed, areaRequired, area: multi ? (drawn === multi ? areas : null) : segments ? (drawn ? areas : null) : area,
     confirmationRequired, areaShape: action.execution.target?.area, maxTargets: action.execution.target?.maxTargets || 0,
     confirmationText: bossGroupConfirmationText(action), drawnCount: drawn, outcomeValues: bossGroupOutcomes(action).map(([value]) => value),
     missingDamageIds: bossGroupMissingDamageIds(action, ids, outcomes, targetAmounts) });
@@ -562,7 +570,8 @@ export function validateBossActionGroupSelection({ sourceId, action, targetIds =
   }
   return { ok: true, value: { sourceId, actionId: action.id, targetIds: ids,
     outcomes: Object.fromEntries(ids.map((id) => [id, outcomes[id]])), componentAmounts: amounts, manualConfirmed: confirmationRequired ? true : manualConfirmed === true,
-    ...(areaRequired && multi ? { areaPlacements: structuredClone(areas), innerIds: ids.filter((id) => (Array.isArray(innerIds) ? innerIds : []).includes(id)) }
+    ...(areaRequired && segments ? { areaPlacements: structuredClone(areas) }
+      : areaRequired && multi ? { areaPlacements: structuredClone(areas), innerIds: ids.filter((id) => (Array.isArray(innerIds) ? innerIds : []).includes(id)) }
       : areaRequired ? { areaPlacement: structuredClone(area) } : {}) } };
 }
 

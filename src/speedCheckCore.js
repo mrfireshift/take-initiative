@@ -330,6 +330,8 @@ export function movementCostForSegment({
   afterPosition = null,
   baseMultiplier = 1,
   directionalModifiers = [],
+  // Areas of difficult terrain on the map (the seam of a boss): only the part of the step inside one costs more.
+  terrainModifiers = [],
 } = {}) {
   const cells = Math.max(0, Number(movedCells) || 0);
   const before = beforePosition && Number.isFinite(Number(beforePosition.x))
@@ -374,7 +376,11 @@ export function movementCostForSegment({
     });
   }
   const modifiers = [...unique.values()].filter((modifier) => modifier.intervals.length);
-  if (!modifiers.length) {
+  const terrain = (Array.isArray(terrainModifiers) ? terrainModifiers : [])
+    .filter((modifier) => Number(modifier?.costMultiplier) >= 1 && Array.isArray(modifier?.area?.cells) && modifier.area.cells.length)
+    .map((modifier) => ({ ...modifier, costMultiplier: Number(modifier.costMultiplier), intervals: areaIntervals(before, after, modifier.area) }))
+    .filter((modifier) => modifier.intervals.length);
+  if (!modifiers.length && !terrain.length) {
     return {
       chargedCells: baseCost,
       baseCells: cells,
@@ -384,7 +390,7 @@ export function movementCostForSegment({
   }
 
   const breakpoints = new Set([0, 1]);
-  for (const modifier of modifiers) {
+  for (const modifier of [...modifiers, ...terrain]) {
     for (const [start, end] of modifier.intervals) {
       breakpoints.add(start);
       breakpoints.add(end);
@@ -393,7 +399,11 @@ export function movementCostForSegment({
   const sortedBreakpoints = [...breakpoints].sort((left, right) => left - right);
   let chargedCells = 0;
   let directionalCells = 0;
+  let terrainCells = 0;
   const appliedModifiers = [];
+  const within = (modifier, start, end) => modifier.intervals.some(([rangeStart, rangeEnd]) => (
+    start >= rangeStart - 1e-7 && end <= rangeEnd + 1e-7
+  ));
   for (let index = 1; index < sortedBreakpoints.length; index += 1) {
     const start = sortedBreakpoints[index - 1];
     const end = sortedBreakpoints[index];
@@ -406,7 +416,15 @@ export function movementCostForSegment({
       x: before.x + ((after.x - before.x) * end),
       y: before.y + ((after.y - before.y) * end),
     };
-    let multiplier = Math.max(1, Number(baseMultiplier) || 1);
+    // Difficult terrain does not stack with itself: the higher of the creature's own cost and the terrain's.
+    let segmentBase = Math.max(1, Number(baseMultiplier) || 1);
+    for (const modifier of terrain) {
+      if (!within(modifier, start, end)) continue;
+      if (modifier.costMultiplier > segmentBase) segmentBase = modifier.costMultiplier;
+      terrainCells += cells * (end - start);
+      if (!appliedModifiers.includes(modifier)) appliedModifiers.push(modifier);
+    }
+    let multiplier = segmentBase;
     let segmentDirectional = false;
     for (const modifier of modifiers) {
       const inside = modifier.intervals.some(([rangeStart, rangeEnd]) => (
@@ -423,13 +441,14 @@ export function movementCostForSegment({
     if (segmentDirectional) {
       chargedCells += cells * (end - start) * multiplier;
     } else {
-      chargedCells += cells * (end - start) * Math.max(1, Number(baseMultiplier) || 1);
+      chargedCells += cells * (end - start) * segmentBase;
     }
   }
   return {
     chargedCells,
     baseCells: cells,
     directionalCells,
+    ...(terrain.length ? { terrainCells } : {}),
     appliedModifiers: appliedModifiers.map((modifier) => ({
       sourceId: String(modifier.sourceId || ""),
       instanceId: String(modifier.instanceId || ""),

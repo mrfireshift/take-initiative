@@ -16,10 +16,10 @@ import { bossActionTargets,bossActionGroups,bossActionExecutionKind,bossActionDa
 import { damageDefensesForItem, relevantDamageDefenses, damageDefenseTag, EVASION_DEFENSE, evasionAppliesTo, evasionForItem, evasionFactor } from "./damageDefensesCore.js";
 import { bossActionAreaRuleId,bossAreaShapeLabel,bossGroupRequiresConfirmation,bossTargetImmune,bossGrappledIds,bossGrappleBlocker,bossEffectSummaryParts,
   bossMarkApplies,bossMarkReady,bossTargetMarked,bossMarkBlocker,bossMarkedDefenses,bossTriggerMet,bossActiveEffects,bossThrowDistances,
-  bossSeamRuleId,BOSS_SEAM_ITEM_KEY } from "./bossActionExecutionCore.js";
+  bossSeamRuleId,BOSS_SEAM_ITEM_KEY,bossSeamSegments,bossSeamSegmentLabel } from "./bossActionExecutionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
-import { bossSeamDrawingIds,bossSeamPortalSpecs,BOSS_SEAM_PORTAL_ASSET,BOSS_SEAM_PORTAL_PIXELS,BOSS_SEAM_PORTAL_CELLS } from "./bossSeamPortalCore.js";
+import { bossSeamDrawingIds,bossSeamPortalSpecs,bossSeamChainPortalSpecs,BOSS_SEAM_PORTAL_ASSET,BOSS_SEAM_PORTAL_PIXELS,BOSS_SEAM_PORTAL_CELLS } from "./bossSeamPortalCore.js";
 import "./popoverDrag.js";
 
 const POPOVER_ID=`${ID}/boss-actions`;
@@ -117,7 +117,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     writeSession(draftStorageKey(),{actionId:draft.action.id,profileRevision:presentation?.profile?.profileRevision,
       bossInstanceId:presentation?.bossInstanceId,targetId:draft.targetId,locked:draft.locked,mode:draft.mode,
       outcome:draft.outcome,amounts:draft.amounts,manualConfirmed:draft.manualConfirmed,targetIds:draft.targetIds,outcomes:draft.outcomes,area:draft.area,ignoredDefenses:draft.ignoredDefenses,
-      areas:draft.areas,innerIds:draft.innerIds,targetAmounts:draft.targetAmounts,distance:draft.distance,damage:draft.damage,landing:draft.landing,effect:draft.effect,roll:draft.roll,
+      areas:draft.areas,innerIds:draft.innerIds,seamSegments:draft.seamSegments ?? null,targetAmounts:draft.targetAmounts,distance:draft.distance,damage:draft.damage,landing:draft.landing,effect:draft.effect,roll:draft.roll,
       rider:draft.rider,collisionTargetId:draft.collisionTargetId,collisionOutcome:draft.collisionOutcome,seam:draft.seam,sequenceConfirmed:draft.sequenceConfirmed,
       teleport:draft.teleport});
   }
@@ -341,7 +341,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const text=node("span");text.append(node("span",action.name,"action-name"),node("span",meta.tag,"action-tag"));
     row.appendChild(text);
     if(meta.badge){const badge=node("span",meta.badge,"badge"+(meta.exhausted?" is-exhausted":""));row.appendChild(badge);}
-    row.title=meta.exhausted?"Esaurita: consultabile, non eseguibile":action.name;
+    // A sequence or hit point block names its reason; a spent counter keeps the generic text.
+    const blockReason=availabilityFor(action)?.sequenceBlocked || availabilityFor(action)?.hpGated ? availabilityFor(action)?.reason : "";
+    row.title=blockReason?`${blockReason} Consultabile, non eseguibile.`:meta.exhausted?"Esaurita: consultabile, non eseguibile":action.name;
     row.addEventListener("click",()=>{if(!busy && !invalidated)openAction(action);});
     return row;
   }
@@ -461,8 +463,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   }
   // Cucitura: a void portal on the Props layer at each end of the seam, attached to the seam drawing. Returns the
   // ids that were added; a failure leaves the seam without portals (the seam itself is unaffected).
-  async function addSeamPortals({itemId,actionInstanceId,start,end,name}) {
-    const specs=bossSeamPortalSpecs({itemId,sourceId,actionInstanceId,start,end,name});
+  async function addSeamPortals(specs) {
     if(!specs.length) return [];
     const size=BOSS_SEAM_PORTAL_PIXELS;
     const url=new URL(BOSS_SEAM_PORTAL_ASSET,String(globalThis.location?.origin || "http://localhost")).href;
@@ -489,7 +490,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
   function renderSeamResolution() {
     const action=draft.action,seam=action.execution.seam;
     const form=node("form");form.id="boss-action-form";form.className="view";
-    form.appendChild(node("p",`Cucitura larga ${seam.width} ft fra due punti entro ${seam.range} ft · lunga al massimo ${seam.maxLength} ft · fino alla fine del round · prima Azione Epica del round`,"stat-line"));
+    form.appendChild(node("p",seam.points
+      ? `${seam.points-1} cuciture larghe ${seam.width} ft fra ${seam.points} punti entro ${seam.range} ft · fino a ${seam.maxLength} ft ciascuna · fino alla fine del round · prima Azione Epica del round`
+      : `Cucitura larga ${seam.width} ft fra due punti entro ${seam.range} ft · lunga al massimo ${seam.maxLength} ft · fino alla fine del round · prima Azione Epica del round`,"stat-line"));
     const blocked=seam.blocks.map(actionName);
     const tear=presentation?.profile?.abilities.find(entry=>entry.sequence?.after===action.id);
     form.appendChild(node("p",[blocked.length?`Finché esiste blocca ${blocked.join(", ")}.`:"",tear?`${tear.name} la usa come ultima Azione Epica del round.`:""].filter(Boolean).join(" "),"note"));
@@ -498,7 +501,14 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const draw=button("","small");draw.id="boss-draw-seam";const cancel=button("Annulla disegno","small");cancel.id="boss-cancel-seam";
     draw.addEventListener("click",()=>{void drawSeam();});
     cancel.addEventListener("click",()=>{if(draft?.drawing)void cancelArea(draft.drawing).catch(()=>{});});
-    areaStep.append(label,draw,cancel);form.appendChild(areaStep);
+    areaStep.append(label,draw,cancel);
+    // Cucitura Spezzata: a partial chain can be started again from the first point.
+    if(seam.points) {
+      const restart=button("Ricomincia","small");restart.id="boss-restart-seam";areaStep.appendChild(restart);
+      restart.addEventListener("click",()=>{if(!draft || busy || draft.drawing || !draft.seam)return;void dropSeamDrawing(draft.seam.itemIds);draft.seam=null;
+        setStatus("Cuciture annullate: ricomincia dal punto A.");renderSpecialState();persistDraft();});
+    }
+    form.appendChild(areaStep);
     const note=node("p","A mano: "+action.manualText,"note clamp");note.title=note.textContent;form.appendChild(note);
     applyRow(form,"Applica",submitSeam);
     resolution.appendChild(form);
@@ -506,6 +516,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   }
   async function drawSeam() {
     if(!draft || busy || draft.drawing || draft.kind!=="seam") return;
+    if(draft.action.execution.seam.points) return drawSeamSegment();
     const active=draft,operation=lifecycle.capture(),seam=active.action.execution.seam;
     const requestId=createSpellAreaPlacementRequestId();
     const itemId=`boss-seam-${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+Math.random().toString(36).slice(2)}`;
@@ -531,7 +542,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         if(dpi>0)lengthFeet=Math.round(bossPointDistanceFeet(start,end,dpi,feetPerCell || 5)/(feetPerCell || 5))*(feetPerCell || 5);
       } catch {}
       if(draft!==active || !lifecycle.isCurrent(operation)) return;
-      const portalIds=await addSeamPortals({itemId,actionInstanceId:active.binding.actionInstanceId,start,end,name:active.action.name});
+      const portalIds=await addSeamPortals(bossSeamPortalSpecs({itemId,sourceId,actionInstanceId:active.binding.actionInstanceId,start,end,name:active.action.name}));
       if(draft!==active || !lifecycle.isCurrent(operation)) return;
       const previous=active.seam?.itemIds || [];
       active.seam={start,end,lengthFeet:Math.min(seam.maxLength,Math.max(0,lengthFeet ?? 0)),itemIds:[itemId,`${itemId}-geometry`,...portalIds]};
@@ -542,9 +553,74 @@ export function bootBossActions(documentRef=document, overrides={}) {
     }
     renderSpecialState();persistDraft();
   }
+  const seamLetter=index=>String.fromCharCode(65+index);
+  const samePoint=(a,b)=>!!a && !!b && Math.abs(Number(a.x)-Number(b.x))<0.5 && Math.abs(Number(a.y)-Number(b.y))<0.5;
+  // Cucitura Spezzata (v22): the chain is drawn one segment at a time. Each segment starts where the previous one
+  // ended and reaches up to the printed length.
+  async function drawSeamSegment() {
+    const active=draft,operation=lifecycle.capture(),seam=active.action.execution.seam,count=seam.points;
+    // A complete chain is drawn again from point A.
+    if(active.seam?.points?.length===count){void dropSeamDrawing(active.seam.itemIds);active.seam=null;}
+    const drawn=active.seam?structuredClone(active.seam):{baseId:`boss-seam-${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+Math.random().toString(36).slice(2)}`,
+      points:[],segmentsFeet:[],segmentIds:[],itemIds:[]};
+    const index=drawn.segmentsFeet.length,budget=seam.maxLength;
+    const segmentId=`${drawn.baseId}-s${index+1}`,from=index?drawn.points[index]:null;
+    const requestId=createSpellAreaPlacementRequestId();
+    active.drawing=requestId;lockDraft();renderSpecialState();
+    setStatus(`Cucitura ${index+1}/${count-1}: trascina ${from?`dal punto ${seamLetter(index)} (già fissato)`:"dal punto A"} verso il punto ${seamLetter(index+1)} (al massimo ${budget} ft), poi «Conferma sagoma». Esc annulla.`);
+    const restore=!minimized;
+    if(restore)await setMinimized(true);
+    const theme=bossAreaTheme(presentation?.profile);
+    let result;
+    try {result=await placeArea({ruleId:`boss-action-area:line:${budget}ft:${seam.width}ft`,casterId:sourceId,requestId,context:{phase:"boss-action",actionId:active.action.id,
+      ...(theme?{areaTheme:theme}:{}),...(from?{lineStart:from}:{}),
+      keepOnMap:{id:segmentId,name:`${active.action.name} ${seamLetter(index)}–${seamLetter(index+1)}`,metadata:{[BOSS_SEAM_ITEM_KEY]:{sourceId,actionInstanceId:active.binding.actionInstanceId,segment:index}}}}});}
+    catch(error) {result={status:"error",error:String(error?.message || error)};}
+    if(restore && minimized)await setMinimized(false);
+    const segmentIds=[segmentId,`${segmentId}-geometry`];
+    if(draft!==active || active.drawing!==requestId || !lifecycle.isCurrent(operation) || invalidated) {void dropSeamDrawing(segmentIds);return;}
+    active.drawing=null;
+    if(result?.status==="confirmed" && result.preview) {
+      const start={x:Number(result.preview.start?.x),y:Number(result.preview.start?.y)},end={x:Number(result.preview.end?.x),y:Number(result.preview.end?.y)};
+      let lengthFeet=null;
+      try {
+        const [dpi,scale]=await Promise.all([api.scene.grid.getDpi(),api.scene.grid.getScale()]);
+        const feetPerCell=bossFeetPerCell(scale);
+        if(dpi>0)lengthFeet=Math.round(bossPointDistanceFeet(start,end,dpi,feetPerCell || 5)/(feetPerCell || 5))*(feetPerCell || 5);
+      } catch {}
+      if(draft!==active || !lifecycle.isCurrent(operation)) {void dropSeamDrawing(segmentIds);return;}
+      lengthFeet=Math.min(budget,Math.max(0,lengthFeet ?? 0));
+      if(!(lengthFeet>0) || (from && !samePoint(start,from)) || samePoint(start,end)) {
+        void dropSeamDrawing(segmentIds);
+        setStatus(from && !samePoint(start,from)?`La cucitura non parte dal punto ${seamLetter(index)}: disegnala di nuovo.`:"Lunghezza della cucitura non leggibile: disegnala di nuovo.");
+        renderSpecialState();persistDraft();return;
+      }
+      drawn.points=index?[...drawn.points,end]:[start,end];
+      drawn.segmentsFeet=[...drawn.segmentsFeet,lengthFeet];
+      drawn.segmentIds=[...drawn.segmentIds,segmentId];
+      drawn.itemIds=[...drawn.itemIds,...segmentIds];
+      drawn.lengthFeet=drawn.segmentsFeet.reduce((sum,value)=>sum+value,0);
+      drawn.start=drawn.points[0];drawn.end=drawn.points[drawn.points.length-1];
+      const complete=drawn.points.length===count;
+      if(complete) {
+        const portalIds=await addSeamPortals(bossSeamChainPortalSpecs({baseId:drawn.baseId,segmentIds:drawn.segmentIds,sourceId,
+          actionInstanceId:active.binding.actionInstanceId,points:drawn.points,name:active.action.name}));
+        drawn.itemIds=[...drawn.itemIds,...portalIds];
+        if(draft!==active || !lifecycle.isCurrent(operation)) {void dropSeamDrawing(drawn.itemIds);return;}
+      }
+      active.seam=drawn;
+      setStatus(complete?`Cuciture disegnate: ${count-1} tratti, ${drawn.lengthFeet} ft in tutto. Premi «Applica» per registrarle.`
+        :`Cucitura ${seamLetter(index)}–${seamLetter(index+1)}: ${lengthFeet} ft. Disegna la successiva.`);
+    } else {
+      setStatus(result?.status==="cancelled"?"Disegno annullato: nessuna modifica.":`Disegno non riuscito${result?.error?": "+result.error:""}.`);
+    }
+    renderSpecialState();persistDraft();
+  }
   function seamBlocker() {
     if(!available(draft.action)) return availabilityFor(draft.action)?.reason || "Non disponibile.";
     if(draft.drawing) return "Completa o annulla il disegno.";
+    const chain=draft.action.execution.seam.points;
+    if(chain && (draft.seam?.points?.length || 0)<chain) return `Disegna tutte le cuciture (${Math.max(0,(draft.seam?.points?.length || 1)-1)}/${chain-1}).`;
     if(!draft.seam) return "Disegna la cucitura sulla mappa.";
     if(!(draft.seam.lengthFeet>0)) return "Lunghezza della cucitura non leggibile: ridisegnala.";
     return "";
@@ -581,6 +657,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       outcome:restore.outcome || "",amounts:{...draft.amounts,...(restore.amounts || {})},manualConfirmed:!!restore.manualConfirmed,
       targetIds:Array.isArray(restore.targetIds)?[...restore.targetIds]:[],outcomes:{...(restore.outcomes || {})},area:restore.area || null,ignoredDefenses:{...(restore.ignoredDefenses || {})},
       areas:Array.isArray(restore.areas)?structuredClone(restore.areas):[],innerIds:Array.isArray(restore.innerIds)?[...restore.innerIds]:[],
+      ...(Array.isArray(restore.seamSegments)?{seamSegments:restore.seamSegments.filter(Number.isInteger)}:{}),
       targetAmounts:restore.targetAmounts && typeof restore.targetAmounts==="object"?structuredClone(restore.targetAmounts):{},
       distance:restore.distance ?? null,damage:restore.damage ?? "",landing:restore.landing || "",effect:restore.effect || null,roll:restore.roll ?? "",
       rider:restore.rider || "",collisionTargetId:restore.collisionTargetId || "",collisionOutcome:restore.collisionOutcome || "",
@@ -1007,7 +1084,18 @@ export function bootBossActions(documentRef=document, overrides={}) {
       if(hit && draft.collisionOutcome==="failed")total.append(` · ${hit.name || hit.id} −${bossDefendedDamage([throwComponent()],{[throwComponent().id]:draft.damage},"hit",defensesOf(hit.id),ignoredFor(hit.id))} e Prono`);
       else if(hit && draft.collisionOutcome==="passed")total.append(` · ${hit.name || hit.id} illeso`);
     }
-    if(draft.kind==="seam") {
+    if(draft.kind==="seam" && draft.action.execution.seam.points) {
+      const chain=draft.action.execution.seam.points,segments=Math.max(0,(draft.seam?.points?.length || 1)-1),complete=segments===chain-1;
+      const label=$("boss-seam-label"),draw=$("boss-draw-seam"),cancel=$("boss-cancel-seam"),restart=$("boss-restart-seam");
+      if(label)label.textContent=draft.drawing?"Sulla mappa: trascina fino al punto successivo, poi «Conferma sagoma» (Esc annulla)."
+        :complete?`Cuciture disegnate: ${segments} tratti, ${draft.seam.lengthFeet} ft in tutto.`
+        :segments?`Cuciture ${segments}/${chain-1}: ${draft.seam.segmentsFeet.join(" + ")} ft.`
+        :`Traccia ${chain-1} cuciture fra ${chain} punti, uno dopo l’altro.`;
+      if(draw){draw.textContent=complete?"Ridisegna":segments?`Disegna cucitura ${segments+1}/${chain-1}`:"Disegna cuciture";draw.disabled=busy || !!draft.drawing || !available(draft.action);}
+      if(cancel){cancel.hidden=!draft.drawing;cancel.disabled=busy;}
+      if(restart){restart.hidden=!segments || complete || !!draft.drawing;restart.disabled=busy;}
+      if(total){clear(total);if(complete)total.append("Cuciture ",node("strong",`${draft.seam.lengthFeet} ft`)," fino a fine round");}
+    } else if(draft.kind==="seam") {
       const label=$("boss-seam-label"),draw=$("boss-draw-seam"),cancel=$("boss-cancel-seam");
       if(label)label.textContent=draft.drawing?"Sulla mappa: dal primo punto al secondo, poi «Conferma sagoma» (Esc annulla).":draft.seam?`Cucitura disegnata: ${draft.seam.lengthFeet} ft.`:"Traccia la cucitura fra i due punti.";
       if(draw){draw.textContent=draft.seam?"Ridisegna":"Disegna cucitura";draw.disabled=busy || !!draft.drawing || !available(draft.action);}
@@ -1158,7 +1246,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
   const confirmNeeded=()=>bossGroupRequiresConfirmation(draft?.action);
   const groupArea=()=>draft?.action?.execution?.target?.area || null;
   const multiArea=()=>groupArea()?.count?groupArea():null;
-  const areaDrawn=()=>multiArea()?(draft.areas || []).length===multiArea().count:!!draft?.area;
+  // v22 (Strappare le Cuciture): the segments of this round's chained seam and the ones the GM chose.
+  const segmentArea=()=>groupArea()?.segments?groupArea():null;
+  const seamSegments=()=>bossSeamSegments(presentation?.sequence?.seam);
+  const chosenSegments=()=>(Array.isArray(draft?.seamSegments)?draft.seamSegments:seamSegments().map(entry=>entry.index)).filter(index=>seamSegments().some(entry=>entry.index===index));
+  const areaDrawn=()=>multiArea()?(draft.areas || []).length===multiArea().count:segmentArea()?!!chosenSegments().length && (draft.areas || []).length===chosenSegments().length:!!draft?.area;
   const immuneTo=id=>!!draft?.action?.execution?.onPassed?.immunity && bossTargetImmune(targetById(id),draft.action);
   function groupRowDamage(outcome,id) {return outcome ? (id ? defendedDamage(id,outcome) : bossDamageTotal(groupComponents(),draft.amounts,outcome)) : null;}
   function setGroup(ids,{explicit=true}={}) {
@@ -1304,10 +1396,12 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const trigger=draft.action.execution.trigger;
       const reason=!available(draft.action)?availabilityFor(draft.action)?.reason || "Non disponibile.":sequenceBlocker()
         || (draft.drawing?"Completa o annulla il disegno.":missing?"Un bersaglio non è più nel tracker."
+        :segmentArea() && !chosenSegments().length?"Scegli almeno una cucitura da strappare."
+        :segmentArea() && !areaDrawn()?`Mostra le linee delle cuciture scelte (${(draft.areas || []).length}/${chosenSegments().length}).`
         :trigger && !bossTriggerMet(draft.action,presentation?.item)?`Innesco non avvenuto: ${presentation?.item?.name || "il boss"} deve essere sotto ${trigger.hpBelow} PF.`
         :bossGroupApplyBlocker({...draft,areaRequired:areaAction(),confirmationRequired:confirmNeeded(),areaShape:groupArea(),
           maxTargets:draft.action.execution.target.maxTargets || 0,confirmationText:bossGroupConfirmationText(draft.action),
-          drawnCount:(draft.areas || []).length,...(multiArea()&&areaDrawn()?{area:draft.areas}:{}),
+          drawnCount:(draft.areas || []).length,...((multiArea() || segmentArea())&&areaDrawn()?{area:draft.areas}:{}),
           outcomeValues:bossGroupOutcomes(draft.action).map(([value])=>value),
           missingDamageIds:bossGroupMissingDamageIds(draft.action,draft.targetIds,draft.outcomes,draft.targetAmounts)}));
       apply.disabled=busy || !!reason;apply.title=reason || "Applica";
@@ -1332,6 +1426,20 @@ export function bootBossActions(documentRef=document, overrides={}) {
       draw.disabled=busy || !!draft.drawing || locked;draw.title=locked?"Conferma prima il requisito.":"";
       cancel.hidden=!draft.drawing;cancel.disabled=busy;
       if(restart){restart.hidden=!drawn || !!draft.drawing || drawn===area.count;restart.disabled=busy;}
+      return;
+    }
+    if(area.segments) {
+      const chosen=chosenSegments(),drawn=(draft.areas || []).length,next=chosen[drawn];
+      label.textContent=draft.drawing
+        ? `${number}Sulla mappa: la linea sulla cucitura ${bossSeamSegmentLabel(next ?? chosen[0] ?? 0)}, controllala e «Conferma sagoma» (Esc annulla).`
+        : !seamSegments().length ? `${number}Nessuna cucitura in questo round.`
+        : areaDrawn() ? `${number}${drawn} ${drawn===1?"linea mostrata":"linee mostrate"}: ${draft.targetIds.length} creature colpite.`
+        : `${number}Linee ${drawn}/${chosen.length} sulle cuciture scelte.`;
+      draw.textContent=areaDrawn()?"Mostra di nuovo":drawn?`Mostra la linea ${bossSeamSegmentLabel(next)}`:"Mostra le linee";
+      draw.disabled=busy || !!draft.drawing || !chosen.length;
+      draw.title=!seamSegments().length?"Nessuna cucitura in questo round.":!chosen.length?"Scegli almeno una cucitura.":"";
+      cancel.hidden=!draft.drawing;cancel.disabled=busy;
+      renderSegmentChoice();
       return;
     }
     const gesture={cone:"origine, direzione",circle:"centro",emanation:`la sagoma è centrata su ${presentation?.item?.name || "boss"}`,seam:"la linea è già sulla cucitura, controllala"}[area.shape] || "area";
@@ -1405,7 +1513,12 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(restore)await setMinimized(true);
     let result;
     const theme=bossAreaTheme(presentation?.profile);
-    const seamLine=active.action.execution.target.area.shape==="seam"?presentation?.sequence?.seam:null;
+    // Strappare le Cuciture: the next chosen segment (all of them again once every line is shown).
+    const segmentsMode=!!active.action.execution.target.area.segments;
+    if(segmentsMode && areaDrawn()){active.areas=[];setGroup([]);}
+    const segment=segmentsMode?seamSegments().find(entry=>entry.index===chosenSegments()[(active.areas || []).length]):null;
+    if(segmentsMode && !segment){active.drawing=null;renderGroupState();setStatus("Scegli almeno una cucitura da strappare.");if(restore)await setMinimized(false);return;}
+    const seamLine=segmentsMode?segment:active.action.execution.target.area.shape==="seam"?presentation?.sequence?.seam:null;
     if(active.action.execution.target.area.shape==="seam" && !seamLine){active.drawing=null;renderGroupState();setStatus("Nessuna cucitura in questo round.");if(restore)await setMinimized(false);return;}
     const context={phase:"boss-action",actionId:active.action.id,...(theme?{areaTheme:theme}:{}),...(seamLine?{presetLine:{start:seamLine.start,end:seamLine.end}}:{}),...(pending>1?{areaBatch:{count:pending,minDistanceFeet:(multi.innerRadius || 0)*2,innerRadiusFeet:multi.innerRadius || 0}}:{})};
     try {result=await placeArea({ruleId,casterId:sourceId,requestId,context});}
@@ -1424,6 +1537,16 @@ export function bootBossActions(documentRef=document, overrides={}) {
       tracked.forEach(item=>{const index=targets.findIndex(existing=>existing.id===item.id);if(index>=0)targets[index]=item;else targets.push(item);});
       const drawnAreas=shapes.map(shape=>({ruleId,start:{x:Number(shape.start?.x),y:Number(shape.start?.y)},
         end:{x:Number(shape.end?.x),y:Number(shape.end?.y)},areaTargetIds:idsOf(shape).filter(id=>tracked.some(item=>item.id===id))}));
+      if(segmentsMode) {
+        // Each line joins the group; a creature in several lines is counted once (one save, one damage).
+        active.areas=[...(active.areas || []),{...drawnAreas[0],segment:segment.index}];
+        setGroup([...new Set([...draft.targetIds,...drawnAreas[0].areaTargetIds])]);
+        const done=areaDrawn();
+        const creatures=count=>`${count} ${count===1?"creatura":"creature"}`;
+        setStatus(`Linea ${bossSeamSegmentLabel(segment.index)}: ${creatures(drawnAreas[0].areaTargetIds.length)}.${done?` Inserisci i tiri salvezza (${creatures(draft.targetIds.length)} in tutto).`:" Mostro la successiva."}`);
+        if(!done)setTimeout(()=>{if(draft===active && !draft.drawing)void drawArea();},0);
+        return;
+      }
       if(multi) {
         // "Ridisegna tutte": the previous complete set is replaced only once the new one is confirmed.
         if((active.areas || []).length===multi.count){active.areas=[];active.innerIds=[];setGroup([]);}
@@ -1443,6 +1566,24 @@ export function bootBossActions(documentRef=document, overrides={}) {
     } else {
       renderGroupTargets();renderGroupState();persistDraft();
       setStatus(result?.status==="cancelled"?"Disegno annullato: nessuna modifica.":`Disegno non riuscito${result?.error?": "+result.error:""}.`);
+    }
+  }
+  // Strappare le Cuciture: which segments tear (all of them by default). A change clears the lines already shown.
+  function renderSegmentChoice() {
+    const box=$("boss-seam-segments");
+    if(!box || !draft) return;
+    clear(box);
+    const seam=presentation?.sequence?.seam,chosen=chosenSegments();
+    for(const segment of seamSegments()) {
+      const label=node("label","","segment-choice");const input=node("input");input.type="checkbox";input.dataset.segment=String(segment.index);
+      input.checked=chosen.includes(segment.index);input.disabled=busy || !!draft.drawing;
+      input.addEventListener("change",()=>{
+        if(!draft || busy || draft.drawing) return;
+        const next=seamSegments().map(entry=>entry.index).filter(index=>index===segment.index?input.checked:chosenSegments().includes(index));
+        draft.seamSegments=next;draft.areas=[];lockDraft();setGroup([]);renderAreaStep();
+      });
+      const feet=Number(seam?.segmentsFeet?.[segment.index]);
+      label.append(input,node("span",`${bossSeamSegmentLabel(segment.index)}${Number.isFinite(feet)?` · ${feet} ft`:""}`));box.appendChild(label);
     }
   }
   function renderGroupResolution() {
@@ -1481,6 +1622,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const areaStep=node("div","","area-step");areaStep.id="boss-area-step";
       areaStep.append(node("span","","area-label"),button("","small"),button("Annulla disegno","small"));
       const [,draw,cancel]=areaStep.children;draw.id="boss-draw-area";cancel.id="boss-cancel-area";
+      if(groupArea()?.segments) {
+        const choice=node("div","","segment-choices");choice.id="boss-seam-segments";form.appendChild(choice);
+      }
       if(groupArea()?.count) {
         const restart=button("Ricomincia","small");restart.id="boss-restart-area";areaStep.appendChild(restart);
         restart.addEventListener("click",()=>{if(!draft || busy || draft.drawing)return;draft.areas=[];draft.innerIds=[];setGroup([]);setStatus("Esplosioni annullate: ricomincia dalla prima.");});

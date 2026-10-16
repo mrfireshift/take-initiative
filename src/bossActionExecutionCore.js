@@ -58,6 +58,20 @@ export function bossActiveSeam(runtimeState, round) {
   const seam = runtimeState?.seam;
   return seam && typeof seam === "object" && Number.isSafeInteger(round) && seam.round === round ? seam : null;
 }
+// v22: an ability for the boss above half its hit points, or at half or less (the alternative seam combo).
+// Read from the canonical HP of the token; "" when the gate is open or the ability has none.
+export function bossHpGateBlocker(action, sourceItem) {
+  const gate = action?.hpGate;
+  if (!gate) return "";
+  const meta = sourceItem?.metadata?.[META_KEY] || {};
+  const hp = Number(meta.hp), hpMax = Number(meta.hpMax);
+  const boss = sourceItem?.name || "Il boss";
+  if (!Number.isFinite(hp) || !Number.isFinite(hpMax) || hpMax <= 0) return `${action.name}: PF di ${boss} non leggibili.`;
+  const bloodied = hp * 2 <= hpMax;
+  if (gate === "bloodied" && !bloodied) return `${action.name} richiede che ${boss} abbia la metà o meno dei suoi PF (${hp}/${hpMax}).`;
+  if (gate === "unbloodied" && bloodied) return `${action.name} non è più disponibile: ${boss} ha la metà o meno dei suoi PF (${hp}/${hpMax}).`;
+  return "";
+}
 // What the sequence forbids now, from the data on the token (a hard block); "" when nothing does.
 export function bossSequenceBlocker(profile, action, runtimeState, round, sourceName = "") {
   if (action?.category !== "epic-action" || !bossProfileUsesSequence(profile)) return "";
@@ -117,6 +131,9 @@ export function buildBossActionUse({profile,action,sourceItem,actionInstanceId,r
   const availability=bossActionUsageAvailability(action,before,{phaseId:profile.phaseId,round});
   // A spent counter is named first; then the Epic Action sequence of the round (profile v19+).
   if (availability.tracked && !availability.available) throw new Error(availability.reason || "Risorsa esaurita.");
+  // v22: the hit point gate, from the canonical HP of the token.
+  const gated=bossHpGateBlocker(action,sourceItem);
+  if (gated) throw new Error(gated);
   const blocked=bossSequenceBlocker(profile,action,before,round,sourceItem.name);
   if (blocked) throw new Error(blocked);
   const runtimeState=consumeBossActionUsage(action,before,{phaseId:profile.phaseId,round});
@@ -446,6 +463,8 @@ export function bossSeamRuleId(seam) {
 }
 
 export function bossAreaShapeLabel(area) {
+  // v22: the lines of Strappare le Cuciture, one on each chosen segment.
+  if (area?.shape === "seam" && area.segments) return "linee sulle cuciture";
   return { cone: "cono", circle: "cerchio", emanation: "emanazione", seam: "linea sulla cucitura" }[area?.shape] || String(area?.shape || "area");
 }
 
@@ -490,6 +509,33 @@ export function sanitizeBossAreaPlacement(value, area) {
   return { ruleId, start, end, areaTargetIds, ...(Array.isArray(value.innerTargetIds) ? { innerTargetIds: ids(value.innerTargetIds) } : {}) };
 }
 
+// v22: the segments of a chained seam, in drawing order: segment i joins points[i] and points[i + 1].
+export function bossSeamSegments(seam) {
+  const points = Array.isArray(seam?.points) ? seam.points.map(placementPoint) : [];
+  if (points.length < 3 || points.some((value) => !value)) return [];
+  return points.slice(1).map((end, index) => ({ index, start: points[index], end }));
+}
+export function bossSeamSegmentLabel(index) {
+  const letter = (value) => String.fromCharCode(65 + value);
+  return `${letter(index)}–${letter(index + 1)}`;
+}
+// Each drawn line must lie on a distinct segment of the seam of this round (either direction).
+export function bossSeamSegmentPlacements(seam, values, area) {
+  const segments = bossSeamSegments(seam);
+  if (!segments.length) throw new Error("Le cuciture di questo round non ci sono più.");
+  const rows = (Array.isArray(values) ? values : []).map((value) => sanitizeBossAreaPlacement(value, area));
+  if (!rows.length || rows.some((row) => !row)) throw new Error("Scegli almeno una cucitura e mostra la sua linea prima di applicare.");
+  const same = (a, b) => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5;
+  const used = new Set();
+  return rows.map((row) => {
+    const segment = segments.find((entry) => !used.has(entry.index)
+      && ((same(row.start, entry.start) && same(row.end, entry.end)) || (same(row.start, entry.end) && same(row.end, entry.start))));
+    if (!segment) throw new Error("Una linea non segue una cucitura del round (o la ripete): mostrala di nuovo.");
+    used.add(segment.index);
+    return { ...row, segment: segment.index };
+  }).sort((a, b) => a.segment - b.segment);
+}
+
 export function bossGroupConditionInstanceId(actionInstanceId, conditionName, targetId) {
   return `${actionInstanceId}:${String(conditionName).toLocaleLowerCase("it")}:${targetId}`;
 }
@@ -512,12 +558,17 @@ export function buildBossActionGroupMutation({
   const placements = multiArea ? (Array.isArray(areaPlacements) ? areaPlacements : []).map((value) => sanitizeBossAreaPlacement(value, multiArea)) : [];
   if (multiArea && (placements.length !== multiArea.count || placements.some((row) => !row)))
     throw new Error(`Disegna tutte le ${multiArea.count} esplosioni prima di applicare.`);
+  // v22 (Strappare le Cuciture): one line on each segment of the chained seam the GM chose, each segment once.
+  const segmentArea = execution.target.area?.shape === "seam" && execution.target.area.segments ? execution.target.area : null;
+  const segmentRows = segmentArea ? bossSeamSegmentPlacements(bossActiveSeam(bossRuntimeStateForItem(sourceItem, profile), round), areaPlacements, segmentArea) : null;
   const placement = multiArea
     ? {ruleId:placements[0].ruleId,areaTargetIds:[...new Set(placements.flatMap((row) => row.areaTargetIds))]}
+    : segmentRows
+    ? {ruleId:segmentRows[0].ruleId,start:segmentRows[0].start,end:segmentRows[0].end,areaTargetIds:[...new Set(segmentRows.flatMap((row) => row.areaTargetIds))]}
     : execution.target.selection === "area" ? sanitizeBossAreaPlacement(areaPlacement, execution.target.area) : null;
   if (execution.target.selection === "area" && !placement) throw new Error("Disegna l’area sulla mappa prima di applicare.");
   // v19: the line follows the seam drawn this round, end to end.
-  if (execution.target.area?.shape === "seam") {
+  if (execution.target.area?.shape === "seam" && !segmentArea) {
     const seam = bossActiveSeam(bossRuntimeStateForItem(sourceItem, profile), round);
     const same = (a, b) => Math.abs(a.x - Number(b?.x)) < 0.5 && Math.abs(a.y - Number(b?.y)) < 0.5;
     if (seam && !(same(placement.start, seam.start) && same(placement.end, seam.end))) throw new Error("La linea non segue la cucitura: disegnala di nuovo.");
@@ -665,7 +716,9 @@ export function buildBossActionGroupMutation({
   const innerAdded = finalInner.filter((id) => !computedInner.includes(id));
   const innerRemoved = computedInner.filter((id) => !finalInner.includes(id));
   const manualSteps = [
-    multiArea
+    segmentRows
+      ? `Area: ${segmentRows.length} ${segmentRows.length === 1 ? "linea" : "linee"} di ${area.size} ft. posate dal GM sulle cuciture scelte (${segmentRows.map((row) => bossSeamSegmentLabel(row.segment)).join(", ")}); bersagli dall'unione delle linee, ciascuno contato una volta${addedManually.length || removedManually.length ? `, ${addedManually.length} aggiunti e ${removedManually.length} tolti a mano` : ""}.`
+    : multiArea
       ? `Area: ${multiArea.count} cerchi di ${area.size} ft. disegnati dal GM su punti liberi; bersagli dall'unione delle esplosioni, ciascuno contato una volta${addedManually.length || removedManually.length ? `, ${addedManually.length} aggiunti e ${removedManually.length} tolti a mano` : ""}. Entro ${area.innerRadius} ft. da un punto: ${finalInner.length} (calcolati dai centri disegnati${innerAdded.length || innerRemoved.length ? `, ${innerAdded.length} aggiunti e ${innerRemoved.length} tolti a mano` : ""}).`
     : placement
       ? `Area: ${bossAreaShapeLabel(area)} di ${area.size} ft. ${["emanation", "seam"].includes(area.shape) ? area.shape === "seam" ? "posata sulla cucitura" : "posizionata" : "disegnato"} dal GM (${where}); bersagli dal disegno${addedManually.length || removedManually.length ? `, ${addedManually.length} aggiunti e ${removedManually.length} tolti a mano` : ""}.`
@@ -678,7 +731,10 @@ export function buildBossActionGroupMutation({
   const causality = {
     ...use.context,resources:use.resources,
     save:{...clone(execution.save),...(execution.success?{success:execution.success}:{})},
-    ...(area?{area:{...clone(area),...(multiArea
+    ...(area?{area:{...clone(area),...(segmentRows
+      ? {verification:"placed",segments:segmentRows.map((row)=>row.segment),placements:segmentRows.map((row)=>({ruleId:row.ruleId,start:row.start,end:row.end})),
+        areaTargetIds:placement.areaTargetIds,addedManually,removedManually}
+      : multiArea
       ? {verification:"placed",placements:placements.map((row)=>({ruleId:row.ruleId,start:row.start,end:row.end})),
         areaTargetIds:placement.areaTargetIds,addedManually,removedManually,
         ...(multiArea.innerRadius?{innerTargetIds:computedInner,innerIds:finalInner,innerAddedManually:innerAdded,innerRemovedManually:innerRemoved}:{})}
@@ -956,17 +1012,27 @@ export function buildBossSeamMutation({ profile, action, sourceItem, seam = null
   if (!actionInstanceId || typeof actionInstanceId !== "string") throw new Error("Identità azione mancante.");
   const execution = action?.execution;
   if (execution?.kind !== "seam") throw new Error("Questa capacità non crea una cucitura.");
-  const start = placementPoint(seam?.start), end = placementPoint(seam?.end);
-  if (!start || !end || (start.x === end.x && start.y === end.y)) throw new Error("Disegna la cucitura sulla mappa prima di applicare.");
-  const lengthFeet = Number(seam?.lengthFeet);
-  if (!Number.isFinite(lengthFeet) || lengthFeet <= 0 || lengthFeet > execution.seam.maxLength) throw new Error(`La cucitura è lunga al massimo ${execution.seam.maxLength} ft.`);
-  const itemIds = [...new Set((Array.isArray(seam?.itemIds) ? seam.itemIds : []).map((id) => String(id || "")).filter(Boolean))].slice(0, 4);
+  // v22 (Cucitura Spezzata): a chain of points; each segment up to the printed length, the recorded length is their total.
+  const chain = execution.seam.points || 0;
+  const points = chain ? (Array.isArray(seam?.points) ? seam.points : []).map(placementPoint) : null;
+  if (chain && (points.length !== chain || points.some((value) => !value))) throw new Error(`Disegna tutti i ${chain} punti delle cuciture prima di applicare.`);
+  if (chain && points.some((value, index) => index && value.x === points[index - 1].x && value.y === points[index - 1].y)) throw new Error("Due punti consecutivi coincidono: ridisegna le cuciture.");
+  const segmentsFeet = chain ? (Array.isArray(seam?.segmentsFeet) ? seam.segmentsFeet : []).map(Number) : null;
+  if (chain && (segmentsFeet.length !== chain - 1 || segmentsFeet.some((value) => !Number.isFinite(value) || value <= 0))) throw new Error("Lunghezza delle cuciture non leggibile: ridisegnale.");
+  if (chain && segmentsFeet.some((value) => value > execution.seam.maxLength)) throw new Error(`Ogni cucitura è lunga al massimo ${execution.seam.maxLength} ft.`);
+  const start = chain ? points[0] : placementPoint(seam?.start), end = chain ? points[chain - 1] : placementPoint(seam?.end);
+  if (!start || !end || (!chain && start.x === end.x && start.y === end.y)) throw new Error("Disegna la cucitura sulla mappa prima di applicare.");
+  const lengthFeet = chain ? segmentsFeet.reduce((sum, value) => sum + value, 0) : Number(seam?.lengthFeet);
+  if (!Number.isFinite(lengthFeet) || lengthFeet <= 0 || (!chain && lengthFeet > execution.seam.maxLength)) throw new Error(`La cucitura è lunga al massimo ${execution.seam.maxLength} ft.`);
+  // The kept areas, their outlines and the portals: 4 for a two-point seam, up to 12 for a chain.
+  const itemIds = [...new Set((Array.isArray(seam?.itemIds) ? seam.itemIds : []).map((id) => String(id || "")).filter(Boolean))].slice(0, chain ? 12 : 4);
   const use = buildBossActionUse({ profile, action, sourceItem, actionInstanceId, round });
-  use.runtimeState.seam = { round, actionId: action.id, actionInstanceId, start, end, lengthFeet, itemIds };
+  use.runtimeState.seam = { round, actionId: action.id, actionInstanceId, start, end, lengthFeet, itemIds, ...(chain ? { points, segmentsFeet } : {}) };
   Object.assign(use.runtimeState.lastAction, { seam: { lengthFeet } });
   const sourceName = sourceItem.name || profile.name;
   const blocked = execution.seam.blocks.map((id) => profile.abilities.find((entry) => entry.id === id)?.name || id);
-  const causality = { ...use.context, resources: use.resources, seam: { round, start, end, lengthFeet, width: execution.seam.width, blocks: clone(execution.seam.blocks) } };
+  const causality = { ...use.context, resources: use.resources, seam: { round, start, end, lengthFeet, width: execution.seam.width, blocks: clone(execution.seam.blocks),
+    ...(chain ? { points: clone(points), segmentsFeet: clone(segmentsFeet) } : {}) } };
   const label = `${sourceName}: ${action.name} · ${lengthFeet} ft fino alla fine del round`;
   const manualRemainder = `${action.manualText || ""}${blocked.length ? ` Finché la cucitura esiste, ${sourceName} non può usare ${blocked.join(", ")}.` : ""}`.trim();
   return {

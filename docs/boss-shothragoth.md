@@ -1,4 +1,4 @@
-# Boss Actions — Shothragoth, l'Informe (S0–S3 e teletrasporto, profile/parser v21)
+# Boss Actions — Shothragoth, l'Informe (S0–S3, teletrasporto e Cucitura Spezzata, profile/parser v22)
 
 ## S0 · Fixture
 
@@ -129,6 +129,34 @@ Il teletrasporto usa lo stesso motore degli incantesimi (Passo Velato, Porta Dim
   - `shothragothTeleportIntegration.test.js`: commit e Undo reali, compresa la posizione;
   - un test della console in `bossActionsPopover.test.js`.
 - **Browser di prova:** `corpo-ready` e `corpo-final`. Il token del boss arriva sulla casella scelta; Mira prende 10 danni ed è Prona.
+
+## Cucitura Spezzata e Strappare le Cuciture (parser v22)
+
+Versione alternativa della combo Cucitura/Strappare, per Shothragoth a metà PF o meno. Sostituisce quella base: il testo stesso lo dice.
+
+- **Stat block:**
+  - la Cucitura del Non-Luogo aggiunge «e se ha più della metà dei suoi Punti Ferita»;
+  - **Cucitura Spezzata:** prima Azione Epica del round, solo con la metà o meno dei PF; quattro punti entro 60 ft, una cucitura larga 5 ft fra ogni punto e il successivo, **ciascuna lunga fino a 120 ft** (36 m); blocca Il Corpo Non Era Qui;
+  - **Strappare le Cuciture (Ricarica Speciale):** ultima Azione Epica, dopo la Cucitura Spezzata dello stesso round; il GM sceglie una o più cuciture, ciascuna diventa una Linea larga 20 ft; TS INT CD 18, 4d8 forza più 4d8 psichici, metà sul successo, Prono e spinta di 15 ft perpendicolare alla cucitura più vicina sul fallimento. Una creatura in più Linee fa un solo TS e subisce i danni una volta sola. Poi tutte le cuciture scompaiono.
+- **Profilo v22** (contratto chiuso, un profilo v21 non può contenerli):
+  - `hpGate` sull'abilità: `unbloodied` (più della metà dei PF) o `bloodied` (metà o meno), letto dai PF canonici del token (`meta.hp`, `meta.hpMax`);
+  - `seam.points` (3 o 4): la catena; `maxLength` è la lunghezza massima di ogni tratto (la cucitura registra il totale);
+  - `area.segments: true` sulla linea della cucitura: una linea per ogni segmento scelto. Il validatore vuole i segmenti solo dopo una catena e la linea singola solo dopo una cucitura a due punti; altrimenti l'azione resta manuale.
+- **Soglia dei PF:** quando sono bloccate, la lista mostra il requisito: «Solo sopra ½ PF» sulla Cucitura base, «Solo a ½ PF o meno» sulla Spezzata; il tooltip della riga dice il motivo (anche per un blocco della sequenza). Anche il commit verifica la soglia.
+- **Disegno della catena:** tre linee una dopo l'altra. La seconda e la terza partono dal punto in cui è finita la precedente (opzione `lineStart` dello strumento d'area, attiva solo se la richiesta la chiede: l'inizio non viene agganciato alla griglia e il puntatore muove solo la fine). Ogni linea arriva fino a 120 ft, anche la seconda e la terza. «Ricomincia» cancella una catena a metà; «Ridisegna» ricomincia da A.
+- **Portali:** a catena completa, uno su ogni punto (A, B, C, D), agganciato al suo segmento, con il marcatore `bossSeam`. La cucitura salvata tiene fino a 12 id (3 aree, 3 contorni, 4 portali).
+- **Strappo:** nella console spunti i segmenti (tutti per default); «Mostra le linee» posa la linea larga 20 ft su ciascuno, uno dopo l'altro, con una conferma per linea. Il gruppo è l'unione, ogni creatura una volta; il commit controlla che ogni linea stia su un segmento diverso della catena del round.
+- **Test:** `shothragothSpezzata.test.js` (dati, soglia, catena, strappo, portali, `lineStart`) e due test della console in `bossActionsPopover.test.js`.
+- **Browser di prova:** `spezzata-drawing`, `spezzata-final`, `strappare-cuciture-ready`, `strappare-cuciture-final` (A–B e C–D strappati, B–C no: Mira e Sera prendono 36 danni e sono Prone; i 10 oggetti della catena spariscono).
+
+## Terreno Difficile della cucitura
+
+Lo spazio di ogni cucitura (base o spezzata) è Terreno Difficile mentre la cucitura esiste, cioè nel round in cui è stata disegnata e finché non viene strappata.
+
+- **Calcolo:** il controllo della velocità raddoppia il costo della sola parte di uno spostamento che passa dentro la cucitura (`movementCostForSegment`, nuovo parametro `terrainModifiers`). Fuori dalla cucitura il costo non cambia.
+- **Non si somma** al costo raddoppiato della creatura (per esempio una Ragnatela): vale il più alto. Una creatura immune al Terreno Difficile (Libertà di Movimento) non paga nulla.
+- **Da dove legge:** `bossSeamTerrainCore.js` ricostruisce le celle dalle aree salvate sulla mappa che il boss registra come cucitura del round. Il contorno, i portali e un disegno rimasto da un round passato non contano. Gli oggetti arrivano dall'ultimo evento di cambiamento della scena, quindi nessuna lettura in più a ogni passo.
+- **Test:** `bossSeamTerrain.test.js`.
 
 ## Prossimi passi
 
