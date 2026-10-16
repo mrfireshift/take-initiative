@@ -6,7 +6,9 @@ import {createBossActionsDocument,textOf,createMemorySessionStorage} from "../te
 const META="com.thebigpicture.initiative/meta";
 const STATE="com.thebigpicture.initiative/state";
 const sdk={onReady(){},broadcast:{onMessage:()=>()=>{},sendMessage:async()=>{}},scene:{items:{getItems:async()=>[]}},popover:{close:async()=>{}}};
-mock.module("@owlbear-rodeo/sdk",{exports:{default:sdk,buildLabel(){},buildImage(){},buildPath(){},buildShape(){},buildText(){},Command:class{}}});
+// buildImage records what the console sets (the Cucitura portals); the other builders are unused here.
+function buildImage(image,grid){const item={type:"IMAGE",image,grid};const chain=new Proxy({},{get:(t,key)=>key==="build"?()=>item:value=>{item[key]=value;return chain;}});return chain;}
+mock.module("@owlbear-rodeo/sdk",{exports:{default:sdk,buildLabel(){},buildImage,buildPath(){},buildShape(){},buildText(){},Command:class{}}});
 globalThis.sessionStorage=createMemorySessionStorage();
 const {bootBossActions}=await import("../src/boss-actions.js");
 const tick=()=>new Promise(resolve=>setTimeout(resolve,5));
@@ -19,13 +21,14 @@ function fixture(options={}){
   const data=new Map();
   const store=createBossActionProfileStore({storage:{getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)}});
   let bound=options.bound || null,selection=options.selection || [],round=3;
-  const calls=[],spellCalls=[],registerCalls=[],undoCalls=[],heights=[],availability={};
+  const calls=[],spellCalls=[],registerCalls=[],undoCalls=[],heights=[],availability={},added=[];
   const listeners={player:new Set(),meta:new Set(),items:new Set()};
   const subscribe=(set,listener)=>{set.add(listener);return()=>set.delete(listener);};
   const api={
     player:{getRole:async()=>"GM",getSelection:async()=>selection,onChange:listener=>subscribe(listeners.player,listener)},
     scene:{isReady:async()=>true,onReadyChange:h=>{readyHandler=h;return()=>{};},onMetadataChange:listener=>subscribe(listeners.meta,listener),
-      items:{getItems:async ids=>Array.isArray(ids)?items.filter(item=>ids.includes(item.id)):items,onChange:listener=>subscribe(listeners.items,listener)}},
+      items:{getItems:async ids=>Array.isArray(ids)?items.filter(item=>ids.includes(item.id)):items,onChange:listener=>subscribe(listeners.items,listener),
+        addItems:async values=>{added.push(...values);}}},
     popover:{close:async()=>{},getHeight:async()=>500,setHeight:async(id,height)=>{heights.push([id,height]);}},
   };
   const runtime={
@@ -45,7 +48,7 @@ function fixture(options={}){
     placeArea:request=>new Promise(resolve=>placements.push({request,resolve})),
     cancelArea:async requestId=>{cancelled.push(requestId);const pending=placements.find(entry=>entry.request.requestId===requestId);pending?.resolve({status:"cancelled"});}});
   const $=id=>documentRef.getElementById(id);
-  return {documentRef,$,store,controller,calls,spellCalls,registerCalls,undoCalls,heights,availability,api,runtime,items,placements,cancelled,
+  return {documentRef,$,store,controller,calls,spellCalls,registerCalls,undoCalls,heights,availability,api,runtime,items,placements,cancelled,added,
     select:async ids=>{selection=ids;for(const listener of listeners.player)listener({selection:ids});await tick();},
     setRound:async value=>{round=value;for(const listener of listeners.meta)listener({[STATE]:{round:value}});await tick();await tick();},
     listenerCount:()=>listeners.player.size+listeners.meta.size+listeners.items.size,
@@ -1004,31 +1007,37 @@ function withSequence(f,sequence){
 const SEAM_LINE={start:{x:0,y:0},end:{x:900,y:0}};
 function grid(f){f.api.scene.grid={getDpi:async()=>100,getScale:async()=>({parsed:{multiplier:5,unit:"ft"}})};}
 
-test("Cucitura: the slot in the header, the seam drawn up to 60 ft and kept on the map, then sent with its drawing",async()=>{
+test("Cucitura: the slot in the header, the seam drawn up to 120 ft and kept on the map with a portal at each end, then sent with its drawing",async()=>{
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"shothragoth.html");grid(f);
   withSequence(f,()=>({}));await f.controller.refresh();
   if(f.$("boss-tab-actions"))await f.$("boss-tab-actions").click();await tick();
   assert.match(f.$("boss-phase").textContent,/Round 3 · Azione Epica 1\/3/);
-  assert.match(textOf(row(f,"Cucitura del Non-Luogo")),/Cucitura fino a 60 ft · prima del round/);
+  assert.match(textOf(row(f,"Cucitura del Non-Luogo")),/Cucitura fino a 120 ft · prima del round/);
   await open(f,"Cucitura del Non-Luogo");
   assert.match(textOf(f.$("boss-resolution")),/Finché esiste blocca Il Corpo Non Era Qui\. Strappare la Cucitura la usa come ultima Azione Epica del round\./);
   assert.equal(f.$("boss-draw-seam").textContent,"Disegna cucitura");
   assert.match(f.$("boss-apply-hint").textContent,/Disegna la cucitura sulla mappa/);
   await f.$("boss-draw-seam").click();await tick();
   const pending=f.placements.at(-1);
-  assert.equal(pending.request.ruleId,"boss-action-area:line:60ft:5ft");
+  assert.equal(pending.request.ruleId,"boss-action-area:line:120ft:5ft");
   assert.equal(pending.request.context.areaTheme,"void");
   const keep=pending.request.context.keepOnMap;
   assert.match(keep.id,/^boss-seam-/);
   assert.deepEqual(keep.metadata,{"com.thebigpicture.initiative/bossSeam":{sourceId:"auril",actionInstanceId:keep.metadata["com.thebigpicture.initiative/bossSeam"].actionInstanceId}});
   pending.resolve({status:"confirmed",preview:{...SEAM_LINE,targetIds:[]}});await tick();await tick();
   assert.equal(f.$("boss-seam-label").textContent,"Cucitura disegnata: 45 ft.");
+  // A portal on the Props layer at each end, attached to the seam drawing and marked as part of it.
+  const portalIds=[`${keep.id}-portal-start`,`${keep.id}-portal-end`];
+  assert.deepEqual(f.added.map(item=>[item.id,item.layer,item.attachedTo,item.position,item.metadata["com.thebigpicture.initiative/bossSeam"].portal]),
+    [[portalIds[0],"PROP",keep.id,SEAM_LINE.start,"start"],[portalIds[1],"PROP",keep.id,SEAM_LINE.end,"end"]]);
+  assert.match(f.added[0].image.url,/\/boss-seam-portal\.webp$/);
+  assert.deepEqual([f.added[0].image.width,f.added[0].grid.dpi,f.added[0].locked,f.added[0].disableHit],[1254,627,true,true]);
   assert.match(textOf(f.$("boss-total")),/Cucitura 45 ft fino a fine round/);
   assert.equal(f.$("boss-draw-seam").textContent,"Ridisegna");
   assert.equal(apply(f).disabled,false);
   await submit(f);
   assert.equal(f.calls.length,1);
-  assert.deepEqual(f.calls[0].seam,{...SEAM_LINE,lengthFeet:45,itemIds:[keep.id,`${keep.id}-geometry`]});
+  assert.deepEqual(f.calls[0].seam,{...SEAM_LINE,lengthFeet:45,itemIds:[keep.id,`${keep.id}-geometry`,...portalIds]});
   assert.equal(f.calls[0].actionId,actionNamed(f,"Cucitura del Non-Luogo").id);
   f.controller.destroy();
 });

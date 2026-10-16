@@ -54,6 +54,14 @@ function renderKept() {
       keptLayer.appendChild(rect);
     }
   }
+  // The Cucitura portals: images on the Props layer, sized by their grid dpi on the 70 px grid.
+  for (const item of fakeHost.state.items.filter((entry) => entry.layer === "PROP" && entry.image?.url)) {
+    const size = (item.image.width / (item.grid?.dpi || item.image.width)) * GRID;
+    const image = document.createElementNS(keptLayer.namespaceURI, "image");
+    Object.entries({ href: item.image.url, x: item.position.x - size / 2, y: item.position.y - size / 2, width: size, height: size, "data-portal": item.id })
+      .forEach(([k, v]) => image.setAttribute(k, v));
+    keptLayer.appendChild(image);
+  }
 }
 function renderMap() {
   map.replaceChildren();

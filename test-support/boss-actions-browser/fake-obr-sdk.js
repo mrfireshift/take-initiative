@@ -116,7 +116,13 @@ function facade(target) {
 }
 export const fakeHost = host;
 export default (window === top ? host.sdk : facade(host.sdk));
-const builder = () => { const b = new Proxy({}, { get: (t, k) => (k === "build" ? () => ({ id: "built-" + Math.random().toString(36).slice(2), metadata: {} }) : () => b) }); return b; };
+// Every setter is recorded on the item (id, layer, position, metadata, …); the first argument of buildImage is
+// its image and the second its grid.
+const builder = (image, grid) => {
+  const item = { id: "built-" + Math.random().toString(36).slice(2), metadata: {}, ...(image ? { type: "IMAGE", image, grid } : {}) };
+  const b = new Proxy({}, { get: (t, k) => (k === "build" ? () => item : (value) => { item[k] = value; return b; }) });
+  return b;
+};
 export const buildLabel = builder, buildImage = builder, buildText = builder, buildPath = builder, buildShape = builder;
 export class Command {}
 export const typeTheme = {};

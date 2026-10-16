@@ -1,4 +1,4 @@
-import OBR from "@owlbear-rodeo/sdk";
+import OBR, { buildImage } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { importBossActionHTML } from "./bossActionProfileCore.js";
@@ -19,6 +19,7 @@ import { bossActionAreaRuleId,bossAreaShapeLabel,bossGroupRequiresConfirmation,b
   bossSeamRuleId,BOSS_SEAM_ITEM_KEY } from "./bossActionExecutionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
+import { bossSeamDrawingIds,bossSeamPortalSpecs,BOSS_SEAM_PORTAL_ASSET,BOSS_SEAM_PORTAL_PIXELS,BOSS_SEAM_PORTAL_CELLS } from "./bossSeamPortalCore.js";
 import "./popoverDrag.js";
 
 const POPOVER_ID=`${ID}/boss-actions`;
@@ -458,6 +459,21 @@ export function bootBossActions(documentRef=document, overrides={}) {
       if(own.length)await api.scene.items.deleteItems(own);
     } catch {}
   }
+  // Cucitura: a void portal on the Props layer at each end of the seam, attached to the seam drawing. Returns the
+  // ids that were added; a failure leaves the seam without portals (the seam itself is unaffected).
+  async function addSeamPortals({itemId,actionInstanceId,start,end,name}) {
+    const specs=bossSeamPortalSpecs({itemId,sourceId,actionInstanceId,start,end,name});
+    if(!specs.length) return [];
+    const size=BOSS_SEAM_PORTAL_PIXELS;
+    const url=new URL(BOSS_SEAM_PORTAL_ASSET,String(globalThis.location?.origin || "http://localhost")).href;
+    try {
+      const items=specs.map(spec=>buildImage({width:size,height:size,url,mime:"image/webp"},{dpi:size/BOSS_SEAM_PORTAL_CELLS,offset:{x:size/2,y:size/2}})
+        .id(spec.id).position(spec.position).attachedTo(spec.attachedTo).layer("PROP").locked(true).disableHit(true)
+        .disableAttachmentBehavior(["ROTATION","SCALE"]).visible(true).name(spec.name).metadata(spec.metadata).build());
+      await api.scene.items.addItems(items);
+      return specs.map(spec=>spec.id);
+    } catch {return [];}
+  }
   // "Last Epic Action of the round": a warning the GM confirms when the initiative order says otherwise.
   function sequenceStep(form) {
     const warning=sequenceWarning(draft.action);
@@ -503,7 +519,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       keepOnMap:{id:itemId,name:active.action.name,metadata:{[BOSS_SEAM_ITEM_KEY]:{sourceId,actionInstanceId:active.binding.actionInstanceId}}}}});}
     catch(error) {result={status:"error",error:String(error?.message || error)};}
     if(restore && minimized)await setMinimized(false);
-    if(draft!==active || active.drawing!==requestId || !lifecycle.isCurrent(operation) || invalidated) {void dropSeamDrawing([itemId,`${itemId}-geometry`]);return;}
+    if(draft!==active || active.drawing!==requestId || !lifecycle.isCurrent(operation) || invalidated) {void dropSeamDrawing(bossSeamDrawingIds(itemId));return;}
     active.drawing=null;
     if(result?.status==="confirmed" && result.preview) {
       const start={x:Number(result.preview.start?.x),y:Number(result.preview.start?.y)},end={x:Number(result.preview.end?.x),y:Number(result.preview.end?.y)};
@@ -515,8 +531,10 @@ export function bootBossActions(documentRef=document, overrides={}) {
         if(dpi>0)lengthFeet=Math.round(bossPointDistanceFeet(start,end,dpi,feetPerCell || 5)/(feetPerCell || 5))*(feetPerCell || 5);
       } catch {}
       if(draft!==active || !lifecycle.isCurrent(operation)) return;
+      const portalIds=await addSeamPortals({itemId,actionInstanceId:active.binding.actionInstanceId,start,end,name:active.action.name});
+      if(draft!==active || !lifecycle.isCurrent(operation)) return;
       const previous=active.seam?.itemIds || [];
-      active.seam={start,end,lengthFeet:Math.min(seam.maxLength,Math.max(0,lengthFeet ?? 0)),itemIds:[itemId,`${itemId}-geometry`]};
+      active.seam={start,end,lengthFeet:Math.min(seam.maxLength,Math.max(0,lengthFeet ?? 0)),itemIds:[itemId,`${itemId}-geometry`,...portalIds]};
       if(previous.length)void dropSeamDrawing(previous);
       setStatus(`Cucitura disegnata: ${active.seam.lengthFeet} ft. Premi «Applica» per registrarla.`);
     } else {

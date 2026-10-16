@@ -81,7 +81,7 @@ Regola dei boss epici: un'Azione Epica alla fine del turno di ogni personaggio. 
 
 | Capacità | Stato | Cosa è automatico | Cosa resta manuale |
 |---|---|---|---|
-| Cucitura del Non-Luogo | PARTIAL | solo come prima Azione Epica del round; il GM disegna la linea larga 5 ft fra due punti, lunga al massimo 60 ft; la cucitura resta registrata sul boss fino alla fine del round e il disegno resta sulla mappa (palette «vuoto»); finché esiste, Il Corpo Non Era Qui è bloccato | i due punti su superfici percepite entro 60 ft, il Terreno Difficile |
+| Cucitura del Non-Luogo | PARTIAL | solo come prima Azione Epica del round; il GM disegna la linea larga 5 ft fra due punti, lunga al massimo 120 ft; la cucitura resta registrata sul boss fino alla fine del round e il disegno resta sulla mappa (palette «vuoto») con un portale a ogni estremità; finché esiste, Il Corpo Non Era Qui è bloccato | i due punti su superfici percepite entro 60 ft, il Terreno Difficile |
 | Strappare la Cucitura | PARTIAL | solo dopo la Cucitura dello stesso round, come ultima Azione Epica (conferma se l'ordine dice altro); niente più spunta «Ricarica e sequenza verificate»; la linea larga 20 ft viene posata sulla cucitura salvata; TS INT CD 18, 4d8 forza più 4d8 psichici, metà sul successo, Prono sul fallimento; la cucitura scompare dal boss e dalla mappa | la spinta di 15 ft perpendicolare alla cucitura, verso un lato a caso |
 
 - **Profilo v19:**
@@ -100,6 +100,14 @@ Regola dei boss epici: un'Azione Epica alla fine del turno di ogni personaggio. 
   - una cucitura collassata a fine round, o annullata, lascia il disegno: la lista lo segnala con «Rimuovi»;
   - un disegno mai applicato sparisce chiudendo l'azione o ridisegnando.
 - **Undo di Strappare:** ripristina la cucitura ma non il suo disegno. La nota lo dice: «Il disegno non è sulla mappa».
+
+### Cucitura: 120 ft e portali
+
+- **Lunghezza:** lo stat block dice «distanti non più di 120 ft.» (36 m, su decisione del GM; prima era 60 ft). Il parser legge il numero dal testo: la regola d'area diventa `boss-action-area:line:120ft:5ft`. Il raggio dei punti («entro 60 ft. da sé») resta 60 ft. Il profilo già importato va reimportato dallo stat block aggiornato.
+- **Portali:** a disegno confermato, la console aggiunge due immagini sul layer Props, una all'inizio e una alla fine della linea (`public/boss-seam-portal.webp`, 10 ft di diametro, bloccate e non cliccabili; `bossSeamPortalCore.js`).
+  - Sono agganciate al disegno della cucitura e hanno il suo marcatore `bossSeam` (con `portal: "start"|"end"`); i loro id (`<id>-portal-start`, `<id>-portal-end`) entrano in `seam.itemIds`, che ne tiene al massimo 4.
+  - Quindi spariscono con la cucitura in ogni caso: ridisegno, Strappare, cucitura collassata («Rimuovi»), disegno mai applicato.
+  - Se l'aggiunta non riesce, la cucitura resta valida senza portali.
 
 ## Il Corpo Non Era Qui con il teletrasporto (parser v21)
 

@@ -28,7 +28,7 @@ const state = (round, actionIds, extra = {}) => ({ epicLog: { round, actionIds }
 test("Cucitura and Strappare as closed v19 data; the names they refer to are resolved inside the profile", async () => {
   assert.deepEqual([profile.profileVersion, profile.parserVersion], [21, 21]);
   assert.deepEqual(cucitura.sequence, { slot: "first" });
-  assert.deepEqual(cucitura.execution, { kind: "seam", seam: { width: 5, maxLength: 60, range: 60, blocks: [corpo.id] } });
+  assert.deepEqual(cucitura.execution, { kind: "seam", seam: { width: 5, maxLength: 120, range: 60, blocks: [corpo.id] } });
   assert.match(cucitura.manualText, /Terreno Difficile/);
   assert.deepEqual(strappare.sequence, { slot: "last", after: cucitura.id });
   assert.deepEqual(strappare.usage, { note: "Special Recharge" });
@@ -43,7 +43,7 @@ test("Cucitura and Strappare as closed v19 data; the names they refer to are res
   assert.equal(bossGroupRequiresConfirmation(strappare), false);
   assert.equal(bossGroupRequiresConfirmation(auril.abilities.find((entry) => entry.name === "Breath of the Long Night")), false, "v20: Auril's sequence too");
   assert.ok(!bossGroupRestrictions(strappare).some((line) => /Ricarica speciale/.test(line)));
-  assert.equal(bossActionRowMeta(cucitura, {}).tag, "Cucitura fino a 60 ft · prima del round");
+  assert.equal(bossActionRowMeta(cucitura, {}).tag, "Cucitura fino a 120 ft · prima del round");
   assert.equal(bossActionRowMeta(strappare, {}).tag, "TS INT 18 · linea sulla cucitura 20 ft · ultima del round");
   assert.deepEqual(bossActionRowMeta(corpo, { tracked: true, available: false, remaining: 1, limit: 1, period: "round", sequenceBlocked: true }),
     { kind: "save-damage", tag: "TS DES 18", badge: "Bloccata", exhausted: true });
@@ -132,7 +132,7 @@ test("every Epic Action is logged in its round; a profile without sequences logs
   assert.equal(after.seam, undefined);
 });
 
-test("Cucitura: the drawn seam is recorded for the round, up to 60 ft; Strappare follows it end to end and tears it", () => {
+test("Cucitura: the drawn seam is recorded for the round, up to 120 ft; Strappare follows it end to end and tears it", () => {
   const plan = buildBossSeamMutation({ profile, action: cucitura, sourceItem: withState({}), actionInstanceId: "boss-action:cucitura", round: 2,
     seam: { start: { x: 0, y: 0 }, end: { x: 450, y: 0 }, lengthFeet: 45, itemIds: ["boss-seam-1", "boss-seam-1-geometry"] } });
   assert.deepEqual(plan.operations, []);
@@ -144,7 +144,7 @@ test("Cucitura: the drawn seam is recorded for the round, up to 60 ft; Strappare
   assert.match(plan.manualText, /non può usare Il Corpo Non Era Qui/);
   assert.equal(bossActionResultSummary({ seam: { lengthFeet: 45 } }), "cucitura di 45 ft fino alla fine del round");
   assert.throws(() => buildBossSeamMutation({ profile, action: cucitura, sourceItem: withState({}), actionInstanceId: "x", round: 2,
-    seam: { start: { x: 0, y: 0 }, end: { x: 650, y: 0 }, lengthFeet: 65 } }), /al massimo 60 ft/);
+    seam: { start: { x: 0, y: 0 }, end: { x: 1250, y: 0 }, lengthFeet: 125 } }), /al massimo 120 ft/);
   assert.throws(() => buildBossSeamMutation({ profile, action: cucitura, sourceItem: withState({}), actionInstanceId: "x", round: 2, seam: null }), /Disegna la cucitura/);
   assert.throws(() => buildBossSeamMutation({ profile, action: cucitura, sourceItem: withState(state(2, [fauce.id])), actionInstanceId: "x", round: 2,
     seam: { start: { x: 0, y: 0 }, end: { x: 450, y: 0 }, lengthFeet: 45 } }), /prima Azione Epica/);
@@ -163,12 +163,12 @@ test("Cucitura: the drawn seam is recorded for the round, up to 60 ft; Strappare
   assert.match(bossActionResultSummary({ groupTargets: [], seamTorn: true }), /Cucitura strappata/);
 });
 
-test("the area rules: a seam up to 60 ft, 5 ft wide; the tear line 20 ft wide on the given points", () => {
-  assert.equal(bossSeamRuleId(cucitura.execution.seam), "boss-action-area:line:60ft:5ft");
+test("the area rules: a seam up to 120 ft, 5 ft wide; the tear line 20 ft wide on the given points", () => {
+  assert.equal(bossSeamRuleId(cucitura.execution.seam), "boss-action-area:line:120ft:5ft");
   assert.equal(bossActionAreaRuleId(strappare.execution.target.area), "boss-action-area:seam:20ft");
-  const line = getSpellAreaRuleById("boss-action-area:line:60ft:5ft");
+  const line = getSpellAreaRuleById("boss-action-area:line:120ft:5ft");
   assert.deepEqual([line.geometry.shape, line.geometry.size.value, line.geometry.width.value, line.geometry.lengthUpTo, line.placement.origin],
-    ["line", 18, 1.5, true, "point"]);
+    ["line", 36, 1.5, true, "point"]);
   assert.deepEqual([getSpellAreaRuleById("boss-action-area:seam:20ft").geometry.width.value], [6]);
   assert.equal(getSpellAreaRuleById("boss-action-area:line:62ft:5ft"), null);
   // "Up to": whole cells, never beyond the printed length; a fixed line keeps its full length.
