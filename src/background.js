@@ -15,6 +15,7 @@ import { mountClassFeatureReminderController } from "./classFeatureReminderContr
 import { mountPreparedSpellResolutionController } from "./preparedSpellResolutionController.js";
 import { mountCallLightningTurnPromptController } from "./callLightningTurnPromptController.js";
 import { mountCompulsionMovementReminderController } from "./compulsionMovementReminderController.js";
+import { mountBossCollapseController } from "./bossCollapseController.js";
 import { mountEffectsMutationCoordinatorService } from "./effectsMutations.js";
 import { mountTurnNoticeHost } from "./turnNoticeHost.js";
 import "./sync-open.js";
@@ -294,6 +295,7 @@ OBR.onReady(async () => {
     void mountPreparedSpellResolutionController();
     void mountCallLightningTurnPromptController();
     void mountCompulsionMovementReminderController();
+    void mountBossCollapseController();
   }).catch((error) => {
     console.warn("[background] bootstrap:", error?.message || error);
   });

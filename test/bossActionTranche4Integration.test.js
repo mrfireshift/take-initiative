@@ -135,6 +135,34 @@ test("Hand Slam: no confirmation step, typed damage, a standard Prono on failure
   await assert.rejects(slam({ actionInstanceId: "second" }), /esaurit|non disponibile|Risorsa/i, "1/Round");
 });
 
+test("Hand Slam: after the commit the cracked area goes on the map once, at the centre of the drawn circle", async () => {
+  await setup(p2);
+  const placed = [];
+  runtime = createBossActionRuntime({ api: sdk, store, postDamage: async () => [],
+    placeCollapseMarker: async ({ spec }) => { placed.push(spec); return []; } });
+  const request = { actionInstanceId: "slam-1",
+    areaPlacement: { ruleId: "boss-action-area:circle:20ft", start: { x: 300, y: 450 }, end: { x: 420, y: 450 }, areaTargetIds: ["dars", "mira"] } };
+  const result = await slam(request);
+  assert.deepEqual(result.warnings, []);
+  assert.equal(placed.length, 1);
+  assert.equal(placed[0].id, "slam-1:collapse");
+  assert.deepEqual(placed[0].position, { x: 300, y: 450 });
+  assert.equal(placed[0].asset, "/boss-auril-hand-slam-cracked.webp");
+  assert.equal(placed[0].metadata["com.thebigpicture.initiative/bossCollapse"].round, 1);
+  const again = await slam(request);
+  assert.equal(again.duplicate, true);
+  assert.equal(placed.length, 1, "a retry never places a second image");
+});
+
+test("Blinding Gleam places no collapsing area", async () => {
+  await setup(p3);
+  const placed = [];
+  runtime = createBossActionRuntime({ api: sdk, store, postDamage: async () => [],
+    placeCollapseMarker: async ({ spec }) => { placed.push(spec); return []; } });
+  await shine();
+  assert.equal(placed.length, 0);
+});
+
 test("Blinding Gleam: Accecato for 1 minute with the repeated CON save on failure, Immune pill on success, one Undo removes both", async () => {
   await setup(p3);
   const result = await shine();

@@ -1,11 +1,13 @@
-import OBR from "@owlbear-rodeo/sdk";
+import OBR, { buildImage } from "@owlbear-rodeo/sdk";
 import { ID, EFFECT_SAVE_REMINDER_NOTICE_CHANNEL } from "./constants.js";
 import { getInitiativeCard, saveInitiativeCard } from "./initiativeCards.js";
 import { sanitizeBossActionBinding, bossSpellReferenceIds } from "./bossActionProfileCore.js";
 import { createBossActionProfileStore } from "./bossActionProfileStore.js";
 import { BOSS_ACTION_STATE_FIELD, bossInstanceForItem, isBossActionCreature, buildBossActionMutation, buildBossActionUse, bossRuntimeStateForItem, buildBossResourceReset,
   buildBossActionGroupMutation, isBossActionGroupExecution, bossGrappledIds, buildBossThrowMutation, buildBossEffectEndMutation,
-  bossProfileUsesSequence, bossSequenceBlocker, bossSequenceWarning, bossHpGateBlocker, bossEpicSlot, bossActiveSeam, buildBossSeamMutation, BOSS_SEAM_ITEM_KEY } from "./bossActionExecutionCore.js";
+  bossProfileUsesSequence, bossSequenceBlocker, bossSequenceWarning, bossHpGateBlocker, bossEpicSlot, bossActiveSeam, buildBossSeamMutation, BOSS_SEAM_ITEM_KEY,
+  sanitizeBossAreaPlacement } from "./bossActionExecutionCore.js";
+import { bossCollapseMarkerSpec } from "./bossCollapseCore.js";
 import { createMonsterActionContext } from "./monsterActionContextCore.js";
 import { getEffectsMutationSceneContext, runEffectsMutation, requireAppliedEffectsMutation } from "./effectsMutations.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
@@ -56,6 +58,19 @@ async function postBossDamage({item,change,result,sceneEpoch,sceneIdentity,isCur
   return (await Promise.allSettled(jobs)).filter(r=>r.status==="rejected").map(r=>String(r.reason?.message || r.reason));
 }
 
+// Hand Slam: once committed, the cracked area goes on the Props layer at the centre of the drawn circle. The id
+// comes from the action instance, so a retry never adds a second image.
+async function placeBossCollapseMarker({api=OBR,spec,isCurrent}) {
+  if(!spec || !isCurrent()) return [];
+  const [existing]=await api.scene.items.getItems([spec.id]);
+  if(existing || !isCurrent()) return [];
+  const url=new URL(spec.asset,String(globalThis.location?.origin || "http://localhost")).href;
+  const item=buildImage({width:spec.pixels,height:spec.pixels,url,mime:"image/webp"},{dpi:spec.pixels/spec.cells,offset:{x:spec.pixels/2,y:spec.pixels/2}})
+    .id(spec.id).position(spec.position).layer("PROP").locked(true).visible(true).name(spec.name).metadata(spec.metadata).build();
+  await api.scene.items.addItems([item]);
+  return [];
+}
+
 // Hurl beyond the edge: once committed, the DEX save arrives as a reminder on the "Appeso al bordo" pill.
 async function postBossEdgeSave({api=OBR,edge,sourceName,activationId,isCurrent}) {
   if(!edge || !isCurrent()) return [];
@@ -73,6 +88,7 @@ export function createBossActionRuntime({
   api=OBR,store=null,getCard=getInitiativeCard,saveCard=saveInitiativeCard,
   getSceneContext=getEffectsMutationSceneContext,runMutation=runEffectsMutation,
   requireApplied=requireAppliedEffectsMutation,postDamage=postBossDamage,postEdgeSave=postBossEdgeSave,removeSeamDrawings=removeBossSeamDrawings,
+  placeCollapseMarker=placeBossCollapseMarker,
   getEpoch=currentSceneEpoch,isCurrentEpoch=isCurrentSceneEpoch,
 }={}) {
   const definitions=()=>store || createBossActionProfileStore();
@@ -354,6 +370,15 @@ export function createBossActionRuntime({
       if(plan.seamDrawingIds?.length && result.duplicate!==true && scope.isCurrent()) {
         try {warnings.push(...(await removeSeamDrawings({api,sourceId,itemIds:plan.seamDrawingIds,isCurrent:scope.isCurrent}) || []));}
         catch(error) {warnings.push(`Disegno della cucitura non rimosso: ${String(error?.message || error)}`);}
+      }
+      // An area that collapses later (Hand Slam): its image, from the drawn centre and the round of the action.
+      const collapseSpec=group && action.execution.target?.area && result.duplicate!==true
+        ? bossCollapseMarkerSpec({profile,action,sourceId,actionInstanceId,round:scope.round,
+          center:sanitizeBossAreaPlacement(request.areaPlacement,action.execution.target.area)?.start})
+        : null;
+      if(collapseSpec && scope.isCurrent()) {
+        try {warnings.push(...(await placeCollapseMarker({api,spec:collapseSpec,isCurrent:scope.isCurrent}) || []));}
+        catch(error) {warnings.push(`Immagine dell’area non piazzata: ${String(error?.message || error)}`);}
       }
       if(plan.edge && result.duplicate!==true && scope.isCurrent()) {
         try {warnings.push(...(await postEdgeSave({api,edge:plan.edge,sourceName:scope.item.name,activationId:`${actionInstanceId}:edge`,isCurrent:scope.isCurrent}) || []));}

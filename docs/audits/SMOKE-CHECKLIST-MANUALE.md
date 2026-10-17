@@ -264,6 +264,13 @@ voce), `[-]` non eseguita.
   l'aura. Atteso: i reminder di ingresso e uscita compaiono una sola volta.
 - [ ] **9.6 (PERS)** Ricarica dopo aver usato delle azioni. Atteso: usi e
   ricariche delle azioni restano.
+- [ ] **9.7 (MAP, MC, VIS)** Auril fase 2, Hand Slam nel round N. Atteso:
+  - l'area incrinata compare sotto i token, centrata sul cerchio, larga
+    circa 10 caselle, visibile anche sul client player;
+  - alla fine del round N + 1 diventa l'area crollata;
+  - «Turno precedente» oltre il cambio di round la riporta incrinata.
+- [ ] **9.8 (MAP)** Undo di Hand Slam. Atteso, per design: l'immagine
+  resta; il GM la sblocca e la elimina a mano.
 
 ## 10. Cronologia e log di combattimento
 
