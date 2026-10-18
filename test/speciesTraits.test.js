@@ -1,0 +1,77 @@
+// Species traits (first tranche: dragonborn): profile field, passive resistance, Chromatic Warding.
+import test, { mock } from "node:test";
+import assert from "node:assert/strict";
+
+mock.module("@owlbear-rodeo/sdk", { exports: { default: { onReady() {} }, buildLabel() {}, buildImage() {}, buildText() {}, buildPath() {}, buildShape() {}, Command: class {} } });
+const { sanitizeSpecies, speciesDamageDefenses, speciesDisplayName, SPECIES_FEATURES } = await import("../src/speciesTraitCore.js");
+const { CLASS_FEATURE_BY_ID, CLASS_FEATURE_RESOURCE_POOL_BY_ID, CLASS_FEATURES, getEnabledClassFeatures, getAvailableClassFeatures } = await import("../src/classFeatureCatalog.js");
+const { planClassFeatureActivation, classFeatureConditionInstancesForActivation, classFeatureRuntimeSupport, resolveClassFeatureResourceMaximum } = await import("../src/classFeatureCore.js");
+const { damageDefensesForItem, profileDamageDefenses } = await import("../src/damageDefensesCore.js");
+const { sanitizeInitiativeCard, hasInitiativeCardValues } = await import("../src/initiativeCards.js");
+
+const META = "com.thebigpicture.initiative/meta";
+const WARDING = "specie-dragonide-cromatico-interdizione-cromatica-bianco";
+const whiteDragonborn = (level = 5) => ({ species: { id: "dragonide-cromatico", ancestryId: "bianco" }, characterBuild: [{ classId: "stregone", level }] });
+
+test("the species field is sanitized and optional", () => {
+  assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "bianco" }), { id: "dragonide-cromatico", ancestryId: "bianco" });
+  assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "oro" }), { id: "dragonide-cromatico", ancestryId: "" }, "gold is metallic, not chromatic");
+  assert.equal(sanitizeSpecies({ id: "elfo" }), null);
+  assert.equal(Object.hasOwn(sanitizeInitiativeCard({}), "species"), false, "profiles without a species keep their shape");
+  assert.deepEqual(sanitizeInitiativeCard({ species: { id: "dragonide-cromatico", ancestryId: "bianco" } }).species, { id: "dragonide-cromatico", ancestryId: "bianco" });
+  assert.equal(hasInitiativeCardValues(sanitizeInitiativeCard({ species: { id: "dragonide", ancestryId: "rosso" } })), true);
+  assert.equal(speciesDisplayName({ id: "dragonide-cromatico", ancestryId: "bianco" }), "Dragonide cromatico (bianco · freddo)");
+});
+
+test("the ancestry resistance is a passive profile defense", () => {
+  assert.deepEqual(speciesDamageDefenses({ id: "dragonide-cromatico", ancestryId: "bianco" }), { resistances: ["cold"] });
+  assert.deepEqual(profileDamageDefenses({ ...whiteDragonborn(), damageDefenses: { resistances: ["fire"] } }),
+    { immunities: [], resistances: ["cold", "fire"], vulnerabilities: [] });
+  const item = { id: "kriv", metadata: { [META]: { initiativeCard: whiteDragonborn() } } };
+  assert.deepEqual(damageDefensesForItem(item, META).resistances, ["cold"]);
+});
+
+test("species traits resolve by id but stay out of the class catalog", () => {
+  assert.ok(CLASS_FEATURE_BY_ID.get(WARDING));
+  assert.equal(CLASS_FEATURES.some((feature) => feature.speciesId), false);
+  assert.equal(getAvailableClassFeatures([{ classId: "stregone", level: 5 }]).some((feature) => feature.speciesId), false);
+  for (const feature of SPECIES_FEATURES) {
+    for (const poolId of feature.trackedResourcePoolIds) assert.ok(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get(poolId), poolId);
+  }
+});
+
+test("Chromatic Warding is enabled from 5th level, even on a profile with configured class features", () => {
+  const ids = (profile) => getEnabledClassFeatures(profile).filter((feature) => feature.speciesId).map((feature) => feature.id);
+  assert.deepEqual(ids(whiteDragonborn(4)), ["specie-dragonide-cromatico-arma-a-soffio-bianco"]);
+  assert.deepEqual(ids({ ...whiteDragonborn(5), classFeaturesConfigured: true, enabledClassFeatureIds: [] }),
+    ["specie-dragonide-cromatico-arma-a-soffio-bianco", WARDING]);
+  assert.deepEqual(ids({ species: { id: "dragonide-cromatico", ancestryId: "bianco" } }).length, 2, "without a class build the level is unknown");
+  assert.deepEqual(ids({ species: { id: "dragonide-cromatico", ancestryId: "" } }), []);
+});
+
+test("activating Chromatic Warding spends its long-rest use and grants cold immunity for 1 minute", async () => {
+  const feature = CLASS_FEATURE_BY_ID.get(WARDING);
+  const build = whiteDragonborn().characterBuild;
+  assert.equal(classFeatureRuntimeSupport(feature).ready, true);
+  assert.equal(resolveClassFeatureResourceMaximum(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get(feature.resourceCosts[0].poolId), build).maximum, 1);
+  const activation = planClassFeatureActivation({ state: null, feature, poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID, characterBuild: build,
+    sourceId: "kriv", targetIds: ["kriv"], currentRound: 2, currentTurnKey: "2:kriv", instanceId: "ward-1" });
+  assert.equal(activation.ok, true, activation.reason);
+  const [instance] = classFeatureConditionInstancesForActivation(feature, activation.instance, "Kriv", build);
+  assert.equal(instance.condition, "Interdizione Cromatica");
+  assert.deepEqual(instance.expiry.remaining, 10);
+  assert.deepEqual(instance.mechanics.damageDefenses, { immunities: ["cold"] });
+  assert.equal(instance.displayLabel, undefined, "a short pill: the immunity is a micropill");
+  const { effectSummaryPartsFor } = await import("../src/effectLabelCore.js");
+  assert.deepEqual(effectSummaryPartsFor(instance), [{ id: "damage-defense-immunity-cold", label: "Imm. freddo" }]);
+  const item = { id: "kriv", metadata: { [META]: { initiativeCard: whiteDragonborn(), conditions: { version: 2, instances: [instance] } } } };
+  assert.deepEqual(damageDefensesForItem(item, META), { immunities: ["cold"], resistances: [], vulnerabilities: [] });
+  const again = planClassFeatureActivation({ state: activation.state, feature, poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID, characterBuild: build,
+    sourceId: "kriv", targetIds: ["kriv"], currentRound: 3, currentTurnKey: "3:kriv", instanceId: "ward-2" });
+  assert.equal(again.ok, false, "a second use needs a long rest");
+});
+
+test("the Fizban breath weapon uses equal the proficiency bonus", () => {
+  const pool = CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-dragonide-fizban-arma-a-soffio-usi");
+  assert.equal(resolveClassFeatureResourceMaximum(pool, [{ classId: "stregone", level: 5 }]).maximum, 3);
+});

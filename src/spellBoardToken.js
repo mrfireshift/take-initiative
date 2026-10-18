@@ -30,13 +30,14 @@ export function buildSpellBoardTokenItem({
   casterName = "",
   objectSize = "",
   position = null,
+  number = null,
 } = {}) {
   const rule = getSpellBoardTokenRule(spellId);
   if (!rule) throw new Error("spell-board-token-rule-required");
   if (!position || !Number.isFinite(Number(position.x)) || !Number.isFinite(Number(position.y))) {
     throw new Error("spell-board-token-position-required");
   }
-  const itemName = spellBoardTokenDisplayName(spellId, casterName);
+  const itemName = spellBoardTokenDisplayName(spellId, casterName, number);
   const boardTokenMetadata = spellBoardTokenMetadata({
     spellId,
     instanceId,
@@ -44,6 +45,7 @@ export function buildSpellBoardTokenItem({
     slotLevel,
     casterHpMax,
     objectSize,
+    number,
   });
   const canonicalMetadata = spellBoardTokenCanonicalMetadata({
     spellId,

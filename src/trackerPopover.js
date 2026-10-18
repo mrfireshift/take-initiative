@@ -5,7 +5,7 @@ import { compactTrackerViewportWidth } from "./trackerCompactSizingCore.js";
 import { localTrackerView, moveTrackerPlacement, normalizeTrackerPlacement, sharedTrackerView, toggleTrackerSide, trackerPlacementFrame,
   trackerSidePanelAnchor } from "./trackerPlacementCore.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
-import { selectPlayerTrackerScale } from "./options/optionsSelectors.js";
+import { selectGmTrackerScale, selectPlayerTrackerScale } from "./options/optionsSelectors.js";
 import {
   classicTrackerScaledFrame,
   compactTrackerScale,
@@ -176,7 +176,7 @@ async function viewportSize() {
   return { viewportWidth, viewportHeight };
 }
 
-// The extended tracker on this screen at a player tracker scale: 340 px wide, wider on the players' table screen,
+// The extended tracker on this screen at its tracker scale: 340 px wide at 100%, narrower below and wider above,
 // as far as the screen allows from the docked edge.
 export function getClassicTrackerScaledFrame(scale, { viewportWidth = 1200, viewportHeight = 900 } = {}) {
   return classicTrackerScaledFrame(scale, {
@@ -209,14 +209,15 @@ export async function getTrackerSidePanelAnchor({ trackerWidth = null, panelWidt
   return trackerSidePanelAnchor(getClassicTrackerPlacement(), { trackerWidth: width, viewportWidth, panelWidth });
 }
 
-// Player tracker scale (room option): 1 for the GM, the configured scale for players (table screen).
+// Tracker scale of this screen: the room scale for players (table screen), the local one (this browser) for the GM.
 export async function getTrackerViewScale() {
   const role = await Promise.resolve().then(() => OBR.player.getRole()).catch(() => null);
-  if (String(role || "").toUpperCase() !== "PLAYER") return 1;
   await startRuntimeOptions().catch(() => {});
   let scale = 1;
+  let gmScale = 1;
   try { scale = runtimeOptionsService.get(selectPlayerTrackerScale); } catch {}
-  return effectiveTrackerScale(scale, role);
+  try { gmScale = runtimeOptionsService.get(selectGmTrackerScale); } catch {}
+  return effectiveTrackerScale(scale, role, gmScale);
 }
 
 const TRACKER_OPEN_KEY = `${ID}/tracker-popover-open`;
@@ -230,7 +231,7 @@ export function markTrackerPopoverClosed() {
 }
 
 function compactPartUrl(part, scale) {
-  return scale > 1 ? `/compact-round-tab.html?part=${part}&scale=${scale}` : `/compact-round-tab.html?part=${part}`;
+  return scale !== 1 ? `/compact-round-tab.html?part=${part}&scale=${scale}` : `/compact-round-tab.html?part=${part}`;
 }
 
 async function openCompactRoundTabPopover(anchorPosition, trackerHeight, scale = 1) {
@@ -312,14 +313,14 @@ export async function openTrackerPopover({ refresh = false, compactSize = null }
   ]);
   viewportHeight = Number(nextHeight) || viewportHeight;
   viewportWidth = Number(nextWidth) || viewportWidth;
-  // Players' table screen: the tracker grows by the room scale (1 for the GM and by default, as before).
+  // The tracker follows this screen's scale: the room one for players, the local one for the GM (1 by default).
   const viewScale = await getTrackerViewScale();
   const compactScale = compact ? compactTrackerScale(viewScale, { viewportHeight }) : 1;
   const preferredCompactWidth = Number(compactSize?.width)
     || getCompactTrackerManualWidth()
     || Math.round(COMPACT_DEFAULT_WIDTH * compactScale);
   // The extended tracker docks to its stored side (left at 22 px by default, as before). On the players' table
-  // screen it is wider by the scale, as far as the screen allows from the docked edge.
+  // screen it follows the scale (wider as far as the screen allows from the docked edge).
   const classic = compact ? null : trackerPlacementFrame(getClassicTrackerPlacement(), {
     width: getClassicTrackerScaledFrame(viewScale, { viewportWidth, viewportHeight }).width,
     viewportWidth,

@@ -535,6 +535,32 @@ function summaryPartsWithResolvedMechanics(parts, effectId, mechanics) {
   });
 }
 
+// Defenses granted by an effect (mechanics.damageDefenses: species traits, consumables, gifts)
+// show as micropills, so the pill keeps a short name.
+const DAMAGE_DEFENSE_TYPE_LABELS = Object.freeze({
+  acid: "acido", bludgeoning: "contundenti", cold: "freddo", fire: "fuoco", force: "forza",
+  lightning: "fulmine", necrotic: "necrotici", piercing: "perforanti", poison: "veleno",
+  psychic: "psichici", radiant: "radiosi", slashing: "taglienti", thunder: "tuono",
+});
+const DAMAGE_DEFENSE_SUMMARY_LISTS = Object.freeze([
+  ["immunities", "immunity", "Imm."],
+  ["resistances", "resistance", "Res."],
+  ["vulnerabilities", "vulnerability", "Vuln."],
+]);
+function damageDefenseSummaryParts(mechanics) {
+  const defenses = mechanics?.damageDefenses;
+  if (!defenses || typeof defenses !== "object") return [];
+  const allTypes = Object.keys(DAMAGE_DEFENSE_TYPE_LABELS);
+  return DAMAGE_DEFENSE_SUMMARY_LISTS.flatMap(([list, kind, tag]) => {
+    const types = (Array.isArray(defenses[list]) ? defenses[list] : [])
+      .map((type) => String(type || "").trim().toLowerCase())
+      .filter((type, index, values) => DAMAGE_DEFENSE_TYPE_LABELS[type] && values.indexOf(type) === index);
+    if (!types.length) return [];
+    if (types.length === allTypes.length) return [{ id: `damage-defense-${kind}-all`, label: `${tag} tutti i danni` }];
+    return types.map((type) => ({ id: `damage-defense-${kind}-${type}`, label: `${tag} ${DAMAGE_DEFENSE_TYPE_LABELS[type]}` }));
+  });
+}
+
 export function effectSummaryPartsFor(effect = {}, options = {}) {
   const descriptor = typeof effect === "string"
     ? { effectId: effect }
@@ -552,11 +578,14 @@ export function effectSummaryPartsFor(effect = {}, options = {}) {
   const presentationParts = options?.suppressSaveReminderParts
     ? normalizedParts.filter((part) => !isSaveReminderSummaryPart(part, descriptor))
     : normalizedParts;
-  return summaryPartsWithResolvedMechanics(
+  const resolvedParts = summaryPartsWithResolvedMechanics(
     presentationParts,
     effectId,
     descriptor.mechanics,
   );
+  const defenseParts = damageDefenseSummaryParts(descriptor.mechanics)
+    .filter((part) => !resolvedParts.some((existing) => existing.id === part.id));
+  return defenseParts.length ? [...resolvedParts, ...defenseParts] : resolvedParts;
 }
 
 export function compactSpellEffectLabel(value) {

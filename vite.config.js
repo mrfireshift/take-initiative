@@ -52,6 +52,7 @@ export default defineConfig(() => {
         ctxSpells: path.resolve(process.cwd(), "ctx-spells.html"),
         ctxRemoveCondition: path.resolve(process.cwd(), "ctx-remove-condition.html"),
         effectsModal: path.resolve(process.cwd(), "effects-modal.html"),
+        effectDuration: path.resolve(process.cwd(), "effect-duration.html"),
         spellsModal: path.resolve(process.cwd(), "spells-modal.html"),
         spellUnifiedPanel: path.resolve(process.cwd(), "spell-unified-panel.html"),
         referenceModal: path.resolve(process.cwd(), "reference-modal.html"),

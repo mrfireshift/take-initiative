@@ -30,9 +30,11 @@ import {
 import {
   bindReferenceChips,
   mountChipsWithOverflow,
+  syncChipDockCardHeight,
 } from "./initiativeChipOverflow.js";
 import {
   appendSpellBoardTokenCompanions,
+  applySpellBoardTokenCompanionSelection,
   hasSpellBoardTokenChange,
   spellBoardTokenForSpell,
   spellBoardTokenCompanionsByCasterId,
@@ -250,6 +252,7 @@ import {
   selectEffectsDisplayMode,
   selectFollowActiveTurn,
   selectKnownFactionAssignmentEnabled,
+  selectGmTrackerScale,
   selectMapHpBarsEnabled,
   selectPlayerTrackerScale,
   selectTrackerLayout,
@@ -4814,6 +4817,14 @@ function __setTrackerSelection(ids) {
       [...next].every((id) => __selectedSceneItemIds.has(id))) return;
   __selectedSceneItemIds = next;
   document.querySelectorAll("[data-tracker-card='1']").forEach(__applyTrackerSelectionState);
+  document.querySelectorAll("[data-spell-board-token-companion='1']")
+    .forEach((element) => applySpellBoardTokenCompanionSelection(element, __selectedSceneItemIds));
+}
+
+// Summoned tokens with HP (Animate Objects…) are selected from their companion card like a creature card.
+function __selectSpellBoardTokenCompanion(companion, event) {
+  if (!companion?.itemId) return;
+  void __selectTrackerEntry({ id: companion.itemId }, event);
 }
 
 async function __refreshTrackerSelectionFromScene() {
@@ -8374,21 +8385,64 @@ function __bindInitiativeCardContextMenu(card, sourceEntry) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
+    const pill = event.target?.closest?.("[data-condition-instance-id], [data-spell-instance-id]");
+    if (pill && card.contains(pill) && __openEffectDurationPopover(sourceEntry, pill, event)) return;
     __openInitiativeCardContextMenu(sourceEntry, event);
   }, { capture: true });
+}
+
+// Right click on a pill (GM): duration override for the whole effect it belongs to.
+const EFFECT_DURATION_POPOVER_ID = `${ID}/effect-duration`;
+function __openEffectDurationPopover(sourceEntry, pill, event) {
+  const itemId = splitParagonId(sourceEntry?.id).baseId;
+  if (!IS_GM || !itemId || isLairId(itemId) || isEpicActionId(itemId)) return false;
+  const sceneEpoch = currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "effect-duration-open")) return false;
+  const query = new URLSearchParams({ itemId });
+  if (pill.dataset.conditionInstanceId) query.set("conditionInstanceId", pill.dataset.conditionInstanceId);
+  if (pill.dataset.spellInstanceId) query.set("spellInstanceId", pill.dataset.spellInstanceId);
+  void (async () => {
+    await __closeInitiativeCardContextMenu();
+    const placement = await __getInitiativeCardContextMenuPlacement(event);
+    if (!__isCurrentSceneOperation(sceneEpoch, "effect-duration-open")) return;
+    await OBR.popover.open({
+      id: EFFECT_DURATION_POPOVER_ID,
+      url: `/effect-duration.html?${query.toString()}`,
+      width: 236,
+      height: 150,
+      anchorReference: "POSITION",
+      anchorPosition: placement.anchorPosition,
+      anchorOrigin: placement.anchorOrigin,
+      transformOrigin: placement.transformOrigin,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+  })().catch((error) => {
+    console.warn("[effect-duration] popover open error:", error?.message || error);
+  });
+  return true;
 }
 
     // ===== Render card
 let __lastCompactPopoverSize = "";
 let __compactPopoverResizeRevision = 0;
 const COMPACT_TRACKER_RESIZE_DURATION_MS = 240;
-// Player tracker scale (room option, table screen): 1 for the GM. The popover grows by the scale that fits the
-// screen and the page is zoomed by the same factor, so the content only gets bigger.
+// Tracker scale (50%-200%): the room option for players (table screen), the local option for the GM. The popover
+// follows the scale that fits the screen and the page is zoomed by the same factor, so the content only changes size.
 let __trackerViewScale = 1;
 let __trackerViewScaleUnsubscribe = null;
+let __trackerViewGmScaleUnsubscribe = null;
 
 function __setTrackerViewZoom(scale) {
-  document.documentElement.style.zoom = scale > 1 ? String(scale) : "";
+  document.documentElement.style.zoom = scale !== 1 ? String(scale) : "";
+}
+
+function __readTrackerViewScale() {
+  return effectiveTrackerScale(
+    runtimeOptionsService.get(selectPlayerTrackerScale),
+    IS_GM ? "GM" : "PLAYER",
+    runtimeOptionsService.get(selectGmTrackerScale),
+  );
 }
 
 function __syncTrackerPopoverSizeForLayout() {
@@ -8585,6 +8639,8 @@ function __copyTrackerCardOuterState(liveCard, nextCard) {
   }
   liveCard.__selectionBaseShadow = nextCard.__selectionBaseShadow ?? nextCard.style.boxShadow ?? "";
   __syncTrackerCardStateClasses(liveCard);
+  // The copied style carries the base height: the live card re-fits its wrapped chips at once.
+  syncChipDockCardHeight(liveCard);
 }
 
 function __entryMatchesTrackerItemIds(entry, itemIds) {
@@ -9437,6 +9493,8 @@ function renderCompactTrack(
         compact: true,
         faction,
         onBindHP: IS_GM ? bindSpellBoardTokenCompanionHPEditor : null,
+        onSelect: __selectSpellBoardTokenCompanion,
+        selectedIds: __selectedSceneItemIds,
       },
     );
     if (hasExpandableEffects && !previewPill?.dataset.referenceEntry) {
@@ -9635,6 +9693,8 @@ for (const e of entries) {
         {
           faction: factionColors(entry.attitude),
           onBindHP: IS_GM ? bindSpellBoardTokenCompanionHPEditor : null,
+          onSelect: __selectSpellBoardTokenCompanion,
+          selectedIds: __selectedSceneItemIds,
         },
       );
       return card;
@@ -10321,22 +10381,25 @@ try {
         },
         { emitCurrent: false },
       );
-      const initialTrackerViewScale = effectiveTrackerScale(
-        runtimeOptionsService.get(selectPlayerTrackerScale),
-        IS_GM ? "GM" : "PLAYER",
-      );
+      const initialTrackerViewScale = __readTrackerViewScale();
       if (initialTrackerViewScale !== __trackerViewScale) {
         __trackerViewScale = initialTrackerViewScale;
         __syncTrackerPopoverSizeForLayout();
       }
+      const onTrackerViewScaleChange = () => {
+        const nextScale = __readTrackerViewScale();
+        if (nextScale === __trackerViewScale) return;
+        __trackerViewScale = nextScale;
+        __syncTrackerPopoverSizeForLayout();
+      };
       __trackerViewScaleUnsubscribe ||= runtimeOptionsService.subscribe(
         selectPlayerTrackerScale,
-        (scale) => {
-          const nextScale = effectiveTrackerScale(scale, IS_GM ? "GM" : "PLAYER");
-          if (nextScale === __trackerViewScale) return;
-          __trackerViewScale = nextScale;
-          __syncTrackerPopoverSizeForLayout();
-        },
+        onTrackerViewScaleChange,
+        { emitCurrent: false },
+      );
+      __trackerViewGmScaleUnsubscribe ||= runtimeOptionsService.subscribe(
+        selectGmTrackerScale,
+        onTrackerViewScaleChange,
         { emitCurrent: false },
       );
       viewOptionsRow.style.display = IS_GM ? "flex" : "none";

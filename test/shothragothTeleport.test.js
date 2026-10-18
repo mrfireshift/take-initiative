@@ -20,7 +20,7 @@ const plan = (overrides = {}) => buildBossActionMutation({ profile, action: corp
 
 test("v21 data: the teleport range comes from the stat block; the contract is closed", async () => {
   assert.deepEqual(corpo.execution.teleport, { range: 60 });
-  assert.equal(profile.profileVersion, 22);
+  assert.equal(profile.profileVersion, 24);
   const changed = await importBossActionHTML(html.replace("si teletrasporta fino a 60 ft.", "si teletrasporta fino a 45 ft."));
   assert.deepEqual(changed.abilities.find((entry) => entry.name === "Il Corpo Non Era Qui").execution.teleport, { range: 45 });
   for (const mutate of [

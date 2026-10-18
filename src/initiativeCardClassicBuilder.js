@@ -16,6 +16,7 @@ import {
 } from "./initiativeEditors.js";
 import { compactStatusBadge } from "./initiativeCardCompact.js";
 import { openReferencePopover } from "./referencePopover.js";
+import { fitCardToChipDock } from "./initiativeChipOverflow.js";
 
 export function buildClassicTrackerCard(e, context) {
   const {
@@ -706,6 +707,7 @@ if (hasAny) {
   const fragCond = __buildConditionChipsSafe(condData, {
     cap: CONDITIONS,
     compact: true,
+    showEffectSummaryParts,
     onRemove: IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)
       ? (group) => __removeConditionOnTrackerCard(e.id, group)
       : null,
@@ -756,9 +758,9 @@ if (!e.__groupCollapsed && Array.isArray(e.spells) && e.spells.length) {
     }
 }
 
-// 3) Monta TUTTO assieme: 3 visibili in totale, poi +N
+// 3) Monta TUTTO assieme: affiancate finché ci stanno, poi a capo; 3 visibili, poi "…"
 condDock.style.gap = CHIP_GAP_PX + "px";
-mountChipsWithOverflow(condDock, fragAll, { compact: true, limit: 2 });
+mountChipsWithOverflow(condDock, fragAll, { compact: true, limit: 3 });
 bindReferenceChips(condDock);
 
 if (e.__groupCollapsed) {
@@ -962,6 +964,8 @@ if (paragonDock) header.appendChild(paragonDock);
     else condDock.appendChild(cDot);
   }
 }
+// La card cresce per contenere le righe di chip (pallino C compreso), misurate a schermo.
+fitCardToChipDock(card, condDock, { baseHeight: CARD_H, dockTop: MAIN_CARD_H - 5 });
 
 
   card.appendChild(header);

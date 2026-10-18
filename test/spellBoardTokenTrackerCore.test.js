@@ -231,17 +231,31 @@ test("le mini-card dello stesso caster si comprimono dal primo elemento", () => 
     documentRef: testDocument(),
   });
   assert.equal(card.children.length, 2);
-  assert.equal(card.style.marginBottom, "44px");
   const toggle = card.children[0].children[2];
   assert.equal(toggle.dataset.spellBoardTokenCompanionToggle, "1");
-  assert.equal(toggle.textContent, "▾");
-  toggle.listeners.click({ stopPropagation() {} });
+  assert.equal(toggle.textContent, "▸", "summoned tokens start collapsed");
   assert.equal(card.style.marginBottom, "22px");
   assert.equal(card.children[1].style.display, "none");
-  assert.equal(toggle.textContent, "▸");
   toggle.listeners.click({ stopPropagation() {} });
+  assert.equal(card.style.marginBottom, "44px");
   assert.equal(card.children[1].style.display, "");
   assert.equal(toggle.textContent, "▾");
+
+  // The same group re-rendered keeps the GM's choice; a new cast starts collapsed again.
+  const again = { style: {}, children: [], appendChild(child) { this.children.push(child); } };
+  appendSpellBoardTokenCompanions(again, companions, { compact: true, documentRef: testDocument() });
+  assert.equal(again.children[0].children[2].textContent, "▾");
+  const recast = spellBoardTokenCompanionsByCasterId([
+    ...items,
+    boardToken({ id: "weapon-b", instanceId: "cast-a-3", casterId: "caster-a" }),
+  ]).get("caster-a");
+  const fresh = { style: {}, children: [], appendChild(child) { this.children.push(child); } };
+  appendSpellBoardTokenCompanions(fresh, recast, { compact: true, documentRef: testDocument() });
+  assert.equal(fresh.children[0].children[2].textContent, "▸");
+
+  toggle.listeners.click({ stopPropagation() {} });
+  assert.equal(card.children[1].style.display, "none");
+  assert.equal(toggle.textContent, "▸");
 });
 
 test("il nome della PROP di Arma spirituale usa il caster corrente con fallback", () => {
@@ -284,4 +298,54 @@ test("le pedine vengono agganciate ai vertici della griglia", () => {
   assert.match(aoeTargetToolSource, /return snapToVertex\s*\n\s*\? boardTokenGridVertex/);
   assert.match(aoeTargetToolSource, /: nearestGridCellCenter\(pointer, gridOrigin, dpi\)/);
   assert.doesNotMatch(aoeTargetToolSource, /conferma posizione/);
+});
+
+function animatedObject(id, number, instanceId = "anim-1") {
+  return {
+    id,
+    layer: "PROP",
+    image: { url: `/token-${id}.webp` },
+    metadata: {
+      [SPELL_BOARD_TOKEN_META_KEY]: spellBoardTokenMetadata({
+        spellId: "animate-objects", instanceId, casterId: "wizard", objectSize: "small", number,
+      }),
+    },
+  };
+}
+
+test("animated objects carry the number of their map label into the tracker", () => {
+  assert.equal(spellBoardTokenDisplayName("animate-objects", "Kriv", 3), "Animare oggetti 3-Kriv");
+  assert.equal(spellBoardTokenDisplayName("animate-objects", "Kriv"), "Animare oggetti-Kriv");
+  const companions = spellBoardTokenCompanionsByCasterId([
+    animatedObject("b", 2), animatedObject("a", 1), animatedObject("c", 3),
+  ]).get("wizard");
+  assert.deepEqual(companions.map((entry) => [entry.itemId, entry.label]),
+    [["a", "Animare oggetti 1"], ["b", "Animare oggetti 2"], ["c", "Animare oggetti 3"]]);
+});
+
+test("tokens placed before the numbering get a stable display number; a lone token stays unnumbered", () => {
+  const legacy = spellBoardTokenCompanionsByCasterId([animatedObject("y"), animatedObject("x")]).get("wizard");
+  assert.deepEqual(legacy.map((entry) => [entry.itemId, entry.label]), [["x", "Animare oggetti 1"], ["y", "Animare oggetti 2"]]);
+  const [single] = spellBoardTokenCompanionsByCasterId([animatedObject("z", 1)]).get("wizard");
+  assert.equal(single.label, "Animare oggetti");
+});
+
+test("a companion card selects its token on click and shows the scene selection", () => {
+  const [companion] = spellBoardTokenCompanionsByCasterId([animatedObject("a", 1), animatedObject("b", 2)]).get("wizard");
+  const calls = [];
+  const card = buildSpellBoardTokenCompanionCard(companion, {
+    documentRef: testDocument(),
+    onSelect: (value, event) => calls.push([value.itemId, event.ctrlKey]),
+    selectedIds: new Set(["a"]),
+  });
+  assert.equal(card.style.pointerEvents, "auto");
+  assert.equal(card.dataset.selectionState, "all");
+  let stopped = false;
+  card.listeners.click({ ctrlKey: true, stopPropagation() { stopped = true; }, target: { closest: () => null } });
+  assert.deepEqual(calls, [["a", true]]);
+  assert.equal(stopped, true, "the caster card underneath is not selected");
+  card.listeners.click({ stopPropagation() {}, target: { closest: () => ({}) } });
+  assert.equal(calls.length, 1, "clicking the HP badge edits HP instead of selecting");
+  const passive = buildSpellBoardTokenCompanionCard(companion, { documentRef: testDocument() });
+  assert.equal(passive.style.pointerEvents, "none");
 });

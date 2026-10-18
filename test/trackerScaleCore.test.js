@@ -9,19 +9,23 @@ import {
   effectiveTrackerScale,
   normalizeTrackerScale,
   TRACKER_SCALE_CHOICES,
+  TRACKER_SCALE_MAX,
+  TRACKER_SCALE_MIN,
 } from "../src/trackerScaleCore.js";
 import { compactTrackerViewportWidth } from "../src/trackerCompactSizingCore.js";
 import {
   compactRoomOptionsForStorage,
   normalizeRoomOptions,
 } from "../src/options/optionsNormalize.js";
-import { createDefaultRoomOptions } from "../src/options/optionsDefaults.js";
+import { normalizeLocalOptions } from "../src/options/optionsNormalize.js";
+import { createDefaultLocalOptions, createDefaultRoomOptions } from "../src/options/optionsDefaults.js";
 import {
   buildOptionsPanelPatches,
   normalizeOptionsPanelDraft,
 } from "../src/options/optionsPanelCore.js";
 import { resolveOptions } from "../src/options/optionsResolve.js";
 import {
+  selectGmTrackerScale,
   selectOptionsPanelModel,
   selectPlayerTrackerScale,
 } from "../src/options/optionsSelectors.js";
@@ -42,11 +46,21 @@ test("trackerScale: valori validi, stringhe del pannello, fuori range e corrotti
   for (const choice of TRACKER_SCALE_CHOICES) assert.equal(normalizeTrackerScale(choice), choice);
   assert.equal(normalizeTrackerScale("1.5"), 1.5);
   assert.equal(normalizeTrackerScale("2"), 2);
-  assert.equal(normalizeTrackerScale(1.3), 1.25);
-  assert.equal(normalizeTrackerScale(1.4), 1.5);
-  assert.equal(normalizeTrackerScale(0.5), 1);
-  assert.equal(normalizeTrackerScale(-3), 1);
+  // slider from 50% to 200%, snapped to 5% without floating point leftovers
+  assert.equal(TRACKER_SCALE_MIN, 0.5);
+  assert.equal(TRACKER_SCALE_MAX, 2);
+  assert.equal(normalizeTrackerScale(1.3), 1.3);
+  assert.equal(normalizeTrackerScale(1.4), 1.4);
+  assert.equal(normalizeTrackerScale(1.32), 1.3);
+  assert.equal(normalizeTrackerScale(0.73), 0.75);
+  assert.equal(normalizeTrackerScale("0.55"), 0.55);
+  assert.equal(normalizeTrackerScale(0.5), 0.5);
+  assert.equal(normalizeTrackerScale(0.2), 0.5);
+  assert.equal(normalizeTrackerScale(-3), 0.5);
   assert.equal(normalizeTrackerScale(9), 2);
+  for (let percent = 50; percent <= 200; percent += 5) {
+    assert.equal(normalizeTrackerScale(percent / 100), percent / 100, String(percent));
+  }
   for (const invalid of [undefined, null, "", "  ", "abc", NaN, Infinity, true, {}, []]) {
     assert.equal(normalizeTrackerScale(invalid), 1, String(invalid));
   }
@@ -76,12 +90,39 @@ test("trackerScale: selector, modello e patch del pannello opzioni", () => {
   assert.equal(buildOptionsPanelPatches({}).room.playerView.trackerScale, 1);
 });
 
-test("trackerScale: solo il ruolo PLAYER viene scalato", () => {
+test("trackerScale: i Player usano la scala Room, il GM quella locale (1 di default)", () => {
   assert.equal(effectiveTrackerScale(1.5, "PLAYER"), 1.5);
   assert.equal(effectiveTrackerScale(1.5, "player"), 1.5);
+  assert.equal(effectiveTrackerScale(0.75, "PLAYER", 1.5), 0.75);
   assert.equal(effectiveTrackerScale(1.5, "GM"), 1);
+  assert.equal(effectiveTrackerScale(1.5, "GM", 0.75), 0.75);
+  assert.equal(effectiveTrackerScale(1.5, "GM", "1.25"), 1.25);
+  assert.equal(effectiveTrackerScale(1.5, "GM", "abc"), 1);
   assert.equal(effectiveTrackerScale(1.5, null), 1);
   assert.equal(effectiveTrackerScale("abc", "PLAYER"), 1);
+});
+
+test("trackerScale GM: opzione locale con default 1, selector, modello e patch del pannello", () => {
+  assert.equal(createDefaultLocalOptions().tracker.scale, 1);
+  assert.equal(normalizeLocalOptions({}).tracker.scale, 1);
+  assert.equal(normalizeLocalOptions({ tracker: { scale: "0.6" } }).tracker.scale, 0.6);
+  assert.equal(normalizeLocalOptions({ tracker: { scale: "abc" } }).tracker.scale, 1);
+  const local = normalizeLocalOptions({ tracker: { scale: 0.75, layout: "compact", futureLocal: "keep" } });
+  assert.equal(local.tracker.layout, "compact");
+  assert.equal(local.tracker.futureLocal, "keep");
+
+  const options = resolveOptions({ local: { tracker: { scale: 0.75 } }, room: { playerView: { trackerScale: 1.5 } } });
+  assert.equal(selectGmTrackerScale(options), 0.75);
+  assert.equal(selectPlayerTrackerScale(options), 1.5);
+  assert.equal(selectOptionsPanelModel(options).local.trackerScale, 0.75);
+  assert.equal(selectGmTrackerScale(resolveOptions({})), 1);
+
+  const draft = normalizeOptionsPanelDraft({ local: { trackerScale: "0.55" }, room: { trackerScale: "1.2" } });
+  assert.equal(draft.local.trackerScale, 0.55);
+  assert.equal(draft.room.trackerScale, 1.2);
+  const patches = buildOptionsPanelPatches(draft);
+  assert.equal(patches.local.tracker.scale, 0.55);
+  assert.equal(patches.room.playerView.trackerScale, 1.2);
 });
 
 // ---- sizing ----
@@ -147,4 +188,28 @@ test("barra compatta: con la scala a 1,5 altezza e larghezza crescono e restano 
   const short = compactTrackerScale(2, { viewportHeight: 250 });
   assert.ok(short < 2 && short >= 1);
   assert.ok(compactTrackerScaledHeight(2, { viewportHeight: 250 }) <= 250 - 32);
+});
+
+test("sotto il 100%: la cornice del tracker esteso si restringe con la scala", () => {
+  assert.deepEqual(
+    classicTrackerScaledFrame(0.5, { viewportWidth: 1920, viewportHeight: 1080 }),
+    { scale: 0.5, width: 170, height: 956 },
+  );
+  assert.deepEqual(
+    classicTrackerScaledFrame(0.75, { viewportWidth: 300, viewportHeight: 900 }),
+    { scale: 0.75, width: 255, height: 776 },
+  );
+});
+
+test("sotto il 100%: la barra compatta si abbassa e si restringe con la scala", () => {
+  assert.equal(compactTrackerScale(0.5, { viewportHeight: 1080 }), 0.5);
+  assert.equal(compactTrackerScaledHeight(0.5, { viewportHeight: 1080 }), 78);
+  // a bar opened at 100% (156 px) gets the reduced height
+  assert.equal(compactTrackerScaledHeight(0.5, { viewportHeight: 1080, currentHeight: 156 }), 78);
+  assert.equal(compactTrackerScaledHeight(0.75, { viewportHeight: 900, currentHeight: 156 }), 117);
+  assert.equal(compactTrackerScaledWidth(782, 0.5, { viewportWidth: 1920, viewportHeight: 1080 }), 391);
+  // the bar's own limits follow the scale (1180 * 0.5 = 590, 320 * 0.5 = 160)
+  assert.equal(compactTrackerScaledWidth(1180, 0.5, { viewportWidth: 1920, viewportHeight: 1080 }), 590);
+  assert.equal(compactTrackerViewportWidth(100, 1920, 0.5), 160);
+  assert.equal(compactTrackerViewportWidth(100, 1920, 0.2), 160);
 });

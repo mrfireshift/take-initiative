@@ -30,6 +30,7 @@ test("OPTIONS-003: il selector del pannello espone i gruppi senza metadata grezz
   assert.deepEqual(model.local, {
     layout: "compact",
     followActiveTurn: false,
+    trackerScale: 1,
     combatLog: true,
   });
   assert.equal(model.room.trackerOpen, false);
@@ -61,6 +62,7 @@ test("OPTIONS-003: il draft normalizza dati parziali e produce sole patch approv
   assert.deepEqual(draft.local, {
     layout: "classic",
     followActiveTurn: true,
+    trackerScale: 1,
     combatLog: true,
   });
   assert.equal(patches.room.turn.popup, false);
@@ -182,6 +184,11 @@ test("OPTIONS-003: il pannello usa selector e writer, non storage o metadata dir
   assert.match(html, /data-scope="room"/);
   assert.match(html, /data-scope="scene"/);
   assert.match(html, /data-local="combatLog"/);
+  assert.match(html, /type="range" min="0\.5" max="2" step="0\.05" data-local="trackerScale"/);
+  assert.match(html, /type="range" min="0\.5" max="2" step="0\.05" data-room="trackerScale"/);
+  assert.doesNotMatch(html, /<select data-room="trackerScale"/);
+  assert.match(source, /renderRangeOutput/);
+  assert.match(syncOpen, /selectGmTrackerScale/);
   assert.doesNotMatch(html, /section-index|data-preview-index/);
   assert.doesNotMatch(html, /data-local="(?:layout|followActiveTurn)"/);
   assert.match(html, /data-room="knownFactionAssignment"/);

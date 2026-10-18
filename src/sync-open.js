@@ -15,7 +15,7 @@ import {
   toggleClassicTrackerSide,
 } from "./trackerPopover.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
-import { selectPlayerTrackerScale, selectTrackerOpenSyncEnabled, selectTrackerPlacementSyncEnabled } from "./options/optionsSelectors.js";
+import { selectGmTrackerScale, selectPlayerTrackerScale, selectTrackerOpenSyncEnabled, selectTrackerPlacementSyncEnabled } from "./options/optionsSelectors.js";
 import { METADATA_OWNERSHIP, writeRoomMetadataKey } from "./metadataKeyScoped.js";
 
 const UI_KEY = `${ID}/ui`;
@@ -112,6 +112,11 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
     // Players' table screen: a new tracker scale redraws the open tracker at the new size.
     runtimeOptionsService.subscribe(selectPlayerTrackerScale, () => {
       if (role !== "PLAYER" || !isTrackerPopoverOpen()) return;
+      void setTrackerPopoverOpen(true, { refresh: true });
+    }, { emitCurrent: false });
+    // The GM's screen: a new local tracker scale (this browser) redraws the open tracker at the new size.
+    runtimeOptionsService.subscribe(selectGmTrackerScale, () => {
+      if (role !== "GM" || !isTrackerPopoverOpen()) return;
       void setTrackerPopoverOpen(true, { refresh: true });
     }, { emitCurrent: false });
 

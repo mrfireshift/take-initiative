@@ -28,7 +28,7 @@ const chain = { round: 2, actionId: spezzata.id, actionInstanceId: "boss-action:
 const line = (from, to, ids) => ({ ruleId: "boss-action-area:seam:20ft", start: from, end: to, areaTargetIds: ids });
 
 test("v22 data: the hit point gate, the chain of four points (120 ft for each segment), the lines on chosen segments", async () => {
-  assert.deepEqual([profile.profileVersion, profile.parserVersion], [22, 22]);
+  assert.deepEqual([profile.profileVersion, profile.parserVersion], [24, 24]);
   assert.equal(cucitura.hpGate, "unbloodied");
   assert.equal(spezzata.hpGate, "bloodied");
   assert.deepEqual(spezzata.sequence, { slot: "first" });

@@ -71,7 +71,7 @@
     .target-box > * { min-width: 0; }
     .target-line { display: flex; align-items: center; gap: var(--obrt-space-sm); min-height: 24px; }
     .target-name { flex: 1 1 auto; min-width: 0; overflow: hidden; font-weight: var(--obrt-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
-    .target-name.is-empty { color: #fde68a; font-weight: var(--obrt-weight-regular); }
+    .target-name.is-empty { color: #fde68a; font-weight: var(--obrt-weight-regular); white-space: normal; overflow-wrap: anywhere; }
     .target-hp { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .target-choices { display: flex; flex-wrap: wrap; gap: 4px; max-height: 96px; overflow-y: auto; }
     .target-choices .small { font-size: var(--obrt-type-secondary); }
@@ -96,6 +96,8 @@
     .manual-step input { margin: 1px 0 0; accent-color: #2563eb; }
     .details { border: 1px solid var(--line); border-radius: var(--obrt-radius-md); }
     .details > summary { padding: 5px 8px; color: var(--muted); font-size: var(--obrt-type-secondary); cursor: pointer; }
+    .details.manual-rules { border-left: 3px solid #e7ba59; background: rgba(161, 98, 7, .14); }
+    .details.manual-rules > summary { color: #fde68a; }
     .details pre, .reference-text { margin: 0; padding: 0 8px 8px; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: var(--obrt-type-secondary); line-height: var(--obrt-leading-normal); }
     .reference-text { padding: 8px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
     .apply-row { display: flex; align-items: center; gap: var(--obrt-space-md); padding-top: 2px; }
@@ -119,7 +121,7 @@
     .group-title { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
     .group-title .group-label { min-width: 0; overflow: hidden; font-weight: var(--obrt-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
     .group-title small { flex: 0 0 auto; }
-    .note.clamp, .manual-step.clamp { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .note.clamp, .manual-step.clamp { display: block; flex-shrink: 0; max-height: 9em; overflow-y: auto; overflow-wrap: anywhere; white-space: pre-line; }
     .defense-chips .immune-badge { padding: 0 5px; border: 1px solid #86efac; border-radius: 999px; color: #bbf7d0; background: rgba(21,128,61,.35); }
     .defense-chips .mark-badge { padding: 0 5px; border: 1px solid #c4b5fd; border-radius: 999px; color: #ddd6fe; background: rgba(109,40,217,.35); }
     .defense-chips .mark-badge.is-spent { border-color: var(--line); background: transparent; color: var(--dim); }

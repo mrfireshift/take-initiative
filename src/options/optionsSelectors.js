@@ -23,6 +23,11 @@ export function selectFollowActiveTurn(options) {
   return resolved(options).local.tracker.followActiveTurn;
 }
 
+// GM's tracker scale on this browser (local option); players use selectPlayerTrackerScale.
+export function selectGmTrackerScale(options) {
+  return resolved(options).local.tracker.scale;
+}
+
 export function selectToolbarPreset(options) {
   return resolved(options).local.tracker.toolbarPreset;
 }
@@ -173,6 +178,7 @@ export function selectOptionsPanelModel(options) {
     local: {
       layout: value.local.tracker.layout,
       followActiveTurn: value.local.tracker.followActiveTurn,
+      trackerScale: value.local.tracker.scale,
       combatLog: value.local.runtime.combatLog,
     },
     room: {

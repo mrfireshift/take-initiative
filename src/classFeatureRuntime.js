@@ -40,6 +40,7 @@ import {
   getClassFeatureDefinition,
   getAvailableClassFeatures,
   getEnabledClassFeatures,
+  getSpeciesFeatures,
   getClassFeatureResourcePool,
 } from "./classFeatureCatalog.js";
 import { emitMatchedClassFeatureVisual } from "./embersMatchedVisualRenderer.js";
@@ -1557,7 +1558,7 @@ export async function resetClassFeatureResources(sourceId) {
   const profile = getInitiativeCard(sourceItem);
   const currentState = getClassFeatureState(sourceItem);
   const poolIds = new Set(Object.keys(currentState.resources));
-  for (const feature of getAvailableClassFeatures(profile.characterBuild)) {
+  for (const feature of [...getAvailableClassFeatures(profile.characterBuild), ...getSpeciesFeatures(profile)]) {
     for (const cost of Array.isArray(feature.resourceCosts) ? feature.resourceCosts : []) {
       if (cost?.poolId) poolIds.add(String(cost.poolId));
     }

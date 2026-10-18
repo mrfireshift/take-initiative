@@ -630,6 +630,7 @@ function eventSummary(event, targets, outcomes) {
   if (category === "note") return stringValue(event?.payload?.text) || "Nota manuale";
   if (category === "undo") return stringValue(event?.payload?.description) || "Azioni annullate";
   if (category === "turn") return targets.map((target) => target.name).join(", ") || stringValue(event?.payload?.actorName) || "Cambio turno";
+  if (event?.kind === "combat-snapshot") return stringValue(event?.payload?.summary) || "Snapshot del combattimento";
   if (category === "roster") return targets.map((target) => target.name).join(", ") || "Aggiornamento incontro";
   if (hpLines.length || facetLines.length) return [...hpLines, ...facetLines].join(" · ");
   if (targets.length) return targets.map((target) => target.name).join(", ");

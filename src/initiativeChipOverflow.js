@@ -64,26 +64,33 @@ export function mountChipsWithOverflow(
   const chips = collectChipsDeep(fragment, { documentRef });
   dock.style.flexDirection = "column";
   dock.style.alignItems = "flex-start";
+  // Chips sit side by side while they fit the card width and wrap to the next line otherwise.
   const row1 = documentRef.createElement("div");
+  row1.dataset.chipRow = "1";
   Object.assign(row1.style, {
     display: "flex",
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: CHIP_GAP_PX + "px",
+    maxWidth: "100%",
   });
 
   const row2 = documentRef.createElement("div");
   Object.assign(row2.style, {
     display: "none",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    gap: "0px",
-    paddingTop: "0px",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    maxWidth: "100%",
+    gap: CHIP_GAP_PX + "px",
+    paddingTop: CHIP_GAP_PX + "px",
     position: "relative",
     zIndex: "1",
   });
   dock.style.rowGap = "0px";
 
+  for (const chip of chips) chip.style.maxWidth = "100%";
   if (chips.length <= limit) {
     row1.append(...chips);
     dock.append(row1);
@@ -97,7 +104,7 @@ export function mountChipsWithOverflow(
 
   const more = documentRef.createElement("button");
   more.type = "button";
-  more.textContent = `+${hidden.length}`;
+  more.textContent = "…";
   more.dataset.cardSelectionIgnore = "1";
   more.setAttribute("aria-expanded", "false");
   more.setAttribute("aria-label", `Mostra altri ${hidden.length} effetti`);
@@ -105,8 +112,8 @@ export function mountChipsWithOverflow(
   Object.assign(more.style, {
     minHeight: "16px",
     height: "16px",
-    padding: "0 4px",
-    fontSize: "10px",
+    padding: "0 6px",
+    fontSize: "11px",
     fontFamily: "inherit",
     borderColor: "rgba(255,255,255,.24)",
     boxShadow: "none",
@@ -123,7 +130,7 @@ export function mountChipsWithOverflow(
       "aria-label",
       expanded ? "Comprimi effetti" : `Mostra altri ${hidden.length} effetti`,
     );
-    more.textContent = expanded ? "−" : `+${hidden.length}`;
+    more.textContent = expanded ? "−" : "…";
     more.style.background = expanded ? "rgba(59,130,246,.64)" : "rgba(0,0,0,.72)";
     more.title = expanded ? "Comprimi effetti" : `Mostra altri ${hidden.length} effetti`;
     const ownerCard = dock.closest('[data-tracker-card="1"]');
@@ -133,6 +140,51 @@ export function mountChipsWithOverflow(
 
   row1.appendChild(more);
   dock.append(row1, row2);
+}
+
+// The card grows to hold the visible chip lines, measured on screen. The parameters live in data
+// attributes, so they survive the tracker reconciling a live card with a freshly built one; after
+// every render (and on resize) one sweep measures every card on screen. The "…" list stays an overlay.
+const CHIP_DOCK_CARD_SELECTOR = "[data-chip-dock-card='1']";
+let chipDockResizeBound = false;
+let chipDockSweepScheduled = false;
+
+export function syncChipDockCardHeight(card) {
+  if (!card?.isConnected || card.dataset?.chipDockCard !== "1") return false;
+  const baseHeight = Number(card.dataset.chipBaseHeight) || 0;
+  const dockTop = Number(card.dataset.chipDockTop) || 0;
+  const row = card.querySelector?.("[data-chip-dock='1'] [data-chip-row='1']")
+    || card.querySelector?.("[data-chip-dock='1']")?.firstElementChild;
+  const lines = Math.ceil(Number(row?.offsetHeight) || 0);
+  const height = Math.max(baseHeight, lines ? dockTop + lines + 3 : baseHeight);
+  if (card.style.height !== `${height}px`) card.style.height = `${height}px`;
+  return true;
+}
+
+function sweepChipDockCards(documentRef) {
+  for (const card of documentRef?.querySelectorAll?.(CHIP_DOCK_CARD_SELECTOR) || []) syncChipDockCardHeight(card);
+}
+
+export function fitCardToChipDock(card, dock, { baseHeight, dockTop, windowRef = globalThis.window } = {}) {
+  if (!card || !dock) return;
+  card.dataset.chipDockCard = "1";
+  card.dataset.chipBaseHeight = String(Number(baseHeight) || 0);
+  card.dataset.chipDockTop = String(Number(dockTop) || 0);
+  dock.dataset.chipDock = "1";
+  const frame = windowRef?.requestAnimationFrame?.bind(windowRef);
+  if (frame && !chipDockSweepScheduled) {
+    chipDockSweepScheduled = true;
+    // Before the next paint the render has inserted or reconciled the cards; a second sweep covers late inserts.
+    frame(() => {
+      chipDockSweepScheduled = false;
+      sweepChipDockCards(windowRef.document);
+      frame(() => sweepChipDockCards(windowRef.document));
+    });
+  }
+  if (!chipDockResizeBound && windowRef?.addEventListener) {
+    chipDockResizeBound = true;
+    windowRef.addEventListener("resize", () => sweepChipDockCards(windowRef.document));
+  }
 }
 
 export function bindReferenceChips(dock) {

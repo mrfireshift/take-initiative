@@ -12,6 +12,7 @@ import {
   addCombatLogNote,
   activateCombatLogSession,
   clearCombatLogSession,
+  deleteCombatLogEvent,
   deleteCombatLogSession,
   exportCombatLogJSONFromStorage,
   getCombatLogExportData,
@@ -414,7 +415,10 @@ function toolbarMenu(label: string, iconPath: string, controls: HTMLButtonElemen
 }
 
 function download(name: string, content: string, type: string) {
-  const blob = new Blob([content], { type });
+  downloadBlob(name, new Blob([content], { type }));
+}
+
+function downloadBlob(name: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -509,7 +513,7 @@ function appendDetailSections(parent: HTMLElement, event: any) {
   parent.appendChild(technical);
 }
 
-function makeEventRow(event: any) {
+function makeEventRow(event: any, onDelete: (event: any) => Promise<void>) {
   const meta = getCombatLogCategoryMeta(event?.category);
   const time = formatCombatLogTimestamp(event?.at, { timeOnly: true });
   const top = document.createElement("div");
@@ -523,6 +527,48 @@ function makeEventRow(event: any) {
   Object.assign(timestamp.style, { marginLeft: "auto", flex: "0 0 auto", color: "rgba(255,255,255,.5)", fontSize: "var(--obrt-type-caption, 10px)", fontWeight: "var(--obrt-weight-regular, 400)" });
   top.append(categoryBadge(event), label, timestamp);
 
+  const remove = button("Elimina evento dal log", "danger", "log-delete.svg", true);
+  remove.dataset.combatLogControl = "delete-event";
+  remove.title = "Elimina questa voce dal log";
+  remove.disabled = combatLogStorageAction || combatLogPageLoading || !sceneLifecycle.isReady();
+  Object.assign(remove.style, { minHeight: "26px", height: "26px", width: "26px", minWidth: "26px", flex: "0 0 auto" });
+  top.appendChild(remove);
+  const confirmation = document.createElement("div");
+  confirmation.dataset.combatLogDeleteConfirmation = String(event?.id || "");
+  Object.assign(confirmation.style, { display: "none", alignItems: "center", flexWrap: "wrap", gap: "5px", padding: "5px 0" });
+  const question = document.createElement("span");
+  question.textContent = "Eliminare definitivamente questa voce dal log?";
+  Object.assign(question.style, { fontSize: "var(--obrt-type-secondary, 11px)", overflowWrap: "anywhere" });
+  const cancel = button("Annulla");
+  const confirm = button("Elimina evento", "danger");
+  confirmation.append(question, cancel, confirm);
+  remove.addEventListener("click", (click) => {
+    click.preventDefault();
+    click.stopPropagation();
+    confirmation.style.display = "flex";
+    remove.disabled = true;
+    confirm.focus();
+  });
+  cancel.addEventListener("click", (click) => {
+    click.preventDefault();
+    click.stopPropagation();
+    confirmation.style.display = "none";
+    remove.disabled = false;
+    remove.focus();
+  });
+  confirm.addEventListener("click", async (click) => {
+    click.preventDefault();
+    click.stopPropagation();
+    confirm.disabled = true;
+    cancel.disabled = true;
+    try {
+      await onDelete(event);
+    } finally {
+      confirm.disabled = false;
+      cancel.disabled = false;
+    }
+  });
+
   if (event?.boundary) {
     const boundary = document.createElement("div");
     boundary.dataset.eventId = String(event?.id || "");
@@ -535,7 +581,7 @@ function makeEventRow(event: any) {
       borderRadius: "7px",
       background: "rgba(15,23,42,.46)",
     });
-    boundary.appendChild(top);
+    boundary.append(top, confirmation);
     const boundarySummary = document.createElement("div");
     boundarySummary.textContent = String(event?.summary || "");
     Object.assign(boundarySummary.style, { color: "rgba(255,255,255,.58)", fontSize: "var(--obrt-type-caption, 10px)", overflowWrap: "anywhere" });
@@ -563,7 +609,7 @@ function makeEventRow(event: any) {
   summary.setAttribute("aria-label", `${event?.title || "Evento"} · ${event?.categoryLabel || meta.label} · ${event?.summary || ""}`);
   summary.setAttribute("aria-expanded", String(details.open));
   Object.assign(summary.style, { display: "grid", gap: "3px", padding: "7px 8px", cursor: "pointer", listStylePosition: "inside" });
-  summary.appendChild(top);
+  summary.append(top, confirmation);
   const essential = document.createElement("div");
   essential.textContent = String(event?.summary || "");
   Object.assign(essential.style, { color: "rgba(255,255,255,.7)", fontSize: "var(--obrt-type-secondary, 11px)", lineHeight: "1.35", overflowWrap: "anywhere" });
@@ -1096,6 +1142,9 @@ async function render(
   const newSession = button("Nuovo registro", "default", "log-new.svg", true);
   const clearLog = button("Svuota eventi", "default", "log-clear.svg");
   const deleteLog = button("Elimina registro", "danger", "log-delete.svg");
+  const snapshotJson = button("Snapshot JSON", "default", "log-snapshot.svg");
+  const snapshotPng = button("Mappa PNG", "default", "log-snapshot.svg");
+  const snapshotSvg = button("Mappa SVG", "default", "log-snapshot.svg");
   const importFile = document.createElement("input");
   importFile.type = "file";
   importFile.accept = ".json,application/json";
@@ -1148,6 +1197,60 @@ async function render(
   importJson.addEventListener("click", () => {
     if (!combatLogStorageAction && sceneLifecycle.isReady()) importFile.click();
   });
+  snapshotJson.title = "Fotografa lo stato del combattimento: lo aggiunge al registro e scarica il JSON";
+  snapshotPng.title = "Immagine schematica del tabellone; lo sfondo è incluso solo se il suo host lo permette (CORS)";
+  snapshotSvg.title = "Immagine schematica vettoriale; lo sfondo della mappa è collegato per URL";
+  for (const control of [snapshotJson, snapshotPng, snapshotSvg]) {
+    control.disabled = combatLogStorageAction || !sceneLifecycle.isReady();
+  }
+  const runSnapshotAction = async (kind: "json" | "png" | "svg") => {
+    if (combatLogStorageAction || !sceneLifecycle.isReady()) return;
+    const snapshotOperation = sceneLifecycle.capture({ operationId: sceneOperationId(`snapshot-${kind}`) });
+    if (!sceneLifecycle.isCurrent(snapshotOperation)) return;
+    combatLogStorageAction = true;
+    try {
+      // Loaded on demand: the snapshot pulls in the class-feature catalog.
+      const [
+        { captureCombatSnapshot, recordCombatSnapshotInLog, renderCombatSnapshotPng },
+        { buildCombatSnapshotSvg, combatSnapshotFileName },
+      ] = await Promise.all([import("./combatSnapshot.js"), import("./combatSnapshotCore.js")]);
+      const snapshot = await captureCombatSnapshot({ sceneEpoch: snapshotOperation.epoch });
+      if (!snapshot || !sceneLifecycle.isCurrent(snapshotOperation)) return;
+      if (kind === "json") {
+        const recorded = await recordCombatSnapshotInLog(snapshot, { sceneEpoch: snapshotOperation.epoch });
+        download(combatSnapshotFileName(snapshot, "json"), JSON.stringify(snapshot, null, 2), "application/json;charset=utf-8");
+        await renderAfterStorageAction(recorded?.length
+          ? `Snapshot del round ${snapshot.round} salvato nel registro e scaricato.`
+          : `Snapshot del round ${snapshot.round} scaricato (Combat Log non attivo: nessuna voce aggiunta).`);
+        return;
+      }
+      const svg = buildCombatSnapshotSvg(snapshot);
+      if (kind === "svg") {
+        download(combatSnapshotFileName(snapshot, "svg"), svg, "image/svg+xml;charset=utf-8");
+        await renderAfterStorageAction("Mappa SVG scaricata: lo sfondo è collegato per URL e serve la connessione per vederlo.");
+        return;
+      }
+      const png = await renderCombatSnapshotPng(snapshot);
+      if (!png) {
+        download(combatSnapshotFileName(snapshot, "svg"), svg, "image/svg+xml;charset=utf-8");
+        await renderAfterStorageAction("Il browser non ha potuto creare il PNG: scaricata la mappa in SVG.");
+        return;
+      }
+      downloadBlob(combatSnapshotFileName(snapshot, "png"), png.blob);
+      await renderAfterStorageAction(png.backgrounds.blocked
+        ? "Mappa PNG scaricata senza sfondo: l'host dell'immagine non consente la lettura (CORS). Usa Mappa SVG per lo sfondo."
+        : png.backgrounds.drawn
+          ? "Mappa PNG scaricata con lo sfondo."
+          : "Mappa PNG scaricata (nessuno sfondo sulla scena).");
+    } catch (error: any) {
+      await renderAfterStorageAction(`Snapshot fallito: ${error?.message || error}`);
+    } finally {
+      combatLogStorageAction = false;
+    }
+  };
+  snapshotJson.addEventListener("click", () => void runSnapshotAction("json"));
+  snapshotPng.addEventListener("click", () => void runSnapshotAction("png"));
+  snapshotSvg.addEventListener("click", () => void runSnapshotAction("svg"));
   importFile.addEventListener("change", async () => {
     const file = importFile.files?.[0];
     importFile.value = "";
@@ -1243,6 +1346,7 @@ async function render(
   });
   sessionBarActions.append(
     newSession,
+    toolbarMenu("Snapshot del combattimento", "log-snapshot.svg", [snapshotJson, snapshotPng, snapshotSvg]),
     toolbarMenu("Esporta/importa", "log-export.svg", [exportText, exportJson, importJson]),
     toolbarMenu("Gestisci registro", "log-more.svg", [clearLog, deleteLog, storageStats, retention]),
     importFile,
@@ -1512,6 +1616,26 @@ async function render(
     if (shouldRestoreFocus) timelineMore.focus();
   });
 
+  const deleteEvent = async (event: any) => {
+    if (combatLogStorageAction || combatLogPageLoading || !sceneLifecycle.isCurrent(operation)) return;
+    combatLogStorageAction = true;
+    syncCombatLogPageControls();
+    let resultMessage = "";
+    try {
+      const deleted = await deleteCombatLogEvent(session?.id, event?.id, { sceneEpoch: operation.epoch });
+      if (!sceneLifecycle.isCurrent(operation)) return;
+      if (deleted) combatLogUiState.expandedEvents.delete(String(event?.id || ""));
+      resultMessage = deleted
+        ? "Evento eliminato dal log. La scena e il journal Undo non sono stati modificati."
+        : "L'evento non è più presente nel registro.";
+    } catch (error: any) {
+      resultMessage = `Eliminazione evento fallita: ${error?.message || error}`;
+    } finally {
+      combatLogStorageAction = false;
+      if (sceneLifecycle.isCurrent(operation)) await scheduleRender(resultMessage);
+    }
+  };
+
   const renderTimeline = () => {
     timeline.replaceChildren();
     timelineMore.hidden = true;
@@ -1628,7 +1752,7 @@ async function render(
         });
         const turnBody = document.createElement("div");
         Object.assign(turnBody.style, { display: "grid", gap: "5px", padding: "0 5px 5px" });
-        for (const event of [...turn.events].reverse()) turnBody.appendChild(makeEventRow(event));
+        for (const event of [...turn.events].reverse()) turnBody.appendChild(makeEventRow(event, deleteEvent));
         turnDetails.append(turnSummary, turnBody);
         roundBody.appendChild(turnDetails);
       }

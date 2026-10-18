@@ -13,6 +13,7 @@ import {
   classFeatureResourceEntries,
   classFeatureResourceCostUsesActiveParent,
 } from "./classFeatureCore.js";
+import { SPECIES_FEATURES, SPECIES_RESOURCE_POOLS, speciesFeaturesForProfile } from "./speciesTraitCore.js";
 
 export { classFeatureIsReferenceOnly, classFeatureRuntimeSupport };
 
@@ -30,11 +31,13 @@ export const CLASS_FEATURE_RESOURCE_POOLS = Object.freeze(
   (Array.isArray(catalog.resourcePools) ? catalog.resourcePools : []).map(Object.freeze)
 );
 
+// Species traits share the class-feature record shape: they resolve by id like class features,
+// but stay out of CLASS_FEATURES so the class editor and the catalog audits never list them.
 export const CLASS_FEATURE_BY_ID = new Map(
-  CLASS_FEATURES.map((feature) => [feature.id, feature])
+  [...CLASS_FEATURES, ...SPECIES_FEATURES].map((feature) => [feature.id, feature])
 );
 export const CLASS_FEATURE_RESOURCE_POOL_BY_ID = new Map(
-  CLASS_FEATURE_RESOURCE_POOLS.map((pool) => [pool.id, pool])
+  [...CLASS_FEATURE_RESOURCE_POOLS, ...SPECIES_RESOURCE_POOLS].map((pool) => [pool.id, pool])
 );
 
 export function getClassFeatureDefinition(featureId) {
@@ -136,7 +139,14 @@ export function getEnabledClassFeatures(profile) {
     }
     result.push(feature);
   }
-  return result;
+  return [...result, ...getSpeciesFeatures(profile)];
+}
+
+// Species traits are always enabled for the profile's species and ancestry.
+export function getSpeciesFeatures(profile) {
+  const totalLevel = Math.min(20, sanitizeCharacterBuild(profile?.characterBuild)
+    .reduce((total, entry) => total + entry.level, 0));
+  return speciesFeaturesForProfile(profile, totalLevel);
 }
 
 export function classFeatureTargetMode(feature, characterBuild = []) {

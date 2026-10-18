@@ -39,6 +39,7 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
       followActiveTurn: true,
       toolbarPreset: "full",
       effectsDisplayMode: "selected",
+      scale: 1,
     },
     windows: { clocksCompact: false },
     tools: { distance3d: true, reference: true },

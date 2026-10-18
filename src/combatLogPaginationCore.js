@@ -27,10 +27,12 @@ export function mergeCombatLogPageState(
   if (state.sessionId !== sessionId) resetCombatLogPageState(state, sessionId);
   if (!sessionId) return [];
   const incoming = Array.isArray(page?.events) ? page.events : [];
+  const deletedEventIds = new Set(Array.isArray(session?.deletedEventIds) ? session.deletedEventIds : []);
+  for (const id of deletedEventIds) state.events.delete(id);
   if (page?.totalCount === 0) state.events.clear();
   for (const event of incoming) {
     const key = String(event?.id || `sequence:${event?.sequence}`);
-    if (key) state.events.set(key, event);
+    if (key && !deletedEventIds.has(key)) state.events.set(key, event);
   }
   state.totalCount = loadAll
     ? state.events.size

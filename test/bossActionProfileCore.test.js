@@ -24,8 +24,8 @@ for (const [label, html, counts] of [
     assert.equal(profile.rawSource.html, html);
     assert.equal(profile.rawSource.sourceName, `${label}.html`);
     assert.equal(profile.rawSource.sourceHash, createHash("sha256").update(html).digest("hex"));
-    assert.equal(profile.parserVersion, 22);
-    assert.equal(profile.profileVersion, 22);
+    assert.equal(profile.parserVersion, 24);
+    assert.equal(profile.profileVersion, 24);
     assert.equal(new Set(profile.abilities.map((entry) => entry.id)).size, profile.abilities.length);
     assert.ok(profile.abilities.every((entry) => entry.rawText.includes(entry.name)));
     assert.match(ability(profile, "Epic Resistance").rawText, /altera le sue statistiche\. Il tiro non è una prova con il d20: .*farlo ripetere\./);
@@ -41,7 +41,7 @@ test("phase identity is explicit and shares only the boss definition identity", 
   assert.notEqual(first.profileId, second.profileId);
   assert.match(first.profileRevision, /^[a-f0-9]{64}$/);
   assert.notEqual(first.profileRevision, first.rawSource.sourceHash);
-  assert.equal(first.profileRevision, createHash("sha256").update(`22\n${phase2HTML}`).digest("hex"));
+  assert.equal(first.profileRevision, createHash("sha256").update(`24\n${phase2HTML}`).digest("hex"));
   assert.deepEqual(await importBossActionHTML(phase2HTML), first);
 });
 

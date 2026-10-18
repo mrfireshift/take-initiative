@@ -1,6 +1,6 @@
 // Definition-only parsing and validation. No DOM, SDK, token mutation, or runtime state.
-export const BOSS_ACTION_PROFILE_VERSION = 22;
-export const BOSS_ACTION_PARSER_VERSION = 22;
+export const BOSS_ACTION_PROFILE_VERSION = 24;
+export const BOSS_ACTION_PARSER_VERSION = 24;
 // Version 3 adds one multi-target save shape: explicit GM-chosen targets, area metadata only
 // (never geometry), and a single on-failure condition with an actor-turn expiry.
 // Version 4 widens that shape to a closed set: cone, circle on a point or emanation from the boss;
@@ -49,6 +49,10 @@ export const BOSS_ACTION_PARSER_VERSION = 22;
 // manual registrations with a sequence; Breath of the Long Night and Meteor Swarm follow them as the last one.
 // Version 21 lets a single save start with the boss's own teleport (`teleport: { range }`, Il Corpo Non Era Qui):
 // the GM picks the destination and the token moves in the same command as the save.
+// Version 23 preserves explicit HTML manual-note annotations in the ability's manual text. Execution
+// grammar is unchanged; the revision advances so a reimport cannot conflict with an older parser result.
+// Version 24 lets those annotations live inside their ability: rawText retains the complete printed
+// description, while recognition reads the executable portion and the annotation stays manual text.
 export const BOSS_ACTION_SPELLS = Object.freeze({ lentezza: "slow", "tempesta di ghiaccio": "ice-storm", "sfera congelante di otiluke": "freezing-sphere", "passo velato": "misty-step" });
 export const BOSS_ACTION_SPELL_IDS = Object.freeze(Object.values(BOSS_ACTION_SPELLS));
 export const BOSS_ACTION_GROUP_CONDITIONS = Object.freeze(["Accecato", "Prono"]);
@@ -605,7 +609,7 @@ export function sanitizeBossActionBinding(value) {
 // Only strict structured data is consumed here; validation never interprets HTML or prose.
 export function validateBossActionProfile(value) {
   object(value, ["profileVersion", "parserVersion", ...IDENTITY_KEYS, "name", "type", "rawSource", "diagnostics", "abilities"], "profile");
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
   const binding = sanitizeBossActionBinding(value);
   if (!binding) fail("profile identity is invalid");
   object(value.rawSource, ["html", "sourceName", "sourceHash"], "rawSource");
@@ -692,8 +696,8 @@ function decodeEntities(value) {
 }
 function slug(value) { return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "ability"; }
 function hasClass(node, name) { return node.attrs?.class?.split(/\s+/).includes(name); }
-function textOf(node) {
-  const plain = (part) => typeof part === "string" ? decodeEntities(part) : part.tag === "br" ? " " : part.children.map(plain).join("");
+function textOf(node, excludedClass = "") {
+  const plain = (part) => typeof part === "string" ? decodeEntities(part) : part.tag === "br" || (excludedClass && hasClass(part, excludedClass)) ? " " : part.children.map(plain).join("");
   return plain(node).replace(/\s+/g, " ").trim();
 }
 function nodesOf(node) { return typeof node === "string" ? [] : [node, ...node.children.flatMap(nodesOf)]; }
@@ -1002,10 +1006,11 @@ export async function importBossActionHTML(html, { sourceName = "" } = {}) {
     const { name: actionName, usage: actionUsage } = parseTitle(title);
     if (!actionName) fail("entry title is empty");
     const rawText = textOf(node);
-    const body = rawText.slice(title.length).trim();
+    const body = textOf(node, "manual-note").slice(title.length).trim();
     let id = slug(actionName), suffix = 2;
     while (ids.has(id)) id = `${slug(actionName)}-${suffix++}`;
     ids.add(id);
+    if (nodesOf(node).some((child) => hasClass(child, "manual-note") && child.attrs.id !== `boss-note-${id}`)) fail("manual note target does not match its containing ability");
     const recognized = grammar(body, category, { bossName: name.split(",")[0].trim(), actionName });
     const entry = { id, name: actionName, category, automation: "UNSUPPORTED", rawText, usage: actionUsage, ...(group ? { group } : {}), ...(recognized || { manualText: rawText }) };
     // A recognized manual registration (Breathe Deep, Gather the Winter Sky: a sequence only) is still manual.
@@ -1067,6 +1072,15 @@ export async function importBossActionHTML(html, { sourceName = "" } = {}) {
       delete entry.execution;
       diagnostics.push({ code: "UNSUPPORTED_ABILITY", abilityId: entry.id, message: `${entry.name}: attacco di riferimento non trovato nel profilo.` });
     }
+  }
+  // Explicit notes are documentation only. Resolve them after every executable grammar/reference so
+  // added prose cannot alter or weaken an action's recognition, sequence, damage, or conditions.
+  for (const note of blockNodes.filter((node) => hasClass(node, "manual-note"))) {
+    const entry = abilities.find((ability) => note.attrs.id === `boss-note-${ability.id}`);
+    if (!entry) fail("manual note target is missing or unknown");
+    const text = textOf(note);
+    if (!text) fail("manual note text is empty");
+    if (!entry.manualText?.includes(text)) entry.manualText = [entry.manualText, text].filter(Boolean).join("\n");
   }
   return validateBossActionProfile({ profileVersion: BOSS_ACTION_PROFILE_VERSION, parserVersion: BOSS_ACTION_PARSER_VERSION, profileId: `${bossDefinitionId}-${phaseId}`, profileRevision: sourceHash(`${BOSS_ACTION_PARSER_VERSION}\n${html}`), bossDefinitionId, phaseId, name, type, rawSource: { html, sourceName, sourceHash: hash }, diagnostics, abilities });
 }

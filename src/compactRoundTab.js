@@ -6,9 +6,9 @@ const COMPACT_PART = new URLSearchParams(window.location.search).get("part") ===
   ? "speed"
   : "round";
 document.documentElement.dataset.part = COMPACT_PART;
-// Player tracker scale: the tab grows with the compact bar (`scale` in the URL, see trackerPopover.js).
+// Tracker scale: the tab follows the compact bar (`scale` in the URL, see trackerPopover.js).
 const TAB_SCALE = Number(new URLSearchParams(window.location.search).get("scale"));
-if (Number.isFinite(TAB_SCALE) && TAB_SCALE > 1) document.documentElement.style.zoom = String(TAB_SCALE);
+if (Number.isFinite(TAB_SCALE) && TAB_SCALE > 0 && TAB_SCALE !== 1) document.documentElement.style.zoom = String(TAB_SCALE);
 const STATE_KEY = `${ID}/state`;
 const SPEED_STATE_CHANNEL = `${ID}/speed-state`;
 const COMPACT_SPEED_COMMAND_CHANNEL = `${ID}/compact-speed-readout`;

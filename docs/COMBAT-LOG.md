@@ -2,10 +2,23 @@
 
 ## Contratto
 
-Il Combat Log è una proiezione locale, append-only e best-effort dello stato
+Il Combat Log è una proiezione locale, append-only per le registrazioni automatiche e best-effort dello stato
 canonico. Viene scritto soltanto nel browser del GM, in IndexedDB, ed è
 separato dalla History. Non è una fonte di verità e non viene usato per Undo,
 recovery, ricostruzione dello stato o sincronizzazione tra client GM.
+
+Il GM può eliminare manualmente un singolo evento tramite il cestino sulla riga
+e la conferma «Elimina evento». L'operazione è definitiva e modifica soltanto il
+registro locale: scena e journal History/Undo restano invariati. È disponibile
+anche con la registrazione automatica disattivata.
+
+La rimozione dell'evento e l'aggiornamento della sessione avvengono in un'unica
+transazione IndexedDB, nella coda di scrittura e con i controlli dello scene
+epoch. `nextSequence`, `lastRound` e `lastTurnKey` restano invariati. La sessione
+conserva in `deletedEventIds` solo gli ID eliminati: un retry dello stesso evento
+non lo ricrea. La cache delle pagine applica queste esclusioni anche agli eventi
+più vecchi già caricati. Riepiloghi ed export vengono ricalcolati sui soli eventi
+rimasti; svuotare l'intero registro azzera anche queste esclusioni.
 
 La scena conserva soltanto il puntatore alla sessione attiva nella chiave
 `com.thebigpicture.initiative/combat-log-state`. Un errore del log non modifica
@@ -344,6 +357,39 @@ e dei test, non una regola strutturale del validatore: `0` è un valore valido
 quando è stato osservato realmente, mentre l’assenza deve produrre `null`.
 
 Non vengono introdotti altri cambiamenti al contratto v3 in questa fase.
+
+## Snapshot del combattimento
+
+Dal Registro (menu “Snapshot del combattimento”) il GM può fotografare lo stato
+corrente. Lo snapshot è una lettura: non scrive metadata di token o di scena e
+non tocca HP, iniziativa, turno attivo o barre HP. Il modulo puro è
+`src/combatSnapshotCore.js`; la cattura via SDK e il PNG sono in
+`src/combatSnapshot.js`.
+
+- **Snapshot JSON** scarica `snapshot-round<N>-<data>.json` (formato
+  `take-initiative-combat-snapshot`, versione 1) e, se il Combat Log è attivo,
+  aggiunge una voce `kind: "combat-snapshot"` in categoria `roster` con il
+  riassunto e lo snapshot completo nel payload, quindi presente anche
+  nell’export JSON del registro.
+- Contenuto: round, ordine con ID virtuali, turno attivo; per attore HP, HP
+  massimi, iniziativa, fazione, condizioni/effetti attivi con durata residua,
+  difese ai danni effettive (`damageDefensesForItem()`), concentrazione,
+  capacità di classe/specie attive e risorse memorizzate; incantesimi attivi per
+  istanza con caster, portatori e durata; zone statiche con le celle, aure
+  (incantesimo, personalizzate, capacità), token evocati con HP; sfondi della
+  mappa con URL e trasformazione.
+- **Mappa SVG** ricostruisce il tabellone in modo schematico (griglia quadrata,
+  zone, aure, token con fazione, barra HP, condizioni e concentrazione, turno
+  attivo evidenziato). Lo sfondo è collegato per URL: nessun pixel viene letto,
+  quindi il CORS non interviene, ma serve che l’URL resti raggiungibile.
+- **Mappa PNG** disegna lo stesso schema su canvas. Lo sfondo viene caricato
+  con `crossOrigin="anonymous"`: se l’host non invia
+  `Access-Control-Allow-Origin` il PNG viene prodotto senza sfondo e il
+  messaggio lo dichiara.
+
+Limiti: Owlbear non espone uno screenshot del canvas; nebbia, disegni, luci,
+testi, token fuori iniziativa e griglie esagonali non sono ricostruiti; le
+risorse riportano i valori memorizzati, non il massimo ricalcolato dalla formula.
 
 ## Limiti e roadmap
 

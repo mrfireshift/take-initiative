@@ -531,6 +531,13 @@ test("Titan's Grasp: all-or-nothing damage, the grapple conditions on failure, a
   const f=fixture({selection:["dars"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   await open(f,"Titan's Grasp");
   assert.match(textOf(f.$("boss-resolution")),/TS DES CD 18 · nessun danno su successo · Afferrato \(fuga CD 18\) e Trattenuto sui falliti/);
+  const rules=f.$("boss-resolution").querySelector(".manual-rules");
+  assert.ok(rules,"manual checks have their own accordion");
+  assert.equal(rules.tagName,"DETAILS");
+  assert.equal(rules.open,false);
+  assert.equal(textOf(rules.querySelector("summary")),"Regole e verifiche del DM");
+  assert.match(textOf(rules.querySelector("pre")),/35 danni effettivi nello stesso turno/);
+  assert.match(textOf(rules.querySelector("pre")),/da qualsiasi fonte/);
   await outcome(f,"passed").click();
   assert.match(textOf(f.$("boss-total")),/Totale 0 \(nessun danno\)/);
   assert.ok(f.$("boss-resolution").querySelectorAll("[data-component-id]").every(input=>input.disabled));
@@ -596,6 +603,10 @@ test("Frostmaiden's Kiss: no prerequisite to confirm, a manual maximum-HP note a
   const f=fixture({selection:["dars"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   await open(f,"Frostmaiden's Kiss");
   assert.equal(f.$("boss-manual-confirmed"),null);
+  const rules=f.$("boss-resolution").querySelector(".manual-rules");
+  assert.ok(rules);
+  assert.equal(rules.tagName,"DETAILS");
+  assert.equal(rules.open,false);
   assert.match(textOf(f.$("boss-resolution")),/A mano: Riduci a mano il massimo dei Punti Ferita/);
   await outcome(f,"hit").click();
   assert.match(textOf(f.$("boss-total")),/Totale 25 · boss \+18 PF/);
@@ -661,7 +672,7 @@ test("library: a token on a superseded revision is flagged; cleanup is two-step 
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   await importVariant(f,"auril-phase-2.html",html=>html.replace("Auril occupa due","Auril ora occupa due"));
   await f.controller.refresh();
-  assert.match(optionTexts(f)[0],/v22 · [a-f0-9]{8} · collegata qui · superata/);
+  assert.match(optionTexts(f)[0],/v24 · [a-f0-9]{8} · collegata qui · superata/);
   assert.doesNotMatch(optionTexts(f)[1],/superata/);
   assert.equal(f.$("boss-profile-warning").hidden,false);
   assert.match(f.$("boss-profile-warning").textContent,/Il token usa una revisione superata/);

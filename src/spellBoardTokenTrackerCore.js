@@ -5,7 +5,9 @@ import {
 } from "./spellBoardTokenCore.js";
 
 const normalizedId = (value) => String(value || "").trim();
-const collapsedCompanionGroups = new Set();
+// Summoned tokens start collapsed: only the groups the GM expanded are remembered, for this page.
+// The key includes the cast instances, so a new cast starts collapsed and a reload forgets them all.
+const expandedCompanionGroups = new Set();
 
 function rawItem(value) {
   return value?.item || value || null;
@@ -105,6 +107,8 @@ export function spellBoardTokenCompanionsByCasterId(items = []) {
       casterId,
       spellId: rule.spellId,
       label: rule.label,
+      baseLabel: rule.label,
+      number: view?.number || null,
       objectSizeLabel: view?.objectSizeLabel || "",
       iconUrl: item.image?.url || rule.assetPath,
       actionLabel: [view?.objectSizeLabel, actionLabel].filter(Boolean).join(" · "),
@@ -118,10 +122,43 @@ export function spellBoardTokenCompanionsByCasterId(items = []) {
     list.sort((left, right) => (
       left.label.localeCompare(right.label, "it")
       || left.instanceId.localeCompare(right.instanceId)
+      || (left.number || 0) - (right.number || 0)
       || left.itemId.localeCompare(right.itemId)
     ));
+    numberCompanionGroups(list);
   }
   return companions;
+}
+
+// Tokens of the same cast keep the number written on the map label. Tokens placed before the
+// numbering existed get a display-only number from their stable order.
+function numberCompanionGroups(list) {
+  const groups = new Map();
+  for (const companion of list) {
+    const key = `${companion.spellId}|${companion.instanceId}`;
+    groups.set(key, [...(groups.get(key) || []), companion]);
+  }
+  for (const group of groups.values()) {
+    if (group.length > 1 && group.some((companion) => !companion.number)) {
+      group.forEach((companion, index) => { companion.number = index + 1; });
+    }
+    for (const companion of group) {
+      if (companion.number && (group.length > 1 || companion.number > 1)) {
+        companion.label = `${companion.baseLabel} ${companion.number}`;
+      }
+    }
+  }
+}
+
+const COMPANION_BASE_SHADOW = "0 2px 6px rgba(0,0,0,.35)";
+
+export function applySpellBoardTokenCompanionSelection(element, selectedIds) {
+  if (!element?.style) return;
+  const selected = !!selectedIds?.has?.(element.dataset?.spellBoardTokenId);
+  element.dataset.selectionState = selected ? "all" : "none";
+  element.style.boxShadow = selected
+    ? `${COMPANION_BASE_SHADOW}, 0 0 0 2px rgba(255,255,255,.96), 0 0 10px 3px rgba(255,255,255,.6)`
+    : COMPANION_BASE_SHADOW;
 }
 
 export function spellBoardTokenCompanionsForEntry(entry, companionsByCasterId) {
@@ -176,6 +213,8 @@ export function buildSpellBoardTokenCompanionCard(
     compact = false,
     faction = null,
     onBindHP = null,
+    onSelect = null,
+    selectedIds = null,
     documentRef = globalThis.document,
   } = {},
 ) {
@@ -221,9 +260,21 @@ export function buildSpellBoardTokenCompanionCard(
     pointerEvents: "none",
     userSelect: "none",
     whiteSpace: "nowrap",
-    boxShadow: "0 2px 6px rgba(0,0,0,.35)",
+    boxShadow: COMPANION_BASE_SHADOW,
     zIndex: "6",
   });
+  // Like a creature card: a click selects the token on the map (Ctrl/Cmd adds to the selection).
+  if (typeof onSelect === "function") {
+    card.style.pointerEvents = "auto";
+    card.style.cursor = "pointer";
+    card.title = `${companion.label}: clicca per selezionare la pedina`;
+    card.addEventListener?.("click", (event) => {
+      event?.stopPropagation?.();
+      if (event?.target?.closest?.("button, [data-badge]")) return;
+      onSelect(companion, event);
+    });
+    applySpellBoardTokenCompanionSelection(card, selectedIds);
+  }
 
   const icon = documentRef.createElement("img");
   icon.dataset.spellBoardTokenCompanionPortrait = "1";
@@ -314,13 +365,18 @@ export function appendSpellBoardTokenCompanions(
     compact = false,
     faction = null,
     onBindHP = null,
+    onSelect = null,
+    selectedIds = null,
     documentRef = globalThis.document,
   } = {},
 ) {
   const list = Array.isArray(companions) ? companions : [];
   if (!card || !list.length) return 0;
   const stackHeight = spellBoardTokenCompanionStackHeight(list, { compact });
-  const groupKey = normalizedId(list[0]?.casterId) || "unknown-caster";
+  const groupKey = [
+    normalizedId(list[0]?.casterId) || "unknown-caster",
+    ...[...new Set(list.map((companion) => normalizedId(companion?.instanceId)))].sort(),
+  ].join("|");
   card.style.position = card.style.position || "relative";
   card.style.overflow = "visible";
   const children = [];
@@ -330,6 +386,8 @@ export function appendSpellBoardTokenCompanions(
       compact,
       faction,
       onBindHP,
+      onSelect,
+      selectedIds,
       documentRef,
     });
     child.style.position = "absolute";
@@ -366,7 +424,7 @@ export function appendSpellBoardTokenCompanions(
       zIndex: "8",
     });
     const applyGroupState = () => {
-      const isCollapsed = collapsedCompanionGroups.has(groupKey);
+      const isCollapsed = !expandedCompanionGroups.has(groupKey);
       card.style.marginBottom = `${isCollapsed
         ? companionDimensions(list[0], compact).height + 2
         : stackHeight}px`;
@@ -378,8 +436,8 @@ export function appendSpellBoardTokenCompanions(
     };
     toggle.addEventListener?.("click", (event) => {
       event?.stopPropagation?.();
-      if (collapsedCompanionGroups.has(groupKey)) collapsedCompanionGroups.delete(groupKey);
-      else collapsedCompanionGroups.add(groupKey);
+      if (expandedCompanionGroups.has(groupKey)) expandedCompanionGroups.delete(groupKey);
+      else expandedCompanionGroups.add(groupKey);
       applyGroupState();
     });
     children[0].appendChild(toggle);

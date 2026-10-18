@@ -40,7 +40,7 @@ test("Primal Blizzard: the 30 ft blizzard (debuff pill, a concentration save at 
       reminders: [{ key: "push", event: "turn-start", resolution: "manual-save", label: "Sulla piattaforma: TS FOR CD 15; fallimento: spinto fino a 10 ft. lontano dal Grembo Invernale e Prono.", ability: "str", dc: 15,
         failureCondition: "Prono" }] },
   ]);
-  assert.match(blizzard.manualText, /adatta il raggio di «Primal Blizzard · Vento» alla piattaforma\.$/);
+  assert.match(blizzard.manualText.split("\n")[0], /adatta il raggio di «Primal Blizzard · Vento» alla piattaforma\.$/);
   for (const name of ["Forma Statica", "Crushing Downdraft", "Edge of the Storm", "Resistenza alla Magia"]) {
     assert.equal(ability(p3, name).automation, "UNSUPPORTED", name);
     assert.equal(ability(p3, name).auras, undefined, name);

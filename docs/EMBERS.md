@@ -79,8 +79,27 @@ Quando la policy passa a off, il lifecycle interrompe i nuovi producer,
 smonta entrambi i renderer e rimuove soltanto i local item posseduti da Take
 Initiative!. Non vengono cancellati metadata canonici, zone, concentrazione,
 History, Combat Log o item di Embers esterno. Alla riattivazione vengono
-rimontati i listener; i nuovi cast possono produrre visuali, mentre non viene
-ricostruito retroattivamente uno storico visuale.
+rimontati i listener; i nuovi cast possono produrre visuali.
+
+## Reidratazione dei loop persistenti
+
+I loop sono local item: spariscono quando la room si chiude, la pagina si
+ricarica o si cambia scena, mentre spell e capacità restano attive nei
+metadata. Al montaggio del renderer e a ogni scena pronta
+(`OBR.scene.onReadyChange`, su ogni client, GM e player) il renderer legge
+spell, concentrazione, stato delle capacità e zone dalla scena
+(`src/embersVisualRehydrationCore.js`) e ridisegna **solo per sé** i layer
+`persistent` delle istanze attive che non ha già a schermo: niente intro,
+niente one-shot, niente broadcast. Il `lifecycleId` resta quello
+dell'istanza, quindi l'evento di fine li rimuove come al solito.
+
+I layer ancorati a caster o bersaglio si ricostruiscono dalla posizione
+corrente dei token. I layer disegnati sull'area piazzata usano la geometria
+salvata sulla radice della zona al momento del lancio
+(`com.thebigpicture.initiative/embersZoneVisual`), traslata dello spostamento
+della zona; le zone create prima di questo meccanismo non hanno il dato e il
+loro loop d'area non viene ridisegnato, invece di comparire nel punto
+sbagliato.
 
 Il cambio scena invalida i render pendenti e impedisce che un evento della scena
 precedente ricrei item nella scena corrente. Un one-shot già consegnato a un

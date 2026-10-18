@@ -35,8 +35,8 @@ function asVersion(profile, version) {
 test("the real Breath description becomes a PARTIAL multi-target CON save with printed components and Accecato on failure", async () => {
   const profile = await importBossActionHTML(phase2HTML, { sourceName: "auril-phase-2.html" });
   const breath = ability(profile, BREATH);
-  assert.equal(profile.profileVersion, 22);
-  assert.equal(profile.parserVersion, 22);
+  assert.equal(profile.profileVersion, 24);
+  assert.equal(profile.parserVersion, 24);
   assert.equal(breath.automation, "PARTIAL");
   assert.equal(breath.category, "epic-action");
   assert.deepEqual(breath.usage, { limit: 1, period: "round", note: "Special Recharge" }, "1/Round is counted; the recharge stays a manual note");
@@ -53,7 +53,7 @@ test("the real Breath description becomes a PARTIAL multi-target CON save with p
   });
   // v20: the printed requirement is the sequence; the manual text only names where the recharge comes from.
   assert.deepEqual(breath.sequence, { slot: "last", after: "breathe-deep" });
-  assert.equal(breath.manualText, "La ricarica viene da Breathe Deep, usata come prima Azione Epica dello stesso round: verificata dal registro del round.");
+  assert.equal(breath.manualText.split("\n")[0], "La ricarica viene da Breathe Deep, usata come prima Azione Epica dello stesso round: verificata dal registro del round.");
   assert.match(breath.rawText, /^Breath of the Long Night \(1\/Round, Special Recharge\)\. Tiro Salvezza su Costituzione: CD 19, ogni creatura in un Cono di 60 ft\. che origina dal Titano\..*che usa nel round\.$/);
   assert.equal(profile.rawSource.html, phase2HTML);
   assert.equal(profile.rawSource.sourceHash, createHash("sha256").update(phase2HTML).digest("hex"));
@@ -75,7 +75,7 @@ test("any unknown or altered Breath clause leaves the whole ability manual", asy
     const breath = ability(await importBossActionHTML(html), BREATH);
     assert.equal(breath.automation, "UNSUPPORTED");
     assert.equal(breath.execution, undefined);
-    assert.equal(breath.manualText, breath.rawText);
+    assert.equal(breath.manualText.split("\n")[0], breath.rawText);
   }
 });
 
@@ -97,7 +97,7 @@ test("the original round-1 wording and plain Special Recharge title still parse 
   const breath = ability(await importBossActionHTML(original), BREATH);
   assert.equal(breath.automation, "PARTIAL");
   assert.deepEqual(breath.usage, { note: "Special Recharge" });
-  assert.match(breath.manualText, /durante il round 1\.$/);
+  assert.match(breath.manualText.split("\n")[0], /durante il round 1\.$/);
   assert.equal(breath.sequence, undefined, "a round-numbered requirement stays a manual confirmation");
 });
 
@@ -138,7 +138,7 @@ test("v2 profiles stay readable without Breath mechanics and cannot carry the v3
   assert.throws(() => validateBossActionProfile(forged), /unexpected|unsupported|invalid/i);
   const store = createBossActionProfileStore({ storage: memoryStorage() });
   store.put(legacy); store.put(current);
-  assert.deepEqual(store.list().map((profile) => profile.profileVersion), [2, 22], "both revisions of the same phase coexist");
+  assert.deepEqual(store.list().map((profile) => profile.profileVersion), [2, 24], "both revisions of the same phase coexist");
 });
 
 test("v3 export/import keeps HTML, raw text and the normalized group contract without truncation", async () => {

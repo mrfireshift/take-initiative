@@ -2,6 +2,7 @@
 // Pure data + arithmetic: no SDK, no metadata writes.
 import { scaledQuickHPAmount } from "./quickHpCore.js";
 import { sanitizeCharacterBuild, sanitizeEnabledClassFeatureIds } from "./classFeatureCore.js";
+import { SPECIES_FIELD, speciesDamageDefenses } from "./speciesTraitCore.js";
 
 export const DAMAGE_DEFENSES_FIELD = "damageDefenses";
 
@@ -66,8 +67,38 @@ export function componentDamageAfterDefense(inputAmount, outcomeFactor, defense)
   return afterOutcome;
 }
 
+// The Actor Profile's own defenses plus the passive ones of its species (a dragonborn's ancestry resistance).
+export function profileDamageDefenses(card) {
+  return mergeDamageDefenses(card?.[DAMAGE_DEFENSES_FIELD], speciesDamageDefenses(card?.[SPECIES_FIELD]));
+}
+
+export function profileDamageDefensesForItem(item, metaKey) {
+  return profileDamageDefenses(item?.metadata?.[metaKey]?.initiativeCard);
+}
+
+// Active effects (species traits, consumables, buffs) may grant defenses through
+// instance.mechanics.damageDefenses, the same shape as the Actor Profile field.
+export function effectDamageDefensesForItem(item, metaKey) {
+  const value = item?.metadata?.[metaKey]?.conditions;
+  const instances = Array.isArray(value) ? value : Array.isArray(value?.instances) ? value.instances : [];
+  return mergeDamageDefenses(...instances
+    .filter((instance) => instance && instance.active !== false)
+    .map((instance) => instance.mechanics?.[DAMAGE_DEFENSES_FIELD]));
+}
+
+// Union of several defense sets; sanitizing applies the usual precedence (immunity, resistance, vulnerability).
+export function mergeDamageDefenses(...sets) {
+  const lists = { immunities: [], resistances: [], vulnerabilities: [] };
+  for (const set of sets) {
+    const clean = sanitizeDamageDefenses(set);
+    for (const [list] of DEFENSE_LISTS) lists[list].push(...clean[list]);
+  }
+  return sanitizeDamageDefenses(lists);
+}
+
+// Effective defenses: the Actor Profile plus every active effect. The profile itself is never rewritten.
 export function damageDefensesForItem(item, metaKey) {
-  return sanitizeDamageDefenses(item?.metadata?.[metaKey]?.initiativeCard?.[DAMAGE_DEFENSES_FIELD]);
+  return mergeDamageDefenses(profileDamageDefensesForItem(item, metaKey), effectDamageDefensesForItem(item, metaKey));
 }
 
 // Defenses that matter for these components, minus the ones the GM chose to ignore for this resolution.

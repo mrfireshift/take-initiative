@@ -184,11 +184,15 @@ test("Crush is refused until Titan's Grasp holds the creature, then works on it"
   assert.equal(meta("dars").hp, 0, "17 − (16 + 5), clamped at 0");
 });
 
-test("Crush on the held creature: CON 19, half on a success, conditions unchanged, repeatable in the same round", async () => {
+test("Crush on the held creature: once per round, renewed next round, Undo restores its use", async () => {
   await setup(p2, { dars: grabbedBy("auril") });
   await assert.rejects(squeeze({ targetId: "mira" }), /deve essere Afferrato dal boss/);
   await squeeze({ outcome: "passed" });
   assert.equal(meta("dars").hp, 39, "floor(33 / 2) + floor(10 / 2)");
+  await assert.rejects(squeeze({ actionInstanceId: "crush-spent" }), /esaurit/i);
+  assert.equal(meta("dars").hp, 39, "a spent use applies no damage");
+  assert.equal((await monsterEntries()).length, 1, "a refused use creates no History entry");
+  await advance({ round: 1, current: 2 }, { round: 2, current: 2 });
   await squeeze({ actionInstanceId: "crush-2" });
   assert.equal(meta("dars").hp, 0);
   assert.equal(named("dars", "Afferrato").length, 1, "the grapple stays");
@@ -197,6 +201,9 @@ test("Crush on the held creature: CON 19, half on a success, conditions unchange
   assert.equal(entries.length, 2);
   assert.equal(entries[0].payload.causality.save.dc, 19);
   assert.deepEqual(entries[0].payload.causality.grapple, { rule: "hold", heldBefore: ["dars"] });
+  await undoLast();
+  assert.equal(meta("dars").hp, 39);
+  assert.equal((await runtime.getBossActionPresentation("auril")).availability[crush.id].available, true);
 });
 
 test("Soul-Numbing Cold: a debuff pill on failures only, no HP change, at most three targets", async () => {

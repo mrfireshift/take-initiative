@@ -235,6 +235,7 @@ export function buildSpellChips(spells, options = {}) {
     chip.className = "chip spell-chip";
     chip.dataset.referenceType = "spells";
     chip.dataset.referenceEntry = displayName;
+    if (spell?.instanceId) chip.dataset.spellInstanceId = String(spell.instanceId);
     const label = document.createElement("span");
     const spellChipLabel = formatSpellChip(displayName, spell);
     label.textContent = spellChipLabel;
@@ -335,8 +336,9 @@ export function buildSpellChips(spells, options = {}) {
 
 function formatSpellChip(name, spell) {
   const normalizedName = String(name || "").trim();
-  const short = normalizedName.length > 10
-    ? normalizedName.slice(0, 9) + "…"
+  // Chips wrap to a new line in the card, so a name keeps up to 24 characters.
+  const short = normalizedName.length > 24
+    ? normalizedName.slice(0, 23) + "…"
     : normalizedName;
   const counter = spellPillCounter(spell);
   return counter ? short + " (" + counter + ")" : short;

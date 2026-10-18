@@ -1333,6 +1333,53 @@ function applyConditionAdjustment(states, operation) {
   }
 }
 
+// Manual duration override (GM): one value for the whole effect. Conditions are matched by id or
+// by their parent effect (spell or class-feature instance); spells by instance id. Turn-anchored
+// timings keep their anchor and only change how many boundaries remain.
+function overriddenExpiry(expiry, override) {
+  const current = expiry && typeof expiry === "object" ? expiry : { mode: "manual" };
+  if (override?.mode === "manual") return { mode: "manual" };
+  const remaining = Math.max(1, Math.min(100000, Math.floor(Number(override?.remaining) || 1)));
+  const mode = String(current.mode || "").trim().toLocaleLowerCase("it");
+  if (mode === "turn-start" || mode === "turn-end") return { ...current, remaining };
+  return { mode: "rounds", remaining };
+}
+
+function applyDurationOverride(states, operation) {
+  const override = operation?.override;
+  if (override?.mode !== "manual" && !(Math.floor(Number(override?.remaining)) > 0)) return;
+  const instanceIds = new Set(uniqueIds(operation?.conditionInstanceIds));
+  const parentEffectId = String(operation?.parentEffectId || "").trim();
+  const spellInstanceId = String(operation?.spellInstanceId || "").trim();
+  for (const targetId of uniqueIds(operation?.targetIds)) {
+    const state = states.get(targetId);
+    if (!state) continue;
+    state.conditions = state.conditions.map((instance) => {
+      const matches = instanceIds.has(String(instance?.id || ""))
+        || (parentEffectId && String(instance?.parentEffectId || "").trim() === parentEffectId);
+      if (!matches) return instance;
+      const mode = String(instance?.expiry?.mode || "").trim();
+      // A spell pill without its own timer ends with its spell, which the override updates below.
+      if (mode === "concentration" || (mode === "manual" && instance?.type === "spell")) return instance;
+      return { ...instance, expiry: overriddenExpiry(instance.expiry, override) };
+    });
+    if (!spellInstanceId) continue;
+    state.spells = state.spells.map((spell) => {
+      if (String(spell?.instanceId || "").trim() !== spellInstanceId) return spell;
+      const mode = String(spell?.expiry?.mode || "").trim();
+      if (override.mode === "manual") return { ...spell, expiry: { mode: "manual" } };
+      const remaining = Math.max(1, Math.min(100000, Math.floor(Number(override.remaining))));
+      if (mode === "turn-start" || mode === "turn-end") return { ...spell, expiry: { ...spell.expiry, remaining } };
+      if (mode === "rounds") return { ...spell, turns: remaining, expiry: { ...spell.expiry, remaining } };
+      if (mode === "manual") {
+        const { expiry: _manualExpiry, ...rest } = spell;
+        return { ...rest, turns: remaining };
+      }
+      return { ...spell, turns: remaining };
+    });
+  }
+}
+
 function applyConditionAutomation(states, subjectIds, context = {}, operation = {}) {
   const incapacitated = new Set();
   for (const subjectId of uniqueIds(subjectIds)) {
@@ -1604,6 +1651,9 @@ function applyOperation(states, operation, options = {}, context = {}) {
       break;
     case "condition:adjust":
       applyConditionAdjustment(states, operation);
+      break;
+    case "effects:set-duration":
+      applyDurationOverride(states, operation);
       break;
     case "effects:tick-boundaries":
       {

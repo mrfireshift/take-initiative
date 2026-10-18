@@ -29,6 +29,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
     tracker: {
       layout: localInput.layout,
       followActiveTurn: localInput.followActiveTurn,
+      scale: localInput.trackerScale,
     },
     runtime: {
       combatLog: localInput.combatLog,
@@ -73,6 +74,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
     local: {
       layout: local.tracker.layout,
       followActiveTurn: local.tracker.followActiveTurn,
+      trackerScale: local.tracker.scale,
       combatLog: local.runtime.combatLog,
     },
     room: {
@@ -120,6 +122,7 @@ export function buildOptionsPanelPatches(draft) {
       tracker: {
         layout: normalized.local.layout,
         followActiveTurn: normalized.local.followActiveTurn,
+        scale: normalized.local.trackerScale,
       },
       runtime: {
         combatLog: normalized.local.combatLog,

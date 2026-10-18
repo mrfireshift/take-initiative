@@ -11,6 +11,8 @@ import {
   matchedVisualLayerPlan,
 } from "./embersMatchedVisualCore.js";
 import { CLASS_FEATURE_STATE_FIELD } from "./classFeatureCore.js";
+import { activeMatchedVisualLifecycles, rehydrationLayers } from "./embersVisualRehydrationCore.js";
+import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
 import { selectEmbersAnimationsEnabled } from "./options/optionsSelectors.js";
 
@@ -32,6 +34,12 @@ const endedLifecycleTargets = new Map();
 let unsubscribe = null;
 let epochUnsubscribe = null;
 let transientSweepTimer = null;
+const REHYDRATION_DELAY_MS = 800;
+const SCENE_STATE_KEY = "com.thebigpicture.initiative/state";
+let rehydrationTimer = null;
+let rehydrationRunning = false;
+let rehydrationQueued = false;
+let sceneReadyUnsubscribe = null;
 
 function resetRendererStateForSceneUnload() {
   for (const timer of pendingTimers) clearTimeout(timer);
@@ -52,6 +60,8 @@ function setupSceneEpochSubscription() {
     if (event?.phase === "unload") {
       resetRendererStateForSceneUnload();
     }
+    // Back on a scene (or a room reopened): its active loops are local items no longer on screen.
+    if (event?.phase === "ready") scheduleRehydration();
   });
 }
 
@@ -672,33 +682,19 @@ export async function emitMatchedClassFeatureVisualEnd({
   });
 }
 
-async function emitVisual({
+// Reads the anchors' geometry from the scene and builds the visual event, without sending it.
+async function buildSceneVisualEvent({
   spellId,
   casterId,
   targetIds,
   zoneId = "",
   placementChoice = "",
   preview,
-  eventId,
-  lifecycleId = "",
+  resolvedEventId,
+  resolvedLifecycleId,
   mode = "start",
-  partial = false,
-  sceneEpoch = null,
+  originEpoch,
 }) {
-  const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
-  if (!await animationsEnabled()) {
-    return { sent: false, reason: "disabled" };
-  }
-  if (!isCurrentSceneEpoch(originEpoch)) {
-    return { sent: false, reason: "stale-scene-epoch" };
-  }
-  const resolvedEventId = createEventId(
-    spellId,
-    mode === "end" && lifecycleId ? `${eventId || lifecycleId}:end` : eventId,
-  );
-  const resolvedLifecycleId = String(
-    lifecycleId || (mode === "start" ? resolvedEventId : ""),
-  ).trim();
   const normalizedCasterId = String(casterId || "").trim();
   const normalizedTargetIds = normalizeIdList([
     ...targetIds,
@@ -729,7 +725,7 @@ async function emitVisual({
   const targetScope = new Set(normalizedTargetIds);
   const targets = geometry.filter((entry) => targetScope.has(entry.id));
   if (!isCurrentSceneEpoch(originEpoch)) {
-    return { sent: false, reason: "stale-scene-epoch" };
+    return { event: null, reason: "stale-scene-epoch" };
   }
   const event = buildMatchedVisualEvent({
     spellId,
@@ -747,7 +743,50 @@ async function emitVisual({
     lifecycleId: resolvedLifecycleId,
     sceneEpoch: originEpoch,
   });
-  if (!event) return { sent: false, reason: "invalid-geometry" };
+  return event ? { event } : { event: null, reason: "invalid-geometry" };
+}
+
+async function emitVisual({
+  spellId,
+  casterId,
+  targetIds,
+  zoneId = "",
+  placementChoice = "",
+  preview,
+  eventId,
+  lifecycleId = "",
+  mode = "start",
+  partial = false,
+  sceneEpoch = null,
+}) {
+  const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
+  if (!await animationsEnabled()) {
+    return { sent: false, reason: "disabled" };
+  }
+  if (!isCurrentSceneEpoch(originEpoch)) {
+    return { sent: false, reason: "stale-scene-epoch" };
+  }
+  const resolvedEventId = createEventId(
+    spellId,
+    mode === "end" && lifecycleId ? `${eventId || lifecycleId}:end` : eventId,
+  );
+  const resolvedLifecycleId = String(
+    lifecycleId || (mode === "start" ? resolvedEventId : ""),
+  ).trim();
+  const built = await buildSceneVisualEvent({
+    spellId,
+    casterId,
+    targetIds,
+    zoneId,
+    placementChoice,
+    preview,
+    resolvedEventId,
+    resolvedLifecycleId,
+    mode,
+    originEpoch,
+  });
+  const event = built.event;
+  if (!event) return { sent: false, reason: built.reason };
   if (partial) event.partial = true;
   try {
     await OBR.broadcast.sendMessage(
@@ -937,6 +976,83 @@ export async function emitMatchedVisualEndsFromMutation(
   return { sent: results.filter((result) => result?.sent).length };
 }
 
+// Each client redraws, for itself only, the loops of the spells and features still active in the
+// scene: no broadcast, no intro or one-shot, the same lifecycle id so the end event still clears them.
+function scheduleRehydration(delay = REHYDRATION_DELAY_MS) {
+  if (rehydrationTimer != null) clearTimeout(rehydrationTimer);
+  rehydrationTimer = setTimeout(() => {
+    rehydrationTimer = null;
+    void rehydratePersistentVisuals();
+  }, delay);
+}
+
+export async function rehydratePersistentVisuals() {
+  if (!unsubscribe) return { rendered: 0, reason: "not-mounted" };
+  if (rehydrationRunning) {
+    rehydrationQueued = true;
+    return { rendered: 0, reason: "queued" };
+  }
+  rehydrationRunning = true;
+  try {
+    const sceneEpoch = currentSceneEpoch();
+    if (!isCurrentSceneEpoch(sceneEpoch)) return { rendered: 0, reason: "stale-scene-epoch" };
+    if (!await OBR.scene.isReady().catch(() => false)) return { rendered: 0, reason: "scene-not-ready" };
+    if (!await animationsEnabled()) return { rendered: 0, reason: "disabled" };
+    const [items, sceneMetadata, localItems] = await Promise.all([
+      OBR.scene.items.getItems(),
+      OBR.scene.getMetadata().catch(() => ({})),
+      OBR.scene.local.getItems((item) => !!item?.metadata?.[LOCAL_META]).catch(() => []),
+    ]);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return { rendered: 0, reason: "stale-scene-epoch" };
+    const shownLifecycles = new Set(localItems
+      .map((item) => String(item?.metadata?.[LOCAL_META]?.lifecycleId || "").trim())
+      .filter(Boolean));
+    const lifecycles = activeMatchedVisualLifecycles(items, {
+      isSpellVisual: isMatchedSpellVisualSpell,
+      isFeatureVisual: isMatchedClassFeatureVisual,
+      currentRound: sceneMetadata?.[SCENE_STATE_KEY]?.round ?? null,
+      zoneMetaKey: SPELL_STATIC_ZONE_META_KEY,
+    });
+    let rendered = 0;
+    for (const lifecycle of lifecycles) {
+      const { lifecycleId } = lifecycle;
+      // What is on screen decides: the bookkeeping of a scene left behind may still list the loop.
+      if (shownLifecycles.has(lifecycleId) || pendingLifecycleTimers.has(lifecycleId)
+        || endedLifecycles.has(lifecycleId)) continue;
+      if (lifecycle.spellId === "fireball") continue;
+      const built = await buildSceneVisualEvent({
+        spellId: lifecycle.featureId || lifecycle.spellId,
+        casterId: lifecycle.casterId,
+        targetIds: lifecycle.targetIds,
+        zoneId: lifecycle.zoneId,
+        placementChoice: lifecycle.placementChoice,
+        preview: lifecycle.preview,
+        resolvedEventId: `rehydrate:${lifecycleId}:${sceneEpoch}`,
+        resolvedLifecycleId: lifecycleId,
+        mode: "start",
+        originEpoch: sceneEpoch,
+      });
+      if (!isCurrentSceneEpoch(sceneEpoch)) return { rendered, reason: "stale-scene-epoch" };
+      const event = built.event;
+      if (!event) continue;
+      event.layers = rehydrationLayers(event.layers, { hasPreview: !!lifecycle.preview });
+      if (!event.layers.length) continue;
+      schedule(() => renderEvent(event), 0, lifecycleId);
+      rendered += 1;
+    }
+    return { rendered };
+  } catch (error) {
+    console.warn("[embers-matched] rehydration:", error?.message || error);
+    return { rendered: 0, reason: "error" };
+  } finally {
+    rehydrationRunning = false;
+    if (rehydrationQueued) {
+      rehydrationQueued = false;
+      scheduleRehydration(0);
+    }
+  }
+}
+
 export function mountEmbersMatchedVisualRenderer() {
   if (unsubscribe) return true;
   startTransientVisualSweeper();
@@ -950,11 +1066,24 @@ export function mountEmbersMatchedVisualRenderer() {
     const scheduleEvent = hasOneShotLayers(localEvent) ? scheduleIndependent : schedule;
     scheduleEvent(() => renderEvent(localEvent), 0, localEvent?.lifecycleId);
   });
+  // Every client follows the scene itself: on players the shared scene epoch is not driven by the
+  // GM-only mutation service, so a scene change would otherwise leave the previous scene's state.
+  if (!sceneReadyUnsubscribe && typeof OBR.scene?.onReadyChange === "function") {
+    sceneReadyUnsubscribe = OBR.scene.onReadyChange((ready) => {
+      if (ready) scheduleRehydration();
+      else resetRendererStateForSceneUnload();
+    });
+  }
+  scheduleRehydration();
   return true;
 }
 
 export async function unmountEmbersMatchedVisualRenderer() {
   const trackedVideoIds = [...activeLocalVideoIds];
+  if (rehydrationTimer != null) clearTimeout(rehydrationTimer);
+  rehydrationTimer = null;
+  sceneReadyUnsubscribe?.();
+  sceneReadyUnsubscribe = null;
   unsubscribe?.();
   unsubscribe = null;
   epochUnsubscribe?.();

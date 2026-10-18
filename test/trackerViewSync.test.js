@@ -41,13 +41,14 @@ const sdk = {
 };
 mock.module("@owlbear-rodeo/sdk", { defaultExport: sdk });
 const stub = (path, namedExports) => mock.module(new URL(path, import.meta.url).href, { namedExports });
-const selectors = { selectTrackerOpenSyncEnabled() {}, selectTrackerPlacementSyncEnabled() {}, selectPlayerTrackerScale() {} };
+const selectors = { selectTrackerOpenSyncEnabled() {}, selectTrackerPlacementSyncEnabled() {}, selectPlayerTrackerScale() {},
+  selectGmTrackerScale() {} };
 stub("../src/options/optionsSelectors.js", selectors);
 stub("../src/options/optionsRuntime.js", {
   startRuntimeOptions: async () => {},
   runtimeOptionsService: {
     get: (selector) => {
-      if (selector === selectors.selectPlayerTrackerScale) return 1;
+      if (selector === selectors.selectPlayerTrackerScale || selector === selectors.selectGmTrackerScale) return 1;
       return selector === selectors.selectTrackerOpenSyncEnabled ? env.openSync : env.placementSync;
     },
     subscribe: () => () => {},

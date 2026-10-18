@@ -20,12 +20,13 @@ test("Titan's Grasp: DEX 18, all-or-nothing damage, Afferrato (escape DC 18) and
     onFailed: { conditions: [{ condition: "Afferrato", expiry: { mode: "manual" }, escapeDC: 18 }, { condition: "Trattenuto", expiry: { mode: "manual" } }] },
     grapple: "grab",
   });
-  assert.equal(grasp.manualText, "Verifica che il bersaglio sia entro 20 ft. dal bordo della piattaforma ed entro la portata di una delle mani esposte del Titano. Su TS fallito il bersaglio è sospeso fino a 30 ft. sopra la piattaforma.");
+  assert.equal(grasp.manualText.split("\n")[0], "Verifica che il bersaglio sia entro 20 ft. dal bordo della piattaforma ed entro la portata di una delle mani esposte del Titano. Su TS fallito il bersaglio è sospeso fino a 30 ft. sopra la piattaforma.");
+  assert.match(grasp.manualText, /35 danni effettivi nello stesso turno/);
 });
 
-test("Crush: CON 19 on the held creature, half on a success, no per-round limit", async () => {
+test("Crush: CON 19 on the held creature, half on a success, once per round", async () => {
   const crush = ability(await importBossActionHTML(phase2HTML), "Crush");
-  assert.deepEqual(crush.usage, {});
+  assert.deepEqual(crush.usage, { limit: 1, period: "round" });
   assert.deepEqual(crush.execution, {
     kind: "save-damage", save: { ability: "con", dc: 19 }, target: { mode: "single", maxTargets: 1 },
     damage: [{ id: "bludgeoning", formula: "6d10", type: "bludgeoning", printedAverage: 33 }, { id: "cold", formula: "3d6", type: "cold", printedAverage: 10 }],

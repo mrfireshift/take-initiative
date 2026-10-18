@@ -509,7 +509,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         setStatus("Cuciture annullate: ricomincia dal punto A.");renderSpecialState();persistDraft();});
     }
     form.appendChild(areaStep);
-    const note=node("p","A mano: "+action.manualText,"note clamp");note.title=note.textContent;form.appendChild(note);
+    form.appendChild(manualRulesBlock("A mano: "+action.manualText));
     applyRow(form,"Applica",submitSeam);
     resolution.appendChild(form);
     renderSpecialState();
@@ -887,6 +887,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
   // Titan's Grasp: a passed save means no damage at all.
   const noDamageOutcome=()=>draft?.kind==="save-damage" && draft.outcome==="passed" && draft.action.execution.success==="none";
   const manualPrerequisite=action=>bossActionExecutionKind(action)==="attack-damage" && !action.execution?.drain && !action.execution?.onHit && !action.sequence && action.automation==="PARTIAL" && !!String(action.manualText || "").trim();
+  function manualRulesBlock(text) {
+    const details=node("details","","details manual-rules");
+    details.append(node("summary","Regole e verifiche del DM"),node("pre",text));
+    return details;
+  }
   function detailsBlock(action) {
     const details=node("details","","details");details.id="boss-action-details";
     details.appendChild(node("summary","Dettagli e testo originale"));
@@ -1003,7 +1008,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       form.appendChild(node("p",`Totale stampato ${execution.printedTotalAverage}; medie calcolate ${components.map(c=>c.defaultAmount).join(" + ")} = ${components.reduce((sum,c)=>sum+Number(c.defaultAmount || 0),0)}. Nessuna ripartizione automatica del resto.`,"note"));
     }
     if(execution.drain && String(action.manualText || "").trim()) {
-      const note=node("p","A mano: "+action.manualText,"manual-step clamp");note.title=note.textContent;form.appendChild(note);
+      form.appendChild(manualRulesBlock("A mano: "+action.manualText));
     }
     if(manualPrerequisite(action)) {
       const step=node("div","","manual-step");const label=node("label");
@@ -1014,8 +1019,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       // Crush's text is already in the stat line; Titan's Grasp mixes a check before rolling with an effect;
       // the teleport's remainder (a free space, the target's distance) is checked before, not on a failure.
       const before=execution.grapple==="grab" || execution.teleport;
-      const note=node("p",(before?"A mano: ":"Manuale su TS fallito: ")+action.manualText,"manual-step"+(before?" clamp":""));
-      note.title=note.textContent;form.appendChild(note);
+      form.appendChild(manualRulesBlock((before?"A mano: ":"Manuale su TS fallito: ")+action.manualText));
     }
     form.appendChild(detailsBlock(action));
     const row=node("div","","apply-row");
@@ -1174,7 +1178,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       });
       save.id="boss-collision-save";save.hidden=!draft.collisionTargetId;form.appendChild(save);
     }
-    const note=node("p","A mano: "+action.manualText,"note clamp");note.title=note.textContent;form.appendChild(note);
+    form.appendChild(manualRulesBlock("A mano: "+action.manualText));
     applyRow(form,"Applica",submitThrow);
     resolution.appendChild(form);
     renderTargetBox();renderSpecialState();

@@ -96,3 +96,32 @@ test("console preview uses the same arithmetic and lists only relevant defenses"
   assert.equal(bossDefendedDamage(components, { cold: "33", necrotic: "13" }, "passed", { resistances: ["cold"] }, ["cold"]), 22);
   assert.deepEqual(relevantDamageDefenses({ resistances: ["cold", "fire"] }, components), [{ type: "cold", defense: "resistance", ignored: false }]);
 });
+
+// Active effects (species traits, consumables) grant defenses through instance.mechanics.damageDefenses.
+const { damageDefensesForItem, profileDamageDefensesForItem, mergeDamageDefenses } = await import("../src/damageDefensesCore.js");
+const withEffect = (item, defenses, extra = {}) => ({ ...item, metadata: { ...item.metadata, [META]: { ...item.metadata[META],
+  conditions: { version: 2, instances: [{ id: "fx", condition: "Interdizione Cromatica", active: true, expiry: { mode: "rounds", remaining: 10 },
+    mechanics: { damageDefenses: defenses }, ...extra }] } } } });
+
+test("effect defenses join the profile ones without rewriting the profile", () => {
+  const target = withEffect(creature("kriv", 40, { resistances: ["cold"] }), { immunities: ["cold"] });
+  assert.deepEqual(damageDefensesForItem(target, META), { immunities: ["cold"], resistances: [], vulnerabilities: [] });
+  assert.deepEqual(profileDamageDefensesForItem(target, META), { immunities: [], resistances: ["cold"], vulnerabilities: [] });
+  assert.deepEqual(damageDefensesForItem(withEffect(creature("x", 10), { immunities: ["cold"] }, { active: false }), META),
+    { immunities: [], resistances: [], vulnerabilities: [] }, "an inactive effect grants nothing");
+  assert.deepEqual(mergeDamageDefenses({ resistances: ["fire"] }, { vulnerabilities: ["fire", "thunder"] }),
+    { immunities: [], resistances: ["fire"], vulnerabilities: ["thunder"] });
+});
+
+test("Chromatic Warding: cold immunity from an effect zeroes the boss cold damage and is credited to the effect", () => {
+  const action = ability(p3, "Blizzard Strike");
+  const target = withEffect(creature("kriv", 45, { resistances: ["cold"] }), { immunities: ["cold"] });
+  const plan = buildBossActionMutation({ profile: p3, action, sourceItem: boss, targetItem: target, outcome: "failed",
+    componentAmounts: { bludgeoning: 9, cold: 9 }, actionInstanceId: "bliz-ward", round: 1,
+    expectedDefenses: damageDefensesForItem(target, META) });
+  assert.deepEqual(plan.damageComponents.map((c) => [c.amount, c.defense, c.defenseSource || null]),
+    [[9, null, null], [0, "immunity", "effect"]]);
+  assert.throws(() => buildBossActionMutation({ profile: p3, action, sourceItem: boss, targetItem: target, outcome: "failed",
+    componentAmounts: { bludgeoning: 9, cold: 9 }, actionInstanceId: "bliz-stale", round: 1,
+    expectedDefenses: { resistances: ["cold"] } }), /difese ai danni di kriv sono cambiate/, "an effect added after the preview refuses the plan");
+});

@@ -19,7 +19,8 @@ import {
   getQuickActionSpellOptions,
 } from "./spells-srd.js";
 import { getSpellsFromItem } from "./spells.js";
-import { DAMAGE_TYPES, DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, damageDefenseFor, damageDefenseTag, hasDamageDefenses } from "./damageDefensesCore.js";
+import { DAMAGE_TYPES, DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, damageDefenseFor, damageDefenseTag, hasDamageDefenses, profileDamageDefenses } from "./damageDefensesCore.js";
+import { SPECIES, SPECIES_FIELD, getSpecies, sanitizeSpecies, speciesDisplayName } from "./speciesTraitCore.js";
 import { ABILITY_KEYS, ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import {
   MAX_QUICK_ACTIONS,
@@ -1720,7 +1721,8 @@ function renderClassFeatures() {
   setClassFeaturesTabCount(enabled.length);
 
   const buildSummary = $("classBuildSummary");
-  const buildLabels = classFeatureBuildLabel(profile.characterBuild);
+  const speciesLabel = speciesDisplayName(profile?.[SPECIES_FIELD]);
+  const buildLabels = [...(speciesLabel ? [speciesLabel] : []), ...classFeatureBuildLabel(profile.characterBuild)];
   buildSummary.replaceChildren(...(
     buildLabels.length
       ? buildLabels.map((text) => {
@@ -2673,7 +2675,7 @@ function buildAbilityModifierInputs() {
 
 // Actor Profile damage defenses: read by Boss Actions per damage type.
 function renderDamageDefenses() {
-  const defenses = sanitizeDamageDefenses(profile?.[DAMAGE_DEFENSES_FIELD]);
+  const defenses = profileDamageDefenses(profile);
   const tags = DAMAGE_TYPES
     .map((type) => ({ type: type.id, defense: damageDefenseFor(defenses, type.id) }))
     .filter((row) => row.defense)
@@ -2692,6 +2694,27 @@ function buildDefenseInputs() {
     label.appendChild(select);
     return label;
   }));
+}
+
+function buildSpeciesAncestryOptions(speciesId, ancestryId = "") {
+  const select = $("speciesAncestryInput");
+  const species = getSpecies(speciesId);
+  select.replaceChildren(new Option(species ? "Scegli…" : "—", ""), ...(species?.ancestries || [])
+    .map((entry) => new Option(`${entry.label} · ${entry.damageLabel}`, entry.id)));
+  select.disabled = !species;
+  select.value = species?.ancestries.some((entry) => entry.id === ancestryId) ? ancestryId : "";
+}
+
+function buildSpeciesEditor() {
+  const current = sanitizeSpecies(profile?.[SPECIES_FIELD]);
+  const select = $("speciesInput");
+  select.replaceChildren(new Option("Nessuna", ""), ...SPECIES.map((entry) => new Option(entry.label, entry.id)));
+  select.value = current?.id || "";
+  buildSpeciesAncestryOptions(current?.id, current?.ancestryId);
+}
+
+function collectSpecies() {
+  return sanitizeSpecies({ id: $("speciesInput").value, ancestryId: $("speciesAncestryInput").value });
 }
 
 function collectDamageDefenses() {
@@ -2719,6 +2742,7 @@ function setEditing(active) {
   $("spellAttackBonusInput").value = profile.spellAttackBonus ?? "";
   $("notesInput").value = profile.notes ?? "";
   buildQuickActionEditor();
+  buildSpeciesEditor();
   buildClassBuildEditor();
   const abilityModifiers = sanitizeAbilityModifiers(profile?.[ABILITY_MODIFIERS_FIELD]);
   for (const key of ABILITY_KEYS) $(`ability-${key}`).value = abilityModifiers[key] ?? "";
@@ -2869,6 +2893,9 @@ $("quickActionAdd").addEventListener("click", () => {
   syncQuickActionAddState();
   row.querySelector("[data-quick-action-field='label']")?.focus();
 });
+$("speciesInput").addEventListener("change", () => {
+  buildSpeciesAncestryOptions($("speciesInput").value);
+});
 $("classBuildAdd").addEventListener("click", () => {
   const list = $("classBuildEditorList");
   if (list.querySelectorAll("[data-class-build-row='1']").length >= MAX_CHARACTER_CLASSES) {
@@ -2902,6 +2929,9 @@ $("form").addEventListener("submit", async (event) => {
     // Come le difese: il campo si scrive solo se usato o già presente.
     const abilityPatch = hasAbilityModifiers(abilityModifiers) || Object.hasOwn(profile || {}, ABILITY_MODIFIERS_FIELD)
       ? { [ABILITY_MODIFIERS_FIELD]: abilityModifiers } : {};
+    const species = collectSpecies();
+    if (species && !species.ancestryId) throw new Error("Scegli l'ascendenza della specie.");
+    const speciesPatch = species || Object.hasOwn(profile || {}, SPECIES_FIELD) ? { [SPECIES_FIELD]: species } : {};
     await saveInitiativeCard(item.id, item.name, {
       armorClass: $("armorClassInput").value,
       passivePerception: $("passivePerceptionInput").value,
@@ -2917,6 +2947,7 @@ $("form").addEventListener("submit", async (event) => {
       savingThrows,
       ...defensePatch,
       ...abilityPatch,
+      ...speciesPatch,
     }, {
       isCurrent: () => sceneLifecycle.isCurrent(operation),
       commandId: ownerSceneContext.commandId,

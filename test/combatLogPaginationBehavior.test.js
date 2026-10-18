@@ -25,6 +25,17 @@ function page(first, last, totalCount = 5_000) {
   };
 }
 
+test("manual deletion removes cached events from every loaded page and ignores stale copies", () => {
+  const state = createCombatLogPageState();
+  mergeCombatLogPageState(state, session, page(1, 5, 5));
+  const cleanedSession = { ...session, deletedEventIds: ["event-2"] };
+  mergeCombatLogPageState(state, cleanedSession, page(4, 5, 4));
+  assert.deepEqual([...state.events.keys()], ["event-1", "event-3", "event-4", "event-5"]);
+  mergeCombatLogPageState(state, cleanedSession, page(1, 3, 4));
+  assert.equal(state.events.has("event-2"), false);
+  assert.equal(state.totalCount, 4);
+});
+
 test("la paginazione combat log conserva tre pagine, stato controlli e append concorrenti", async () => {
   const state = createCombatLogPageState();
 

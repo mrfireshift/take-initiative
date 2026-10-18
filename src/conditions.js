@@ -1485,7 +1485,9 @@ export async function __cleanupLegacyConditionLabels() {
 export function buildConditionChips(cond = {}, opts = {}) {
   const cap = Array.isArray(opts.cap) ? opts.cap : [];
   const compact = !!opts.compact;
-  const groups = __groupConditionInstances(cond).filter((group) => !group.effectKind);
+  // Spell buffs/debuffs show inside their spell chip; a consumable or a gift (effectId "buff:…") has no spell.
+  const groups = __groupConditionInstances(cond).filter((group) => !group.effectKind
+    || group.instances.some((instance) => String(instance?.effectId || "").startsWith("buff:")));
   const pending = groups.slice();
   const ordered = [];
 
@@ -1509,9 +1511,33 @@ export function buildConditionChips(cond = {}, opts = {}) {
     chip.className = "chip condition-chip";
     chip.dataset.referenceType = "conditions";
     chip.dataset.referenceEntry = group.name;
+    // The right click on a pill opens its duration override (GM).
+    if (group.instances[0]?.id) chip.dataset.conditionInstanceId = String(group.instances[0].id);
     const chipLabel = document.createElement("span");
     chipLabel.textContent = group.label;
     chip.appendChild(chipLabel);
+    // A defense granted by the effect (Imm. freddo…) and a composed buff's notes are micropills inside the pill.
+    if (opts.showEffectSummaryParts !== false) {
+      const isBuff = String(group.instances[0]?.effectId || "").startsWith("buff:");
+      for (const part of effectSummaryPartsFor({
+        mechanics: group.instances[0]?.mechanics,
+        summaryParts: isBuff ? group.instances[0]?.summaryParts || [] : [],
+      })) {
+        const micro = document.createElement("span");
+        micro.dataset.effectSummaryPart = part.id;
+        micro.textContent = part.label;
+        Object.assign(micro.style, {
+          padding: compact ? "1px 4px" : "1px 5px",
+          borderRadius: "999px",
+          background: "rgba(255,255,255,.16)",
+          border: "1px solid rgba(255,255,255,.28)",
+          fontSize: compact ? "8px" : "9px",
+          fontWeight: "700",
+          lineHeight: "1",
+        });
+        chip.appendChild(micro);
+      }
+    }
     const borderCol = /^#[0-9a-f]{6}$/iu.test(String(group.theme?.accent || ""))
       ? group.theme.accent
       : COND_BORDER[group.name] || "rgba(255, 255, 255, 1)";

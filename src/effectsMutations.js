@@ -2183,6 +2183,7 @@ async function prepareEffectsSideEffects(plan, command) {
         casterName: caster?.name || "",
         objectSize,
         position,
+        number: descriptor.number,
       });
       prepared.push({ type: descriptor.type, before: null, after: item });
     } else if (descriptor?.type === "spell-board-token:remove") {

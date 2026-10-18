@@ -3,7 +3,7 @@ import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
 import { createMonsterActionContext } from "./monsterActionContextCore.js";
 import { bossActionUsageAvailability, consumeBossActionUsage, bossActionUsageSummary } from "./bossActionUsageCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
-import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, sanitizeDamageDefenses,
+import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, profileDamageDefensesForItem, sanitizeDamageDefenses,
   EVASION_DEFENSE, evasionAppliesTo, evasionFactor, evasionForItem } from "./damageDefensesCore.js";
 
 export const BOSS_ACTION_STATE_FIELD = "bossActionState";
@@ -195,6 +195,7 @@ function damageAmount(value) {
 // The GM may ignore a defense for one resolution; the preview the GM saw must match the profile at commit.
 function defendedComponents(components, inputs, factor, targetItem, ignoredTypes = [], expectedDefenses, marked = false) {
   const profileDefenses = damageDefensesForItem(targetItem, META_KEY);
+  const ownProfileDefenses = profileDamageDefensesForItem(targetItem, META_KEY);
   if (expectedDefenses !== undefined && JSON.stringify(sanitizeDamageDefenses(expectedDefenses)) !== JSON.stringify(profileDefenses))
     throw new Error(`Le difese ai danni di ${targetItem.name || targetItem.id} sono cambiate: riapri l’azione.`);
   // A boss mark changes only this resolution's cold defense; the Actor Profile is never rewritten.
@@ -206,8 +207,10 @@ function defendedComponents(components, inputs, factor, targetItem, ignoredTypes
     const profileDefense = damageDefenseFor(defenses, component.type);
     const defense = profileDefense && !ignored.has(component.type) ? profileDefense : null;
     const markRule = marked && component.type === "cold" ? {mark:{rule:"cold-ward-break",profileDefense:damageDefenseFor(profileDefenses,"cold")}} : {};
+    // Effective defenses include active effects; the source says which one the log should credit.
+    const defenseSource = damageDefenseFor(ownProfileDefenses, component.type) === profileDefense ? "actor-profile" : "effect";
     return {...clone(component),inputAmount,factor,defense,
-      ...(profileDefense ? {defenseSource:"actor-profile",...(defense ? {} : {defenseIgnored:profileDefense})} : {}),...markRule,
+      ...(profileDefense ? {defenseSource,...(defense ? {} : {defenseIgnored:profileDefense})} : {}),...markRule,
       amount:componentDamageAfterDefense(inputAmount,factor,defense)};
   });
 }

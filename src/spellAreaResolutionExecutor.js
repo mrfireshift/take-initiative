@@ -83,6 +83,7 @@ import {
   validateSpellTeleportPassenger,
 } from "./spellTeleportCore.js";
 import { expandAnimatedObjectComposition } from "./animatedObjectsCore.js";
+import { EMBERS_ZONE_VISUAL_KEY, zoneVisualMetadata } from "./embersVisualRehydrationCore.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import {
   getZeroHPConditionHistoryIds,
@@ -1568,7 +1569,7 @@ async function buildPlan(command, runtime) {
       slotLevel: command?.spell?.slotLevel,
       position: entry.position,
       ...(entry.objectSize ? { objectSize: entry.objectSize } : {}),
-      ...(placementRule?.composition ? { batch: true } : {}),
+      ...(placementRule?.composition ? { batch: true, number: index + 1 } : {}),
     })),
   ];
   const previousStaticZoneItems = terminalResolutionRequest
@@ -1612,6 +1613,13 @@ async function buildPlan(command, runtime) {
       item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
     ));
     if (zoneRoot?.id) matchedVisualContext.zoneId = zoneRoot.id;
+    // The placement the loop is drawn from, so a reopened room can draw it again (embersVisualRehydrationCore).
+    const zoneVisual = zoneRoot?.id ? zoneVisualMetadata({
+      preview: matchedVisualContext.preview,
+      placementChoice: matchedVisualContext.placementChoice,
+      zonePosition: zoneRoot.position,
+    }) : null;
+    if (zoneVisual) zoneRoot.metadata = { ...zoneRoot.metadata, [EMBERS_ZONE_VISUAL_KEY]: zoneVisual };
   }
 
   effectSubjectIds.push(

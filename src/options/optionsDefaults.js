@@ -45,6 +45,8 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
     followActiveTurn: true,
     toolbarPreset: "full",
     effectsDisplayMode: "selected",
+    // GM's tracker size on this browser: 1 = 100%, from 0.5 to 2 (players use playerView.trackerScale).
+    scale: 1,
   },
   windows: {
     clocksCompact: false,
@@ -96,7 +98,7 @@ export const DEFAULT_ROOM_OPTIONS = deepFreeze({
       showCaster: true,
     },
     bossDetails: "full",
-    // Players' tracker size (table screen read from a distance): 1 = as on the GM's screen, up to 2.
+    // Players' tracker size (table screen read from a distance): 1 = 100%, from 0.5 to 2.
     trackerScale: 1,
   },
   turn: {

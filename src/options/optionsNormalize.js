@@ -134,6 +134,9 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
         ["selected", "all", "compact"],
         defaults.tracker.effectsDisplayMode,
       ),
+      scale: Object.hasOwn(tracker, "scale")
+        ? normalizeTrackerScale(tracker.scale)
+        : defaults.tracker.scale,
     },
     windows: {
       ...windows,

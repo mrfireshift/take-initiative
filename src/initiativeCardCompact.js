@@ -81,14 +81,22 @@ export function __compactEffectItems(
   const spellKey = typeof formatting.spellKey === "function"
     ? formatting.spellKey
     : compactSpellKey;
+  // Buffs and debuffs appear inside their spell's pill; a consumable or a gift (effectId "buff:…")
+  // has no spell, so it is a pill of its own.
   const effects = conditionInstances.filter((instance) =>
-    instance?.effectKind !== "buff" && instance?.effectKind !== "debuff"
+    (instance?.effectKind !== "buff" && instance?.effectKind !== "debuff")
+    || String(instance?.effectId || "").startsWith("buff:")
   ).map((instance) => {
     const summaryParts = showEffectSummaryParts
       ? effectSummaryPartsFor(instance, { suppressSaveReminderParts: true })
       : [];
+    const standaloneKind = instance?.effectKind === "buff" || instance?.effectKind === "debuff"
+      ? instance.effectKind
+      : "";
     return {
-      kind: instance?.type === "class-feature" ? "class-feature" : "condition",
+      kind: instance?.type === "class-feature" ? "class-feature" : standaloneKind || "condition",
+      instanceId: String(instance?.id || ""),
+      ...(standaloneKind && instance.theme && typeof instance.theme === "object" ? { theme: { ...instance.theme } } : {}),
       label: __compactConditionPillLabel(instance, formatting),
       title: formatConditionInstance(instance),
       ...(summaryParts.length ? { summaryParts } : {}),
@@ -139,6 +147,7 @@ export function __compactEffectItems(
     effects.push({
       kind: "spell",
       key: spellKey(spell?.name),
+      ...(spellInstanceId ? { spellInstanceId } : {}),
       label: counter ? `${spellName} (${counter})` : spellName,
       title: [
         `${spellName} · ${spellExpiryDescription(spell)}${spell?.conc ? " · concentrazione" : ""}`,
@@ -217,6 +226,8 @@ export function __buildCompactEffectPill(
   const pill = compactDocument(documentRef).createElement("span");
   pill.textContent = effect.label;
   pill.title = effect.title || effect.label;
+  if (effect.instanceId) pill.dataset.conditionInstanceId = effect.instanceId;
+  if (effect.spellInstanceId) pill.dataset.spellInstanceId = effect.spellInstanceId;
   if (effect.kind === "concentration" && effect.referenceEntry) {
     pill.dataset.referenceType = "spells";
     pill.dataset.referenceEntry = effect.referenceEntry;

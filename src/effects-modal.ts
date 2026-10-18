@@ -21,6 +21,8 @@ import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { getInitiativeCard } from "./initiativeCards.js";
 import { findQuickAction } from "./quickActionsCore.js";
 import { executeConditionApplication } from "./conditionApplicationExecutor.js";
+import { createBuffComposer } from "./buffComposer.js";
+import { applyBuffSpell } from "./buffSpellApplication.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -258,6 +260,9 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   customOption.value = CUSTOM_EFFECT_VALUE;
   customOption.textContent = "Personalizzata...";
   effectSelect.appendChild(customOption);
+  // Buffs (consumables, gifts…): no caster and no concentration; composed and saved by the GM.
+  const buffComposer = createBuffComposer({ cell, documentRef: document });
+  buffComposer.appendOptions(effectSelect);
 
   const customEffectInput = document.createElement("input");
   customEffectInput.type = "text";
@@ -394,11 +399,14 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
   const addButton = commandButton("Aggiungi", "primary");
   addButton.style.gridColumn = "1 / -1";
+  const expiryCell = cell("SCADENZA", expirySelect);
+  const durationCell = cell("DURATA", durationInput);
   grid.append(
     effectCell,
     actorCell,
-    cell("SCADENZA", expirySelect),
-    cell("DURATA", durationInput),
+    expiryCell,
+    durationCell,
+    ...buffComposer.cells,
     addButton
   );
 
@@ -534,7 +542,10 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   const selectedTargetIds = () => Array.from(targetControls.entries())
     .filter(([, control]) => control.checkbox.checked)
     .map(([id]) => id);
-  const selectedEffectName = () => effectSelect.value === CUSTOM_EFFECT_VALUE
+  const selectedBuffPreset = () => buffComposer.isBuff(effectSelect.value);
+  const selectedEffectName = () => selectedBuffPreset()
+    ? buffComposer.name()
+    : effectSelect.value === CUSTOM_EFFECT_VALUE
     ? customEffectInput.value.trim()
     : effectSelect.value;
 
@@ -676,12 +687,16 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
   const syncEffectControls = () => {
     const custom = effectSelect.value === CUSTOM_EFFECT_VALUE;
+    const buffPreset = selectedBuffPreset();
     customEffectInput.style.display = custom ? "block" : "none";
+    buffComposer.show(effectSelect.value);
+    for (const element of [actorCell, expiryCell, durationCell]) element.style.display = buffPreset ? "none" : "";
     updateTargetSelection();
     if (custom) customEffectInput.focus();
   };
   effectSelect.addEventListener("change", syncEffectControls);
   customEffectInput.addEventListener("input", updateTargetSelection);
+  buffComposer.onNameInput(updateTargetSelection);
   targetNameFilter.addEventListener("input", updateTargetSelection);
   for (const [faction, button] of factionButtons) {
     button.addEventListener("click", () => {
@@ -736,6 +751,13 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       return;
     }
     const isCustomEffect = effectSelect.value === CUSTOM_EFFECT_VALUE;
+    const buffPreset = selectedBuffPreset();
+    const buffPlan = buffPreset ? buffComposer.plan() : null;
+    if (buffPlan && !buffPlan.ok) {
+      addButton.title = buffPlan.error;
+      buffComposer.setStatus(buffPlan.error);
+      return;
+    }
     setButtonEnabled(addButton, false);
 
     const mode = expirySelect.value;
@@ -757,21 +779,51 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       commandId: operation.operationId,
     });
     if (!sceneLifecycle.isCurrent(operation)) return;
+    const { expiry: buffExpiry, sourceName: buffSourceName, ...buffOptions } = buffPlan?.ok ? buffPlan.options : {} as any;
+    if (buffPlan?.ok && buffPlan.spell) {
+      try {
+        await applyBuffSpell({
+          targetIds: ids,
+          spellRef: buffPlan.spell.id,
+          choice: buffPlan.spell.choice,
+          rounds: buffPlan.rounds,
+          buffName: buffPlan.conditionName,
+          sceneIdentity: ownerSceneContext.sceneIdentity,
+          commandId: ownerSceneContext.commandId,
+          isCurrent: () => sceneLifecycle.isCurrent(operation),
+        });
+      } catch (error: any) {
+        console.warn("[effects] buff spell error:", error?.message || error);
+        addButton.title = error?.message === "buff-spell-not-found"
+          ? "Incantesimo non trovato nel catalogo"
+          : "Applicazione dell'incantesimo non riuscita";
+        buffComposer.setStatus(addButton.title);
+        setButtonEnabled(addButton, true);
+        return;
+      }
+      if (!sceneLifecycle.isCurrent(operation)) return;
+    }
+    if (buffPlan?.ok && !buffPlan.pill) {
+      await render(sourceId, ids);
+      return;
+    }
     await executeConditionApplication({
-      conditionName: effectName,
+      conditionName: buffPlan?.ok ? buffPlan.conditionName : effectName,
       targetIds: ids,
-      conditionMode: isCustomEffect ? "custom" : "add",
-      sourceId: actorId,
-      sourceName: actorId ? actorName : "",
+      // A buff is never a "custom" slot: it must not evict the target's other effects.
+      conditionMode: isCustomEffect && !buffPlan ? "custom" : "add",
+      sourceId: buffPlan ? "" : actorId,
+      sourceName: buffPlan ? buffSourceName || "" : actorId ? actorName : "",
       appliedAt: {
         round: Math.max(1, Number(state?.round || 1)),
         actorId: activeId,
         phase: "turn",
         turnKey: currentInitiativeTurnKey(state),
       },
-      expiry,
+      expiry: buffPlan ? buffExpiry : expiry,
+      ...(buffPlan ? { extraOptions: buffOptions } : {}),
       sceneIdentity: ownerSceneContext.sceneIdentity,
-      commandId: ownerSceneContext.commandId,
+      commandId: buffPlan?.spell ? `${ownerSceneContext.commandId}:pill` : ownerSceneContext.commandId,
     });
     if (!sceneLifecycle.isCurrent(operation)) return;
     await render(sourceId, ids);

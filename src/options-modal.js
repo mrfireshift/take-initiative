@@ -66,6 +66,13 @@ function typedValue(control) {
 function setControlValue(control, value) {
   if (control.type === "checkbox") control.checked = !!value;
   else control.value = String(value);
+  if (control.type === "range") renderRangeOutput(control);
+}
+
+// Tracker scale sliders: the current value as a percentage next to the label.
+function renderRangeOutput(control) {
+  const output = control.closest(".option-range")?.querySelector("output");
+  if (output) output.textContent = `${Math.round(Number(control.value) * 100)}%`;
 }
 
 function readPath(value, path) {
@@ -383,6 +390,9 @@ function bindControls() {
     if (action === "open-faction-configurator") void openFactionConfigurator();
     if (action === "cleanup-runtime") void cleanRuntimeData();
     if (action === "save") void save();
+  });
+  root.addEventListener("input", (event) => {
+    if (event.target.matches?.('input[type="range"]')) renderRangeOutput(event.target);
   });
   root.addEventListener("change", (event) => {
     const control = event.target;

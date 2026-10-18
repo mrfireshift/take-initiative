@@ -13,6 +13,7 @@ export const CLASS_FEATURE_STATE_OPERATION_TYPES = Object.freeze([
   "class-feature:reset-resources",
   "class-feature:special-refresh",
   "class-feature:clear-stale-suppressions",
+  "class-feature:set-expiry",
 ]);
 
 const CLASS_FEATURE_STATE_OPERATION_TYPE_SET = new Set(
@@ -140,6 +141,25 @@ function planOperation(state, operation) {
     return result.refresh
       ? { ok: true, changed: result.changed, result }
       : { ok: false, reason: result.reason || "special-refresh-unavailable", result };
+  }
+  // Manual duration override: the activation ends after `remaining` rounds from the current one,
+  // or only by hand (remaining null). Its pills are updated by effects:set-duration in the same mutation.
+  if (operation.type === "class-feature:set-expiry") {
+    const instanceId = String(operation.instanceId || "").trim();
+    if (!state.instances.some((instance) => instance.instanceId === instanceId)) {
+      return { ok: false, reason: "class-feature-instance-missing" };
+    }
+    const round = Math.max(1, Math.floor(Number(operation.currentRound) || 1));
+    const remaining = operation.remaining === null ? null : Math.floor(Number(operation.remaining));
+    if (remaining !== null && !(remaining > 0)) return { ok: false, reason: "class-feature-duration-invalid" };
+    const expiresRound = remaining === null ? null : Math.min(99999, round + remaining - 1);
+    const next = {
+      ...state,
+      instances: state.instances.map((instance) => (
+        instance.instanceId === instanceId ? { ...instance, expiresRound } : instance
+      )),
+    };
+    return { ok: true, changed: !sameValue(state, next), result: { state: next } };
   }
   if (operation.type === "class-feature:clear-stale-suppressions") {
     const result = clearStaleSuppressions(state, operation.removals);

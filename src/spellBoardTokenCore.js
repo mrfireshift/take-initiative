@@ -223,13 +223,20 @@ export function spellBoardTokenAssetPixelSize(spellOrId, objectSize = "") {
   );
 }
 
-export function spellBoardTokenDisplayName(spellOrId, casterName = "") {
+// Tokens of a multi-token cast (Animate Objects) carry their number, the same one the tracker shows.
+export function spellBoardTokenNumber(value) {
+  const number = Math.floor(Number(value));
+  return Number.isInteger(number) && number > 0 && number <= 99 ? number : null;
+}
+
+export function spellBoardTokenDisplayName(spellOrId, casterName = "", number = null) {
   const rule = getSpellBoardTokenRule(spellOrId);
   if (!rule) return "";
   const caster = normalizedId(casterName) || "Caster";
+  const label = spellBoardTokenNumber(number) ? `${rule.label} ${spellBoardTokenNumber(number)}` : rule.label;
   return rule.displayNameFormat === "parenthesized-caster"
-    ? `${rule.label} (${caster})`
-    : `${rule.label}-${caster}`;
+    ? `${label} (${caster})`
+    : `${label}-${caster}`;
 }
 
 export function getSpellBoardTokenPlacementRule(spellOrId) {
@@ -335,6 +342,7 @@ export function spellBoardTokenMetadata({
   slotLevel = null,
   casterHpMax = null,
   objectSize = "",
+  number = null,
 } = {}) {
   const rule = getSpellBoardTokenRule(spellId);
   const normalizedInstanceId = normalizedId(instanceId);
@@ -354,6 +362,7 @@ export function spellBoardTokenMetadata({
     instanceId: normalizedInstanceId,
     casterId: normalizedCasterId,
     slotLevel: Math.max(0, Math.floor(Number(slotLevel) || 0)),
+    ...(spellBoardTokenNumber(number) ? { number: spellBoardTokenNumber(number) } : {}),
     movementMeters: rule.movementMeters,
     reachMeters: rule.reachMeters,
     ...(animatedSize
@@ -452,6 +461,7 @@ export function spellBoardTokenView(item) {
     casterId: normalizedId(metadata.casterId),
     spellId: rule.spellId,
     label: rule.label,
+    number: spellBoardTokenNumber(metadata.number),
     movementMeters: rule.movementMeters,
     reachMeters: rule.reachMeters,
     creationRangeMeters: rule.creationRangeMeters,

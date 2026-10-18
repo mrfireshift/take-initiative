@@ -33,6 +33,10 @@ button, select, input { font: inherit; }
 .option-field, .option-toggle { min-width: 0; }
 .option-field { display: grid; gap: 5px; color: var(--obrt-muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); line-height: 1.25; }
 select { width: 100%; min-height: 32px; height: 32px; padding: 6px 30px 6px 8px; border: 1px solid rgba(148,163,184,.28); border-radius: 10px; background: #0f172a; color: inherit; font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-regular); line-height: 1.2; outline: none; }
+.option-range > span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.option-range output { color: var(--obrt-text, #e2e8f0); font-variant-numeric: tabular-nums; }
+.option-range input[type="range"] { width: 100%; margin: 4px 0 0; accent-color: #60a5fa; cursor: pointer; }
+.option-range input[type="range"]:disabled { opacity: .6; cursor: not-allowed; }
 select:focus { border-color: rgba(96,165,250,.78); box-shadow: 0 0 0 2px rgba(37,99,235,.2); }
 select:disabled { opacity: .6; cursor: not-allowed; }
 .option-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 46px; padding: 7px; border: 1px solid var(--obrt-line); border-radius: 10px; background: rgba(15,23,42,.72); }

@@ -382,6 +382,7 @@ async function appendEventsNow(
         fail(new Error("Sessione Combat Log non trovata."));
         return;
       }
+      const deletedEventIds = new Set(Array.isArray(session.deletedEventIds) ? session.deletedEventIds : []);
       let sequence = Math.max(1, Number(session.nextSequence) || 1);
       let inputIndex = 0;
       const processNext = () => {
@@ -439,6 +440,11 @@ async function appendEventsNow(
             return;
           }
           const existing = existingRequest.result;
+          if (deletedEventIds.has(event.id)) {
+            duplicates.push({ id: event.id, deleted: true });
+            processNext();
+            return;
+          }
           if (existing) {
             if (sameStoredEvent(existing, event)) {
               duplicates.push({ id: event.id, sequence: existing.sequence });
@@ -1031,6 +1037,63 @@ export async function activateCombatLogSession(
   return isSceneEpochCurrent(sceneEpoch) ? session : null;
 }
 
+export async function deleteCombatLogEvent(
+  sessionId,
+  eventId,
+  { sceneEpoch = currentSceneEpoch() } = {},
+) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return false;
+  if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM può eliminare eventi dal registro.");
+  if (!isSceneEpochCurrent(sceneEpoch)) return false;
+  if (!sessionId || !eventId) throw new Error("Registro o evento non valido.");
+  return queueWrite(async () => {
+    if (!isSceneEpochCurrent(sceneEpoch)) return false;
+    const db = await openDatabase();
+    if (!isSceneEpochCurrent(sceneEpoch)) return false;
+    let deleted = false;
+    await new Promise((resolve, reject) => {
+      let stale = false;
+      const tx = db.transaction([SESSION_STORE, EVENT_STORE], "readwrite");
+      const sessions = tx.objectStore(SESSION_STORE);
+      const events = tx.objectStore(EVENT_STORE);
+      const abortIfStale = () => {
+        if (isSceneEpochCurrent(sceneEpoch)) return false;
+        stale = true;
+        tx.abort();
+        return true;
+      };
+      const sessionRequest = sessions.get(sessionId);
+      sessionRequest.onsuccess = () => {
+        if (abortIfStale() || !sessionRequest.result) return;
+        const session = sessionRequest.result;
+        const eventRequest = events.get(eventId);
+        eventRequest.onsuccess = () => {
+          if (abortIfStale()) return;
+          const event = eventRequest.result;
+          if (!event || event.sessionId !== sessionId) return;
+          events.delete(eventId);
+          // Keep a compact ID-only suppression list so retries cannot recreate a cleaned event.
+          // Sequence allocation and turn/round recorder state deliberately stay unchanged.
+          sessions.put({
+            ...session,
+            deletedEventIds: [...new Set([...(Array.isArray(session.deletedEventIds) ? session.deletedEventIds : []), eventId])],
+            updatedAt: Date.now(),
+          });
+          deleted = true;
+        };
+      };
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(storageFailure(tx.error, "Eliminazione evento fallita."));
+      tx.onabort = () => stale
+        ? resolve()
+        : reject(storageFailure(tx.error, "Eliminazione evento annullata."));
+    });
+    if (!deleted || !isSceneEpochCurrent(sceneEpoch)) return false;
+    await notifyChange("event-delete", sessionId, { sceneEpoch });
+    return isSceneEpochCurrent(sceneEpoch);
+  });
+}
+
 export async function clearCombatLogSession(
   sessionId,
   { sceneEpoch = currentSceneEpoch() } = {},
@@ -1064,6 +1127,7 @@ export async function clearCombatLogSession(
         sessions.put({
           ...session,
           nextSequence: 1,
+          deletedEventIds: [],
           lastRound: null,
           lastTurnKey: "",
           updatedAt: Date.now(),
@@ -1218,7 +1282,7 @@ export function exportCombatLogJSON(session, events) {
   return JSON.stringify({
     format: COMBAT_LOG_STORAGE_FORMAT,
     version: COMBAT_LOG_STORAGE_BUNDLE_VERSION,
-    session: normalizeCombatLogSessionV3(session),
+    session: { ...normalizeCombatLogSessionV3(session), eventCount: Array.isArray(events) ? events.length : 0 },
     events: (Array.isArray(events) ? events : []).map(normalizeCombatLogEventV3),
   }, null, 2);
 }
@@ -1231,7 +1295,9 @@ export async function getCombatLogExportData(
   const session = await getStoredSession(sessionId, { sceneEpoch });
   if (!session || !isSceneEpochCurrent(sceneEpoch)) return null;
   const events = await getCombatLogEvents(sessionId, { sceneEpoch });
-  return isSceneEpochCurrent(sceneEpoch) ? { session, events } : null;
+  return isSceneEpochCurrent(sceneEpoch)
+    ? { session: { ...session, eventCount: events.length }, events }
+    : null;
 }
 
 async function sessionWithExportRoster(session, { sceneEpoch = currentSceneEpoch() } = {}) {

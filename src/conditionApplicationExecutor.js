@@ -15,6 +15,8 @@ export async function executeConditionApplication({
   expiry = { mode: "manual" },
   sceneIdentity = null,
   commandId = "",
+  // Optional presentation and mechanics of the effect (consumables, gifts): effectKind, displayLabel, mechanics…
+  extraOptions = null,
 } = {}) {
   const normalizedName = String(conditionName || "").trim();
   if (!normalizedName || !targetIds.length) return [];
@@ -24,6 +26,7 @@ export async function executeConditionApplication({
     conditionName: normalizedName,
     mode: conditionMode,
     options: {
+      ...(extraOptions && typeof extraOptions === "object" ? extraOptions : {}),
       sourceId,
       sourceName,
       appliedAt,

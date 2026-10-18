@@ -187,7 +187,8 @@ test("il toggle overflow mantiene righe, aria, stop propagation e z-index corren
   assert.deepEqual(row1.children.slice(0, 2), chips.slice(0, 2));
   assert.deepEqual(row2.children, chips.slice(2));
   assert.equal(row2.style.display, "none");
-  assert.equal(more.textContent, "+2");
+  assert.equal(more.textContent, "…");
+  assert.equal(row1.style.flexWrap, "wrap", "chips sit side by side and wrap to the next line");
   assert.equal(more.attributes["aria-expanded"], "false");
 
   let stopped = 0;
@@ -199,7 +200,7 @@ test("il toggle overflow mantiene righe, aria, stop propagation e z-index corren
 
   more.dispatch("click", { stopPropagation: () => { stopped += 1; } });
   assert.equal(row2.style.display, "none");
-  assert.equal(more.textContent, "+2");
+  assert.equal(more.textContent, "…");
   assert.equal(more.attributes["aria-expanded"], "false");
   assert.equal(owner.style.zIndex, "30");
   assert.equal(stopped, 2);
@@ -239,4 +240,34 @@ test("le chip reference conservano role, tastiera e routing enciclopedia", () =>
     { tab: "spells", entry: "Lentezza" },
   ]);
   assert.deepEqual(events, ["prevent", "stop", "prevent", "stop"]);
+});
+
+test("the card grows to the measured chip lines, even after the tracker reconciles a live card", async () => {
+  const { fitCardToChipDock, syncChipDockCardHeight } = await import("../src/initiativeChipOverflow.js");
+  const frames = [];
+  const row = { offsetHeight: 38 };
+  const makeCard = () => {
+    const card = { dataset: {}, style: {}, isConnected: false };
+    card.querySelector = (selector) => (selector.includes("[data-chip-row='1']") ? row : null);
+    return card;
+  };
+  const built = makeCard();
+  const live = makeCard();
+  live.isConnected = true;
+  const windowRef = {
+    requestAnimationFrame: (callback) => frames.push(callback),
+    addEventListener() {},
+    document: { querySelectorAll: () => [live] },
+  };
+  fitCardToChipDock(built, { dataset: {} }, { baseHeight: 74, dockTop: 55, windowRef });
+  // The render keeps the live card and copies the built card's attributes onto it.
+  Object.assign(live.dataset, built.dataset);
+  frames.shift()();
+  assert.equal(live.style.height, "96px", "two lines: 55 + 38 + 3");
+  row.offsetHeight = 18;
+  syncChipDockCardHeight(live);
+  assert.equal(live.style.height, "76px", "one line: 55 + 18 + 3");
+  row.offsetHeight = 0;
+  syncChipDockCardHeight(live);
+  assert.equal(live.style.height, "74px", "never below the base height");
 });

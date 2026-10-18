@@ -122,12 +122,12 @@ test("a circle or an emanation placement may report only its centre; a cone stil
   assert.equal(sanitizeBossAreaPlacement({ ruleId: "boss-action-area:cone:60ft", start: centre, end: { x: 9, y: 5 } }, { shape: "circle", size: 20 }), null, "rule must match the profile area");
 });
 
-test("the fixtures carry the canonical V10 mechanics with the English ability names", async () => {
+test("the fixtures carry the canonical V12 mechanics with the English ability names", async () => {
   const p2 = await importBossActionHTML(phase2HTML);
   const p3 = await importBossActionHTML(phase3HTML);
   assert.equal(ability(p2, "Rimebound Link").category, "trait");
   assert.match(ability(p2, "Doppia Manifestazione").rawText, /Rimebound Link è ancora attivo/);
-  assert.deepEqual(ability(p2, "Crush").usage, {}, "no per-round limit");
+  assert.deepEqual(ability(p2, "Crush").usage, { limit: 1, period: "round" });
   assert.match(ability(p2, "Crush").rawText, /Costituzione: CD 19, la creatura Afferrata dal Titano\..*rimane Afferrato e Trattenuto\./);
   assert.match(ability(p2, "Titan's Grasp").rawText, /Successo: Nessun danno e il bersaglio non viene afferrato\./);
   assert.deepEqual(ability(p2, "Meteor Swarm").usage, { limit: 1, period: "phase" });
@@ -137,7 +137,7 @@ test("the fixtures carry the canonical V10 mechanics with the English ability na
   assert.match(ability(p2, "Aura Gelida").rawText, /Il Titano non emana quest'aura\./);
   assert.match(phase2HTML, /<b>CA<\/b> 20</);
   assert.match(phase3HTML, /<b>CA<\/b> 17</);
-  assert.match(phase3HTML, /<b>PF<\/b> 336</);
+  assert.match(phase3HTML, /<b>PF<\/b> 294</);
   assert.match(ability(p3, "Detonation of the Mark").rawText, /sia con un fallimento sia con un successo\. Libertà di movimento previene/);
   assert.match(ability(p3, "Divine Brilliance").rawText, /questa Reazione è perduta\./);
   for (const profile of [p2, p3]) assert.match(profile.abilities.find((entry) => entry.category === "epic-action").rawText, /\S/);
