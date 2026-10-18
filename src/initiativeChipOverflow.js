@@ -92,7 +92,11 @@ export function mountChipsWithOverflow(
 
   for (const chip of chips) {
     chip.style.maxWidth = "100%";
-    if (compact) Object.assign(chip.style, { fontSize: "9.5px", padding: "1px 5px", borderWidth: "1.5px" });
+    if (compact) Object.assign(chip.style, {
+      display: "inline-flex", alignItems: "center", boxSizing: "border-box",
+      height: "16px", minHeight: "16px", maxHeight: "16px",
+      fontSize: "9.5px", padding: "0 5px", borderWidth: "1.5px",
+    });
   }
   if (chips.length <= limit) {
     row1.append(...chips);
@@ -115,6 +119,8 @@ export function mountChipsWithOverflow(
   Object.assign(more.style, {
     minHeight: "16px",
     height: "16px",
+    maxHeight: "16px",
+    boxSizing: "border-box",
     padding: "0 6px",
     fontSize: "11px",
     fontFamily: "inherit",
