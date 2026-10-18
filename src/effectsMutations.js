@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { current, isDraft } from "immer";
+import { planSharedHpLinks, planSharedHpMutation } from "./sharedHpCore.js";
 import { createEffectsRecovery, supportsEffectsRecovery } from "./effectsRecovery.js";
 import {
   EFFECTS_MUTATION_COMMAND_CHANNEL,
@@ -1000,6 +1001,26 @@ export async function prepareEffectsMutation(operations = [], {
   const mutationId = createId("effects-mutation");
   const sceneItems = await OBR.scene.items.getItems();
   if (!canPrepare()) return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "stale-after-read" };
+  let metadataPatches = Array.isArray(command.metadataPatches) ? command.metadataPatches : [];
+  let sharedHpGroups = [];
+  const linkOperations = operations.filter(operation => ["shared-hp:link", "shared-hp:unlink"].includes(operation?.type));
+  if (linkOperations.length) {
+    if (await OBR.player.getRole() !== "GM") return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "shared-hp-gm-only" };
+    if (!canPrepare()) return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "stale-after-role" };
+    if (linkOperations.length !== 1 || operations.length !== 1 || metadataPatches.length) {
+      return { status: EFFECTS_MUTATION_STATUS.CONFLICT, conflicts: [{ reason: "shared-hp-incompatible-values" }] };
+    }
+    const linked = planSharedHpLinks(sceneItems, linkOperations[0]);
+    if (linked.status) return linked;
+    metadataPatches = linked.metadataPatches;
+    operations = [];
+  } else {
+    const shared = planSharedHpMutation({ items: sceneItems, operations, metadataPatches, sharedHp: command.sharedHp });
+    if (shared.status) return shared;
+    operations = shared.operations;
+    metadataPatches = shared.metadataPatches;
+    sharedHpGroups = shared.groups;
+  }
   // HP and its condition consequences are planned at the head of the same
   // lane. Only the projection sees the new HP; History still sees sceneItems.
   const hpPatches = [];
@@ -1021,7 +1042,7 @@ export async function prepareEffectsMutation(operations = [], {
         hp: { value: update.hp, ...(update.expectedHP ? { expected: update.expectedHP } : {}) },
         hpMax: { value: update.hpMax, ...(update.expectedHPMax ? { expected: update.expectedHPMax } : {}) },
       } });
-      if (operation.damageEnds !== false && Number.isFinite(Number(meta.hp)) && update.hp < Number(meta.hp)) {
+      if (operation.damageEnds !== false && update.sharedHpMirror !== true && Number.isFinite(Number(meta.hp)) && update.hp < Number(meta.hp)) {
         const removals = resolveDamageEndsConditionRemovals(getConditionInstances(meta.conditions || {}))
           .map((instanceId) => ({ itemId: item.id, instanceId }));
         if (removals.length) hpOperations.push({ type: "condition:remove-instances", removals });
@@ -1086,11 +1107,12 @@ export async function prepareEffectsMutation(operations = [], {
     sceneItems,
     [
       ...hpPatches,
-      ...(Array.isArray(command.metadataPatches) ? command.metadataPatches : []),
+      ...metadataPatches,
       ...classFeatureStatePlan.patches,
     ],
   );
   if (patchedPlan?.status) return patchedPlan;
+  plan.sharedHpGroups = sharedHpGroups;
   plan.classFeatureMutationResults = classFeatureStatePlan.results;
   plan.mutationId = mutationId;
   plan.scannedItems = sceneItems.length;
