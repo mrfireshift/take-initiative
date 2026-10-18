@@ -1,4 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
+import { sharedHpHydrationTargets, canApplySharedHpHydration } from "./sharedHpHydrationCore.js";
 import { ID } from "./constants.js";
 import {
   actorProfileIdFromItem,
@@ -477,6 +478,9 @@ export function createActorVitalsStore({
           reason: "initialize-from-token",
         });
       }
+      const groupedRestores = sharedHpHydrationTargets(sceneItems, [...restoreById].map(([id, update]) => ({ id, ...update })));
+      restoreById.clear();
+      for (const { id, ...update } of groupedRestores) restoreById.set(id, update);
       if (!restoreById.size || stopped || !isSceneEpochCurrent(sceneEpoch)) {
         for (const item of sceneItems) {
           const actorProfileId = actorProfileIdFromItem(item);
@@ -509,12 +513,18 @@ export function createActorVitalsStore({
         }
       }
 
+      const sharedSafeRestores = sharedHpHydrationTargets(liveItems, [...safeRestoreById].map(([id, update]) => ({ id, ...update })));
+      safeRestoreById.clear();
+      for (const { id, ...update } of sharedSafeRestores) safeRestoreById.set(id, update);
       if (safeRestoreById.size) {
         await itemsApi.updateItems([...safeRestoreById.keys()], (drafts) => {
           if (stopped || !isSceneEpochCurrent(sceneEpoch)) return;
+          const draftsById = new Map(drafts.map(item => [item.id, item]));
+          const allowedIds = new Set([...safeRestoreById].filter(([id, update]) =>
+            canApplySharedHpHydration({ id, ...update }, draftsById)).map(([id]) => id));
           for (const item of drafts) {
             const update = safeRestoreById.get(item.id);
-            if (!update) continue;
+            if (!update || !allowedIds.has(item.id)) continue;
             const current = validCanonicalHP(item);
             if (!sameCanonicalHPFields(item, update.expectedFields)) {
               if (itemId(livePrimaryByActor.get(update.actorProfileId)) === itemId(item)

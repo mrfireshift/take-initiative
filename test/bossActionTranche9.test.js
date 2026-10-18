@@ -85,8 +85,8 @@ test("one attack and one damage roll per creature; defenses per creature; a miss
   assert.equal(byId.sera.requestedDamage, 0);
   assert.equal(byId.sera.outcome, "miss");
   assert.deepEqual(result.operations, [{ type: "hp:set", updates: [
-    { itemId: "dars", hp: 45, hpMax: 60, expectedHP: { present: true, value: 60 }, expectedHPMax: { present: true, value: 60 } },
-    { itemId: "mira", hp: 26, hpMax: 60, expectedHP: { present: true, value: 45 }, expectedHPMax: { present: true, value: 60 } },
+    { itemId: "dars", hp: 45, hpMax: 60, hpIntent: { mode: "damage", amount: 15, eventId: "boss-action:t9:dars" }, expectedHP: { present: true, value: 60 }, expectedHPMax: { present: true, value: 60 } },
+    { itemId: "mira", hp: 26, hpMax: 60, hpIntent: { mode: "damage", amount: 19, eventId: "boss-action:t9:mira" }, expectedHP: { present: true, value: 45 }, expectedHPMax: { present: true, value: 60 } },
   ] }]);
   assert.deepEqual(result.causality.resources, [{ actionId: "divine-brilliance", phaseId: "fase3", period: "phase", limit: 1, beforeUsed: 0, afterUsed: 1 }]);
   assert.deepEqual(result.causality.attack, { ...polar.execution.attack, mode: "ranged", sourceAction: "polar-ray" });

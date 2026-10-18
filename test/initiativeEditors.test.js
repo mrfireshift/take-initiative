@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { concentrationSaveWarningsForItems } from "../src/concentrationSaveReminderCore.js";
+import { sharedHpScopeIds } from "../src/sharedHpCore.js";
 import {
   bindClassicHPEditor,
   bindClassicInitiativeEditor,
@@ -197,6 +198,7 @@ function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDur
     SPELLS_META_KEY: "com.thebigpicture.initiative/spells",
     _getGroupForItemId: async () => null,
     getZeroHPConditionHistoryIds: async (ids) => ids,
+    sharedHpScopeIds,
     withItemMetaHistory: async (options, action) => {
       await action();
       const entry = { id: "hp-damage-history" };

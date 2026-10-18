@@ -17,8 +17,8 @@ import {
   syncHPTextNow,
   unmountHPBars,
 } from "./hpbar-items.js";
-import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
-import { isSharedHpInitiativeExcluded, sharedHpScopeIds } from "./sharedHpCore.js";
+import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill, syncHPBatchToMemory } from "./hpMemory.js";
+import { isSharedHpInitiativeExcluded, sharedHpScopeIds, planSharedHpMutation } from "./sharedHpCore.js";
 import { refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
 import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 import {
@@ -4761,12 +4761,17 @@ async function readEntries(items = null) {
       .filter((item) => item?.id)
       .map((item) => [item.id, getInitiativeCard(item).characterBuild])
   );
+  const sharedHpCounts = new Map();
+  for (const item of sourceItems) {
+    const sourceId = item.metadata?.[META_KEY]?.sharedHpSourceId;
+    if (sourceId) sharedHpCounts.set(sourceId, (sharedHpCounts.get(sourceId) || 0) + 1);
+  }
 
   for (const it of sourceItems) {
     if (seen.has(it?.id)) continue;
     const entry = entryFromSceneItem(it, characterBuildBySourceId);
     if (!entry) continue;
-    const sharedHpMemberCount = sourceItems.filter(item => item.metadata?.[META_KEY]?.sharedHpSourceId === it.id).length;
+    const sharedHpMemberCount = sharedHpCounts.get(it.id) || 0;
     if (sharedHpMemberCount) entry.sharedHpMemberCount = sharedHpMemberCount;
     seen.add(it.id);
     out.push(entry);
@@ -5322,24 +5327,50 @@ async function enforceUniqueNamePrefixes(sceneEpoch = currentSceneEpoch()) {
   }
 }
 
-async function updateHP(itemId, nextHP, nextHPMax) {
+async function updateHP(itemId, nextHP, nextHPMax, expectedValues = null) {
   const n  = nextHP    === "" ? 0 : Math.floor(Number(nextHP)    || 0);
   const nm = nextHPMax === "" ? 0 : Math.floor(Number(nextHPMax) || 0);
+  const sceneEpoch = currentSceneEpoch();
+  const sceneContext = await getEffectsMutationSceneContext();
+  const items = await OBR.scene.items.getItems();
+  if (!isCurrentSceneEpoch(sceneEpoch)) throw new Error("Scena cambiata durante la modifica HP.");
+  const update = { itemId, hp: n, hpMax: nm,
+    ...(Number.isFinite(expectedValues?.hp) ? { expectedHP: { present: true, value: expectedValues.hp } } : {}),
+    ...(Number.isFinite(expectedValues?.hpMax) ? { expectedHPMax: { present: true, value: expectedValues.hpMax } } : {}) };
+  const shared = planSharedHpMutation({ items, operations: [{ type: "hp:set", updates: [update] }] });
+  if (shared.status) throw new Error("La riserva HP è cambiata: riapri l'editor.");
+  const visualIds = shared.affectedIds.length ? shared.affectedIds : [itemId];
 
   // Avvia subito l'aggiornamento visivo, senza aspettare il round-trip dei metadata.
-  syncHPBarNow(itemId, n, nm);
-  void syncHPTextNow(itemId, n, nm);
-  syncTrackerHPNow(itemId, n, nm);
+  for (const id of visualIds) {
+    syncHPBarNow(id, n, nm);
+    void syncHPTextNow(id, n, nm);
+    syncTrackerHPNow(id, n, nm);
+  }
 
-  const mutation = await runEffectsMutation([{
-    type: "hp:set", updates: [{ itemId, hp: n, hpMax: nm }],
-  }], { history: false, kind: "hp", targetIds: [itemId] });
-  requireAppliedEffectsMutation(mutation);
+  let mutation;
+  try {
+    mutation = await runEffectsMutation([{
+      type: "hp:set", updates: [update],
+    }], { history: false, kind: "hp", targetIds: visualIds, sceneEpoch, sceneIdentity: sceneContext.sceneIdentity });
+    requireAppliedEffectsMutation(mutation);
+  } catch (error) {
+    if (isCurrentSceneEpoch(sceneEpoch)) {
+      const live = await OBR.scene.items.getItems(visualIds);
+      if (isCurrentSceneEpoch(sceneEpoch)) for (const item of live) {
+        const meta = item.metadata?.[META_KEY] || {};
+        syncHPBarNow(item.id, meta.hp, meta.hpMax);
+        void syncHPTextNow(item.id, meta.hp, meta.hpMax);
+        syncTrackerHPNow(item.id, meta.hp, meta.hpMax);
+      }
+    }
+    throw error;
+  }
 
 
   // NEW: salva nella memoria stanza (cross‑scene) se è un PG
   try {
-    await saveHPToMemoryByItemId(itemId, n, nm);
+    await syncHPBatchToMemory(visualIds.map(itemId => ({ itemId, hp: n, hpMax: nm })), { sceneEpoch, items });
   } catch (err) {
     console.warn("[hpMemory] save error:", err?.message || err);
   }
@@ -6485,6 +6516,7 @@ function bindHPEditorForEntry(
           ...(group?.members || []),
         ]));
       } catch {}
+      historyIds = sharedHpScopeIds(await OBR.scene.items.getItems(), historyIds);
       historyIds = await getZeroHPConditionHistoryIds(historyIds);
 
       lastHPHistoryEntryId = "";
@@ -6512,7 +6544,7 @@ function bindHPEditorForEntry(
         sceneEpoch: operationSceneEpoch,
         isCurrent: (candidateEpoch) => isCurrentSceneEpoch(candidateEpoch),
       }, async () => {
-        hpMutations.push(await updateHP(entry.id, nextHP, nextHPMax));
+        hpMutations.push(await updateHP(entry.id, nextHP, nextHPMax, { hp: entry.hp, hpMax: entry.hpMax }));
         await trySeedGroupHP(entry.id, nextHP, nextHPMax, (mutation) => hpMutations.push(mutation));
       });
       if (historyResult?.partial) {

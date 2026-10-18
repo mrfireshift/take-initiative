@@ -1,5 +1,6 @@
 // hpMemory.js
 import OBR from "@owlbear-rodeo/sdk";
+import { sharedHpHydrationTargets, sharedHpFieldsSnapshot, canApplySharedHpHydration } from "./sharedHpHydrationCore.js";
 import { ID } from "./constants.js";
 import { actorProfileIdFromItem } from "./actorIdentityCore.js";
 import {
@@ -512,6 +513,7 @@ export async function applyHPMemoryToSceneForMissingHP(
       const meta = it.metadata?.[META_KEY] || {};
       const hasHP = (meta.hp ?? null) != null || (meta.hpMax ?? null) != null;
       if (hasHP) continue;
+      if (meta.sharedHpSourceId) { eligible.push({ item: it, key: null }); continue; }
       const key = pcKeyFromItem(it);
       if (key) eligible.push({ item: it, key });
     }
@@ -519,7 +521,8 @@ export async function applyHPMemoryToSceneForMissingHP(
     if (!eligible.length) return;
     const map = await readRoomHPMap(sceneEpoch);
     if (!isCurrent(sceneEpoch)) return;
-    const targets = eligible.flatMap(({ item: it, key }) => {
+    let targets = eligible.flatMap(({ item: it, key }) => {
+      if (!key) return [{ id: it.id }];
       const memo = map[key];
       if (!memo) return [];
       const nHP = Math.max(0, Math.floor(Number(memo.hp) || 0));
@@ -529,12 +532,24 @@ export async function applyHPMemoryToSceneForMissingHP(
 
     if (!targets.length) return;
 
+    const beforeById = new Map((all || []).map(item => [item.id, item]));
+    targets = targets.map(target => ({ ...target, expectedFields: sharedHpFieldsSnapshot(beforeById.get(target.id)) }));
+    const liveItems = await OBR.scene.items.getItems();
+    if (!isCurrent(sceneEpoch)) return;
+    const liveById = new Map(liveItems.map(item => [item.id, item]));
+    targets = sharedHpHydrationTargets(liveItems, targets.filter(target => liveById.has(target.id)
+      && JSON.stringify(sharedHpFieldsSnapshot(liveById.get(target.id))) === JSON.stringify(target.expectedFields)));
+    if (!targets.length) return;
+
     if (!isCurrent(sceneEpoch)) return;
     await OBR.scene.items.updateItems(targets.map(t => t.id), (list) => {
       if (!isCurrent(sceneEpoch)) return;
+      const draftsById = new Map(list.map(item => [item.id, item]));
+      const allowed = new Set(targets.filter(target => canApplySharedHpHydration(target, draftsById)).map(target => target.id));
       for (const it of list) {
         const t = targets.find(x => x.id === it.id);
-        if (!t) continue;
+        if (!t || !allowed.has(it.id)
+          || JSON.stringify(sharedHpFieldsSnapshot(it)) !== JSON.stringify(t.expectedFields)) continue;
 
         // Meta esistente del plugin
         const prev = it.metadata?.[`${ID}/meta`] || {};
@@ -559,6 +574,10 @@ export async function applyHPMemoryToSceneForMissingHP(
       }
     });
     if (!isCurrent(sceneEpoch)) return;
+    const restored = await OBR.scene.items.getItems(targets.map(target => target.id));
+    if (!isCurrent(sceneEpoch)) return;
+    targets = targets.filter(target => restored.some(item => item.id === target.id
+      && item.metadata?.[META_KEY]?.hp === target.hp && item.metadata?.[META_KEY]?.hpMax === target.hpMax));
     await reconcileZeroHPConditionsForItems(
       targets.map((target) => target.id),
       { sceneEpoch },

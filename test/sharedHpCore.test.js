@@ -118,3 +118,12 @@ test("merged spell patches retain distinct hit intentions rather than overwritin
   ] });
   assert.deepEqual(Object.values(values(result)), [245, 245, 245, 245]);
 });
+
+test("multiple metadata patches on a linked member preserve every unrelated field", () => {
+  const result = planSharedHpMutation({ items: scene(), operations: [], metadataPatches: [
+    { id: "hand", fields: { hp: { value: 275 }, hpMax: { value: 400 }, resourceA: { value: 3 } } },
+    { id: "hand", fields: { resourceB: { value: 4 } } },
+  ] });
+  const fields = result.metadataPatches.find(patch => patch.id === "hand").fields;
+  assert.equal(fields.resourceA.value, 3); assert.equal(fields.resourceB.value, 4);
+});

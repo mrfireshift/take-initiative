@@ -82,6 +82,7 @@ export function planSharedHpLinks(items, operation, { metadataKey = META_KEY } =
 }
 
 export function planSharedHpMutation({ items, operations = [], metadataPatches = [], sharedHp = {}, metadataKey = META_KEY }) {
+  sharedHp = sharedHp || {};
   const byId = new Map(items.map(item => [item.id, item]));
   const contributions = [];
   for (const operation of operations) {
@@ -127,7 +128,8 @@ export function planSharedHpMutation({ items, operations = [], metadataPatches =
   for (const patch of metadataPatches) {
     const fields = Object.fromEntries(Object.entries(patch.fields || {})
       .filter(([field, descriptor]) => !groupedIds.has(patch.id) || !["hp", "hpMax"].includes(field) || descriptor?.mode === "assert"));
-    if (Object.keys(fields).length) patchesById.set(patch.id, { ...patch, fields });
+    if (Object.keys(fields).length) patchesById.set(patch.id, { ...patch,
+      fields: { ...patchesById.get(patch.id)?.fields, ...fields } });
   }
   const groups = [];
   const allHitIds = new Set();

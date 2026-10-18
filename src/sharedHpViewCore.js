@@ -55,3 +55,15 @@ export function sharedHpCommittedUpdates(result, entries = []) {
   }
   return [...updates.values()].sort((a, b) => a.tokenId.localeCompare(b.tokenId));
 }
+
+export function sharedHpDamageEntries(entries, groups = []) {
+  const memberIds = new Set(groups.flatMap(group => group.memberIds));
+  const effective = entries.filter(entry => !memberIds.has(entry.item.id));
+  for (const group of groups) {
+    const representative = entries.find(entry => group.hitIds.includes(entry.item.id));
+    if (representative) effective.push({ ...representative, change: { ...representative.change,
+      hp: group.beforeHP, afterHP: group.afterHP, delta: group.afterHP - group.beforeHP,
+      requested: group.requestedAmount } });
+  }
+  return effective;
+}

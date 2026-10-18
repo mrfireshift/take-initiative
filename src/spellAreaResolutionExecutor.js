@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { buildSharedHpPreview, sharedHpIntent, sharedHpCommittedUpdates } from "./sharedHpViewCore.js";
+import { buildSharedHpPreview, sharedHpIntent, sharedHpCommittedUpdates, sharedHpDamageEntries } from "./sharedHpViewCore.js";
 import { resolveSharedHpGroup, sharedHpScopeIds } from "./sharedHpCore.js";
 import { ID } from "./constants.js";
 import {
@@ -1639,8 +1639,11 @@ async function buildPlan(command, runtime) {
     prismaticSprayPlan: resolution.prismaticSpray,
   });
   const casterHealingRatio = Number(getSpellCastResolutionRule(spell.id)?.casterHealingFromAppliedDamage) || 0;
+  const damagePreview = casterHealingRatio > 0 ? buildSharedHpPreview(allItems, entries, command.sharedHp || {}) : null;
+  if (damagePreview?.conflicts.length) return { valid: false,
+    errors: damagePreview.conflicts.map(conflict => ({ code: conflict.reason, message: "Scegli l'importo per la riserva HP condivisa." })) };
   const casterHealingEntry = casterHealingEntryFromAppliedDamage({
-    entries,
+    entries: damagePreview?.groups.length ? sharedHpDamageEntries(entries, damagePreview.groups) : entries,
     caster,
     ratio: casterHealingRatio,
   });

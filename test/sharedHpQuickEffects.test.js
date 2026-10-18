@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildSharedHpPreview, sharedHpTargetItems, sharedHpCommittedUpdates } from "../src/sharedHpViewCore.js";
 import { calculateQuickHPChange, createQuickHPVisualTransaction } from "../src/quickHpCore.js";
+import * as sharedView from "../src/sharedHpViewCore.js";
 const key = "com.thebigpicture.initiative/meta";
 const items = ["auril", "hand", "head"].map((id, index) => ({ id, name: id, layer: "CHARACTER", type: "IMAGE",
   metadata: { [key]: { hp: 300, hpMax: 400, ...(index ? { sharedHpSourceId: "auril", sharedHpExcludeFromInitiative: true } : { inInitiative: true }) } } }));
@@ -34,4 +35,12 @@ test("visual recovery includes all members and post-commit uses authoritative va
   assert.equal(frames[1].length, 3); assert.ok(frames[1].every(update => update.hp === 290));
   const authoritative = sharedHpCommittedUpdates({ plan: { sharedHpGroups: [{ ...preview.groups[0], afterHP: 262 }] } }, entries());
   assert.deepEqual(authoritative.map(update => update.hp), [262, 262, 262]);
+});
+
+test("damage-based healing uses the pool damage once instead of multiplying secondary copies", () => {
+  const once = buildSharedHpPreview(items, entries(), {});
+  const effective = sharedView.sharedHpDamageEntries(entries(), once.groups);
+  assert.deepEqual(effective.map(entry => entry.change.requested), [28]);
+  const perToken = buildSharedHpPreview(items, entries(), { policy: "per-token" });
+  assert.deepEqual(sharedView.sharedHpDamageEntries(entries(), perToken.groups).map(entry => entry.change.requested), [56]);
 });

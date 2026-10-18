@@ -765,15 +765,6 @@ async function applyOperation() {
     return;
   }
   const optimisticUpdates = sharedPreview.updates;
-  if (optimisticUpdates.length && sceneLifecycle.isCurrent(operation)) {
-    hpVisualTransaction = createQuickHPVisualTransaction(optimisticUpdates, {
-      syncVisuals: (updates) => syncHPVisualUpdates(
-        updates,
-        () => sceneLifecycle.isCurrent(operation),
-      ),
-      onPreviewError: (error) => console.warn("[quick-hp] visual sync:", error?.message || error),
-    });
-  }
 
   const coordinatedOperations = [
     ...(entries.length ? [{ type: "hp:set", updates: entries.map(({ item, change }) => ({
@@ -807,6 +798,12 @@ async function applyOperation() {
   let canonicalCommitted = false;
 
   try {
+    if (optimisticUpdates.length && sceneLifecycle.isCurrent(operation)) {
+      hpVisualTransaction = createQuickHPVisualTransaction(optimisticUpdates, {
+        syncVisuals: (updates) => syncHPVisualUpdates(updates, () => sceneLifecycle.isCurrent(operation)),
+        onPreviewError: (error) => console.warn("[quick-hp] visual sync:", error?.message || error),
+      });
+    }
     coordinatedMutation = await runEffectsMutation(coordinatedOperations, {
       history: true,
       kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp",
