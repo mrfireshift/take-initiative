@@ -90,7 +90,10 @@ export function mountChipsWithOverflow(
   });
   dock.style.rowGap = "0px";
 
-  for (const chip of chips) chip.style.maxWidth = "100%";
+  for (const chip of chips) {
+    chip.style.maxWidth = "100%";
+    if (compact) Object.assign(chip.style, { fontSize: "9.5px", padding: "1px 5px", borderWidth: "1.5px" });
+  }
   if (chips.length <= limit) {
     row1.append(...chips);
     dock.append(row1);

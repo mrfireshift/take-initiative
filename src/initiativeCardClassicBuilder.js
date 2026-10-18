@@ -3,6 +3,7 @@ import {
   applyClassicCardFrame,
   buildClassicCardShell,
   deriveClassicCardPresentation,
+  classicCardSpells,
 } from "./initiativeCardClassic.js";
 import {
   appendClassicEpicTags,
@@ -15,7 +16,6 @@ import {
   enableClassicCardRename,
 } from "./initiativeEditors.js";
 import { compactStatusBadge } from "./initiativeCardCompact.js";
-import { openReferencePopover } from "./referencePopover.js";
 import { fitCardToChipDock } from "./initiativeChipOverflow.js";
 
 export function buildClassicTrackerCard(e, context) {
@@ -684,8 +684,12 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
 
 // --- Dock per condizioni
 const condDock = document.createElement("div");
+const HAS_HP_BAR = (IS_GM || CLASSIC_HP_VISIBLE) && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id);
+const CHIP_DOCK_TOP = HAS_HP_BAR
+  ? (IS_BOSS ? MAIN_CARD_H - 4 - BOSS_HP_BAR_BOTTOM : MAIN_CARD_H - 7) + 5
+  : MAIN_CARD_H - 5;
 condDock.style.position = "absolute";
-condDock.style.top = `${MAIN_CARD_H - 5}px`;
+condDock.style.top = `${CHIP_DOCK_TOP}px`;
 condDock.style.left = `${CONTENT_LEFT}px`;
 condDock.style.right = "10px";
 condDock.style.minHeight = "18px";
@@ -719,13 +723,14 @@ if (hasAny) {
 }
 
 // 2) Incantesimi
-if (!e.__groupCollapsed && Array.isArray(e.spells) && e.spells.length) {
+const trackerSpells = classicCardSpells(e);
+if (trackerSpells.length) {
   const canTerminate = IS_GM && !isLairId(e.id) && !isEpicActionId(e.id);
-  for (const spell of e.spells) {
+  for (const spell of trackerSpells) {
     const boardToken = typeof __findSpellBoardToken === "function"
       ? __findSpellBoardToken(boardTokenItems, e.id, spell)
       : null;
-    const spellChipOptions = canTerminate
+    const spellChipOptions = canTerminate && !spell.trackerConcentrationOnly
       ? { onTerminate: (entry) => __terminateSpellOnTrackerCard(e.id, entry) }
       : {};
     if (boardToken?.state?.hpMax > 0) {
@@ -737,6 +742,8 @@ if (!e.__groupCollapsed && Array.isArray(e.spells) && e.spells.length) {
     }
     const fragSp = buildSpellChips([spell], {
       ...spellChipOptions,
+      concentrating: spell.trackerConcentration,
+      concentrationOnly: spell.trackerConcentrationOnly,
       showEffectSummaryParts,
     });
     if (boardToken && typeof __bindSpellBoardTokenHPEditor === "function") {
@@ -906,66 +913,8 @@ if (paragonDock) header.appendChild(paragonDock);
   } else {
     header.append(name, badge);
   }
-// Indicatore concentrazione: pallino con "C" solo sulle card dei singoli token.
-{
-  // Le card aggregate di gruppo non espongono effetti dei membri.
-  const concOn = !e.__groupCollapsed && !!e.isConcentrating;
-  if (concOn) {
-    // Il colore deriva dalla concentrazione del token rappresentato dalla card.
-    const k = e.concSpellKey || null;
-    const col = k ? __spellColor(k) : { solid: "rgba(0,0,0,0.80)", border: "rgba(255,255,255,.18)" };
-
-    const C_DOT_SIZE = 18;           // diametro pallino
-    const cDot = document.createElement("div");
-    cDot.textContent = "C";
-    cDot.title = k
-      ? `Concentrazione: ${k[0].toUpperCase() + k.slice(1)}`
-      : "Concentrazione attiva";
-
-    Object.assign(cDot.style, {
-      boxSizing: "border-box",
-      flex: "0 0 auto",
-      width: C_DOT_SIZE + "px",
-      height: C_DOT_SIZE + "px",
-      borderRadius: "50%",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "10px",
-      fontWeight: "700",
-      lineHeight: "1",
-      color: "#fff",
-      background: col.solid,      // ⟵ colore della spell
-      border: `2px solid rgba(0,0,0,1)`,
-      boxShadow: "0 0 0 1px rgba(0, 0, 0, 0.5)",
-      zIndex: "6",
-      cursor: k ? "pointer" : "default",
-      pointerEvents: k ? "auto" : "none"
-    });
-    if (k) {
-      cDot.dataset.referenceType = "spells";
-      cDot.dataset.referenceEntry = k;
-      cDot.dataset.cardSelectionIgnore = "1";
-      cDot.setAttribute("role", "button");
-      cDot.setAttribute("tabindex", "0");
-      const openReference = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        void openReferencePopover({ tab: "spells", entry: k });
-      };
-      cDot.addEventListener("click", openReference);
-      cDot.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        openReference(event);
-      });
-    }
-    const chipRow = condDock.firstElementChild;
-    if (chipRow) chipRow.prepend(cDot);
-    else condDock.appendChild(cDot);
-  }
-}
-// La card cresce per contenere le righe di chip (pallino C compreso), misurate a schermo.
-fitCardToChipDock(card, condDock, { baseHeight: CARD_H, dockTop: MAIN_CARD_H - 5 });
+// La card cresce per contenere le righe di chip, misurate a schermo.
+fitCardToChipDock(card, condDock, { baseHeight: CARD_H, dockTop: CHIP_DOCK_TOP });
 
 
   card.appendChild(header);

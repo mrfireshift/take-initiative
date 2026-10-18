@@ -5,6 +5,21 @@ function classicDocument(documentRef) {
   return documentRef;
 }
 
+// Presentation only: concentration stays with its own spell, including a caster-only record.
+export function classicCardSpells(entry) {
+  if (entry?.__groupCollapsed) return [];
+  const key = String(entry?.concSpellKey || "").trim().toLocaleLowerCase();
+  const spells = (Array.isArray(entry?.spells) ? entry.spells : []).map(spell => ({ ...spell,
+    trackerConcentration: !!entry.isConcentrating && !!key
+      && String(spell?.name || "").trim().toLocaleLowerCase() === key
+      && (!spell?.casterId || spell.casterId === entry.id),
+  }));
+  if (entry?.isConcentrating && !spells.some(spell => spell.trackerConcentration)) {
+    spells.push({ name: entry.concSpellKey || "Concentrazione", trackerConcentration: true, trackerConcentrationOnly: true });
+  }
+  return spells;
+}
+
 function hasVisibleCardConditions(cardEffectData = {}) {
   const instances = Array.isArray(cardEffectData.instances)
     ? cardEffectData.instances

@@ -4,7 +4,28 @@ import {
   applyClassicCardFrame,
   buildClassicCardShell,
   deriveClassicCardPresentation,
+  classicCardSpells,
 } from "../src/initiativeCardClassic.js";
+
+test("concentration belongs to its spell rather than the first effect on the card", () => {
+  const spells = [{ name: "Ispirazione Bardica" }, { name: "Animare oggetti", casterId: "lavera" }];
+  const result = classicCardSpells({ id: "lavera", spells, isConcentrating: true, concSpellKey: "animare oggetti" });
+  assert.deepEqual(result.map(spell => [spell.name, spell.trackerConcentration]), [["Ispirazione Bardica", false], ["Animare oggetti", true]]);
+  assert.equal(spells[1].trackerConcentration, undefined, "presentation does not change canonical spells");
+});
+
+test("concentration without a visible owner spell keeps a named reference pill", () => {
+  const result = classicCardSpells({ id: "lavera", spells: [{ name: "Benedizione" }], isConcentrating: true, concSpellKey: "turbine" });
+  assert.equal(result.length, 2);
+  assert.deepEqual(result[1], { name: "turbine", trackerConcentration: true, trackerConcentrationOnly: true });
+  assert.deepEqual(classicCardSpells({ spells: result, __groupCollapsed: true }), []);
+});
+
+test("another caster's copy of the same spell does not get the local concentration marker", () => {
+  const result = classicCardSpells({ id: "lavera", spells: [{ name: "Volare", casterId: "omar" }], isConcentrating: true, concSpellKey: "volare" });
+  assert.equal(result[0].trackerConcentration, false);
+  assert.equal(result[1].trackerConcentration, true);
+});
 
 function createTestDocument() {
   return {

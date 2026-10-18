@@ -237,8 +237,20 @@ export function buildSpellChips(spells, options = {}) {
     chip.dataset.referenceEntry = displayName;
     if (spell?.instanceId) chip.dataset.spellInstanceId = String(spell.instanceId);
     const label = document.createElement("span");
-    const spellChipLabel = formatSpellChip(displayName, spell);
+    const spellChipLabel = options.concentrationOnly ? displayName : formatSpellChip(displayName, spell);
     label.textContent = spellChipLabel;
+    if (options.concentrating) {
+      const marker = document.createElement("span");
+      marker.dataset.concentrationMarker = "1";
+      marker.textContent = "C";
+      marker.title = `Concentrazione: ${displayName}`;
+      marker.setAttribute("aria-label", marker.title);
+      Object.assign(marker.style, { display: "inline-flex", alignItems: "center", justifyContent: "center",
+        flex: "0 0 auto", width: "12px", height: "12px", borderRadius: "50%",
+        fontSize: "8px", fontWeight: "800", lineHeight: "1", background: "rgba(0,0,0,.4)",
+        border: "1px solid rgba(255,255,255,.45)", boxSizing: "border-box" });
+      chip.appendChild(marker);
+    }
     chip.appendChild(label);
     const boardTokenHP = options.boardTokenHP && typeof options.boardTokenHP === "object"
       ? options.boardTokenHP
@@ -266,13 +278,13 @@ export function buildSpellChips(spells, options = {}) {
       });
       chip.appendChild(hp);
     }
-    const spellChipTitle = displayName + " — " + spellExpiryDescription(spell);
+    const spellChipTitle = displayName + " — " + (options.concentrationOnly ? "Concentrazione attiva" : spellExpiryDescription(spell));
     chip.title = spellChipTitle;
     const color = spellColorFor(spell?.spellId || displayName);
     Object.assign(chip.style, {
       display: "inline-flex",
       alignItems: "center",
-      gap: onTerminate || boardTokenHP?.itemId ? "3px" : "0",
+      gap: options.concentrating || onTerminate || boardTokenHP?.itemId ? "3px" : "0",
       padding: "2px 6px",
       borderRadius: "999px",
       background: color.solid,
