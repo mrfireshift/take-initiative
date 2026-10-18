@@ -1,6 +1,6 @@
 # MVP: HP condivisi tra token
 
-Data: 18 ottobre 2026. Stato: specifica proposta, in attesa di revisione.
+Data: 18 ottobre 2026. Stato: specifica approvata dall'utente in chat.
 
 ## Obiettivo e requisiti concordati
 
