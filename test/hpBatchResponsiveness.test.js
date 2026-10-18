@@ -38,7 +38,7 @@ test("la Console HP avvia la preview batch prima del commit e recupera dallo sta
     apply.indexOf("await Promise.all([")
       > apply.indexOf("if (hpVisualTransaction) await hpVisualTransaction.completion;"),
   );
-  assert.match(apply, /syncHPBatchToMemory\(entries\.map/);
+  assert.match(apply, /syncHPBatchToMemory\(committedUpdates\.map/);
   assert.match(
     apply,
     /showConcentrationWarnings\(entries,\s*\{\s*causeHistoryEntryId: concentrationCauseHistoryEntryId,\s*sceneEpoch: operationSceneEpoch,\s*warningRuntimeScope: ownerSceneContext\?\.sceneIdentity \|\| "",\s*\}\)/,

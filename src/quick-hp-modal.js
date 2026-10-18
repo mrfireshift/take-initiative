@@ -1,4 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
+import { buildSharedHpPreview, sharedHpTargetItems, sharedHpIntent, sharedHpCommittedUpdates } from "./sharedHpViewCore.js";
+import { renderSharedHpControls } from "./sharedHpControls.js";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 import {
   EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
@@ -58,6 +60,8 @@ const factorOptions = [
 
 let mode = QUICK_HP_MODES.SAVE;
 let targets = [];
+let sharedHpItems = [];
+let sharedHpSelection = { policy: "once", chosenTargetIds: {} };
 let selectedIds = new Set();
 let factors = new Map();
 let saveOutcomes = new Map();
@@ -449,6 +453,7 @@ function renderTargets() {
     const name = document.createElement("span");
     name.className = "name";
     name.textContent = displayName(item);
+    if (item.metadata?.[META_KEY]?.sharedHpSourceId) name.title = "HP condivisi · token secondario";
     identity.append(faction, name);
 
     const preview = document.createElement("div");
@@ -551,6 +556,10 @@ function updateControls() {
     || selected.every((item) => saveOutcomes.has(item.id));
   const hasManualCondition = mode === QUICK_HP_MODES.SAVE && failedIds.length > 0 && !!text(conditionSelect.value);
   const hasEffect = changes.length > 0 || hasManualCondition;
+  const sharedPreview = buildSharedHpPreview(sharedHpItems, selected.filter(hasTrackedHP)
+    .map(item => ({ item, change: previewFor(item) })), sharedHpSelection);
+  renderSharedHpControls(document.getElementById("sharedHpControls"), sharedPreview, sharedHpSelection,
+    next => { sharedHpSelection = next; renderTargets(); }, { disabled: busy });
   applyButton.className = `apply ${mode === QUICK_HP_MODES.SAVE ? QUICK_HP_MODES.DAMAGE : mode}`;
   applyButton.textContent = mode === QUICK_HP_MODES.HEAL
     ? "Applica cura"
@@ -563,7 +572,7 @@ function updateControls() {
     || !sceneAvailable()
     || !selected.length
     || !outcomesComplete
-    || !hasEffect;
+    || !hasEffect || sharedPreview.conflicts.length > 0;
   const targetCountEl = document.getElementById("targetCount");
   if (targetCountEl) {
     targetCountEl.textContent = selected.length === 1 ? "1 selezionato" : `${selected.length} selezionati`;
@@ -587,10 +596,8 @@ async function loadTargets() {
   );
   const orderIndex = new Map(orderedIds.map((id, index) => [id, index]));
   const orderedSet = new Set(orderedIds);
-  const items = await OBR.scene.items.getItems((item) => {
-    const meta = item?.metadata?.[META_KEY];
-    return !!meta && (meta.inInitiative === true || orderedSet.has(item.id));
-  });
+  sharedHpItems = await OBR.scene.items.getItems();
+  const items = sharedHpTargetItems(sharedHpItems, [...orderedSet]);
   if (!sceneLifecycle.isCurrent(operation)) return false;
   items.sort((a, b) => {
     const ai = orderIndex.has(a.id) ? orderIndex.get(a.id) : Number.MAX_SAFE_INTEGER;
@@ -706,7 +713,9 @@ async function applyOperation() {
   }
 
   const operationSceneEpoch = operation.epoch;
-  const liveItems = await OBR.scene.items.getItems(selected.map((item) => item.id));
+  const liveSceneItems = await OBR.scene.items.getItems();
+  const liveItems = liveSceneItems.filter(item => selectedIds.has(item.id));
+  sharedHpItems = liveSceneItems;
   if (!sceneLifecycle.isCurrent(operation)) {
     status.textContent = "Scena cambiata: riapri la console HP.";
     busy = false;
@@ -716,7 +725,12 @@ async function applyOperation() {
   const entries = liveItems.filter(hasTrackedHP).map((item) => ({
     item,
     change: previewFor(item),
-  })).filter((entry) => entry.change?.changed);
+  })).filter((entry) => entry.change);
+  const sharedPreview = buildSharedHpPreview(liveSceneItems, entries, sharedHpSelection);
+  if (sharedPreview.conflicts.length) {
+    status.textContent = "Verifica il collegamento HP e scegli un importo per ogni riserva con esiti diversi.";
+    renderTargets(); return;
+  }
   let effectOperations = [];
   if (failedIds.length && conditionName) {
     const appliedAtState = await appliedAt();
@@ -750,7 +764,7 @@ async function applyOperation() {
     renderTargets();
     return;
   }
-  const optimisticUpdates = quickHPVisualUpdates(entries);
+  const optimisticUpdates = sharedPreview.updates;
   if (optimisticUpdates.length && sceneLifecycle.isCurrent(operation)) {
     hpVisualTransaction = createQuickHPVisualTransaction(optimisticUpdates, {
       syncVisuals: (updates) => syncHPVisualUpdates(
@@ -764,6 +778,7 @@ async function applyOperation() {
   const coordinatedOperations = [
     ...(entries.length ? [{ type: "hp:set", updates: entries.map(({ item, change }) => ({
       itemId: item.id, hp: change.afterHP, hpMax: change.hpMax,
+      hpIntent: sharedHpIntent({ change }, operation.operationId),
       expectedHP: { present: true, value: item.metadata[META_KEY].hp },
       expectedHPMax: { present: true, value: item.metadata[META_KEY].hpMax },
     })) }] : []),
@@ -799,6 +814,7 @@ async function applyOperation() {
         ? `Effetto manuale: ${conditionName || currentValue()} · ${affectedIds.length} bersagli`
         : `${modeLabel().replace(/^./, (value) => value.toUpperCase())} rapido: ${currentValue()} · ${ids.length} bersagli`,
       targetIds: affectedIds,
+      sharedHp: sharedHpSelection,
       commandId: ownerSceneContext?.commandId || operation.operationId,
       sceneIdentity: ownerSceneContext?.sceneIdentity || null,
     });
@@ -813,6 +829,9 @@ async function applyOperation() {
       return;
     }
     if (hpVisualTransaction) await hpVisualTransaction.completion;
+    const committedUpdates = sharedHpCommittedUpdates(coordinatedMutation, entries);
+    await syncHPVisualUpdates(committedUpdates, () => sceneLifecycle.isCurrent(operation));
+    const committedItems = await OBR.scene.items.getItems(committedUpdates.map(update => update.tokenId));
     if (!sceneLifecycle.isCurrent(operation)) {
       status.textContent = canonicalCommitted
         ? "HP applicati nella scena precedente; riapri la console HP per i passaggi successivi."
@@ -820,13 +839,13 @@ async function applyOperation() {
       return;
     }
     await Promise.all([
-      syncHPBatchToMemory(entries.map((entry) => ({
-        itemId: entry.item.id,
-        hp: entry.change.afterHP,
-        hpMax: entry.change.hpMax,
+      syncHPBatchToMemory(committedUpdates.map((update) => ({
+        itemId: update.tokenId,
+        hp: update.hp,
+        hpMax: update.hpMax,
       })), {
         sceneEpoch: operationSceneEpoch,
-        items: entries.map((entry) => entry.item),
+        items: committedItems,
         isCurrent: () => sceneLifecycle.isCurrent(operation),
       }),
       showConcentrationWarnings(entries, {
@@ -847,6 +866,7 @@ async function applyOperation() {
       ? `Risoluzione applicata a ${affectedIds.length} bersagli.`
       : `Applicato a ${entries.length} bersagli.`;
     if (coordinatedMutation.historyPending) status.textContent += " Cronologia in recupero; non ripetere l'azione.";
+    sharedHpSelection = { policy: "once", chosenTargetIds: {} };
     await loadTargets();
     await refreshConditionSourceOptions();
     if (!sceneLifecycle.isCurrent(operation)) return;
