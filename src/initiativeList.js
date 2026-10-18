@@ -3209,14 +3209,18 @@ function applyClassicRoundButtonColors() {
 
 function applyHeaderLayoutPresentation(compact) {
   const classic = !compact;
+  const playerClassic = classic && !IS_GM;
+  roundPill.style.display = playerClassic ? "grid" : "inline-flex";
+  roundPill.style.gridTemplateColumns = playerClassic ? "28px minmax(0, 1fr) 28px" : "";
   roundPill.style.gap = classic ? "3px" : "4px";
   roundPill.style.overflow = classic ? "hidden" : "visible";
   roundStatus.style.flex = classic ? "1 1 72px" : "0 0 auto";
   roundStatus.style.width = "auto";
-  roundStatus.style.minWidth = classic ? "70px" : "0";
+  roundStatus.style.minWidth = classic && !playerClassic ? "70px" : "0";
+  roundStatus.style.gridColumn = playerClassic ? "2" : "";
   roundStatus.style.overflow = classic ? "hidden" : "visible";
   roundStatus.style.flexDirection = "row";
-  roundStatus.style.justifyContent = classic ? "flex-start" : "center";
+  roundStatus.style.justifyContent = classic && !playerClassic ? "flex-start" : "center";
   roundStatus.style.gap = classic ? "4px" : "3px";
   roundStatus.style.paddingBottom = "0";
   roundStatus.style.borderBottom = "none";
@@ -3262,8 +3266,8 @@ function applyHeaderLayoutPresentation(compact) {
 
   for (const button of [trackerDragHandle, layoutToggleButton, compactMoreButton]) {
     Object.assign(button.style, {
-      marginLeft: compact ? "0" : (button === layoutToggleButton ? "4px" : "0"),
-      marginRight: compact ? "0" : (button === layoutToggleButton ? "4px" : "0"),
+      marginLeft: classic && !playerClassic && button === layoutToggleButton ? "4px" : "0",
+      marginRight: classic && !playerClassic && button === layoutToggleButton ? "4px" : "0",
       alignSelf: "center",
       justifySelf: "center",
       boxSizing: "border-box",
@@ -3307,6 +3311,7 @@ function applyHeaderLayoutPresentation(compact) {
     color: "#fff",
     fontSize: "9px",
   });
+  layoutToggleButton.style.gridColumn = playerClassic ? "3" : "";
   layoutToggleIcon.style.width = classic ? "16px" : "15px";
   layoutToggleIcon.style.height = classic ? "16px" : "15px";
   if (compact) {
@@ -3359,13 +3364,13 @@ function restoreClassicHeader() {
   compactAdminMenu.replaceChildren();
   compactBottomControls.replaceChildren();
   compactRoundControls.replaceChildren(compactMoreButton);
-  roundPill.replaceChildren(
+  roundPill.replaceChildren(...(IS_GM ? [
     roundResetSlot,
     roundStatus,
     layoutToggleButton,
     roundActions,
     roundHistorySlot,
-  );
+  ] : [roundStatus, layoutToggleButton]));
   topRow.replaceChildren(roundPill, viewOptionsRow, movementReadout);
 }
 function applyTrackerLayout() {
