@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { resolveSharedHpGroup } from "./sharedHpCore.js";
 import { createSpellInstanceId } from "./spells.js";
 import { getConditionInstances, refreshConditionLabels } from "./conditions.js";
 import {
@@ -1030,7 +1031,8 @@ export async function executeSpellActiveResolution({
   const itemIds = prismaticWallResolution
     ? normalizeActiveResolutionTargetIds([payload.casterId, ...ids])
     : ids;
-  const items = await OBR.scene.items.getItems(itemIds);
+  const sharedHpSceneItems = await OBR.scene.items.getItems();
+  const items = sharedHpSceneItems.filter(item => itemIds.includes(item.id));
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
     throw new Error("scene-epoch-stale-before-active-resolution");
   }
@@ -1337,7 +1339,9 @@ export async function executeSpellActiveResolution({
       for (const patch of metadataPatches) {
         const item = byId.get(patch.id);
         const meta = item?.metadata?.[`${ID}/meta`] || {};
-        const zeroAction = resolveZeroHPUnconsciousAction(
+        const zeroAction = resolveSharedHpGroup(sharedHpSceneItems, patch.id).memberIds?.length > 1
+          ? { add: false, removeInstanceIds: [] }
+          : resolveZeroHPUnconsciousAction(
           { ...meta, hp: patch.fields.hp.value, hpMax: patch.fields.hpMax.value },
           getConditionInstances(meta.conditions || {}),
         );
@@ -1472,7 +1476,11 @@ export async function executeSpellActiveResolution({
           },
         });
       }
-      const zeroAction = resolveZeroHPUnconsciousAction(
+      // The coordinator projects the chosen shared outcome before reconciling
+      // every member. Per-target clamping here may be discarded by that choice.
+      const zeroAction = resolveSharedHpGroup(sharedHpSceneItems, targetId).memberIds?.length > 1
+        ? { add: false, removeInstanceIds: [] }
+        : resolveZeroHPUnconsciousAction(
         { ...meta, hp: hpChange.afterHP, hpMax: hpChange.hpMax },
         getConditionInstances(meta.conditions || {}),
       );
@@ -1585,7 +1593,9 @@ export async function executeSpellActiveResolution({
     for (const patch of metadataPatches) {
       const item = byId.get(patch.id);
       const meta = item?.metadata?.[`${ID}/meta`] || {};
-      const zeroAction = resolveZeroHPUnconsciousAction(
+      const zeroAction = resolveSharedHpGroup(sharedHpSceneItems, patch.id).memberIds?.length > 1
+        ? { add: false, removeInstanceIds: [] }
+        : resolveZeroHPUnconsciousAction(
         { ...meta, hp: patch.fields.hp.value, hpMax: patch.fields.hpMax.value },
         getConditionInstances(meta.conditions || {}),
       );

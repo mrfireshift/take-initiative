@@ -77,3 +77,25 @@ test("link management checks actual GM role", async () => {
   const result = await apply([{ type: "shared-hp:unlink", targetIds: ["hand"] }]);
   assert.equal(result.status, "rejected"); assert.equal(meta("hand").sharedHpSourceId, "auril");
 });
+
+test("linking reconciles automatic zero HP conditions and Undo restores the secondary", async () => {
+  replaceItems([token("auril", { hp: 0 }), token("hand", { hp: 25, attitude: "pc" })]);
+  const linked = await apply([{ type: "shared-hp:link", sourceId: "auril", targetIds: ["hand"] }], { history: true });
+  assert.equal(linked.status, "applied");
+  assert.equal(meta("hand").hp, 0);
+  assert.ok(meta("hand").conditions.instances.some(instance => instance.condition === "Privo di sensi"));
+  const [entry] = await history.getHistoryEntries();
+  assert.equal((await effects.undoEffectsMutation(entry, { transport: "background" })).status, "applied");
+  assert.equal(meta("hand").hp, 25);
+  assert.equal(meta("hand").conditions?.instances?.length || 0, 0);
+});
+
+test("linking to a living source removes automatic unconsciousness", async () => {
+  replaceItems([token("auril"), token("hand", { hp: 0, attitude: "pc" })]);
+  await apply([{ type: "hp:set", updates: [{ itemId: "hand", hp: 0, hpMax: 400 }] }]);
+  assert.ok(meta("hand").conditions.instances.some(instance => instance.condition === "Privo di sensi"));
+  const linked = await apply([{ type: "shared-hp:link", sourceId: "auril", targetIds: ["hand"] }]);
+  assert.equal(linked.status, "applied");
+  assert.equal(meta("hand").hp, 300);
+  assert.ok(!meta("hand").conditions.instances.some(instance => instance.condition === "Privo di sensi"));
+});

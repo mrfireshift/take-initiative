@@ -732,7 +732,7 @@ export async function removeHPWidgetsNow(tokenId) {
 }
 
 export async function mountHPBars(){
-  const { deferInitialSync = false } = arguments[0] || {};
+  const { deferInitialSync = false, observeSceneItems = true } = arguments[0] || {};
   _runtimeEnabled = true;
   if (_mounted) {
     if (!deferInitialSync && IS_GM) await queueCanonicalHPItems();
@@ -764,14 +764,14 @@ export async function mountHPBars(){
     _readyListenerMounted = true;
     _unsubscribeReady = OBR.scene.onReadyChange((ready) => {
       resetRuntimeState();
-      if (!ready || !IS_GM || !_runtimeEnabled || !_mounted) return;
+      if (!ready || !observeSceneItems || !IS_GM || !_runtimeEnabled || !_mounted) return;
       void queueCanonicalHPItems().catch((error) => {
         console.warn("[hpbar] scene ready sync error:", error?.message || error);
       });
     });
   }
 
-  if (!_sceneItemListenerMounted) {
+  if (observeSceneItems && !_sceneItemListenerMounted) {
     _sceneItemListenerMounted = true;
     _unsubscribeSceneItems = subscribeSceneItemChanges(({ items }) => {
       if (!IS_GM || !_runtimeEnabled || !_mounted) return;

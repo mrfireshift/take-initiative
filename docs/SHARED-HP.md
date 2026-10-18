@@ -16,6 +16,8 @@ all'iniziativa se non ne faceva già parte.
 Le modifiche HP e massimo effettuate nel plugin da qualunque membro si
 applicano all'intera riserva. Tracker e barre leggono ancora `hp` e `hpMax`.
 Condizioni, schede, concentrazione e risorse rimangono individuali.
+Le barre e i testi sulla mappa si aggiornano anche con il tracker chiuso,
+rispettando le opzioni di attivazione e visibilità del plugin.
 
 ## Danni a più membri
 
@@ -30,6 +32,8 @@ condivisi quando sono coinvolti più membri della stessa riserva:
 La scelta vale per quell'applicazione. Una nuova applicazione usa di nuovo
 il default. Attacchi distinti, compresi i singoli raggi di un multiattacco,
 restano eventi distinti e sottraggono ciascuno i propri danni.
+Anche il danno primario di Freccia Folgorante resta distinto dall'esplosione:
+la policy del gruppo si applica ai contributi dell'area.
 
 Undo usa la Cronologia del plugin e ripristina i membri modificati al momento
 dell'evento. Aggiungere o scollegare token successivamente non cambia lo

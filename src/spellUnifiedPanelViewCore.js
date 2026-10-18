@@ -413,13 +413,23 @@ function hpPreviewFor(
             ? spellSaveDamageFactor(spellId, outcome) || QUICK_HP_FACTORS.HALF
             : QUICK_HP_FACTORS.FULL;
       const noDamage = !isHealing && factor === "zero";
-      const change = calculateQuickHPChange({
+      let change = calculateQuickHPChange({
         mode,
         value: immune || attackMiss || noDamage ? 0 : value,
         factor: attackMiss ? QUICK_HP_FACTORS.FULL : factor,
         hp: beforeHP,
         hpMax,
       });
+      if (isDamage && inputs.primaryDamage?.visible && session?.phase === "resolve"
+        && asText(session?.primaryTargetId) === candidate.key) {
+        const primary = calculateQuickHPChange({ mode, value: Number(session?.hpValues?.primaryDamage) || 0,
+          factor: QUICK_HP_FACTORS.FULL, hp: beforeHP, hpMax });
+        const area = calculateQuickHPChange({ mode, value: change.requested,
+          factor: QUICK_HP_FACTORS.FULL, hp: primary.afterHP, hpMax });
+        change = { ...area, factor: change.factor, hp: beforeHP, requested: primary.requested + area.requested,
+          delta: area.afterHP - beforeHP, changed: area.afterHP !== beforeHP,
+          primaryRequested: primary.requested, areaRequested: area.requested };
+      }
       return {
         ...base,
         factor: immune ? "immune" : factor,

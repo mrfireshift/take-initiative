@@ -15,6 +15,15 @@ export function sharedHpIntent(entry, eventId = "shared-hp-preview") {
   return { mode: entry.change.mode, amount: Number(entry.change.requested) || 0, eventId: entry.eventId || eventId };
 }
 
+export function sharedHpIntents(entry, eventId = "shared-hp-preview") {
+  const intent = sharedHpIntent(entry, eventId);
+  if (entry.change.primaryRequested === undefined) return [intent];
+  // A primary hit and its area are independent applications, even when the
+  // primary and secondary targets use the same pool.
+  return [{ ...intent, amount: entry.change.primaryRequested, eventId: `${intent.eventId}:primary` },
+    { ...intent, amount: entry.change.areaRequested }];
+}
+
 export function buildSharedHpPreview(items, entries, sharedHp = {}) {
   const active = entries.filter(entry => entry.change);
   const choices = new Map(); let multiTarget = false;
@@ -24,14 +33,14 @@ export function buildSharedHpPreview(items, entries, sharedHp = {}) {
     if (!choices.has(group.sourceId)) choices.set(group.sourceId, { sourceId: group.sourceId,
       name: group.source.name || group.sourceId, options: [] });
     choices.get(group.sourceId).options.push({ targetId: entry.item.id, name: entry.item.name || entry.item.id,
-      amount: Number(entry.change.requested) || 0 });
+      amount: Number(entry.change.areaRequested ?? entry.change.requested) || 0 });
   }
   const choiceGroups = [...choices.values()].filter(group => {
     if (group.options.length > 1) multiTarget = true;
     return sharedHp.policy !== "per-token" && new Set(group.options.map(option => option.amount)).size > 1;
   });
   const result = planSharedHpMutation({ items, sharedHp, operations: [{ type: "hp:set", updates: active.map(entry => ({
-    itemId: entry.item.id, hp: entry.change.afterHP, hpMax: entry.change.hpMax, hpIntent: sharedHpIntent(entry),
+    itemId: entry.item.id, hp: entry.change.afterHP, hpMax: entry.change.hpMax, hpIntents: sharedHpIntents(entry),
   })) }] });
   if (result.status) return { groups: [], updates: [], choiceGroups, multiTarget, conflicts: result.conflicts };
   const updates = new Map(quickHPVisualUpdates(active).map(update => [update.tokenId, update]));

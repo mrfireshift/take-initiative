@@ -72,3 +72,64 @@ test("production boss attack aimed at a secondary damages the full group and rem
   assert.equal(result.status, "applied");
   assert.deepEqual(items.filter(item => item.id !== "caster").map(item => meta(item.id).hp), [275, 275, 275, 275]);
 });
+
+test("active area zero HP conditions follow the selected shared outcome", async () => {
+  const { buildSpellActiveResolutionPayload, getSpellResolutionAction } = await import("../src/spellActiveResolutionCore.js");
+  const { executeSpellActiveResolution } = await import("../src/spellApplicationExecutor.js");
+  const { replaceItems } = await import("../test-support/sharedHpHarness.js");
+  const key = "com.thebigpicture.initiative/meta";
+  const spell = { id: "xanathar-arma-sacra", name: "Arma Sacra", level: 5 };
+  const action = getSpellResolutionAction(spell.id, "holy-weapon-dismiss");
+  replaceItems([...group(100).map(item => ({ ...item, metadata: { ...item.metadata,
+    [key]: { ...item.metadata[key], attitude: "pc" } } })), token("caster", {
+      ["com.thebigpicture.initiative/spells"]: [{ instanceId: "active-1", spellId: spell.id, casterId: "caster" }],
+    })]);
+  sdk.scene.grid = { getDpi: async () => 150, getScale: async () => ({ parsed: { multiplier: 1.5, unit: "m" } }) };
+  sdk.scene.items.getItemBounds = async () => ({ min: { x: 0, y: 0 }, max: { x: 150, y: 150 }, center: { x: 75, y: 75 } });
+  const payload = buildSpellActiveResolutionPayload({ spell, action,
+    group: { instanceId: "active-1", casterId: "caster" }, sceneEpoch: 1 });
+  await executeSpellActiveResolution({ payload, targetIds: ["hand", "head"], damageRoll: 150,
+    placement: { type: "circle", start: { x: 75, y: 75 }, end: { x: 975, y: 75 }, gridOrigin: { x: 0, y: 0 }, dpi: 150 },
+    outcomes: { hand: "failed", head: "passed" }, sharedHp: { policy: "once", chosenTargetIds: { auril: "head" } } });
+  for (const id of ["auril", "body", "hand", "head"]) {
+    assert.equal(meta(id).hp, 25);
+    assert.ok(!(meta(id).conditions.instances || []).some(instance => ["Privo di sensi", "Prono"].includes(instance.condition)), id);
+  }
+});
+
+for (const [policy, headOutcome, chosenTargetIds, expectedHP] of [
+  ["once", "failed", {}, 280], ["per-token", "failed", {}, 273],
+  ["once", "passed", { auril: "head" }, 284],
+]) test(`Lightning Arrow separates its primary hit from shared area damage (${policy}, ${headOutcome})`, async () => {
+  const { buildUnifiedPanelViewModel } = await import("../src/spellUnifiedPanelViewCore.js");
+  const { replaceItems } = await import("../test-support/sharedHpHarness.js");
+  const spellId = "phb2014-freccia-folgorante";
+  const parent = { instanceId: "arrow-1", spellId, casterId: "caster", name: "Freccia Folgorante" };
+  replaceItems([...group(), token("caster", { ["com.thebigpicture.initiative/spells"]: [parent],
+    ["com.thebigpicture.initiative/concentration"]: { [parent.instanceId]: parent } })]);
+  const contract = buildSpellUnifiedPanelContract({ spellId, phase: "resolve" });
+  const placement = { status: "confirmed", confirmed: true, targetLocked: true, ruleId: `${spellId}:cast`, spellId,
+    casterId: "caster", targetIds: ["hand", "head"], anchorTargetId: "hand",
+    preview: { type: "circle", start: { x: 75, y: 75 }, end: { x: 375, y: 75 }, dpi: 150,
+      gridOrigin: { x: 0, y: 0 }, targetIds: ["hand", "head"], targetLocked: true, anchorTargetId: "hand", anchorOrigin: { x: 75, y: 75 } } };
+  const sharedHp = { policy, chosenTargetIds };
+  const outcomes = { hand: "failed", head: headOutcome };
+  const session = createSpellPanelSession({ contract, phase: "resolve", casterId: "caster", slotLevel: 3,
+    activeConcentration: parent, targetIds: ["hand", "head"], primaryTargetId: "hand", outcomes,
+    hpValues: { primaryDamage: 13, damage: 7 }, placement, sharedHp });
+  const view = buildUnifiedPanelViewModel({ contract, session, targetCandidates: items.filter(item => item.id !== "caster")
+    .map(item => ({ key: item.id, label: item.name, hp: meta(item.id).hp, hpMax: meta(item.id).hpMax,
+      sharedHpSourceId: meta(item.id).sharedHpSourceId })) });
+  const preview = view.effects.preview.sharedHp;
+  assert.deepEqual(preview.conflicts, []);
+  assert.ok(preview.updates.every(update => update.hp === expectedHP), JSON.stringify(preview));
+  assert.equal(preview.choiceGroups.length, headOutcome === "passed" && policy === "once" ? 1 : 0);
+  const input = buildSpellAreaResolutionCommand({ contract, session, source: { kind: "prepared-resolution", parentInstanceId: parent.instanceId },
+    casterId: "caster", parentInstanceId: parent.instanceId, targetIds: ["hand", "head"], candidateTargetIds: ["hand", "head"],
+    primaryTargetId: "hand", outcomes, hp: { mode: "damage", amount: 7, primaryAmount: 13 }, placement,
+    sharedHp, targetLocked: true, validateSpatial: false });
+  assert.equal(input.valid, true, JSON.stringify(input.errors));
+  const result = await executeSpellAreaResolution(input, runtime());
+  assert.equal(result.status, "applied", JSON.stringify(result.errors));
+  assert.equal(meta("auril").hp, expectedHP);
+});

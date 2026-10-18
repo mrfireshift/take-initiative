@@ -68,6 +68,7 @@ import {
 import { isLegacyActorMigrationEligible } from "./actorIdentityCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import { createSharedHpInitiativeController } from "./sharedHpInitiativeController.js";
+import { mountHPBarsBackgroundRuntime } from "./hpBarRuntime.js";
 import { enqueueInitiativeStateReducer } from "./initiativeStateGateway.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import {
@@ -277,6 +278,9 @@ OBR.onReady(async () => {
   });
   void bootstrapActorVitalsRuntime();
   void mountEffectsMutationCoordinatorService().then(async () => {
+    const hpBarsRuntime = mountHPBarsBackgroundRuntime({ service: runtimeOptionsService });
+    window.addEventListener("pagehide", () => { void hpBarsRuntime.stop(); }, { once: true });
+    await hpBarsRuntime.ready;
     if (await OBR.player.getRole() === "GM") {
       const sharedHpInitiative = createSharedHpInitiativeController({
         readItems: () => OBR.scene.items.getItems(), enqueueStateReducer: enqueueInitiativeStateReducer,

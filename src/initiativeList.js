@@ -371,7 +371,7 @@ let __playerSelectionPollTimer = null;
 let __playerSelectionPollBusy = false;
 const __hpBarsLifecycle = createOptionalRuntimeLifecycle({
   name: "map-hp-bars",
-  mount: () => mountHPBars({ deferInitialSync: true }),
+  mount: () => mountHPBars({ deferInitialSync: true, observeSceneItems: false }),
   unmount: unmountHPBars,
   cleanupOwnedOutputs: cleanupOwnedHPWidgets,
   reconcileFull: reconcileAllHPBars,

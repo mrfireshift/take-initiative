@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { buildSharedHpPreview, sharedHpIntent, sharedHpCommittedUpdates, sharedHpDamageEntries } from "./sharedHpViewCore.js";
+import { buildSharedHpPreview, sharedHpIntents, sharedHpCommittedUpdates, sharedHpDamageEntries } from "./sharedHpViewCore.js";
 import { resolveSharedHpGroup, sharedHpScopeIds } from "./sharedHpCore.js";
 import { ID } from "./constants.js";
 import {
@@ -383,8 +383,8 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
       });
       const combinedChange = calculateQuickHPChange({
         mode,
-        value: amount,
-        factor: factorName,
+        value: areaChange.requested,
+        factor: QUICK_HP_FACTORS.FULL,
         hp: primaryChange.afterHP,
         hpMax: itemMeta(item).hpMax,
       });
@@ -393,6 +393,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
         outcome,
         change: {
           ...combinedChange,
+          factor: areaChange.factor,
           hp: primaryChange.hp,
           requested: primaryChange.requested + combinedChange.requested,
           delta: combinedChange.afterHP - primaryChange.hp,
@@ -400,7 +401,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
           primaryRequested: primaryChange.requested,
           primaryFactor: primaryChange.factor,
           areaRequested: combinedChange.requested,
-          areaFactor: combinedChange.factor,
+          areaFactor: areaChange.factor,
         },
       };
     })
@@ -2124,7 +2125,7 @@ export async function executeSpellAreaResolution(
         itemId: entry.item.id,
         hp: entry.change.afterHP,
         hpMax: entry.change.hpMax,
-        hpIntent: sharedHpIntent(entry, command.commandId || runtime.operationId || plan.spellInstanceId),
+        hpIntents: sharedHpIntents(entry, command.commandId || runtime.operationId || plan.spellInstanceId),
         expectedHP: entry.change.hp,
         expectedHPMax: entry.change.hpMax,
       }));
@@ -2251,7 +2252,7 @@ export async function executeSpellAreaResolution(
         const operations = [
           ...(sharedHp && entries.length ? [{ type: "hp:set", updates: entries.map(entry => ({
             itemId: entry.item.id, hp: entry.change.afterHP, hpMax: entry.change.hpMax,
-            hpIntent: sharedHpIntent(entry, command.commandId || runtime.operationId || plan.spellInstanceId),
+            hpIntents: sharedHpIntents(entry, command.commandId || runtime.operationId || plan.spellInstanceId),
           })) }] : []),
           ...(plan.zeroHPReconcileIds.length ? [{
             type: "condition:reconcile-zero-hp",

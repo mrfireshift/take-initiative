@@ -1013,7 +1013,12 @@ export async function prepareEffectsMutation(operations = [], {
     const linked = planSharedHpLinks(sceneItems, linkOperations[0]);
     if (linked.status) return linked;
     metadataPatches = linked.metadataPatches;
-    operations = [];
+    // Linking copies HP without dealing damage. Reconcile automatic conditions
+    // against those copied values in this same mutation and History entry.
+    const sourceMeta = sceneItems.find(item => item.id === linkOperations[0].sourceId)?.metadata?.[META_KEY];
+    operations = linkOperations[0].type === "shared-hp:link" ? [{ type: "hp:set", damageEnds: false,
+      updates: linked.affectedIds.map(itemId => ({ itemId, hp: Number(sourceMeta.hp), hpMax: Number(sourceMeta.hpMax) })),
+    }] : [];
   } else {
     const shared = planSharedHpMutation({ items: sceneItems, operations, metadataPatches, sharedHp: command.sharedHp });
     if (shared.status) return shared;
