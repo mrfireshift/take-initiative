@@ -23,7 +23,8 @@ export function isBossActionSourceItem(item) {
 
 export function bossActionTargets(items = [], sourceId = "") {
   return (Array.isArray(items) ? items : [])
-    .filter((item) => isBossActionSourceItem(item) && item.id !== sourceId && item.metadata?.[META_KEY]?.inInitiative === true)
+    .filter((item) => isBossActionSourceItem(item) && item.id !== sourceId
+      && (item.metadata?.[META_KEY]?.inInitiative === true || !!item.metadata?.[META_KEY]?.sharedHpSourceId))
     .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), "it"));
 }
 

@@ -1824,6 +1824,8 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   });
   const command = {
     type: SPELL_AREA_RESOLUTION_COMMAND_TYPE,
+    sharedHp: { policy: sourceInput.sharedHp?.policy === "per-token" ? "per-token" : "once",
+      chosenTargetIds: recordValue(sourceInput.sharedHp?.chosenTargetIds) },
     ...(monsterActionContext ? { monsterActionContext } : {}),
     ...(commandId ? { commandId } : {}),
     ...(correlationId ? { correlationId } : {}),

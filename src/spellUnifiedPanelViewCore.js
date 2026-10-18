@@ -3,6 +3,8 @@ import {
   spellPanelValidationMessage,
 } from "./spellUnifiedPanelCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
+import { ID } from "./constants.js";
+import { buildSharedHpPreview } from "./sharedHpViewCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
 import {
   spellTargetContextConditionMatches,
@@ -273,6 +275,7 @@ function normalizeTargetCandidates(
         || asText(candidate?.faction),
       hp: numberOrNull(candidate?.hp),
       hpMax: numberOrNull(candidate?.hpMax),
+      sharedHpSourceId: asText(candidate?.sharedHpSourceId),
       turbineSize: asText(candidate?.turbineSize) || null,
       layer: asText(candidate?.layer) || null,
       isCreature: candidate?.isCreature === true || asText(candidate?.layer) === "CHARACTER",
@@ -433,6 +436,7 @@ function hpPreviewFor(
               : "Pieno",
         afterHP: change.afterHP,
         delta: change.delta,
+        change,
       };
     });
   return preview;
@@ -825,6 +829,20 @@ export function buildUnifiedPanelViewModel({
     contract?.spell?.id,
     damageInputVisible,
   );
+  if (allCandidates.some(candidate => candidate.sharedHpSourceId) && hpPreview.valid) {
+    const items = allCandidates.map(candidate => ({ id: candidate.key, name: candidate.label,
+      layer: candidate.layer || "CHARACTER", metadata: { [`${ID}/meta`]: {
+        hp: candidate.hp, hpMax: candidate.hpMax, sharedHpSourceId: candidate.sharedHpSourceId,
+      } } }));
+    hpPreview.sharedHp = buildSharedHpPreview(items, hpPreview.targets.filter(target => target.change)
+      .map(target => ({ item: items.find(item => item.id === target.key), change: target.change })), session.sharedHp || {});
+    hpPreview.sharedHpSelection = session.sharedHp || {};
+    const updates = new Map(hpPreview.sharedHp.updates.map(update => [update.tokenId, update]));
+    for (const target of hpPreview.targets) {
+      const update = updates.get(target.key);
+      if (update) { target.afterHP = update.hp; target.delta = update.hp - target.beforeHP; }
+    }
+  }
   const hpPreviewByKey = new Map(
     (hpPreview.targets || []).map((target) => [target.key, target]),
   );

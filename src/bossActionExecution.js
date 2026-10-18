@@ -1,4 +1,5 @@
 import OBR, { buildImage } from "@owlbear-rodeo/sdk";
+import { sharedHpCommittedUpdates } from "./sharedHpViewCore.js";
 import { ID, EFFECT_SAVE_REMINDER_NOTICE_CHANNEL } from "./constants.js";
 import { getInitiativeCard, saveInitiativeCard } from "./initiativeCards.js";
 import { sanitizeBossActionBinding, bossSpellReferenceIds } from "./bossActionProfileCore.js";
@@ -40,11 +41,13 @@ async function postBossDamage({item,change,result,sceneEpoch,sceneIdentity,isCur
     import("./concentrationSaveReminder.js"),import("./effectSaveReminderCore.js"),import("./options/reminderProjectionBroadcast.js"),
   ]);
   if (!isCurrent()) return [];
-  const updates=[{tokenId:item.id,hp:change.afterHP,hpMax:change.hpMax}];
+  const updates=sharedHpCommittedUpdates(result,[{item,change}]);
+  const memoryItems=result?.plan?.sharedHpGroups?.length ? await OBR.scene.items.getItems(updates.map(update=>update.tokenId)) : [item];
+  if(!isCurrent()) return [];
   const jobs=[
-    Promise.resolve().then(()=>isCurrent()?syncHPBarNow(item.id,change.afterHP,change.hpMax):undefined),
+    Promise.resolve().then(()=>{if(isCurrent())for(const update of updates)syncHPBarNow(update.tokenId,update.hp,update.hpMax);}),
     Promise.resolve().then(()=>isCurrent()?syncHPTextBatchNow(updates):undefined),
-    Promise.resolve().then(()=>isCurrent()?syncHPBatchToMemory([{itemId:item.id,hp:change.afterHP,hpMax:change.hpMax}],{sceneEpoch,items:[item],isCurrent}):undefined),
+    Promise.resolve().then(()=>isCurrent()?syncHPBatchToMemory(updates.map(update=>({itemId:update.tokenId,hp:update.hp,hpMax:update.hpMax})),{sceneEpoch,items:memoryItems,isCurrent}):undefined),
     Promise.resolve().then(()=>isCurrent()?refreshConditionLabels([item.id]):undefined),
     Promise.resolve().then(()=>isCurrent()?broadcastConcentrationSaveWarnings([{itemId:item.id,damage:change.requested}],{
       causeHistoryEntryId:result.historyEntry?.id || "",sceneEpoch,warningRuntimeScope:sceneIdentity,
@@ -274,6 +277,7 @@ export function createBossActionRuntime({
       if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri Boss Actions.");
       const actionInstanceId=request.actionInstanceId || newId();
       const decisionKey=JSON.stringify({sourceId,actionId,targetId,targetIds,binding,mode:request.mode || "",
+        sharedHp:request.sharedHp || null,
         outcome:request.outcome || "",outcomes:Object.entries(request.outcomes || {}).sort(([a],[b])=>a.localeCompare(b)),areaPlacement:request.areaPlacement || null,
         areaPlacements:request.areaPlacements || null,innerIds:request.innerIds || null,
         targetAmounts:request.targetAmounts ? Object.entries(request.targetAmounts).sort(([a],[b])=>a.localeCompare(b)) : null,
@@ -344,7 +348,7 @@ export function createBossActionRuntime({
         if(group && action.execution.target.area?.shape==="seam")
           plan.seamDrawingIds=[...(bossActiveSeam(bossRuntimeStateForItem(scope.item,profile),scope.round)?.itemIds || [])];
         draft={decisionKey,plan,options:{...plan.options,
-          sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
+          sharedHp:request.sharedHp || {},sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
         drafts.set(actionInstanceId,draft);
       }
       const plan=draft.plan;

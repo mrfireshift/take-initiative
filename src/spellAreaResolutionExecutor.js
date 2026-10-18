@@ -1,4 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
+import { buildSharedHpPreview, sharedHpIntent, sharedHpCommittedUpdates } from "./sharedHpViewCore.js";
+import { resolveSharedHpGroup, sharedHpScopeIds } from "./sharedHpCore.js";
 import { ID } from "./constants.js";
 import {
   QUICK_HP_FACTORS,
@@ -334,7 +336,7 @@ function prismaticSprayHPEntries(items, prismaticSprayPlan) {
     .filter((entry) => entry?.change?.changed);
 }
 
-function hpEntries({ command, items, spell, prismaticSprayPlan = null }) {
+function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan = null }) {
   if (spell?.id === PRISMATIC_SPRAY_SPELL_ID && prismaticSprayPlan) {
     return prismaticSprayHPEntries(items, prismaticSprayPlan);
   }
@@ -402,7 +404,7 @@ function hpEntries({ command, items, spell, prismaticSprayPlan = null }) {
         },
       };
     })
-    .filter((entry) => entry.change.changed);
+    .filter((entry) => entry.change.changed || resolveSharedHpGroup(allItems, entry.item.id).memberIds?.length > 1);
 }
 
 function castContextFor({ spell, resolution, command, mobileAura, boardToken, placement, caster }) {
@@ -1631,6 +1633,7 @@ async function buildPlan(command, runtime) {
   const teleportHPItems = liveItems;
   const entries = hpEntries({
     command,
+    allItems,
     items: teleportHPItems,
     spell,
     prismaticSprayPlan: resolution.prismaticSpray,
@@ -1644,6 +1647,11 @@ async function buildPlan(command, runtime) {
   if (casterHealingEntry && !entries.some((entry) => entry.item?.id === casterHealingEntry.item?.id)) {
     entries.push(casterHealingEntry);
   }
+  const sharedHpPreview = buildSharedHpPreview(allItems, entries, command.sharedHp || {});
+  if (sharedHpPreview.conflicts.length) return { valid: false, errors: sharedHpPreview.conflicts.map(conflict => ({
+    code: conflict.reason, message: conflict.reason === "shared-hp-selection-required"
+      ? "Scegli l'importo da applicare alla riserva HP condivisa." : "Verifica il collegamento HP del bersaglio.",
+  })) };
   const zeroHPBoardTokenIds = uniqueIds(entries
     .filter((entry) => (
       entry.change.afterHP === 0
@@ -1696,6 +1704,7 @@ async function buildPlan(command, runtime) {
   ]);
   const historyIds = uniqueIds([
     ...ids,
+    ...sharedHpScopeIds(allItems, ids),
     ...effectSubjectIds,
     ...(bossActionUse ? [casterId] : []),
     ...(command?.source?.kind === "prepared-resolution" && casterId ? [casterId] : []),
@@ -1722,6 +1731,7 @@ async function buildPlan(command, runtime) {
     liveItems,
     entries,
     ids,
+    sharedHpPreview,
     effectOperations,
     effectSubjectIds: uniqueIds(effectSubjectIds),
     spellInstanceId,
@@ -2081,7 +2091,7 @@ export async function executeSpellAreaResolution(
   let suppressMatchedVisual = false;
   let teleportHistoryPending = false;
   const sceneEpoch = plan.operationSceneEpoch;
-  const optimisticUpdates = quickHPVisualUpdates(entries);
+  const optimisticUpdates = plan.sharedHpPreview.groups.length ? plan.sharedHpPreview.updates : quickHPVisualUpdates(entries);
   if (optimisticUpdates.length && runtime.isCurrent(sceneEpoch)) {
     hpVisualTransaction = createQuickHPVisualTransaction(optimisticUpdates, {
       syncVisuals: (updates) => runtime.syncHPVisuals(
@@ -2111,6 +2121,7 @@ export async function executeSpellAreaResolution(
         itemId: entry.item.id,
         hp: entry.change.afterHP,
         hpMax: entry.change.hpMax,
+        hpIntent: sharedHpIntent(entry, command.commandId || runtime.operationId || plan.spellInstanceId),
         expectedHP: entry.change.hp,
         expectedHPMax: entry.change.hpMax,
       }));
@@ -2131,6 +2142,7 @@ export async function executeSpellAreaResolution(
       ];
       const coordinatedSideEffects = spellBoardTokenSideEffects;
       const mutation = await runtime.runEffectsMutation(operations, {
+        sharedHp: command.sharedHp,
         history: {
           kind: "spell",
           label: `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Porta Dimensionale"}`,
@@ -2156,7 +2168,7 @@ export async function executeSpellAreaResolution(
       });
       if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-teleport");
       runtime.requireAppliedEffectsMutation(mutation);
-      coordinatedMutation = mutation.commitResult || mutation;
+      coordinatedMutation = mutation;
       canonicalCommitted = mutation.committed === true
         || mutation.commitResult?.committed === true;
       recordedEntry = mutation.historyEntry || null;
@@ -2227,12 +2239,17 @@ export async function executeSpellAreaResolution(
           canonicalCommitted = true;
           if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-zone-delete");
         }
-        await updateHP(runtime, entries);
-        if (entries.length) {
+        const sharedHp = plan.sharedHpPreview.groups.length > 0;
+        if (!sharedHp) await updateHP(runtime, entries);
+        if (entries.length && !sharedHp) {
           canonicalCommitted = true;
           if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-hp-commit");
         }
         const operations = [
+          ...(sharedHp && entries.length ? [{ type: "hp:set", updates: entries.map(entry => ({
+            itemId: entry.item.id, hp: entry.change.afterHP, hpMax: entry.change.hpMax,
+            hpIntent: sharedHpIntent(entry, command.commandId || runtime.operationId || plan.spellInstanceId),
+          })) }] : []),
           ...(plan.zeroHPReconcileIds.length ? [{
             type: "condition:reconcile-zero-hp",
             targetIds: plan.zeroHPReconcileIds,
@@ -2254,6 +2271,7 @@ export async function executeSpellAreaResolution(
           if (!operations.length && !coordinatedSideEffects.length && !plan.bossActionUse?.metadataPatches.length) return true;
           coordinatedMutation = await runtime.runEffectsMutation(operations, {
             history: false,
+            sharedHp: command.sharedHp,
             ...(plan.bossActionUse ? {
               metadataPatches: plan.bossActionUse.metadataPatches,
               sceneMetadataPreconditions: plan.bossActionUse.sceneMetadataPreconditions,
@@ -2303,7 +2321,7 @@ export async function executeSpellAreaResolution(
         if (runtime.isCurrent(sceneEpoch)) {
           if (addedNextZone) await runtime.deleteItems(plan.nextStaticZoneItems.map((item) => item.id)).catch(() => {});
           if (removedPreviousZone) await runtime.addItems(plan.previousStaticZoneItems).catch(() => {});
-          await restoreHPIfUnchanged(runtime, entries).catch(() => {});
+          if (!plan.sharedHpPreview.groups.length) await restoreHPIfUnchanged(runtime, entries).catch(() => {});
         }
         throw error;
       }
@@ -2386,14 +2404,16 @@ export async function executeSpellAreaResolution(
     });
   }
   const hpChanges = hpResultChanges(entries);
+  const committedHpUpdates = sharedHpCommittedUpdates(coordinatedMutation, entries);
+  if (plan.sharedHpPreview.groups.length) await runtime.syncHPVisuals(committedHpUpdates, () => runtime.isCurrent(sceneEpoch));
   await Promise.all([
-    runtime.syncHPBatchToMemory(entries.map((entry) => ({
-      itemId: entry.item.id,
-      hp: entry.change.afterHP,
-      hpMax: entry.change.hpMax,
+    runtime.syncHPBatchToMemory(committedHpUpdates.map((update) => ({
+      itemId: update.tokenId,
+      hp: update.hp,
+      hpMax: update.hpMax,
     })), {
       sceneEpoch,
-      items: entries.map((entry) => entry.item),
+      items: plan.allItems,
       isCurrent: () => runtime.isCurrent(sceneEpoch),
     }).catch((error) => warnings.push(normalizedError(error, "hp-memory"))),
     Promise.resolve(runtime.onConcentrationWarnings(entries, plan))

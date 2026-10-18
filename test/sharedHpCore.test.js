@@ -108,3 +108,13 @@ test("unlinked tokens keep legacy operations and arbitrary non-HP patches", () =
   assert.deepEqual(result.metadataPatches, patches);
   assert.deepEqual(result.groups, []);
 });
+
+test("merged spell patches retain distinct hit intentions rather than overwriting damage", () => {
+  const result = planSharedHpMutation({ items: scene(), operations: [], metadataPatches: [
+    { id: "hand", fields: { hp: { value: 265 }, hpMax: { value: 400 } }, hpIntents: [
+      { mode: "damage", amount: 25, eventId: "ray-1" }, { mode: "damage", amount: 10, eventId: "ray-2" },
+    ] }, { id: "head", fields: { hp: { value: 280 }, hpMax: { value: 400 } },
+      hpIntent: { mode: "damage", amount: 20, eventId: "ray-3" } },
+  ] });
+  assert.deepEqual(Object.values(values(result)), [245, 245, 245, 245]);
+});

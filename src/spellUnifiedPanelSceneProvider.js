@@ -255,6 +255,7 @@ function targetCandidate(item, dpi = 150) {
     turbineSize: turbineSizeFromToken({ item, dpi }) || null,
     layer: item?.layer || null,
     isCreature: item?.layer === "CHARACTER",
+    sharedHpSourceId: text(meta.sharedHpSourceId),
   };
 }
 
@@ -274,7 +275,11 @@ export async function getAllSpellTargetItems(obr, spellId = "") {
       && Number.isFinite(Number(item?.metadata?.[META_KEY]?.hpMax))
   )).catch(() => []);
   const byId = new Map();
-  for (const item of [...characters, ...boardTokens]) {
+  const sharedMembers = await sceneApi(obr).getItems(item => item.layer === "CHARACTER" && !item.attachedTo
+    && !!item.metadata?.[META_KEY]?.sharedHpSourceId).catch(() => []);
+  const sharedSources = sharedMembers.length ? await sceneApi(obr).getItems(uniqueSceneIds(sharedMembers
+    .map(item => item.metadata[META_KEY].sharedHpSourceId))).catch(() => []) : [];
+  for (const item of [...characters, ...boardTokens, ...sharedMembers, ...sharedSources]) {
     if (item?.id) byId.set(item.id, item);
   }
   return [...byId.values()];

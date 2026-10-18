@@ -336,6 +336,7 @@ export function buildSpellUnifiedAreaCommand({
     targetLocked: locked,
     placement,
     hp: hpInput(contract, session),
+    sharedHp: session?.sharedHp,
     sceneEpoch,
     currentSceneEpoch: sceneEpoch,
     expectedSceneEpoch: sceneEpoch,

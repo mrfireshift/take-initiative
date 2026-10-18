@@ -556,6 +556,7 @@ async function buildPreparedInitialDamageMutation({
     if (!hpChange.changed) continue;
     metadataPatches.push({
       id: targetId,
+      hpIntent: { mode: "damage", amount: damage, eventId: "prepared-initial-damage" },
       fields: {
         hp: {
           expected: metadataSnapshot(meta, "hp"),
@@ -940,6 +941,7 @@ export async function executeSpellActiveResolution({
   attackOutcome = "",
   saveAbility = "",
   attacks = [],
+  sharedHp = {},
   shorteningFrom = "",
   naturalStormBonus = false,
   sceneEpoch = null,
@@ -1034,6 +1036,7 @@ export async function executeSpellActiveResolution({
   }
   const byId = new Map(items.map((item) => [item.id, item]));
   const metadataPatches = [];
+  const sharedHpIntents = [];
   const operations = [];
   const unconsciousIds = [];
   const unconsciousRemovals = [];
@@ -1261,6 +1264,8 @@ export async function executeSpellActiveResolution({
         const item = byId.get(contribution.targetId);
         const meta = item?.metadata?.[`${ID}/meta`] || {};
         const amount = Math.max(0, Math.floor(Number(contribution.amount) || 0));
+        sharedHpIntents.push({ targetId: contribution.targetId, mode: "damage", amount,
+          eventId: `prismatic-layer:${sharedHpIntents.length}` });
         if (amount <= 0) continue;
         if (
           !item
@@ -1451,6 +1456,7 @@ export async function executeSpellActiveResolution({
         hpMax: meta.hpMax,
       });
       resolutionHealingByTarget.set(targetId, { healing, hpChange });
+      sharedHpIntents.push({ targetId, mode: "heal", amount: healing.amount, eventId: "active-healing" });
       if (hpChange.changed) {
         metadataPatches.push({
           id: targetId,
@@ -1498,6 +1504,8 @@ export async function executeSpellActiveResolution({
         });
         if (!damage.valid) throw new Error("active-resolution-damage-invalid");
         resolutionDamageByTarget.set(targetId, { damage, outcome });
+        sharedHpIntents.push({ targetId, mode: "damage", amount: damage.amount,
+          eventId: action?.resolutionKind === "single-attack" ? `active-attack:${sharedHpIntents.length}` : "active-save" });
         if (damage.amount <= 0) continue;
         if (!item
           || !Object.prototype.hasOwnProperty.call(meta, "hp")
@@ -1656,6 +1664,17 @@ export async function executeSpellActiveResolution({
     operations.push({ type: "condition:remove-instances", removals: unconsciousRemovals });
   }
   const spellName = String(payload.spellName || payload.spellId).trim();
+  for (const targetId of new Set(sharedHpIntents.map(entry => entry.targetId))) {
+    const meta = byId.get(targetId)?.metadata?.[`${ID}/meta`] || {};
+    let patch = metadataPatches.find(entry => entry.id === targetId);
+    if (!patch && Number.isFinite(Number(meta.hp)) && Number(meta.hpMax) > 0) {
+      patch = { id: targetId, fields: { hp: { value: meta.hp, expected: metadataSnapshot(meta, "hp") },
+        hpMax: { value: meta.hpMax, expected: metadataSnapshot(meta, "hpMax") } } };
+      metadataPatches.push(patch);
+    }
+    if (patch) patch.hpIntents = sharedHpIntents.filter(entry => entry.targetId === targetId)
+      .map(({ mode, amount, eventId }) => ({ mode, amount, eventId }));
+  }
   const actionLabel = String(action.buttonLabel || action.label || "Attivazione").trim();
   const causalTargets = ids.map((targetId) => {
     const item = byId.get(targetId);
@@ -1698,6 +1717,7 @@ export async function executeSpellActiveResolution({
   };
   const mutation = await runEffectsMutation(operations, {
     kind: "spell-active-resolution",
+    sharedHp,
     label: `Attivazione: ${spellName} · ${actionLabel}`,
     targetIds: [payload.casterId, ...ids],
     metadataPatches,

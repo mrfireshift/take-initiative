@@ -394,6 +394,7 @@ export function buildBossActionMutation({
     change,damageComponents,manualText,causality,conditions,drain:causality.drain || null,
     operations:[...(change?.changed || drain?.healing.changed ? [{type:"hp:set",updates:[
       ...(change?.changed?[{itemId:targetItem.id,hp:change.afterHP,hpMax:change.hpMax,
+        hpIntent:{mode:"damage",amount:change.requested,eventId:actionInstanceId},
         expectedHP:bossMetadataSnapshot(targetMeta,"hp"),expectedHPMax:bossMetadataSnapshot(targetMeta,"hpMax")}]:[]),
       ...(drain?.healing.changed?[{itemId:sourceItem.id,hp:drain.healing.afterHP,hpMax:drain.healing.hpMax,
         expectedHP:bossMetadataSnapshot(sourceMeta,"hp"),expectedHPMax:bossMetadataSnapshot(sourceMeta,"hpMax")}]:[]),
@@ -641,7 +642,8 @@ export function buildBossActionGroupMutation({
     const meta = target.metadata?.[META_KEY] || {};
     const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax});
     changes.push({targetId:target.id,targetName:target.name || target.id,outcome,change});
-    if (change.changed) hpUpdates.push({itemId:target.id,hp:change.afterHP,hpMax:change.hpMax,
+    if (change.changed || components.length && (meta.sharedHpSourceId || targets.some(item=>item.metadata?.[META_KEY]?.sharedHpSourceId===target.id))) hpUpdates.push({itemId:target.id,hp:change.afterHP,hpMax:change.hpMax,
+      hpIntent:{mode:"damage",amount:change.requested,eventId:actionInstanceId},
       expectedHP:bossMetadataSnapshot(meta,"hp"),expectedHPMax:bossMetadataSnapshot(meta,"hpMax")});
     // An immune creature still takes the damage; only the condition it is immune to is skipped.
     const conditions = outcome === "failed" && !immune ? failedConditions.map((entry) => ({condition:entry.condition,
@@ -834,6 +836,7 @@ export function buildBossActionGroupAttackMutation({
     const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax});
     changes.push({targetId:target.id,targetName:target.name || target.id,outcome,change});
     if (change.changed) hpUpdates.push({itemId:target.id,hp:change.afterHP,hpMax:change.hpMax,
+      hpIntent:{mode:"damage",amount:change.requested,eventId:`${actionInstanceId}:${target.id}`},
       expectedHP:bossMetadataSnapshot(meta,"hp"),expectedHPMax:bossMetadataSnapshot(meta,"hpMax")});
     causalTargets.push({id:target.id,name:target.name,outcome,requestedDamage,appliedHpDelta:change.delta,hpBefore:change.hp,hpAfter:change.afterHP,
       damageComponents,conditions:[],...(markedIds.includes(target.id)?{markRule:true}:{})});

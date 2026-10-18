@@ -4,6 +4,7 @@ import {
   SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES,
   SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
   spellActiveResolutionDamageFormula,
+  resolveSpellActiveResolutionDamage,
   spellActiveResolutionHealingFormula,
   spellActiveResolutionAttackDamageRequired,
   spellActiveResolutionSelectedTargetId,
@@ -42,6 +43,9 @@ import {
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
 import { ID } from "./constants.js";
+import { buildSharedHpPreview } from "./sharedHpViewCore.js";
+import { calculateQuickHPChange } from "./quickHpCore.js";
+import { renderSharedHpControls } from "./sharedHpControls.js";
 import { areaHitsBounds, buildArea, buildCellBoundaryLoops, buildCircleArea } from "./aoeGeometryCore.js";
 import { gridPlanarDistance } from "./distance3dCore.js";
 import { spellAreaGridCells, spellAreaOriginWithinRange } from "./spellAreaPlacementCore.js";
@@ -67,6 +71,7 @@ let placement = null;
 let childPlacements = [];
 let childActivationId = "";
 let sceneItems = [];
+let sharedHpSelection = { policy: "once", chosenTargetIds: {} };
 let outcomes = new Map();
 let selectedAttackTarget = "";
 let selectedSaveTarget = "";
@@ -2111,6 +2116,22 @@ function render() {
     }
     void renderStorm();
   }
+  let sharedControls = $("sharedHpControls");
+  if (!sharedControls) { sharedControls = document.createElement("div"); sharedControls.id = "sharedHpControls";
+    $("summary").parentElement.appendChild(sharedControls); }
+  sharedControls.hidden = true;
+  if (save && !child && payload.action.damage) {
+    const entries = currentTargetItems().filter(item => outcomes.has(item.id)).map(item => {
+      const damage = resolveSpellActiveResolutionDamage({ action: payload.action, slotLevel: payload.slotLevel,
+        outcome: outcomes.get(item.id), roll: Number($("damage").value) });
+      return { item, change: damage.valid ? calculateQuickHPChange({ mode: "damage", value: damage.amount,
+        hp: item.metadata?.[META_KEY]?.hp, hpMax: item.metadata?.[META_KEY]?.hpMax }) : null };
+    });
+    const preview = buildSharedHpPreview(sceneItems, entries, sharedHpSelection);
+    renderSharedHpControls(sharedControls, preview, sharedHpSelection,
+      next => { sharedHpSelection = next; render(); }, { disabled: busy });
+    if (preview.conflicts.length) $("apply").disabled = true;
+  }
   if (statusMessage) $("status").textContent = statusMessage;
   requestCompactPopoverResize();
 }
@@ -2495,6 +2516,7 @@ async function apply() {
       prismaticTraversalId = sceneOperationId("prismatic-wall-traversal");
     }
     const executionResult = await executeSpellActiveResolution({
+      sharedHp: sharedHpSelection,
       payload,
       placement,
       targetIds: isTelekinesisContest()

@@ -1,5 +1,8 @@
 import OBR, { buildImage } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { buildSharedHpPreview } from "./sharedHpViewCore.js";
+import { calculateQuickHPChange } from "./quickHpCore.js";
+import { renderSharedHpControls } from "./sharedHpControls.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { importBossActionHTML } from "./bossActionProfileCore.js";
 import { createBossActionProfileStore, latestRevision } from "./bossActionProfileStore.js";
@@ -1372,6 +1375,15 @@ export function bootBossActions(documentRef=document, overrides={}) {
   }
   function renderGroupState() {
     if(!draft) return;
+    let sharedControls=$("boss-shared-hp");
+    if(!sharedControls){sharedControls=node("div","","muted");sharedControls.id="boss-shared-hp";resolution.appendChild(sharedControls);}
+    const sharedEntries=draft.targetIds.map(id=>({item:targetById(id),amount:groupRowDamage(draft.outcomes[id],id)}))
+      .filter(entry=>entry.item && entry.amount!==null).map(({item,amount})=>({item,
+        eventId:attackGroup()?`boss-attack:${item.id}`:"boss-damage",change:calculateQuickHPChange({value:amount,
+          hp:item.metadata?.[META_KEY]?.hp,hpMax:item.metadata?.[META_KEY]?.hpMax})}));
+    const sharedPreview=buildSharedHpPreview([presentation.item,...targets],sharedEntries,draft.sharedHp || {});
+    renderSharedHpControls(sharedControls,sharedPreview,draft.sharedHp || {},next=>{draft.sharedHp=next;renderGroupState();persistDraft();},
+      {documentRef,disabled:busy});
     const confirm=$("boss-manual-confirmed");if(confirm){confirm.checked=draft.manualConfirmed;confirm.disabled=busy || !!draft.drawing;}
     // A completed step collapses to one line so the target list keeps its room; unchecking shows it in full again.
     const restrictionsText=$("boss-group-restrictions-text");
@@ -1408,7 +1420,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
           drawnCount:(draft.areas || []).length,...((multiArea() || segmentArea())&&areaDrawn()?{area:draft.areas}:{}),
           outcomeValues:bossGroupOutcomes(draft.action).map(([value])=>value),
           missingDamageIds:bossGroupMissingDamageIds(draft.action,draft.targetIds,draft.outcomes,draft.targetAmounts)}));
-      apply.disabled=busy || !!reason;apply.title=reason || "Applica";
+      apply.disabled=busy || !!reason || sharedPreview.conflicts.length>0;apply.title=reason || "Applica";
       const hint=$("boss-apply-hint");if(hint)hint.textContent=busy?"Applicazione in corso…":reason;
     }
   }
@@ -1697,6 +1709,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     return perform(async operation=>{
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({...validation.value,ignoredDefenses:frozen.ignoredDefenses,
+        sharedHp:active.sharedHp || {},
         expectedDefenses:frozen.expectedDefenses,...(active.action.execution.onPassed?.immunity?{expectedImmuneIds:frozen.expectedImmuneIds}:{}),
         expectedMarkedIds:frozen.expectedMarkedIds,...(evasionAppliesTo(active.action.execution)?{expectedEvasionIds:frozen.expectedEvasionIds}:{}),
         ...(sequenceWarning(active.action)?{sequenceConfirmed:active.sequenceConfirmed===true}:{}),...active.binding});

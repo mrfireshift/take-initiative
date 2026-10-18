@@ -1637,6 +1637,7 @@ export function bootSpellUnifiedPanel(
         const hasUndo = result.undoAvailable === true && !!result.historyEntryId;
         state.session = updateSpellPanelSession(state.session, {
           ...(state.session.monsterActionContext ? { monsterActionCompleted: true } : {}),
+          sharedHp: { policy: "once", chosenTargetIds: {} },
           commitState: {
             state: "committed",
             activationId: result.historyEntryId || result.instanceId || null,
@@ -2539,6 +2540,7 @@ export function bootSpellUnifiedPanel(
       targetContext: {},
       placement: null,
       hpValues: { hp: null, damage: null, healing: null },
+      sharedHp: { policy: "once", chosenTargetIds: {} },
       castContext: {
         ...state.session.castContext,
         ...(state.contract?.presentation?.composition?.key
@@ -3215,6 +3217,7 @@ export function bootSpellUnifiedPanel(
     onHpChange: (field, value) => patchSession({
       hpValues: { ...state.session.hpValues, [field]: numeric(value) },
     }),
+    onSharedHpChange: (sharedHp) => patchSession({ sharedHp }),
     onBoardTokenUpdate: (payload) => void updateBoardToken(payload),
     onBoardTokenRecreate: (overview) => void recreateBoardToken(overview),
     onActiveTerminate: (overview) => void terminateActiveSpell(overview),

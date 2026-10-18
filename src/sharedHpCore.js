@@ -86,7 +86,10 @@ export function planSharedHpMutation({ items, operations = [], metadataPatches =
   const contributions = [];
   for (const operation of operations) {
     if (operation.type !== "hp:set") continue;
-    for (const update of operation.updates || []) contributions.push({ ...update, damageEnds: operation.damageEnds });
+    for (const update of operation.updates || []) {
+      const intents = update.hpIntents?.length ? update.hpIntents : [update.hpIntent];
+      for (const hpIntent of intents) contributions.push({ ...update, hpIntent, damageEnds: operation.damageEnds });
+    }
   }
   for (const patch of metadataPatches) {
     if (!["hp", "hpMax"].some(field => patch.fields?.[field] && patch.fields[field].mode !== "assert")) continue;
@@ -95,9 +98,10 @@ export function planSharedHpMutation({ items, operations = [], metadataPatches =
       const resolved = resolveSharedHpGroup(items, patch.id, { metadataKey });
       if (!resolved.status && resolved.memberIds.length > 1) return conflict(patch.id, "shared-hp-incompatible-values");
     }
-    contributions.push({ itemId: patch.id, hp: patch.fields?.hp?.value ?? meta.hp,
+    const intents = patch.hpIntents?.length ? patch.hpIntents : [patch.hpIntent];
+    for (const hpIntent of intents) contributions.push({ itemId: patch.id, hp: patch.fields?.hp?.value ?? meta.hp,
       hpMax: patch.fields?.hpMax?.value ?? meta.hpMax, expectedHP: patch.fields?.hp?.expected,
-      expectedHPMax: patch.fields?.hpMax?.expected, hpIntent: patch.hpIntent });
+      expectedHPMax: patch.fields?.hpMax?.expected, hpIntent });
   }
   const bySource = new Map();
   const groupedIds = new Set();

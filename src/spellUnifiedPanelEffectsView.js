@@ -4,6 +4,7 @@ import {
   createNode,
 } from "./spellUnifiedPanelDom.js";
 import { spellColorFor } from "./spellColorCore.js";
+import { renderSharedHpControls } from "./sharedHpControls.js";
 
 export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
   const active = model.active;
@@ -518,6 +519,12 @@ export function renderEffectInputPanel(documentRef, model, callbacks = {}) {
     }
     section.append(previewSection);
   }
+  if (preview?.sharedHp) {
+    const controls = createNode(documentRef, "div", { className: "unified-hp-preview" });
+    renderSharedHpControls(controls, preview.sharedHp, preview.sharedHpSelection,
+      next => callbacks.onSharedHpChange?.(next), { documentRef, disabled: model.workflow.disabled });
+    section.append(controls);
+  }
   return section;
 }
 
@@ -601,6 +608,7 @@ export function renderReviewFooter(documentRef, model, callbacks = {}) {
     className: "unified-primary-button",
     disabled: placementRequired
       || primaryModel.disabled
+      || (model.effects?.preview?.sharedHp?.conflicts?.length > 0)
       || (!activePrimary && model.workflow.disabled),
     attributes: {
       "data-primary-action": primaryModel.id,

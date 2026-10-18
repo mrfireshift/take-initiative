@@ -1882,6 +1882,7 @@ export function createSpellPanelSession({
   targetContext = {},
   placement = null,
   hpValues = {},
+  sharedHp = {},
   hpValue,
   damageValue,
   primaryDamageValue,
@@ -1933,6 +1934,8 @@ export function createSpellPanelSession({
       primaryDamage: primaryDamageValue,
       healing: healingValue,
     }),
+    sharedHp: { policy: sharedHp?.policy === "per-token" ? "per-token" : "once",
+      chosenTargetIds: recordValue(sharedHp?.chosenTargetIds) },
     triggerRuntime: triggerRuntime && typeof triggerRuntime === "object"
       ? cloneValue(triggerRuntime)
       : null,
@@ -2006,6 +2009,7 @@ function resetRuntimeState(current) {
     targetContext: {},
     placement: null,
     hpValues: { hp: null, damage: null, healing: null },
+    sharedHp: { policy: "once", chosenTargetIds: {} },
     triggerRuntime: null,
     activeConcentration: null,
     feedback: normalizedFeedback(null),
