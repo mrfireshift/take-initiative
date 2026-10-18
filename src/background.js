@@ -66,7 +66,10 @@ import {
   startActorVitalsRuntime,
 } from "./actorVitalsStore.js";
 import { isLegacyActorMigrationEligible } from "./actorIdentityCore.js";
-import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
+import { createSharedHpInitiativeController } from "./sharedHpInitiativeController.js";
+import { enqueueInitiativeStateReducer } from "./initiativeStateGateway.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import {
   mountFireballVisualRenderer,
   unmountFireballVisualRenderer,
@@ -274,6 +277,17 @@ OBR.onReady(async () => {
   });
   void bootstrapActorVitalsRuntime();
   void mountEffectsMutationCoordinatorService().then(async () => {
+    if (await OBR.player.getRole() === "GM") {
+      const sharedHpInitiative = createSharedHpInitiativeController({
+        readItems: () => OBR.scene.items.getItems(), enqueueStateReducer: enqueueInitiativeStateReducer,
+        subscribeItems: subscribeSceneItemChanges, getSceneEpoch: currentSceneEpoch, isCurrent: isCurrentSceneEpoch,
+      });
+      await sharedHpInitiative.start();
+      const unsubscribeEpoch = subscribeSceneEpoch(({ phase }) => {
+        if (phase === "ready") void sharedHpInitiative.reconcile().catch(error => console.warn("[shared-hp] scene:", error));
+      });
+      window.addEventListener("pagehide", () => { sharedHpInitiative.stop(); unsubscribeEpoch(); }, { once: true });
+    }
     await Promise.all(optionalRuntimes.map(([selector, lifecycle]) => (
       bindOptionalRuntimeOption({
         service: runtimeOptionsService,

@@ -77,6 +77,7 @@ export default defineConfig(() => {
         delayedBlastFireballResolution: path.resolve(process.cwd(), "delayed-blast-fireball-resolution.html"),
         spellTurnActionChoice: path.resolve(process.cwd(), "spell-turn-action-choice.html"),
         customAuraModal: path.resolve(process.cwd(), "custom-aura-modal.html"),
+        sharedHpModal: path.resolve(process.cwd(), "shared-hp-modal.html"),
         optionsModal: path.resolve(process.cwd(), "options-modal.html"),
       },
     },

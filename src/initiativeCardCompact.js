@@ -596,6 +596,10 @@ export function buildCompactCardName(
   name.title = entry.__groupCollapsed
     ? `${entry.__groupBase} (x${entry.__groupCount})`
     : entry.name;
+  if (entry.sharedHpMemberCount) {
+    name.textContent += ` · HP×${entry.sharedHpMemberCount + 1}`;
+    name.title += ` · HP condivisi: ${entry.sharedHpMemberCount + 1} token`;
+  }
   Object.assign(name.style, {
     width: "100%",
     height: "14px",

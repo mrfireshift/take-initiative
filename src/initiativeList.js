@@ -18,6 +18,7 @@ import {
   unmountHPBars,
 } from "./hpbar-items.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
+import { isSharedHpInitiativeExcluded, sharedHpScopeIds } from "./sharedHpCore.js";
 import { refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
 import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 import {
@@ -1499,7 +1500,7 @@ function makeAddAllInitiativeBtn() {
         item.layer === "CHARACTER" && !item.attachedTo
       ));
       if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
-      const pending = items.filter((item) => item.metadata?.[META_KEY]?.inInitiative !== true);
+      const pending = items.filter((item) => item.metadata?.[META_KEY]?.inInitiative !== true && !isSharedHpInitiativeExcluded(item));
       if (!pending.length) {
         await OBR.notification.show("Tutti i token sono gia nell'iniziativa.", "INFO");
         return;
@@ -4666,7 +4667,7 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
 
 function entryFromSceneItem(it, characterBuildBySourceId = null) {
   const meta = it?.metadata?.[META_KEY];
-  if (!it?.id || !meta || meta.inInitiative !== true) return null;
+  if (!it?.id || !meta || meta.inInitiative !== true || isSharedHpInitiativeExcluded(it)) return null;
   const initiativeCard = getInitiativeCard(it);
   const safeConditions = __safeConditions(meta.conditions);
   const conditions = appendClassFeatureConditionInstances(
@@ -4765,6 +4766,8 @@ async function readEntries(items = null) {
     if (seen.has(it?.id)) continue;
     const entry = entryFromSceneItem(it, characterBuildBySourceId);
     if (!entry) continue;
+    const sharedHpMemberCount = sourceItems.filter(item => item.metadata?.[META_KEY]?.sharedHpSourceId === it.id).length;
+    if (sharedHpMemberCount) entry.sharedHpMemberCount = sharedHpMemberCount;
     seen.add(it.id);
     out.push(entry);
   }

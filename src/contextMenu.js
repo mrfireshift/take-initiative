@@ -274,6 +274,22 @@ async function toggleEpicBossOn(ids) {
       },
     });
 
+    OBR.contextMenu.create({
+      id: `${ID}/shared-hp`, group: MENU_GROUP,
+      icons: [{ icon: ASSET("quick-damage.svg"), label: "HP condivisi", filter: { roles: ["GM"], every: [isCharacter()] } }],
+      onClick: async ({ items }) => {
+        if (await OBR.player.getRole() !== "GM") return;
+        const query = new URLSearchParams();
+        for (const item of items || []) query.append("tokenId", item.id);
+        const width = Math.min(500, Math.max(340, Number(await OBR.viewport.getWidth()) - 32));
+        const height = Math.min(680, Math.max(340, Number(await OBR.viewport.getHeight()) - 72));
+        await openTrackedPopover({ id: `${ID}/shared-hp-modal`, url: `/shared-hp-modal.html?${query}`,
+          width, height, anchorReference: "POSITION", anchorPosition: { left: 32, top: 32 },
+          anchorOrigin: { horizontal: "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+          disableClickAway: true, hidePaper: true });
+      },
+    });
+
     /* ======================= “Segna come…” (EMBED) ======================= */
     OBR.contextMenu.create({
       id: `${ID}/mark-as`,

@@ -59,6 +59,8 @@ export function planSharedHpLinks(items, operation, { metadataKey = META_KEY } =
   const source = byId.get(operation.sourceId);
   const sourceMeta = metaOf(source, metadataKey);
   if (!real(source) || !validHP(sourceMeta) || text(sourceMeta.sharedHpSourceId)) return conflict(operation.sourceId);
+  if (operation.expectedSourceHP && (operation.expectedSourceHP.hp !== sourceMeta.hp
+    || operation.expectedSourceHP.hpMax !== sourceMeta.hpMax)) return conflict(source.id, "shared-hp-incompatible-values");
   // Keep source values and topology checked at commit, even if they are unchanged.
   patches.push({ id: source.id, fields: Object.fromEntries(["hp", "hpMax", "sharedHpSourceId"]
     .map(field => [field, { mode: "assert", expected: snapshot(sourceMeta, field) }])) });

@@ -1,6 +1,7 @@
 // src/ctx-add.ts
 import OBR, { type Theme } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { isSharedHpInitiativeExcluded } from "./sharedHpCore.js";
 import { rememberFactionForIds } from "./factionRegistry.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
@@ -78,6 +79,7 @@ async function addToInitiative(attitude: "ally" | "neutral" | "enemy" | "pc") { 
 
     await OBR.scene.items.updateItems(ids, (items) => {
   for (const it of items) {
+    if (isSharedHpInitiativeExcluded(it)) continue;
     it.metadata = it.metadata || {};
     const prev = (it.metadata as any)[META_KEY] || {};
     (it.metadata as any)[META_KEY] = {

@@ -428,6 +428,13 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
   });
 }
 name.appendChild(nameLabel);
+if (e.sharedHpMemberCount) {
+  const sharedHpBadge = document.createElement("span");
+  sharedHpBadge.textContent = `HP condivisi · ${e.sharedHpMemberCount + 1}`;
+  sharedHpBadge.title = "Token collegati alla stessa riserva HP";
+  Object.assign(sharedHpBadge.style, { fontSize: "10px", opacity: ".8", marginLeft: "6px" });
+  name.appendChild(sharedHpBadge);
+}
 
 
 let cardToolsDock = null;
