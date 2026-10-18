@@ -1003,7 +1003,7 @@ export async function prepareEffectsMutation(operations = [], {
   if (!canPrepare()) return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "stale-after-read" };
   let metadataPatches = Array.isArray(command.metadataPatches) ? command.metadataPatches : [];
   let sharedHpGroups = [];
-  const linkOperations = operations.filter(operation => ["shared-hp:link", "shared-hp:unlink"].includes(operation?.type));
+  const linkOperations = operations.filter(operation => ["shared-hp:link", "shared-hp:unlink", "shared-hp:visibility"].includes(operation?.type));
   if (linkOperations.length) {
     if (await OBR.player.getRole() !== "GM") return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "shared-hp-gm-only" };
     if (!canPrepare()) return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "stale-after-role" };
@@ -1030,7 +1030,11 @@ export async function prepareEffectsMutation(operations = [], {
   // lane. Only the projection sees the new HP; History still sees sceneItems.
   const hpPatches = [];
   const hpOperations = [];
-  const hpProjectedItems = sceneItems.map((item) => ({ ...item, metadata: { ...item.metadata } }));
+  const projectedAttitudes = new Map(metadataPatches.filter(patch => Object.hasOwn(patch.fields?.attitude || {}, "value"))
+    .map(patch => [patch.id, patch.fields.attitude.value]));
+  const hpProjectedItems = sceneItems.map((item) => ({ ...item, metadata: { ...item.metadata,
+    ...(projectedAttitudes.has(item.id) ? { [META_KEY]: { ...item.metadata?.[META_KEY], attitude: projectedAttitudes.get(item.id) } } : {}),
+  } }));
   const hpItemsById = new Map(hpProjectedItems.map((item) => [item.id, item]));
   for (const operation of operations) {
     if (operation?.type !== "hp:set") {

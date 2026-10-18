@@ -148,6 +148,12 @@ export function projectTrackerEntry(entry, {
       role, surface, hpPolicy, effectsPolicy, bossDetails,
     }));
   }
+  if (Array.isArray(entry.sharedHpChildren)) {
+    next.sharedHpChildren = entry.sharedHpTrackerVisibility === "all"
+      ? entry.sharedHpChildren.map(child => projectTrackerEntry(child, { role, surface, hpPolicy, effectsPolicy, bossDetails }))
+      : [];
+    if (entry.sharedHpTrackerVisibility !== "all") next.sharedHpMemberCount = 0;
+  }
   return next;
 }
 

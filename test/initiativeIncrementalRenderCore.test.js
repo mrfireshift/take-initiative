@@ -93,3 +93,13 @@ test("una raffica mista usa il fallback strutturale e ignora token fuori iniziat
   });
   assert.deepEqual(plan([outsideBefore], [outsideAfter]), { mode: "none", itemIds: [] });
 });
+
+test("shared HP child changes invalidate their principal, including unlink and deletion", () => {
+  const source = token({ id: "source" });
+  const child = token({ id: "hand", metadata: { [META_KEY]: { hp: 10, hpMax: 10, sharedHpSourceId: "source" } } });
+  const damaged = { ...child, metadata: { [META_KEY]: { ...child.metadata[META_KEY], hp: 6 } } };
+  assert.deepEqual(plan([source, child], [source, damaged]), { mode: "cards", itemIds: ["source"] });
+  for (const after of [[], [{ ...child, name: "New hand" }], [{ ...child, metadata: { [META_KEY]: { hp: 10, hpMax: 10 } } }]]) {
+    assert.equal(plan([source, child], [source, ...after]).mode, "full");
+  }
+});

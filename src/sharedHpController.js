@@ -28,11 +28,14 @@ export function createSharedHpController({ api, runMutation, getSceneContext, is
       if (await api.player.getRole() !== "GM") return { status: "rejected", reason: "shared-hp-gm-only" };
       if (!isCurrent(context)) return { status: "rejected", reason: "shared-hp-stale-scene" };
       return await runMutation([operation], { commandId: context.commandId, sceneIdentity: context.sceneIdentity,
-        history: true, kind: "hp", label: operation.type === "shared-hp:link" ? "Collegati HP condivisi" : "Scollegati HP condivisi",
+        history: true, kind: operation.type === "shared-hp:visibility" ? "shared-hp-settings" : "hp",
+        label: operation.type === "shared-hp:visibility" ? "Visibilità dei token con HP condivisi"
+          : operation.type === "shared-hp:link" ? "Collegati HP condivisi" : "Scollegati HP condivisi",
         targetIds: operation.targetIds });
     } finally { busy = false; }
   }
   return { read,
+    setVisibility: (sourceId, visibility, context) => submit({ type: "shared-hp:visibility", sourceId, targetIds: [sourceId], visibility }, context),
     link: (sourceId, targetIds, context) => submit({ type: "shared-hp:link", sourceId, targetIds,
       ...(context?.expectedSourceHP ? { expectedSourceHP: context.expectedSourceHP } : {}) }, context),
     unlink: (targetIds, context) => submit({ type: "shared-hp:unlink", targetIds }, context),

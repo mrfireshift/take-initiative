@@ -18,6 +18,18 @@ export function planIncrementalTrackerItemRender(event) {
     const wasTracked = beforeMeta?.inInitiative === true;
     const isTracked = afterMeta?.inInitiative === true;
 
+    if (beforeMeta?.sharedHpSourceId || afterMeta?.sharedHpSourceId) {
+      const changedKeys = changedSceneItemMetadataKeys(record?.before, record?.after);
+      if (!beforeItem || !afterItem
+          || beforeMeta?.sharedHpSourceId !== afterMeta?.sharedHpSourceId
+          || record?.before?.nameSignature !== record?.after?.nameSignature
+          || [...changedKeys].some(key => !TRACKER_LOCAL_METADATA_KEYS.has(key))) {
+        return { mode: "full", itemIds: [] };
+      }
+      itemIds.add(afterMeta.sharedHpSourceId);
+      continue;
+    }
+
     if (!wasTracked && !isTracked) continue;
     if (!beforeItem || !afterItem || wasTracked !== isTracked) {
       return { mode: "full", itemIds: [] };

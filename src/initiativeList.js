@@ -19,6 +19,7 @@ import {
 } from "./hpbar-items.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill, syncHPBatchToMemory } from "./hpMemory.js";
 import { isSharedHpInitiativeExcluded, sharedHpScopeIds, planSharedHpMutation } from "./sharedHpCore.js";
+import { sharedHpTrackerChildren, refreshSharedHpTrackerChildren } from "./sharedHpTrackerCore.js";
 import { refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
 import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 import {
@@ -88,6 +89,7 @@ import {
   TRACKER_POPOVER_ID,
   getClassicTrackerScaledFrame,
   getCompactTrackerPopoverAnchor,
+  syncCompactTrackerCompanionParts,
   getCompactTrackerManualWidth,
   getTrackerLayout,
   getTrackerSidePanelAnchor,
@@ -233,6 +235,7 @@ import {
 } from "./initiativeCardCompact.js";
 import {
   compactTrackerGroupProgress,
+  compactTrackerCompanionHeight,
   compactTrackerResizeWidth,
   compactTrackerStageSize,
   compactTrackerViewportWidth,
@@ -4772,7 +4775,11 @@ async function readEntries(items = null) {
     const entry = entryFromSceneItem(it, characterBuildBySourceId);
     if (!entry) continue;
     const sharedHpMemberCount = sharedHpCounts.get(it.id) || 0;
-    if (sharedHpMemberCount) entry.sharedHpMemberCount = sharedHpMemberCount;
+    if (sharedHpMemberCount) {
+      entry.sharedHpMemberCount = sharedHpMemberCount;
+      entry.sharedHpTrackerVisibility = it.metadata?.[META_KEY]?.sharedHpTrackerVisibility || "gm";
+      entry.sharedHpChildren = sharedHpTrackerChildren(sourceItems, it.id);
+    }
     seen.add(it.id);
     out.push(entry);
   }
@@ -4825,7 +4832,7 @@ function __setTrackerSelection(ids) {
       [...next].every((id) => __selectedSceneItemIds.has(id))) return;
   __selectedSceneItemIds = next;
   document.querySelectorAll("[data-tracker-card='1']").forEach(__applyTrackerSelectionState);
-  document.querySelectorAll("[data-spell-board-token-companion='1']")
+  document.querySelectorAll("[data-spell-board-token-companion='1'], [data-shared-hp-companion='1']")
     .forEach((element) => applySpellBoardTokenCompanionSelection(element, __selectedSceneItemIds));
 }
 
@@ -6156,10 +6163,10 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
   const nHPMax = Math.max(0, Math.floor(Number(hpMax) || 0));
   const hasHP = nHPMax > 0;
   const pct = hasHP ? Math.max(0, Math.min(1, nHP / nHPMax)) : 0;
-  for (const pill of document.querySelectorAll('[data-spell-board-token-hp="1"]')) {
+  for (const pill of document.querySelectorAll('[data-spell-board-token-hp="1"], [data-shared-hp-badge="1"]')) {
     if (pill.dataset.itemId !== String(itemId) || pill.dataset.hpEditing === "1") continue;
     pill.textContent = `HP ${nHP} / ${nHPMax}`;
-    const label = pill.dataset.spellBoardTokenLabel || "Mano arcana";
+    const label = pill.dataset.sharedHpLabel || pill.dataset.spellBoardTokenLabel || "Mano arcana";
     pill.title = `Punti ferita di ${label}. Clicca per modificare`;
   }
   const cards = Array.from(document.querySelectorAll("[data-tracker-card='1']"))
@@ -6545,7 +6552,9 @@ function bindHPEditorForEntry(
         isCurrent: (candidateEpoch) => isCurrentSceneEpoch(candidateEpoch),
       }, async () => {
         hpMutations.push(await updateHP(entry.id, nextHP, nextHPMax, { hp: entry.hp, hpMax: entry.hpMax }));
-        await trySeedGroupHP(entry.id, nextHP, nextHPMax, (mutation) => hpMutations.push(mutation));
+        if (options.seedGroupHP !== false) {
+          await trySeedGroupHP(entry.id, nextHP, nextHPMax, (mutation) => hpMutations.push(mutation));
+        }
       });
       if (historyResult?.partial) {
         try { await OBR.notification.show("HP applicati parzialmente; usa History/Undo prima di ripetere.", "WARNING"); }
@@ -6575,6 +6584,7 @@ function bindHPEditorForEntry(
       }
     }),
     editableHPMax: options.editableHPMax !== false,
+    readOnlyHPMaxTitle: options.readOnlyHPMaxTitle,
     commitAndOpenNeighbor: customCommitAndOpenNeighbor || (async ({ goPrev, commit }) => {
       const direction = goPrev ? -1 : 1;
       let targetId = null;
@@ -6694,7 +6704,25 @@ function bindSpellBoardTokenHPEditor(pill, boardToken, spell) {
 
 function bindSpellBoardTokenCompanionHPEditor(pill, companion) {
   if (!IS_GM || !pill || !companion?.itemId) return;
+  if (companion.sharedHp) {
+    bindHPEditorForEntry(pill, null, () => {}, {
+      id: companion.itemId, name: companion.label, hp: companion.hp, hpMax: companion.hpMax,
+    }, {
+      seedGroupHP: false,
+      editableHPMax: false,
+      readOnlyHPMaxTitle: "Il massimo segue gli HP massimi del token principale",
+      formatHP: (hp, hpMax) => `HP ${Math.max(0, Math.floor(Number(hp) || 0))} / ${Math.max(0, Math.floor(Number(hpMax) || 0))}`,
+      commitAndOpenNeighbor: async ({ commit }) => { await commit(); __suspendRenders = false; },
+    });
+    return;
+  }
   bindSpellBoardTokenHPEditor(pill, companion, { name: companion.label });
+}
+
+function __trackerCompanionsForEntry(entry, companionMap) {
+  const companions = spellBoardTokenCompanionsForEntry(entry, companionMap);
+  if (entry?.__groupCollapsed || (entry?.__paragonIndex !== undefined && Number(entry.__paragonIndex) > 0)) return companions;
+  return [...companions, ...(entry.sharedHpChildren || [])];
 }
 
 async function saveClassicTrackerEntryName(entry, nextName) {
@@ -8552,7 +8580,10 @@ function resizeCompactTrackerPopover(
       showToolbar: IS_GM,
       showNavigation: IS_GM,
     });
-  const requestedHeight = 156;
+  const requestedHeight = compactTrackerCompanionHeight(
+    Array.from(track.querySelectorAll("[data-tracker-card='1']"))
+      .map(card => Number.parseFloat(card.style.marginBottom) || 0),
+  );
   const requestKey = `${requestedWidth}x${requestedHeight}@${__trackerViewScale}`;
   if (__lastCompactPopoverSize === requestKey) return;
   __lastCompactPopoverSize = requestKey;
@@ -8578,6 +8609,9 @@ function resizeCompactTrackerPopover(
         __animateCompactTrackerPopoverWidth(width, revision, { syncProgress, duration }),
         OBR.popover.setHeight(TRACKER_POPOVER_ID, Math.round(requestedHeight * scale)),
       ]);
+      if (revision === __compactPopoverResizeRevision && isCompactTrackerLayout()) {
+        await syncCompactTrackerCompanionParts(width, Math.round(requestedHeight * scale), scale);
+      }
     } catch (error) {
       if (revision === __compactPopoverResizeRevision) __lastCompactPopoverSize = "";
       console.warn("[tracker-layout] ridimensionamento compatto fallito:", error?.message || error);
@@ -8681,6 +8715,7 @@ function __copyTrackerCardOuterState(liveCard, nextCard) {
 function __entryMatchesTrackerItemIds(entry, itemIds) {
   if (!(itemIds instanceof Set) || itemIds.size === 0) return true;
   if (entry?.epicBossId && itemIds.has(entry.epicBossId)) return true;
+  if (entry?.sharedHpChildren?.some(child => itemIds.has(child.itemId))) return true;
   return __selectionIdsForEntry(entry).some((id) => itemIds.has(id));
 }
 
@@ -9523,10 +9558,11 @@ function renderCompactTrack(
     __mountTrackerQuickActions(card, entry, { compact: true });
     appendSpellBoardTokenCompanions(
       card,
-      spellBoardTokenCompanionsForEntry(entry, companionsByCasterId),
+      __trackerCompanionsForEntry(entry, companionsByCasterId),
       {
         compact: true,
         faction,
+        onStackChange: () => resizeCompactTrackerPopover(visibleEntries),
         onBindHP: IS_GM ? bindSpellBoardTokenCompanionHPEditor : null,
         onSelect: __selectSpellBoardTokenCompanion,
         selectedIds: __selectedSceneItemIds,
@@ -9724,7 +9760,7 @@ for (const e of entries) {
       const card = buildClassicTrackerCardForRender(entry, state, nextId);
       appendSpellBoardTokenCompanions(
         card,
-        spellBoardTokenCompanionsForEntry(entry, boardTokenCompanionMap),
+        __trackerCompanionsForEntry(entry, boardTokenCompanionMap),
         {
           faction: factionColors(entry.attitude),
           onBindHP: IS_GM ? bindSpellBoardTokenCompanionHPEditor : null,
@@ -9982,7 +10018,10 @@ function __cachedEntriesForIncrementalItems(items, state) {
   );
 
   for (const item of items || []) {
-    const entry = entryFromSceneItem(item, characterBuildBySourceId); // entryFromSceneItem(item) remains the incremental entry contract.
+    const entry = refreshSharedHpTrackerChildren(
+      entryFromSceneItem(item, characterBuildBySourceId), // entryFromSceneItem(item) remains the incremental entry contract.
+      nextById.get(item.id),
+    );
     if (!entry) return null;
     const baseId = entry.id;
     const expanded = expandParagonEntries([entry], state);

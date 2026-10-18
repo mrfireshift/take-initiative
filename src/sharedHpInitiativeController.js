@@ -22,13 +22,15 @@ export function sharedHpInitiativeState(state, items) {
 }
 
 export function createSharedHpInitiativeController({ readItems, enqueueStateReducer, subscribeItems,
-  isCurrent, getSceneEpoch = () => undefined, logger = console }) {
+  isCurrent, getSceneEpoch = () => undefined, reconcileFactions = async () => {}, logger = console }) {
   let unsubscribe = null; let active = false; let generation = 0;
   const reconcile = async () => {
     const scope = generation; const epoch = getSceneEpoch();
     if (!active || !isCurrent(epoch)) return;
     const items = await readItems();
     if (!active || scope !== generation || !isCurrent(epoch) || !items.some(isSharedHpInitiativeExcluded)) return;
+    await reconcileFactions(items, epoch);
+    if (!active || scope !== generation || !isCurrent(epoch)) return;
     return enqueueStateReducer({ kind: "shared-hp-exclusion", ownedFields: ["order", "current", "round", "paragonInits"],
       ...(Number.isInteger(epoch) ? { sceneEpoch: epoch } : {}),
       reducer: async previous => {
@@ -43,7 +45,7 @@ export function createSharedHpInitiativeController({ readItems, enqueueStateRedu
       if (active) return;
       active = true; generation++;
       unsubscribe = subscribeItems(event => {
-        if (!active || event?.flags?.trackerStructure === false) return;
+        if (!active || (event?.flags?.trackerStructure === false && event?.flags?.attitude !== true)) return;
         return reconcile().catch(error => logger.warn("[shared-hp] initiative:", error));
       });
       await reconcile();

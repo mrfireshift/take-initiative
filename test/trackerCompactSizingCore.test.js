@@ -10,7 +10,13 @@ import {
   compactTrackerStageSize,
   compactTrackerViewportWidth,
   compactTrackerWidth,
+  compactTrackerCompanionHeight,
 } from "../src/trackerCompactSizingCore.js";
+
+test("compact height reserves the largest visible companion stack", () => {
+  assert.equal(compactTrackerCompanionHeight([]), 156);
+  assert.equal(compactTrackerCompanionHeight([22, 66, 44]), 222);
+});
 
 test("compactTrackerWidth grows with the visible card count", () => {
   assert.equal(compactTrackerWidth(1), 394);

@@ -236,6 +236,7 @@ export function bindClassicHPEditor({
   afterCommit,
   commitAndOpenNeighbor,
   editableHPMax = true,
+  readOnlyHPMaxTitle = "Il massimo segue gli HP massimi del caster",
   documentRef = globalThis.document,
   requestAnimationFrameRef = globalThis.requestAnimationFrame,
   setTimeoutRef = globalThis.setTimeout,
@@ -587,7 +588,7 @@ export function bindClassicHPEditor({
     if (!editableHPMax) {
       hpMaxInput.readOnly = true;
       hpMaxInput.tabIndex = -1;
-      hpMaxInput.title = "Il massimo segue gli HP massimi del caster";
+      hpMaxInput.title = readOnlyHPMaxTitle;
       hpMaxInput.style.opacity = ".72";
     }
   });

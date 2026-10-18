@@ -1,3 +1,4 @@
+import { sharedHpHistorySnapshot } from "./sharedHpCore.js";
 const clone = (value) => value === undefined ? undefined : structuredClone(value);
 
 export function decorateCompositeEffectsHistoryEntry({
@@ -5,6 +6,8 @@ export function decorateCompositeEffectsHistoryEntry({
   mutation = null,
   effectMetadataFields = [],
 } = {}) {
+  const sharedHpGroups = (Array.isArray(mutation) ? mutation : [mutation])
+    .flatMap(result => sharedHpHistorySnapshot(result?.plan)?.groups || []);
   if (Array.isArray(mutation)) {
     const combined = new Map();
     for (const result of mutation.filter(Boolean)) {
@@ -150,6 +153,7 @@ export function decorateCompositeEffectsHistoryEntry({
   ])));
   return {
     ...entry,
+    ...(sharedHpGroups.length ? { payload: { ...(entry?.payload || {}), sharedHp: { groups: sharedHpGroups } } } : {}),
     changes: effectiveChanges,
     effectsMutation: {
       version: 1,

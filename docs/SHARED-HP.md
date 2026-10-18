@@ -9,8 +9,9 @@
 
 Gli HP dei secondari vengono sostituiti da quelli del principale. I secondari
 restano sulla mappa e fuori dall'iniziativa, anche usando Aggiungi tutti.
-Auril mantiene la sua normale presenza nel tracker e mostra il numero di
-token collegati. Il collegamento non aggiunge automaticamente il principale
+Auril mantiene la sua normale presenza nel tracker.
+I secondari ereditano la fazione del principale, anche quando
+viene cambiata successivamente. Il collegamento non aggiunge automaticamente il principale
 all'iniziativa se non ne faceva già parte.
 
 Le modifiche HP e massimo effettuate nel plugin da qualunque membro si
@@ -18,6 +19,22 @@ applicano all'intera riserva. Tracker e barre leggono ancora `hp` e `hpMax`.
 Condizioni, schede, concentrazione e risorse rimangono individuali.
 Le barre e i testi sulla mappa si aggiornano anche con il tracker chiuso,
 rispettando le opzioni di attivazione e visibilità del plugin.
+
+## Modificare gli HP dai secondari
+
+I secondari compaiono sotto al principale nel tracker, nello stesso formato
+delle pedine evocate. Il gruppo chiuso mostra **Token collegati · N**;
+per le evocazioni la dicitura è **Evocazioni · N**.
+Il GM può espandere il gruppo e modificare la pill HP
+del secondario colpito con l'editor standard, anche usando un delta come `-25`.
+La riserva si aggiorna per tutti e il log indica il bersaglio effettivo, per
+esempio **Mano del Titano**, insieme alla variazione della riserva di Auril.
+I secondari non ricevono un turno proprio.
+
+Nella Console **HP condivisi**, **Righe dei secondari nel tracker** permette
+di scegliere **Solo GM** (default) oppure **Tutto il tavolo**. La seconda
+opzione mostra le righe ai giocatori rispettando le policy HP già configurate
+nel plugin. L'editing rimane riservato al GM.
 
 ## Danni a più membri
 

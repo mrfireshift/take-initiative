@@ -607,11 +607,30 @@ function causalityDetailLines(event) {
   return lines;
 }
 
+function sharedHpSummaryLines(event) {
+  const groups = event?.payload?.sharedHp?.groups;
+  if (!Array.isArray(groups)) return [];
+  return groups.filter(group => Array.isArray(group.targets) && group.targets.length).map(group => {
+    const names = group.targets.map(targetName).join(", ");
+    const before = { hp: group.beforeHP, hpMax: group.beforeHPMax };
+    const after = { hp: group.afterHP, hpMax: group.hpMax };
+    return `${group.targets.length === 1 ? "Bersaglio" : "Bersagli"}: ${names} · Riserva ${hpTargetLine({
+      name: group.sourceName || group.sourceId, before, after,
+    })}`;
+  });
+}
+
 function eventSummary(event, targets, outcomes) {
   const category = event.category;
   const hpLines = hpTargets(event).map(hpTargetLine);
   const facetLines = ["conditions", "spells", "concentrations"]
     .flatMap((field) => facetChangeLines(event?.facets?.[field], field));
+  const sharedHpLines = sharedHpSummaryLines(event);
+  if (sharedHpLines.length) {
+    const memberIds = new Set(event.payload.sharedHp.groups.flatMap(group => group.memberIds || []));
+    const independentLines = hpTargets(event).filter(target => !memberIds.has(target.id)).map(hpTargetLine);
+    return [...sharedHpLines, ...independentLines, ...outcomes, ...facetLines].join(" · ");
+  }
   if (category === "hp") {
     const lines = [...hpLines, ...facetLines];
     return lines.join(" · ") || "Variazione HP registrata";
@@ -639,6 +658,8 @@ function eventSummary(event, targets, outcomes) {
 
 function detailSections(event, targets, outcomes, turnName) {
   const sections = [];
+  const sharedHpLines = sharedHpSummaryLines(event);
+  if (sharedHpLines.length) sections.push({ label: "HP condivisi", lines: sharedHpLines });
   const hpLines = hpTargets(event).map(hpTargetLine);
   if (hpLines.length) sections.push({ label: "HP", lines: hpLines });
   for (const [field, label] of [

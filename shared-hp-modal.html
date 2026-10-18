@@ -1,25 +1,51 @@
 <!doctype html>
-<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HP condivisi</title><link rel="stylesheet" href="/ui-typography.css"><link rel="stylesheet" href="/popover-glass.css">
-<style>
-body{margin:0;color:var(--text,#eee);background:transparent;font:14px system-ui}*{box-sizing:border-box}
-.glass-shell{padding:18px;min-height:100vh;background:rgba(24,28,40,.96);border:1px solid #536078;border-radius:14px}
-header{display:flex;align-items:center;justify-content:space-between}h1{font-size:20px;margin:0}h2{font-size:14px;margin-top:20px}
-p{color:#bfc8d8;line-height:1.5}select,button{font:inherit;border:1px solid #59657c;border-radius:7px;padding:8px;color:inherit;background:#303a50}
-select{width:100%;margin:6px 0 12px}button{cursor:pointer}button:disabled{opacity:.5;cursor:default}.primary{background:#5268b0}
-.row{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #394256}
-#preview{padding:12px;border:1px solid #536078;border-radius:8px;white-space:pre-line;color:#e4e9f4}
-#status{min-height:38px;color:#f0c87d}footer{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
-</style></head><body>
-<div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/shared-hp-modal">
-<header data-drag-handle draggable="true"><h1>HP condivisi</h1><button id="close" aria-label="Chiudi">×</button></header>
-<p>Un principale e i suoi token secondari condividono HP e massimo. I secondari restano fuori dall’iniziativa.</p>
-<label for="source">Token principale</label><select id="source"><option value="">Scegli il principale…</option></select>
-<div id="selection"></div><h2>Anteprima del collegamento</h2><p id="preview">Seleziona il principale.</p>
-<button id="link" class="primary" disabled>Conferma collegamento</button>
-<h2>Collegamenti attuali</h2><div id="members"></div>
-<footer><button id="unlink-selection">Scollega selezionati</button><button id="unlink-all">Scollega tutti dal principale</button></footer>
-<p id="status" role="status" aria-live="polite"></p>
-<p>Il collegamento vale per questa scena e per le modifiche HP di Take Initiative. Scollegare conserva gli ultimi HP.</p>
-</div><script type="module" src="/src/popoverDrag.js"></script><script type="module" src="/src/shared-hp-modal.js"></script>
-</body></html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HP condivisi</title>
+  <link rel="stylesheet" href="/ui-typography.css" />
+  <link rel="stylesheet" href="/popover-glass.css" />
+  <link rel="stylesheet" href="/shared-hp-modal.css" />
+</head>
+<body>
+  <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/shared-hp-modal">
+    <header data-drag-handle draggable="true">
+      <div class="heading"><h1>HP condivisi</h1><div class="subtitle" id="selection">Caricamento selezione…</div></div>
+      <button id="refresh" class="button subtle" type="button" title="Aggiorna HP e collegamenti">Aggiorna</button>
+      <button id="close" class="close" type="button" aria-label="Chiudi">×</button>
+    </header>
+    <main>
+      <section class="section" aria-labelledby="source-label">
+        <label id="source-label" class="caption" for="source">Token principale</label>
+        <select id="source"><option value="">Scegli il principale…</option></select>
+        <div id="source-summary" class="pool" hidden>
+          <div class="identity"><span class="caption">Riserva condivisa</span><strong id="source-name"></strong></div>
+          <span class="hp" id="source-hp"></span>
+        </div>
+        <p class="hint">I token collegati condividono HP e massimo, e restano fuori dall’iniziativa.</p>
+        <label class="caption" for="tracker-visibility">Righe dei secondari nel tracker</label>
+        <select id="tracker-visibility" disabled><option value="gm">Solo GM</option><option value="all">Tutto il tavolo</option></select>
+        <p class="hint">Compaiono sotto al principale, come le pedine evocate. Il GM modifica gli HP direttamente dalla loro riga.</p>
+      </section>
+      <section id="preview-section" class="section" aria-labelledby="preview-label">
+        <div class="section-heading"><h2 id="preview-label">Anteprima collegamento</h2><span class="count" id="preview-count"></span></div>
+        <div id="preview" class="list"></div>
+        <p class="hint">Collegando i token selezionati, i loro HP saranno allineati alla riserva del principale.</p>
+      </section>
+      <section class="section" aria-labelledby="members-label">
+        <div class="section-heading"><h2 id="members-label">Token collegati</h2><span class="count" id="member-count"></span></div>
+        <div id="members" class="list"></div>
+        <div class="section-actions"><button id="unlink-all" class="button subtle" type="button" disabled>Scollega tutti dal principale</button></div>
+        <p class="hint">Il log indica il secondario modificato nel tracker. La visibilità degli HP per i giocatori segue le opzioni del plugin. Scollegare mantiene gli ultimi HP.</p>
+      </section>
+    </main>
+    <footer>
+      <div id="status" role="status" aria-live="polite"></div>
+      <div class="footer-actions"><button id="unlink-selection" class="button" type="button" disabled>Scollega selezionati</button><button id="link" class="button primary" type="button" disabled>Collega selezionati</button></div>
+    </footer>
+  </div>
+  <script type="module" src="/src/popoverDrag.js"></script>
+  <script type="module" src="/src/shared-hp-modal.js"></script>
+</body>
+</html>

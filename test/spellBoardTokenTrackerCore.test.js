@@ -236,7 +236,10 @@ test("le mini-card dello stesso caster si comprimono dal primo elemento", () => 
   assert.equal(toggle.textContent, "▸", "summoned tokens start collapsed");
   assert.equal(card.style.marginBottom, "22px");
   assert.equal(card.children[1].style.display, "none");
+  assert.equal(card.children[0].children[1].children[0].textContent, "Evocazioni · 2");
+  assert.equal(card.children[0].children[0].style.display, "none");
   toggle.listeners.click({ stopPropagation() {} });
+  assert.equal(card.children[0].children[1].children[0].textContent, companions[0].label);
   assert.equal(card.style.marginBottom, "44px");
   assert.equal(card.children[1].style.display, "");
   assert.equal(toggle.textContent, "▾");

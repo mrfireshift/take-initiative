@@ -154,7 +154,7 @@ const COMPANION_BASE_SHADOW = "0 2px 6px rgba(0,0,0,.35)";
 
 export function applySpellBoardTokenCompanionSelection(element, selectedIds) {
   if (!element?.style) return;
-  const selected = !!selectedIds?.has?.(element.dataset?.spellBoardTokenId);
+  const selected = !!selectedIds?.has?.(element.dataset?.sharedHpTokenId || element.dataset?.spellBoardTokenId);
   element.dataset.selectionState = selected ? "all" : "none";
   element.style.boxShadow = selected
     ? `${COMPANION_BASE_SHADOW}, 0 0 0 2px rgba(255,255,255,.96), 0 0 10px 3px rgba(255,255,255,.6)`
@@ -231,10 +231,16 @@ export function buildSpellBoardTokenCompanionCard(
   const hp = hasHP ? Math.max(0, Math.floor(Number(companion.hp))) : 0;
   const hpMax = hasHP ? Math.max(0, Math.floor(Number(companion.hpMax))) : 0;
   const { height } = companionDimensions(companion, compact);
-  card.dataset.spellBoardTokenCompanion = "1";
-  card.dataset.spellBoardTokenId = companion.itemId;
-  card.dataset.spellBoardTokenCasterId = companion.casterId;
-  card.title = `${companion.label} nel turno del caster`;
+  if (companion.sharedHp) {
+    card.dataset.sharedHpCompanion = "1";
+    card.dataset.sharedHpTokenId = companion.itemId;
+    card.dataset.sharedHpSourceId = companion.casterId;
+  } else {
+    card.dataset.spellBoardTokenCompanion = "1";
+    card.dataset.spellBoardTokenId = companion.itemId;
+    card.dataset.spellBoardTokenCasterId = companion.casterId;
+  }
+  card.title = companion.sharedHp ? `${companion.label} · HP condivisi` : `${companion.label} nel turno del caster`;
   card.setAttribute("aria-label", card.title);
   const portrait = companionPortraitDimensions(compact);
   Object.assign(card.style, {
@@ -270,6 +276,7 @@ export function buildSpellBoardTokenCompanionCard(
     card.title = `${companion.label}: clicca per selezionare la pedina`;
     card.addEventListener?.("click", (event) => {
       event?.stopPropagation?.();
+      if (card.dataset.companionCollapsedGroup === "1") return;
       if (event?.target?.closest?.("button, [data-badge]")) return;
       onSelect(companion, event);
     });
@@ -321,8 +328,13 @@ export function buildSpellBoardTokenCompanionCard(
     hpBadge = documentRef.createElement("span");
     hpBadge.dataset.badge = "hp";
     hpBadge.dataset.itemId = String(companion.itemId);
-    hpBadge.dataset.spellBoardTokenHp = "1";
-    hpBadge.dataset.spellBoardTokenLabel = companion.label;
+    if (companion.sharedHp) {
+      hpBadge.dataset.sharedHpBadge = "1";
+      hpBadge.dataset.sharedHpLabel = companion.label;
+    } else {
+      hpBadge.dataset.spellBoardTokenHp = "1";
+      hpBadge.dataset.spellBoardTokenLabel = companion.label;
+    }
     hpBadge.textContent = `HP ${hp} / ${hpMax}`;
     hpBadge.title = `Punti ferita di ${companion.label}. Clicca per modificare`;
     Object.assign(hpBadge.style, {
@@ -355,6 +367,18 @@ export function buildSpellBoardTokenCompanionCard(
     });
     content.appendChild(action);
   }
+  const originalTitle = card.title;
+  const originalPadding = card.style.padding;
+  card.__setCompanionGroupSummary = (summary) => {
+    const collapsed = !!summary;
+    card.dataset.companionCollapsedGroup = collapsed ? "1" : "0";
+    label.textContent = summary || companion.label;
+    icon.style.display = collapsed ? "none" : "";
+    for (const detail of Array.from(content.children).slice(1)) detail.style.display = collapsed ? "none" : "";
+    card.style.padding = collapsed ? "2px 24px 2px 7px" : originalPadding;
+    card.title = summary || originalTitle;
+    card.setAttribute("aria-label", summary || (companion.sharedHp ? `${companion.label} · HP condivisi` : `${companion.label} nel turno del caster`));
+  };
   return card;
 }
 
@@ -367,6 +391,7 @@ export function appendSpellBoardTokenCompanions(
     onBindHP = null,
     onSelect = null,
     selectedIds = null,
+    onStackChange = null,
     documentRef = globalThis.document,
   } = {},
 ) {
@@ -399,11 +424,15 @@ export function appendSpellBoardTokenCompanions(
     offset += companionDimensions(companion, compact).height + 2;
   });
   if (list.length > 1) {
+    const hasShared = list.some(companion => companion.sharedHp);
+    const hasSummons = list.some(companion => !companion.sharedHp);
+    const summary = `${hasShared && hasSummons ? "Token collegati ed evocazioni" : hasShared ? "Token collegati" : "Evocazioni"} · ${list.length}`;
     const toggle = documentRef.createElement("button");
     toggle.type = "button";
     toggle.dataset.spellBoardTokenCompanionToggle = "1";
-    toggle.title = "Comprimi o espandi le pedine evocate";
-    toggle.setAttribute("aria-label", "Comprimi o espandi le pedine evocate");
+    toggle.title = list.some(companion => companion.sharedHp)
+      ? "Comprimi o espandi i token collegati" : "Comprimi o espandi le pedine evocate";
+    toggle.setAttribute("aria-label", toggle.title);
     Object.assign(toggle.style, {
       position: "absolute",
       right: "4px",
@@ -431,6 +460,7 @@ export function appendSpellBoardTokenCompanions(
       children.forEach((child, index) => {
         child.style.display = isCollapsed && index > 0 ? "none" : "";
       });
+      children[0].__setCompanionGroupSummary(isCollapsed ? summary : null);
       toggle.textContent = isCollapsed ? "▸" : "▾";
       toggle.setAttribute("aria-expanded", String(!isCollapsed));
     };
@@ -439,6 +469,7 @@ export function appendSpellBoardTokenCompanions(
       if (expandedCompanionGroups.has(groupKey)) expandedCompanionGroups.delete(groupKey);
       else expandedCompanionGroups.add(groupKey);
       applyGroupState();
+      onStackChange?.(Number.parseFloat(card.style.marginBottom) || 0);
     });
     children[0].appendChild(toggle);
     applyGroupState();

@@ -26,3 +26,15 @@ test("background cleanup works without tracker and stops callbacks after teardow
   assert.equal(reads, 2);
   controller.stop(); assert.equal(callback, null);
 });
+
+test("existing background controller also reconciles inherited factions on attitude changes", async () => {
+  let callback; let factions = 0;
+  const controller = createSharedHpInitiativeController({ readItems: async () => items,
+    enqueueStateReducer: async () => ({}), reconcileFactions: async () => { factions++; },
+    subscribeItems: handler => { callback = handler; return () => {}; }, isCurrent: () => true });
+  await controller.start();
+  assert.equal(factions, 1);
+  await callback({ flags: { trackerStructure: false, attitude: true } });
+  assert.equal(factions, 2);
+  controller.stop();
+});

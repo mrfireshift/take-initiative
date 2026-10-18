@@ -40,8 +40,26 @@ export function sharedHpScopeIds(items, itemIds, options = {}) {
   }));
 }
 
+export function sharedHpHistorySnapshot(plan) {
+  if (!plan?.sharedHpGroups?.length) return null;
+  const names = new Map((plan.states || []).map(state => [state.id, state.name]));
+  return { groups: plan.sharedHpGroups.map(group => ({ ...structuredClone(group),
+    sourceName: names.get(group.sourceId) || group.sourceName || group.sourceId,
+    targets: group.hitIds.map(id => ({ id, name: names.get(id) || group.targets?.find(target => target.id === id)?.name || id })),
+  })) };
+}
+
 export function planSharedHpLinks(items, operation, { metadataKey = META_KEY } = {}) {
   const byId = new Map(items.map(item => [item.id, item]));
+  if (operation.type === "shared-hp:visibility") {
+    const source = byId.get(operation.sourceId);
+    const meta = metaOf(source, metadataKey);
+    if (!real(source) || text(meta.sharedHpSourceId) || !["gm", "all"].includes(operation.visibility)) return conflict(operation.sourceId);
+    return { affectedIds: [source.id], metadataPatches: [{ id: source.id, fields: {
+      sharedHpTrackerVisibility: { value: operation.visibility, expected: snapshot(meta, "sharedHpTrackerVisibility") },
+      sharedHpSourceId: { mode: "assert", expected: snapshot(meta, "sharedHpSourceId") },
+    } }] };
+  }
   const targetIds = unique((operation.targetIds || []).filter(Boolean));
   if (!targetIds.length) return conflict(null);
   const patches = [];
@@ -62,7 +80,7 @@ export function planSharedHpLinks(items, operation, { metadataKey = META_KEY } =
   if (operation.expectedSourceHP && (operation.expectedSourceHP.hp !== sourceMeta.hp
     || operation.expectedSourceHP.hpMax !== sourceMeta.hpMax)) return conflict(source.id, "shared-hp-incompatible-values");
   // Keep source values and topology checked at commit, even if they are unchanged.
-  patches.push({ id: source.id, fields: Object.fromEntries(["hp", "hpMax", "sharedHpSourceId"]
+  patches.push({ id: source.id, fields: Object.fromEntries(["hp", "hpMax", "sharedHpSourceId", "attitude"]
     .map(field => [field, { mode: "assert", expected: snapshot(sourceMeta, field) }])) });
   for (const id of targetIds) {
     const item = byId.get(id);
@@ -72,13 +90,35 @@ export function planSharedHpLinks(items, operation, { metadataKey = META_KEY } =
     const meta = metaOf(item, metadataKey);
     const fields = {};
     for (const [field, value] of Object.entries({ hp: Number(sourceMeta.hp), hpMax: Number(sourceMeta.hpMax),
-      sharedHpSourceId: source.id, sharedHpExcludeFromInitiative: true })) {
+      sharedHpSourceId: source.id, sharedHpExcludeFromInitiative: true, attitude: sourceMeta.attitude || "ally" })) {
       fields[field] = { value, expected: snapshot(meta, field) };
     }
     fields.inInitiative = { mode: "delete", expected: snapshot(meta, "inInitiative") };
     patches.push({ id, fields });
   }
   return { metadataPatches: patches, affectedIds: unique([source.id, ...targetIds]) };
+}
+
+export function planSharedHpFactions(items, { metadataKey = META_KEY } = {}) {
+  const patches = new Map();
+  for (const item of items) {
+    const meta = metaOf(item, metadataKey);
+    if (!text(meta.sharedHpSourceId)) continue;
+    const group = resolveSharedHpGroup(items, item.id, { metadataKey });
+    if (group.status) continue;
+    const sourceMeta = metaOf(group.source, metadataKey);
+    const attitude = sourceMeta.attitude || "ally";
+    if (meta.attitude === attitude) continue;
+    patches.set(group.sourceId, { id: group.sourceId, fields: {
+      attitude: { mode: "assert", expected: snapshot(sourceMeta, "attitude") },
+      sharedHpSourceId: { mode: "assert", expected: snapshot(sourceMeta, "sharedHpSourceId") },
+    } });
+    patches.set(item.id, { id: item.id, fields: {
+      attitude: { value: attitude, expected: snapshot(meta, "attitude") },
+      sharedHpSourceId: { mode: "assert", expected: snapshot(meta, "sharedHpSourceId") },
+    } });
+  }
+  return [...patches.values()];
 }
 
 export function planSharedHpMutation({ items, operations = [], metadataPatches = [], sharedHp = {}, metadataKey = META_KEY }) {
@@ -189,7 +229,7 @@ export function planSharedHpMutation({ items, operations = [], metadataPatches =
     remainingOperations.push({ type: "hp:set", updates: group.memberIds.map(itemId => ({ itemId, hp, hpMax,
       sharedHpMirror: !damageHitIds.has(itemId) })) });
     groups.push({ sourceId: group.sourceId, memberIds: group.memberIds, hitIds,
-      beforeHP: Number(sourceMeta.hp), afterHP: hp, hpMax, requestedAmount,
+      beforeHP: Number(sourceMeta.hp), beforeHPMax: Number(sourceMeta.hpMax), afterHP: hp, hpMax, requestedAmount,
       policy: sharedHp.policy === "per-token" ? "per-token" : "once", eventIds: [...events.keys()] });
   }
   return { operations: remainingOperations, metadataPatches: [...patchesById.values()], groups,

@@ -13,6 +13,10 @@ const CARD_GAP = 5;
 const COLUMN_GAP = 2;
 const COLUMN_PADDING_AND_BORDER = 6;
 
+export function compactTrackerCompanionHeight(stackHeights = []) {
+  return 156 + Math.max(0, ...stackHeights.map(height => Number(height) || 0));
+}
+
 function fixedChromeWidth(showToolbar) {
   const visibleSectionCount = showToolbar ? 3 : 2;
   return ROUND_PANEL_WIDTH

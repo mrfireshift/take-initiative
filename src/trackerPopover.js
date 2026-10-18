@@ -292,6 +292,14 @@ async function openCompactSpeedReadoutPopover(anchorPosition, trackerWidth, trac
   }
 }
 
+export async function syncCompactTrackerCompanionParts(width, height, scale = 1) {
+  const anchor = await getCompactTrackerPopoverAnchor();
+  await Promise.all([
+    openCompactRoundTabPopover(anchor, height, scale),
+    openCompactSpeedReadoutPopover(anchor, width, height, scale),
+  ]);
+}
+
 export async function openTrackerPopover({ refresh = false, compactSize = null } = {}) {
   if (isTrackerPopoverOpen() && !refresh) return;
   if (refresh) {

@@ -16,7 +16,7 @@ import { mountPreparedSpellResolutionController } from "./preparedSpellResolutio
 import { mountCallLightningTurnPromptController } from "./callLightningTurnPromptController.js";
 import { mountCompulsionMovementReminderController } from "./compulsionMovementReminderController.js";
 import { mountBossCollapseController } from "./bossCollapseController.js";
-import { mountEffectsMutationCoordinatorService } from "./effectsMutations.js";
+import { mountEffectsMutationCoordinatorService, runEffectsMutation } from "./effectsMutations.js";
 import { mountTurnNoticeHost } from "./turnNoticeHost.js";
 import "./sync-open.js";
 import "./speedMoveTool.js";
@@ -68,6 +68,7 @@ import {
 import { isLegacyActorMigrationEligible } from "./actorIdentityCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import { createSharedHpInitiativeController } from "./sharedHpInitiativeController.js";
+import { planSharedHpFactions } from "./sharedHpCore.js";
 import { mountHPBarsBackgroundRuntime } from "./hpBarRuntime.js";
 import { enqueueInitiativeStateReducer } from "./initiativeStateGateway.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
@@ -285,6 +286,14 @@ OBR.onReady(async () => {
       const sharedHpInitiative = createSharedHpInitiativeController({
         readItems: () => OBR.scene.items.getItems(), enqueueStateReducer: enqueueInitiativeStateReducer,
         subscribeItems: subscribeSceneItemChanges, getSceneEpoch: currentSceneEpoch, isCurrent: isCurrentSceneEpoch,
+        reconcileFactions: async (items, sceneEpoch) => {
+          const metadataPatches = planSharedHpFactions(items);
+          if (!metadataPatches.length || !isCurrentSceneEpoch(sceneEpoch)) return;
+          const targetIds = metadataPatches.filter(patch => patch.fields.attitude.mode !== "assert").map(patch => patch.id);
+          await runEffectsMutation([{ type: "condition:reconcile-zero-hp", targetIds }], {
+            metadataPatches, sceneEpoch, history: false, kind: "shared-hp-faction", targetIds,
+          });
+        },
       });
       await sharedHpInitiative.start();
       const unsubscribeEpoch = subscribeSceneEpoch(({ phase }) => {

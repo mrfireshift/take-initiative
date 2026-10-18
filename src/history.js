@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID, REMINDER_HISTORY_REARM_CHANNEL } from "./constants.js";
+import { sharedHpHistorySnapshot } from "./sharedHpCore.js";
 import {
   readSceneItemsSnapshot,
   subscribeSceneItemChanges,
@@ -751,9 +752,11 @@ export function buildEffectsMutationHistoryEntry({
     ...(Array.isArray(command.targetIds) ? command.targetIds : []),
     ...changes.map((change) => change.id),
   ].filter(Boolean)));
-  const historyPayload = historyOptions.payload && typeof historyOptions.payload === "object"
+  let historyPayload = historyOptions.payload && typeof historyOptions.payload === "object"
     ? cloneValue(historyOptions.payload)
     : null;
+  const sharedHp = sharedHpHistorySnapshot(plan);
+  if (sharedHp) historyPayload = { ...(historyPayload || {}), sharedHp };
   const entry = {
     id: command.commandId ? `effects-history:${command.commandId}` : createEntryId(),
     version: HISTORY_VERSION,

@@ -79,7 +79,7 @@ test("link management checks actual GM role", async () => {
 });
 
 test("linking reconciles automatic zero HP conditions and Undo restores the secondary", async () => {
-  replaceItems([token("auril", { hp: 0 }), token("hand", { hp: 25, attitude: "pc" })]);
+  replaceItems([token("auril", { hp: 0, attitude: "pc" }), token("hand", { hp: 25, attitude: "pc" })]);
   const linked = await apply([{ type: "shared-hp:link", sourceId: "auril", targetIds: ["hand"] }], { history: true });
   assert.equal(linked.status, "applied");
   assert.equal(meta("hand").hp, 0);
@@ -98,4 +98,34 @@ test("linking to a living source removes automatic unconsciousness", async () =>
   assert.equal(linked.status, "applied");
   assert.equal(meta("hand").hp, 300);
   assert.ok(!meta("hand").conditions.instances.some(instance => instance.condition === "Privo di sensi"));
+});
+
+test("link copies the principal faction while visibility is a separate GM-only setting", async () => {
+  replaceItems([token("auril", { attitude: "ally" }), token("hand", { attitude: "enemy" })]);
+  await apply([{ type: "shared-hp:link", sourceId: "auril", targetIds: ["hand"] }]);
+  assert.equal(meta("hand").attitude, "ally");
+  const result = await apply([{ type: "shared-hp:visibility", sourceId: "auril", visibility: "all" }]);
+  assert.equal(result.status, "applied");
+  assert.equal(meta("auril").sharedHpTrackerVisibility, "all");
+  assert.equal(meta("hand").hp, 300);
+  setRole("PLAYER");
+  assert.equal((await apply([{ type: "shared-hp:visibility", sourceId: "auril", visibility: "gm" }])).status, "rejected");
+});
+
+test("faction reconciliation follows the current parent, preserves foreign metadata and becomes a no-op", async () => {
+  const core = await import("../src/sharedHpCore.js");
+  assert.equal(typeof core.planSharedHpFactions, "function");
+  replaceItems(group().map(item => ({ ...item, metadata: { ...item.metadata,
+    "com.thebigpicture.initiative/meta": { ...item.metadata["com.thebigpicture.initiative/meta"], attitude: item.id === "auril" ? "ally" : "enemy" } } })));
+  const patches = core.planSharedHpFactions(items);
+  assert.equal((await apply([], { metadataPatches: patches, history: false })).status, "applied");
+  assert.ok(items.every(item => meta(item.id).attitude === "ally" && item.metadata.foreign === "keep"));
+  assert.deepEqual(core.planSharedHpFactions(items), []);
+});
+
+test("linking an enemy secondary to a zero HP PC source reconciles the inherited PC faction", async () => {
+  replaceItems([token("auril", { hp: 0, attitude: "pc" }), token("hand", { hp: 25, attitude: "enemy" })]);
+  assert.equal((await apply([{ type: "shared-hp:link", sourceId: "auril", targetIds: ["hand"] }])).status, "applied");
+  assert.equal(meta("hand").attitude, "pc");
+  assert.ok(meta("hand").conditions.instances?.some(instance => instance.condition === "Privo di sensi"));
 });
