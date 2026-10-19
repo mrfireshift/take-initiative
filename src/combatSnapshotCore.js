@@ -1,6 +1,7 @@
 // Combat snapshot: a read-only photograph of the tracker state for the log and for simulations.
 // Pure data: no SDK, no DOM, no metadata writes. The caller passes scene state, items and grid.
 import { ID } from "./constants.js";
+import { sharedHpScopeIds } from "./sharedHpCore.js";
 import { damageDefensesForItem, hasDamageDefenses } from "./damageDefensesCore.js";
 import { spellExpiryDescription } from "./spellExpiryCore.js";
 import { SPELL_STATIC_ZONE_META_KEY, translatedZoneArea } from "./spellStaticZoneCore.js";
@@ -214,7 +215,8 @@ export function buildCombatSnapshot({
     };
   });
 
-  const actorIds = ids(orderIds.filter((id) => !virtualOrderName(id)).map(realOrderId));
+  const initiativeActorIds = ids(orderIds.filter((id) => !virtualOrderName(id)).map(realOrderId));
+  const actorIds = ids([...initiativeActorIds, ...sharedHpScopeIds(list, initiativeActorIds)]);
   const actors = actorIds.map((id) => {
     const item = byId.get(id);
     if (!item) return { id, missing: true };
@@ -229,6 +231,10 @@ export function buildCombatSnapshot({
       hp: finiteOrNull(meta.hp),
       hpMax: finiteOrNull(meta.hpMax),
       initiative: finiteOrNull(meta.initiative),
+      ...(text(meta.sharedHpSourceId, 220) ? {
+        sharedHpSourceId: text(meta.sharedHpSourceId, 220),
+        inInitiative: initiativeActorIds.includes(id),
+      } : {}),
       visible: item.visible !== false,
       position: point(item.position),
       sizeCells: combatSnapshotItemSizeCells(item, dpi),

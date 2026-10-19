@@ -206,6 +206,26 @@ test("snapshot is JSON-safe and the input metadata is untouched", () => {
   assert.deepEqual(JSON.parse(JSON.stringify(value)), value);
 });
 
+test("snapshot includes linked secondaries as actors without adding initiative turns", () => {
+  const input = fixture();
+  input.items.push(token("hand", "Mano del Titano", { hp: 18, hpMax: 30, attitude: "pc",
+    sharedHpSourceId: "pc-1", sharedHpExcludeFromInitiative: true }, { position: { x: 850, y: 250 } }));
+  input.items.push(token("outside", "Fuori combattimento", { hp: 20, hpMax: 20 }));
+  input.items.push(token("outside-hand", "Altro collegato", { hp: 20, hpMax: 20, sharedHpSourceId: "outside" }));
+  const before = structuredClone(input);
+  const value = buildCombatSnapshot(input);
+  assert.deepEqual(value.order.map(entry => entry.id), input.state.order);
+  const hand = value.actors.find(actor => actor.id === "hand");
+  assert.ok(hand);
+  assert.equal(hand.hp, 18);
+  assert.equal(hand.sharedHpSourceId, "pc-1");
+  assert.equal(hand.inInitiative, false);
+  assert.ok(!value.actors.some(actor => actor.id === "outside-hand"));
+  assert.match(combatSnapshotSummaryText(value), /Mano del Titano 18\/30/);
+  assert.match(buildCombatSnapshotSvg(value), /Mano del Titano/);
+  assert.deepEqual(input, before);
+});
+
 test("summary, file name and Combat Log entry", () => {
   const value = snapshot();
   const summary = combatSnapshotSummaryText(value);

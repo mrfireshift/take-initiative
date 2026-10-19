@@ -1,14 +1,16 @@
 import { ID } from "./constants.js";
 import { planSharedHpMutation, resolveSharedHpGroup } from "./sharedHpCore.js";
 import { quickHPVisualUpdates } from "./quickHpCore.js";
+import { isSpellBoardTokenItem } from "./spellBoardTokenTrackerCore.js";
 const KEY = `${ID}/meta`;
 
 export function sharedHpTargetItems(items, orderedIds = []) {
   const ordered = new Set(orderedIds);
   const sources = new Set(items.map(item => item.metadata?.[KEY]?.sharedHpSourceId).filter(Boolean));
-  return items.filter(item => item.layer === "CHARACTER" && !item.attachedTo && item.metadata?.[KEY]
-    && (item.metadata[KEY].inInitiative === true || ordered.has(item.id)
-      || !!item.metadata[KEY].sharedHpSourceId || sources.has(item.id)));
+  return items.filter(item => !item.attachedTo && item.metadata?.[KEY]
+    && (isSpellBoardTokenItem(item) || (item.layer === "CHARACTER"
+      && (item.metadata[KEY].inInitiative === true || ordered.has(item.id)
+        || !!item.metadata[KEY].sharedHpSourceId || sources.has(item.id)))));
 }
 
 export function sharedHpIntent(entry, eventId = "shared-hp-preview") {

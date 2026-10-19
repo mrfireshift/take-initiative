@@ -233,6 +233,10 @@ export function spellBoardTokenDisplayName(spellOrId, casterName = "", number = 
   const rule = getSpellBoardTokenRule(spellOrId);
   if (!rule) return "";
   const caster = normalizedId(casterName) || "Caster";
+  if (rule.spellId === "animate-objects") {
+    const index = spellBoardTokenNumber(number) || 1;
+    return `(${index}) Animare Oggetti (${caster})`;
+  }
   const label = spellBoardTokenNumber(number) ? `${rule.label} ${spellBoardTokenNumber(number)}` : rule.label;
   return rule.displayNameFormat === "parenthesized-caster"
     ? `${label} (${caster})`

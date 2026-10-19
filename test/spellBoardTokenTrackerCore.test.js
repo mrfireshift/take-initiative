@@ -300,7 +300,7 @@ test("il nome della PROP di Arma spirituale usa il caster corrente con fallback"
   );
   assert.equal(
     spellBoardTokenDisplayName("animate-objects", "Omar"),
-    "Animare oggetti-Omar",
+    "(1) Animare Oggetti (Omar)",
   );
 });
 
@@ -337,8 +337,8 @@ function animatedObject(id, number, instanceId = "anim-1") {
 }
 
 test("animated objects carry the number of their map label into the tracker", () => {
-  assert.equal(spellBoardTokenDisplayName("animate-objects", "Kriv", 3), "Animare oggetti 3-Kriv");
-  assert.equal(spellBoardTokenDisplayName("animate-objects", "Kriv"), "Animare oggetti-Kriv");
+  assert.equal(spellBoardTokenDisplayName("animate-objects", "Kriv", 3), "(3) Animare Oggetti (Kriv)");
+  assert.equal(spellBoardTokenDisplayName("animate-objects", "Kriv"), "(1) Animare Oggetti (Kriv)");
   const companions = spellBoardTokenCompanionsByCasterId([
     animatedObject("b", 2), animatedObject("a", 1), animatedObject("c", 3),
   ]).get("wizard");

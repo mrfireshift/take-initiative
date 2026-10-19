@@ -1,9 +1,11 @@
-import { fakeHost } from "@owlbear-rodeo/sdk";
+import OBR, { fakeHost } from "@owlbear-rodeo/sdk";
 import { markSceneEpochReady } from "/src/sceneEpoch.js";
 import { mountHistoryOwner } from "/src/historyOwner.js";
 import { mountEffectsMutationCoordinatorService } from "/src/effectsMutations.js";
 import { openTrackerPopover } from "/src/trackerPopover.js";
-import { SPELL_BOARD_TOKEN_META_KEY, spellBoardTokenMetadata } from "/src/spellBoardTokenCore.js";
+import { SPELL_BOARD_TOKEN_META_KEY, spellBoardTokenMetadata, spellBoardTokenDisplayName } from "/src/spellBoardTokenCore.js";
+import { captureCombatSnapshot } from "/src/combatSnapshot.js";
+import { buildCombatSnapshotSvg } from "/src/combatSnapshotCore.js";
 import "/src/sync-open.js";
 
 const KEY = "com.thebigpicture.initiative/meta";
@@ -36,7 +38,7 @@ for (const [index, name] of ["Mano del Titano", "Testa del Titano", "Corpo del T
 }
 const objectAssets = ["/spell-token-animated-tiny-small.webp", "/spell-token-animated-medium.webp", "/spell-token-animated-large-huge.webp"];
 for (let index = 0; index < 10; index++) {
-  fakeHost.state.items.push({ id: `object-${index + 1}`, name: `Oggetto animato ${index + 1}`, type: "IMAGE", layer: "PROP",
+  fakeHost.state.items.push({ id: `object-${index + 1}`, name: spellBoardTokenDisplayName("animate-objects", "Lavera", index + 1), type: "IMAGE", layer: "PROP",
     image: { url: objectAssets[index % 3] }, position: { x: 100, y: 100 }, metadata: {
       [SPELL_BOARD_TOKEN_META_KEY]: spellBoardTokenMetadata({ spellId: "animate-objects", instanceId: "animate-lavera", casterId: "lavera", number: index + 1, objectSize: "small" }),
       [KEY]: { hp: 25, hpMax: 25, attitude: "pc" },
@@ -60,3 +62,12 @@ localStorage.setItem("com.thebigpicture.initiative/tracker-layout", "classic");
 markSceneEpochReady("tracker-polish-preview");
 await mountHistoryOwner(); await mountEffectsMutationCoordinatorService();
 await openTrackerPopover({ refresh: true });
+document.getElementById("open-manual").onclick = () => OBR.popover.open({ id: "com.thebigpicture.initiative/quick-hp-modal",
+  url: "/quick-hp-modal.html", width: 560, height: Math.min(760, innerHeight - 32),
+  anchorPosition: { left: 16, top: 16 }, anchorReference: "POSITION",
+  anchorOrigin: { horizontal: "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: "LEFT", vertical: "TOP" }, hidePaper: true });
+document.getElementById("capture-snapshot").onclick = async () => {
+  const snapshot = await captureCombatSnapshot();
+  document.getElementById("snapshot-json").textContent = JSON.stringify(snapshot, null, 2);
+  document.getElementById("snapshot-board").innerHTML = buildCombatSnapshotSvg(snapshot);
+};

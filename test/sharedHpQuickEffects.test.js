@@ -12,6 +12,16 @@ test("manual effects include off-list group members, not attachment widgets", ()
   const widget = { ...items[1], id: "widget", attachedTo: "hand" };
   assert.deepEqual(sharedHpTargetItems([...items, widget]).map(item => item.id), ["auril", "hand", "head"]);
 });
+test("manual effects include managed summoned props while excluding arbitrary props and attachments", () => {
+  const summoned = { id: "object", layer: "PROP", metadata: { [key]: { hp: 25, hpMax: 25 },
+    "com.thebigpicture.initiative/spellBoardToken": { kind: "spell-board-token", spellId: "animate-objects", instanceId: "cast", casterId: "auril" } } };
+  const prop = { id: "ordinary-prop", layer: "PROP", metadata: { [key]: { hp: 25, hpMax: 25 } } };
+  const attached = { ...summoned, id: "attached", attachedTo: "auril" };
+  assert.deepEqual(sharedHpTargetItems([...items, summoned, prop, attached]).map(item => item.id), ["auril", "hand", "head", "object"]);
+  const preview = buildSharedHpPreview([...items, summoned], [{ item: summoned,
+    change: calculateQuickHPChange({ mode: "damage", value: 7, hp: 25, hpMax: 25 }) }]);
+  assert.deepEqual(preview.updates.map(update => [update.tokenId, update.hp]), [["object", 18]]);
+});
 test("one pure preview drives summary and optimistic values for the complete group", () => {
   const once = buildSharedHpPreview(items, entries(), {});
   assert.deepEqual(once.updates.map(update => update.hp), [272, 272, 272]);

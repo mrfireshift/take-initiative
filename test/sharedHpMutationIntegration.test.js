@@ -2,9 +2,28 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { reset, cleanup, apply, damage, group, items, meta, token, history, effects,
   replaceItems, setRole, failNextWrite } from "../test-support/sharedHpHarness.js";
+import { sharedHpTargetItems } from "../src/sharedHpViewCore.js";
+import { calculateQuickHPChange } from "../src/quickHpCore.js";
 
 test.beforeEach(() => reset());
 test.after(cleanup);
+test("manual effects can damage a summoned PROP and Undo restores its canonical HP", async () => {
+  const summoned = { ...token("object", { hp: 25, hpMax: 25 }), layer: "PROP" };
+  summoned.metadata["com.thebigpicture.initiative/spellBoardToken"] = {
+    kind: "spell-board-token", spellId: "animate-objects", casterId: "auril", instanceId: "cast",
+  };
+  replaceItems([token("auril"), summoned]);
+  assert.ok(sharedHpTargetItems(items).some(item => item.id === "object"));
+  const change = calculateQuickHPChange({ mode: "damage", value: 7, hp: meta("object").hp, hpMax: meta("object").hpMax });
+  const result = await apply([{ type: "hp:set", updates: [{ itemId: "object", hp: change.afterHP,
+    hpMax: change.hpMax, hpIntent: { mode: "damage", amount: change.requested, eventId: "summon-hit" } }] }], { history: true });
+  assert.equal(result.status, "applied");
+  assert.equal(meta("object").hp, 18);
+  assert.equal(meta("auril").hp, 300);
+  const [entry] = await history.getHistoryEntries();
+  assert.equal((await effects.undoEffectsMutation(entry, { transport: "background" })).status, "applied");
+  assert.equal(meta("object").hp, 25);
+});
 test("production coordinator expands HP writes and metadata patches into all members", async () => {
   const result = await apply([damage("hand", 25)], { history: true });
   assert.equal(result.status, "applied");
