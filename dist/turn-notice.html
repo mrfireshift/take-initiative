@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cambio Turno</title>
+    <link rel="stylesheet" href="/ui-scrollbars.css" />
+    <style>
+      html, body { width: 100%; height: 100%; margin: 0; background: transparent; }
+      * { box-sizing: border-box; }
+      body {
+        position: relative;
+        overflow: hidden;
+        color: #fff;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        pointer-events: none;
+      }
+      #notice-stack {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        display: grid;
+        justify-items: stretch;
+        pointer-events: none;
+      }
+      #app {
+        position: relative;
+        width: 100%;
+        height: 136px;
+        z-index: 1;
+      }
+      #app:empty { display: none; }
+      #zone-app {
+        position: relative;
+        width: 100%;
+        display: grid;
+        z-index: 3;
+      }
+      #zone-app:empty { display: none; }
+      #zone-app:not(:empty) + #app {
+        margin-top: 8px;
+      }
+      .notice {
+        --accent: #60a5fa;
+        --accent-soft: rgba(96, 165, 250, .42);
+        --accent-deep: rgba(15, 62, 112, .92);
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: calc(100% - 8px);
+        min-height: 126px;
+        overflow: visible;
+        padding: 14px 62px 14px 106px;
+        border: 2px solid #080b10;
+        border-radius: 8px;
+        background:
+          linear-gradient(115deg, var(--accent-deep) 0%, rgba(18, 24, 34, .97) 48%, rgba(8, 12, 18, .98) 100%);
+        box-shadow:
+          0 0 0 2px var(--accent),
+          0 0 22px 5px var(--accent-soft),
+          0 18px 48px rgba(0, 0, 0, .68),
+          inset 0 0 0 1px rgba(255, 255, 255, .12),
+          inset 0 -28px 44px rgba(0, 0, 0, .25);
+        opacity: 0;
+        transform: translate(0, -8px);
+        transform-origin: top center;
+        transition: opacity 180ms ease, transform 220ms ease;
+        will-change: opacity, transform;
+      }
+      .notice.is-visible { opacity: 1; transform: translate(0, 0); }
+      .notice.is-leaving { opacity: 0; transform: translate(0, 5px); }
+      .notice[data-attitude="enemy"] {
+        --accent: #ef4444;
+        --accent-soft: rgba(239, 68, 68, .43);
+        --accent-deep: rgba(105, 24, 30, .94);
+      }
+      .notice[data-attitude="ally"] {
+        --accent: #22c55e;
+        --accent-soft: rgba(34, 197, 94, .38);
+        --accent-deep: rgba(17, 83, 49, .94);
+      }
+      .notice[data-attitude="neutral"] {
+        --accent: #f59e0b;
+        --accent-soft: rgba(245, 158, 11, .38);
+        --accent-deep: rgba(95, 61, 14, .94);
+      }
+      .notice::before {
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        bottom: 6px;
+        left: 8px;
+        border: 1px solid rgba(255,255,255,.10);
+        border-radius: 4px;
+        content: "";
+      }
+      .portrait {
+        position: absolute;
+        top: 50%;
+        left: 13px;
+        width: 83px;
+        height: 83px;
+        overflow: hidden;
+        border: 2px solid #080b10;
+        border-radius: 50%;
+        background: rgba(4, 7, 11, .96);
+        box-shadow:
+          0 0 0 2px var(--accent),
+          0 0 14px 3px var(--accent-soft),
+          inset 0 0 0 1px rgba(255,255,255,.18);
+        transform: translateY(-50%);
+      }
+      .portrait img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+      }
+      .portrait-fallback {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
+        color: #fff;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 35px;
+        font-weight: 800;
+        text-shadow: 0 2px 4px #000;
+      }
+      .copy { position: relative; min-width: 0; z-index: 1; }
+      .eyebrow {
+        color: var(--accent);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .8px;
+        text-transform: uppercase;
+      }
+      .title {
+        margin-top: 3px;
+        overflow: hidden;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(18px, 3.5vw, 23px);
+        font-weight: 800;
+        line-height: 1.05;
+        text-overflow: ellipsis;
+        text-shadow: 0 2px 3px rgba(0,0,0,.9);
+        white-space: nowrap;
+      }
+      .round-badge {
+        position: absolute;
+        top: 14px;
+        right: 15px;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #080b10;
+        border-radius: 50%;
+        background: rgba(5, 9, 14, .88);
+        box-shadow: 0 0 0 1px var(--accent), inset 0 0 12px var(--accent-soft);
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        z-index: 1;
+      }
+      .round-badge span { color: var(--accent); font-size: 7px; font-weight: 900; letter-spacing: .4px; }
+      .round-badge strong { margin-top: 2px; font-family: Georgia, "Times New Roman", serif; font-size: 14px; }
+      .next {
+        position: relative;
+        margin-top: 14px;
+        padding-top: 9px;
+        border-top: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
+        color: rgba(255,255,255,.68);
+        font-size: 10px;
+        z-index: 1;
+      }
+      .next span { margin-right: 5px; color: var(--accent); font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
+      .next strong { color: #fff; font-family: Georgia, "Times New Roman", serif; font-size: 11px; }
+      .timer {
+        position: absolute;
+        right: 0;
+        bottom: -2px;
+        left: 0;
+        height: 4px;
+        overflow: hidden;
+        border-radius: 0 0 6px 6px;
+        background: rgba(255,255,255,.07);
+      }
+      .timer::after {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        content: "";
+        transform-origin: left;
+        animation: expire 4.5s linear forwards;
+      }
+      .zone-notice {
+        --accent: #fb923c;
+        --accent-soft: rgba(251, 146, 60, .42);
+        --accent-deep: rgba(104, 39, 20, .95);
+        position: relative;
+        width: calc(100% - 8px);
+        min-height: 56px;
+        margin: 4px;
+        padding: 6px 10px 6px 48px;
+        border: 1px solid #080b10;
+        border-radius: 7px;
+        background:
+          linear-gradient(115deg, var(--accent-deep) 0%, rgba(27, 20, 18, .97) 48%, rgba(10, 11, 14, .98) 100%);
+        box-shadow:
+          0 0 0 1px var(--accent),
+          0 0 14px 3px var(--accent-soft),
+          0 10px 30px rgba(0,0,0,.62),
+          inset 0 0 0 1px rgba(255,255,255,.12),
+          inset 0 -18px 30px rgba(0,0,0,.22);
+        transform: none;
+        transform-origin: top center;
+      }
+      .zone-notice::before {
+        position: absolute;
+        inset: 4px 6px;
+        border: 1px solid rgba(255,255,255,.10);
+        border-radius: 3px;
+        content: "";
+      }
+      .zone-portrait {
+        position: absolute;
+        top: 9px;
+        left: 8px;
+        width: 33px;
+        height: 33px;
+        overflow: hidden;
+        border: 2px solid #080b10;
+        border-radius: 50%;
+        background: rgba(4,7,11,.96);
+        box-shadow:
+          0 0 0 2px var(--accent),
+          0 0 10px 2px var(--accent-soft),
+          inset 0 0 0 1px rgba(255,255,255,.18);
+      }
+      .zone-portrait img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+      }
+      .zone-portrait-fallback {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 15px;
+        font-weight: 800;
+        text-shadow: 0 2px 4px #000;
+      }
+      .zone-portrait-fallback.is-aggregate {
+        font-size: 13px;
+        letter-spacing: -1px;
+      }
+      .zone-copy { position: relative; min-width: 0; z-index: 1; }
+      .zone-eyebrow {
+        margin-bottom: 2px;
+        color: var(--accent);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: .6px;
+        line-height: 1.15;
+        text-transform: uppercase;
+      }
+      .zone-eyebrow-timing {
+        color: rgba(255, 255, 255, .68);
+        font-weight: 700;
+      }
+      .zone-eyebrow-count {
+        color: rgba(255, 255, 255, .60);
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+      .zone-title {
+        margin: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
+        overflow: hidden;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(13px, 2.5vw, 14.5px);
+        font-weight: 800;
+        line-height: 1.15;
+        text-overflow: ellipsis;
+        text-shadow: 0 1px 3px rgba(0,0,0,.9);
+        white-space: nowrap;
+      }
+      .zone-target-index {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5px 4px;
+        border-radius: 3px;
+        border: 1px solid rgba(255, 255, 255, .18);
+        background: rgba(255, 255, 255, .08);
+        color: rgba(255, 255, 255, .70);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 9px;
+        font-weight: 700;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+      .zone-subtitle {
+        margin-top: 1px;
+        overflow: hidden;
+        font-size: 9.5px;
+        line-height: 1.2;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .zone-spell-name {
+        color: rgba(255, 255, 255, .82);
+        font-weight: 700;
+      }
+      .zone-source {
+        color: rgba(255, 255, 255, .46);
+        font-weight: 500;
+        font-size: 8.5px;
+      }
+      .zone-detail {
+        position: relative;
+        display: grid;
+        gap: 4px;
+        margin-top: 4px;
+        z-index: 1;
+      }
+      .zone-detail[data-multiple="true"] { gap: 4px; }
+      .zone-detail-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+        min-width: 0;
+      }
+      .zone-detail strong {
+        flex: 1 1 100%;
+        overflow: hidden;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 10px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #fff;
+      }
+      .zone-micropills {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 5px;
+        margin: 0;
+      }
+      .zone-micropill {
+        display: inline-flex;
+        align-items: center;
+        color: rgba(255, 255, 255, .82);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 8.5px;
+        font-weight: 700;
+        line-height: 1.2;
+        border: none;
+        background: transparent;
+        padding: 0;
+      }
+      .zone-micropill--save {
+        color: #fff;
+        font-weight: 800;
+        letter-spacing: .2px;
+      }
+      .zone-micropill--dc {
+        color: rgba(255, 255, 255, .88);
+        font-weight: 800;
+      }
+      .zone-micropill--damage {
+        color: rgba(255, 255, 255, .78);
+        font-weight: 600;
+      }
+      .zone-micropill--condition {
+        color: rgba(255, 255, 255, .78);
+        font-weight: 600;
+      }
+      .zone-instruction {
+        flex: 1 1 100%;
+        margin-top: 2px;
+        color: rgba(255, 255, 255, .50);
+        font-size: 8px;
+        line-height: 1.25;
+        letter-spacing: .05px;
+        max-width: 440px;
+      }
+      .zone-resolution {
+        position: relative;
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 3px;
+        margin: 0;
+        pointer-events: auto;
+        z-index: 2;
+      }
+      .zone-resolution-outcomes {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 3px;
+      }
+      .zone-resolution-outcomes[hidden] {
+        display: none !important;
+      }
+      .zone-resolution button,
+      .zone-resolution input {
+        min-height: 19px;
+        border: 1px solid rgba(255,255,255,.26);
+        border-radius: 4px;
+        background: rgba(4, 8, 13, .82);
+        color: #fff;
+        font: 700 8.5px/1 system-ui, sans-serif;
+        pointer-events: auto;
+      }
+      .zone-resolution button {
+        padding: 2px 6px;
+        cursor: pointer;
+      }
+      .zone-resolution button:hover,
+      .zone-resolution button.is-selected {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 30%, rgba(4,8,13,.88));
+      }
+      .zone-resolution button:disabled,
+      .zone-resolution input:disabled {
+        cursor: default;
+        opacity: .52;
+      }
+      .zone-resolution-damage {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        color: rgba(255,255,255,.76);
+        font-size: 8.5px;
+        font-weight: 700;
+      }
+      .zone-resolution-damage input {
+        width: 42px;
+        padding: 2px 4px;
+        text-align: center;
+      }
+      [data-resolution-status] {
+        display: block;
+        flex-basis: 100%;
+        color: var(--accent);
+        font-size: 8.5px;
+        font-weight: 800;
+      }
+      .zone-close {
+        position: absolute;
+        top: 5px;
+        right: 8px;
+        width: 21px;
+        height: 21px;
+        padding: 0;
+        border: 1px solid rgba(255,255,255,.24);
+        border-radius: 50%;
+        background: rgba(4,8,13,.72);
+        color: rgba(255,255,255,.82);
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 18px;
+        pointer-events: auto;
+        z-index: 3;
+      }
+      .zone-timer {
+        position: absolute;
+        right: 0;
+        bottom: -2px;
+        left: 0;
+        height: 3px;
+        overflow: hidden;
+        border-radius: 0 0 6px 6px;
+        background: rgba(255,255,255,.07);
+      }
+      .zone-timer::after {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        content: "";
+        transform-origin: left;
+        animation: zone-expire 6.5s linear forwards;
+      }
+      @keyframes expire { to { transform: scaleX(0); } }
+      @keyframes zone-expire { to { transform: scaleX(0); } }
+      @media (max-width: 520px) {
+        #app { height: 122px; }
+        #zone-app { width: 100%; }
+        #zone-app:not(:empty) + #app {
+          margin-top: 7px;
+        }
+        .notice { padding: 13px 54px 12px 88px; min-height: 114px; }
+        .portrait { left: 11px; width: 66px; height: 66px; }
+        .title { font-size: 18px; }
+        .round-badge { top: 12px; right: 12px; width: 36px; height: 36px; }
+        .next { margin-top: 12px; }
+        .zone-notice {
+          min-height: 62px;
+          padding: 7px 10px 7px 54px;
+        }
+        .zone-portrait { left: 8px; width: 38px; height: 38px; }
+        .zone-title { font-size: 14px; }
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/turnNotice-6fAxMkSE.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/constants-cQDNDP2l.js">
+    <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
+    <link rel="modulepreload" crossorigin href="/assets/distance3dCore-BBBmU4Al.js">
+    <link rel="modulepreload" crossorigin href="/assets/spells-srd-EMny-GRn.js">
+    <link rel="modulepreload" crossorigin href="/assets/reminderResolutionCore-D6yVdNBO.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-B1pTFFvp.js">
+    <link rel="modulepreload" crossorigin href="/assets/aoeStyle-rg5-UoB2.js">
+    <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ck3JdnnP.js">
+    <link rel="modulepreload" crossorigin href="/assets/customAuraCore-D7Qi5XQg.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-C66Mzpnk.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-C2raNYvJ.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-BxDQ2CF9.js">
+    <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-DwNWGpaX.js">
+    <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
+    <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-Daa_-3s_.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-Bdr8RmyL.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-uZ-MHQB1.js">
+    <link rel="modulepreload" crossorigin href="/assets/conditions-CfTQCzt6.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-Bbuher-4.js">
+    <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-BD7ruxmM.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-C_zaQ68Z.js">
+    <link rel="modulepreload" crossorigin href="/assets/history-CP3uVzI2.js">
+    <link rel="modulepreload" crossorigin href="/assets/distance3d-CO6Pu5Hm.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectsMutations-oUBYnfBx.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsProjection-C3NiFGej.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpbar-items-DmOO6YUI.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BiUI0kXb.js">
+    <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-DyQ88aSf.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpConditionAutomation-DkE_K80Q.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpMemory-BGn1ecLb.js">
+    <link rel="modulepreload" crossorigin href="/assets/concentrationSaveReminder-CD2xXHBO.js">
+    <link rel="modulepreload" crossorigin href="/assets/combatLogCausalityCore-CMBZlm78.js">
+    <link rel="modulepreload" crossorigin href="/assets/reminderResolution-DEmu4xLN.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-DssX5XQo.js">
+    <link rel="modulepreload" crossorigin href="/assets/turnNotice-DXhVTBiS.js">
+  </head>
+  <body>
+    <div id="notice-stack">
+      <div id="zone-app"></div>
+      <div id="app"></div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tiro di Concentrazione</title>
+    <link rel="stylesheet" href="/ui-scrollbars.css" />
+    <style>
+      html, body, #app { width: 100%; height: 100%; margin: 0; background: transparent; }
+      * { box-sizing: border-box; }
+      body {
+        position: relative;
+        overflow: hidden;
+        color: #fff;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        pointer-events: none;
+      }
+      .warning {
+        --accent: #fb923c;
+        --accent-soft: rgba(251, 146, 60, .42);
+        --accent-deep: rgba(104, 39, 20, .95);
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: calc(100% - 8px);
+        min-height: 56px;
+        height: calc(100% - 8px);
+        max-height: calc(100% - 8px);
+        overflow: hidden;
+        padding: 8px 12px 8px 56px;
+        border: 2px solid #080b10;
+        border-radius: 8px;
+        background:
+          linear-gradient(115deg, var(--accent-deep) 0%, rgba(27, 20, 18, .97) 48%, rgba(10, 11, 14, .98) 100%);
+        box-shadow:
+          0 0 0 2px var(--accent),
+          0 0 22px 5px var(--accent-soft),
+          0 18px 48px rgba(0, 0, 0, .68),
+          inset 0 0 0 1px rgba(255, 255, 255, .12),
+          inset 0 -28px 44px rgba(0, 0, 0, .25);
+      }
+      .warning::before {
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        bottom: 6px;
+        left: 8px;
+        border: 1px solid rgba(255,255,255,.10);
+        border-radius: 4px;
+        content: "";
+        pointer-events: none;
+      }
+      .portrait {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 36px;
+        height: 36px;
+        overflow: hidden;
+        border: 2px solid #080b10;
+        border-radius: 50%;
+        background: rgba(4, 7, 11, .96);
+        box-shadow:
+          0 0 0 2px var(--accent),
+          0 0 10px 2px var(--accent-soft),
+          inset 0 0 0 1px rgba(255,255,255,.18);
+      }
+      .portrait img { width: 100%; height: 100%; display: block; object-fit: cover; }
+      .portrait-fallback {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 16px;
+        font-weight: 800;
+        text-shadow: 0 2px 4px #000;
+      }
+      .portrait-fallback.is-aggregate {
+        font-size: 14px;
+        letter-spacing: -1px;
+      }
+      .copy { position: relative; min-width: 0; z-index: 1; }
+      .eyebrow {
+        margin-bottom: 2px;
+        color: var(--accent);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: .6px;
+        line-height: 1.15;
+        text-transform: uppercase;
+      }
+      .title {
+        margin: 0;
+        overflow: hidden;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(13px, 2.5vw, 15px);
+        font-weight: 800;
+        line-height: 1.15;
+        text-overflow: ellipsis;
+        text-shadow: 0 1px 3px rgba(0,0,0,.9);
+        white-space: nowrap;
+      }
+      .save-badge {
+        position: absolute;
+        top: 9px;
+        right: 12px;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 3px;
+        padding: 2px 6px;
+        border: 1px solid rgba(251, 146, 60, .40);
+        border-radius: 4px;
+        background: rgba(104, 39, 20, .40);
+        box-shadow: 0 0 8px rgba(251, 146, 60, .20);
+        line-height: 1;
+        z-index: 1;
+      }
+      .save-badge span {
+        color: var(--accent);
+        font: 800 8px system-ui, sans-serif;
+        letter-spacing: .4px;
+        text-transform: uppercase;
+      }
+      .save-badge strong {
+        color: #fff;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .list {
+        position: relative;
+        display: grid;
+        gap: 4px;
+        max-height: calc(100% - 36px);
+        margin-top: 4px;
+        padding-top: 0;
+        overflow-y: auto;
+        z-index: 1;
+      }
+      .warning-single .list {
+        max-height: none;
+        overflow: visible;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+        min-width: 0;
+      }
+      .warning-single .row {
+        border: none;
+        background: transparent;
+        padding: 0;
+      }
+      .warning-multiple .row {
+        padding: 3px 6px;
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 4px;
+        background: rgba(0,0,0,.20);
+      }
+      .identity {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 5px;
+        min-width: 0;
+      }
+      .name {
+        overflow: hidden;
+        color: #fff;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 8.5px;
+        font-weight: 800;
+        letter-spacing: .2px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .warning-multiple .name {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 10px;
+        font-weight: 800;
+      }
+      .spell-name {
+        overflow: hidden;
+        color: rgba(255, 255, 255, .50);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 8.5px;
+        font-weight: 500;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .damage, .dc {
+        display: inline-flex;
+        align-items: center;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 8.5px;
+        line-height: 1.2;
+        border: none;
+        background: transparent;
+        padding: 0;
+      }
+      .damage {
+        color: rgba(255, 255, 255, .75);
+        font-weight: 600;
+      }
+      .dc {
+        color: rgba(255, 255, 255, .88);
+        font-weight: 800;
+      }
+      .resolution {
+        position: relative;
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 3px;
+        pointer-events: auto;
+      }
+      .resolution button {
+        min-height: 19px;
+        padding: 2px 6px;
+        border: 1px solid rgba(255,255,255,.26);
+        border-radius: 4px;
+        background: rgba(4, 8, 13, .82);
+        color: #fff;
+        cursor: pointer;
+        font: 700 8.5px/1 system-ui, sans-serif;
+        pointer-events: auto;
+      }
+      .resolution button:hover {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 30%, rgba(4,8,13,.88));
+      }
+      .resolution button:disabled { cursor: default; opacity: .52; }
+      .resolution-status {
+        flex-basis: 100%;
+        color: var(--accent);
+        font-size: 8.5px;
+        font-weight: 800;
+      }
+      .timer {
+        position: absolute;
+        right: 0;
+        bottom: -2px;
+        left: 0;
+        height: 4px;
+        overflow: hidden;
+        border-radius: 0 0 6px 6px;
+        background: rgba(255,255,255,.07);
+      }
+      .timer::after {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        content: "";
+        transform-origin: left;
+        animation: expire 6s linear forwards;
+      }
+      @keyframes expire { to { transform: scaleX(0); } }
+      @media (max-width: 520px) {
+        .warning { padding: 8px 12px 8px 52px; min-height: 56px; }
+        .portrait { left: 8px; width: 34px; height: 34px; }
+        .title { font-size: 14px; }
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/concentrationWarning-Bk0NNdjL.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/constants-cQDNDP2l.js">
+    <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
+    <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
+    <link rel="modulepreload" crossorigin href="/assets/distance3dCore-BBBmU4Al.js">
+    <link rel="modulepreload" crossorigin href="/assets/spells-srd-EMny-GRn.js">
+    <link rel="modulepreload" crossorigin href="/assets/reminderResolutionCore-D6yVdNBO.js">
+    <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-Daa_-3s_.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-Bdr8RmyL.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-uZ-MHQB1.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-B1pTFFvp.js">
+    <link rel="modulepreload" crossorigin href="/assets/conditions-CfTQCzt6.js">
+    <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ck3JdnnP.js">
+    <link rel="modulepreload" crossorigin href="/assets/aoeStyle-rg5-UoB2.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-C2raNYvJ.js">
+    <link rel="modulepreload" crossorigin href="/assets/customAuraCore-D7Qi5XQg.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-C66Mzpnk.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-Bbuher-4.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-BxDQ2CF9.js">
+    <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-BD7ruxmM.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-C_zaQ68Z.js">
+    <link rel="modulepreload" crossorigin href="/assets/history-CP3uVzI2.js">
+    <link rel="modulepreload" crossorigin href="/assets/distance3d-CO6Pu5Hm.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectsMutations-oUBYnfBx.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsProjection-C3NiFGej.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpbar-items-DmOO6YUI.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BiUI0kXb.js">
+    <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-DyQ88aSf.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpConditionAutomation-DkE_K80Q.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpMemory-BGn1ecLb.js">
+    <link rel="modulepreload" crossorigin href="/assets/concentrationSaveReminder-CD2xXHBO.js">
+    <link rel="modulepreload" crossorigin href="/assets/combatLogCausalityCore-CMBZlm78.js">
+    <link rel="modulepreload" crossorigin href="/assets/reminderResolution-DEmu4xLN.js">
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>

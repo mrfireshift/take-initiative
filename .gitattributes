@@ -1,0 +1,2 @@
+# Preserve generated production artifacts byte-for-byte, including checksums.
+dist/** -text

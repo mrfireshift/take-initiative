@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Azioni rapide</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/popover-glass.css" />
+    <style>
+      html,body { margin:0; width:100%; height:auto; min-height:0; overflow:hidden; background:transparent!important; }
+      body { box-sizing:border-box; color:#fff; font-family:var(--obrt-font-ui,"Helvetica Neue",Helvetica,Arial,sans-serif); font-size:12px; }
+      .glass-shell {
+        box-sizing:border-box; width:100%; height:auto; min-height:0!important; overflow:hidden; outline:none;
+        opacity:0; transform:translateY(-4px) scale(.985); transform-origin:top center;
+        transition:opacity 120ms ease-out,transform 140ms cubic-bezier(.2,.8,.2,1);
+        will-change:opacity,transform;
+      }
+      .glass-shell.is-open { opacity:1; transform:translateY(0) scale(1); }
+      .glass-shell.is-closing { opacity:0; transform:translateY(-2px) scale(.99); pointer-events:none; transition-duration:90ms; }
+      #menu { box-sizing:border-box; width:100%; max-height:none; padding:5px; overflow-y:auto; scrollbar-width:thin; }
+      .title { padding:6px 8px 8px; margin-bottom:3px; overflow:hidden; border-bottom:1px solid rgba(253,224,71,.22); color:#fef08a; font-weight:750; text-overflow:ellipsis; white-space:nowrap; }
+      button {
+        box-sizing:border-box; width:100%; min-height:38px; padding:6px 8px; display:grid;
+        grid-template-columns:22px minmax(0,1fr); align-items:center; gap:7px;
+        border:0; border-radius:8px; background:transparent; color:#fff; font:inherit; text-align:left; cursor:pointer;
+        transition:background-color 90ms ease,transform 90ms ease;
+      }
+      button:hover { background:rgba(253,224,71,.11); }
+      button:active:not(:disabled) { transform:scale(.985); }
+      button:disabled { cursor:not-allowed; opacity:.45; }
+      button:disabled:hover { background:transparent; }
+      button:focus-visible { outline:2px solid rgba(253,224,71,.82); outline-offset:-2px; }
+      .icon { width:22px; height:22px; display:grid; place-items:center; border-radius:7px; background:rgba(253,224,71,.13); color:#fde047; font-weight:800; }
+      .copy { min-width:0; display:grid; gap:2px; }
+      .label,.detail { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .label { font-size:11px; font-weight:700; }
+      .detail { color:rgba(255,255,255,.58); font-size:9px; font-weight:500; }
+      @media (prefers-reduced-motion:reduce) {
+        .glass-shell,button { transition:none!important; }
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/trackerQuickActions-B-ZnF0_F.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/constants-cQDNDP2l.js">
+    <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
+    <link rel="modulepreload" crossorigin href="/assets/menuPopoverProtocolCore-Cr3sagnY.js">
+    <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-BNENEojz.js">
+    <link rel="modulepreload" crossorigin href="/assets/trackerQuickActions-GB4qmzDm.js">
+  </head>
+  <body>
+    <div id="shell" class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/tracker-quick-actions">
+      <main id="menu" role="menu" aria-label="Azioni rapide"></main>
+    </div>
+  </body>
+</html>

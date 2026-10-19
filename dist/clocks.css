@@ -1,0 +1,185 @@
+:root {
+  --clock-card: rgba(255, 255, 255, .055);
+  --clock-border: rgba(255, 255, 255, .14);
+  --clock-muted: #aeb7c7;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+button, input, select { font: inherit; }
+button { color: inherit; }
+
+.clock-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 3px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #f8fafc;
+  border-radius: 16px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.clock-header {
+  flex: 0 0 18px;
+  min-height: 18px !important;
+  max-height: 18px;
+  height: 18px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.clock-header.is-dragging { cursor: grabbing; }
+.clock-header-spacer { flex: 1; }
+
+.icon-button, .step-button, .primary-button, .quiet-button {
+  border: 1px solid var(--clock-border);
+  background: rgba(15, 23, 42, .58);
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, transform .14s ease;
+}
+.icon-button:hover, .step-button:hover, .quiet-button:hover { background: rgba(51, 65, 85, .78); border-color: rgba(255,255,255,.25); }
+.icon-button:active, .step-button:active, .quiet-button:active, .primary-button:active { transform: translateY(1px); }
+.icon-button { height: 32px; min-width: 32px; padding: 0 9px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.clock-header .icon-button {
+  flex: 0 0 18px;
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 500;
+  line-height: 16px;
+}
+.primary-button { min-height: 36px; padding: 0 14px; border-color: rgba(96,165,250,.72); background: linear-gradient(180deg, #2563eb, #1d4ed8); border-radius: 10px; font-weight: 700; }
+.primary-button:hover { background: linear-gradient(180deg, #3b82f6, #2563eb); }
+.quiet-button { min-height: 28px; padding: 0 9px; border-radius: 8px; color: #dbe4f0; font-size: 11px; font-weight: 600; }
+.quiet-button.danger { color: #fecaca; border-color: rgba(248,113,113,.35); }
+
+.clock-create {
+  flex: 0 0 auto;
+  padding: 9px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px auto;
+  gap: 7px;
+  border: 1px solid var(--clock-border);
+  border-radius: 13px;
+  background: rgba(5, 10, 20, .38);
+}
+.clock-input, .clock-select {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  color: #fff;
+  border: 1px solid rgba(148,163,184,.28);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(8, 13, 24, .78);
+  font-size: 12px;
+  font-weight: 600;
+}
+.clock-input:focus, .clock-select:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(59,130,246,.2); }
+.clock-color-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; }
+.field-label { color: var(--clock-muted); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.color-choice {
+  width: 21px; height: 21px; padding: 0; border: 2px solid transparent; border-radius: 50%; cursor: pointer;
+  background: var(--choice-color); box-shadow: 0 0 0 1px rgba(255,255,255,.17);
+}
+.color-choice[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px var(--choice-color); }
+
+.clock-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 1px 3px 8px 1px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.55) transparent; }
+.clock-empty {
+  min-height: 150px; flex: 1; display: grid; place-items: center; padding: 24px;
+  color: var(--clock-muted); text-align: center; line-height: 1.4;
+  border: 1px dashed rgba(148,163,184,.25); border-radius: 14px;
+}
+
+.clock-card {
+  flex: 0 0 auto;
+  padding: 9px;
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  gap: 9px;
+  border: 1px solid color-mix(in srgb, var(--clock-color) 45%, rgba(255,255,255,.14));
+  border-radius: 14px;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--clock-color) 19%, transparent), rgba(11,16,27,.7) 58%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+.clock-card.is-hidden { opacity: .58; }
+.clock-card.is-complete { box-shadow: 0 0 18px color-mix(in srgb, var(--clock-color) 36%, transparent), inset 0 1px 0 rgba(255,255,255,.1); }
+.clock-ring-wrap { width: 68px; height: 68px; position: relative; display: grid; place-items: center; }
+.clock-ring { width: 68px; height: 68px; display: block; overflow: visible; filter: drop-shadow(0 3px 6px rgba(0,0,0,.4)); }
+.clock-ring-value { position: absolute; font-size: 13px; font-weight: 700; text-shadow: 0 1px 2px #000; }
+.clock-main { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.clock-summary { min-width: 0; display: flex; align-items: center; gap: 6px; }
+.clock-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; font-weight: 700; }
+.clock-progress { margin-left: auto; flex: 0 0 auto; color: var(--clock-muted); font-size: 11px; font-weight: 700; }
+.visibility-pill { flex: 0 0 auto; padding: 2px 6px; border-radius: 999px; color: #fde68a; background: rgba(146,64,14,.35); font-size: 9px; font-weight: 700; }
+.clock-controls { display: flex; align-items: center; gap: 6px; }
+.step-button { width: 36px; height: 32px; padding: 0; border-radius: 9px; font-size: 18px; font-weight: 600; }
+.step-button.increment { border-color: color-mix(in srgb, var(--clock-color) 62%, white 8%); background: color-mix(in srgb, var(--clock-color) 35%, rgba(15,23,42,.8)); }
+.clock-meter { height: 5px; flex: 1; overflow: hidden; border-radius: 999px; background: rgba(0,0,0,.42); }
+.clock-meter > span { display: block; width: var(--clock-percent); height: 100%; border-radius: inherit; background: var(--clock-color); transition: width .2s ease; }
+
+.clock-settings { grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,.09); padding-top: 8px; }
+.clock-settings summary { width: max-content; cursor: pointer; color: var(--clock-muted); font-size: 10px; font-weight: 700; list-style: none; }
+.clock-settings summary::-webkit-details-marker { display: none; }
+.clock-settings-grid { margin-top: 8px; display: grid; grid-template-columns: minmax(0,1fr) 72px; gap: 7px; }
+.clock-settings-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.clock-card-colors { grid-column: 1 / -1; display: flex; gap: 7px; padding: 2px; }
+
+body[data-compact="true"] .clock-shell {
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 3px 6px 6px;
+  gap: 2px;
+  border-radius: 15px;
+  overflow: visible;
+}
+body[data-compact="true"] .clock-header {
+  flex-basis: 18px;
+  min-height: 18px !important;
+  max-height: 18px;
+  height: 18px !important;
+  padding: 0;
+}
+body[data-compact="true"] .clock-create, body[data-compact="true"] .clock-settings { display: none; }
+body[data-compact="true"] .clock-list {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+  padding: 1px 0 0;
+  gap: 5px;
+  scrollbar-width: none;
+}
+body[data-compact="true"] .clock-list::-webkit-scrollbar { display: none; }
+body[data-compact="true"] .clock-card { padding: 6px 7px; grid-template-columns: 48px minmax(0, 1fr); gap: 7px; border-radius: 11px; }
+body[data-compact="true"] .clock-ring-wrap, body[data-compact="true"] .clock-ring { width: 48px; height: 48px; }
+body[data-compact="true"] .clock-ring-value { font-size: 10px; }
+body[data-compact="true"] .clock-main { gap: 4px; }
+body[data-compact="true"] .clock-name { font-size: 12px; }
+body[data-compact="true"] .clock-progress { font-size: 10px; }
+body[data-compact="true"] .step-button { width: 30px; height: 27px; font-size: 16px; }
+body[data-compact="true"] .clock-meter { height: 4px; }
+
+body[data-player="true"] .clock-card { grid-template-columns: 68px minmax(0, 1fr); }
+body[data-player="true"] .clock-controls { pointer-events: none; }
+body[data-player="true"] .step-button { display: none; }
+body[data-player="true"] .clock-meter { width: 100%; flex: none; }
+body[data-player="true"][data-compact="true"] .clock-card { grid-template-columns: 48px minmax(0, 1fr); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .clock-card.is-complete .clock-ring { animation: clock-complete 1.8s ease-in-out infinite; }
+  @keyframes clock-complete { 0%,100% { filter: drop-shadow(0 3px 6px rgba(0,0,0,.4)); } 50% { filter: drop-shadow(0 0 8px var(--clock-color)); } }
+}

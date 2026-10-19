@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Azione incantesimo</title>
+    <link rel="stylesheet" href="/ui-scrollbars.css" />
+    <link rel="stylesheet" href="/spell-popover.css" />
+    <style>
+      #app {
+        width:calc(100% - 8px); height:auto; min-height:0; margin:4px;
+        background:linear-gradient(135deg,rgba(76,29,149,.32),rgba(30,41,59,.18) 62%),rgba(15,23,42,.14);
+        -webkit-backdrop-filter:blur(6px) saturate(120%); backdrop-filter:blur(6px) saturate(120%);
+      }
+      .actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:auto; }
+      #app[data-mode="direct"] .actions { grid-template-columns:repeat(2,minmax(0,1fr)); margin-top:4px; }
+      #app[data-mode="compact"] .actions { grid-template-columns:minmax(0,1fr); margin-top:4px; }
+      .action { min-height:62px; padding:8px; text-align:left; border-color:rgba(196,181,253,.4); background:rgba(76,29,149,.18); }
+      .action:hover:not(:disabled) { border-color:rgba(221,214,254,.85); background:rgba(109,40,217,.38); }
+      .action strong { display:block; font-size:12px; line-height:1.1; }
+      .action span { display:block; margin-top:4px; color:rgba(226,232,240,.68); font-size:9px; line-height:1.2; }
+      #app[data-spell="telekinesis"] .actions { margin-top:4px; }
+      .action--telekinesis { min-height:30px; padding:5px 8px; text-align:center; }
+      .action--telekinesis strong { font-weight:700; }
+      .action--compact { min-height:28px; padding:4px 8px; border-color:#ddd6fe; background:linear-gradient(#8b5cf6,#6d28d9); text-align:center; }
+      .action--compact:hover:not(:disabled) { border-color:#ddd6fe; background:linear-gradient(#8b5cf6,#6d28d9); filter:brightness(1.12); }
+      .action--compact strong { font:inherit; }
+      .action--direct { text-align:center; }
+      .action--direct span { min-height:22px; }
+      .field { display:grid; grid-template-columns:64px minmax(0,1fr); align-items:center; gap:7px; }
+      .field label { color:#ddd6fe; font-size:11px; font-weight:800; }
+    </style>
+    <script type="module" crossorigin src="/assets/spellTurnActionChoice-uE43q5ER.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/constants-cQDNDP2l.js">
+    <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-Bbuher-4.js">
+    <link rel="modulepreload" crossorigin href="/assets/popoverDrag-Bz6ZFVOx.js">
+  </head>
+  <body>
+    <main id="app">
+      <div class="header">
+        <div class="header-copy" data-drag-handle draggable="true" title="Trascina per spostare">
+          <div class="eyebrow" hidden></div>
+          <h1 id="title">Azione</h1>
+        </div>
+        <button id="close" type="button" aria-label="Chiudi">×</button>
+      </div>
+      <div id="hint" class="hint" hidden></div>
+      <div id="targetField" class="field" hidden>
+        <label for="target">Bersaglio</label>
+        <select id="target"><option value="">Seleziona il bersaglio</option></select>
+      </div>
+      <div id="status" class="status" hidden></div>
+      <div id="actions" class="actions"></div>
+    </main>
+  </body>
+</html>

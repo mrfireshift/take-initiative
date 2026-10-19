@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/ui-scrollbars.css" />
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/popover-glass.css" />
+    <link rel="stylesheet" href="/custom-aura.css?v=5" />
+    <title>Aure personalizzate</title>
+    <script type="module" crossorigin src="/assets/customAuraModal-3i913Kec.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/constants-cQDNDP2l.js">
+    <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
+    <link rel="modulepreload" crossorigin href="/assets/popoverDrag-Bz6ZFVOx.js">
+    <link rel="modulepreload" crossorigin href="/assets/aoeStyle-rg5-UoB2.js">
+    <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ck3JdnnP.js">
+    <link rel="modulepreload" crossorigin href="/assets/customAuraCore-D7Qi5XQg.js">
+    <link rel="modulepreload" crossorigin href="/assets/customAuraPresetStore-CzUmqJ1w.js">
+    <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-BD7ruxmM.js">
+  </head>
+  <body>
+    <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/custom-aura-modal">
+      <header data-drag-handle draggable="true">
+        <div>
+          <h1 id="modal-title">Aure personalizzate</h1>
+          <div id="token-name" class="subtitle">Caricamento token…</div>
+        </div>
+        <button id="close" class="close" type="button" aria-label="Chiudi">×</button>
+      </header>
+      <main><div id="list"></div></main>
+      <footer>
+        <span id="status"></span>
+        <button id="presets-btn" class="button" type="button">Libreria Preset</button>
+        <button id="add" class="button primary" type="button">+ Nuova aura</button>
+        <button id="cancel-btn" class="button" type="button" hidden>Annulla</button>
+        <button id="save" class="button primary" type="button" hidden>Salva</button>
+      </footer>
+    </div>
+  </body>
+</html>

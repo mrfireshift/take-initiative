@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/ui-typography.css" />
+  <style>
+    :root {
+
+      --obrt-text: #fff;
+      --obrt-hover: rgba(255,255,255,.06);
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--obrt-text);
+      font-size: var(--obrt-type-body);
+      line-height: 1.25;
+    }
+    #app {
+      display: grid;
+      gap: 6px;
+      max-height: 270px;
+      overflow-y: auto;
+      padding: 8px;
+      box-sizing: border-box;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148,163,184,.55) transparent;
+    }
+    .condition-row {
+      width: 100%;
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+      padding: 8px 10px;
+      box-sizing: border-box;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 10px;
+      background: rgba(255,255,255,.07);
+      color: var(--obrt-text);
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      font-weight: var(--obrt-weight-medium);
+      transition: background-color .12s ease, border-color .12s ease;
+    }
+    .condition-row:hover {
+      background: rgba(220,38,38,.24);
+      border-color: rgba(248,113,113,.42);
+    }
+    .condition-row:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+    .condition-row:disabled { opacity: .6; cursor: default; }
+    .condition-name, .condition-target {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .condition-name { font-weight: var(--obrt-weight-semibold); }
+    .condition-target { color: rgba(255,255,255,.75); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }
+    .empty { padding: 14px 8px; text-align: center; color: rgba(255,255,255,.75); }
+  </style>
+  <script type="module" crossorigin src="/assets/ctxRemoveCondition-CGFA3FCx.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/constants-cQDNDP2l.js">
+  <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
+  <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
+  <link rel="modulepreload" crossorigin href="/assets/distance3dCore-BBBmU4Al.js">
+  <link rel="modulepreload" crossorigin href="/assets/spells-srd-EMny-GRn.js">
+  <link rel="modulepreload" crossorigin href="/assets/reminderResolutionCore-D6yVdNBO.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-B1pTFFvp.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-CfTQCzt6.js">
+  <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-Daa_-3s_.js">
+  <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-Bdr8RmyL.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-uZ-MHQB1.js">
+  <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ck3JdnnP.js">
+  <link rel="modulepreload" crossorigin href="/assets/aoeStyle-rg5-UoB2.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-C2raNYvJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/customAuraCore-D7Qi5XQg.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-C66Mzpnk.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-Bbuher-4.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-BxDQ2CF9.js">
+  <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-BD7ruxmM.js">
+  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-C_zaQ68Z.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-CP3uVzI2.js">
+  <link rel="modulepreload" crossorigin href="/assets/distance3d-CO6Pu5Hm.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-oUBYnfBx.js">
+</head>
+<body>
+  <div id="app"></div>
+</body>
+</html>

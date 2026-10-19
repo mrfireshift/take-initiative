@@ -1,0 +1,15 @@
+{
+  "name": "Take Initiative!",
+  "description": "A sleek, yet intuitive plugin for initiative tracking for Dungeons and Dragons 5E, designed for in-person VTTs",
+  "version": "1.4.0",
+  "manifest_version": 1,
+  "icon": "/plugin-icon.svg",
+  "background_url": "/background.html",
+  "action": {
+    "title": "Take Initiative!",
+    "icon": "/icon.svg",
+    "popover": "/action-launcher.html",
+    "height": 16,
+    "width": 16
+  }
+}
