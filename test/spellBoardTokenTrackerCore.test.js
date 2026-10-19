@@ -236,12 +236,13 @@ test("le mini-card dello stesso caster si comprimono dal primo elemento", () => 
   assert.equal(toggle.textContent, "▸", "summoned tokens start collapsed");
   assert.equal(card.style.marginBottom, "22px");
   assert.equal(card.children[1].style.display, "none");
+  assert.equal(card.children[0].style.display, "flex", "the collapsed label stays vertically centered");
   assert.equal(card.children[0].children[1].children[0].textContent, "Evocazioni · 2");
   assert.equal(card.children[0].children[0].style.display, "none");
   toggle.listeners.click({ stopPropagation() {} });
   assert.equal(card.children[0].children[1].children[0].textContent, companions[0].label);
   assert.equal(card.style.marginBottom, "44px");
-  assert.equal(card.children[1].style.display, "");
+  assert.equal(card.children[1].style.display, "flex");
   assert.equal(toggle.textContent, "▾");
 
   // The same group re-rendered keeps the GM's choice; a new cast starts collapsed again.
@@ -259,6 +260,25 @@ test("le mini-card dello stesso caster si comprimono dal primo elemento", () => 
   toggle.listeners.click({ stopPropagation() {} });
   assert.equal(card.children[1].style.display, "none");
   assert.equal(toggle.textContent, "▸");
+});
+
+test("collapsed companion groups preview only their first three portraits and hide the preview when expanded", () => {
+  for (const sharedHp of [false, true]) {
+    const list = ["one", "two", "three", "four"].map(id => ({ itemId: id, label: id,
+      iconUrl: `/${id}.webp`, casterId: `portrait-preview-${sharedHp}`, instanceId: "preview", sharedHp }));
+    const card = { style: {}, children: [], appendChild(child) { this.children.push(child); } };
+    appendSpellBoardTokenCompanions(card, list, { documentRef: testDocument() });
+    const first = card.children[0];
+    const preview = first.children.find(child => child.dataset.companionGroupPortraits === "1");
+    assert.ok(preview, "the collapsed summary previews group members");
+    assert.deepEqual(preview.children.map(image => image.src), ["/one.webp", "/two.webp", "/three.webp"]);
+    assert.equal(preview.style.display, "flex");
+    first.children[2].listeners.click({ stopPropagation() {} });
+    assert.equal(preview.style.display, "none");
+    assert.equal(first.children[0].style.display, "", "the individual portrait returns on expansion");
+    first.children[2].listeners.click({ stopPropagation() {} });
+    assert.equal(preview.style.display, "flex");
+  }
 });
 
 test("il nome della PROP di Arma spirituale usa il caster corrente con fallback", () => {

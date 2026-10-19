@@ -3,6 +3,7 @@ import { markSceneEpochReady } from "/src/sceneEpoch.js";
 import { mountHistoryOwner } from "/src/historyOwner.js";
 import { mountEffectsMutationCoordinatorService } from "/src/effectsMutations.js";
 import { openTrackerPopover } from "/src/trackerPopover.js";
+import { SPELL_BOARD_TOKEN_META_KEY, spellBoardTokenMetadata } from "/src/spellBoardTokenCore.js";
 import "/src/sync-open.js";
 
 const KEY = "com.thebigpicture.initiative/meta";
@@ -16,7 +17,7 @@ const token = (id, name, hp, hpMax, initiative, extra = {}) => ({ id, name, type
 fakeHost.state.role = new URLSearchParams(location.search).get("role") === "PLAYER" ? "PLAYER" : "GM";
 fakeHost.state.items = [
   token("omar", "Omar", 78, 100, 23, { conditions: { instances: [potion("potion-omar")] }, [SPELLS]: [{ name: "Benedizione" }] }),
-  token("auril", "Auril, Vergine del Gelo", 495, 495, 20, { attitude: "enemy", epic: true,
+  token("auril", "Auril, Vergine del Gelo", 495, 495, 20, { attitude: "enemy", epic: true, sharedHpTrackerVisibility: "all",
     conditions: { instances: [{ id: "oath", condition: "Giuramento di Inimicizia", turns: 9, theme: { accent: "#f59e0b", background: "#78350f" } }] } }),
   token("lavera", "Lavera", 98, 98, 20, {
     conditions: { instances: [{ id: "inspiration", condition: "Ispirazione Bardica", resourceDie: "d10", theme: { accent: "#38bdf8", background: "#0c4a6e" } }] },
@@ -27,6 +28,20 @@ fakeHost.state.items = [
     [SPELLS]: [{ name: "Ingrandire/ridurre" }, { name: "Saltare", turns: 6 }, { name: "Velocità", turns: 8 }] }),
   token("legendary", "Boss leggendario", 120, 200, 10, { attitude: "enemy", legendary: { max: 3, current: 2 }, [SPELLS]: [{ name: "Scudo della fede", turns: 4 }] }),
 ];
+const sharedPortraits = ["/boss-auril-hand-slam-cracked.webp", "/boss-auril-hand-slam-collapsed.webp", "/spell-token-arcane-hand.webp"];
+for (const [index, name] of ["Mano del Titano", "Testa del Titano", "Corpo del Titano"].entries()) {
+  const item = token(`titan-${index}`, name, 495, 495, 0, { inInitiative: false, attitude: "enemy",
+    sharedHpSourceId: "auril", sharedHpExcludeFromInitiative: true });
+  item.image.url = sharedPortraits[index]; fakeHost.state.items.push(item);
+}
+const objectAssets = ["/spell-token-animated-tiny-small.webp", "/spell-token-animated-medium.webp", "/spell-token-animated-large-huge.webp"];
+for (let index = 0; index < 10; index++) {
+  fakeHost.state.items.push({ id: `object-${index + 1}`, name: `Oggetto animato ${index + 1}`, type: "IMAGE", layer: "PROP",
+    image: { url: objectAssets[index % 3] }, position: { x: 100, y: 100 }, metadata: {
+      [SPELL_BOARD_TOKEN_META_KEY]: spellBoardTokenMetadata({ spellId: "animate-objects", instanceId: "animate-lavera", casterId: "lavera", number: index + 1, objectSize: "small" }),
+      [KEY]: { hp: 25, hpMax: 25, attitude: "pc" },
+    } });
+}
 fakeHost.state.sceneMetadata = { "com.thebigpicture.initiative/state": { round: 1, current: 0, order: ["omar", "auril", "lavera", "klos", "legendary"] } };
 const frames = new Map();
 fakeHost.onPopover = (action, options, previous) => {

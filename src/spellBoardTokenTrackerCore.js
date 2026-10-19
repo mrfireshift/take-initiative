@@ -427,6 +427,27 @@ export function appendSpellBoardTokenCompanions(
     const hasShared = list.some(companion => companion.sharedHp);
     const hasSummons = list.some(companion => !companion.sharedHp);
     const summary = `${hasShared && hasSummons ? "Token collegati ed evocazioni" : hasShared ? "Token collegati" : "Evocazioni"} · ${list.length}`;
+    const portraits = documentRef.createElement("span");
+    portraits.dataset.companionGroupPortraits = "1";
+    portraits.setAttribute("aria-hidden", "true");
+    const portraitSize = compact ? 24 : 30;
+    const portraitOverlap = compact ? 13 : 10;
+    const previewMembers = list.slice(0, 3);
+    const portraitsWidth = previewMembers.length * portraitSize - (previewMembers.length - 1) * portraitOverlap;
+    Object.assign(portraits.style, { position: "absolute", left: "-6px", top: "50%", transform: "translateY(-50%)",
+      alignItems: "center", height: `${portraitSize}px`, pointerEvents: "none" });
+    previewMembers.forEach((companion, index) => {
+      const portrait = documentRef.createElement("img");
+      portrait.src = companion.iconUrl || "/quick-damage.svg";
+      portrait.alt = "";
+      portrait.title = companion.label;
+      Object.assign(portrait.style, { width: `${portraitSize}px`, height: `${portraitSize}px`,
+        flex: `0 0 ${portraitSize}px`, marginLeft: index ? `-${portraitOverlap}px` : "0",
+        borderRadius: "50%", border: `1px solid ${faction?.border || "rgba(255,255,255,.7)"}`,
+        boxSizing: "border-box", background: "#0f172a", objectFit: "cover",
+        boxShadow: "0 1px 3px rgba(0,0,0,.65)", zIndex: String(previewMembers.length - index) });
+      portraits.appendChild(portrait);
+    });
     const toggle = documentRef.createElement("button");
     toggle.type = "button";
     toggle.dataset.spellBoardTokenCompanionToggle = "1";
@@ -458,9 +479,11 @@ export function appendSpellBoardTokenCompanions(
         ? companionDimensions(list[0], compact).height + 2
         : stackHeight}px`;
       children.forEach((child, index) => {
-        child.style.display = isCollapsed && index > 0 ? "none" : "";
+        child.style.display = isCollapsed && index > 0 ? "none" : "flex";
       });
       children[0].__setCompanionGroupSummary(isCollapsed ? summary : null);
+      portraits.style.display = isCollapsed ? "flex" : "none";
+      if (isCollapsed) children[0].style.paddingLeft = `${portraitsWidth}px`;
       toggle.textContent = isCollapsed ? "▸" : "▾";
       toggle.setAttribute("aria-expanded", String(!isCollapsed));
     };
@@ -472,6 +495,7 @@ export function appendSpellBoardTokenCompanions(
       onStackChange?.(Number.parseFloat(card.style.marginBottom) || 0);
     });
     children[0].appendChild(toggle);
+    children[0].appendChild(portraits);
     applyGroupState();
   } else {
     card.style.marginBottom = `${stackHeight}px`;

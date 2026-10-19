@@ -12,5 +12,9 @@ cards. Lavera concentrates on her second pill, after Bardic Inspiration.
 Klos has a fourth effect behind the overflow button. The player link checks
 the existing disclosure rules. All scene items and SDK calls are simulated.
 
+Auril also has three shared HP secondaries and Lavera has ten summoned
+objects. Their collapsed groups preview the first three member portraits;
+expanding restores individual portraits without the group preview.
+
 Check that concentration appears inside its spell, the first pill has a
 5 px gap from the HP bar in each card variant, and small pills remain legible.
