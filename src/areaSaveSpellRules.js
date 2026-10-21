@@ -110,6 +110,7 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "xanathar-anatema-elementale",
   "banishment",
   "xanathar-aculeo-mentale",
+  "xanathar-prigione-mentale",
   "xanathar-urlo-psichico",
   "hold-person",
   "hold-monster",
@@ -244,6 +245,9 @@ export const AREA_SAVE_EFFECT_RULES = Object.freeze({
   }),
   "xanathar-aculeo-mentale": Object.freeze({
     failedEffectIds: Object.freeze(["location-known"]),
+  }),
+  "xanathar-prigione-mentale": Object.freeze({
+    failedEffectIds: Object.freeze(["mental-prison-link"]),
   }),
   "xanathar-debilitazione": Object.freeze({
     failedEffectIds: Object.freeze(["enervation-link"]),

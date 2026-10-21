@@ -337,7 +337,8 @@ function showNotice(raw: any) {
   if (notice.noticeId) lastNoticeId = notice.noticeId;
 
   pendingSaveReminderNotices = pendingSaveReminderNotices.filter((pending) =>
-    !pending.turnKey
+    reminderRowRequiresResponse(pending)
+    || !pending.turnKey
     || !notice.turnKey
     || pending.turnKey === notice.turnKey,
   );
@@ -1309,8 +1310,11 @@ function flushSaveReminderNotices() {
   if (!values.length) return;
   const baseBatch = currentZonePanel ? currentSaveReminderBatch : null;
   const batch = mergeSaveReminderNoticeBatch(baseBatch, values, {
-    preserveCurrentEntries: Array.isArray(baseBatch?.entries)
-      && baseBatch.entries.some(reminderRowRequiresResponse),
+    // Responses waiting for the aggregation timer are operational rows too:
+    // a later turn's aura reminder must not replace an unrendered saving throw.
+    preserveCurrentEntries: values.some(reminderRowRequiresResponse)
+      || (Array.isArray(baseBatch?.entries)
+        && baseBatch.entries.some(reminderRowRequiresResponse)),
   });
   if (!batch || !renderSaveReminderBatch(batch)) {
     announceNoticeLayout({ force: true });

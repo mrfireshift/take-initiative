@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test, { mock } from "node:test";
+import { importBossActionHTML } from "../src/bossActionProfileCore.js";
+import { bossProfileAuras } from "../src/bossAuraCore.js";
+import { createSceneItemBoundsCache } from "../src/sceneItemBoundsCache.js";
 import {
   classifySceneItemSnapshots,
   createSceneItemsSnapshot,
@@ -80,7 +83,20 @@ stub("../src/classFeatureCatalog.js", { getEnabledClassFeatures: () => [] });
 stub("../src/classFeatureCore.js", { classFeaturePassiveMovementMechanics: () => null });
 stub("../src/conditions.js", { getConditionInstances: (conditions) => conditions?.instances || [] });
 stub("../src/sceneItemEvents.js", {
+  readSceneItemsSnapshot: () => ({ items: clone(env.items), complete: true, sceneEpoch: env.epoch }),
   subscribeSceneItemChanges: (handler) => { env.itemListener = handler; return () => {}; },
+});
+stub("../src/spatialSceneSnapshot.js", {
+  getSpatialSceneSnapshotService: () => env.spatialService || ({
+    mount() {},
+    getSnapshot: async () => ({ items: clone(env.items), complete: true, sceneEpoch: env.epoch,
+      dpiValue: 1, scale: { parsed: { multiplier: 1.5, unit: "m" } } }),
+    isCurrent: (snapshot) => env.ready && snapshot.sceneEpoch === env.epoch,
+    ensureBounds: async (_snapshot, items) => ({ complete: true, boundsById: new Map(items.map((item) => [item.id, {
+      min: { x: item.position.x - 0.5, y: item.position.y - 0.5 },
+      max: { x: item.position.x + 0.5, y: item.position.y + 0.5 },
+    }])) }),
+  }),
 });
 stub("../src/sceneEpoch.js", {
   currentSceneEpoch: () => env.epoch,
@@ -99,6 +115,28 @@ stub("../src/metadataKeyScoped.js", {
   METADATA_OWNERSHIP: { SPEED_CHECK_CONTROL: { key: "diagnostic/control" } },
   writeRoomMetadataKey: async () => {},
 });
+
+// Keep the real cache/invalidation lifecycle for the terrain integration regressions.
+const { createSpatialSceneSnapshotService } = await import("../src/spatialSceneSnapshot.js?terrain-regression");
+function realTerrainSpatialService() {
+  return createSpatialSceneSnapshotService({
+    readItemsSnapshot: () => ({ items: clone(env.items), complete: true, generation: env.spatialGeneration || 0 }),
+    readSceneMetadata: () => ({ [STATE_KEY]: clone(env.turn) }),
+    readGridDpi: () => 1,
+    readGridScale: () => ({ parsed: { multiplier: 1.5, unit: "m" } }),
+    isSceneReady: () => env.ready,
+    getSceneEpoch: () => env.epoch,
+    isCurrentEpoch: (epoch) => env.ready && epoch === env.epoch,
+    boundsCache: createSceneItemBoundsCache(async (id) => {
+      const item = env.items.find((entry) => entry.id === id);
+      return { min: { x: item.position.x - 0.5, y: item.position.y - 0.5 },
+        max: { x: item.position.x + 0.5, y: item.position.y + 0.5 } };
+    }),
+    subscribeItems: (handler) => { env.spatialItemListener = handler; return () => { env.spatialItemListener = null; }; },
+    subscribeGrid: () => () => {}, subscribeSceneReady: () => () => {},
+    subscribeSceneMetadata: () => () => {}, subscribeEpoch: () => () => {},
+  });
+}
 
 async function runtime({ items = [token(), token("ally")], readGate, profileGate, failReadOnce = false, captureReadBeforeDelay = false } = {}) {
   env = {
@@ -133,6 +171,70 @@ function metadataEdit(edit) {
     sceneEpoch: env.epoch,
   });
 }
+
+test("Primal Blizzard charges inside movement, follows disabling the aura and preserves Undo", async () => {
+  const profile = await importBossActionHTML(readFileSync(new URL("fixtures/boss-actions/auril-phase-3.html", import.meta.url), "utf8"));
+  const auril = token("auril");
+  auril.metadata[META_KEY].attitude = "enemy";
+  auril.metadata[META_KEY].customAuras = bossProfileAuras(profile);
+  const api = await runtime({ items: [token(), token("ally"), auril] });
+  await ready();
+  await move(api, 0, 1);
+  assert.equal(env.snapshot.totalMeters, 3, "1.5 m inside the blizzard costs 3 m");
+  await move(api, 1, 0, { undo: true });
+  assert.equal(env.snapshot.totalMeters, 0);
+  const before = createSceneItemsSnapshot(env.items);
+  env.items[2].metadata[META_KEY].customAuras.forEach((aura) => { aura.enabled = false; });
+  await env.itemListener({ ...classifySceneItemSnapshots(before, createSceneItemsSnapshot(env.items)), sceneEpoch: env.epoch });
+  await move(api, 0, 1);
+  assert.equal(env.snapshot.totalMeters, 1.5, "a disabled aura leaves the normal movement cost");
+});
+
+test("Primal Blizzard refreshes the real spatial cache when its radius or source position changes", async () => {
+  const profile = await importBossActionHTML(readFileSync(new URL("fixtures/boss-actions/auril-phase-3.html", import.meta.url), "utf8"));
+  const auril = token("auril");
+  auril.metadata[META_KEY] = { attitude: "enemy", customAuras: bossProfileAuras(profile) };
+  const api = await runtime({ items: [token(), token("ally"), auril] });
+  await ready();
+  env.spatialService = realTerrainSpatialService();
+  const editAura = (edit) => {
+    edit(env.items[2]);
+    env.spatialGeneration = (env.spatialGeneration || 0) + 1;
+    env.spatialItemListener?.({});
+  };
+  try {
+    await move(api, 0, 1);
+    assert.equal(env.snapshot.totalMeters, 3);
+    editAura((source) => { source.metadata[META_KEY].customAuras.find((aura) => aura.id.endsWith(":primal-blizzard")).radiusMeters = 1.5; });
+    await move(api, 1, 2);
+    assert.equal(env.snapshot.totalMeters, 4.5, "the next segment is outside the reduced aura");
+    editAura((source) => { source.metadata[META_KEY].customAuras.find((aura) => aura.id.endsWith(":primal-blizzard")).radiusMeters = 9; });
+    await move(api, 2, 3);
+    assert.equal(env.snapshot.totalMeters, 7.5, "the enlarged aura doubles the cost again");
+    editAura((source) => { source.position.x = 100; });
+    await move(api, 3, 4);
+    assert.equal(env.snapshot.totalMeters, 9, "moving Auril moves the terrain away");
+    editAura((source) => { source.position.x = 0; });
+    await move(api, 4, 5);
+    assert.equal(env.snapshot.totalMeters, 12, "moving Auril back restores terrain at the live position");
+  } finally {
+    env.spatialService.unmount();
+  }
+});
+
+test("Primal Blizzard charges a crossing only inside and respects the actor's movement immunity", async () => {
+  const profile = await importBossActionHTML(readFileSync(new URL("fixtures/boss-actions/auril-phase-3.html", import.meta.url), "utf8"));
+  const auril = token("auril");
+  auril.metadata[META_KEY] = { attitude: "enemy", customAuras: bossProfileAuras(profile) };
+  const api = await runtime({ items: [token("hero", 5), token("ally"), auril] });
+  await ready();
+  await move(api, 5, 8);
+  assert.equal(env.snapshot.totalMeters, 6, "1 cell inside at double cost + 2 cells outside at normal cost");
+  await metadataEdit((meta) => { meta.conditions = { instances: [{ id: "terrain-immunity", active: true,
+    condition: "Libertà di movimento", mechanics: { movement: { ignoreDifficultTerrain: true } } }] }; });
+  await move(api, 8, 0);
+  assert.equal(env.snapshot.totalMeters, 18, "8 cells cost 12 m with difficult terrain immunity");
+});
 
 test("first segment delivered after initialization corrects a late baseline", async () => {
   const readGate = deferred();

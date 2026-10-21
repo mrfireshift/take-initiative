@@ -1,6 +1,6 @@
 // Definition-only parsing and validation. No DOM, SDK, token mutation, or runtime state.
-export const BOSS_ACTION_PROFILE_VERSION = 24;
-export const BOSS_ACTION_PARSER_VERSION = 24;
+export const BOSS_ACTION_PROFILE_VERSION = 25;
+export const BOSS_ACTION_PARSER_VERSION = 25;
 // Version 3 adds one multi-target save shape: explicit GM-chosen targets, area metadata only
 // (never geometry), and a single on-failure condition with an actor-turn expiry.
 // Version 4 widens that shape to a closed set: cone, circle on a point or emanation from the boss;
@@ -53,6 +53,7 @@ export const BOSS_ACTION_PARSER_VERSION = 24;
 // grammar is unchanged; the revision advances so a reimport cannot conflict with an older parser result.
 // Version 24 lets those annotations live inside their ability: rawText retains the complete printed
 // description, while recognition reads the executable portion and the annotation stays manual text.
+// Version 25 recognizes Primal Blizzard's difficult terrain clause; older descriptions remain supported.
 export const BOSS_ACTION_SPELLS = Object.freeze({ lentezza: "slow", "tempesta di ghiaccio": "ice-storm", "sfera congelante di otiluke": "freezing-sphere", "passo velato": "misty-step" });
 export const BOSS_ACTION_SPELL_IDS = Object.freeze(Object.values(BOSS_ACTION_SPELLS));
 export const BOSS_ACTION_GROUP_CONDITIONS = Object.freeze(["Accecato", "Prono"]);
@@ -609,7 +610,7 @@ export function sanitizeBossActionBinding(value) {
 // Only strict structured data is consumed here; validation never interprets HTML or prose.
 export function validateBossActionProfile(value) {
   object(value, ["profileVersion", "parserVersion", ...IDENTITY_KEYS, "name", "type", "rawSource", "diagnostics", "abilities"], "profile");
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
   const binding = sanitizeBossActionBinding(value);
   if (!binding) fail("profile identity is invalid");
   object(value.rawSource, ["html", "sourceName", "sourceHash"], "rawSource");
@@ -780,18 +781,18 @@ function traitGrammar(body, { bossName = "", actionName = "" } = {}) {
       reminders: [{ key: "damage", event: "turn-start", resolution: "manual-damage", label: `Inizia il turno entro ${match[2]} ft. ${match[3].toLowerCase()} ${match[4]}: ${match[5]} (${match[6]}) danni ${phrase}.`, damage: { dice: match[6], type: AURA_DAMAGE_PHRASES[phrase] } }] }],
       manualText: `${match[8] ? `${match[8].trim()} ` : ""}Il danno del promemoria non legge le difese del profilo attore${phrase === "da freddo" ? " né il marchio" : ""}: inseriscilo già corretto.` };
   }
-  match = body.match(/^L['’]area entro (\d+) ft\. dal ([^.,]+) è scarsamente oscurata da neve e vento soprannaturali\. I tiri per colpire contro ([^.,]+) effettuati da una creatura nella tormenta, o che attraversano la tormenta, hanno Svantaggio\. \3 ignora questo oscuramento\. Alla fine del proprio turno, una creatura che mantiene la concentrazione su un incantesimo mentre si trova entro \1 ft\. da \3 deve superare un tiro salvezza su Costituzione con CD (\d+) o perde la concentrazione\. Quando una creatura inizia il proprio turno sulla piattaforma, Tiro Salvezza su Forza: CD (\d+)\. Fallimento: il bersaglio viene spinto fino a (\d+) ft\. in linea retta direttamente lontano dal \2( e ha la condizione Prono)?\.$/i);
+  match = body.match(/^L['’]area entro (\d+) ft\. dal ([^.,]+) è scarsamente oscurata da neve e vento soprannaturali\.(?: L['’]area è Terreno Difficile per i personaggi e i loro alleati\.)? I tiri per colpire contro ([^.,]+) effettuati da una creatura nella tormenta, o che attraversano la tormenta, hanno Svantaggio\. \3 ignora questo oscuramento\. Alla fine del proprio turno, una creatura che mantiene la concentrazione su un incantesimo mentre si trova entro \1 ft\. da \3 deve superare un tiro salvezza su Costituzione con CD (\d+) o perde la concentrazione\. Quando una creatura inizia il proprio turno sulla piattaforma, Tiro Salvezza su Forza: CD (\d+)\. Fallimento: il bersaglio viene spinto fino a (\d+) ft\. in linea retta direttamente lontano dal \2( e ha la condizione Prono)?\.$/i);
   if (match && bossName && match[3] === bossName) {
     return { automation: "PARTIAL", auras: [
       { key: "primal-blizzard", name: "Primal Blizzard", radiusFeet: Number(match[1]), origin: match[2],
-        pills: [{ key: "blizzard", label: "Nella tormenta", detail: `Scarsamente oscurato · Svantaggio ai tiri per colpire contro ${match[3]}.`, kind: "debuff" }],
+        pills: [{ key: "blizzard", label: "Nella tormenta", detail: `Terreno Difficile · Scarsamente oscurato · Svantaggio ai tiri per colpire contro ${match[3]}.`, kind: "debuff" }],
         reminders: [{ key: "concentration", event: "turn-end", resolution: "concentration-save", label: `Mantiene la concentrazione nella tormenta: TS COS CD ${match[4]} o la perde.`, dc: Number(match[4]) }] },
       // The push reaches the whole platform: the radius starts from the blizzard and the GM fits it to the map.
       // The push is asked of the player characters only, at the start of their turn.
       { key: "primal-blizzard-wind", name: "Primal Blizzard · Vento", radiusFeet: Number(match[1]), origin: match[2], scope: "platform", targets: "pc", pills: [],
         reminders: [{ key: "push", event: "turn-start", resolution: "manual-save", label: `Sulla piattaforma: TS FOR CD ${match[5]}; fallimento: spinto fino a ${match[6]} ft. lontano dal ${match[2]}${match[7] ? " e Prono" : ""}.`, ability: "str", dc: Number(match[5]),
           ...(match[7] ? { failureCondition: "Prono" } : {}) }] },
-    ], manualText: `Vale anche per gli attacchi che attraversano la tormenta da fuori. Il TS di concentrazione compare solo a chi si concentra e, se fallisce, la interrompe; la spinta riguarda solo i personaggi. Spinta ed Edge of the Storm si risolvono sulla mappa; adatta il raggio di «Primal Blizzard · Vento» alla piattaforma.` };
+    ], manualText: `L'area della tormenta è Terreno Difficile per i personaggi e i loro alleati: il controllo della velocità conta il costo dentro l'aura. Lo Svantaggio vale anche per gli attacchi che attraversano la tormenta da fuori. Il TS di concentrazione compare solo a chi si concentra e, se fallisce, la interrompe; la spinta riguarda solo i personaggi. Spinta ed Edge of the Storm si risolvono sulla mappa; adatta il raggio di «Primal Blizzard · Vento» alla piattaforma.` };
   }
   return null;
 }

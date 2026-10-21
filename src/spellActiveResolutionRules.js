@@ -109,6 +109,30 @@ export const HEAT_METAL_DROP_CHOICE_EFFECT = freeze({
 // dalla Console HP: il pannello usa soltanto questa dichiarazione per
 // esporre il comando e delega la risoluzione al popup dedicato.
 export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
+  "xanathar-prigione-mentale": [
+    {
+      id: "mental-prison-break",
+      label: "Attraversamento dell'illusione · 10d10 psichici",
+      buttonLabel: "Attraversamento dell'illusione",
+      detail: "Il GM conferma che il bersaglio è stato mosso fuori dall'illusione, ha attaccato in mischia attraverso di essa o vi ha proteso una parte del corpo. Applica 10d10 psichici senza nuovo TS e termina questa istanza. La normale fine della concentrazione o della durata non provoca questi danni.",
+      economy: "gm",
+      showInOverview: true,
+      resolutionKind: "single-save",
+      manualSaveAtTable: true,
+      assumedOutcome: "failed",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      rangeOrigin: "caster",
+      maxTargets: 1,
+      save: { ability: "int", onSuccess: "none" },
+      damage: damage({ formula: "10d10", type: "psichici" }),
+      requiredTargetEffectId: "mental-prison-link",
+      linkedTargetHint: "vincolato a questa Prigione Mentale. L'attraversamento non richiede un nuovo tiro salvezza.",
+      concentrationAction: "dismiss",
+    },
+  ],
   "telekinesis": [
     {
       id: "telekinesis-maintain",

@@ -129,6 +129,13 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
 });
 
 export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
+  "xanathar-prigione-mentale": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze([Object.freeze({
+      condition: "Trattenuto",
+      expiry: concentration,
+    })]),
+  }),
   "xanathar-drago-illusorio": Object.freeze({
     trackOutcomes: Object.freeze(["failed"]),
     failed: Object.freeze([Object.freeze({
@@ -469,6 +476,19 @@ const SKILL_EMPOWERMENT_OPTIONS = Object.freeze([
 ]);
 
 export const SUPPLEMENT_EFFECTS = Object.freeze({
+  "xanathar-prigione-mentale": Object.freeze([Object.freeze({
+    id: "mental-prison-link",
+    kind: "debuff",
+    label: "Isolamento illusorio",
+    detail: "Il bersaglio non può vedere né sentire nulla oltre l'illusione. Se viene mosso fuori, attacca in mischia attraverso l'illusione o vi protende una parte del corpo, subisce 10d10 psichici e la spell termina.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "mental-prison-senses", label: "Non vede/sente oltre l'illusione" }),
+      Object.freeze({ id: "mental-prison-break", label: "Attraversamento: 10d10 e fine" }),
+    ]),
+    manualRemoval: true,
+    endsParentOnRemoval: true,
+    parentRemoval: "spell",
+  })]),
   "xanathar-aculeo-mentale": Object.freeze([Object.freeze({
     id: "location-known",
     kind: "debuff",

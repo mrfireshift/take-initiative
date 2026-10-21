@@ -115,6 +115,87 @@ const {
   telekinesisCastContext,
 } = await import("../src/telekinesisRules.js");
 
+function mentalPrisonPayload() {
+  mutationCalls.length = 0;
+  items.clear();
+  boundsById.clear();
+  const spell = getSpellDefinition("xanathar-prigione-mentale");
+  const parent = {
+    spellId: spell.id, instanceId: "prison-1", casterId: "caster",
+    name: "Prigione Mentale", conc: true, turns: 10,
+    appliedAt: { turnKey: "1:0:caster" }, castContext: { slotLevel: 6 },
+  };
+  items.set("caster", token("caster", "Caster", {
+    [CONCENTRATION_KEY]: { prison: { ...parent, targets: ["target"] } },
+  }));
+  items.set("target", token("target", "Target", {
+    hp: 80, hpMax: 100, [SPELLS_KEY]: [parent],
+    conditions: [
+      { id: "prison-restraint", condition: "Trattenuto", parentEffectId: "prison-1", sourceId: "caster", active: true },
+      { id: "prison-link", condition: "Isolamento illusorio", effectId: "mental-prison-link", parentEffectId: "prison-1", sourceId: "caster", active: true },
+    ],
+  }));
+  items.set("other", token("other", "Other", {}));
+  return buildSpellActiveResolutionPayload({
+    spell,
+    action: spell.activeActions.find(action => action.id === "mental-prison-break"),
+    group: {
+      ...parent, casterName: "Caster",
+      effectInstances: [{ itemId: "target", effectId: "mental-prison-link", instanceId: "prison-link", active: true }],
+    },
+    sceneEpoch: 7, turnKey: "1:0:caster",
+  });
+}
+
+test("Prigione Mentale: attraversamento applica danno e termina l'istanza nella stessa mutazione Undoabile", async () => {
+  const activePayload = mentalPrisonPayload();
+  const result = await executeSpellActiveResolution({
+    payload: activePayload, targetIds: ["target"], outcomes: { target: "failed" }, damageRoll: 53,
+    sceneEpoch: 7, isCurrent: () => true,
+  });
+  assert.equal(result.undoAvailable, true);
+  assert.equal(mutationCalls.length, 1);
+  const [{ operations, options }] = mutationCalls;
+  assert.ok(operations.some(op => op.type === "concentration:break"
+    && op.reference === "prison-1" && op.casterIds[0] === "caster"));
+  const hpPatch = options.metadataPatches.find(patch => patch.id === "target");
+  assert.equal(hpPatch.fields.hp.value, 27);
+  assert.equal(hpPatch.fields.hpMax.value, 100);
+  assert.equal(options.history.payload.damageRoll, 53);
+  const { buildEffectsMutationPlan } = await import("../src/effectsMutationCore.js");
+  const states = [...items.values()].map(item => {
+    const meta = item.metadata[META_KEY];
+    return { id: item.id, spells: meta[SPELLS_KEY] || [], conditions: meta.conditions || [], concentrations: meta[CONCENTRATION_KEY] || {} };
+  });
+  const end = buildEffectsMutationPlan(states, operations);
+  assert.deepEqual(end.states.find(state => state.id === "target").conditions, []);
+  assert.deepEqual(end.states.find(state => state.id === "target").spells, []);
+  assert.deepEqual(end.states.find(state => state.id === "caster").concentrations, {});
+});
+
+test("Prigione Mentale: rifiuta bersagli estranei o collegati a un'altra istanza", async () => {
+  for (const targetId of ["other", "target"]) {
+    const activePayload = mentalPrisonPayload();
+    if (targetId === "target") items.get("target").metadata[META_KEY].conditions[1].parentEffectId = "another-prison";
+    await assert.rejects(executeSpellActiveResolution({
+      payload: activePayload, targetIds: [targetId], outcomes: { [targetId]: "failed" }, damageRoll: 53,
+      sceneEpoch: 7, isCurrent: () => true,
+    }), /target-required-effect-missing/);
+    assert.equal(mutationCalls.length, 0);
+  }
+});
+
+test("Prigione Mentale: un popup rimasto aperto dopo la fine della spell non infligge altri danni", async () => {
+  const activePayload = mentalPrisonPayload();
+  items.get("caster").metadata[META_KEY][CONCENTRATION_KEY] = {};
+  items.get("target").metadata[META_KEY][SPELLS_KEY] = [];
+  await assert.rejects(executeSpellActiveResolution({
+    payload: activePayload, targetIds: ["target"], outcomes: { target: "failed" }, damageRoll: 53,
+    sceneEpoch: 7, isCurrent: () => true,
+  }), /spell-instance-missing/);
+  assert.equal(mutationCalls.length, 0);
+});
+
 function token(id, name, meta) {
   return {
     id,

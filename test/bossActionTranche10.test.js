@@ -23,9 +23,9 @@ test("Aura Gelida: 10 ft from the manifestation that emanates it, a pill on who 
       damage: { dice: "3d6", type: "freddo" } }] }]);
   assert.match(phase2.manualText, /^Il Titano non emana quest'aura\. Il danno del promemoria non legge le difese/);
   const phase3 = ability(p3, "Aura Gelida");
-  assert.equal(phase3.auras[0].origin, "Grembo Invernale");
-  assert.equal(phase3.auras[0].pills[0].detail, "Entro 10 ft. dal Grembo Invernale: 10 (3d6) danni da freddo a inizio turno.");
-  assert.equal(phase3.auras[0].reminders[0].label, "Inizia il turno entro 10 ft. dal Grembo Invernale: 10 (3d6) danni da freddo.");
+  assert.equal(phase3.auras[0].origin, "Grembo dell'Inverno");
+  assert.equal(phase3.auras[0].pills[0].detail, "Entro 10 ft. dal Grembo dell'Inverno: 10 (3d6) danni da freddo a inizio turno.");
+  assert.equal(phase3.auras[0].reminders[0].label, "Inizia il turno entro 10 ft. dal Grembo dell'Inverno: 10 (3d6) danni da freddo.");
   assert.doesNotMatch(phase3.manualText, /Titano/);
 });
 
@@ -33,11 +33,11 @@ test("Primal Blizzard: the 30 ft blizzard (debuff pill, a concentration save at 
   const blizzard = ability(p3, "Primal Blizzard");
   assert.equal(blizzard.automation, "PARTIAL");
   assert.deepEqual(blizzard.auras, [
-    { key: "primal-blizzard", name: "Primal Blizzard", radiusFeet: 30, origin: "Grembo Invernale",
-      pills: [{ key: "blizzard", label: "Nella tormenta", detail: "Scarsamente oscurato · Svantaggio ai tiri per colpire contro Auril.", kind: "debuff" }],
+    { key: "primal-blizzard", name: "Primal Blizzard", radiusFeet: 30, origin: "Grembo dell'Inverno",
+      pills: [{ key: "blizzard", label: "Nella tormenta", detail: "Terreno Difficile · Scarsamente oscurato · Svantaggio ai tiri per colpire contro Auril.", kind: "debuff" }],
       reminders: [{ key: "concentration", event: "turn-end", resolution: "concentration-save", label: "Mantiene la concentrazione nella tormenta: TS COS CD 10 o la perde.", dc: 10 }] },
-    { key: "primal-blizzard-wind", name: "Primal Blizzard · Vento", radiusFeet: 30, origin: "Grembo Invernale", scope: "platform", targets: "pc", pills: [],
-      reminders: [{ key: "push", event: "turn-start", resolution: "manual-save", label: "Sulla piattaforma: TS FOR CD 15; fallimento: spinto fino a 10 ft. lontano dal Grembo Invernale e Prono.", ability: "str", dc: 15,
+    { key: "primal-blizzard-wind", name: "Primal Blizzard · Vento", radiusFeet: 30, origin: "Grembo dell'Inverno", scope: "platform", targets: "pc", pills: [],
+      reminders: [{ key: "push", event: "turn-start", resolution: "manual-save", label: "Sulla piattaforma: TS FOR CD 15; fallimento: spinto fino a 10 ft. lontano dal Grembo dell'Inverno e Prono.", ability: "str", dc: 15,
         failureCondition: "Prono" }] },
   ]);
   assert.match(blizzard.manualText.split("\n")[0], /adatta il raggio di «Primal Blizzard · Vento» alla piattaforma\.$/);
@@ -99,7 +99,7 @@ test("each profile aura becomes a custom aura: stable id, radius in metres, fros
   assert.deepEqual(cold.targeting, { filter: "hostile", includeSource: false }, "the Titan's tokens and Auril stay out");
   assert.equal(cold.style.fillColor, "#38bdf8");
   assert.deepEqual(cold.reminders.map((reminder) => [reminder.event, reminder.resolution, reminder.damage.dice, reminder.damage.type]), [["turn-start", "manual-damage", "3d6", "freddo"]]);
-  assert.deepEqual(blizzard.pills, [{ id: "blizzard", enabled: true, label: "Nella tormenta", detail: "Scarsamente oscurato · Svantaggio ai tiri per colpire contro Auril.", kind: "debuff" }]);
+  assert.deepEqual(blizzard.pills, [{ id: "blizzard", enabled: true, label: "Nella tormenta", detail: "Terreno Difficile · Scarsamente oscurato · Svantaggio ai tiri per colpire contro Auril.", kind: "debuff" }]);
   assert.deepEqual([blizzard.reminders[0].resolution, blizzard.reminders[0].dcMode, blizzard.reminders[0].dc], ["concentration-save", "fixed", 10]);
   assert.deepEqual(wind.targeting, { filter: "pc", includeSource: false }, "the push: player characters only");
   assert.deepEqual(blizzard.targeting, { filter: "hostile", includeSource: false });

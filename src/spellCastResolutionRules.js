@@ -10,6 +10,14 @@ const clone = (value) => {
 // damageType in the catalog is not sufficient: several spells deal damage
 // only on a later attack, as a reaction, or through an active action.
 const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
+  "xanathar-prigione-mentale": Object.freeze({
+    initialHP: true,
+    successfulSaveDamage: "full",
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "5d10", type: "psichici" }),
+      failed: Object.freeze({ formula: "5d10", type: "psichici" }),
+    }),
+  }),
   "grease": Object.freeze({ initialHP: false }),
   "wall-of-fire": Object.freeze({
     initialHP: true,

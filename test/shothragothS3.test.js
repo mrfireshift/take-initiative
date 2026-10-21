@@ -26,7 +26,7 @@ const seam = { round: 2, actionId: cucitura.id, actionInstanceId: "boss-action:c
 const state = (round, actionIds, extra = {}) => ({ epicLog: { round, actionIds }, ...extra });
 
 test("Cucitura and Strappare as closed v19 data; the names they refer to are resolved inside the profile", async () => {
-  assert.deepEqual([profile.profileVersion, profile.parserVersion], [24, 24]);
+  assert.deepEqual([profile.profileVersion, profile.parserVersion], [25, 25]);
   assert.deepEqual(cucitura.sequence, { slot: "first" });
   assert.equal(cucitura.hpGate, "unbloodied", "v22: above half HP only (the chained seam replaces it)");
   assert.deepEqual(cucitura.execution, { kind: "seam", seam: { width: 5, maxLength: 120, range: 60, blocks: [corpo.id] } });

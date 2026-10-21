@@ -88,7 +88,7 @@ test("la protezione in-flight invalida root rimossi o recastati", () => {
 });
 
 test("un reminder concorrente non sostituisce un batch Turbine ancora aperto", () => {
-  assert.match(turnNotice, /preserveCurrentEntries: Array\.isArray\(baseBatch\?\.entries\)/);
+  assert.match(turnNotice, /preserveCurrentEntries: values\.some\(reminderRowRequiresResponse\)/);
   assert.match(turnNotice, /baseBatch\.entries\.some\(reminderRowRequiresResponse\)/);
   assert.match(turnNotice, /!hasOpenZoneResponse/);
 });

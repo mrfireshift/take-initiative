@@ -672,7 +672,7 @@ test("library: a token on a superseded revision is flagged; cleanup is two-step 
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   await importVariant(f,"auril-phase-2.html",html=>html.replace("Auril occupa due","Auril ora occupa due"));
   await f.controller.refresh();
-  assert.match(optionTexts(f)[0],/v24 · [a-f0-9]{8} · collegata qui · superata/);
+  assert.match(optionTexts(f)[0],/v25 · [a-f0-9]{8} · collegata qui · superata/);
   assert.doesNotMatch(optionTexts(f)[1],/superata/);
   assert.equal(f.$("boss-profile-warning").hidden,false);
   assert.match(f.$("boss-profile-warning").textContent,/Il token usa una revisione superata/);

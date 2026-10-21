@@ -84,6 +84,12 @@ export function saveSpellResolutionOperations({
     });
   }
 
+  // Alcuni lanci a concentrazione terminano subito se nessun bersaglio
+  // resta coinvolto: interrompono comunque la concentrazione precedente.
+  const endsOnNoTargets = concentration
+    && resolution?.persistence?.endOnNoTargets === true
+    && targetIds.length === 0
+    && conditionApplications.length === 0;
   return spellLifecycleOperations({
     targetIds,
     casterId,
@@ -98,9 +104,10 @@ export function saveSpellResolutionOperations({
     summaryParts,
     replaceNames: [resolution.spellName],
     conditionApplications,
-    concentrationAction,
+    concentrationAction: endsOnNoTargets ? "dismiss" : concentrationAction,
     concentrationReference,
-    persistSpell: targetIds.length > 0
+    persistSpell: endsOnNoTargets
+      || targetIds.length > 0
       || conditionApplications.length > 0
       || AREA_SAVE_SPELL_ID_SET.has(resolution.spellId)
       || AREA_PLACEMENT_ONLY_SPELL_ID_SET.has(resolution.spellId),

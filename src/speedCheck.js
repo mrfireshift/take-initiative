@@ -8,7 +8,7 @@ import {
   proneStandingCostMeters,
   resolveConditionSpeed,
 } from "./conditionSpeedCore.js";
-import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { readSceneItemsSnapshot, subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { suppressMovementHistory } from "./history.js";
 import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import {
@@ -28,6 +28,8 @@ import {
 } from "./speedCheckCore.js";
 import { normalizeElevation } from "./distance3dCore.js";
 import { activeBossSeamTerrainAreas, bossSeamTerrainSourceItems } from "./bossSeamTerrainCore.js";
+import { activePrimalBlizzardTerrainAreas, primalBlizzardTerrainCenter, primalBlizzardTerrainSources } from "./bossAuraTerrainCore.js";
+import { getSpatialSceneSnapshotService } from "./spatialSceneSnapshot.js";
 import {
   SPELL_STATIC_ZONE_META_KEY,
   translatedZoneArea,
@@ -363,11 +365,37 @@ async function liveDirectionalMovementModifiers(state) {
 // immune to it; only the part of a step inside a seam costs more. The items come from the last scene item event
 // (no extra read per step): the seam drawing and the boss's seam record both arrive as item changes.
 let seamTerrainItems = [];
+async function livePrimalBlizzardTerrainModifiers(state) {
+  // Use the current full read model: an item event may contain only a changed hero,
+  // and no boss event is required before the first movement in a loaded scene.
+  if (!primalBlizzardTerrainSources(readSceneItemsSnapshot(state.sceneEpoch).items).length) return [];
+  const spatial = getSpatialSceneSnapshotService();
+  // The tracker runs in a different page from the background aura controller.
+  // Its own read model must subscribe too, so radius/position edits invalidate the cache.
+  spatial.mount();
+  const snapshot = await spatial.getSnapshot({ sceneEpoch: state.sceneEpoch });
+  if (!snapshot.complete || !spatial.isCurrent(snapshot)) return [];
+  const sources = primalBlizzardTerrainSources(snapshot.items);
+  const bounds = await spatial.ensureBounds(snapshot, sources.map(({ source }) => source), { consumer: "boss-aura-terrain" });
+  if (!bounds.complete || !spatial.isCurrent(snapshot)) return [];
+  const gridOrigins = new Map(await Promise.all(sources.map(async ({ source }) => {
+    const center = primalBlizzardTerrainCenter(bounds.boundsById.get(source.id));
+    const origin = center && await OBR.scene.grid.snapPosition(center, 1, true, false).catch(() => center);
+    return [source.id, origin];
+  })));
+  if (!spatial.isCurrent(snapshot)) return [];
+  return activePrimalBlizzardTerrainAreas({
+    items: snapshot.items, target: snapshot.items.find((item) => item.id === state.itemId),
+    movementImmunities: state.movementImmunities || [], boundsById: bounds.boundsById,
+    dpi: snapshot.dpiValue, scale: snapshot.scale.parsed, gridOrigins,
+  });
+}
 async function liveTerrainMovementModifiers(state) {
   if ((Array.isArray(state?.movementImmunities) ? state.movementImmunities : []).includes("difficult-terrain")) return [];
-  if (!seamTerrainItems.length) return [];
+  const blizzard = await livePrimalBlizzardTerrainModifiers(state).catch(() => []);
+  if (!seamTerrainItems.length) return blizzard;
   const metadata = await OBR.scene.getMetadata().catch(() => ({}));
-  return activeBossSeamTerrainAreas(seamTerrainItems, Number(metadata?.[STATE_KEY]?.round));
+  return [...activeBossSeamTerrainAreas(seamTerrainItems, Number(metadata?.[STATE_KEY]?.round)), ...blizzard];
 }
 
 function movementResolutionSignature(source) {

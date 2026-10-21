@@ -70,9 +70,9 @@ test("an annotation inside an ability is part of its printed text and preserves 
   await assert.rejects(importBossActionHTML(annotatedHtml.replace("boss-note-icekiss-2", "boss-note-crush")), /manual note target/i);
 });
 
-test("existing version 22 and 23 profiles remain valid after the annotation parser revision", async () => {
+test("existing version 22 to 24 profiles remain valid after the parser revision", async () => {
   const html = await readFile(new URL("fixtures/boss-actions/auril-phase-2.html", import.meta.url), "utf8");
-  for (const version of [22, 23]) {
+  for (const version of [22, 23, 24]) {
     const legacy = await importBossActionHTML(html);
     legacy.profileVersion = legacy.parserVersion = version;
     legacy.profileRevision = createHash("sha256").update(`${version}\n${html}`).digest("hex");

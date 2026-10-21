@@ -59,7 +59,7 @@ test("the speed check charges double only inside the seam; it does not stack wit
 test("the speed check reads the seams from the last item event on every step, unless the creature ignores difficult terrain", async () => {
   const source = await readFile(new URL("../src/speedCheck.js", import.meta.url), "utf8");
   assert.match(source, /if \(\(Array\.isArray\(state\?\.movementImmunities\) \? state\.movementImmunities : \[\]\)\.includes\("difficult-terrain"\)\) return \[\];/);
-  assert.match(source, /return activeBossSeamTerrainAreas\(seamTerrainItems, Number\(metadata\?\.\[STATE_KEY\]\?\.round\)\);/);
+  assert.match(source, /return \[\.\.\.activeBossSeamTerrainAreas\(seamTerrainItems, Number\(metadata\?\.\[STATE_KEY\]\?\.round\)\), \.\.\.blizzard\];/);
   assert.match(source, /seamTerrainItems = bossSeamTerrainSourceItems\(event\.items\);/);
   assert.match(source, /    directionalModifiers,\n    terrainModifiers,\n  \}\);/);
 });

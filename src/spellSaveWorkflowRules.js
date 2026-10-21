@@ -323,6 +323,16 @@ const workflowRule = ({
 });
 
 export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
+  "xanathar-prigione-mentale": workflowRule({
+    spellId: "xanathar-prigione-mentale",
+    ability: "int",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 6,
+    spatial: { mode: "caster-range", maxMeters: 18 },
+    outcomeOptions: ["passed", "failed"],
+    persistence: { endOnNoTargets: true },
+  }),
   "xanathar-turbine": workflowRule({
     spellId: "xanathar-turbine",
     ability: "dex",

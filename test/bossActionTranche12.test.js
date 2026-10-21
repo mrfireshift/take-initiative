@@ -20,7 +20,7 @@ const state = (round, ids) => bossStateWithEpicLog(auril, p2, round, ids);
 const blocker = (name, round, ids) => bossSequenceBlocker(p2, named(name), state(round, ids), round, "Auril");
 
 test("the sequence as closed v20 data: two openers, two closers after them, Rock after Gather, Gather's list", () => {
-  assert.deepEqual([p2.profileVersion, p2.parserVersion], [24, 24]);
+  assert.deepEqual([p2.profileVersion, p2.parserVersion], [25, 25]);
   assert.deepEqual(named("Breathe Deep").sequence, { slot: "first" });
   assert.equal(named("Breathe Deep").automation, "UNSUPPORTED", "a manual registration");
   assert.deepEqual(named("Gather the Winter Sky").sequence, { slot: "first",
