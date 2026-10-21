@@ -83,6 +83,7 @@ const sword = { id: "holy-sword", label: "Spada sacra", kind: "attack", range: "
 const meta = (id) => sceneItems.find((item) => item.id === id).metadata[META_KEY];
 let runtime;
 let posted;
+let visuals;
 let baselineCount;
 
 test.beforeEach(async () => {
@@ -101,7 +102,9 @@ test.beforeEach(async () => {
   markSceneEpochReady("pc-attack-test");
   await historyOwner.mountHistoryOwner(); await effects.mountEffectsMutationCoordinatorService();
   posted = [];
-  runtime = createPcAttackRuntime({ api: sdk, postDamage: async (row) => { posted.push(row.change.requested); return []; } });
+  visuals = [];
+  runtime = createPcAttackRuntime({ api: sdk, postDamage: async (row) => { posted.push(row.change.requested); return []; },
+    emitVisual: async (request) => { visuals.push(request); return { sent: true }; } });
   baselineCount = (await history.getHistoryEntries()).length;
 });
 test.after(() => { effects.unmountEffectsMutationCoordinatorService(); historyOwner.unmountHistoryOwner(); });
@@ -111,6 +114,7 @@ async function attack(decisions = {}) {
   return runtime.executePcAttack({ sourceId: "aria", actionId: "holy-sword", targetId: "ghoul", sceneIdentity: presentation.sceneIdentity,
     expectedAction: presentation.action, expectedDefenses: {}, outcome: "hit", componentAmounts: { c1: 8, c2: 9 }, ...decisions });
 }
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 const attackEntry = async () => (await history.getHistoryEntries()).find((entry) => entry.kind === "pc-attack");
 
 test("presentation lists the attack and the tracked creatures, never the attacker", async () => {
@@ -129,6 +133,8 @@ test("a hit is one History entry with attack provenance in the Combat Log, and U
   assert.deepEqual(result.hpChange, { before: 30, after: 13, hpMax: 30 });
   assert.equal(result.undoAvailable, true);
   assert.deepEqual(posted, [17], "post-damage projections run once");
+  await tick();
+  assert.deepEqual(visuals, [], "a weapon attack has no spell animation");
   assert.equal((await history.getHistoryEntries()).length, baselineCount + 1);
   const entry = await attackEntry();
   assert.equal(entry.payload.damageComponents.length, 2);
@@ -251,6 +257,9 @@ test("a cantrip attack: one History entry, an Attack event in the Combat Log nam
     attackInstanceId: "frost" });
   assert.equal(meta("ghoul").hp, 16);
   assert.equal(result.cantrip.name, "Raggio di gelo");
+  await tick();
+  assert.deepEqual(visuals.map(({ spellId, casterId, targetIds, eventId }) => ({ spellId, casterId, targetIds, eventId })),
+    [{ spellId: "ray-of-frost", casterId: "aria", targetIds: ["ghoul"], eventId: "frost" }], "the Embers animation of the cantrip, once");
   assert.equal(result.manualRemainder, "");
   assert.deepEqual(result.conditions, ["Velocità −3 m"]);
   const pills = (value) => (Array.isArray(value) ? value : value?.instances || []).map((instance) => instance.condition);
@@ -434,6 +443,9 @@ test("an area cantrip: the creatures near the caster proposed from the map; one 
   assert.deepEqual(posted, [7, 0].filter((amount) => amount > 0), "projections only for the creatures whose HP changed");
   const again = await runtime.executePcAttackArea(request);
   assert.equal(again.duplicate, true);
+  await tick();
+  assert.deepEqual(visuals.map(({ spellId, targetIds }) => [spellId, targetIds]), [["tasha-turbine-di-spade", ["ghoul", "imp"]]],
+    "the area cantrip is offered to the renderer once, with every creature hit; a retry sends nothing");
   assert.equal(meta("ghoul").hp, 23);
   const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
   assert.equal(entries.length, 1);

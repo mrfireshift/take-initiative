@@ -14,6 +14,12 @@ import { withBossLinkDefenses } from "./bossLinkResistanceCore.js";
 const newId = () => `pc-attack:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
 // The map labels of a creature whose pills changed without damage (an activation's pill on the attacker).
 const refreshPillLabels = async ids => {const {refreshConditionLabels}=await import("./conditions.js");await refreshConditionLabels(ids);};
+// The cantrip's Embers animation (Fire Bolt, Eldritch Blast, Ray of Frost, Sacred Flame, Toll the Dead): the same
+// matched visual the spell panel sends, decorative and best-effort; a cantrip without one is ignored by the renderer.
+async function emitCantripVisual({spellId,casterId,targetIds,eventId,sceneEpoch}) {
+  const {emitMatchedSpellVisual}=await import("./embersMatchedVisualRenderer.js");
+  return emitMatchedSpellVisual({spellId,casterId,targetIds,eventId,lifecycleId:eventId,sceneEpoch});
+}
 // Temporary hit points (Inspiring Smite): the HP bar, HP text, hpMemory and labels, like a damage projection but
 // without its concentration warnings and save reminders (nothing was damaged).
 async function projectTempHp({rows,sceneEpoch,isCurrent}) {
@@ -34,9 +40,16 @@ export function createPcAttackRuntime({
   api=OBR,getCard=getInitiativeCard,
   getSceneContext=getEffectsMutationSceneContext,runMutation=runEffectsMutation,
   requireApplied=requireAppliedEffectsMutation,postDamage=postBossDamage,refreshLabels=refreshPillLabels,postTempHp=projectTempHp,
-  getEpoch=currentSceneEpoch,isCurrentEpoch=isCurrentSceneEpoch,
+  getEpoch=currentSceneEpoch,isCurrentEpoch=isCurrentSceneEpoch,emitVisual=emitCantripVisual,
 }={}) {
   const busy=new Set();
+  // After the commit, once (never on a retry): the cantrip's animation from the caster to its targets, whatever the
+  // outcome (a missed Fire Bolt still flies). Never awaited: the animation never delays or fails the command.
+  const animateCantrip=({spellId,casterId,targetIds,eventId,scope})=>{
+    if(!spellId || !scope.isCurrent()) return;
+    void Promise.resolve().then(()=>emitVisual({spellId,casterId,targetIds,eventId,sceneEpoch:scope.epoch}))
+      .catch(error=>console.warn("[pc-attack] matched visual:",error?.message || error));
+  };
   // Retain the prepared command for lost-ACK retries; History remains in the coordinator.
   const drafts=new Map();
   async function session(sourceId) {
@@ -131,6 +144,8 @@ export function createPcAttackRuntime({
           error.message="Lo stato è cambiato prima del commit (bersaglio, profilo o turno). Riapri l'attacco e verifica.";
         throw error;
       }
+      if(result.duplicate!==true) animateCantrip({spellId:plan.causality.cantrip?.spellId,casterId:scope.item.id,
+        targetIds:[targetItem.id],eventId:attackInstanceId,scope});
       const warnings=[];
       // Post-commit projections run once; they never mutate canonical HP.
       const damaged=[...(plan.change?.changed?[{item:targetItem,change:plan.change}]:[]),
@@ -224,6 +239,8 @@ export function createPcAttackRuntime({
           error.message="Lo stato è cambiato prima del commit (creature, profilo o turno). Riapri l'attacco e verifica.";
         throw error;
       }
+      if(result.duplicate!==true) animateCantrip({spellId:plan.causality.cantrip?.spellId,casterId:scope.item.id,
+        targetIds:plan.rows.map(row=>row.item.id),eventId:attackInstanceId,scope});
       const warnings=[];
       if(result.duplicate!==true && scope.isCurrent()) for(const row of plan.changes) {
         try {warnings.push(...(await postDamage({item:row.item,change:row.change,result,sceneEpoch:scope.epoch,
