@@ -25,9 +25,9 @@ const sampleGeometry = {
   sceneDpi: 150,
 };
 
-test("il mapping copre le 54 spell riconciliate dall'audit e l'alias Blocca mostri", () => {
-  assert.equal(EMBERS_MATCHED_SPELL_IDS.length, 55);
-  assert.equal(new Set(EMBERS_MATCHED_SPELL_IDS).size, 55);
+test("il mapping copre le 54 spell riconciliate dall'audit, l'alias Blocca mostri e i 18 trucchetti della console", () => {
+  assert.equal(EMBERS_MATCHED_SPELL_IDS.length, 73);
+  assert.equal(new Set(EMBERS_MATCHED_SPELL_IDS).size, 73);
   for (const spellId of EMBERS_MATCHED_SPELL_IDS) {
     assert.ok(getMatchedSpellVisualDefinition(spellId), spellId);
   }
@@ -811,4 +811,76 @@ test("Passo Velato conserva le durate Embers dei due one-shot", () => {
   assert.equal(incoming.oneShot, true);
   assert.equal(matchedVisualLayerPlan(out, event.dpi).duration, 3000);
   assert.equal(matchedVisualLayerPlan(incoming, event.dpi).duration, 4870);
+});
+
+const cantripGeometry = {
+  casterId: "caster-1",
+  caster: { x: 150, y: 150, diameter: 150 },
+  targets: [
+    { id: "target-1", center: { x: 750, y: 150 }, diameter: 150 },
+    { id: "target-2", center: { x: 900, y: 300 }, diameter: 150 },
+  ],
+  sceneDpi: 150,
+};
+const cantripEvent = (spellId, targetIds = ["target-1"]) => buildMatchedVisualEvent({ spellId, eventId: `${spellId}-cast`,
+  lifecycleId: `${spellId}-cast:spell`, ...cantripGeometry, targets: cantripGeometry.targets.filter((entry) => targetIds.includes(entry.id)), targetIds });
+
+test("i trucchetti della console usano solo clip della libreria JB2A gratuita, con la variante giusta per la distanza", () => {
+  const urls = (spellId, targetIds) => cantripEvent(spellId, targetIds).layers.map((layer) => matchedVisualLayerPlan(layer, 150).url.split("/").pop());
+  assert.deepEqual(urls("chill-touch"), ["RangedProjectile04_01_Regular_Green_15ft_1000x400.webm", "NecromancyRuneLoop_01_Regular_Green_400x400.webm"]);
+  assert.deepEqual(urls("produce-flame"), ["RangedProjectile01_01_Dark_Orange_15ft_1000x400.webm", "ImpactFire01_01_Regular_Orange_600x600.webm"]);
+  assert.deepEqual(urls("tasha-lenza-elettrizzante"), ["WitchBolt_01_Regular_Blue_15ft_1000x400.webm"]);
+  assert.deepEqual(urls("acid-splash", ["target-1", "target-2"]), ["RangedInstant04_01_Regular_Green_15ft_1000x400.webm",
+    "RangedInstant04_01_Regular_Green_30ft_1600x400.webm"], "one per creature");
+  assert.deepEqual(urls("xanathar-ferocia-primordiale"), ["CreatureAttackClaw_001_001_Red_800x600.webm"]);
+  assert.deepEqual(urls("poison-spray"), ["BreathWeapon_Poison01_Regular_Green_30ft_Cone_Burst_600x600.webm"]);
+  for (const spellId of ["shocking-grasp", "phb2014-frusta-di-spine", "vicious-mockery", "xanathar-infestazione", "xanathar-morsa-del-gelo",
+    "tasha-scheggia-della-mente", "tasha-lama-roboante", "xanathar-parola-radiosa", "xanathar-rombo-di-tuono", "tasha-turbine-di-spade"]) {
+    assert.ok(cantripEvent(spellId).layers.every((layer) => matchedVisualLayerPlan(layer, 150)?.url.startsWith("https://jb2a-free.")), spellId);
+  }
+});
+
+test("i loop dei trucchetti con pill restano attaccati al bersaglio; gli altri sono one-shot", () => {
+  const loops = (spellId) => cantripEvent(spellId).layers.filter((layer) => layer.persistent).map((layer) => [layer.effectId, layer.attachedTo]);
+  assert.deepEqual(loops("chill-touch"), [["necromancyRuneLoop", "target"]]);
+  assert.deepEqual(loops("shocking-grasp"), [["staticElectricityLoop", "target"]]);
+  assert.deepEqual(loops("vicious-mockery"), [["dizzyStars", "target"]]);
+  assert.deepEqual(loops("xanathar-morsa-del-gelo"), [["snowflakeLoop", "target"]]);
+  assert.deepEqual(loops("tasha-scheggia-della-mente"), [["enchantmentRuneLoop", "target"]]);
+  assert.deepEqual(loops("tasha-lama-roboante"), [["outPulseLoop", "target"]]);
+  for (const spellId of ["produce-flame", "phb2014-frusta-di-spine", "xanathar-ferocia-primordiale", "poison-spray", "acid-splash",
+    "xanathar-infestazione", "tasha-lenza-elettrizzante", "xanathar-parola-radiosa", "xanathar-rombo-di-tuono", "tasha-turbine-di-spade"]) {
+    assert.deepEqual(loops(spellId), [], spellId);
+  }
+  assert.equal(getMatchedSpellVisualDefinition("xanathar-creare-falo").visuals[0].attachedTo, "zone", "Create Bonfire loops on its zone");
+});
+
+test("Lama Verdefiamma: fiamma sul bersaglio, salto dal bersaglio alla seconda creatura, fiamma sulla seconda", () => {
+  const event = cantripEvent("tasha-lama-verdefiamma", ["target-1", "target-2"]);
+  assert.deepEqual(event.layers.map((layer) => [layer.kind, layer.effectId, layer.targetId, layer.delay]), [
+    ["circle", "impactFire", "target-1", 0],
+    ["target", "greenProjectile", "target-2", 700],
+    ["circle", "impactFire", "target-2", 2000],
+  ]);
+  assert.deepEqual(event.layers[1].source, { x: 750, y: 150 }, "the leap starts at the target, never at the caster");
+  assert.deepEqual(cantripEvent("tasha-lama-verdefiamma").layers.map((layer) => layer.targetId), ["target-1"],
+    "without a second creature: only the flame on the target");
+});
+
+test("le emanazioni di 1,5 m coprono il quadrato dell'incantatore e gli otto intorno", () => {
+  for (const spellId of ["xanathar-rombo-di-tuono", "tasha-turbine-di-spade", "xanathar-parola-radiosa"]) {
+    const caster = cantripEvent(spellId).layers.find((layer) => layer.anchor === "caster");
+    assert.deepEqual(caster.center, { x: 150, y: 150 }, spellId);
+    assert.equal(caster.radius, 225, `${spellId}: 3 cells across`);
+  }
+  assert.deepEqual(cantripEvent("xanathar-parola-radiosa", ["target-1", "target-2"]).layers.filter((layer) => layer.anchor === "target")
+    .map((layer) => [layer.targetId, layer.delay]), [["target-1", 1500], ["target-2", 1500]], "the radiance on every creature chosen");
+});
+
+test("un clip non quadrato si centra sulla sua arte: il graffio di Ferocia Primordiale a metà degli 800 px", () => {
+  const [claw] = cantripEvent("xanathar-ferocia-primordiale").layers;
+  const plan = matchedVisualLayerPlan(claw, 150);
+  assert.deepEqual([plan.width, plan.height, plan.offset], [800, 600, { x: 400 / 600, y: 0.5 }]);
+  const [whirl] = cantripEvent("tasha-turbine-di-spade").layers;
+  assert.deepEqual(matchedVisualLayerPlan(whirl, 150).offset, { x: 0.5, y: 0.5 }, "the whirlwind is drawn around 300 px across");
 });

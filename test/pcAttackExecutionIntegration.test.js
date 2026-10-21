@@ -30,6 +30,8 @@ const sdk = {
     isReady: async () => true,
     onReadyChange: () => () => {},
     grid: { getDpi: async () => 100, getScale: async () => ({ parsed: { multiplier: 5, unit: "ft" } }) },
+    // The Embers renderer: the end of a cantrip's pill (Undo, expiry) removes its loop from the local items.
+    local: { getItems: async () => [], addItems: async () => {}, updateItems: async () => {}, deleteItems: async () => {}, onChange: () => () => {} },
     getMetadata: async () => clone(sceneMetadata),
     setMetadata: async (update) => { sceneMetadata = { ...sceneMetadata, ...clone(update) }; },
     items: {
@@ -217,7 +219,7 @@ test("Sneak Attack once per turn across Extra Attack; Undo of the first makes it
 test("a turn change before the commit refuses a rider counted per turn, and writes nothing", async () => {
   makeRogue();
   const realRuntime = runtime;
-  runtime = createPcAttackRuntime({ api: sdk, postDamage: async () => [],
+  runtime = createPcAttackRuntime({ api: sdk, emitVisual: async () => ({ sent: false }), postDamage: async () => [],
     runMutation: async (operations, options) => {
       // The next turn starts while the command travels to the coordinator.
       sceneMetadata["com.thebigpicture.initiative/state"] = { ...sceneMetadata["com.thebigpicture.initiative/state"], current: 1 };
@@ -258,8 +260,9 @@ test("a cantrip attack: one History entry, an Attack event in the Combat Log nam
   assert.equal(meta("ghoul").hp, 16);
   assert.equal(result.cantrip.name, "Raggio di gelo");
   await tick();
-  assert.deepEqual(visuals.map(({ spellId, casterId, targetIds, eventId }) => ({ spellId, casterId, targetIds, eventId })),
-    [{ spellId: "ray-of-frost", casterId: "aria", targetIds: ["ghoul"], eventId: "frost" }], "the Embers animation of the cantrip, once");
+  assert.deepEqual(visuals.map(({ spellId, casterId, targetIds, eventId, lifecycleId, persistent }) => ({ spellId, casterId, targetIds, eventId, lifecycleId, persistent })),
+    [{ spellId: "ray-of-frost", casterId: "aria", targetIds: ["ghoul"], eventId: "frost", lifecycleId: "frost:spell", persistent: true }],
+    "the Embers animation of the cantrip, once; its loops last with the pill's spell instance");
   assert.equal(result.manualRemainder, "");
   assert.deepEqual(result.conditions, ["Velocità −3 m"]);
   const pills = (value) => (Array.isArray(value) ? value : value?.instances || []).map((instance) => instance.condition);
@@ -309,6 +312,9 @@ test("Green-Flame Blade: target and second creature in one History entry; one Un
     weaponCantrip: { spellId: "tasha-lama-verdefiamma", amount: 4, secondary: { targetId: "imp", amount: 7 } }, expectedSecondaryDefenses: {} });
   assert.deepEqual([meta("ghoul").hp, meta("imp").hp], [18, 3]);
   assert.deepEqual(result.secondary, { id: "imp", name: "Imp", before: 10, after: 3 });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(visuals.map(({ spellId, targetIds, persistent }) => [spellId, targetIds, persistent]),
+    [["tasha-lama-verdefiamma", ["ghoul", "imp"], false]], "the woven cantrip's animation leaps to the second creature; no pill, no loop");
   assert.deepEqual(posted, [12, 7], "post-damage projections for both creatures");
   const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
   assert.equal(entries.length, 1);
@@ -322,6 +328,9 @@ test("Green-Flame Blade: target and second creature in one History entry; one Un
   assert.equal(meta("ghoul").hp, 19);
   assert.ok(pills(meta("ghoul").conditions).includes("Movimento: danni tuono"));
   assert.match(JSON.stringify(meta("ghoul")["com.thebigpicture.initiative/spells"] ?? null), /Lama Roboante/);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(visuals.slice(1).map(({ spellId, lifecycleId, persistent }) => [spellId, lifecycleId, persistent]),
+    [["tasha-lama-roboante", "boom:spell", true]], "Booming Blade's loop lasts with its pill");
 });
 
 test("an activation on a hit: damage, die spent and pill in one History entry; one Undo restores the HP, the pill and the die", async () => {
@@ -347,7 +356,7 @@ test("an activation on a hit: damage, die spent and pill in one History entry; o
 
 test("a self pill from an activation: the attacker's pill is applied and its labels refreshed", async () => {
   const refreshed = [];
-  runtime = createPcAttackRuntime({ api: sdk, postDamage: async () => [], refreshLabels: async (ids) => { refreshed.push(...ids); } });
+  runtime = createPcAttackRuntime({ api: sdk, emitVisual: async () => ({ sent: false }), postDamage: async () => [], refreshLabels: async (ids) => { refreshed.push(...ids); } });
   Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "bardo", level: 6, subclassId: "bardo-collegio-delle-spade" }],
     abilityModifiers: { str: 0, dex: 3, con: 1, int: 0, wis: 0, cha: 4 }, classFeaturesConfigured: true,
     enabledClassFeatureIds: ["bardo-collegio-delle-spade-virtuosismo-della-lama", "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-difensivo"] });
@@ -379,7 +388,7 @@ test("Sweeping Attack: the target, the second creature and the die in one Histor
 
 test("Inspiring Smite: damage and temporary hit points to the paladin and an ally in one entry, their own projections; one Undo restores them", async () => {
   const projected = [];
-  runtime = createPcAttackRuntime({ api: sdk, postDamage: async () => [], postTempHp: async ({ rows }) => { projected.push(...rows.map((row) => row.item.id)); } });
+  runtime = createPcAttackRuntime({ api: sdk, emitVisual: async () => ({ sent: false }), postDamage: async () => [], postTempHp: async ({ rows }) => { projected.push(...rows.map((row) => row.item.id)); } });
   const ISPIRATRICE = "paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice";
   Object.assign(meta("aria"), { hp: 30 });
   Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "paladino", level: 7, subclassId: "paladino-giuramento-di-gloria" }],
@@ -444,7 +453,7 @@ test("an area cantrip: the creatures near the caster proposed from the map; one 
   const again = await runtime.executePcAttackArea(request);
   assert.equal(again.duplicate, true);
   await tick();
-  assert.deepEqual(visuals.map(({ spellId, targetIds }) => [spellId, targetIds]), [["tasha-turbine-di-spade", ["ghoul", "imp"]]],
+  assert.deepEqual(visuals.map(({ spellId, targetIds, persistent }) => [spellId, targetIds, persistent]), [["tasha-turbine-di-spade", ["ghoul", "imp"], false]],
     "the area cantrip is offered to the renderer once, with every creature hit; a retry sends nothing");
   assert.equal(meta("ghoul").hp, 23);
   const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");

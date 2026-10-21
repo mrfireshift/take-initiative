@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Animazioni trucchetti</title>
+<style>
+  :root { --bg: #14171c; --panel: #1d2128; --line: #2e3440; --text: #e8eaee; --muted: #9aa3b2; --accent: #f0a04b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .lead { color: var(--muted); margin: 0 0 24px; max-width: 820px; }
+  .spell { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 14px 16px; margin-bottom: 18px; }
+  .spell header h2 { font-size: 17px; margin: 0; }
+  .spell header p { margin: 2px 0 0; color: var(--muted); }
+  .spell header .note { color: var(--accent); }
+  .options { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin-top: 12px; }
+  .option { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: #181b21; }
+  .option h3 { font-size: 14px; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+  .letter { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #111; font-weight: 700; font-size: 12px; }
+  .clips { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  figure { margin: 0; }
+  .stage { aspect-ratio: 1; display: grid; place-items: center; border-radius: 6px; overflow: hidden;
+    background: #3a4a3a repeating-conic-gradient(#344334 0 25%, #3c4c3c 0 50%) 0 0 / 40px 40px; }
+  .stage video { max-width: 100%; max-height: 100%; }
+  figcaption { font-size: 11.5px; color: var(--muted); margin-top: 4px; word-break: break-all; }
+  figcaption b { color: var(--text); font-weight: 600; }
+  code { font-size: 10.5px; }
+</style></head>
+<body><main>
+  <h1>Animazioni candidate per i trucchetti</h1>
+  <p class="lead">Solo animazioni della libreria JB2A gratuita, la stessa che usa il plugin. Per ogni trucchetto, 2–3 proposte (A, B, C). «Loop» = resta sul bersaglio finché dura la pill e sparisce da solo quando scade. Lo sfondo a scacchi simula la mappa. I proiettili qui sono mostrati nella variante da 9 m.</p>
+  
+  <section class="spell">
+    <header><h2>1. Tocco gelido</h2><p>Attacco a distanza, necrotico · pill: niente cure fino al prossimo turno dell'incantatore</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Mano verde e runa di necromanzia</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/RangedSpell/04/RangedProjectile04_01_Regular_Green_30ft_1600x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Proiettile (dall'incantatore al bersaglio)</b><br><code>RangedProjectile04_01_Regular_Green_30ft_1600x400.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/NecromancyRuneLoop_01_Regular_Green_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>NecromancyRuneLoop_01_Regular_Green_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Colpo verde-azzurro e maledizione</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/RangedSpell/03/RangedProjectile03_01_Regular_BlueGreen_30ft_1600x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Proiettile (dall'incantatore al bersaglio)</b><br><code>RangedProjectile03_01_Regular_BlueGreen_30ft_1600x400.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Conditions/Curse01/ConditionCurse01_001_Red_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>ConditionCurse01_001_Red_600x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>2. Stretta folgorante</h2><p>Attacco in mischia, fulmine · pill: niente reazioni fino al suo prossimo turno</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Scarica statica</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Lightning/ElectricArc01_01_Regular_Blue_1600x500.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>ElectricArc01_01_Regular_Blue_1600x500.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Lightning/StaticElectricity_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>StaticElectricity_01_Regular_Blue_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Sfera elettrica</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Lightning/LightningBall_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>LightningBall_01_Regular_Blue_400x400.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Lightning/StaticElectricity_02_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>StaticElectricity_02_Regular_Blue_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>3. Produrre fiamma</h2><p>Attacco a distanza, fuoco · fiamma lanciata dalla mano</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Proiettile infuocato e impatto</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/RangedSpell/01/RangedProjectile01_01_Dark_Orange_30ft_1600x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Proiettile (dall'incantatore al bersaglio)</b><br><code>RangedProjectile01_01_Dark_Orange_30ft_1600x400.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Impact/ImpactFire01_01_Regular_Orange_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>ImpactFire01_01_Regular_Orange_600x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Raggio di fuoco</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/RangedSpell/Beam/Beam001_01_Regular_Orange_30ft_1600x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Proiettile (dall'incantatore al bersaglio)</b><br><code>Beam001_01_Regular_Orange_30ft_1600x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>4. Frusta di Spine</h2><p>Attacco in mischia a 9 m, perforante · trascina il bersaglio</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Rampicante sul bersaglio</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Nature/VineNature01_01_Regular_Green_300x300.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>VineNature01_01_Regular_Green_300x300.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Anello di spine</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Nature/PlantGrowthRingPulse02_01_Regular_GreenRed_500x500.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>PlantGrowthRingPulse02_01_Regular_GreenRed_500x500.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>5. Ferocia Primordiale</h2><p>Attacco in mischia, acido · artigli o zanne</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Artigli</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Creature/Claws_01_Regular_Red_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>Claws_01_Regular_Red_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Morso</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Creature/Bite_01_Regular_Red_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>Bite_01_Regular_Red_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">C</span>Artigliata singola</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Creature/Claw/CreatureAttackClaw_001_001_Red_800x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>CreatureAttackClaw_001_001_Red_800x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>6. Beffa crudele</h2><p>TS Saggezza, psichico · pill: svantaggio al prossimo attacco</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Onda sonora e note musicali</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Cast/CastSound01_01_Regular_PinkTeal_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sull'incantatore</b><br><code>CastSound01_01_Regular_PinkTeal_600x600.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerMusicNote_03_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br>già usato da Ispirazione Bardica<br><code>MarkerMusicNote_03_Regular_Blue_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Croma e stelline</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Music_Notation/Quaver_01_Regular_Blue_200x200.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>Quaver_01_Regular_Blue_200x200.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Conditions/Dizzy_Stars/DizzyStars_01_BlueOrange_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>DizzyStars_01_BlueOrange_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">C</span>Onda sonora e runa rosa</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/Soundwave01_02_Regular_Blue_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>Soundwave01_02_Regular_Blue_600x600.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/EnchantmentRuneLoop_01_Regular_Pink_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>EnchantmentRuneLoop_01_Regular_Pink_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>7. Spruzzo velenoso</h2><p>TS Costituzione, veleno · gittata 3 m</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Fumi sul bersaglio</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Smoke/Fumes04_01_Grey_Complete_400x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>Fumes04_01_Grey_Complete_400x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Sbuffo di fumo</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Smoke/SmokePuff01_01_Regular_Grey_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>SmokePuff01_01_Regular_Grey_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">C</span>Cono di veleno (va orientato)</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Template/Cone/Breath_Weapon/BreathWeapon_Poison01_Regular_Green_30ft_Cone_Burst_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br>è un cono di 9 m: andrebbe ridotto e orientato verso il bersaglio<br><code>BreathWeapon_Poison01_Regular_Green_30ft_Cone_Burst_600x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>8. Fiotto acido</h2><p>TS Destrezza, acido · una o due creature vicine</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Fiala lanciata e rottura</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Weapon_Attacks/Ranged/ThrowFlask01_01_Regular_Orange_30ft_1600x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Proiettile (dall'incantatore al bersaglio)</b><br><code>ThrowFlask01_01_Regular_Orange_30ft_1600x400.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Explosion/TopFractureFlask01_01_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>TopFractureFlask01_01_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Proiettile verde e schizzo</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/RangedSpell/04/RangedInstant04_01_Regular_Green_30ft_1600x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Proiettile (dall'incantatore al bersaglio)</b><br><code>RangedInstant04_01_Regular_Green_30ft_1600x400.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Liquid/LiquidSplash01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>LiquidSplash01_Regular_Blue_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>9. Infestazione</h2><p>TS Costituzione, veleno · uno sciame di acari, il bersaglio si sposta di 1,5 m</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Sciame verde</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Fireflies/Fireflies_01_Green_Many01_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>Fireflies_01_Green_Many01_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Pipistrelli</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Creature/BatsComplete01_01_Regular_Red_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>BatsComplete01_01_Regular_Red_600x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>10. Morsa del Gelo</h2><p>TS Costituzione, freddo · pill: svantaggio al prossimo attacco con arma</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Brina e fiocchi</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Impact/FrostImpact_01_Regular_White_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>FrostImpact_01_Regular_White_600x600.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Ice/SnowflakeBurst_01_Regular_BlueWhite_Loop_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>SnowflakeBurst_01_Regular_BlueWhite_Loop_600x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Esplosione di fiocchi</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Ice/SnowflakeBurst_01_Regular_BlueWhite_Burst_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>SnowflakeBurst_01_Regular_BlueWhite_Burst_600x600.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Ice/SnowflakeBurst_01_Regular_BlueWhite_Loop_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>SnowflakeBurst_01_Regular_BlueWhite_Loop_600x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>11. Scheggia della Mente</h2><p>TS Intelligenza, psichico · pill: −1d4 al prossimo TS</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Come Aculeo Mentale, con stelline</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Healing/HealingAbility_01_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br>già usato da Aculeo Mentale<br><code>HealingAbility_01_Purple_400x400.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Conditions/Dizzy_Stars/DizzyStars_01_BlueOrange_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>DizzyStars_01_BlueOrange_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Runa rosa</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/EnchantmentRuneComplete_01_Regular_Pink_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>EnchantmentRuneComplete_01_Regular_Pink_400x400.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/EnchantmentRuneLoop_01_Regular_Pink_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>EnchantmentRuneLoop_01_Regular_Pink_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">C</span>Sfera viola</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/RangedSpell/OverchargedSphere01_01_Dark_Purple_30ft_1600x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Proiettile (dall'incantatore al bersaglio)</b><br><code>OverchargedSphere01_01_Dark_Purple_30ft_1600x400.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerHorror_02_Regular_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br>già usato da Sortilegio<br><code>MarkerHorror_02_Regular_Purple_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>12. Lenza Elettrizzante</h2><p>TS Forza, fulmine · trascina il bersaglio fino a 3 m</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Frusta di fulmine</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/1st_Level/Witch_Bolt/WitchBolt_01_Regular_Blue_30ft_1600x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Proiettile (dall'incantatore al bersaglio)</b><br><code>WitchBolt_01_Regular_Blue_30ft_1600x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Arco elettrico</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Lightning/ElectricArc02_01_Regular_Blue_1600x500.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>ElectricArc02_01_Regular_Blue_1600x500.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>13. Lama Roboante</h2><p>Attacco con arma, tuono · pill: esplode se il bersaglio si muove (l'esplosione al movimento non è animata)</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Onda e impulso continuo</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/Soundwave01_01_Regular_Blue_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br><code>Soundwave01_01_Regular_Blue_600x600.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Template/Circle/OutPulse/OutPulse_02_Regular_BlueWhite_Loop_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>OutPulse_02_Regular_BlueWhite_Loop_600x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Scoppio blu e scintille</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Explosion/Explosion_02_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br>già usato da Passo del Tuono<br><code>Explosion_02_Blue_400x400.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/SwirlingSparkles_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sul bersaglio finché dura la pill</b><br><code>SwirlingSparkles_01_Regular_Blue_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>14. Lama Verdefiamma</h2><p>Attacco con arma, fuoco · la fiamma salta su una seconda creatura</p><p class="note">JB2A gratuito non ha fiamme verdi: il salto usa il proiettile verde, dal bersaglio alla seconda creatura (come il rimbalzo di Catena di Fulmini).</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Fiamma verde che salta</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Impact/ImpactFire01_01_Regular_Orange_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br>sul bersaglio<br><code>ImpactFire01_01_Regular_Orange_600x600.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/RangedSpell/04/RangedProjectile04_01_Regular_Green_30ft_1600x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Proiettile (dall'incantatore al bersaglio)</b><br><code>RangedProjectile04_01_Regular_Green_30ft_1600x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>15. Parola Radiosa</h2><p>Area intorno all'incantatore, radioso · solo le creature scelte</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Impulso luminoso</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Template/Circle/OutPulse/OutPulse_01_Regular_BlueWhite_Burst_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sull'incantatore</b><br><code>OutPulse_01_Regular_BlueWhite_Burst_600x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Esplosione dorata</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Explosion/Explosion_03_Regular_BlueYellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sull'incantatore</b><br><code>Explosion_03_Regular_BlueYellow_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">C</span>Punizione sui colpiti</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/2nd_Level/Divine_Smite/DivineSmite_01_Regular_BlueYellow_Caster_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sull'incantatore</b><br><code>DivineSmite_01_Regular_BlueYellow_Caster_400x400.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/2nd_Level/Divine_Smite/DivineSmite_01_Regular_BlueYellow_Target_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br>su ogni creatura colpita<br><code>DivineSmite_01_Regular_BlueYellow_Target_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>16. Rombo di Tuono</h2><p>Area intorno all'incantatore, tuono · colpisce tutti, alleati compresi</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Onda tonante</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/1st_Level/Thunderwave/Thunderwave_01_Bright_Blue_Center_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sull'incantatore</b><br><code>Thunderwave_01_Bright_Blue_Center_600x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Onda sonora</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/Soundwave01_01_Regular_Blue_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sull'incantatore</b><br>già usato da Silenzio<br><code>Soundwave01_01_Regular_Blue_600x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">C</span>Scoppio blu</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Explosion/Explosion_02_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sull'incantatore</b><br>già usato da Passo del Tuono<br><code>Explosion_02_Blue_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>17. Turbine di Spade</h2><p>Area intorno all'incantatore, forza · lame spettrali</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Vortice di lame</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Weapon_Attacks/Melee/GenericWhirlwind01_01_Regular_Orange_800x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sull'incantatore</b><br><code>GenericWhirlwind01_01_Regular_Orange_800x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Anello di energia</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/EnergyConduitCircle_01_Regular_BluePurple_30ft_1600x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sull'incantatore</b><br><code>EnergyConduitCircle_01_Regular_BluePurple_30ft_1600x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="spell">
+    <header><h2>18. Creare Falò</h2><p>Zona di 1,5 m con concentrazione (dal pannello incantesimi)</p></header>
+    <div class="options">
+      <article class="option">
+        <h3><span class="letter">A</span>Falò</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Fire/Campfire/Bonfire_01_Regular_Orange_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sulla zona</b><br><code>Bonfire_01_Regular_Orange_400x400.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">B</span>Fiamme in loop</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Fire/Flame/Flames04_01_Regular_Orange_Loop_400x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sulla zona</b><br><code>Flames04_01_Regular_Orange_Loop_400x600.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="option">
+        <h3><span class="letter">C</span>Fuoco da campo (accensione + loop)</h3>
+        <div class="clips">
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Fire/Campfire/Campfire03_01_Orange_Complete_400x1000.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Sul bersaglio, una volta</b><br>accensione<br><code>Campfire03_01_Orange_Complete_400x1000.webm</code></figcaption>
+          </figure>
+          <figure>
+            <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Fire/Campfire/Campfire03_01_Orange_Loop_400x1000.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+            <figcaption><b>Loop sulla zona</b><br><code>Campfire03_01_Orange_Loop_400x1000.webm</code></figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+</main></body></html>

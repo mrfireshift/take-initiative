@@ -4,14 +4,37 @@
     {
       "name": "boss-actions-preview",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--config", "test-support/boss-actions-browser/vite.config.mjs", "--port", "5199", "--strictPort"],
+      "runtimeArgs": [
+        "vite",
+        "--config",
+        "test-support/boss-actions-browser/vite.config.mjs",
+        "--port",
+        "5199",
+        "--strictPort"
+      ],
       "port": 5199
     },
     {
       "name": "plugin-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173
+    },
+    {
+      "name": "embers-gallery",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--config",
+        "test-support/embers-gallery/vite.config.mjs",
+        "--port",
+        "5198",
+        "--strictPort"
+      ],
+      "port": 5198
     }
   ]
 }

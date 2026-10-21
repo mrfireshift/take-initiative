@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Banco animazioni</title>
+  <style>
+    :root { --bg: #14171c; --panel: #1d2128; --line: #2e3440; --text: #e8eaee; --muted: #9aa3b2; --accent: #f0a04b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+    header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+    header h1 { font-size: 15px; margin: 0 8px 0 0; }
+    select, button, input { font: inherit; color: var(--text); background: #252a33; border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+    button { cursor: pointer; }
+    button.primary { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600; }
+    label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+    #map { position: relative; overflow: hidden; height: calc(100vh - 92px); min-height: 420px;
+      background-color: #3b4a39;
+      background-image: linear-gradient(rgba(0,0,0,.25) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,.25) 1px, transparent 1px);
+      background-size: var(--cell) var(--cell); }
+    .token { position: absolute; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff;
+      border: 3px solid rgba(255,255,255,.85); box-shadow: 0 2px 6px rgba(0,0,0,.5); user-select: none; }
+    .token.caster { background: #2f6db5; }
+    .token.target { background: #a33a3a; }
+    .token.second { background: #8a5a20; }
+    .token.zone { border-radius: 4px; background: rgba(255,170,60,.12); border: 2px dashed rgba(255,190,90,.8); color: transparent; box-shadow: none; }
+    video.fx { position: absolute; pointer-events: none; }
+    #log { padding: 6px 12px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); background: var(--panel); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Banco animazioni</h1>
+    <select id="spell"></select>
+    <label>Distanza bersaglio <input id="distance" type="range" min="1" max="12" value="4"><span id="distance-text"></span></label>
+    <label><input id="second" type="checkbox" autocomplete="off"> Seconda creatura</label>
+    <label><input id="pill" type="checkbox" checked autocomplete="off"> Con la pill (loop)</label>
+    <label><input id="hold" type="checkbox" autocomplete="off"> Tieni a schermo</label>
+    <button class="primary" id="play" type="button">Lancia</button>
+    <button id="end" type="button">Fine pill</button>
+  </header>
+  <div id="map"></div>
+  <div id="log">Scegli un incantesimo e premi «Lancia».</div>
+  <script type="module" src="./bench.js"></script>
+</body>
+</html>

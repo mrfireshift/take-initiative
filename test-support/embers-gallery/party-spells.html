@@ -1,0 +1,1046 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Animazioni incantesimi del gruppo</title>
+<style>
+  :root { --bg: #14171c; --panel: #1d2128; --line: #2e3440; --text: #e8eaee; --muted: #9aa3b2; --accent: #f0a04b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  h2 { font-size: 18px; margin: 28px 0 2px; color: var(--accent); }
+  .lead { color: var(--muted); margin: 0 0 14px; max-width: 860px; }
+  .spell { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 14px 16px; margin-bottom: 14px; }
+  .spell header h3 { font-size: 16px; margin: 0; }
+  .spell header p { margin: 2px 0 0; color: var(--muted); }
+  .options { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-top: 12px; }
+  .option { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: #181b21; }
+  .option h4 { font-size: 14px; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+  .letter { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #111; font-weight: 700; font-size: 12px; }
+  .clips { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  figure { margin: 0; }
+  .stage { aspect-ratio: 1; display: grid; place-items: center; border-radius: 6px; overflow: hidden;
+    background: #3a4a3a repeating-conic-gradient(#344334 0 25%, #3c4c3c 0 50%) 0 0 / 40px 40px; }
+  .stage video { max-width: 100%; max-height: 100%; }
+  figcaption { font-size: 11.5px; color: var(--muted); margin-top: 4px; word-break: break-all; }
+  figcaption b { color: var(--text); font-weight: 600; }
+  code { font-size: 10.5px; }
+</style></head>
+<body><main>
+  <h1>Animazioni candidate per gli incantesimi del gruppo</h1>
+  <p class="lead">Gli incantesimi di livello delle schede di Alane, Edelbrand, Freddy, Lavera, Omar, Zorya e Vàlaxir che il tracker lancia e che non hanno ancora un'animazione. Solo clip della libreria JB2A gratuita. «Loop» = resta finché dura l'effetto e sparisce da solo; niente loop per gli effetti oltre i 10 minuti. Sfondo a scacchi = la mappa. Puoi anche mescolare: «12 = A con il loop di B».</p>
+  <h2>Punizioni</h2><p class="lead">Il colpo che si carica: un impatto sul bersaglio colpito, del colore del danno, più la condizione finché dura.</p>
+    <section class="spell">
+      <header><h3>1. Punizione Collerica</h3><p>1° · psichico · TS Saggezza o Spaventato (concentrazione) · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Punizione e paura</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/2nd_Level/Divine_Smite/DivineSmite_01_Regular_BlueYellow_Target_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>DivineSmite_01_Regular_BlueYellow_Target_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerFear_01_Dark_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>MarkerFear_01_Dark_Purple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Teschio e paura</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerSkull_01_Regular_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>MarkerSkull_01_Regular_Purple_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerFear_02_Dark_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>MarkerFear_02_Dark_Purple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>2. Punizione Tonante</h3><p>1° · tuono · spinta di 3 m e prono · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Onda tonante</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/1st_Level/Thunderwave/Thunderwave_01_Bright_Blue_Center_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>Thunderwave_01_Bright_Blue_Center_600x600.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Scoppio blu</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Explosion/Explosion_02_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br>già usato da Passo del Tuono<br><code>Explosion_02_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>3. Punizione Marchiante</h3><p>2° · radioso · il bersaglio risplende e non può essere invisibile · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Punizione e luce</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/2nd_Level/Divine_Smite/DivineSmite_01_Regular_BlueYellow_Target_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>DivineSmite_01_Regular_BlueYellow_Target_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerLightNoPulse_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>MarkerLightNoPulse_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Punizione e scintillio</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/2nd_Level/Divine_Smite/DivineSmite_01_Regular_BlueYellow_Target_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>DivineSmite_01_Regular_BlueYellow_Target_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Item/GlintMany01_01_Regular_Yellow_200x200.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br>già usato da Dardo Tracciante<br><code>GlintMany01_01_Regular_Yellow_200x200.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>4. Punizione Accecante</h3><p>3° · radioso · TS Costituzione o Accecato · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Punizione e stordimento</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/2nd_Level/Divine_Smite/DivineSmite_01_Regular_BlueYellow_Target_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>DivineSmite_01_Regular_BlueYellow_Target_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerStun_01_Regular_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>MarkerStun_01_Regular_Purple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Lampo e luce</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Explosion/Explosion_03_Regular_BlueYellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>Explosion_03_Regular_BlueYellow_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerLightNoPulse_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>MarkerLightNoPulse_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section><h2>Buff su un alleato</h2><p class="lead">Un'animazione d'ingresso del colore della scuola; il loop solo se l'effetto dura al massimo 10 minuti.</p>
+    <section class="spell">
+      <header><h3>5. Aiuto</h3><p>2° · +5 PF massimi · 8 ore (niente loop) · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Cura dorata</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Healing/HealingAbility_01_Yellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>HealingAbility_01_Yellow_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Sigillo dorato</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/Simple/MarkerSimpleComplete001_001_Yellow_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>MarkerSimpleComplete001_001_Yellow_600x600.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>6. Arma magica</h3><p>2° · +1 all'arma · concentrazione, 1 ora (niente loop) · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Runa di trasmutazione</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/TransmutationRuneComplete_01_Regular_Yellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>TransmutationRuneComplete_01_Regular_Yellow_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Scintillio</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Item/GlintFew01_01_Regular_Yellow_200x200.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>GlintFew01_01_Regular_Yellow_200x200.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>7. Passo veloce</h3><p>1° · +3 m di velocità · 1 ora (niente loop) · Freddy</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Linee di vento</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Wind/WindLines01_01_Regular_White_500x500.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>WindLines01_01_Regular_White_500x500.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Runa di trasmutazione</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/TransmutationRuneComplete_01_Regular_Yellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>TransmutationRuneComplete_01_Regular_Yellow_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>8. Armatura magica</h3><p>1° · CA 13 + Des · 8 ore (niente loop) · Alane</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Runa di abiurazione</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/AbjurationRuneComplete_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>AbjurationRuneComplete_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Scudo blu</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerShield_01_Regular_Green_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>MarkerShield_01_Regular_Green_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>9. Protezione dal bene e dal male</h3><p>1° · concentrazione, 10 minuti · Alane, Edelbrand, Zorya</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Cerchio di abiurazione e runa</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/AbjurationCircleComplete_02_Regular_Blue_800x800.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>AbjurationCircleComplete_02_Regular_Blue_800x800.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/AbjurationRuneLoop_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>AbjurationRuneLoop_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Bolla protettiva</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerBubbleIntro_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>MarkerBubbleIntro_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerBubbleLoop_02_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>MarkerBubbleLoop_02_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>10. Protezione dai veleni</h3><p>2° · 1 ora (niente loop) · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Cura verde</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Healing/HealingAbility_01_Green_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>HealingAbility_01_Green_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Scudo verde</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerShield_02_Regular_Green_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>MarkerShield_02_Regular_Green_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>11. Protezione dall'energia</h3><p>3° · resistenza a un tipo · concentrazione, 1 ora (niente loop) · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Runa di abiurazione</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/AbjurationRuneComplete_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>AbjurationRuneComplete_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Sigillo blu</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/Simple/MarkerSimpleComplete001_001_Blue_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br>già usato da Blocca persone<br><code>MarkerSimpleComplete001_001_Blue_600x600.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>12. Libertà di movimento</h3><p>4° · 1 ora (niente loop) · Freddy</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Luccichio azzurro</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/Shimmer01_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>Shimmer01_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Catene che si spezzano</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerChainSpectralStandard01_02_Regular_Blue_Complete_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>MarkerChainSpectralStandard01_02_Regular_Blue_Complete_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>13. Velocità</h3><p>3° · concentrazione, 1 minuto · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Runa gialla e vento</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/TransmutationRuneComplete_01_Regular_Yellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>TransmutationRuneComplete_01_Regular_Yellow_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Wind/WindLines01_02_Regular_White_500x500.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>WindLines01_02_Regular_White_500x500.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Particelle e vortice</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Particles/ParticlesOutward01_01_Regular_GreenYellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>ParticlesOutward01_01_Regular_GreenYellow_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Particles/ParticlesSwirl01_01_Regular_GreenYellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>ParticlesSwirl01_01_Regular_GreenYellow_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>14. Santuario</h3><p>1° · 1 minuto · Zorya</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Sigillo e stella di protezione</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/WardRune_01_Regular_Yellow_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>WardRune_01_Regular_Yellow_600x600.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/WardStar_01_Regular_Yellow_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>WardStar_01_Regular_Yellow_600x600.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Runa di abiurazione</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/AbjurationRuneIntro_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>AbjurationRuneIntro_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/AbjurationRuneLoop_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>AbjurationRuneLoop_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>15. Favore divino</h3><p>1° · su di sé · +1d4 radiosi · concentrazione, 1 minuto · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Punizione sull'incantatore e aura</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/2nd_Level/Divine_Smite/DivineSmite_01_Regular_BlueYellow_Caster_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sull'incantatore, una volta</b><br><code>DivineSmite_01_Regular_BlueYellow_Caster_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/Marker_01_Regular_BlueYellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'incantatore finché dura</b><br><code>Marker_01_Regular_BlueYellow_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Sigillo e scintillio dorato</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/Simple/MarkerSimpleComplete001_001_Yellow_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sull'incantatore, una volta</b><br><code>MarkerSimpleComplete001_001_Yellow_600x600.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Item/GlintFew01_01_Regular_Yellow_200x200.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'incantatore finché dura</b><br><code>GlintFew01_01_Regular_Yellow_200x200.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>16. Levitazione</h3><p>2° · concentrazione, 10 minuti · Lavera</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Runa gialla e particelle</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/TransmutationRuneComplete_01_Regular_Yellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>TransmutationRuneComplete_01_Regular_Yellow_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Particles/ParticlesInward01_01_Regular_GreenYellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>ParticlesInward01_01_Regular_GreenYellow_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Anello di fumo e ombra</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Smoke/SmokePuffRing01_01_Regular_White_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>SmokePuffRing01_01_Regular_White_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Impact/DropShadow_01_Dark_Black_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br>un'ombra sotto il token<br><code>DropShadow_01_Dark_Black_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section><h2>Invisibilità e illusioni</h2><p class="lead">Viola dell'illusione; un luccichio come loop di chi è invisibile.</p>
+    <section class="spell">
+      <header><h3>17. Invisibilità</h3><p>2° · concentrazione, 1 ora · Alane, Omar</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Runa viola</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/IllusionRuneComplete_01_Regular_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>IllusionRuneComplete_01_Regular_Purple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Luccichio</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/Shimmer01_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>Shimmer01_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>18. Invisibilità superiore</h3><p>4° · concentrazione, 1 minuto · Freddy, Lavera</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Runa viola e luccichio</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/IllusionRuneComplete_01_Regular_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>IllusionRuneComplete_01_Regular_Purple_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/Shimmer01_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>Shimmer01_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Luccichio e runa viola</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/Shimmer01_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>Shimmer01_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/IllusionRuneLoop_01_Regular_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>IllusionRuneLoop_01_Regular_Purple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>19. Immagine speculare</h3><p>2° · su di sé · 1 minuto · Omar</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Luccichio e anello di fumo</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/Shimmer01_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sull'incantatore, una volta</b><br><code>Shimmer01_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerSmokeRingLoop01_Regular_BluePurple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'incantatore finché dura</b><br><code>MarkerSmokeRingLoop01_Regular_BluePurple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Runa viola</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/IllusionRuneComplete_01_Regular_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sull'incantatore, una volta</b><br><code>IllusionRuneComplete_01_Regular_Purple_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/IllusionRuneLoop_01_Regular_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'incantatore finché dura</b><br><code>IllusionRuneLoop_01_Regular_Purple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section><h2>Charme e condizioni</h2><p class="lead">Rosa dell'ammaliamento all'ingresso, poi il simbolo della condizione finché dura.</p>
+    <section class="spell">
+      <header><h3>20. Anatema</h3><p>1° · −1d4 a tiri e TS · concentrazione, 1 minuto · Edelbrand, Zorya</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Maledizione rossa</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Conditions/Curse01/ConditionCurse01_001_Red_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>ConditionCurse01_001_Red_600x600.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/Simple/MarkerSimpleLoop001_001_Red_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>MarkerSimpleLoop001_001_Red_600x600.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Runa rosa e catena</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/EnchantmentRuneComplete_01_Regular_Pink_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>EnchantmentRuneComplete_01_Regular_Pink_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerChainStandard01_01_Regular_Red_Loop_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>MarkerChainStandard01_01_Regular_Red_Loop_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>21. Comando</h3><p>1° · 1 round · Edelbrand, Zorya</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Runa rosa</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/EnchantmentRuneComplete_01_Regular_Pink_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>EnchantmentRuneComplete_01_Regular_Pink_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Onda sonora</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Cast/CastSound01_01_Regular_PinkTeal_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sull'incantatore, una volta</b><br>già usato da Beffa crudele<br><code>CastSound01_01_Regular_PinkTeal_600x600.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerStun_01_Regular_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>MarkerStun_01_Regular_Purple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>22. Risata incontenibile</h3><p>1° · prono e incapacitato · concentrazione, 1 minuto · Omar</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Cuoricini e stelline</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/EnchantmentRuneComplete_01_Regular_Pink_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>EnchantmentRuneComplete_01_Regular_Pink_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Conditions/Dizzy_Stars/DizzyStars_01_BlueOrange_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br>già usato da Beffa crudele<br><code>DizzyStars_01_BlueOrange_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Note musicali</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Music_Notation/BeamedQuavers_01_Regular_Blue_200x200.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>BeamedQuavers_01_Regular_Blue_200x200.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerMusicNote_02_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>MarkerMusicNote_02_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>23. Suggestione</h3><p>2° · concentrazione, 8 ore (niente loop) · Freddy</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Cuore rosa</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerHeart_01_Regular_Pink_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>MarkerHeart_01_Regular_Pink_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Runa rosa</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/EnchantmentRuneComplete_01_Regular_Pink_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>EnchantmentRuneComplete_01_Regular_Pink_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>24. Cecità/sordità</h3><p>2° · 1 minuto · Alane</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Teschio e muto</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/NecromancyRuneComplete_01_Regular_Green_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>NecromancyRuneComplete_01_Regular_Green_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerMute_01_Dark_Red_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br>per la sordità; per la cecità lo stesso loop<br><code>MarkerMute_01_Dark_Red_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Fumo nero</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Smoke/SmokePuff01_01_Regular_Grey_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>SmokePuff01_01_Regular_Grey_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerStun_02_Regular_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>MarkerStun_02_Regular_Purple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>25. Scudiscio Mentale</h3><p>2° · psichico · 1 round · Omar</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Lampo viola</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Healing/HealingAbility_01_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br>come Aculeo Mentale e Scheggia della Mente<br><code>HealingAbility_01_Purple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Scarica rosa</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/EnergyBeam_02_Regular_BluePink_30ft_1600x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Proiettile (dall'incantatore al bersaglio)</b><br><code>EnergyBeam_02_Regular_BluePink_30ft_1600x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerStun_03_Regular_Purple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>MarkerStun_03_Regular_Purple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>26. Prigione Mentale</h3><p>6° · psichico · trattenuto · concentrazione, 1 minuto · Lavera</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Cerchio d'illusione e catene</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/IllusionCircleIntro_02_Regular_Purple_800x800.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>IllusionCircleIntro_02_Regular_Purple_800x800.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerChainSpectralStandard01_02_Regular_Blue_Loop_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br>già usato da Blocca persone<br><code>MarkerChainSpectralStandard01_02_Regular_Blue_Loop_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Cerchio d'illusione in loop</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/IllusionCircleIntro_02_Dark_Purple_800x800.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>IllusionCircleIntro_02_Dark_Purple_800x800.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/IllusionCircleLoop_02_Dark_Purple_800x800.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>IllusionCircleLoop_02_Dark_Purple_800x800.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>27. Metamorfosi</h3><p>4° · concentrazione, 1 ora (niente loop) · Alane, Freddy</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Runa di trasmutazione</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/TransmutationRuneComplete_01_Regular_Yellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>TransmutationRuneComplete_01_Regular_Yellow_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Fumo e farfalle</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Smoke/SmokePuffRing01_01_Regular_White_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>SmokePuffRing01_01_Regular_White_400x400.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Butterflies/ButterfliesOutwardBurst01_01_Regular_BluePurple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>ButterfliesOutwardBurst01_01_Regular_BluePurple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section><h2>Aure</h2><p class="lead">Un loop intorno all'incantatore finché dura la concentrazione.</p>
+    <section class="spell">
+      <header><h3>28. Aura di Vitalità</h3><p>3° · 9 m · cura 2d6 come azione bonus · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Cura in loop</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Healing/HealingAbility_02_Regular_GreenOrange_Burst_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sull'incantatore, una volta</b><br><code>HealingAbility_02_Regular_GreenOrange_Burst_600x600.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Healing/HealingAbility_02_Regular_GreenOrange_Loop_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'incantatore finché dura</b><br><code>HealingAbility_02_Regular_GreenOrange_Loop_600x600.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Aura della natura</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Template/Circle/Aura/AuraThemedOutwardLoopNature01_01_Regular_Green_700x700.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'incantatore finché dura</b><br><code>AuraThemedOutwardLoopNature01_01_Regular_Green_700x700.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>29. Manto del Crociato</h3><p>3° · 9 m · +1d4 radiosi agli alleati · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Rune arancio</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerRunes_01_Regular_Orange_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'incantatore finché dura</b><br><code>MarkerRunes_01_Regular_Orange_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Aura blu-viola</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Template/Circle/Aura/AuraLoop01_01_Regular_BluePurple_500x500.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'incantatore finché dura</b><br><code>AuraLoop01_01_Regular_BluePurple_500x500.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>30. Sudario Spirituale</h3><p>3° · 3 m · radioso, necrotico o freddo · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Aura del gelo</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Template/Circle/Aura/AuraThemedOrbitLoopCold01_01_Regular_Blue_700x700.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'incantatore finché dura</b><br><code>AuraThemedOrbitLoopCold01_01_Regular_Blue_700x700.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Anello di fumo</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerSmokeRingLoop01_Regular_BluePurple_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'incantatore finché dura</b><br><code>MarkerSmokeRingLoop01_Regular_BluePurple_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section><h2>Zone</h2><p class="lead">Un loop sull'area piazzata finché dura.</p>
+    <section class="spell">
+      <header><h3>31. Zona di verità</h3><p>2° · sfera di 4,5 m · 10 minuti · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Cerchio di ammaliamento</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/EnchantmentCircleLoop_02_Regular_Pink_800x800.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'area finché dura</b><br><code>EnchantmentCircleLoop_02_Regular_Pink_800x800.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Cerchio di divinazione</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/DivinationCircleLoop_02_Regular_Blue_800x800.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'area finché dura</b><br><code>DivinationCircleLoop_02_Regular_Blue_800x800.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>32. Cerchio magico</h3><p>3° · cilindro di 3 m · 1 ora · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Cerchio di abiurazione</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/AbjurationCircleIntro_02_Regular_Blue_800x800.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sull'area, una volta</b><br><code>AbjurationCircleIntro_02_Regular_Blue_800x800.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/AbjurationCircleLoop_02_Regular_Blue_800x800.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'area finché dura</b><br><code>AbjurationCircleLoop_02_Regular_Blue_800x800.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Zona azzurra</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Zoning/ZoningCircle01In_01_Regular_BlueGreen_Loop_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'area finché dura</b><br><code>ZoningCircle01In_01_Regular_BlueGreen_Loop_600x600.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>33. Luce diurna</h3><p>3° · sfera di 18 m · 1 ora · Edelbrand</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Sfera di luce</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerLightOrbLoop_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'area finché dura</b><br><code>MarkerLightOrbLoop_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Luce pulsante</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerLight_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sull'area finché dura</b><br><code>MarkerLight_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section><h2>Aree</h2><p class="lead">Un'animazione sull'area e, dove serve, un loop su ogni creatura colpita.</p>
+    <section class="spell">
+      <header><h3>34. Luminescenza</h3><p>1° · cubo di 6 m · creature delineate · concentrazione, 1 minuto · Freddy, Zorya</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Lucciole sui bersagli</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Fireflies/Fireflies_01_Green_Few01_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>Fireflies_01_Green_Few01_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Stelle scintillanti</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Twinkling_Stars/TwinklingStars_04_100x100.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>TwinklingStars_04_100x100.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>35. Trama ipnotica</h3><p>3° · cubo di 9 m · affascinato · concentrazione, 1 minuto · Freddy</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Cerchio rosa e cuori</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/EnchantmentCircleComplete_02_Regular_Pink_800x800.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sull'area, una volta</b><br><code>EnchantmentCircleComplete_02_Regular_Pink_800x800.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Marker/MarkerHeart_02_Regular_Pink_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>MarkerHeart_02_Regular_Pink_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Farfalle e stelline</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Butterflies/ButterfliesComplete01_01_Regular_BluePurple_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sull'area, una volta</b><br><code>ButterfliesComplete01_01_Regular_BluePurple_600x600.webm</code></figcaption>
+            </figure>
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Conditions/Dizzy_Stars/DizzyStars_01_BlueOrange_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Loop sul bersaglio finché dura</b><br><code>DizzyStars_01_BlueOrange_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>36. Scossa Sinaptica</h3><p>5° · sfera di 6 m · psichico · Freddy</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Esplosione di particelle</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Particles/ParticleBurstRune01_01_Regular_BluePurple_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sull'area, una volta</b><br><code>ParticleBurstRune01_01_Regular_BluePurple_600x600.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Esplosione blu</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Explosion/Explosion_04_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sull'area, una volta</b><br><code>Explosion_04_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="spell">
+      <header><h3>37. Cura ferite di massa</h3><p>5° · fino a 6 creature · Freddy</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Cura blu-verde su ognuno</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Healing/HealingAbility_03_Regular_BlueGreen_600x600.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>HealingAbility_03_Regular_BlueGreen_600x600.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Come Cura ferite su ognuno</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/1st_Level/Cure_Wounds/CureWounds_01_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br>già usato da Cura ferite<br><code>CureWounds_01_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section><h2>Altro</h2>
+    <section class="spell">
+      <header><h3>38. Animare oggetti</h3><p>5° · concentrazione, 1 minuto · Lavera</p></header>
+      <div class="options">
+        <article class="option">
+          <h4><span class="letter">A</span>Runa gialla sugli oggetti</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Magic_Signs/Runes/TransmutationRuneComplete_01_Regular_Yellow_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>TransmutationRuneComplete_01_Regular_Yellow_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+        <article class="option">
+          <h4><span class="letter">B</span>Scintille</h4>
+          <div class="clips">
+            <figure>
+              <div class="stage"><video src="https://jb2a-free.s3.eu-west-3.amazonaws.com/Generic/Energy/SwirlingSparkles_01_Regular_Blue_400x400.webm" autoplay loop muted playsinline preload="metadata"></video></div>
+              <figcaption><b>Sul bersaglio, una volta</b><br><code>SwirlingSparkles_01_Regular_Blue_400x400.webm</code></figcaption>
+            </figure>
+          </div>
+        </article>
+      </div>
+    </section>
+</main></body></html>

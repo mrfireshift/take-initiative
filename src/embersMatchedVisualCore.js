@@ -15,6 +15,9 @@ const STANDARD_TARGET_VARIANTS = Object.freeze([
   { distance: 3600, width: 4000, height: 400, suffix: "90ft_4000x400" },
 ]);
 
+// Projectiles whose JB2A clips start at 15 ft (no 5 ft variant).
+const LONG_TARGET_VARIANTS = Object.freeze(STANDARD_TARGET_VARIANTS.slice(1));
+
 function freeze(value) {
   return Object.freeze(value);
 }
@@ -392,6 +395,78 @@ const EFFECTS = freeze({
   musicNote: circleEffect(
     "Generic/Marker/MarkerMusicNote_03_Regular_Blue", 100, 400, "400x400", 6040,
   ),
+  // Attack console cantrips (JB2A free library; durations measured on the clips).
+  greenProjectile: targetEffect(
+    "Generic/RangedSpell/04/RangedProjectile04_01_Regular_Green", 200, [1433, 1567, 1867, 2167], LONG_TARGET_VARIANTS,
+  ),
+  necromancyRuneLoop: circleEffect(
+    "Generic/Magic_Signs/Runes/NecromancyRuneLoop_01_Regular_Green", 100, 400, "400x400", 5042,
+  ),
+  lightningBall: circleEffect(
+    "Generic/Lightning/LightningBall_01_Regular_Blue", 100, 400, "400x400", 2033,
+  ),
+  staticElectricityLoop: circleEffect(
+    "Generic/Lightning/StaticElectricity_02_Regular_Blue", 100, 400, "400x400", 3367,
+  ),
+  orangeProjectile: targetEffect(
+    "Generic/RangedSpell/01/RangedProjectile01_01_Dark_Orange", 200, [1533, 1833, 2533, 2533], LONG_TARGET_VARIANTS,
+  ),
+  impactFire: circleEffect(
+    "Generic/Impact/ImpactFire01_01_Regular_Orange", 100, 600, "600x600", 2267,
+  ),
+  thornRing: circleEffect(
+    "Generic/Nature/PlantGrowthRingPulse02_01_Regular_GreenRed", 100, 500, "500x500", 2958,
+  ),
+  creatureClaw: circleEffect(
+    "Generic/Creature/Claw/CreatureAttackClaw_001_001_Red", 100, 600, "800x600", 1167,
+    [{ distance: 600, width: 800, height: 600, suffix: "800x600", anchorX: 400 }],
+  ),
+  castSound: circleEffect(
+    "Generic/Cast/CastSound01_01_Regular_PinkTeal", 100, 600, "600x600", 2000,
+  ),
+  dizzyStars: circleEffect(
+    "Generic/Conditions/Dizzy_Stars/DizzyStars_01_BlueOrange", 100, 400, "400x400", 2000,
+  ),
+  poisonSpray: coneEffect(
+    "Generic/Template/Cone/Breath_Weapon/BreathWeapon_Poison01_Regular_Green_30ft_Cone_Burst", 600, 600, 600, 600, "600x600", 9266,
+  ),
+  greenInstant: targetEffect(
+    "Generic/RangedSpell/04/RangedInstant04_01_Regular_Green", 200, 1300,
+  ),
+  bats: circleEffect(
+    "Generic/Creature/BatsComplete01_01_Regular_Red", 100, 600, "600x600", 8833,
+  ),
+  snowflakeBurst: circleEffect(
+    "Generic/Ice/SnowflakeBurst_01_Regular_BlueWhite_Burst", 100, 600, "600x600", 2367,
+  ),
+  snowflakeLoop: circleEffect(
+    "Generic/Ice/SnowflakeBurst_01_Regular_BlueWhite_Loop", 100, 600, "600x600", 2367,
+  ),
+  enchantmentRuneLoop: circleEffect(
+    "Generic/Magic_Signs/Runes/EnchantmentRuneLoop_01_Regular_Pink", 100, 400, "400x400", 5042,
+  ),
+  witchBolt: targetEffect(
+    "1st_Level/Witch_Bolt/WitchBolt_01_Regular_Blue", 200, 4000,
+  ),
+  outPulseLoop: circleEffect(
+    "Generic/Template/Circle/OutPulse/OutPulse_02_Regular_BlueWhite_Loop", 100, 600, "600x600", 2367,
+  ),
+  divineSmiteCaster: circleEffect(
+    "2nd_Level/Divine_Smite/DivineSmite_01_Regular_BlueYellow_Caster", 100, 400, "400x400", 3033,
+  ),
+  divineSmiteTarget: circleEffect(
+    "2nd_Level/Divine_Smite/DivineSmite_01_Regular_BlueYellow_Target", 100, 400, "400x400", 2333,
+  ),
+  thunderwaveCenter: circleEffect(
+    "1st_Level/Thunderwave/Thunderwave_01_Bright_Blue_Center", 100, 600, "600x600", 1033,
+  ),
+  swordBurst: circleEffect(
+    "Generic/Weapon_Attacks/Melee/GenericWhirlwind01_01_Regular_Orange", 100, 600, "800x600", 2800,
+    [{ distance: 600, width: 800, height: 600, suffix: "800x600" }],
+  ),
+  bonfire: circleEffect(
+    "Generic/Fire/Campfire/Bonfire_01_Regular_Orange", 100, 400, "400x400", 4967,
+  ),
 });
 
 const canonicalSpellIds = [
@@ -414,6 +489,25 @@ const sourceAwareSpellIds = [
   "phb2014-nube-di-pugnali",
   "xanathar-passo-del-tuono",
   "xanathar-turbine",
+  // Attack console cantrips (and Create Bonfire, cast from the spell panel).
+  "chill-touch",
+  "shocking-grasp",
+  "produce-flame",
+  "phb2014-frusta-di-spine",
+  "xanathar-ferocia-primordiale",
+  "vicious-mockery",
+  "poison-spray",
+  "acid-splash",
+  "xanathar-infestazione",
+  "xanathar-morsa-del-gelo",
+  "tasha-scheggia-della-mente",
+  "tasha-lenza-elettrizzante",
+  "tasha-lama-roboante",
+  "tasha-lama-verdefiamma",
+  "xanathar-parola-radiosa",
+  "xanathar-rombo-di-tuono",
+  "tasha-turbine-di-spade",
+  "xanathar-creare-falo",
 ];
 
 export const EMBERS_MATCHED_SPELL_IDS = freeze([
@@ -446,6 +540,7 @@ const chain = (primaryEffectId, secondaryEffectId, options = {}) => ({
   persistent: options.persistent === true,
   attachedTo: options.attachedTo || "",
   layer: options.layer || "ATTACHMENT",
+  ...(options.skipPrimary === true ? { skipPrimary: true } : {}),
   duration: visualDuration(options),
 });
 const circle = (effectId, anchor = "area", options = {}) => ({
@@ -460,6 +555,8 @@ const circle = (effectId, anchor = "area", options = {}) => ({
     ? { replicate: String(options.replicate).trim() }
     : {}),
   ...(options.firstTargetIsCaster === true ? { firstTargetIsCaster: true } : {}),
+  // Only the first target (the one the attack hit), or every target but it (the creatures the effect leaps to).
+  ...(["first", "others"].includes(options.targets) ? { targets: options.targets } : {}),
   delay: Number(options.delay) || 0,
   persistent: options.persistent === true,
   oneShot: options.oneShot === true,
@@ -639,6 +736,54 @@ const VISUALS = freeze({
     layer: "DRAWING",
   }))],
   "magic-missile": [target("magicMissile")],
+  // Attack console cantrips. A loop (persistent, attached to the target) lasts as long as the cantrip's pill: its
+  // lifecycle is the spell instance on the target, so it ends and rehydrates with it. A miss leaves no pill and
+  // sends no loop.
+  "chill-touch": [
+    target("greenProjectile"),
+    circle("necromancyRuneLoop", "target", persistent({ delay: 1300, scale: 1.8, attachedTo: "target" })),
+  ],
+  "shocking-grasp": [
+    circle("lightningBall", "target", { scale: 1.6 }),
+    circle("staticElectricityLoop", "target", persistent({ delay: 1600, scale: 1.5, attachedTo: "target" })),
+  ],
+  "produce-flame": [target("orangeProjectile"), circle("impactFire", "target", { delay: 1300, scale: 2 })],
+  "phb2014-frusta-di-spine": [circle("thornRing", "target", { scale: 1.5 })],
+  "xanathar-ferocia-primordiale": [circle("creatureClaw", "target", { scale: 2.4 })],
+  "vicious-mockery": [
+    circle("castSound", "caster", { scale: 2 }),
+    circle("dizzyStars", "target", persistent({ delay: 1200, scale: 1.35, attachedTo: "target" })),
+  ],
+  "poison-spray": [cone("poisonSpray", { attachedTo: "caster" })],
+  "acid-splash": [target("greenInstant")],
+  "xanathar-infestazione": [circle("bats", "target", { scale: 1.7 })],
+  "xanathar-morsa-del-gelo": [
+    circle("snowflakeBurst", "target", { scale: 1.5 }),
+    circle("snowflakeLoop", "target", persistent({ delay: 2100, scale: 1.3, attachedTo: "target" })),
+  ],
+  "tasha-scheggia-della-mente": [
+    circle("genericHealingPurple", "target", { scale: 1.4 }),
+    circle("enchantmentRuneLoop", "target", persistent({ delay: 1400, scale: 1.6, attachedTo: "target" })),
+  ],
+  "tasha-lenza-elettrizzante": [target("witchBolt")],
+  "tasha-lama-roboante": [
+    circle("silence", "target", { scale: 1.5 }),
+    circle("outPulseLoop", "target", persistent({ delay: 2200, scale: 1.25, attachedTo: "target" })),
+  ],
+  // The flame on the target, then the leap to the second creature and its flame.
+  "tasha-lama-verdefiamma": [
+    circle("impactFire", "target", { targets: "first", scale: 2 }),
+    chain("greenProjectile", "greenProjectile", { delay: 700, skipPrimary: true }),
+    circle("impactFire", "target", { targets: "others", delay: 2000, scale: 2 }),
+  ],
+  // Emanations of 1.5 m around the caster: the clip covers the caster's square and the eight around it.
+  "xanathar-parola-radiosa": [
+    circle("divineSmiteCaster", "caster", { radiusCells: 2 }),
+    circle("divineSmiteTarget", "target", { delay: 1500, scale: 1.7 }),
+  ],
+  "xanathar-rombo-di-tuono": [circle("thunderwaveCenter", "caster", { radiusCells: 2 })],
+  "tasha-turbine-di-spade": [circle("swordBurst", "caster", { radiusCells: 2 })],
+  "xanathar-creare-falo": [circle("bonfire", "area", persistent({ scale: 2, attachedTo: "zone" }))],
   "bardo-ispirazione-bardica": [
     circle("bardicInspiration", "target"),
     circle("musicNote", "target", persistent({ delay: 1000, attachedTo: "target" })),
@@ -1028,7 +1173,7 @@ export function buildMatchedVisualEvent({
       const primaryTarget = chainTargets[0];
       if (!secondaryEffect || !source || !primaryTarget) continue;
 
-      const primaryLayer = buildTargetLayer(
+      const primaryLayer = visual.skipPrimary === true ? null : buildTargetLayer(
         visual.effectId,
         effect,
         source,
@@ -1080,10 +1225,16 @@ export function buildMatchedVisualEvent({
     }
     if (visual.kind === "circle") {
       const anchor = visual.anchor;
+      const anchoredTargets = visual.targets === "first"
+        ? orderedTargetPoints(targetPoints, fallbackIds).slice(0, 1)
+        : visual.targets === "others"
+          ? orderedTargetPoints(targetPoints, fallbackIds).slice(1)
+          : targetPoints;
+      if (anchor === "target" && visual.targets === "others" && !anchoredTargets.length) continue;
       const centers = anchor === "target"
         ? targetCircleCenters(
           visual,
-          targetPoints,
+          anchoredTargets,
           source,
           sourceDiameter,
           dpi,
@@ -1123,7 +1274,7 @@ export function buildMatchedVisualEvent({
           entry.radius * visual.scale,
           visual.delay,
           visual,
-          anchor === "target" ? entry.targetId || targetPoints[index]?.id : "",
+          anchor === "target" ? entry.targetId || anchoredTargets[index]?.id : "",
         );
         if (layer) layers.push(layer);
       });
@@ -1192,7 +1343,12 @@ export function matchedVisualLayerPlan(layer, sceneDpi = 1) {
       scale: desiredDiameter / (variant.distance / effectDpi),
       position: layer.center,
       rotation: 0,
-      offset: { x: 0.5, y: 0.5 },
+      // The renderer measures the offset in clip heights. A clip may draw its art off the canvas centre (anchorX and
+      // anchorY, in clip pixels: the Primal Savagery claw sits at the middle of its 800 px width).
+      offset: {
+        x: Number(variant.anchorX) > 0 ? Number(variant.anchorX) / variant.height : 0.5,
+        y: Number(variant.anchorY) > 0 ? Number(variant.anchorY) / variant.height : 0.5,
+      },
       duration: layer.duration ?? variant.duration,
     };
   }

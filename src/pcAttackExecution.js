@@ -14,11 +14,12 @@ import { withBossLinkDefenses } from "./bossLinkResistanceCore.js";
 const newId = () => `pc-attack:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
 // The map labels of a creature whose pills changed without damage (an activation's pill on the attacker).
 const refreshPillLabels = async ids => {const {refreshConditionLabels}=await import("./conditions.js");await refreshConditionLabels(ids);};
-// The cantrip's Embers animation (Fire Bolt, Eldritch Blast, Ray of Frost, Sacred Flame, Toll the Dead): the same
-// matched visual the spell panel sends, decorative and best-effort; a cantrip without one is ignored by the renderer.
-async function emitCantripVisual({spellId,casterId,targetIds,eventId,sceneEpoch}) {
+// The cantrip's Embers animation: the same matched visual the spell panel sends, decorative and best-effort; a
+// cantrip without one is ignored by the renderer. Its loop (persistent) lasts with the cantrip's pill: lifecycleId is
+// the spell instance on the target; without a pill (a miss, a passed save) only the one-shot layers are sent.
+async function emitCantripVisual({spellId,casterId,targetIds,eventId,lifecycleId=eventId,persistent=false,sceneEpoch}) {
   const {emitMatchedSpellVisual}=await import("./embersMatchedVisualRenderer.js");
-  return emitMatchedSpellVisual({spellId,casterId,targetIds,eventId,lifecycleId:eventId,sceneEpoch});
+  return emitMatchedSpellVisual({spellId,casterId,targetIds,eventId,lifecycleId,persistent,sceneEpoch});
 }
 // Temporary hit points (Inspiring Smite): the HP bar, HP text, hpMemory and labels, like a damage projection but
 // without its concentration warnings and save reminders (nothing was damaged).
@@ -45,9 +46,9 @@ export function createPcAttackRuntime({
   const busy=new Set();
   // After the commit, once (never on a retry): the cantrip's animation from the caster to its targets, whatever the
   // outcome (a missed Fire Bolt still flies). Never awaited: the animation never delays or fails the command.
-  const animateCantrip=({spellId,casterId,targetIds,eventId,scope})=>{
+  const animateCantrip=({spellId,casterId,targetIds,eventId,lifecycleId=eventId,persistent=false,scope})=>{
     if(!spellId || !scope.isCurrent()) return;
-    void Promise.resolve().then(()=>emitVisual({spellId,casterId,targetIds,eventId,sceneEpoch:scope.epoch}))
+    void Promise.resolve().then(()=>emitVisual({spellId,casterId,targetIds,eventId,lifecycleId,persistent,sceneEpoch:scope.epoch}))
       .catch(error=>console.warn("[pc-attack] matched visual:",error?.message || error));
   };
   // Retain the prepared command for lost-ACK retries; History remains in the coordinator.
@@ -144,8 +145,13 @@ export function createPcAttackRuntime({
           error.message="Lo stato è cambiato prima del commit (bersaglio, profilo o turno). Riapri l'attacco e verifica.";
         throw error;
       }
-      if(result.duplicate!==true) animateCantrip({spellId:plan.causality.cantrip?.spellId,casterId:scope.item.id,
-        targetIds:[targetItem.id],eventId:attackInstanceId,scope});
+      // The cantrip of the attack, or the one woven into a weapon attack (Booming Blade; Green-Flame Blade leaps to
+      // its second creature). The pill's spell instance is the loop's lifecycle.
+      const woven=plan.causality.weaponCantrip;
+      const withPill=plan.operations.some(operation=>operation.type==="spell:upsert");
+      if(result.duplicate!==true) animateCantrip({spellId:plan.causality.cantrip?.spellId || woven?.spellId,casterId:scope.item.id,
+        targetIds:[targetItem.id,...(woven?.secondaryTargetId?[woven.secondaryTargetId]:[])],eventId:attackInstanceId,
+        lifecycleId:withPill?`${attackInstanceId}:spell`:attackInstanceId,persistent:withPill,scope});
       const warnings=[];
       // Post-commit projections run once; they never mutate canonical HP.
       const damaged=[...(plan.change?.changed?[{item:targetItem,change:plan.change}]:[]),

@@ -591,6 +591,8 @@ export async function emitMatchedSpellVisual({
   mode = "start",
   partial = false,
   sceneEpoch = null,
+  // false: only the one-shot layers (a cantrip that missed leaves no pill for its loop to last with).
+  persistent = true,
 } = {}) {
   const normalizedSpellId = String(spellId || "").trim();
   if (!isMatchedSpellVisualSpell(normalizedSpellId)) {
@@ -611,6 +613,7 @@ export async function emitMatchedSpellVisual({
     mode,
     partial,
     sceneEpoch,
+    persistent,
   });
 }
 
@@ -758,6 +761,7 @@ async function emitVisual({
   mode = "start",
   partial = false,
   sceneEpoch = null,
+  persistent = true,
 }) {
   const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
   if (!await animationsEnabled()) {
@@ -787,6 +791,10 @@ async function emitVisual({
   });
   const event = built.event;
   if (!event) return { sent: false, reason: built.reason };
+  if (persistent === false) {
+    event.layers = event.layers.filter((layer) => layer.persistent !== true);
+    if (!event.layers.length) return { sent: false, reason: "no-one-shot-layers" };
+  }
   if (partial) event.partial = true;
   try {
     await OBR.broadcast.sendMessage(

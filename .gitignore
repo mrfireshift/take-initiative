@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# JB2A Patreon clips for the local galleries (personal download, never committed)
+test-support/embers-gallery/jb2a-patreon/

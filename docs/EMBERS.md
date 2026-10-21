@@ -29,10 +29,27 @@ Gli item visuali locali sono output derivati e identificati dai metadata
 
 ## Copertura dichiarata
 
-`EMBERS_MATCHED_SPELL_IDS` in `src/embersMatchedVisualCore.js` contiene 55 ID
-spell. Fireball è incluso nell’elenco per il routing, ma usa il renderer
-dedicato; gli altri 54 ID usano i blueprint del matched renderer. La copertura
+`EMBERS_MATCHED_SPELL_IDS` in `src/embersMatchedVisualCore.js` elenca gli ID
+spell con una visuale. Fireball è incluso nell’elenco per il routing, ma usa il
+renderer dedicato; gli altri usano i blueprint del matched renderer. La copertura
 di classe contiene un solo ID: `bardo-ispirazione-bardica`.
+
+### Console attacchi PG
+
+Anche la console attacchi (`src/pcAttackExecution.js`) invia la visuale
+matched dei trucchetti, dopo il commit e una sola volta, con qualsiasi esito:
+- il trucchetto dell’attacco, oppure quello intrecciato all’arma; Lama
+  Verdefiamma salta sulla seconda creatura;
+- tutte le creature di un attacco ad area.
+
+I loop (layer `persistent` attaccati al bersaglio) durano quanto la pill del
+trucchetto. Il loro `lifecycleId` è l’istanza spell sul bersaglio
+(`<attackInstanceId>:spell`), quindi finiscono e si reidratano con lei. Senza
+pill (colpo mancato, TS superato) si inviano solo i layer one-shot
+(`persistent: false` in `emitMatchedSpellVisual`).
+
+Tutti i clip vengono dalla libreria JB2A gratuita. Un clip con l’arte fuori dal
+centro della tela dichiara `anchorX`/`anchorY` (pixel del clip) nella variante.
 
 La lista non implica automazione delle regole D&D: descrive soltanto quali
 visuali possono essere prodotte. Le definizioni possono essere istantanee o
@@ -113,3 +130,9 @@ renderer esterno può completare il proprio lifecycle.
 - Per aggiungere una visuale si aggiorna prima il blueprint in
   `src/embersMatchedVisualCore.js`, poi i test mirati in `test/embers*`; non si
   aggiungono conteggi manuali a questo documento.
+- Strumenti di sviluppo (server `boss-actions-preview`, porta 5199):
+  - `test-support/embers-gallery/cantrips.html`: galleria dei clip JB2A
+    candidati;
+  - `test-support/embers-gallery/bench.html`: banco che riproduce i blueprint
+    reali (posizione, scala, rotazione, ritardi, loop) su una mappa finta, con
+    incantatore, bersaglio e seconda creatura.
