@@ -10,6 +10,9 @@ export const EFFECTS_MUTATION_RESULT_CHANNEL = `${ID}/effects-mutation-result`;
 export const HISTORY_OWNER_COMMAND_CHANNEL = `${ID}/history-owner-command`;
 export const HISTORY_OWNER_RESULT_CHANNEL = `${ID}/history-owner-result`;
 export const RUNTIME_CACHE_CLEANUP_CHANNEL = `${ID}/runtime-cache-cleanup`;
+// Width of a compact tracker card. Kept here, not in initiativeCardCompact.js (which re-exports it), so that the
+// compact sizing math used by the launcher, options and history popovers does not load the spell catalog.
+export const COMPACT_CARD_WIDTH = 92;
 
 export function isOnlyActiveTurnLabelChange(changes) {
   return Array.isArray(changes) &&

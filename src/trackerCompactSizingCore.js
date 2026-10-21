@@ -1,4 +1,4 @@
-import { COMPACT_CARD_WIDTH } from "./initiativeCardCompact.js";
+import { COMPACT_CARD_WIDTH } from "./constants.js";
 
 export const COMPACT_TRACKER_MAX_WIDTH = 1180;
 export const COMPACT_TRACKER_MIN_WIDTH = 320;

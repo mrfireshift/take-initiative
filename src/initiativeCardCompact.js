@@ -7,8 +7,9 @@ import { CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS } from "./classFeatureCore.js
 import { effectSummaryPartsFor } from "./effectLabelCore.js";
 import { buildEffectSummaryContainer } from "./effectSummaryViewCore.js";
 import { getSpellSummaryParts } from "./spells-srd.js";
+import { COMPACT_CARD_WIDTH } from "./constants.js";
 
-export const COMPACT_CARD_WIDTH = 92;
+export { COMPACT_CARD_WIDTH };
 export const COMPACT_CARD_HEIGHT = 120;
 
 function compactSpellKey(name) {
