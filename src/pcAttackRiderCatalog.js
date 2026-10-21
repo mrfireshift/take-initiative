@@ -53,6 +53,13 @@ export const PC_ATTACK_RIDERS = Object.freeze([
     requires: Object.freeze({ targetCondition: "Maledizione della Lama del Sortilegio" }) }),
   Object.freeze({ id: "warlock-suppliche-occulte-succhiavita", label: "Succhiavita", dice: Object.freeze({ ability: "cha", minimum: 1 }),
     type: "necrotic", limit: null }),
+  // Phase 3A: Giant's Might (Rune Knight) while active, once per turn: 1d6, 1d8 from 10th, 1d10 from 18th level.
+  Object.freeze({ id: "guerriero-cavaliere-runico-potenza-del-gigante", label: "Potenza del Gigante",
+    dice: Object.freeze({ table: Object.freeze({ 3: "1d6", 10: "1d8", 18: "1d10" }) }), type: "weapon", limit: ONCE_PER_TURN,
+    requires: Object.freeze({ activeFeatureId: "guerriero-cavaliere-runico-potenza-del-gigante" }) }),
+  // Foe Slayer (revised ranger, 20th level): the Wisdom modifier to the damage, once on each of the ranger's turns.
+  Object.freeze({ id: "ranger-revised-sterminatore-di-nemici", label: "Sterminatore di Nemici", dice: Object.freeze({ ability: "wis", minimum: 0 }),
+    type: "weapon", limit: ONCE_PER_OWN_TURN }),
   // Phase 2: smites spend a spell slot. The slot is never counted (PC slots are not tracked): the GM picks
   // its level, the dice follow it. Divine Smite: 2d8 at 1st level, +1d8 per level, at most 5d8, +1d8
   // against an undead or a fiend (a GM toggle: creature types are not tracked).

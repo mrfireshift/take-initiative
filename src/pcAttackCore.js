@@ -3,6 +3,8 @@
 // no formula is evaluated and no eligibility (advantage, reach, weapon properties) is checked.
 // Phase 1 adds the extra damage on a hit: class feature riders (pcAttackRiderCatalog.js), counted per
 // initiative turn, and components the GM adds on the fly (Booming Blade, Hunter's Mark, a magic weapon).
+// Phase 3A adds the activations on a hit (pcAttackActivationCatalog.js): the class feature's resource, its die,
+// its save and its pill, committed with the attack.
 import { ID } from "./constants.js";
 import { calculateQuickHPChange } from "./quickHpCore.js";
 import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES } from "./quickActionsCore.js";
@@ -15,7 +17,15 @@ import { getSpellDefinition, getSpellEffects, getSpellSummaryParts } from "./spe
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import { spellEffectThemeFor } from "./spellColorCore.js";
 import { damageDefensesForItem, damageTypeLabel, relevantDamageDefenses } from "./damageDefensesCore.js";
-import { getClassFeatureDefinition, getEnabledClassFeatures } from "./classFeatureCatalog.js";
+import { CLASS_FEATURE_RESOURCE_POOL_BY_ID, getClassFeatureDefinition, getClassFeatureResourcePool, getEnabledClassFeatures } from "./classFeatureCatalog.js";
+import {
+  CLASS_FEATURE_STATE_FIELD, classFeatureConditionInstancesForActivation, classFeatureResourceEntries, normalizeClassFeatureState,
+  planClassFeatureActivation, planClassFeatureResourceAdjustment,
+} from "./classFeatureCore.js";
+import {
+  pcAttackActivationsForCard, pcAttackActivationLabel, pcAttackActivationCosts, pcAttackActivationDice, pcAttackActivationSaveDC,
+  pcAttackActivationLimitKey, pcAttackActivationLimit, pcAttackActivationDealsDamage, pcAttackActivationEffect, getPcAttackActivation,
+} from "./pcAttackActivationCatalog.js";
 import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttackCantripDice, pcAttackWeaponCantripDice } from "./pcAttackCantripCatalog.js";
 import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
@@ -29,6 +39,8 @@ export const PC_ATTACK_OUTCOMES = Object.freeze(["hit", "critical", "miss"]);
 // Saving throw cantrips (C2): the target saves; a failure takes the damage, a success none.
 export const PC_ATTACK_SAVE_OUTCOMES = Object.freeze(["failed", "passed"]);
 const DAMAGING_OUTCOMES = new Set(["hit", "critical", "failed"]);
+// Activations need a hit with an attack roll: a saving throw cantrip has none.
+const ATTACK_HITS = new Set(["hit", "critical"]);
 
 // What this outcome deals: the full damage on a hit, a critical or a failed save; half on a passed save when the
 // caster has Potent Cantrip; nothing otherwise (a miss, a passed save).
@@ -262,6 +274,95 @@ export function pcAttackCantripPillLabels(spellId) {
   return (getSpellDefinition(spellId)?.effects || []).map((effect) => effect.label).filter(Boolean);
 }
 
+// Activations on a hit (phase 3A). The class feature's own rules decide what the card's activation decides (its
+// resource, its parent feature, a pill already on the target): the attack plans them with the same pure functions.
+function activationResources(activation, card, state) {
+  const costs = pcAttackActivationCosts(activation);
+  if (!costs.length) return [];
+  return classFeatureResourceEntries(state, [{ resourceCosts: costs }], CLASS_FEATURE_RESOURCE_POOL_BY_ID, card.characterBuild, card.abilityModifiers)
+    .map((entry) => ({ poolId: entry.pool.id, name: entry.pool.name, current: entry.current, maximum: entry.maximum, unlimited: entry.unlimited,
+      amount: Number(costs.find((cost) => cost.poolId === entry.pool.id)?.amount) || 1 }));
+}
+
+function planActivationPill({ feature, card, state, sourceItem, targetId, turn, turnState, instanceId }) {
+  return planClassFeatureActivation({
+    state, feature, poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID, characterBuild: card.characterBuild, abilityModifiers: card.abilityModifiers,
+    sourceId: sourceItem.id, targetIds: [targetId], currentRound: turn?.round ?? turnState?.round ?? 1, currentTurnKey: turn?.turnKey || "",
+    instanceId, enabledFeatureIds: getEnabledClassFeatures(card).map((entry) => entry.id),
+  });
+}
+
+function activationPlanReason(plan) {
+  if (plan?.reason === "parent-feature-required") return `${getClassFeatureDefinition(plan.parentFeatureId)?.name || "La capacità di base"} non è attiva.`;
+  if (plan?.reason === "feature-already-active") return "Già attiva su questo bersaglio.";
+  if (plan?.reason === "resource-empty") return `${getClassFeatureResourcePool(plan.poolId)?.name || "Risorsa"}: nessun uso rimasto.`;
+  return "Attivazione non disponibile.";
+}
+
+function activationBlocker(activation, { attack, sourceItem, targetItem, turn, uses, turnState, riderIds, damageTypes, resources, card, state, effect }) {
+  const requires = activation.requires || {};
+  const limit = pcAttackActivationLimit(activation);
+  if (activation.spellIds) {
+    if (!activation.spellIds.includes(attack.cantrip?.spellId)) return "Solo con la Deflagrazione occulta.";
+  } else if (attack.cantrip && !activation.anyAttack) return "Solo per gli attacchi con arma.";
+  if (requires.range && attack.range !== requires.range) return requires.range === "melee" ? "Solo per gli attacchi in mischia." : "Solo per gli attacchi a distanza.";
+  if ((requires.ownTurn || limit?.per === "own-turn") && turn && turn.actorId !== sourceItem.id) return "Solo nel proprio turno.";
+  if (requires.firstRound && turn && turn.round !== 1) return "Solo nel primo round del combattimento.";
+  if (requires.activeFeatureId && !featureActive(sourceItem, requires.activeFeatureId, turnState?.round ?? null))
+    return `${getClassFeatureDefinition(requires.activeFeatureId)?.name || "Il privilegio"} non è attiva.`;
+  if (requires.riderId && !riderIds.includes(requires.riderId)) return `Solo insieme a ${getPcAttackRider(requires.riderId)?.label || "il suo extra"}.`;
+  if (requires.damageType && !damageTypes.includes(requires.damageType)) return `Solo con danni da ${damageTypeLabel(requires.damageType)}.`;
+  if (limit && turn && uses.some((use) => use.riderId === pcAttackActivationLimitKey(activation)))
+    return activation.groupLimit ? `Già usato in questo turno (${activation.groupLabel}).` : "Già usato in questo turno.";
+  const empty = resources.find((entry) => !entry.unlimited && entry.current !== null && entry.current < entry.amount);
+  if (empty) return `${empty.name}: nessun uso rimasto.`;
+  // A pill follows the card's activation rules: its parent feature, no second copy on the same creature.
+  if (effect?.kind === "pill" && (effect.self || targetItem)) {
+    const plan = planActivationPill({ feature: getClassFeatureDefinition(activation.id), card, state, sourceItem,
+      targetId: effect.self ? sourceItem.id : targetItem.id, turn, turnState, instanceId: "pc-attack:preview" });
+    if (!plan.ok) return activationPlanReason(plan);
+  }
+  return "";
+}
+
+// The activations of this attacker for this attack: availability, dice, save and effect. riders and extras are the
+// ones chosen in the console (Wrath of the Order follows Divine Strike; Thunderbolt Strike needs lightning damage).
+export function pcAttackActivationOptions({ action, spellId = "", sourceItem, targetItem = null, turnState = null, riders = [], extras = [] } = {}) {
+  const attack = pcAttackResolvedAction(action, spellId);
+  if (!attack || !sourceItem) return [];
+  return activationOptionsFor(attack, { sourceItem, targetItem, turnState,
+    riderIds: riders.map((rider) => rider?.id).filter(Boolean),
+    damageTypes: [...riders, ...extras].map((entry) => entry?.type).filter(Boolean) });
+}
+
+function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState = null, riderIds = [], damageTypes = [] }) {
+  const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
+  const card = sourceMeta.initiativeCard || {};
+  const turn = attackTurn(turnState);
+  const uses = currentRiderUses(sourceMeta, turn?.turnKey);
+  const state = sourceMeta[CLASS_FEATURE_STATE_FIELD];
+  const weaponTypes = [...new Set(attack.components.map((component) => component.type))];
+  return pcAttackActivationsForCard(card).map((activation) => {
+    const effect = pcAttackActivationEffect(activation);
+    const resources = activationResources(activation, card, state);
+    const reason = activationBlocker(activation, { attack, sourceItem, targetItem, turn, uses, turnState, riderIds,
+      damageTypes: [...weaponTypes, ...damageTypes], resources, card, state, effect });
+    const damage = pcAttackActivationDealsDamage(activation, card);
+    const dc = pcAttackActivationSaveDC(activation, card);
+    const limit = pcAttackActivationLimit(activation);
+    return {
+      id: activation.id, label: pcAttackActivationLabel(activation),
+      ...(activation.group ? { group: activation.group, groupLabel: activation.groupLabel } : {}),
+      damage, dice: damage ? pcAttackActivationDice(activation, card) : null,
+      types: !damage ? [] : activation.type === "weapon" ? weaponTypes : [activation.type],
+      save: activation.save ? { ability: activation.save, label: PC_ATTACK_SAVE_LABELS[activation.save], ...(dc ? { dc } : {}) } : null,
+      effect, ...(activation.size ? { size: activation.size } : {}), ...(activation.note ? { note: activation.note } : {}),
+      resources, limit: limit ? { ...limit } : null, available: !reason, reason,
+      ...(limit && !turn ? { warning: "Fuori dal combattimento: il limite per turno non viene contato." } : {}),
+    };
+  });
+}
+
 // What the GM may do next because of this attack (shown after the commit, never applied by it).
 // Inspiring Smite (Oath of Glory) follows a Divine Smite: a Channel Divinity the GM activates separately.
 export function pcAttackFollowUps(card = {}, riders = []) {
@@ -273,14 +374,16 @@ export function pcAttackFollowUps(card = {}, riders = []) {
   return notes;
 }
 
-// Weapon components first, then the chosen riders, then the components added on the fly.
-function attackComponents(attack, riders = [], extras = [], woven = null) {
+// Weapon components first, then the chosen riders and activations, then the components added on the fly.
+function attackComponents(attack, riders = [], extras = [], woven = null, activations = []) {
   return [
     ...attack.components.map((component) => ({ ...component, source: { kind: "weapon" } })),
     // A weapon cantrip's extra dice on the hit (from 5th level): a component of its own type.
     ...(woven ? [{ id: `w:${woven.spellId}`, type: woven.type, source: { kind: "cantrip", spellId: woven.spellId, name: woven.name } }] : []),
     ...riders.map((rider) => ({ id: `r:${rider.id}`, type: rider.type,
       source: { kind: "class-feature", featureId: rider.id, name: getPcAttackRider(rider.id)?.label || rider.id } })),
+    ...activations.filter((activation) => activation.option?.damage).map((activation) => ({ id: `a:${activation.id}`, type: activation.type,
+      source: { kind: "class-feature", featureId: activation.id, name: activation.option.label, activation: true } })),
     ...extras.map((extra, index) => ({ id: `x${index + 1}`, type: extra.type, ...(extra.label ? { label: extra.label } : {}),
       source: { kind: "manual", ...(extra.label ? { label: extra.label } : {}) } })),
   ];
@@ -294,7 +397,7 @@ function extraLabel(value) {
 // The commit recomputes everything from live state; this is a read model only.
 export function pcAttackPreview({
   action, spellId = "", sourceItem = null, targetItem = null, outcome = "", amounts = {}, ignoredDefenses = [],
-  riders = [], extras = [], turnState = null, weaponCantrip = null, secondaryItem = null,
+  riders = [], extras = [], turnState = null, weaponCantrip = null, secondaryItem = null, activations = [],
 } = {}) {
   const attack = pcAttackResolvedAction(action, spellId);
   if (!attack) return { ready: false, blocker: pcAttackAction(action) ? "Scegli il trucchetto." : "Azione di attacco non valida.",
@@ -309,10 +412,17 @@ export function pcAttackPreview({
   const wovenOption = extrasAllowed && weaponCantrip?.spellId
     ? pcAttackWeaponCantripOptions(action, card).find((option) => option.spellId === weaponCantrip.spellId) || null : null;
   const woven = wovenOption?.dice?.hit ? wovenOption : null;
-  const components = attackComponents(attack, chosenRiders, chosenExtras, woven);
+  // Activations: only on a hit with an attack roll, checked like the riders against the attacker and the target.
+  const activationOptions = ATTACK_HITS.has(outcome) && activations.length && sourceItem
+    ? activationOptionsFor(attack, { sourceItem, targetItem, turnState, riderIds: chosenRiders.map((rider) => rider.id),
+      damageTypes: [...chosenRiders, ...chosenExtras].map((entry) => entry.type).filter(Boolean) }) : [];
+  const chosenActivations = ATTACK_HITS.has(outcome)
+    ? activations.map((request) => ({ ...request, option: activationOptions.find((entry) => entry.id === request.id) || null })) : [];
+  const components = attackComponents(attack, chosenRiders, chosenExtras, woven, chosenActivations.filter((activation) => activation.option));
   const allAmounts = {
     ...amounts,
     ...(woven ? { [`w:${woven.spellId}`]: weaponCantrip.amount } : {}),
+    ...Object.fromEntries(chosenActivations.filter((activation) => activation.option?.damage).map((activation) => [`a:${activation.id}`, activation.amount])),
     ...Object.fromEntries(chosenRiders.map((rider) => [`r:${rider.id}`, rider.amount])),
     ...Object.fromEntries(chosenExtras.map((extra, index) => [`x${index + 1}`, extra.amount])),
   };
@@ -350,6 +460,17 @@ export function pcAttackPreview({
     : secondaryWanted && !validAmount(weaponCantrip.secondary.amount) ? "Inserisci il danno della seconda creatura."
     : secondaryWanted && !secondary?.hp ? "La seconda creatura non ha HP canonici validi."
     : "";
+  const groups = new Set();
+  const activationBlock = chosenActivations.map((activation) => {
+    const option = activation.option;
+    if (!option) return "Attivazione non disponibile per questo attaccante.";
+    if (!option.available) return `${option.label}: ${option.reason}`;
+    if (option.group && groups.has(option.group)) return `${option.label}: ${option.groupLabel}.`;
+    if (option.group) groups.add(option.group);
+    if (option.damage && !option.types.includes(activation.type)) return `${option.label}: scegli il tipo di danno.`;
+    if (option.damage && !validAmount(activation.amount)) return `Inserisci il danno di ${option.label}.`;
+    return option.save && !PC_ATTACK_SAVE_OUTCOMES.includes(activation.saveOutcome) ? `${option.label}: scegli l'esito del tiro salvezza.` : "";
+  }).find(Boolean) || "";
   const blocker = !targetItem ? "Scegli il bersaglio."
     : !pcAttackOutcomesFor(attack).includes(outcome) ? (attack.cantrip?.save ? "Scegli l'esito del tiro salvezza." : "Scegli l'esito dell'attacco.")
     : !miss && attack.components.some((component) => !validAmount(amounts?.[component.id])) ? "Inserisci il danno di ogni componente."
@@ -357,6 +478,7 @@ export function pcAttackPreview({
     : chosenExtras.some((extra) => !damageTypeSet.has(extra.type)) ? "Scegli il tipo di ogni componente extra."
     : [...chosenRiders, ...chosenExtras].some((entry) => !validAmount(entry.amount)) ? "Inserisci il danno di ogni extra."
     : wovenBlocker ? wovenBlocker
+    : activationBlock ? activationBlock
     : !hp ? "Il bersaglio non ha HP canonici validi."
     : "";
   return { ready: !blocker, blocker, defenses, profileDefenses, total, hp, ...(secondary ? { secondary } : {}) };
@@ -365,7 +487,7 @@ export function pcAttackPreview({
 export function buildPcAttackMutation({
   action, sourceItem, targetItem, outcome = "", componentAmounts = {}, attackInstanceId,
   ignoredDefenses = [], expectedDefenses, turnState = null, riders = [], extras = [], spellId = "",
-  weaponCantrip = null, secondaryItem = null, expectedSecondaryDefenses,
+  weaponCantrip = null, secondaryItem = null, expectedSecondaryDefenses, activations = [],
 } = {}) {
   if (!isBossActionCreature(sourceItem) || !isBossActionCreature(targetItem))
     throw new Error("Attaccante e bersaglio devono essere token creatura reali.");
@@ -422,14 +544,17 @@ export function buildPcAttackMutation({
     }
     woven = { ...option, amount: option.dice.hit ? damageAmount(weaponCantrip.amount) : null, secondary };
   }
+  const activationPlan = planPcAttackActivations({ requests: activations, attack, outcome, sourceItem, targetItem, turnState, turn,
+    attackInstanceId, chosenRiders, chosenExtras });
   const amounts = componentAmounts && typeof componentAmounts === "object" ? componentAmounts : {};
   if (!miss && Object.keys(amounts).some((id) => !attack.components.some((component) => component.id === id)))
     throw new Error("Componente di danno sconosciuta.");
-  const components = attackComponents(attack, chosenRiders, chosenExtras, woven?.amount !== null && woven ? woven : null);
+  const components = attackComponents(attack, chosenRiders, chosenExtras, woven?.amount !== null && woven ? woven : null, activationPlan.chosen);
   const inputs = Object.fromEntries([
     ...attack.components.map((component) => [component.id, miss ? null : damageAmount(amounts[component.id])]),
     ...(woven && woven.amount !== null ? [[`w:${woven.spellId}`, woven.amount]] : []),
     ...chosenRiders.map((rider) => [`r:${rider.id}`, rider.amount]),
+    ...activationPlan.chosen.filter((activation) => activation.option.damage).map((activation) => [`a:${activation.id}`, activation.amount]),
     ...chosenExtras.map((extra, index) => [`x${index + 1}`, extra.amount]),
   ]);
   // A critical hit keeps the full factor: the totals the GM enters already include the doubled dice.
@@ -461,7 +586,7 @@ export function buildPcAttackMutation({
   const newUses = turn ? chosenRiders.filter((rider) => rider.option.limit).map((rider) => ({
     riderId: rider.id, turnKey: turn.turnKey, ...(rider.option.limit.scope === "target" ? { targetId: targetItem.id } : {}),
   })) : [];
-  const riderUses = [...currentRiderUses(sourceMeta, turn?.turnKey), ...newUses];
+  const riderUses = [...currentRiderUses(sourceMeta, turn?.turnKey), ...newUses, ...activationPlan.uses];
   const state = {
     version: PC_ATTACK_STATE_VERSION,
     lastAttack: {
@@ -493,6 +618,16 @@ export function buildPcAttackMutation({
       ...(rider.slotLevel ? { slotLevel: rider.slotLevel, slotTracked: false } : {}),
       ...(rider.bonus ? { bonus: rider.option.bonus.label } : {}),
       ...(rider.onHit ? { condition: rider.option.onHit.condition } : {}),
+    })) } : {}),
+    ...(activationPlan.chosen.length ? { activations: activationPlan.chosen.map((activation) => ({
+      featureId: activation.id, name: activation.option.label, ...(activation.option.group ? { group: activation.option.group } : {}),
+      ...(activation.option.damage ? { ...(activation.option.dice ? { dice: activation.option.dice } : {}), type: activation.type,
+        typeLabel: damageTypeLabel(activation.type), inputAmount: activation.amount, amount: componentOf(`a:${activation.id}`).amount } : {}),
+      ...(activation.option.save ? { save: { ability: activation.option.save.ability, label: activation.option.save.label,
+        ...(activation.option.save.dc ? { dc: activation.option.save.dc } : {}), outcome: activation.saveOutcome } } : {}),
+      ...(activation.option.effect ? { effect: { kind: activation.option.effect.kind, label: activation.option.effect.label,
+        ...(activation.option.effect.self ? { self: true } : {}), applied: activation.applies } } : {}),
+      ...(activation.spent.length ? { spent: activation.spent } : {}),
     })) } : {}),
     ...(chosenExtras.length ? { extras: chosenExtras.map((extra, index) => ({
       ...(extra.label ? { label: extra.label } : {}), type: extra.type, typeLabel: damageTypeLabel(extra.type),
@@ -530,16 +665,30 @@ export function buildPcAttackMutation({
   const cantripPills = cantripOperations.filter((operation) => operation.type === "condition:add").map((operation) => operation.conditionName);
   if (cantripPills.length && attack.cantrip) causality.cantrip = { ...causality.cantrip, pills: cantripPills };
   if (cantripPills.length && woven) causality.weaponCantrip = { ...causality.weaponCantrip, pills: cantripPills };
+  // Activations: the class feature's pills (on the target, or on the attacker for a self effect) and a standard
+  // condition (Trip Attack: Prono), only when the save fails or there is none.
+  const activationConditions = activationPlan.conditions.map((entry) => ({ ...entry,
+    instanceId: bossGroupConditionInstanceId(`${attackInstanceId}:${entry.featureId}`, entry.condition, targetItem.id) }));
   const appliedConditions = [...conditions.map((entry) => ({ targetId: targetItem.id, ...entry, ...(appliedAt ? { appliedAt } : {}) })),
+    ...activationConditions.map((entry) => ({ targetId: targetItem.id, ...entry, ...(appliedAt ? { appliedAt } : {}) })),
+    ...Object.entries(activationPlan.instancesByTarget).flatMap(([targetId, instances]) => instances.map((instance) => ({
+      targetId, condition: instance.condition, featureId: activationPlan.pillFeatureIds[instance.id] || "", instanceId: instance.id,
+      ...(appliedAt ? { appliedAt } : {}) }))),
     ...cantripPills.map((condition) => ({ targetId: targetItem.id, condition, spellId: attack.cantrip?.spellId || woven?.spellId,
       ...(appliedAt ? { appliedAt } : {}) }))];
   if (appliedConditions.length) causality.conditionsApplied = appliedConditions;
-  const conditionOperations = conditions.map((entry) => ({ type: "condition:add", targetIds: [targetItem.id], conditionName: entry.condition,
+  const conditionOperations = [...conditions, ...activationConditions].map((entry) => ({ type: "condition:add", targetIds: [targetItem.id], conditionName: entry.condition,
     instanceIds: { [targetItem.id]: entry.instanceId },
     options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: true,
       expiry: { mode: "manual" }, ...(appliedAt ? { appliedAt } : {}) } }));
+  const activationPillOperations = Object.keys(activationPlan.instancesByTarget).length
+    ? [{ type: "condition:add-instances", instancesByTarget: activationPlan.instancesByTarget }] : [];
+  // The ids whose pills the attack changes outside the damaged creatures (a self pill on the attacker).
+  const pillTargetIds = Object.keys(activationPlan.instancesByTarget);
+  if (activationPlan.notes.length) causality.notes = [...activationPlan.notes];
   return {
-    change, damageComponents, causality, followUps: pcAttackFollowUps(sourceMeta.initiativeCard, chosenRiders),
+    change, damageComponents, causality, followUps: [...pcAttackFollowUps(sourceMeta.initiativeCard, chosenRiders), ...activationPlan.notes],
+    labelTargetIds: [...new Set([...pillTargetIds, ...(activationConditions.length ? [targetItem.id] : [])])],
     ...(secondaryItemUsed ? { secondaryChange, secondaryItem: secondaryItemUsed } : {}),
     operations: [...(change?.changed || secondaryChange?.changed ? [{ type: "hp:set", updates: [
       ...(change?.changed ? [{
@@ -553,22 +702,26 @@ export function buildPcAttackMutation({
         expectedHP: bossMetadataSnapshot(secondaryMeta, "hp"), expectedHPMax: bossMetadataSnapshot(secondaryMeta, "hpMax"),
       }] : []),
     ] }] : []), ...conditionOperations,
-    ...(conditionOperations.length ? [{ type: "condition:automate", subjectIds: [targetItem.id] }] : []), ...cantripOperations],
+    ...(conditionOperations.length ? [{ type: "condition:automate", subjectIds: [targetItem.id] }] : []), ...cantripOperations,
+    ...activationPillOperations],
     options: {
       commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id,
-      targetIds: [targetItem.id, ...(secondaryItemUsed ? [secondaryItemUsed.id] : [])], kind: PC_ATTACK_HISTORY_KIND, label,
+      targetIds: [...new Set([targetItem.id, ...(secondaryItemUsed ? [secondaryItemUsed.id] : []), ...pillTargetIds])], kind: PC_ATTACK_HISTORY_KIND, label,
       // The quick action read from the attacker's card, and the defenses read from the target's card,
       // must still be the ones at commit.
       metadataPatches: [
         { id: sourceItem.id, fields: {
           initiativeCard: { mode: "assert", expected: bossMetadataSnapshot(sourceMeta, "initiativeCard") },
           [PC_ATTACK_STATE_FIELD]: { value: state, expected: bossMetadataSnapshot(sourceMeta, PC_ATTACK_STATE_FIELD) },
+          // The resources the activations spent and their active instances: the field the card's activation writes.
+          ...(activationPlan.stateChanged ? { [CLASS_FEATURE_STATE_FIELD]: { value: activationPlan.state,
+            expected: bossMetadataSnapshot(sourceMeta, CLASS_FEATURE_STATE_FIELD) } } : {}),
         } },
         ...(change?.changed ? [targetProfileAssert(targetItem)] : []),
         ...(secondaryChange?.changed ? [targetProfileAssert(secondaryItemUsed)] : []),
       ],
       // A use counted per turn belongs to the turn the GM saw: a turn change before the commit refuses it.
-      ...(newUses.length ? { sceneMetadataPreconditions: [
+      ...(newUses.length || activationPlan.uses.length ? { sceneMetadataPreconditions: [
         { key: STATE_KEY, field: "round", value: turnState?.round },
         { key: STATE_KEY, field: "current", value: turnState?.current },
       ] } : {}),
@@ -577,4 +730,73 @@ export function buildPcAttackMutation({
         ...(DAMAGING_OUTCOMES.has(outcome) && attack.cantrip?.effectNote ? { manualRemainder: attack.cantrip.effectNote } : {}) } },
     },
   };
+}
+
+// Phase 3A: the activations chosen for this attack, checked against the live attacker, target and turn, and planned
+// with the class feature's own pure functions. Returns the damage rows, the new classFeatureState (resources spent,
+// active instances), the pills by creature, the standard conditions, the notes and the per-turn uses.
+function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, targetItem, turnState, turn, attackInstanceId, chosenRiders, chosenExtras }) {
+  const list = Array.isArray(requests) ? requests : [];
+  const empty = { chosen: [], state: null, stateChanged: false, instancesByTarget: {}, pillFeatureIds: {}, conditions: [], notes: [], uses: [] };
+  if (!list.length) return empty;
+  if (!ATTACK_HITS.has(outcome)) throw new Error("Le attivazioni valgono solo se l'attacco colpisce.");
+  if (new Set(list.map((request) => request?.id)).size !== list.length) throw new Error("La stessa attivazione è indicata due volte.");
+  const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
+  const card = sourceMeta.initiativeCard || {};
+  const sourceName = sourceItem.name || sourceItem.id;
+  const options = activationOptionsFor(attack, { sourceItem, targetItem, turnState, riderIds: chosenRiders.map((rider) => rider.id),
+    damageTypes: [...chosenRiders, ...chosenExtras].map((entry) => entry.type).filter(Boolean) });
+  const groups = new Set();
+  const originalState = normalizeClassFeatureState(sourceMeta[CLASS_FEATURE_STATE_FIELD]);
+  let state = originalState;
+  const result = { ...empty, chosen: [] };
+  for (const request of list) {
+    const activation = getPcAttackActivation(request?.id);
+    const option = options.find((entry) => entry.id === request?.id);
+    if (!activation || !option) throw new Error("Attivazione non disponibile per questo attaccante: riapri l'attacco.");
+    if (!option.available) throw new Error(`${option.label}: ${option.reason} Riapri l'attacco.`);
+    if (option.group && groups.has(option.group)) throw new Error(`${option.label}: ${option.groupLabel}.`);
+    if (option.group) groups.add(option.group);
+    if (option.damage && !option.types.includes(request.type)) throw new Error(`${option.label}: tipo di danno non valido.`);
+    if (option.save && !PC_ATTACK_SAVE_OUTCOMES.includes(request.saveOutcome)) throw new Error(`${option.label}: scegli l'esito del tiro salvezza.`);
+    // The effect applies without a save or with a failed one; a passed save still spends the resource and adds the die.
+    const applies = !option.save || request.saveOutcome === "failed";
+    const feature = getClassFeatureDefinition(activation.id);
+    const before = state;
+    if (applies && option.effect?.kind === "pill") {
+      const targetId = option.effect.self ? sourceItem.id : targetItem.id;
+      const plan = planActivationPill({ feature, card, state, sourceItem, targetId, turn, turnState, instanceId: `${attackInstanceId}:${activation.id}` });
+      if (!plan.ok) throw new Error(`${option.label}: ${activationPlanReason(plan)} Riapri l'attacco.`);
+      state = plan.state;
+      for (const instance of classFeatureConditionInstancesForActivation(feature, plan.instance, sourceName, card.characterBuild)) {
+        (result.instancesByTarget[instance.targetId] ||= []).push(instance);
+        result.pillFeatureIds[instance.id] = activation.id;
+      }
+    } else {
+      for (const cost of pcAttackActivationCosts(activation)) {
+        const pool = getClassFeatureResourcePool(cost.poolId);
+        const entry = activationResources({ cost: [cost] }, card, state)[0];
+        if (!pool || !entry) throw new Error(`${option.label}: risorsa sconosciuta.`);
+        if (!entry.unlimited && entry.current !== null && entry.current < entry.amount) throw new Error(`${option.label}: ${entry.name}: nessun uso rimasto.`);
+        state = planClassFeatureResourceAdjustment(state, pool, card.characterBuild, { delta: -entry.amount }, card.abilityModifiers).state;
+      }
+    }
+    if (applies && option.effect?.kind === "condition") result.conditions.push({ condition: option.effect.label, featureId: activation.id });
+    if (applies && option.effect?.kind === "note") result.notes.push(`${option.label}: ${option.effect.label}`);
+    if (option.note) result.notes.push(`${option.label}: ${option.note}`);
+    // What this activation spent, for the Combat Log (the resource as it was before and after).
+    const spent = activationResources(activation, card, before).map((entry) => {
+      const after = activationResources(activation, card, state).find((next) => next.poolId === entry.poolId);
+      return { poolId: entry.poolId, name: entry.name, amount: entry.amount, ...(entry.current !== null ? { before: entry.current } : {}),
+        ...(after?.current !== null && after?.current !== undefined ? { after: after.current } : {}) };
+    });
+    if (option.limit && turn) result.uses.push({ riderId: pcAttackActivationLimitKey(activation), turnKey: turn.turnKey });
+    result.chosen.push({ id: activation.id, option, applies, spent, saveOutcome: option.save ? request.saveOutcome : null,
+      ...(option.damage ? { type: request.type, amount: damageAmount(request.amount) } : {}) });
+  }
+  result.state = state;
+  result.stateChanged = JSON.stringify(state) !== JSON.stringify(originalState);
+  // One use per limit key, even when two activations share it.
+  result.uses = result.uses.filter((use, index, uses) => uses.findIndex((other) => other.riderId === use.riderId) === index);
+  return result;
 }

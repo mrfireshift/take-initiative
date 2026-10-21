@@ -12,7 +12,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
-  "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven"];
+  "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra"]);
 function createDocument() {
   const doc = {
@@ -363,4 +363,50 @@ test("the cantrip console points to the melee weapon attack for Booming Blade an
   const fireOnly = fixture({ action: sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["fire-bolt"] } }) });
   await fireOnly.controller.ready;
   assert.doesNotMatch(fireOnly.$("pc-attack-cantrip-note").textContent, /Lama/);
+});
+
+const battleMasterCard = { initiativeCard: { characterBuild: [{ classId: "guerriero", level: 10, subclassId: "guerriero-maestro-di-battaglia" }],
+  abilityModifiers: { str: 4, dex: 2, con: 3, int: 0, wis: 1, cha: 0 }, classFeaturesConfigured: true,
+  enabledClassFeatureIds: ["guerriero-maestro-di-battaglia-manovre", "guerriero-maestro-di-battaglia-manovre-attacco-minaccioso",
+    "guerriero-maestro-di-battaglia-manovre-colpo-distraente"] } };
+const activationRow = (f, slug) => f.$("pc-attack-activations").querySelector(`[data-activation-id="guerriero-maestro-di-battaglia-manovre-${slug}"]`);
+const activationField = (row, name) => row.querySelector(`[data-activation-field="${name}"]`);
+
+test("activations on a hit: the maneuver's die, dice left and DC; one maneuver per attack; the save outcome is sent", async () => {
+  const f = fixture({ attacker: battleMasterCard, turnState: ownTurn }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  assert.equal(f.$("pc-attack-activations-caption").hidden, false);
+  const menacing = activationRow(f, "attacco-minaccioso"), distracting = activationRow(f, "colpo-distraente");
+  assert.equal(activationField(menacing, "meta").textContent.replace(/\u00a0/gu, " "), "1d10 · Dadi di Superiorità 5/5 · TS Saggezza CD 16");
+  assert.match(activationField(menacing, "meta").textContent, /TS\u00a0Saggezza\u00a0CD\u00a016/u, "a part never wraps inside");
+  assert.equal(activationField(menacing, "options").hidden, true, "options only once ticked");
+  const check = async (row) => { const box = activationField(row, "on"); box.checked = true; await box.emit("change"); };
+  await check(distracting);
+  await check(menacing);
+  assert.equal(activationField(distracting, "on").checked, false, "ticking a maneuver unticks the other one");
+  assert.equal(activationField(menacing, "options").hidden, false);
+  assert.equal(activationField(menacing, "effect").textContent, "Se fallisce: Spaventato");
+  await typeAmounts(f, ["8", "9"]);
+  assert.equal(f.$("pc-attack-apply").disabled, true, "the die's damage and the save outcome are still missing");
+  const amount = activationField(menacing, "amount"); amount.value = "6"; await amount.emit("input");
+  assert.match(textOf(f.$("pc-attack-total")), /scegli l'esito del tiro salvezza/);
+  await activationField(menacing, "save-failed").click();
+  assert.equal(activationField(menacing, "save-failed").getAttribute("aria-pressed"), "true");
+  assert.match(textOf(f.$("pc-attack-total")), /23 danni/);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual(f.calls[0].activations, [{ id: "guerriero-maestro-di-battaglia-manovre-attacco-minaccioso", type: "slashing", amount: 6, saveOutcome: "failed" }]);
+  assert.equal(resultSummary({ outcome: "hit", target: { name: "Ghoul" }, damageComponents: [{ amount: 23 }], hpChange: { before: 30, after: 7 },
+    activations: [{ name: "Attacco Minaccioso", save: { outcome: "failed" } }], conditions: ["Spaventato"] }),
+    "Registrato: Colpito, 23 danni a Ghoul. PF 30 → 7. Extra: Attacco Minaccioso (TS fallito). Ghoul: Spaventato.");
+});
+
+test("a miss sends no activations", async () => {
+  const f = fixture({ attacker: battleMasterCard, turnState: ownTurn }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  const box = activationField(activationRow(f, "colpo-distraente"), "on"); box.checked = true; await box.emit("change");
+  await f.outcome("miss").click();
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual(f.calls[0].activations, []);
 });

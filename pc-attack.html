@@ -70,6 +70,11 @@
     .amount:disabled { opacity: .45; }
     .inline-select { height: 22px; padding: 0 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); }
     .extras-section { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
+    .subcaption { margin-top: 2px; color: var(--dim); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
+    /* An activation's save: the same colours as the outcome buttons, at the height of the inline selects. */
+    .segmented.mini { display: inline-grid; grid-auto-columns: max-content; }
+    .segmented.mini button { min-height: 22px; padding: 0 8px; font-size: var(--obrt-type-secondary); }
+    .effect-hint { color: var(--muted); }
     .extra-fields { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 6px; }
     .field { height: 26px; min-width: 0; padding: 2px 6px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-size: var(--obrt-type-secondary); }
     .lead-remove { width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--obrt-radius-sm); background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
@@ -122,6 +127,8 @@
             <span class="caption" id="pc-attack-extras-caption">Extra al colpo</span>
             <div class="component-list" id="pc-attack-woven"></div>
             <div class="component-list" id="pc-attack-riders"></div>
+            <span class="subcaption" id="pc-attack-activations-caption" hidden>Attivazioni</span>
+            <div class="component-list" id="pc-attack-activations"></div>
             <div class="component-list" id="pc-attack-extras"></div>
             <button class="add-extra" id="pc-attack-add-extra" type="button">+ Componente</button>
           </div>

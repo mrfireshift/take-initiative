@@ -609,6 +609,31 @@ function causalityDetailLines(event) {
     lines.push(`Extra: ${name}${slot !== null ? ` (slot ${numberText(slot)}°)` : ""}${dice ? ` ${dice}` : ""}`
       + `${amount !== null ? ` (${numberText(amount)}${type ? ` ${type}` : ""})` : ""}${notes.length ? ` · ${notes.join(" · ")}` : ""}`);
   }
+  // Activations on a hit (maneuvers, Arcane Shot, Stunning Strike…): die and damage, the save and its outcome, the
+  // effect (applied or not) and the resource spent.
+  for (const activation of Array.isArray(rawAttack?.activations) ? rawAttack.activations : []) {
+    const name = stringValue(activation?.name) || "Attivazione";
+    const dice = stringValue(activation?.dice);
+    const amount = finiteNumber(activation?.amount);
+    const type = stringValue(activation?.typeLabel);
+    const save = activation?.save;
+    const saveText = stringValue(save?.label)
+      ? `TS ${save.label}${finiteNumber(save.dc) !== null ? ` CD ${numberText(save.dc)}` : ""} ${save.outcome === "failed" ? "fallito" : "superato"}`
+      : "";
+    const effect = activation?.effect;
+    const effectText = stringValue(effect?.label) && effect.kind !== "note" && effect.applied ? `→ ${effect.label}${effect.self ? " (su di sé)" : ""}` : "";
+    const spent = (Array.isArray(activation?.spent) ? activation.spent : []).map((entry) => (
+      finiteNumber(entry?.before) !== null && finiteNumber(entry?.after) !== null
+        ? `${stringValue(entry.name)} ${numberText(entry.before)} → ${numberText(entry.after)}`
+        : `${stringValue(entry?.name)} −${numberText(entry?.amount ?? 1)}`
+    )).filter(Boolean);
+    const parts = [saveText && effectText ? `${saveText} ${effectText}` : saveText || effectText, ...spent].filter(Boolean);
+    lines.push(`Attivazione: ${name}${dice ? ` ${dice}` : ""}${amount !== null ? ` (${numberText(amount)}${type ? ` ${type}` : ""})` : ""}`
+      + `${parts.length ? ` · ${parts.join(" · ")}` : ""}`);
+  }
+  for (const note of Array.isArray(rawAttack?.notes) ? rawAttack.notes : []) {
+    if (stringValue(note)) lines.push(`Nota: ${note}`);
+  }
   if (causality.concentration?.action) {
     const labels = { start: "avviata", continue: "proseguita", end: "terminata", break: "interrotta" };
     lines.push(`Concentrazione: ${labels[causality.concentration.action] || causality.concentration.action}`);

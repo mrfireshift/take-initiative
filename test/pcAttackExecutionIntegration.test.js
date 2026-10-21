@@ -306,3 +306,39 @@ test("Green-Flame Blade: target and second creature in one History entry; one Un
   assert.ok(pills(meta("ghoul").conditions).includes("Movimento: danni tuono"));
   assert.match(JSON.stringify(meta("ghoul")["com.thebigpicture.initiative/spells"] ?? null), /Lama Roboante/);
 });
+
+test("an activation on a hit: damage, die spent and pill in one History entry; one Undo restores the HP, the pill and the die", async () => {
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "guerriero", level: 10, subclassId: "guerriero-maestro-di-battaglia" }],
+    abilityModifiers: { str: 4, dex: 2, con: 3, int: 0, wis: 1, cha: 0 }, classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["guerriero-maestro-di-battaglia-manovre", "guerriero-maestro-di-battaglia-manovre-attacco-minaccioso"] });
+  const result = await attack({ attackInstanceId: "menace", activations: [{ id: "guerriero-maestro-di-battaglia-manovre-attacco-minaccioso",
+    type: "slashing", amount: 6, saveOutcome: "failed" }] });
+  const pills = () => (meta("ghoul").conditions?.instances || meta("ghoul").conditions || []).map((instance) => instance.condition);
+  assert.equal(meta("ghoul").hp, 7);
+  assert.ok(pills().includes("Spaventato"));
+  assert.equal(meta("aria").classFeatureState.resources["guerriero-dadi-superiorita"].current, 4);
+  assert.deepEqual(result.activations.map((activation) => [activation.name, activation.save.outcome, activation.effect.applied]),
+    [["Attacco Minaccioso", "failed", true]]);
+  assert.deepEqual(result.conditions, ["Spaventato"]);
+  const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
+  assert.equal(entries.length, 1);
+  await history.undoHistoryThrough(entries[0].id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("ghoul").hp, 30);
+  assert.equal(pills().includes("Spaventato"), false);
+  assert.equal(meta("aria").classFeatureState?.resources?.["guerriero-dadi-superiorita"]?.current ?? 5, 5);
+});
+
+test("a self pill from an activation: the attacker's pill is applied and its labels refreshed", async () => {
+  const refreshed = [];
+  runtime = createPcAttackRuntime({ api: sdk, postDamage: async () => [], refreshLabels: async (ids) => { refreshed.push(...ids); } });
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "bardo", level: 6, subclassId: "bardo-collegio-delle-spade" }],
+    abilityModifiers: { str: 0, dex: 3, con: 1, int: 0, wis: 0, cha: 4 }, classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["bardo-collegio-delle-spade-virtuosismo-della-lama", "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-difensivo"] });
+  await attack({ attackInstanceId: "flourish", activations: [{ id: "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-difensivo",
+    type: "slashing", amount: 5 }] });
+  const pills = (id) => (meta(id).conditions?.instances || meta(id).conditions || []).map((instance) => instance.condition);
+  assert.ok(pills("aria").includes("Virtuosismo Difensivo"));
+  assert.equal(pills("ghoul").includes("Virtuosismo Difensivo"), false);
+  assert.equal(meta("aria").classFeatureState.resources["bardo-ispirazione-bardica-usi"].current, 3);
+  assert.deepEqual(refreshed, ["aria"]);
+});

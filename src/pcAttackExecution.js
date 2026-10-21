@@ -10,13 +10,15 @@ import { getEffectsMutationSceneContext, runEffectsMutation, requireAppliedEffec
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 
 const newId = () => `pc-attack:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
+// The map labels of a creature whose pills changed without damage (an activation's pill on the attacker).
+const refreshPillLabels = async ids => {const {refreshConditionLabels}=await import("./conditions.js");await refreshConditionLabels(ids);};
 
 // Same command path as a boss attack: the coordinator commits canonical HP and History, then the
 // existing projections (map HP bar, HP text, hpMemory, concentration and save reminders) run once.
 export function createPcAttackRuntime({
   api=OBR,getCard=getInitiativeCard,
   getSceneContext=getEffectsMutationSceneContext,runMutation=runEffectsMutation,
-  requireApplied=requireAppliedEffectsMutation,postDamage=postBossDamage,
+  requireApplied=requireAppliedEffectsMutation,postDamage=postBossDamage,refreshLabels=refreshPillLabels,
   getEpoch=currentSceneEpoch,isCurrentEpoch=isCurrentSceneEpoch,
 }={}) {
   const busy=new Set();
@@ -66,7 +68,8 @@ export function createPcAttackRuntime({
         componentAmounts:Object.entries(request.componentAmounts || {}).sort(([a],[b])=>a.localeCompare(b)),
         ignoredDefenses:request.ignoredDefenses ?? null,expectedDefenses:request.expectedDefenses ?? null,
         riders:request.riders ?? null,extras:request.extras ?? null,spellId:request.spellId || "",
-        weaponCantrip:request.weaponCantrip ?? null,expectedSecondaryDefenses:request.expectedSecondaryDefenses ?? null,sharedHp:request.sharedHp || null});
+        weaponCantrip:request.weaponCantrip ?? null,expectedSecondaryDefenses:request.expectedSecondaryDefenses ?? null,sharedHp:request.sharedHp || null,
+        activations:request.activations ?? null});
       let draft=drafts.get(attackInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
         throw new Error("Le decisioni o la scena dell'attacco sono cambiate: riapri l'attacco.");
@@ -76,7 +79,7 @@ export function createPcAttackRuntime({
           componentAmounts:request.componentAmounts || {},attackInstanceId,ignoredDefenses:request.ignoredDefenses || [],
           expectedDefenses:request.expectedDefenses,turnState:scope.turnState,riders:request.riders || [],extras:request.extras || [],
           spellId:request.spellId || "",weaponCantrip:request.weaponCantrip || null,secondaryItem:secondaryItem || null,
-          expectedSecondaryDefenses:request.expectedSecondaryDefenses});
+          expectedSecondaryDefenses:request.expectedSecondaryDefenses,activations:request.activations || []});
         draft={decisionKey,plan,options:{...plan.options,
           sharedHp:request.sharedHp || {},sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
         drafts.set(attackInstanceId,draft);
@@ -98,8 +101,15 @@ export function createPcAttackRuntime({
           sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent}) || []));}
         catch(error) {warnings.push(String(error?.message || error));}
       }
+      // Pills on a creature the damage projection did not refresh (the attacker, or a target left at the same HP).
+      const labelIds=(plan.labelTargetIds || []).filter(id=>!damaged.some(row=>row.item.id===id));
+      if(result.duplicate!==true && labelIds.length && scope.isCurrent()) {
+        try {await refreshLabels(labelIds);}
+        catch(error) {warnings.push(String(error?.message || error));}
+      }
       draft.result={...result,attackInstanceId,outcome:request.outcome,damageComponents:plan.damageComponents,warnings,
         riders:structuredClone(plan.causality.riders || []),extras:structuredClone(plan.causality.extras || []),
+        activations:structuredClone(plan.causality.activations || []),
         followUps:[...(plan.followUps || [])],cantrip:plan.causality.cantrip ? structuredClone(plan.causality.cantrip) : null,
         manualRemainder:plan.options?.history?.payload?.manualRemainder || "",conditions:(plan.causality.conditionsApplied || []).map(entry=>entry.condition),
         target:{id:targetItem.id,name:targetItem.name || targetItem.id},

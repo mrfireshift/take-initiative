@@ -58,6 +58,12 @@ conserva sempre `kind`: `category` non lo sostituisce. `attack` («Attacco») ra
 attacchi dei PG (`pc-attack`) e le azioni dei boss (`monster-action`); gli eventi registrati prima
 della sua introduzione conservano la categoria salvata (`other`).
 
+Il dettaglio di un attacco PG mostra, oltre a esito e danni, le righe "Trucchetto", "Trucchetto con l'arma"
+ed "Extra" e, dalla fase 3A, una riga "Attivazione" per ogni capacità usata al colpo. La riga riporta dado e danno,
+TS con CD ed esito, l'effetto applicato e la risorsa prima → dopo, ad esempio
+"Attivazione: Attacco Minaccioso 1d10 (6 taglienti) · TS Saggezza CD 16 fallito → Spaventato · Dadi di Superiorità 5 → 4".
+Gli effetti sulla mappa (spinte, disarmi) sono righe "Nota".
+
 `facets.hp.targets` contiene before/after di `hp` e `hpMax`, `delta` e
 `hpMaxDelta`. Le facet `conditions`, `spells` e `concentrations` contengono
 `added`, `removed`, `updated` e il dettaglio per target in `targets`. Gli ID di
