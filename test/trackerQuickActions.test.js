@@ -5,6 +5,7 @@ import {
   buildBossActionsLauncher,
   buildTrackerQuickActionLauncher,
   trackerQuickActionSummary,
+  trackerQuickActionsForGroup,
 } from "../src/trackerQuickActions.js";
 
 function createTestDocument() {
@@ -72,10 +73,13 @@ test("costruisce un vero pulsante toggle per il popover", async () => {
   assert.equal(button.textContent, "⚡");
   assert.equal(button.attributes["aria-haspopup"], "menu");
   assert.equal(button.attributes["aria-expanded"], "true");
-  assert.equal(launcher.style.left, "-17px");
-  assert.equal(button.style.width, "22px");
-  assert.equal(button.style.height, "22px");
-  assert.equal(button.style.border, "2px solid #fde047");
+  // The active-turn badge's geometry: an 18px circle with a 2px ring drawn outside, on the portrait rim.
+  assert.equal(launcher.style.left, "-21px");
+  assert.equal(button.style.width, "18px");
+  assert.equal(button.style.height, "18px");
+  assert.equal(button.style.border, "0");
+  assert.match(button.style.boxShadow, /^0 0 0 2px #fde047,/);
+  assert.equal(button.style.fontSize, "12px");
   assert.equal(button.style.borderRadius, "50%");
 
   await button.dispatch("click");
@@ -93,8 +97,8 @@ test("posiziona il launcher in basso a destra rispetto al ritratto nella vista c
 
   assert.ok(launcher);
   assert.equal(launcher.style.left, "auto");
-  assert.equal(launcher.style.right, "18px");
-  assert.equal(launcher.style.top, "35px");
+  assert.equal(launcher.style.right, "20px");
+  assert.equal(launcher.style.top, "37px");
 });
 
 test("non monta il pulsante senza azioni valide", () => {
@@ -167,4 +171,31 @@ test("Boss Actions: icona tonda nello slot delle azioni rapide, rossa se collega
   assert.equal(beside.style.left, "9px", "one slot to the right of ⚡");
   const compact = buildBossActionsLauncher({ bound: true, compact: true, documentRef });
   assert.deepEqual([compact.style.left, compact.style.right, compact.style.top], ["auto", "18px", "35px"]);
+});
+
+test("azioni rapide (⚡) e attacchi (🗡️) hanno ciascuno il proprio launcher, in colonna sopra il badge del turno", () => {
+  const sword = { id: "sword", label: "Spada", kind: "attack", components: [{ type: "slashing" }] };
+  const cantrip = { id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip" } };
+  const actions = [sword, action, cantrip];
+  assert.deepEqual(trackerQuickActionsForGroup(actions, "quick").map((entry) => entry.id), [action.id]);
+  assert.deepEqual(trackerQuickActionsForGroup(actions, "attacks").map((entry) => entry.id), ["sword", "cantrip"]);
+
+  const quick = buildTrackerQuickActionLauncher({ actions, documentRef: createTestDocument() });
+  const attacks = buildTrackerQuickActionLauncher({ actions, group: "attacks", offset: 1, documentRef: createTestDocument() });
+  assert.equal(quick.__quickActionToggle.textContent, "⚡");
+  assert.match(quick.__quickActionToggle.title, /azioni rapide \(1\)/);
+  assert.equal(attacks.__quickActionToggle.textContent, "🗡️");
+  assert.match(attacks.__quickActionToggle.title, /attacchi \(2\)/);
+  assert.equal(attacks.dataset.trackerQuickActions, "attacks");
+  // One column straddling the portrait rim, 6px left of the badge (top 50% + 9.9px); 🗡️ one pitch (22px) above it, ⚡ two.
+  assert.deepEqual([quick.style.left, quick.style.top], ["-21px", "calc(50% - 34.1px)"]);
+  assert.deepEqual([attacks.style.left, attacks.style.top], ["-21px", "calc(50% - 12.1px)"]);
+  assert.match(attacks.__quickActionToggle.style.boxShadow, /^0 0 0 2px #fb923c,/);
+  const compact = buildTrackerQuickActionLauncher({ actions, group: "attacks", offset: 1, compact: true, documentRef: createTestDocument() });
+  assert.equal(compact.style.right, "46px");
+
+  // Only attacks: no ⚡; 🗡️ keeps its own slot, just above the badge.
+  assert.equal(buildTrackerQuickActionLauncher({ actions: [sword], documentRef: createTestDocument() }), null);
+  const alone = buildTrackerQuickActionLauncher({ actions: [sword], group: "attacks", documentRef: createTestDocument() });
+  assert.equal(alone.style.top, "calc(50% - 12.1px)");
 });

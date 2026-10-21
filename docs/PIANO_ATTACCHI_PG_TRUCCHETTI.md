@@ -40,11 +40,11 @@ Tre modalità di consegna:
 
 ## Tranche proposte
 
-1. **C1 — trucchetti con tiro per colpire, bersaglio singolo**: tabella curata, progressione per livello del personaggio, `requires.attack` sui rider, provenienza dell'incantesimo.
-2. **C2 — trucchetti con tiro salvezza**: esiti TS fallito/superato nella console.
-3. **C3 — Deflagrazione Occulta a raggi e rider da incantatore** (Deflagrazione Agonizzante, Incantesimi Potenziati, Colpi Benedetti, Trucchetto Potenziato).
-4. **C4 — trucchetti con arma** (Lama Roboante, Lama Verdefiamma) e secondo bersaglio.
-5. **C5 — effetti al colpo** tramite la pipeline degli incantesimi.
+1. **C1 — trucchetti con tiro per colpire, bersaglio singolo** (fatta, [PIANO_ATTACCHI_PG_C1.md](PIANO_ATTACCHI_PG_C1.md)): tabella curata, progressione per livello del personaggio, `requires.attack` sui rider, provenienza dell'incantesimo.
+2. **C2 — trucchetti con tiro salvezza a bersaglio singolo** (fatta, [PIANO_ATTACCHI_PG_C2.md](PIANO_ATTACCHI_PG_C2.md)): esiti TS fallito/superato nella console. I trucchetti ad area restano per una tranche con disegno dell'area.
+3. **C3 — Deflagrazione Occulta a raggi e rider da incantatore** (fatta, [PIANO_ATTACCHI_PG_C3.md](PIANO_ATTACCHI_PG_C3.md)): Deflagrazione Agonizzante, Incantesimi Potenti, Invocazione Potente, Affinità Elementale, Trucchetto Potente; contatore dei raggi.
+4. **C4 — trucchetti con arma** (fatta, [PIANO_ATTACCHI_PG_C4.md](PIANO_ATTACCHI_PG_C4.md)): Lama Roboante, Lama Verdefiamma con seconda creatura.
+5. **C5 — effetti al colpo** tramite la pipeline degli incantesimi: in gran parte anticipata in C4 (pill e scadenze dei trucchetti dal motore esistente). Resta l'avviso automatico al movimento per Lama Roboante.
 
 ## Decisioni da prendere più avanti
 

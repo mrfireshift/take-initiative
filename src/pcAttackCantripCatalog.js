@@ -1,4 +1,5 @@
-// Attack cantrips (C1): one "Trucchetto" quick action per actor, the cantrip is picked in the attack console.
+// Attack cantrips (C1: attack rolls, C2: single-target saves): one "Trucchetto" quick action per actor, the cantrip
+// is picked in the attack console.
 // A closed, curated table: the spell catalog has no structured dice for cantrips, so the values below are
 // read from the printed texts (PHB 2014, Xanathar) and checked by test/pcAttackCantripCatalog.test.js
 // against the catalog ids. No imports: the quick action sanitizer and the tracker menu stay light.
@@ -6,23 +7,64 @@
 export const PC_ATTACK_CANTRIP_CATALOG_VERSION = 1;
 
 // scaling "dice": the damage dice grow at character levels 5/11/17. "beams": the dice stay, the number of
-// beams grows (Eldritch Blast: one registration per beam). effectNote: what a hit also does, applied by hand
-// (or from the spell panel) until the on-hit effects are automated.
+// beams grows (Eldritch Blast: one registration per beam). The pills a hit (or a failed save) applies come from
+// the spell catalog (SPELL_EFFECTS / SPELL_EXPIRY) through the spell pipeline: they are not repeated here.
+// effectNote: what a hit (or a failed save) also does that no pill represents (a move on the map, an object set
+// on fire), left to the GM and recorded as such. ruleNote: a rule to know before rolling, shown as it is.
 export const PC_ATTACK_CANTRIPS = Object.freeze([
   Object.freeze({ spellId: "fire-bolt", name: "Dardo di fuoco", range: "ranged", type: "fire", dice: "1d10", scaling: "dice",
     effectNote: "Un oggetto infiammabile non indossato né trasportato prende fuoco." }),
   Object.freeze({ spellId: "eldritch-blast", name: "Deflagrazione occulta", range: "ranged", type: "force", dice: "1d10", scaling: "beams" }),
   Object.freeze({ spellId: "chill-touch", name: "Tocco gelido", range: "ranged", type: "necrotic", dice: "1d8", scaling: "dice",
-    effectNote: "Non può recuperare PF fino all'inizio del prossimo turno dell'incantatore; un non morto ha anche svantaggio ai tiri per colpire contro di lui." }),
-  Object.freeze({ spellId: "ray-of-frost", name: "Raggio di gelo", range: "ranged", type: "cold", dice: "1d8", scaling: "dice",
-    effectNote: "Velocità ridotta di 3 metri fino all'inizio del prossimo turno dell'incantatore." }),
+    effectNote: "Se è un non morto: svantaggio ai tiri per colpire contro l'incantatore fino alla fine del prossimo turno dell'incantatore." }),
+  Object.freeze({ spellId: "ray-of-frost", name: "Raggio di gelo", range: "ranged", type: "cold", dice: "1d8", scaling: "dice" }),
   Object.freeze({ spellId: "shocking-grasp", name: "Stretta folgorante", range: "melee", type: "lightning", dice: "1d8", scaling: "dice",
-    effectNote: "Non può effettuare reazioni fino all'inizio del suo prossimo turno. Vantaggio al tiro per colpire contro un'armatura di metallo." }),
+    ruleNote: "Vantaggio al tiro per colpire contro un bersaglio con armatura di metallo." }),
   Object.freeze({ spellId: "produce-flame", name: "Produrre fiamma", range: "ranged", type: "fire", dice: "1d8", scaling: "dice" }),
   Object.freeze({ spellId: "phb2014-frusta-di-spine", name: "Frusta di Spine", range: "melee", type: "piercing", dice: "1d6", scaling: "dice",
     effectNote: "Se è di taglia Grande o inferiore, l'incantatore può trascinarla fino a 3 metri verso di sé." }),
   Object.freeze({ spellId: "xanathar-ferocia-primordiale", name: "Ferocia Primordiale", range: "melee", type: "acid", dice: "1d10", scaling: "dice" }),
+  // C2: single-target saving throw cantrips. The target saves (save: ability); a failure takes the damage,
+  // a success takes none (no cantrip halves it). Toll the Dead uses diceIfDamaged when the target is hurt.
+  Object.freeze({ spellId: "sacred-flame", name: "Fiamma sacra", delivery: "save", save: "dex", range: "ranged", type: "radiant", dice: "1d8", scaling: "dice",
+    ruleNote: "Il bersaglio non trae beneficio dalla copertura per questo tiro salvezza." }),
+  Object.freeze({ spellId: "vicious-mockery", name: "Beffa crudele", delivery: "save", save: "wis", range: "ranged", type: "psychic", dice: "1d4", scaling: "dice" }),
+  Object.freeze({ spellId: "poison-spray", name: "Spruzzo velenoso", delivery: "save", save: "con", range: "ranged", type: "poison", dice: "1d12", scaling: "dice" }),
+  Object.freeze({ spellId: "acid-splash", name: "Fiotto acido", delivery: "save", save: "dex", range: "ranged", type: "acid", dice: "1d6", scaling: "dice",
+    ruleNote: "Un secondo bersaglio entro 1,5 metri dal primo: registralo a parte con lo stesso tiro di danno." }),
+  Object.freeze({ spellId: "xanathar-rintocco-dei-morti", name: "Rintocco dei Morti", delivery: "save", save: "wis", range: "ranged", type: "necrotic",
+    dice: "1d8", diceIfDamaged: "1d12", scaling: "dice" }),
+  Object.freeze({ spellId: "xanathar-infestazione", name: "Infestazione", delivery: "save", save: "con", range: "ranged", type: "poison", dice: "1d6", scaling: "dice",
+    effectNote: "Si muove di 1,5 metri in una direzione casuale (d4: 1 nord, 2 sud, 3 est, 4 ovest), senza provocare attacchi di opportunità." }),
+  Object.freeze({ spellId: "xanathar-morsa-del-gelo", name: "Morsa del Gelo", delivery: "save", save: "con", range: "ranged", type: "cold", dice: "1d6", scaling: "dice" }),
+  Object.freeze({ spellId: "tasha-scheggia-della-mente", name: "Scheggia della Mente", delivery: "save", save: "int", range: "ranged", type: "psychic", dice: "1d6", scaling: "dice" }),
+  Object.freeze({ spellId: "tasha-lenza-elettrizzante", name: "Lenza Elettrizzante", delivery: "save", save: "str", range: "ranged", type: "lightning", dice: "1d8", scaling: "dice",
+    effectNote: "Trascinato fino a 3 metri verso l'incantatore; subisce il danno solo se arriva entro 1,5 metri da lui (altrimenti registra 0)." }),
+  // C4: cantrips cast as part of a melee weapon attack. They are not picked in the cantrip console: a melee weapon
+  // attack offers them when the actor knows them (ticked in a cantrip quick action, or that action offers all).
+  // From 5th level the hit deals hitDice extra; Booming Blade leaves a pill whose movement damage is triggerDice;
+  // Green-Flame Blade jumps to a second creature: spellcasting modifier (+ secondaryDice from 5th level).
+  Object.freeze({ spellId: "tasha-lama-roboante", name: "Lama Roboante", delivery: "weapon", type: "thunder", dice: "1d8", scaling: "weapon",
+    trigger: true }),
+  Object.freeze({ spellId: "tasha-lama-verdefiamma", name: "Lama Verdefiamma", delivery: "weapon", type: "fire", dice: "1d8", scaling: "weapon",
+    secondary: true }),
 ]);
+
+// Booming Blade / Green-Flame Blade at this character level: the extra dice on the hit (none before 5th), the
+// movement damage of Booming Blade's pill, the second creature's dice of Green-Flame Blade (plus the modifier).
+export function pcAttackWeaponCantripDice(cantrip, characterLevel) {
+  if (cantrip?.delivery !== "weapon") return null;
+  const tier = pcAttackCantripTier(characterLevel);
+  const [, , sides] = /^(\d+)d(\d+)$/u.exec(cantrip.dice) || [];
+  const dice = (count) => (count > 0 ? `${count}d${sides}` : "");
+  return {
+    hit: dice(tier - 1),
+    ...(cantrip.trigger ? { trigger: dice(tier) } : {}),
+    ...(cantrip.secondary ? { secondary: tier > 1 ? `${dice(tier - 1)} + mod.` : "mod." } : {}),
+  };
+}
+
+export const PC_ATTACK_SAVE_LABELS = Object.freeze({ str: "Forza", dex: "Destrezza", con: "Costituzione", int: "Intelligenza", wis: "Saggezza", cha: "Carisma" });
 
 const CANTRIP_BY_ID = new Map(PC_ATTACK_CANTRIPS.map((cantrip) => [cantrip.spellId, cantrip]));
 
@@ -37,11 +79,13 @@ export function pcAttackCantripTier(characterLevel) {
 }
 
 // The dice the GM rolls for one attack with this cantrip ("2d10"); Eldritch Blast keeps 1d10 per beam.
-export function pcAttackCantripDice(cantrip, characterLevel) {
+// targetDamaged: Toll the Dead rolls its larger die against a creature missing hit points.
+export function pcAttackCantripDice(cantrip, characterLevel, { targetDamaged = false } = {}) {
   if (!cantrip) return null;
-  if (cantrip.scaling !== "dice") return cantrip.dice;
-  const [, count, sides] = /^(\d+)d(\d+)$/u.exec(cantrip.dice) || [];
-  return count ? `${Number(count) * pcAttackCantripTier(characterLevel)}d${sides}` : cantrip.dice;
+  const base = targetDamaged && cantrip.diceIfDamaged ? cantrip.diceIfDamaged : cantrip.dice;
+  if (cantrip.scaling !== "dice") return base;
+  const [, count, sides] = /^(\d+)d(\d+)$/u.exec(base) || [];
+  return count ? `${Number(count) * pcAttackCantripTier(characterLevel)}d${sides}` : base;
 }
 
 // Eldritch Blast: the beams this caster fires (each beam is its own attack roll and registration).

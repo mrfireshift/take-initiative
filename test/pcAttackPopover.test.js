@@ -12,7 +12,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
-  "pc-attack-cantrip-note"];
+  "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra"]);
 function createDocument() {
   const doc = {
@@ -57,7 +57,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
   const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId: "holy-sword", schedule: (callback) => setTimeout(callback, 0),
     undo: async (entryId) => { undoCalls.push(entryId); return { ok: true }; } });
   const $ = (id) => documentRef.getElementById(id);
-  return { $, controller, calls, undoCalls, runtime,
+  return { $, controller, calls, undoCalls, runtime, items,
     select: async (ids) => { selection = ids; for (const listener of listeners.player) listener({ selection: ids }); await tick(); },
     outcome: (value) => $("pc-attack-outcomes").querySelector(`[data-outcome="${value}"]`),
     inputs: () => $("pc-attack-damage").querySelectorAll("input"),
@@ -247,7 +247,8 @@ test("a cantrip action: pick the cantrip, its dice follow the character level, n
   picker.value = "shocking-grasp"; await picker.emit("change");
   assert.equal(f.$("pc-attack-subtitle").textContent, "Aria · Trucchetto · Mischia");
   assert.match(textOf(f.$("pc-attack-damage")), /Fulmine 2d8/);
-  assert.match(f.$("pc-attack-cantrip-note").textContent, /Al colpo, da applicare a mano: Non può effettuare reazioni/);
+  assert.equal(f.$("pc-attack-cantrip-note").textContent,
+    "Vantaggio al tiro per colpire contro un bersaglio con armatura di metallo. Al colpo: pill «Niente reazioni».");
   await f.select(["ghoul"]);
   await f.outcome("hit").click();
   await typeAmounts(f, ["9"]);
@@ -259,4 +260,107 @@ test("a cantrip action: pick the cantrip, its dice follow the character level, n
 test("a weapon action shows no cantrip picker", async () => {
   const f = fixture(); await f.controller.ready;
   assert.equal(f.$("pc-attack-cantrip-row").hidden, true);
+});
+
+test("a saving throw cantrip: TS outcomes, the save in the subtitle, Toll the Dead's die follows the target", async () => {
+  const action = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack",
+    source: { kind: "cantrip", spellIds: ["fire-bolt", "xanathar-rintocco-dei-morti"] } });
+  const f = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "chierico", level: 5 }], spellSaveDC: 14 } }, turnState: ownTurn });
+  await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  const picker = f.$("pc-attack-cantrip");
+  assert.equal(picker.children[1].textContent, "Rintocco dei Morti · TS Saggezza");
+  picker.value = "xanathar-rintocco-dei-morti"; await picker.emit("change");
+  assert.equal(f.controller.getDraft().outcome, "", "an attack outcome does not carry over to a save");
+  assert.deepEqual(f.$("pc-attack-outcomes").children.map((button) => button.textContent), ["TS fallito", "TS superato"]);
+  assert.equal(f.$("pc-attack-subtitle").textContent, "Aria · Trucchetto · TS Saggezza (CD 14)");
+  assert.match(textOf(f.$("pc-attack-damage")), /Necrotici 2d8/);
+  assert.equal(f.$("pc-attack-cantrip-note").hidden, true, "Toll the Dead has no note");
+  picker.value = "fire-bolt"; await picker.emit("change");
+  assert.match(f.$("pc-attack-cantrip-note").textContent, /^Al colpo, da applicare a mano/);
+  picker.value = "xanathar-rintocco-dei-morti"; await picker.emit("change");
+  f.items[1].metadata["com.thebigpicture.initiative/meta"].hp = 20;
+  await f.select(["imp"]); await f.select(["ghoul"]);
+  assert.match(textOf(f.$("pc-attack-damage")), /Necrotici 2d12/, "a hurt target: the d12s");
+  await f.outcome("failed").click();
+  assert.equal(f.$("pc-attack-extras-section").hidden, false);
+  assert.equal(f.$("pc-attack-extras-caption").textContent, "Extra al danno");
+  await typeAmounts(f, ["15"]);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual([f.calls[0].spellId, f.calls[0].outcome, f.calls[0].componentAmounts], ["xanathar-rintocco-dei-morti", "failed", { c1: 15 }]);
+  assert.equal(resultSummary({ outcome: "passed", target: { name: "Ghoul" } }), "Registrato: TS superato su Ghoul.");
+});
+
+test("Eldritch Blast: the console counts the beams registered; Potent Cantrip is noted on saving throw cantrips", async () => {
+  const action = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["eldritch-blast", "poison-spray"] } });
+  const f = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "warlock", level: 5 }] } }, turnState: ownTurn });
+  await f.controller.ready;
+  await f.select(["ghoul"]);
+  const note = () => f.$("pc-attack-cantrip-note").textContent;
+  assert.match(note(), /^Raggi: 2 al livello del personaggio\. Registra/);
+  for (const amount of ["7", "4"]) {
+    await f.outcome("hit").click(); await typeAmounts(f, [amount]);
+    await f.$("pc-attack-apply").click(); await tick();
+  }
+  assert.equal(f.calls.length, 2);
+  assert.match(note(), /^Raggi: registrati tutti e 2\./);
+  const wizard = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "mago", level: 6, subclassId: "mago-scuola-di-invocazione" }] } } });
+  await wizard.controller.ready;
+  const picker = wizard.$("pc-attack-cantrip"); picker.value = "poison-spray"; await picker.emit("change");
+  assert.match(wizard.$("pc-attack-cantrip-note").textContent, /Trucchetto Potente: con il TS superato subisce metà danni/);
+  await wizard.outcome("passed").click();
+  assert.equal(wizard.inputs()[0].disabled, false, "half damage to enter on a passed save");
+});
+
+test("weapon cantrips in a melee weapon attack: Booming Blade's pill note, Green-Flame Blade's second creature", async () => {
+  const attacker = { initiativeCard: { characterBuild: [{ classId: "ladro", level: 5 }],
+    quickActions: [sword, { id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["tasha-lama-roboante", "tasha-lama-verdefiamma"] } }] } };
+  const f = fixture({ attacker, turnState: ownTurn }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  const woven = f.$("pc-attack-woven");
+  const field = (name) => woven.querySelector(`[data-woven-field="${name}"]`);
+  assert.equal(woven.hidden, false);
+  assert.deepEqual(field("spell").children.map((option) => option.textContent), ["Nessuno", "Lama Roboante", "Lama Verdefiamma"]);
+  field("spell").value = "tasha-lama-roboante"; await field("spell").emit("change");
+  assert.match(field("meta").textContent, /1d8 tuono · pill «Movimento: danni tuono» \(2d8\)/);
+  assert.equal(field("amount").hidden, false);
+  field("spell").value = "tasha-lama-verdefiamma"; await field("spell").emit("change");
+  assert.deepEqual(field("secondary").children.map((option) => option.value), ["", "imp"], "the target is never its own second creature");
+  field("secondary").value = "imp"; await field("secondary").emit("change");
+  await typeAmounts(f, ["8", "0"]);
+  field("amount").value = "4"; await field("amount").emit("input");
+  field("secondaryAmount").value = "5"; await field("secondaryAmount").emit("input");
+  assert.match(field("secondaryMeta").textContent, /1d8 \+ mod\. fuoco · PF 10 → 5/);
+  assert.match(textOf(f.$("pc-attack-total")), /12 danni · PF 30 → 18 · seconda: 5/);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual(f.calls[0].weaponCantrip, { spellId: "tasha-lama-verdefiamma", amount: 4, secondary: { targetId: "imp", amount: 5 } });
+  assert.deepEqual(f.calls[0].expectedSecondaryDefenses, { immunities: [], resistances: [], vulnerabilities: [] });
+  assert.match(f.$("pc-attack-status").textContent, /^Registrato/, "no error after the commit");
+  assert.equal(field("spell").value, "", "a fresh draft for the next attack");
+  assert.equal(field("secondary"), null);
+});
+
+test("the result summary names the weapon cantrip, the second creature and Potent Cantrip's half damage", () => {
+  assert.equal(resultSummary({ outcome: "hit", target: { name: "Dars" }, damageComponents: [{ amount: 8 }, { amount: 4 }], hpChange: { before: 60, after: 48 },
+    weaponCantrip: { name: "Lama Verdefiamma" }, secondary: { name: "Sera", before: 38, after: 33 } }),
+    "Registrato: Colpito, 12 danni a Dars. PF 60 → 48. Extra: Lama Verdefiamma. Sera: PF 38 → 33.");
+  assert.equal(resultSummary({ outcome: "passed", target: { name: "Goblin" }, damageComponents: [{ amount: 5 }], hpChange: { before: 30, after: 25 } }),
+    "Registrato: TS superato, 5 danni a Goblin. PF 30 → 25.");
+});
+
+test("the cantrip console points to the melee weapon attack for Booming Blade and Green-Flame Blade", async () => {
+  const action = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip" } });
+  const withSword = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "mago", level: 5 }], quickActions: [sword, action] } } });
+  await withSword.controller.ready;
+  assert.equal(withSword.$("pc-attack-cantrip").children.some((option) => /Lama/.test(option.textContent)), false);
+  assert.match(withSword.$("pc-attack-cantrip-note").textContent,
+    /Lama Roboante e Lama Verdefiamma: usale dall'attacco con arma da mischia \(Extra al colpo › Trucchetto con l'arma\)\./);
+  const onlyCantrips = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "mago", level: 5 }], quickActions: [action] } } });
+  await onlyCantrips.controller.ready;
+  assert.match(onlyCantrips.$("pc-attack-cantrip-note").textContent, /aggiungi all'attore un'azione Attacco con arma da mischia per usarle\./);
+  const fireOnly = fixture({ action: sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["fire-bolt"] } }) });
+  await fireOnly.controller.ready;
+  assert.doesNotMatch(fireOnly.$("pc-attack-cantrip-note").textContent, /Lama/);
 });

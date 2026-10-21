@@ -2,6 +2,9 @@ import { getPcAttackCantrip } from "./pcAttackCantripCatalog.js";
 
 export const QUICK_ACTION_VERSION = 2;
 export const MAX_QUICK_ACTIONS = 12;
+// Attacks share the quickActions storage but are a list of their own (own tab in the card, own ⚔ launcher
+// on the tracker card), with their own limit.
+export const MAX_QUICK_ACTION_ATTACKS = 8;
 
 export const QUICK_ACTION_KINDS = Object.freeze([
   "spell",
@@ -159,17 +162,56 @@ export function sanitizeQuickAction(value) {
   };
 }
 
-export function sanitizeQuickActions(values, { limit = MAX_QUICK_ACTIONS } = {}) {
+// Attacks pasted into the Attacks tab: a JSON array of attacks, or { attacks: [...] } (other fields, such as
+// the character's name, are ignored). Each entry is validated as an attack quick action; the ids are the
+// caller's. Nothing is saved here: the attacks become editor rows to review.
+export function parseQuickActionAttackImport(text) {
+  let data;
+  try {
+    data = JSON.parse(String(text ?? ""));
+  } catch {
+    return { attacks: [], invalid: 0, error: "Blocco non leggibile: incollalo così com'è." };
+  }
+  const entries = Array.isArray(data) ? data : Array.isArray(data?.attacks) ? data.attacks : null;
+  if (!entries) return { attacks: [], invalid: 0, error: "Nel blocco non c'è un elenco di attacchi." };
+  const attacks = [];
+  let invalid = 0;
+  for (const entry of entries) {
+    const attack = entry && typeof entry === "object"
+      ? sanitizeQuickAction({ ...entry, id: "import", kind: "attack" })
+      : null;
+    if (!attack) {
+      invalid += 1;
+      continue;
+    }
+    const { id: _id, ...draft } = attack;
+    attacks.push(draft);
+  }
+  return { attacks, invalid, error: "" };
+}
+
+export function isAttackQuickAction(action) {
+  return action?.kind === "attack";
+}
+
+// limit caps the quick actions, attackLimit the attacks: each list counts on its own.
+export function sanitizeQuickActions(values, { limit = MAX_QUICK_ACTIONS, attackLimit = MAX_QUICK_ACTION_ATTACKS } = {}) {
   const source = Array.isArray(values) ? values : [];
   const maximum = Math.max(1, Math.min(256, Math.floor(Number(limit) || MAX_QUICK_ACTIONS)));
+  const attackMaximum = Math.max(1, Math.min(256, Math.floor(Number(attackLimit) || MAX_QUICK_ACTION_ATTACKS)));
   const seen = new Set();
   const actions = [];
+  let quickCount = 0;
+  let attackCount = 0;
   for (const value of source) {
     const action = sanitizeQuickAction(value);
     if (!action || seen.has(action.id)) continue;
+    const attack = isAttackQuickAction(action);
+    if (attack ? attackCount >= attackMaximum : quickCount >= maximum) continue;
     seen.add(action.id);
     actions.push(action);
-    if (actions.length >= maximum) break;
+    if (attack) attackCount += 1;
+    else quickCount += 1;
   }
   return actions;
 }

@@ -185,7 +185,7 @@ import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { executeSpellBoardTokenStateUpdate } from "./spellApplicationExecutor.js";
 import { DELAYED_BLAST_FIREBALL_ID } from "./delayedBlastFireballRules.js";
 import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
-import { buildBossActionsLauncher, buildTrackerQuickActionLauncher } from "./trackerQuickActions.js";
+import { buildBossActionsLauncher, buildTrackerQuickActionLauncher, trackerQuickActionsForGroup } from "./trackerQuickActions.js";
 import {
   CLASS_FEATURE_BY_ID,
   buildClassFeatureContextEntries,
@@ -7543,6 +7543,8 @@ let __trackerQuickActionsPopover = null;
 let __trackerQuickActionsRequestId = "";
 let __trackerQuickActionsContext = null;
 let __trackerQuickActionsSourceId = "";
+// "quick" (⚡) or "attacks" (⚔): which of the card's two launchers opened the menu.
+let __trackerQuickActionsGroup = "";
 let __trackerQuickActionsButton = null;
 let __trackerQuickActionsRevision = 0;
 
@@ -7578,6 +7580,7 @@ function __closeTrackerQuickActionsPopover() {
   __trackerQuickActionsRequestId = "";
   __trackerQuickActionsContext = null;
   __trackerQuickActionsSourceId = "";
+  __trackerQuickActionsGroup = "";
   __trackerQuickActionsButton = null;
   __trackerQuickActionsRevision += 1;
   return closePromise;
@@ -8099,26 +8102,33 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {})
     return;
   }
   const sourceId = splitParagonId(sourceEntry.id).baseId;
-  const expanded = !!__trackerQuickActionsRequestId
-    && __trackerQuickActionsSourceId === sourceId;
-  const launcher = buildTrackerQuickActionLauncher({
-    actions: sourceEntry.quickActions,
-    compact,
-    expanded,
-    onToggle: (button, event) => {
-      void __toggleTrackerQuickActionsPopover(sourceEntry, button, event);
-    },
-  });
-  if (launcher) {
+  // The quick actions (⚡) and, beside them, the attacks (⚔): two launchers, two menus.
+  let launchers = 0;
+  for (const group of ["quick", "attacks"]) {
+    const expanded = !!__trackerQuickActionsRequestId
+      && __trackerQuickActionsSourceId === sourceId
+      && __trackerQuickActionsGroup === group;
+    const launcher = buildTrackerQuickActionLauncher({
+      actions: sourceEntry.quickActions,
+      group,
+      offset: launchers,
+      compact,
+      expanded,
+      onToggle: (button, event) => {
+        void __toggleTrackerQuickActionsPopover(sourceEntry, button, event, group);
+      },
+    });
+    if (!launcher) continue;
     if (expanded) __trackerQuickActionsButton = launcher.__quickActionToggle;
     card.appendChild(launcher);
+    launchers += 1;
   }
-  // Boss Actions: a round icon in the quick-actions slot (Epic Bosses have no quick actions; otherwise beside ⚡).
+  // Boss Actions: a round icon in the quick-actions slot (Epic Bosses have no quick actions; otherwise after ⚡ and ⚔).
   if (sourceEntry.isEpic || sourceEntry.bossActionBinding) {
     const bossLauncher = buildBossActionsLauncher({
       bound: !!sourceEntry.bossActionBinding,
       compact,
-      offset: launcher ? 1 : 0,
+      offset: launchers,
       iconUrl: (import.meta.env.BASE_URL || "/") + "boss.svg",
       onOpen: () => {
         void openBossActionsPopover(sourceId);
@@ -8278,7 +8288,7 @@ function mountTrackerQuickActionsPopoverListener() {
     const actionId = String(data.actionId || "").trim();
     const action = sanitizeQuickActions(
       context.sourceEntry?.quickActions,
-      { limit: 64 },
+      { limit: 64, attackLimit: 64 },
     ).find((entry) => entry.id === actionId);
     if (!action) return;
     const { sourceEntry } = context;
@@ -8308,12 +8318,16 @@ function __disabledTrackerQuickActionIds(sourceEntry, actions) {
     .map((action) => action.id);
 }
 
-function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
+function __toggleTrackerQuickActionsPopover(sourceEntry, button, event, group = "quick") {
   const sceneEpoch = currentSceneEpoch();
   if (!__isCurrentSceneOperation(sceneEpoch, "tracker-quick-actions-open")) return;
   const sourceId = splitParagonId(sourceEntry?.id).baseId;
   if (!sourceId) return;
-  if (__trackerQuickActionsRequestId && __trackerQuickActionsSourceId === sourceId) {
+  if (
+    __trackerQuickActionsRequestId
+    && __trackerQuickActionsSourceId === sourceId
+    && __trackerQuickActionsGroup === group
+  ) {
     void __closeTrackerQuickActionsPopover();
     return;
   }
@@ -8324,14 +8338,14 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
   ];
   const openRevision = __trackerQuickActionsRevision;
   const requestId = createMenuRequestId();
-  const actions = sanitizeQuickActions(sourceEntry.quickActions, { limit: 64 });
+  const actions = trackerQuickActionsForGroup(sourceEntry.quickActions, group);
   const disabledActionIds = __disabledTrackerQuickActionIds(sourceEntry, actions);
   if (!actions.length || !writeStoredMenuPayload(
     localStorage,
     TRACKER_QUICK_ACTIONS_PAYLOAD_PREFIX,
     requestId,
     {
-      title: `${sourceEntry.name || "Personaggio"} · Azioni rapide`,
+      title: `${sourceEntry.name || "Personaggio"} · ${group === "attacks" ? "Attacchi" : "Azioni rapide"}`,
       sourceId,
       actions,
       ...(disabledActionIds.length ? { disabledActionIds } : {}),
@@ -8344,6 +8358,7 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
   __trackerQuickActionsRequestId = requestId;
   __trackerQuickActionsContext = { sourceEntry, sceneEpoch };
   __trackerQuickActionsSourceId = sourceId;
+  __trackerQuickActionsGroup = group;
   __trackerQuickActionsButton = button;
   button.setAttribute("aria-expanded", "true");
   const placementPromise = __getInitiativeCardContextMenuPlacement(event);

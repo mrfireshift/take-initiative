@@ -64,7 +64,27 @@ export const PC_ATTACK_RIDERS = Object.freeze([
   Object.freeze({ id: "warlock-suppliche-occulte-punizione-occulta", label: "Punizione Occulta", dice: Object.freeze({ slot: Object.freeze({ atFirst: 2 }) }),
     type: "force", limit: ONCE_PER_TURN, slot: Object.freeze({ pact: true }),
     onHit: Object.freeze({ condition: "Prono", label: "Prono (taglia Enorme o inferiore)" }) }),
+  // C3: casters' riders on cantrips (spellOnly: never on a weapon). The catalog lists no class spell lists nor
+  // the school of every cantrip, so only Agonizing Blast is limited to its spell; for the others the label
+  // names their scope and the GM applies them where they belong.
+  Object.freeze({ id: "warlock-suppliche-occulte-deflagrazione-agonizzante", label: "Deflagrazione Agonizzante",
+    dice: Object.freeze({ ability: "cha", minimum: 0 }), type: "weapon", limit: null, spellOnly: true,
+    spellIds: Object.freeze(["eldritch-blast"]), spellReason: "Solo per la Deflagrazione occulta." }),
+  ...["conoscenza", "luce", "tomba", "pace"].map((domain) => Object.freeze({ id: `chierico-dominio-della-${domain}-incantesimi-potenti`,
+    label: "Incantesimi Potenti (trucchetti da chierico)", dice: Object.freeze({ ability: "wis", minimum: 0 }), type: "weapon", limit: null, spellOnly: true })),
+  Object.freeze({ id: "mago-scuola-di-invocazione-invocazione-potente", label: "Invocazione Potente (incantesimi di invocazione)",
+    dice: Object.freeze({ ability: "int", minimum: 0 }), type: "weapon", limit: null, spellOnly: true }),
+  Object.freeze({ id: "stregone-discendenza-draconica-affinita-elementale", label: "Affinità Elementale (tipo della discendenza)",
+    dice: Object.freeze({ ability: "cha", minimum: 0 }), type: "weapon", limit: null, spellOnly: true }),
 ]);
+
+// Potent Cantrip (School of Evocation, 6th level): a creature that passes the save against a damaging cantrip
+// takes half the damage instead of none. Not a rider: it changes what a passed save deals.
+export const PC_ATTACK_POTENT_CANTRIP_FEATURE_ID = "mago-scuola-di-invocazione-trucchetto-potente";
+
+export function pcAttackHasPotentCantrip(card = {}) {
+  return getEnabledClassFeatures(card || {}).some((feature) => feature.id === PC_ATTACK_POTENT_CANTRIP_FEATURE_ID);
+}
 
 export const PC_ATTACK_SLOT_LEVELS = Object.freeze([1, 2, 3, 4, 5]);
 // Pact Magic: every warlock slot has the same level (PHB 2014 warlock table).

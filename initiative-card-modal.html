@@ -81,13 +81,15 @@
     .edit { min-height:28px; padding:4px 10px; border-color:rgba(var(--faction-rgb),.38); background:rgba(var(--faction-rgb),.10); }
     .close { width:28px; min-height:28px; padding:0; border-color:transparent; background:transparent; font-size:18px; line-height:1; }
     .card-tabs {
-      position:relative; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; margin:0 0 12px; padding:3px;
+      position:relative; display:grid; grid-auto-flow:column; grid-auto-columns:auto; gap:3px; margin:0 0 12px; padding:3px;
       border:1px solid rgba(var(--faction-rgb),.24); border-radius:10px; background:rgba(0,0,0,.20);
     }
     .card-tab {
-      min-width:0; min-height:32px; display:flex; align-items:center; justify-content:center; gap:6px;
-      border:0; border-radius:7px; background:transparent; color:rgba(255,255,255,.64); font-weight:var(--obrt-weight-bold);
+      min-width:0; min-height:32px; padding:0 6px; display:flex; align-items:center; justify-content:center; gap:4px;
+      border:0; border-radius:7px; font-size:11px; background:transparent; color:rgba(255,255,255,.64); font-weight:var(--obrt-weight-bold);
     }
+    .card-tab[hidden] { display:none; }
+    .card-tab > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .card-tab[aria-selected="true"] {
       background:linear-gradient(145deg,rgba(var(--faction-rgb),.24),rgba(var(--faction-rgb),.10));
       color:#fff; box-shadow:inset 0 0 0 1px rgba(var(--faction-rgb),.40);
@@ -252,6 +254,12 @@
     .quick-action-icon-button { width:32px; min-height:32px; padding:0; border-radius:10px; font-size:16px; line-height:1; }
     .quick-action-section .quick-action-add { justify-self:start; }
     .quick-action-add { min-height:26px; padding:3px 9px; border-radius:8px; border-color:rgba(var(--faction-rgb),.38); background:rgba(var(--faction-rgb),.10); }
+    .quick-actions-heading-tools { display:flex; gap:4px; }
+    .attack-import { display:grid; gap:6px; margin-top:8px; }
+    .attack-import[hidden] { display:none !important; }
+    .attack-import textarea { width:100%; min-height:96px; box-sizing:border-box; padding:6px 8px; border-radius:10px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:11px/1.35 ui-monospace,Consolas,monospace; resize:vertical; }
+    .attack-import-actions { display:flex; justify-content:flex-end; gap:4px; }
+    #attackImportStatus:empty { display:none; }
     .status { min-height:16px; margin-top:8px; color:#fca5a5; font-size:11px; }
     .purifying-spell-modal-backdrop {
       position:fixed; inset:0; z-index:100; display:grid; place-items:center; padding:12px;
@@ -316,6 +324,9 @@
       <button id="quickActionsTab" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="quickActionsView">
         <span>Azioni rapide</span><span id="quickActionsTabCount" class="tab-count">0</span>
       </button>
+      <button id="attacksTab" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="attacksView" hidden>
+        <span>Attacchi</span><span id="attacksTabCount" class="tab-count">0</span>
+      </button>
       <button id="classFeaturesTab" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="classFeaturesView">
         <span>Capacità</span><span id="classFeaturesTabCount" class="tab-count">0</span>
       </button>
@@ -344,6 +355,13 @@
         <div class="quick-actions-heading"><span class="section-title">Azioni rapide</span></div>
         <div id="quickActions" class="quick-actions-list"></div>
         <div id="quickActionRunStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
+      </section>
+    </section>
+    <section id="attacksView" role="tabpanel" aria-labelledby="attacksTab" hidden>
+      <section class="quick-actions-block">
+        <div class="quick-actions-heading"><span class="section-title">Attacchi</span></div>
+        <div id="attacks" class="quick-actions-list"></div>
+        <div id="attackRunStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
       </section>
     </section>
     <section id="classFeaturesView" role="tabpanel" aria-labelledby="classFeaturesTab" hidden>
@@ -382,6 +400,24 @@
         <div id="quickActionEditorList" class="quick-actions-editor-list"></div>
         <datalist id="quickActionSpellOptions"></datalist>
         <datalist id="quickActionConditionOptions"></datalist>
+      </section>
+      <section id="attacksEditPane" class="quick-actions-editor edit-pane" hidden>
+        <div class="quick-actions-heading">
+          <span class="section-title">Attacchi</span>
+          <span class="quick-actions-heading-tools">
+            <button id="attackImportToggle" class="quick-action-add" type="button" aria-expanded="false" aria-controls="attackImport">Importa</button>
+            <button id="attackAdd" class="quick-action-add" type="button">+ Aggiungi</button>
+          </span>
+        </div>
+        <div id="attackImport" class="attack-import" hidden>
+          <textarea id="attackImportText" spellcheck="false" autocomplete="off" aria-label="Blocco degli attacchi da importare" placeholder="Incolla qui il blocco degli attacchi"></textarea>
+          <div class="attack-import-actions">
+            <button id="attackImportCancel" class="quick-action-add" type="button">Annulla</button>
+            <button id="attackImportApply" class="quick-action-add" type="button">Aggiungi all'elenco</button>
+          </div>
+        </div>
+        <div id="attackImportStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
+        <div id="attackEditorList" class="quick-actions-editor-list"></div>
       </section>
       <section id="classFeaturesEditPane" class="edit-pane" hidden>
         <span class="section-title">Specie</span>

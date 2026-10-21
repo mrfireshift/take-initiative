@@ -585,7 +585,16 @@ function causalityDetailLines(event) {
   const cantripName = stringValue(rawAttack?.cantrip?.name);
   if (cantripName) {
     const cantripDice = stringValue(rawAttack.cantrip.dice);
-    lines.push(`Trucchetto: ${cantripName}${cantripDice ? ` (${cantripDice})` : ""}`);
+    const saveLabel = stringValue(rawAttack.cantrip.saveLabel);
+    lines.push(`Trucchetto: ${cantripName}${cantripDice ? ` (${cantripDice})` : ""}${saveLabel ? ` · ${saveLabel}` : ""}`);
+  }
+  // A weapon cantrip woven into the attack (Booming Blade, Green-Flame Blade).
+  const wovenName = stringValue(rawAttack?.weaponCantrip?.name);
+  if (wovenName) {
+    const woven = rawAttack.weaponCantrip;
+    const parts = [stringValue(woven.dice), stringValue(woven.triggerDice) ? `movimento ${woven.triggerDice}` : "",
+      stringValue(woven.secondaryDice) ? `seconda creatura ${woven.secondaryDice}` : ""].filter(Boolean);
+    lines.push(`Trucchetto con l'arma: ${wovenName}${parts.length ? ` (${parts.join(" · ")})` : ""}`);
   }
   for (const extra of [
     ...(Array.isArray(rawAttack?.riders) ? rawAttack.riders : []),

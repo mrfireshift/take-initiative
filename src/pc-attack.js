@@ -2,9 +2,11 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { createPcAttackRuntime } from "./pcAttackExecution.js";
-import { PC_ATTACK_OUTCOMES, PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint,
-  pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction } from "./pcAttackCore.js";
-import { getPcAttackCantrip, pcAttackCantripBeams } from "./pcAttackCantripCatalog.js";
+import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint,
+  pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
+  pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds } from "./pcAttackCore.js";
+import { pcAttackHasPotentCantrip } from "./pcAttackRiderCatalog.js";
+import { getPcAttackCantrip, pcAttackCantripBeams, PC_ATTACK_SAVE_LABELS } from "./pcAttackCantripCatalog.js";
 import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel } from "./bossActionsViewCore.js";
@@ -30,7 +32,7 @@ async function defaultPcAttackUndo(entryId,{epoch}) {
 function emptyDraft(action,targetId=null,spellId="") {
   const components=pcAttackResolvedAction(action,spellId)?.components || [];
   return {targetId,spellId,outcome:"",amounts:Object.fromEntries(components.map(component=>[component.id,""])),ignored:[],
-    riders:{},extras:[],attackInstanceId:newAttackId()};
+    riders:{},extras:[],woven:{spellId:"",amount:"",secondaryTargetId:"",secondaryAmount:""},attackInstanceId:newAttackId()};
 }
 // The cantrip a cantrip action opens with: the one this attacker used last, when this action still offers it.
 export function defaultCantripId(action,sourceItem) {
@@ -41,11 +43,19 @@ export function defaultCantripId(action,sourceItem) {
 // The map selection drives the target until the GM has decided something for this attack.
 const draftLocked=draft=>!!draft.outcome || Object.values(draft.amounts).some(value=>value!=="")
   || Object.values(draft.riders).some(rider=>rider.on) || draft.extras.length>0;
-const hits=outcome=>outcome==="hit" || outcome==="critical";
+// The outcomes that deal damage: a hit, a critical, a failed save (a miss and a passed save deal none).
+const hits=outcome=>outcome==="hit" || outcome==="critical" || outcome==="failed";
 // Riders and extra components only exist on a hit; a miss sends neither.
 export function chosenRiders(draft) {
   return hits(draft?.outcome) ? Object.entries(draft.riders || {}).filter(([,rider])=>rider.on).map(([id,rider])=>({id,type:rider.type,amount:rider.amount,
     ...(rider.slotLevel?{slotLevel:rider.slotLevel}:{}),...(rider.bonus?{bonus:true}:{}),...(rider.onHit?{onHit:true}:{})})) : [];
+}
+// The weapon cantrip woven into a melee weapon attack (only on a hit), with Green-Flame Blade's second creature.
+export function chosenWeaponCantrip(draft) {
+  const woven=draft?.woven;
+  if(!hits(draft?.outcome) || !woven?.spellId) return null;
+  return {spellId:woven.spellId,amount:woven.amount,
+    ...(woven.secondaryTargetId?{secondary:{targetId:woven.secondaryTargetId,amount:woven.secondaryAmount}}:{})};
 }
 export function chosenExtras(draft) {
   return hits(draft?.outcome) ? (draft.extras || []).map(extra=>({type:extra.type,amount:extra.amount,label:extra.label})) : [];
@@ -55,12 +65,15 @@ const typeLabel=type=>{const label=damageTypeLabel(type);return label.charAt(0).
 export function resultSummary(result) {
   const outcome=PC_ATTACK_OUTCOME_LABELS[result?.outcome] || "";
   const name=result?.target?.name || "bersaglio";
-  if(result?.outcome==="miss") return `Registrato: ${outcome} su ${name}.`;
+  // No damage at all: a miss or a passed save (Potent Cantrip still deals half on a passed save).
+  if((result?.outcome==="miss" || result?.outcome==="passed") && !result?.hpChange) return `Registrato: ${outcome} su ${name}.`;
   const hp=result?.hpChange?` PF ${result.hpChange.before} → ${result.hpChange.after}.`:"";
   const damage=(result?.damageComponents || []).reduce((sum,component)=>sum+(Number(component.amount) || 0),0);
-  const extras=[...(result?.riders || []).map(rider=>rider.name),...(result?.extras || []).map(extra=>extra.label || extra.typeLabel)];
+  const extras=[...(result?.weaponCantrip?[result.weaponCantrip.name]:[]),...(result?.riders || []).map(rider=>rider.name),
+    ...(result?.extras || []).map(extra=>extra.label || extra.typeLabel)];
+  const second=result?.secondary?` ${result.secondary.name}: PF ${result.secondary.before} → ${result.secondary.after}.`:"";
   const conditions=(result?.conditions || []).length?` ${name}: ${result.conditions.join(", ")}.`:"";
-  return `Registrato: ${outcome}, ${damage} danni a ${name}.${hp}${extras.length?` Extra: ${extras.join(", ")}.`:""}${conditions}`;
+  return `Registrato: ${outcome}, ${damage} danni a ${name}.${hp}${extras.length?` Extra: ${extras.join(", ")}.`:""}${second}${conditions}`;
 }
 
 export function bootPcAttack(documentRef=document,overrides={}) {
@@ -79,9 +92,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const outcomes=$("pc-attack-outcomes"),damage=$("pc-attack-damage"),defensesBox=$("pc-attack-defenses");
   const total=$("pc-attack-total"),apply=$("pc-attack-apply"),undoButton=$("pc-attack-undo");
   const extrasSection=$("pc-attack-extras-section"),ridersBox=$("pc-attack-riders"),extrasBox=$("pc-attack-extras"),addExtra=$("pc-attack-add-extra");
+  const wovenBox=$("pc-attack-woven");
   const applyRow=$("pc-attack-apply-row");
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
+  const extrasCaption=$("pc-attack-extras-caption");
   let presentation=null,draft=null,busy=false,invalidated=false,lastUndo=null;
+  // Eldritch Blast: the beams registered in this console for the cantrip in use (one registration per beam).
+  let beamTally={spellId:"",count:0};
+  const attackerCard=()=>presentation?.item?.metadata?.[META_KEY]?.initiativeCard || {};
   let selection={status:"none",target:null,candidates:[]},selectionSequence=0,refreshTimer=null,liveSignature="";
   const unsubscribers=[];
   const node=(tag,text="",className="")=>{const element=documentRef.createElement(tag);element.textContent=text;if(className)element.className=className;return element;};
@@ -94,24 +112,49 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   function preview() {
     return pcAttackPreview({action:presentation?.action,spellId:draft?.spellId,sourceItem:presentation?.item,targetItem:targetById(draft?.targetId),outcome:draft?.outcome,
-      amounts:draft?.amounts,ignoredDefenses:draft?.ignored,riders:chosenRiders(draft),extras:chosenExtras(draft),turnState:presentation?.turnState});
+      amounts:draft?.amounts,ignoredDefenses:draft?.ignored,riders:chosenRiders(draft),extras:chosenExtras(draft),turnState:presentation?.turnState,
+      weaponCantrip:chosenWeaponCantrip(draft),secondaryItem:targetById(draft?.woven?.secondaryTargetId)});
   }
+  const wovenOptions=()=>pcAttackWeaponCantripOptions(presentation?.action,attackerCard());
   function riderOptions() {
     return pcAttackRiderOptions({action:presentation?.action,spellId:draft?.spellId,sourceItem:presentation?.item,targetItem:targetById(draft?.targetId),turnState:presentation?.turnState});
   }
   const resolved=()=>pcAttackResolvedAction(presentation?.action,draft?.spellId);
   const characterLevel=()=>totalCharacterLevel(presentation?.item?.metadata?.[META_KEY]?.initiativeCard?.characterBuild);
+  // Booming Blade and Green-Flame Blade are cast with a melee weapon attack: the cantrip console points there (or
+  // says that this actor has no melee weapon attack to cast them with).
+  function weaponCantripHint() {
+    const names=pcAttackActionWeaponCantripIds(presentation?.action).map(spellId=>getPcAttackCantrip(spellId)?.name).filter(Boolean);
+    if(!names.length) return "";
+    const listed=names.length>1?`${names.slice(0,-1).join(", ")} e ${names.at(-1)}`:names[0];
+    const hasMeleeWeapon=(Array.isArray(attackerCard().quickActions)?attackerCard().quickActions:[])
+      .some(action=>action?.kind==="attack" && action?.source?.kind!=="cantrip" && (action.range || "melee")==="melee");
+    return hasMeleeWeapon
+      ?`${listed}: usal${names.length>1?"e":"a"} dall'attacco con arma da mischia (Extra al colpo › Trucchetto con l'arma).`
+      :`${listed}: aggiungi all'attore un'azione Attacco con arma da mischia per usarl${names.length>1?"e":"a"}.`;
+  }
   // Cantrip actions: the cantrip picker, the on-hit effect still resolved by hand and Eldritch Blast's beams.
   function renderCantrip() {
     const offered=pcAttackCantripIds(presentation.action);
     cantripRow.hidden=!offered.length;
     if(!offered.length){cantripNote.hidden=true;return;}
-    cantripSelect.replaceChildren(...offered.map(spellId=>{const option=node("option",getPcAttackCantrip(spellId)?.name || spellId);option.value=spellId;return option;}));
+    cantripSelect.replaceChildren(...offered.map(spellId=>{
+      const cantrip=getPcAttackCantrip(spellId);
+      const option=node("option",cantrip?.save?`${cantrip.name} · TS ${PC_ATTACK_SAVE_LABELS[cantrip.save]}`:cantrip?.name || spellId);
+      option.value=spellId;return option;}));
     cantripSelect.value=draft.spellId;cantripSelect.disabled=busy;
     const cantrip=getPcAttackCantrip(draft.spellId);
+    const pills=cantrip?pcAttackCantripPillLabels(cantrip.spellId):[];
     const beams=pcAttackCantripBeams(cantrip,characterLevel());
-    const notes=[...(cantrip?.scaling==="beams"?[`Raggi: ${beams} al livello del personaggio. Registra un attacco per raggio.`]:[]),
-      ...(cantrip?.effectNote?[`Al colpo, da applicare a mano: ${cantrip.effectNote}`]:[])];
+    const registered=beamTally.spellId===draft.spellId?beamTally.count:0;
+    const beamNote=registered>=beams?`Raggi: registrati tutti e ${beams}.`
+      :`Raggi: ${beams} al livello del personaggio${registered?` · registrati ${registered}`:""}. Registra un attacco per raggio.`;
+    const notes=[...(cantrip?.scaling==="beams"?[beamNote]:[]),
+      ...(cantrip?.save && pcAttackHasPotentCantrip(attackerCard())?["Trucchetto Potente: con il TS superato subisce metà danni."]:[]),
+      ...(cantrip?.ruleNote?[cantrip.ruleNote]:[]),
+      ...(pills.length?[`${cantrip.save?"Se fallisce":"Al colpo"}: pill ${pills.map(label=>`«${label}»`).join(", ")}.`]:[]),
+      ...(cantrip?.effectNote?[`${cantrip.save?"Se fallisce":"Al colpo"}, da applicare a mano: ${cantrip.effectNote}`]:[]),
+      ...(weaponCantripHint()?[weaponCantripHint()]:[])];
     cantripNote.textContent=notes.join(" ");cantripNote.hidden=!notes.length;
   }
   const typeSelect=(types,value,{placeholder="",format=typeLabel,className="field"}={})=>{
@@ -198,6 +241,73 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       row.dataset.unavailable=option.available?"false":"true";
     }
   }
+  // Booming Blade / Green-Flame Blade woven into a melee weapon attack: the cantrip picker, its extra damage on the hit
+  // (from 5th level) and Green-Flame Blade's second creature. Rebuilt only when the cantrip changes (updateWoven
+  // patches the rest in place, so a selection never steals the caret).
+  function renderWoven() {
+    if(!wovenBox) return;
+    const options=wovenOptions();
+    wovenBox.hidden=!options.length;
+    if(!options.length){wovenBox.replaceChildren();return;}
+    const state=draft.woven;
+    const option=options.find(entry=>entry.spellId===state.spellId) || null;
+    if(!option) state.spellId="";
+    const picker=node("select","","inline-select");picker.dataset.wovenField="spell";picker.setAttribute("aria-label","Trucchetto con l'arma");
+    picker.replaceChildren(...[["","Nessuno"],...options.map(entry=>[entry.spellId,entry.name])].map(([value,label])=>{const entry=node("option",label);entry.value=value;return entry;}));
+    picker.value=state.spellId;picker.disabled=busy;
+    picker.addEventListener("change",()=>{Object.assign(state,{spellId:picker.value,amount:"",secondaryTargetId:"",secondaryAmount:""});renderWoven();renderState();});
+    const body=node("div","","component-body");
+    const title=node("span","","component-title");title.append("Trucchetto con l'arma");
+    const meta=node("div","","component-meta");meta.dataset.wovenField="meta";
+    const pickerLine=node("div","","component-options");pickerLine.append(picker);
+    body.append(title,pickerLine,meta);
+    const amount=amountInput(state.amount,`Danni di ${option?.name || "trucchetto"}`);amount.dataset.wovenField="amount";
+    amount.hidden=!option?.dice?.hit;amount.disabled=busy;
+    amount.addEventListener("input",()=>{state.amount=amount.value.trim();renderState();});
+    const rows=[componentRow(null,body,amount)];
+    if(option?.secondary) {
+      const secondBody=node("div","","component-body");
+      const secondTitle=node("span","Seconda creatura","component-title");
+      const target=node("select","","inline-select");target.dataset.wovenField="secondary";target.setAttribute("aria-label","Seconda creatura");
+      target.addEventListener("change",()=>{state.secondaryTargetId=target.value;renderState();updateWoven();});
+      const secondMeta=node("div","","component-meta");secondMeta.dataset.wovenField="secondaryMeta";
+      const secondLine=node("div","","component-options");secondLine.append(target);
+      secondBody.append(secondTitle,secondLine,secondMeta);
+      const secondAmount=amountInput(state.secondaryAmount,"Danni della seconda creatura");secondAmount.dataset.wovenField="secondaryAmount";
+      secondAmount.disabled=busy;
+      secondAmount.addEventListener("input",()=>{state.secondaryAmount=secondAmount.value.trim();renderState();updateWoven();});
+      rows.push(componentRow(null,secondBody,secondAmount));
+    }
+    wovenBox.replaceChildren(...rows);
+    wovenBox.dataset.spellId=state.spellId;
+    updateWoven();
+  }
+  function updateWoven() {
+    if(!wovenBox) return;
+    // Another cantrip, or a new draft after a commit: rebuild the rows instead of patching them.
+    if((wovenBox.dataset.spellId || "")!==(draft.woven.spellId || "") || wovenBox.hidden!==!wovenOptions().length) return renderWoven();
+    if(wovenBox.hidden) return;
+    const state=draft.woven;
+    const option=wovenOptions().find(entry=>entry.spellId===state.spellId) || null;
+    const field=name=>wovenBox.querySelector(`[data-woven-field="${name}"]`);
+    const critical=dice=>draft.outcome==="critical" && dice?`${dice} · critico ${pcAttackCriticalDice(dice)}`:dice;
+    const meta=field("meta");
+    if(meta) meta.textContent=!option?"Lama Roboante o Lama Verdefiamma, se l'attacco colpisce."
+      :[option.dice.hit?`${critical(option.dice.hit)} ${damageTypeLabel(option.type)}`:"",
+        option.trigger?`pill «Movimento: danni tuono» (${option.dice.trigger}) fino all'inizio del tuo prossimo turno`:""].filter(Boolean).join(" · ")
+        || "Nessun danno extra al colpo prima del 5° livello.";
+    const target=field("secondary");
+    if(target) {
+      // The second creature: any other tracked creature than the attacker and the target, or none.
+      const others=presentation.targets.filter(item=>item.id!==draft.targetId);
+      if(state.secondaryTargetId && !others.some(item=>item.id===state.secondaryTargetId)) state.secondaryTargetId="";
+      target.replaceChildren(...[["","Nessuna"],...others.map(item=>[item.id,bossTargetLabel(item)])].map(([value,label])=>{const entry=node("option",label);entry.value=value;return entry;}));
+      target.value=state.secondaryTargetId;target.disabled=busy;
+      const second=preview().secondary;
+      field("secondaryMeta").textContent=`${option.dice.secondary} ${damageTypeLabel(option.type)}${second?.hp?` · PF ${second.hp.before} → ${second.hp.after}`:""}`;
+      field("secondaryAmount").hidden=!state.secondaryTargetId;
+    }
+  }
   // Components added on the fly for this attack only (Booming Blade, Hunter's Mark, a magic weapon).
   function renderExtras() {
     extrasBox.replaceChildren(...draft.extras.map((extra,index)=>{
@@ -219,7 +329,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function renderHeader() {
     const action=presentation?.action,attack=resolved();
     $("pc-attack-title").textContent=action?.label || "Attacco";
-    const parts=[presentation?.item?.name || presentation?.item?.id,...(attack?.cantrip?["Trucchetto"]:[]),RANGE_LABELS[attack?.range] || ""].filter(Boolean);
+    // A saving throw cantrip names its save (and the actor's DC) instead of a range.
+    const saveLabel=pcAttackSaveLabel(attack,presentation?.item?.metadata?.[META_KEY]?.initiativeCard);
+    const parts=[presentation?.item?.name || presentation?.item?.id,...(attack?.cantrip?["Trucchetto"]:[]),saveLabel || RANGE_LABELS[attack?.range] || ""].filter(Boolean);
     $("pc-attack-subtitle").textContent=presentation?parts.join(" · "):"";
   }
   function renderTarget() {
@@ -232,10 +344,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     hint.textContent=message;hint.hidden=!message;
   }
   function renderOutcomes() {
-    outcomes.replaceChildren(...PC_ATTACK_OUTCOMES.map(outcome=>{
+    outcomes.replaceChildren(...pcAttackOutcomesFor(resolved()).map(outcome=>{
       const button=node("button",PC_ATTACK_OUTCOME_LABELS[outcome]);button.type="button";button.dataset.outcome=outcome;
       button.setAttribute("aria-pressed",String(draft.outcome===outcome));button.disabled=busy;
-      button.addEventListener("click",()=>{draft.outcome=outcome;renderOutcomes();renderDamage();updateRiders();renderState();});
+      button.addEventListener("click",()=>{draft.outcome=outcome;renderOutcomes();renderDamage();updateWoven();updateRiders();renderState();});
       return button;
     }));
   }
@@ -245,18 +357,31 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const body=node("div","","component-body");
       const typeName=typeLabel(component.type);
       // A cantrip's dice follow the character level; a weapon shows the formula written in its quick action.
-      const formula=(attack.cantrip?pcAttackCantripDiceFor(attack,presentation.item.metadata?.[META_KEY]?.initiativeCard):component.formula) || "";
-      const meta=node("div","","component-meta");
-      meta.textContent=formula?(draft.outcome==="critical"?`${formula} · critico ${pcAttackCriticalDice(formula)}`:formula):"";
-      body.append(node("span",typeName,"component-title"),...(formula?[meta]:[]));
+      const meta=node("div","","component-meta");meta.dataset.damageMeta=component.id;
+      body.append(node("span",typeName,"component-title"),meta);
       const input=amountInput(draft.amounts[component.id] ?? "",`Danni ${damageTypeLabel(component.type)}`);
-      input.disabled=busy || draft.outcome==="miss";
+      // No damage to enter on a miss or a passed save (half on a passed save with Potent Cantrip).
+      input.disabled=busy || !!draft.outcome && pcAttackDamageFactor(attack,draft.outcome,attackerCard())==="zero";
       input.addEventListener("input",()=>{draft.amounts[component.id]=input.value.trim();renderState();});
       return componentRow(null,body,input);
     }));
+    updateDamageMeta();
+  }
+  // The dice line of each damage row, patched in place: Toll the Dead changes die with the target's hit points.
+  function updateDamageMeta() {
+    const attack=resolved();
+    for(const component of attack?.components || []) {
+      const meta=damage.querySelector(`[data-damage-meta="${component.id}"]`);
+      if(!meta) continue;
+      // A cantrip's dice follow the character level; a weapon shows the formula written in its quick action.
+      const formula=(attack.cantrip?pcAttackCantripDiceFor(attack,presentation.item.metadata?.[META_KEY]?.initiativeCard,targetById(draft.targetId)):component.formula) || "";
+      meta.textContent=formula?(draft.outcome==="critical"?`${formula} · critico ${pcAttackCriticalDice(formula)}`:formula):"";
+      meta.hidden=!formula;
+    }
   }
   function renderState() {
     extrasSection.hidden=!hits(draft.outcome);
+    if(extrasCaption) extrasCaption.textContent=resolved()?.cantrip?.save?"Extra al danno":"Extra al colpo";
     const view=preview();
     defensesBox.replaceChildren(...view.defenses.map(row=>{
       const chip=node("button",damageDefenseTag(row),"defense-chip");chip.type="button";
@@ -271,18 +396,19 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(view.ready) {
       const strong=node("strong",String(draft.outcome==="miss"?0:view.total));
       total.append(strong,node("span",draft.outcome==="miss"?" danni":` danni · PF ${view.hp.before} → ${view.hp.after}`));
+      if(view.secondary?.hp) total.append(node("span",` · seconda: ${view.secondary.total}`));
     } else total.textContent=view.blocker;
     apply.disabled=busy || invalidated || !view.ready;
   }
   function render() {
     if(!presentation || !draft){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
-    form.hidden=false;if(applyRow)applyRow.hidden=false;renderHeader();renderTarget();renderOutcomes();renderCantrip();renderDamage();renderRiders();renderExtras();renderState();
+    form.hidden=false;if(applyRow)applyRow.hidden=false;renderHeader();renderTarget();renderOutcomes();renderCantrip();renderDamage();renderWoven();renderRiders();renderExtras();renderState();
   }
   // Selection and scene updates never rebuild the outcome buttons or the amount fields: a click in
   // flight or the caret in a field survives them.
   function renderLive() {
     if(!presentation || !draft){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
-    renderTarget();updateRiders();renderState();
+    renderTarget();updateDamageMeta();updateWoven();updateRiders();renderState();
   }
 
   async function perform(work) {
@@ -364,8 +490,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Another cantrip: other damage (fresh amount), range and notes; the target, outcome and extras stay.
   cantripSelect.addEventListener("change",()=>{
     draft.spellId=cantripSelect.value;
+    beamTally={spellId:"",count:0};
     draft.amounts=Object.fromEntries((resolved()?.components || []).map(component=>[component.id,""]));
-    renderHeader();renderCantrip();renderDamage();updateRiders();renderState();
+    // From an attack roll to a saving throw (or back): the outcome chosen before no longer exists.
+    if(!pcAttackOutcomesFor(resolved()).includes(draft.outcome)) draft.outcome="";
+    renderHeader();renderCantrip();renderOutcomes();renderDamage();updateRiders();renderState();
   });
   addExtra.addEventListener("click",()=>{
     if(!draft || draft.extras.length>=MAX_PC_ATTACK_EXTRAS) return;
@@ -382,12 +511,18 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ignoredDefenses:[...draft.ignored],expectedDefenses:view.profileDefenses,expectedAction:presentation.action,
       riders:chosenRiders(draft).map(rider=>({...rider,amount:Number(rider.amount)})),
       extras:chosenExtras(draft).map(extra=>({...extra,amount:Number(extra.amount),label:String(extra.label || "").trim()})),
-      ...(draft.spellId?{spellId:draft.spellId}:{}),attackInstanceId:draft.attackInstanceId,sceneIdentity:presentation.sceneIdentity};
+      ...(draft.spellId?{spellId:draft.spellId}:{}),
+      ...(chosenWeaponCantrip(draft)?{weaponCantrip:(({spellId,amount,secondary})=>({spellId,...(amount!==""?{amount:Number(amount)}:{}),
+        ...(secondary?{secondary:{targetId:secondary.targetId,amount:Number(secondary.amount)}}:{})}))(chosenWeaponCantrip(draft)),
+        ...(view.secondary?{expectedSecondaryDefenses:view.secondary.profileDefenses}:{})}:{}),
+      attackInstanceId:draft.attackInstanceId,sceneIdentity:presentation.sceneIdentity};
     const result=await runtime.executePcAttack(request);
     if(!lifecycle.isCurrent(operation)) return;
     showUndo(result);
     setStatus([resultSummary(result),...(result.followUps || []),...(result.warnings || [])].join("\n"));
-    // Ready for the next attack (Extra Attack, two weapons): same target, a new identity.
+    if(getPcAttackCantrip(draft.spellId)?.scaling==="beams")
+      beamTally=beamTally.spellId===draft.spellId?{...beamTally,count:beamTally.count+1}:{spellId:draft.spellId,count:1};
+    // Ready for the next attack (Extra Attack, two weapons, another beam): same target, a new identity.
     draft=emptyDraft(presentation.action,draft.targetId,draft.spellId);
     await refresh(operation);
     render();

@@ -344,9 +344,11 @@ export function buildSpellApplicationPlan({
     castContext: persistedCastContext,
     ...(summaryParts.length ? { summaryParts } : {}),
     proposedConditions: castAutomationPlan.conditions,
+    // The attack's hit effect is often the catalog effect itself (Chill Touch): one pill, never two.
     proposedEffects: [
       ...castAutomationPlan.effects,
-      ...(attackResolution?.effect ? [attackResolution.effect] : []),
+      ...(attackResolution?.effect && !castAutomationPlan.effects.some((effect) => effect?.id === attackResolution.effect.id)
+        ? [attackResolution.effect] : []),
     ],
     conditionApplications: [
       ...(saveResolution?.conditionApplications || []),

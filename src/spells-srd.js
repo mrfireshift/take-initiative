@@ -582,6 +582,8 @@ const SPELL_EXPIRY = Object.freeze({
   "guiding-bolt": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   "message": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "ray-of-frost": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
+  "shocking-grasp": Object.freeze({ mode: "turn-start", actor: "target", remaining: 1, anchor: "next-turn" }),
+  "vicious-mockery": Object.freeze({ mode: "turn-end", actor: "target", remaining: 1, anchor: "next-turn" }),
   "sending": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "shield": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "power-word-stun": Object.freeze({ mode: "manual" }),
@@ -836,6 +838,53 @@ const SPELL_EFFECTS = Object.freeze({
       summaryParts: Object.freeze([
         Object.freeze({ id: "chill-touch-healing-blocked", label: "No recupero PF" }),
       ]),
+    }),
+  ]),
+  // Ray of Frost: −3 m (10 ft) of walking speed until the start of the caster's next turn (spell expiry).
+  // A magical reduction: Freedom of Movement ignores it.
+  "ray-of-frost": Object.freeze([
+    Object.freeze({
+      id: "speed-reduced",
+      kind: "debuff",
+      label: "Velocità −3 m",
+      detail: "La velocità del bersaglio è ridotta di 3 metri.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "ray-of-frost-speed-reduced", label: "Vel −3 m" }),
+      ]),
+      mechanics: Object.freeze({
+        movement: Object.freeze({
+          addMeters: -3,
+          appliesTo: Object.freeze(["walk"]),
+          label: "Raggio di gelo (−3 m)",
+        }),
+      }),
+    }),
+  ]),
+  // Shocking Grasp: no reactions until the start of the target's next turn (spell expiry).
+  "shocking-grasp": Object.freeze([
+    Object.freeze({
+      id: "reactions-blocked",
+      kind: "debuff",
+      label: "Niente reazioni",
+      detail: "Il bersaglio non può effettuare reazioni.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "shocking-grasp-reactions-blocked", label: "No reazioni" }),
+      ]),
+    }),
+  ]),
+  // Vicious Mockery: disadvantage on the next attack roll before the end of the target's next turn; the pill is
+  // removed by hand once that attack is made.
+  "vicious-mockery": Object.freeze([
+    Object.freeze({
+      id: "next-attack-disadvantage",
+      kind: "debuff",
+      label: "Prossimo attacco: svant.",
+      detail: "Svantaggio al prossimo tiro per colpire prima della fine del suo prossimo turno; rimuovere la pill dopo l'attacco.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "vicious-mockery-next-attack", label: "Pross. attacco: svant." }),
+      ]),
+      manualRemoval: true,
+      endsParentOnRemoval: true,
     }),
   ]),
   "divine-favor": Object.freeze([

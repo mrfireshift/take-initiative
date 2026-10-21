@@ -243,7 +243,14 @@ test("a cantrip attack: one History entry, an Attack event in the Combat Log nam
     attackInstanceId: "frost" });
   assert.equal(meta("ghoul").hp, 16);
   assert.equal(result.cantrip.name, "Raggio di gelo");
-  assert.match(result.manualRemainder, /Velocità ridotta/);
+  assert.equal(result.manualRemainder, "");
+  assert.deepEqual(result.conditions, ["Velocità −3 m"]);
+  const pills = (value) => (Array.isArray(value) ? value : value?.instances || []).map((instance) => instance.condition);
+  assert.ok(pills(meta("ghoul").conditions).includes("Velocità −3 m"), "the pill is on the target");
+  // The spell is the large pill on the target; its effect is a mini pill linked to it.
+  assert.match(JSON.stringify(meta("ghoul")["com.thebigpicture.initiative/spells"] ?? null), /Raggio di gelo/);
+  const frost = (meta("ghoul").conditions?.instances || meta("ghoul").conditions || []).find((instance) => instance.condition === "Velocità −3 m");
+  assert.equal(frost.parentEffectId, "frost:spell");
   assert.equal(meta("aria").pcAttackState.lastAttack.spellId, "ray-of-frost");
   const entry = (await history.getHistoryEntries()).find((candidate) => candidate.kind === "pc-attack");
   const event = combatEventFromHistoryEntryV3(entry);
@@ -252,4 +259,50 @@ test("a cantrip attack: one History entry, an Attack event in the Combat Log nam
   assert.match(details, /Trucchetto: Raggio di gelo \(3d8\)/);
   await assert.rejects(() => runtime.executePcAttack({ sourceId: "aria", actionId: "cantrip", spellId: "magic-stone", targetId: "ghoul",
     outcome: "hit", componentAmounts: { c1: 1 } }), /Trucchetto non disponibile/);
+});
+
+test("a failed save against Frostbite: damage, spell instance and pill in one command; one Undo removes them all", async () => {
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "druido", level: 5 }], spellSaveDC: 13,
+    quickActions: [sword, { id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip" } }] });
+  const presentation = await runtime.getPcAttackPresentation("aria", "cantrip");
+  const result = await runtime.executePcAttack({ sourceId: "aria", actionId: "cantrip", spellId: "xanathar-morsa-del-gelo", targetId: "ghoul",
+    sceneIdentity: presentation.sceneIdentity, expectedAction: presentation.action, expectedDefenses: {}, outcome: "failed", componentAmounts: { c1: 8 },
+    attackInstanceId: "frostbite" });
+  const pills = (value) => (Array.isArray(value) ? value : value?.instances || []).map((instance) => instance.condition);
+  const spells = () => JSON.stringify(meta("ghoul")["com.thebigpicture.initiative/spells"] ?? null);
+  assert.equal(meta("ghoul").hp, 22);
+  assert.deepEqual(result.conditions, ["Prossimo attacco con arma: svant."]);
+  assert.ok(pills(meta("ghoul").conditions).includes("Prossimo attacco con arma: svant."));
+  assert.match(spells(), /Morsa del Gelo/);
+  assert.equal((await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack").length, 1);
+  const entry = (await history.getHistoryEntries()).find((candidate) => candidate.kind === "pc-attack");
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("ghoul").hp, 30);
+  assert.equal(pills(meta("ghoul").conditions).includes("Prossimo attacco con arma: svant."), false);
+  assert.doesNotMatch(spells(), /Morsa del Gelo/);
+});
+
+test("Green-Flame Blade: target and second creature in one History entry; one Undo restores both; Booming Blade leaves its pill", async () => {
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "ladro", level: 5 }],
+    quickActions: [sword, { id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["tasha-lama-verdefiamma", "tasha-lama-roboante"] } }] });
+  sceneItems.push({ id: "imp", name: "Imp", type: "IMAGE", layer: "CHARACTER", position: { x: 60, y: 20 }, metadata: { [META_KEY]: { hp: 10, hpMax: 10, inInitiative: true } } });
+  const presentation = await runtime.getPcAttackPresentation("aria", "holy-sword");
+  const result = await runtime.executePcAttack({ sourceId: "aria", actionId: "holy-sword", targetId: "ghoul", sceneIdentity: presentation.sceneIdentity,
+    expectedAction: presentation.action, expectedDefenses: {}, outcome: "hit", componentAmounts: { c1: 8, c2: 0 }, attackInstanceId: "green",
+    weaponCantrip: { spellId: "tasha-lama-verdefiamma", amount: 4, secondary: { targetId: "imp", amount: 7 } }, expectedSecondaryDefenses: {} });
+  assert.deepEqual([meta("ghoul").hp, meta("imp").hp], [18, 3]);
+  assert.deepEqual(result.secondary, { id: "imp", name: "Imp", before: 10, after: 3 });
+  assert.deepEqual(posted, [12, 7], "post-damage projections for both creatures");
+  const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
+  assert.equal(entries.length, 1);
+  await history.undoHistoryThrough(entries[0].id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual([meta("ghoul").hp, meta("imp").hp], [30, 10]);
+
+  await runtime.executePcAttack({ sourceId: "aria", actionId: "holy-sword", targetId: "ghoul", sceneIdentity: presentation.sceneIdentity,
+    expectedAction: presentation.action, expectedDefenses: {}, outcome: "hit", componentAmounts: { c1: 8, c2: 0 }, attackInstanceId: "boom",
+    weaponCantrip: { spellId: "tasha-lama-roboante", amount: 3 } });
+  const pills = (value) => (Array.isArray(value) ? value : value?.instances || []).map((instance) => instance.condition);
+  assert.equal(meta("ghoul").hp, 19);
+  assert.ok(pills(meta("ghoul").conditions).includes("Movimento: danni tuono"));
+  assert.match(JSON.stringify(meta("ghoul")["com.thebigpicture.initiative/spells"] ?? null), /Lama Roboante/);
 });

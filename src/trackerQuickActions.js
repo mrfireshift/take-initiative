@@ -1,10 +1,32 @@
-import { sanitizeQuickAction, sanitizeQuickActions } from "./quickActionsCore.js";
+import { isAttackQuickAction, sanitizeQuickAction, sanitizeQuickActions } from "./quickActionsCore.js";
 
 const QUICK_ACTION_BUTTON_SIZE = 22;
 const CLASSIC_COMBAT_BADGE_SIZE = 18;
 const CLASSIC_COMBAT_BADGE_LEFT = -15;
 const CLASSIC_QUICK_ACTION_LEFT = CLASSIC_COMBAT_BADGE_LEFT
   - ((QUICK_ACTION_BUTTON_SIZE - CLASSIC_COMBAT_BADGE_SIZE) / 2);
+// ⚡ and ⚔ have the geometry of the active-turn badge (initiativeCardClassicBuilder.js): an 18px circle with
+// a 2px ring. In the classic card they stand in a column above it, on its left edge: the badge sits at
+// top 50% + translateY(55%) of its size, each launcher one pitch (circle + both rings) higher, rings touching.
+const LAUNCHER_SIZE = CLASSIC_COMBAT_BADGE_SIZE;
+const LAUNCHER_RING = 2;
+const LAUNCHER_PITCH = LAUNCHER_SIZE + 2 * LAUNCHER_RING;
+const CLASSIC_COMBAT_BADGE_TOP_OFFSET = 0.55 * CLASSIC_COMBAT_BADGE_SIZE;
+// Fixed slots, top to bottom, so 🗡️ keeps its place on a card without ⚡.
+// The column straddles the portrait rim, a few px left of the badge, towards the list's edge; no further, or
+// the list would clip the ring of the active card (scaled 1.035 about its centre).
+const CLASSIC_LAUNCHER_LEFT = -21;
+const CLASSIC_LAUNCHER_SLOT = Object.freeze({ quick: 0, attacks: 1 });
+
+function launcherPosition(group, offset, compact) {
+  if (compact) {
+    const index = Math.max(0, Math.floor(Number(offset) || 0));
+    return { left: "auto", right: `${20 + index * (LAUNCHER_PITCH + 4)}px`, top: "37px" };
+  }
+  const above = 2 - (CLASSIC_LAUNCHER_SLOT[group] ?? 0);
+  const top = Math.round((CLASSIC_COMBAT_BADGE_TOP_OFFSET - above * LAUNCHER_PITCH) * 10) / 10;
+  return { left: `${CLASSIC_LAUNCHER_LEFT}px`, right: "auto", top: `calc(50% - ${Math.abs(top)}px)` };
+}
 
 export function trackerQuickActionSummary(action) {
   const normalized = sanitizeQuickAction(action) || action || {};
@@ -28,60 +50,77 @@ export function trackerQuickActionSummary(action) {
   return `Incantesimo · ${launch} · ${target}`;
 }
 
+// The quick actions (⚡) and the attacks (⚔) of a card: one launcher each, over the same menu.
+const TRACKER_LAUNCHER_GROUPS = Object.freeze({
+  quick: { icon: "⚡", name: "azioni rapide", border: "#fde047", color: "#fef08a", open: "rgba(161,98,7,.94)", ring: "rgba(253,224,71,.22)" },
+  attacks: { icon: "🗡️", name: "attacchi", border: "#fb923c", color: "#fed7aa", open: "rgba(154,52,18,.94)", ring: "rgba(251,146,60,.24)" },
+});
+
+export function trackerQuickActionsForGroup(actions, group = "quick") {
+  return sanitizeQuickActions(actions, { limit: 64, attackLimit: 64 })
+    .filter((action) => isAttackQuickAction(action) === (group === "attacks"));
+}
+
+// offset: the launcher's place in the compact card's row (the classic card has fixed slots per group).
 export function buildTrackerQuickActionLauncher({
   actions = [],
+  group = "quick",
+  offset = 0,
   compact = false,
   expanded = false,
   onToggle = () => {},
   documentRef = globalThis.document,
 } = {}) {
-  const normalizedActions = sanitizeQuickActions(actions, { limit: 64 });
+  const normalizedActions = trackerQuickActionsForGroup(actions, group);
   if (!normalizedActions.length || !documentRef) return null;
+  const look = TRACKER_LAUNCHER_GROUPS[group] || TRACKER_LAUNCHER_GROUPS.quick;
+  const position = launcherPosition(group, offset, compact);
 
   const container = documentRef.createElement("div");
-  container.dataset.trackerQuickActions = "1";
+  container.dataset.trackerQuickActions = group === "attacks" ? "attacks" : "1";
   container.dataset.cardSelectionIgnore = "1";
   Object.assign(container.style, {
     position: "absolute",
-    left: compact ? "auto" : `${CLASSIC_QUICK_ACTION_LEFT}px`,
-    right: compact ? "18px" : "auto",
+    left: position.left,
+    right: position.right,
     bottom: "auto",
-    top: compact ? "35px" : "2px",
+    top: position.top,
     zIndex: "12",
     pointerEvents: "auto",
   });
 
   const toggle = documentRef.createElement("button");
   toggle.type = "button";
-  toggle.textContent = "⚡";
-  toggle.title = `${expanded ? "Chiudi" : "Apri"} azioni rapide (${normalizedActions.length})`;
+  toggle.textContent = look.icon;
+  toggle.title = `${expanded ? "Chiudi" : "Apri"} ${look.name} (${normalizedActions.length})`;
   toggle.setAttribute("aria-label", toggle.title);
   toggle.setAttribute("aria-haspopup", "menu");
   toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
   toggle.dataset.cardSelectionIgnore = "1";
-  toggle.dataset.trackerQuickActionToggle = "1";
+  toggle.dataset.trackerQuickActionToggle = group === "attacks" ? "attacks" : "1";
   Object.assign(toggle.style, {
     boxSizing: "border-box",
-    minWidth: `${QUICK_ACTION_BUTTON_SIZE}px`,
-    width: `${QUICK_ACTION_BUTTON_SIZE}px`,
-    height: `${QUICK_ACTION_BUTTON_SIZE}px`,
+    minWidth: `${LAUNCHER_SIZE}px`,
+    width: `${LAUNCHER_SIZE}px`,
+    height: `${LAUNCHER_SIZE}px`,
     padding: "0",
-    display: "inline-flex",
+    display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    border: "2px solid #fde047",
+    border: "0",
     borderRadius: "50%",
     background: expanded
-      ? "rgba(161,98,7,.94)"
+      ? look.open
       : "linear-gradient(180deg,rgba(51,65,85,.98),rgba(15,23,42,.98))",
-    color: "#fef08a",
-    fontSize: "11px",
-    fontWeight: "750",
+    color: look.color,
+    fontSize: "12px",
+    fontWeight: "700",
     lineHeight: "1",
     cursor: "pointer",
+    // The ring is drawn outside the circle, like the badge's.
     boxShadow: expanded
-      ? "0 0 0 2px rgba(253,224,71,.22),0 2px 7px rgba(0,0,0,.58)"
-      : "0 2px 7px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.12)",
+      ? `0 0 0 ${LAUNCHER_RING}px ${look.border},0 0 0 ${LAUNCHER_RING + 2}px ${look.ring},0 2px 6px rgba(0,0,0,.85)`
+      : `0 0 0 ${LAUNCHER_RING}px ${look.border},0 2px 6px rgba(0,0,0,.85)`,
   });
 
   const stopPointer = (event) => {

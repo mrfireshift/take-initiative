@@ -24,8 +24,11 @@ import { SPECIES, SPECIES_FIELD, getSpecies, sanitizeSpecies, speciesDisplayName
 import { ABILITY_KEYS, ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import {
   MAX_QUICK_ACTIONS,
+  MAX_QUICK_ACTION_ATTACKS,
   MAX_QUICK_ACTION_ATTACK_COMPONENTS,
   findQuickAction,
+  isAttackQuickAction,
+  parseQuickActionAttackImport,
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
@@ -202,35 +205,46 @@ function setQuickActionsTabCount(count) {
   $("quickActionsTabCount").textContent = String(Math.max(0, Number(count) || 0));
 }
 
+function setAttacksTabCount(count) {
+  $("attacksTabCount").textContent = String(Math.max(0, Number(count) || 0));
+}
+
 function setClassFeaturesTabCount(count) {
   $("classFeaturesTabCount").textContent = String(Math.max(0, Number(count) || 0));
 }
 
 function syncCardTabs() {
   const quickActionsActive = activeCardTab === "quick-actions";
+  // Attacks (weapons and cantrips) are a GM tool: their tab is the GM's only.
+  const attacksActive = isGM && activeCardTab === "attacks";
   const classFeaturesActive = activeCardTab === "class-features";
-  const statsActive = !quickActionsActive && !classFeaturesActive;
+  const statsActive = !quickActionsActive && !attacksActive && !classFeaturesActive;
   $("statsTab").setAttribute("aria-selected", statsActive ? "true" : "false");
   $("quickActionsTab").setAttribute("aria-selected", quickActionsActive ? "true" : "false");
+  $("attacksTab").setAttribute("aria-selected", attacksActive ? "true" : "false");
   $("classFeaturesTab").setAttribute("aria-selected", classFeaturesActive ? "true" : "false");
+  $("attacksTab").hidden = !isGM;
   $("statsTab").tabIndex = statsActive ? 0 : -1;
   $("quickActionsTab").tabIndex = quickActionsActive ? 0 : -1;
+  $("attacksTab").tabIndex = attacksActive ? 0 : -1;
   $("classFeaturesTab").tabIndex = classFeaturesActive ? 0 : -1;
   $("view").hidden = editing || !statsActive;
   $("quickActionsView").hidden = editing || !quickActionsActive;
+  $("attacksView").hidden = editing || !attacksActive;
   $("classFeaturesView").hidden = editing || !classFeaturesActive;
   $("statsEditPane").hidden = !editing || !statsActive;
   $("quickActionsEditPane").hidden = !editing || !quickActionsActive;
+  $("attacksEditPane").hidden = !editing || !attacksActive;
   $("classFeaturesEditPane").hidden = !editing || !classFeaturesActive;
   $("form").classList.toggle("active", editing);
   $("edit").style.display = isGM && !editing ? "inline-block" : "none";
   requestPopoverHeight(editing
-    ? (classFeaturesActive ? 760 : quickActionsActive ? 680 : 640)
+    ? (classFeaturesActive ? 760 : quickActionsActive || attacksActive ? 680 : 640)
     : (classFeaturesActive ? 680 : 560));
 }
 
 function setCardTab(tab) {
-  activeCardTab = tab === "quick-actions" || tab === "class-features"
+  activeCardTab = tab === "quick-actions" || tab === "attacks" || tab === "class-features"
     ? tab
     : "stats";
   syncCardTabs();
@@ -581,13 +595,13 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
   const operation = sceneLifecycle.capture({ operationId: `initiative-quick-action:${action?.id || "unknown"}:${Date.now().toString(36)}` });
   if (!sceneLifecycle.isCurrent(operation) || !item || quickActionLaunching) return;
   quickActionLaunching = true;
-  const status = $("quickActionRunStatus");
+  const status = $(isAttackQuickAction(action) ? "attackRunStatus" : "quickActionRunStatus");
   const setStatus = (message, tone = "") => {
     status.textContent = message;
     status.dataset.tone = tone;
   };
   const setButtonsDisabled = (disabled) => {
-    $("quickActions").querySelectorAll("button").forEach((button) => {
+    $(isAttackQuickAction(action) ? "attacks" : "quickActions").querySelectorAll("button").forEach((button) => {
       button.disabled = disabled || button.dataset.unsupportedFeature === "1";
     });
   };
@@ -696,19 +710,28 @@ async function runRequestedQuickActionOnce() {
   await launchQuickAction(action);
 }
 
+// Quick actions and attacks share the profile's quickActions; each has its own tab, list and status line.
 function renderQuickActions() {
-  const list = $("quickActions");
-  const actions = (Array.isArray(profile?.quickActions) ? profile.quickActions : [])
-    .filter((action) => isGM || (action?.kind !== "feature" && action?.kind !== "attack"));
+  const stored = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
+  const actions = stored
+    .filter((action) => !isAttackQuickAction(action) && (isGM || action?.kind !== "feature"));
+  const attacks = isGM ? stored.filter(isAttackQuickAction) : [];
   setQuickActionsTabCount(actions.length);
-  list.replaceChildren();
-  $("quickActionRunStatus").textContent = "";
-  $("quickActionRunStatus").dataset.tone = "";
+  setAttacksTabCount(attacks.length);
+  for (const id of ["quickActionRunStatus", "attackRunStatus"]) {
+    $(id).textContent = "";
+    $(id).dataset.tone = "";
+  }
+  renderQuickActionList($("quickActions"), actions, "Nessuna azione rapida configurata.");
+  renderQuickActionList($("attacks"), attacks, "Nessun attacco configurato.");
+}
 
+function renderQuickActionList(list, actions, emptyText) {
+  list.replaceChildren();
   if (!actions.length) {
     const empty = document.createElement("div");
     empty.className = "quick-actions-empty";
-    empty.textContent = "Nessuna azione rapida configurata.";
+    empty.textContent = emptyText;
     list.appendChild(empty);
     return;
   }
@@ -2076,6 +2099,12 @@ function syncQuickActionAddState() {
   $("quickActionAdd").title = count >= MAX_QUICK_ACTIONS
     ? `Massimo ${MAX_QUICK_ACTIONS} azioni rapide`
     : "Aggiungi azione rapida";
+  const attackCount = $("attackEditorList").querySelectorAll("[data-quick-action-row='1']").length;
+  setAttacksTabCount(attackCount);
+  $("attackAdd").disabled = attackCount >= MAX_QUICK_ACTION_ATTACKS;
+  $("attackAdd").title = attackCount >= MAX_QUICK_ACTION_ATTACKS
+    ? `Massimo ${MAX_QUICK_ACTION_ATTACKS} attacchi`
+    : "Aggiungi attacco";
 }
 
 function quickActionFeatureOptions(currentId = "") {
@@ -2089,11 +2118,13 @@ function quickActionFeatureOptions(currentId = "") {
       .localeCompare(classFeatureDisplayNameWithParent(b), "it"));
 }
 
-function buildQuickActionEditorRow(action = null) {
+// attack: a row of the Attacks tab (kind fixed to "attack", no Type field); otherwise a quick action row,
+// whose Type offers no attack.
+function buildQuickActionEditorRow(action = null, { attack: attackRow = false } = {}) {
   const current = action || {
     id: quickActionId(),
     label: "",
-    kind: "spell",
+    kind: attackRow ? "attack" : "spell",
     targetMode: "selection",
     launchMode: "auto",
     slotLevel: null,
@@ -2136,12 +2167,11 @@ function buildQuickActionEditorRow(action = null) {
 
   const grid = document.createElement("div");
   grid.className = "quick-action-editor-grid";
-  const kindSelect = selectControl([
+  const kindSelect = selectControl(attackRow ? [["attack", "Attacco"]] : [
     ["spell", "Incantesimo"],
     ["condition", "Condizione"],
     ["feature", "Capacità di classe"],
-    ["attack", "Attacco"],
-  ], current.kind || "spell");
+  ], attackRow ? "attack" : current.kind || "spell");
   kindSelect.dataset.quickActionField = "kind";
   const currentFeature = CLASS_FEATURE_BY_ID.get(current.featureId);
   const targetSelect = selectControl([
@@ -2241,13 +2271,15 @@ function buildQuickActionEditorRow(action = null) {
   cantripList.append(...PC_ATTACK_CANTRIPS.map((cantrip) => {
     const option = document.createElement("label");
     option.className = "quick-action-check";
-    option.title = cantrip.name;
+    // Booming Blade and Green-Flame Blade are cast with a melee weapon attack, not from the cantrip console.
+    const weapon = cantrip.delivery === "weapon";
+    option.title = weapon ? `${cantrip.name}: si usa dall'attacco con arma da mischia` : cantrip.name;
     const box = document.createElement("input");
     box.type = "checkbox";
     box.dataset.cantripId = cantrip.spellId;
     box.checked = knownCantrips.has(cantrip.spellId);
     const name = document.createElement("span");
-    name.textContent = cantrip.name;
+    name.textContent = weapon ? `${cantrip.name} (arma)` : cantrip.name;
     option.append(box, name);
     return option;
   }));
@@ -2312,6 +2344,7 @@ function buildQuickActionEditorRow(action = null) {
     return label;
   };
   const kindLabel = makeLabel("Tipo", kindSelect);
+  kindLabel.hidden = attackRow;
   const targetLabel = makeLabel("Bersaglio", targetSelect);
   const referenceLabel = makeLabel("Incantesimo", referenceInput, "wide");
   const featureLabel = makeLabel("Capacità", featureSelect, "wide");
@@ -2414,16 +2447,76 @@ function buildQuickActionEditorRow(action = null) {
 }
 
 function buildQuickActionEditor() {
-  const list = $("quickActionEditorList");
   const actions = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
-  list.replaceChildren(...actions.map((action) => buildQuickActionEditorRow(action)));
+  $("quickActionEditorList").replaceChildren(...actions
+    .filter((action) => !isAttackQuickAction(action))
+    .map((action) => buildQuickActionEditorRow(action)));
+  $("attackEditorList").replaceChildren(...actions
+    .filter(isAttackQuickAction)
+    .map((action) => buildQuickActionEditorRow(action, { attack: true })));
+  $("attackImportText").value = "";
+  $("attackImportStatus").textContent = "";
+  $("attackImportStatus").dataset.tone = "";
+  setAttackImportOpen(false);
   syncQuickActionAddState();
 }
 
+// Attacks pasted as a block (prepared from a character sheet) become editor rows: nothing is saved until
+// Salva. A row whose name is already in the list is skipped, so an import never duplicates or overwrites.
+function setAttackImportOpen(open) {
+  $("attackImport").hidden = !open;
+  $("attackImportToggle").setAttribute("aria-expanded", open ? "true" : "false");
+  if (open) $("attackImportText").focus();
+}
+
+function importAttacks() {
+  const status = $("attackImportStatus");
+  const { attacks, invalid, error } = parseQuickActionAttackImport($("attackImportText").value);
+  if (error) {
+    status.textContent = error;
+    status.dataset.tone = "error";
+    return;
+  }
+  const list = $("attackEditorList");
+  const nameKey = (value) => String(value || "").trim().toLocaleLowerCase("it");
+  const names = new Set(Array.from(list.querySelectorAll("[data-quick-action-row='1'] [data-quick-action-field='label']"))
+    .map((input) => nameKey(input.value)));
+  let added = 0;
+  let duplicates = 0;
+  let overLimit = 0;
+  for (const attack of attacks) {
+    if (names.has(nameKey(attack.label))) {
+      duplicates += 1;
+      continue;
+    }
+    if (list.querySelectorAll("[data-quick-action-row='1']").length >= MAX_QUICK_ACTION_ATTACKS) {
+      overLimit += 1;
+      continue;
+    }
+    list.appendChild(buildQuickActionEditorRow({ ...attack, id: quickActionId() }, { attack: true }));
+    names.add(nameKey(attack.label));
+    added += 1;
+  }
+  syncQuickActionAddState();
+  const notes = [
+    duplicates ? `${duplicates} già ${duplicates === 1 ? "presente" : "presenti"} (stesso nome)` : "",
+    overLimit ? `${overLimit} oltre il limite di ${MAX_QUICK_ACTION_ATTACKS}` : "",
+    invalid ? `${invalid} non ${invalid === 1 ? "valido" : "validi"}` : "",
+  ].filter(Boolean);
+  status.textContent = `${added ? `${added === 1 ? "Aggiunto 1 attacco" : `Aggiunti ${added} attacchi`}: controllali e premi Salva.` : "Nessun attacco aggiunto."}${notes.length ? ` Saltati: ${notes.join(", ")}.` : ""}`;
+  status.dataset.tone = added ? "success" : "error";
+  if (added) {
+    $("attackImportText").value = "";
+    setAttackImportOpen(false);
+  }
+}
+
+// Both editors save into quickActions: the quick actions first, then the attacks.
 function collectQuickActions() {
-  const rows = Array.from(
-    $("quickActionEditorList").querySelectorAll("[data-quick-action-row='1']")
-  );
+  const rows = [
+    ...$("quickActionEditorList").querySelectorAll("[data-quick-action-row='1']"),
+    ...$("attackEditorList").querySelectorAll("[data-quick-action-row='1']"),
+  ];
   const drafts = rows.map((row) => {
     const field = (name) => row.querySelector(`[data-quick-action-field='${name}']`);
     const kind = field("kind").value;
@@ -2888,7 +2981,9 @@ function collectDamageDefenses() {
 function setEditing(active) {
   editing = !!active;
   if (!editing) {
-    setQuickActionsTabCount(profile?.quickActions?.length || 0);
+    const stored = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
+    setQuickActionsTabCount(stored.filter((action) => !isAttackQuickAction(action)).length);
+    setAttacksTabCount(stored.filter(isAttackQuickAction).length);
     renderClassFeatures();
     syncCardTabs();
     return;
@@ -3041,6 +3136,7 @@ $("edit").addEventListener("click", () => setEditing(true));
 $("cancel").addEventListener("click", () => setEditing(false));
 $("statsTab").addEventListener("click", () => setCardTab("stats"));
 $("quickActionsTab").addEventListener("click", () => setCardTab("quick-actions"));
+$("attacksTab").addEventListener("click", () => setCardTab("attacks"));
 $("classFeaturesTab").addEventListener("click", () => setCardTab("class-features"));
 $("exhaustionDown").addEventListener("click", () => void adjustExhaustion(-1));
 $("exhaustionUp").addEventListener("click", () => void adjustExhaustion(1));
@@ -3048,6 +3144,17 @@ $("quickActionAdd").addEventListener("click", () => {
   const list = $("quickActionEditorList");
   if (list.querySelectorAll("[data-quick-action-row='1']").length >= MAX_QUICK_ACTIONS) return;
   const row = buildQuickActionEditorRow();
+  list.appendChild(row);
+  syncQuickActionAddState();
+  row.querySelector("[data-quick-action-field='label']")?.focus();
+});
+$("attackImportToggle").addEventListener("click", () => setAttackImportOpen($("attackImport").hidden));
+$("attackImportCancel").addEventListener("click", () => setAttackImportOpen(false));
+$("attackImportApply").addEventListener("click", importAttacks);
+$("attackAdd").addEventListener("click", () => {
+  const list = $("attackEditorList");
+  if (list.querySelectorAll("[data-quick-action-row='1']").length >= MAX_QUICK_ACTION_ATTACKS) return;
+  const row = buildQuickActionEditorRow(null, { attack: true });
   list.appendChild(row);
   syncQuickActionAddState();
   row.querySelector("[data-quick-action-field='label']")?.focus();

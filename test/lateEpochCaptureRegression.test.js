@@ -302,7 +302,7 @@ test("9. Lair toggle e setParagonActions: propagazione epoch e guard contro cont
 
 test("10. Tracker Quick Actions: cattura epoch all'apertura, la memorizza nel context, il listener la usa senza late capture e chiude se stale", () => {
   const toggleSection = sourceSection(
-    "function __toggleTrackerQuickActionsPopover(sourceEntry, button, event)",
+    "function __toggleTrackerQuickActionsPopover(sourceEntry, button, event, group = \"quick\")",
     "function __openInitiativeCardContextMenu("
   );
 
@@ -357,7 +357,7 @@ test("11. Post-open cleanup: Card Context Menu e Tracker Quick Actions chiudono 
   ]);
 
   const quickActionsSection = sourceSection(
-    "function __toggleTrackerQuickActionsPopover(sourceEntry, button, event)",
+    "function __toggleTrackerQuickActionsPopover(sourceEntry, button, event, group = \"quick\")",
     "function __openInitiativeCardContextMenu("
   );
 

@@ -745,3 +745,32 @@ test("una punizione nel log mostra slot, dadi, bonus e condizione applicata", ()
   assert.match(details, /Extra: Punizione Divina \(slot 2°\) 4d8 \(18 radiosi\) · Non morto o immondo/u);
   assert.match(details, /Extra: Punizione Occulta \(slot 3°\) 4d8 \(20 forza\) · Prono/u);
 });
+
+test("un trucchetto con tiro salvezza mostra esito, dadi e TS con la CD", () => {
+  const model = buildCombatLogPresentation(null, [event({
+    kind: "pc-attack", category: "attack", label: "Oren: Fiamma sacra → Goblin", source: "automatic",
+    payload: { causality: {
+      action: { id: "cantrip", label: "Fiamma sacra" },
+      cantrip: { spellId: "sacred-flame", name: "Fiamma sacra", dice: "2d8", saveLabel: "TS Destrezza (CD 13)" },
+      save: { ability: "dex", outcome: "failed", dc: 13 },
+      targets: [{ id: "goblin", name: "Goblin", outcome: "failed", requestedDamage: 9, appliedHpDelta: -7 }],
+    } },
+  })]);
+  const details = model.events[0].details.flatMap((section) => section.lines).join(" | ");
+  assert.match(details, /Trucchetto: Fiamma sacra \(2d8\) · TS Destrezza \(CD 13\)/u);
+  assert.match(details, /Fallito/u);
+  assert.equal(getCombatLogCategoryMeta("attack").label, "Attacco");
+});
+
+test("un trucchetto con l'arma compare nel dettaglio con i suoi dadi", () => {
+  const model = buildCombatLogPresentation(null, [event({
+    kind: "pc-attack", category: "attack", label: "Vex: Stocco → Goblin", source: "automatic",
+    payload: { causality: {
+      action: { id: "rapier", label: "Stocco", attackOutcome: "hit" },
+      weaponCantrip: { spellId: "tasha-lama-verdefiamma", name: "Lama Verdefiamma", dice: "1d8", secondaryDice: "1d8 + mod.", secondaryTargetId: "imp" },
+      targets: [{ id: "goblin", name: "Goblin", outcome: "hit", requestedDamage: 11 }, { id: "imp", name: "Imp", outcome: "secondary", requestedDamage: 6 }],
+    } },
+  })]);
+  const details = model.events[0].details.flatMap((section) => section.lines).join(" | ");
+  assert.match(details, /Trucchetto con l'arma: Lama Verdefiamma \(1d8 · seconda creatura 1d8 \+ mod\.\)/u);
+});

@@ -99,7 +99,7 @@ test("il routing delle quick action spell risolve l'azione dal catalogo della ca
 test("il pulsante apre e richiude un popover dedicato alle macro", () => {
   assert.match(
     initiativeSource,
-    /if\s*\(__trackerQuickActionsRequestId\s*&&\s*__trackerQuickActionsSourceId\s*===\s*sourceId\)/,
+    /__trackerQuickActionsRequestId\s*&&\s*__trackerQuickActionsSourceId\s*===\s*sourceId\s*&&\s*__trackerQuickActionsGroup\s*===\s*group/,
   );
   assert.match(initiativeSource, /OBR\.popover\.open\(\{\s*id:\s*TRACKER_QUICK_ACTIONS_POPOVER_ID/);
   assert.match(initiativeSource, /url:\s*`\/tracker-quick-actions\.html\?request=/);

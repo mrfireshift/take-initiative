@@ -56,12 +56,17 @@ export function createPcAttackRuntime({
         throw new Error("L'azione è cambiata nel profilo: riapri l'attacco.");
       const [targetItem]=targetId?await api.scene.items.getItems([targetId]):[];
       if(!targetItem) throw new Error("Il bersaglio non è più presente nella scena.");
+      // Green-Flame Blade: the second creature, read like the target.
+      const secondaryId=request.weaponCantrip?.secondary?.targetId || "";
+      const [secondaryItem]=secondaryId?await api.scene.items.getItems([secondaryId]):[];
+      if(secondaryId && !secondaryItem) throw new Error("La seconda creatura non è più presente nella scena.");
       if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri l'attacco.");
       const attackInstanceId=request.attackInstanceId || newId();
       const decisionKey=JSON.stringify({sourceId,actionId,targetId,outcome:request.outcome || "",
         componentAmounts:Object.entries(request.componentAmounts || {}).sort(([a],[b])=>a.localeCompare(b)),
         ignoredDefenses:request.ignoredDefenses ?? null,expectedDefenses:request.expectedDefenses ?? null,
-        riders:request.riders ?? null,extras:request.extras ?? null,spellId:request.spellId || "",sharedHp:request.sharedHp || null});
+        riders:request.riders ?? null,extras:request.extras ?? null,spellId:request.spellId || "",
+        weaponCantrip:request.weaponCantrip ?? null,expectedSecondaryDefenses:request.expectedSecondaryDefenses ?? null,sharedHp:request.sharedHp || null});
       let draft=drafts.get(attackInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
         throw new Error("Le decisioni o la scena dell'attacco sono cambiate: riapri l'attacco.");
@@ -70,7 +75,8 @@ export function createPcAttackRuntime({
         const plan=buildPcAttackMutation({action,sourceItem:scope.item,targetItem,outcome:request.outcome,
           componentAmounts:request.componentAmounts || {},attackInstanceId,ignoredDefenses:request.ignoredDefenses || [],
           expectedDefenses:request.expectedDefenses,turnState:scope.turnState,riders:request.riders || [],extras:request.extras || [],
-          spellId:request.spellId || ""});
+          spellId:request.spellId || "",weaponCantrip:request.weaponCantrip || null,secondaryItem:secondaryItem || null,
+          expectedSecondaryDefenses:request.expectedSecondaryDefenses});
         draft={decisionKey,plan,options:{...plan.options,
           sharedHp:request.sharedHp || {},sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
         drafts.set(attackInstanceId,draft);
@@ -85,8 +91,10 @@ export function createPcAttackRuntime({
       }
       const warnings=[];
       // Post-commit projections run once; they never mutate canonical HP.
-      if(plan.change?.changed && result.duplicate!==true && scope.isCurrent()) {
-        try {warnings.push(...(await postDamage({item:targetItem,change:plan.change,result,sceneEpoch:scope.epoch,
+      const damaged=[...(plan.change?.changed?[{item:targetItem,change:plan.change}]:[]),
+        ...(plan.secondaryChange?.changed?[{item:plan.secondaryItem,change:plan.secondaryChange}]:[])];
+      if(result.duplicate!==true && scope.isCurrent()) for(const row of damaged) {
+        try {warnings.push(...(await postDamage({item:row.item,change:row.change,result,sceneEpoch:scope.epoch,
           sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent}) || []));}
         catch(error) {warnings.push(String(error?.message || error));}
       }
@@ -95,6 +103,9 @@ export function createPcAttackRuntime({
         followUps:[...(plan.followUps || [])],cantrip:plan.causality.cantrip ? structuredClone(plan.causality.cantrip) : null,
         manualRemainder:plan.options?.history?.payload?.manualRemainder || "",conditions:(plan.causality.conditionsApplied || []).map(entry=>entry.condition),
         target:{id:targetItem.id,name:targetItem.name || targetItem.id},
+        ...(plan.causality.weaponCantrip?{weaponCantrip:structuredClone(plan.causality.weaponCantrip)}:{}),
+        ...(plan.secondaryChange?{secondary:{id:plan.secondaryItem.id,name:plan.secondaryItem.name || plan.secondaryItem.id,
+          before:plan.secondaryChange.hp,after:plan.secondaryChange.afterHP}}:{}),
         hpChange:plan.change?{before:plan.change.hp,after:plan.change.afterHP,hpMax:plan.change.hpMax}:null,
         historyEntryId:result.historyEntry?.id || null,
         undoAvailable:!result.historyPending && !result.historySkipped && !!result.historyEntry?.id};

@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 
 import {
   MAX_QUICK_ACTIONS,
+  MAX_QUICK_ACTION_ATTACKS,
   findQuickAction,
+  isAttackQuickAction,
+  parseQuickActionAttackImport,
   quickActionDirectTargetIds,
   quickActionInitialTargetIds,
   sanitizeQuickAction,
@@ -207,4 +210,42 @@ test("un attacco con trucchetto conserva solo i trucchetti conosciuti; senza fon
   const weapon = sanitizeQuickAction({ id: "sword", label: "Spada", kind: "attack", source: { kind: "weapon" }, components: [{ type: "slashing" }] });
   assert.equal(weapon.source, undefined);
   assert.equal(weapon.components.length, 1);
+});
+
+test("attacchi e azioni rapide hanno limiti separati nello stesso elenco", () => {
+  const quick = Array.from({ length: MAX_QUICK_ACTIONS + 2 }, (_, index) => ({
+    id: `quick-${index}`, label: `Azione ${index}`, kind: "condition", conditionName: "Prono",
+  }));
+  const attacks = Array.from({ length: MAX_QUICK_ACTION_ATTACKS + 2 }, (_, index) => ({
+    id: `attack-${index}`, label: `Attacco ${index}`, kind: "attack", components: [{ type: "slashing" }],
+  }));
+  // Interleaved: twelve quick actions do not crowd out the attacks, nor the other way round.
+  const result = sanitizeQuickActions([...attacks.slice(0, 3), ...quick, ...attacks.slice(3)]);
+  assert.equal(result.filter((action) => !isAttackQuickAction(action)).length, MAX_QUICK_ACTIONS);
+  assert.equal(result.filter(isAttackQuickAction).length, MAX_QUICK_ACTION_ATTACKS);
+  assert.equal(MAX_QUICK_ACTION_ATTACKS, 8);
+  assert.deepEqual(result.slice(0, 3).map((action) => action.id), ["attack-0", "attack-1", "attack-2"], "keeps the stored order");
+  assert.equal(sanitizeQuickActions([...quick, ...attacks], { limit: 64, attackLimit: 64 }).length, quick.length + attacks.length);
+});
+
+test("importa un blocco di attacchi: arma, trucchetto, voci non valide e testo illeggibile", () => {
+  const block = JSON.stringify({ name: "Alane", attacks: [
+    { label: "Bastone ferrato", range: "melee", components: [{ type: "bludgeoning", formula: "1d6" }] },
+    { label: "Trucchetto", source: { kind: "cantrip", spellIds: ["ray-of-frost", "not-a-cantrip"] } },
+    { label: "Senza danni", range: "melee", components: [] },
+    { label: "Tipo sconosciuto", components: [{ type: "banana" }] },
+    "testo",
+  ] });
+  const result = parseQuickActionAttackImport(block);
+  assert.equal(result.error, "");
+  assert.equal(result.invalid, 3);
+  assert.deepEqual(result.attacks.map((attack) => attack.label), ["Bastone ferrato", "Trucchetto"]);
+  assert.equal(result.attacks[0].kind, "attack");
+  assert.equal("id" in result.attacks[0], false, "the caller gives the ids");
+  assert.deepEqual(result.attacks[0].components, [{ id: "c1", type: "bludgeoning", formula: "1d6" }]);
+  assert.deepEqual(result.attacks[1].source, { kind: "cantrip", spellIds: ["ray-of-frost"] });
+  // A bare array works too; anything else is reported, never thrown.
+  assert.equal(parseQuickActionAttackImport('[{"label":"Arco","range":"ranged","components":[{"type":"piercing"}]}]').attacks[0].range, "ranged");
+  assert.match(parseQuickActionAttackImport("non json").error, /non leggibile/);
+  assert.match(parseQuickActionAttackImport('{"name":"x"}').error, /elenco di attacchi/);
 });

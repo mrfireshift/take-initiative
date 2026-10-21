@@ -637,9 +637,9 @@ da questo audit.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **393**; disconnessi: **0**; fragili: **0**.
 - Opzioni trackable del runtime: **358**; definizioni con tracking persistente verificate dall'audit: **355**; definizioni con regole d'area: **135** (140 regole).
-- Workflow che richiedono smoke test runtime: **390**.
+- Workflow che richiedono smoke test runtime: **392**.
 - Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `bb9b989653c31663`.
+- Impronta deterministica: `5eac222a6d41c98d`.
 
 ## Decisioni di prodotto chiuse
 
@@ -652,8 +652,8 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 87 |
-| PARTIAL | 181 |
+| MANUAL | 85 |
+| PARTIAL | 183 |
 | TRACK_ONLY | 143 |
 
 ### Stato di copertura (coverageStatus)
@@ -695,13 +695,13 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 40 |
+| ACTIVE_ACTION | 41 |
 | AREA_GEOMETRY | 135 |
-| CAST | 222 |
-| CLEANUP | 107 |
+| CAST | 225 |
+| CLEANUP | 109 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 355 |
-| TURN_TRIGGER | 89 |
+| TURN_TRIGGER | 91 |
 
 ### Stato di integrazione console unificata
 
@@ -878,7 +878,7 @@ Nessuna voce.
 | Bagliore solare | `sunbeam` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Banchetto degli eroi | `heroes-feast` | SRD 5.1 / 6 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Barriera di lame | `blade-barrier` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Beffa crudele | `vicious-mockery` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
+| Beffa crudele | `vicious-mockery` | SRD 5.1 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Benedizione | `bless` | SRD 5.1 / 1 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Blocca mostri | `hold-monster` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Blocca persone | `hold-person` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1270,7 +1270,7 @@ Nessuna voce.
 | Spruzzo prismatico | `prismatic-spray` | SRD 5.1 / 7 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Spruzzo velenoso | `poison-spray` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Stretta della Terra di Maximilian | `xanathar-stretta-della-terra-di-maximilian` | Xanathar / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Stretta folgorante | `shocking-grasp` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
+| Stretta folgorante | `shocking-grasp` | SRD 5.1 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Sudario Spirituale | `tasha-sudario-spirituale` | Tasha / 3 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Suggestione | `suggestion` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Suggestione di massa | `mass-suggestion` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1322,3 +1322,4 @@ Nessuna voce.
 ## Dati macchina
 
 La versione completa con condizioni rilevate, ID delle regole, trigger ed estratti di evidenza è in `data/spell-automation-audit.json`.
+

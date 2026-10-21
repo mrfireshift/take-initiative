@@ -73,7 +73,9 @@ export function getSpellAttackResolution(spell, choiceValue = "", castContext = 
         effect: hitEffects(spell)[0],
       }
       : {}),
-    ...(outcome === "hit"
+    // The delayed damage belongs to Acid Arrow only (the definition with delayedDice): another attack spell
+    // keeps its own hit effect (Chill Touch, Guiding Bolt) and never gets an acid pill.
+    ...(outcome === "hit" && definition.delayedDice
       ? {
         deferredEffect: {
           id: "acid-arrow-delayed-acid",
