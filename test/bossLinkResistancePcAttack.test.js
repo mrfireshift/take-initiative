@@ -80,7 +80,8 @@ const sword = { id: "holy-sword", label: "Spada sacra", kind: "attack", range: "
 const record = { enabled: true, name: "Rimebound Link", holder: "Titano", breaker: "Proiezione Fatata" };
 const meta = (id) => sceneItems.find((item) => item.id === id).metadata[META_KEY];
 const notices = [];
-sdk.notification = { show: async (message, variant) => { notices.push([variant, message]); } };
+sdk.viewport = { getWidth: async () => 1200, getHeight: async () => 800 };
+sdk.popover = { close: async () => {}, open: async ({ url }) => { notices.push(JSON.parse(new URLSearchParams(url.split("?")[1]).get("payload"))); } };
 let runtime;
 
 test.beforeEach(async () => {
@@ -99,7 +100,7 @@ test.beforeEach(async () => {
   roomMetadata = {};
   markSceneEpochReady("pc-attack-link-test");
   await historyOwner.mountHistoryOwner(); await effects.mountEffectsMutationCoordinatorService();
-  runtime = createPcAttackRuntime({ api: sdk, postDamage: async () => [] });
+  runtime = createPcAttackRuntime({ api: sdk, emitVisual: async () => ({ sent: false }), postDamage: async () => [] });
 });
 test.after(() => { effects.unmountEffectsMutationCoordinatorService(); historyOwner.unmountHistoryOwner(); });
 const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
@@ -121,7 +122,8 @@ test("the Titan resists while the link is active: 8 + 9 becomes 4 + 4 on the sha
   assert.equal(meta("hand").conditions, undefined, "no pill or effect is ever written on the Titan");
   assert.deepEqual(meta("auril").bossLinkResistance, record);
   await settle();
-  assert.deepEqual(notices, [["INFO", "Rimebound Link attivo: il Titano ha Resistenza a tutti i danni (Mano del Titano). Danno già dimezzato."]]);
+  assert.deepEqual(notices.map((card) => [card.tone, card.lines[0].strong + card.lines[0].text]),
+    [["active", "Mano del Titano: Resistenza a tutti i danni, danno già dimezzato."]]);
 });
 
 test("a hit on Auril is full damage and breaks the link; the next hit on the Titan is full damage too", async () => {
@@ -129,7 +131,7 @@ test("a hit on Auril is full damage and breaks the link; the next hit on the Tit
   assert.equal(meta("auril").hp, 283);
   assert.equal(meta("auril").bossLinkResistance.brokenRound, 2);
   await settle();
-  assert.match(notices.at(-1)[1], /^Rimebound Link interrotto/);
+  assert.equal(notices.at(-1).title, "Link interrotto");
   const { result } = await attack("hand");
   assert.equal(result.hpChange.after, 266, "no resistance for the rest of the round");
 });

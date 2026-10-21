@@ -70,7 +70,8 @@ test("the coordinator's plan: damage to the Titan is a notice; damage to the Pro
   const items = [auril(), titan("hand"), titan("body")];
   const titanHit = planBossLinkResistance({ items, round: 2, groups: [{ sourceId: "auril", damageHitIds: ["hand"] }] });
   assert.deepEqual(titanHit.metadataPatches, []);
-  assert.deepEqual(titanHit.notices, [{ kind: "resisted", sourceId: "auril", name: "Rimebound Link", holder: "Titano", targets: ["Mano del Titano"], applied: false }]);
+  assert.deepEqual(titanHit.notices, [{ kind: "resisted", sourceId: "auril", sourceName: "Auril", portrait: "", name: "Rimebound Link", holder: "Titano",
+    targets: ["Mano del Titano"], applied: false }]);
   assert.equal(bossLinkResistanceNoticeText(titanHit.notices[0]),
     "Rimebound Link attivo: il Titano ha Resistenza a tutti i danni (Mano del Titano). Dimezza tu il danno se non l'hai già fatto.");
   const halved = planBossLinkResistance({ items, round: 2, groups: [{ sourceId: "auril", damageHitIds: ["hand"] }], appliedIds: ["hand"] });
@@ -88,4 +89,33 @@ test("the coordinator's plan: damage to the Titan is a notice; damage to the Pro
   assert.deepEqual(planBossLinkResistance({ items, round: 2, groups: [{ sourceId: "auril", damageHitIds: [] }] }), { metadataPatches: [], notices: [] });
   assert.deepEqual(planBossLinkResistance({ items: [auril(null), titan("hand")], round: 2, groups: [{ sourceId: "auril", damageHitIds: ["auril"] }] }),
     { metadataPatches: [], notices: [] });
+});
+
+test("the GM's popover card: the Titan's damage alone, the link broken, or both in one command", async () => {
+  const { bossLinkNoticeCard } = await import("../src/bossLinkResistanceCore.js");
+  const items = [{ ...auril(), image: { url: "https://example.test/auril.png" } }, titan("hand")];
+  const resisted = planBossLinkResistance({ items, round: 2, groups: [{ sourceId: "auril", damageHitIds: ["hand"] }] });
+  assert.deepEqual(bossLinkNoticeCard(resisted.notices), { tone: "active", eyebrow: "Rimebound Link · solo GM", title: "Titano resistente",
+    lines: [{ strong: "Mano del Titano", text: ": Resistenza a tutti i danni, dimezza il danno se non l'hai già fatto." }],
+    badge: { label: "DANNO", value: "½" }, name: "Auril", portrait: "https://example.test/auril.png" });
+  const both = planBossLinkResistance({ items, round: 2, appliedIds: ["hand"], groups: [{ sourceId: "auril", damageHitIds: ["auril", "hand"] }] });
+  const card = bossLinkNoticeCard(both.notices);
+  assert.deepEqual([card.tone, card.title, card.badge], ["broken", "Link interrotto", { label: "ROUND", value: "3" }]);
+  assert.deepEqual(card.lines.map((line) => line.strong + line.text), ["Mano del Titano: Resistenza a tutti i danni, danno già dimezzato.",
+    "Proiezione Fatata colpita: il Titano perde la Resistenza fino al round 3."]);
+  assert.equal(bossLinkNoticeCard([]), null);
+});
+
+test("the popover is our own page, built like the speed warning and registered in the build", async () => {
+  const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
+  const [page, script, host, vite, coordinator] = await Promise.all([read("../boss-link-notice.html"), read("../src/boss-link-notice.ts"),
+    read("../src/bossLinkNoticeHost.js"), read("../vite.config.js"), read("../src/effectsMutations.js")]);
+  assert.match(page, /<script type="module" src="\/src\/boss-link-notice\.ts"><\/script>/);
+  assert.match(page, /\.warning\.broken \{/);
+  assert.match(script, /AUTO_CLOSE_MS = 8000/);
+  assert.match(host, /url: `\/boss-link-notice\.html\?payload=\$\{encodeURIComponent\(JSON\.stringify\(card\)\)\}`/);
+  assert.match(host, /hidePaper: true/);
+  assert.match(vite, /bossLinkNotice: path\.resolve\(process\.cwd\(\), "boss-link-notice\.html"\)/);
+  assert.match(coordinator, /if \(await OBR\.player\.getRole\(\) !== "GM"\) return;/);
+  assert.match(coordinator, /if \(await openBossLinkNotice\(notices\)\) return;/);
 });

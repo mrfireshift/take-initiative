@@ -74,15 +74,16 @@ export function planBossLinkResistance({ items = [], groups = [], round, applied
     if (!state?.active) continue;
     const damaged = Array.isArray(group.damageHitIds) ? group.damageHitIds : [];
     const holders = damaged.filter((id) => id !== source.id);
+    const portrait = text(source.image?.url).slice(0, 2048);
     if (holders.length) {
-      notices.push({ kind: "resisted", sourceId: source.id, name: state.name, holder: state.holder,
+      notices.push({ kind: "resisted", sourceId: source.id, sourceName: source.name || "", portrait, name: state.name, holder: state.holder,
         targets: holders.map((id) => byId.get(id)?.name || id), applied: holders.every((id) => applied.has(id)) });
     }
     if (damaged.includes(source.id)) {
       const meta = metaOf(source);
       metadataPatches.push({ id: source.id, fields: { [BOSS_LINK_RESISTANCE_FIELD]: {
         value: { ...meta[BOSS_LINK_RESISTANCE_FIELD], brokenRound: round }, expected: snapshot(meta, BOSS_LINK_RESISTANCE_FIELD) } } });
-      notices.push({ kind: "broken", sourceId: source.id, name: state.name, holder: state.holder, breaker: state.breaker, round });
+      notices.push({ kind: "broken", sourceId: source.id, sourceName: source.name || "", portrait, name: state.name, holder: state.holder, breaker: state.breaker, round });
     }
   }
   return { metadataPatches, notices };
@@ -94,4 +95,26 @@ export function bossLinkResistanceNoticeText(notice) {
   if (notice?.kind === "resisted")
     return `${notice.name} attivo: il ${notice.holder} ha Resistenza a tutti i danni${notice.targets?.length ? ` (${notice.targets.join(", ")})` : ""}. ${notice.applied ? "Danno già dimezzato." : "Dimezza tu il danno se non l'hai già fatto."}`;
   return "";
+}
+
+// The GM's popover (boss-link-notice.html, on the model of the speed and concentration warnings): one card for the notices
+// of one command. A broken link sets the tone; the Titan's damage stays as a line above it.
+export function bossLinkNoticeCard(notices = []) {
+  const list = (Array.isArray(notices) ? notices : []).filter((notice) => ["resisted", "broken"].includes(notice?.kind));
+  if (!list.length) return null;
+  const broken = list.find((notice) => notice.kind === "broken");
+  const resisted = list.filter((notice) => notice.kind === "resisted");
+  const first = broken || resisted[0];
+  const lines = resisted.map((notice) => ({ strong: (notice.targets || []).join(", ") || notice.holder,
+    text: notice.applied ? ": Resistenza a tutti i danni, danno già dimezzato." : ": Resistenza a tutti i danni, dimezza il danno se non l'hai già fatto." }));
+  if (broken) lines.push({ strong: broken.breaker, text: ` colpita: il ${broken.holder} perde la Resistenza fino al round ${broken.round + 1}.` });
+  return {
+    tone: broken ? "broken" : "active",
+    eyebrow: `${first.name} · solo GM`,
+    title: broken ? "Link interrotto" : `${first.holder} resistente`,
+    lines,
+    badge: broken ? { label: "ROUND", value: String(broken.round + 1) } : { label: "DANNO", value: "½" },
+    name: first.sourceName || first.breaker || first.holder,
+    portrait: first.portrait || "",
+  };
 }

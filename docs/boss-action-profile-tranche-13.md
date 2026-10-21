@@ -21,9 +21,9 @@ All'inizio di ogni round il Titano ha Resistenza a tutti i danni; la Proiezione 
 
 - **Interruzione** (`effectsMutations.prepareEffectsMutation`): ogni danno ai token collegati passa da `planSharedHpMutation`, che ora riporta anche `damageHitIds`. Se Auril è tra i colpiti e il Link è attivo, lo stesso comando scrive `brokenRound`. Vale per tracker, danni rapidi, incantesimi, attacchi dei PG e azioni boss; l'Undo ripristina il Link insieme ai PF. Senza un gruppo con il Link il coordinatore non legge niente di più.
 - **Dimezzamento automatico** nella console degli attacchi dei PG (solo GM): i token del Titano ricevono in memoria un effetto con Resistenza a tutti i danni (`withBossLinkDefenses`), mai scritto sul token. Anteprima e applicazione dimezzano allo stesso modo; anche Palmo Tremante.
-- **Avvisi al GM** (`OBR.notification`, solo ruolo GM, dopo il commit):
-  - danno al Titano con il Link attivo: «Rimebound Link attivo: il Titano ha Resistenza a tutti i danni (…)», con «Danno già dimezzato.» se l'ha calcolato la console degli attacchi, altrimenti «Dimezza tu il danno se non l'hai già fatto.»;
-  - danno ad Auril: «Rimebound Link interrotto …» fino al prossimo round.
+- **Avvisi al GM** (solo ruolo GM, dopo il commit): un nostro popover, `boss-link-notice.html`, sul modello degli avvisi di velocità e concentrazione. Una card per comando con il ritratto di Auril, azzurra con il Link attivo e arancione quando si interrompe; si chiude da sola dopo 8 secondi, con un clic o con Esc. La notifica di OBR resta solo come ripiego se il popover non si apre. Il contenuto:
+  - danno al Titano con il Link attivo: «Titano resistente», con il pezzo colpito e «danno già dimezzato» se l'ha calcolato la console degli attacchi, altrimenti «dimezza il danno se non l'hai già fatto»;
+  - danno ad Auril: «Link interrotto», con il round in cui il Link torna.
 - **Console Boss Actions:** la riga «Rimebound Link attivo (round N) …» oppure «… interrotto nel round N …».
 
 ## Limiti

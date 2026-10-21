@@ -1024,6 +1024,11 @@ async function showBossLinkNotices(notices) {
   } catch {
     return;
   }
+  // Our own popover (as the speed and concentration warnings); OBR's notification only if it cannot open.
+  try {
+    const { openBossLinkNotice } = await import("./bossLinkNoticeHost.js");
+    if (await openBossLinkNotice(notices)) return;
+  } catch {}
   for (const notice of notices) {
     const message = bossLinkResistanceNoticeText(notice);
     if (message) await OBR.notification.show(message, notice.kind === "broken" ? "WARNING" : "INFO").catch(() => {});

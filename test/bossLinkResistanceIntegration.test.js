@@ -1,18 +1,26 @@
 // Rimebound Link through the production effects coordinator: damage to the Titan (a linked token) leaves the link,
 // damage to Auril (the Projection, the boss token) breaks it in the same command, Undo restores it, and the GM
-// alone gets the notices.
+// alone gets the notices, in our own popover (boss-link-notice.html), not OBR's notification.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { reset, cleanup, apply, damage, group, items, meta, history, effects, sdk, setRole } from "../test-support/sharedHpHarness.js";
 
 const record = { enabled: true, name: "Rimebound Link", holder: "Titano", breaker: "Proiezione Fatata" };
+// The cards of the popovers opened for the GM, read back from their URL; OBR's notification must stay unused.
 const notices = [];
-sdk.notification = { show: async (message, variant) => { notices.push([variant, message]); } };
+const fallbacks = [];
+sdk.viewport = { getWidth: async () => 1200, getHeight: async () => 800 };
+sdk.popover = { close: async () => {}, open: async ({ id, url }) => {
+  assert.equal(id, "com.thebigpicture.initiative/boss-link-notice");
+  notices.push(JSON.parse(new URLSearchParams(url.split("?")[1]).get("payload")));
+} };
+sdk.notification = { show: async (message) => { fallbacks.push(message); } };
 const linked = () => group().map((item) => item.id !== "auril" ? item : { ...item, metadata: { ...item.metadata,
   "com.thebigpicture.initiative/meta": { ...item.metadata["com.thebigpicture.initiative/meta"], bossLinkResistance: record } } });
 const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
 
-test.beforeEach(async () => { await reset(linked()); notices.length = 0; });
+test.beforeEach(async () => { await reset(linked()); notices.length = 0; fallbacks.length = 0; });
+test.afterEach(() => { assert.deepEqual(fallbacks, [], "no OBR notification"); });
 test.after(cleanup);
 
 test("damage to the Titan leaves the link and reminds the GM; damage to Auril breaks it for the round", async () => {
@@ -20,7 +28,9 @@ test("damage to the Titan leaves the link and reminds the GM; damage to Auril br
   assert.equal(titan.status, "applied");
   assert.deepEqual(meta("auril").bossLinkResistance, record, "the Titan's damage does not break the link");
   await settle();
-  assert.deepEqual(notices, [["INFO", "Rimebound Link attivo: il Titano ha Resistenza a tutti i danni (hand). Dimezza tu il danno se non l'hai già fatto."]]);
+  assert.deepEqual(notices, [{ tone: "active", eyebrow: "Rimebound Link · solo GM", title: "Titano resistente",
+    lines: [{ strong: "hand", text: ": Resistenza a tutti i danni, dimezza il danno se non l'hai già fatto." }],
+    badge: { label: "DANNO", value: "½" }, name: "auril", portrait: "" }]);
   notices.length = 0;
 
   const projection = await apply([damage("auril", 30, "projection-hit")], { history: true });
@@ -29,8 +39,8 @@ test("damage to the Titan leaves the link and reminds the GM; damage to Auril br
   assert.equal(meta("auril").hp, 250, "the damage itself is applied as given (the shared pool: 300 - 20 - 30)");
   assert.ok(items.every((item) => item.metadata.foreign === "keep"), "the rest of the metadata is kept");
   await settle();
-  assert.deepEqual(notices.map(([variant]) => variant), ["WARNING"]);
-  assert.match(notices[0][1], /^Rimebound Link interrotto/);
+  assert.deepEqual(notices.map((card) => [card.tone, card.title, card.badge.value]), [["broken", "Link interrotto", "2"]]);
+  assert.deepEqual(notices[0].lines, [{ strong: "Proiezione Fatata", text: " colpita: il Titano perde la Resistenza fino al round 2." }]);
   notices.length = 0;
 
   // Broken for this round: more damage to either manifestation changes nothing and says nothing.
@@ -49,8 +59,11 @@ test("an area on both manifestations: one event, the link breaks after it; a pla
   assert.equal(meta("auril").hp, 290, "the GM chose the Titan's halved amount for the group");
   assert.equal(meta("auril").bossLinkResistance.brokenRound, 1);
   await settle();
-  assert.deepEqual(notices.map(([variant, message]) => [variant, message.split(":")[0]]), [["INFO", "Rimebound Link attivo"], ["WARNING", "Rimebound Link interrotto"]]);
-  assert.match(notices[0][1], /Danno già dimezzato\.$/);
+  assert.equal(notices.length, 1, "one card for the command");
+  assert.equal(notices[0].tone, "broken");
+  assert.deepEqual(notices[0].lines.map((line) => line.strong + line.text), [
+    "hand: Resistenza a tutti i danni, danno già dimezzato.",
+    "Proiezione Fatata colpita: il Titano perde la Resistenza fino al round 2."]);
 
   await reset(linked()); notices.length = 0;
   setRole("PLAYER");
