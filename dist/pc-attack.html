@@ -70,6 +70,11 @@
     .amount:disabled { opacity: .45; }
     .inline-select { height: 22px; padding: 0 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); }
     .extras-section { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
+    .subcaption { margin-top: 2px; color: var(--dim); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
+    /* An activation's save: the same colours as the outcome buttons, at the height of the inline selects. */
+    .segmented.mini { display: inline-grid; grid-auto-columns: max-content; }
+    .segmented.mini button { min-height: 22px; padding: 0 8px; font-size: var(--obrt-type-secondary); }
+    .effect-hint { color: var(--muted); }
     .extra-fields { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 6px; }
     .field { height: 26px; min-width: 0; padding: 2px 6px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-size: var(--obrt-type-secondary); }
     .lead-remove { width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--obrt-radius-sm); background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
@@ -93,7 +98,7 @@
     .status { flex: 1 1 auto; min-width: 0; max-height: 52px; overflow-y: auto; margin: 0; color: #bfdbfe; font-size: var(--obrt-type-secondary); white-space: pre-wrap; }
     .status:empty::before { content: "Pronto."; color: var(--dim); }
   </style>
-  <script type="module" crossorigin src="/assets/pcAttack-o2SeMv4G.js"></script>
+  <script type="module" crossorigin src="/assets/pcAttack-D4AfsqcB.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-cQDNDP2l.js">
   <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
@@ -104,35 +109,35 @@
   <link rel="modulepreload" crossorigin href="/assets/distance3dCore-BBBmU4Al.js">
   <link rel="modulepreload" crossorigin href="/assets/spells-srd-Ssstkz5w.js">
   <link rel="modulepreload" crossorigin href="/assets/reminderResolutionCore-DS_LSyYW.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-Cs5ci7ak.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditions-CDt5y_Uu.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-Bifm_enD.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-DiTNuJvZ.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ci4uQNGU.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-rg5-UoB2.js">
   <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BVqw8Zfu.js">
   <link rel="modulepreload" crossorigin href="/assets/customAuraCore-C8ArS2dz.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-BkoC6mPw.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-DnDW_LQP.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-Bbuher-4.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-qyffg7ak.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-Cjpx8ku8.js">
   <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-DUnr4uVm.js">
-  <link rel="modulepreload" crossorigin href="/assets/history-KsMEUAgP.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-BH3fQ9Tg.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3d-CO6Pu5Hm.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-2BU2A1ka.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-DtIswEq_.js">
   <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-CJ-dHtGF.js">
   <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BiUI0kXb.js">
   <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-CU63bT9B.js">
   <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-DyQ88aSf.js">
-  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-BgFNL3uG.js">
-  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-B4m-3r1B.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-COpMqgU4.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-CsKS15KF.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-DWwQH9si.js">
+  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-DmApcMT3.js">
+  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-BGP2S66d.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-lWdtXuf3.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-BNfeNq5Z.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-CXWsAjTj.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-C5TqxhTA.js">
   <link rel="modulepreload" crossorigin href="/assets/sharedHpViewCore-cW7dwQv1.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionProfileStore-B_yHUBJn.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionProfileStore-CoqoeCsU.js">
   <link rel="modulepreload" crossorigin href="/assets/bossCollapseCore-kuzQsDdD.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-DmiucE2h.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionExecution-DTCLCWQs.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-Dfaehphj.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-Cr_51glR.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionExecution-DR2iGdvZ.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-5vq3aHvF.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDrag-Bz6ZFVOx.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-CFw_LKnU.js">
   <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-DznAGjlY.js">
@@ -165,6 +170,8 @@
             <span class="caption" id="pc-attack-extras-caption">Extra al colpo</span>
             <div class="component-list" id="pc-attack-woven"></div>
             <div class="component-list" id="pc-attack-riders"></div>
+            <span class="subcaption" id="pc-attack-activations-caption" hidden>Attivazioni</span>
+            <div class="component-list" id="pc-attack-activations"></div>
             <div class="component-list" id="pc-attack-extras"></div>
             <button class="add-extra" id="pc-attack-add-extra" type="button">+ Componente</button>
           </div>
