@@ -141,3 +141,20 @@ test("the preview counts riders and extras and names what is missing", () => {
   const miss = pcAttackPreview({ ...base, outcome: "miss", amounts: {}, riders: [{ ...sneak, amount: "11" }] });
   assert.deepEqual([miss.ready, miss.total], [true, 0], "a miss ignores the extras");
 });
+
+test("3B-1 riders: Dread Ambusher while its pill is on the ranger; Call the Hunt for any creature with the barbarian's pill", async () => {
+  const { pcAttackRiderOptions: riderOptions } = await import("../src/pcAttackCore.js");
+  const dread = "ranger-cacciatore-delle-tenebre-imboscata-terrificante";
+  const ranger = (meta = {}) => actor([{ classId: "ranger", level: 5, subclassId: "ranger-cacciatore-delle-tenebre" }],
+    { initiativeCard: { characterBuild: [{ classId: "ranger", level: 5, subclassId: "ranger-cacciatore-delle-tenebre" }], classFeaturesConfigured: true,
+      enabledClassFeatureIds: [dread], quickActions: [rapier, bow] }, ...meta });
+  assert.equal(option(riderOptions({ action: rapier, sourceItem: ranger(), targetItem: ghoul(), turnState: ownTurn }), dread).reason, "Imboscata Terrificante non è attiva.");
+  const ambushing = ranger({ conditions: [{ id: "dread", condition: "Imboscata Terrificante", active: true, sourceId: "vex" }] });
+  const dreadOption = option(riderOptions({ action: rapier, sourceItem: ambushing, targetItem: ghoul(), turnState: ownTurn }), dread);
+  assert.deepEqual([dreadOption.available, dreadOption.dice, dreadOption.types], [true, "1d8", ["piercing"]]);
+  const hunt = "barbaro-cammino-della-bestia-chiamata-alla-caccia";
+  assert.equal(option(riderOptions({ action: rapier, sourceItem: rogue(), targetItem: ghoul(), turnState: ownTurn }), hunt), undefined);
+  const hunter = rogue({ conditions: [{ id: "hunt", condition: "Chiamata alla Caccia", active: true, sourceId: "barbarian" }] });
+  const huntOption = option(riderOptions({ action: rapier, sourceItem: hunter, targetItem: ghoul(), turnState: ownTurn }), hunt);
+  assert.deepEqual([huntOption.available, huntOption.dice], [true, "1d6"]);
+});

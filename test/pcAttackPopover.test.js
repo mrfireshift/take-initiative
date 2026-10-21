@@ -410,3 +410,45 @@ test("a miss sends no activations", async () => {
   await f.$("pc-attack-apply").click(); await tick();
   assert.deepEqual(f.calls[0].activations, []);
 });
+
+const sweepingCard = { initiativeCard: { characterBuild: [{ classId: "guerriero", level: 10, subclassId: "guerriero-maestro-di-battaglia" }],
+  abilityModifiers: { str: 4, dex: 2, con: 3, int: 0, wis: 1, cha: 0 }, classFeaturesConfigured: true,
+  enabledClassFeatureIds: ["guerriero-maestro-di-battaglia-manovre", "guerriero-maestro-di-battaglia-manovre-attacco-con-spazzata",
+    "guerriero-maestro-di-battaglia-manovre-attacco-preciso"] } };
+
+test("Sweeping Attack in the console: pick the second creature, its die and HP in the total; the second creature is sent", async () => {
+  const f = fixture({ attacker: sweepingCard, turnState: ownTurn }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  const row = activationRow(f, "attacco-con-spazzata");
+  const box = activationField(row, "on"); box.checked = true; await box.emit("change");
+  const second = activationField(row, "secondary");
+  assert.deepEqual(second.children.map((option) => option.value), ["", "imp"], "any other creature than the target");
+  assert.match(activationField(row, "effect").textContent, /Seconda creatura entro 1,5 m dal bersaglio/);
+  await typeAmounts(f, ["8", "9"]);
+  const amount = activationField(row, "amount"); amount.value = "6"; await amount.emit("input");
+  assert.match(textOf(f.$("pc-attack-total")), /scegli la seconda creatura/);
+  second.value = "imp"; await second.emit("change");
+  assert.match(textOf(f.$("pc-attack-total")), /17 danni · PF 30 → 13 · seconda: 6/);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual(f.calls[0].activations, [{ id: "guerriero-maestro-di-battaglia-manovre-attacco-con-spazzata", type: "slashing", amount: 6, secondaryTargetId: "imp" }]);
+  assert.deepEqual(f.calls[0].expectedSecondaryDefenses, { immunities: [], resistances: [], vulnerabilities: [] });
+});
+
+test("on a miss the console keeps only the activations used on the roll, under «Prima del tiro»", async () => {
+  const f = fixture({ attacker: sweepingCard, turnState: ownTurn }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("miss").click();
+  assert.equal(f.$("pc-attack-extras-section").hidden, false);
+  assert.equal(f.$("pc-attack-extras-caption").textContent, "Prima del tiro");
+  assert.equal(f.$("pc-attack-activations-caption").hidden, true, "no second caption");
+  assert.equal(activationRow(f, "attacco-con-spazzata").hidden, true);
+  const precise = activationRow(f, "attacco-preciso");
+  assert.equal(precise.hidden, false);
+  assert.equal(activationField(precise, "meta").textContent.replace(/ /gu, " "), "+1d10 al tiro per colpire · Dadi di Superiorità 5/5");
+  assert.equal(f.$("pc-attack-add-extra").hidden, true, "no components on a miss");
+  const box = activationField(precise, "on"); box.checked = true; await box.emit("change");
+  assert.equal(activationField(precise, "amount").hidden, true, "nothing to enter");
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual(f.calls[0].activations, [{ id: "guerriero-maestro-di-battaglia-manovre-attacco-preciso" }]);
+});

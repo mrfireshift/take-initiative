@@ -58,8 +58,9 @@ export function createPcAttackRuntime({
         throw new Error("L'azione è cambiata nel profilo: riapri l'attacco.");
       const [targetItem]=targetId?await api.scene.items.getItems([targetId]):[];
       if(!targetItem) throw new Error("Il bersaglio non è più presente nella scena.");
-      // Green-Flame Blade: the second creature, read like the target.
-      const secondaryId=request.weaponCantrip?.secondary?.targetId || "";
+      // The second creature (Green-Flame Blade, or an activation's die such as Sweeping Attack), read like the target.
+      const secondaryId=request.weaponCantrip?.secondary?.targetId
+        || (Array.isArray(request.activations)?request.activations:[]).find(activation=>activation?.secondaryTargetId)?.secondaryTargetId || "";
       const [secondaryItem]=secondaryId?await api.scene.items.getItems([secondaryId]):[];
       if(secondaryId && !secondaryItem) throw new Error("La seconda creatura non è più presente nella scena.");
       if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri l'attacco.");

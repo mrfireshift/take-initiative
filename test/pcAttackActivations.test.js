@@ -81,10 +81,11 @@ test("one maneuver per attack; the save outcome and the die's damage are require
   assert.deepEqual([ready.ready, ready.total], [true, 15]);
 });
 
-test("activations only on a hit with an attack roll", () => {
-  assert.throws(() => plan(battleMaster(), [menacing("failed")], { outcome: "miss", componentAmounts: {} }), /valgono solo se l'attacco colpisce/);
+test("activations need an attack roll, and a hit unless they act on the roll itself", () => {
+  assert.throws(() => plan(battleMaster(), [menacing("failed")], { outcome: "miss", componentAmounts: {} }), /Attacco Minaccioso: Solo se l'attacco colpisce\./);
   assert.equal(pcAttackPreview({ action: sword, sourceItem: battleMaster(), targetItem: ghoul(), outcome: "miss", amounts: {}, turnState: ownTurn,
-    activations: [menacing("failed")] }).ready, true, "ignored on a miss");
+    activations: [menacing("failed")] }).blocker, "Attacco Minaccioso: Solo se l'attacco colpisce.");
+  assert.equal(option(options(battleMaster(), { outcome: "miss" }), MANEUVER("attacco-minaccioso")).reason, "Solo se l'attacco colpisce.");
 });
 
 test("Trip Attack applies the standard Prono pill; a push is a note for the GM", () => {
@@ -186,4 +187,79 @@ test("the Combat Log names the activation, its save and its effect, and the reso
   const pushed = plan(battleMaster(), [{ id: MANEUVER("attacco-con-spinta"), type: "slashing", amount: 4, saveOutcome: "failed" }]);
   const pushLines = buildCombatLogPresentation(null, [{ category: "attack", payload: pushed.options.history.payload }]).events[0].details.flatMap((section) => section.lines);
   assert.ok(pushLines.includes("Nota: Attacco con Spinta: Spinto fino a 4,5 m lontano dal guerriero."), pushLines.join("\n"));
+});
+
+// 3B-1
+const imp = () => creature("imp", "Imp", { hp: 12, hpMax: 12 });
+const fighter = (slugs, meta = {}) => actor("guerriero", 10, ["guerriero-maestro-di-battaglia-manovre", ...slugs.map(MANEUVER)], meta, "guerriero-maestro-di-battaglia");
+
+test("Sweeping Attack: the die damages only a second creature, with its own HP, in the same command", () => {
+  const sweep = { id: MANEUVER("attacco-con-spazzata"), type: "slashing", amount: 7, secondaryTargetId: "imp" };
+  const sweepOption = option(options(fighter(["attacco-con-spazzata"])), MANEUVER("attacco-con-spazzata"));
+  assert.deepEqual([sweepOption.damage, sweepOption.dice, sweepOption.secondary.targetDamage], [false, "1d10", false]);
+  const result = plan(fighter(["attacco-con-spazzata"]), [sweep], { secondaryItem: imp() });
+  assert.equal(result.change.afterHP, 31, "the target takes only the weapon");
+  assert.deepEqual([result.secondaryChange.hp, result.secondaryChange.afterHP], [12, 5]);
+  assert.deepEqual(result.operations.find((operation) => operation.type === "hp:set").updates.map((update) => [update.itemId, update.hp]), [["ghoul", 31], ["imp", 5]]);
+  assert.deepEqual(result.causality.activations[0].secondary, { targetId: "imp", name: "Imp" });
+  assert.deepEqual(result.causality.targets.map((target) => [target.id, target.outcome]), [["ghoul", "hit"], ["imp", "secondary"]]);
+  assert.equal(sourcePatch(result)[CLASS_FEATURE_STATE_FIELD].value.resources["guerriero-dadi-superiorita"].current, 4);
+  assert.throws(() => plan(fighter(["attacco-con-spazzata"]), [{ ...sweep, secondaryTargetId: "" }]), /scegli la seconda creatura/);
+  assert.throws(() => plan(fighter(["attacco-con-spazzata"]), [{ ...sweep, secondaryTargetId: "ghoul" }], { secondaryItem: ghoul() }), /un'altra creatura/);
+  const preview = (activations, secondaryItem) => pcAttackPreview({ action: sword, sourceItem: fighter(["attacco-con-spazzata"]), targetItem: ghoul(),
+    outcome: "hit", amounts: { c1: "9" }, turnState: ownTurn, activations, secondaryItem });
+  assert.equal(preview([{ ...sweep, secondaryTargetId: "" }]).blocker, "Attacco con Spazzata: scegli la seconda creatura.");
+  const ready = preview([sweep], imp());
+  assert.deepEqual([ready.ready, ready.total, ready.secondary.total, ready.secondary.hp.after], [true, 9, 7, 5]);
+});
+
+test("Slashing Flourish: one roll of the bardic die damages the target and the second creature", () => {
+  const tagliente = "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-tagliente";
+  const bard = actor("bardo", 6, ["bardo-collegio-delle-spade-virtuosismo-della-lama", tagliente], {}, "bardo-collegio-delle-spade");
+  const result = plan(bard, [{ id: tagliente, type: "slashing", amount: 5, secondaryTargetId: "imp" }], { secondaryItem: imp() });
+  assert.equal(result.change.afterHP, 26);
+  assert.equal(result.secondaryChange.afterHP, 7);
+  assert.equal(sourcePatch(result)[CLASS_FEATURE_STATE_FIELD].value.resources["bardo-ispirazione-bardica-usi"].current, 3);
+});
+
+test("Wails from the Grave: half the Sneak Attack dice, necrotic, only with Sneak Attack on the rogue's turn", () => {
+  const wails = "ladro-fantasma-lamenti-dalla-tomba";
+  const rogue = actor("ladro", 9, ["ladro-attacco-furtivo", wails], {}, "ladro-fantasma");
+  assert.equal(option(options(rogue), wails).reason, "Solo insieme a Attacco Furtivo.");
+  const sneak = { id: "ladro-attacco-furtivo", type: "slashing", amount: 17 };
+  const wailsOption = option(options(rogue, { riders: [sneak] }), wails);
+  assert.deepEqual([wailsOption.available, wailsOption.dice, wailsOption.types], [true, "3d6", ["necrotic"]]);
+  assert.equal(option(options(rogue, { riders: [sneak], turnState: ghoulTurn }), wails).reason, "Solo nel proprio turno.");
+  const result = plan(rogue, [{ id: wails, type: "necrotic", amount: 10, secondaryTargetId: "imp" }], { riders: [sneak], secondaryItem: imp() });
+  assert.deepEqual([result.change.afterHP, result.secondaryChange.afterHP], [14, 2]);
+  assert.equal(sourcePatch(result)[CLASS_FEATURE_STATE_FIELD].value.resources["ladro-fantasma-lamenti-dalla-tomba-usi"].current, 3);
+});
+
+test("one second creature per attack: Green-Flame Blade and Sweeping Attack exclude each other", () => {
+  const card = fighter(["attacco-con-spazzata"]).metadata[META].initiativeCard;
+  const knight = creature("dars", "Dars", { initiativeCard: { ...card, characterBuild: [{ classId: "guerriero", level: 10, subclassId: "guerriero-maestro-di-battaglia" }],
+    quickActions: [sword, { id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["tasha-lama-verdefiamma"] } }] } });
+  assert.throws(() => plan(knight, [{ id: MANEUVER("attacco-con-spazzata"), type: "slashing", amount: 4, secondaryTargetId: "imp" }],
+    { secondaryItem: imp(), weaponCantrip: { spellId: "tasha-lama-verdefiamma", amount: 5, secondary: { targetId: "imp", amount: 6 } } }),
+  /Una sola seconda creatura per attacco/);
+});
+
+test("Precision Attack and Guided Strike act on the roll: available on a miss, they spend the resource and add no damage", () => {
+  const precise = { id: MANEUVER("attacco-preciso") };
+  const preciseOption = option(options(fighter(["attacco-preciso"]), { outcome: "miss" }), MANEUVER("attacco-preciso"));
+  assert.deepEqual([preciseOption.available, preciseOption.preRoll, preciseOption.rollBonus, preciseOption.damage], [true, true, "+1d10", false]);
+  const missed = plan(fighter(["attacco-preciso"]), [precise], { outcome: "miss", componentAmounts: {} });
+  assert.equal(missed.change, null);
+  assert.equal(sourcePatch(missed)[CLASS_FEATURE_STATE_FIELD].value.resources["guerriero-dadi-superiorita"].current, 4);
+  assert.equal(missed.causality.activations[0].rollBonus, "+1d10");
+  // A maneuver per attack: Precision Attack excludes another maneuver on the same attack.
+  assert.throws(() => plan(fighter(["attacco-preciso", "attacco-minaccioso"]), [precise, menacing("failed")]), /una manovra per attacco/);
+  const guided = "paladino-giuramento-di-conquista-incanalare-divinita-colpo-guidato";
+  const paladin = actor("paladino", 7, [guided], {}, "paladino-giuramento-di-conquista");
+  const hit = plan(paladin, [{ id: guided }]);
+  assert.equal(hit.causality.activations[0].rollBonus, "+10");
+  assert.equal(sourcePatch(hit)[CLASS_FEATURE_STATE_FIELD].value.resources["paladino-incanalare-divinita-usi"].current, 0);
+  assert.equal(option(options(paladin, { action: blast, spellId: "eldritch-blast" }), guided).available, true, "any attack roll");
+  const lines = buildCombatLogPresentation(null, [{ category: "attack", payload: missed.options.history.payload }]).events[0].details.flatMap((section) => section.lines);
+  assert.ok(lines.includes("Attivazione: Attacco Preciso · +1d10 al tiro per colpire · Dadi di Superiorità 5 → 4"), lines.join("\n"));
 });

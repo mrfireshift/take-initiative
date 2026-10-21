@@ -57,6 +57,13 @@ export const PC_ATTACK_RIDERS = Object.freeze([
   Object.freeze({ id: "guerriero-cavaliere-runico-potenza-del-gigante", label: "Potenza del Gigante",
     dice: Object.freeze({ table: Object.freeze({ 3: "1d6", 10: "1d8", 18: "1d10" }) }), type: "weapon", limit: ONCE_PER_TURN,
     requires: Object.freeze({ activeFeatureId: "guerriero-cavaliere-runico-potenza-del-gigante" }) }),
+  // 3B-1: Dread Ambusher (Gloom Stalker): the extra attack of the first turn deals 1d8 more, while its pill is active.
+  Object.freeze({ id: "ranger-cacciatore-delle-tenebre-imboscata-terrificante", label: "Imboscata Terrificante", dice: Object.freeze({ fixed: "1d8" }),
+    type: "weapon", limit: ONCE_PER_OWN_TURN, requires: Object.freeze({ activeFeatureId: "ranger-cacciatore-delle-tenebre-imboscata-terrificante" }) }),
+  // Call the Hunt (Path of the Beast): the creatures who joined the hunt get 1d6 once per turn. grantedByCondition: the
+  // rider is offered to any attacker with the pill, whatever its own class features.
+  Object.freeze({ id: "barbaro-cammino-della-bestia-chiamata-alla-caccia", label: "Chiamata alla Caccia", dice: Object.freeze({ fixed: "1d6" }),
+    type: "weapon", limit: ONCE_PER_TURN, grantedByCondition: "Chiamata alla Caccia" }),
   // Foe Slayer (revised ranger, 20th level): the Wisdom modifier to the damage, once on each of the ranger's turns.
   Object.freeze({ id: "ranger-revised-sterminatore-di-nemici", label: "Sterminatore di Nemici", dice: Object.freeze({ ability: "wis", minimum: 0 }),
     type: "weapon", limit: ONCE_PER_OWN_TURN }),

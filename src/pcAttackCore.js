@@ -25,10 +25,11 @@ import {
 import {
   pcAttackActivationsForCard, pcAttackActivationLabel, pcAttackActivationCosts, pcAttackActivationDice, pcAttackActivationSaveDC,
   pcAttackActivationLimitKey, pcAttackActivationLimit, pcAttackActivationDealsDamage, pcAttackActivationEffect, getPcAttackActivation,
+  pcAttackActivationRollBonus,
 } from "./pcAttackActivationCatalog.js";
 import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttackCantripDice, pcAttackWeaponCantripDice } from "./pcAttackCantripCatalog.js";
 import { totalCharacterLevel } from "./abilityModifiersCore.js";
-import { getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
+import { PC_ATTACK_RIDERS, getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
 
 export const PC_ATTACK_HISTORY_KIND = "pc-attack";
 // The attacker's last attack and the riders it used in the current turn. Every attack rewrites it,
@@ -39,8 +40,10 @@ export const PC_ATTACK_OUTCOMES = Object.freeze(["hit", "critical", "miss"]);
 // Saving throw cantrips (C2): the target saves; a failure takes the damage, a success none.
 export const PC_ATTACK_SAVE_OUTCOMES = Object.freeze(["failed", "passed"]);
 const DAMAGING_OUTCOMES = new Set(["hit", "critical", "failed"]);
-// Activations need a hit with an attack roll: a saving throw cantrip has none.
+// Activations need an attack roll (a saving throw cantrip has none) and, except those used on the roll itself
+// (a bonus to hit), a hit.
 const ATTACK_HITS = new Set(["hit", "critical"]);
+const ATTACK_ROLL_OUTCOMES = new Set(["hit", "critical", "miss"]);
 
 // What this outcome deals: the full damage on a hit, a critical or a failed save; half on a passed save when the
 // caster has Potent Cantrip; nothing otherwise (a miss, a passed save).
@@ -222,7 +225,11 @@ function riderOptionsFor(attack, { sourceItem, targetItem = null, turnState = nu
   const turn = attackTurn(turnState);
   const uses = currentRiderUses(sourceMeta, turn?.turnKey);
   const weaponTypes = [...new Set(attack.components.map((component) => component.type))];
-  return pcAttackRidersForCard(card).map((rider) => {
+  // The attacker's riders, and those a pill grants whatever its class features (Call the Hunt on a willing ally).
+  const own = pcAttackRidersForCard(card);
+  const granted = PC_ATTACK_RIDERS.filter((rider) => rider.grantedByCondition && !own.includes(rider)
+    && conditionInstancesOf(sourceItem).some((instance) => instance?.active !== false && instance?.condition === rider.grantedByCondition));
+  return [...own, ...granted].map((rider) => {
     const slotLevels = pcAttackRiderSlotLevels(rider, card);
     const reason = riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round: turnState?.round ?? null })
       || (rider.slot && !slotLevels.length ? "Livello da warlock mancante nel profilo." : "");
@@ -299,9 +306,11 @@ function activationPlanReason(plan) {
   return "Attivazione non disponibile.";
 }
 
-function activationBlocker(activation, { attack, sourceItem, targetItem, turn, uses, turnState, riderIds, damageTypes, resources, card, state, effect }) {
+function activationBlocker(activation, { attack, sourceItem, targetItem, turn, uses, turnState, riderIds, damageTypes, resources, card, state, effect, outcome }) {
   const requires = activation.requires || {};
   const limit = pcAttackActivationLimit(activation);
+  if (attack.cantrip?.save) return "Solo con un tiro per colpire.";
+  if (outcome && !activation.preRoll && !ATTACK_HITS.has(outcome)) return "Solo se l'attacco colpisce.";
   if (activation.spellIds) {
     if (!activation.spellIds.includes(attack.cantrip?.spellId)) return "Solo con la Deflagrazione occulta.";
   } else if (attack.cantrip && !activation.anyAttack) return "Solo per gli attacchi con arma.";
@@ -327,15 +336,15 @@ function activationBlocker(activation, { attack, sourceItem, targetItem, turn, u
 
 // The activations of this attacker for this attack: availability, dice, save and effect. riders and extras are the
 // ones chosen in the console (Wrath of the Order follows Divine Strike; Thunderbolt Strike needs lightning damage).
-export function pcAttackActivationOptions({ action, spellId = "", sourceItem, targetItem = null, turnState = null, riders = [], extras = [] } = {}) {
+export function pcAttackActivationOptions({ action, spellId = "", sourceItem, targetItem = null, turnState = null, riders = [], extras = [], outcome = "" } = {}) {
   const attack = pcAttackResolvedAction(action, spellId);
   if (!attack || !sourceItem) return [];
-  return activationOptionsFor(attack, { sourceItem, targetItem, turnState,
+  return activationOptionsFor(attack, { sourceItem, targetItem, turnState, outcome,
     riderIds: riders.map((rider) => rider?.id).filter(Boolean),
     damageTypes: [...riders, ...extras].map((entry) => entry?.type).filter(Boolean) });
 }
 
-function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState = null, riderIds = [], damageTypes = [] }) {
+function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState = null, riderIds = [], damageTypes = [], outcome = "" }) {
   const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
   const card = sourceMeta.initiativeCard || {};
   const turn = attackTurn(turnState);
@@ -346,15 +355,20 @@ function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState
     const effect = pcAttackActivationEffect(activation);
     const resources = activationResources(activation, card, state);
     const reason = activationBlocker(activation, { attack, sourceItem, targetItem, turn, uses, turnState, riderIds,
-      damageTypes: [...weaponTypes, ...damageTypes], resources, card, state, effect });
-    const damage = pcAttackActivationDealsDamage(activation, card);
+      damageTypes: [...weaponTypes, ...damageTypes], resources, card, state, effect, outcome });
+    // The die is rolled once: it damages the target (damage) and/or a second creature (secondary).
+    const deals = pcAttackActivationDealsDamage(activation, card);
+    const damage = deals && (!activation.secondary || activation.secondary.targetDamage);
     const dc = pcAttackActivationSaveDC(activation, card);
     const limit = pcAttackActivationLimit(activation);
+    const rollBonus = pcAttackActivationRollBonus(activation, card);
     return {
       id: activation.id, label: pcAttackActivationLabel(activation),
       ...(activation.group ? { group: activation.group, groupLabel: activation.groupLabel } : {}),
-      damage, dice: damage ? pcAttackActivationDice(activation, card) : null,
-      types: !damage ? [] : activation.type === "weapon" ? weaponTypes : [activation.type],
+      damage, dice: deals ? pcAttackActivationDice(activation, card) : null,
+      types: !deals ? [] : activation.type === "weapon" ? weaponTypes : [activation.type],
+      ...(deals && activation.secondary ? { secondary: { targetDamage: !!activation.secondary.targetDamage, note: activation.secondary.note } } : {}),
+      ...(activation.preRoll ? { preRoll: true, ...(rollBonus ? { rollBonus } : {}) } : {}),
       save: activation.save ? { ability: activation.save, label: PC_ATTACK_SAVE_LABELS[activation.save], ...(dc ? { dc } : {}) } : null,
       effect, ...(activation.size ? { size: activation.size } : {}), ...(activation.note ? { note: activation.note } : {}),
       resources, limit: limit ? { ...limit } : null, available: !reason, reason,
@@ -412,11 +426,11 @@ export function pcAttackPreview({
   const wovenOption = extrasAllowed && weaponCantrip?.spellId
     ? pcAttackWeaponCantripOptions(action, card).find((option) => option.spellId === weaponCantrip.spellId) || null : null;
   const woven = wovenOption?.dice?.hit ? wovenOption : null;
-  // Activations: only on a hit with an attack roll, checked like the riders against the attacker and the target.
-  const activationOptions = ATTACK_HITS.has(outcome) && activations.length && sourceItem
-    ? activationOptionsFor(attack, { sourceItem, targetItem, turnState, riderIds: chosenRiders.map((rider) => rider.id),
+  // Activations: only with an attack roll (on a miss only those used on the roll), checked like the riders.
+  const activationOptions = ATTACK_ROLL_OUTCOMES.has(outcome) && activations.length && sourceItem
+    ? activationOptionsFor(attack, { sourceItem, targetItem, turnState, outcome, riderIds: chosenRiders.map((rider) => rider.id),
       damageTypes: [...chosenRiders, ...chosenExtras].map((entry) => entry.type).filter(Boolean) }) : [];
-  const chosenActivations = ATTACK_HITS.has(outcome)
+  const chosenActivations = ATTACK_ROLL_OUTCOMES.has(outcome)
     ? activations.map((request) => ({ ...request, option: activationOptions.find((entry) => entry.id === request.id) || null })) : [];
   const components = attackComponents(attack, chosenRiders, chosenExtras, woven, chosenActivations.filter((activation) => activation.option));
   const allAmounts = {
@@ -443,12 +457,18 @@ export function pcAttackPreview({
     if (option.slotLevels && !option.slotLevels.includes(rider.slotLevel)) return `${option.label}: scegli il livello dello slot.`;
     return option.types.includes(rider.type) ? "" : `${option.label}: scegli il tipo di danno.`;
   }).find(Boolean) || "";
-  // Green-Flame Blade's second creature: its own defenses, its own hit points.
-  const secondaryWanted = wovenOption?.secondary && !!weaponCantrip?.secondary?.targetId;
+  // The second creature: Green-Flame Blade's fire or an activation's die (Sweeping Attack, Slashing Flourish, Wails
+  // from the Grave). One per attack; its own defenses, its own hit points.
+  const wovenSecondary = wovenOption?.secondary && weaponCantrip?.secondary?.targetId
+    ? { targetId: weaponCantrip.secondary.targetId, amount: weaponCantrip.secondary.amount, type: wovenOption.type } : null;
+  const activationSecondary = chosenActivations.find((activation) => activation.option?.secondary && activation.secondaryTargetId) || null;
+  const secondarySource = wovenSecondary
+    || (activationSecondary ? { targetId: activationSecondary.secondaryTargetId, amount: activationSecondary.amount, type: activationSecondary.type } : null);
+  const secondaryWanted = !!secondarySource;
   const secondaryDefenses = secondaryWanted && secondaryItem ? damageDefensesForItem(secondaryItem, META_KEY) : {};
   const secondaryMeta = secondaryItem?.metadata?.[META_KEY] || {};
-  const secondaryTotal = secondaryWanted && secondaryItem && validAmount(weaponCantrip.secondary.amount)
-    ? bossDefendedDamage([{ id: "s1", type: wovenOption.type }], { s1: weaponCantrip.secondary.amount }, "hit", secondaryDefenses, []) : 0;
+  const secondaryTotal = secondaryWanted && secondaryItem && validAmount(secondarySource.amount) && damageTypeSet.has(secondarySource.type)
+    ? bossDefendedDamage([{ id: "s1", type: secondarySource.type }], { s1: secondarySource.amount }, "hit", secondaryDefenses, []) : 0;
   const secondary = secondaryWanted && secondaryItem ? { id: secondaryItem.id, total: secondaryTotal, profileDefenses: secondaryDefenses,
     hp: Number.isFinite(secondaryMeta.hp) && Number.isFinite(secondaryMeta.hpMax)
       ? { before: secondaryMeta.hp, after: calculateQuickHPChange({ value: secondaryTotal, hp: secondaryMeta.hp, hpMax: secondaryMeta.hpMax }).afterHP, hpMax: secondaryMeta.hpMax }
@@ -456,9 +476,12 @@ export function pcAttackPreview({
   const wovenBlocker = !weaponCantrip?.spellId || !extrasAllowed ? ""
     : !wovenOption ? "Trucchetto con l'arma non disponibile per questo attacco."
     : woven && !validAmount(weaponCantrip.amount) ? `Inserisci il danno di ${wovenOption.name}.`
-    : secondaryWanted && (!secondaryItem || secondaryItem.id === targetItem?.id) ? "Scegli un'altra creatura come seconda."
-    : secondaryWanted && !validAmount(weaponCantrip.secondary.amount) ? "Inserisci il danno della seconda creatura."
-    : secondaryWanted && !secondary?.hp ? "La seconda creatura non ha HP canonici validi."
+    : wovenSecondary && !validAmount(wovenSecondary.amount) ? "Inserisci il danno della seconda creatura."
+    : "";
+  const secondaryBlocker = !secondaryWanted ? ""
+    : wovenSecondary && activationSecondary ? "Una sola seconda creatura per attacco."
+    : !secondaryItem || secondaryItem.id === targetItem?.id || secondaryItem.id !== secondarySource.targetId ? "Scegli un'altra creatura come seconda."
+    : !secondary?.hp ? "La seconda creatura non ha HP canonici validi."
     : "";
   const groups = new Set();
   const activationBlock = chosenActivations.map((activation) => {
@@ -467,8 +490,9 @@ export function pcAttackPreview({
     if (!option.available) return `${option.label}: ${option.reason}`;
     if (option.group && groups.has(option.group)) return `${option.label}: ${option.groupLabel}.`;
     if (option.group) groups.add(option.group);
-    if (option.damage && !option.types.includes(activation.type)) return `${option.label}: scegli il tipo di danno.`;
-    if (option.damage && !validAmount(activation.amount)) return `Inserisci il danno di ${option.label}.`;
+    if (option.types.length && !option.types.includes(activation.type)) return `${option.label}: scegli il tipo di danno.`;
+    if (option.secondary && !activation.secondaryTargetId) return `${option.label}: scegli la seconda creatura.`;
+    if ((option.damage || option.secondary) && !validAmount(activation.amount)) return `Inserisci il danno di ${option.label}.`;
     return option.save && !PC_ATTACK_SAVE_OUTCOMES.includes(activation.saveOutcome) ? `${option.label}: scegli l'esito del tiro salvezza.` : "";
   }).find(Boolean) || "";
   const blocker = !targetItem ? "Scegli il bersaglio."
@@ -479,6 +503,7 @@ export function pcAttackPreview({
     : [...chosenRiders, ...chosenExtras].some((entry) => !validAmount(entry.amount)) ? "Inserisci il danno di ogni extra."
     : wovenBlocker ? wovenBlocker
     : activationBlock ? activationBlock
+    : secondaryBlocker ? secondaryBlocker
     : !hp ? "Il bersaglio non ha HP canonici validi."
     : "";
   return { ready: !blocker, blocker, defenses, profileDefenses, total, hp, ...(secondary ? { secondary } : {}) };
@@ -545,7 +570,7 @@ export function buildPcAttackMutation({
     woven = { ...option, amount: option.dice.hit ? damageAmount(weaponCantrip.amount) : null, secondary };
   }
   const activationPlan = planPcAttackActivations({ requests: activations, attack, outcome, sourceItem, targetItem, turnState, turn,
-    attackInstanceId, chosenRiders, chosenExtras });
+    attackInstanceId, chosenRiders, chosenExtras, secondaryItem, wovenSecondary: !!woven?.secondary });
   const amounts = componentAmounts && typeof componentAmounts === "object" ? componentAmounts : {};
   if (!miss && Object.keys(amounts).some((id) => !attack.components.some((component) => component.id === id)))
     throw new Error("Componente di danno sconosciuta.");
@@ -567,11 +592,17 @@ export function buildPcAttackMutation({
         || targetMeta.hp < 0 || targetMeta.hpMax < 0) throw new Error("Il bersaglio non ha HP canonici validi.");
     change = calculateQuickHPChange({ value: requestedDamage, hp: targetMeta.hp, hpMax: targetMeta.hpMax });
   }
-  // Green-Flame Blade's second creature: the fire jumps to it; its own defenses (as seen in the console) and HP.
-  const secondaryItemUsed = woven?.secondary?.item || null;
-  const secondaryComponents = secondaryItemUsed
+  // The second creature: Green-Flame Blade's fire, or an activation's die (Sweeping Attack, Slashing Flourish, Wails from
+  // the Grave); its own defenses (as seen in the console) and HP.
+  const activationSecondary = activationPlan.secondary;
+  const secondaryItemUsed = woven?.secondary?.item || activationSecondary?.item || null;
+  const secondaryComponents = woven?.secondary
     ? defendedComponents([{ id: "s1", type: woven.type, source: { kind: "cantrip", spellId: woven.spellId, name: woven.name } }],
-      { s1: woven.secondary.amount }, "full", secondaryItemUsed, [], expectedSecondaryDefenses) : [];
+      { s1: woven.secondary.amount }, "full", secondaryItemUsed, [], expectedSecondaryDefenses)
+    : activationSecondary
+      ? defendedComponents([{ id: "s1", type: activationSecondary.type, source: { kind: "class-feature", featureId: activationSecondary.id,
+        name: activationSecondary.option.label, activation: true } }], { s1: activationSecondary.amount }, "full", secondaryItemUsed, [], expectedSecondaryDefenses)
+      : [];
   const secondaryMeta = secondaryItemUsed?.metadata?.[META_KEY] || {};
   let secondaryChange = null;
   if (secondaryItemUsed) {
@@ -628,6 +659,9 @@ export function buildPcAttackMutation({
       ...(activation.option.effect ? { effect: { kind: activation.option.effect.kind, label: activation.option.effect.label,
         ...(activation.option.effect.self ? { self: true } : {}), applied: activation.applies } } : {}),
       ...(activation.spent.length ? { spent: activation.spent } : {}),
+      ...(activation.option.rollBonus ? { rollBonus: activation.option.rollBonus } : {}),
+      ...(activationSecondary?.id === activation.id ? { secondary: { targetId: activationSecondary.item.id,
+        name: activationSecondary.item.name || activationSecondary.item.id } } : {}),
     })) } : {}),
     ...(chosenExtras.length ? { extras: chosenExtras.map((extra, index) => ({
       ...(extra.label ? { label: extra.label } : {}), type: extra.type, typeLabel: damageTypeLabel(extra.type),
@@ -635,7 +669,7 @@ export function buildPcAttackMutation({
     })) } : {}),
     ...(woven ? { weaponCantrip: { spellId: woven.spellId, name: woven.name, type: woven.type,
       ...(woven.dice.hit ? { dice: woven.dice.hit } : {}), ...(woven.dice.trigger ? { triggerDice: woven.dice.trigger } : {}),
-      ...(secondaryItemUsed ? { secondaryDice: woven.dice.secondary, secondaryTargetId: secondaryItemUsed.id } : {}) } } : {}),
+      ...(woven.secondary ? { secondaryDice: woven.dice.secondary, secondaryTargetId: secondaryItemUsed.id } : {}) } } : {}),
     targets: [{
       id: targetItem.id, name: targetName, outcome, requestedDamage,
       ...(change ? { appliedHpDelta: change.delta } : {}),
@@ -735,16 +769,17 @@ export function buildPcAttackMutation({
 // Phase 3A: the activations chosen for this attack, checked against the live attacker, target and turn, and planned
 // with the class feature's own pure functions. Returns the damage rows, the new classFeatureState (resources spent,
 // active instances), the pills by creature, the standard conditions, the notes and the per-turn uses.
-function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, targetItem, turnState, turn, attackInstanceId, chosenRiders, chosenExtras }) {
+function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, targetItem, turnState, turn, attackInstanceId, chosenRiders, chosenExtras,
+  secondaryItem = null, wovenSecondary = false }) {
   const list = Array.isArray(requests) ? requests : [];
-  const empty = { chosen: [], state: null, stateChanged: false, instancesByTarget: {}, pillFeatureIds: {}, conditions: [], notes: [], uses: [] };
+  const empty = { chosen: [], state: null, stateChanged: false, instancesByTarget: {}, pillFeatureIds: {}, conditions: [], notes: [], uses: [], secondary: null };
   if (!list.length) return empty;
-  if (!ATTACK_HITS.has(outcome)) throw new Error("Le attivazioni valgono solo se l'attacco colpisce.");
+  if (!ATTACK_ROLL_OUTCOMES.has(outcome)) throw new Error("Le attivazioni richiedono un tiro per colpire.");
   if (new Set(list.map((request) => request?.id)).size !== list.length) throw new Error("La stessa attivazione è indicata due volte.");
   const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
   const card = sourceMeta.initiativeCard || {};
   const sourceName = sourceItem.name || sourceItem.id;
-  const options = activationOptionsFor(attack, { sourceItem, targetItem, turnState, riderIds: chosenRiders.map((rider) => rider.id),
+  const options = activationOptionsFor(attack, { sourceItem, targetItem, turnState, outcome, riderIds: chosenRiders.map((rider) => rider.id),
     damageTypes: [...chosenRiders, ...chosenExtras].map((entry) => entry.type).filter(Boolean) });
   const groups = new Set();
   const originalState = normalizeClassFeatureState(sourceMeta[CLASS_FEATURE_STATE_FIELD]);
@@ -757,8 +792,17 @@ function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, t
     if (!option.available) throw new Error(`${option.label}: ${option.reason} Riapri l'attacco.`);
     if (option.group && groups.has(option.group)) throw new Error(`${option.label}: ${option.groupLabel}.`);
     if (option.group) groups.add(option.group);
-    if (option.damage && !option.types.includes(request.type)) throw new Error(`${option.label}: tipo di danno non valido.`);
+    if (option.types.length && !option.types.includes(request.type)) throw new Error(`${option.label}: tipo di danno non valido.`);
     if (option.save && !PC_ATTACK_SAVE_OUTCOMES.includes(request.saveOutcome)) throw new Error(`${option.label}: scegli l'esito del tiro salvezza.`);
+    // The second creature of the activation's die: one per attack, another creature than the attacker and the target.
+    if (option.secondary) {
+      if (wovenSecondary || result.secondary) throw new Error("Una sola seconda creatura per attacco.");
+      if (!request.secondaryTargetId) throw new Error(`${option.label}: scegli la seconda creatura.`);
+      if (!secondaryItem || secondaryItem.id !== request.secondaryTargetId) throw new Error("La seconda creatura non è più nella scena.");
+      if (!isBossActionCreature(secondaryItem) || [sourceItem.id, targetItem.id].includes(secondaryItem.id))
+        throw new Error("Scegli come seconda creatura un'altra creatura.");
+      result.secondary = { id: activation.id, option, item: secondaryItem, type: request.type, amount: damageAmount(request.amount) };
+    }
     // The effect applies without a save or with a failed one; a passed save still spends the resource and adds the die.
     const applies = !option.save || request.saveOutcome === "failed";
     const feature = getClassFeatureDefinition(activation.id);
@@ -792,7 +836,7 @@ function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, t
     });
     if (option.limit && turn) result.uses.push({ riderId: pcAttackActivationLimitKey(activation), turnKey: turn.turnKey });
     result.chosen.push({ id: activation.id, option, applies, spent, saveOutcome: option.save ? request.saveOutcome : null,
-      ...(option.damage ? { type: request.type, amount: damageAmount(request.amount) } : {}) });
+      ...(option.types.length ? { type: request.type, amount: damageAmount(request.amount) } : {}) });
   }
   result.state = state;
   result.stateChanged = JSON.stringify(state) !== JSON.stringify(originalState);

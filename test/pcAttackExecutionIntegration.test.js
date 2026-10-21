@@ -342,3 +342,20 @@ test("a self pill from an activation: the attacker's pill is applied and its lab
   assert.equal(meta("aria").classFeatureState.resources["bardo-ispirazione-bardica-usi"].current, 3);
   assert.deepEqual(refreshed, ["aria"]);
 });
+
+test("Sweeping Attack: the target, the second creature and the die in one History entry; one Undo restores all three", async () => {
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "guerriero", level: 10, subclassId: "guerriero-maestro-di-battaglia" }],
+    abilityModifiers: { str: 4, dex: 2, con: 3, int: 0, wis: 1, cha: 0 }, classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["guerriero-maestro-di-battaglia-manovre", "guerriero-maestro-di-battaglia-manovre-attacco-con-spazzata"] });
+  sceneItems.push({ id: "imp", name: "Imp", type: "IMAGE", layer: "CHARACTER", position: { x: 60, y: 20 }, metadata: { [META_KEY]: { hp: 10, hpMax: 10, inInitiative: true } } });
+  const result = await attack({ attackInstanceId: "sweep", expectedSecondaryDefenses: {},
+    activations: [{ id: "guerriero-maestro-di-battaglia-manovre-attacco-con-spazzata", type: "slashing", amount: 6, secondaryTargetId: "imp" }] });
+  assert.deepEqual([meta("ghoul").hp, meta("imp").hp], [13, 4]);
+  assert.deepEqual(result.secondary, { id: "imp", name: "Imp", before: 10, after: 4 });
+  assert.equal(meta("aria").classFeatureState.resources["guerriero-dadi-superiorita"].current, 4);
+  const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
+  assert.equal(entries.length, 1);
+  await history.undoHistoryThrough(entries[0].id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual([meta("ghoul").hp, meta("imp").hp], [30, 10]);
+  assert.equal(meta("aria").classFeatureState?.resources?.["guerriero-dadi-superiorita"]?.current ?? 5, 5);
+});

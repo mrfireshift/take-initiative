@@ -7,10 +7,14 @@
 import { getClassFeatureDefinition, getClassFeatureResourcePool, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { characterClassLevel, resolveClassFeatureResourceDie } from "./classFeatureCore.js";
 import { abilityModifier, abilitySaveDC } from "./abilityModifiersCore.js";
+import { getPcAttackRider, pcAttackRiderDice } from "./pcAttackRiderCatalog.js";
 
 export const PC_ATTACK_ACTIVATION_CATALOG_VERSION = 1;
 
 // limit.per: "turn" (any turn) or "own-turn" (only the attacker's turn), counted per initiative turn like the riders.
+// 3B-1: secondary: the die (or half the Sneak Attack dice) damages a second creature, rolled once; targetDamage says
+// whether the target takes it too. preRoll: used on the attack roll itself (a bonus to hit), so also on a miss;
+// rollBonus is what it adds to the roll.
 // group: activations of one group exclude each other in an attack (one maneuver per attack); a limited group is
 // counted once for all its members (one Arcane Shot per turn, whatever the arrow).
 const ONCE_PER_TURN = Object.freeze({ per: "turn" });
@@ -43,6 +47,9 @@ export const PC_ATTACK_ACTIVATIONS = Object.freeze([
   maneuver("attacco-disarmante", { save: "str", effect: Object.freeze({ note: "Lascia cadere un oggetto impugnato scelto dal guerriero." }) }),
   maneuver("attacco-con-manovra", { effect: Object.freeze({ note: "Un alleato può muoversi di metà velocità con la reazione senza provocare attacchi di opportunità dal bersaglio." }) }),
   maneuver("attacco-con-affondo", { requires: Object.freeze({ range: "melee", ownTurn: true }) }),
+  maneuver("attacco-con-spazzata", { requires: Object.freeze({ range: "melee" }),
+    secondary: Object.freeze({ targetDamage: false, note: "entro 1,5 m dal bersaglio, se il tiro per colpire la colpirebbe" }) }),
+  maneuver("attacco-preciso", { dice: null, rollBonus: SUPERIORITY, preRoll: true }),
   maneuver("attacco-con-finta", { requires: Object.freeze({ ownTurn: true }) }),
   // Monk: Ki.
   Object.freeze({ id: "monaco-colpo-stordente", save: "con", dc: "wis", effect: Object.freeze({ pill: true }),
@@ -77,6 +84,11 @@ export const PC_ATTACK_ACTIVATIONS = Object.freeze([
     table: Object.freeze({ 3: "2d6", 5: "3d6", 10: "5d6", 15: "8d6" }) }), type: "psychic", limit: ONCE_PER_TURN }),
   Object.freeze({ id: "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-difensivo", group: "virtuosismo",
     groupLabel: "un virtuosismo per attacco", dice: BARDIC_DIE, type: "weapon", effect: Object.freeze({ pill: true, self: true }) }),
+  // Slashing Flourish: one roll of the die damages the target and another creature within 1.5 m of the bard.
+  Object.freeze({ id: "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-tagliente", group: "virtuosismo",
+    groupLabel: "un virtuosismo per attacco", dice: BARDIC_DIE, type: "weapon",
+    cost: Object.freeze([Object.freeze({ poolId: "bardo-ispirazione-bardica-usi", amount: 1 })]),
+    secondary: Object.freeze({ targetDamage: true, note: "entro 1,5 m dal bardo" }) }),
   Object.freeze({ id: "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-mobile", group: "virtuosismo",
     groupLabel: "un virtuosismo per attacco", dice: BARDIC_DIE, type: "weapon",
     cost: Object.freeze([Object.freeze({ poolId: "bardo-ispirazione-bardica-usi", amount: 1 })]),
@@ -94,6 +106,14 @@ export const PC_ATTACK_ACTIVATIONS = Object.freeze([
   // Rogue.
   Object.freeze({ id: "ladro-esploratore-maestro-di-imboscate", effect: Object.freeze({ pill: true }), limit: ONCE_PER_TURN,
     requires: Object.freeze({ firstRound: true }) }),
+  // Wails from the Grave: right after Sneak Attack on the rogue's turn, half its dice (rounded up) as necrotic damage to
+  // another creature within 9 m of the first.
+  Object.freeze({ id: "ladro-fantasma-lamenti-dalla-tomba", dice: Object.freeze({ halfSneak: true }), type: "necrotic",
+    requires: Object.freeze({ riderId: "ladro-attacco-furtivo", ownTurn: true }),
+    secondary: Object.freeze({ targetDamage: false, note: "entro 9 m dalla prima creatura" }) }),
+  // Guided Strike (War Domain, Conquest): +10 to an attack roll, decided after seeing the roll.
+  Object.freeze({ id: "chierico-dominio-della-guerra-incanalare-divinita-colpo-guidato", anyAttack: true, preRoll: true, rollBonus: Object.freeze({ fixed: "+10" }) }),
+  Object.freeze({ id: "paladino-giuramento-di-conquista-incanalare-divinita-colpo-guidato", anyAttack: true, preRoll: true, rollBonus: Object.freeze({ fixed: "+10" }) }),
   // Warlock.
   Object.freeze({ id: "warlock-l-immondo-scagliare-all-inferno", anyAttack: true, effect: Object.freeze({ pill: true }),
     note: "Una volta per riposo lungo: l'uso non è conteggiato." }),
@@ -136,9 +156,9 @@ function tableValue(table, level) {
 const signed = (value) => (value >= 0 ? `+${value}` : String(value));
 
 // The dice the GM rolls for this activation at the actor's level ("1d8", "2d6", "1d6+3"), or null (no damage, or
-// unknown: the level or a modifier is missing from the Actor Profile).
-export function pcAttackActivationDice(activation, card = {}) {
-  const dice = activation?.dice;
+// unknown: the level or a modifier is missing from the Actor Profile). spec: another dice field (rollBonus).
+export function pcAttackActivationDice(activation, card = {}, spec = activation?.dice) {
+  const dice = spec;
   if (!dice) return null;
   const build = card?.characterBuild;
   const withModifier = (base, ability) => {
@@ -148,6 +168,12 @@ export function pcAttackActivationDice(activation, card = {}) {
     return Number.isFinite(modifier) ? `${base}${signed(modifier)}` : null;
   };
   if (dice.fixed) return dice.fixed;
+  // Half the Sneak Attack dice at the rogue's level, rounded up ("5d6" → "3d6").
+  if (dice.halfSneak) {
+    const sneak = pcAttackRiderDice(getPcAttackRider("ladro-attacco-furtivo"), card);
+    const match = /^(\d+)d(\d+)$/u.exec(String(sneak || ""));
+    return match ? `${Math.ceil(Number(match[1]) / 2)}d${match[2]}` : null;
+  }
   if (dice.pool) {
     const die = resolveClassFeatureResourceDie(getClassFeatureResourcePool(dice.pool), build);
     return die ? `1${die}` : null;
@@ -178,6 +204,13 @@ export function pcAttackActivationEffect(activation) {
   }
   if (effect.condition) return { kind: "condition", label: effect.condition };
   return effect.note ? { kind: "note", label: effect.note } : null;
+}
+
+// What a pre-roll activation adds to the attack roll: "+1d10" (Precision Attack), "+10" (Guided Strike), or null.
+export function pcAttackActivationRollBonus(activation, card = {}) {
+  if (!activation?.rollBonus) return null;
+  const value = pcAttackActivationDice(activation, card, activation.rollBonus);
+  return value ? (value.startsWith("+") ? value : `+${value}`) : null;
 }
 
 // The save DC of this activation (8 + proficiency + the feature's ability; maneuvers: the better of Strength and

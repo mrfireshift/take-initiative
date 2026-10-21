@@ -627,7 +627,9 @@ function causalityDetailLines(event) {
         ? `${stringValue(entry.name)} ${numberText(entry.before)} → ${numberText(entry.after)}`
         : `${stringValue(entry?.name)} −${numberText(entry?.amount ?? 1)}`
     )).filter(Boolean);
-    const parts = [saveText && effectText ? `${saveText} ${effectText}` : saveText || effectText, ...spent].filter(Boolean);
+    const rollBonus = stringValue(activation?.rollBonus) ? `${activation.rollBonus} al tiro per colpire` : "";
+    const second = stringValue(activation?.secondary?.name) ? `seconda creatura: ${activation.secondary.name}` : "";
+    const parts = [rollBonus, second, saveText && effectText ? `${saveText} ${effectText}` : saveText || effectText, ...spent].filter(Boolean);
     lines.push(`Attivazione: ${name}${dice ? ` ${dice}` : ""}${amount !== null ? ` (${numberText(amount)}${type ? ` ${type}` : ""})` : ""}`
       + `${parts.length ? ` · ${parts.join(" · ")}` : ""}`);
   }

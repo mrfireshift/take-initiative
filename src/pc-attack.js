@@ -50,11 +50,13 @@ export function chosenRiders(draft) {
   return hits(draft?.outcome) ? Object.entries(draft.riders || {}).filter(([,rider])=>rider.on).map(([id,rider])=>({id,type:rider.type,amount:rider.amount,
     ...(rider.slotLevel?{slotLevel:rider.slotLevel}:{}),...(rider.bonus?{bonus:true}:{}),...(rider.onHit?{onHit:true}:{})})) : [];
 }
-// Activations on a hit (maneuvers, Arcane Shot, Stunning Strike…): only with an attack roll that hits.
+// Activations (maneuvers, Arcane Shot, Stunning Strike…): only with an attack roll. On a miss the console keeps only
+// those used on the roll itself (Precision Attack, Guided Strike): the others are unticked as unavailable.
 export function chosenActivations(draft) {
-  if(draft?.outcome!=="hit" && draft?.outcome!=="critical") return [];
+  if(!["hit","critical","miss"].includes(draft?.outcome)) return [];
   return Object.entries(draft.activations || {}).filter(([,activation])=>activation.on).map(([id,activation])=>({id,
-    ...(activation.type?{type:activation.type,amount:activation.amount}:{}),...(activation.saveOutcome?{saveOutcome:activation.saveOutcome}:{})}));
+    ...(activation.type?{type:activation.type,amount:activation.amount}:{}),...(activation.saveOutcome?{saveOutcome:activation.saveOutcome}:{}),
+    ...(activation.secondaryTargetId?{secondaryTargetId:activation.secondaryTargetId}:{})}));
 }
 // The weapon cantrip woven into a melee weapon attack (only on a hit), with Green-Flame Blade's second creature.
 export function chosenWeaponCantrip(draft) {
@@ -121,11 +123,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function preview() {
     return pcAttackPreview({action:presentation?.action,spellId:draft?.spellId,sourceItem:presentation?.item,targetItem:targetById(draft?.targetId),outcome:draft?.outcome,
       amounts:draft?.amounts,ignoredDefenses:draft?.ignored,riders:chosenRiders(draft),extras:chosenExtras(draft),turnState:presentation?.turnState,
-      weaponCantrip:chosenWeaponCantrip(draft),secondaryItem:targetById(draft?.woven?.secondaryTargetId),activations:chosenActivations(draft)});
+      weaponCantrip:chosenWeaponCantrip(draft),secondaryItem:targetById(secondaryTargetId()),activations:chosenActivations(draft)});
   }
+  // The second creature of this attack: Green-Flame Blade's, or an activation's (Sweeping Attack, Slashing Flourish…).
+  const secondaryTargetId=()=>chosenWeaponCantrip(draft)?.secondary?.targetId
+    || chosenActivations(draft).find(activation=>activation.secondaryTargetId)?.secondaryTargetId || "";
   function activationOptions() {
     return pcAttackActivationOptions({action:presentation?.action,spellId:draft?.spellId,sourceItem:presentation?.item,targetItem:targetById(draft?.targetId),
-      turnState:presentation?.turnState,riders:chosenRiders(draft),extras:chosenExtras(draft)});
+      turnState:presentation?.turnState,riders:chosenRiders(draft),extras:chosenExtras(draft),outcome:draft?.outcome || ""});
   }
   const wovenOptions=()=>pcAttackWeaponCantripOptions(presentation?.action,attackerCard());
   function riderOptions() {
@@ -260,7 +265,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const options=activationOptions();
     activationsBox.dataset.activationIds=options.map(option=>option.id).join("|");
     activationsBox.replaceChildren(...options.map(option=>{
-      const state=draft.activations[option.id] ||= {on:false,type:option.types[0] || "",amount:"",saveOutcome:""};
+      const state=draft.activations[option.id] ||= {on:false,type:option.types[0] || "",amount:"",saveOutcome:"",secondaryTargetId:""};
       const toggle=node("input");toggle.type="checkbox";toggle.dataset.activationField="on";toggle.setAttribute("aria-label",option.label);
       toggle.addEventListener("change",()=>{
         state.on=toggle.checked;
@@ -278,6 +283,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         const type=typeSelect(option.types,state.type,{format:damageTypeLabel,className:"inline-select"});type.dataset.activationField="type";
         type.setAttribute("aria-label",`Tipo di danno di ${option.label}`);type.addEventListener("change",()=>{state.type=type.value;renderState();});
         extra.append(type);
+      }
+      // The second creature the die also (or only) damages: any other tracked creature than the attacker and the target.
+      if(option.secondary) {
+        const second=node("select","","inline-select");second.dataset.activationField="secondary";second.setAttribute("aria-label",`Seconda creatura di ${option.label}`);
+        second.addEventListener("change",()=>{state.secondaryTargetId=second.value;updateActivations();renderState();});
+        extra.append(second);
       }
       if(option.save) {
         const group=node("div","","segmented mini");group.setAttribute("role","group");group.setAttribute("aria-label",`Tiro salvezza contro ${option.label}`);
@@ -301,7 +312,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!activationsBox) return;
     if(activationsBox.dataset.activationIds!==options.map(option=>option.id).join("|") || options.some(option=>!draft.activations[option.id])) return renderActivations();
     activationsBox.hidden=!options.length;
-    if(activationsCaption) activationsCaption.hidden=!options.length;
+    // On a miss the section caption already says what these are ("Prima del tiro").
+    if(activationsCaption) activationsCaption.hidden=!options.length || draft.outcome==="miss";
     const critical=dice=>draft.outcome==="critical" && dice?`${dice} · critico ${pcAttackCriticalDice(dice)}`:dice;
     for(const option of options) {
       const row=activationsBox.querySelector(`[data-activation-id="${option.id}"]`);
@@ -314,11 +326,21 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const resource=option.resources.map(entry=>entry.unlimited || entry.current===null?entry.name:`${entry.name} ${entry.current}/${entry.maximum ?? "?"}`);
       const save=option.save?`TS ${option.save.label}${option.save.dc?` CD ${option.save.dc}`:""}`:"";
       // Each part keeps its words together ("TS Saggezza CD 16"): the line wraps only between parts.
-      field("meta").textContent=[option.damage?`${critical(option.dice) || "dado"} ${option.types.length===1?damageTypeLabel(option.types[0]):""}`.trim():"",
+      const dice=option.damage || option.secondary?`${critical(option.dice) || "dado"} ${option.types.length===1?damageTypeLabel(option.types[0]):""}`.trim():"";
+      field("meta").textContent=[dice,option.rollBonus?`${option.rollBonus} al tiro per colpire`:"",
         ...resource,save,option.size || ""].filter(Boolean).map(part=>part.replace(/ /gu," ")).join(" · ");
       field("reason").textContent=option.available?option.warning || "":option.reason;
       field("options").hidden=!state.on;
-      field("amount").hidden=!state.on || !option.damage;field("amount").disabled=busy;
+      // On a miss only the activations used on the roll itself are listed.
+      row.hidden=draft.outcome==="miss" && !option.preRoll;
+      field("amount").hidden=!state.on || !(option.damage || option.secondary);field("amount").disabled=busy;
+      const second=field("secondary");
+      if(second) {
+        const others=presentation.targets.filter(item=>item.id!==draft.targetId);
+        if(state.secondaryTargetId && !others.some(item=>item.id===state.secondaryTargetId)) state.secondaryTargetId="";
+        second.replaceChildren(...[["","Seconda creatura"],...others.map(item=>[item.id,bossTargetLabel(item)])].map(([value,label])=>{const entry=node("option",label);entry.value=value;return entry;}));
+        second.value=state.secondaryTargetId;second.disabled=busy;
+      }
       if(field("type")) field("type").disabled=busy;
       for(const outcome of ["failed","passed"]) {
         const button=field(`save-${outcome}`);
@@ -327,7 +349,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       // What happens: the pill (on the target, or on the attacker), the condition or the note, and when.
       const effect=option.effect?(option.effect.kind==="note"?option.effect.label
         :`${option.save?"Se fallisce":"Effetto"}: ${option.effect.self?`${option.effect.label} su di sé`:option.effect.label}`):"";
-      field("effect").textContent=[effect,option.note || ""].filter(Boolean).join(" ");
+      const secondNote=option.secondary?`Seconda creatura ${option.secondary.note}${option.secondary.targetDamage?", stesso dado del bersaglio":""}.`:"";
+      field("effect").textContent=[effect,secondNote,option.note || ""].filter(Boolean).join(" ");
       field("effect").hidden=!field("effect").textContent;
       row.dataset.unavailable=option.available?"false":"true";
     }
@@ -471,10 +494,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
   }
   function renderState() {
-    extrasSection.hidden=!hits(draft.outcome);
-    // Activations follow the outcome (attack roll hits only) and the riders chosen (Wrath of the Order).
+    // On a miss the section stays only for the activations used on the roll (a bonus to hit); the extras need a hit.
+    const preRollOnMiss=draft.outcome==="miss" && activationOptions().some(option=>option.preRoll);
+    extrasSection.hidden=!hits(draft.outcome) && !preRollOnMiss;
+    if(!hits(draft.outcome)) {if(wovenBox)wovenBox.hidden=true;ridersBox.hidden=true;}
+    extrasBox.hidden=!hits(draft.outcome);addExtra.hidden=!hits(draft.outcome);
+    // Activations follow the outcome and the riders chosen (Wrath of the Order, Wails from the Grave).
     updateActivations();
-    if(extrasCaption) extrasCaption.textContent=resolved()?.cantrip?.save?"Extra al danno":"Extra al colpo";
+    if(extrasCaption) extrasCaption.textContent=preRollOnMiss?"Prima del tiro":resolved()?.cantrip?.save?"Extra al danno":"Extra al colpo";
     const view=preview();
     defensesBox.replaceChildren(...view.defenses.map(row=>{
       const chip=node("button",damageDefenseTag(row),"defense-chip");chip.type="button";
@@ -607,8 +634,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       activations:chosenActivations(draft).map(activation=>({...activation,...(activation.type?{amount:Number(activation.amount)}:{})})),
       ...(draft.spellId?{spellId:draft.spellId}:{}),
       ...(chosenWeaponCantrip(draft)?{weaponCantrip:(({spellId,amount,secondary})=>({spellId,...(amount!==""?{amount:Number(amount)}:{}),
-        ...(secondary?{secondary:{targetId:secondary.targetId,amount:Number(secondary.amount)}}:{})}))(chosenWeaponCantrip(draft)),
-        ...(view.secondary?{expectedSecondaryDefenses:view.secondary.profileDefenses}:{})}:{}),
+        ...(secondary?{secondary:{targetId:secondary.targetId,amount:Number(secondary.amount)}}:{})}))(chosenWeaponCantrip(draft))}:{}),
+      ...(view.secondary?{expectedSecondaryDefenses:view.secondary.profileDefenses}:{}),
       attackInstanceId:draft.attackInstanceId,sceneIdentity:presentation.sceneIdentity};
     const result=await runtime.executePcAttack(request);
     if(!lifecycle.isCurrent(operation)) return;

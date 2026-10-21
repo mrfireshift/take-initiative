@@ -28,10 +28,10 @@ test("every activation is a class feature of the catalog, with a pill when its e
   }
 });
 
-test("the 3A scope: every class with an on-hit activation", () => {
+test("the 3A and 3B-1 scope: every class with an on-hit activation", () => {
   const classes = new Set(PC_ATTACK_ACTIVATIONS.map((activation) => getClassFeatureDefinition(activation.id).classId));
-  assert.deepEqual([...classes].sort(), ["barbaro", "bardo", "chierico", "guerriero", "ladro", "monaco", "warlock"]);
-  assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "manovra").length, 9);
+  assert.deepEqual([...classes].sort(), ["barbaro", "bardo", "chierico", "guerriero", "ladro", "monaco", "paladino", "warlock"]);
+  assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "manovra").length, 11);
   assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "tiro-arcano").length, 5);
 });
 
@@ -82,4 +82,18 @@ test("Giant's Might and Foe Slayer are damage riders, not activations", () => {
   const ids = PC_ATTACK_RIDERS.map((rider) => rider.id);
   assert.ok(ids.includes("guerriero-cavaliere-runico-potenza-del-gigante"));
   assert.ok(ids.includes("ranger-revised-sterminatore-di-nemici"));
+});
+
+test("3B-1: a second creature's die, half the Sneak Attack dice, bonuses to the attack roll", async () => {
+  const { pcAttackActivationRollBonus } = await import("../src/pcAttackActivationCatalog.js");
+  const wails = getPcAttackActivation("ladro-fantasma-lamenti-dalla-tomba");
+  assert.deepEqual([3, 5, 9, 11].map((level) => pcAttackActivationDice(wails, card("ladro", level))), ["1d6", "2d6", "3d6", "3d6"]);
+  assert.equal(getPcAttackActivation("guerriero-maestro-di-battaglia-manovre-attacco-con-spazzata").secondary.targetDamage, false);
+  assert.equal(getPcAttackActivation("bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-tagliente").secondary.targetDamage, true);
+  const precise = getPcAttackActivation("guerriero-maestro-di-battaglia-manovre-attacco-preciso");
+  assert.deepEqual([pcAttackActivationDealsDamage(precise, card("guerriero", 10)), pcAttackActivationRollBonus(precise, card("guerriero", 10))], [false, "+1d10"]);
+  assert.equal(pcAttackActivationRollBonus(getPcAttackActivation("paladino-giuramento-di-conquista-incanalare-divinita-colpo-guidato"), card("paladino", 7)), "+10");
+  const riders = PC_ATTACK_RIDERS.map((rider) => rider.id);
+  assert.ok(riders.includes("ranger-cacciatore-delle-tenebre-imboscata-terrificante"));
+  assert.ok(riders.includes("barbaro-cammino-della-bestia-chiamata-alla-caccia"));
 });

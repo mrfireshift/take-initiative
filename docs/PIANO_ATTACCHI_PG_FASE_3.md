@@ -87,7 +87,14 @@ Due capacità sono **danno puro** e vanno nella tabella dei rider della fase 1, 
 
 Le attivazioni di queste tabelle sono dati verificati sul catalogo. I dati mancanti (dimensione dei dadi, abilità della CD, tipo di danno) vanno in una **tabella curata**, chiusa e versionata come quella dei rider.
 
-## Tranche 3B — rinviate
+## Tranche 3B-1 — implementata, non committata
+
+- **Seconda creatura** (Attacco con Spazzata, Virtuosismo Tagliente, Lamenti dalla Tomba). Il dado si tira una volta: va solo alla seconda creatura (Spazzata, Lamenti) o anche al bersaglio (Tagliente). Usa lo stesso percorso della seconda creatura di Lama Verdefiamma: difese e PF propri, stesso comando, stesso Undo. Una sola seconda creatura per attacco. Lamenti dalla Tomba tira metà dei dadi dell'Attacco Furtivo (per eccesso), solo insieme all'Attacco Furtivo e nel proprio turno.
+- **Prima del tiro** (Attacco Preciso, Colpo Guidato del Paladino di Conquista e del Chierico della Guerra). Sono disponibili anche con l'attacco mancato: spendono la risorsa e registrano il bonus al tiro, senza danno. Su un mancato la console mostra solo queste righe, sotto "Prima del tiro". Attacco Preciso resta una manovra (una per attacco).
+- **Rider:** Imboscata Terrificante (+1d8 una volta nel proprio turno, con la pill attiva sul ranger) e Chiamata alla Caccia (+1d6 una volta per turno a chiunque abbia la pill del barbaro, anche senza la capacità sulla propria card).
+- **Verifica nel browser** (harness): Attacco con Spazzata su Auril con il goblin come seconda creatura. Auril 580 → 571, goblin 7 → 0, dado speso. Poi un mancato con Attacco Preciso.
+
+## Tranche 3B — rinviate (3B-2 e 3C)
 
 - **Attacco con Spazzata**: il danno va a una seconda creatura; si può riusare il modello della seconda creatura di Lama Verdefiamma.
 - **Freccia Esplosiva, Perforante, Cercatrice**: area o nessun tiro per colpire. Servono il disegno dell'area o un attacco a sé.
