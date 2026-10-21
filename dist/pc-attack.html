@@ -75,6 +75,19 @@
     .segmented.mini { display: inline-grid; grid-auto-columns: max-content; }
     .segmented.mini button { min-height: 22px; padding: 0 8px; font-size: var(--obrt-type-secondary); }
     .effect-hint { color: var(--muted); }
+    /* Inspiring Smite: one line per creature that receives temporary hit points, on the damage rows' grid: remove in the
+       lead column, the creature in the body, its amount under the total. The list spans the whole row (lead + gap on the
+       left, gap + amount on the right). */
+    .temp-hp-list { display: grid; gap: 4px; width: calc(100% + 108px); margin: 0 -80px 0 -28px; }
+    .temp-hp-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) 72px; column-gap: 8px; align-items: center; }
+    .temp-hp-row .inline-select { min-width: 0; height: 26px; }
+    .temp-hp-add { justify-self: start; margin-left: 28px; padding: 2px 8px; border: 1px dashed rgba(148, 163, 184, .35); border-radius: var(--obrt-radius-md); background: transparent; color: #bfdbfe; font-size: var(--obrt-type-secondary); cursor: pointer; }
+    .temp-hp-add:disabled { opacity: .45; cursor: default; }
+    /* Quivering Palm: ending the vibrations of the target, below the target picker. */
+    .palm { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
+    .palm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .palm-title { font-weight: var(--obrt-weight-semibold); }
+    .palm-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
     .extra-fields { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 6px; }
     .field { height: 26px; min-width: 0; padding: 2px 6px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-size: var(--obrt-type-secondary); }
     .lead-remove { width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--obrt-radius-sm); background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
@@ -98,7 +111,7 @@
     .status { flex: 1 1 auto; min-width: 0; max-height: 52px; overflow-y: auto; margin: 0; color: #bfdbfe; font-size: var(--obrt-type-secondary); white-space: pre-wrap; }
     .status:empty::before { content: "Pronto."; color: var(--dim); }
   </style>
-  <script type="module" crossorigin src="/assets/pcAttack-CyLNoW4N.js"></script>
+  <script type="module" crossorigin src="/assets/pcAttack-BjPmmc3a.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-cQDNDP2l.js">
   <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
@@ -109,35 +122,35 @@
   <link rel="modulepreload" crossorigin href="/assets/distance3dCore-BBBmU4Al.js">
   <link rel="modulepreload" crossorigin href="/assets/spells-srd-Ssstkz5w.js">
   <link rel="modulepreload" crossorigin href="/assets/reminderResolutionCore-DS_LSyYW.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-BseOp7ry.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditions-DqHbd2tD.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-BS2szg6p.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-BB9JuatI.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ci4uQNGU.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-rg5-UoB2.js">
   <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BVqw8Zfu.js">
   <link rel="modulepreload" crossorigin href="/assets/customAuraCore-C8ArS2dz.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-B7o119bD.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-nHsEfOaw.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-Bbuher-4.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-Dqm1tq_G.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-CQgvPWf4.js">
   <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-DUnr4uVm.js">
-  <link rel="modulepreload" crossorigin href="/assets/history-Cowc7MrV.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-ChrcK9Hu.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3d-CO6Pu5Hm.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-BUoWmYgS.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-COFFVSht.js">
   <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-CJ-dHtGF.js">
   <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BiUI0kXb.js">
   <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-CU63bT9B.js">
   <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-DyQ88aSf.js">
-  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-DB7ZMvCj.js">
-  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-CIHy_hO6.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-BtgXaBNY.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-CHnphBjv.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-tHDlf_Gs.js">
+  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-Bq6dzecD.js">
+  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-UxTDyImG.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-fGn9oDvL.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-DERQw5jI.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-Cr1fKhej.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-C5TqxhTA.js">
   <link rel="modulepreload" crossorigin href="/assets/sharedHpViewCore-cW7dwQv1.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionProfileStore-Yar31G6J.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionProfileStore-CQg_mWxs.js">
   <link rel="modulepreload" crossorigin href="/assets/bossCollapseCore-kuzQsDdD.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-DG8K961O.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionExecution-DdAVS9L9.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-KMyIFi3Y.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-C88J5da4.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionExecution-CINrGERg.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-Fba8WIKW.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDrag-Bz6ZFVOx.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-CFw_LKnU.js">
   <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-DznAGjlY.js">
@@ -154,6 +167,14 @@
           <span class="caption">Bersaglio</span>
           <select class="target-select" id="pc-attack-target" aria-label="Bersaglio"></select>
           <p class="hint" id="pc-attack-target-hint" hidden></p>
+          <div class="palm" id="pc-attack-palm" hidden>
+            <div class="palm-head"><span class="palm-title">Palmo Tremante</span><span class="card-note" id="pc-attack-palm-note"></span></div>
+            <div class="segmented mini" id="pc-attack-palm-outcomes" role="group" aria-label="Fine delle vibrazioni"></div>
+            <div class="palm-row">
+              <input class="amount" id="pc-attack-palm-amount" type="number" min="0" step="1" inputmode="numeric" aria-label="Danni necrotici (10d10)" hidden />
+              <button class="small" id="pc-attack-palm-apply" type="button">Termina le vibrazioni</button>
+            </div>
+          </div>
         </section>
         <section class="block" aria-label="Esito">
           <span class="caption">Esito</span>
