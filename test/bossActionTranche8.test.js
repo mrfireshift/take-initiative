@@ -23,7 +23,7 @@ const FOUR = [circle(0, ["a", "b"], ["a"]), circle(1000, ["b", "c"], []), circle
 
 test("every profile version from 1 to the current one stays readable (a stored library never breaks on upgrade)", () => {
   const icekiss = (({ group, ...entry }) => entry)(ability(p2, "Icekiss +2"));
-  const trait = ability(p2, "Rimebound Link"); // a manual trait: trait auras arrived with v11
+  const trait = ability(p2, "Doppia Manifestazione"); // a manual trait: trait auras arrived with v11
   for (let version = 1; version <= BOSS_ACTION_PROFILE_VERSION; version += 1) {
     const legacy = { ...structuredClone(p2), profileVersion: version, parserVersion: version, abilities: [structuredClone(icekiss), structuredClone(trait)] };
     assert.doesNotThrow(() => validateBossActionProfile(legacy), `version ${version}`);

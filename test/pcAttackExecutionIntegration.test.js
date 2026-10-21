@@ -29,6 +29,7 @@ const sdk = {
   scene: {
     isReady: async () => true,
     onReadyChange: () => () => {},
+    grid: { getDpi: async () => 100, getScale: async () => ({ parsed: { multiplier: 5, unit: "ft" } }) },
     getMetadata: async () => clone(sceneMetadata),
     setMetadata: async (update) => { sceneMetadata = { ...sceneMetadata, ...clone(update) }; },
     items: {
@@ -40,6 +41,13 @@ const sdk = {
         updater(drafts);
         const byId = new Map(drafts.map((item) => [item.id, item]));
         sceneItems = sceneItems.map((item) => byId.get(item.id) || item);
+      },
+      // A token is one 100 px cell from its position (the grid below: 100 dpi, 5 ft per cell).
+      getItemBounds: async (ids) => {
+        const item = sceneItems.find((candidate) => candidate.id === ids[0]);
+        if (!item) throw new Error("missing item");
+        const { x, y } = item.position || { x: 0, y: 0 };
+        return { min: { x, y }, max: { x: x + 100, y: y + 100 }, width: 100, height: 100, center: { x: x + 50, y: y + 50 } };
       },
       addItems: async (items) => { sceneItems.push(...clone(items)); },
       deleteItems: async (ids) => { sceneItems = sceneItems.filter((item) => !ids.includes(item.id)); },
@@ -403,4 +411,40 @@ test("Quivering Palm: the vibrations on a hit, then ending them (0 HP) as a comm
   assert.equal(meta("ghoul").hp, 24);
   assert.ok(pills().includes("Palmo Tremante"));
   assert.equal(meta("aria").classFeatureState.instances.some((instance) => instance.featureId === "monaco-via-della-mano-aperta-palmo-tremante"), true);
+});
+
+test("an area cantrip: the creatures near the caster proposed from the map; one History entry for all of them; one Undo", async () => {
+  const { buildCombatLogPresentation } = await import("../src/combatLogPresentationCore.js");
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "mago", level: 5 }], spellSaveDC: 14,
+    quickActions: [sword, { id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip" } }] });
+  sceneItems.push(
+    { id: "imp", name: "Imp", type: "IMAGE", layer: "CHARACTER", position: { x: 60, y: 120 }, metadata: { [META_KEY]: { hp: 10, hpMax: 10, inInitiative: true } } },
+    { id: "far", name: "Lontano", type: "IMAGE", layer: "CHARACTER", position: { x: 1000, y: 1000 }, metadata: { [META_KEY]: { hp: 10, hpMax: 10, inInitiative: true } } });
+  assert.deepEqual(await runtime.getPcAttackNearby({ sourceId: "aria", centerId: "aria", radiusFeet: 5 }), ["ghoul", "imp"]);
+  assert.deepEqual(await runtime.getPcAttackNearby({ sourceId: "aria", centerId: "imp", radiusFeet: 10 }), ["aria", "ghoul"]);
+  const presentation = await runtime.getPcAttackPresentation("aria", "cantrip");
+  const request = { sourceId: "aria", actionId: "cantrip", spellId: "tasha-turbine-di-spade", expectedAction: presentation.action,
+    sceneIdentity: presentation.sceneIdentity, members: [{ targetId: "ghoul", outcome: "failed" }, { targetId: "imp", outcome: "passed" }],
+    componentAmounts: { c1: 7 }, expectedDefenses: { ghoul: [], imp: [] }, attackInstanceId: "whirl" };
+  const result = await runtime.executePcAttackArea(request);
+  assert.deepEqual([meta("ghoul").hp, meta("imp").hp, meta("far").hp], [23, 10, 10]);
+  assert.deepEqual(result.rows.map((row) => [row.id, row.outcome, row.damage, row.before, row.after]),
+    [["ghoul", "failed", 7, 30, 23], ["imp", "passed", 0, 10, 10]]);
+  assert.equal(result.undoAvailable, true);
+  assert.deepEqual(posted, [7, 0].filter((amount) => amount > 0), "projections only for the creatures whose HP changed");
+  const again = await runtime.executePcAttackArea(request);
+  assert.equal(again.duplicate, true);
+  assert.equal(meta("ghoul").hp, 23);
+  const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
+  assert.equal(entries.length, 1);
+  const event = combatEventFromHistoryEntryV3(entries[0]);
+  assert.equal(event.category, "attack");
+  const details = buildCombatLogPresentation(null, [event]).events[0].details.flatMap((section) => section.lines).join(" | ");
+  assert.match(details, /Area: 2 creature entro 1,5 m/);
+  assert.match(details, /Imp: Superato/);
+  await history.undoHistoryThrough(entries[0].id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual([meta("ghoul").hp, meta("imp").hp], [30, 10]);
+  assert.equal(Object.hasOwn(meta("aria"), "pcAttackState"), false);
+  await assert.rejects(() => runtime.executePcAttackArea({ ...request, attackInstanceId: "whirl-2", members: [{ targetId: "gone", outcome: "failed" }] }),
+    /non è più presente/);
 });

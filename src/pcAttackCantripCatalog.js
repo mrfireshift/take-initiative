@@ -48,6 +48,21 @@ export const PC_ATTACK_CANTRIPS = Object.freeze([
     trigger: true }),
   Object.freeze({ spellId: "tasha-lama-verdefiamma", name: "Lama Verdefiamma", delivery: "weapon", type: "fire", dice: "1d8", scaling: "weapon",
     secondary: true }),
+  // 3C: area cantrips around the caster. One damage roll, a save for each creature in the area (no damage on a success,
+  // half with Potent Cantrip). area.radiusFeet: the emanation the console proposes its creatures from; chosen: the
+  // caster picks among them (Word of Radiance), otherwise every creature but the caster is hit, allies included.
+  Object.freeze({ spellId: "xanathar-parola-radiosa", name: "Parola Radiosa", delivery: "area", save: "con", range: "melee", type: "radiant",
+    dice: "1d6", scaling: "dice", area: Object.freeze({ radiusFeet: 5, chosen: true }),
+    ruleNote: "Solo le creature che scegli, entro 1,5 metri, che puoi vedere." }),
+  Object.freeze({ spellId: "xanathar-rombo-di-tuono", name: "Rombo di Tuono", delivery: "area", save: "con", range: "melee", type: "thunder",
+    dice: "1d6", scaling: "dice", area: Object.freeze({ radiusFeet: 5 }),
+    ruleNote: "Ogni creatura entro 1,5 metri, alleati compresi; il rombo si sente fino a 30 metri." }),
+  Object.freeze({ spellId: "tasha-turbine-di-spade", name: "Turbine di Spade", delivery: "area", save: "dex", range: "melee", type: "force",
+    dice: "1d6", scaling: "dice", area: Object.freeze({ radiusFeet: 5 }),
+    ruleNote: "Ogni creatura entro 1,5 metri, alleati compresi." }),
+  // Create Bonfire: a lasting zone with concentration and a save on entering it, the spell panel's job (it already
+  // places and tracks it). The cantrip console points there.
+  Object.freeze({ spellId: "xanathar-creare-falo", name: "Creare Falò", delivery: "panel", type: "fire", dice: "1d8", scaling: "dice" }),
 ]);
 
 // Booming Blade / Green-Flame Blade at this character level: the extra dice on the hit (none before 5th), the

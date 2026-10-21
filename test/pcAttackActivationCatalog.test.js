@@ -28,11 +28,11 @@ test("every activation is a class feature of the catalog, with a pill when its e
   }
 });
 
-test("the 3A and 3B scope: every class with an on-hit activation", () => {
+test("the 3A, 3B and 3C scope: every class with an on-hit activation", () => {
   const classes = new Set(PC_ATTACK_ACTIVATIONS.map((activation) => getClassFeatureDefinition(activation.id).classId));
   assert.deepEqual([...classes].sort(), ["barbaro", "bardo", "chierico", "guerriero", "ladro", "monaco", "paladino", "warlock"]);
   assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "manovra").length, 12);
-  assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "tiro-arcano").length, 5);
+  assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "tiro-arcano").length, 8);
 });
 
 test("dice by level: superiority and bardic dice from their pools, martial arts and psionic dice from the curated tables", () => {

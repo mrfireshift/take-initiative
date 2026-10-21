@@ -13,7 +13,7 @@ const plan = (overrides = {}) => buildPcAttackMutation({ action: cantrips, spell
   targetItem: goblin(), outcome: "hit", componentAmounts: { c1: 11 }, attackInstanceId: "bolt-1", turnState, ...overrides });
 
 test("a cantrip action offers the known cantrips (or all of them) and resolves the chosen one", () => {
-  assert.equal(pcAttackCantripIds(cantrips).length, 17);
+  assert.equal(pcAttackCantripIds(cantrips).length, 20, "the area cantrips too; Create Bonfire stays in the spell panel");
   assert.deepEqual(pcAttackCantripIds(known), ["eldritch-blast", "shocking-grasp"]);
   assert.deepEqual(pcAttackCantripIds({ id: "sword", label: "Spada", kind: "attack", components: [{ type: "slashing" }] }), []);
   const grasp = pcAttackResolvedAction(known, "shocking-grasp");

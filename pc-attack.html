@@ -83,6 +83,22 @@
     .temp-hp-row .inline-select { min-width: 0; height: 26px; }
     .temp-hp-add { justify-self: start; margin-left: 28px; padding: 2px 8px; border: 1px dashed rgba(148, 163, 184, .35); border-radius: var(--obrt-radius-md); background: transparent; color: #bfdbfe; font-size: var(--obrt-type-secondary); cursor: pointer; }
     .temp-hp-add:disabled { opacity: .45; cursor: default; }
+    /* Area attacks: the creatures hit, each with its save (one row each: tick, name and HP, outcome). */
+    .area { display: grid; gap: 4px; }
+    .area-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .area-note { min-width: 0; color: var(--muted); font-size: var(--obrt-type-secondary); }
+    .area-tools { flex: 0 0 auto; display: flex; gap: 4px; }
+    .mini-button { height: 22px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); cursor: pointer; }
+    .mini-button:disabled { opacity: .45; cursor: default; }
+    .area-list { display: grid; gap: 2px; }
+    .area-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; min-height: 26px; }
+    .area-row .component-lead input { width: 15px; height: 15px; margin: 0; accent-color: #2563eb; cursor: pointer; }
+    .area-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .area-hp { color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
+    .area-row[data-on="false"] .area-name, .area-row[data-on="false"] .area-hp { opacity: .5; }
+    .burst-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; width: 100%; }
+    .burst-list .option-check { min-width: 0; }
+    .burst-list .option-check span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* Quivering Palm: ending the vibrations of the target, below the target picker. */
     .palm { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
     .palm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
@@ -121,8 +137,19 @@
     <main class="panel">
       <section class="view" id="pc-attack-form" aria-label="Attacco" hidden>
         <section class="card" aria-label="Bersaglio">
-          <span class="caption">Bersaglio</span>
+          <span class="caption" id="pc-attack-target-caption">Bersaglio</span>
           <select class="target-select" id="pc-attack-target" aria-label="Bersaglio"></select>
+          <div class="area" id="pc-attack-area" hidden>
+            <div class="area-head">
+              <span class="area-note" id="pc-attack-area-note"></span>
+              <span class="area-tools">
+                <button class="mini-button" id="pc-attack-area-propose" type="button" title="Riprendi le creature vicine dalla mappa">Proponi</button>
+                <button class="mini-button" id="pc-attack-area-all-failed" type="button">Tutti falliti</button>
+                <button class="mini-button" id="pc-attack-area-all-passed" type="button">Tutti superati</button>
+              </span>
+            </div>
+            <div class="area-list" id="pc-attack-area-list"></div>
+          </div>
           <p class="hint" id="pc-attack-target-hint" hidden></p>
           <div class="palm" id="pc-attack-palm" hidden>
             <div class="palm-head"><span class="palm-title">Palmo Tremante</span><span class="card-note" id="pc-attack-palm-note"></span></div>
@@ -133,8 +160,9 @@
             </div>
           </div>
         </section>
-        <section class="block" aria-label="Esito">
+        <section class="block" aria-label="Esito" id="pc-attack-outcome-block">
           <span class="caption">Esito</span>
+          <select class="target-select" id="pc-attack-mode" aria-label="Tiro" hidden></select>
           <div class="segmented" id="pc-attack-outcomes" role="group" aria-label="Esito dell'attacco"></div>
         </section>
         <section class="card" aria-label="Danno">

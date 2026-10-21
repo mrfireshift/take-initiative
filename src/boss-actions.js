@@ -365,6 +365,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       abilities.appendChild(warning);
     }
     renderSequenceNotes();
+    renderLinkResistanceNote();
     // A reaction with an HP trigger (Divine Brilliance): the console reminds it while the boss is below the threshold.
     for(const action of presentation.profile.abilities.filter(entry=>entry.execution?.trigger && available(entry) && bossTriggerMet(entry,presentation.item))) {
       const warning=node("div","","note warning trigger-warning");warning.id="boss-trigger-warning";
@@ -431,6 +432,17 @@ export function bootBossActions(documentRef=document, overrides={}) {
   // ---- Epic Action sequence (profile v19) ----
   const sequenceWarning=action=>presentation?.sequence?.warnings?.[action?.id] || "";
   const actionName=id=>presentation?.profile?.abilities.find(entry=>entry.id===id)?.name || id;
+  // Rimebound Link (v26): the GM's status line; nothing reaches the players.
+  function renderLinkResistanceNote() {
+    const link=presentation?.linkResistance;
+    if(!link) return;
+    const text=link.round===null
+      ? `${link.name}: si attiva in combattimento, a ogni round (round canonico non impostato).`
+      : link.active
+        ? `${link.name} attivo (round ${link.round}): il ${link.holder} ha Resistenza a tutti i danni finché la ${link.breaker} non subisce danni. Solo GM.`
+        : `${link.name} interrotto nel round ${link.round}: il ${link.holder} non ha Resistenza fino all'inizio del round ${link.round+1}.`;
+    const note=node("p",text,"note link-note"+(link.active?"":" warning"));note.id="boss-link-note";abilities.appendChild(note);
+  }
   function renderSequenceNotes() {
     const sequence=presentation?.sequence;
     if(!sequence) return;

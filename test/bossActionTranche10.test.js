@@ -5,6 +5,7 @@ import test from "node:test";
 import { importBossActionHTML, validateBossActionProfile } from "../src/bossActionProfileCore.js";
 import { bossAuraId, bossAuraStatus, bossProfileAuras, isBossManagedAura, mergeBossAuras, removeBossAuras } from "../src/bossAuraCore.js";
 import { customAuraRule } from "../src/customAuraCore.js";
+import { withoutLinkResistance } from "../test-support/bossLegacyProfile.js";
 
 const phase2HTML = await readFile(new URL("fixtures/boss-actions/auril-phase-2.html", import.meta.url), "utf8");
 const phase3HTML = await readFile(new URL("fixtures/boss-actions/auril-phase-3.html", import.meta.url), "utf8");
@@ -79,6 +80,7 @@ test("altered aura clauses stay manual; the v11 aura contract is closed", async 
   // The at-will spell arrived with v15: a v11 copy keeps the three daily spells.
   const v11 = structuredClone({ ...p2, profileVersion: 11, parserVersion: 11 });
   for (const entry of v11.abilities) delete entry.sequence; // v20 shapes
+  withoutLinkResistance(v11); // v26 shape
   ability(v11, "Spellcasting").execution.spells = ability(v11, "Spellcasting").execution.spells.filter((spell) => !spell.atWill);
   for (const entry of v11.abilities.filter((row) => ["throw", "effect-end"].includes(row.execution?.kind))) {
     entry.automation = "UNSUPPORTED"; delete entry.execution; entry.manualText = entry.rawText; // v16 shapes

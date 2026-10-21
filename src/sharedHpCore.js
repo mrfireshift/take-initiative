@@ -228,7 +228,8 @@ export function planSharedHpMutation({ items, operations = [], metadataPatches =
     }
     remainingOperations.push({ type: "hp:set", updates: group.memberIds.map(itemId => ({ itemId, hp, hpMax,
       sharedHpMirror: !damageHitIds.has(itemId) })) });
-    groups.push({ sourceId: group.sourceId, memberIds: group.memberIds, hitIds,
+    // damageHitIds: the members that took damage in this command (Rimebound Link reads which manifestation was hit).
+    groups.push({ sourceId: group.sourceId, memberIds: group.memberIds, hitIds, damageHitIds: unique([...damageHitIds]),
       beforeHP: Number(sourceMeta.hp), beforeHPMax: Number(sourceMeta.hpMax), afterHP: hp, hpMax, requestedAmount,
       policy: sharedHp.policy === "per-token" ? "per-token" : "once", eventIds: [...events.keys()] });
   }

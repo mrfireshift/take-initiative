@@ -5,6 +5,7 @@ import test from "node:test";
 import { importBossActionHTML, validateBossActionProfile } from "../src/bossActionProfileCore.js";
 import { bossMarkEffectId, bossProfileMarkIds, bossMarkedDefenses, bossMarkApplies, bossTargetMarked } from "../src/bossActionExecutionCore.js";
 import { bossDefendedDamage } from "../src/bossActionsViewCore.js";
+import { withoutLinkResistance } from "../test-support/bossLegacyProfile.js";
 
 const META = "com.thebigpicture.initiative/meta";
 const phase2HTML = await readFile(new URL("fixtures/boss-actions/auril-phase-2.html", import.meta.url), "utf8");
@@ -156,6 +157,7 @@ test("v15 Spellcasting: passo velato at will, last in the list, a catalog spell 
   }
   const v14 = structuredClone({ ...p2, profileVersion: 14, parserVersion: 14 });
   for (const entry of v14.abilities) delete entry.sequence; // v20 shapes
+  withoutLinkResistance(v14); // v26 shape
   for (const entry of v14.abilities.filter((row) => ["throw", "effect-end"].includes(row.execution?.kind))) {
     entry.automation = "UNSUPPORTED"; delete entry.execution; entry.manualText = entry.rawText; // v16 shapes
   }

@@ -164,3 +164,22 @@ test("a token linked before the Aura Gelida pill gets it on the next binding, ke
   assert.deepEqual(cold.pills.map((pill) => [pill.label, pill.kind, pill.enabled]), [["Aura Gelida", "debuff", true]]);
   assert.equal(cold.radiusMeters, 4.5);
 });
+
+test("Rimebound Link (v26): binding phase 2 records the link on the boss token, phase 3 and unbinding remove it; a rebind keeps the broken round", async () => {
+  await setup(p2);
+  const record = { enabled: true, name: "Rimebound Link", holder: "Titano", breaker: "Proiezione Fatata" };
+  assert.deepEqual(meta("auril").bossLinkResistance, record);
+  const presentation = await runtime.getBossActionPresentation("auril");
+  assert.deepEqual(presentation.linkResistance, { name: "Rimebound Link", holder: "Titano", breaker: "Proiezione Fatata", brokenRound: null, active: true, round: 1 });
+  meta("auril").bossLinkResistance = { ...record, brokenRound: 1 };
+  await runtime.bindBossActionProfile("auril", p2);
+  assert.deepEqual(meta("auril").bossLinkResistance, { ...record, brokenRound: 1 }, "the same trait keeps the round it was broken in");
+  assert.equal((await runtime.getBossActionPresentation("auril")).linkResistance.active, false);
+  await runtime.bindBossActionProfile("auril", p3);
+  assert.equal(meta("auril").bossLinkResistance, undefined, "phase 3 has no link");
+  assert.equal((await runtime.getBossActionPresentation("auril")).linkResistance, undefined);
+  await runtime.bindBossActionProfile("auril", p2);
+  await runtime.unbindBossActionProfile("auril");
+  assert.equal(meta("auril").bossLinkResistance, undefined);
+  assert.ok(meta("auril").hp > 0, "the rest of the token metadata stays");
+});

@@ -17,6 +17,8 @@ function asVersion(profile, version) {
   for (const entry of legacy.abilities) {
     delete entry.group; // the presentation group arrived with v7
     delete entry.sequence; // the Epic Action sequence arrived with v19 (Auril's with v20)
+    // Rimebound Link arrived with v26: before, the trait was manual text.
+    if (entry.linkResistance) { entry.automation = "UNSUPPORTED"; delete entry.linkResistance; entry.manualText = entry.rawText; }
     // Hurl and Epic Resistance arrived with v16: before, they were manual text.
     if (["throw", "effect-end"].includes(entry.execution?.kind)) { entry.automation = "UNSUPPORTED"; delete entry.execution; entry.manualText = entry.rawText; }
     // The at-will spell arrived with v15.
@@ -35,8 +37,8 @@ function asVersion(profile, version) {
 test("the real Breath description becomes a PARTIAL multi-target CON save with printed components and Accecato on failure", async () => {
   const profile = await importBossActionHTML(phase2HTML, { sourceName: "auril-phase-2.html" });
   const breath = ability(profile, BREATH);
-  assert.equal(profile.profileVersion, 25);
-  assert.equal(profile.parserVersion, 25);
+  assert.equal(profile.profileVersion, 26);
+  assert.equal(profile.parserVersion, 26);
   assert.equal(breath.automation, "PARTIAL");
   assert.equal(breath.category, "epic-action");
   assert.deepEqual(breath.usage, { limit: 1, period: "round", note: "Special Recharge" }, "1/Round is counted; the recharge stays a manual note");
@@ -138,7 +140,7 @@ test("v2 profiles stay readable without Breath mechanics and cannot carry the v3
   assert.throws(() => validateBossActionProfile(forged), /unexpected|unsupported|invalid/i);
   const store = createBossActionProfileStore({ storage: memoryStorage() });
   store.put(legacy); store.put(current);
-  assert.deepEqual(store.list().map((profile) => profile.profileVersion), [2, 25], "both revisions of the same phase coexist");
+  assert.deepEqual(store.list().map((profile) => profile.profileVersion), [2, 26], "both revisions of the same phase coexist");
 });
 
 test("v3 export/import keeps HTML, raw text and the normalized group contract without truncation", async () => {

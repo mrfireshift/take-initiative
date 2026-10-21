@@ -18,6 +18,7 @@ import { getSpellDefinition } from "./spells-srd.js";
 import { bossActionUsageAvailability, bossActionUsageSummary } from "./bossActionUsageCore.js";
 import { CUSTOM_AURAS_FIELD, normalizeCustomAuras } from "./customAuraCore.js";
 import { bossAuraStatus, mergeBossAuras, removeBossAuras } from "./bossAuraCore.js";
+import { BOSS_LINK_RESISTANCE_FIELD, bossLinkResistanceRecord, bossLinkResistanceState } from "./bossLinkResistanceCore.js";
 
 const META_KEY = `${ID}/meta`;
 const newId = () => `boss-action:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
@@ -154,6 +155,8 @@ export function createBossActionRuntime({
       round:scope.round,availability,
       usageSummary:profile?bossActionUsageSummary(state,scope.round):null,
       auras:profile?bossAuraStatus(scope.item.metadata?.[META_KEY]?.[CUSTOM_AURAS_FIELD],profile):[],
+      // v26: Rimebound Link, for the GM only (the console's status line).
+      ...(profile?.abilities?.some(ability=>ability.linkResistance)?{linkResistance:bossLinkResistanceState(scope.item,scope.round)}:{}),
       ...(sequence?{sequence}:{}),
       sceneIdentity:scope.scene.sceneIdentity};
   }
@@ -187,6 +190,23 @@ export function createBossActionRuntime({
     });
     return {...result,changed:true};
   }
+  // Rimebound Link (v26): the record on the boss token follows the binding (merged, the rest of the metadata is kept);
+  // the round in which the link was broken stays when the same trait is bound again.
+  async function updateBossLinkRecord(scope,profile) {
+    const before=scope.item.metadata?.[META_KEY]?.[BOSS_LINK_RESISTANCE_FIELD];
+    const wanted=profile?bossLinkResistanceRecord(profile,before):null;
+    if(JSON.stringify(wanted ?? null)===JSON.stringify(before ?? null)) return;
+    if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri Boss Actions.");
+    await api.scene.items.updateItems([scope.item.id],drafts=>{
+      for(const draft of drafts) {
+        if(draft?.id!==scope.item.id) continue;
+        const meta={...(draft.metadata?.[META_KEY] || {})};
+        const next=profile?bossLinkResistanceRecord(profile,meta[BOSS_LINK_RESISTANCE_FIELD]):null;
+        if(next)meta[BOSS_LINK_RESISTANCE_FIELD]=next;else delete meta[BOSS_LINK_RESISTANCE_FIELD];
+        draft.metadata={...(draft.metadata || {}),[META_KEY]:meta};
+      }
+    });
+  }
   async function bindBossActionProfile(sourceId,value) {
     const scope=await session(sourceId);
     const profile=definitions().put(value);
@@ -201,6 +221,7 @@ export function createBossActionRuntime({
       const merged=mergeBossAuras(other.auras,profile);
       return {...merged,removed:[...other.removed,...merged.removed]};
     });
+    await updateBossLinkRecord(scope,profile);
     return {...await getBossActionPresentation(sourceId),auraChange:{added:auraChange.added,updated:auraChange.updated || [],removed:auraChange.removed}};
   }
   // "Ripristina aure": the profile's auras rewritten from the profile (the GM's edits to them are discarded).
@@ -244,6 +265,7 @@ export function createBossActionRuntime({
     });
     // The boss's managed auras go with the binding; every other aura of the token stays.
     const auraChange=previous?await updateBossAuras(scope,values=>removeBossAuras(values,previous.bossDefinitionId)):{removed:[]};
+    await updateBossLinkRecord(scope,null);
     return {...await getBossActionPresentation(sourceId),auraChange:{added:[],removed:auraChange.removed}};
   }
   function expectedProfile(request,presentation) {

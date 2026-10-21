@@ -5,9 +5,9 @@ import { getSpellDefinition } from "../src/spells-srd.js";
 import { QUICK_ACTION_ATTACK_DAMAGE_TYPES } from "../src/quickActionsCore.js";
 
 test("every attack cantrip is a level-0 spell of the catalog, with its printed damage type", () => {
-  assert.equal(PC_ATTACK_CANTRIPS.length, 19);
+  assert.equal(PC_ATTACK_CANTRIPS.length, 23);
   const by = (delivery) => PC_ATTACK_CANTRIPS.filter((cantrip) => (cantrip.delivery || "attack") === delivery).length;
-  assert.deepEqual([by("attack"), by("save"), by("weapon")], [8, 9, 2]);
+  assert.deepEqual([by("attack"), by("save"), by("weapon"), by("area"), by("panel")], [8, 9, 2, 3, 1]);
   for (const cantrip of PC_ATTACK_CANTRIPS) {
     const spell = getSpellDefinition(cantrip.spellId);
     assert.ok(spell, cantrip.spellId);
@@ -15,7 +15,7 @@ test("every attack cantrip is a level-0 spell of the catalog, with its printed d
     assert.equal(cantrip.name, spell.displayName || spell.name, cantrip.spellId);
     assert.ok(QUICK_ACTION_ATTACK_DAMAGE_TYPES.includes(cantrip.type), cantrip.spellId);
     if (spell.damageType) assert.equal(cantrip.type, spell.damageType, cantrip.spellId);
-    if (cantrip.delivery !== "weapon") assert.ok(["melee", "ranged"].includes(cantrip.range), cantrip.spellId);
+    if (!["weapon", "panel"].includes(cantrip.delivery)) assert.ok(["melee", "ranged"].includes(cantrip.range), cantrip.spellId);
   }
 });
 
@@ -41,6 +41,7 @@ test("saving throw cantrips name a valid save; Toll the Dead rolls d12s against 
   assert.deepEqual(Object.fromEntries(PC_ATTACK_CANTRIPS.filter((entry) => entry.save).map((entry) => [entry.spellId, entry.save])), {
     "sacred-flame": "dex", "vicious-mockery": "wis", "poison-spray": "con", "acid-splash": "dex", "xanathar-rintocco-dei-morti": "wis",
     "xanathar-infestazione": "con", "xanathar-morsa-del-gelo": "con", "tasha-scheggia-della-mente": "int", "tasha-lenza-elettrizzante": "str",
+    "xanathar-parola-radiosa": "con", "xanathar-rombo-di-tuono": "con", "tasha-turbine-di-spade": "dex",
   });
   const toll = getPcAttackCantrip("xanathar-rintocco-dei-morti");
   assert.deepEqual([pcAttackCantripDice(toll, 5), pcAttackCantripDice(toll, 5, { targetDamaged: true }), pcAttackCantripDice(toll, 17, { targetDamaged: true })],

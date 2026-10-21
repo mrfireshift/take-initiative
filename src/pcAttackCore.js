@@ -25,8 +25,9 @@ import {
 import {
   pcAttackActivationsForCard, pcAttackActivationLabel, pcAttackActivationCosts, pcAttackActivationDice, pcAttackActivationSaveDC,
   pcAttackActivationLimitKey, pcAttackActivationLimit, pcAttackActivationDealsDamage, pcAttackActivationEffect, getPcAttackActivation,
-  pcAttackActivationRollBonus,
+  pcAttackActivationRollBonus, pcAttackModesForCard,
 } from "./pcAttackActivationCatalog.js";
+import { bossReachFeet } from "./bossActionsViewCore.js";
 import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttackCantripDice, pcAttackWeaponCantripDice } from "./pcAttackCantripCatalog.js";
 import { abilitySaveDC, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { PC_ATTACK_RIDERS, getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
@@ -45,16 +46,28 @@ const DAMAGING_OUTCOMES = new Set(["hit", "critical", "failed"]);
 const ATTACK_HITS = new Set(["hit", "critical"]);
 const ATTACK_ROLL_OUTCOMES = new Set(["hit", "critical", "miss"]);
 
+// The save that replaces the attack roll: a saving throw cantrip's, or an arrow's without attack roll (3C).
+export function pcAttackSave(attack) {
+  return attack?.cantrip?.save || attack?.save || "";
+}
+
 // What this outcome deals: the full damage on a hit, a critical or a failed save; half on a passed save when the
-// caster has Potent Cantrip; nothing otherwise (a miss, a passed save).
+// caster has Potent Cantrip, or for an arrow that halves it (Seeking, Piercing); nothing otherwise.
 export function pcAttackDamageFactor(attack, outcome, card = {}) {
   if (DAMAGING_OUTCOMES.has(outcome)) return "full";
+  if (outcome === "passed" && attack?.saveHalf) return "half";
   return outcome === "passed" && attack?.cantrip?.save && pcAttackHasPotentCantrip(card) ? "half" : "zero";
+}
+
+// The extras (riders, components added on the fly) follow the damage: a hit, a failed save, or a passed save that
+// still halves the arrow's damage.
+function extrasAllowedFor(attack, outcome) {
+  return DAMAGING_OUTCOMES.has(outcome) || (!!attack?.saveHalf && outcome === "passed");
 }
 
 // The outcomes the GM picks for this (resolved) attack.
 export function pcAttackOutcomesFor(attack) {
-  return attack?.cantrip?.save ? PC_ATTACK_SAVE_OUTCOMES : PC_ATTACK_OUTCOMES;
+  return pcAttackSave(attack) ? PC_ATTACK_SAVE_OUTCOMES : PC_ATTACK_OUTCOMES;
 }
 export const MAX_PC_ATTACK_EXTRAS = 3;
 const META_KEY = `${ID}/meta`;
@@ -71,8 +84,17 @@ export function pcAttackCantripIds(action) {
   const attack = pcAttackAction(action);
   if (attack?.source?.kind !== "cantrip") return [];
   const offered = attack.source.spellIds?.length ? [...attack.source.spellIds] : PC_ATTACK_CANTRIPS.map((cantrip) => cantrip.spellId);
-  // Booming Blade and Green-Flame Blade are woven into a melee weapon attack, never picked here.
-  return offered.filter((spellId) => getPcAttackCantrip(spellId)?.delivery !== "weapon");
+  // Booming Blade and Green-Flame Blade are woven into a melee weapon attack, Create Bonfire is the spell panel's:
+  // never picked here.
+  return offered.filter((spellId) => getPcAttackCantrip(spellId) && !["weapon", "panel"].includes(getPcAttackCantrip(spellId).delivery));
+}
+
+// The cantrips a cantrip action lists that the spell panel casts (Create Bonfire): the console points there.
+export function pcAttackActionPanelCantripIds(action) {
+  const attack = pcAttackAction(action);
+  if (attack?.source?.kind !== "cantrip") return [];
+  const offered = attack.source.spellIds?.length ? attack.source.spellIds : PC_ATTACK_CANTRIPS.map((cantrip) => cantrip.spellId);
+  return offered.filter((spellId) => getPcAttackCantrip(spellId)?.delivery === "panel");
 }
 
 // The weapon cantrips a cantrip action lists (Booming Blade, Green-Flame Blade): not picked in its console but
@@ -108,14 +130,25 @@ export function pcAttackWeaponCantripOptions(action, card = {}) {
 
 // The attack as it is resolved: a weapon attack as configured; a cantrip attack with the range and the
 // damage component of the cantrip chosen in the console (null when that cantrip is not offered).
-export function pcAttackResolvedAction(action, spellId = "") {
+// attackMode (3C): an arrow that replaces the attack roll (Seeking, Piercing): a save that halves the damage, and for
+// Piercing an area of creatures. An area cantrip carries its area too.
+export function pcAttackResolvedAction(action, spellId = "", attackMode = "") {
   const attack = pcAttackAction(action);
-  if (!attack || attack.source?.kind !== "cantrip") return attack;
+  if (!attack) return null;
+  if (attack.source?.kind !== "cantrip") {
+    if (!attackMode) return attack;
+    const mode = getPcAttackActivation(attackMode);
+    if (!mode?.mode || (mode.requires?.range && attack.range !== mode.requires.range)) return null;
+    return { ...attack, save: mode.save, saveHalf: true,
+      mode: { id: mode.id, kind: mode.mode, label: pcAttackActivationLabel(mode), type: mode.type },
+      ...(mode.mode === "area" ? { area: { manual: true } } : {}) };
+  }
   const cantrip = getPcAttackCantrip(spellId);
   if (!cantrip || !pcAttackCantripIds(attack).includes(cantrip.spellId)) return null;
   return { ...attack, range: cantrip.range, components: [{ id: "c1", type: cantrip.type }],
     cantrip: { spellId: cantrip.spellId, name: cantrip.name, ...(cantrip.save ? { save: cantrip.save } : {}),
-      ...(cantrip.ruleNote ? { ruleNote: cantrip.ruleNote } : {}), ...(cantrip.effectNote ? { effectNote: cantrip.effectNote } : {}) } };
+      ...(cantrip.ruleNote ? { ruleNote: cantrip.ruleNote } : {}), ...(cantrip.effectNote ? { effectNote: cantrip.effectNote } : {}) },
+    ...(cantrip.area ? { area: { ...cantrip.area } } : {}) };
 }
 
 // The dice of the chosen cantrip at the attacker's character level (5th/11th/17th), shown and recorded.
@@ -128,12 +161,19 @@ export function pcAttackCantripDiceFor(attack, card = {}, targetItem = null) {
   return pcAttackCantripDice(getPcAttackCantrip(attack.cantrip.spellId), totalCharacterLevel(card?.characterBuild), { targetDamaged });
 }
 
-// "TS Destrezza (CD 14)": the save of a saving throw cantrip, with the actor's spell save DC when the card has it.
+// "TS Destrezza (CD 14)": the save of a saving throw cantrip, with the actor's spell save DC when the card has it; an
+// arrow's save uses the Arcane Archer's DC.
 export function pcAttackSaveLabel(attack, card = {}) {
-  const ability = PC_ATTACK_SAVE_LABELS[attack?.cantrip?.save];
+  const ability = PC_ATTACK_SAVE_LABELS[pcAttackSave(attack)];
   if (!ability) return "";
+  const dc = pcAttackSaveDC(attack, card);
+  return `TS ${ability}${dc ? ` (CD ${dc})` : ""}`;
+}
+
+function pcAttackSaveDC(attack, card = {}) {
+  if (attack?.mode) return pcAttackActivationSaveDC(getPcAttackActivation(attack.mode.id), card) || null;
   const dc = Number(card?.spellSaveDC);
-  return `TS ${ability}${Number.isFinite(dc) && dc > 0 ? ` (CD ${dc})` : ""}`;
+  return Number.isFinite(dc) && dc > 0 ? dc : null;
 }
 
 export const PC_ATTACK_OUTCOME_LABELS = Object.freeze({ hit: "Colpito", critical: "Critico", miss: "Mancato", failed: "TS fallito", passed: "TS superato" });
@@ -186,6 +226,8 @@ function featureActive(sourceItem, featureId, round) {
 
 function riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round }) {
   const requires = rider.requires || {};
+  // An arrow without attack roll (Seeking, Piercing) never "hits": no damage rider applies.
+  if (attack.mode) return "Solo con un tiro per colpire.";
   // Casters' riders exist only on cantrips (Agonizing Blast only on Eldritch Blast); the others need a weapon.
   if (rider.spellOnly && !attack.cantrip) return "Solo per i trucchetti.";
   if (rider.spellIds && !rider.spellIds.includes(attack.cantrip?.spellId)) return rider.spellReason || "Non per questo trucchetto.";
@@ -213,8 +255,8 @@ function riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round
 
 // The riders of this attacker for this attack: availability, suggested dice and the damage types allowed.
 // Recomputed from live state at commit, so a rider spent or invalidated meanwhile is refused.
-export function pcAttackRiderOptions({ action, spellId = "", sourceItem, targetItem = null, turnState = null } = {}) {
-  const attack = pcAttackResolvedAction(action, spellId);
+export function pcAttackRiderOptions({ action, spellId = "", attackMode = "", sourceItem, targetItem = null, turnState = null } = {}) {
+  const attack = pcAttackResolvedAction(action, spellId, attackMode);
   if (!attack || !sourceItem) return [];
   return riderOptionsFor(attack, { sourceItem, targetItem, turnState });
 }
@@ -309,7 +351,7 @@ function activationPlanReason(plan) {
 function activationBlocker(activation, { attack, sourceItem, targetItem, turn, uses, turnState, riderIds, damageTypes, resources, card, state, effect, outcome }) {
   const requires = activation.requires || {};
   const limit = pcAttackActivationLimit(activation);
-  if (attack.cantrip?.save) return "Solo con un tiro per colpire.";
+  if (pcAttackSave(attack)) return "Solo con un tiro per colpire.";
   if (outcome && !activation.preRoll && !ATTACK_HITS.has(outcome)) return "Solo se l'attacco colpisce.";
   if (activation.spellIds) {
     if (!activation.spellIds.includes(attack.cantrip?.spellId)) return "Solo con la Deflagrazione occulta.";
@@ -337,8 +379,8 @@ function activationBlocker(activation, { attack, sourceItem, targetItem, turn, u
 
 // The activations of this attacker for this attack: availability, dice, save and effect. riders and extras are the
 // ones chosen in the console (Wrath of the Order follows Divine Strike; Thunderbolt Strike needs lightning damage).
-export function pcAttackActivationOptions({ action, spellId = "", sourceItem, targetItem = null, turnState = null, riders = [], extras = [], outcome = "" } = {}) {
-  const attack = pcAttackResolvedAction(action, spellId);
+export function pcAttackActivationOptions({ action, spellId = "", attackMode = "", sourceItem, targetItem = null, turnState = null, riders = [], extras = [], outcome = "" } = {}) {
+  const attack = pcAttackResolvedAction(action, spellId, attackMode);
   if (!attack || !sourceItem) return [];
   return activationOptionsFor(attack, { sourceItem, targetItem, turnState, outcome,
     riderIds: riders.map((rider) => rider?.id).filter(Boolean),
@@ -375,6 +417,7 @@ function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState
           save: choice.save ? { ability: choice.save, label: PC_ATTACK_SAVE_LABELS[choice.save], ...(choiceDc ? { dc: choiceDc } : {}) } : null };
       }) } : {}),
       ...(activation.hint ? { hint: activation.hint } : {}),
+      ...(activation.burst ? { burst: { radiusFeet: activation.burst.radiusFeet } } : {}),
       types: !deals ? [] : activation.type === "weapon" ? weaponTypes : [activation.type],
       ...(deals && activation.secondary ? { secondary: { targetDamage: !!activation.secondary.targetDamage, note: activation.secondary.note } } : {}),
       ...(activation.preRoll ? { preRoll: true, ...(rollBonus ? { rollBonus } : {}) } : {}),
@@ -396,6 +439,66 @@ export function pcAttackFollowUps(card = {}, riders = [], activationIds = []) {
       && getEnabledClassFeatureIds(card).has("paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice"))
     notes.push("Punizione Ispiratrice: puoi usare Incanalare Divinità come azione bonus (capacità di classe del paladino).");
   return notes;
+}
+
+// The arrows that replace the attack roll for this attack (Seeking, Piercing): availability (enabled, a use of Arcane
+// Shot left, one per turn), the arrow's extra die and the save DC. Offered for a ranged weapon attack only.
+export function pcAttackModeOptions({ action, sourceItem, turnState = null } = {}) {
+  const attack = pcAttackAction(action);
+  if (!attack || attack.source?.kind === "cantrip" || !sourceItem) return [];
+  const card = sourceItem.metadata?.[META_KEY]?.initiativeCard || {};
+  return pcAttackModesForCard(card).filter((mode) => !mode.requires?.range || mode.requires.range === attack.range)
+    .map((mode) => modeOptionFor(mode, { sourceItem, turnState }));
+}
+
+function modeOptionFor(mode, { sourceItem, turnState = null }) {
+  const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
+  const card = sourceMeta.initiativeCard || {};
+  const turn = attackTurn(turnState);
+  const uses = currentRiderUses(sourceMeta, turn?.turnKey);
+  const resources = activationResources(mode, card, sourceMeta[CLASS_FEATURE_STATE_FIELD]);
+  const limit = pcAttackActivationLimit(mode);
+  const empty = resources.find((entry) => !entry.unlimited && entry.current !== null && entry.current < entry.amount);
+  const reason = limit && turn && uses.some((use) => use.riderId === pcAttackActivationLimitKey(mode))
+    ? `Già usato in questo turno (${mode.groupLabel}).` : empty ? `${empty.name}: nessun uso rimasto.` : "";
+  const dc = pcAttackActivationSaveDC(mode, card);
+  return { id: mode.id, kind: mode.mode, label: pcAttackActivationLabel(mode), damage: true, types: [mode.type],
+    dice: pcAttackActivationDice(mode, card), save: { ability: mode.save, label: PC_ATTACK_SAVE_LABELS[mode.save], ...(dc ? { dc } : {}) },
+    resources, limit: limit ? { ...limit } : null, available: !reason, reason,
+    ...(limit && !turn ? { warning: "Fuori dal combattimento: il limite per turno non viene contato." } : {}) };
+}
+
+// The mode's resource and its per-turn use, planned on the attacker's class feature state.
+function planModeSpend({ attack, sourceItem, turnState, turn, state }) {
+  const mode = getPcAttackActivation(attack.mode.id);
+  const option = modeOptionFor(mode, { sourceItem, turnState });
+  if (!pcAttackModesForCard(sourceItem.metadata?.[META_KEY]?.initiativeCard || {}).includes(mode))
+    throw new Error(`${option.label}: capacità non abilitata.`);
+  if (!option.available) throw new Error(`${option.label}: ${option.reason} Riapri l'attacco.`);
+  const card = sourceItem.metadata?.[META_KEY]?.initiativeCard || {};
+  let next = state;
+  for (const cost of pcAttackActivationCosts(mode)) {
+    const pool = getClassFeatureResourcePool(cost.poolId);
+    const entry = activationResources({ cost: [cost] }, card, next)[0];
+    if (!pool || !entry) throw new Error(`${option.label}: risorsa sconosciuta.`);
+    next = planClassFeatureResourceAdjustment(next, pool, card.characterBuild, { delta: -entry.amount }, card.abilityModifiers).state;
+  }
+  const spent = activationResources(mode, card, state).map((entry) => {
+    const after = activationResources(mode, card, next).find((row) => row.poolId === entry.poolId);
+    return { poolId: entry.poolId, name: entry.name, amount: entry.amount, ...(entry.current !== null ? { before: entry.current } : {}),
+      ...(after?.current !== null && after?.current !== undefined ? { after: after.current } : {}) };
+  });
+  return { option, state: next, spent, uses: option.limit && turn ? [{ riderId: pcAttackActivationLimitKey(mode), turnKey: turn.turnKey }] : [] };
+}
+
+// Creatures near a token (3C): the edge-to-edge grid distance of the area tool, within radiusFeet. The caster's
+// emanation (area cantrips) or the target's (Bursting Arrow); the centre itself never counts.
+export function pcAttackNearbyIds({ centerId, rows = [], dpi, feetPerCell, radiusFeet } = {}) {
+  const center = rows.find((row) => row?.id === centerId);
+  if (!center?.bounds || !(radiusFeet > 0)) return [];
+  return rows.filter((row) => row?.id && row.id !== centerId && row.bounds)
+    .filter((row) => { const reach = bossReachFeet(center.bounds, row.bounds, dpi, feetPerCell); return reach !== null && reach <= radiusFeet; })
+    .map((row) => row.id);
 }
 
 // Weapon components first, then the chosen riders and activations, then the components added on the fly.
@@ -422,15 +525,17 @@ function extraLabel(value) {
 export function pcAttackPreview({
   action, spellId = "", sourceItem = null, targetItem = null, outcome = "", amounts = {}, ignoredDefenses = [],
   riders = [], extras = [], turnState = null, weaponCantrip = null, secondaryItem = null, activations = [], tempHpItems = [],
+  attackMode = "", modeAmount = "", burstItems = [],
 } = {}) {
-  const attack = pcAttackResolvedAction(action, spellId);
-  if (!attack) return { ready: false, blocker: pcAttackAction(action) ? "Scegli il trucchetto." : "Azione di attacco non valida.",
-    defenses: [], profileDefenses: {}, total: 0, hp: null };
+  const attack = pcAttackResolvedAction(action, spellId, attackMode);
+  if (!attack) return { ready: false, blocker: pcAttackAction(action) ? (attackMode ? "Freccia non disponibile per questo attacco." : "Scegli il trucchetto.")
+    : "Azione di attacco non valida.", defenses: [], profileDefenses: {}, total: 0, hp: null };
+  if (attack.area) return { ready: false, blocker: "Attacco ad area: scegli le creature dell'area.", defenses: [], profileDefenses: {}, total: 0, hp: null };
   const card = sourceItem?.metadata?.[META_KEY]?.initiativeCard || {};
   // A miss or a passed save deals no damage (half with Potent Cantrip); extras only with a hit or a failed save.
   const factor = pcAttackDamageFactor(attack, outcome, sourceItem?.metadata?.[META_KEY]?.initiativeCard);
   const miss = factor === "zero";
-  const extrasAllowed = DAMAGING_OUTCOMES.has(outcome);
+  const extrasAllowed = extrasAllowedFor(attack, outcome);
   const chosenRiders = extrasAllowed ? riders : [];
   const chosenExtras = extrasAllowed ? extras.map((extra) => ({ ...extra, label: extraLabel(extra.label) })) : [];
   const wovenOption = extrasAllowed && weaponCantrip?.spellId
@@ -442,6 +547,9 @@ export function pcAttackPreview({
       damageTypes: [...chosenRiders, ...chosenExtras].map((entry) => entry.type).filter(Boolean) }) : [];
   const chosenActivations = ATTACK_ROLL_OUTCOMES.has(outcome)
     ? activations.map((request) => ({ ...request, option: activationOptions.find((entry) => entry.id === request.id) || null })) : [];
+  // The arrow that replaces the attack roll: its extra die is one more component, halved with the rest on a success.
+  const modeOption = attack.mode && sourceItem ? modeOptionFor(getPcAttackActivation(attack.mode.id), { sourceItem, turnState }) : null;
+  if (modeOption && outcome && factor !== "zero") chosenActivations.push({ id: modeOption.id, type: modeOption.types[0], amount: modeAmount, option: { ...modeOption, save: null } });
   const components = attackComponents(attack, chosenRiders, chosenExtras, woven, chosenActivations.filter((activation) => activation.option));
   const allAmounts = {
     ...amounts,
@@ -509,11 +617,17 @@ export function pcAttackPreview({
       const reason = tempHpBlocker(option, activation, { items: tempHpItems, targetItem, secondaryItem });
       if (reason) return reason;
     }
+    if (option.burst) {
+      const reason = burstBlocker(option, activation, { items: burstItems, targetItem, secondaryItem });
+      if (reason) return reason;
+    }
     return (choice ? choice.save : option.save) && !PC_ATTACK_SAVE_OUTCOMES.includes(activation.saveOutcome)
       ? `${option.label}: scegli l'esito del tiro salvezza.` : "";
   }).find(Boolean) || "";
+  const modeBlocker = !modeOption ? "" : !modeOption.available ? `${modeOption.label}: ${modeOption.reason}` : "";
   const blocker = !targetItem ? "Scegli il bersaglio."
-    : !pcAttackOutcomesFor(attack).includes(outcome) ? (attack.cantrip?.save ? "Scegli l'esito del tiro salvezza." : "Scegli l'esito dell'attacco.")
+    : modeBlocker ? modeBlocker
+    : !pcAttackOutcomesFor(attack).includes(outcome) ? (pcAttackSave(attack) ? "Scegli l'esito del tiro salvezza." : "Scegli l'esito dell'attacco.")
     : !miss && attack.components.some((component) => !validAmount(amounts?.[component.id])) ? "Inserisci il danno di ogni componente."
     : riderBlock ? riderBlock
     : chosenExtras.some((extra) => !damageTypeSet.has(extra.type)) ? "Scegli il tipo di ogni componente extra."
@@ -530,22 +644,24 @@ export function buildPcAttackMutation({
   action, sourceItem, targetItem, outcome = "", componentAmounts = {}, attackInstanceId,
   ignoredDefenses = [], expectedDefenses, turnState = null, riders = [], extras = [], spellId = "",
   weaponCantrip = null, secondaryItem = null, expectedSecondaryDefenses, activations = [], tempHpItems = [],
+  attackMode = "", modeAmount = null, burstItems = [], expectedBurstDefenses = {},
 } = {}) {
   if (!isBossActionCreature(sourceItem) || !isBossActionCreature(targetItem))
     throw new Error("Attaccante e bersaglio devono essere token creatura reali.");
   if (sourceItem.id === targetItem.id) throw new Error("L'attaccante non può essere anche il bersaglio.");
   if (!attackInstanceId || typeof attackInstanceId !== "string") throw new Error("Identità dell'attacco mancante.");
   if (!pcAttackAction(action)) throw new Error("Azione rapida di attacco non valida.");
-  const attack = pcAttackResolvedAction(action, spellId);
-  if (!attack) throw new Error("Trucchetto non disponibile per questa azione.");
+  const attack = pcAttackResolvedAction(action, spellId, attackMode);
+  if (!attack) throw new Error(attackMode ? "Freccia non disponibile per questo attacco." : "Trucchetto non disponibile per questa azione.");
+  if (attack.area) throw new Error("Attacco ad area: registralo con le creature dell'area.");
   if (!pcAttackOutcomesFor(attack).includes(outcome))
-    throw new Error(attack.cantrip?.save ? "Scegli l'esito del tiro salvezza." : "Scegli l'esito dell'attacco.");
+    throw new Error(pcAttackSave(attack) ? "Scegli l'esito del tiro salvezza." : "Scegli l'esito dell'attacco.");
   const factor = pcAttackDamageFactor(attack, outcome, sourceItem.metadata?.[META_KEY]?.initiativeCard);
   const miss = factor === "zero";
   const riderRequests = Array.isArray(riders) ? riders : [];
   const extraRequests = Array.isArray(extras) ? extras : [];
-  if (!DAMAGING_OUTCOMES.has(outcome) && (riderRequests.length || extraRequests.length))
-    throw new Error(attack.cantrip?.save ? "Gli extra valgono solo se il tiro salvezza fallisce." : "Gli extra al colpo valgono solo se l'attacco colpisce.");
+  if (!extrasAllowedFor(attack, outcome) && (riderRequests.length || extraRequests.length))
+    throw new Error(pcAttackSave(attack) ? "Gli extra valgono solo se il tiro salvezza fallisce." : "Gli extra al colpo valgono solo se l'attacco colpisce.");
   if (new Set(riderRequests.map((rider) => rider?.id)).size !== riderRequests.length) throw new Error("Lo stesso extra è indicato due volte.");
   if (extraRequests.length > MAX_PC_ATTACK_EXTRAS) throw new Error(`Al massimo ${MAX_PC_ATTACK_EXTRAS} componenti extra.`);
   const turn = attackTurn(turnState);
@@ -587,7 +703,8 @@ export function buildPcAttackMutation({
     woven = { ...option, amount: option.dice.hit ? damageAmount(weaponCantrip.amount) : null, secondary };
   }
   const activationPlan = planPcAttackActivations({ requests: activations, attack, outcome, sourceItem, targetItem, turnState, turn,
-    attackInstanceId, chosenRiders, chosenExtras, secondaryItem, wovenSecondary: !!woven?.secondary, tempHpItems });
+    attackInstanceId, chosenRiders, chosenExtras, secondaryItem, wovenSecondary: !!woven?.secondary, tempHpItems, burstItems,
+    modeAmount, factor });
   const amounts = componentAmounts && typeof componentAmounts === "object" ? componentAmounts : {};
   if (!miss && Object.keys(amounts).some((id) => !attack.components.some((component) => component.id === id)))
     throw new Error("Componente di danno sconosciuta.");
@@ -628,6 +745,17 @@ export function buildPcAttackMutation({
     secondaryChange = calculateQuickHPChange({ value: secondaryComponents.reduce((sum, component) => sum + component.amount, 0),
       hp: secondaryMeta.hp, hpMax: secondaryMeta.hpMax });
   }
+  // Bursting Arrow: the die hits every creature the GM kept around the target, each with its own defenses and HP.
+  const burstRows = (activationPlan.burst?.items || []).map((item) => {
+    const meta = item.metadata?.[META_KEY] || {};
+    if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax) || meta.hp < 0 || meta.hpMax < 0)
+      throw new Error(`${item.name || item.id} non ha HP canonici validi.`);
+    const components = defendedComponents([{ id: "b1", type: activationPlan.burst.type, source: { kind: "class-feature",
+      featureId: activationPlan.burst.id, name: activationPlan.burst.option.label, activation: true } }],
+    { b1: activationPlan.burst.amount }, "full", item, [], expectedBurstDefenses?.[item.id]);
+    return { item, meta, components, change: calculateQuickHPChange({ value: components.reduce((sum, component) => sum + component.amount, 0),
+      hp: meta.hp, hpMax: meta.hpMax }) };
+  });
   const sourceName = sourceItem.name || sourceItem.id;
   const targetName = targetItem.name || targetItem.id;
   // Only the uses of the current turn are kept: the field never grows past one turn.
@@ -652,11 +780,13 @@ export function buildPcAttackMutation({
     actor: { id: sourceItem.id, tokenId: sourceItem.id, name: sourceName, role: "attacker" },
     cause: { kind: PC_ATTACK_HISTORY_KIND, quickActionId: attack.id, actionName: actionName, attackInstanceId, range: attack.range,
       ...(attack.cantrip ? { spellId: attack.cantrip.spellId, spellName: attack.cantrip.name } : {}) },
-    action: { id: attack.id, label: actionName, ...(attack.cantrip?.save ? {} : { attackOutcome: outcome }) },
+    action: { id: attack.id, label: actionName, ...(pcAttackSave(attack) ? {} : { attackOutcome: outcome }) },
     attack: { range: attack.range, outcome, source: attack.cantrip ? "cantrip" : "weapon" },
     ...(attack.cantrip ? { cantrip: { ...attack.cantrip, ...(cantripDice ? { dice: cantripDice } : {}), ...(saveLabel ? { saveLabel } : {}) } } : {}),
-    ...(attack.cantrip?.save ? { save: { ability: attack.cantrip.save, outcome, ...(factor === "half" ? { potentCantrip: true } : {}),
-      ...(Number(sourceMeta.initiativeCard?.spellSaveDC) > 0 ? { dc: Number(sourceMeta.initiativeCard.spellSaveDC) } : {}) } } : {}),
+    ...(pcAttackSave(attack) ? { save: { ability: pcAttackSave(attack), outcome, ...(factor === "half" && !attack.saveHalf ? { potentCantrip: true } : {}),
+      ...(pcAttackSaveDC(attack, sourceMeta.initiativeCard) ? { dc: pcAttackSaveDC(attack, sourceMeta.initiativeCard) } : {}) } } : {}),
+    // An arrow that replaced the attack roll (Seeking): its name and the halving on a success.
+    ...(attack.mode ? { mode: { id: attack.mode.id, label: attack.mode.label, kind: attack.mode.kind } } : {}),
     ...(turn ? { turn } : {}),
     ...(chosenRiders.length ? { riders: chosenRiders.map((rider) => ({
       featureId: rider.id, name: rider.option.label, ...(rider.dice ? { dice: rider.dice } : {}),
@@ -682,6 +812,7 @@ export function buildPcAttackMutation({
       ...(activation.option.rollBonus ? { rollBonus: activation.option.rollBonus } : {}),
       ...(activationSecondary?.id === activation.id ? { secondary: { targetId: activationSecondary.item.id,
         name: activationSecondary.item.name || activationSecondary.item.id } } : {}),
+      ...(activationPlan.burst?.id === activation.id ? { burst: burstRows.map((row) => ({ targetId: row.item.id, name: row.item.name || row.item.id })) } : {}),
     })) } : {}),
     ...(chosenExtras.length ? { extras: chosenExtras.map((extra, index) => ({
       ...(extra.label ? { label: extra.label } : {}), type: extra.type, typeLabel: damageTypeLabel(extra.type),
@@ -698,7 +829,10 @@ export function buildPcAttackMutation({
       id: secondaryItemUsed.id, name: secondaryItemUsed.name || secondaryItemUsed.id, outcome: "secondary",
       requestedDamage: secondaryComponents.reduce((sum, component) => sum + component.amount, 0),
       appliedHpDelta: secondaryChange.delta, damageComponents: structuredClone(secondaryComponents),
-    }] : [])],
+    }] : []), ...burstRows.map((row) => ({
+      id: row.item.id, name: row.item.name || row.item.id, outcome: "burst", requestedDamage: row.change.requested,
+      appliedHpDelta: row.change.delta, damageComponents: structuredClone(row.components),
+    }))],
   };
   const label = `${sourceName}: ${actionName} → ${targetName}`;
   // On-hit conditions (Eldritch Smite: Prono): standard pills, removed by hand, undone with the attack.
@@ -750,7 +884,10 @@ export function buildPcAttackMutation({
     tempHpChanges: activationPlan.tempHp.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
     labelTargetIds: [...new Set([...pillTargetIds, ...(activationConditions.length ? [targetItem.id] : [])])],
     ...(secondaryItemUsed ? { secondaryChange, secondaryItem: secondaryItemUsed } : {}),
-    operations: [...(change?.changed || secondaryChange?.changed || activationPlan.tempHp.some((row) => row.change.changed) ? [{ type: "hp:set", updates: [
+    // The creatures of Bursting Arrow: their own post-damage projections after the commit.
+    burstChanges: burstRows.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
+    operations: [...(change?.changed || secondaryChange?.changed || activationPlan.tempHp.some((row) => row.change.changed)
+      || burstRows.some((row) => row.change.changed) ? [{ type: "hp:set", updates: [
       ...(change?.changed ? [{
         itemId: targetItem.id, hp: change.afterHP, hpMax: change.hpMax,
         hpIntent: { mode: "damage", amount: change.requested, eventId: attackInstanceId },
@@ -761,6 +898,11 @@ export function buildPcAttackMutation({
         hpIntent: { mode: "damage", amount: secondaryChange.requested, eventId: attackInstanceId },
         expectedHP: bossMetadataSnapshot(secondaryMeta, "hp"), expectedHPMax: bossMetadataSnapshot(secondaryMeta, "hpMax"),
       }] : []),
+      ...burstRows.filter((row) => row.change.changed).map((row) => ({
+        itemId: row.item.id, hp: row.change.afterHP, hpMax: row.change.hpMax,
+        hpIntent: { mode: "damage", amount: row.change.requested, eventId: attackInstanceId },
+        expectedHP: bossMetadataSnapshot(row.meta, "hp"), expectedHPMax: bossMetadataSnapshot(row.meta, "hpMax"),
+      })),
       ...activationPlan.tempHp.filter((row) => row.change.changed).map((row) => ({
         itemId: row.item.id, hp: row.change.afterHP, hpMax: row.change.hpMax,
         hpIntent: { mode: QUICK_HP_MODES.TEMP, amount: row.change.requested, eventId: attackInstanceId },
@@ -772,7 +914,8 @@ export function buildPcAttackMutation({
     ...activationPillOperations],
     options: {
       commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id,
-      targetIds: [...new Set([targetItem.id, ...(secondaryItemUsed ? [secondaryItemUsed.id] : []), ...pillTargetIds])], kind: PC_ATTACK_HISTORY_KIND, label,
+      targetIds: [...new Set([targetItem.id, ...(secondaryItemUsed ? [secondaryItemUsed.id] : []), ...pillTargetIds,
+        ...burstRows.map((row) => row.item.id)])], kind: PC_ATTACK_HISTORY_KIND, label,
       // The quick action read from the attacker's card, and the defenses read from the target's card,
       // must still be the ones at commit.
       metadataPatches: [
@@ -785,6 +928,7 @@ export function buildPcAttackMutation({
         } },
         ...(change?.changed ? [targetProfileAssert(targetItem)] : []),
         ...(secondaryChange?.changed ? [targetProfileAssert(secondaryItemUsed)] : []),
+        ...burstRows.filter((row) => row.change.changed && row.item.id !== sourceItem.id).map((row) => targetProfileAssert(row.item)),
       ],
       // A use counted per turn belongs to the turn the GM saw: a turn change before the commit refuses it.
       ...(newUses.length || activationPlan.uses.length ? { sceneMetadataPreconditions: [
@@ -802,12 +946,12 @@ export function buildPcAttackMutation({
 // with the class feature's own pure functions. Returns the damage rows, the new classFeatureState (resources spent,
 // active instances), the pills by creature, the standard conditions, the notes and the per-turn uses.
 function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, targetItem, turnState, turn, attackInstanceId, chosenRiders, chosenExtras,
-  secondaryItem = null, wovenSecondary = false, tempHpItems = [] }) {
+  secondaryItem = null, wovenSecondary = false, tempHpItems = [], burstItems = [], modeAmount = null, factor = "full" }) {
   const list = Array.isArray(requests) ? requests : [];
   const empty = { chosen: [], state: null, stateChanged: false, instancesByTarget: {}, pillFeatureIds: {}, conditions: [], notes: [], uses: [],
-    secondary: null, tempHp: [] };
-  if (!list.length) return empty;
-  if (!ATTACK_ROLL_OUTCOMES.has(outcome)) throw new Error("Le attivazioni richiedono un tiro per colpire.");
+    secondary: null, tempHp: [], burst: null };
+  if (!list.length && !attack.mode) return empty;
+  if (list.length && !ATTACK_ROLL_OUTCOMES.has(outcome)) throw new Error("Le attivazioni richiedono un tiro per colpire.");
   if (new Set(list.map((request) => request?.id)).size !== list.length) throw new Error("La stessa attivazione è indicata due volte.");
   const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
   const card = sourceMeta.initiativeCard || {};
@@ -818,6 +962,17 @@ function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, t
   const originalState = normalizeClassFeatureState(sourceMeta[CLASS_FEATURE_STATE_FIELD]);
   let state = originalState;
   const result = { ...empty, chosen: [] };
+  // The arrow that replaced the attack roll (Seeking): a use of Arcane Shot, one per turn, and its die as a component
+  // (halved with the rest on a passed save; none recorded when the save makes it zero).
+  if (attack.mode) {
+    const spend = planModeSpend({ attack, sourceItem, turnState, turn, state });
+    state = spend.state;
+    result.uses.push(...spend.uses);
+    const deals = factor !== "zero";
+    if (deals && !validAmount(modeAmount)) throw new Error(`Inserisci il danno di ${spend.option.label}.`);
+    result.chosen.push({ id: spend.option.id, option: { ...spend.option, damage: deals }, applies: true, spent: spend.spent, save: null, effect: null,
+      choice: null, saveOutcome: null, mode: true, ...(deals ? { type: spend.option.types[0], amount: damageAmount(modeAmount) } : {}) });
+  }
   for (const request of list) {
     const activation = getPcAttackActivation(request?.id);
     const option = options.find((entry) => entry.id === request?.id);
@@ -833,6 +988,12 @@ function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, t
     const effect = choice ? choice.effect : option.effect;
     if (save && !PC_ATTACK_SAVE_OUTCOMES.includes(request.saveOutcome)) throw new Error(`${option.label}: scegli l'esito del tiro salvezza.`);
     // Inspiring Smite: the total rolled, shared among the creatures the GM picks (not the creatures the attack damages).
+    if (option.burst) {
+      const reason = burstBlocker(option, request, { items: burstItems, targetItem, secondaryItem });
+      if (reason) throw new Error(reason);
+      result.burst = { id: activation.id, option, type: request.type, amount: damageAmount(request.amount),
+        items: (request.burstTargetIds || []).map((id) => burstItems.find((item) => item.id === id)) };
+    }
     if (option.tempHp) {
       const reason = tempHpBlocker(option, request, { items: tempHpItems, targetItem, secondaryItem });
       if (reason) throw new Error(reason);
@@ -998,6 +1159,210 @@ export function buildPcAttackQuiveringPalmMutation({
         ...(outcome === "passed" && change?.changed ? [targetProfileAssert(targetItem)] : []),
       ],
       history: { kind: PC_ATTACK_HISTORY_KIND, label, payload: { causality, damageComponents: structuredClone(damageComponents) } },
+    },
+  };
+}
+
+// Bursting Arrow's creatures: those the GM kept around the target, each once, never the target (it takes the die as
+// a component) nor the attack's second creature.
+function burstBlocker(option, request, { items = [], targetItem = null, secondaryItem = null } = {}) {
+  const ids = Array.isArray(request.burstTargetIds) ? request.burstTargetIds : [];
+  if (new Set(ids).size !== ids.length) return `${option.label}: la stessa creatura è indicata due volte.`;
+  if (ids.some((id) => id === targetItem?.id || id === secondaryItem?.id)) return `${option.label}: il bersaglio subisce già il danno della freccia.`;
+  for (const id of ids) {
+    const item = items.find((candidate) => candidate.id === id);
+    const meta = item?.metadata?.[META_KEY] || {};
+    if (!item || !isBossActionCreature(item)) return `${option.label}: una creatura scelta non è più nella scena.`;
+    if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax)) return `${option.label}: ${item.name || item.id} non ha HP canonici validi.`;
+  }
+  return "";
+}
+
+// 3C: an attack against every creature of an area (area cantrips around the caster, Piercing Arrow's line). One damage
+// roll; each creature saves on its own: a failure takes it all, a success half (Piercing Arrow, Potent Cantrip) or
+// nothing; each with its own defenses and hit points. One command, one History entry, one Undo.
+function areaFactor(attack, outcome, card) {
+  if (outcome === "failed") return "full";
+  return outcome === "passed" && (attack.saveHalf || (attack.cantrip && pcAttackHasPotentCantrip(card))) ? "half" : "zero";
+}
+
+// The roll's components: the cantrip's (or the weapon's), the casters' riders, the arrow's extra die, the extras.
+function areaComponents(attack, riders = [], extras = [], modeOption = null) {
+  return attackComponents(attack, riders, extras, null,
+    modeOption ? [{ id: modeOption.id, type: modeOption.types[0], option: { ...modeOption, damage: true } }] : []);
+}
+
+function areaInputs(attack, { amounts = {}, riders = [], extras = [], modeOption = null, modeAmount = null } = {}) {
+  return {
+    ...Object.fromEntries(attack.components.map((component) => [component.id, amounts?.[component.id]])),
+    ...Object.fromEntries(riders.map((rider) => [`r:${rider.id}`, rider.amount])),
+    ...Object.fromEntries(extras.map((extra, index) => [`x${index + 1}`, extra.amount])),
+    ...(modeOption ? { [`a:${modeOption.id}`]: modeAmount } : {}),
+  };
+}
+
+export function pcAttackAreaPreview({
+  action, spellId = "", attackMode = "", sourceItem = null, members = [], amounts = {}, riders = [], extras = [], modeAmount = "", turnState = null,
+} = {}) {
+  const attack = pcAttackResolvedAction(action, spellId, attackMode);
+  if (!attack?.area) return { ready: false, blocker: "Non è un attacco ad area.", rows: [], total: 0 };
+  const card = sourceItem?.metadata?.[META_KEY]?.initiativeCard || {};
+  const chosen = (Array.isArray(members) ? members : []).filter((member) => member?.item);
+  const modeOption = attack.mode && sourceItem ? modeOptionFor(getPcAttackActivation(attack.mode.id), { sourceItem, turnState }) : null;
+  const chosenExtras = extras.map((extra) => ({ ...extra, label: extraLabel(extra.label) }));
+  const components = areaComponents(attack, riders, chosenExtras, modeOption);
+  const inputs = areaInputs(attack, { amounts, riders, extras: chosenExtras, modeOption, modeAmount });
+  const amountsReady = Object.values(inputs).every(validAmount);
+  const rows = chosen.map((member) => {
+    const factor = areaFactor(attack, member.outcome, card);
+    const meta = member.item.metadata?.[META_KEY] || {};
+    const profileDefenses = damageDefensesForItem(member.item, META_KEY);
+    const total = member.outcome && factor !== "zero" && amountsReady
+      ? bossDefendedDamage(components, inputs, factor === "half" ? "passed" : "hit", profileDefenses, []) : 0;
+    const hp = Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
+      ? { before: meta.hp, after: calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax }).afterHP, hpMax: meta.hpMax } : null;
+    return { id: member.item.id, name: member.item.name || member.item.id, outcome: member.outcome || "", factor, total, hp, profileDefenses };
+  });
+  const options = riders.length && sourceItem ? riderOptionsFor(attack, { sourceItem, targetItem: null, turnState }) : [];
+  const riderBlock = riders.map((rider) => {
+    const option = options.find((entry) => entry.id === rider.id);
+    if (!option) return "Extra non disponibile per questo attaccante.";
+    if (!option.available) return `${option.label}: ${option.reason}`;
+    return option.types.includes(rider.type) ? "" : `${option.label}: scegli il tipo di danno.`;
+  }).find(Boolean) || "";
+  const blocker = !chosen.length ? "Scegli le creature dell'area."
+    : modeOption && !modeOption.available ? `${modeOption.label}: ${modeOption.reason}`
+    : rows.some((row) => !PC_ATTACK_SAVE_OUTCOMES.includes(row.outcome)) ? "Scegli l'esito del tiro salvezza di ogni creatura."
+    : attack.components.some((component) => !validAmount(amounts?.[component.id])) ? "Inserisci il danno."
+    : riderBlock ? riderBlock
+    : chosenExtras.some((extra) => !damageTypeSet.has(extra.type)) ? "Scegli il tipo di ogni componente extra."
+    : [...riders, ...chosenExtras].some((entry) => !validAmount(entry.amount)) ? "Inserisci il danno di ogni extra."
+    : modeOption && !validAmount(modeAmount) ? `Inserisci il danno di ${modeOption.label}.`
+    : rows.find((row) => !row.hp) ? `${rows.find((row) => !row.hp).name} non ha HP canonici validi.`
+    : "";
+  return { ready: !blocker, blocker, rows, total: rows.reduce((sum, row) => sum + row.total, 0) };
+}
+
+export function buildPcAttackAreaMutation({
+  action, spellId = "", attackMode = "", sourceItem, members = [], componentAmounts = {}, riders = [], extras = [], modeAmount = null,
+  attackInstanceId, expectedDefenses = {}, turnState = null,
+} = {}) {
+  if (!isBossActionCreature(sourceItem)) throw new Error("L'attaccante deve essere un token creatura reale.");
+  if (!attackInstanceId || typeof attackInstanceId !== "string") throw new Error("Identità dell'attacco mancante.");
+  if (!pcAttackAction(action)) throw new Error("Azione rapida di attacco non valida.");
+  const attack = pcAttackResolvedAction(action, spellId, attackMode);
+  if (!attack?.area) throw new Error("Non è un attacco ad area: riapri l'attacco.");
+  const list = Array.isArray(members) ? members : [];
+  if (!list.length) throw new Error("Scegli le creature dell'area.");
+  if (new Set(list.map((member) => member?.item?.id)).size !== list.length) throw new Error("La stessa creatura è indicata due volte.");
+  for (const member of list) {
+    if (!isBossActionCreature(member?.item)) throw new Error("Una creatura dell'area non è più nella scena.");
+    if (member.item.id === sourceItem.id) throw new Error("L'attaccante non è tra le creature colpite dalla sua area.");
+    if (!PC_ATTACK_SAVE_OUTCOMES.includes(member.outcome)) throw new Error("Scegli l'esito del tiro salvezza di ogni creatura.");
+  }
+  const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
+  const card = sourceMeta.initiativeCard || {};
+  const turn = attackTurn(turnState);
+  const riderRequests = Array.isArray(riders) ? riders : [];
+  const extraRequests = Array.isArray(extras) ? extras : [];
+  if (new Set(riderRequests.map((rider) => rider?.id)).size !== riderRequests.length) throw new Error("Lo stesso extra è indicato due volte.");
+  if (extraRequests.length > MAX_PC_ATTACK_EXTRAS) throw new Error(`Al massimo ${MAX_PC_ATTACK_EXTRAS} componenti extra.`);
+  const options = riderRequests.length ? riderOptionsFor(attack, { sourceItem, targetItem: null, turnState }) : [];
+  const chosenRiders = riderRequests.map((request) => {
+    const option = options.find((entry) => entry.id === request?.id);
+    if (!option) throw new Error("Extra non disponibile per questo attaccante: riapri l'attacco.");
+    if (!option.available) throw new Error(`${option.label}: ${option.reason} Riapri l'attacco.`);
+    if (!option.types.includes(request.type)) throw new Error(`${option.label}: tipo di danno non valido.`);
+    return { id: option.id, type: request.type, amount: damageAmount(request.amount), option, dice: option.dice };
+  });
+  const chosenExtras = extraRequests.map((request) => {
+    if (!damageTypeSet.has(request?.type)) throw new Error("Tipo di danno non valido in una componente extra.");
+    return { type: request.type, label: extraLabel(request.label), amount: damageAmount(request.amount) };
+  });
+  // Piercing Arrow: a use of Arcane Shot (one per turn) and its extra die.
+  const originalState = normalizeClassFeatureState(sourceMeta[CLASS_FEATURE_STATE_FIELD]);
+  const spend = attack.mode ? planModeSpend({ attack, sourceItem, turnState, turn, state: originalState }) : null;
+  const modeOption = spend ? { ...spend.option } : null;
+  const components = areaComponents(attack, chosenRiders, chosenExtras, modeOption);
+  const amounts = componentAmounts && typeof componentAmounts === "object" ? componentAmounts : {};
+  const inputs = Object.fromEntries([
+    ...attack.components.map((component) => [component.id, damageAmount(amounts[component.id])]),
+    ...chosenRiders.map((rider) => [`r:${rider.id}`, rider.amount]),
+    ...chosenExtras.map((extra, index) => [`x${index + 1}`, extra.amount]),
+    ...(modeOption ? [[`a:${modeOption.id}`, damageAmount(modeAmount)]] : []),
+  ]);
+  const rows = list.map((member) => {
+    const meta = member.item.metadata?.[META_KEY] || {};
+    if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax) || meta.hp < 0 || meta.hpMax < 0)
+      throw new Error(`${member.item.name || member.item.id} non ha HP canonici validi.`);
+    const factor = areaFactor(attack, member.outcome, card);
+    const damageComponents = defendedComponents(components, inputs, factor, member.item, [], expectedDefenses?.[member.item.id]);
+    const requested = damageComponents.reduce((sum, component) => sum + component.amount, 0);
+    return { item: member.item, meta, outcome: member.outcome, factor, damageComponents,
+      change: calculateQuickHPChange({ value: requested, hp: meta.hp, hpMax: meta.hpMax }) };
+  });
+  const newUses = [
+    ...(turn ? chosenRiders.filter((rider) => rider.option.limit).map((rider) => ({ riderId: rider.id, turnKey: turn.turnKey })) : []),
+    ...(spend?.uses || []),
+  ];
+  const state = {
+    version: PC_ATTACK_STATE_VERSION,
+    lastAttack: { attackInstanceId, quickActionId: attack.id, targetIds: rows.map((row) => row.item.id), outcome: "area",
+      ...(attack.cantrip ? { spellId: attack.cantrip.spellId } : {}), ...(turn ? { round: turn.round, turnKey: turn.turnKey } : {}) },
+    ...([...currentRiderUses(sourceMeta, turn?.turnKey), ...newUses].length ? { riderUses: [...currentRiderUses(sourceMeta, turn?.turnKey), ...newUses] } : {}),
+  };
+  const sourceName = sourceItem.name || sourceItem.id;
+  const actionName = attack.cantrip ? attack.cantrip.name : `${attack.label} · ${attack.mode.label}`;
+  const cantripDice = attack.cantrip ? pcAttackCantripDiceFor(attack, card, null) : null;
+  const dc = pcAttackSaveDC(attack, card);
+  const label = `${sourceName}: ${actionName} → ${rows.length === 1 ? rows[0].item.name || rows[0].item.id : `${rows.length} creature`}`;
+  const causality = {
+    actor: { id: sourceItem.id, tokenId: sourceItem.id, name: sourceName, role: "attacker" },
+    cause: { kind: PC_ATTACK_HISTORY_KIND, quickActionId: attack.id, actionName, attackInstanceId, range: attack.range,
+      ...(attack.cantrip ? { spellId: attack.cantrip.spellId, spellName: attack.cantrip.name } : {}) },
+    action: { id: attack.id, label: actionName },
+    attack: { range: attack.range, outcome: "area", source: attack.cantrip ? "cantrip" : "weapon" },
+    ...(attack.cantrip ? { cantrip: { ...attack.cantrip, ...(cantripDice ? { dice: cantripDice } : {}), saveLabel: pcAttackSaveLabel(attack, card) } } : {}),
+    ...(attack.mode ? { mode: { id: attack.mode.id, label: attack.mode.label, kind: attack.mode.kind } } : {}),
+    save: { ability: pcAttackSave(attack), ...(dc ? { dc } : {}) },
+    area: attack.area.manual ? { manual: true, count: rows.length } : { radiusFeet: attack.area.radiusFeet, origin: "caster", count: rows.length },
+    ...(turn ? { turn } : {}),
+    ...(chosenRiders.length ? { riders: chosenRiders.map((rider) => ({ featureId: rider.id, name: rider.option.label, ...(rider.dice ? { dice: rider.dice } : {}),
+      type: rider.type, typeLabel: damageTypeLabel(rider.type), inputAmount: rider.amount })) } : {}),
+    ...(chosenExtras.length ? { extras: chosenExtras.map((extra) => ({ ...(extra.label ? { label: extra.label } : {}), type: extra.type,
+      typeLabel: damageTypeLabel(extra.type), inputAmount: extra.amount })) } : {}),
+    ...(spend ? { activations: [{ featureId: modeOption.id, name: modeOption.label, ...(modeOption.dice ? { dice: modeOption.dice } : {}),
+      type: modeOption.types[0], typeLabel: damageTypeLabel(modeOption.types[0]), inputAmount: inputs[`a:${modeOption.id}`],
+      ...(spend.spent.length ? { spent: spend.spent } : {}) }] } : {}),
+    targets: rows.map((row) => ({ id: row.item.id, name: row.item.name || row.item.id, outcome: row.outcome,
+      requestedDamage: row.change.requested, appliedHpDelta: row.change.delta, damageComponents: structuredClone(row.damageComponents) })),
+  };
+  const changed = rows.filter((row) => row.change.changed);
+  const stateChanged = spend && JSON.stringify(spend.state) !== JSON.stringify(originalState);
+  return {
+    causality, rows, changes: changed.map((row) => ({ item: row.item, change: row.change })),
+    operations: changed.length ? [{ type: "hp:set", updates: changed.map((row) => ({
+      itemId: row.item.id, hp: row.change.afterHP, hpMax: row.change.hpMax,
+      hpIntent: { mode: "damage", amount: row.change.requested, eventId: attackInstanceId },
+      expectedHP: bossMetadataSnapshot(row.meta, "hp"), expectedHPMax: bossMetadataSnapshot(row.meta, "hpMax"),
+    })) }] : [],
+    options: {
+      commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id, targetIds: rows.map((row) => row.item.id),
+      kind: PC_ATTACK_HISTORY_KIND, label,
+      metadataPatches: [
+        { id: sourceItem.id, fields: {
+          initiativeCard: { mode: "assert", expected: bossMetadataSnapshot(sourceMeta, "initiativeCard") },
+          [PC_ATTACK_STATE_FIELD]: { value: state, expected: bossMetadataSnapshot(sourceMeta, PC_ATTACK_STATE_FIELD) },
+          ...(stateChanged ? { [CLASS_FEATURE_STATE_FIELD]: { value: spend.state, expected: bossMetadataSnapshot(sourceMeta, CLASS_FEATURE_STATE_FIELD) } } : {}),
+        } },
+        ...changed.map((row) => targetProfileAssert(row.item)),
+      ],
+      ...(newUses.length ? { sceneMetadataPreconditions: [
+        { key: STATE_KEY, field: "round", value: turnState?.round },
+        { key: STATE_KEY, field: "current", value: turnState?.current },
+      ] } : {}),
+      history: { kind: PC_ATTACK_HISTORY_KIND, label, payload: { causality,
+        damageComponents: structuredClone(rows.flatMap((row) => row.damageComponents)) } },
     },
   };
 }

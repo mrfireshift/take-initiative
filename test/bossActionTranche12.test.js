@@ -8,6 +8,7 @@ import { importBossActionHTML, validateBossActionProfile } from "../src/bossActi
 import { bossGroupRequiresConfirmation, bossSequenceBlocker, buildBossActionMutation } from "../src/bossActionExecutionCore.js";
 import { bossActionAutomationSummary, bossActionRowMeta, validateBossActionSelection } from "../src/bossActionsViewCore.js";
 import { bossStateWithEpicLog, withEpicLog } from "../test-support/bossSequenceState.js";
+import { withoutLinkResistance } from "../test-support/bossLegacyProfile.js";
 
 const META = "com.thebigpicture.initiative/meta";
 const html = await readFile(new URL("fixtures/boss-actions/auril-phase-2.html", import.meta.url), "utf8");
@@ -20,7 +21,7 @@ const state = (round, ids) => bossStateWithEpicLog(auril, p2, round, ids);
 const blocker = (name, round, ids) => bossSequenceBlocker(p2, named(name), state(round, ids), round, "Auril");
 
 test("the sequence as closed v20 data: two openers, two closers after them, Rock after Gather, Gather's list", () => {
-  assert.deepEqual([p2.profileVersion, p2.parserVersion], [25, 25]);
+  assert.deepEqual([p2.profileVersion, p2.parserVersion], [26, 26]);
   assert.deepEqual(named("Breathe Deep").sequence, { slot: "first" });
   assert.equal(named("Breathe Deep").automation, "UNSUPPORTED", "a manual registration");
   assert.deepEqual(named("Gather the Winter Sky").sequence, { slot: "first",
@@ -60,10 +61,10 @@ test("printed variants keep the v19 behaviour: the confirmation, the manual prer
 });
 
 test("a v19 profile cannot carry the v20 shapes; v20 refuses an after that is not an opener", () => {
-  const v19 = structuredClone({ ...p2, profileVersion: 19, parserVersion: 19 });
+  const v19 = withoutLinkResistance(structuredClone({ ...p2, profileVersion: 19, parserVersion: 19 }));
   assert.throws(() => validateBossActionProfile(v19), /sequence/);
   for (const name of ["Rock", "Gather the Winter Sky"]) {
-    const only = structuredClone({ ...p2, profileVersion: 19, parserVersion: 19 });
+    const only = withoutLinkResistance(structuredClone({ ...p2, profileVersion: 19, parserVersion: 19 }));
     for (const entry of only.abilities) if (entry.name !== name) delete entry.sequence;
     assert.throws(() => validateBossActionProfile(only), /sequence/, name);
   }

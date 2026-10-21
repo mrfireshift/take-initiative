@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { importBossActionHTML, validateBossActionProfile } from "../src/bossActionProfileCore.js";
 import { bossCollapseMarker } from "../src/bossCollapseCore.js";
+import { withoutLinkResistance } from "../test-support/bossLegacyProfile.js";
 
 for (const [phase, hp, ac, executable, auraCount] of [[2, 495, 20, 12, 1], [3, 294, 17, 7, 3]]) {
   test(`canonical V12 phase ${phase} keeps final stats and the engine's action identities`, async () => {
@@ -74,6 +75,7 @@ test("existing version 22 to 24 profiles remain valid after the parser revision"
   const html = await readFile(new URL("fixtures/boss-actions/auril-phase-2.html", import.meta.url), "utf8");
   for (const version of [22, 23, 24]) {
     const legacy = await importBossActionHTML(html);
+    withoutLinkResistance(legacy);
     legacy.profileVersion = legacy.parserVersion = version;
     legacy.profileRevision = createHash("sha256").update(`${version}\n${html}`).digest("hex");
     assert.deepEqual(validateBossActionProfile(legacy), legacy);

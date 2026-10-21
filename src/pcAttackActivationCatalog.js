@@ -18,6 +18,9 @@ export const PC_ATTACK_ACTIVATION_CATALOG_VERSION = 1;
 // 3B-2: choices: the GM picks one effect, each with its own save and effect (Open Hand Technique). tempHp: the die is
 // a total of temporary hit points shared among creatures the GM picks (Inspiring Smite). hint: a reminder shown in the
 // console only (never recorded).
+// 3C: mode: the arrow replaces the attack roll (Seeking Arrow: "save", one creature; Piercing Arrow: "area", every
+// creature on its line), picked before the outcome. burst: the die also hits every creature within radiusFeet of the
+// target (Bursting Arrow), without a save.
 // group: activations of one group exclude each other in an attack (one maneuver per attack); a limited group is
 // counted once for all its members (one Arcane Shot per turn, whatever the arrow).
 const ONCE_PER_TURN = Object.freeze({ per: "turn" });
@@ -87,6 +90,14 @@ export const PC_ATTACK_ACTIVATIONS = Object.freeze([
   arcaneShot("d-ombra", { type: "psychic", save: "wis" }),
   arcaneShot("indebolente", { type: "necrotic", save: "con" }),
   arcaneShot("esiliante", { type: "force", save: "cha", dice: Object.freeze({ classId: "guerriero", table: Object.freeze({ 18: "2d6" }) }) }),
+  // Bursting Arrow: the target and every other creature within 3 m take 2d6 force (4d6 from 18th level), no save.
+  arcaneShot("esplosiva", { type: "force", effect: null, burst: Object.freeze({ radiusFeet: 10 }) }),
+  // Seeking and Piercing Arrow: no attack roll. A Dexterity save: the arrow's damage plus 1d6 (2d6 from 18th level),
+  // half on a success. Seeking: one creature; Piercing: every creature on a 9 m line (picked by the GM).
+  arcaneShot("cercatrice", { type: "force", save: "dex", effect: null, mode: "save",
+    dice: Object.freeze({ classId: "guerriero", table: Object.freeze({ 3: "1d6", 18: "2d6" }) }) }),
+  arcaneShot("perforante", { type: "piercing", save: "dex", effect: null, mode: "area", requires: Object.freeze({ range: "ranged" }),
+    dice: Object.freeze({ classId: "guerriero", table: Object.freeze({ 3: "1d6", 18: "2d6" }) }) }),
   // Rune Knight: the fire rune's extra 2d6 fire on the hit; the save DC is 8 + proficiency + Constitution.
   Object.freeze({ id: "guerriero-cavaliere-runico-intagliatore-di-rune-runa-del-fuoco", dice: Object.freeze({ fixed: "2d6" }), type: "fire",
     save: "str", dc: "con", effect: Object.freeze({ pill: true }) }),
@@ -154,10 +165,16 @@ export function getPcAttackActivation(id) {
   return ACTIVATION_BY_ID.get(String(id || "")) || null;
 }
 
-// The activations of this actor: the curated ones whose class feature is enabled in the Actor Profile.
+// The activations of this actor: the curated ones whose class feature is enabled in the Actor Profile. The modes
+// (an arrow that replaces the attack roll) are picked apart, before the outcome: see pcAttackModesForCard.
 export function pcAttackActivationsForCard(card = {}) {
   const enabled = new Set(getEnabledClassFeatures(card || {}).map((feature) => feature.id));
-  return PC_ATTACK_ACTIVATIONS.filter((activation) => enabled.has(activation.id));
+  return PC_ATTACK_ACTIVATIONS.filter((activation) => enabled.has(activation.id) && !activation.mode);
+}
+
+export function pcAttackModesForCard(card = {}) {
+  const enabled = new Set(getEnabledClassFeatures(card || {}).map((feature) => feature.id));
+  return PC_ATTACK_ACTIVATIONS.filter((activation) => enabled.has(activation.id) && activation.mode);
 }
 
 export function pcAttackActivationLabel(activation) {

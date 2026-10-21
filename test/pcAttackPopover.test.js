@@ -5,7 +5,7 @@ import { FakeNode, textOf } from "../test-support/fakeBossActionsDom.js";
 const META = "com.thebigpicture.initiative/meta";
 const sdk = { onReady() {}, broadcast: { onMessage: () => () => {}, sendMessage: async () => {} }, scene: { items: { getItems: async () => [] } }, popover: { close: async () => {} } };
 mock.module("@owlbear-rodeo/sdk", { exports: { default: sdk, buildLabel() {}, buildImage() {}, buildPath() {}, buildShape() {}, buildText() {}, Command: class {} } });
-const { bootPcAttack, resultSummary } = await import("../src/pc-attack.js");
+const { bootPcAttack, resultSummary, areaSummary } = await import("../src/pc-attack.js");
 const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
@@ -13,8 +13,11 @@ const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-att
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
-  "pc-attack-palm", "pc-attack-palm-note", "pc-attack-palm-outcomes", "pc-attack-palm-amount", "pc-attack-palm-apply"];
-const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply"]);
+  "pc-attack-palm", "pc-attack-palm-note", "pc-attack-palm-outcomes", "pc-attack-palm-amount", "pc-attack-palm-apply",
+  "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-note", "pc-attack-area-list",
+  "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"];
+const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
+  "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
   const doc = {
     listeners: {},
@@ -24,7 +27,7 @@ function createDocument() {
   };
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   for (const id of IDS) {
-    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip"].includes(id) ? "select" : BUTTONS.has(id) ? "button" : "div");
+    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode"].includes(id) ? "select" : BUTTONS.has(id) ? "button" : "div");
     node.id = id; doc.root.appendChild(node);
   }
   return doc;
@@ -33,14 +36,14 @@ function createDocument() {
 const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind: "attack", range: "melee",
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
-function fixture({ defenses = null, attacker = {}, turnState = null, action = sword } = {}) {
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [] } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
   const items = [creature("aria", "Aria", 40, attacker), creature("ghoul", "Ghoul", 30, defenses ? { initiativeCard: { damageDefenses: defenses } } : {}), creature("imp", "Imp", 10)];
   const listeners = { player: new Set(), items: new Set() };
   const subscribe = (set, listener) => { set.add(listener); return () => set.delete(listener); };
   let selection = [];
-  const calls = [], undoCalls = [];
+  const calls = [], undoCalls = [], nearbyCalls = [];
   const api = {
     player: { getRole: async () => "GM", getSelection: async () => selection, onChange: (listener) => subscribe(listeners.player, listener) },
     scene: { isReady: async () => true, onReadyChange: () => () => {},
@@ -54,6 +57,13 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
       return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], outcome: request.outcome, quiveringPalm: true,
         target: { id: request.targetId, name: "Ghoul" }, hpChange: { before: 30, after: 0, hpMax: 30 } };
     },
+    getPcAttackNearby: async (request) => { nearbyCalls.push(request); return nearby(request); },
+    executePcAttackArea: async (request) => {
+      calls.push({ area: request });
+      return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], area: true,
+        rows: request.members.map((member) => ({ id: member.targetId, name: member.targetId === "ghoul" ? "Ghoul" : "Imp", outcome: member.outcome,
+          damage: member.outcome === "failed" ? 6 : 0, before: 30, after: member.outcome === "failed" ? 24 : 30 })) };
+    },
     executePcAttack: async (request) => {
       calls.push(request);
       return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], outcome: request.outcome, target: { id: request.targetId, name: "Ghoul" },
@@ -63,7 +73,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
   const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId: "holy-sword", schedule: (callback) => setTimeout(callback, 0),
     undo: async (entryId) => { undoCalls.push(entryId); return { ok: true }; } });
   const $ = (id) => documentRef.getElementById(id);
-  return { $, controller, calls, undoCalls, runtime, items,
+  return { $, controller, calls, undoCalls, nearbyCalls, runtime, items,
     select: async (ids) => { selection = ids; for (const listener of listeners.player) listener({ selection: ids }); await tick(); },
     outcome: (value) => $("pc-attack-outcomes").querySelector(`[data-outcome="${value}"]`),
     inputs: () => $("pc-attack-damage").querySelectorAll("input"),
@@ -535,4 +545,99 @@ test("Inspiring Smite in the console: the total and its distribution among other
     tempHp: [{ targetId: "aria", amount: 12 }] }]);
   assert.equal(resultSummary({ outcome: "hit", target: { name: "Ghoul" }, damageComponents: [{ amount: 26 }], hpChange: { before: 30, after: 4 },
     tempHp: [{ name: "Aria", before: 40, after: 52 }] }), "Registrato: Colpito, 26 danni a Ghoul. PF 30 → 4. PF temporanei: Aria 40 → 52.");
+});
+
+const areaRow = (f, id) => f.$("pc-attack-area-list").querySelector(`[data-area-id="${id}"]`);
+const areaField = (row, name) => row.querySelector(`[data-area-field="${name}"]`);
+
+test("an area cantrip: the creatures near the caster proposed, a save for each, one roll, one command", async () => {
+  const action = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["tasha-turbine-di-spade"] } });
+  const f = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "mago", level: 5 }], spellSaveDC: 14 } }, turnState: ownTurn,
+    nearby: () => ["ghoul"] });
+  await f.controller.ready; await tick();
+  assert.deepEqual(f.nearbyCalls, [{ sourceId: "aria", centerId: "aria", radiusFeet: 5 }]);
+  assert.equal(f.$("pc-attack-area").hidden, false);
+  assert.equal(f.$("pc-attack-target").hidden, true);
+  assert.equal(f.$("pc-attack-target-caption").textContent, "Creature colpite");
+  assert.equal(f.$("pc-attack-outcomes").hidden, true, "no single outcome: a save for each creature");
+  assert.match(f.$("pc-attack-area-note").textContent, /Entro 1,5 m da Aria, alleati compresi/);
+  assert.deepEqual(["ghoul", "imp"].map((id) => areaField(areaRow(f, id), "on").checked), [true, false], "proposed from the map");
+  assert.match(textOf(areaRow(f, "ghoul")), /Ghoul · 30\/30 PF/);
+  assert.equal(f.$("pc-attack-total").textContent, "Scegli l'esito del tiro salvezza di ogni creatura.");
+  await f.$("pc-attack-area-all-failed").click();
+  await areaField(areaRow(f, "imp"), "passed").click();
+  assert.equal(areaField(areaRow(f, "imp"), "on").checked, true, "an outcome ticks the creature");
+  assert.equal(areaField(areaRow(f, "imp"), "passed").getAttribute("aria-pressed"), "true");
+  assert.equal(areaField(areaRow(f, "ghoul"), "failed").getAttribute("aria-pressed"), "true");
+  await typeAmounts(f, ["6"]);
+  assert.match(textOf(f.$("pc-attack-total")), /6 danni · 2 creature$/);
+  assert.equal(f.$("pc-attack-apply").disabled, false);
+  await f.$("pc-attack-apply").click(); await tick();
+  const request = f.calls[0].area;
+  assert.deepEqual([request.spellId, request.members, request.componentAmounts], ["tasha-turbine-di-spade",
+    [{ targetId: "ghoul", outcome: "failed" }, { targetId: "imp", outcome: "passed" }], { c1: 6 }]);
+  assert.deepEqual(Object.keys(request.expectedDefenses), ["ghoul", "imp"]);
+  assert.equal(f.$("pc-attack-status").textContent, "Registrato: Turbine di Spade su 2 creature. Ghoul TS fallito, PF 30 → 24; Imp TS superato, PF 30 → 30.");
+  assert.equal(areaSummary({ rows: [] }, "Rombo di Tuono"), "Registrato: Rombo di Tuono su 0 creature.");
+});
+
+test("the arrows of the Arcane Archer: Seeking replaces the roll with a save; Piercing turns the target into a line", async () => {
+  const bow = sanitizeQuickAction({ id: "holy-sword", label: "Arco lungo", kind: "attack", range: "ranged", components: [{ type: "piercing" }] });
+  const ARROW = (slug) => `guerriero-arciere-arcano-tiro-arcano-freccia-${slug}`;
+  const archer = { initiativeCard: { characterBuild: [{ classId: "guerriero", level: 7, subclassId: "guerriero-arciere-arcano" }],
+    abilityModifiers: { str: 1, dex: 4, con: 2, int: 1, wis: 1, cha: 0 }, classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["guerriero-arciere-arcano-tiro-arcano", ...["cercatrice", "perforante"].map(ARROW)] } };
+  const f = fixture({ action: bow, attacker: archer, turnState: ownTurn }); await f.controller.ready;
+  const mode = f.$("pc-attack-mode");
+  assert.equal(mode.hidden, false);
+  assert.deepEqual(mode.children.map((option) => option.textContent),
+    ["Tiro per colpire", "Freccia Cercatrice · TS Destrezza CD 12", "Freccia Perforante · linea, TS Destrezza CD 12"]);
+  await f.select(["ghoul"]);
+  mode.value = ARROW("cercatrice"); await mode.emit("change");
+  assert.deepEqual(f.$("pc-attack-outcomes").children.map((button) => button.dataset.outcome), ["failed", "passed"]);
+  assert.equal(f.inputs().length, 2, "the weapon's damage and the arrow's die");
+  await f.outcome("passed").click();
+  await typeAmounts(f, ["9", "4"]);
+  assert.equal(f.$("pc-attack-apply").disabled, false);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual([f.calls[0].attackMode, f.calls[0].modeAmount, f.calls[0].outcome, f.calls[0].componentAmounts], [ARROW("cercatrice"), 4, "passed", { c1: 9 }]);
+  assert.equal(mode.value, ARROW("cercatrice"), "the arrow stays chosen for the next attack");
+  mode.value = ARROW("perforante"); await mode.emit("change");
+  assert.equal(f.$("pc-attack-area").hidden, false);
+  assert.equal(f.$("pc-attack-area-propose").hidden, true, "a line: ticked by hand");
+  assert.match(f.$("pc-attack-area-note").textContent, /Sulla linea di 9 m/);
+  assert.deepEqual(f.nearbyCalls, [], "nothing proposed for a line");
+  await areaField(areaRow(f, "imp"), "failed").click();
+  await typeAmounts(f, ["8", "3"]);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual([f.calls[1].area.attackMode, f.calls[1].area.modeAmount, f.calls[1].area.members], [ARROW("perforante"), 3, [{ targetId: "imp", outcome: "failed" }]]);
+});
+
+test("Bursting Arrow in the console: the creatures around the target proposed and sent with their defenses", async () => {
+  const bow = sanitizeQuickAction({ id: "holy-sword", label: "Arco lungo", kind: "attack", range: "ranged", components: [{ type: "piercing" }] });
+  const archer = { initiativeCard: { characterBuild: [{ classId: "guerriero", level: 7, subclassId: "guerriero-arciere-arcano" }],
+    abilityModifiers: { str: 1, dex: 4, con: 2, int: 1, wis: 1, cha: 0 }, classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["guerriero-arciere-arcano-tiro-arcano", "guerriero-arciere-arcano-tiro-arcano-freccia-esplosiva"] } };
+  const f = fixture({ action: bow, attacker: archer, turnState: ownTurn, nearby: () => ["imp", "ghoul"] }); await f.controller.ready;
+  assert.equal(f.$("pc-attack-mode").hidden, true, "no arrow replaces the roll");
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  const row = rowById(f, "guerriero-arciere-arcano-tiro-arcano-freccia-esplosiva");
+  const box = activationField(row, "on"); box.checked = true; await box.emit("change"); await tick();
+  assert.deepEqual(f.nearbyCalls, [{ sourceId: "aria", centerId: "ghoul", radiusFeet: 10 }]);
+  const list = activationField(row, "burst");
+  assert.deepEqual(list.querySelectorAll("[data-burst-id]").map((entry) => [entry.dataset.burstId, entry.checked]), [["aria", false], ["imp", true]],
+    "the attacker can be in the burst; never the target");
+  await typeAmounts(f, ["9"]);
+  const amount = activationField(row, "amount"); amount.value = "7"; await amount.emit("input");
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual(f.calls[0].activations, [{ id: "guerriero-arciere-arcano-tiro-arcano-freccia-esplosiva", type: "force", amount: 7, burstTargetIds: ["imp"] }]);
+  assert.deepEqual(Object.keys(f.calls[0].expectedBurstDefenses), ["imp"]);
+});
+
+test("Create Bonfire is pointed to the spell panel from the cantrip console", async () => {
+  const action = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["fire-bolt", "xanathar-creare-falo"] } });
+  const f = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "mago", level: 5 }] } } }); await f.controller.ready;
+  assert.deepEqual(f.$("pc-attack-cantrip").children.map((option) => option.value), ["fire-bolt"]);
+  assert.match(f.$("pc-attack-cantrip-note").textContent, /Creare Falò: lancialo dal pannello incantesimi/);
 });

@@ -1,6 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { current, isDraft } from "immer";
 import { planSharedHpLinks, planSharedHpMutation } from "./sharedHpCore.js";
+import { BOSS_LINK_RESISTANCE_FIELD, bossLinkResistanceNoticeText, planBossLinkResistance } from "./bossLinkResistanceCore.js";
 import { createEffectsRecovery, supportsEffectsRecovery } from "./effectsRecovery.js";
 import {
   EFFECTS_MUTATION_COMMAND_CHANNEL,
@@ -993,6 +994,42 @@ export function getEffectsMutationDiagnostics() {
   return clone(mutationStats);
 }
 
+// Rimebound Link (Boss Actions): when a shared hit point group whose boss keeps a link record took damage, the link is
+// planned in the same command (damage to the boss token breaks it until the next round) and the GM gets notices after
+// the commit. Without such a group nothing is read and the plan is unchanged.
+async function planBossLinkForGroups(sceneItems, groups, command, canPrepare) {
+  const sourceIds = new Set((groups || []).map((group) => group.sourceId));
+  const linked = sceneItems.some((item) => sourceIds.has(item.id) && item.metadata?.[META_KEY]?.[BOSS_LINK_RESISTANCE_FIELD]?.enabled === true);
+  if (!linked) return { metadataPatches: [], notices: [] };
+  const sceneMetadata = await OBR.scene.getMetadata().catch(() => null);
+  if (!canPrepare()) return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "stale-after-link-read" };
+  return planBossLinkResistance({ items: sceneItems, groups, round: Number(sceneMetadata?.[`${ID}/state`]?.round),
+    appliedIds: Array.isArray(command.bossLinkResisted) ? command.bossLinkResisted : [] });
+}
+
+// One patch per item: the link's field joins a patch the shared hit points already prepared for the boss token.
+function mergeMetadataPatchFields(patches, extra) {
+  const result = patches.map((patch) => ({ ...patch, fields: { ...patch.fields } }));
+  for (const patch of extra) {
+    const existing = result.find((entry) => entry.id === patch.id);
+    if (existing) Object.assign(existing.fields, patch.fields);
+    else result.push(patch);
+  }
+  return result;
+}
+
+async function showBossLinkNotices(notices) {
+  try {
+    if (await OBR.player.getRole() !== "GM") return;
+  } catch {
+    return;
+  }
+  for (const notice of notices) {
+    const message = bossLinkResistanceNoticeText(notice);
+    if (message) await OBR.notification.show(message, notice.kind === "broken" ? "WARNING" : "INFO").catch(() => {});
+  }
+}
+
 export async function prepareEffectsMutation(operations = [], {
   command = {},
   isCurrent = null,
@@ -1003,6 +1040,7 @@ export async function prepareEffectsMutation(operations = [], {
   if (!canPrepare()) return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "stale-after-read" };
   let metadataPatches = Array.isArray(command.metadataPatches) ? command.metadataPatches : [];
   let sharedHpGroups = [];
+  let bossLinkNotices = [];
   const linkOperations = operations.filter(operation => ["shared-hp:link", "shared-hp:unlink", "shared-hp:visibility"].includes(operation?.type));
   if (linkOperations.length) {
     if (await OBR.player.getRole() !== "GM") return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "shared-hp-gm-only" };
@@ -1025,6 +1063,10 @@ export async function prepareEffectsMutation(operations = [], {
     operations = shared.operations;
     metadataPatches = shared.metadataPatches;
     sharedHpGroups = shared.groups;
+    const linkPlan = await planBossLinkForGroups(sceneItems, sharedHpGroups, command, canPrepare);
+    if (linkPlan.status) return linkPlan;
+    metadataPatches = mergeMetadataPatchFields(metadataPatches, linkPlan.metadataPatches);
+    bossLinkNotices = linkPlan.notices;
   }
   // HP and its condition consequences are planned at the head of the same
   // lane. Only the projection sees the new HP; History still sees sceneItems.
@@ -1122,6 +1164,7 @@ export async function prepareEffectsMutation(operations = [], {
   );
   if (patchedPlan?.status) return patchedPlan;
   plan.sharedHpGroups = sharedHpGroups;
+  if (bossLinkNotices.length) plan.bossLinkNotices = bossLinkNotices;
   plan.classFeatureMutationResults = classFeatureStatePlan.results;
   plan.mutationId = mutationId;
   plan.scannedItems = sceneItems.length;
@@ -3760,6 +3803,7 @@ async function commitCoordinatedEffectsPlan(plan, { isCurrent, command = {} }) {
     if (recoveryRecord && isCurrent()) await recovery.abandon(recoveryRecord, isCurrent);
     return effectsCommit;
   }
+  if (plan?.bossLinkNotices?.length) void showBossLinkNotices(plan.bossLinkNotices);
   if (recoveryRecord) {
     const recovered = await recovery.resume(recoveryRecord, isCurrent, { canonicalCommitted: !effectsCommit.postCommitErrors?.length });
     if (isCurrent() && recovery.retryPending()) schedulePendingEffectsHistoryRetry();

@@ -1,6 +1,6 @@
 // Definition-only parsing and validation. No DOM, SDK, token mutation, or runtime state.
-export const BOSS_ACTION_PROFILE_VERSION = 25;
-export const BOSS_ACTION_PARSER_VERSION = 25;
+export const BOSS_ACTION_PROFILE_VERSION = 26;
+export const BOSS_ACTION_PARSER_VERSION = 26;
 // Version 3 adds one multi-target save shape: explicit GM-chosen targets, area metadata only
 // (never geometry), and a single on-failure condition with an actor-turn expiry.
 // Version 4 widens that shape to a closed set: cone, circle on a point or emanation from the boss;
@@ -54,6 +54,8 @@ export const BOSS_ACTION_PARSER_VERSION = 25;
 // Version 24 lets those annotations live inside their ability: rawText retains the complete printed
 // description, while recognition reads the executable portion and the annotation stays manual text.
 // Version 25 recognizes Primal Blizzard's difficult terrain clause; older descriptions remain supported.
+// Version 26 recognizes Rimebound Link: a resistance to all damage of the tokens linked to the boss (shared
+// hit points), ended for the round by the first damage to the boss token itself (`linkResistance`).
 export const BOSS_ACTION_SPELLS = Object.freeze({ lentezza: "slow", "tempesta di ghiaccio": "ice-storm", "sfera congelante di otiluke": "freezing-sphere", "passo velato": "misty-step" });
 export const BOSS_ACTION_SPELL_IDS = Object.freeze(Object.values(BOSS_ACTION_SPELLS));
 export const BOSS_ACTION_GROUP_CONDITIONS = Object.freeze(["Accecato", "Prono"]);
@@ -516,6 +518,16 @@ function seamExecution(value, version) {
   return { kind: "seam", seam: { width: number(value.seam.width, "seam width", 5, 30), maxLength: number(value.seam.maxLength, "seam length", 5, 300),
     range: number(value.seam.range, "seam range", 5, 300), blocks, ...(value.seam.points !== undefined ? { points: number(value.seam.points, "seam points", 3, 4) } : {}) } };
 }
+// v26 (Rimebound Link): at the start of every round the tokens linked to the boss (shared hit points: the Titan)
+// resist all damage; the first damage of the round to the boss token itself (the Projection) ends it until the next
+// round. holder and breaker are the printed names of the two manifestations.
+function linkResistance(value) {
+  object(value, ["holder", "breaker", "defense", "types"], "link resistance");
+  if (value.defense !== "resistance" || value.types !== "all") fail("unsupported link resistance");
+  const holder = shortText(value.holder, "link resistance holder", 60), breaker = shortText(value.breaker, "link resistance breaker", 60);
+  if (holder === breaker) fail("link resistance holder and breaker must differ");
+  return { holder, breaker, defense: "resistance", types: "all" };
+}
 // v22: an ability usable only above or at/below half of the boss's hit points (the alternative seam combo).
 const HP_GATES = new Set(["bloodied", "unbloodied"]);
 // The Epic Action sequence (v19): the first or the last Epic Action of the round, optionally after another one.
@@ -610,7 +622,7 @@ export function sanitizeBossActionBinding(value) {
 // Only strict structured data is consumed here; validation never interprets HTML or prose.
 export function validateBossActionProfile(value) {
   object(value, ["profileVersion", "parserVersion", ...IDENTITY_KEYS, "name", "type", "rawSource", "diagnostics", "abilities"], "profile");
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, BOSS_ACTION_PROFILE_VERSION].includes(value.profileVersion) || value.parserVersion !== value.profileVersion) fail("unsupported profile/parser version");
   const binding = sanitizeBossActionBinding(value);
   if (!binding) fail("profile identity is invalid");
   object(value.rawSource, ["html", "sourceName", "sourceHash"], "rawSource");
@@ -619,7 +631,8 @@ export function validateBossActionProfile(value) {
   const ids = new Set();
   const abilities = list(value.abilities, "abilities").map((entry) => {
     object(entry, ["id", "name", "category", "automation", "rawText", "usage", "execution", "manualText", ...(value.profileVersion >= 7 ? ["group"] : []),
-      ...(value.profileVersion >= 11 ? ["auras"] : []), ...(value.profileVersion >= 19 ? ["sequence"] : []), ...(value.profileVersion >= 22 ? ["hpGate"] : [])], "ability");
+      ...(value.profileVersion >= 11 ? ["auras"] : []), ...(value.profileVersion >= 19 ? ["sequence"] : []), ...(value.profileVersion >= 22 ? ["hpGate"] : []),
+      ...(value.profileVersion >= 26 ? ["linkResistance"] : [])], "ability");
     const id = identity(entry.id, "ability.id");
     if (ids.has(id)) fail("duplicate ability id");
     ids.add(id);
@@ -629,7 +642,11 @@ export function validateBossActionProfile(value) {
       result.group = string(entry.group, "ability.group");
       if (result.group.length > 60 || entry.category === "trait") fail("ability group is invalid");
     }
-    if (entry.auras !== undefined) {
+    if (entry.linkResistance !== undefined) {
+      // v26 (Rimebound Link): a resistance of the linked tokens, never an execution.
+      if (entry.category !== "trait" || entry.automation !== "PARTIAL" || entry.execution !== undefined || entry.auras !== undefined) fail("link resistance must be a partial trait");
+      result.linkResistance = linkResistance(entry.linkResistance);
+    } else if (entry.auras !== undefined) {
       // A trait aura is data for the custom aura system, never an execution.
       if (entry.category !== "trait" || entry.automation !== "PARTIAL" || entry.execution !== undefined) fail("aura must be a partial trait");
       result.auras = bossAuras(entry.auras, value.profileVersion);
@@ -773,6 +790,12 @@ function parseTitle(title) {
 // Trait auras: anchored texts only; the origin names the manifestation that emanates the aura (the bound token).
 const AURA_DAMAGE_PHRASES = Object.freeze({ "da freddo": "freddo", psichici: "psichico" });
 function traitGrammar(body, { bossName = "", actionName = "" } = {}) {
+  // Rimebound Link (v23): the Titan (the linked tokens) resists all damage until the Projection (the boss token) is damaged.
+  const link = body.match(/^All['’]inizio di ogni round, il ([^.,]+?) ottiene Resistenza a tutti i danni\. Il tratto non conferisce questa resistenza alla ([^.,]+?)\. La prima volta nel round in cui la \2 subisce danni, la Resistenza termina dopo la risoluzione di quei danni e non si rinnova fino all['’]inizio del round successivo\. Se la stessa area di effetto include entrambe le manifestazioni mentre questa Resistenza è attiva, ([^.,]+) è influenzata una sola volta e applica la Resistenza a quei danni prima che essa termini\.$/i);
+  if (link && bossName && link[3] === bossName) {
+    return { automation: "PARTIAL", linkResistance: { holder: link[1], breaker: link[2], defense: "resistance", types: "all" },
+      manualText: `${link[1]}: i token collegati ad ${bossName} (PF condivisi). ${link[2]}: il token di ${bossName}. Solo il GM vede lo stato; dimezza tu i danni inseriti a mano sul ${link[1]} finché il Link è attivo.` };
+  }
   let match = body.match(/^Una creatura (?:diversa da ([^.,]+) )?che inizia il proprio turno entro (\d+) ft\. (dalla|dal|da) ([^.,]+?) subisce (\d+) \((\d+d\d+)\) danni (da freddo|psichici)\.( Il Titano non emana quest['’]aura\.)?$/i);
   if (match && bossName && actionName && (!match[1] || match[1] === bossName)) {
     const phrase = match[7].toLowerCase();

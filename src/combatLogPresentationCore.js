@@ -567,6 +567,8 @@ function explicitContextLines(event) {
   return lines;
 }
 
+const PC_ATTACK_LOG_SAVE_LABELS = Object.freeze({ str: "Forza", dex: "Destrezza", con: "Costituzione", int: "Intelligenza", wis: "Saggezza", cha: "Carisma" });
+
 function causalityDetailLines(event) {
   const causality = eventCausality(event);
   if (!causality) return [];
@@ -587,6 +589,21 @@ function causalityDetailLines(event) {
     const cantripDice = stringValue(rawAttack.cantrip.dice);
     const saveLabel = stringValue(rawAttack.cantrip.saveLabel);
     lines.push(`Trucchetto: ${cantripName}${cantripDice ? ` (${cantripDice})` : ""}${saveLabel ? ` · ${saveLabel}` : ""}`);
+  }
+  // 3C: an arrow that replaces the attack roll (Seeking, Piercing) and an attack on an area (each creature's save
+  // follows in its own target line).
+  const modeName = stringValue(rawAttack?.mode?.label);
+  if (modeName) {
+    const ability = PC_ATTACK_LOG_SAVE_LABELS[stringValue(rawAttack.save?.ability)];
+    const dc = finiteNumber(rawAttack.save?.dc);
+    lines.push(`Tiro: ${modeName}${ability ? ` · TS ${ability}${dc !== null ? ` CD ${numberText(dc)}` : ""}` : ""} al posto del tiro per colpire`);
+  }
+  if (rawAttack?.area && typeof rawAttack.area === "object") {
+    const count = finiteNumber(rawAttack.area.count);
+    const creatures = count !== null ? `${numberText(count)} ${count === 1 ? "creatura" : "creature"}` : "creature";
+    const radius = finiteNumber(rawAttack.area.radiusFeet);
+    lines.push(rawAttack.area.manual ? `Area: ${creatures} sulla linea`
+      : `Area: ${creatures} entro ${radius !== null ? `${numberText((radius / 10) * 3).replace(".", ",")} m` : "l'area"}${stringValue(rawAttack.actor?.name) ? ` da ${rawAttack.actor.name}` : ""}`);
   }
   // A weapon cantrip woven into the attack (Booming Blade, Green-Flame Blade).
   const wovenName = stringValue(rawAttack?.weaponCantrip?.name);
@@ -630,12 +647,15 @@ function causalityDetailLines(event) {
     )).filter(Boolean);
     const rollBonus = stringValue(activation?.rollBonus) ? `${activation.rollBonus} al tiro per colpire` : "";
     const second = stringValue(activation?.secondary?.name) ? `seconda creatura: ${activation.secondary.name}` : "";
+    // Bursting Arrow: the creatures around the target hit by the burst.
+    const burst = Array.isArray(activation?.burst) && activation.burst.length
+      ? `esplosione: ${activation.burst.map((row) => stringValue(row?.name) || "creatura").join(", ")}` : "";
     // Inspiring Smite: the total, then each creature's temporary hit points.
     const tempHp = Array.isArray(activation?.tempHp) && activation.tempHp.length
       ? `PF temporanei${finiteNumber(activation.total) !== null ? ` ${numberText(activation.total)}` : ""}: ${activation.tempHp.map((row) => (
         `${stringValue(row?.name) || "creatura"} +${numberText(row?.amount ?? 0)}${finiteNumber(row?.before) !== null && finiteNumber(row?.after) !== null
           ? ` (${numberText(row.before)} → ${numberText(row.after)})` : ""}`)).join(", ")}` : "";
-    const parts = [rollBonus, second, tempHp, saveText && effectText ? `${saveText} ${effectText}` : saveText || effectText, ...spent].filter(Boolean);
+    const parts = [rollBonus, second, burst, tempHp, saveText && effectText ? `${saveText} ${effectText}` : saveText || effectText, ...spent].filter(Boolean);
     lines.push(`Attivazione: ${name}${dice ? ` ${dice}` : ""}${amount !== null ? ` (${numberText(amount)}${type ? ` ${type}` : ""})` : ""}`
       + `${parts.length ? ` · ${parts.join(" · ")}` : ""}`);
   }

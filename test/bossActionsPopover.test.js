@@ -672,7 +672,7 @@ test("library: a token on a superseded revision is flagged; cleanup is two-step 
   const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   await importVariant(f,"auril-phase-2.html",html=>html.replace("Auril occupa due","Auril ora occupa due"));
   await f.controller.refresh();
-  assert.match(optionTexts(f)[0],/v25 · [a-f0-9]{8} · collegata qui · superata/);
+  assert.match(optionTexts(f)[0],/v26 · [a-f0-9]{8} · collegata qui · superata/);
   assert.doesNotMatch(optionTexts(f)[1],/superata/);
   assert.equal(f.$("boss-profile-warning").hidden,false);
   assert.match(f.$("boss-profile-warning").textContent,/Il token usa una revisione superata/);
@@ -1050,6 +1050,21 @@ test("Cucitura: the slot in the header, the seam drawn up to 120 ft and kept on 
   assert.equal(f.calls.length,1);
   assert.deepEqual(f.calls[0].seam,{...SEAM_LINE,lengthFeet:45,itemIds:[keep.id,`${keep.id}-geometry`,...portalIds]});
   assert.equal(f.calls[0].actionId,actionNamed(f,"Cucitura del Non-Luogo").id);
+  f.controller.destroy();
+});
+
+test("Rimebound Link: a status line for the GM, active, broken for the round or waiting for combat",async()=>{
+  const f=fixture({selection:[]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
+  let link={name:"Rimebound Link",holder:"Titano",breaker:"Proiezione Fatata",brokenRound:null,active:true,round:3};
+  const base=f.runtime.getBossActionPresentation;
+  f.runtime.getBossActionPresentation=async(...args)=>({...await base(...args),linkResistance:link});
+  await f.controller.refresh();
+  if(f.$("boss-tab-actions"))await f.$("boss-tab-actions").click();await tick();
+  assert.equal(f.$("boss-link-note").textContent,"Rimebound Link attivo (round 3): il Titano ha Resistenza a tutti i danni finché la Proiezione Fatata non subisce danni. Solo GM.");
+  link={...link,brokenRound:3,active:false};await f.controller.refresh();
+  assert.equal(f.$("boss-link-note").textContent,"Rimebound Link interrotto nel round 3: il Titano non ha Resistenza fino all'inizio del round 4.");
+  link={...link,brokenRound:null,active:false,round:null};await f.controller.refresh();
+  assert.match(f.$("boss-link-note").textContent,/si attiva in combattimento/);
   f.controller.destroy();
 });
 
