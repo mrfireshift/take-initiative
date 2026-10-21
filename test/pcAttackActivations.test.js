@@ -263,3 +263,101 @@ test("Precision Attack and Guided Strike act on the roll: available on a miss, t
   const lines = buildCombatLogPresentation(null, [{ category: "attack", payload: missed.options.history.payload }]).events[0].details.flatMap((section) => section.lines);
   assert.ok(lines.includes("Attivazione: Attacco Preciso · +1d10 al tiro per colpire · Dadi di Superiorità 5 → 4"), lines.join("\n"));
 });
+
+// 3B-2
+const fist = { id: "fist", label: "Colpo senz'armi", kind: "attack", range: "melee", components: [{ type: "bludgeoning" }] };
+const monkCard = (featureIds) => ({ initiativeCard: { characterBuild: [{ classId: "monaco", level: 17, subclassId: "monaco-via-della-mano-aperta" }],
+  abilityModifiers: { str: 1, dex: 4, con: 2, int: 0, wis: 3, cha: 0 }, classFeaturesConfigured: true, enabledClassFeatureIds: featureIds, quickActions: [fist] } });
+const OPEN_HAND = "monaco-via-della-mano-aperta-tecnica-della-mano-aperta";
+const PALM = "monaco-via-della-mano-aperta-palmo-tremante";
+const monk = (meta = {}) => creature("dars", "Kai", { ...monkCard([OPEN_HAND, PALM]), ...meta });
+const punch = (sourceItem, activations, overrides = {}) => buildPcAttackMutation({ action: fist, sourceItem, targetItem: ghoul(), outcome: "hit",
+  componentAmounts: { c1: 8 }, attackInstanceId: "punch", turnState: ownTurn, expectedDefenses: {}, activations, ...overrides });
+
+test("Riposte: a maneuver for the reaction attack, never on the fighter's own turn", () => {
+  const riposte = MANEUVER("replica");
+  assert.equal(option(options(fighter(["replica"])), riposte).reason, "Solo come reazione, fuori dal proprio turno.");
+  const result = plan(fighter(["replica"]), [{ id: riposte, type: "slashing", amount: 5 }], { turnState: ghoulTurn });
+  assert.equal(result.change.afterHP, 26);
+});
+
+test("Open Hand Technique: the GM picks the effect; each has its own save; no reactions ends with the monk's next turn", () => {
+  const openHand = option(pcAttackActivationOptions({ action: fist, sourceItem: monk(), targetItem: ghoul(), turnState: ownTurn }), OPEN_HAND);
+  assert.deepEqual(openHand.choices.map((choice) => [choice.id, choice.save?.dc ?? null, choice.effect.label]),
+    [["prone", 17, "Prono"], ["push", 17, "Spinto fino a 4,5 m lontano dal monaco."], ["no-reactions", null, "Niente reazioni"]]);
+  assert.equal(openHand.hint, "Solo con gli attacchi della Raffica di Colpi.");
+  assert.throws(() => punch(monk(), [{ id: OPEN_HAND }]), /scegli l'effetto/);
+  assert.throws(() => punch(monk(), [{ id: OPEN_HAND, choice: "prone" }]), /scegli l'esito del tiro salvezza/);
+  const prone = punch(monk(), [{ id: OPEN_HAND, choice: "prone", saveOutcome: "failed" }]);
+  assert.equal(prone.operations.find((operation) => operation.type === "condition:add").conditionName, "Prono");
+  assert.deepEqual(prone.causality.activations[0].choice, { id: "prone", label: "Prono" });
+  assert.equal(punch(monk(), [{ id: OPEN_HAND, choice: "prone", saveOutcome: "passed" }]).operations.some((operation) => operation.type === "condition:add"), false);
+  const pushed = punch(monk(), [{ id: OPEN_HAND, choice: "push", saveOutcome: "failed" }]);
+  assert.deepEqual(pushed.causality.notes, ["Tecnica della Mano Aperta: Spinto fino a 4,5 m lontano dal monaco."]);
+  const silenced = punch(monk(), [{ id: OPEN_HAND, choice: "no-reactions" }]).operations.find((operation) => operation.type === "condition:add");
+  assert.equal(silenced.conditionName, "Niente reazioni");
+  assert.deepEqual(silenced.options.expiry, { mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn", actorId: "dars" });
+  assert.equal(silenced.options.manualRemoval, false);
+  const lines = buildCombatLogPresentation(null, [{ category: "attack", payload: prone.options.history.payload }]).events[0].details.flatMap((section) => section.lines);
+  assert.ok(lines.includes("Attivazione: Tecnica della Mano Aperta (Prono) · TS Destrezza CD 17 fallito → Prono"), lines.join("\n"));
+});
+
+test("Inspiring Smite: with a Divine Smite, the total shared as temporary hit points in the same command", () => {
+  const ISPIRATRICE = "paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice";
+  const paladin = creature("dars", "Aldric", { hp: 30, initiativeCard: { characterBuild: [{ classId: "paladino", level: 7, subclassId: "paladino-giuramento-di-gloria" }],
+    abilityModifiers: MODS, classFeaturesConfigured: true, enabledClassFeatureIds: ["paladino-punizione-divina", ISPIRATRICE], quickActions: [sword] } });
+  const mira = creature("mira", "Mira", { hp: 20, hpMax: 30 });
+  const smite = { id: "paladino-punizione-divina", type: "radiant", amount: 9, slotLevel: 1 };
+  assert.equal(option(options(paladin), ISPIRATRICE).reason, "Solo insieme a Punizione Divina.");
+  const ready = option(options(paladin, { riders: [smite] }), ISPIRATRICE);
+  assert.deepEqual([ready.available, ready.dice, ready.tempHp, ready.damage], [true, "2d8+7", true, false]);
+  const request = { id: ISPIRATRICE, amount: 15, tempHp: [{ targetId: "dars", amount: 7 }, { targetId: "mira", amount: 8 }] };
+  const items = [paladin, ghoul(), mira];
+  const preview = (activation) => pcAttackPreview({ action: sword, sourceItem: paladin, targetItem: ghoul(), outcome: "hit", amounts: { c1: "8" },
+    turnState: ownTurn, riders: [smite], activations: [activation], tempHpItems: items }).blocker;
+  assert.equal(preview(request), "");
+  assert.equal(preview({ ...request, amount: 10 }), "Punizione Ispiratrice: distribuiti 15 PF temporanei su 10.");
+  assert.equal(preview({ ...request, tempHp: [{ targetId: "ghoul", amount: 5 }] }), "Punizione Ispiratrice: le creature colpite dall'attacco non ricevono PF temporanei.");
+  assert.equal(preview({ ...request, tempHp: [{ targetId: "mira", amount: 5 }, { targetId: "mira", amount: 5 }] }), "Punizione Ispiratrice: la stessa creatura è indicata due volte.");
+  assert.equal(preview({ ...request, tempHp: [{ targetId: "", amount: 5 }] }), "Punizione Ispiratrice: scegli chi riceve i PF temporanei.");
+  const result = plan(paladin, [request], { riders: [smite], tempHpItems: items });
+  assert.deepEqual(result.operations.find((operation) => operation.type === "hp:set").updates.map((update) => [update.itemId, update.hp, update.hpIntent.mode]),
+    [["ghoul", 22, "damage"], ["dars", 37, "temp"], ["mira", 28, "temp"]]);
+  assert.deepEqual(result.tempHpChanges.map((row) => [row.item.id, row.change.afterHP]), [["dars", 37], ["mira", 28]]);
+  assert.equal(sourcePatch(result)[CLASS_FEATURE_STATE_FIELD].value.resources["paladino-incanalare-divinita-usi"].current, 0);
+  assert.equal(result.followUps.some((note) => note.startsWith("Punizione Ispiratrice")), false, "used here: no reminder");
+  const lines = buildCombatLogPresentation(null, [{ category: "attack", payload: result.options.history.payload }]).events[0].details.flatMap((section) => section.lines);
+  assert.ok(lines.some((line) => line.includes("PF temporanei 15: Aldric +7 (30 → 37), Mira +8 (20 → 28)")), lines.join("\n"));
+});
+
+test("Quivering Palm: the vibrations on a hit (3 Ki), then ending them apart: 0 HP, 10d10 necrotic or no effect", async () => {
+  const { buildPcAttackQuiveringPalmMutation, pcAttackQuiveringPalm } = await import("../src/pcAttackCore.js");
+  const hit = punch(monk(), [{ id: PALM }]);
+  const pill = hit.operations.find((operation) => operation.type === "condition:add-instances").instancesByTarget.ghoul[0];
+  assert.equal(pill.condition, "Palmo Tremante");
+  const state = sourcePatch(hit)[CLASS_FEATURE_STATE_FIELD].value;
+  assert.equal(state.resources["monaco-punti-ki"].current, 14);
+  const palmMonk = monk({ [CLASS_FEATURE_STATE_FIELD]: state });
+  const vibrating = (meta = {}) => creature("ghoul", "Ghoul", { conditions: [pill], ...meta });
+  assert.equal(pcAttackQuiveringPalm(palmMonk, ghoul()), null, "no vibrations, nothing to end");
+  assert.deepEqual(pcAttackQuiveringPalm(palmMonk, vibrating()), { instanceId: pill.id, dice: "10d10", dc: 17 });
+  const end = (outcome, overrides = {}) => buildPcAttackQuiveringPalmMutation({ sourceItem: palmMonk, targetItem: vibrating(), outcome,
+    attackInstanceId: "palm-end", turnState: ownTurn, expectedDefenses: {}, ...overrides });
+  const failed = end("failed");
+  assert.equal(failed.change.afterHP, 0);
+  assert.deepEqual(failed.operations.map((operation) => operation.type), ["hp:set", "condition:remove-instances"]);
+  assert.deepEqual(failed.operations[1].removals, [{ itemId: "ghoul", instanceId: pill.id }]);
+  assert.equal(failed.options.metadataPatches[0].fields[CLASS_FEATURE_STATE_FIELD].value.instances.length, 0, "the active feature ends");
+  const defenses = { resistances: ["necrotic"], immunities: [], vulnerabilities: [] };
+  const passed = end("passed", { amount: 50, targetItem: vibrating({ initiativeCard: { damageDefenses: defenses } }), expectedDefenses: defenses });
+  assert.deepEqual([passed.damageComponents[0].amount, passed.change.afterHP], [25, 15]);
+  const none = end("none");
+  assert.equal(none.change, null);
+  assert.deepEqual(none.operations.map((operation) => operation.type), ["condition:remove-instances"]);
+  assert.throws(() => end("passed"), /Inserisci i danni necrotici/);
+  assert.throws(() => buildPcAttackQuiveringPalmMutation({ sourceItem: palmMonk, targetItem: ghoul(), outcome: "failed", attackInstanceId: "x" }), /non ha le vibrazioni/);
+  const lines = (result) => buildCombatLogPresentation(null, [{ category: "attack", payload: result.options.history.payload }]).events[0].details.flatMap((section) => section.lines);
+  assert.ok(lines(failed).includes("Palmo Tremante: TS Costituzione CD 17 fallito → 0 PF"), lines(failed).join("\n"));
+  assert.ok(lines(passed).includes("Palmo Tremante: TS Costituzione CD 17 superato → 10d10 (25 necrotici)"), lines(passed).join("\n"));
+  assert.ok(lines(none).includes("Palmo Tremante: vibrazioni terminate senza effetto"));
+});

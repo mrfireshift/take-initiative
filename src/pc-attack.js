@@ -4,13 +4,13 @@ import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { createPcAttackRuntime } from "./pcAttackExecution.js";
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
-  pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds } from "./pcAttackCore.js";
+  pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm } from "./pcAttackCore.js";
 import { pcAttackHasPotentCantrip } from "./pcAttackRiderCatalog.js";
 import { getPcAttackCantrip, pcAttackCantripBeams, PC_ATTACK_SAVE_LABELS } from "./pcAttackCantripCatalog.js";
 import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel } from "./bossActionsViewCore.js";
-import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel } from "./damageDefensesCore.js";
+import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
 import { PC_ATTACK_POPOVER_ID } from "./pcAttackLauncher.js";
 import "./popoverDrag.js";
 
@@ -56,7 +56,8 @@ export function chosenActivations(draft) {
   if(!["hit","critical","miss"].includes(draft?.outcome)) return [];
   return Object.entries(draft.activations || {}).filter(([,activation])=>activation.on).map(([id,activation])=>({id,
     ...(activation.type?{type:activation.type,amount:activation.amount}:{}),...(activation.saveOutcome?{saveOutcome:activation.saveOutcome}:{}),
-    ...(activation.secondaryTargetId?{secondaryTargetId:activation.secondaryTargetId}:{})}));
+    ...(activation.secondaryTargetId?{secondaryTargetId:activation.secondaryTargetId}:{}),...(activation.choice?{choice:activation.choice}:{}),
+    ...(Array.isArray(activation.tempHp)?{amount:activation.amount,tempHp:activation.tempHp.map(entry=>({targetId:entry.targetId,amount:entry.amount}))}:{})}));
 }
 // The weapon cantrip woven into a melee weapon attack (only on a hit), with Green-Flame Blade's second creature.
 export function chosenWeaponCantrip(draft) {
@@ -82,7 +83,16 @@ export function resultSummary(result) {
     ...(result?.extras || []).map(extra=>extra.label || extra.typeLabel)];
   const second=result?.secondary?` ${result.secondary.name}: PF ${result.secondary.before} → ${result.secondary.after}.`:"";
   const conditions=(result?.conditions || []).length?` ${name}: ${result.conditions.join(", ")}.`:"";
-  return `Registrato: ${outcome}, ${damage} danni a ${name}.${hp}${extras.length?` Extra: ${extras.join(", ")}.`:""}${second}${conditions}`;
+  const tempHp=(result?.tempHp || []).length?` PF temporanei: ${result.tempHp.map(row=>`${row.name} ${row.before} → ${row.after}`).join(", ")}.`:"";
+  return `Registrato: ${outcome}, ${damage} danni a ${name}.${hp}${extras.length?` Extra: ${extras.join(", ")}.`:""}${second}${conditions}${tempHp}`;
+}
+
+// Quivering Palm, ended: the save outcome and what it did.
+export function quiveringPalmSummary(result) {
+  const name=result?.target?.name || "bersaglio";
+  if(result?.outcome==="none") return `Registrato: vibrazioni del Palmo Tremante terminate su ${name}, senza effetto.`;
+  const hp=result?.hpChange?` PF ${result.hpChange.before} → ${result.hpChange.after}.`:"";
+  return `Registrato: Palmo Tremante su ${name}, ${PC_ATTACK_OUTCOME_LABELS[result?.outcome] || ""}.${hp}`;
 }
 
 export function bootPcAttack(documentRef=document,overrides={}) {
@@ -103,6 +113,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const extrasSection=$("pc-attack-extras-section"),ridersBox=$("pc-attack-riders"),extrasBox=$("pc-attack-extras"),addExtra=$("pc-attack-add-extra");
   const wovenBox=$("pc-attack-woven");
   const activationsBox=$("pc-attack-activations"),activationsCaption=$("pc-attack-activations-caption");
+  const palmBox=$("pc-attack-palm"),palmNote=$("pc-attack-palm-note"),palmOutcomes=$("pc-attack-palm-outcomes"),palmAmount=$("pc-attack-palm-amount"),palmApply=$("pc-attack-palm-apply");
+  // Quivering Palm: the decision to end the vibrations of the selected target (its own command, its own identity).
+  let palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
   const applyRow=$("pc-attack-apply-row");
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
   const extrasCaption=$("pc-attack-extras-caption");
@@ -123,7 +136,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function preview() {
     return pcAttackPreview({action:presentation?.action,spellId:draft?.spellId,sourceItem:presentation?.item,targetItem:targetById(draft?.targetId),outcome:draft?.outcome,
       amounts:draft?.amounts,ignoredDefenses:draft?.ignored,riders:chosenRiders(draft),extras:chosenExtras(draft),turnState:presentation?.turnState,
-      weaponCantrip:chosenWeaponCantrip(draft),secondaryItem:targetById(secondaryTargetId()),activations:chosenActivations(draft)});
+      weaponCantrip:chosenWeaponCantrip(draft),secondaryItem:targetById(secondaryTargetId()),activations:chosenActivations(draft),
+      tempHpItems:presentation?[presentation.item,...presentation.targets]:[]});
   }
   // The second creature of this attack: Green-Flame Blade's, or an activation's (Sweeping Attack, Slashing Flourish…).
   const secondaryTargetId=()=>chosenWeaponCantrip(draft)?.secondary?.targetId
@@ -265,7 +279,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const options=activationOptions();
     activationsBox.dataset.activationIds=options.map(option=>option.id).join("|");
     activationsBox.replaceChildren(...options.map(option=>{
-      const state=draft.activations[option.id] ||= {on:false,type:option.types[0] || "",amount:"",saveOutcome:"",secondaryTargetId:""};
+      const state=draft.activations[option.id] ||= {on:false,type:option.types[0] || "",amount:"",saveOutcome:"",secondaryTargetId:"",choice:"",
+        ...(option.tempHp?{tempHp:[{targetId:"",amount:""}]}:{})};
       const toggle=node("input");toggle.type="checkbox";toggle.dataset.activationField="on";toggle.setAttribute("aria-label",option.label);
       toggle.addEventListener("change",()=>{
         state.on=toggle.checked;
@@ -284,14 +299,28 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         type.setAttribute("aria-label",`Tipo di danno di ${option.label}`);type.addEventListener("change",()=>{state.type=type.value;renderState();});
         extra.append(type);
       }
+      // Open Hand Technique: the effect, each with its own save.
+      if(option.choices) {
+        const choice=node("select","","inline-select");choice.dataset.activationField="choice";choice.setAttribute("aria-label",`Effetto di ${option.label}`);
+        choice.replaceChildren(...[["","Scegli l'effetto"],...option.choices.map(entry=>[entry.id,entry.label])].map(([value,label])=>{const entry=node("option",label);entry.value=value;return entry;}));
+        choice.value=state.choice;
+        choice.addEventListener("change",()=>{state.choice=choice.value;state.saveOutcome="";updateActivations();renderState();});
+        extra.append(choice);
+      }
+      // Inspiring Smite: the creatures that share the total (the row's amount), each with its temporary hit points.
+      if(option.tempHp) {
+        const list=node("div","","temp-hp-list");list.dataset.activationField="temp-hp";
+        extra.append(list);
+      }
       // The second creature the die also (or only) damages: any other tracked creature than the attacker and the target.
       if(option.secondary) {
         const second=node("select","","inline-select");second.dataset.activationField="secondary";second.setAttribute("aria-label",`Seconda creatura di ${option.label}`);
         second.addEventListener("change",()=>{state.secondaryTargetId=second.value;updateActivations();renderState();});
         extra.append(second);
       }
-      if(option.save) {
+      if(option.save || option.choices?.some(entry=>entry.save)) {
         const group=node("div","","segmented mini");group.setAttribute("role","group");group.setAttribute("aria-label",`Tiro salvezza contro ${option.label}`);
+        group.dataset.activationField="save";
         for(const outcome of ["failed","passed"]) {
           const button=node("button",PC_ATTACK_OUTCOME_LABELS[outcome]);button.type="button";button.dataset.outcome=outcome;button.dataset.activationField=`save-${outcome}`;
           button.addEventListener("click",()=>{state.saveOutcome=outcome;updateActivations();renderState();});
@@ -301,7 +330,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       }
       const effect=node("span","","effect-hint");effect.dataset.activationField="effect";extra.append(effect);
       body.append(extra);
-      const amount=amountInput(state.amount,`Danni di ${option.label}`);amount.dataset.activationField="amount";
+      const amount=amountInput(state.amount,option.tempHp?`Totale PF temporanei di ${option.label}`:`Danni di ${option.label}`);amount.dataset.activationField="amount";
       amount.addEventListener("input",()=>{state.amount=amount.value.trim();renderState();});
       const row=componentRow(toggle,body,amount);row.dataset.activationId=option.id;
       return row;
@@ -324,16 +353,23 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const field=name=>row.querySelector(`[data-activation-field="${name}"]`);
       field("on").checked=state.on;field("on").disabled=busy || !option.available;
       const resource=option.resources.map(entry=>entry.unlimited || entry.current===null?entry.name:`${entry.name} ${entry.current}/${entry.maximum ?? "?"}`);
-      const save=option.save?`TS ${option.save.label}${option.save.dc?` CD ${option.save.dc}`:""}`:"";
+      const dice=option.tempHp?`${option.dice || "2d8 + livello"} PF temporanei`
+        :option.damage || option.secondary?`${critical(option.dice) || "dado"} ${option.types.length===1?damageTypeLabel(option.types[0]):""}`.trim():"";
+      // A choice's save and effect replace the activation's (Open Hand Technique).
+      const choice=option.choices?option.choices.find(entry=>entry.id===state.choice) || null:null;
+      const save=choice?choice.save:option.save;
+      const saveText=save?`TS ${save.label}${save.dc?` CD ${save.dc}`:""}`:"";
       // Each part keeps its words together ("TS Saggezza CD 16"): the line wraps only between parts.
-      const dice=option.damage || option.secondary?`${critical(option.dice) || "dado"} ${option.types.length===1?damageTypeLabel(option.types[0]):""}`.trim():"";
       field("meta").textContent=[dice,option.rollBonus?`${option.rollBonus} al tiro per colpire`:"",
-        ...resource,save,option.size || ""].filter(Boolean).map(part=>part.replace(/ /gu," ")).join(" · ");
+        ...resource,saveText,option.size || ""].filter(Boolean).map(part=>part.replace(/ /gu," ")).join(" · ");
       field("reason").textContent=option.available?option.warning || "":option.reason;
       field("options").hidden=!state.on;
       // On a miss only the activations used on the roll itself are listed.
       row.hidden=draft.outcome==="miss" && !option.preRoll;
-      field("amount").hidden=!state.on || !(option.damage || option.secondary);field("amount").disabled=busy;
+      field("amount").hidden=!state.on || !(option.damage || option.secondary || option.tempHp);field("amount").disabled=busy;
+      if(field("choice")){field("choice").value=state.choice;field("choice").disabled=busy;}
+      if(field("save")) field("save").hidden=!save;
+      if(field("temp-hp")) updateTempHp(field("temp-hp"),option,state);
       const second=field("secondary");
       if(second) {
         const others=presentation.targets.filter(item=>item.id!==draft.targetId);
@@ -347,13 +383,68 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         if(button){button.setAttribute("aria-pressed",String(state.saveOutcome===outcome));button.disabled=busy;}
       }
       // What happens: the pill (on the target, or on the attacker), the condition or the note, and when.
-      const effect=option.effect?(option.effect.kind==="note"?option.effect.label
-        :`${option.save?"Se fallisce":"Effetto"}: ${option.effect.self?`${option.effect.label} su di sé`:option.effect.label}`):"";
+      const shownEffect=choice?choice.effect:option.effect;
+      const effect=shownEffect?(shownEffect.kind==="note"?shownEffect.label
+        :`${save?"Se fallisce":"Effetto"}: ${shownEffect.self?`${shownEffect.label} su di sé`:shownEffect.label}`):"";
       const secondNote=option.secondary?`Seconda creatura ${option.secondary.note}${option.secondary.targetDamage?", stesso dado del bersaglio":""}.`:"";
-      field("effect").textContent=[effect,secondNote,option.note || ""].filter(Boolean).join(" ");
+      field("effect").textContent=[effect,secondNote,option.note || "",option.hint || ""].filter(Boolean).join(" ");
       field("effect").hidden=!field("effect").textContent;
       row.dataset.unavailable=option.available?"false":"true";
     }
+  }
+  // Inspiring Smite's distribution: a creature picker and an amount per line (the attacker included, never the creatures
+  // the attack damages), rebuilt only when lines are added or removed so a typed amount keeps its caret.
+  function updateTempHp(list,option,state) {
+    const recipients=[presentation.item,...presentation.targets].filter(item=>item.id!==draft.targetId && item.id!==secondaryTargetId());
+    for(const entry of state.tempHp) if(entry.targetId && !recipients.some(item=>item.id===entry.targetId)) entry.targetId="";
+    const signature=`${state.tempHp.length}|${recipients.map(item=>item.id).join(",")}`;
+    if(list.dataset.signature!==signature) {
+      list.dataset.signature=signature;
+      const rows=state.tempHp.map((entry,index)=>{
+        const row=node("div","","temp-hp-row");row.dataset.tempHpIndex=String(index);
+        const who=node("select","","inline-select");who.dataset.tempHpField="target";who.setAttribute("aria-label","Creatura che riceve i PF temporanei");
+        who.replaceChildren(...[["","Creatura"],...recipients.map(item=>[item.id,item.id===presentation.item.id?`${item.name || item.id} (sé)`:bossTargetLabel(item)])]
+          .map(([value,label])=>{const option=node("option",label);option.value=value;return option;}));
+        who.addEventListener("change",()=>{entry.targetId=who.value;renderState();});
+        const amount=amountInput(entry.amount,"PF temporanei");amount.dataset.tempHpField="amount";
+        amount.addEventListener("input",()=>{entry.amount=amount.value.trim();renderState();});
+        const remove=node("button","×","lead-remove");remove.type="button";remove.title="Rimuovi creatura";remove.setAttribute("aria-label","Rimuovi creatura");
+        remove.addEventListener("click",()=>{state.tempHp.splice(index,1);if(!state.tempHp.length)state.tempHp.push({targetId:"",amount:""});updateActivations();renderState();});
+        row.append(remove,who,amount);return row;
+      });
+      const add=node("button","+ Creatura","temp-hp-add");add.type="button";add.dataset.tempHpField="add";
+      add.addEventListener("click",()=>{state.tempHp.push({targetId:"",amount:""});updateActivations();renderState();});
+      list.replaceChildren(...rows,add);
+    }
+    list.querySelectorAll("[data-temp-hp-index]").forEach(row=>{
+      const entry=state.tempHp[Number(row.dataset.tempHpIndex)];
+      const who=row.querySelector('[data-temp-hp-field="target"]');who.value=entry.targetId;who.disabled=busy;
+      row.querySelector('[data-temp-hp-field="amount"]').disabled=busy;
+      row.querySelector(".lead-remove").disabled=busy;
+    });
+    const add=list.querySelector('[data-temp-hp-field="add"]');
+    if(add) add.disabled=busy || state.tempHp.length>=Math.max(1,recipients.length);
+  }
+  // Quivering Palm: the target carries this monk's vibrations; ending them is an action of its own (save outcome, the
+  // 10d10 on a success), committed apart from the attack.
+  function renderPalm() {
+    if(!palmBox) return;
+    const target=targetById(draft?.targetId);
+    const palm=presentation && target?pcAttackQuiveringPalm(presentation.item,target):null;
+    palmBox.hidden=!palm;
+    if(!palm) return;
+    if(palmDraft.targetId!==target.id) palmDraft={targetId:target.id,outcome:"",amount:"",id:newAttackId()};
+    palmNote.textContent=`vibrazioni attive · TS Costituzione${palm.dc?` CD ${palm.dc}`:""}`;
+    palmOutcomes.replaceChildren(...[["failed","TS fallito · 0 PF"],["passed",`TS superato · ${palm.dice}`],["none","Senza effetto"]].map(([value,label])=>{
+      const button=node("button",label);button.type="button";button.dataset.outcome=value;
+      button.setAttribute("aria-pressed",String(palmDraft.outcome===value));button.disabled=busy;
+      button.addEventListener("click",()=>{palmDraft.outcome=value;renderPalm();});
+      return button;
+    }));
+    palmAmount.hidden=palmDraft.outcome!=="passed";palmAmount.disabled=busy;
+    if(palmAmount.value!==palmDraft.amount) palmAmount.value=palmDraft.amount;
+    palmApply.disabled=busy || invalidated || !palmDraft.outcome
+      || (palmDraft.outcome==="passed" && !(palmDraft.amount!=="" && Number.isSafeInteger(Number(palmDraft.amount)) && Number(palmDraft.amount)>=0));
   }
   // Booming Blade / Green-Flame Blade woven into a melee weapon attack: the cantrip picker, its extra damage on the hit
   // (from 5th level) and Green-Flame Blade's second creature. Rebuilt only when the cantrip changes (updateWoven
@@ -522,13 +613,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   function render() {
     if(!presentation || !draft){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
-    form.hidden=false;if(applyRow)applyRow.hidden=false;renderHeader();renderTarget();renderOutcomes();renderCantrip();renderDamage();renderWoven();renderRiders();renderActivations();renderExtras();renderState();
+    form.hidden=false;if(applyRow)applyRow.hidden=false;renderHeader();renderTarget();renderPalm();renderOutcomes();renderCantrip();renderDamage();renderWoven();renderRiders();renderActivations();renderExtras();renderState();
   }
   // Selection and scene updates never rebuild the outcome buttons or the amount fields: a click in
   // flight or the caret in a field survives them.
   function renderLive() {
     if(!presentation || !draft){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
-    renderTarget();updateDamageMeta();updateWoven();updateRiders();updateActivations();renderState();
+    renderTarget();renderPalm();updateDamageMeta();updateWoven();updateRiders();updateActivations();renderState();
   }
 
   async function perform(work) {
@@ -631,7 +722,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ignoredDefenses:[...draft.ignored],expectedDefenses:view.profileDefenses,expectedAction:presentation.action,
       riders:chosenRiders(draft).map(rider=>({...rider,amount:Number(rider.amount)})),
       extras:chosenExtras(draft).map(extra=>({...extra,amount:Number(extra.amount),label:String(extra.label || "").trim()})),
-      activations:chosenActivations(draft).map(activation=>({...activation,...(activation.type?{amount:Number(activation.amount)}:{})})),
+      activations:chosenActivations(draft).map(activation=>({...activation,...(activation.amount!==undefined?{amount:Number(activation.amount)}:{}),
+        ...(activation.tempHp?{tempHp:activation.tempHp.map(entry=>({targetId:entry.targetId,amount:Number(entry.amount)}))}:{})})),
       ...(draft.spellId?{spellId:draft.spellId}:{}),
       ...(chosenWeaponCantrip(draft)?{weaponCantrip:(({spellId,amount,secondary})=>({spellId,...(amount!==""?{amount:Number(amount)}:{}),
         ...(secondary?{secondary:{targetId:secondary.targetId,amount:Number(secondary.amount)}}:{})}))(chosenWeaponCantrip(draft))}:{}),
@@ -647,6 +739,19 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     draft=emptyDraft(presentation.action,draft.targetId,draft.spellId);
     await refresh(operation);
     render();
+  }));
+  palmAmount?.addEventListener("input",()=>{palmDraft.amount=palmAmount.value.trim();renderPalm();});
+  palmApply?.addEventListener("click",()=>perform(async operation=>{
+    const target=targetById(palmDraft.targetId);
+    if(!target || !palmDraft.outcome) return;
+    const result=await runtime.endQuiveringPalm({sourceId,targetId:target.id,outcome:palmDraft.outcome,
+      ...(palmDraft.outcome==="passed"?{amount:Number(palmDraft.amount),expectedDefenses:damageDefensesForItem(target,META_KEY)}:{}),
+      attackInstanceId:palmDraft.id,sceneIdentity:presentation.sceneIdentity});
+    if(!lifecycle.isCurrent(operation)) return;
+    showUndo(result);
+    setStatus([quiveringPalmSummary(result),...(result.warnings || [])].join("\n"));
+    palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
+    await refresh(operation);
   }));
   undoButton.addEventListener("click",()=>{
     if(!lastUndo) return;

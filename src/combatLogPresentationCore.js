@@ -612,7 +612,8 @@ function causalityDetailLines(event) {
   // Activations on a hit (maneuvers, Arcane Shot, Stunning Strike…): die and damage, the save and its outcome, the
   // effect (applied or not) and the resource spent.
   for (const activation of Array.isArray(rawAttack?.activations) ? rawAttack.activations : []) {
-    const name = stringValue(activation?.name) || "Attivazione";
+    // A choice names its effect: "Tecnica della Mano Aperta (Prono)".
+    const name = `${stringValue(activation?.name) || "Attivazione"}${stringValue(activation?.choice?.label) ? ` (${activation.choice.label})` : ""}`;
     const dice = stringValue(activation?.dice);
     const amount = finiteNumber(activation?.amount);
     const type = stringValue(activation?.typeLabel);
@@ -629,9 +630,24 @@ function causalityDetailLines(event) {
     )).filter(Boolean);
     const rollBonus = stringValue(activation?.rollBonus) ? `${activation.rollBonus} al tiro per colpire` : "";
     const second = stringValue(activation?.secondary?.name) ? `seconda creatura: ${activation.secondary.name}` : "";
-    const parts = [rollBonus, second, saveText && effectText ? `${saveText} ${effectText}` : saveText || effectText, ...spent].filter(Boolean);
+    // Inspiring Smite: the total, then each creature's temporary hit points.
+    const tempHp = Array.isArray(activation?.tempHp) && activation.tempHp.length
+      ? `PF temporanei${finiteNumber(activation.total) !== null ? ` ${numberText(activation.total)}` : ""}: ${activation.tempHp.map((row) => (
+        `${stringValue(row?.name) || "creatura"} +${numberText(row?.amount ?? 0)}${finiteNumber(row?.before) !== null && finiteNumber(row?.after) !== null
+          ? ` (${numberText(row.before)} → ${numberText(row.after)})` : ""}`)).join(", ")}` : "";
+    const parts = [rollBonus, second, tempHp, saveText && effectText ? `${saveText} ${effectText}` : saveText || effectText, ...spent].filter(Boolean);
     lines.push(`Attivazione: ${name}${dice ? ` ${dice}` : ""}${amount !== null ? ` (${numberText(amount)}${type ? ` ${type}` : ""})` : ""}`
       + `${parts.length ? ` · ${parts.join(" · ")}` : ""}`);
+  }
+  // Quivering Palm, ended: the save and its result.
+  if (rawAttack?.quiveringPalm) {
+    const palm = rawAttack.quiveringPalm;
+    const dc = finiteNumber(palm.dc) !== null ? ` CD ${numberText(palm.dc)}` : "";
+    const damage = (Array.isArray(rawAttack.targets) ? rawAttack.targets : []).flatMap((target) => target?.damageComponents || [])
+      .reduce((sum, component) => sum + (finiteNumber(component?.amount) || 0), 0);
+    lines.push(palm.outcome === "none" ? "Palmo Tremante: vibrazioni terminate senza effetto"
+      : palm.outcome === "failed" ? `Palmo Tremante: TS Costituzione${dc} fallito → 0 PF`
+        : `Palmo Tremante: TS Costituzione${dc} superato → ${stringValue(palm.dice) || "10d10"} (${numberText(damage)} necrotici)`);
   }
   for (const note of Array.isArray(rawAttack?.notes) ? rawAttack.notes : []) {
     if (stringValue(note)) lines.push(`Nota: ${note}`);

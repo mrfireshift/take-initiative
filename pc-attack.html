@@ -75,6 +75,19 @@
     .segmented.mini { display: inline-grid; grid-auto-columns: max-content; }
     .segmented.mini button { min-height: 22px; padding: 0 8px; font-size: var(--obrt-type-secondary); }
     .effect-hint { color: var(--muted); }
+    /* Inspiring Smite: one line per creature that receives temporary hit points, on the damage rows' grid: remove in the
+       lead column, the creature in the body, its amount under the total. The list spans the whole row (lead + gap on the
+       left, gap + amount on the right). */
+    .temp-hp-list { display: grid; gap: 4px; width: calc(100% + 108px); margin: 0 -80px 0 -28px; }
+    .temp-hp-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) 72px; column-gap: 8px; align-items: center; }
+    .temp-hp-row .inline-select { min-width: 0; height: 26px; }
+    .temp-hp-add { justify-self: start; margin-left: 28px; padding: 2px 8px; border: 1px dashed rgba(148, 163, 184, .35); border-radius: var(--obrt-radius-md); background: transparent; color: #bfdbfe; font-size: var(--obrt-type-secondary); cursor: pointer; }
+    .temp-hp-add:disabled { opacity: .45; cursor: default; }
+    /* Quivering Palm: ending the vibrations of the target, below the target picker. */
+    .palm { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
+    .palm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .palm-title { font-weight: var(--obrt-weight-semibold); }
+    .palm-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
     .extra-fields { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 6px; }
     .field { height: 26px; min-width: 0; padding: 2px 6px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-size: var(--obrt-type-secondary); }
     .lead-remove { width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--obrt-radius-sm); background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
@@ -111,6 +124,14 @@
           <span class="caption">Bersaglio</span>
           <select class="target-select" id="pc-attack-target" aria-label="Bersaglio"></select>
           <p class="hint" id="pc-attack-target-hint" hidden></p>
+          <div class="palm" id="pc-attack-palm" hidden>
+            <div class="palm-head"><span class="palm-title">Palmo Tremante</span><span class="card-note" id="pc-attack-palm-note"></span></div>
+            <div class="segmented mini" id="pc-attack-palm-outcomes" role="group" aria-label="Fine delle vibrazioni"></div>
+            <div class="palm-row">
+              <input class="amount" id="pc-attack-palm-amount" type="number" min="0" step="1" inputmode="numeric" aria-label="Danni necrotici (10d10)" hidden />
+              <button class="small" id="pc-attack-palm-apply" type="button">Termina le vibrazioni</button>
+            </div>
+          </div>
         </section>
         <section class="block" aria-label="Esito">
           <span class="caption">Esito</span>

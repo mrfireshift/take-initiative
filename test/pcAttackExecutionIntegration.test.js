@@ -359,3 +359,48 @@ test("Sweeping Attack: the target, the second creature and the die in one Histor
   assert.deepEqual([meta("ghoul").hp, meta("imp").hp], [30, 10]);
   assert.equal(meta("aria").classFeatureState?.resources?.["guerriero-dadi-superiorita"]?.current ?? 5, 5);
 });
+
+test("Inspiring Smite: damage and temporary hit points to the paladin and an ally in one entry, their own projections; one Undo restores them", async () => {
+  const projected = [];
+  runtime = createPcAttackRuntime({ api: sdk, postDamage: async () => [], postTempHp: async ({ rows }) => { projected.push(...rows.map((row) => row.item.id)); } });
+  const ISPIRATRICE = "paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice";
+  Object.assign(meta("aria"), { hp: 30 });
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "paladino", level: 7, subclassId: "paladino-giuramento-di-gloria" }],
+    abilityModifiers: { str: 4, dex: 0, con: 2, int: 0, wis: 1, cha: 3 }, classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["paladino-punizione-divina", ISPIRATRICE] });
+  sceneItems.push({ id: "imp", name: "Imp", type: "IMAGE", layer: "CHARACTER", position: { x: 60, y: 20 }, metadata: { [META_KEY]: { hp: 4, hpMax: 10, inInitiative: true } } });
+  const result = await attack({ attackInstanceId: "inspire", riders: [{ id: "paladino-punizione-divina", type: "radiant", amount: 9, slotLevel: 1 }],
+    activations: [{ id: ISPIRATRICE, amount: 12, tempHp: [{ targetId: "aria", amount: 5 }, { targetId: "imp", amount: 7 }] }] });
+  assert.deepEqual([meta("ghoul").hp, meta("aria").hp, meta("imp").hp], [4, 35, 11]);
+  assert.deepEqual(result.tempHp, [{ id: "aria", name: "Aria", before: 30, after: 35 }, { id: "imp", name: "Imp", before: 4, after: 11 }]);
+  assert.deepEqual(projected, ["aria", "imp"]);
+  const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
+  assert.equal(entries.length, 1);
+  await history.undoHistoryThrough(entries[0].id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual([meta("ghoul").hp, meta("aria").hp, meta("imp").hp], [30, 30, 4]);
+});
+
+test("Quivering Palm: the vibrations on a hit, then ending them (0 HP) as a command of its own; Undo brings the vibrations back", async () => {
+  const fist = { id: "fist", label: "Colpo senz'armi", kind: "attack", range: "melee", components: [{ type: "bludgeoning" }] };
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "monaco", level: 17, subclassId: "monaco-via-della-mano-aperta" }],
+    abilityModifiers: { str: 1, dex: 4, con: 2, int: 0, wis: 3, cha: 0 }, classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["monaco-via-della-mano-aperta-palmo-tremante"], quickActions: [fist] });
+  const presentation = await runtime.getPcAttackPresentation("aria", "fist");
+  await runtime.executePcAttack({ sourceId: "aria", actionId: "fist", targetId: "ghoul", sceneIdentity: presentation.sceneIdentity,
+    expectedAction: presentation.action, expectedDefenses: {}, outcome: "hit", componentAmounts: { c1: 6 }, attackInstanceId: "palm-hit",
+    activations: [{ id: "monaco-via-della-mano-aperta-palmo-tremante" }] });
+  const pills = () => (meta("ghoul").conditions?.instances || meta("ghoul").conditions || []).map((instance) => instance.condition);
+  assert.ok(pills().includes("Palmo Tremante"));
+  assert.equal(meta("aria").classFeatureState.resources["monaco-punti-ki"].current, 14);
+  const ended = await runtime.endQuiveringPalm({ sourceId: "aria", targetId: "ghoul", outcome: "failed", attackInstanceId: "palm-end",
+    sceneIdentity: presentation.sceneIdentity });
+  assert.deepEqual(ended.hpChange, { before: 24, after: 0, hpMax: 30 });
+  assert.equal(pills().includes("Palmo Tremante"), false);
+  assert.equal(meta("aria").classFeatureState.instances.some((instance) => instance.featureId === "monaco-via-della-mano-aperta-palmo-tremante"), false);
+  const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
+  assert.equal(entries.length, 2);
+  await history.undoHistoryThrough(entries[1].id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("ghoul").hp, 24);
+  assert.ok(pills().includes("Palmo Tremante"));
+  assert.equal(meta("aria").classFeatureState.instances.some((instance) => instance.featureId === "monaco-via-della-mano-aperta-palmo-tremante"), true);
+});

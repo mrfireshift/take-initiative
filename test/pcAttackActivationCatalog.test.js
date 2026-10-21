@@ -28,10 +28,10 @@ test("every activation is a class feature of the catalog, with a pill when its e
   }
 });
 
-test("the 3A and 3B-1 scope: every class with an on-hit activation", () => {
+test("the 3A and 3B scope: every class with an on-hit activation", () => {
   const classes = new Set(PC_ATTACK_ACTIVATIONS.map((activation) => getClassFeatureDefinition(activation.id).classId));
   assert.deepEqual([...classes].sort(), ["barbaro", "bardo", "chierico", "guerriero", "ladro", "monaco", "paladino", "warlock"]);
-  assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "manovra").length, 11);
+  assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "manovra").length, 12);
   assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "tiro-arcano").length, 5);
 });
 
@@ -96,4 +96,15 @@ test("3B-1: a second creature's die, half the Sneak Attack dice, bonuses to the 
   const riders = PC_ATTACK_RIDERS.map((rider) => rider.id);
   assert.ok(riders.includes("ranger-cacciatore-delle-tenebre-imboscata-terrificante"));
   assert.ok(riders.includes("barbaro-cammino-della-bestia-chiamata-alla-caccia"));
+});
+
+test("3B-2: Open Hand Technique's three effects, Inspiring Smite's total, Riposte as a reaction", () => {
+  const openHand = getPcAttackActivation("monaco-via-della-mano-aperta-tecnica-della-mano-aperta");
+  assert.deepEqual(openHand.choices.map((choice) => [choice.id, choice.save || null]), [["prone", "dex"], ["push", "str"], ["no-reactions", null]]);
+  assert.deepEqual(pcAttackActivationEffect(openHand, openHand.choices[2].effect),
+    { kind: "condition", label: "Niente reazioni", expiry: { mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" } });
+  const smite = getPcAttackActivation("paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice");
+  assert.deepEqual([3, 7, 15].map((level) => pcAttackActivationDice(smite, card("paladino", level))), ["2d8+3", "2d8+7", "2d8+15"]);
+  assert.equal(getPcAttackActivation("guerriero-maestro-di-battaglia-manovre-replica").requires.reaction, true);
+  assert.equal(getPcAttackActivation("monaco-via-della-mano-aperta-palmo-tremante").effect.pill, true);
 });

@@ -15,6 +15,9 @@ export const PC_ATTACK_ACTIVATION_CATALOG_VERSION = 1;
 // 3B-1: secondary: the die (or half the Sneak Attack dice) damages a second creature, rolled once; targetDamage says
 // whether the target takes it too. preRoll: used on the attack roll itself (a bonus to hit), so also on a miss;
 // rollBonus is what it adds to the roll.
+// 3B-2: choices: the GM picks one effect, each with its own save and effect (Open Hand Technique). tempHp: the die is
+// a total of temporary hit points shared among creatures the GM picks (Inspiring Smite). hint: a reminder shown in the
+// console only (never recorded).
 // group: activations of one group exclude each other in an attack (one maneuver per attack); a limited group is
 // counted once for all its members (one Arcane Shot per turn, whatever the arrow).
 const ONCE_PER_TURN = Object.freeze({ per: "turn" });
@@ -26,6 +29,8 @@ const ARCANE_SHOT_DICE = Object.freeze({ classId: "guerriero", table: Object.fre
 const MARTIAL_ARTS_DIE = Object.freeze({ 1: "1d4", 5: "1d6", 11: "1d8", 17: "1d10" });
 const PSIONIC_DIE = Object.freeze({ 3: "1d6", 5: "1d8", 11: "1d10", 17: "1d12" });
 const SIZE_NOTE = "Grande o inferiore";
+// Until the end of the attacker's next turn (the boss engine's expiry: actorId is the attacker's id at commit).
+const NEXT_ACTOR_TURN_END = Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" });
 
 const maneuver = (slug, fields) => Object.freeze({
   id: `guerriero-maestro-di-battaglia-manovre-${slug}`, group: "manovra", groupLabel: "una manovra per attacco",
@@ -50,10 +55,24 @@ export const PC_ATTACK_ACTIVATIONS = Object.freeze([
   maneuver("attacco-con-spazzata", { requires: Object.freeze({ range: "melee" }),
     secondary: Object.freeze({ targetDamage: false, note: "entro 1,5 m dal bersaglio, se il tiro per colpire la colpirebbe" }) }),
   maneuver("attacco-preciso", { dice: null, rollBonus: SUPERIORITY, preRoll: true }),
+  // Riposte: the attack made with the reaction when a creature misses the fighter in melee.
+  maneuver("replica", { requires: Object.freeze({ range: "melee", reaction: true }) }),
   maneuver("attacco-con-finta", { requires: Object.freeze({ ownTurn: true }) }),
   // Monk: Ki.
   Object.freeze({ id: "monaco-colpo-stordente", save: "con", dc: "wis", effect: Object.freeze({ pill: true }),
     requires: Object.freeze({ range: "melee" }) }),
+  // Open Hand Technique: on each hit of Flurry of Blows, one of three effects (the flurry is the GM's call).
+  Object.freeze({ id: "monaco-via-della-mano-aperta-tecnica-della-mano-aperta", dc: "wis", requires: Object.freeze({ range: "melee" }),
+    hint: "Solo con gli attacchi della Raffica di Colpi.",
+    choices: Object.freeze([
+      Object.freeze({ id: "prone", label: "Prono", save: "dex", effect: Object.freeze({ condition: "Prono" }) }),
+      Object.freeze({ id: "push", label: "Spinta", save: "str", effect: Object.freeze({ note: "Spinto fino a 4,5 m lontano dal monaco." }) }),
+      Object.freeze({ id: "no-reactions", label: "Niente reazioni", effect: Object.freeze({ condition: "Niente reazioni", expiry: NEXT_ACTOR_TURN_END }) }),
+    ]) }),
+  // Quivering Palm: the vibrations on an unarmed strike (3 Ki). Ending them is an action of its own (the console's
+  // «Termina le vibrazioni»), not an activation.
+  Object.freeze({ id: "monaco-via-della-mano-aperta-palmo-tremante", effect: Object.freeze({ pill: true }), requires: Object.freeze({ range: "melee" }),
+    hint: "Una sola creatura alla volta." }),
   Object.freeze({ id: "monaco-via-della-misericordia-mano-del-dolore", dice: Object.freeze({ martialArts: true, plus: "wis" }),
     type: "necrotic", limit: ONCE_PER_TURN, requires: Object.freeze({ range: "melee" }) }),
   Object.freeze({ id: "monaco-via-del-kensei-tutt-uno-con-la-lama", label: "Colpo Abile", dice: Object.freeze({ martialArts: true }),
@@ -111,6 +130,10 @@ export const PC_ATTACK_ACTIVATIONS = Object.freeze([
   Object.freeze({ id: "ladro-fantasma-lamenti-dalla-tomba", dice: Object.freeze({ halfSneak: true }), type: "necrotic",
     requires: Object.freeze({ riderId: "ladro-attacco-furtivo", ownTurn: true }),
     secondary: Object.freeze({ targetDamage: false, note: "entro 9 m dalla prima creatura" }) }),
+  // Inspiring Smite (Oath of Glory): right after a Divine Smite, 2d8 + paladin level temporary hit points shared among
+  // creatures within 9 m (the paladin included).
+  Object.freeze({ id: "paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice", anyAttack: false,
+    dice: Object.freeze({ fixed: "2d8", plusClassLevel: "paladino" }), tempHp: true, requires: Object.freeze({ riderId: "paladino-punizione-divina" }) }),
   // Guided Strike (War Domain, Conquest): +10 to an attack roll, decided after seeing the roll.
   Object.freeze({ id: "chierico-dominio-della-guerra-incanalare-divinita-colpo-guidato", anyAttack: true, preRoll: true, rollBonus: Object.freeze({ fixed: "+10" }) }),
   Object.freeze({ id: "paladino-giuramento-di-conquista-incanalare-divinita-colpo-guidato", anyAttack: true, preRoll: true, rollBonus: Object.freeze({ fixed: "+10" }) }),
@@ -167,6 +190,10 @@ export function pcAttackActivationDice(activation, card = {}, spec = activation?
     const modifier = abilityModifier(card?.abilityModifiers, ability);
     return Number.isFinite(modifier) ? `${base}${signed(modifier)}` : null;
   };
+  if (dice.fixed && dice.plusClassLevel) {
+    const level = characterClassLevel(build, dice.plusClassLevel);
+    return level ? `${dice.fixed}+${level}` : null;
+  }
   if (dice.fixed) return dice.fixed;
   // Half the Sneak Attack dice at the rogue's level, rounded up ("5d6" → "3d6").
   if (dice.halfSneak) {
@@ -195,14 +222,15 @@ export function pcAttackActivationDealsDamage(activation, card = {}) {
 
 // What the activation does to the target (or, with effect.self, to the attacker): the pill of the class feature,
 // a standard condition, or a note for an effect the map shows (a push, a dropped weapon).
-export function pcAttackActivationEffect(activation) {
-  const effect = activation?.effect;
+// spec: a choice's effect (Open Hand Technique); a condition may carry its expiry (otherwise removed by hand).
+export function pcAttackActivationEffect(activation, spec = activation?.effect) {
+  const effect = spec;
   if (!effect) return null;
   if (effect.pill) {
     const plan = getClassFeatureDefinition(activation.id)?.effectPlan;
     return plan?.conditionName ? { kind: "pill", label: plan.conditionName, self: effect.self === true } : null;
   }
-  if (effect.condition) return { kind: "condition", label: effect.condition };
+  if (effect.condition) return { kind: "condition", label: effect.condition, ...(effect.expiry ? { expiry: { ...effect.expiry } } : {}) };
   return effect.note ? { kind: "note", label: effect.note } : null;
 }
 
@@ -214,9 +242,9 @@ export function pcAttackActivationRollBonus(activation, card = {}) {
 }
 
 // The save DC of this activation (8 + proficiency + the feature's ability; maneuvers: the better of Strength and
-// Dexterity), or null when the Actor Profile lacks the level or the modifier.
-export function pcAttackActivationSaveDC(activation, card = {}) {
-  if (!activation?.save) return null;
+// Dexterity), or null when the Actor Profile lacks the level or the modifier. save: a choice's save.
+export function pcAttackActivationSaveDC(activation, card = {}, save = activation?.save) {
+  if (!save) return null;
   if (activation.dc === "str-or-dex") {
     const values = ["str", "dex"].map((ability) => abilitySaveDC(card, ability)).filter(Number.isFinite);
     return values.length ? Math.max(...values) : null;

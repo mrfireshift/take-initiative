@@ -12,8 +12,9 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
-  "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption"];
-const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra"]);
+  "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
+  "pc-attack-palm", "pc-attack-palm-note", "pc-attack-palm-outcomes", "pc-attack-palm-amount", "pc-attack-palm-apply"];
+const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply"]);
 function createDocument() {
   const doc = {
     listeners: {},
@@ -48,6 +49,11 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
   };
   const runtime = {
     getPcAttackPresentation: async () => ({ item: items[0], action, targets: items.slice(1), turnState, sceneIdentity: "scene-A" }),
+    endQuiveringPalm: async (request) => {
+      calls.push({ palm: request });
+      return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], outcome: request.outcome, quiveringPalm: true,
+        target: { id: request.targetId, name: "Ghoul" }, hpChange: { before: 30, after: 0, hpMax: 30 } };
+    },
     executePcAttack: async (request) => {
       calls.push(request);
       return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], outcome: request.outcome, target: { id: request.targetId, name: "Ghoul" },
@@ -451,4 +457,82 @@ test("on a miss the console keeps only the activations used on the roll, under �
   assert.equal(activationField(precise, "amount").hidden, true, "nothing to enter");
   await f.$("pc-attack-apply").click(); await tick();
   assert.deepEqual(f.calls[0].activations, [{ id: "guerriero-maestro-di-battaglia-manovre-attacco-preciso" }]);
+});
+
+const openHandCard = { initiativeCard: { characterBuild: [{ classId: "monaco", level: 17, subclassId: "monaco-via-della-mano-aperta" }],
+  abilityModifiers: { str: 1, dex: 4, con: 2, int: 0, wis: 3, cha: 0 }, classFeaturesConfigured: true,
+  enabledClassFeatureIds: ["monaco-via-della-mano-aperta-tecnica-della-mano-aperta", "monaco-via-della-mano-aperta-palmo-tremante"] } };
+const rowById = (f, id) => f.$("pc-attack-activations").querySelector(`[data-activation-id="${id}"]`);
+
+test("Open Hand Technique in the console: pick the effect; its save shows only when it has one; the choice is sent", async () => {
+  const f = fixture({ attacker: openHandCard, turnState: ownTurn }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  const row = rowById(f, "monaco-via-della-mano-aperta-tecnica-della-mano-aperta");
+  const box = activationField(row, "on"); box.checked = true; await box.emit("change");
+  const choice = activationField(row, "choice");
+  assert.deepEqual(choice.children.map((option) => option.value), ["", "prone", "push", "no-reactions"]);
+  await typeAmounts(f, ["8", "9"]);
+  assert.match(textOf(f.$("pc-attack-total")), /scegli l'effetto/);
+  choice.value = "prone"; await choice.emit("change");
+  assert.equal(activationField(row, "save").hidden, false);
+  assert.match(activationField(row, "meta").textContent.replace(/\u00a0/gu, " "), /TS Destrezza CD 17/);
+  assert.match(activationField(row, "effect").textContent, /Se fallisce: Prono .*Raffica di Colpi/);
+  choice.value = "no-reactions"; await choice.emit("change");
+  assert.equal(activationField(row, "save").hidden, true, "no save for no reactions");
+  assert.match(activationField(row, "effect").textContent, /Effetto: Niente reazioni/);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual(f.calls[0].activations, [{ id: "monaco-via-della-mano-aperta-tecnica-della-mano-aperta", choice: "no-reactions" }]);
+});
+
+test("Quivering Palm in the console: a target with the monk's vibrations shows «Termina le vibrazioni», committed apart", async () => {
+  const f = fixture({ attacker: openHandCard, turnState: ownTurn });
+  f.items[1].metadata[META].conditions = [{ id: "palm-pill", condition: "Palmo Tremante", active: true, sourceId: "aria" }];
+  await f.controller.ready;
+  assert.equal(f.$("pc-attack-palm").hidden, true, "no target yet");
+  await f.select(["ghoul"]);
+  assert.equal(f.$("pc-attack-palm").hidden, false);
+  assert.equal(f.$("pc-attack-palm-note").textContent, "vibrazioni attive · TS Costituzione CD 17");
+  assert.equal(f.$("pc-attack-palm-apply").disabled, true);
+  const button = (outcome) => f.$("pc-attack-palm-outcomes").querySelector(`[data-outcome="${outcome}"]`);
+  await button("passed").click();
+  assert.equal(f.$("pc-attack-palm-amount").hidden, false);
+  assert.equal(f.$("pc-attack-palm-apply").disabled, true, "the 10d10 is missing");
+  await button("failed").click();
+  assert.equal(f.$("pc-attack-palm-amount").hidden, true);
+  assert.equal(f.$("pc-attack-palm-apply").disabled, false);
+  await f.$("pc-attack-palm-apply").click(); await tick();
+  assert.equal(f.calls[0].palm.outcome, "failed");
+  assert.equal(f.calls[0].palm.targetId, "ghoul");
+  assert.match(f.$("pc-attack-status").textContent, /^Registrato: Palmo Tremante su Ghoul, TS fallito\. PF 30 → 0\./);
+  await f.select(["imp"]);
+  assert.equal(f.$("pc-attack-palm").hidden, true, "another target has no vibrations");
+});
+
+test("Inspiring Smite in the console: the total and its distribution among other creatures are sent", async () => {
+  const card = { initiativeCard: { characterBuild: [{ classId: "paladino", level: 7, subclassId: "paladino-giuramento-di-gloria" }],
+    abilityModifiers: { str: 4, dex: 0, con: 2, int: 0, wis: 1, cha: 3 }, classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["paladino-punizione-divina", "paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice"] } };
+  const f = fixture({ attacker: card, turnState: ownTurn }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  const smite = riderRow(f, "paladino-punizione-divina");
+  const smiteBox = riderField(smite, "on"); smiteBox.checked = true; await smiteBox.emit("change");
+  const smiteAmount = riderField(smite, "amount"); smiteAmount.value = "9"; await smiteAmount.emit("input");
+  const row = rowById(f, "paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice");
+  assert.equal(activationField(row, "on").disabled, false);
+  assert.match(activationField(row, "meta").textContent.replace(/\u00a0/gu, " "), /^2d8\+7 PF temporanei/);
+  const box = activationField(row, "on"); box.checked = true; await box.emit("change");
+  await typeAmounts(f, ["8", "9"]);
+  const total = activationField(row, "amount"); total.value = "12"; await total.emit("input");
+  const list = activationField(row, "temp-hp");
+  const who = list.querySelector('[data-temp-hp-field="target"]');
+  assert.deepEqual(who.children.map((option) => option.value), ["", "aria", "imp"], "the paladin and the others, never the target");
+  who.value = "aria"; await who.emit("change");
+  const amount = list.querySelector('[data-temp-hp-field="amount"]'); amount.value = "12"; await amount.emit("input");
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual(f.calls[0].activations, [{ id: "paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice", amount: 12,
+    tempHp: [{ targetId: "aria", amount: 12 }] }]);
+  assert.equal(resultSummary({ outcome: "hit", target: { name: "Ghoul" }, damageComponents: [{ amount: 26 }], hpChange: { before: 30, after: 4 },
+    tempHp: [{ name: "Aria", before: 40, after: 52 }] }), "Registrato: Colpito, 26 danni a Ghoul. PF 30 → 4. PF temporanei: Aria 40 → 52.");
 });

@@ -94,7 +94,26 @@ Le attivazioni di queste tabelle sono dati verificati sul catalogo. I dati manca
 - **Rider:** Imboscata Terrificante (+1d8 una volta nel proprio turno, con la pill attiva sul ranger) e Chiamata alla Caccia (+1d6 una volta per turno a chiunque abbia la pill del barbaro, anche senza la capacità sulla propria card).
 - **Verifica nel browser** (harness): Attacco con Spazzata su Auril con il goblin come seconda creatura. Auril 580 → 571, goblin 7 → 0, dado speso. Poi un mancato con Attacco Preciso.
 
-## Tranche 3B — rinviate (3B-2 e 3C)
+## Tranche 3B-2 — implementata, non committata
+
+Decisioni confermate: Palmo Tremante si termina nella console d'attacco; Punizione Ispiratrice completamente automatizzata; Parata rinviata alla console degli attacchi dei boss.
+
+- **Replica**: manovra col dado di superiorità, solo in mischia e solo come reazione (fuori dal proprio turno).
+- **Tecnica della Mano Aperta**: un'attivazione a tre scelte, ognuna con TS ed effetto propri.
+  - TS Destrezza: Prono.
+  - TS Forza: nota della spinta di 4,5 m.
+  - Senza TS: pill "Niente reazioni", che scade da sola alla fine del prossimo turno del monaco.
+  - La Raffica di Colpi resta una valutazione del GM (promemoria nella riga).
+- **Palmo Tremante**, prima fase: attivazione con 3 Ki e la pill della capacità sul bersaglio.
+- **Palmo Tremante**, seconda fase: un comando a sé, nel riquadro "Palmo Tremante" della sezione Bersaglio, visibile quando il bersaglio ha le vibrazioni di quel monaco. Con TS fallito il bersaglio va a 0 PF (anche i temporanei); con TS superato subisce 10d10 necrotici, con le sue difese; si può anche terminare senza effetto. In ogni caso la pill viene rimossa e l'istanza attiva della capacità si chiude. L'Undo ripristina PF, pill e capacità. Combat Log: "Palmo Tremante: TS Costituzione CD 17 fallito → 0 PF".
+- **Punizione Ispiratrice**: disponibile con la Punizione Divina nello stesso attacco. Spende Incanalare Divinità; il totale (2d8 + livello) si distribuisce fra le creature scelte, il paladino compreso, mai quelle danneggiate dall'attacco; la somma non può superare il totale. I PF temporanei usano la regola della Console HP (`QUICK_HP_MODES.TEMP`) nello stesso `hp:set` del danno. Hanno proiezioni proprie (barra PF, testo, memoria PF, etichette), senza gli avvisi di concentrazione del danno. Le righe della distribuzione stanno sulla griglia del danno: importi sotto il totale.
+- **Prestazioni**: nel test d'integrazione il comando con danno e due destinatari dura circa 13 ms. Nell'harness del browser, con il pannello nascosto, la pagina in background può superare il timeout di 8 s del trasporto: il commit avviene comunque, ed è un effetto del rallentamento della pagina, non del comando.
+
+## Dopo la 3B-2
+
+- **Parata** (Maestro di Battaglia): nella console degli attacchi dei boss, come reazione del bersaglio. Riduce il danno di dado + Destrezza e spende il dado di superiorità.
+
+## Tranche 3C — rinviata
 
 - **Attacco con Spazzata**: il danno va a una seconda creatura; si può riusare il modello della seconda creatura di Lama Verdefiamma.
 - **Freccia Esplosiva, Perforante, Cercatrice**: area o nessun tiro per colpire. Servono il disegno dell'area o un attacco a sé.
