@@ -5,7 +5,17 @@ export const QUICK_ACTION_KINDS = Object.freeze([
   "spell",
   "condition",
   "feature",
+  "attack",
 ]);
+
+// Attack quick actions (tracking only): the GM enters the rolled total of each typed component.
+// Same ids as DAMAGE_TYPES in damageDefensesCore.js, kept local so the tracker menu stays dependency-free.
+export const QUICK_ACTION_ATTACK_RANGES = Object.freeze(["melee", "ranged"]);
+export const QUICK_ACTION_ATTACK_DAMAGE_TYPES = Object.freeze([
+  "acid", "bludgeoning", "cold", "fire", "force", "lightning", "necrotic",
+  "piercing", "poison", "psychic", "radiant", "slashing", "thunder",
+]);
+export const MAX_QUICK_ACTION_ATTACK_COMPONENTS = 3;
 
 export const QUICK_ACTION_TARGET_MODES = Object.freeze([
   "self",
@@ -28,6 +38,8 @@ const kindSet = new Set(QUICK_ACTION_KINDS);
 const targetModeSet = new Set(QUICK_ACTION_TARGET_MODES);
 const spellLaunchModeSet = new Set(QUICK_ACTION_SPELL_LAUNCH_MODES);
 const expiryModeSet = new Set(QUICK_ACTION_EXPIRY_MODES);
+const attackRangeSet = new Set(QUICK_ACTION_ATTACK_RANGES);
+const attackDamageTypeSet = new Set(QUICK_ACTION_ATTACK_DAMAGE_TYPES);
 
 function shortText(value, maxLength) {
   return String(value ?? "").trim().slice(0, maxLength);
@@ -87,6 +99,28 @@ export function sanitizeQuickAction(value) {
       kind,
       featureId,
       targetMode,
+    };
+  }
+
+  if (kind === "attack") {
+    // Component ids come from their position: no identity to persist. The formula is a hint, never evaluated.
+    const source = Array.isArray(value.components) ? value.components : [];
+    if (!source.length || source.length > MAX_QUICK_ACTION_ATTACK_COMPONENTS) return null;
+    const components = [];
+    for (const [index, component] of source.entries()) {
+      const type = attackDamageTypeSet.has(component?.type) ? component.type : "";
+      if (!type) return null;
+      const formula = shortText(component.formula, 24);
+      components.push({ id: `c${index + 1}`, type, ...(formula ? { formula } : {}) });
+    }
+    return {
+      version: QUICK_ACTION_VERSION,
+      id,
+      label,
+      kind,
+      targetMode: "selection",
+      range: attackRangeSet.has(value.range) ? value.range : "melee",
+      components,
     };
   }
 

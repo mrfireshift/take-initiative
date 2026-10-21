@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attacco</title>
+  <link rel="stylesheet" href="/ui-typography.css" />
+  <link rel="stylesheet" href="/popover-glass.css" />
+  <style>
+    :root {
+      --text: var(--obrt-text, #fff);
+      --muted: var(--obrt-muted, rgba(255, 255, 255, .66));
+      --dim: var(--obrt-dim, rgba(255, 255, 255, .48));
+      --line: var(--obrt-line, rgba(148, 163, 184, .20));
+      --surface: var(--obrt-surface, #0f172a);
+      --surface-soft: var(--obrt-surface-soft, rgba(15, 23, 42, .58));
+      --disabled: #374151;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+    body { color: var(--text); font-family: var(--obrt-font-ui); font-size: var(--obrt-type-body); line-height: var(--obrt-leading-snug); }
+    button, input, select { font: inherit; color: inherit; }
+    [hidden] { display: none !important; }
+    .glass-shell { width: 100%; height: 100%; min-height: 0 !important; display: flex; flex-direction: column; overflow: hidden; }
+    .header { flex: 0 0 auto; display: flex; align-items: center; gap: var(--obrt-space-sm); min-height: var(--obrt-h-header); padding: var(--obrt-space-sm) var(--obrt-space-md) var(--obrt-space-sm) var(--obrt-space-xl); border-bottom: 1px solid var(--line); background: rgba(15, 23, 42, .24); cursor: grab; user-select: none; }
+    .header-text { min-width: 0; flex: 1 1 auto; display: grid; gap: 1px; }
+    .title { min-width: 0; margin: 0; overflow: hidden; font-size: var(--obrt-type-card-title); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-tight); text-overflow: ellipsis; white-space: nowrap; }
+    .subtitle { min-width: 0; overflow: hidden; color: var(--muted); font-size: var(--obrt-type-secondary); text-overflow: ellipsis; white-space: nowrap; }
+    .icon-button { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: var(--obrt-h-control-sm); height: var(--obrt-h-control-sm); padding: 0; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; font-size: 18px; line-height: 1; cursor: pointer; }
+    .icon-button:hover { background: var(--obrt-hover); }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid rgba(96, 165, 250, .75); outline-offset: 1px; }
+    .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--obrt-space-lg) var(--obrt-space-xl); }
+    .view { display: flex; flex-direction: column; gap: var(--obrt-space-md); }
+    .caption { color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
+    .muted { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); }
+    /* Sections: a card for the target and one for the damage (weapon, then the extras below a rule). */
+    .card { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--obrt-radius-lg); background: var(--surface-soft); }
+    .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .card-note { color: var(--dim); font-size: var(--obrt-type-caption); }
+    .block { display: grid; gap: 6px; }
+    .target-select { width: 100%; min-height: var(--obrt-h-control-md); padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); }
+    .hint { margin: 0; color: #fde68a; font-size: var(--obrt-type-secondary); }
+    .segmented { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); overflow: hidden; }
+    .segmented button { min-height: var(--obrt-h-control-md); padding: 0 6px; border: 0; border-right: 1px solid rgba(148, 163, 184, .18); background: transparent; color: rgba(255, 255, 255, .78); font-weight: var(--obrt-weight-semibold); cursor: pointer; }
+    .segmented button:last-child { border-right: 0; }
+    .segmented button[aria-pressed="true"][data-outcome=hit] { color: #fecaca; background: rgba(185, 28, 28, .38); }
+    .segmented button[aria-pressed="true"][data-outcome=critical] { color: #fde68a; background: rgba(161, 98, 7, .45); }
+    .segmented button[aria-pressed="true"][data-outcome=miss] { color: #bbf7d0; background: rgba(21, 128, 61, .38); }
+    /* One grid for every damage row (weapon, rider, added component): a lead column (checkbox or remove),
+       the name with its secondary line (dice, type, options), the amount always in the same right column. */
+    .component-list { display: grid; gap: 4px; }
+    .component-list:empty { display: none; }
+    .component-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) 72px; column-gap: 8px; align-items: start; }
+    .component-lead { height: 24px; display: flex; align-items: center; justify-content: center; }
+    .component-lead input[type=checkbox] { width: 15px; height: 15px; margin: 0; accent-color: #2563eb; cursor: pointer; }
+    .component-body { min-width: 0; display: grid; gap: 0; }
+    .component-title { min-height: 24px; display: flex; align-items: center; font-weight: var(--obrt-weight-semibold); line-height: 1.2; overflow-wrap: anywhere; }
+    .component-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; line-height: 1.25; }
+    .component-meta .separator { color: var(--dim); }
+    .component-reason { color: #fde68a; font-size: var(--obrt-type-caption); }
+    .component-reason:empty { display: none; }
+    .component-row[data-unavailable="true"] .component-title, .component-row[data-unavailable="true"] .component-meta { opacity: .5; }
+    .component-options { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 3px; color: var(--muted); font-size: var(--obrt-type-secondary); }
+    .option-check { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+    .option-check input { width: 14px; height: 14px; margin: 0; accent-color: #2563eb; }
+    .amount { width: 72px; height: 26px; padding: 2px 6px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-weight: var(--obrt-weight-bold); text-align: center; font-variant-numeric: tabular-nums; }
+    .amount:focus, .field:focus { border-color: rgba(96, 165, 250, .7); }
+    .amount:disabled { opacity: .45; }
+    .inline-select { height: 22px; padding: 0 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); }
+    .extras-section { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
+    .extra-fields { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 6px; }
+    .field { height: 26px; min-width: 0; padding: 2px 6px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-size: var(--obrt-type-secondary); }
+    .lead-remove { width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--obrt-radius-sm); background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+    .lead-remove:hover { background: var(--obrt-hover); color: #fff; }
+    .add-extra { justify-self: start; margin-left: 28px; padding: 4px 10px; border: 1px dashed rgba(148, 163, 184, .35); border-radius: var(--obrt-radius-md); background: transparent; color: #bfdbfe; font-size: var(--obrt-type-secondary); cursor: pointer; }
+    .add-extra:hover { background: var(--obrt-hover); }
+    .add-extra:disabled { opacity: .45; cursor: default; }
+    .defense-chips { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+    .defense-chips:empty { display: none; }
+    .defense-chip { min-height: 18px; padding: 0 6px; border: 1px solid rgba(96, 165, 250, .45); border-radius: var(--obrt-radius-pill); background: rgba(30, 64, 175, .22); color: #bfdbfe; font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); cursor: pointer; }
+    .defense-chip[aria-pressed="false"] { border-color: var(--line); background: transparent; color: var(--dim); text-decoration: line-through; }
+    /* Total and Registra stay in view whatever the number of extras: outside the scrolling panel. */
+    .apply-row { flex: 0 0 auto; display: flex; align-items: center; gap: var(--obrt-space-md); padding: 8px var(--obrt-space-xl); border-top: 1px solid var(--line); background: rgba(15, 23, 42, .32); }
+    .apply-row[hidden] { display: none; }
+    .total { flex: 1 1 auto; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
+    .total strong { color: #fff; font-size: var(--obrt-type-card-title); }
+    .apply { min-width: 112px; min-height: var(--obrt-h-control-lg); padding: 7px 14px; border: 1px solid rgba(255, 255, 255, .18); border-radius: var(--obrt-radius-md); background: #dc2626; font-weight: var(--obrt-weight-bold); cursor: pointer; }
+    .apply:disabled, .small:disabled { opacity: .48; cursor: default; background: var(--disabled); color: rgba(255, 255, 255, .62); }
+    .small { min-height: 27px; padding: 4px 9px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); cursor: pointer; }
+    .status-bar { flex: 0 0 auto; display: flex; align-items: center; gap: var(--obrt-space-md); min-height: 34px; padding: 6px var(--obrt-space-xl); border-top: 1px solid var(--line); background: rgba(15, 23, 42, .24); }
+    .status { flex: 1 1 auto; min-width: 0; max-height: 52px; overflow-y: auto; margin: 0; color: #bfdbfe; font-size: var(--obrt-type-secondary); white-space: pre-wrap; }
+    .status:empty::before { content: "Pronto."; color: var(--dim); }
+  </style>
+</head>
+<body>
+  <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/pc-attack">
+    <header class="header" data-drag-handle draggable="true" title="Trascina per spostare">
+      <div class="header-text"><h1 class="title" id="pc-attack-title">Attacco</h1><div class="subtitle" id="pc-attack-subtitle"></div></div>
+      <button class="icon-button" id="pc-attack-close" type="button" title="Chiudi" aria-label="Chiudi">&times;</button>
+    </header>
+    <main class="panel">
+      <section class="view" id="pc-attack-form" aria-label="Attacco" hidden>
+        <section class="card" aria-label="Bersaglio">
+          <span class="caption">Bersaglio</span>
+          <select class="target-select" id="pc-attack-target" aria-label="Bersaglio"></select>
+          <p class="hint" id="pc-attack-target-hint" hidden></p>
+        </section>
+        <section class="block" aria-label="Esito">
+          <span class="caption">Esito</span>
+          <div class="segmented" id="pc-attack-outcomes" role="group" aria-label="Esito dell'attacco"></div>
+        </section>
+        <section class="card" aria-label="Danno">
+          <div class="card-head"><span class="caption">Danno</span><span class="card-note">totali tirati</span></div>
+          <div class="component-list" id="pc-attack-damage"></div>
+          <div class="extras-section" id="pc-attack-extras-section" hidden>
+            <span class="caption">Extra al colpo</span>
+            <div class="component-list" id="pc-attack-riders"></div>
+            <div class="component-list" id="pc-attack-extras"></div>
+            <button class="add-extra" id="pc-attack-add-extra" type="button">+ Componente</button>
+          </div>
+          <div class="defense-chips" id="pc-attack-defenses"></div>
+        </section>
+      </section>
+    </main>
+    <div class="apply-row" id="pc-attack-apply-row" hidden><span class="total" id="pc-attack-total"></span><button class="apply" id="pc-attack-apply" type="button">Registra</button></div>
+    <footer class="status-bar"><p class="status" id="pc-attack-status" role="status" aria-live="polite"></p><button class="small" id="pc-attack-undo" type="button" hidden>Annulla</button></footer>
+  </div>
+  <script type="module" src="/src/pc-attack.js"></script>
+</body>
+</html>

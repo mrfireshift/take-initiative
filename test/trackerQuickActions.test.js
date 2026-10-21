@@ -116,6 +116,19 @@ test("riassume tipo e bersaglio senza dipendere dal pannello", () => {
     conditionName: "Giuramento di Inimicizia",
     targetMode: "self",
   }), "Giuramento di Inimicizia · su di sé");
+  assert.equal(trackerQuickActionSummary({
+    id: "sword",
+    label: "Spada sacra",
+    kind: "attack",
+    components: [{ type: "slashing" }, { type: "radiant" }],
+  }), "Attacco · mischia · 2 componenti");
+  assert.equal(trackerQuickActionSummary({
+    id: "bow",
+    label: "Arco lungo",
+    kind: "attack",
+    range: "ranged",
+    components: [{ type: "piercing" }],
+  }), "Attacco · distanza · 1 componente");
 });
 
 test("Boss Actions: icona tonda nello slot delle azioni rapide, rossa se collegata, attenuata senza profilo", async () => {

@@ -706,3 +706,42 @@ test("contenuto ostile resta testo nella proiezione", () => {
   assert.match(text, /<script>alert\(1\)<\/script>/u);
   assert.match(text, /<b>Goblin<\/b>/u);
 });
+
+test("un attacco PG mostra esito ed extra al colpo (rider e componenti al volo)", () => {
+  const model = buildCombatLogPresentation(null, [event({
+    kind: "pc-attack",
+    category: "other",
+    label: "Aria: Stocco → Ghoul",
+    source: "automatic",
+    payload: { causality: {
+      actor: { id: "aria", name: "Aria" },
+      cause: { kind: "pc-attack", actionName: "Stocco" },
+      action: { id: "rapier", label: "Stocco", attackOutcome: "critical" },
+      riders: [{ featureId: "ladro-attacco-furtivo", name: "Attacco Furtivo", dice: "3d6", amount: 11, typeLabel: "perforanti" }],
+      extras: [{ label: "Lama Roboante", amount: 4, typeLabel: "tuono" }, { amount: 2, typeLabel: "fuoco" }],
+      targets: [{ id: "ghoul", name: "Ghoul", outcome: "critical", requestedDamage: 23, appliedHpDelta: -23 }],
+    } },
+  })]);
+  const details = model.events[0].details.flatMap((section) => section.lines).join(" | ");
+  assert.match(details, /Esito attacco: Critico/u);
+  assert.match(details, /Extra: Attacco Furtivo 3d6 \(11 perforanti\)/u);
+  assert.match(details, /Extra: Lama Roboante \(4 tuono\)/u);
+  assert.match(details, /Extra: Componente \(2 fuoco\)/u);
+});
+
+test("una punizione nel log mostra slot, dadi, bonus e condizione applicata", () => {
+  const model = buildCombatLogPresentation(null, [event({
+    kind: "pc-attack", category: "other", label: "Eroe: Spada lunga → Spettro", source: "automatic",
+    payload: { causality: {
+      action: { id: "longsword", label: "Spada lunga", attackOutcome: "hit" },
+      riders: [
+        { name: "Punizione Divina", dice: "4d8", slotLevel: 2, bonus: "Non morto o immondo", amount: 18, typeLabel: "radiosi" },
+        { name: "Punizione Occulta", dice: "4d8", slotLevel: 3, condition: "Prono", amount: 20, typeLabel: "forza" },
+      ],
+      targets: [{ id: "wight", name: "Spettro", outcome: "hit" }],
+    } },
+  })]);
+  const details = model.events[0].details.flatMap((section) => section.lines).join(" | ");
+  assert.match(details, /Extra: Punizione Divina \(slot 2°\) 4d8 \(18 radiosi\) · Non morto o immondo/u);
+  assert.match(details, /Extra: Punizione Occulta \(slot 3°\) 4d8 \(20 forza\) · Prono/u);
+});

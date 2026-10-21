@@ -43,6 +43,7 @@ export default defineConfig(() => {
       // 👇 usa percorsi ASSOLUTI (Windows-friendly)
       input: {
         bossActions: path.resolve(process.cwd(), "boss-actions.html"),
+        pcAttack: path.resolve(process.cwd(), "pc-attack.html"),
         main:    path.resolve(process.cwd(), "index.html"),
         actionLauncher: path.resolve(process.cwd(), "action-launcher.html"),
         background: path.resolve(process.cwd(), "background.html"),

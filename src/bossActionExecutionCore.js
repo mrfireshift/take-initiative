@@ -182,7 +182,7 @@ export function buildBossResourceReset({profile, sourceItem, actionInstanceId, r
     history:{kind:"monster-action",label,payload:{causality}}}};
 }
 
-function damageAmount(value) {
+export function damageAmount(value) {
   if (value === "" || value === null || value === undefined || typeof value === "boolean")
     throw new Error("Inserisci il danno di ogni componente.");
   const amount = Number(value);
@@ -193,7 +193,7 @@ function damageAmount(value) {
 
 // Actor Profile defenses (resistance/immunity/vulnerability) apply per damage type after the save/attack factor.
 // The GM may ignore a defense for one resolution; the preview the GM saw must match the profile at commit.
-function defendedComponents(components, inputs, factor, targetItem, ignoredTypes = [], expectedDefenses, marked = false) {
+export function defendedComponents(components, inputs, factor, targetItem, ignoredTypes = [], expectedDefenses, marked = false) {
   const profileDefenses = damageDefensesForItem(targetItem, META_KEY);
   const ownProfileDefenses = profileDamageDefensesForItem(targetItem, META_KEY);
   if (expectedDefenses !== undefined && JSON.stringify(sanitizeDamageDefenses(expectedDefenses)) !== JSON.stringify(profileDefenses))
@@ -267,7 +267,7 @@ function markExpectation(expectedMarkedIds, targets, markedIds) {
 }
 
 // Commit-time precondition: the target's Actor Profile (and so its defenses) must not change before the commit.
-function targetProfileAssert(item) {
+export function targetProfileAssert(item) {
   return {id:item.id,fields:{initiativeCard:{mode:"assert",expected:bossMetadataSnapshot(item.metadata?.[META_KEY] || {},"initiativeCard")}}};
 }
 

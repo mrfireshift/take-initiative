@@ -157,3 +157,14 @@ test("una Quick Action con input numerico non inventa il danno e mantiene il fal
   assert.equal(result.route.destination, "spell-unified-panel");
   assert.equal(areaCalls.length, 0);
 });
+
+test("un attacco non viene mai eseguito direttamente: va risolto nella sua console", async () => {
+  resetScene();
+  const result = await executeDirectQuickAction({
+    action: { id: "sword", label: "Spada", kind: "attack", components: [{ type: "slashing" }] },
+    sourceItem: sceneItems.get("caster"),
+    selectedTargetIds: ["target-a"],
+  });
+  assert.deepEqual(result, { mode: "review", kind: "attack", reason: "attack-requires-resolution" });
+  assert.equal(areaCalls.length, 0);
+});

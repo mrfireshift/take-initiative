@@ -1,5 +1,6 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { openBossActionsPopover } from "./bossActionsLauncher.js";
+import { openPcAttackPopover } from "./pcAttackLauncher.js";
 import {
   ID,
   ACTIVE_TURN_LABEL_META,
@@ -8059,6 +8060,11 @@ async function __runTrackerQuickAction(sourceEntry, action) {
       await renderAll("class-feature-quick-action");
       return result;
     });
+  }
+  if (action?.kind === "attack") {
+    if (!IS_GM) throw new Error("Solo il GM può registrare un attacco.");
+    await openPcAttackPopover(sourceId, action.id);
+    return { mode: "review", route: "pc-attack" };
   }
   const result = await executeDirectQuickAction({
     action,

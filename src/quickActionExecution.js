@@ -33,6 +33,10 @@ export async function executeDirectQuickAction({
 } = {}) {
   const sceneEpoch = currentSceneEpoch();
   const normalized = sanitizeQuickAction(action);
+  // An attack always needs the GM's outcome and damage: it is resolved in its own console.
+  if (normalized?.kind === "attack") {
+    return { mode: "review", kind: "attack", reason: "attack-requires-resolution" };
+  }
   const resolvedSelectedTargetIds = normalized?.targetMode === "selection"
     ? Array.isArray(selectedTargetIds)
       ? selectedTargetIds

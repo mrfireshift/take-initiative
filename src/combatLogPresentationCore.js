@@ -577,6 +577,22 @@ function causalityDetailLines(event) {
   if (causality.action?.attackOutcome) {
     lines.push(`Esito attacco: ${outcomeLabel(causality.action.attackOutcome)}`);
   }
+  // PC attacks: the extra damage on a hit (class feature riders and components added on the fly).
+  // Read from the raw payload: the spell causality model does not carry these fields.
+  const rawAttack = event?.payload?.causality;
+  for (const extra of [
+    ...(Array.isArray(rawAttack?.riders) ? rawAttack.riders : []),
+    ...(Array.isArray(rawAttack?.extras) ? rawAttack.extras : []),
+  ]) {
+    const name = stringValue(extra?.name) || stringValue(extra?.label) || "Componente";
+    const dice = stringValue(extra?.dice);
+    const amount = finiteNumber(extra?.amount);
+    const type = stringValue(extra?.typeLabel);
+    const slot = finiteNumber(extra?.slotLevel);
+    const notes = [stringValue(extra?.bonus), stringValue(extra?.condition)].filter(Boolean);
+    lines.push(`Extra: ${name}${slot !== null ? ` (slot ${numberText(slot)}°)` : ""}${dice ? ` ${dice}` : ""}`
+      + `${amount !== null ? ` (${numberText(amount)}${type ? ` ${type}` : ""})` : ""}${notes.length ? ` · ${notes.join(" · ")}` : ""}`);
+  }
   if (causality.concentration?.action) {
     const labels = { start: "avviata", continue: "proseguita", end: "terminata", break: "interrotta" };
     lines.push(`Concentrazione: ${labels[causality.concentration.action] || causality.concentration.action}`);

@@ -15,6 +15,11 @@ export function trackerQuickActionSummary(action) {
   if (normalized.kind === "feature") {
     return `Capacità · ${target}`;
   }
+  if (normalized.kind === "attack") {
+    const range = normalized.range === "ranged" ? "distanza" : "mischia";
+    const count = normalized.components?.length || 0;
+    return `Attacco · ${range} · ${count} ${count === 1 ? "componente" : "componenti"}`;
+  }
   const launch = normalized.launchMode === "review" ? "revisione" : "lancio rapido";
   return `Incantesimo · ${launch} · ${target}`;
 }

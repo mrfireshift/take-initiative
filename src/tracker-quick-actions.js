@@ -97,7 +97,9 @@ function render(payload) {
       ? "C"
       : action.kind === "feature"
         ? "◆"
-        : "✦";
+        : action.kind === "attack"
+          ? "⚔"
+          : "✦";
     const copy = document.createElement("span");
     copy.className = "copy";
     const label = document.createElement("span");

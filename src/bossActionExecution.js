@@ -33,7 +33,7 @@ async function removeBossSeamDrawings({api=OBR,sourceId,itemIds=[],isCurrent}) {
   return [];
 }
 
-async function postBossDamage({item,change,result,sceneEpoch,sceneIdentity,isCurrent}) {
+export async function postBossDamage({item,change,result,sceneEpoch,sceneIdentity,isCurrent}) {
   if (!change?.changed || !isCurrent()) return [];
   const [{syncHPBarNow,syncHPTextBatchNow},{syncHPBatchToMemory},{refreshConditionLabels},
     {broadcastConcentrationSaveWarnings},{effectSaveReminderNoticesForDamage},{sendProjectedReminderPayload}] = await Promise.all([

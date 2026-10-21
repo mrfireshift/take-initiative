@@ -1,6 +1,14 @@
 # Attacchi PG — fase 0 (piano)
 
-Stato: **piano, nessun codice scritto**. Da approvare prima dell'implementazione (AGENTS.md: la patch tocca HP sync e barre HP mappa, anche se solo riusando il percorso boss).
+Stato: **implementata** (decisioni confermate: categoria log invariata, `QUICK_ACTION_VERSION` 2, console aperta dopo "Registra").
+
+## Deviazioni dal piano emerse in implementazione
+
+- **`pcAttackState` sul token attaccante.** Il coordinatore registra la History solo se il piano cambia qualcosa: un Mancato senza danno non avrebbe avuto né voce History né voce Combat Log. Come `bossActionState` per i boss, ogni attacco scrive `meta.pcAttackState = { version: 1, lastAttack: { attackInstanceId, quickActionId, targetId, outcome, round, turnKey } }`, con una patch di campo con `expected` (merge, mai sostituzione). L'Undo lo rimuove o ripristina. È anche la base dei contatori "una volta per turno" della fase 1.
+- **Niente controlli HP condivisi nella console.** Con un bersaglio singolo non c'è una scelta da fare (come nella risoluzione boss a bersaglio singolo); il coordinatore applica la policy di default.
+- **Aggiornamenti parziali della console.** Selezione e cambi di scena aggiornano solo il bersaglio e l'anteprima: ricostruire l'intero form faceva perdere i clic in corso e il cursore nei campi.
+- **Apertura dalla scheda attore.** La console aperta dalla scheda (che poi si chiude) non si può trascinare, perché la posizione la tiene la pagina che l'ha aperta. Dal ⚡ del tracker è trascinabile.
+- **Giocatori.** La scheda non mostra gli attacchi ai giocatori (come le capacità).
 
 ## Obiettivo
 

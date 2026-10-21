@@ -151,3 +151,37 @@ test("risolve lookup e bersagli iniziali senza conoscere pannelli", () => {
     [],
   );
 });
+
+test("normalizza un attacco: portata, 1-3 componenti tipizzate e bersaglio sempre la selezione", () => {
+  assert.deepEqual(sanitizeQuickAction({
+    id: "sword",
+    label: " Spada lunga ",
+    kind: "attack",
+    targetMode: "self",
+    range: "ranged",
+    components: [
+      { id: "x", type: "slashing", formula: " 1d8+3 ", amount: 99 },
+      { type: "radiant" },
+    ],
+    attackBonus: 7,
+  }), {
+    version: 2,
+    id: "sword",
+    label: "Spada lunga",
+    kind: "attack",
+    targetMode: "selection",
+    range: "ranged",
+    components: [
+      { id: "c1", type: "slashing", formula: "1d8+3" },
+      { id: "c2", type: "radiant" },
+    ],
+  });
+  const base = { id: "a", label: "Attacco", kind: "attack", components: [{ type: "piercing" }] };
+  assert.equal(sanitizeQuickAction(base).range, "melee");
+  assert.equal(sanitizeQuickAction({ ...base, components: [] }), null);
+  assert.equal(sanitizeQuickAction({ ...base, components: [{ type: "piercing" }, { type: "fire" }, { type: "cold" }, { type: "acid" }] }), null);
+  assert.equal(sanitizeQuickAction({ ...base, components: [{ type: "holy" }] }), null);
+  assert.equal(sanitizeQuickAction({ ...base, components: "piercing" }), null);
+  assert.equal(sanitizeQuickAction(base).components[0].formula, undefined);
+  assert.equal(sanitizeQuickAction({ ...base, components: [{ type: "piercing", formula: "x".repeat(40) }] }).components[0].formula.length, 24);
+});

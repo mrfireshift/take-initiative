@@ -24,9 +24,11 @@ import { SPECIES, SPECIES_FIELD, getSpecies, sanitizeSpecies, speciesDisplayName
 import { ABILITY_KEYS, ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import {
   MAX_QUICK_ACTIONS,
+  MAX_QUICK_ACTION_ATTACK_COMPONENTS,
   findQuickAction,
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
+import { openPcAttackPopover } from "./pcAttackLauncher.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
@@ -270,6 +272,7 @@ function quickActionReference(action) {
     const feature = CLASS_FEATURE_BY_ID.get(action.featureId);
     return feature ? classFeatureDisplayName(feature) : action.featureId || "";
   }
+  if (action?.kind === "attack") return "";
   return action?.conditionName || "";
 }
 
@@ -281,6 +284,11 @@ function quickActionSummary(action) {
   if (action.kind === "feature") {
     const feature = CLASS_FEATURE_BY_ID.get(action.featureId);
     return `${feature ? classFeatureDisplayName(feature) : "Capacità"} · ${target}`;
+  }
+  if (action.kind === "attack") {
+    const types = (action.components || [])
+      .map((component) => DAMAGE_TYPES.find((type) => type.id === component.type)?.label || component.type);
+    return `Attacco · ${action.range === "ranged" ? "distanza" : "mischia"} · ${types.join(" + ")}`;
   }
   const launch = action.launchMode === "review" ? "revisione" : "lancio rapido";
   return `Incantesimo · ${launch} · ${target}`;
@@ -586,6 +594,13 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
   setButtonsDisabled(true);
   setStatus(`Esecuzione: ${action.label}…`);
   try {
+    if (action.kind === "attack") {
+      if (!isGM) throw new Error("Solo il GM può registrare un attacco.");
+      await openPcAttackPopover(item.id, action.id);
+      if (!sceneStillCurrent()) return;
+      closeInitiativeCardPopover();
+      return;
+    }
     if (action.kind === "feature") {
       if (!isGM) throw new Error("Solo il GM può attivare una capacità.");
       const feature = CLASS_FEATURE_BY_ID.get(action.featureId);
@@ -677,7 +692,7 @@ async function runRequestedQuickActionOnce() {
 function renderQuickActions() {
   const list = $("quickActions");
   const actions = (Array.isArray(profile?.quickActions) ? profile.quickActions : [])
-    .filter((action) => isGM || action?.kind !== "feature");
+    .filter((action) => isGM || (action?.kind !== "feature" && action?.kind !== "attack"));
   setQuickActionsTabCount(actions.length);
   list.replaceChildren();
   $("quickActionRunStatus").textContent = "";
@@ -713,7 +728,9 @@ function renderQuickActions() {
       ? "C"
       : feature
         ? classFeatureTheme(feature).emoji
-        : "✦";
+        : action.kind === "attack"
+          ? "⚔"
+          : "✦";
     const copy = document.createElement("span");
     copy.className = "quick-action-copy";
     const label = document.createElement("strong");
@@ -2116,6 +2133,7 @@ function buildQuickActionEditorRow(action = null) {
     ["spell", "Incantesimo"],
     ["condition", "Condizione"],
     ["feature", "Capacità di classe"],
+    ["attack", "Attacco"],
   ], current.kind || "spell");
   kindSelect.dataset.quickActionField = "kind";
   const currentFeature = CLASS_FEATURE_BY_ID.get(current.featureId);
@@ -2185,6 +2203,64 @@ function buildQuickActionEditorRow(action = null) {
   durationInput.value = current.duration ?? "1";
   durationInput.dataset.quickActionField = "duration";
 
+  const rangeSelect = selectControl([
+    ["melee", "Mischia"],
+    ["ranged", "Distanza"],
+  ], current.range || "melee");
+  rangeSelect.dataset.quickActionField = "range";
+
+  // Attack components: the damage type and an optional formula shown as a hint (never evaluated).
+  const componentsBox = document.createElement("div");
+  componentsBox.style.gridColumn = "1 / -1";
+  componentsBox.dataset.quickActionField = "components";
+  const componentsTitle = document.createElement("span");
+  componentsTitle.textContent = "Componenti di danno";
+  const componentRows = document.createElement("div");
+  Object.assign(componentRows.style, { display: "grid", gap: "6px", marginTop: "4px" });
+  const addComponent = document.createElement("button");
+  addComponent.type = "button";
+  addComponent.textContent = "+ Componente";
+  addComponent.style.marginTop = "6px";
+  const syncComponentState = () => {
+    const rows = componentRows.querySelectorAll("[data-attack-component='1']");
+    addComponent.disabled = rows.length >= MAX_QUICK_ACTION_ATTACK_COMPONENTS;
+    rows.forEach((componentRow) => {
+      componentRow.querySelector("button").disabled = rows.length <= 1;
+    });
+  };
+  const addComponentRow = (component = {}) => {
+    const componentRow = document.createElement("div");
+    componentRow.dataset.attackComponent = "1";
+    Object.assign(componentRow.style, { display: "grid", gridTemplateColumns: "minmax(0,1fr) 96px 26px", gap: "6px", alignItems: "center" });
+    const typeSelect = selectControl(
+      DAMAGE_TYPES.map((type) => [type.id, type.label.charAt(0).toUpperCase() + type.label.slice(1)]),
+      component.type || "slashing",
+    );
+    typeSelect.dataset.componentField = "type";
+    typeSelect.setAttribute("aria-label", "Tipo di danno");
+    const formulaInput = document.createElement("input");
+    formulaInput.type = "text";
+    formulaInput.maxLength = 24;
+    formulaInput.placeholder = "es. 1d8+3";
+    formulaInput.value = component.formula || "";
+    formulaInput.dataset.componentField = "formula";
+    formulaInput.setAttribute("aria-label", "Formula (promemoria)");
+    const removeComponent = document.createElement("button");
+    removeComponent.type = "button";
+    removeComponent.textContent = "×";
+    removeComponent.title = "Rimuovi componente";
+    removeComponent.addEventListener("click", () => {
+      componentRow.remove();
+      syncComponentState();
+    });
+    componentRow.append(typeSelect, formulaInput, removeComponent);
+    componentRows.appendChild(componentRow);
+    syncComponentState();
+  };
+  addComponent.addEventListener("click", () => addComponentRow());
+  (current.kind === "attack" && current.components?.length ? current.components : [{}]).forEach(addComponentRow);
+  componentsBox.append(componentsTitle, componentRows, addComponent);
+
   const makeLabel = (text, control, className = "") => {
     const label = document.createElement("label");
     if (className) label.className = className;
@@ -2200,6 +2276,7 @@ function buildQuickActionEditorRow(action = null) {
   const turnsLabel = makeLabel("Durata in round", turnsInput);
   const expiryLabel = makeLabel("Scadenza", expirySelect);
   const durationLabel = makeLabel("Occorrenze", durationInput);
+  const rangeLabel = makeLabel("Portata", rangeSelect);
   grid.append(
     kindLabel,
     targetLabel,
@@ -2210,36 +2287,43 @@ function buildQuickActionEditorRow(action = null) {
     turnsLabel,
     expiryLabel,
     durationLabel,
+    rangeLabel,
+    componentsBox,
   );
 
   const syncKind = () => {
     const spell = kindSelect.value === "spell";
     const feature = kindSelect.value === "feature";
+    const attack = kindSelect.value === "attack";
     const selectedFeature = CLASS_FEATURE_BY_ID.get(featureSelect.value);
     referenceLabel.firstChild.textContent = spell ? "Incantesimo" : "Condizione";
-    referenceLabel.hidden = feature;
+    referenceLabel.hidden = feature || attack;
     featureLabel.hidden = !feature;
-    if (feature) referenceInput.removeAttribute("list");
+    if (feature || attack) referenceInput.removeAttribute("list");
     else referenceInput.setAttribute(
       "list",
       spell ? "quickActionSpellOptions" : "quickActionConditionOptions",
     );
-    targetSelect.disabled = feature;
+    targetSelect.disabled = feature || attack;
     if (feature && selectedFeature) {
       targetSelect.value = classFeatureTargetMode(selectedFeature);
     }
+    if (attack) targetSelect.value = "selection";
     launchModeLabel.hidden = !spell;
     slotLabel.hidden = !spell;
     turnsLabel.hidden = !spell;
-    expiryLabel.hidden = spell || feature;
-    durationLabel.hidden = spell || feature || expirySelect.value === "manual";
+    expiryLabel.hidden = spell || feature || attack;
+    durationLabel.hidden = spell || feature || attack || expirySelect.value === "manual";
+    rangeLabel.hidden = !attack;
+    componentsBox.hidden = !attack;
   };
 
   kindSelect.addEventListener("change", () => {
     referenceInput.value = "";
     if (!labelInput.value.trim()) labelInput.value = "";
     syncKind();
-    (kindSelect.value === "feature" ? featureSelect : referenceInput).focus();
+    (kindSelect.value === "feature" ? featureSelect
+      : kindSelect.value === "attack" ? labelInput : referenceInput).focus();
   });
   featureSelect.addEventListener("change", () => {
     const feature = CLASS_FEATURE_BY_ID.get(featureSelect.value);
@@ -2304,6 +2388,21 @@ function collectQuickActions() {
         kind,
         featureId,
         targetMode: classFeatureTargetMode(feature),
+      };
+    }
+    if (kind === "attack") {
+      const label = field("label").value.trim();
+      if (!label) throw new Error("Dai un nome a ogni attacco.");
+      const components = Array.from(row.querySelectorAll("[data-attack-component='1']")).map((componentRow) => ({
+        type: componentRow.querySelector("[data-component-field='type']").value,
+        formula: componentRow.querySelector("[data-component-field='formula']").value.trim(),
+      }));
+      return {
+        id: row.dataset.actionId,
+        label,
+        kind,
+        range: field("range").value,
+        components,
       };
     }
     const reference = field("reference").value.trim();
