@@ -29,6 +29,7 @@ Lo sviluppo usa Vite. Installa il manifest esposto dal server locale nella room 
 | `npm run generate:spell-translations` | Rigenera le traduzioni del catalogo |
 | `npm run generate:supplement-spells` | Rigenera le definizioni di Tasha e Xanathar |
 | `npm run generate:phb2014-extra` | Rigenera le integrazioni PHB 2014 |
+| `npm run generate:spell-area-index` | Rigenera `src/spellAreaIndex.js` (aree e TS di zona dal catalogo, per i popup leggeri); da lanciare dopo ogni modifica a incantesimi o regole area/TS, altrimenti `test/spellAreaIndex.test.js` fallisce |
 | `npm run generate:class-features` | Rigenera il catalogo runtime delle capacità di classe |
 | `npm run audit:class-features` | Rigenera audit JSON e Markdown delle capacità |
 | `npm run audit:barbaro` | Genera l'audit mirato delle capacità del Barbaro |

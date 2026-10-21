@@ -8,7 +8,8 @@ import {
   normalizeExhaustionLevel,
 } from "./exhaustionCore.js";
 import { normalizeSaveSpellAutomation } from "./saveSpellCore.js";
-import { getAreaSaveAutomation } from "./spells-srd.js";
+// Generated copy of getAreaSaveAutomation (spells-srd.js), so that the turn notice and Quick HP skip the catalog.
+import { lookupAreaSaveAutomation as getAreaSaveAutomation } from "./spellAreaIndex.js";
 import {
   resolveTurbineSaveChain,
   turbineSizeFromToken,

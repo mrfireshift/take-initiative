@@ -13,6 +13,7 @@
     "generate:spells": "node scripts/generate-spell-catalog.mjs",
     "generate:spell-translations": "node scripts/generate-spell-translations.mjs",
     "generate:spell-themes": "node scripts/generate-spell-theme-index.mjs",
+    "generate:spell-area-index": "node scripts/generate-spell-area-index.mjs",
     "generate:supplement-spells": "node scripts/generate-supplement-spell-catalog.mjs",
     "generate:phb2014-extra": "node scripts/generate-phb2014-extra-catalog.mjs",
     "generate:class-features": "node scripts/generate-class-feature-catalog.mjs",

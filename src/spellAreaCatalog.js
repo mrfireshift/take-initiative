@@ -1,5 +1,6 @@
 import { AREA_PLACEABLE_SPELL_IDS } from "./areaSaveSpellRules.js";
-import { getSpellCatalog } from "./spells-srd.js";
+// Area and range of the catalog spells, generated from spells-srd.js (which this module must not import).
+import { SPELL_AREA_GEOMETRY_BY_ID } from "./spellAreaIndex.js";
 
 const FEET_TO_METERS = 0.3;
 const SIGHT_RANGE_METERS = 1500;
@@ -582,7 +583,7 @@ function catalogSpec(spell) {
 }
 
 const SPELLS_BY_ID = new Map(
-  getSpellCatalog().map((spell) => [spell.id, spell]),
+  Object.entries(SPELL_AREA_GEOMETRY_BY_ID).map(([id, spell]) => [id, { id, ...spell }]),
 );
 
 export const CATALOG_SPELL_AREA_SPECS = Object.freeze(
