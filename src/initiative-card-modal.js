@@ -29,6 +29,7 @@ import {
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
+import { PC_ATTACK_CANTRIPS } from "./pcAttackCantripCatalog.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
@@ -284,6 +285,12 @@ function quickActionSummary(action) {
   if (action.kind === "feature") {
     const feature = CLASS_FEATURE_BY_ID.get(action.featureId);
     return `${feature ? classFeatureDisplayName(feature) : "Capacità"} · ${target}`;
+  }
+  if (action.kind === "attack" && action.source?.kind === "cantrip") {
+    const known = action.source.spellIds || [];
+    return known.length
+      ? `Trucchetto · ${known.map((spellId) => PC_ATTACK_CANTRIPS.find((cantrip) => cantrip.spellId === spellId)?.name || spellId).join(", ")}`
+      : "Trucchetto · scegli al lancio";
   }
   if (action.kind === "attack") {
     const types = (action.components || [])
@@ -729,7 +736,7 @@ function renderQuickActions() {
       : feature
         ? classFeatureTheme(feature).emoji
         : action.kind === "attack"
-          ? "⚔"
+          ? (action.source?.kind === "cantrip" ? "✧" : "⚔")
           : "✦";
     const copy = document.createElement("span");
     copy.className = "quick-action-copy";
@@ -2203,24 +2210,59 @@ function buildQuickActionEditorRow(action = null) {
   durationInput.value = current.duration ?? "1";
   durationInput.dataset.quickActionField = "duration";
 
-  const rangeSelect = selectControl([
-    ["melee", "Mischia"],
-    ["ranged", "Distanza"],
-  ], current.range || "melee");
-  rangeSelect.dataset.quickActionField = "range";
+  // An attack's source, one field for source and range: a melee or ranged weapon (components written here)
+  // or a cantrip (picked in the attack console among the cantrips ticked here; none ticked = all of them).
+  const sourceSelect = selectControl([
+    ["melee", "Arma da mischia"],
+    ["ranged", "Arma a distanza"],
+    ["cantrip", "Trucchetto"],
+  ], current.source?.kind === "cantrip" ? "cantrip" : current.range === "ranged" ? "ranged" : "melee");
+  sourceSelect.dataset.quickActionField = "attackSource";
+  // Section header shared by the attack sub-editors: a title, a muted hint aligned right.
+  const sectionHead = (title, hint = "") => {
+    const head = document.createElement("div");
+    head.className = "quick-action-section-head";
+    const titleNode = document.createElement("span");
+    titleNode.textContent = title;
+    head.append(titleNode);
+    if (hint) {
+      const hintNode = document.createElement("small");
+      hintNode.textContent = hint;
+      head.append(hintNode);
+    }
+    return head;
+  };
+  const cantripsBox = document.createElement("div");
+  cantripsBox.className = "quick-action-section";
+  cantripsBox.dataset.quickActionField = "cantrips";
+  const cantripList = document.createElement("div");
+  cantripList.className = "quick-action-check-grid";
+  const knownCantrips = new Set(current.source?.spellIds || []);
+  cantripList.append(...PC_ATTACK_CANTRIPS.map((cantrip) => {
+    const option = document.createElement("label");
+    option.className = "quick-action-check";
+    option.title = cantrip.name;
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.dataset.cantripId = cantrip.spellId;
+    box.checked = knownCantrips.has(cantrip.spellId);
+    const name = document.createElement("span");
+    name.textContent = cantrip.name;
+    option.append(box, name);
+    return option;
+  }));
+  cantripsBox.append(sectionHead("Trucchetti conosciuti", "nessuno spuntato: tutti"), cantripList);
 
   // Attack components: the damage type and an optional formula shown as a hint (never evaluated).
   const componentsBox = document.createElement("div");
-  componentsBox.style.gridColumn = "1 / -1";
+  componentsBox.className = "quick-action-section";
   componentsBox.dataset.quickActionField = "components";
-  const componentsTitle = document.createElement("span");
-  componentsTitle.textContent = "Componenti di danno";
   const componentRows = document.createElement("div");
-  Object.assign(componentRows.style, { display: "grid", gap: "6px", marginTop: "4px" });
+  componentRows.className = "quick-action-component-list";
   const addComponent = document.createElement("button");
   addComponent.type = "button";
+  addComponent.className = "quick-action-add";
   addComponent.textContent = "+ Componente";
-  addComponent.style.marginTop = "6px";
   const syncComponentState = () => {
     const rows = componentRows.querySelectorAll("[data-attack-component='1']");
     addComponent.disabled = rows.length >= MAX_QUICK_ACTION_ATTACK_COMPONENTS;
@@ -2231,7 +2273,7 @@ function buildQuickActionEditorRow(action = null) {
   const addComponentRow = (component = {}) => {
     const componentRow = document.createElement("div");
     componentRow.dataset.attackComponent = "1";
-    Object.assign(componentRow.style, { display: "grid", gridTemplateColumns: "minmax(0,1fr) 96px 26px", gap: "6px", alignItems: "center" });
+    componentRow.className = "quick-action-component-row";
     const typeSelect = selectControl(
       DAMAGE_TYPES.map((type) => [type.id, type.label.charAt(0).toUpperCase() + type.label.slice(1)]),
       component.type || "slashing",
@@ -2247,8 +2289,10 @@ function buildQuickActionEditorRow(action = null) {
     formulaInput.setAttribute("aria-label", "Formula (promemoria)");
     const removeComponent = document.createElement("button");
     removeComponent.type = "button";
+    removeComponent.className = "quick-action-icon-button";
     removeComponent.textContent = "×";
     removeComponent.title = "Rimuovi componente";
+    removeComponent.setAttribute("aria-label", "Rimuovi componente");
     removeComponent.addEventListener("click", () => {
       componentRow.remove();
       syncComponentState();
@@ -2259,7 +2303,7 @@ function buildQuickActionEditorRow(action = null) {
   };
   addComponent.addEventListener("click", () => addComponentRow());
   (current.kind === "attack" && current.components?.length ? current.components : [{}]).forEach(addComponentRow);
-  componentsBox.append(componentsTitle, componentRows, addComponent);
+  componentsBox.append(sectionHead("Componenti di danno", "formula solo come promemoria"), componentRows, addComponent);
 
   const makeLabel = (text, control, className = "") => {
     const label = document.createElement("label");
@@ -2276,9 +2320,10 @@ function buildQuickActionEditorRow(action = null) {
   const turnsLabel = makeLabel("Durata in round", turnsInput);
   const expiryLabel = makeLabel("Scadenza", expirySelect);
   const durationLabel = makeLabel("Occorrenze", durationInput);
-  const rangeLabel = makeLabel("Portata", rangeSelect);
+  const sourceLabel = makeLabel("Fonte", sourceSelect);
   grid.append(
     kindLabel,
+    sourceLabel,
     targetLabel,
     referenceLabel,
     featureLabel,
@@ -2287,8 +2332,8 @@ function buildQuickActionEditorRow(action = null) {
     turnsLabel,
     expiryLabel,
     durationLabel,
-    rangeLabel,
     componentsBox,
+    cantripsBox,
   );
 
   const syncKind = () => {
@@ -2314,8 +2359,12 @@ function buildQuickActionEditorRow(action = null) {
     turnsLabel.hidden = !spell;
     expiryLabel.hidden = spell || feature || attack;
     durationLabel.hidden = spell || feature || attack || expirySelect.value === "manual";
-    rangeLabel.hidden = !attack;
-    componentsBox.hidden = !attack;
+    const cantrip = attack && sourceSelect.value === "cantrip";
+    // An attack's target is always picked in the attack console: no target field here.
+    targetLabel.hidden = attack;
+    sourceLabel.hidden = !attack;
+    componentsBox.hidden = !attack || cantrip;
+    cantripsBox.hidden = !cantrip;
   };
 
   kindSelect.addEventListener("change", () => {
@@ -2345,6 +2394,7 @@ function buildQuickActionEditorRow(action = null) {
     }
   });
   expirySelect.addEventListener("change", syncKind);
+  sourceSelect.addEventListener("change", syncKind);
   up.addEventListener("click", () => {
     const previous = row.previousElementSibling;
     if (previous) previous.before(row);
@@ -2390,6 +2440,16 @@ function collectQuickActions() {
         targetMode: classFeatureTargetMode(feature),
       };
     }
+    if (kind === "attack" && field("attackSource").value === "cantrip") {
+      const spellIds = Array.from(row.querySelectorAll("[data-cantrip-id]"))
+        .filter((box) => box.checked).map((box) => box.dataset.cantripId);
+      return {
+        id: row.dataset.actionId,
+        label: field("label").value.trim() || "Trucchetto",
+        kind,
+        source: { kind: "cantrip", spellIds },
+      };
+    }
     if (kind === "attack") {
       const label = field("label").value.trim();
       if (!label) throw new Error("Dai un nome a ogni attacco.");
@@ -2401,7 +2461,7 @@ function collectQuickActions() {
         id: row.dataset.actionId,
         label,
         kind,
-        range: field("range").value,
+        range: field("attackSource").value,
         components,
       };
     }

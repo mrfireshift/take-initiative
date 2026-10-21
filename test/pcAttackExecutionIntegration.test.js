@@ -232,3 +232,24 @@ test("Eldritch Smite with Prono: one command for damage and pill; Undo removes b
   assert.equal(meta("ghoul").hp, 30);
   assert.equal(conditions(meta("ghoul").conditions).includes("Prono"), false);
 });
+
+test("a cantrip attack: one History entry, an Attack event in the Combat Log naming the cantrip", async () => {
+  const { buildCombatLogPresentation } = await import("../src/combatLogPresentationCore.js");
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "mago", level: 11 }],
+    quickActions: [sword, { id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip" } }] });
+  const presentation = await runtime.getPcAttackPresentation("aria", "cantrip");
+  const result = await runtime.executePcAttack({ sourceId: "aria", actionId: "cantrip", spellId: "ray-of-frost", targetId: "ghoul",
+    sceneIdentity: presentation.sceneIdentity, expectedAction: presentation.action, expectedDefenses: {}, outcome: "hit", componentAmounts: { c1: 14 },
+    attackInstanceId: "frost" });
+  assert.equal(meta("ghoul").hp, 16);
+  assert.equal(result.cantrip.name, "Raggio di gelo");
+  assert.match(result.manualRemainder, /Velocità ridotta/);
+  assert.equal(meta("aria").pcAttackState.lastAttack.spellId, "ray-of-frost");
+  const entry = (await history.getHistoryEntries()).find((candidate) => candidate.kind === "pc-attack");
+  const event = combatEventFromHistoryEntryV3(entry);
+  assert.equal(event.category, "attack");
+  const details = buildCombatLogPresentation(null, [event]).events[0].details.flatMap((section) => section.lines).join(" | ");
+  assert.match(details, /Trucchetto: Raggio di gelo \(3d8\)/);
+  await assert.rejects(() => runtime.executePcAttack({ sourceId: "aria", actionId: "cantrip", spellId: "magic-stone", targetId: "ghoul",
+    outcome: "hit", componentAmounts: { c1: 1 } }), /Trucchetto non disponibile/);
+});

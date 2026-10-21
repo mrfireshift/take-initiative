@@ -61,7 +61,7 @@ export function createPcAttackRuntime({
       const decisionKey=JSON.stringify({sourceId,actionId,targetId,outcome:request.outcome || "",
         componentAmounts:Object.entries(request.componentAmounts || {}).sort(([a],[b])=>a.localeCompare(b)),
         ignoredDefenses:request.ignoredDefenses ?? null,expectedDefenses:request.expectedDefenses ?? null,
-        riders:request.riders ?? null,extras:request.extras ?? null,sharedHp:request.sharedHp || null});
+        riders:request.riders ?? null,extras:request.extras ?? null,spellId:request.spellId || "",sharedHp:request.sharedHp || null});
       let draft=drafts.get(attackInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
         throw new Error("Le decisioni o la scena dell'attacco sono cambiate: riapri l'attacco.");
@@ -69,7 +69,8 @@ export function createPcAttackRuntime({
       if(!draft) {
         const plan=buildPcAttackMutation({action,sourceItem:scope.item,targetItem,outcome:request.outcome,
           componentAmounts:request.componentAmounts || {},attackInstanceId,ignoredDefenses:request.ignoredDefenses || [],
-          expectedDefenses:request.expectedDefenses,turnState:scope.turnState,riders:request.riders || [],extras:request.extras || []});
+          expectedDefenses:request.expectedDefenses,turnState:scope.turnState,riders:request.riders || [],extras:request.extras || [],
+          spellId:request.spellId || ""});
         draft={decisionKey,plan,options:{...plan.options,
           sharedHp:request.sharedHp || {},sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
         drafts.set(attackInstanceId,draft);
@@ -91,7 +92,8 @@ export function createPcAttackRuntime({
       }
       draft.result={...result,attackInstanceId,outcome:request.outcome,damageComponents:plan.damageComponents,warnings,
         riders:structuredClone(plan.causality.riders || []),extras:structuredClone(plan.causality.extras || []),
-        followUps:[...(plan.followUps || [])],conditions:(plan.causality.conditionsApplied || []).map(entry=>entry.condition),
+        followUps:[...(plan.followUps || [])],cantrip:plan.causality.cantrip ? structuredClone(plan.causality.cantrip) : null,
+        manualRemainder:plan.options?.history?.payload?.manualRemainder || "",conditions:(plan.causality.conditionsApplied || []).map(entry=>entry.condition),
         target:{id:targetItem.id,name:targetItem.name || targetItem.id},
         hpChange:plan.change?{before:plan.change.hp,after:plan.change.afterHP,hpMax:plan.change.hpMax}:null,
         historyEntryId:result.historyEntry?.id || null,

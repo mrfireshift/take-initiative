@@ -7,6 +7,7 @@ function clone(value) {
 
 const EVENT_CATEGORY_BY_KIND = Object.freeze({
   hp: "hp",
+  attack: "attack",
   spell: "spell",
   save: "save",
   condition: "condition",
@@ -26,6 +27,8 @@ function hasOwn(value, key) {
 export function combatEventCategory(kind) {
   const value = String(kind || "").trim().toLowerCase();
   if (value === "hp" || value.startsWith("hp-")) return EVENT_CATEGORY_BY_KIND.hp;
+  // Attacks of the PCs and actions of the bosses: one category, filtered together.
+  if (value === "pc-attack" || value === "monster-action") return EVENT_CATEGORY_BY_KIND.attack;
   if (value === "spell" || value.startsWith("spell-")) return EVENT_CATEGORY_BY_KIND.spell;
   if (value === "save-resolution" || value === "reminder-resolution") return EVENT_CATEGORY_BY_KIND.save;
   if (value === "condition" || value.startsWith("condition-")) return EVENT_CATEGORY_BY_KIND.condition;

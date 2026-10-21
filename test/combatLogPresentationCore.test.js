@@ -10,7 +10,7 @@ import {
   serializeCombatLogPresentationText,
 } from "../src/combatLogPresentationCore.js";
 
-const categories = ["hp", "spell", "save", "condition", "resource", "movement", "turn", "roster", "undo", "note", "other"];
+const categories = ["hp", "attack", "spell", "save", "condition", "resource", "movement", "turn", "roster", "undo", "note", "other"];
 
 function event(overrides = {}) {
   return {

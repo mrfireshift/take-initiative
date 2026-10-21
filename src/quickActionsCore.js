@@ -1,3 +1,5 @@
+import { getPcAttackCantrip } from "./pcAttackCantripCatalog.js";
+
 export const QUICK_ACTION_VERSION = 2;
 export const MAX_QUICK_ACTIONS = 12;
 
@@ -103,6 +105,20 @@ export function sanitizeQuickAction(value) {
   }
 
   if (kind === "attack") {
+    // A cantrip attack: one quick action per caster; the cantrip, its range and its damage are picked in the
+    // attack console. spellIds optionally lists the cantrips this actor knows (empty: every attack cantrip).
+    if (value.source?.kind === "cantrip") {
+      const known = Array.isArray(value.source.spellIds) ? value.source.spellIds : [];
+      const spellIds = [...new Set(known.map((spellId) => String(spellId || "")))].filter((spellId) => getPcAttackCantrip(spellId));
+      return {
+        version: QUICK_ACTION_VERSION,
+        id,
+        label,
+        kind,
+        targetMode: "selection",
+        source: { kind: "cantrip", ...(spellIds.length ? { spellIds } : {}) },
+      };
+    }
     // Component ids come from their position: no identity to persist. The formula is a hint, never evaluated.
     const source = Array.isArray(value.components) ? value.components : [];
     if (!source.length || source.length > MAX_QUICK_ACTION_ATTACK_COMPONENTS) return null;

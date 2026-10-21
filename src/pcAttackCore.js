@@ -13,6 +13,8 @@ import {
 import { bossDefendedDamage } from "./bossActionsViewCore.js";
 import { damageDefensesForItem, damageTypeLabel, relevantDamageDefenses } from "./damageDefensesCore.js";
 import { getClassFeatureDefinition, getEnabledClassFeatures } from "./classFeatureCatalog.js";
+import { PC_ATTACK_CANTRIPS, getPcAttackCantrip, pcAttackCantripDice } from "./pcAttackCantripCatalog.js";
+import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { getPcAttackRider, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
 
 export const PC_ATTACK_HISTORY_KIND = "pc-attack";
@@ -29,6 +31,29 @@ const damageTypeSet = new Set(QUICK_ACTION_ATTACK_DAMAGE_TYPES);
 export function pcAttackAction(action) {
   const normalized = sanitizeQuickAction(action);
   return normalized?.kind === "attack" ? normalized : null;
+}
+
+// The cantrips a cantrip quick action offers: the ones the actor knows, or every attack cantrip.
+export function pcAttackCantripIds(action) {
+  const attack = pcAttackAction(action);
+  if (attack?.source?.kind !== "cantrip") return [];
+  return attack.source.spellIds?.length ? [...attack.source.spellIds] : PC_ATTACK_CANTRIPS.map((cantrip) => cantrip.spellId);
+}
+
+// The attack as it is resolved: a weapon attack as configured; a cantrip attack with the range and the
+// damage component of the cantrip chosen in the console (null when that cantrip is not offered).
+export function pcAttackResolvedAction(action, spellId = "") {
+  const attack = pcAttackAction(action);
+  if (!attack || attack.source?.kind !== "cantrip") return attack;
+  const cantrip = getPcAttackCantrip(spellId);
+  if (!cantrip || !pcAttackCantripIds(attack).includes(cantrip.spellId)) return null;
+  return { ...attack, range: cantrip.range, components: [{ id: "c1", type: cantrip.type }],
+    cantrip: { spellId: cantrip.spellId, name: cantrip.name, ...(cantrip.effectNote ? { effectNote: cantrip.effectNote } : {}) } };
+}
+
+// The dice of the chosen cantrip at the attacker's character level (5th/11th/17th), shown and recorded.
+export function pcAttackCantripDiceFor(attack, card = {}) {
+  return attack?.cantrip ? pcAttackCantripDice(getPcAttackCantrip(attack.cantrip.spellId), totalCharacterLevel(card?.characterBuild)) : null;
 }
 
 export const PC_ATTACK_OUTCOME_LABELS = Object.freeze({ hit: "Colpito", critical: "Critico", miss: "Mancato" });
@@ -81,6 +106,7 @@ function featureActive(sourceItem, featureId, round) {
 
 function riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round }) {
   const requires = rider.requires || {};
+  if (attack.cantrip && !rider.anyAttack) return "Solo per gli attacchi con arma.";
   if (requires.range && attack.range !== requires.range) return "Solo per gli attacchi in mischia.";
   if (requires.activeFeatureId && !featureActive(sourceItem, requires.activeFeatureId, round))
     return `${getClassFeatureDefinition(requires.activeFeatureId)?.name || "Il privilegio"} non è attiva.`;
@@ -104,9 +130,13 @@ function riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round
 
 // The riders of this attacker for this attack: availability, suggested dice and the damage types allowed.
 // Recomputed from live state at commit, so a rider spent or invalidated meanwhile is refused.
-export function pcAttackRiderOptions({ action, sourceItem, targetItem = null, turnState = null } = {}) {
-  const attack = pcAttackAction(action);
+export function pcAttackRiderOptions({ action, spellId = "", sourceItem, targetItem = null, turnState = null } = {}) {
+  const attack = pcAttackResolvedAction(action, spellId);
   if (!attack || !sourceItem) return [];
+  return riderOptionsFor(attack, { sourceItem, targetItem, turnState });
+}
+
+function riderOptionsFor(attack, { sourceItem, targetItem = null, turnState = null }) {
   const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
   const card = sourceMeta.initiativeCard || {};
   const turn = attackTurn(turnState);
@@ -159,11 +189,12 @@ function extraLabel(value) {
 // What the GM sees before committing: the defenses that apply, the damage after them and the HP it leaves.
 // The commit recomputes everything from live state; this is a read model only.
 export function pcAttackPreview({
-  action, sourceItem = null, targetItem = null, outcome = "", amounts = {}, ignoredDefenses = [],
+  action, spellId = "", sourceItem = null, targetItem = null, outcome = "", amounts = {}, ignoredDefenses = [],
   riders = [], extras = [], turnState = null,
 } = {}) {
-  const attack = pcAttackAction(action);
-  if (!attack) return { ready: false, blocker: "Azione di attacco non valida.", defenses: [], profileDefenses: {}, total: 0, hp: null };
+  const attack = pcAttackResolvedAction(action, spellId);
+  if (!attack) return { ready: false, blocker: pcAttackAction(action) ? "Scegli il trucchetto." : "Azione di attacco non valida.",
+    defenses: [], profileDefenses: {}, total: 0, hp: null };
   const miss = outcome === "miss";
   const chosenRiders = miss ? [] : riders;
   const chosenExtras = miss ? [] : extras.map((extra) => ({ ...extra, label: extraLabel(extra.label) }));
@@ -180,7 +211,7 @@ export function pcAttackPreview({
   const hp = targetItem && Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
     ? { before: meta.hp, after: miss ? meta.hp : calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax }).afterHP, hpMax: meta.hpMax }
     : null;
-  const options = chosenRiders.length ? pcAttackRiderOptions({ action: attack, sourceItem, targetItem, turnState }) : [];
+  const options = chosenRiders.length && sourceItem ? riderOptionsFor(attack, { sourceItem, targetItem, turnState }) : [];
   const riderBlock = chosenRiders.map((rider) => {
     const option = options.find((entry) => entry.id === rider.id);
     if (!option) return "Extra non disponibile per questo attaccante.";
@@ -201,14 +232,15 @@ export function pcAttackPreview({
 
 export function buildPcAttackMutation({
   action, sourceItem, targetItem, outcome = "", componentAmounts = {}, attackInstanceId,
-  ignoredDefenses = [], expectedDefenses, turnState = null, riders = [], extras = [],
+  ignoredDefenses = [], expectedDefenses, turnState = null, riders = [], extras = [], spellId = "",
 } = {}) {
   if (!isBossActionCreature(sourceItem) || !isBossActionCreature(targetItem))
     throw new Error("Attaccante e bersaglio devono essere token creatura reali.");
   if (sourceItem.id === targetItem.id) throw new Error("L'attaccante non può essere anche il bersaglio.");
   if (!attackInstanceId || typeof attackInstanceId !== "string") throw new Error("Identità dell'attacco mancante.");
-  const attack = pcAttackAction(action);
-  if (!attack) throw new Error("Azione rapida di attacco non valida.");
+  if (!pcAttackAction(action)) throw new Error("Azione rapida di attacco non valida.");
+  const attack = pcAttackResolvedAction(action, spellId);
+  if (!attack) throw new Error("Trucchetto non disponibile per questa azione.");
   if (!PC_ATTACK_OUTCOMES.includes(outcome)) throw new Error("Scegli l'esito dell'attacco.");
   const miss = outcome === "miss";
   const riderRequests = Array.isArray(riders) ? riders : [];
@@ -219,7 +251,7 @@ export function buildPcAttackMutation({
   const turn = attackTurn(turnState);
   const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
   // Riders are checked against the live attacker, target and turn: the console may be stale.
-  const options = riderRequests.length ? pcAttackRiderOptions({ action: attack, sourceItem, targetItem, turnState }) : [];
+  const options = riderRequests.length ? riderOptionsFor(attack, { sourceItem, targetItem, turnState }) : [];
   const chosenRiders = riderRequests.map((request) => {
     const option = options.find((entry) => entry.id === request?.id);
     if (!option) throw new Error("Extra non disponibile per questo attaccante: riapri l'attacco.");
@@ -267,17 +299,22 @@ export function buildPcAttackMutation({
   const state = {
     version: PC_ATTACK_STATE_VERSION,
     lastAttack: {
-      attackInstanceId, quickActionId: attack.id, targetId: targetItem.id, outcome,
+      attackInstanceId, quickActionId: attack.id, targetId: targetItem.id, outcome, ...(attack.cantrip ? { spellId: attack.cantrip.spellId } : {}),
       ...(turn ? { round: turn.round, turnKey: turn.turnKey } : {}),
     },
     ...(riderUses.length ? { riderUses } : {}),
   };
   const componentOf = (id) => damageComponents.find((component) => component.id === id);
+  // A cantrip is named by the spell; its dice follow the attacker's character level.
+  const actionName = attack.cantrip ? attack.cantrip.name : attack.label;
+  const cantripDice = pcAttackCantripDiceFor(attack, sourceMeta.initiativeCard);
   const causality = {
     actor: { id: sourceItem.id, tokenId: sourceItem.id, name: sourceName, role: "attacker" },
-    cause: { kind: PC_ATTACK_HISTORY_KIND, quickActionId: attack.id, actionName: attack.label, attackInstanceId, range: attack.range },
-    action: { id: attack.id, label: attack.label, attackOutcome: outcome },
-    attack: { range: attack.range, outcome },
+    cause: { kind: PC_ATTACK_HISTORY_KIND, quickActionId: attack.id, actionName: actionName, attackInstanceId, range: attack.range,
+      ...(attack.cantrip ? { spellId: attack.cantrip.spellId, spellName: attack.cantrip.name } : {}) },
+    action: { id: attack.id, label: actionName, attackOutcome: outcome },
+    attack: { range: attack.range, outcome, source: attack.cantrip ? "cantrip" : "weapon" },
+    ...(attack.cantrip ? { cantrip: { ...attack.cantrip, ...(cantripDice ? { dice: cantripDice } : {}) } } : {}),
     ...(turn ? { turn } : {}),
     ...(chosenRiders.length ? { riders: chosenRiders.map((rider) => ({
       featureId: rider.id, name: rider.option.label, ...(rider.dice ? { dice: rider.dice } : {}),
@@ -298,7 +335,7 @@ export function buildPcAttackMutation({
       damageComponents: structuredClone(damageComponents),
     }],
   };
-  const label = `${sourceName}: ${attack.label} → ${targetName}`;
+  const label = `${sourceName}: ${actionName} → ${targetName}`;
   // On-hit conditions (Eldritch Smite: Prono): standard pills, removed by hand, undone with the attack.
   const appliedAt = bossConditionAppliedAt(turnState);
   const conditions = chosenRiders.filter((rider) => rider.onHit).map((rider) => ({
@@ -335,7 +372,9 @@ export function buildPcAttackMutation({
         { key: STATE_KEY, field: "round", value: turnState?.round },
         { key: STATE_KEY, field: "current", value: turnState?.current },
       ] } : {}),
-      history: { kind: PC_ATTACK_HISTORY_KIND, label, payload: { causality, damageComponents: structuredClone(damageComponents) } },
+      history: { kind: PC_ATTACK_HISTORY_KIND, label, payload: { causality, damageComponents: structuredClone(damageComponents),
+        // The cantrip's on-hit effect is not applied yet: it is recorded as the part the GM resolves by hand.
+        ...(!miss && attack.cantrip?.effectNote ? { manualRemainder: attack.cantrip.effectNote } : {}) } },
     },
   };
 }

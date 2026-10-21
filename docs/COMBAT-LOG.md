@@ -52,9 +52,11 @@ Gli eventi nuovi hanno questa forma concettuale:
 }
 ```
 
-Le categorie CL-1 sono `hp`, `spell`, `save`, `condition`, `resource`,
+Le categorie CL-1 sono `hp`, `attack`, `spell`, `save`, `condition`, `resource`,
 `movement`, `turn`, `roster`, `undo`, `note` e `other`. La normalizzazione
-conserva sempre `kind`: `category` non lo sostituisce.
+conserva sempre `kind`: `category` non lo sostituisce. `attack` («Attacco») raccoglie gli
+attacchi dei PG (`pc-attack`) e le azioni dei boss (`monster-action`); gli eventi registrati prima
+della sua introduzione conservano la categoria salvata (`other`).
 
 `facets.hp.targets` contiene before/after di `hp` e `hpMax`, `delta` e
 `hpMaxDelta`. Le facet `conditions`, `spells` e `concentrations` contengono

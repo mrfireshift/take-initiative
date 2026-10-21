@@ -6,6 +6,7 @@ import { normalizeCombatLogEventV3 } from "./combatLogV3Core.js";
 
 export const COMBAT_LOG_CATEGORY_ORDER = Object.freeze([
   "hp",
+  "attack",
   "spell",
   "save",
   "condition",
@@ -20,6 +21,7 @@ export const COMBAT_LOG_CATEGORY_ORDER = Object.freeze([
 
 const CATEGORY_META = Object.freeze({
   hp: Object.freeze({ label: "HP", tone: "#ef4444" }),
+  attack: Object.freeze({ label: "Attacco", tone: "#f43f5e" }),
   spell: Object.freeze({ label: "Incantesimo", tone: "#a855f7" }),
   save: Object.freeze({ label: "Tiro salvezza", tone: "#f97316" }),
   condition: Object.freeze({ label: "Condizione", tone: "#ec4899" }),
@@ -577,9 +579,14 @@ function causalityDetailLines(event) {
   if (causality.action?.attackOutcome) {
     lines.push(`Esito attacco: ${outcomeLabel(causality.action.attackOutcome)}`);
   }
-  // PC attacks: the extra damage on a hit (class feature riders and components added on the fly).
-  // Read from the raw payload: the spell causality model does not carry these fields.
+  // PC attacks: the cantrip, then the extra damage on a hit (class feature riders and components added on
+  // the fly). Read from the raw payload: the spell causality model does not carry these fields.
   const rawAttack = event?.payload?.causality;
+  const cantripName = stringValue(rawAttack?.cantrip?.name);
+  if (cantripName) {
+    const cantripDice = stringValue(rawAttack.cantrip.dice);
+    lines.push(`Trucchetto: ${cantripName}${cantripDice ? ` (${cantripDice})` : ""}`);
+  }
   for (const extra of [
     ...(Array.isArray(rawAttack?.riders) ? rawAttack.riders : []),
     ...(Array.isArray(rawAttack?.extras) ? rawAttack.extras : []),

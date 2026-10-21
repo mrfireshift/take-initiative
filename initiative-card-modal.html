@@ -236,6 +236,21 @@
     .quick-action-editor-grid label[hidden] { display:none !important; }
     .quick-action-editor-grid label.wide { grid-column:1 / -1; }
     .quick-action-editor-grid select { width:100%; min-height:32px; padding:6px 8px; border-radius:10px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; }
+    /* Attack sub-editors (components, known cantrips): full-width sections with a header and aligned rows. */
+    .quick-action-section { grid-column:1 / -1; min-width:0; display:grid; gap:6px; }
+    .quick-action-section[hidden] { display:none !important; }
+    .quick-action-section-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; color:rgba(255,255,255,.76); font-size:var(--obrt-type-secondary); font-weight:var(--obrt-weight-medium); }
+    .quick-action-section-head small { color:rgba(255,255,255,.48); font-size:10px; font-weight:var(--obrt-weight-regular); }
+    .quick-action-check-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; }
+    .quick-action-check { min-width:0; display:flex; align-items:center; gap:8px; min-height:30px; padding:0 9px; border:1px solid rgba(var(--faction-rgb),.18); border-radius:8px; background:rgba(0,0,0,.15); color:#fff; font-weight:var(--obrt-weight-regular); cursor:pointer; }
+    .quick-action-check:has(input:checked) { border-color:rgba(var(--faction-rgb),.55); background:rgba(var(--faction-rgb),.12); }
+    .quick-action-check input { flex:0 0 auto; width:15px; height:15px; min-height:15px; margin:0; padding:0; accent-color:var(--accent); }
+    .quick-action-check span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .quick-action-component-list { display:grid; gap:6px; }
+    .quick-action-component-row { display:grid; grid-template-columns:minmax(0,1fr) 104px 32px; gap:6px; align-items:center; }
+    .quick-action-component-row select { width:100%; min-height:32px; padding:6px 8px; border-radius:10px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; }
+    .quick-action-icon-button { width:32px; min-height:32px; padding:0; border-radius:10px; font-size:16px; line-height:1; }
+    .quick-action-section .quick-action-add { justify-self:start; }
     .quick-action-add { min-height:26px; padding:3px 9px; border-radius:8px; border-color:rgba(var(--faction-rgb),.38); background:rgba(var(--faction-rgb),.10); }
     .status { min-height:16px; margin-top:8px; color:#fca5a5; font-size:11px; }
     .purifying-spell-modal-backdrop {

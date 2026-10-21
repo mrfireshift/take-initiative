@@ -2,7 +2,10 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { createPcAttackRuntime } from "./pcAttackExecution.js";
-import { PC_ATTACK_OUTCOMES, PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint } from "./pcAttackCore.js";
+import { PC_ATTACK_OUTCOMES, PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint,
+  pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction } from "./pcAttackCore.js";
+import { getPcAttackCantrip, pcAttackCantripBeams } from "./pcAttackCantripCatalog.js";
+import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel } from "./bossActionsViewCore.js";
 import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel } from "./damageDefensesCore.js";
@@ -24,9 +27,16 @@ async function defaultPcAttackUndo(entryId,{epoch}) {
   return outcome.outcome===HISTORY_UNDO_OUTCOME.COMMITTED ? {ok:true} : {ok:false,message:"Undo non applicato: verifica la Cronologia."};
 }
 
-function emptyDraft(action,targetId=null) {
-  return {targetId,outcome:"",amounts:Object.fromEntries((action?.components || []).map(component=>[component.id,""])),ignored:[],
+function emptyDraft(action,targetId=null,spellId="") {
+  const components=pcAttackResolvedAction(action,spellId)?.components || [];
+  return {targetId,spellId,outcome:"",amounts:Object.fromEntries(components.map(component=>[component.id,""])),ignored:[],
     riders:{},extras:[],attackInstanceId:newAttackId()};
+}
+// The cantrip a cantrip action opens with: the one this attacker used last, when this action still offers it.
+export function defaultCantripId(action,sourceItem) {
+  const offered=pcAttackCantripIds(action);
+  const last=sourceItem?.metadata?.[`${ID}/meta`]?.pcAttackState?.lastAttack?.spellId;
+  return offered.includes(last) ? last : offered[0] || "";
 }
 // The map selection drives the target until the GM has decided something for this attack.
 const draftLocked=draft=>!!draft.outcome || Object.values(draft.amounts).some(value=>value!=="")
@@ -70,6 +80,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const total=$("pc-attack-total"),apply=$("pc-attack-apply"),undoButton=$("pc-attack-undo");
   const extrasSection=$("pc-attack-extras-section"),ridersBox=$("pc-attack-riders"),extrasBox=$("pc-attack-extras"),addExtra=$("pc-attack-add-extra");
   const applyRow=$("pc-attack-apply-row");
+  const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
   let presentation=null,draft=null,busy=false,invalidated=false,lastUndo=null;
   let selection={status:"none",target:null,candidates:[]},selectionSequence=0,refreshTimer=null,liveSignature="";
   const unsubscribers=[];
@@ -82,11 +93,26 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     undoButton.hidden=!lastUndo;
   }
   function preview() {
-    return pcAttackPreview({action:presentation?.action,sourceItem:presentation?.item,targetItem:targetById(draft?.targetId),outcome:draft?.outcome,
+    return pcAttackPreview({action:presentation?.action,spellId:draft?.spellId,sourceItem:presentation?.item,targetItem:targetById(draft?.targetId),outcome:draft?.outcome,
       amounts:draft?.amounts,ignoredDefenses:draft?.ignored,riders:chosenRiders(draft),extras:chosenExtras(draft),turnState:presentation?.turnState});
   }
   function riderOptions() {
-    return pcAttackRiderOptions({action:presentation?.action,sourceItem:presentation?.item,targetItem:targetById(draft?.targetId),turnState:presentation?.turnState});
+    return pcAttackRiderOptions({action:presentation?.action,spellId:draft?.spellId,sourceItem:presentation?.item,targetItem:targetById(draft?.targetId),turnState:presentation?.turnState});
+  }
+  const resolved=()=>pcAttackResolvedAction(presentation?.action,draft?.spellId);
+  const characterLevel=()=>totalCharacterLevel(presentation?.item?.metadata?.[META_KEY]?.initiativeCard?.characterBuild);
+  // Cantrip actions: the cantrip picker, the on-hit effect still resolved by hand and Eldritch Blast's beams.
+  function renderCantrip() {
+    const offered=pcAttackCantripIds(presentation.action);
+    cantripRow.hidden=!offered.length;
+    if(!offered.length){cantripNote.hidden=true;return;}
+    cantripSelect.replaceChildren(...offered.map(spellId=>{const option=node("option",getPcAttackCantrip(spellId)?.name || spellId);option.value=spellId;return option;}));
+    cantripSelect.value=draft.spellId;cantripSelect.disabled=busy;
+    const cantrip=getPcAttackCantrip(draft.spellId);
+    const beams=pcAttackCantripBeams(cantrip,characterLevel());
+    const notes=[...(cantrip?.scaling==="beams"?[`Raggi: ${beams} al livello del personaggio. Registra un attacco per raggio.`]:[]),
+      ...(cantrip?.effectNote?[`Al colpo, da applicare a mano: ${cantrip.effectNote}`]:[])];
+    cantripNote.textContent=notes.join(" ");cantripNote.hidden=!notes.length;
   }
   const typeSelect=(types,value,{placeholder="",format=typeLabel,className="field"}={})=>{
     const select=node("select","",className);
@@ -191,9 +217,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     addExtra.disabled=busy || draft.extras.length>=MAX_PC_ATTACK_EXTRAS;
   }
   function renderHeader() {
-    const action=presentation?.action;
+    const action=presentation?.action,attack=resolved();
     $("pc-attack-title").textContent=action?.label || "Attacco";
-    $("pc-attack-subtitle").textContent=presentation?`${presentation.item.name || presentation.item.id} · ${RANGE_LABELS[action.range] || ""}`:"";
+    const parts=[presentation?.item?.name || presentation?.item?.id,...(attack?.cantrip?["Trucchetto"]:[]),RANGE_LABELS[attack?.range] || ""].filter(Boolean);
+    $("pc-attack-subtitle").textContent=presentation?parts.join(" · "):"";
   }
   function renderTarget() {
     const options=[node("option","— Scegli il bersaglio —")];options[0].value="";
@@ -213,10 +240,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }));
   }
   function renderDamage() {
-    damage.replaceChildren(...presentation.action.components.map(component=>{
+    const attack=resolved();
+    damage.replaceChildren(...(attack?.components || []).map(component=>{
       const body=node("div","","component-body");
       const typeName=typeLabel(component.type);
-      const formula=component.formula || "";
+      // A cantrip's dice follow the character level; a weapon shows the formula written in its quick action.
+      const formula=(attack.cantrip?pcAttackCantripDiceFor(attack,presentation.item.metadata?.[META_KEY]?.initiativeCard):component.formula) || "";
       const meta=node("div","","component-meta");
       meta.textContent=formula?(draft.outcome==="critical"?`${formula} · critico ${pcAttackCriticalDice(formula)}`:formula):"";
       body.append(node("span",typeName,"component-title"),...(formula?[meta]:[]));
@@ -247,7 +276,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   function render() {
     if(!presentation || !draft){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
-    form.hidden=false;if(applyRow)applyRow.hidden=false;renderHeader();renderTarget();renderOutcomes();renderDamage();renderRiders();renderExtras();renderState();
+    form.hidden=false;if(applyRow)applyRow.hidden=false;renderHeader();renderTarget();renderOutcomes();renderCantrip();renderDamage();renderRiders();renderExtras();renderState();
   }
   // Selection and scene updates never rebuild the outcome buttons or the amount fields: a click in
   // flight or the caret in a field survives them.
@@ -277,7 +306,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const sameAction=JSON.stringify(loaded.action)===JSON.stringify(presentation?.action);
     presentation=loaded;
     const fresh=!draft || !sameAction;
-    if(fresh) draft=emptyDraft(loaded.action,draft?.targetId || null);
+    if(fresh) draft=emptyDraft(loaded.action,draft?.targetId || null,defaultCantripId(loaded.action,loaded.item));
     if(draft.targetId && !targetById(draft.targetId)) draft.targetId=null;
     if(fresh || form.hidden) render();else renderLive();
   }
@@ -332,6 +361,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
 
   targetSelect.addEventListener("change",()=>{draft.targetId=targetSelect.value || null;draft.ignored=[];renderLive();});
+  // Another cantrip: other damage (fresh amount), range and notes; the target, outcome and extras stay.
+  cantripSelect.addEventListener("change",()=>{
+    draft.spellId=cantripSelect.value;
+    draft.amounts=Object.fromEntries((resolved()?.components || []).map(component=>[component.id,""]));
+    renderHeader();renderCantrip();renderDamage();updateRiders();renderState();
+  });
   addExtra.addEventListener("click",()=>{
     if(!draft || draft.extras.length>=MAX_PC_ATTACK_EXTRAS) return;
     draft.extras.push({type:"",amount:"",label:""});
@@ -347,13 +382,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ignoredDefenses:[...draft.ignored],expectedDefenses:view.profileDefenses,expectedAction:presentation.action,
       riders:chosenRiders(draft).map(rider=>({...rider,amount:Number(rider.amount)})),
       extras:chosenExtras(draft).map(extra=>({...extra,amount:Number(extra.amount),label:String(extra.label || "").trim()})),
-      attackInstanceId:draft.attackInstanceId,sceneIdentity:presentation.sceneIdentity};
+      ...(draft.spellId?{spellId:draft.spellId}:{}),attackInstanceId:draft.attackInstanceId,sceneIdentity:presentation.sceneIdentity};
     const result=await runtime.executePcAttack(request);
     if(!lifecycle.isCurrent(operation)) return;
     showUndo(result);
     setStatus([resultSummary(result),...(result.followUps || []),...(result.warnings || [])].join("\n"));
     // Ready for the next attack (Extra Attack, two weapons): same target, a new identity.
-    draft=emptyDraft(presentation.action,draft.targetId);
+    draft=emptyDraft(presentation.action,draft.targetId,draft.spellId);
     await refresh(operation);
     render();
   }));

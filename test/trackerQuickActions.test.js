@@ -129,6 +129,10 @@ test("riassume tipo e bersaglio senza dipendere dal pannello", () => {
     range: "ranged",
     components: [{ type: "piercing" }],
   }), "Attacco · distanza · 1 componente");
+  assert.equal(trackerQuickActionSummary({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip" } }),
+    "Trucchetto · scegli al lancio");
+  assert.equal(trackerQuickActionSummary({ id: "cantrip", label: "Trucchetto", kind: "attack",
+    source: { kind: "cantrip", spellIds: ["fire-bolt", "eldritch-blast"] } }), "Trucchetto · 2 conosciuti");
 });
 
 test("Boss Actions: icona tonda nello slot delle azioni rapide, rossa se collegata, attenuata senza profilo", async () => {

@@ -48,6 +48,8 @@ test("la tassonomia copre tutti i kind prodotti dai workflow CL-1", () => {
     "scene-remove": "roster",
     "initiative-add": "roster",
     "initiative-remove": "roster",
+    "pc-attack": "attack",
+    "monster-action": "attack",
     turn: "turn",
     round: "turn",
     undo: "undo",

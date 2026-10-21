@@ -185,3 +185,26 @@ test("normalizza un attacco: portata, 1-3 componenti tipizzate e bersaglio sempr
   assert.equal(sanitizeQuickAction(base).components[0].formula, undefined);
   assert.equal(sanitizeQuickAction({ ...base, components: [{ type: "piercing", formula: "x".repeat(40) }] }).components[0].formula.length, 24);
 });
+
+test("un attacco con trucchetto conserva solo i trucchetti conosciuti; senza fonte resta un'arma", () => {
+  assert.deepEqual(sanitizeQuickAction({
+    id: "cantrip",
+    label: " Trucchetti ",
+    kind: "attack",
+    targetMode: "self",
+    range: "melee",
+    components: [{ type: "fire" }],
+    source: { kind: "cantrip", spellIds: ["fire-bolt", "magic-stone", "fire-bolt", "eldritch-blast"] },
+  }), {
+    version: 2,
+    id: "cantrip",
+    label: "Trucchetti",
+    kind: "attack",
+    targetMode: "selection",
+    source: { kind: "cantrip", spellIds: ["fire-bolt", "eldritch-blast"] },
+  });
+  assert.deepEqual(sanitizeQuickAction({ id: "all", label: "Trucchetto", kind: "attack", source: { kind: "cantrip" } }).source, { kind: "cantrip" });
+  const weapon = sanitizeQuickAction({ id: "sword", label: "Spada", kind: "attack", source: { kind: "weapon" }, components: [{ type: "slashing" }] });
+  assert.equal(weapon.source, undefined);
+  assert.equal(weapon.components.length, 1);
+});

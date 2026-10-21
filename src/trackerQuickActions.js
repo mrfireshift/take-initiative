@@ -15,6 +15,10 @@ export function trackerQuickActionSummary(action) {
   if (normalized.kind === "feature") {
     return `Capacità · ${target}`;
   }
+  if (normalized.kind === "attack" && normalized.source?.kind === "cantrip") {
+    const count = normalized.source.spellIds?.length || 0;
+    return count ? `Trucchetto · ${count} ${count === 1 ? "conosciuto" : "conosciuti"}` : "Trucchetto · scegli al lancio";
+  }
   if (normalized.kind === "attack") {
     const range = normalized.range === "ranged" ? "distanza" : "mischia";
     const count = normalized.components?.length || 0;

@@ -11,7 +11,8 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
 const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
-  "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra"];
+  "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
+  "pc-attack-cantrip-note"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra"]);
 function createDocument() {
   const doc = {
@@ -22,7 +23,7 @@ function createDocument() {
   };
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   for (const id of IDS) {
-    const node = new FakeNode(doc, id === "pc-attack-target" ? "select" : BUTTONS.has(id) ? "button" : "div");
+    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip"].includes(id) ? "select" : BUTTONS.has(id) ? "button" : "div");
     node.id = id; doc.root.appendChild(node);
   }
   return doc;
@@ -31,7 +32,7 @@ function createDocument() {
 const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind: "attack", range: "melee",
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
-function fixture({ defenses = null, attacker = {}, turnState = null } = {}) {
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
   const items = [creature("aria", "Aria", 40, attacker), creature("ghoul", "Ghoul", 30, defenses ? { initiativeCard: { damageDefenses: defenses } } : {}), creature("imp", "Imp", 10)];
@@ -46,7 +47,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null } = {}) {
     popover: { close: async () => {} },
   };
   const runtime = {
-    getPcAttackPresentation: async () => ({ item: items[0], action: sword, targets: items.slice(1), turnState, sceneIdentity: "scene-A" }),
+    getPcAttackPresentation: async () => ({ item: items[0], action, targets: items.slice(1), turnState, sceneIdentity: "scene-A" }),
     executePcAttack: async (request) => {
       calls.push(request);
       return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], outcome: request.outcome, target: { id: request.targetId, name: "Ghoul" },
@@ -227,4 +228,35 @@ test("Divine Smite in the console: slot level and undead/fiend bonus drive the d
   await f.$("pc-attack-apply").click(); await tick();
   assert.deepEqual(f.calls[0].riders, [{ id: "paladino-punizione-divina", type: "radiant", amount: 16, slotLevel: 3, bonus: true }]);
   assert.match(f.$("pc-attack-status").textContent, /slot di 3° livello speso/);
+});
+
+const cantripAction = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack",
+  source: { kind: "cantrip", spellIds: ["fire-bolt", "eldritch-blast", "shocking-grasp"] } });
+
+test("a cantrip action: pick the cantrip, its dice follow the character level, notes for beams and on-hit effects", async () => {
+  const f = fixture({ action: cantripAction, attacker: { initiativeCard: { characterBuild: [{ classId: "warlock", level: 5 }] },
+    pcAttackState: { version: 1, lastAttack: { spellId: "eldritch-blast" } } }, turnState: ownTurn });
+  await f.controller.ready;
+  const picker = f.$("pc-attack-cantrip");
+  assert.equal(f.$("pc-attack-cantrip-row").hidden, false);
+  assert.deepEqual(picker.children.map((option) => option.textContent), ["Dardo di fuoco", "Deflagrazione occulta", "Stretta folgorante"]);
+  assert.equal(picker.value, "eldritch-blast", "the cantrip used last comes first");
+  assert.equal(f.$("pc-attack-subtitle").textContent, "Aria · Trucchetto · Distanza");
+  assert.match(textOf(f.$("pc-attack-damage")), /Forza 1d10/);
+  assert.match(f.$("pc-attack-cantrip-note").textContent, /Raggi: 2 al livello del personaggio/);
+  picker.value = "shocking-grasp"; await picker.emit("change");
+  assert.equal(f.$("pc-attack-subtitle").textContent, "Aria · Trucchetto · Mischia");
+  assert.match(textOf(f.$("pc-attack-damage")), /Fulmine 2d8/);
+  assert.match(f.$("pc-attack-cantrip-note").textContent, /Al colpo, da applicare a mano: Non può effettuare reazioni/);
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  await typeAmounts(f, ["9"]);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual([f.calls[0].spellId, f.calls[0].componentAmounts], ["shocking-grasp", { c1: 9 }]);
+  assert.equal(f.controller.getDraft().spellId, "shocking-grasp", "the next attack keeps the cantrip (another beam, another target)");
+});
+
+test("a weapon action shows no cantrip picker", async () => {
+  const f = fixture(); await f.controller.ready;
+  assert.equal(f.$("pc-attack-cantrip-row").hidden, true);
 });

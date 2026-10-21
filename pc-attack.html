@@ -40,6 +40,8 @@
     .block { display: grid; gap: 6px; }
     .target-select { width: 100%; min-height: var(--obrt-h-control-md); padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); }
     .hint { margin: 0; color: #fde68a; font-size: var(--obrt-type-secondary); }
+    .cantrip-row { display: grid; gap: 4px; }
+    .cantrip-note { margin: 0; color: var(--muted); font-size: var(--obrt-type-caption); line-height: 1.3; }
     .segmented { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); overflow: hidden; }
     .segmented button { min-height: var(--obrt-h-control-md); padding: 0 6px; border: 0; border-right: 1px solid rgba(148, 163, 184, .18); background: transparent; color: rgba(255, 255, 255, .78); font-weight: var(--obrt-weight-semibold); cursor: pointer; }
     .segmented button:last-child { border-right: 0; }
@@ -111,6 +113,10 @@
         </section>
         <section class="card" aria-label="Danno">
           <div class="card-head"><span class="caption">Danno</span><span class="card-note">totali tirati</span></div>
+          <div class="cantrip-row" id="pc-attack-cantrip-row" hidden>
+            <select class="target-select" id="pc-attack-cantrip" aria-label="Trucchetto"></select>
+            <p class="cantrip-note" id="pc-attack-cantrip-note" hidden></p>
+          </div>
           <div class="component-list" id="pc-attack-damage"></div>
           <div class="extras-section" id="pc-attack-extras-section" hidden>
             <span class="caption">Extra al colpo</span>

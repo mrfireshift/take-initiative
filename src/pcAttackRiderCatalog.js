@@ -8,6 +8,8 @@ import { abilityModifier, proficiencyBonusForLevel, totalCharacterLevel } from "
 
 export const PC_ATTACK_RIDER_CATALOG_VERSION = 1;
 
+// Every rider needs an attack with a weapon (cantrips excluded) unless it says anyAttack: true (Hexblade's
+// Curse adds to any damage roll against the target). type "weapon" means the damage type of the attack.
 // limit.per: "turn" (any turn, reactions included) or "own-turn" (only the attacker's own turn).
 // limit.scope: "attacker" (once for the attacker) or "target" (once for each creature hit).
 const ONCE_PER_TURN = Object.freeze({ per: "turn", scope: "attacker" });
@@ -47,7 +49,7 @@ export const PC_ATTACK_RIDERS = Object.freeze([
   Object.freeze({ id: "ranger-uccisore-di-mostri-preda-dell-uccisore", label: "Preda dell'Uccisore", dice: Object.freeze({ fixed: "1d6" }),
     type: "weapon", limit: ONCE_PER_TURN_PER_TARGET, requires: Object.freeze({ targetCondition: "Preda dell'Uccisore" }) }),
   Object.freeze({ id: "warlock-la-lama-del-sortilegio-maledizione-della-lama-del-sortilegio", label: "Maledizione della Lama del Sortilegio",
-    dice: Object.freeze({ proficiency: true }), type: "weapon", limit: null,
+    dice: Object.freeze({ proficiency: true }), type: "weapon", limit: null, anyAttack: true,
     requires: Object.freeze({ targetCondition: "Maledizione della Lama del Sortilegio" }) }),
   Object.freeze({ id: "warlock-suppliche-occulte-succhiavita", label: "Succhiavita", dice: Object.freeze({ ability: "cha", minimum: 1 }),
     type: "necrotic", limit: null }),
