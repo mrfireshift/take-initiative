@@ -67,8 +67,8 @@ export const PC_ATTACK_RIDERS = Object.freeze([
   // Foe Slayer (revised ranger, 20th level): the Wisdom modifier to the damage, once on each of the ranger's turns.
   Object.freeze({ id: "ranger-revised-sterminatore-di-nemici", label: "Sterminatore di Nemici", dice: Object.freeze({ ability: "wis", minimum: 0 }),
     type: "weapon", limit: ONCE_PER_OWN_TURN }),
-  // Phase 2: smites spend a spell slot. The slot is never counted (PC slots are not tracked): the GM picks
-  // its level, the dice follow it. Divine Smite: 2d8 at 1st level, +1d8 per level, at most 5d8, +1d8
+  // Phase 2: smites spend a spell slot. The GM picks its level, the dice follow it; pcAttackExecution.js spends
+  // the slot in the attack's command (spellSlotSpendCore.js). Divine Smite: 2d8 at 1st level, +1d8 per level, at most 5d8, +1d8
   // against an undead or a fiend (a GM toggle: creature types are not tracked).
   Object.freeze({ id: "paladino-punizione-divina", label: "Punizione Divina", dice: Object.freeze({ slot: Object.freeze({ atFirst: 2, max: 5 }) }),
     type: "radiant", limit: null, requires: Object.freeze({ range: "melee" }), slot: Object.freeze({ choose: true }),
@@ -116,7 +116,7 @@ function tableValue(table, level) {
   return value;
 }
 
-// The slot levels a smite may use: any level for Divine Smite (the GM knows the actor's slots), the pact
+// The slot levels a smite may use: any level for Divine Smite (the console shows what is left), the pact
 // slot level for Eldritch Smite. Empty for riders without a slot.
 export function pcAttackRiderSlotLevels(rider, card = {}) {
   if (rider?.slot?.choose) return [...PC_ATTACK_SLOT_LEVELS];

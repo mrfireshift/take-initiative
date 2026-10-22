@@ -433,7 +433,7 @@ function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState
 // Inspiring Smite (Oath of Glory) follows a Divine Smite: a Channel Divinity the GM activates separately.
 export function pcAttackFollowUps(card = {}, riders = [], activationIds = []) {
   const notes = riders.filter((rider) => rider.slotLevel)
-    .map((rider) => `${rider.option?.label || rider.id}: slot di ${rider.slotLevel}° livello speso, scalalo dalla scheda (non è conteggiato).`);
+    .map((rider) => `${rider.option?.label || rider.id}: slot di ${rider.slotLevel}° livello speso.`);
   if (riders.some((rider) => rider.id === "paladino-punizione-divina")
       && !activationIds.includes("paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice")
       && getEnabledClassFeatureIds(card).has("paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice"))
@@ -792,7 +792,7 @@ export function buildPcAttackMutation({
       featureId: rider.id, name: rider.option.label, ...(rider.dice ? { dice: rider.dice } : {}),
       type: rider.type, typeLabel: damageTypeLabel(rider.type), inputAmount: rider.amount, amount: componentOf(`r:${rider.id}`).amount,
       ...(rider.option.limit ? { limit: { ...rider.option.limit } } : {}),
-      // The slot is spent at the table: PC slots are not tracked, so it is recorded, never decremented.
+      // slotTracked turns true when pcAttackExecution.js spends the slot in the attack's command.
       ...(rider.slotLevel ? { slotLevel: rider.slotLevel, slotTracked: false } : {}),
       ...(rider.bonus ? { bonus: rider.option.bonus.label } : {}),
       ...(rider.onHit ? { condition: rider.option.onHit.condition } : {}),

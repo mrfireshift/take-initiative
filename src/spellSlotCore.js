@@ -141,14 +141,15 @@ export function spellSlotPoolMaximum(pool, characterBuild) {
 }
 
 // The slots as the character sheet shows them: one row per slot level of the build, then Pact Magic.
-// resources is classFeatureState.resources; a slot never spent counts as available.
+// resources is classFeatureState.resources; a slot never spent counts as available. temporary counts the
+// slots above the maximum (created with Font of Magic, gone at the long rest).
 export function spellSlotStatus(characterBuild, resources = {}) {
   const { slots, pact } = spellSlotMaximums(characterBuild);
   const row = (poolId, maximum, extra) => {
     const stored = resources?.[poolId]?.current;
     const value = stored === null || stored === undefined || stored === "" ? NaN : Number(stored);
-    const current = Number.isFinite(value) ? Math.max(0, Math.min(maximum, Math.floor(value))) : maximum;
-    return { poolId, maximum, current, ...extra };
+    const current = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : maximum;
+    return { poolId, maximum, current, temporary: Math.max(0, current - maximum), ...extra };
   };
   return [
     ...Object.entries(slots).map(([level, maximum]) => row(spellSlotPoolId(level), maximum, { level: Number(level), pact: false })),

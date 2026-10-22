@@ -184,7 +184,7 @@ test("a caster with slots spends one in the spell's own command", async () => {
     selectedTargetIds: ["target-a"],
   });
   assert.equal(result.mode, "executed");
-  assert.equal(result.spellSlot, "slot di 5° livello");
+  assert.equal(result.spellCost, "slot di 5° livello");
   const [operation] = areaCalls[0].runtime.extraOperations;
   assert.equal(operation.type, "class-feature:adjust-resource");
   assert.equal(operation.sourceId, "caster");
@@ -213,7 +213,7 @@ test("with no slot left the GM confirms the cast without a slot, or cancels it",
     confirmSpellSlot: () => true,
   });
   assert.equal(confirmed.mode, "executed");
-  assert.equal(confirmed.spellSlot, "");
+  assert.equal(confirmed.spellCost, "");
   assert.deepEqual(areaCalls[0].runtime.extraOperations, []);
 });
 
@@ -226,7 +226,19 @@ test("a warlock spends a Pact Magic slot and casts at its level", async () => {
     selectedTargetIds: ["target-a"],
   });
   assert.equal(result.mode, "executed");
-  assert.equal(result.spellSlot, "slot del Patto (5°)");
+  assert.equal(result.spellCost, "slot del Patto (5°)");
   assert.equal(areaCalls[0].runtime.extraOperations[0].pool.id, "spell-slot-pact");
   assert.equal(areaCalls[0].session.slotLevel, 5);
+});
+
+test("a spell quick action with uses of its own spends one, and a free one spends nothing", async () => {
+  resetScene();
+  withBuild([{ classId: "mago", level: 9 }]);
+  const withUses = { ...action(5), cost: "uses", uses: 1 };
+  const used = await executeDirectQuickAction({ action: withUses, sourceItem: sceneItems.get("caster"), selectedTargetIds: ["target-a"] });
+  assert.equal(used.spellCost, "uso di Blocca Mostri (0/1)");
+  assert.equal(areaCalls[0].runtime.extraOperations[0].pool.id, "quick-action-uses:quick-hold-monster");
+  const free = await executeDirectQuickAction({ action: { ...action(5), cost: "free" }, sourceItem: sceneItems.get("caster"), selectedTargetIds: ["target-a"] });
+  assert.equal(free.spellCost, "");
+  assert.deepEqual(areaCalls[1].runtime.extraOperations, []);
 });

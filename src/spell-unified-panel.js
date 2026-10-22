@@ -44,12 +44,8 @@ import {
 import {
   getSpellDefinition,
 } from "./spells-srd.js";
-import {
-  planSpellSlotSpend,
-  spellSlotChoices,
-  spellSlotLabel,
-  spellSlotSpendOperation,
-} from "./spellSlotSpendCore.js";
+import { planSpellCastCost, spellSlotChoices } from "./spellSlotSpendCore.js";
+import { sanitizeQuickActions } from "./quickActionsCore.js";
 import {
   buildSpellCatalogEntries,
   createSpellUnifiedPanelSceneProvider,
@@ -489,35 +485,35 @@ export function bootSpellUnifiedPanel(
     };
   };
 
-  // Reads the caster again and returns the operations that spend its slot with the cast; null when the GM
-  // cancels a cast without slots left.
+  // Reads the caster again and returns the operations that spend the cost of the cast (a slot, or the uses of the
+  // quick action that opened the panel); null when the GM cancels a cast with nothing left to spend.
   const prepareSpellSlotSpend = async (operation) => {
     if (!slotSpendApplies()) return { extraOperations: [] };
     const spell = getSpellDefinition(state.contract?.spell?.id);
     const [caster] = await OBR.scene.items.getItems([state.session.casterId]).catch(() => []);
     if (!sceneLifecycle.isCurrent(operation)) return null;
     const meta = caster?.metadata?.[`${ID}/meta`] || {};
-    const plan = planSpellSlotSpend({
+    const quickActionId = String(route?.quickActionId || "").trim();
+    const quickAction = quickActionId
+      ? sanitizeQuickActions(meta.initiativeCard?.quickActions, { limit: 64, attackLimit: 64 })
+        .find((action) => action.id === quickActionId && action.spellId === spell?.id) || null
+      : null;
+    const cost = planSpellCastCost({
+      action: quickAction,
+      sourceId: caster?.id,
       characterBuild: meta.initiativeCard?.characterBuild,
+      abilityModifiers: meta.initiativeCard?.abilityModifiers || null,
       resources: meta.classFeatureState?.resources,
       spellLevel: spell?.level,
       slotLevel: state.session.slotLevel,
       source: state.slotSource,
       phase: state.session.phase,
     });
-    if (plan.exhausted && !window.confirm(`${plan.message}\n\nLanciare comunque senza scalare uno slot?`)) {
-      patchSession({ feedback: { state: "info", message: "Lancio annullato: nessuno slot disponibile." } }, { clearFeedback: false });
+    if (cost.exhausted && !window.confirm(`${cost.message}\n\nLanciare comunque senza spenderlo?`)) {
+      patchSession({ feedback: { state: "info", message: "Lancio annullato: niente da spendere." } }, { clearFeedback: false });
       return null;
     }
-    const spend = plan.spend
-      ? spellSlotSpendOperation({
-        sourceId: caster.id,
-        poolId: plan.spend.poolId,
-        characterBuild: meta.initiativeCard?.characterBuild,
-        abilityModifiers: meta.initiativeCard?.abilityModifiers || null,
-      })
-      : null;
-    return { extraOperations: spend ? [spend] : [], spellSlot: spellSlotLabel(plan.spend) };
+    return { extraOperations: cost.operation ? [cost.operation] : [], spellCost: cost.spent };
   };
 
   const render = () => {

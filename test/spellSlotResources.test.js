@@ -60,3 +60,27 @@ test("spending a slot is an ordinary class-feature state operation on the caster
   assert.equal(plan.results[0].state.resources["spell-slot-pact"].current, 1);
   assert.equal(plan.patches.length, 1);
 });
+
+test("a created slot may stand above the maximum until it is spent or the reset", () => {
+  const pool = getClassFeatureResourcePool("spell-slot-3");
+  const created = planClassFeatureResourceAdjustment({}, pool, wizardWarlock, { delta: 1, allowAboveMaximum: true });
+  assert.equal(created.state.resources["spell-slot-3"].current, 3);
+  const plain = planClassFeatureResourceAdjustment({}, pool, wizardWarlock, { delta: 1 });
+  assert.equal(plain.state.resources["spell-slot-3"].current, 2, "without the option the maximum holds");
+  const spent = planClassFeatureResourceAdjustment(created.state, pool, wizardWarlock, { delta: -1 });
+  assert.equal(spent.state.resources["spell-slot-3"].current, 2);
+  const poolsById = new Map(SPELL_SLOT_RESOURCE_POOLS.map((entry) => [entry.id, entry]));
+  const rested = planClassFeatureResourceReset(created.state, poolsById, wizardWarlock, ["spell-slot-3"]);
+  assert.equal(rested.state.resources["spell-slot-3"].current, 2);
+  const pips = planClassFeatureResourceAdjustment(created.state, pool, wizardWarlock, { current: 9 });
+  assert.equal(pips.state.resources["spell-slot-3"].current, 2, "an explicit value stays within the maximum");
+});
+
+test("other resources never go above their maximum, even when asked", () => {
+  const pool = getClassFeatureResourcePool("stregone-punti-stregoneria");
+  const sorcerer = [{ classId: "stregone", level: 5 }];
+  const result = planClassFeatureResourceAdjustment({ resources: { [pool.id]: { current: 5, maximum: 5 } } }, pool, sorcerer, { delta: 3, allowAboveMaximum: true });
+  assert.equal(result.state.resources[pool.id].current, 5);
+  const read = planClassFeatureResourceAdjustment({ resources: { [pool.id]: { current: 9, maximum: 5 } } }, pool, sorcerer, { delta: 0 });
+  assert.equal(read.state.resources[pool.id].current, 5);
+});

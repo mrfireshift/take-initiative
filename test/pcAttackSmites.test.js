@@ -51,7 +51,7 @@ test("a Divine Smite records its slot (never decremented) and its bonus; no turn
     inputAmount: 18, amount: 18, slotLevel: 2, slotTracked: false, bonus: "Non morto o immondo" });
   assert.equal(result.options.metadataPatches[0].fields[PC_ATTACK_STATE_FIELD].value.riderUses, undefined);
   assert.equal(result.options.sceneMetadataPreconditions, undefined);
-  assert.deepEqual(result.followUps, ["Punizione Divina: slot di 2° livello speso, scalalo dalla scheda (non è conteggiato)."]);
+  assert.deepEqual(result.followUps, ["Punizione Divina: slot di 2° livello speso."]);
 });
 
 test("Improved Divine Smite stacks with Divine Smite as a separate component", () => {

@@ -1,7 +1,7 @@
 import { gridPlanarDistance } from "./distance3dCore.js";
 import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
 import { abilityModifier } from "./abilityModifiersCore.js";
-import { SPELL_SLOT_CAPACITY_TYPE, spellSlotPoolMaximum } from "./spellSlotCore.js";
+import { SPELL_SLOT_CAPACITY_TYPE, isSpellSlotPool, spellSlotPoolMaximum } from "./spellSlotCore.js";
 
 export const CLASS_FEATURE_STATE_FIELD = "classFeatureState";
 export const CLASS_FEATURE_STATE_VERSION = 1;
@@ -548,9 +548,12 @@ function resourceEntryForCost(state, pool, characterBuild, abilityModifiers = nu
   );
   const storedCurrent = finiteResourceValue(stored?.current);
   return {
+    // Spell slots may stand above their maximum: the slots created with Font of Magic, until a long rest.
     current: maximum === null
       ? storedCurrent
-      : Math.min(maximum, storedCurrent ?? maximum),
+      : isSpellSlotPool(pool)
+        ? storedCurrent ?? maximum
+        : Math.min(maximum, storedCurrent ?? maximum),
     maximum,
     unlimited: false,
   };
@@ -1321,7 +1324,7 @@ export function planClassFeatureResourceAdjustment(
   stateValue,
   pool,
   characterBuild,
-  { delta = 0, current = null, maximum = null, reset = false } = {},
+  { delta = 0, current = null, maximum = null, reset = false, allowAboveMaximum = false } = {},
   abilityModifiers = null,
 ) {
   const state = normalizeClassFeatureState(stateValue);
@@ -1330,13 +1333,17 @@ export function planClassFeatureResourceAdjustment(
   const nextMaximum = maximum === null
     ? resolved.maximum
     : optionalInteger(maximum, 0, 9999);
+  // allowAboveMaximum: a spell slot created with Font of Magic adds to a full pool (spell slot pools only).
+  const ceiling = allowAboveMaximum === true && isSpellSlotPool(pool)
+    ? 9999
+    : nextMaximum ?? 9999;
   const nextCurrent = resolved.unlimited
     ? null
     : reset
       ? nextMaximum
       : current === null
         ? Math.max(0, Math.min(
-          nextMaximum ?? 9999,
+          ceiling,
           (resolved.current ?? nextMaximum ?? 0) + Math.round(Number(delta) || 0)
         ))
         : Math.max(0, Math.min(

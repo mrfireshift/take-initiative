@@ -150,6 +150,11 @@
     .spell-slot-pip[data-pact="1"] { border-color:#c084fc; }
     .spell-slot-pip[data-pact="1"][data-available="1"] { background:#a855f7; box-shadow:0 0 6px rgba(168,85,247,.55); }
     span.spell-slot-pip { display:inline-block; box-sizing:border-box; }
+    .spell-slot-pip[data-temporary="1"] { border-style:dashed; }
+    .rest-actions { display:flex; justify-content:flex-end; gap:5px; margin:2px 0 7px; }
+    .rest-actions[hidden] { display:none; }
+    .spell-slots .rest-actions { margin:3px 0 0; }
+    .rest-actions button { min-height:24px; padding:2px 9px; border-radius:8px; font-size:10px; border-color:rgba(var(--faction-rgb),.38); background:rgba(var(--faction-rgb),.10); }
     .spellbook-list .section-title { margin:12px 0 0; }
     .spellbook-list .quick-actions-list { grid-template-columns:minmax(0,1fr); gap:5px; }
     .spellbook-list .quick-action { min-height:36px; padding:5px 9px; }
@@ -422,6 +427,7 @@
     <section id="classFeaturesView" role="tabpanel" aria-labelledby="classFeaturesTab" hidden>
       <div id="classBuildSummary" class="class-build-summary"></div>
       <span class="section-title">Risorse</span>
+      <div id="classFeatureRestActions" class="rest-actions" hidden></div>
       <div id="classFeatureResources" class="class-feature-resources"></div>
       <span class="section-title">Attive</span>
       <div id="classFeatureActive" class="class-feature-active"></div>

@@ -10,8 +10,46 @@ import { bossFeetPerCell } from "./bossActionsViewCore.js";
 import { getEffectsMutationSceneContext, runEffectsMutation, requireAppliedEffectsMutation } from "./effectsMutations.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { withBossLinkDefenses } from "./bossLinkResistanceCore.js";
+import { getPcAttackRider } from "./pcAttackRiderCatalog.js";
+import { planSpellSlotSpend, spellSlotSpendOperation } from "./spellSlotSpendCore.js";
+import { CLASS_FEATURE_STATE_FIELD, planClassFeatureResourceAdjustment } from "./classFeatureCore.js";
 
-const newId = () => `pc-attack:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
+// The slot each smite of the attack spends (Divine Smite at its level, Eldritch Smite from Pact Magic), in order:
+// [{rider,name,plan}]. riders are the console's ({id}) or the plan's causality ({featureId,name}).
+export function pcAttackSmiteSlotPlans(item,riders=[]) {
+  const card=item?.metadata?.[`${ID}/meta`]?.initiativeCard || {};
+  let resources=item?.metadata?.[`${ID}/meta`]?.classFeatureState?.resources || {};
+  const plans=[];
+  for(const rider of Array.isArray(riders)?riders:[]) {
+    const definition=getPcAttackRider(rider?.featureId || rider?.id);
+    if(!rider?.slotLevel || !definition?.slot) continue;
+    const plan=planSpellSlotSpend({characterBuild:card.characterBuild,resources,spellLevel:1,slotLevel:rider.slotLevel,
+      source:definition.slot.pact?"pact":""});
+    plans.push({rider,name:rider.name || definition.label,plan});
+    if(plan.spend) resources={...resources,[plan.spend.poolId]:{...resources[plan.spend.poolId],current:plan.spend.current-1}};
+  }
+  return plans;
+}
+
+// The smites' slots are spent in the attack's own command, so its Undo gives them back. With no slot left the
+// console asks first and sends castWithoutSlot. When an activation of the attack already writes the attacker's
+// classFeatureState (a metadata patch), the slot is spent inside that patch: the coordinator takes one writer per field.
+function spendSmiteSlots(item,plan,castWithoutSlot=false) {
+  const card=item?.metadata?.[`${ID}/meta`]?.initiativeCard || {};
+  const statePatch=(plan.options?.metadataPatches || []).find(patch=>patch.id===item.id)?.fields?.[CLASS_FEATURE_STATE_FIELD];
+  for(const {rider,name,plan:slotPlan} of pcAttackSmiteSlotPlans(item,plan.causality?.riders)) {
+    if(slotPlan.exhausted && !castWithoutSlot) throw new Error(`${name}: ${slotPlan.message} Conferma l'attacco senza slot.`);
+    if(!slotPlan.spend) continue;
+    const operation=spellSlotSpendOperation({sourceId:item.id,poolId:slotPlan.spend.poolId,characterBuild:card.characterBuild,
+      abilityModifiers:card.abilityModifiers || null});
+    if(statePatch) statePatch.value=planClassFeatureResourceAdjustment(statePatch.value,operation.pool,operation.characterBuild,
+      operation.adjustment,operation.abilityModifiers).state;
+    else plan.operations.push(operation);
+    rider.slotTracked=true;
+  }
+}
+
+const newId =() => `pc-attack:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
 // The map labels of a creature whose pills changed without damage (an activation's pill on the attacker).
 const refreshPillLabels = async ids => {const {refreshConditionLabels}=await import("./conditions.js");await refreshConditionLabels(ids);};
 // The cantrip's Embers animation: the same matched visual the spell panel sends, decorative and best-effort; a
@@ -121,7 +159,7 @@ export function createPcAttackRuntime({
         riders:request.riders ?? null,extras:request.extras ?? null,spellId:request.spellId || "",
         weaponCantrip:request.weaponCantrip ?? null,expectedSecondaryDefenses:request.expectedSecondaryDefenses ?? null,sharedHp:request.sharedHp || null,
         activations:request.activations ?? null,attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,
-        expectedBurstDefenses:request.expectedBurstDefenses ?? null});
+        expectedBurstDefenses:request.expectedBurstDefenses ?? null,castWithoutSlot:request.castWithoutSlot===true});
       let draft=drafts.get(attackInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
         throw new Error("Le decisioni o la scena dell'attacco sono cambiate: riapri l'attacco.");
@@ -133,6 +171,7 @@ export function createPcAttackRuntime({
           spellId:request.spellId || "",weaponCantrip:request.weaponCantrip || null,secondaryItem:secondaryItem || null,
           expectedSecondaryDefenses:request.expectedSecondaryDefenses,activations:request.activations || [],tempHpItems,
           attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,burstItems,expectedBurstDefenses:request.expectedBurstDefenses || {}});
+        spendSmiteSlots(scope.item,plan,request.castWithoutSlot===true);
         draft={decisionKey,plan,options:{...plan.options,...(bossLinkResisted.length?{bossLinkResisted}:{}),
           sharedHp:request.sharedHp || {},sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
         drafts.set(attackInstanceId,draft);

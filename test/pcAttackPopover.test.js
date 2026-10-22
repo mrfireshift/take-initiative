@@ -222,10 +222,10 @@ test("a rider already used this turn is disabled with its reason; a miss sends n
 });
 
 test("Divine Smite in the console: slot level and undead/fiend bonus drive the dice; the slot note follows the commit", async () => {
-  const f = fixture({ attacker: { initiativeCard: { characterBuild: [{ classId: "paladino", level: 5 }] } }, turnState: ownTurn }); await f.controller.ready;
+  const f = fixture({ attacker: { initiativeCard: { characterBuild: [{ classId: "paladino", level: 9 }] } }, turnState: ownTurn }); await f.controller.ready;
   f.runtime.executePcAttack = async (request) => { f.calls.push(request); return { historyEntryId: "entry-1", undoAvailable: true, warnings: [], outcome: request.outcome,
     target: { id: request.targetId, name: "Ghoul" }, damageComponents: [{ amount: 30 }], hpChange: { before: 30, after: 0, hpMax: 30 },
-    riders: [{ name: "Punizione Divina" }], followUps: ["Punizione Divina: slot di 3° livello speso, scalalo dalla scheda (non è conteggiato)."] }; };
+    riders: [{ name: "Punizione Divina" }], followUps: ["Punizione Divina: slot di 3° livello speso."] }; };
   await f.select(["ghoul"]);
   await f.outcome("hit").click();
   const row = riderRow(f, "paladino-punizione-divina");

@@ -345,3 +345,70 @@ test("a Fireball that catches nobody still spends the slot, and the Undo gives i
   await undoLast();
   assert.equal((await casterSlots())["spell-slot-3"]?.current ?? 3, 3);
 });
+
+const { createClassFeatureSpellSlot, convertClassFeatureSpellSlot } = await import("../src/classFeatureRuntime.js?slot-real-runtime");
+const SORCERER = [{ classId: "stregone", level: 5 }];
+
+async function resetSorcerer(resources = {}) {
+  await resetScene();
+  const caster = sceneState.items.find((item) => item.id === CASTER_ID);
+  caster.metadata[META_KEY].initiativeCard = { characterBuild: SORCERER };
+  caster.metadata[META_KEY].classFeatureState = { version: 1, resources, instances: [] };
+}
+
+test("Font of Magic: a created slot joins the inventory above the maximum, in one Undo with its points", async () => {
+  await resetSorcerer();
+  await createClassFeatureSpellSlot({ sourceId: CASTER_ID, slotLevel: 1 });
+  const created = await casterSlots();
+  assert.equal(created["spell-slot-1"].current, 5, "4 slots of 1st level and the created one");
+  assert.equal(created["stregone-punti-stregoneria"].current, 3);
+  const { entries } = await undoLast();
+  assert.equal(entries.length, 1);
+  const restored = await casterSlots();
+  assert.equal(restored["spell-slot-1"]?.current ?? 4, 4);
+  assert.equal(restored["stregone-punti-stregoneria"]?.current ?? 5, 5);
+});
+
+test("Font of Magic: converting spends a slot of that level for its points, or is refused without one", async () => {
+  await resetSorcerer({ "stregone-punti-stregoneria": { current: 1, maximum: 5 } });
+  await convertClassFeatureSpellSlot({ sourceId: CASTER_ID, slotLevel: 3 });
+  const converted = await casterSlots();
+  assert.equal(converted["spell-slot-3"].current, 1);
+  assert.equal(converted["stregone-punti-stregoneria"].current, 4);
+  await undoLast();
+  assert.equal((await casterSlots())["spell-slot-3"]?.current ?? 2, 2);
+
+  await resetSorcerer({ "spell-slot-3": { current: 0, maximum: 2 } });
+  await assert.rejects(
+    convertClassFeatureSpellSlot({ sourceId: CASTER_ID, slotLevel: 3 }),
+    /Nessuno slot di quel livello disponibile/,
+  );
+  await assert.rejects(convertClassFeatureSpellSlot({ sourceId: CASTER_ID, slotLevel: 4 }), /Nessuno slot/);
+});
+
+const { shortRestClassFeatureResources, resetClassFeatureResources } = await import("../src/classFeatureRuntime.js?slot-real-runtime");
+
+test("a short rest restores Pact Magic but not the other slots; the long rest restores everything, quick action uses too", async () => {
+  await resetScene();
+  const caster = sceneState.items.find((item) => item.id === CASTER_ID);
+  caster.metadata[META_KEY].initiativeCard = {
+    characterBuild: [{ classId: "stregone", level: 3 }, { classId: "warlock", level: 2 }],
+    quickActions: [{ version: 2, id: "misty", label: "Passo velato", kind: "spell", spellId: "misty-step", targetMode: "self",
+      slotLevel: null, turns: null, applyAutomations: true, launchMode: "auto", cost: "uses", uses: 1 }],
+  };
+  caster.metadata[META_KEY].classFeatureState = { version: 1, instances: [], resources: {
+    "spell-slot-1": { current: 0, maximum: 4 },
+    "spell-slot-pact": { current: 0, maximum: 2 },
+    "stregone-punti-stregoneria": { current: 0, maximum: 3 },
+    "quick-action-uses:misty": { current: 0, maximum: 1 },
+  } };
+  await shortRestClassFeatureResources(CASTER_ID);
+  let resources = await casterSlots();
+  assert.equal(resources["spell-slot-pact"].current, 2);
+  assert.equal(resources["spell-slot-1"].current, 0);
+  assert.equal(resources["stregone-punti-stregoneria"].current, 0);
+  assert.equal(resources["quick-action-uses:misty"].current, 0);
+  await resetClassFeatureResources(CASTER_ID);
+  resources = await casterSlots();
+  assert.deepEqual([resources["spell-slot-1"].current, resources["stregone-punti-stregoneria"].current, resources["quick-action-uses:misty"].current], [4, 3, 1]);
+});

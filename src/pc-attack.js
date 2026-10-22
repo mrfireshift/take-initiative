@@ -1,7 +1,8 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
-import { createPcAttackRuntime } from "./pcAttackExecution.js";
+import { createPcAttackRuntime, pcAttackSmiteSlotPlans } from "./pcAttackExecution.js";
+import { spellSlotStatus } from "./spellSlotCore.js";
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
@@ -259,13 +260,19 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       meta.append(dice,separator(),type);
       const reason=node("span","","component-reason");reason.dataset.riderField="reason";
       body.append(title,meta,reason);
-      // Smites: the slot level (never decremented: PC slots are not tracked), the undead/fiend bonus, the on-hit pill.
+      // Smites: the slot level (spent with the attack; each level shows what is left), the undead/fiend bonus, the on-hit pill.
       if(option.slotLevels || option.onHit) {
         const extra=node("div","","component-options");extra.dataset.riderField="options";
         if(option.slotLevels) {
           const slot=node("select","","inline-select");slot.dataset.riderField="slot";slot.setAttribute("aria-label",`Livello dello slot di ${option.label}`);
-          slot.title="Lo slot non viene scalato: aggiornalo sulla scheda del personaggio.";
-          slot.replaceChildren(...option.slotLevels.map(level=>{const entry=node("option",`Slot ${level}°`);entry.value=String(level);return entry;}));
+          slot.title="Lo slot si scala con l'attacco; l'Undo lo restituisce.";
+          const meta=presentation?.item?.metadata?.[META_KEY] || {};
+          const rows=spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources);
+          const slotLabel=level=>{
+            const row=option.slotLevels.length===1?rows.find(entry=>entry.pact && entry.level===level) || rows.find(entry=>entry.level===level):rows.find(entry=>!entry.pact && entry.level===level);
+            return `Slot ${level}°${row?` · ${row.current}/${row.maximum}`:""}`;
+          };
+          slot.replaceChildren(...option.slotLevels.map(level=>{const entry=node("option",slotLabel(level));entry.value=String(level);return entry;}));
           slot.value=String(state.slotLevel);slot.disabled=option.slotLevels.length===1;
           slot.addEventListener("change",()=>{state.slotLevel=Number(slot.value);updateRiders();renderState();});
           extra.append(slot);
@@ -942,6 +949,16 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ...(chosenActivations(draft).some(activation=>activation.burstTargetIds?.length)?{expectedBurstDefenses:Object.fromEntries(
         chosenActivations(draft).flatMap(activation=>activation.burstTargetIds || []).map(id=>[id,damageDefensesForItem(creatureById(id),META_KEY)]))}:{}),
       attackInstanceId:draft.attackInstanceId,sceneIdentity:presentation.sceneIdentity};
+    // A smite without a slot left: the GM decides before the commit.
+    const exhausted=pcAttackSmiteSlotPlans(presentation.item,request.riders).filter(entry=>entry.plan.exhausted);
+    if(exhausted.length) {
+      const message=exhausted.map(entry=>`${entry.name}: ${entry.plan.message}`).join("\n");
+      if(!window.confirm(`${message}\n\nRegistrare comunque l'attacco senza scalare lo slot?`)) {
+        setStatus("Attacco non registrato: nessuno slot disponibile.");
+        return;
+      }
+      request.castWithoutSlot=true;
+    }
     const result=await runtime.executePcAttack(request);
     if(!lifecycle.isCurrent(operation)) return;
     showUndo(result);

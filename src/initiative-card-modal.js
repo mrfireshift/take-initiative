@@ -26,6 +26,8 @@ import {
   MAX_QUICK_ACTIONS,
   MAX_QUICK_ACTION_ATTACKS,
   MAX_QUICK_ACTION_ATTACK_COMPONENTS,
+  MAX_QUICK_ACTION_USES,
+  quickActionUsesLeft,
   findQuickAction,
   isAttackQuickAction,
   parseQuickActionAttackImport,
@@ -111,6 +113,8 @@ import {
   applyLayOnHands,
   purifyClassFeatureSpell,
   restoreWildMagicTidesOfChaos,
+  resetClassFeatureResources,
+  shortRestClassFeatureResources,
 } from "./classFeatureRuntime.js";
 
 const META_KEY = `${ID}/meta`;
@@ -194,7 +198,7 @@ const WILD_MAGIC_GUIDANCE = Object.freeze({
   "53-54": { where: "Sullo Stregone", duration: "5d6 giorni", resolve: "Tiro della durata e fine manuali." },
   "55-56": { where: "Sullo Stregone", duration: "Ricrescono in 24 ore", resolve: "Reminder cosmetico; fine manuale." },
   "57-58": { where: "Oggetti infiammabili toccati", duration: "1 minuto", resolve: "Nessun oggetto modificato automaticamente." },
-  "59-60": { where: "Slot incantesimo dello Stregone", duration: "Istantanea", resolve: "Segna il recupero sulla scheda esterna; nessun inventario slot duplicato." },
+  "59-60": { where: "Slot incantesimo dello Stregone", duration: "Istantanea", resolve: "Ripristina lo slot speso di livello più basso dai pallini della scheda Incantesimi." },
   "61-62": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Reminder sul modo di parlare." },
   "63-64": { where: "Centrata sullo Stregone", duration: "1 ora completa, senza concentrazione", resolve: "Link spell consultivo; nessuna zona automatica." },
   "65-66": { where: "Fino a tre creature scelte entro 9 m", duration: "Istantanea", resolve: "Scelta, tiro 4d10 e danni al tavolo." },
@@ -353,7 +357,10 @@ function quickActionSummary(action) {
     return `Attacco · ${action.range === "ranged" ? "distanza" : "mischia"} · ${types.join(" + ")}`;
   }
   const launch = action.launchMode === "review" ? "revisione" : "lancio rapido";
-  return `Incantesimo · ${launch} · ${target}`;
+  // The cost of the cast: the uses left of its own counter, or free; a spell slot is the default.
+  const uses = item ? quickActionUsesLeft(action, getClassFeatureState(item).resources) : null;
+  const cost = uses ? ` · ${uses.current}/${uses.maximum} usi` : action.cost === "free" ? " · gratuito" : "";
+  return `Incantesimo · ${launch} · ${target}${cost}`;
 }
 
 function classFeatureChoiceControl(feature, { compact = false, label = "", defaultValue = "", enabledFeatureIds = [] } = {}) {
@@ -712,13 +719,15 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
     });
     if (!sceneStillCurrent()) return;
     if (result.mode === "executed") {
-      setStatus(`Applicata: ${action.label}${result.spellSlot ? ` · speso uno ${result.spellSlot}` : ""}.`, "success");
-      // The token changed while the launch held the renders back: the slot pips read it again.
-      if (result.spellSlot) {
+      // The token changed while the launch held the renders back: the slot pips and the uses read it again
+      // (the quick action list first: rebuilding it clears its status line).
+      if (result.spellCost) {
         await refreshClassFeatureItem();
         if (!sceneStillCurrent()) return;
         renderSpellSlots();
+        renderQuickActions();
       }
+      setStatus(`Applicata: ${action.label}${result.spellCost ? ` · speso: ${result.spellCost}` : ""}.`, "success");
       quickActionLaunching = false;
       setButtonsDisabled(false);
       return;
@@ -880,12 +889,14 @@ function renderSpellSlots() {
     const pips = document.createElement("span");
     pips.className = "spell-slot-pips";
     const name = row.pact ? `slot del Patto (${row.level}°)` : `slot di ${row.level}° livello`;
-    for (let index = 0; index < row.maximum; index += 1) {
+    // Slots created with Font of Magic stand after the maximum, dashed, until spent or the long rest.
+    for (let index = 0; index < Math.max(row.maximum, row.current); index += 1) {
       const available = index < row.current;
       const pip = document.createElement(isGM ? "button" : "span");
       pip.className = "spell-slot-pip";
       pip.dataset.available = available ? "1" : "0";
       if (row.pact) pip.dataset.pact = "1";
+      if (index >= row.maximum) pip.dataset.temporary = "1";
       if (isGM) {
         const next = available ? index : index + 1;
         pip.type = "button";
@@ -898,9 +909,58 @@ function renderSpellSlots() {
     }
     const count = document.createElement("span");
     count.textContent = `${row.current}/${row.maximum}`;
+    if (row.temporary) count.title = `${row.temporary} ${row.temporary === 1 ? "slot creato" : "slot creati"} con Fonte di Magia`;
     line.append(label, pips, count);
     return line;
   }));
+  if (rows.length && isGM) block.appendChild(buildRestActions("spellbookRunStatus"));
+}
+
+// Short and long rest (GM): the class-feature resources the rest restores, spell slots and the uses of the
+// quick actions included, in one command with Undo. statusId is the status line of the tab the GM is on.
+function buildRestActions(statusId) {
+  const box = document.createElement("div");
+  box.className = "rest-actions";
+  for (const [shortRest, label, title] of [
+    [true, "Riposo breve", "Ripristina le risorse che tornano con un riposo breve (slot del Patto, ki, Incanalare Divinità…)"],
+    [false, "Riposo lungo", "Ripristina tutte le risorse, gli slot e gli usi delle azioni rapide"],
+  ]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.title = title;
+    button.disabled = classFeatureMutating;
+    button.addEventListener("click", () => void takeRest(shortRest, statusId));
+    box.appendChild(button);
+  }
+  return box;
+}
+
+async function takeRest(shortRest, statusId) {
+  const sceneOperation = sceneLifecycle.capture({ operationId: `initiative-rest:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(sceneOperation) || !isGM || !item || classFeatureMutating) return;
+  classFeatureMutating = true;
+  const status = $(statusId);
+  status.textContent = "Aggiornamento…";
+  status.dataset.tone = "";
+  try {
+    await (shortRest ? shortRestClassFeatureResources : resetClassFeatureResources)(item.id);
+    if (!sceneLifecycle.isCurrent(sceneOperation)) throw new Error("Scena cambiata: riapri la scheda.");
+    await refreshClassFeatureItem();
+    if (!sceneLifecycle.isCurrent(sceneOperation)) throw new Error("Scena cambiata: riapri la scheda.");
+    classFeatureMutating = false;
+    renderSpellSlots();
+    renderClassFeatures();
+    renderQuickActions();
+    status.textContent = shortRest ? "Riposo breve: risorse ripristinate." : "Riposo lungo: risorse ripristinate.";
+    status.dataset.tone = "success";
+  } catch (error) {
+    console.warn("[initiative-card] rest:", error?.message || error);
+    status.textContent = error?.message || "Riposo non riuscito.";
+    status.dataset.tone = "error";
+  } finally {
+    classFeatureMutating = false;
+  }
 }
 
 async function setSpellSlotCurrent(poolId, current, name) {
@@ -1106,7 +1166,11 @@ async function runClassFeatureMutation(operation, successMessage) {
     status.dataset.tone = error?.cancelled ? "" : "error";
   } finally {
     classFeatureMutating = false;
-    if (sceneLifecycle.isReady()) renderClassFeatures();
+    if (sceneLifecycle.isReady()) {
+      renderClassFeatures();
+      // A feature may change the spell slots too (Font of Magic).
+      renderSpellSlots();
+    }
   }
 }
 
@@ -1505,7 +1569,7 @@ function buildSorcerySourceControls(feature, state) {
   createLabel.appendChild(createSelect);
   const createButton = classFeatureButton(
     "Crea slot",
-    "Consuma punti e crea solo un reminder temporaneo",
+    "Consuma punti e aggiunge uno slot, anche oltre il massimo, fino al riposo lungo",
     () => createClassFeatureSpellSlot({
       sourceId: item.id,
       featureId: feature.id,
@@ -1515,7 +1579,7 @@ function buildSorcerySourceControls(feature, state) {
   );
 
   const convertLabel = document.createElement("label");
-  convertLabel.textContent = "Converti slot speso";
+  convertLabel.textContent = "Converti uno slot";
   const convertSelect = document.createElement("select");
   for (let level = 1; level <= 9; level += 1) {
     const option = document.createElement("option");
@@ -1526,22 +1590,16 @@ function buildSorcerySourceControls(feature, state) {
   convertLabel.appendChild(convertSelect);
   const convertButton = classFeatureButton(
     "Converti slot",
-    "Conferma prima che lo slot sia stato speso sulla scheda esterna",
-    async () => {
-      const level = Number(convertSelect.value);
-      if (!window.confirm(`Confermare che lo slot di livello ${level} è già stato segnato come speso sulla scheda esterna?`)) {
-        throw { cancelled: true };
-      }
-      return convertClassFeatureSpellSlot({
-        sourceId: item.id,
-        featureId: feature.id,
-        slotLevel: level,
-      });
-    },
+    "Spende uno slot di quel livello e recupera i punti stregoneria",
+    () => convertClassFeatureSpellSlot({
+      sourceId: item.id,
+      featureId: feature.id,
+      slotLevel: Number(convertSelect.value),
+    }),
     "Slot convertito in punti.",
   );
   const note = document.createElement("small");
-  note.textContent = "Nessun inventario slot viene scritto dal plugin; il reminder termina manualmente o al riposo lungo.";
+  note.textContent = "Gli slot si aggiornano nella scheda Incantesimi; quelli creati restano fino a quando li spendi o al riposo lungo.";
   controls.append(createLabel, createButton, convertLabel, convertButton, note);
   return controls;
 }
@@ -2020,6 +2078,9 @@ function renderClassFeatures() {
       ? resources.map(buildClassFeatureResourceRow)
       : [classFeatureEmpty("Nessuna risorsa da tracciare.")]
   ));
+  const restActions = $("classFeatureRestActions");
+  restActions.hidden = !isGM || !resources.length;
+  restActions.replaceChildren(...(restActions.hidden ? [] : buildRestActions("classFeatureRunStatus").childNodes));
 
   $("classFeatureActive").replaceChildren(...(
     active.length
@@ -2551,6 +2612,21 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
   turnsInput.value = current.turns ?? "";
   turnsInput.dataset.quickActionField = "turns";
 
+  // The cost of a spell: a slot of the character, uses of its own (a feat, a species, an item: back at the long
+  // rest) or nothing.
+  const costSelect = selectControl([
+    ["slot", "Slot incantesimo"],
+    ["uses", "Usi propri"],
+    ["free", "Gratuito"],
+  ], current.cost || "slot");
+  costSelect.dataset.quickActionField = "cost";
+  const usesInput = document.createElement("input");
+  usesInput.type = "number";
+  usesInput.min = "1";
+  usesInput.max = String(MAX_QUICK_ACTION_USES);
+  usesInput.value = current.uses ?? "1";
+  usesInput.dataset.quickActionField = "uses";
+
   const expirySelect = selectControl([
     ["manual", "Manuale"],
     ["rounds", "N round"],
@@ -2677,6 +2753,8 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
   const launchModeLabel = makeLabel("Lancio", launchModeSelect);
   const slotLabel = makeLabel("Slot", slotInput);
   const turnsLabel = makeLabel("Durata in round", turnsInput);
+  const costLabel = makeLabel("Costo", costSelect);
+  const usesLabel = makeLabel("Usi per riposo lungo", usesInput);
   const expiryLabel = makeLabel("Scadenza", expirySelect);
   const durationLabel = makeLabel("Occorrenze", durationInput);
   const sourceLabel = makeLabel("Fonte", sourceSelect);
@@ -2689,6 +2767,8 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
     launchModeLabel,
     slotLabel,
     turnsLabel,
+    costLabel,
+    usesLabel,
     expiryLabel,
     durationLabel,
     componentsBox,
@@ -2716,6 +2796,8 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
     launchModeLabel.hidden = !spell;
     slotLabel.hidden = !spell;
     turnsLabel.hidden = !spell;
+    costLabel.hidden = !spell;
+    usesLabel.hidden = !spell || costSelect.value !== "uses";
     expiryLabel.hidden = spell || feature || attack;
     durationLabel.hidden = spell || feature || attack || expirySelect.value === "manual";
     const cantrip = attack && sourceSelect.value === "cantrip";
@@ -2754,6 +2836,7 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
   });
   expirySelect.addEventListener("change", syncKind);
   sourceSelect.addEventListener("change", syncKind);
+  costSelect.addEventListener("change", syncKind);
   up.addEventListener("click", () => {
     const previous = row.previousElementSibling;
     if (previous) previous.before(row);
@@ -3063,6 +3146,8 @@ function collectQuickActions() {
         slotLevel: field("slotLevel").value,
         turns: field("turns").value,
         applyAutomations: true,
+        cost: field("cost").value,
+        uses: field("uses").value,
       };
     }
     return {

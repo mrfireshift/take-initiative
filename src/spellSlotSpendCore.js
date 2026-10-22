@@ -2,6 +2,7 @@
 // (spellApplicationExecutor.js and spellAreaResolutionExecutor.js take it as extraOperations, so one Undo
 // gives the slot back with the spell). Pure: the callers read the caster's build and resources.
 import { SPELL_SLOT_RESOURCE_POOLS, spellSlotStatus } from "./spellSlotCore.js";
+import { quickActionUsesLeft, sanitizeQuickAction } from "./quickActionsCore.js";
 
 // "": the slot the rules pick; "pact": Pact Magic; "none": no slot (ritual, a free cast).
 export const SPELL_SLOT_SOURCES = Object.freeze(["", "pact", "none"]);
@@ -85,6 +86,59 @@ export function spellSlotChoices({ characterBuild = [], resources = {}, spellLev
       maximum: row.maximum,
       label: `${row.pact ? `Patto ${row.level}°` : `${row.level}°`} · ${row.current}/${row.maximum}`,
     }));
+}
+
+/**
+ * The cost of a cast, for the quick actions and the spell panel: a spell slot (the default, and every spellbook
+ * spell), a use of the quick action's own counter (cost "uses": a spell from a feat, a species or an item) or
+ * nothing (cost "free"). Returns { operation, spent, exhausted, message, slotLevel }: operation goes in the
+ * spell's command; spent names what it spends, for the status line.
+ */
+export function planSpellCastCost({
+  action = null,
+  sourceId = "",
+  characterBuild = [],
+  abilityModifiers = null,
+  resources = {},
+  spellLevel = 0,
+  slotLevel = null,
+  source = "",
+  phase = "cast",
+} = {}) {
+  const quickAction = sanitizeQuickAction(action);
+  const castPhase = String(phase || "cast").trim().toLowerCase();
+  const nothing = { operation: null, spent: "", exhausted: false, message: "", slotLevel: null };
+  if (quickAction?.kind === "spell" && quickAction.cost === "free") return nothing;
+  if (quickAction?.kind === "spell" && quickAction.cost === "uses") {
+    if (castPhase !== "cast" && castPhase !== "prepare") return nothing;
+    const uses = quickActionUsesLeft(quickAction, resources);
+    if (!uses.current) {
+      return { ...nothing, exhausted: true, message: `Nessun uso rimasto per ${quickAction.label} (0/${uses.maximum}).` };
+    }
+    return {
+      ...nothing,
+      operation: {
+        type: "class-feature:adjust-resource",
+        operationId: `quick-action-use:${quickAction.id}:${Date.now().toString(36)}`,
+        sourceId: String(sourceId || "").trim(),
+        pool: uses.pool,
+        characterBuild,
+        abilityModifiers,
+        adjustment: { delta: -1 },
+      },
+      spent: `uso di ${quickAction.label} (${uses.current - 1}/${uses.maximum})`,
+    };
+  }
+  const plan = planSpellSlotSpend({ characterBuild, resources, spellLevel, slotLevel, source, phase });
+  return {
+    operation: plan.spend
+      ? spellSlotSpendOperation({ sourceId, poolId: plan.spend.poolId, characterBuild, abilityModifiers })
+      : null,
+    spent: spellSlotLabel(plan.spend),
+    exhausted: plan.exhausted,
+    message: plan.message,
+    slotLevel: plan.spend ? plan.slotLevel : null,
+  };
 }
 
 // The operation that spends one slot of the caster: an ordinary class-feature resource adjustment.

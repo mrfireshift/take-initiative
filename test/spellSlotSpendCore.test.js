@@ -80,3 +80,26 @@ test("the spend is an ordinary class-feature resource adjustment on the caster",
   assert.equal(spellSlotSpendOperation({ sourceId: "nyx", poolId: "stregone-punti-stregoneria" }), null);
   assert.equal(spellSlotLabel({ level: 2, pact: true }), "slot del Patto (2°)");
 });
+
+test("the cost of a cast: a slot by default, the quick action's own uses, or nothing", async () => {
+  const { planSpellCastCost } = await import("../src/spellSlotSpendCore.js");
+  const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
+  const misty = { id: "misty", label: "Passo velato", kind: "spell", spellId: "misty-step", cost: "uses", uses: 1 };
+  const base = { sourceId: "nyx", characterBuild: wizard, spellLevel: 2 };
+  assert.equal(planSpellCastCost(base).operation.pool.id, "spell-slot-2");
+  assert.equal(planSpellCastCost({ ...base, action: { ...misty, cost: "slot" } }).spent, "slot di 2° livello");
+  assert.deepEqual(planSpellCastCost({ ...base, action: { ...misty, cost: "free" } }),
+    { operation: null, spent: "", exhausted: false, message: "", slotLevel: null });
+  const uses = planSpellCastCost({ ...base, action: misty });
+  assert.equal(uses.operation.pool.id, "quick-action-uses:misty");
+  assert.deepEqual(uses.operation.adjustment, { delta: -1 });
+  assert.equal(uses.spent, "uso di Passo velato (0/1)");
+  const empty = planSpellCastCost({ ...base, action: misty, resources: { "quick-action-uses:misty": { current: 0, maximum: 1 } } });
+  assert.equal(empty.exhausted, true);
+  assert.equal(empty.message, "Nessun uso rimasto per Passo velato (0/1).");
+  assert.equal(planSpellCastCost({ ...base, action: misty, phase: "resolve" }).operation, null);
+  // The cost is stored only when it is not a slot: existing quick actions keep their shape.
+  assert.equal(Object.hasOwn(sanitizeQuickAction({ ...misty, cost: "slot" }), "cost"), false);
+  assert.deepEqual([sanitizeQuickAction(misty).cost, sanitizeQuickAction(misty).uses], ["uses", 1]);
+  assert.equal(Object.hasOwn(sanitizeQuickAction({ ...misty, cost: "free", uses: 3 }), "uses"), false);
+});

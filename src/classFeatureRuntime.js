@@ -31,6 +31,7 @@ import {
   classFeatureTargetWithinRange,
   classFeatureTargeting,
   resolveClassFeatureResourceDie,
+  classFeatureResourceRefreshEvents,
   normalizeClassFeatureState,
   planClassFeatureActivation,
   planClassFeatureDeactivation,
@@ -44,6 +45,8 @@ import {
   getClassFeatureResourcePool,
 } from "./classFeatureCatalog.js";
 import { emitMatchedClassFeatureVisual } from "./embersMatchedVisualRenderer.js";
+import { spellSlotPoolId, spellSlotStatus } from "./spellSlotCore.js";
+import { quickActionUsesPool } from "./quickActionsCore.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -172,6 +175,9 @@ function classFeatureError(reason, poolId = "") {
   }
   if (reason === "spell-slot-level-invalid") {
     return new Error("Scegli un livello di slot valido per Fonte di Magia.");
+  }
+  if (reason === "spell-slot-unavailable") {
+    return new Error("Nessuno slot di quel livello disponibile da convertire.");
   }
   if (reason === "special-refresh-unavailable") {
     return new Error("Ripristino Stregonesco disponibile solo dal livello 20.");
@@ -834,7 +840,17 @@ async function createSorcerySlot({ sourceId, feature, slotLevel } = {}) {
     choiceId: `slot-${level}`,
     resourceValues: { [poolId]: costAmount },
     enabledFeatureIds: getEnabledClassFeatures(profile).map((entry) => entry.id),
-  }], {
+  },
+  // The created slot joins the inventory, even above the maximum, until it is spent or the long rest.
+  ...(getClassFeatureResourcePool(spellSlotPoolId(level)) ? [{
+    type: "class-feature:adjust-resource",
+    operationId: classFeatureStateOperationId("create-spell-slot-inventory"),
+    sourceId: sourceItem.id,
+    pool: getClassFeatureResourcePool(spellSlotPoolId(level)),
+    characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
+    adjustment: { delta: 1, allowAboveMaximum: true },
+  }] : [])], {
     kind: "class-feature",
     label: `Slot temporaneo di livello ${level}`,
     targetIds: [sourceItem.id],
@@ -872,6 +888,12 @@ export async function convertClassFeatureSpellSlot({
   const poolId = feature.resourceCosts?.[0]?.poolId;
   const pool = getClassFeatureResourcePool(poolId);
   if (!pool) throw classFeatureError("resource-pool-missing", poolId);
+  // The slot comes out of the inventory in the same command: a slot of that level, or a Pact Magic slot of
+  // that level when none is left.
+  const slots = spellSlotStatus(profile.characterBuild, getClassFeatureState(sourceItem).resources)
+    .filter((row) => row.level === level && row.current > 0);
+  const slot = slots.find((row) => !row.pact) || slots[0] || null;
+  if (!slot) throw classFeatureError("spell-slot-unavailable");
   const operationId = classFeatureStateOperationId("convert-spell-slot");
   const mutation = await runEffectsMutation([{
     type: "class-feature:adjust-resource",
@@ -881,6 +903,14 @@ export async function convertClassFeatureSpellSlot({
     characterBuild: profile.characterBuild,
     abilityModifiers: profile.abilityModifiers,
     adjustment: { delta: level },
+  }, {
+    type: "class-feature:adjust-resource",
+    operationId: classFeatureStateOperationId("convert-spell-slot-inventory"),
+    sourceId: sourceItem.id,
+    pool: getClassFeatureResourcePool(slot.poolId),
+    characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
+    adjustment: { delta: -1 },
   }], {
     kind: "class-feature",
     label: `Slot di livello ${level} convertito in punti stregoneria`,
@@ -1552,10 +1582,9 @@ export async function adjustClassFeatureResource(
   return requireClassFeatureStateMutation(mutation, operationId);
 }
 
-export async function resetClassFeatureResources(sourceId) {
-  const [sourceItem] = await OBR.scene.items.getItems([sourceId]);
-  if (!sourceItem) throw classFeatureError("source-not-found");
-  const profile = getInitiativeCard(sourceItem);
+// Every resource pool of the character: those already in its state, those of its class and species features
+// (spell slots included, resolved by id), and the uses of its spell quick actions with a counter of their own.
+function characterResourcePools(sourceItem, profile) {
   const currentState = getClassFeatureState(sourceItem);
   const poolIds = new Set(Object.keys(currentState.resources));
   for (const feature of [...getAvailableClassFeatures(profile.characterBuild), ...getSpeciesFeatures(profile)]) {
@@ -1568,11 +1597,33 @@ export async function resetClassFeatureResources(sourceId) {
       if (poolId) poolIds.add(String(poolId));
     }
   }
-
-  const pools = [...poolIds]
-    .map((poolId) => getClassFeatureResourcePool(poolId))
+  const quickActionPools = (Array.isArray(profile.quickActions) ? profile.quickActions : [])
+    .map(quickActionUsesPool)
     .filter(Boolean);
-  const operationId = classFeatureStateOperationId("reset-resources");
+  return [
+    ...[...poolIds].map((poolId) => getClassFeatureResourcePool(poolId)).filter(Boolean),
+    ...quickActionPools,
+  ];
+}
+
+export async function resetClassFeatureResources(sourceId) {
+  return resetCharacterResources(sourceId);
+}
+
+export async function shortRestClassFeatureResources(sourceId) {
+  return resetCharacterResources(sourceId, { shortRest: true });
+}
+
+async function resetCharacterResources(sourceId, { shortRest = false } = {}) {
+  const [sourceItem] = await OBR.scene.items.getItems([sourceId]);
+  if (!sourceItem) throw classFeatureError("source-not-found");
+  const profile = getInitiativeCard(sourceItem);
+  // A short rest restores the pools that come back with it at the character's level (Pact Magic, ki, Channel
+  // Divinity...); the long rest, every pool.
+  const pools = characterResourcePools(sourceItem, profile).filter((pool) => (
+    !shortRest || classFeatureResourceRefreshEvents(pool, profile.characterBuild).includes("riposo_breve")
+  ));
+  const operationId = classFeatureStateOperationId(shortRest ? "short-rest" : "reset-resources");
   const mutation = await runEffectsMutation([{
     type: "class-feature:reset-resources",
     operationId,
@@ -1580,10 +1631,10 @@ export async function resetClassFeatureResources(sourceId) {
     pools,
     characterBuild: profile.characterBuild,
     abilityModifiers: profile.abilityModifiers,
-    poolIds: [...poolIds],
+    poolIds: pools.map((pool) => pool.id),
   }], {
     kind: "class-feature",
-    label: "Risorse di classe ripristinate",
+    label: shortRest ? "Riposo breve: risorse ripristinate" : "Risorse di classe ripristinate",
     targetIds: [sourceId],
   });
   return requireClassFeatureStateMutation(mutation, operationId);

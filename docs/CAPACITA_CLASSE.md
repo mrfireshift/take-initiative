@@ -159,9 +159,13 @@ esclusione, è nel catalogo JSON e nei test `test/*FeatureRuntime.test.js`.
 - le capacità `not-automated` sono un riferimento descrittivo o un promemoria
   per la gestione al tavolo;
 - gli slot incantesimo sono pool di risorse ricavati dalla build
-  (`src/spellSlotCore.js`) e si spendono nel comando del lancio; le capacità
-  che creano, convertono o recuperano slot non li aggiornano ancora: si
-  correggono a mano dai pallini della scheda Incantesimi;
+  (`src/spellSlotCore.js`) e si spendono nel comando del lancio, delle
+  punizioni e di Fonte di Magia (gli slot creati possono superare il massimo
+  fino al riposo lungo); Recupero Arcano e Recupero Naturale restano manuali,
+  dai pallini della scheda Incantesimi;
+- il riposo breve ripristina i pool che tornano con un riposo breve al livello
+  del personaggio (`classFeatureResourceRefreshEvents`), il riposo lungo tutti,
+  compresi gli usi delle azioni rapide incantesimo con costo "Usi propri";
 - la gestione delle capacità non sostituisce il registro delle decisioni del
   tavolo;
 - le aure rispettano le categorie di bersaglio dichiarate dalla capacità e non

@@ -469,3 +469,55 @@ test("an area cantrip: the creatures near the caster proposed from the map; one 
   await assert.rejects(() => runtime.executePcAttackArea({ ...request, attackInstanceId: "whirl-2", members: [{ targetId: "gone", outcome: "failed" }] }),
     /non è più presente/);
 });
+
+function paladinWithSlots(resources = null) {
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "paladino", level: 5 }], classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["paladino-punizione-divina"] });
+  if (resources) meta("aria").classFeatureState = { version: 1, resources, instances: [] };
+}
+const slots = () => meta("aria").classFeatureState?.resources || {};
+
+test("Divine Smite spends its slot in the attack's command; one Undo gives back the damage and the slot", async () => {
+  paladinWithSlots();
+  await attack({ attackInstanceId: "smite-slot", riders: [{ id: "paladino-punizione-divina", type: "radiant", amount: 9, slotLevel: 2 }] });
+  assert.equal(slots()["spell-slot-2"].current, 1);
+  const entry = await attackEntry();
+  assert.equal(entry.payload.causality.riders[0].slotTracked, true);
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("ghoul").hp, 30);
+  assert.equal(slots()["spell-slot-2"]?.current ?? 2, 2);
+});
+
+test("Divine Smite without a slot left is refused, unless the GM confirms the attack without one", async () => {
+  paladinWithSlots({ "spell-slot-1": { current: 0, maximum: 4 } });
+  const riders = [{ id: "paladino-punizione-divina", type: "radiant", amount: 9, slotLevel: 1 }];
+  await assert.rejects(attack({ attackInstanceId: "smite-empty", riders }), /Nessuno slot di 1° livello disponibile/);
+  assert.equal(meta("ghoul").hp, 30, "nothing was written");
+  await attack({ attackInstanceId: "smite-confirmed", riders, castWithoutSlot: true });
+  assert.equal(meta("ghoul").hp, 4);
+  assert.equal(slots()["spell-slot-1"].current, 0);
+  assert.equal((await attackEntry()).payload.causality.riders[0].slotTracked, false);
+});
+
+test("Eldritch Smite spends a Pact Magic slot", async () => {
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "warlock", level: 5 }], classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["warlock-suppliche-occulte-punizione-occulta"] });
+  await attack({ attackInstanceId: "eldritch-slot", componentAmounts: { c1: 5, c2: 0 },
+    riders: [{ id: "warlock-suppliche-occulte-punizione-occulta", type: "force", amount: 18, slotLevel: 3 }] });
+  assert.equal(slots()["spell-slot-pact"].current, 1);
+});
+
+test("a smite with an activation that writes the class-feature state spends its slot in that same write", async () => {
+  runtime = createPcAttackRuntime({ api: sdk, emitVisual: async () => ({ sent: false }), postDamage: async () => [], postTempHp: async () => {} });
+  const ISPIRATRICE = "paladino-giuramento-di-gloria-incanalare-divinita-punizione-ispiratrice";
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "paladino", level: 7, subclassId: "paladino-giuramento-di-gloria" }],
+    abilityModifiers: { str: 4, dex: 0, con: 2, int: 0, wis: 1, cha: 3 }, classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["paladino-punizione-divina", ISPIRATRICE] });
+  await attack({ attackInstanceId: "inspire-slot", riders: [{ id: "paladino-punizione-divina", type: "radiant", amount: 9, slotLevel: 2 }],
+    activations: [{ id: ISPIRATRICE, amount: 12, tempHp: [{ targetId: "aria", amount: 5 }] }] });
+  const resources = slots();
+  assert.equal(resources["spell-slot-2"].current, 2, "paladin 7 has three 2nd-level slots");
+  assert.equal(resources["paladino-incanalare-divinita-usi"].current, 0, "and the Channel Divinity use");
+  await history.undoHistoryThrough((await attackEntry()).id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(slots()["spell-slot-2"]?.current ?? 3, 3);
+});

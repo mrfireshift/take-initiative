@@ -39,6 +39,12 @@ export const QUICK_ACTION_EXPIRY_MODES = Object.freeze([
   "turn-end",
 ]);
 
+// "slot" spends a spell slot; "uses" a counter of the action that comes back with the long rest; "free" nothing.
+export const QUICK_ACTION_SPELL_COSTS = Object.freeze(["slot", "uses", "free"]);
+export const MAX_QUICK_ACTION_USES = 9;
+const QUICK_ACTION_USES_POOL_PREFIX = "quick-action-uses:";
+
+const spellCostSet = new Set(QUICK_ACTION_SPELL_COSTS);
 const kindSet = new Set(QUICK_ACTION_KINDS);
 const targetModeSet = new Set(QUICK_ACTION_TARGET_MODES);
 const spellLaunchModeSet = new Set(QUICK_ACTION_SPELL_LAUNCH_MODES);
@@ -80,6 +86,9 @@ export function sanitizeQuickAction(value) {
     const launchMode = spellLaunchModeSet.has(value.launchMode)
       ? value.launchMode
       : legacyLaunchMode;
+    // The cost of the cast: a spell slot (the default, never stored, so existing actions keep their shape), a
+    // counter of its own (a spell from a feat, a species or an item) or nothing.
+    const cost = spellCostSet.has(value.cost) ? value.cost : "slot";
     return {
       version: QUICK_ACTION_VERSION,
       id,
@@ -91,6 +100,8 @@ export function sanitizeQuickAction(value) {
       turns: optionalInteger(value.turns, 1, 999),
       applyAutomations: value.applyAutomations !== false,
       launchMode,
+      ...(cost !== "slot" ? { cost } : {}),
+      ...(cost === "uses" ? { uses: optionalInteger(value.uses, 1, MAX_QUICK_ACTION_USES) ?? 1 } : {}),
     };
   }
 
@@ -188,6 +199,29 @@ export function parseQuickActionAttackImport(text) {
     attacks.push(draft);
   }
   return { attacks, invalid, error: "" };
+}
+
+// The counter of a spell quick action with its own uses: a class-feature resource pool built from the action, kept in
+// classFeatureState.resources like the others (History, Undo, reset at the long rest).
+export function quickActionUsesPool(action) {
+  const normalized = sanitizeQuickAction(action);
+  if (normalized?.kind !== "spell" || normalized.cost !== "uses") return null;
+  return {
+    id: `${QUICK_ACTION_USES_POOL_PREFIX}${normalized.id}`,
+    name: `Usi: ${normalized.label}`,
+    capacity: { type: "fixed", value: normalized.uses },
+    refresh: [{ event: "riposo_lungo", amount: "massimo" }],
+  };
+}
+
+// The uses left of an action with its own counter (resources is classFeatureState.resources); null without one.
+export function quickActionUsesLeft(action, resources = {}) {
+  const pool = quickActionUsesPool(action);
+  if (!pool) return null;
+  const maximum = pool.capacity.value;
+  const stored = resources?.[pool.id]?.current;
+  const current = stored === null || stored === undefined ? maximum : Number(stored);
+  return { pool, current: Number.isFinite(current) ? Math.max(0, Math.min(maximum, Math.floor(current))) : maximum, maximum };
 }
 
 export function isAttackQuickAction(action) {

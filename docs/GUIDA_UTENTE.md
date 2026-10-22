@@ -112,7 +112,24 @@ slot nello stesso comando dell'incantesimo: un solo Undo li annulla entrambi.
 - Trucchetti, risoluzioni successive, azioni attive, trigger di zona e
   creature senza classi non spendono slot.
 
-**Ripristina risorse** riporta al massimo anche gli slot.
+Anche queste azioni scalano gli slot nel loro comando, con un solo Undo:
+
+- **Punizione Divina** e **Punizione Occulta**, nella console attacchi: il
+  menu del livello mostra quanti slot restano e, senza slot, la console chiede
+  se registrare l'attacco senza scalarlo;
+- **Fonte di Magia**: *Crea slot* aggiunge uno slot anche oltre il massimo
+  (pallino tratteggiato, sparisce al riposo lungo); *Converti slot* spende uno
+  slot di quel livello per i punti stregoneria e si rifiuta se non ce n'è.
+
+Recupero Arcano, Recupero Naturale e la Magia Selvaggia che restituisce uno
+slot si segnano a mano dai pallini.
+
+**Riposo breve** e **Riposo lungo**, sotto i pallini e in testa alle risorse
+della scheda Capacità, ripristinano le risorse del personaggio: il riposo
+breve quelle che tornano con un riposo breve al suo livello (slot del Patto,
+ki, Incanalare Divinità…), il riposo lungo tutto, slot e usi delle azioni
+rapide compresi. **Ripristina risorse** nel menu della card equivale al
+riposo lungo.
 
 ### Importare una scheda
 
@@ -129,7 +146,10 @@ configurare fino a 12 scorciatoie per:
 - lanciare o precompilare un incantesimo;
 - aprire una spell nella Console effetti ad area;
 - applicare una condizione al caster o ai token selezionati;
-- conservare slot, durata, scadenza e automazioni più usati.
+- conservare slot, durata, scadenza e automazioni più usati;
+- per un incantesimo, scegliere il **Costo**: uno slot (predefinito), **Usi
+  propri** con un contatore che torna al riposo lungo (incantesimi da talenti,
+  specie o oggetti) oppure **Gratuito**. L'elenco mostra gli usi rimasti.
 
 Le azioni semplici sul caster o su un solo bersaglio possono essere eseguite
 direttamente; negli altri casi la scorciatoia apre il pannello corretto con i

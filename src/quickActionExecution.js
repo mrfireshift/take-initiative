@@ -22,11 +22,7 @@ import {
   validateSpellAreaSceneSpatial,
 } from "./spellUnifiedPanelSceneProvider.js";
 import { getSpellDefinition } from "./spells-srd.js";
-import {
-  planSpellSlotSpend,
-  spellSlotLabel,
-  spellSlotSpendOperation,
-} from "./spellSlotSpendCore.js";
+import { planSpellCastCost } from "./spellSlotSpendCore.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -124,18 +120,21 @@ export async function executeDirectQuickAction({
     return { ...decision, mode: "executed", changedIds };
   }
 
-  // The spell slot (spellSlotCore.js): spent in the spell's own command, so one Undo gives both back. A Pact
-  // Magic slot casts the spell at its own level.
+  // The cost of the cast (spellSlotSpendCore.js): a spell slot, a use of the action's own counter, or nothing;
+  // spent in the spell's own command, so one Undo gives both back. A Pact Magic slot casts at its own level.
   const sourceMeta = freshSource.metadata?.[META_KEY] || {};
-  const slotPlan = planSpellSlotSpend({
+  const cost = planSpellCastCost({
+    action: normalized,
+    sourceId: freshSource.id,
     characterBuild: sourceMeta.initiativeCard?.characterBuild,
+    abilityModifiers: sourceMeta.initiativeCard?.abilityModifiers || null,
     resources: sourceMeta.classFeatureState?.resources,
     spellLevel: spell?.level,
     slotLevel: decision.session?.slotLevel,
     phase: decision.session?.phase,
   });
-  if (slotPlan.exhausted) {
-    const message = `${slotPlan.message}\n\nLanciare comunque ${spell?.displayName || spell?.name || decision.spellId} senza scalare uno slot?`;
+  if (cost.exhausted) {
+    const message = `${cost.message}\n\nLanciare comunque ${spell?.displayName || spell?.name || decision.spellId} senza spenderlo?`;
     const confirmed = typeof confirmSpellSlot === "function"
       ? await confirmSpellSlot(message)
       : false;
@@ -143,21 +142,13 @@ export async function executeDirectQuickAction({
       return { ...decision, mode: "cancelled", reason: "spell-slot-cancelled" };
     }
   }
-  const slotOperation = slotPlan.spend
-    ? spellSlotSpendOperation({
-      sourceId: freshSource.id,
-      poolId: slotPlan.spend.poolId,
-      characterBuild: sourceMeta.initiativeCard?.characterBuild,
-      abilityModifiers: sourceMeta.initiativeCard?.abilityModifiers || null,
-    })
-    : null;
-  const extraOperations = slotOperation ? [slotOperation] : [];
-  const spellSlot = spellSlotLabel(slotPlan.spend);
-  const session = slotPlan.spend && slotPlan.slotLevel !== decision.session?.slotLevel
+  const extraOperations = cost.operation ? [cost.operation] : [];
+  const spellCost = cost.spent;
+  const session = cost.slotLevel !== null && cost.slotLevel !== decision.session?.slotLevel
     ? {
       ...decision.session,
-      slotLevel: slotPlan.slotLevel,
-      castContext: { ...(decision.session?.castContext || {}), slotLevel: slotPlan.slotLevel },
+      slotLevel: cost.slotLevel,
+      castContext: { ...(decision.session?.castContext || {}), slotLevel: cost.slotLevel },
     }
     : decision.session;
 
@@ -193,7 +184,7 @@ export async function executeDirectQuickAction({
       mode: "executed",
       changedIds: areaResult.changedIds,
       areaResult,
-      spellSlot,
+      spellCost,
     };
   }
 
@@ -243,6 +234,6 @@ export async function executeDirectQuickAction({
     mode: "executed",
     changedIds: lifecycleResult.changedIds,
     lifecycleResult,
-    spellSlot,
+    spellCost,
   };
 }

@@ -83,18 +83,18 @@ test("slot pools: one per level and one for Pact Magic, their maximum from the b
   assert.equal(hasSpellSlots([{ classId: "warlock", level: 1 }]), true);
 });
 
-test("the sheet reads one row per slot level, then Pact Magic, unspent slots available", () => {
+test("the sheet reads one row per slot level, then Pact Magic, unspent slots available, created slots above the maximum", () => {
   const rows = spellSlotStatus([{ classId: "mago", level: 5 }, { classId: "warlock", level: 3 }], {
     "spell-slot-1": { current: 1, maximum: 4 },
-    "spell-slot-3": { current: 9, maximum: 2 },
+    "spell-slot-3": { current: 3, maximum: 2 },
     "spell-slot-pact": { current: null, maximum: 2 },
     "stregone-punti-stregoneria": { current: 1, maximum: 5 },
   });
   assert.deepEqual(rows, [
-    { poolId: "spell-slot-1", maximum: 4, current: 1, level: 1, pact: false },
-    { poolId: "spell-slot-2", maximum: 3, current: 3, level: 2, pact: false },
-    { poolId: "spell-slot-3", maximum: 2, current: 2, level: 3, pact: false },
-    { poolId: "spell-slot-pact", maximum: 2, current: 2, level: 2, pact: true },
+    { poolId: "spell-slot-1", maximum: 4, current: 1, temporary: 0, level: 1, pact: false },
+    { poolId: "spell-slot-2", maximum: 3, current: 3, temporary: 0, level: 2, pact: false },
+    { poolId: "spell-slot-3", maximum: 2, current: 3, temporary: 1, level: 3, pact: false },
+    { poolId: "spell-slot-pact", maximum: 2, current: 2, temporary: 0, level: 2, pact: true },
   ]);
   assert.deepEqual(spellSlotStatus([{ classId: "barbaro", level: 5 }]), []);
 });
