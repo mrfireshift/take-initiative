@@ -1,4 +1,4 @@
-// The reaction indicator of a tracker card: a round 18px button in the HP row, like the character sheet and ± buttons.
+// The reaction indicator of a tracker card: a round button in the HP row, like the character sheet and ± buttons.
 // It shows a curved reaction arrow (public/reaction.svg, drawn for the plugin, used as a mask so it takes the state's
 // colour): bright green = reaction available; dimmed red = used (it comes back at the start of the creature's turn).
 // The GM clicks it to mark or restore the reaction; players only see it.
@@ -26,7 +26,7 @@ export function buildReactionIndicator({ used = false, interactive = false, onTo
   node.type = "button";
   node.setAttribute("aria-pressed", String(!!used));
   node.style.cursor = "pointer";
-  // Drawn at 18px, clickable on 24px (hitAreaCore.js).
+  // Drawn at 16px, clickable on 24px (hitAreaCore.js).
   extendHitArea(node);
   node.addEventListener("pointerdown", (event) => {
     event.stopPropagation();

@@ -223,7 +223,8 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
   - **A2.4.**
     - Una prima versione (posti fissi all'estremità destra della riga) è stata scartata dopo la prova in OBR: le icone finivano lontane dagli HP e il posto vuoto del ± le separava.
     - **Versione scelta:** le icone stanno subito dopo il valore HP, che ha una larghezza minima fissa (`7ch`, cifre a larghezza uguale), nell'ordine reazione, scheda, ±. Ci sono solo quelle presenti, senza buchi. Lo stesso ordine vale per le righe dei boss.
-    - **Verifica:** sulle card normali, reazione a 128px e seconda icona a 150 (vista GM e giocatore); +4px sulla card attiva. Sui boss reazione a 141 e ± a 162: 13px più a destra, perché il ritratto del boss è più grande e il testo HP parte più avanti.
+    - **Verifica:** sulle card normali, reazione a 128px e seconda icona a 148 (vista GM e giocatore); +4px sulla card attiva. Sui boss reazione a 141 e ± a 160: 13px più a destra, perché il ritratto del boss è più grande e il testo HP parte più avanti.
+    - **Dopo la prova in OBR:** le icone toccavano quasi la barra HP (1px). Ora sono disegnate a 16px invece di 18 (l'area cliccabile resta 24px) e alzate di 2px: 3px dalla barra e 2px dal nome sulle card normali, 4px dalla barra sui boss.
   - **A2.6.** Le didascalie dei pulsanti non hanno più margine interno e finiscono con "…" se troppo lunghe. "Incantesimi" a 7,5px ha ora 4,4px di margine invece di toccare i bordi.
   - **Da decidere:** le didascalie della barra classica restano a 7,5px, sotto l'obiettivo dei 10px. A 10px "Incantesimi" richiede circa 51px contro i 44 disponibili, quindi servirebbe riorganizzare la barra (per esempio due righe di pulsanti), togliendo circa 46px alla lista.
 

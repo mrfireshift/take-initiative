@@ -1,10 +1,14 @@
-// Round 18px icon buttons of the tracker card's HP row (character sheet, reaction): one look for all of them. The icon
-// is a public SVG used as a CSS mask, so it takes the button's colour whatever colours the file has.
+// Round icon buttons of the tracker card's HP row (character sheet, reaction, and the ± drawn alike): one look for all
+// of them. The icon is a public SVG used as a CSS mask, so it takes the button's colour whatever colours the file has.
+// 16px: the row has 21px between the name and the HP bar, and the icon keeps 3px above the bar (CARD_ICON_LIFT).
+// The clickable area is 24px all the same (hitAreaCore.js).
+export const CARD_ICON_BUTTON_SIZE = 16;
+export const CARD_ICON_LIFT = "2px";
 export const CARD_ICON_BUTTON_STYLE = Object.freeze({
   flex: "0 0 auto",
-  minWidth: "18px",
-  width: "18px",
-  height: "18px",
+  minWidth: `${CARD_ICON_BUTTON_SIZE}px`,
+  width: `${CARD_ICON_BUTTON_SIZE}px`,
+  height: `${CARD_ICON_BUTTON_SIZE}px`,
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
@@ -25,7 +29,7 @@ export function cardIconAssetUrl(name) {
   return `${import.meta.env?.BASE_URL || "/"}${name}`;
 }
 
-export function buildCardIconGlyph(name, size = 13) {
+export function buildCardIconGlyph(name, size = 11) {
   const url = cardIconAssetUrl(name);
   const glyph = document.createElement("span");
   glyph.setAttribute("aria-hidden", "true");

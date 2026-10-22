@@ -19,7 +19,12 @@ import {
 import { compactStatusBadge } from "./initiativeCardCompact.js";
 import { fitCardToChipDock } from "./initiativeChipOverflow.js";
 import { buildReactionIndicator } from "./reactionIndicator.js";
-import { buildCardIconGlyph, styleCardIconButton } from "./cardIconButton.js";
+import {
+  CARD_ICON_BUTTON_SIZE,
+  CARD_ICON_LIFT,
+  buildCardIconGlyph,
+  styleCardIconButton,
+} from "./cardIconButton.js";
 import { extendHitArea } from "./hitAreaCore.js";
 import { hasReactionUsed } from "./reactionTrackerCore.js";
 
@@ -1064,7 +1069,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     // Same look as the reaction indicator (cardIconButton.js), in the sheet's blue.
     styleCardIconButton(initiativeCardButton, "sheet");
     initiativeCardButton.style.cursor = "pointer";
-    initiativeCardButton.appendChild(buildCardIconGlyph("character-sheet.svg", 12));
+    initiativeCardButton.appendChild(buildCardIconGlyph("character-sheet.svg", 10));
     extendHitArea(initiativeCardButton);
     initiativeCardButton.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
@@ -1085,9 +1090,9 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     hpDeltaButton.setAttribute("aria-pressed", "false");
     Object.assign(hpDeltaButton.style, {
       flex: "0 0 auto",
-      minWidth: "18px",
-      width: "18px",
-      height: "18px",
+      minWidth: `${CARD_ICON_BUTTON_SIZE}px`,
+      width: `${CARD_ICON_BUTTON_SIZE}px`,
+      height: `${CARD_ICON_BUTTON_SIZE}px`,
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
@@ -1096,7 +1101,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
       border: "1px solid rgba(255,255,255,.22)",
       background: "rgba(0,0,0,.52)",
       color: "#fff",
-      fontSize: "13px",
+      fontSize: "12px",
       fontWeight: "700",
       lineHeight: "1",
       cursor: "pointer",
@@ -1133,7 +1138,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
         clientY: rect.top + (rect.height / 2),
       }));
     });
-    hpDeltaButton.style.fontSize = "13px";
+    hpDeltaButton.style.fontSize = "12px";
   }
 
   // Reaction indicator (reactionTrackerCore.js): the GM marks it on any creature, players see it on PCs and allies.
@@ -1158,27 +1163,17 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   // Right after the HP value (which has a fixed minimum width), on every card: reaction first, so it always sits in
   // the same column, then the sheet (PCs, allies) and the GM's ±, only those present.
   const hpRowIcons = [reactionIndicator, initiativeCardButton, hpDeltaButton].filter(Boolean);
+  // All drawn at the same size (cardIconButton.js) and lifted a little, so they keep 3px above the HP bar.
+  for (const icon of hpRowIcons) icon.style.marginBottom = CARD_ICON_LIFT;
 
   if (legendaryHPRow) {
     hpCaption.style.fontSize = "9px";
     hpCaption.style.lineHeight = "11px";
-    const legendaryHPButton = initiativeCardButton || hpDeltaButton;
-    if (legendaryHPButton) {
-      legendaryHPButton.style.width = "18px";
-      legendaryHPButton.style.minWidth = "18px";
-      legendaryHPButton.style.height = "18px";
-    }
     legendaryHPRow.append(hpCaption, pill, ...hpRowIcons);
     hpControlsRow.appendChild(hpBarWrap);
   } else if (bossTopRow) {
     hpCaption.style.fontSize = "9px";
     hpCaption.style.lineHeight = "11px";
-    const bossHPButton = initiativeCardButton || hpDeltaButton;
-    if (bossHPButton) {
-      bossHPButton.style.width = "18px";
-      bossHPButton.style.minWidth = "18px";
-      bossHPButton.style.height = "18px";
-    }
     bossTopRow.append(hpCaption, pill, ...hpRowIcons);
     hpControlsRow.appendChild(hpBarWrap);
   } else {
