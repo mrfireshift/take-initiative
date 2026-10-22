@@ -220,7 +220,10 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
 - **4.2 — fatto il 2026-10-22** (direttamente su `main`).
   - **A2.2.** Un incantesimo senza round registrati non mostra più "(0)" nella pill né "Durata: 0 round" nel pannello: niente contatore, "durata non indicata". Lo 0 registrato davvero resta 0 (`spellRecordedTurns()`).
   - **A2.3.** Fatta con la segnalazione del lotto 4.1 (margine sopra le card con linguetta).
-  - **A2.4.** Nella riga HP delle card normali le icone stanno in posti fissi a destra: scheda, ± (solo GM), reazione. Un posto vuoto mantiene il suo spazio. Verifica: scheda a 168px, ± a 190, reazione a 212 su tutte le card GM (+6px sulla card attiva, ingrandita); nella vista giocatore scheda a 189 e reazione a 211. Tra il testo HP e le icone restano almeno 47px. Le card dei boss mantengono la loro riga.
+  - **A2.4.**
+    - Una prima versione (posti fissi all'estremità destra della riga) è stata scartata dopo la prova in OBR: le icone finivano lontane dagli HP e il posto vuoto del ± le separava.
+    - **Versione scelta:** le icone stanno subito dopo il valore HP, che ha una larghezza minima fissa (`7ch`, cifre a larghezza uguale), nell'ordine reazione, scheda, ±. Ci sono solo quelle presenti, senza buchi. Lo stesso ordine vale per le righe dei boss.
+    - **Verifica:** sulle card normali, reazione a 128px e seconda icona a 150 (vista GM e giocatore); +4px sulla card attiva. Sui boss reazione a 141 e ± a 162: 13px più a destra, perché il ritratto del boss è più grande e il testo HP parte più avanti.
   - **A2.6.** Le didascalie dei pulsanti non hanno più margine interno e finiscono con "…" se troppo lunghe. "Incantesimi" a 7,5px ha ora 4,4px di margine invece di toccare i bordi.
   - **Da decidere:** le didascalie della barra classica restano a 7,5px, sotto l'obiettivo dei 10px. A 10px "Incantesimi" richiede circa 51px contro i 44 disponibili, quindi servirebbe riorganizzare la barra (per esempio due righe di pulsanti), togliendo circa 46px alla lista.
 

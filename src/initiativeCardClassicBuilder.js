@@ -992,6 +992,9 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   pill.style.cursor = "text";
   pill.style.zIndex = "3";
   pill.style.pointerEvents = "auto";
+  // Room for "999/999" at least, with digits of equal width: the icons after it start in the same column on every card.
+  pill.style.minWidth = "7ch";
+  pill.style.fontVariantNumeric = "tabular-nums";
 
   const hpVal  = CLASSIC_HP_VALUE;
   const hpMaxV = CLASSIC_HP_MAX;
@@ -1152,6 +1155,10 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     pointerEvents: "none",
   });
 
+  // Right after the HP value (which has a fixed minimum width), on every card: reaction first, so it always sits in
+  // the same column, then the sheet (PCs, allies) and the GM's ±, only those present.
+  const hpRowIcons = [reactionIndicator, initiativeCardButton, hpDeltaButton].filter(Boolean);
+
   if (legendaryHPRow) {
     hpCaption.style.fontSize = "9px";
     hpCaption.style.lineHeight = "11px";
@@ -1161,10 +1168,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
       legendaryHPButton.style.minWidth = "18px";
       legendaryHPButton.style.height = "18px";
     }
-    legendaryHPRow.append(hpCaption, pill);
-    if (initiativeCardButton) legendaryHPRow.appendChild(initiativeCardButton);
-    if (hpDeltaButton) legendaryHPRow.appendChild(hpDeltaButton);
-    if (reactionIndicator) legendaryHPRow.appendChild(reactionIndicator);
+    legendaryHPRow.append(hpCaption, pill, ...hpRowIcons);
     hpControlsRow.appendChild(hpBarWrap);
   } else if (bossTopRow) {
     hpCaption.style.fontSize = "9px";
@@ -1175,38 +1179,10 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
       bossHPButton.style.minWidth = "18px";
       bossHPButton.style.height = "18px";
     }
-    bossTopRow.append(hpCaption, pill);
-    if (initiativeCardButton) bossTopRow.appendChild(initiativeCardButton);
-    if (hpDeltaButton) bossTopRow.appendChild(hpDeltaButton);
-    if (reactionIndicator) bossTopRow.appendChild(reactionIndicator);
+    bossTopRow.append(hpCaption, pill, ...hpRowIcons);
     hpControlsRow.appendChild(hpBarWrap);
   } else {
-    hpControlsRow.appendChild(hpCaption);
-    hpControlsRow.appendChild(pill);
-    // Fixed slots at the row's right end: sheet, ± (the GM's) and reaction keep their place on every card, an empty
-    // slot keeps its room, so each icon lines up down the list whatever the HP text and the creature.
-    const emptyHPToolSlot = () => {
-      const slot = document.createElement("span");
-      slot.dataset.hpToolSlot = "empty";
-      slot.setAttribute("aria-hidden", "true");
-      Object.assign(slot.style, { flex: "0 0 18px", width: "18px", height: "18px", visibility: "hidden" });
-      return slot;
-    };
-    const hpTools = document.createElement("span");
-    hpTools.dataset.hpTools = "1";
-    Object.assign(hpTools.style, {
-      marginLeft: "auto",
-      display: "inline-flex",
-      alignItems: "center",
-      gap: "4px",
-      flex: "0 0 auto",
-    });
-    hpTools.append(
-      initiativeCardButton || emptyHPToolSlot(),
-      ...(IS_GM ? [hpDeltaButton || emptyHPToolSlot()] : []),
-      reactionIndicator || emptyHPToolSlot(),
-    );
-    hpControlsRow.appendChild(hpTools);
+    hpControlsRow.append(hpCaption, pill, ...hpRowIcons);
     hpControlsRow.appendChild(hpBarWrap);
   }
   card.appendChild(hpControlsRow);
