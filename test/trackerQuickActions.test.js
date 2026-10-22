@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildBossActionsLauncher,
   buildTrackerQuickActionLauncher,
+  compactLauncherSlot,
   trackerQuickActionSummary,
   trackerQuickActionsForGroup,
 } from "../src/trackerQuickActions.js";
@@ -86,7 +87,7 @@ test("costruisce un vero pulsante toggle per il popover", async () => {
   assert.deepEqual(toggles, [button]);
 });
 
-test("posiziona il launcher in basso a destra rispetto al ritratto nella vista compatta", () => {
+test("nella vista compatta i launcher fanno una colonna a destra del ritratto, dall'alto del ritratto", () => {
   const documentRef = createTestDocument();
   const launcher = buildTrackerQuickActionLauncher({
     actions: [action],
@@ -97,8 +98,12 @@ test("posiziona il launcher in basso a destra rispetto al ritratto nella vista c
 
   assert.ok(launcher);
   assert.equal(launcher.style.left, "auto");
-  assert.equal(launcher.style.right, "21.5px");
-  assert.equal(launcher.style.top, "38.5px");
+  // Axis 13.5px from the card's right edge; the first ring level with the portrait's top, the third ending with it.
+  assert.equal(launcher.style.right, "6px");
+  assert.equal(launcher.style.top, "8px");
+  // Rings touching, 17px apart; below an Epic Boss's "E" the column starts lower.
+  assert.deepEqual(compactLauncherSlot(2, 15), { left: "auto", right: "6px", top: "42px" });
+  assert.deepEqual(compactLauncherSlot(0, 15, { belowCorner: true }), { left: "auto", right: "6px", top: "35px" });
 });
 
 test("non monta il pulsante senza azioni valide", () => {
@@ -170,7 +175,10 @@ test("Boss Actions: icona tonda nello slot delle azioni rapide, rossa se collega
   const beside = buildBossActionsLauncher({ bound: true, offset: 1, documentRef });
   assert.equal(beside.style.left, "9px", "one slot to the right of ⚡");
   const compact = buildBossActionsLauncher({ bound: true, compact: true, documentRef });
-  assert.deepEqual([compact.style.left, compact.style.right, compact.style.top], ["auto", "18px", "35px"]);
+  // The 22px boss icon on the same column axis.
+  assert.deepEqual([compact.style.left, compact.style.right, compact.style.top], ["auto", "2.5px", "4.5px"]);
+  const belowE = buildBossActionsLauncher({ bound: true, compact: true, belowCorner: true, documentRef });
+  assert.equal(belowE.style.top, "31.5px");
 });
 
 test("azioni rapide (⚡) e attacchi (🗡️) hanno ciascuno il proprio launcher, in colonna sopra il badge del turno", () => {
@@ -193,7 +201,7 @@ test("azioni rapide (⚡) e attacchi (🗡️) hanno ciascuno il proprio launche
   assert.deepEqual([attacks.style.left, attacks.style.top], ["-19.5px", "calc(50% + 9.5px)"]);
   assert.match(attacks.__quickActionToggle.style.boxShadow, /^0 0 0 1px #fb923c,/);
   const compact = buildTrackerQuickActionLauncher({ actions, group: "attacks", offset: 1, compact: true, documentRef: createTestDocument() });
-  assert.equal(compact.style.right, "41.5px");
+  assert.deepEqual([compact.style.right, compact.style.top], ["6px", "25px"]);
 
   // Only attacks: no ⚡; 🗡️ keeps its own slot, at the bottom of the column.
   assert.equal(buildTrackerQuickActionLauncher({ actions: [sword], documentRef: createTestDocument() }), null);

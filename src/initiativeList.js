@@ -254,6 +254,7 @@ import {
   deriveCompactCardPresentation,
   enableCompactCardRename,
   compactHPTextHTML,
+  compactKnockedOutBadgeStyle,
   markCompactHPTextEditable,
   writeCompactHPText,
 } from "./initiativeCardCompact.js";
@@ -6450,8 +6451,8 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
       koBadge = compactStatusBadge("KO", `Fuori combattimento: 0 / ${nHPMax}`);
       koBadge.dataset.cardKoBadge = "1";
       Object.assign(koBadge.style, card.dataset.compactCard === "1" ? {
-        position: "absolute", right: "6px", top: "6px", height: "21px",
-        zIndex: "6", pointerEvents: "none",
+        ...compactKnockedOutBadgeStyle(Number(card.dataset.portraitSize) || 49),
+        pointerEvents: "none",
       } : {
         position: "absolute", left: card.dataset.koBadgeLeft || "42px",
         top: card.dataset.koBadgeTop || "1px", height: "20px", minWidth: "25px",
@@ -8418,6 +8419,8 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {})
     return;
   }
   const sourceId = splitParagonId(sourceEntry.id).baseId;
+  // On the compact card the column starts below the top-right corner when an Epic Boss's "E" holds it.
+  const belowCorner = compact && !!sourceEntry.isEpic;
   // The quick actions (⚡), the spellbook (🪄) and the attacks (⚔): three launchers, three menus.
   let launchers = 0;
   for (const group of ["quick", "spells", "attacks"]) {
@@ -8429,6 +8432,7 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {})
       group,
       offset: launchers,
       compact,
+      belowCorner,
       expanded,
       onToggle: (button, event) => {
         void __toggleTrackerQuickActionsPopover(sourceEntry, button, event, group);
@@ -8445,6 +8449,7 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {})
       bound: !!sourceEntry.bossActionBinding,
       compact,
       offset: launchers,
+      belowCorner,
       iconUrl: (import.meta.env.BASE_URL || "/") + "boss.svg",
       onOpen: () => {
         void openBossActionsPopover(sourceId);
@@ -9849,7 +9854,10 @@ function renderCompactTrack(
       hpPercent,
       knockedOut,
       hpColorByPct,
+      portraitSize,
     });
+    // syncTrackerHPNow places a KO that appears between renders from it.
+    card.dataset.portraitSize = String(portraitSize);
     if (knockedOutBadge) card.appendChild(knockedOutBadge);
     // HP in one click (lot 6.4): the classic card's inline editor and save path, for the same cards as the classic
     // (GM; not collapsed groups, Lair turns or Epic Actions). The compact card has no ± button.

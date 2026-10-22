@@ -22,6 +22,7 @@ import {
   syncCompactEffectsToggleState,
   writeCompactHPText,
   compactHPTextHTML,
+  compactKnockedOutBadgeStyle,
   markCompactHPTextEditable,
 } from "../src/initiativeCardCompact.js";
 
@@ -867,17 +868,22 @@ test("le card dei turni virtuali dicono che turno sono, le altre no", () => {
   assert.equal(buildCompactVirtualTurnLabel({ id: "goblin" }, options), null);
 });
 
-test("sotto un boss il nome scende oltre la cornice; il KO non copre la E del boss epico", () => {
+test("sotto un boss il nome scende oltre la cornice; il KO sta sul ritratto, lasciando l'angolo ai lanciatori", () => {
   const documentRef = createTestDocument();
   assert.equal(buildCompactCardName({ name: "Auril" }, { active: false, boss: true, documentRef }).style.marginTop, "6px");
   assert.equal(buildCompactCardName({ name: "Goblin" }, { active: false, documentRef }).style.marginTop, "1px");
 
   const hpOptions = { showHP: true, safeHP: 0, hpMax: 12, hpPercent: 0, knockedOut: true, hpColorByPct: () => "#22c55e", documentRef };
-  const epicBoss = buildCompactCardHP({ id: "auril", isEpic: true }, hpOptions);
+  const epicBoss = buildCompactCardHP({ id: "auril", isEpic: true }, { ...hpOptions, portraitSize: 57 });
   const goblin = buildCompactCardHP({ id: "goblin" }, hpOptions);
-  assert.equal(epicBoss.knockedOutBadge.style.top, "34px");
-  assert.equal(goblin.knockedOutBadge.style.top, "6px");
-  assert.equal(goblin.knockedOutBadge.style.height, "24px");
+  // Centred on the portrait, 3px above its bottom edge (portrait top at 7px: 3px padding + 4px margin).
+  assert.equal(goblin.knockedOutBadge.style.left, "50%");
+  assert.equal(goblin.knockedOutBadge.style.transform, "translateX(-50%)");
+  assert.equal(goblin.knockedOutBadge.style.top, "35px");
+  assert.equal(goblin.knockedOutBadge.style.height, "18px");
+  assert.equal(epicBoss.knockedOutBadge.style.top, "43px");
+  // syncTrackerHPNow places a KO that appears between renders with the same style.
+  for (const [key, value] of Object.entries(compactKnockedOutBadgeStyle(49))) assert.equal(goblin.knockedOutBadge.style[key], value);
 });
 
 test("lo status compatto senza effetti resta vuoto e ignora la selezione", () => {

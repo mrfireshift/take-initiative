@@ -515,8 +515,8 @@ export function buildCompactCardIndicators(
 }
 
 // The character sheet in one click, for the same creatures as the classic card's icon (PCs and allies, GM and
-// players). It stands under the initiative badge, on its axis: the top-right corner belongs to the KO badge, and the
-// GM's launchers fill the row on the right.
+// players). It stands under the initiative badge, on its axis: the GM's launchers make a column on the portrait's
+// right (trackerQuickActions.js).
 export function buildCompactSheetButton(
   entry,
   {
@@ -765,6 +765,23 @@ export function markCompactHPTextEditable(hpText, entryId) {
   return hpText;
 }
 
+// The KO badge sits on the portrait, across its lower part: the top-right corner is left to the GM's launchers
+// (trackerQuickActions.js). Shared with syncTrackerHPNow, which adds the badge when HP drop to 0 between renders.
+const COMPACT_KO_BADGE_HEIGHT = 18;
+export function compactKnockedOutBadgeStyle(portraitSize = 49) {
+  const size = Number(portraitSize) || 49;
+  return {
+    position: "absolute",
+    left: "50%",
+    right: "auto",
+    top: `${3 + COMPACT_PORTRAIT_MARGIN_TOP + size - COMPACT_KO_BADGE_HEIGHT - 3}px`,
+    transform: "translateX(-50%)",
+    height: `${COMPACT_KO_BADGE_HEIGHT}px`,
+    minWidth: "26px",
+    zIndex: "6",
+  };
+}
+
 export function buildCompactCardHP(
   entry,
   {
@@ -774,6 +791,7 @@ export function buildCompactCardHP(
     hpPercent,
     knockedOut,
     hpColorByPct,
+    portraitSize = 49,
     documentRef = globalThis.document,
   },
 ) {
@@ -845,16 +863,7 @@ export function buildCompactCardHP(
       { documentRef },
     );
     knockedOutBadge.dataset.cardKoBadge = "1";
-    // A group's xN and an epic boss's E hold the top-right corner: the KO stacks below them instead of covering them.
-    const cornerTaken = (entry.__groupCollapsed && entry.__groupCount > 1) || !!entry.isEpic;
-    Object.assign(knockedOutBadge.style, {
-      position: "absolute",
-      right: "6px",
-      top: `${cornerTaken ? COMPACT_STACKED_BADGE_TOP : 6}px`,
-      height: `${COMPACT_CORNER_BADGE_SIZE}px`,
-      minWidth: `${COMPACT_CORNER_BADGE_SIZE}px`,
-      zIndex: "6",
-    });
+    Object.assign(knockedOutBadge.style, compactKnockedOutBadgeStyle(portraitSize));
   }
 
   return {

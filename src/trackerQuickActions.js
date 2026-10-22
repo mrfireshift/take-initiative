@@ -19,24 +19,30 @@ const LAUNCHER_PITCH = LAUNCHER_SIZE + 2 * LAUNCHER_RING;
 const CLASSIC_LAUNCHER_AXIS = -12;
 const CLASSIC_LAUNCHER_SLOT = Object.freeze({ quick: 0, spells: 1, attacks: 2 });
 const CLASSIC_LAUNCHER_MIDDLE_SLOT = 1;
-// The compact card: a row from the right edge, the first centre where the 18px launchers had theirs.
-const COMPACT_LAUNCHER_AXIS_RIGHT = 29;
-const COMPACT_LAUNCHER_AXIS_TOP = 46;
-const COMPACT_LAUNCHER_GAP = 3;
+// The compact card: a column on the portrait's right, rings touching as in the classic card, the first circle level
+// with the portrait's top. The initiative badge and the character sheet hold the left side, the KO badge sits on the
+// portrait; only an Epic Boss keeps a badge in the top-right corner ("E"), and there the column starts below it.
+const COMPACT_LAUNCHER_AXIS_RIGHT = 13.5;
+const COMPACT_LAUNCHER_FIRST_CENTER = 15.5;
+const COMPACT_LAUNCHER_BELOW_CORNER_CENTER = 42.5;
+
+// Position of a compact launcher of `size` px in slot `offset` of the column.
+export function compactLauncherSlot(offset, size, { belowCorner = false } = {}) {
+  const index = Math.max(0, Math.floor(Number(offset) || 0));
+  const firstCenter = belowCorner ? COMPACT_LAUNCHER_BELOW_CORNER_CENTER : COMPACT_LAUNCHER_FIRST_CENTER;
+  return {
+    left: "auto",
+    right: px(COMPACT_LAUNCHER_AXIS_RIGHT - size / 2),
+    top: px(firstCenter + index * LAUNCHER_PITCH - size / 2),
+  };
+}
 
 function px(value) {
   return `${Math.round(value * 10) / 10}px`;
 }
 
-function launcherPosition(group, offset, compact) {
-  if (compact) {
-    const index = Math.max(0, Math.floor(Number(offset) || 0));
-    return {
-      left: "auto",
-      right: px(COMPACT_LAUNCHER_AXIS_RIGHT - LAUNCHER_SIZE / 2 + index * (LAUNCHER_PITCH + COMPACT_LAUNCHER_GAP)),
-      top: px(COMPACT_LAUNCHER_AXIS_TOP - LAUNCHER_SIZE / 2),
-    };
-  }
+function launcherPosition(group, offset, compact, belowCorner = false) {
+  if (compact) return compactLauncherSlot(offset, LAUNCHER_SIZE, { belowCorner });
   const slot = CLASSIC_LAUNCHER_SLOT[group] ?? 0;
   const top = Math.round(((slot - CLASSIC_LAUNCHER_MIDDLE_SLOT) * LAUNCHER_PITCH - LAUNCHER_SIZE / 2) * 10) / 10;
   return {
@@ -92,12 +98,14 @@ export function trackerQuickActionsForGroup(actions, group = "quick") {
     .filter((action) => trackerQuickActionGroup(action) === group);
 }
 
-// offset: the launcher's place in the compact card's row (the classic card has fixed slots per group).
+// offset: the launcher's place in the compact card's column (the classic card has fixed slots per group).
+// belowCorner: the compact card has a badge in its top-right corner (an Epic Boss's "E").
 export function buildTrackerQuickActionLauncher({
   actions = [],
   group = "quick",
   offset = 0,
   compact = false,
+  belowCorner = false,
   expanded = false,
   onToggle = () => {},
   documentRef = globalThis.document,
@@ -105,7 +113,7 @@ export function buildTrackerQuickActionLauncher({
   const normalizedActions = trackerQuickActionsForGroup(actions, group);
   if (!normalizedActions.length || !documentRef) return null;
   const look = TRACKER_LAUNCHER_GROUPS[group] || TRACKER_LAUNCHER_GROUPS.quick;
-  const position = launcherPosition(group, offset, compact);
+  const position = launcherPosition(group, offset, compact, belowCorner);
 
   const container = documentRef.createElement("div");
   container.dataset.trackerQuickActions = group === "quick" ? "1" : group;
@@ -181,6 +189,7 @@ export function buildBossActionsLauncher({
   bound = false,
   compact = false,
   offset = 0,
+  belowCorner = false,
   iconUrl = "",
   onOpen = () => {},
   documentRef = globalThis.document,
@@ -193,11 +202,13 @@ export function buildBossActionsLauncher({
   button.dataset.cardSelectionIgnore = "1";
   button.dataset.bossActionsLauncher = bound ? "bound" : "unbound";
   const step = Math.max(0, Number(offset) || 0) * (QUICK_ACTION_BUTTON_SIZE + 4);
+  // Compact: a slot of the launchers' column, centred on its axis.
+  const compactSlot = compact ? compactLauncherSlot(offset, QUICK_ACTION_BUTTON_SIZE, { belowCorner }) : null;
   Object.assign(button.style, {
     position: "absolute",
-    left: compact ? "auto" : `${CLASSIC_QUICK_ACTION_LEFT + step}px`,
-    right: compact ? `${18 + step}px` : "auto",
-    top: compact ? "35px" : "2px",
+    left: compact ? compactSlot.left : `${CLASSIC_QUICK_ACTION_LEFT + step}px`,
+    right: compact ? compactSlot.right : "auto",
+    top: compact ? compactSlot.top : "2px",
     zIndex: "12",
     pointerEvents: "auto",
     boxSizing: "border-box",
