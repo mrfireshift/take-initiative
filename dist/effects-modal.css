@@ -42,9 +42,9 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: var(--obrt-h-header, 44px);
-  padding: var(--obrt-space-md, 8px) var(--obrt-space-xl, 12px);
-  border-bottom: 1px solid var(--effects-line);
+  min-height: var(--obrt-header-height, 44px);
+  padding: var(--obrt-header-pad-y, 8px) var(--obrt-header-pad-x, 12px);
+  border-bottom: 1px solid var(--obrt-header-border, rgba(148, 163, 184, .20));
   background: rgba(15, 23, 42, .24);
   cursor: grab;
   user-select: none;
@@ -59,8 +59,8 @@ html, body {
   margin: 0;
   overflow: hidden;
   color: var(--effects-text);
-  font-size: var(--obrt-type-panel-title, 16px);
-  font-weight: var(--obrt-weight-bold, 700);
+  font-size: var(--obrt-title-size, 16px);
+  font-weight: var(--obrt-title-weight, 700);
   letter-spacing: var(--obrt-tracking-tight, -.01em);
   line-height: var(--obrt-leading-snug, 1.25);
   text-overflow: ellipsis;
@@ -71,22 +71,23 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--obrt-h-control-sm, 28px);
-  height: var(--obrt-h-control-sm, 28px);
-  min-height: var(--obrt-h-control-sm, 28px);
+  flex: 0 0 auto;
+  width: var(--obrt-close-size, 28px);
+  height: var(--obrt-close-size, 28px);
+  min-height: var(--obrt-close-size, 28px);
   padding: 0;
   border: 1px solid transparent;
-  border-radius: var(--obrt-radius-md, 8px);
+  border-radius: var(--obrt-close-radius, 8px);
   background: transparent;
   color: inherit;
-  font-size: 18px;
+  font-size: var(--obrt-close-font, 18px);
   line-height: 1;
   cursor: pointer;
   transition: background-color .12s ease;
 }
 
 .effects-close-button:hover {
-  background: var(--obrt-hover, rgba(255, 255, 255, .08));
+  background: var(--obrt-close-hover, rgba(255, 255, 255, .08));
 }
 
 .effects-scroll {
@@ -346,11 +347,11 @@ html, body {
 }
 
 .effects-btn {
-  min-height: var(--obrt-h-control-md, 32px);
-  padding: 6px var(--obrt-space-xl, 12px);
-  border: 1px solid rgba(148, 163, 184, .28);
-  border-radius: var(--obrt-radius-md, 8px);
-  background: var(--effects-surface-strong);
+  min-height: var(--obrt-btn-height, 32px);
+  padding: 6px var(--obrt-btn-pad-x, 12px);
+  border: 1px solid var(--obrt-btn-border, rgba(148, 163, 184, .28));
+  border-radius: var(--obrt-btn-radius, 8px);
+  background: var(--obrt-btn-bg, rgba(255, 255, 255, .055));
   color: var(--effects-text);
   font: inherit;
   font-size: var(--obrt-type-body, 12px);
@@ -360,32 +361,33 @@ html, body {
 }
 
 .effects-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, .1);
+  background: var(--obrt-btn-bg-hover, rgba(255, 255, 255, .1));
 }
 
 .effects-btn:disabled {
-  opacity: .5;
+  opacity: var(--obrt-btn-disabled-opacity, .48);
   cursor: default;
 }
 
 .effects-btn-primary {
-  background: var(--effects-primary);
-  border-color: rgba(255, 255, 255, .20);
+  background: var(--obrt-btn-primary-bg, #2563eb);
+  border-color: var(--obrt-btn-primary-border, rgba(255, 255, 255, .20));
   color: #fff;
+  font-weight: var(--obrt-weight-bold, 700);
 }
 
 .effects-btn-primary:hover:not(:disabled) {
-  background: var(--effects-primary-hover);
+  background: var(--obrt-btn-primary-bg-hover, #1d4ed8);
 }
 
 .effects-btn-danger {
-  background: rgba(220, 38, 38, .28);
-  border-color: rgba(248, 113, 113, .42);
-  color: #fecaca;
+  background: var(--obrt-btn-danger-bg, rgba(220, 38, 38, .28));
+  border-color: var(--obrt-btn-danger-border, rgba(248, 113, 113, .42));
+  color: var(--obrt-btn-danger-text, #fecaca);
 }
 
 .effects-btn-danger:hover:not(:disabled) {
-  background: rgba(220, 38, 38, .46);
+  background: var(--obrt-btn-danger-bg-hover, rgba(220, 38, 38, .46));
 }
 
 @media (max-width: 620px) {

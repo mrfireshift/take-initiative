@@ -71,9 +71,9 @@ select:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: var(--obrt-h-header, 44px);
-  padding: var(--obrt-space-md, 8px) var(--obrt-space-xl, 12px);
-  border-bottom: 1px solid var(--unified-line);
+  min-height: var(--obrt-header-height, 44px);
+  padding: var(--obrt-header-pad-y, 8px) var(--obrt-header-pad-x, 12px);
+  border-bottom: 1px solid var(--obrt-header-border, rgba(148, 163, 184, .20));
   background: rgba(15, 23, 42, .24);
   cursor: grab;
   user-select: none;
@@ -89,8 +89,8 @@ select:disabled {
   margin: 0;
   overflow: hidden;
   color: var(--unified-text);
-  font-size: var(--obrt-type-panel-title, 16px);
-  font-weight: var(--obrt-weight-bold, 700);
+  font-size: var(--obrt-title-size, 16px);
+  font-weight: var(--obrt-title-weight, 700);
   letter-spacing: var(--obrt-tracking-tight, -.01em);
   line-height: var(--obrt-leading-snug, 1.25);
   text-overflow: ellipsis;
@@ -113,11 +113,11 @@ select:disabled {
 .unified-filter-button,
 .unified-combobox-toggle,
 .unified-outcome-button {
-  min-height: 32px;
+  min-height: var(--obrt-btn-height, 32px);
   padding: 6px 10px;
-  border: 1px solid var(--unified-line);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, .055);
+  border: 1px solid var(--obrt-btn-border, rgba(148, 163, 184, .28));
+  border-radius: var(--obrt-btn-radius, 8px);
+  background: var(--obrt-btn-bg, rgba(255, 255, 255, .055));
   color: var(--unified-text);
   cursor: pointer;
   font-weight: var(--obrt-weight-medium);
@@ -127,22 +127,23 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--obrt-h-control-sm, 28px);
-  height: var(--obrt-h-control-sm, 28px);
-  min-height: var(--obrt-h-control-sm, 28px);
+  flex: 0 0 auto;
+  width: var(--obrt-close-size, 28px);
+  height: var(--obrt-close-size, 28px);
+  min-height: var(--obrt-close-size, 28px);
   padding: 0;
   border: 1px solid transparent;
-  border-radius: var(--obrt-radius-md, 8px);
+  border-radius: var(--obrt-close-radius, 8px);
   background: transparent;
   color: inherit;
-  font-size: 18px;
+  font-size: var(--obrt-close-font, 18px);
   line-height: 1;
   cursor: pointer;
   transition: background-color .12s ease;
 }
 
 .unified-close-button:hover {
-  background: var(--obrt-hover, rgba(255, 255, 255, .08));
+  background: var(--obrt-close-hover, rgba(255, 255, 255, .08));
 }
 
 .unified-secondary-button:hover,
@@ -1254,10 +1255,10 @@ select:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--obrt-footer-gap, 8px);
   margin: 0;
   padding: 9px 12px 12px;
-  border-top: 1px solid var(--unified-line);
+  border-top: 1px solid var(--obrt-footer-border, rgba(148, 163, 184, .20));
   background: rgba(15, 23, 42, .95);
   backdrop-filter: blur(12px);
 }
@@ -1336,14 +1337,14 @@ select:disabled {
 
 .unified-primary-button {
   min-width: 132px;
-  border-color: rgba(96, 165, 250, .58);
-  background: var(--unified-primary);
+  border-color: var(--obrt-btn-primary-border, rgba(255, 255, 255, .20));
+  background: var(--obrt-btn-primary-bg, #2563eb);
   color: #fff;
   font-weight: var(--obrt-weight-bold);
 }
 
 .unified-primary-button:hover:not(:disabled) {
-  background: var(--unified-primary-hover);
+  background: var(--obrt-btn-primary-bg-hover, #1d4ed8);
 }
 
 .unified-quiet-button {

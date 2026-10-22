@@ -14,8 +14,8 @@
       .shell { display: flex; flex-direction: column; gap: 14px; padding: 18px; }
       .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
       h1 { margin: 0; font-size: var(--obrt-type-panel-title); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-tight); line-height: var(--obrt-leading-snug); }
-      .close { display: inline-flex; align-items: center; justify-content: center; width: var(--obrt-h-control-sm, 28px); height: var(--obrt-h-control-sm, 28px); min-height: var(--obrt-h-control-sm, 28px); border: 1px solid transparent; border-radius: var(--obrt-radius-md, 8px); background: transparent; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; transition: background-color .12s ease; }
-      .close:hover { background: var(--obrt-hover, rgba(255, 255, 255, .08)); }
+      .close { display: inline-flex; align-items: center; justify-content: center; width: var(--obrt-close-size, 28px); height: var(--obrt-close-size, 28px); min-height: var(--obrt-close-size, 28px); padding: 0; border: 1px solid transparent; border-radius: var(--obrt-close-radius, 8px); background: transparent; color: inherit; font-size: var(--obrt-close-font, 18px); line-height: 1; cursor: pointer; transition: background-color .12s ease; }
+      .close:hover { background: var(--obrt-close-hover, rgba(255, 255, 255, .08)); }
       .intro, .note { margin: 0; color: rgba(248, 250, 252, .72); font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-regular); line-height: 1.45; }
       .factions { display: grid; gap: 9px; }
       .faction { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 58px; padding: 10px 11px; border: 1px solid rgba(255, 255, 255, .13); border-radius: 8px; background: rgba(12, 15, 22, .28); }
@@ -32,16 +32,16 @@
       .danger { background: rgba(127, 29, 29, .58); border-color: rgba(248, 113, 113, .38); }
       button:hover { filter: brightness(1.1); }
       button:disabled { cursor: wait; opacity: .56; }
-      .footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .12); }
+      .footer { display: flex; align-items: center; justify-content: space-between; gap: var(--obrt-footer-gap, 8px); margin-top: auto; padding-top: 12px; border-top: 1px solid var(--obrt-footer-border, rgba(148, 163, 184, .20)); }
     </style>
-    <script type="module" crossorigin src="/assets/factionConfigurator-B1s7bAW3.js"></script>
+    <script type="module" crossorigin src="/assets/factionConfigurator-BQwEeETb.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
     <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BiYU2Jbj.js">
     <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-Bc--_DL6.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-D0vxMatR.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-MFxGQtOc.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-28TsGb8f.js">
   </head>
   <body>
