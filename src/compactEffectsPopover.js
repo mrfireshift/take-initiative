@@ -35,24 +35,23 @@ function buildPill(effect) {
   const tone = effectTone(effect);
   pill.textContent = String(effect.label || "Effetto");
   pill.title = String(effect.title || effect.label || "Effetto");
+  // A block, like the card's pill: text-overflow needs a block container to add the ellipsis.
   Object.assign(pill.style, {
     width: "100%",
     minWidth: "0",
     height: "14px",
     padding: "0 5px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
+    display: "block",
     boxSizing: "border-box",
     overflow: "hidden",
     border: `1px solid ${tone.border}`,
     borderRadius: "999px",
     background: tone.background,
     color: "#fff",
-    fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    fontFamily: "var(--obrt-font-ui)",
     fontSize: "8px",
     fontWeight: "600",
-    lineHeight: "1",
+    lineHeight: "12px",
     textAlign: "center",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",

@@ -867,7 +867,8 @@ test("lo status con overflow conserva struttura e ARIA negli stati chiuso e aper
     assert.equal(result.previewPill.attributes["aria-expanded"], expanded);
     assert.equal(result.previewPill.attributes["aria-label"], label);
     assert.equal(result.moreEffectsButton.type, "button");
-    assert.equal(result.moreEffectsButton.textContent, "+");
+    // The button counts the hidden effects: one pill is shown, one more is behind "+1".
+    assert.equal(result.moreEffectsButton.textContent, "+1");
     assert.equal(result.moreEffectsButton.dataset.cardSelectionIgnore, "1");
     assert.equal(result.moreEffectsButton.attributes["aria-expanded"], expanded);
     assert.equal(result.moreEffectsButton.attributes["aria-label"], label);

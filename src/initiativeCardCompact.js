@@ -257,13 +257,18 @@ export function __buildCompactEffectPill(
       : effect.kind === "concentration"
         ? "#93c5fd"
         : resolvedSpellColor?.border || "rgba(255,255,255,.38)";
+  // A block, not a flex box: text-overflow only works on a block container, and a centred flex item that overflows
+  // is cut on both sides. The line height centres the text inside the border.
   Object.assign(pill.style, {
+    position: "relative",
     minWidth: "0",
     maxWidth: preview ? "100%" : "196px",
     height: preview ? "14px" : "17px",
-    padding: "0 5px",
-    display: "inline-flex",
-    alignItems: "center",
+    // The card's pill keeps a thin padding: the text used to overflow into a wider one, so names like
+    // "Pozione di Eroismo" stay whole now that the overflow is cut with an ellipsis.
+    padding: preview ? "0 2px" : "0 5px",
+    display: "inline-block",
+    verticalAlign: "middle",
     boxSizing: "border-box",
     overflow: "hidden",
     border: `1px solid ${border}`,
@@ -272,11 +277,10 @@ export function __buildCompactEffectPill(
     color: effectTheme
       ? themeColor(effectTheme.text, "#fff")
       : "#fff",
-    fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    fontFamily: "var(--obrt-font-ui)",
     fontSize: "8px",
     fontWeight: "600",
-    lineHeight: "1",
-    justifyContent: "center",
+    lineHeight: preview ? "12px" : "15px",
     textAlign: "center",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
@@ -290,11 +294,16 @@ export function __buildCompactEffectPill(
     terminate.dataset.cardSelectionIgnore = "1";
     terminate.title = `Termina ${effect.label}`;
     terminate.setAttribute("aria-label", terminate.title);
+    // Pinned to the right edge, so a long label is cut before the × and never hides it.
+    pill.style.paddingRight = "14px";
     Object.assign(terminate.style, {
+      position: "absolute",
+      right: "2px",
+      top: "50%",
+      transform: "translateY(-50%)",
       minWidth: "10px",
       width: "10px",
       height: "10px",
-      marginLeft: "2px",
       padding: "0",
       border: "0",
       borderRadius: "50%",
@@ -305,7 +314,6 @@ export function __buildCompactEffectPill(
       fontWeight: "800",
       lineHeight: "10px",
       cursor: "pointer",
-      flex: "0 0 10px",
     });
     terminate.addEventListener("mouseenter", () => {
       terminate.style.background = "rgba(220,38,38,.72)";
@@ -719,6 +727,7 @@ export function syncCompactEffectsToggleState({
     ? "Nascondi gli altri effetti"
     : `Mostra altri ${effectsCount - 1} effetti`;
 
+  moreEffectsButton.textContent = `+${effectsCount - 1}`;
   moreEffectsButton.style.display = opened ? "none" : "inline-flex";
   moreEffectsButton.setAttribute("aria-expanded", expanded);
   moreEffectsButton.setAttribute("aria-label", label);
@@ -901,23 +910,24 @@ export function buildCompactCardStatus(
   if (hasExpandableEffects) {
     moreEffectsButton = document.createElement("button");
     moreEffectsButton.type = "button";
-    moreEffectsButton.textContent = "+";
     moreEffectsButton.dataset.cardSelectionIgnore = "1";
+    // "+N" counts the hidden effects (the label is set by syncCompactEffectsToggleState), so it never reads as "add".
     Object.assign(moreEffectsButton.style, {
       position: "absolute",
       top: "calc(100% + 1px)",
       left: "50%",
-      width: "16px",
+      minWidth: "16px",
       height: "16px",
-      padding: "0 0 1px",
+      padding: "0 4px",
+      boxSizing: "border-box",
       alignItems: "center",
       justifyContent: "center",
       border: "1px solid rgba(255,255,255,.34)",
-      borderRadius: "50%",
+      borderRadius: "999px",
       background: "rgba(8,12,21,.92)",
       color: "#fff",
       fontFamily: "inherit",
-      fontSize: "13px",
+      fontSize: "var(--obrt-type-micro, 10px)",
       fontWeight: "800",
       lineHeight: "1",
       cursor: "pointer",

@@ -144,6 +144,15 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
 
 *Fatto quando:* tutti gli obiettivi della sezione 1 sono veri per la vista compatta, sia GM che giocatore, sia a scala 100% che 150%.
 
+**Stato.**
+- **3.1 — fatto il 2026-10-22** (branch `ui-polish/fase-3`).
+  - Pill della card, del popover e mini-pill in anteprima: da blocco centrato con "…" a destra, mai più tagliate sui due lati.
+  - Il "+" diventa "+N".
+  - La "×" delle capacità di classe è ancorata al bordo destro della pill.
+  - Font su `--obrt-font-ui`.
+  - Nella card il margine interno della pill scende a 2px, così nomi come "Pozione di Eroismo" restano interi; sulla card attiva mancano ancora pochi pixel (lotto 3.2).
+  - Pagina di prova: `test-support/ui-audit-browser/pills.html`. Prima/dopo in `docs/ui-audit/after/3.1-pill/`.
+
 ### Fase 4 — Vista classica
 
 | Lotto | Contenuto | Rischio |
