@@ -56,6 +56,8 @@ function spellReviewRoute({ normalized, spell, session, initialTargetIds }) {
     targetIds: initialTargetIds,
     origin: "quick-action",
     quickActionId: normalized.id,
+    // A free action (a ritual, a spell a feat casts) opens the panel already set to spend no slot.
+    ...(normalized.cost === "free" ? { slotSource: "none" } : {}),
   };
   const query = buildSpellUnifiedPanelRouteQuery(request);
   return {

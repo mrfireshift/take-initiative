@@ -7,6 +7,7 @@ import { QUICK_ACTION_VERSION, sanitizeQuickAction } from "./quickActionsCore.js
 import { sanitizeSpellbook, spellbookQuickActionId } from "./spellbookCore.js";
 import { preparesSpells, spellPreparationClasses, spellPreparationLimit } from "./spellPreparationCore.js";
 import { subclassGrantedSpells } from "./subclassSpellsCatalog.js";
+import spellReferenceData from "./spell-reference-it.json" with { type: "json" };
 
 let launchOptionsById = null;
 
@@ -31,7 +32,7 @@ export function spellbookLevelTitle(level) {
 export function spellbookSpell(spellId) {
   const spell = getSpellDefinition(spellId);
   if (!spell) {
-    return { id: spellId, label: spellId, level: null, concentration: false, launchable: false, automated: false, recordOnly: false, area: false, attackCantrip: false, targetMode: "selection" };
+    return { id: spellId, label: spellId, level: null, concentration: false, launchable: false, automated: false, recordOnly: false, area: false, attackCantrip: false, targetMode: "selection", ritual: false };
   }
   const option = launchOption(spell.id);
   return {
@@ -49,7 +50,43 @@ export function spellbookSpell(spellId) {
     attackCantrip: ATTACK_CANTRIP_IDS.has(spell.id),
     // A personal spell targets its caster; an area spell is placed in the panel, never on the caster.
     targetMode: spell.targetMode === "self" && option?.area !== true ? "self" : "selection",
+    ritual: spellReference(spell)?.ritual === true,
   };
+}
+
+// The Italian text of a spell: the SRD reference file, or the reference a supplement spell carries.
+function spellReference(spell) {
+  return spellReferenceData?.spells?.[spell?.id] || spell?.italianReference || null;
+}
+
+// What the card shows when a spell is expanded: { school, castingTime, range, components, duration, description,
+// higherLevels }; null for a spell without a reference.
+export function spellbookSpellDetails(spellId) {
+  const reference = spellReference(getSpellDefinition(spellId));
+  if (!reference) return null;
+  const field = (name) => String(reference[name] ?? "").trim();
+  return {
+    school: field("school"),
+    castingTime: field("castingTime"),
+    range: field("range"),
+    components: field("components"),
+    duration: field("duration"),
+    description: field("description"),
+    higherLevels: field("higherLevels"),
+  };
+}
+
+// Ritual casting (PHB 2014): a wizard casts any ritual of the spellbook, even unprepared; a cleric or a druid the
+// rituals it has prepared; a bard the rituals it knows. The other classes cannot (a feat such as Ritual Caster
+// goes through a free quick action). spell: an entry of spellbookGroups.
+export function spellbookRitualCastable(profile, spell) {
+  if (!spell?.ritual || !spell.launchable || !spell.level) return false;
+  const classes = new Set((Array.isArray(profile?.characterBuild) ? profile.characterBuild : [])
+    .filter((entry) => Number(entry?.level) > 0)
+    .map((entry) => String(entry?.classId || "").trim()));
+  if (classes.has("mago") && !spell.granted) return true;
+  if (classes.has("bardo")) return true;
+  return (classes.has("chierico") || classes.has("druido")) && spell.prepared;
 }
 
 // The cantrip attack quick action that records this cantrip in the attack console, when the character has one: the
@@ -95,8 +132,9 @@ export function spellbookGroups(value, { preparing = false, granted = [] } = {})
 }
 
 // launchMode "auto" applies the spell when nothing needs the GM (it falls back to the panel otherwise);
-// "review" always opens the panel, where slot level, targets and choices are set.
-export function spellbookQuickAction(spellId, { launchMode = "auto" } = {}) {
+// "review" always opens the panel, where slot level, targets and choices are set. cost "free" casts it without a
+// slot, as a ritual.
+export function spellbookQuickAction(spellId, { launchMode = "auto", cost = "slot" } = {}) {
   const spell = spellbookSpell(spellId);
   if (!spell.launchable) return null;
   return sanitizeQuickAction({
@@ -110,6 +148,7 @@ export function spellbookQuickAction(spellId, { launchMode = "auto" } = {}) {
     turns: null,
     applyAutomations: true,
     launchMode,
+    cost,
   });
 }
 

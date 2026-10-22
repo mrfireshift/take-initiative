@@ -47,8 +47,10 @@ import {
   spellbookGroupsForProfile,
   spellbookPreparation,
   spellbookQuickAction,
+  spellbookRitualCastable,
   spellbookSearchOptions,
   spellbookSpell,
+  spellbookSpellDetails,
 } from "./spellbookCatalog.js";
 import { subclassGrantedSpells, subclassSuggestedSpells } from "./subclassSpellsCatalog.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
@@ -157,6 +159,8 @@ let editing = false;
 let draftSpellbook = sanitizeSpellbook(null);
 // Prepara mode (renderSpellPreparation): the spells left unprepared while the GM ticks, null outside it.
 let spellPreparationDraft = null;
+// The spell of the book whose details are open (one at a time), "" when none is.
+let expandedSpellbookSpellId = "";
 
 const spellOptions = getQuickActionSpellOptions();
 
@@ -864,7 +868,8 @@ function spellbookCantripAttack(spellId) {
 }
 
 function spellbookSpellSummary(spell, cantripAttack) {
-  if (!spell.prepared) return "Non preparato";
+  // A wizard casts the rituals of its book even when it has not prepared them.
+  if (!spell.prepared) return spellbookRitualCastable(profile, spell) ? "Non preparato · lanciabile come rituale" : "Non preparato";
   // A spell of the subclass (subclassSpellsCatalog.js): always prepared, never counted.
   if (spell.granted) return `🔒 ${spell.granted}`;
   if (cantripAttack) return "Attacco · console attacchi";
@@ -1170,11 +1175,20 @@ function buildSpellbookEntry(spell) {
   copy.className = "quick-action-copy";
   const label = document.createElement("strong");
   label.textContent = spell.label;
+  if (spell.ritual) {
+    const ritual = document.createElement("span");
+    ritual.className = "spellbook-ritual-badge";
+    ritual.textContent = "R";
+    ritual.title = "Rituale";
+    label.appendChild(ritual);
+  }
   const summary = document.createElement("small");
   summary.textContent = spellbookSpellSummary(spell, cantripAttack);
   copy.append(label, summary);
   main.append(icon, copy);
   entry.appendChild(main);
+  const details = spellbookSpellDetails(spell.id);
+  const expanded = !!details && expandedSpellbookSpellId === spell.id;
   if (spell.prepared && spell.launchable && !cantripAttack) {
     const panel = document.createElement("button");
     panel.type = "button";
@@ -1185,19 +1199,85 @@ function buildSpellbookEntry(spell) {
     panel.addEventListener("click", () => void launchSpellbookSpell(spell.id, "review"));
     entry.appendChild(panel);
   }
+  if (details) {
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "spellbook-panel spellbook-toggle";
+    toggle.textContent = expanded ? "▾" : "▸";
+    toggle.title = expanded ? "Nascondi i dettagli" : `Dettagli di ${spell.label}`;
+    toggle.setAttribute("aria-label", toggle.title);
+    toggle.setAttribute("aria-expanded", String(expanded));
+    toggle.addEventListener("click", () => {
+      expandedSpellbookSpellId = expanded ? "" : spell.id;
+      renderSpellbook();
+    });
+    entry.appendChild(toggle);
+  }
+  if (expanded) entry.appendChild(buildSpellbookDetails(spell, details));
   return entry;
+}
+
+// The rules text of an expanded spell, and the ritual cast when the character can cast it as a ritual.
+function buildSpellbookDetails(spell, details) {
+  const block = document.createElement("div");
+  block.className = "spellbook-details";
+  const facts = document.createElement("dl");
+  for (const [name, value] of [
+    ["Tempo di lancio", details.castingTime],
+    ["Gittata", details.range],
+    ["Componenti", details.components],
+    ["Durata", details.duration],
+  ]) {
+    if (!value) continue;
+    const term = document.createElement("dt");
+    term.textContent = name;
+    const description = document.createElement("dd");
+    description.textContent = value;
+    facts.append(term, description);
+  }
+  const school = [details.school, spell.ritual ? "rituale" : ""].filter(Boolean).join(" · ");
+  if (school) {
+    const line = document.createElement("small");
+    line.textContent = school;
+    block.appendChild(line);
+  }
+  block.appendChild(facts);
+  if (details.description) {
+    const text = document.createElement("p");
+    text.textContent = details.description;
+    block.appendChild(text);
+  }
+  if (details.higherLevels) {
+    const higher = document.createElement("p");
+    const title = document.createElement("strong");
+    title.textContent = "A livelli superiori. ";
+    higher.append(title, details.higherLevels);
+    block.appendChild(higher);
+  }
+  if (spellbookRitualCastable(profile, spell)) {
+    const actions = document.createElement("div");
+    actions.className = "rest-actions";
+    const ritual = document.createElement("button");
+    ritual.type = "button";
+    ritual.textContent = "Lancia come rituale";
+    ritual.title = "Nessuno slot speso; il lancio richiede 10 minuti in più";
+    ritual.addEventListener("click", () => void launchSpellbookSpell(spell.id, "auto", { cost: "free" }));
+    actions.appendChild(ritual);
+    block.appendChild(actions);
+  }
+  return block;
 }
 
 // A spellbook spell runs through the quick action path: "auto" applies it when nothing needs the GM,
 // "review" opens the spell panel. An attack cantrip opens the attack console instead.
-async function launchSpellbookSpell(spellId, launchMode) {
+async function launchSpellbookSpell(spellId, launchMode, { cost = "slot" } = {}) {
   const surface = { listId: "spellbookList", statusId: "spellbookRunStatus" };
   const cantripAttack = spellbookSpell(spellId).attackCantrip ? spellbookCantripAttack(spellId) : null;
   if (cantripAttack) {
     await launchQuickAction(cantripAttack, "", {}, surface);
     return;
   }
-  const action = spellbookQuickAction(spellId, { launchMode });
+  const action = spellbookQuickAction(spellId, { launchMode, cost });
   if (action) await launchQuickAction(action, "", {}, surface);
 }
 

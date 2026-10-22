@@ -115,6 +115,10 @@ export function normalizeSpellUnifiedPanelOpenRequest(request = {}) {
     activeInstanceId: text(request.activeInstanceId || payload.activeInstanceId),
     activeActionId: text(request.activeActionId || payload.activeActionId),
     quickActionId,
+    // The slot the cast spends, chosen before the panel opens: "none" (a ritual, a free quick action) or "pact".
+    slotSource: ["none", "pact"].includes(text(request.slotSource || payload.slotSource))
+      ? text(request.slotSource || payload.slotSource)
+      : "",
     casterId,
     ...(monsterActionContext ? { monsterActionContext } : {}),
     passengerId,
@@ -249,6 +253,7 @@ export function routeSpellUnifiedPanelOpenRequest(
       parentInstanceId: normalized.parentInstanceId,
     },
     quickActionId: normalized.quickActionId,
+    slotSource: normalized.slotSource,
     origin: normalized.origin,
   };
 
@@ -312,6 +317,7 @@ export function buildSpellUnifiedPanelRouteQuery(request = {}) {
     ["activeInstanceId", normalized.activeInstanceId],
     ["activeActionId", normalized.activeActionId],
     ["quickAction", normalized.quickActionId],
+    ["slotSource", normalized.slotSource],
     ["slotLevel", normalized.slotLevel],
     ["variant", normalized.variant],
     ["durationTurns", normalized.durationTurns],

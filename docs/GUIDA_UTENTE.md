@@ -97,6 +97,15 @@ manuale. Per il warlock la lista ampliata del patrono è solo un suggerimento:
 in **Modifica** compare sotto il libro, con un pulsante per aggiungere ogni
 incantesimo lanciabile con i suoi slot del Patto.
 
+Il pulsante ▸ apre i dettagli di un incantesimo (scuola, tempo di lancio,
+gittata, componenti, durata, testo e livelli superiori), uno alla volta. I
+rituali hanno il badge **R**; nei dettagli **Lancia come rituale** li lancia
+senza spendere slot (il lancio richiede 10 minuti in più). Il mago può
+lanciare come rituale ogni rituale del libro, anche non preparato; chierico e
+druido solo quelli preparati; il bardo quelli che conosce. Le altre classi no:
+un talento come Incantatore Rituale passa da un'azione rapida con costo
+"Gratuito", che apre il pannello già impostato su "Senza slot".
+
 Sulla card del tracker il GM trova tre pulsanti in colonna sul bordo del
 ritratto: ⚡ azioni rapide, 🪄 incantesimi, 🗡️ attacchi. Il menu 🪄 mostra in
 alto i preferiti, lanciabili subito, e sotto un sottomenu per livello

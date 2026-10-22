@@ -326,7 +326,7 @@ function initialState(contract, catalogEntries, sourceId, route = {}) {
     catalogEntries,
     casters: [],
     // Which slot the cast spends: "" the rules' pick, "pact" Pact Magic, "none" no slot (spellSlotSpendCore.js).
-    slotSource: "",
+    slotSource: route?.slotSource || "",
     targetCandidates: [],
     teleportPassengerCandidateIds: [],
     concentrationSummary: [],

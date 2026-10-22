@@ -66,7 +66,7 @@ test("a recreated token recovers a spellbook-only profile from the Room", () => 
 test("the book reads names, levels and what each spell can do from the catalog", () => {
   assert.deepEqual(spellbookSpell("shield"), {
     id: "shield", label: "Scudo", level: 1, concentration: false, launchable: true, automated: true, recordOnly: false,
-    area: false, attackCantrip: false, targetMode: "self",
+    area: false, attackCantrip: false, targetMode: "self", ritual: false,
   });
   const fireball = spellbookSpell("fireball");
   assert.equal(fireball.area, true);
