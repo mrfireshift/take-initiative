@@ -254,6 +254,7 @@ import {
   enableCompactCardRename,
   writeCompactHPText,
 } from "./initiativeCardCompact.js";
+import { compactScrollFadeEdges } from "./compactScrollFadeCore.js";
 import {
   compactTrackerGroupProgress,
   compactTrackerCompanionHeight,
@@ -3769,6 +3770,14 @@ function injectScrollbarStyles() {
   .tbp-scroll[data-compact-scroll="1"]:hover::-webkit-scrollbar-thumb,
   .tbp-scroll[data-compact-scroll="1"].is-scrolling::-webkit-scrollbar-thumb { background-color: rgba(148,163,184,.58); }
   .tbp-scroll[data-compact-scroll="1"] { scrollbar-color: rgba(148,163,184,.42) transparent; }
+  .tbp-scroll[data-compact-scroll="1"] {
+    --tbp-fade-left: 0px;
+    --tbp-fade-right: 0px;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--tbp-fade-left), #000 calc(100% - var(--tbp-fade-right)), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 var(--tbp-fade-left), #000 calc(100% - var(--tbp-fade-right)), transparent 100%);
+  }
+  .tbp-scroll[data-compact-scroll="1"][data-fade-left="1"] { --tbp-fade-left: 28px; }
+  .tbp-scroll[data-compact-scroll="1"][data-fade-right="1"] { --tbp-fade-right: 28px; }
   .tbp-scroll[data-compact-scroll="1"]:hover,
   .tbp-scroll[data-compact-scroll="1"].is-scrolling { scrollbar-color: rgba(148,163,184,.58) transparent; }
   `;
@@ -3811,7 +3820,26 @@ trackWrap.addEventListener("wheel", (event) => {
 trackWrap.addEventListener("scroll", () => {
   if (__expandedCompactEffectsId) void __closeCompactEffectsPopover();
   markCompactCarouselScrolling();
+  updateCompactScrollFade();
 }, { passive: true });
+
+// The strip fades on the side where creatures are scrolled out of view (compactScrollFadeCore.js, styles above).
+// Only presentation: it reads the scroll position and sets two data attributes.
+function updateCompactScrollFade() {
+  const edges = trackWrap.dataset.compactScroll === "1"
+    ? compactScrollFadeEdges(trackWrap)
+    : { left: false, right: false };
+  if (edges.left) trackWrap.dataset.fadeLeft = "1";
+  else delete trackWrap.dataset.fadeLeft;
+  if (edges.right) trackWrap.dataset.fadeRight = "1";
+  else delete trackWrap.dataset.fadeRight;
+}
+if (typeof ResizeObserver === "function") {
+  // The strip's size (tracker resized) and the track's (cards added or removed) both change what is out of view.
+  const compactScrollFadeObserver = new ResizeObserver(() => updateCompactScrollFade());
+  compactScrollFadeObserver.observe(trackWrap);
+  compactScrollFadeObserver.observe(track);
+}
 
 
     // ===== Stato scena

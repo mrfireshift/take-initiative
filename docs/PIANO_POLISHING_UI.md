@@ -195,6 +195,10 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
   - I launcher vicini distano 17–20px, quindi le loro aree si sovrappongono di qualche px; lì risponde il launcher successivo.
   - **Escluse le maniglie di ridimensionamento** (12px sul bordo del tracker): allargarle coprirebbe la colonna di sinistra (a 2px) e il pannello destro, che la maniglia di destra già oggi copre per 5px.
   - Verifica con `elementFromPoint` nell'anteprima: la fascia della pill risponde fino a 5px sopra e sotto; "+1" (23×17 disegnato) su 24px; la "×" (10×10) fino a 6px sopra e sotto e 8px ai lati.
+- **3.6 — fatto il 2026-10-22.**
+  - Nella vista compatta la striscia sfuma per 28px il bordo dietro cui ci sono altre creature: il destro all'inizio, entrambi a metà, il sinistro in fondo. Se la striscia sta tutta nella vista, nessuna sfumatura.
+  - È solo presentazione: `compactScrollFadeEdges()` (`src/compactScrollFadeCore.js`) legge la posizione di scorrimento e due attributi `data-fade-*` attivano una maschera CSS. L'aggiornamento avviene a ogni scorrimento e quando cambiano le dimensioni della striscia o delle card (ResizeObserver). La vista classica non è toccata.
+  - Il popover degli effetti verso l'alto, facoltativo, non è stato fatto: in OBR non esce dallo schermo.
 
 ### Fase 4 — Vista classica
 
