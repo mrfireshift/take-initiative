@@ -110,6 +110,22 @@
   --obrt-btn-danger-text: #fecaca;
   --obrt-btn-disabled-opacity: .48;
 
+  /* Panels' header, close button and footer: one frame for every modal and popover panel. */
+  --obrt-close-size: var(--obrt-h-control-sm);
+  --obrt-close-font: 18px;
+  --obrt-close-radius: var(--obrt-btn-radius);
+  --obrt-close-hover: var(--obrt-hover);
+  --obrt-header-height: var(--obrt-h-header);
+  --obrt-header-pad-y: var(--obrt-space-md);
+  --obrt-header-pad-x: var(--obrt-space-xl);
+  --obrt-header-border: var(--obrt-line);
+  --obrt-title-size: var(--obrt-type-panel-title);
+  --obrt-title-weight: var(--obrt-weight-bold);
+  --obrt-footer-pad-y: var(--obrt-space-lg);
+  --obrt-footer-pad-x: var(--obrt-space-xl);
+  --obrt-footer-border: var(--obrt-line);
+  --obrt-footer-gap: var(--obrt-space-md);
+
   /* Carets & Forms */
   --obrt-select-bg: #0f172a;
   --obrt-select-caret-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M2 2 6 6 10 2' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -200,6 +216,59 @@ textarea {
   min-width: var(--obrt-h-control-sm);
   min-height: var(--obrt-h-control-sm);
   padding: 0;
+}
+
+/* Panel frame for new code: header with title and close button, footer with the actions. */
+.obrt-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--obrt-space-md);
+  min-height: var(--obrt-header-height);
+  padding: var(--obrt-header-pad-y) var(--obrt-header-pad-x);
+  border-bottom: 1px solid var(--obrt-header-border);
+  box-sizing: border-box;
+}
+
+.obrt-modal-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--obrt-title-size);
+  font-weight: var(--obrt-title-weight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obrt-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--obrt-close-size);
+  height: var(--obrt-close-size);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--obrt-close-radius);
+  background: transparent;
+  color: inherit;
+  font-size: var(--obrt-close-font);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.obrt-modal-close:hover {
+  background: var(--obrt-close-hover);
+}
+
+.obrt-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--obrt-footer-gap);
+  padding: var(--obrt-footer-pad-y) var(--obrt-footer-pad-x);
+  border-top: 1px solid var(--obrt-footer-border);
+  box-sizing: border-box;
 }
 
 /* Typographic Hierarchy Utility Classes */

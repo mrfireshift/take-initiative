@@ -15,8 +15,8 @@
     .panel { min-height:0; flex:1 1 auto; display:flex; flex-direction:column; gap:9px; padding:12px; overflow:hidden; }
     .heading { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-right:34px; }
     h1 { min-width:0; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--obrt-type-panel-title, 15px); }
-    .close { position:fixed; top:8px; right:10px; width:30px; height:30px; padding:0; border:1px solid transparent; border-radius:9px; background:transparent; color:inherit; font:inherit; font-size:15px; cursor:pointer; }
-    .close:hover { background:rgba(255,255,255,.08); }
+    .close { position:fixed; top:8px; right:10px; display:inline-flex; align-items:center; justify-content:center; font:inherit; width: var(--obrt-close-size, 28px); height: var(--obrt-close-size, 28px); min-height: var(--obrt-close-size, 28px); padding: 0; border: 1px solid transparent; border-radius: var(--obrt-close-radius, 8px); background: transparent; color: inherit; font-size: var(--obrt-close-font, 18px); line-height: 1; cursor:pointer; }
+    .close:hover { background:var(--obrt-close-hover, rgba(255, 255, 255, .08)); }
     .tabs { display:flex; gap:5px; }
     button, input { font:inherit; color:inherit; }
     button { min-height:30px; padding:6px 10px; border:1px solid var(--line); border-radius:9px; background:rgba(255,255,255,.055); cursor:pointer; }

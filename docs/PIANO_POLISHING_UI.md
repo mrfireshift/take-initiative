@@ -254,6 +254,13 @@ Può partire subito dopo la fase 2, in parallelo alle fasi 3 e 4: tocca file div
   - "Rimuovi selezionati" disabilitato ha opacità 0,5 scritta dal codice (`effects-modal.ts`) invece di 0,48: differenza trascurabile, lasciata.
   - **Esteso** (stesso giorno) a Opzioni (`options-modal.css`), Orologi (`clocks.css`) e Aure (`custom-aura.css`): base, primario (non più sfumato) e pericolo leggono i token, con valori di riserva nei `var()`. Verifica: "Annulla"/"Salva opzioni", "Crea" dell'orologio e "+ Nuova aura" hanno gli stessi valori degli altri pannelli. Nelle Aure il bottone disabilitato non diventa più grigio pieno, ma usa la stessa opacità degli altri.
   - **Avvisi** (turn-notice, concentration-warning): i loro bottoni sono mini-controlli alti 19px con testo a 8,5px e il colore dell'avviso. Per ora condividono solo l'opacità da disabilitato; misure e testo a 10px vanno nel lotto 5.3.
+- **5.2 — fatto il 2026-10-22.**
+  - `public/ui-typography.css` ha i token della cornice dei pannelli (`--obrt-close-*`, `--obrt-header-*`, `--obrt-title-*`, `--obrt-footer-*`) e le classi `.obrt-modal-header`, `-title`, `-close` e `-footer` per il codice nuovo. Come per i bottoni, le classi esistenti leggono i token con valori di riserva, senza rinominare nulla.
+  - **Chiusura unica** (28×28, glifo 18px, raggio 8, sfondo al passaggio) su 11 pagine: console effetti, Condizioni, Incantesimi, Opzioni, Cronologia, Aure, HP condivisi, Fazioni, Aspetto area, Enciclopedia, scheda personaggio. Prima c'erano 30px, 22px di glifo, raggio 9 e, in Aspetto area, un fondo pieno.
+  - **Intestazione comune** (44px + bordo, margini 8/12, bordo uguale, titolo 16px grassetto): console, Condizioni, Incantesimi, Opzioni (prima 58px), Cronologia (prima 42px), Aure, HP condivisi. Opzioni, Aure e HP condivisi risultano più alte solo per il contenuto in più (sottotitolo o pulsante).
+  - **Footer** con lo stesso bordo e la stessa spaziatura dove esiste: console, Incantesimi, Opzioni, Aure, HP condivisi, Fazioni.
+  - `&times;` e `×` sono lo stesso carattere: markup invariato.
+  - **Esclusi di proposito:** i popover di risoluzione degli incantesimi (`spell-popover.css`, tema viola con titoli in Georgia) e quello degli incantesimi preparati, da trattare con gli avvisi nel lotto 5.3; l'intestazione con ritratto della scheda personaggio; la `.zone-close` degli avvisi di turno, che è CSS non usato.
 
 ### Fase 6 — Flussi e riduzione dei clic (gruppo B)
 

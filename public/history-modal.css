@@ -51,9 +51,9 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 42px;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--obrt-line);
+  min-height: var(--obrt-header-height, 44px);
+  padding: var(--obrt-header-pad-y, 8px) var(--obrt-header-pad-x, 12px);
+  border-bottom: 1px solid var(--obrt-header-border, rgba(148, 163, 184, .20));
   background: rgba(15, 23, 42, .32);
   cursor: grab;
   user-select: none;
@@ -74,8 +74,8 @@ input {
 
 .history-title {
   margin: 0;
-  font-size: var(--obrt-type-panel-title, 15px);
-  font-weight: var(--obrt-weight-bold, 700);
+  font-size: var(--obrt-title-size, 16px);
+  font-weight: var(--obrt-title-weight, 700);
   line-height: 1.2;
   letter-spacing: -.01em;
   overflow: hidden;
@@ -84,14 +84,14 @@ input {
 }
 
 .history-close-btn {
-  width: 28px;
-  height: 28px;
+  width: var(--obrt-close-size, 28px);
+  height: var(--obrt-close-size, 28px);
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--obrt-close-radius, 8px);
   background: transparent;
   color: inherit;
-  font-size: 16px;
+  font-size: var(--obrt-close-font, 18px);
   line-height: 1;
   display: flex;
   align-items: center;
@@ -102,7 +102,7 @@ input {
 }
 
 .history-close-btn:hover {
-  background: var(--obrt-hover);
+  background: var(--obrt-close-hover, rgba(255, 255, 255, .08));
 }
 
 /* Tab Switcher */
