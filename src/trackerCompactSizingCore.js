@@ -56,13 +56,15 @@ export function compactTrackerManualResizeWidth(
   );
 }
 
+// extraWidth: room the cards take past their own width (open side drawers).
 export function compactTrackerWidth(
   entryCount,
-  { showToolbar = true, showNavigation = true } = {},
+  { showToolbar = true, showNavigation = true, extraWidth = 0 } = {},
 ) {
   const count = Math.max(0, Math.floor(Number(entryCount) || 0));
   const cardStripWidth = count * COMPACT_CARD_WIDTH
     + Math.max(0, count - 1) * CARD_GAP
+    + Math.max(0, Math.round(Number(extraWidth) || 0))
     + TRACK_HORIZONTAL_PADDING;
   const navigationWidth = showNavigation
     ? NAVIGATION_BUTTONS_WIDTH + NAVIGATION_GAPS_WIDTH

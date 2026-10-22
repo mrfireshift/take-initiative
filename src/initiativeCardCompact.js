@@ -765,6 +765,31 @@ export function markCompactHPTextEditable(hpText, entryId) {
   return hpText;
 }
 
+// Drawers on a compact card's right (effects, companions): placed past the card's edge, with the card's right margin
+// grown by as much, so the strip makes room and the bar never grows downwards. Docks stand in the order they are
+// added; only the last one may change width afterwards (resize), since the ones before it do not move.
+const COMPACT_SIDE_DOCK_GAP = 3;
+export function appendCompactSideDock(card, element, width) {
+  const start = (Number(card.__compactSideDockWidth) || 0) + COMPACT_SIDE_DOCK_GAP;
+  Object.assign(element.style, {
+    position: "absolute",
+    top: "0",
+    bottom: "0",
+    left: `calc(100% + ${start}px)`,
+    boxSizing: "border-box",
+  });
+  card.style.overflow = "visible";
+  card.appendChild(element);
+  const resize = (nextWidth) => {
+    const dockWidth = Math.max(0, Math.round(Number(nextWidth) || 0));
+    element.style.width = `${dockWidth}px`;
+    card.__compactSideDockWidth = start + dockWidth;
+    card.style.marginRight = `${card.__compactSideDockWidth}px`;
+  };
+  resize(width);
+  return { element, resize };
+}
+
 // The KO badge sits on the portrait, across its lower part: the top-right corner is left to the GM's launchers
 // (trackerQuickActions.js). Shared with syncTrackerHPNow, which adds the badge when HP drop to 0 between renders.
 const COMPACT_KO_BADGE_HEIGHT = 18;

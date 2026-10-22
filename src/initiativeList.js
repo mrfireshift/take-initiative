@@ -300,6 +300,7 @@ import {
   roundResetRestorePatch,
 } from "./initiativeUndoCore.js";
 import { showUndoToast } from "./undoToast.js";
+import { appendCompactCompanionDrawer } from "./compactCompanionDrawer.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -8943,14 +8944,16 @@ function resizeCompactTrackerPopover(
 ) {
   // The manual width is the popover width on screen; the automatic one is unscaled and grows with the scale.
   const manualWidth = getCompactTrackerManualWidth();
+  const compactCards = Array.from(track.querySelectorAll("[data-tracker-card='1']"));
   const requestedWidth = manualWidth
     || compactTrackerWidth(entries?.length, {
       showToolbar: IS_GM,
       showNavigation: IS_GM,
+      // Open side drawers (effects, companions) widen the strip as far as the maximum width.
+      extraWidth: compactCards.reduce((total, card) => total + (Number.parseFloat(card.style.marginRight) || 0), 0),
     });
   const requestedHeight = compactTrackerCompanionHeight(
-    Array.from(track.querySelectorAll("[data-tracker-card='1']"))
-      .map(card => Number.parseFloat(card.style.marginBottom) || 0),
+    compactCards.map(card => Number.parseFloat(card.style.marginBottom) || 0),
   );
   const requestKey = `${requestedWidth}x${requestedHeight}@${__trackerViewScale}`;
   if (__lastCompactPopoverSize === requestKey) return;
@@ -9945,13 +9948,13 @@ function renderCompactTrack(
 
     card.append(portrait, name, ...(virtualTurnLabel ? [virtualTurnLabel] : []), hpText, hpTrack, status);
     __mountTrackerQuickActions(card, entry, { compact: true });
-    appendSpellBoardTokenCompanions(
+    // Linked tokens and summons in a tab on the card's right, opening sideways: the bar does not grow downwards.
+    appendCompactCompanionDrawer(
       card,
       __trackerCompanionsForEntry(entry, companionsByCasterId),
       {
-        compact: true,
         faction,
-        onStackChange: () => resizeCompactTrackerPopover(visibleEntries),
+        onLayoutChange: () => resizeCompactTrackerPopover(visibleEntries),
         onBindHP: IS_GM ? bindSpellBoardTokenCompanionHPEditor : null,
         onSelect: __selectSpellBoardTokenCompanion,
         selectedIds: __selectedSceneItemIds,
