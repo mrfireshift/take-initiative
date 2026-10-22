@@ -594,6 +594,16 @@ function causalityDetailLines(event) {
     const saveLabel = stringValue(rawAttack.cantrip.saveLabel);
     lines.push(`Trucchetto: ${cantripName}${cantripDice ? ` (${cantripDice})` : ""}${saveLabel ? ` · ${saveLabel}` : ""}`);
   }
+  // A leveled attack spell (lotto L4): its dice and slot level, the ray or dart, the slot spent, the caster's healing.
+  const spellName = stringValue(rawAttack?.spell?.name);
+  if (spellName) {
+    const spell = rawAttack.spell;
+    const dice = stringValue(spell.dice);
+    const progress = Number(spell.total) > 1 ? ` · ${spell.leap ? "balzo" : "colpo"} ${spell.index}/${spell.total}` : spell.leap ? " · balzo" : "";
+    lines.push(`Incantesimo: ${spellName}${dice ? ` (${dice})` : ""} · ${spell.slotLevel}° livello${progress}`);
+    if (stringValue(spell.slotSpent)) lines.push(`Speso: ${spell.slotSpent}`);
+    if (spell.casterHeal) lines.push(`Il caster recupera ${spell.casterHeal.amount} PF (${spell.casterHeal.before} → ${spell.casterHeal.after})`);
+  }
   // 3C: an arrow that replaces the attack roll (Seeking, Piercing) and an attack on an area (each creature's save
   // follows in its own target line).
   const modeName = stringValue(rawAttack?.mode?.label);

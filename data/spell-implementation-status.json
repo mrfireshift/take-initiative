@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 227,
-      "PARTIAL": 61,
+      "COMPLETE / CURRENT": 234,
+      "PARTIAL": 59,
       "NO AUTOMATION REQUIRED": 144,
-      "MISSING": 30,
+      "MISSING": 25,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 91,
+    "implementableBacklog": 84,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 80,
-        "percent": 87.91208791208791
+        "count": 73,
+        "percent": 86.90476190476191
       },
       "RED": {
         "count": 11,
-        "percent": 12.087912087912088
+        "percent": 13.095238095238097
       }
     },
     "scenarios": [
@@ -20843,11 +20843,13 @@
       "id": "guiding-bolt",
       "spell": "Dardo tracciante",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/pcAttackSpellCatalog.js",
+        "src/pcAttackCore.js",
+        "src/pcAttackExecution.js",
+        "src/pc-attack.js"
       ],
       "mechanicsRequired": [
         "BLOCKER riprodotto: getSpellAttackResolution(hit) aggiunge acid-arrow-delayed-acid anche a queste spell; cantrip non scala con characterLevel.",
@@ -20863,9 +20865,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -20907,8 +20907,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ATTACK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "guiding-bolt",
@@ -20917,6 +20917,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackSpells.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -20939,7 +20940,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "BLOCKER riprodotto: getSpellAttackResolution(hit) aggiunge acid-arrow-delayed-acid anche a queste spell; cantrip non scala con characterLevel.",
+        "reason": "Lotto L4 (2026-10-22): console attacchi: 4d6 radiosi (+1d6 per slot) e, al colpo, la pill del vantaggio al prossimo attacco; slot nel comando.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -23822,10 +23823,13 @@
       "id": "inflict-wounds",
       "spell": "Infliggi ferite",
       "level": 1,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/pcAttackSpellCatalog.js",
+        "src/pcAttackCore.js",
+        "src/pcAttackExecution.js",
+        "src/pc-attack.js"
       ],
       "mechanicsRequired": [
         "Manca cast attacco generico senza il differito hardcoded; usare outcome al tavolo, danno finale e scaling dichiarativo.",
@@ -23841,9 +23845,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -23880,8 +23882,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ATTACK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "inflict-wounds",
@@ -23890,6 +23892,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackSpells.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -23909,7 +23912,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Manca cast attacco generico senza il differito hardcoded; usare outcome al tavolo, danno finale e scaling dichiarativo.",
+        "reason": "Lotto L4 (2026-10-22): console attacchi: attacco in mischia, 3d10 necrotici (+1d10 per slot), slot speso nel comando dell'attacco.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -26029,10 +26032,13 @@
       "id": "magic-missile",
       "spell": "Dardo incantato",
       "level": 1,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/pcAttackSpellCatalog.js",
+        "src/pcAttackCore.js",
+        "src/pcAttackExecution.js",
+        "src/pc-attack.js"
       ],
       "mechanicsRequired": [
         "Multi-hit è già presente come maxAttacks + attacks[] (Lama del Disastro), anche stesso target. Gap reale: esporlo al cast con conteggio scalato e policy auto-hit per i dardi, senza parent fittizio.",
@@ -26048,9 +26054,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -26087,8 +26091,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MULTI-HIT",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "magic-missile",
@@ -26097,6 +26101,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackSpells.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -26120,7 +26125,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Multi-hit è già presente come maxAttacks + attacks[] (Lama del Disastro), anche stesso target. Gap reale: esporlo al cast con conteggio scalato e policy auto-hit per i dardi, senza parent fittizio.",
+        "reason": "Lotto L4 (2026-10-22): console attacchi: un dardo per registrazione senza tiro per colpire (1d4+1, +1 dardo per slot), slot con il primo; Scudo li blocca.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -33358,10 +33363,13 @@
       "id": "scorching-ray",
       "spell": "Raggio rovente",
       "level": 2,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/pcAttackSpellCatalog.js",
+        "src/pcAttackCore.js",
+        "src/pcAttackExecution.js",
+        "src/pc-attack.js"
       ],
       "mechanicsRequired": [
         "Multi-hit è già presente come maxAttacks + attacks[] (Lama del Disastro), anche stesso target. Gap reale: esporlo al cast con conteggio scalato e policy auto-hit per i dardi, senza parent fittizio.",
@@ -33377,9 +33385,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -33416,8 +33422,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MULTI-HIT",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "scorching-ray",
@@ -33426,6 +33432,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackSpells.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -33447,7 +33454,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Multi-hit è già presente come maxAttacks + attacks[] (Lama del Disastro), anche stesso target. Gap reale: esporlo al cast con conteggio scalato e policy auto-hit per i dardi, senza parent fittizio.",
+        "reason": "Lotto L4 (2026-10-22): console attacchi: un raggio per registrazione (2d6 fuoco, +1 raggio per slot), slot speso una volta con il primo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -39573,11 +39580,13 @@
       "id": "vampiric-touch",
       "spell": "Tocco del vampiro",
       "level": 3,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/pcAttackSpellCatalog.js",
+        "src/pcAttackCore.js",
+        "src/pcAttackExecution.js",
+        "src/pc-attack.js"
       ],
       "mechanicsRequired": [
         "Dry-run: active single-attack + ratio 0.5 sono già generici; il cast iniziale deve anche preservare concentrazione su miss e non ereditare il differito acido. Manca il collegamento cast/active del contratto attack.",
@@ -39588,9 +39597,7 @@
         "C-DRAIN",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -39627,8 +39634,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ACTIVE-DRAIN",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "vampiric-touch",
@@ -39637,6 +39644,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackSpells.test.js",
           "test/spellActiveResolutionExecution.test.js",
           "test/spellBoardTokenCore.test.js",
           "test/spellLifecycleOperationsCore.test.js",
@@ -39649,7 +39657,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Dry-run: active single-attack + ratio 0.5 sono già generici; il cast iniziale deve anche preservare concentrazione su miss e non ereditare il differito acido. Manca il collegamento cast/active del contratto attack.",
+        "reason": "Lotto L4 (2026-10-22): lancio e concentrazione dal pannello; la console registra i tocchi finché la concentrazione è attiva, con la cura del caster pari a metà del danno necrotico nello stesso comando.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -44698,10 +44706,13 @@
       "id": "xanathar-dardo-di-caos",
       "spell": "Dardo di Caos",
       "level": 1,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/pcAttackSpellCatalog.js",
+        "src/pcAttackCore.js",
+        "src/pcAttackExecution.js",
+        "src/pc-attack.js"
       ],
       "mechanicsRequired": [
         "Scelta tipo dai dadi e rimbalzi dipendenti dai risultati: il cap non modella la catena di risoluzioni."
@@ -44716,9 +44727,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -44755,8 +44764,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ATTACK-CONSOLE",
-      "estimatedEffort": "HIGH, individual design",
-      "recommendedBatch": "RED / individual",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-dardo-di-caos",
@@ -44765,6 +44774,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackSpells.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -44784,7 +44794,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Con la console attacchi: tipo scelto dal d8 e rimbalzo come nuova registrazione dello stesso lancio, con lo slot speso una volta (lotto L4).",
+        "reason": "Lotto L4 (2026-10-22): console attacchi: 2d8+1d6 (+1d6 per slot), tipo dal d8 scelto; con due d8 uguali il balzo su un'altra creatura, senza nuovo slot, mai due volte sulla stessa.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -58181,10 +58191,13 @@
       "id": "phb2014-globo-cromatico",
       "spell": "Globo Cromatico",
       "level": 1,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/pcAttackSpellCatalog.js",
+        "src/pcAttackCore.js",
+        "src/pcAttackExecution.js",
+        "src/pc-attack.js"
       ],
       "mechanicsRequired": [
         "Manca cast attacco generico senza il differito hardcoded; usare outcome al tavolo, danno finale e scaling dichiarativo."
@@ -58199,9 +58212,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -58238,8 +58249,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ATTACK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-phb2014-extra.json",
         "spellId": "phb2014-globo-cromatico",
@@ -58248,6 +58259,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackSpells.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -58267,7 +58279,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Manca cast attacco generico senza il differito hardcoded; usare outcome al tavolo, danno finale e scaling dichiarativo.",
+        "reason": "Lotto L4 (2026-10-22): console attacchi: 3d8 (+1d8 per slot) del tipo scelto per l'attacco; nessun rimbalzo nel testo 2014.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62727,6 +62739,10 @@
     {
       "date": "2026-10-22",
       "note": "Lotto L3: 12 incantesimi completi. Zone del catalogo con effetti per variante (Cerchio magico, Santificare, Pirotecnica), Proibizione e Antipatia/simpatia con i loro trigger, Globo di invulnerabilità zona immobile, Tempesta di ghiaccio e Scossa tellurica zone di terreno difficile; Bagliore solare e Drago illusorio con l'azione ripetibile."
+    },
+    {
+      "date": "2026-10-22",
+      "note": "Lotto L4: 7 incantesimi completi. Fonte «Incantesimo d'attacco» nella console attacchi: lo slot speso una volta per lancio nel comando della prima registrazione, un raggio o dardo per registrazione, Dardo incantato senza tiro e bloccato da Scudo, tipo scelto per Globo cromatico e Dardo di caos con il balzo, Tocco del vampiro con la cura del caster."
     }
   ]
 }

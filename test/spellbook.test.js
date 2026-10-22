@@ -66,8 +66,10 @@ test("a recreated token recovers a spellbook-only profile from the Room", () => 
 test("the book reads names, levels and what each spell can do from the catalog", () => {
   assert.deepEqual(spellbookSpell("shield"), {
     id: "shield", label: "Scudo", level: 1, concentration: false, launchable: true, automated: true, recordOnly: false,
-    area: false, attackCantrip: false, targetMode: "self", ritual: false,
+    area: false, attackCantrip: false, attackSpell: false, targetMode: "self", ritual: false,
   });
+  // A leveled attack spell (lotto L4): recorded in the attack console when the character has an attack spell action.
+  assert.equal(spellbookSpell("scorching-ray").attackSpell, true);
   const fireball = spellbookSpell("fireball");
   assert.equal(fireball.area, true);
   assert.equal(fireball.targetMode, "selection", "an area spell is placed, never cast on its caster");

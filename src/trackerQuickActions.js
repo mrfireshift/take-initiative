@@ -58,6 +58,10 @@ export function trackerQuickActionSummary(action) {
     const count = normalized.source.spellIds?.length || 0;
     return count ? `Trucchetto · ${count} ${count === 1 ? "conosciuto" : "conosciuti"}` : "Trucchetto · scegli al lancio";
   }
+  if (normalized.kind === "attack" && normalized.source?.kind === "spell") {
+    const count = normalized.source.spellIds?.length || 0;
+    return count ? `Incantesimo d'attacco · ${count} ${count === 1 ? "conosciuto" : "conosciuti"}` : "Incantesimo d'attacco · scegli al lancio";
+  }
   if (normalized.kind === "attack") {
     const range = normalized.range === "ranged" ? "distanza" : "mischia";
     const count = normalized.components?.length || 0;

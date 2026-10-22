@@ -1,12 +1,14 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
-import { createPcAttackRuntime, pcAttackSmiteSlotPlans } from "./pcAttackExecution.js";
+import { createPcAttackRuntime, pcAttackSmiteSlotPlans, pcAttackSpellSlotPlan } from "./pcAttackExecution.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
-  pcAttackModeOptions, pcAttackAreaPreview, pcAttackActionPanelCantripIds } from "./pcAttackCore.js";
+  pcAttackModeOptions, pcAttackAreaPreview, pcAttackActionPanelCantripIds, pcAttackSpellIds, pcAttackWithSpellType, pcAttackOpenSpellCast } from "./pcAttackCore.js";
+import { getPcAttackSpell, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
+import { spellSlotChoices } from "./spellSlotSpendCore.js";
 import { pcAttackHasPotentCantrip } from "./pcAttackRiderCatalog.js";
 import { getPcAttackCantrip, pcAttackCantripBeams, PC_ATTACK_SAVE_LABELS } from "./pcAttackCantripCatalog.js";
 import { totalCharacterLevel } from "./abilityModifiersCore.js";
@@ -20,6 +22,7 @@ const META_KEY=`${ID}/meta`;
 const STATE_KEY=`${ID}/state`;
 const RANGE_LABELS=Object.freeze({melee:"Mischia",ranged:"Distanza"});
 const newAttackId=()=>`pc-attack:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
+const newCastId=()=>`pc-cast:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
 
 // Undo goes through the existing History, only for the latest confirmed entry (same rule as Boss Actions).
 async function defaultPcAttackUndo(entryId,{epoch}) {
@@ -36,11 +39,13 @@ function emptyDraft(action,targetId=null,spellId="",attackMode="") {
   const components=pcAttackResolvedAction(action,spellId,attackMode)?.components || [];
   return {targetId,spellId,attackMode,modeAmount:"",outcome:"",amounts:Object.fromEntries(components.map(component=>[component.id,""])),ignored:[],
     riders:{},activations:{},extras:[],woven:{spellId:"",amount:"",secondaryTargetId:"",secondaryAmount:""},
-    area:{members:{},proposalKey:""},attackInstanceId:newAttackId()};
+    area:{members:{},proposalKey:""},attackInstanceId:newAttackId(),
+    // A leveled attack spell (lotto L4): the cast this registration belongs to, its slot, the type picked, matching d8.
+    spell:{castId:newCastId(),slotLevel:null,pact:false,damageType:"",doubles:false,fresh:false}};
 }
 // The cantrip a cantrip action opens with: the one this attacker used last, when this action still offers it.
 export function defaultCantripId(action,sourceItem) {
-  const offered=pcAttackCantripIds(action);
+  const offered=[...pcAttackCantripIds(action),...pcAttackSpellIds(action)];
   const last=sourceItem?.metadata?.[`${ID}/meta`]?.pcAttackState?.lastAttack?.spellId;
   return offered.includes(last) ? last : offered[0] || "";
 }
@@ -83,6 +88,16 @@ export function areaSummary(result,name="Attacco") {
 }
 const typeLabel=type=>{const label=damageTypeLabel(type);return label.charAt(0).toUpperCase()+label.slice(1);};
 
+// A leveled spell: the ray or dart it was, the slot spent at the start of the cast, the caster's healing.
+export function spellResultSummary(spell) {
+  if(!spell) return "";
+  const progress=spell.total>1?` ${spell.leap?"balzo ":""}${spell.index}/${spell.total}`:spell.leap?" balzo":"";
+  return [`${spell.name}${progress}, ${spell.slotLevel}° livello`,
+    ...(spell.slotSpent?[`speso: ${spell.slotSpent}`]:spell.firstOfCast && !spell.fromActiveSpell?["nessuno slot scalato"]:[]),
+    ...(spell.casterHeal?[`il caster recupera ${spell.casterHeal.amount} PF (${spell.casterHeal.before} → ${spell.casterHeal.after})`]:[]),
+    ...(spell.leapPending?["d8 uguali: registra il balzo su un'altra creatura entro 9 m"]:[])].join(" · ")+".";
+}
+
 export function resultSummary(result) {
   const outcome=PC_ATTACK_OUTCOME_LABELS[result?.outcome] || "";
   const name=result?.target?.name || "bersaglio";
@@ -118,6 +133,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const params=new URLSearchParams(globalThis.location?.search || "");
   const sourceId=overrides.sourceId ?? params.get("source");
   const actionId=overrides.actionId ?? params.get("action");
+  // The spell the console opens with (the spellbook's or the 🪄 menu's), when the action offers it.
+  const requestedSpellId=overrides.spellId ?? params.get("spell") ?? "";
   const $=id=>documentRef.getElementById(id);
   const form=$("pc-attack-form"),status=$("pc-attack-status"),targetSelect=$("pc-attack-target"),hint=$("pc-attack-target-hint");
   const outcomes=$("pc-attack-outcomes"),damage=$("pc-attack-damage"),defensesBox=$("pc-attack-defenses");
@@ -130,6 +147,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   let palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
   const applyRow=$("pc-attack-apply-row");
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
+  const spellControls=$("pc-attack-spell-controls");
   const extrasCaption=$("pc-attack-extras-caption");
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
   const areaBox=$("pc-attack-area"),areaNote=$("pc-attack-area-note"),areaList=$("pc-attack-area-list");
@@ -150,8 +168,36 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     lastUndo=entry?.undoAvailable && entry.historyEntryId ? {historyEntryId:entry.historyEntryId} : null;
     undoButton.hidden=!lastUndo;
   }
+  // Lotto L4: the spell cast this registration opens or continues, as the core expects it.
+  const isSpellAction=()=>presentation?.action?.source?.kind==="spell";
+  const openSpellCast=()=>isSpellAction() && draft?.spellId
+    ? pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:draft.spellId,turnState:presentation.turnState}) : null;
+  // A cast left open continues by itself (its id and slot), unless the GM starts a new one.
+  function syncSpellDraft() {
+    if(!isSpellAction() || !draft) return;
+    const spell=getPcAttackSpell(draft.spellId);
+    const open=draft.spell.fresh?null:openSpellCast();
+    if(open){draft.spell.castId=open.castId;draft.spell.slotLevel=open.slotLevel;draft.spell.pact=open.pact===true;return;}
+    if(spell && !spell.fromActiveSpell && !Number.isInteger(draft.spell.slotLevel)) {
+      const choices=slotChoices();
+      const choice=choices.find(entry=>entry.current>0) || choices[0] || null;
+      draft.spell.slotLevel=choice?.level ?? spell.level;draft.spell.pact=!!choice?.pact;
+    }
+  }
+  function slotChoices() {
+    const spell=getPcAttackSpell(draft?.spellId);
+    const meta=presentation?.item?.metadata?.[META_KEY] || {};
+    return spell?spellSlotChoices({characterBuild:meta.initiativeCard?.characterBuild,resources:meta.classFeatureState?.resources || {},spellLevel:spell.level}):[];
+  }
+  function chosenSpellCast(currentDraft=draft) {
+    if(!isSpellAction() || !currentDraft?.spellId) return null;
+    const spell=currentDraft.spell;
+    return {castId:spell.castId,...(Number.isInteger(spell.slotLevel)?{slotLevel:spell.slotLevel}:{}),...(spell.pact?{pact:true}:{}),
+      ...(spell.damageType?{damageType:spell.damageType}:{}),...(spell.doubles?{doubles:true}:{})};
+  }
+  const typedAttack=()=>pcAttackWithSpellType(resolved(),draft?.spell?.damageType);
   function preview() {
-    return pcAttackPreview({action:presentation?.action,spellId:draft?.spellId,sourceItem:presentation?.item,targetItem:targetById(draft?.targetId),outcome:draft?.outcome,
+    return pcAttackPreview({action:presentation?.action,spellId:draft?.spellId,sourceItem:presentation?.item,targetItem:targetById(draft?.targetId),outcome:draft?.outcome,spellCast:chosenSpellCast(),
       amounts:draft?.amounts,ignoredDefenses:draft?.ignored,riders:chosenRiders(draft),extras:chosenExtras(draft),turnState:presentation?.turnState,
       weaponCantrip:chosenWeaponCantrip(draft),secondaryItem:targetById(secondaryTargetId()),activations:chosenActivations(draft),
       tempHpItems:presentation?[presentation.item,...presentation.targets]:[],attackMode:draft?.attackMode || "",modeAmount:draft?.modeAmount ?? "",
@@ -201,7 +247,61 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     return names.length?`${names.join(", ")}: lancialo dal pannello incantesimi (zona con concentrazione e TS all'ingresso).`:"";
   }
   // Cantrip actions: the cantrip picker, the on-hit effect still resolved by hand and Eldritch Blast's beams.
+  // Leveled attack spells (lotto L4): the spell picker, its slot, the type, matching d8 and where the cast stands.
+  function renderSpell() {
+    const offered=pcAttackSpellIds(presentation.action);
+    cantripRow.hidden=!offered.length;
+    cantripSelect.setAttribute("aria-label","Incantesimo");
+    cantripSelect.replaceChildren(...offered.map(spellId=>{
+      const spell=getPcAttackSpell(spellId);
+      const option=node("option",spell?`${spell.name} · ${spell.level}°`:spellId);option.value=spellId;return option;}));
+    cantripSelect.value=draft.spellId;cantripSelect.disabled=busy;
+    const spell=getPcAttackSpell(draft.spellId);
+    syncSpellDraft();
+    const open=draft.spell.fresh?null:openSpellCast();
+    const controls=[];
+    if(spell && !spell.fromActiveSpell) {
+      const choices=slotChoices();
+      const slot=node("select","","inline-select");slot.setAttribute("aria-label","Slot");
+      const options=choices.length?choices.map(choice=>{const option=node("option",`Slot ${choice.label}`);option.value=choice.pact?"pact":String(choice.level);return option;})
+        :[spell.level,...[1,2,3,4,5,6,7,8,9].filter(level=>level>spell.level)].map(level=>{const option=node("option",`Slot di ${level}°`);option.value=String(level);return option;});
+      slot.replaceChildren(...options);
+      slot.value=draft.spell.pact?"pact":String(draft.spell.slotLevel ?? spell.level);
+      slot.disabled=busy || !!open;
+      slot.addEventListener("change",()=>{
+        const choice=choices.find(entry=>(entry.pact?"pact":String(entry.level))===slot.value);
+        draft.spell.slotLevel=choice?.level ?? Number(slot.value);draft.spell.pact=!!choice?.pact;renderSpell();updateDamageMeta();renderState();});
+      controls.push(slot);
+      if(open) {
+        const fresh=node("button","Nuovo lancio","temp-hp-add");fresh.type="button";fresh.disabled=busy;
+        fresh.addEventListener("click",()=>{draft.spell={castId:newCastId(),slotLevel:null,pact:false,damageType:"",doubles:false,fresh:true};renderSpell();updateDamageMeta();renderState();});
+        controls.push(fresh);
+      }
+    }
+    if(spell?.types) {
+      const type=typeSelect(spell.types,draft.spell.damageType,{placeholder:"— Tipo di danno —",className:"inline-select"});type.setAttribute("aria-label","Tipo di danno");
+      type.disabled=busy;
+      type.addEventListener("change",()=>{draft.spell.damageType=type.value;renderDamage();renderState();});
+      controls.push(type);
+    }
+    if(spell?.leap) {
+      const label=node("label","","option-check");const box=node("input");box.type="checkbox";box.checked=draft.spell.doubles;box.disabled=busy;
+      box.addEventListener("change",()=>{draft.spell.doubles=box.checked;renderState();});
+      label.append(box,node("span","d8 uguali: balza"));controls.push(label);
+    }
+    if(spellControls){spellControls.replaceChildren(...controls);spellControls.hidden=!controls.length;}
+    const pills=spell && !spell.fromActiveSpell?pcAttackCantripPillLabels(spell.spellId):[];
+    const slotLevel=draft.spell.slotLevel ?? spell?.level;
+    const progress=open?`${open.leapPending?"Balzo del dardo":`Lancio in corso: ${open.index}/${open.total} registrati`} · slot di ${open.slotLevel}° già speso. ${open.leapPending?"Scegli un'altra creatura entro 9 metri.":""}`
+      :spell?.count?`${spell.spellId==="magic-missile"?"Dardi":"Raggi"}: ${spell.count.base+spell.count.perSlot*Math.max(0,(slotLevel || spell.level)-spell.level)} con questo slot; il primo spende lo slot.`:"";
+    const notes=[...(progress?[progress.trim()]:[]),...(spell?.ruleNote?[spell.ruleNote]:[]),
+      ...(pills.length?[`Al colpo: pill ${pills.map(label=>`«${label}»`).join(", ")}.`]:[]),
+      ...(spell?.casterHealRatio?["Il caster recupera metà dei danni necrotici inflitti."]:[])];
+    cantripNote.textContent=notes.join(" ");cantripNote.hidden=!notes.length;
+  }
   function renderCantrip() {
+    if(isSpellAction()) return renderSpell();
+    if(spellControls) spellControls.hidden=true;
     const offered=pcAttackCantripIds(presentation.action);
     cantripRow.hidden=!offered.length;
     if(!offered.length){cantripNote.hidden=true;return;}
@@ -678,7 +778,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     $("pc-attack-title").textContent=action?.label || "Attacco";
     // A saving throw cantrip names its save (and the actor's DC) instead of a range.
     const saveLabel=pcAttackSaveLabel(attack,presentation?.item?.metadata?.[META_KEY]?.initiativeCard);
-    const parts=[presentation?.item?.name || presentation?.item?.id,...(attack?.cantrip?["Trucchetto"]:[]),saveLabel || RANGE_LABELS[attack?.range] || ""].filter(Boolean);
+    const parts=[presentation?.item?.name || presentation?.item?.id,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[]),
+      saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":RANGE_LABELS[attack?.range]) || ""].filter(Boolean);
     $("pc-attack-subtitle").textContent=presentation?parts.join(" · "):"";
   }
   function renderTarget() {
@@ -709,7 +810,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }));
   }
   function renderDamage() {
-    const attack=resolved();
+    const attack=typedAttack();
     damage.replaceChildren(...(attack?.components || []).map(component=>{
       const body=node("div","","component-body");
       const typeName=typeLabel(component.type);
@@ -743,7 +844,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const meta=damage.querySelector(`[data-damage-meta="${component.id}"]`);
       if(!meta) continue;
       // A cantrip's dice follow the character level; a weapon shows the formula written in its quick action.
-      const formula=(attack.cantrip?pcAttackCantripDiceFor(attack,presentation.item.metadata?.[META_KEY]?.initiativeCard,targetById(draft.targetId)):component.formula) || "";
+      const formula=(attack.cantrip?pcAttackCantripDiceFor(attack,presentation.item.metadata?.[META_KEY]?.initiativeCard,targetById(draft.targetId))
+        :attack.spell?preview().spell?.dice || pcAttackSpellDice(getPcAttackSpell(attack.spell.spellId),draft.spell?.slotLevel):component.formula) || "";
       meta.textContent=formula?(draft.outcome==="critical"?`${formula} · critico ${pcAttackCriticalDice(formula)}`:formula):"";
       meta.hidden=!formula;
     }
@@ -775,6 +877,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const strong=node("strong",String(draft.outcome==="miss"?0:view.total));
       total.append(strong,node("span",draft.outcome==="miss"?" danni":` danni · PF ${view.hp.before} → ${view.hp.after}`));
       if(view.secondary?.hp) total.append(node("span",` · seconda: ${view.secondary.total}`));
+      if(view.spell?.casterHeal) total.append(node("span",` · caster PF ${view.spell.casterHeal.before} → ${view.spell.casterHeal.after}`));
     } else total.textContent=view.blocker;
     apply.disabled=busy || invalidated || !view.ready;
   }
@@ -826,7 +929,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const sameAction=JSON.stringify(loaded.action)===JSON.stringify(presentation?.action);
     presentation=loaded;
     const fresh=!draft || !sameAction;
-    if(fresh) draft=emptyDraft(loaded.action,draft?.targetId || null,defaultCantripId(loaded.action,loaded.item),draft?.attackMode || "");
+    const requested=!draft && [...pcAttackCantripIds(loaded.action),...pcAttackSpellIds(loaded.action)].includes(requestedSpellId)?requestedSpellId:"";
+    if(fresh) draft=emptyDraft(loaded.action,draft?.targetId || null,requested || defaultCantripId(loaded.action,loaded.item),draft?.attackMode || "");
     if(draft.targetId && !targetById(draft.targetId)) draft.targetId=null;
     if(fresh || form.hidden) render();else renderLive();
   }
@@ -841,6 +945,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // The attacker's card, active features, pills and turn uses decide which riders apply; the targets'
     // HP, defenses and pills (Preda dell'Uccisore, Maledizione) too.
     return JSON.stringify([source.initiativeCard ?? null,source.classFeatureState ?? null,source.conditions ?? null,source.pcAttackState ?? null,
+      source.hp ?? null,source[`${ID}/concentration`] ?? null,
       bossActionTargets(items,sourceId).map(item=>[item.id,item.name,item.metadata?.[META_KEY]?.hp,item.metadata?.[META_KEY]?.hpMax,
         item.metadata?.[META_KEY]?.initiativeCard?.damageDefenses ?? null,item.metadata?.[META_KEY]?.conditions ?? null])]);
   }
@@ -885,6 +990,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   cantripSelect.addEventListener("change",()=>{
     draft.spellId=cantripSelect.value;
     beamTally={spellId:"",count:0};
+    draft.spell={castId:newCastId(),slotLevel:null,pact:false,damageType:"",doubles:false,fresh:false};
     // Another area (or none): the creatures are proposed again.
     draft.area={members:{},proposalKey:""};
     draft.amounts=Object.fromEntries((resolved()?.components || []).map(component=>[component.id,""]));
@@ -941,7 +1047,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       extras:chosenExtras(draft).map(extra=>({...extra,amount:Number(extra.amount),label:String(extra.label || "").trim()})),
       activations:chosenActivations(draft).map(activation=>({...activation,...(activation.amount!==undefined?{amount:Number(activation.amount)}:{}),
         ...(activation.tempHp?{tempHp:activation.tempHp.map(entry=>({targetId:entry.targetId,amount:Number(entry.amount)}))}:{})})),
-      ...(draft.spellId?{spellId:draft.spellId}:{}),
+      ...(draft.spellId?{spellId:draft.spellId}:{}),...(chosenSpellCast()?{spellCast:chosenSpellCast()}:{}),
       ...(chosenWeaponCantrip(draft)?{weaponCantrip:(({spellId,amount,secondary})=>({spellId,...(amount!==""?{amount:Number(amount)}:{}),
         ...(secondary?{secondary:{targetId:secondary.targetId,amount:Number(secondary.amount)}}:{})}))(chosenWeaponCantrip(draft))}:{}),
       ...(view.secondary?{expectedSecondaryDefenses:view.secondary.profileDefenses}:{}),
@@ -951,6 +1057,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       attackInstanceId:draft.attackInstanceId,sceneIdentity:presentation.sceneIdentity};
     // A smite without a slot left: the GM decides before the commit.
     const exhausted=pcAttackSmiteSlotPlans(presentation.item,request.riders).filter(entry=>entry.plan.exhausted);
+    // The first registration of a leveled spell spends its slot: the same question when none is left.
+    const spellAttack=resolved()?.spell;
+    const spellSlot=spellAttack && view.spell ? pcAttackSpellSlotPlan(presentation.item,{...view.spell,level:spellAttack.level,...(draft.spell.pact?{pact:true}:{})}) : null;
+    if(spellSlot?.exhausted) exhausted.push({name:spellAttack.name,plan:spellSlot});
     if(exhausted.length) {
       const message=exhausted.map(entry=>`${entry.name}: ${entry.plan.message}`).join("\n");
       if(!window.confirm(`${message}\n\nRegistrare comunque l'attacco senza scalare lo slot?`)) {
@@ -962,7 +1072,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const result=await runtime.executePcAttack(request);
     if(!lifecycle.isCurrent(operation)) return;
     showUndo(result);
-    setStatus([resultSummary(result),...(result.followUps || []),...(result.warnings || [])].join("\n"));
+    setStatus([resultSummary(result),...(result.spell?[spellResultSummary(result.spell)]:[]),...(result.followUps || []),...(result.warnings || [])].join("\n"));
     if(getPcAttackCantrip(draft.spellId)?.scaling==="beams")
       beamTally=beamTally.spellId===draft.spellId?{...beamTally,count:beamTally.count+1}:{spellId:draft.spellId,count:1};
     // Ready for the next attack (Extra Attack, two weapons, another beam): same target, a new identity.

@@ -49,6 +49,34 @@ function spendSmiteSlots(item,plan,castWithoutSlot=false) {
   }
 }
 
+// A leveled attack spell (lotto L4): the first registration of a cast spends its slot (or Pact Magic) in its own
+// command, like the smites; the next rays and darts, and Vampiric Touch's touches (cast from the spell panel), spend
+// nothing. With no slot left the console asks first and sends castWithoutSlot.
+export function pcAttackSpellSlotPlan(item,spell) {
+  if(!spell?.firstOfCast || spell.fromActiveSpell) return null;
+  const meta=item?.metadata?.[`${ID}/meta`] || {};
+  const card=meta.initiativeCard || {};
+  return planSpellSlotSpend({characterBuild:card.characterBuild,resources:meta.classFeatureState?.resources || {},
+    spellLevel:spell.level,slotLevel:spell.slotLevel,source:spell.pact?"pact":""});
+}
+
+function spendSpellCastSlot(item,plan,castWithoutSlot=false) {
+  const spell=plan.causality?.spell;
+  const slotPlan=pcAttackSpellSlotPlan(item,spell);
+  if(!slotPlan) return;
+  if(slotPlan.exhausted && !castWithoutSlot) throw new Error(`${spell.name}: ${slotPlan.message} Conferma l'attacco senza slot.`);
+  if(!slotPlan.spend) return;
+  const card=item?.metadata?.[`${ID}/meta`]?.initiativeCard || {};
+  const statePatch=(plan.options?.metadataPatches || []).find(patch=>patch.id===item.id)?.fields?.[CLASS_FEATURE_STATE_FIELD];
+  const operation=spellSlotSpendOperation({sourceId:item.id,poolId:slotPlan.spend.poolId,characterBuild:card.characterBuild,
+    abilityModifiers:card.abilityModifiers || null});
+  if(statePatch) statePatch.value=planClassFeatureResourceAdjustment(statePatch.value,operation.pool,operation.characterBuild,
+    operation.adjustment,operation.abilityModifiers).state;
+  else plan.operations.push(operation);
+  spell.slotTracked=true;
+  spell.slotSpent=slotPlan.spend.pact?`slot del Patto (${slotPlan.spend.level}°)`:`slot di ${slotPlan.spend.level}° livello`;
+}
+
 const newId =() => `pc-attack:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
 // The map labels of a creature whose pills changed without damage (an activation's pill on the attacker).
 const refreshPillLabels = async ids => {const {refreshConditionLabels}=await import("./conditions.js");await refreshConditionLabels(ids);};
@@ -159,7 +187,8 @@ export function createPcAttackRuntime({
         riders:request.riders ?? null,extras:request.extras ?? null,spellId:request.spellId || "",
         weaponCantrip:request.weaponCantrip ?? null,expectedSecondaryDefenses:request.expectedSecondaryDefenses ?? null,sharedHp:request.sharedHp || null,
         activations:request.activations ?? null,attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,
-        expectedBurstDefenses:request.expectedBurstDefenses ?? null,castWithoutSlot:request.castWithoutSlot===true});
+        expectedBurstDefenses:request.expectedBurstDefenses ?? null,castWithoutSlot:request.castWithoutSlot===true,
+        spellCast:request.spellCast ?? null});
       let draft=drafts.get(attackInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
         throw new Error("Le decisioni o la scena dell'attacco sono cambiate: riapri l'attacco.");
@@ -170,8 +199,10 @@ export function createPcAttackRuntime({
           expectedDefenses:request.expectedDefenses,turnState:scope.turnState,riders:request.riders || [],extras:request.extras || [],
           spellId:request.spellId || "",weaponCantrip:request.weaponCantrip || null,secondaryItem:secondaryItem || null,
           expectedSecondaryDefenses:request.expectedSecondaryDefenses,activations:request.activations || [],tempHpItems,
-          attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,burstItems,expectedBurstDefenses:request.expectedBurstDefenses || {}});
+          attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,burstItems,expectedBurstDefenses:request.expectedBurstDefenses || {},
+          spellCast:request.spellCast || null});
         spendSmiteSlots(scope.item,plan,request.castWithoutSlot===true);
+        spendSpellCastSlot(scope.item,plan,request.castWithoutSlot===true);
         draft={decisionKey,plan,options:{...plan.options,...(bossLinkResisted.length?{bossLinkResisted}:{}),
           sharedHp:request.sharedHp || {},sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
         drafts.set(attackInstanceId,draft);
@@ -188,7 +219,7 @@ export function createPcAttackRuntime({
       // its second creature). The pill's spell instance is the loop's lifecycle.
       const woven=plan.causality.weaponCantrip;
       const withPill=plan.operations.some(operation=>operation.type==="spell:upsert");
-      if(result.duplicate!==true) animateCantrip({spellId:plan.causality.cantrip?.spellId || woven?.spellId,casterId:scope.item.id,
+      if(result.duplicate!==true) animateCantrip({spellId:plan.causality.cantrip?.spellId || plan.causality.spell?.spellId || woven?.spellId,casterId:scope.item.id,
         targetIds:[targetItem.id,...(woven?.secondaryTargetId?[woven.secondaryTargetId]:[])],eventId:attackInstanceId,
         lifecycleId:withPill?`${attackInstanceId}:spell`:attackInstanceId,persistent:withPill,scope});
       const warnings=[];
@@ -205,6 +236,11 @@ export function createPcAttackRuntime({
         try {await postTempHp({rows:plan.tempHpChanges,sceneEpoch:scope.epoch,isCurrent:scope.isCurrent});}
         catch(error) {warnings.push(String(error?.message || error));}
       }
+      // Vampiric Touch: the caster's healing, projected like temporary hit points (HP bar, text, hpMemory, labels).
+      if(result.duplicate!==true && plan.casterHealChange && scope.isCurrent()) {
+        try {await postTempHp({rows:[plan.casterHealChange],sceneEpoch:scope.epoch,isCurrent:scope.isCurrent});}
+        catch(error) {warnings.push(String(error?.message || error));}
+      }
       // Pills on a creature the damage projection did not refresh (the attacker, or a target left at the same HP).
       const labelIds=(plan.labelTargetIds || []).filter(id=>!damaged.some(row=>row.item.id===id));
       if(result.duplicate!==true && labelIds.length && scope.isCurrent()) {
@@ -216,6 +252,7 @@ export function createPcAttackRuntime({
         activations:structuredClone(plan.causality.activations || []),
         tempHp:(plan.tempHpChanges || []).map(row=>({id:row.item.id,name:row.item.name || row.item.id,before:row.change.hp,after:row.change.afterHP})),
         followUps:[...(plan.followUps || [])],cantrip:plan.causality.cantrip ? structuredClone(plan.causality.cantrip) : null,
+        spell:plan.causality.spell ? structuredClone(plan.causality.spell) : null,
         manualRemainder:plan.options?.history?.payload?.manualRemainder || "",conditions:(plan.causality.conditionsApplied || []).map(entry=>entry.condition),
         target:{id:targetItem.id,name:targetItem.name || targetItem.id},
         ...(plan.causality.weaponCantrip?{weaponCantrip:structuredClone(plan.causality.weaponCantrip)}:{}),

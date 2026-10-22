@@ -3,6 +3,7 @@
 // (the character sheet and the tracker), never from initiativeCards.js.
 import { getQuickActionSpellOptions, getSpellCatalog, getSpellDefinition } from "./spells-srd.js";
 import { PC_ATTACK_CANTRIPS } from "./pcAttackCantripCatalog.js";
+import { PC_ATTACK_SPELLS } from "./pcAttackSpellCatalog.js";
 import { QUICK_ACTION_VERSION, sanitizeQuickAction } from "./quickActionsCore.js";
 import { sanitizeSpellbook, spellbookQuickActionId } from "./spellbookCore.js";
 import { preparesSpells, spellPreparationClasses, spellPreparationLimit } from "./spellPreparationCore.js";
@@ -21,6 +22,7 @@ function launchOption(spellId) {
 }
 
 const ATTACK_CANTRIP_IDS = new Set(PC_ATTACK_CANTRIPS.map((cantrip) => cantrip.spellId));
+const ATTACK_SPELL_IDS = new Set(PC_ATTACK_SPELLS.map((spell) => spell.spellId));
 
 export function spellbookLevelTitle(level) {
   if (level === 0) return "Trucchetti";
@@ -32,7 +34,7 @@ export function spellbookLevelTitle(level) {
 export function spellbookSpell(spellId) {
   const spell = getSpellDefinition(spellId);
   if (!spell) {
-    return { id: spellId, label: spellId, level: null, concentration: false, launchable: false, automated: false, recordOnly: false, area: false, attackCantrip: false, targetMode: "selection", ritual: false };
+    return { id: spellId, label: spellId, level: null, concentration: false, launchable: false, automated: false, recordOnly: false, area: false, attackCantrip: false, attackSpell: false, targetMode: "selection", ritual: false };
   }
   const option = launchOption(spell.id);
   return {
@@ -48,6 +50,8 @@ export function spellbookSpell(spellId) {
     // multi-target spells without a shape, such as Hold Person.
     area: !!spell.area,
     attackCantrip: ATTACK_CANTRIP_IDS.has(spell.id),
+    // A leveled attack spell the attack console records with its slot (lotto L4).
+    attackSpell: ATTACK_SPELL_IDS.has(spell.id),
     // A personal spell targets its caster; an area spell is placed in the panel, never on the caster.
     targetMode: spell.targetMode === "self" && option?.area !== true ? "self" : "selection",
     ritual: SRD_RITUAL_IDS.has(spell.id) || spell.italianReference?.ritual === true,
@@ -116,6 +120,17 @@ export function spellbookCantripAttackAction(quickActions, spellId) {
   return (Array.isArray(quickActions) ? quickActions : []).find((action) => (
     action?.kind === "attack"
     && action.source?.kind === "cantrip"
+    && (!action.source.spellIds?.length || action.source.spellIds.includes(spellId))
+  )) || null;
+}
+
+// The attack spell quick action that records this leveled spell in the attack console (lotto L4), when the character
+// has one: like the cantrips, the sheet and the 🪄 menu open the console with it.
+export function spellbookSpellAttackAction(quickActions, spellId) {
+  if (!ATTACK_SPELL_IDS.has(spellId)) return null;
+  return (Array.isArray(quickActions) ? quickActions : []).find((action) => (
+    action?.kind === "attack"
+    && action.source?.kind === "spell"
     && (!action.source.spellIds?.length || action.source.spellIds.includes(spellId))
   )) || null;
 }

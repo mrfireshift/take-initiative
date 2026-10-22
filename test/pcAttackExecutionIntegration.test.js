@@ -521,3 +521,60 @@ test("a smite with an activation that writes the class-feature state spends its 
   await history.undoHistoryThrough((await attackEntry()).id, { sceneEpoch: currentSceneEpoch() });
   assert.equal(slots()["spell-slot-2"]?.current ?? 3, 3);
 });
+
+// Lotto L4: leveled attack spells. The first registration of a cast spends its slot in its command; the next rays and
+// Vampiric Touch's touches spend nothing.
+const attackSpells = { id: "wizard-spells", label: "Incantesimi d'attacco", kind: "attack", source: { kind: "spell" } };
+function wizardWithSpells(extra = {}) {
+  Object.assign(meta("aria").initiativeCard, { quickActions: [attackSpells], characterBuild: [{ classId: "mago", level: 5 }] });
+  Object.assign(meta("aria"), extra);
+}
+async function castSpell(spellId, decisions = {}) {
+  const presentation = await runtime.getPcAttackPresentation("aria", "wizard-spells");
+  return runtime.executePcAttack({ sourceId: "aria", actionId: "wizard-spells", targetId: "ghoul", sceneIdentity: presentation.sceneIdentity,
+    expectedAction: presentation.action, expectedDefenses: {}, outcome: "hit", spellId, componentAmounts: { c1: 6 }, ...decisions });
+}
+
+test("Scorching Ray: three rays, one slot spent with the first; one Undo of the first gives back the slot", async () => {
+  wizardWithSpells();
+  const spellCast = { castId: "rays", slotLevel: 2 };
+  const first = await castSpell("scorching-ray", { attackInstanceId: "ray-1", spellCast });
+  assert.equal(first.spell.slotSpent, "slot di 2° livello");
+  assert.equal(slots()["spell-slot-2"].current, 2, "wizard 5 has three 2nd-level slots");
+  const undoFirst = (await attackEntry()).id;
+  await history.undoHistoryThrough(undoFirst, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(slots()["spell-slot-2"]?.current ?? 3, 3);
+  assert.equal(meta("aria").pcAttackState?.spellCast, undefined, "the cast is closed with its first ray");
+  await castSpell("scorching-ray", { attackInstanceId: "ray-1b", spellCast });
+  await castSpell("scorching-ray", { attackInstanceId: "ray-2", spellCast });
+  const third = await castSpell("scorching-ray", { attackInstanceId: "ray-3", spellCast, outcome: "miss", componentAmounts: {} });
+  assert.deepEqual([third.spell.index, third.spell.total, third.spell.firstOfCast], [3, 3, false]);
+  assert.equal(slots()["spell-slot-2"].current, 2, "only the first ray spent a slot");
+  assert.equal(meta("ghoul").hp, 18);
+  assert.equal(meta("aria").pcAttackState.spellCast, undefined);
+});
+
+test("a spell without a slot left is refused, unless the GM confirms the cast without one", async () => {
+  wizardWithSpells({ classFeatureState: { version: 1, resources: { "spell-slot-1": { current: 0, maximum: 4 } }, instances: [] } });
+  await assert.rejects(castSpell("inflict-wounds", { attackInstanceId: "iw-empty", spellCast: { castId: "iw", slotLevel: 1 } }),
+    /Nessuno slot di 1° livello disponibile/);
+  assert.equal(meta("ghoul").hp, 30);
+  const result = await castSpell("inflict-wounds", { attackInstanceId: "iw-free", spellCast: { castId: "iw", slotLevel: 1 }, castWithoutSlot: true });
+  assert.equal(result.spell.slotTracked, false);
+  assert.equal(meta("ghoul").hp, 24);
+});
+
+test("Vampiric Touch heals the caster in the touch's command; one Undo restores both creatures", async () => {
+  const healed = [];
+  runtime = createPcAttackRuntime({ api: sdk, emitVisual: async () => ({ sent: false }), postDamage: async () => [],
+    postTempHp: async ({ rows }) => { healed.push(...rows.map((row) => [row.item.id, row.change.afterHP])); } });
+  wizardWithSpells({ hp: 20, "com.thebigpicture.initiative/concentration": {
+    "tocco del vampiro": { spellId: "vampiric-touch", instanceId: "vt", targets: [], castContext: { slotLevel: 3 } } } });
+  const result = await castSpell("vampiric-touch", { attackInstanceId: "vt-1", componentAmounts: { c1: 11 }, spellCast: {} });
+  assert.deepEqual([meta("ghoul").hp, meta("aria").hp], [19, 25]);
+  assert.deepEqual(result.spell.casterHeal, { amount: 5, before: 20, after: 25 });
+  assert.deepEqual(healed, [["aria", 25]], "the caster's HP bar, text and memory follow");
+  assert.equal(slots()["spell-slot-3"], undefined, "no slot spent by the touch");
+  await history.undoHistoryThrough((await attackEntry()).id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual([meta("ghoul").hp, meta("aria").hp], [30, 20]);
+});

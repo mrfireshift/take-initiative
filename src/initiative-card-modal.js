@@ -43,6 +43,7 @@ import {
 } from "./spellbookCore.js";
 import {
   spellbookCantripAttackAction,
+  spellbookSpellAttackAction,
   spellbookGroups,
   spellbookGroupsForProfile,
   spellbookPreparation,
@@ -66,6 +67,7 @@ import {
 } from "./characterSheetImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
 import { PC_ATTACK_CANTRIPS } from "./pcAttackCantripCatalog.js";
+import { PC_ATTACK_SPELLS } from "./pcAttackSpellCatalog.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
@@ -372,6 +374,12 @@ function quickActionSummary(action) {
     return known.length
       ? `Trucchetto · ${known.map((spellId) => PC_ATTACK_CANTRIPS.find((cantrip) => cantrip.spellId === spellId)?.name || spellId).join(", ")}`
       : "Trucchetto · scegli al lancio";
+  }
+  if (action.kind === "attack" && action.source?.kind === "spell") {
+    const known = action.source.spellIds || [];
+    return known.length
+      ? `Incantesimo d'attacco · ${known.map((spellId) => PC_ATTACK_SPELLS.find((spell) => spell.spellId === spellId)?.name || spellId).join(", ")}`
+      : "Incantesimo d'attacco · scegli al lancio";
   }
   if (action.kind === "attack") {
     const types = (action.components || [])
@@ -695,7 +703,7 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
   try {
     if (action.kind === "attack") {
       if (!isGM) throw new Error("Solo il GM può registrare un attacco.");
-      await openPcAttackPopover(item.id, action.id);
+      await openPcAttackPopover(item.id, action.id, action.launchSpellId || "");
       if (!sceneStillCurrent()) return;
       closeInitiativeCardPopover();
       return;
@@ -846,7 +854,7 @@ function renderQuickActionList(list, actions, emptyText) {
       : feature
         ? classFeatureTheme(feature).emoji
         : action.kind === "attack"
-          ? (action.source?.kind === "cantrip" ? "✧" : "⚔")
+          ? (action.source?.kind === "cantrip" ? "✧" : action.source?.kind === "spell" ? "✶" : "⚔")
           : "✦";
     const copy = document.createElement("span");
     copy.className = "quick-action-copy";
@@ -874,9 +882,10 @@ function renderQuickActionList(list, actions, emptyText) {
   }
 }
 
-// The cantrip attack that records this cantrip in the attack console, when the character has one.
+// The cantrip attack that records this cantrip in the attack console, when the character has one; a leveled attack
+// spell (lotto L4) the same way, through an attack spell action.
 function spellbookCantripAttack(spellId) {
-  return isGM ? spellbookCantripAttackAction(profile?.quickActions, spellId) : null;
+  return isGM ? spellbookCantripAttackAction(profile?.quickActions, spellId) || spellbookSpellAttackAction(profile?.quickActions, spellId) : null;
 }
 
 function spellbookSpellSummary(spell, cantripAttack) {
@@ -889,8 +898,8 @@ function spellbookSpellSummary(spell, cantripAttack) {
   // The plugin records the cast and the slot it spends; the table resolves the spell. An attack cantrip deals its
   // damage in the attack console.
   if (spell.recordOnly) {
-    if (!spell.attackCantrip) return "Registra il lancio";
-    return isGM ? "Registra il lancio · danni: aggiungi il trucchetto negli Attacchi" : "Registra il lancio · danni dal GM";
+    if (!spell.attackCantrip && !spell.attackSpell) return "Registra il lancio";
+    return isGM ? `Registra il lancio · danni: aggiungi ${spell.attackCantrip ? "il trucchetto" : "l'incantesimo"} negli Attacchi` : "Registra il lancio · danni dal GM";
   }
   const parts = [spell.area ? "Area" : spell.automated ? "Automatizzato" : "Solo tracciamento"];
   if (spell.concentration) parts.push("concentrazione");
@@ -1226,7 +1235,7 @@ function buildSpellbookEntry(spell) {
     entry.appendChild(row);
     return entry;
   }
-  const cantripAttack = spell.attackCantrip ? spellbookCantripAttack(spell.id) : null;
+  const cantripAttack = spell.attackCantrip || spell.attackSpell ? spellbookCantripAttack(spell.id) : null;
   // A spell not prepared today stays in the book as a reference.
   const runnable = spell.prepared && (!!cantripAttack || spell.launchable);
   // A spell the card cannot launch stays a reference: no button, nothing to press.
@@ -1366,9 +1375,11 @@ function buildSpellbookDetails(spell, details) {
 // "review" opens the spell panel. An attack cantrip opens the attack console instead.
 async function launchSpellbookSpell(spellId, launchMode, { cost = "slot" } = {}) {
   const surface = { listId: "spellbookList", statusId: "spellbookRunStatus" };
-  const cantripAttack = spellbookSpell(spellId).attackCantrip ? spellbookCantripAttack(spellId) : null;
+  const entry = spellbookSpell(spellId);
+  const cantripAttack = entry.attackCantrip || entry.attackSpell ? spellbookCantripAttack(spellId) : null;
   if (cantripAttack) {
-    await launchQuickAction(cantripAttack, "", {}, surface);
+    // The console opens on this spell.
+    await launchQuickAction({ ...cantripAttack, launchSpellId: spellId }, "", {}, surface);
     return;
   }
   const action = spellbookQuickAction(spellId, { launchMode, cost });
@@ -2980,13 +2991,15 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
   durationInput.value = current.duration ?? "1";
   durationInput.dataset.quickActionField = "duration";
 
-  // An attack's source, one field for source and range: a melee or ranged weapon (components written here)
-  // or a cantrip (picked in the attack console among the cantrips ticked here; none ticked = all of them).
+  // An attack's source, one field for source and range: a melee or ranged weapon (components written here),
+  // a cantrip (picked in the attack console among the cantrips ticked here; none ticked = all of them) or a leveled
+  // attack spell (lotto L4, the same way, with its slot).
   const sourceSelect = selectControl([
     ["melee", "Arma da mischia"],
     ["ranged", "Arma a distanza"],
     ["cantrip", "Trucchetto"],
-  ], current.source?.kind === "cantrip" ? "cantrip" : current.range === "ranged" ? "ranged" : "melee");
+    ["spell", "Incantesimo d'attacco"],
+  ], ["cantrip", "spell"].includes(current.source?.kind) ? current.source.kind : current.range === "ranged" ? "ranged" : "melee");
   sourceSelect.dataset.quickActionField = "attackSource";
   // Section header shared by the attack sub-editors: a title, a muted hint aligned right.
   const sectionHead = (title, hint = "") => {
@@ -3024,6 +3037,26 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
     return option;
   }));
   cantripsBox.append(sectionHead("Trucchetti conosciuti", "nessuno spuntato: tutti"), cantripList);
+  const attackSpellsBox = document.createElement("div");
+  attackSpellsBox.className = "quick-action-section";
+  attackSpellsBox.dataset.quickActionField = "attackSpells";
+  const attackSpellList = document.createElement("div");
+  attackSpellList.className = "quick-action-check-grid";
+  const knownAttackSpells = new Set(current.source?.kind === "spell" ? current.source.spellIds || [] : []);
+  attackSpellList.append(...PC_ATTACK_SPELLS.map((spell) => {
+    const option = document.createElement("label");
+    option.className = "quick-action-check";
+    option.title = spell.name;
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.dataset.attackSpellId = spell.spellId;
+    box.checked = knownAttackSpells.has(spell.spellId);
+    const name = document.createElement("span");
+    name.textContent = `${spell.name} (${spell.level}°)`;
+    option.append(box, name);
+    return option;
+  }));
+  attackSpellsBox.append(sectionHead("Incantesimi conosciuti", "nessuno spuntato: tutti"), attackSpellList);
 
   // Attack components: the damage type and an optional formula shown as a hint (never evaluated).
   const componentsBox = document.createElement("div");
@@ -3111,6 +3144,7 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
     durationLabel,
     componentsBox,
     cantripsBox,
+    attackSpellsBox,
   );
 
   const syncKind = () => {
@@ -3142,8 +3176,10 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
     // An attack's target is always picked in the attack console: no target field here.
     targetLabel.hidden = attack;
     sourceLabel.hidden = !attack;
-    componentsBox.hidden = !attack || cantrip;
+    const attackSpell = attack && sourceSelect.value === "spell";
+    componentsBox.hidden = !attack || cantrip || attackSpell;
     cantripsBox.hidden = !cantrip;
+    attackSpellsBox.hidden = !attackSpell;
   };
 
   kindSelect.addEventListener("change", () => {
@@ -3441,6 +3477,16 @@ function collectQuickActions() {
         kind,
         featureId,
         targetMode: classFeatureTargetMode(feature),
+      };
+    }
+    if (kind === "attack" && field("attackSource").value === "spell") {
+      const spellIds = Array.from(row.querySelectorAll("[data-attack-spell-id]"))
+        .filter((box) => box.checked).map((box) => box.dataset.attackSpellId);
+      return {
+        id: row.dataset.actionId,
+        label: field("label").value.trim() || "Incantesimi d'attacco",
+        kind,
+        source: { kind: "spell", spellIds },
       };
     }
     if (kind === "attack" && field("attackSource").value === "cantrip") {

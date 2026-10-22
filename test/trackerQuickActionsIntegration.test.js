@@ -214,7 +214,9 @@ test("il menu 🪄 apre la console attacchi per un trucchetto d'attacco e avvisa
     initiativeSource.indexOf("function __mountTrackerQuickActions"),
   );
   assert.match(runner, /isSpellbookQuickAction\(action\)\s*\?\s*spellbookCantripAttackAction\(sourceEntry\?\.quickActions, action\.spellId\)/u);
-  assert.match(runner, /await openPcAttackPopover\(sourceId, cantripAttack\.id\);/u);
+  // Lotto L4: a leveled attack spell opens the console too, and the console opens on the spell chosen.
+  assert.match(runner, /\|\| spellbookSpellAttackAction\(sourceEntry\?\.quickActions, action\.spellId\)/u);
+  assert.match(runner, /await openPcAttackPopover\(sourceId, cantripAttack\.id, action\.spellId\);/u);
   assert.ok(
     runner.indexOf("spellbookCantripAttackAction") < runner.indexOf("executeDirectQuickAction"),
     "the console opens before any cast",

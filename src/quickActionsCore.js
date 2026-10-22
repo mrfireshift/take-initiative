@@ -1,4 +1,5 @@
 import { getPcAttackCantrip } from "./pcAttackCantripCatalog.js";
+import { getPcAttackSpell } from "./pcAttackSpellCatalog.js";
 
 export const QUICK_ACTION_VERSION = 2;
 export const MAX_QUICK_ACTIONS = 12;
@@ -131,6 +132,19 @@ export function sanitizeQuickAction(value) {
         kind,
         targetMode: "selection",
         source: { kind: "cantrip", ...(spellIds.length ? { spellIds } : {}) },
+      };
+    }
+    // A leveled attack spell (lotto L4): the same shape; the spell and its slot are picked in the attack console.
+    if (value.source?.kind === "spell") {
+      const known = Array.isArray(value.source.spellIds) ? value.source.spellIds : [];
+      const spellIds = [...new Set(known.map((spellId) => String(spellId || "")))].filter((spellId) => getPcAttackSpell(spellId));
+      return {
+        version: QUICK_ACTION_VERSION,
+        id,
+        label,
+        kind,
+        targetMode: "selection",
+        source: { kind: "spell", ...(spellIds.length ? { spellIds } : {}) },
       };
     }
     // Component ids come from their position: no identity to persist. The formula is a hint, never evaluated.

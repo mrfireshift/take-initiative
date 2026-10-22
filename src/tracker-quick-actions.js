@@ -188,7 +188,7 @@ function actionButton(action, disabledActionIds) {
     : action.kind === "feature"
       ? "◆"
       : action.kind === "attack"
-        ? (action.source?.kind === "cantrip" ? "✧" : "⚔")
+        ? (action.source?.kind === "cantrip" ? "✧" : action.source?.kind === "spell" ? "✶" : "⚔")
         : "✦";
   const copy = document.createElement("span");
   copy.className = "copy";

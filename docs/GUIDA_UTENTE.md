@@ -116,6 +116,16 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
 - ⚙ apre sempre il pannello, per scegliere slot, bersagli e varianti.
 - I trucchetti d'attacco aprono la console attacchi quando negli **Attacchi**
   c'è un'azione Trucchetto, anche dal menu 🪄.
+- Allo stesso modo Infliggi ferite, Dardo tracciante, Dardo incantato, Raggio
+  rovente, Globo cromatico, Dardo di caos e Tocco del vampiro aprono la console
+  sull'incantesimo scelto quando negli **Attacchi** c'è un'azione
+  **Incantesimo d'attacco**. Nella console si sceglie lo slot (o il Patto): lo
+  spende il primo raggio o dardo, i successivi dello stesso lancio no, e la
+  console dice quanti ne restano. Dardo incantato colpisce senza tiro (Scudo lo
+  blocca); Globo cromatico e Dardo di caos chiedono il tipo, e con due d8
+  uguali il dardo balza su un'altra creatura. Tocco del vampiro si lancia dal
+  pannello incantesimi; la console registra poi i tocchi finché dura la
+  concentrazione, e il caster recupera metà del danno necrotico.
 - Gli incantesimi che il plugin non automatizza (Controincantesimo, Dardo
   incantato, Desiderio, Identificare…) mostrano **Registra il lancio**: il lancio
   spende lo slot e finisce nel registro di combattimento, senza pill; gli
@@ -177,6 +187,8 @@ Anche queste azioni scalano gli slot nel loro comando, con un solo Undo:
 - **Punizione Divina** e **Punizione Occulta**, nella console attacchi: il
   menu del livello mostra quanti slot restano e, senza slot, la console chiede
   se registrare l'attacco senza scalarlo;
+- gli **incantesimi d'attacco** della console attacchi, allo stesso modo, con
+  lo slot speso dal primo raggio o dardo del lancio;
 - **Fonte di Magia**: *Crea slot* aggiunge uno slot anche oltre il massimo
   (pallino tratteggiato, sparisce al riposo lungo); *Converti slot* spende uno
   slot di quel livello per i punti stregoneria e si rifiuta se non ce n'è.

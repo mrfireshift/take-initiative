@@ -10,8 +10,8 @@ li aggiorna con il lavoro di ottobre e risponde a due domande:
 2. come registrare l'uso di **qualunque** incantesimo nel sistema a slot,
    anche di quelli che non si automatizzano.
 
-La seconda è risolta (sezione 2). La prima è un piano a lotti: i lotti L1, L2
-e L3 sono fatti (sezione 5.1), gli altri aspettano il via, uno per volta. Chi lavora a
+La seconda è risolta (sezione 2). La prima è un piano a lotti: i lotti L1–L4
+sono fatti (sezioni 5.1 e 5.2), gli altri aspettano il via, uno per volta. Chi lavora a
 un lotto parte dalle note pratiche della sezione 8.
 
 Il perimetro è quello di sempre: un **tracker assistito**. Dadi, linea di
@@ -23,19 +23,19 @@ conferma.
 
 | Categoria | Incantesimi | Che cosa fa oggi il plugin |
 | --- | ---: | --- |
-| Automatizzati | 240 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
+| Automatizzati | 247 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
 | Tracciati, nessuna automazione utile | 112 | Pill con durata e concentrazione; informazioni, evocazioni e ambiente al tavolo. |
 | Solo registrazione, nessuna automazione utile | 32 | Istantanei di utilità: lo slot e il registro di combattimento. |
 | **Pronti: bastano i dati** | **0** | Si lanciano e registrano; l'automazione richiede soltanto dati e test. |
-| **Dopo una capacità condivisa** | **80** | Si lanciano e registrano; serve prima una capacità del motore. |
+| **Dopo una capacità condivisa** | **73** | Si lanciano e registrano; serve prima una capacità del motore. |
 | Su misura | 11 | Si lanciano e registrano; lo stato è troppo specifico per un'automazione generica. |
 | Da verificare | 2 | Testo o perimetro delle regole mancanti. |
 | **Totale** | **477** | **Tutti lanciabili dal libro, dalle azioni rapide e dal pannello, con il loro slot.** |
 
-Il lavoro di automazione residuo è di **91 incantesimi** (80 + 11) più i 2 da
+Il lavoro di automazione residuo è di **84 incantesimi** (73 + 11) più i 2 da
 verificare, contro i 152 di settembre: nel frattempo la console attacchi ha
-chiuso 17 trucchetti, Prigione Mentale è stata completata e i lotti L1, L2 e L3
-hanno chiuso altri 43 incantesimi.
+chiuso 17 trucchetti, Prigione Mentale è stata completata e i lotti L1–L4
+hanno chiuso altri 50 incantesimi.
 
 Ordine consigliato, dal più sicuro al più costoso:
 
@@ -44,7 +44,7 @@ Ordine consigliato, dal più sicuro al più costoso:
 | L1 ✓ | 17 | Benefici passivi e un'aura (fatto il 22 ottobre) | Solo le difese di 3 incantesimi, nelle console attacchi e boss |
 | L2 ✓ | 14 | Cure, TS con danno, condizioni che finiscono al danno, TS ripetuti (fatto il 22 ottobre) | Sì, dal comando ad area esistente |
 | L3 ✓ | 12 | Zone e aree persistenti, due azioni ad area ripetibili (fatto il 22 ottobre) | Sì, dai percorsi di zona e azioni attive esistenti |
-| L4 | 7 | Incantesimi d'attacco nella console attacchi, con il loro slot | Sì |
+| L4 ✓ | 7 | Incantesimi d'attacco nella console attacchi, con il loro slot (fatto il 22 ottobre) | Sì, dalla console attacchi; Tocco del vampiro cura il caster |
 | L5+ | 73 | Una capacità condivisa per volta (sezione 5.3) | Spesso |
 
 ## 2. Registrare il lancio di qualunque incantesimo (fatto)
@@ -256,6 +256,37 @@ di caos, che l'audit dava RED: con la console il rimbalzo è soltanto una
 nuova registrazione dello stesso lancio. Colpo del Vento d'Acciaio aggiunge
 il teletrasporto (CAP-TELEPORT), Dissolvi il bene e il male il congedo
 (CAP-CLEANSE).
+
+**L4, fatto il 22 ottobre.** La console ha una nuova fonte, «Incantesimo
+d'attacco», accanto a quella dei trucchetti: la tabella curata
+`PC_ATTACK_SPELLS` (`src/pcAttackSpellCatalog.js`) con dadi, aumento per
+slot, raggi o dardi, tipi a scelta. Sulla card si aggiunge un attacco con
+questa fonte; il libro e il menu 🪄 aprono la console sull'incantesimo scelto,
+e senza quell'attacco il libro continua a registrare il lancio.
+
+- Lo slot (o il Patto) si sceglie nella console e si spende **nel comando
+  della prima registrazione**, come la Punizione divina: un Undo restituisce
+  danno e slot insieme. Il lancio aperto vive in `pcAttackState.spellCast` e i
+  raggi o dardi successivi lo continuano senza slot; un altro attacco lo
+  chiude. Senza slot la console chiede conferma, come per le Punizioni.
+- Infliggi ferite e Dardo tracciante (con la pill del vantaggio al colpo):
+  un attacco per lancio. Raggio rovente e Dardo incantato: un raggio o dardo
+  per registrazione, anche sullo stesso bersaglio, così ogni colpo ha il suo
+  avviso di concentrazione. Dardo incantato non ha tiro per colpire ed è
+  bloccato da Scudo.
+- Globo cromatico (nessun rimbalzo nel testo 2014) e Dardo di caos chiedono il
+  tipo; con due d8 uguali il Dardo di caos balza su un'altra creatura senza
+  nuovo slot, mai due volte sulla stessa.
+- Tocco del vampiro si lancia dal pannello, che spende lo slot e tiene la
+  concentrazione; la console registra i tocchi finché la concentrazione è
+  attiva, e il caster recupera metà del danno necrotico (dopo le difese del
+  bersaglio) nello stesso comando, con barra, testo e memoria HP.
+- I rider dei trucchetti (Incantesimi potenti, Deflagrazione agonizzante) e
+  quelli da arma non valgono sugli incantesimi di livello; i danni extra si
+  aggiungono a mano.
+
+Test: `test/pcAttackSpells.test.js` e i casi con il coordinatore vero in
+`test/pcAttackExecutionIntegration.test.js`.
 
 ### 5.3 Capacità condivise (L5+)
 
@@ -473,7 +504,7 @@ lotto. Gli incantesimi senza lavoro residuo sono elencati per livello.
 
 Nessuno: i lotti L1–L3 li hanno chiusi tutti il 22 ottobre.
 
-### Dopo una capacità condivisa (80)
+### Dopo una capacità condivisa (73)
 
 Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi la famiglia si completa con i dati.
 
@@ -483,14 +514,9 @@ Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi l
 | Salvare i morenti (`spare-the-dying`) | T | CAP-STABILIZE: stabilizzare o riportare a 1 PF. | L5+ |
 | Armatura di Agathys (`phb2014-armatura-di-agathys`) | 1° | CAP-TEMP: PF temporanei consumati dal danno. | L5+ |
 | Bacche benefiche (`goodberry`) | 1° | CAP-RESOURCE: bacche come contatore consumabile. | L5+ |
-| Dardo di Caos (`xanathar-dardo-di-caos`) | 1° | Console attacchi: tipo scelto dal dado, rimbalzo come nuova registrazione. Attacco a distanza, 2d8 + 1d6 (+1d6 per slot), tipo dal d8; se i d8 coincidono rimbalza: nuova registrazione. | L4 |
-| Dardo incantato (`magic-missile`) | 1° | Console attacchi: una registrazione per raggio o dardo, numero dato dallo slot. 3 dardi da 1d4 + 1 forza (+1 per slot), senza tiro per colpire, anche su bersagli diversi. | L4 |
 | Dardo Stregato (`phb2014-dardo-stregato`) | 1° | CAP-LINK: legame mantenuto con un'azione e chiuso da un evento. | L5+ |
-| Dardo tracciante (`guiding-bolt`) | 1° | Console attacchi: incantesimo d'attacco con lo slot nel comando, come le Punizioni. Attacco a distanza, 4d6 radiosi (+1d6 per slot) e la pill di vantaggio già nel catalogo. | L4 |
 | Duello Obbligato (`phb2014-duello-obbligato`) | 1° | CAP-LINK: legame mantenuto con un'azione e chiuso da un evento. | L5+ |
 | Eroismo (`heroism`) | 1° | CAP-TEMP: PF temporanei consumati dal danno. | L5+ |
-| Globo Cromatico (`phb2014-globo-cromatico`) | 1° | Console attacchi: incantesimo d'attacco con lo slot nel comando, come le Punizioni. Attacco a distanza, 3d8 del tipo scelto (+1d8 per slot). | L4 |
-| Infliggi ferite (`inflict-wounds`) | 1° | Console attacchi: incantesimo d'attacco con lo slot nel comando, come le Punizioni. Attacco in mischia, 3d10 necrotici (+1d10 per slot). | L4 |
 | Marchio del cacciatore (`hunters-mark`) | 1° | CAP-LINK: spostare il marchio su un nuovo bersaglio. | L5+ |
 | Santuario (`sanctuary`) | 1° | CAP-REACTION: reazione assistita a danno o attacco. | L5+ |
 | Sortilegio (`phb2014-sortilegio`) | 1° | CAP-LINK: spostare il marchio su un nuovo bersaglio. | L5+ |
@@ -502,7 +528,6 @@ Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi l
 | Corona di Follia (`phb2014-corona-di-follia`) | 2° | CAP-LINK: legame mantenuto con un'azione e chiuso da un evento. | L5+ |
 | Immagine speculare (`mirror-image`) | 2° | CAP-RESOURCE: contatore consumato (immagini, frecce, danno residuo). | L5+ |
 | Invisibilità (`invisibility`) | 2° | CAP-LINK: fine al primo attacco o incantesimo del beneficiario. | L5+ |
-| Raggio rovente (`scorching-ray`) | 2° | Console attacchi: una registrazione per raggio o dardo, numero dato dallo slot. 3 raggi da 2d6 fuoco (+1 per slot), un tiro per colpire a raggio. | L4 |
 | Ristorare inferiore (`lesser-restoration`) | 2° | CAP-CLEANSE: scegliere un effetto attivo e terminarlo. | L5+ |
 | Soffio del Drago (`xanathar-soffio-del-drago`) | 2° | CAP-ORIGIN: azione da un'origine diversa dal caster. | L5+ |
 | Vincolo di interdizione (`warding-bond`) | 2° | CAP-REACTION: reazione assistita a danno o attacco. | L5+ |
@@ -514,7 +539,6 @@ Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi l
 | Passo del Tuono (`xanathar-passo-del-tuono`) | 3° | CAP-TELEPORT: teletrasporto con passeggero e danno nel punto lasciato. | L5+ |
 | Rinascita (`revivify`) | 3° | CAP-STABILIZE: stabilizzare o riportare a 1 PF. | L5+ |
 | Scagliare maledizione (`bestow-curse`) | 3° | CAP-DURATION: concentrazione che dipende dallo slot. | L5+ |
-| Tocco del vampiro (`vampiric-touch`) | 3° | Console attacchi per il tocco, cura del caster pari a metà danno, azione ripetibile. Attacco in mischia, 3d6 necrotici (+1d6 per slot sopra il 3°), il caster cura metà; di nuovo come azione. | L4 |
 | Trasferimento di Vita (`xanathar-trasferimento-di-vita`) | 3° | CAP-RELATION: danno al caster, cura doppia al bersaglio. | L5+ |
 | Guardiano della fede (`guardian-of-faith`) | 4° | CAP-RESOURCE: contatore consumato (immagini, frecce, danno residuo). | L5+ |
 | Interdizione alla morte (`death-ward`) | 4° | CAP-REACTION: reazione assistita a danno o attacco. | L5+ |
@@ -587,14 +611,14 @@ Mancano testo o perimetro delle regole.
 | Manto del Crociato (`legacy-crusaders-mantle`) | 3° | Regole da verificare prima di decidere. | — |
 | Imprigionare (`imprisonment`) | 9° | Regole da verificare prima di decidere. | — |
 
-### Automatizzati (240)
+### Automatizzati (247)
 
 Lancio e risoluzione assistiti dal pannello, dalla console ad area o dalla console attacchi.
 
 - **Trucchetti**: Amicizia, Beffa crudele, Colpo accurato, Creare Falò, Dardo di fuoco, Deflagrazione occulta, Ferocia Primordiale, Fiamma sacra, Fiotto acido, Frusta di Spine, Guida, Infestazione, Interdizione alle Lame, Lama Verdefiamma, Lenza Elettrizzante, Morsa del Gelo, Parola Radiosa, Produrre fiamma, Raggio di gelo, Resistenza, Rintocco dei Morti, Rombo di Tuono, Scheggia della Mente, Spruzzo velenoso, Stretta folgorante, Tocco gelido, Turbine di Spade.
-- **1° livello**: Amicizia con gli animali, Anatema, Armatura magica, Assorbire Elementi (reazione), Benedizione, Braccia di Hadar, Catapulta, Cerimonia (R), Charme su persone, Colpo dello Zefiro, Colpo Intrappolante, Coltello di Ghiaccio, Comando, Cura ferite, Favore divino, Incuti Paura, Intimorire infernale (reazione), Intralciare, Legame con le Bestie, Luminescenza, Mani brucianti, Miscela Caustica di Tasha, Nube di nebbia, Onda tonante, Parola guaritrice, Passo veloce, Protezione dal bene e dal male, Punizione Collerica, Punizione Incandescente, Punizione Tonante, Raffica di Spine, Raggio di Infermità, Risata incontenibile, Ritirata rapida, Saltare, Scossa Tellurica, Scudo (reazione), Scudo della fede, Sonno, Spruzzo colorato, Sussurri Dissonanti, Trabocchetto, Unto.
-- **2° livello**: Aculeo Mentale, Allucinazione di Forza, Arma magica, Arma spirituale, Bagliore lunare, Blocca persone, Caratteristica potenziata, Cecità/sordità, Crescita di spine, Diavoletto di Polvere, Estasiare, Folata di vento, Frantumare, Freccia acida, Ingrandire/ridurre, Levitazione, Movimenti del ragno, Nube di Pugnali, Oscurità, Passare senza tracce, Passo velato, Pelle coriacea, Percezione delle Bestie (R), Pirotecnica, Preghiera di guarigione, Protezione dai veleni, Punizione Marchiante, Raggio di affaticamento, Ragnatela, Riscaldare il metallo, Sciame di Palle di Neve di Snilloc, Scudiscio Mentale di Tasha, Sfera infuocata, Sfocatura, Silenzio (R), Spirito Guaritore, Stretta della Terra di Maximilian, Suggestione, Vampa di Aganazzar, Vento di Interdizione, Vincolo della Terra, Zona di verità.
-- **3° livello**: Arma Elementale, Aura di Vitalità, Cerchio magico, Eruzione Terrestre, Evoca Raffica, Fame di Hadar, Faro di speranza, Forma gassosa, Fortezza della Mente, Frecce Infuocate, Freccia Folgorante, Fulmine, Guardiani spirituali, Intermittenza, Invocare il fulmine, Lentezza, Luce diurna, Morte Apparente (R), Muro di Sabbia, Muro di vento, Nemici in Abbondanza, Nube maleodorante, Onda di Marea, Palla di fuoco, Parola guaritrice di massa, Paura, Protezione dall'energia, Punizione Accecante, Sonnellino, Sudario Spirituale, Tempesta di nevischio, Trama ipnotica, Velocità, Volare.
+- **1° livello**: Amicizia con gli animali, Anatema, Armatura magica, Assorbire Elementi (reazione), Benedizione, Braccia di Hadar, Catapulta, Cerimonia (R), Charme su persone, Colpo dello Zefiro, Colpo Intrappolante, Coltello di Ghiaccio, Comando, Cura ferite, Dardo di Caos, Dardo incantato, Dardo tracciante, Favore divino, Globo Cromatico, Incuti Paura, Infliggi ferite, Intimorire infernale (reazione), Intralciare, Legame con le Bestie, Luminescenza, Mani brucianti, Miscela Caustica di Tasha, Nube di nebbia, Onda tonante, Parola guaritrice, Passo veloce, Protezione dal bene e dal male, Punizione Collerica, Punizione Incandescente, Punizione Tonante, Raffica di Spine, Raggio di Infermità, Risata incontenibile, Ritirata rapida, Saltare, Scossa Tellurica, Scudo (reazione), Scudo della fede, Sonno, Spruzzo colorato, Sussurri Dissonanti, Trabocchetto, Unto.
+- **2° livello**: Aculeo Mentale, Allucinazione di Forza, Arma magica, Arma spirituale, Bagliore lunare, Blocca persone, Caratteristica potenziata, Cecità/sordità, Crescita di spine, Diavoletto di Polvere, Estasiare, Folata di vento, Frantumare, Freccia acida, Ingrandire/ridurre, Levitazione, Movimenti del ragno, Nube di Pugnali, Oscurità, Passare senza tracce, Passo velato, Pelle coriacea, Percezione delle Bestie (R), Pirotecnica, Preghiera di guarigione, Protezione dai veleni, Punizione Marchiante, Raggio di affaticamento, Raggio rovente, Ragnatela, Riscaldare il metallo, Sciame di Palle di Neve di Snilloc, Scudiscio Mentale di Tasha, Sfera infuocata, Sfocatura, Silenzio (R), Spirito Guaritore, Stretta della Terra di Maximilian, Suggestione, Vampa di Aganazzar, Vento di Interdizione, Vincolo della Terra, Zona di verità.
+- **3° livello**: Arma Elementale, Aura di Vitalità, Cerchio magico, Eruzione Terrestre, Evoca Raffica, Fame di Hadar, Faro di speranza, Forma gassosa, Fortezza della Mente, Frecce Infuocate, Freccia Folgorante, Fulmine, Guardiani spirituali, Intermittenza, Invocare il fulmine, Lentezza, Luce diurna, Morte Apparente (R), Muro di Sabbia, Muro di vento, Nemici in Abbondanza, Nube maleodorante, Onda di Marea, Palla di fuoco, Parola guaritrice di massa, Paura, Protezione dall'energia, Punizione Accecante, Sonnellino, Sudario Spirituale, Tempesta di nevischio, Tocco del vampiro, Trama ipnotica, Velocità, Volare.
 - **4° livello**: Allucinazione mortale, Anatema Elementale, Aura di Purezza, Aura di Vita, Charme sui Mostri, Compulsione, Confusione, Controllare acqua, Dominare bestie, Esilio, Fulgore Nauseante, Guardiano della Natura, Inaridire, Invisibilità superiore, Libertà di movimento, Muro di fuoco, Pelle di pietra, Porta dimensionale, Punizione Demoralizzante, Sfera al Vetriolo, Sfera della Tempesta, Sfera elastica, Tempesta di ghiaccio, Tentacoli neri.
 - **5° livello**: Abilità Potenziata, Alba, Animare oggetti, Arma Sacra, Blocca mostri, Cerchio di Potere, Collera della Natura, Colpo infuocato, Cono di freddo, Contagio, Controllare Venti, Cura ferite di massa, Dominare persona, Evoca Pioggia di Armi, Guscio anti-vita, Immolazione, Maelstrom, Mano arcana, Muro di forza, Muro di Luce, Nube mortale, Onda Distruttiva, Piaga degli insetti, Punizione Esiliante, Risveglio, Santificare, Scossa Sinaptica, Telecinesi.
 - **6° livello**: Abito Ultraterreno di Tasha, Bagliore solare, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Globo di invulnerabilità, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di spine, Prigione Mentale, Proibizione (R), Sguardo penetrante, Suggestione di massa.

@@ -123,6 +123,15 @@ difficile dopo il TS del lancio, anche quando la Tempesta la lancia il boss
 Auril. Bagliore solare e Drago illusorio ripetono la linea e il soffio con
 un'azione attiva, come Invocare il fulmine.
 
+Con il lotto L4 la console attacchi dei PG registra anche sette incantesimi
+d'attacco di livello (`src/pcAttackSpellCatalog.js`): Infliggi ferite, Dardo
+tracciante, Dardo incantato, Raggio rovente, Globo cromatico, Dardo di caos e
+Tocco del vampiro. Lo slot si spende nel comando della prima registrazione del
+lancio (`pcAttackState.spellCast` tiene il lancio aperto), ogni raggio o dardo
+è una registrazione, e le resistenze del bersaglio valgono come per gli
+attacchi con arma. Tocco del vampiro resta lanciato dal pannello e cura il
+caster nello stesso comando del tocco.
+
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la
 **Console effetti ad area**. Dal registro il GM può:

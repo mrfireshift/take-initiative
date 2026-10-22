@@ -7,6 +7,7 @@
 // its save and its pill, committed with the attack.
 import { ID } from "./constants.js";
 import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
+import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
 import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES } from "./quickActionsCore.js";
 import {
   isBossActionCreature, bossMetadataSnapshot, bossConditionAppliedAt,
@@ -29,6 +30,7 @@ import {
 } from "./pcAttackActivationCatalog.js";
 import { bossReachFeet } from "./bossActionsViewCore.js";
 import { PC_ATTACK_CANTRIPS, PC_ATTACK_SAVE_LABELS, getPcAttackCantrip, pcAttackCantripDice, pcAttackWeaponCantripDice } from "./pcAttackCantripCatalog.js";
+import { PC_ATTACK_SPELLS, getPcAttackSpell, pcAttackSpellCount, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
 import { abilitySaveDC, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { PC_ATTACK_RIDERS, getPcAttackRider, pcAttackHasPotentCantrip, pcAttackRiderDice, pcAttackRiderFeatureActive, pcAttackRidersForCard, pcAttackRiderSlotLevels } from "./pcAttackRiderCatalog.js";
 
@@ -40,6 +42,8 @@ export const PC_ATTACK_STATE_VERSION = 1;
 export const PC_ATTACK_OUTCOMES = Object.freeze(["hit", "critical", "miss"]);
 // Saving throw cantrips (C2): the target saves; a failure takes the damage, a success none.
 export const PC_ATTACK_SAVE_OUTCOMES = Object.freeze(["failed", "passed"]);
+// Darts that hit without an attack roll (Magic Missile, lotto L4): the only outcome is the hit.
+export const PC_ATTACK_AUTO_OUTCOMES = Object.freeze(["hit"]);
 const DAMAGING_OUTCOMES = new Set(["hit", "critical", "failed"]);
 // Activations need an attack roll (a saving throw cantrip has none) and, except those used on the roll itself
 // (a bonus to hit), a hit.
@@ -67,6 +71,7 @@ function extrasAllowedFor(attack, outcome) {
 
 // The outcomes the GM picks for this (resolved) attack.
 export function pcAttackOutcomesFor(attack) {
+  if (attack?.spell?.delivery === "auto") return PC_ATTACK_AUTO_OUTCOMES;
   return pcAttackSave(attack) ? PC_ATTACK_SAVE_OUTCOMES : PC_ATTACK_OUTCOMES;
 }
 export const MAX_PC_ATTACK_EXTRAS = 3;
@@ -87,6 +92,13 @@ export function pcAttackCantripIds(action) {
   // Booming Blade and Green-Flame Blade are woven into a melee weapon attack, Create Bonfire is the spell panel's:
   // never picked here.
   return offered.filter((spellId) => getPcAttackCantrip(spellId) && !["weapon", "panel"].includes(getPcAttackCantrip(spellId).delivery));
+}
+
+// The leveled spells an attack spell quick action offers (lotto L4): the ones the actor knows, or every attack spell.
+export function pcAttackSpellIds(action) {
+  const attack = pcAttackAction(action);
+  if (attack?.source?.kind !== "spell") return [];
+  return attack.source.spellIds?.length ? [...attack.source.spellIds] : PC_ATTACK_SPELLS.map((spell) => spell.spellId);
 }
 
 // The cantrips a cantrip action lists that the spell panel casts (Create Bonfire): the console points there.
@@ -110,7 +122,7 @@ export function pcAttackActionWeaponCantripIds(action) {
 // that lists none offers them all).
 export function pcAttackWeaponCantripIds(action, card = {}) {
   const attack = pcAttackAction(action);
-  if (!attack || attack.source?.kind === "cantrip" || attack.range !== "melee") return [];
+  if (!attack || ["cantrip", "spell"].includes(attack.source?.kind) || attack.range !== "melee") return [];
   const known = new Set();
   for (const quick of sanitizeQuickActions(card?.quickActions, { limit: 64 })) {
     if (quick.kind !== "attack" || quick.source?.kind !== "cantrip") continue;
@@ -135,6 +147,17 @@ export function pcAttackWeaponCantripOptions(action, card = {}) {
 export function pcAttackResolvedAction(action, spellId = "", attackMode = "") {
   const attack = pcAttackAction(action);
   if (!attack) return null;
+  // A leveled attack spell (lotto L4): its range and one damage component, of the first of its types until the
+  // console picks one (pcAttackWithSpellType).
+  if (attack.source?.kind === "spell") {
+    const spell = getPcAttackSpell(spellId);
+    if (!spell || !pcAttackSpellIds(attack).includes(spell.spellId)) return null;
+    return { ...attack, range: spell.range, components: [{ id: "c1", type: spell.types ? spell.types[0] : spell.type }],
+      spell: { spellId: spell.spellId, name: spell.name, level: spell.level, ...(spell.delivery ? { delivery: spell.delivery } : {}),
+        ...(spell.types ? { types: [...spell.types] } : {}), ...(spell.ruleNote ? { ruleNote: spell.ruleNote } : {}),
+        ...(spell.leap ? { leap: { ...spell.leap } } : {}), ...(spell.casterHealRatio ? { casterHealRatio: spell.casterHealRatio } : {}),
+        ...(spell.fromActiveSpell ? { fromActiveSpell: true } : {}) } };
+  }
   if (attack.source?.kind !== "cantrip") {
     if (!attackMode) return attack;
     const mode = getPcAttackActivation(attackMode);
@@ -159,6 +182,80 @@ export function pcAttackCantripDiceFor(attack, card = {}, targetItem = null) {
   const meta = targetItem?.metadata?.[META_KEY] || {};
   const targetDamaged = Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax) && Math.min(meta.hp, meta.hpMax) < meta.hpMax;
   return pcAttackCantripDice(getPcAttackCantrip(attack.cantrip.spellId), totalCharacterLevel(card?.characterBuild), { targetDamaged });
+}
+
+// Lotto L4: the damage type picked in the console for a spell with several (Chromatic Orb, Chaos Bolt's d8).
+export function pcAttackWithSpellType(attack, damageType = "") {
+  if (!attack?.spell?.types?.includes(damageType)) return attack;
+  return { ...attack, components: [{ ...attack.components[0], type: damageType }] };
+}
+
+const CONCENTRATION_FIELD = `${ID}/concentration`;
+// The caster's own active cast of a spell (Vampiric Touch): its concentration entry, with the slot level it was cast at.
+function activeSpellCast(sourceMeta, spellId) {
+  const entries = sourceMeta?.[CONCENTRATION_FIELD] && typeof sourceMeta[CONCENTRATION_FIELD] === "object" ? Object.values(sourceMeta[CONCENTRATION_FIELD]) : [];
+  const entry = entries.find((value) => value?.spellId === spellId);
+  if (!entry) return null;
+  const slotLevel = Math.floor(Number(entry.castContext?.slotLevel));
+  return { instanceId: String(entry.instanceId || ""), slotLevel: Number.isInteger(slotLevel) ? slotLevel : null };
+}
+
+function shieldedFrom(targetItem, spellId) {
+  return conditionInstancesOf(targetItem).some((instance) => instance?.active !== false
+    && Array.isArray(instance?.mechanics?.immunities) && instance.mechanics.immunities.includes(spellId));
+}
+
+// The cast of this spell the console may continue: same spell and turn, with rays or darts left or a pending leap.
+export function pcAttackOpenSpellCast({ sourceItem, spellId = "", turnState = null } = {}) {
+  const live = sourceItem?.metadata?.[META_KEY]?.[PC_ATTACK_STATE_FIELD]?.spellCast || null;
+  if (!live || live.spellId !== spellId) return null;
+  if ((live.turnKey || "") !== (attackTurn(turnState)?.turnKey || "")) return null;
+  return live.index < live.total || live.leapPending === true ? { ...live, targetIds: [...(live.targetIds || [])] } : null;
+}
+
+// A leveled spell's registration (lotto L4): its slot level and dice, the ray or dart it is, and whether it opens the
+// cast (and spends the slot in its command) or continues the one recorded in pcAttackState.spellCast (the same cast id,
+// spell and turn, with rays left or a pending leap). spellCast: the console's { castId, slotLevel, damageType, doubles }.
+// Vampiric Touch spends nothing: its slot and concentration come from the cast of the spell panel.
+export function pcAttackSpellCastPlan({ attack, sourceItem, targetItem = null, spellCast = null, turnState = null, outcome = "" } = {}) {
+  const spell = getPcAttackSpell(attack?.spell?.spellId);
+  if (!spell) return null;
+  const sourceMeta = sourceItem?.metadata?.[META_KEY] || {};
+  const blocked = (reason) => ({ ok: false, reason, spell });
+  if (spell.types && !spell.types.includes(spellCast?.damageType)) return blocked("Scegli il tipo di danno.");
+  if (spell.delivery === "auto" && targetItem && shieldedFrom(targetItem, spell.spellId))
+    return blocked(`Il bersaglio è protetto da Scudo: ${spell.name} non lo colpisce.`);
+  if (spell.fromActiveSpell) {
+    const active = activeSpellCast(sourceMeta, spell.spellId);
+    if (!active) return blocked(`${spell.name}: lancialo prima dal pannello incantesimi, poi registra qui il tocco.`);
+    const slotLevel = Math.max(spell.level, active.slotLevel || spell.level);
+    return { ok: true, spell, slotLevel, dice: pcAttackSpellDice(spell, slotLevel), firstOfCast: false, fromActiveSpell: true,
+      instanceId: active.instanceId, index: 1, total: 1, next: null };
+  }
+  const turn = attackTurn(turnState);
+  const turnKey = turn?.turnKey || "";
+  const castId = String(spellCast?.castId || "").trim().slice(0, 120);
+  if (!castId) return blocked("Lancio non identificato: riapri l'attacco.");
+  const live = sourceMeta[PC_ATTACK_STATE_FIELD]?.spellCast || null;
+  const continuing = !!live && live.castId === castId && live.spellId === spell.spellId && (live.turnKey || "") === turnKey
+    && (live.index < live.total || live.leapPending === true);
+  const requested = Math.floor(Number(spellCast?.slotLevel));
+  const slotLevel = continuing ? live.slotLevel : (Number.isInteger(requested) && requested >= spell.level && requested <= 9 ? requested : null);
+  if (!slotLevel) return blocked("Scegli il livello dello slot.");
+  const targetIds = continuing && Array.isArray(live.targetIds) ? live.targetIds : [];
+  // Chaos Bolt: each creature only once per cast, the leap included.
+  if (spell.leap && targetItem && targetIds.includes(targetItem.id)) return blocked("Il dardo balza solo su una creatura non ancora bersagliata da questo lancio.");
+  const index = continuing ? live.index + 1 : 1;
+  const total = continuing ? (live.index < live.total ? live.total : live.total + 1) : pcAttackSpellCount(spell, slotLevel);
+  const leapPending = !!spell.leap && spellCast?.doubles === true && ATTACK_HITS.has(outcome);
+  // Pact Magic chosen in the console: the slot spent is the pact's (spellSlotSpendCore.js).
+  const pact = continuing ? live.pact === true : spellCast?.pact === true;
+  const next = index < total || leapPending
+    ? { castId, spellId: spell.spellId, slotLevel, index, total, targetIds: [...targetIds, ...(targetItem ? [targetItem.id] : [])], turnKey, leapPending,
+      ...(pact ? { pact: true } : {}) }
+    : null;
+  return { ok: true, spell, slotLevel, dice: pcAttackSpellDice(spell, slotLevel), firstOfCast: !continuing, index, total,
+    ...(continuing && live.leapPending ? { leap: true } : {}), ...(pact ? { pact: true } : {}), leapPending, next };
 }
 
 // "TS Destrezza (CD 14)": the save of a saving throw cantrip, with the actor's spell save DC when the card has it; an
@@ -231,7 +328,7 @@ function riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round
   // Casters' riders exist only on cantrips (Agonizing Blast only on Eldritch Blast); the others need a weapon.
   if (rider.spellOnly && !attack.cantrip) return "Solo per i trucchetti.";
   if (rider.spellIds && !rider.spellIds.includes(attack.cantrip?.spellId)) return rider.spellReason || "Non per questo trucchetto.";
-  if (attack.cantrip && !rider.anyAttack && !rider.spellOnly) return "Solo per gli attacchi con arma.";
+  if ((attack.cantrip || attack.spell) && !rider.anyAttack && !rider.spellOnly) return "Solo per gli attacchi con arma.";
   if (requires.range && attack.range !== requires.range) return "Solo per gli attacchi in mischia.";
   if (requires.activeFeatureId && !featureActive(sourceItem, requires.activeFeatureId, round))
     return `${getClassFeatureDefinition(requires.activeFeatureId)?.name || "Il privilegio"} non è attiva.`;
@@ -294,11 +391,12 @@ function riderOptionsFor(attack, { sourceItem, targetItem = null, turnState = nu
 // handles them. Only the operations that apply them are kept, and only when there is at least one pill (a cantrip
 // without an effect leaves nothing on the target).
 const CANTRIP_PILL_OPERATIONS = new Set(["spell:upsert", "condition:add", "condition:automate"]);
-export function pcAttackCantripPillOperations({ attack, sourceItem, targetItem, attackInstanceId, appliedAt = null, spellId = "" } = {}) {
-  // spellId: a weapon cantrip woven into a weapon attack (Booming Blade); otherwise the cantrip of the attack.
+export function pcAttackCantripPillOperations({ attack, sourceItem, targetItem, attackInstanceId, appliedAt = null, spellId = "", slotLevel = 0 } = {}) {
+  // spellId: a weapon cantrip woven into a weapon attack (Booming Blade), or a leveled spell (Guiding Bolt, with its
+  // slot level); otherwise the cantrip of the attack.
   const spell = getSpellDefinition(spellId || attack?.cantrip?.spellId || "");
   if (!spell || !sourceItem?.id || !targetItem?.id) return [];
-  const castContext = { slotLevel: 0, phase: "cast", choice: "", applyAutomatedConditions: true };
+  const castContext = { slotLevel, phase: "cast", choice: "", applyAutomatedConditions: true };
   const effects = getSpellEffects(spell, "", castContext);
   if (!effects.length) return [];
   // Always the spell on the target (the large pill, in the spell's colour) with its effects as linked mini pills
@@ -351,11 +449,11 @@ function activationPlanReason(plan) {
 function activationBlocker(activation, { attack, sourceItem, targetItem, turn, uses, turnState, riderIds, damageTypes, resources, card, state, effect, outcome }) {
   const requires = activation.requires || {};
   const limit = pcAttackActivationLimit(activation);
-  if (pcAttackSave(attack)) return "Solo con un tiro per colpire.";
+  if (pcAttackSave(attack) || attack.spell?.delivery === "auto") return "Solo con un tiro per colpire.";
   if (outcome && !activation.preRoll && !ATTACK_HITS.has(outcome)) return "Solo se l'attacco colpisce.";
   if (activation.spellIds) {
     if (!activation.spellIds.includes(attack.cantrip?.spellId)) return "Solo con la Deflagrazione occulta.";
-  } else if (attack.cantrip && !activation.anyAttack) return "Solo per gli attacchi con arma.";
+  } else if ((attack.cantrip || attack.spell) && !activation.anyAttack) return "Solo per gli attacchi con arma.";
   if (requires.range && attack.range !== requires.range) return requires.range === "melee" ? "Solo per gli attacchi in mischia." : "Solo per gli attacchi a distanza.";
   if ((requires.ownTurn || limit?.per === "own-turn") && turn && turn.actorId !== sourceItem.id) return "Solo nel proprio turno.";
   if (requires.reaction && turn && turn.actorId === sourceItem.id) return "Solo come reazione, fuori dal proprio turno.";
@@ -445,7 +543,7 @@ export function pcAttackFollowUps(card = {}, riders = [], activationIds = []) {
 // Shot left, one per turn), the arrow's extra die and the save DC. Offered for a ranged weapon attack only.
 export function pcAttackModeOptions({ action, sourceItem, turnState = null } = {}) {
   const attack = pcAttackAction(action);
-  if (!attack || attack.source?.kind === "cantrip" || !sourceItem) return [];
+  if (!attack || ["cantrip", "spell"].includes(attack.source?.kind) || !sourceItem) return [];
   const card = sourceItem.metadata?.[META_KEY]?.initiativeCard || {};
   return pcAttackModesForCard(card).filter((mode) => !mode.requires?.range || mode.requires.range === attack.range)
     .map((mode) => modeOptionFor(mode, { sourceItem, turnState }));
@@ -525,11 +623,15 @@ function extraLabel(value) {
 export function pcAttackPreview({
   action, spellId = "", sourceItem = null, targetItem = null, outcome = "", amounts = {}, ignoredDefenses = [],
   riders = [], extras = [], turnState = null, weaponCantrip = null, secondaryItem = null, activations = [], tempHpItems = [],
-  attackMode = "", modeAmount = "", burstItems = [],
+  attackMode = "", modeAmount = "", burstItems = [], spellCast = null,
 } = {}) {
-  const attack = pcAttackResolvedAction(action, spellId, attackMode);
-  if (!attack) return { ready: false, blocker: pcAttackAction(action) ? (attackMode ? "Freccia non disponibile per questo attacco." : "Scegli il trucchetto.")
+  const resolved = pcAttackResolvedAction(action, spellId, attackMode);
+  if (!resolved) return { ready: false, blocker: pcAttackAction(action)
+    ? (attackMode ? "Freccia non disponibile per questo attacco." : pcAttackAction(action).source?.kind === "spell" ? "Scegli l'incantesimo." : "Scegli il trucchetto.")
     : "Azione di attacco non valida.", defenses: [], profileDefenses: {}, total: 0, hp: null };
+  // A leveled spell (lotto L4): the type picked, and the cast this registration opens or continues.
+  const attack = pcAttackWithSpellType(resolved, spellCast?.damageType);
+  const spellPlan = attack.spell && sourceItem ? pcAttackSpellCastPlan({ attack, sourceItem, targetItem, spellCast, turnState, outcome }) : null;
   if (attack.area) return { ready: false, blocker: "Attacco ad area: scegli le creature dell'area.", defenses: [], profileDefenses: {}, total: 0, hp: null };
   const card = sourceItem?.metadata?.[META_KEY]?.initiativeCard || {};
   // A miss or a passed save deals no damage (half with Potent Cantrip); extras only with a hit or a failed save.
@@ -625,7 +727,17 @@ export function pcAttackPreview({
       ? `${option.label}: scegli l'esito del tiro salvezza.` : "";
   }).find(Boolean) || "";
   const modeBlocker = !modeOption ? "" : !modeOption.available ? `${modeOption.label}: ${modeOption.reason}` : "";
+  // Vampiric Touch: the caster regains half the necrotic damage dealt.
+  const sourceMeta = sourceItem?.metadata?.[META_KEY] || {};
+  // Only the spell's own necrotic damage counts (after the target's defenses), not the extras.
+  const spellDamage = spellPlan?.ok && attack.spell.casterHealRatio && targetItem && outcome && !miss && validAmount(amounts?.c1)
+    ? bossDefendedDamage([attack.components[0]], { c1: amounts.c1 }, "hit", profileDefenses, ignoredDefenses) : 0;
+  const casterHeal = spellDamage > 0 && Number.isFinite(sourceMeta.hp) && Number.isFinite(sourceMeta.hpMax)
+    ? spellCasterHealingChange({ damageChanges: [{ requested: spellDamage }], ratio: attack.spell.casterHealRatio, hp: sourceMeta.hp, hpMax: sourceMeta.hpMax })
+    : null;
+  const spellBlocker = attack.spell && !spellPlan ? "Scegli l'attaccante." : spellPlan && !spellPlan.ok ? spellPlan.reason : "";
   const blocker = !targetItem ? "Scegli il bersaglio."
+    : spellBlocker ? spellBlocker
     : modeBlocker ? modeBlocker
     : !pcAttackOutcomesFor(attack).includes(outcome) ? (pcAttackSave(attack) ? "Scegli l'esito del tiro salvezza." : "Scegli l'esito dell'attacco.")
     : !miss && attack.components.some((component) => !validAmount(amounts?.[component.id])) ? "Inserisci il danno di ogni componente."
@@ -637,25 +749,33 @@ export function pcAttackPreview({
     : secondaryBlocker ? secondaryBlocker
     : !hp ? "Il bersaglio non ha HP canonici validi."
     : "";
-  return { ready: !blocker, blocker, defenses, profileDefenses, total, hp, ...(secondary ? { secondary } : {}) };
+  return { ready: !blocker, blocker, defenses, profileDefenses, total, hp, ...(secondary ? { secondary } : {}),
+    ...(spellPlan?.ok ? { spell: { slotLevel: spellPlan.slotLevel, dice: spellPlan.dice, index: spellPlan.index, total: spellPlan.total,
+      firstOfCast: spellPlan.firstOfCast, ...(spellPlan.leap ? { leap: true } : {}), ...(spellPlan.fromActiveSpell ? { fromActiveSpell: true } : {}),
+      ...(casterHeal ? { casterHeal: { amount: casterHeal.requested, before: casterHeal.hp, after: casterHeal.afterHP, hpMax: casterHeal.hpMax } } : {}) } } : {}) };
 }
 
 export function buildPcAttackMutation({
   action, sourceItem, targetItem, outcome = "", componentAmounts = {}, attackInstanceId,
   ignoredDefenses = [], expectedDefenses, turnState = null, riders = [], extras = [], spellId = "",
   weaponCantrip = null, secondaryItem = null, expectedSecondaryDefenses, activations = [], tempHpItems = [],
-  attackMode = "", modeAmount = null, burstItems = [], expectedBurstDefenses = {},
+  attackMode = "", modeAmount = null, burstItems = [], expectedBurstDefenses = {}, spellCast = null,
 } = {}) {
   if (!isBossActionCreature(sourceItem) || !isBossActionCreature(targetItem))
     throw new Error("Attaccante e bersaglio devono essere token creatura reali.");
   if (sourceItem.id === targetItem.id) throw new Error("L'attaccante non può essere anche il bersaglio.");
   if (!attackInstanceId || typeof attackInstanceId !== "string") throw new Error("Identità dell'attacco mancante.");
   if (!pcAttackAction(action)) throw new Error("Azione rapida di attacco non valida.");
-  const attack = pcAttackResolvedAction(action, spellId, attackMode);
-  if (!attack) throw new Error(attackMode ? "Freccia non disponibile per questo attacco." : "Trucchetto non disponibile per questa azione.");
+  const resolved = pcAttackResolvedAction(action, spellId, attackMode);
+  if (!resolved) throw new Error(attackMode ? "Freccia non disponibile per questo attacco."
+    : pcAttackAction(action).source?.kind === "spell" ? "Incantesimo non disponibile per questa azione." : "Trucchetto non disponibile per questa azione.");
+  const attack = pcAttackWithSpellType(resolved, spellCast?.damageType);
   if (attack.area) throw new Error("Attacco ad area: registralo con le creature dell'area.");
   if (!pcAttackOutcomesFor(attack).includes(outcome))
     throw new Error(pcAttackSave(attack) ? "Scegli l'esito del tiro salvezza." : "Scegli l'esito dell'attacco.");
+  // A leveled spell (lotto L4): checked against the live cast (pcAttackState.spellCast) and the caster's concentration.
+  const spellPlan = attack.spell ? pcAttackSpellCastPlan({ attack, sourceItem, targetItem, spellCast, turnState, outcome }) : null;
+  if (spellPlan && !spellPlan.ok) throw new Error(`${spellPlan.reason} Riapri l'attacco.`);
   const factor = pcAttackDamageFactor(attack, outcome, sourceItem.metadata?.[META_KEY]?.initiativeCard);
   const miss = factor === "zero";
   const riderRequests = Array.isArray(riders) ? riders : [];
@@ -737,6 +857,13 @@ export function buildPcAttackMutation({
       ? defendedComponents([{ id: "s1", type: activationSecondary.type, source: { kind: "class-feature", featureId: activationSecondary.id,
         name: activationSecondary.option.label, activation: true } }], { s1: activationSecondary.amount }, "full", secondaryItemUsed, [], expectedSecondaryDefenses)
       : [];
+  // Vampiric Touch: the caster regains half the spell's necrotic damage, after the target's defenses.
+  const sourceHpMeta = sourceItem.metadata?.[META_KEY] || {};
+  const spellNecrotic = spellPlan?.ok && attack.spell.casterHealRatio && !miss
+    ? damageComponents.find((component) => component.id === "c1")?.amount || 0 : 0;
+  const casterHealChange = spellNecrotic > 0 && Number.isFinite(sourceHpMeta.hp) && Number.isFinite(sourceHpMeta.hpMax)
+    ? spellCasterHealingChange({ damageChanges: [{ requested: spellNecrotic }], ratio: attack.spell.casterHealRatio, hp: sourceHpMeta.hp, hpMax: sourceHpMeta.hpMax })
+    : null;
   const secondaryMeta = secondaryItemUsed?.metadata?.[META_KEY] || {};
   let secondaryChange = null;
   if (secondaryItemUsed) {
@@ -767,21 +894,31 @@ export function buildPcAttackMutation({
     version: PC_ATTACK_STATE_VERSION,
     lastAttack: {
       attackInstanceId, quickActionId: attack.id, targetId: targetItem.id, outcome, ...(attack.cantrip ? { spellId: attack.cantrip.spellId } : {}),
-      ...(turn ? { round: turn.round, turnKey: turn.turnKey } : {}),
+      ...(attack.spell ? { spellId: attack.spell.spellId } : {}), ...(turn ? { round: turn.round, turnKey: turn.turnKey } : {}),
     },
     ...(riderUses.length ? { riderUses } : {}),
+    // The cast still open: rays or darts left, or a pending leap. Any other attack closes it.
+    ...(spellPlan?.next ? { spellCast: spellPlan.next } : {}),
   };
   const componentOf = (id) => damageComponents.find((component) => component.id === id);
   // A cantrip is named by the spell; its dice follow the attacker's character level.
-  const actionName = attack.cantrip ? attack.cantrip.name : attack.label;
+  const actionName = attack.cantrip ? attack.cantrip.name : attack.spell ? attack.spell.name : attack.label;
   const cantripDice = pcAttackCantripDiceFor(attack, sourceMeta.initiativeCard, targetItem);
   const saveLabel = pcAttackSaveLabel(attack, sourceMeta.initiativeCard);
   const causality = {
     actor: { id: sourceItem.id, tokenId: sourceItem.id, name: sourceName, role: "attacker" },
     cause: { kind: PC_ATTACK_HISTORY_KIND, quickActionId: attack.id, actionName: actionName, attackInstanceId, range: attack.range,
-      ...(attack.cantrip ? { spellId: attack.cantrip.spellId, spellName: attack.cantrip.name } : {}) },
+      ...(attack.cantrip ? { spellId: attack.cantrip.spellId, spellName: attack.cantrip.name } : {}),
+      ...(attack.spell ? { spellId: attack.spell.spellId, spellName: attack.spell.name, slotLevel: spellPlan.slotLevel } : {}) },
     action: { id: attack.id, label: actionName, ...(pcAttackSave(attack) ? {} : { attackOutcome: outcome }) },
-    attack: { range: attack.range, outcome, source: attack.cantrip ? "cantrip" : "weapon" },
+    attack: { range: attack.range, outcome, source: attack.cantrip ? "cantrip" : attack.spell ? "spell" : "weapon" },
+    // slotTracked turns true when pcAttackExecution.js spends the slot in the first registration's command.
+    ...(attack.spell ? { spell: { spellId: attack.spell.spellId, name: attack.spell.name, level: attack.spell.level,
+      slotLevel: spellPlan.slotLevel, dice: spellPlan.dice, type: attack.components[0].type, typeLabel: damageTypeLabel(attack.components[0].type),
+      index: spellPlan.index, total: spellPlan.total, firstOfCast: spellPlan.firstOfCast, slotTracked: false, ...(spellPlan.pact ? { pact: true } : {}),
+      ...(spellPlan.leap ? { leap: true } : {}), ...(spellPlan.leapPending ? { leapPending: true } : {}),
+      ...(spellPlan.fromActiveSpell ? { fromActiveSpell: true, instanceId: spellPlan.instanceId } : {}),
+      ...(casterHealChange?.changed ? { casterHeal: { amount: casterHealChange.requested, before: casterHealChange.hp, after: casterHealChange.afterHP } } : {}) } } : {}),
     ...(attack.cantrip ? { cantrip: { ...attack.cantrip, ...(cantripDice ? { dice: cantripDice } : {}), ...(saveLabel ? { saveLabel } : {}) } } : {}),
     ...(pcAttackSave(attack) ? { save: { ability: pcAttackSave(attack), outcome, ...(factor === "half" && !attack.saveHalf ? { potentCantrip: true } : {}),
       ...(pcAttackSaveDC(attack, sourceMeta.initiativeCard) ? { dc: pcAttackSaveDC(attack, sourceMeta.initiativeCard) } : {}) } } : {}),
@@ -845,6 +982,9 @@ export function buildPcAttackMutation({
   // (Potent Cantrip) has "no other effect".
   const cantripOperations = DAMAGING_OUTCOMES.has(outcome)
     ? [...(attack.cantrip ? pcAttackCantripPillOperations({ attack, sourceItem, targetItem, attackInstanceId, appliedAt }) : []),
+      // A leveled spell's pills on a hit (Guiding Bolt); Vampiric Touch's spell stays the panel's cast on the caster.
+      ...(attack.spell && !attack.spell.fromActiveSpell ? pcAttackCantripPillOperations({ spellId: attack.spell.spellId, sourceItem, targetItem,
+        attackInstanceId, appliedAt, slotLevel: spellPlan.slotLevel }) : []),
       // Booming Blade: its pill from the spell catalog, with the movement damage at this level in the detail.
       ...(woven?.trigger ? pcAttackCantripPillOperations({ spellId: woven.spellId, sourceItem, targetItem, attackInstanceId, appliedAt })
         .map((operation) => operation.type !== "condition:add" ? operation : { ...operation, options: { ...operation.options,
@@ -852,6 +992,7 @@ export function buildPcAttackMutation({
     : [];
   const cantripPills = cantripOperations.filter((operation) => operation.type === "condition:add").map((operation) => operation.conditionName);
   if (cantripPills.length && attack.cantrip) causality.cantrip = { ...causality.cantrip, pills: cantripPills };
+  if (cantripPills.length && attack.spell) causality.spell = { ...causality.spell, pills: cantripPills };
   if (cantripPills.length && woven) causality.weaponCantrip = { ...causality.weaponCantrip, pills: cantripPills };
   // Activations: the class feature's pills (on the target, or on the attacker for a self effect) and a standard
   // condition (Trip Attack: Prono), only when the save fails or there is none.
@@ -862,7 +1003,7 @@ export function buildPcAttackMutation({
     ...Object.entries(activationPlan.instancesByTarget).flatMap(([targetId, instances]) => instances.map((instance) => ({
       targetId, condition: instance.condition, featureId: activationPlan.pillFeatureIds[instance.id] || "", instanceId: instance.id,
       ...(appliedAt ? { appliedAt } : {}) }))),
-    ...cantripPills.map((condition) => ({ targetId: targetItem.id, condition, spellId: attack.cantrip?.spellId || woven?.spellId,
+    ...cantripPills.map((condition) => ({ targetId: targetItem.id, condition, spellId: attack.cantrip?.spellId || attack.spell?.spellId || woven?.spellId,
       ...(appliedAt ? { appliedAt } : {}) }))];
   if (appliedConditions.length) causality.conditionsApplied = appliedConditions;
   // A condition with an expiry ends by itself (Open Hand: no reactions until the end of the monk's next turn); the
@@ -886,8 +1027,10 @@ export function buildPcAttackMutation({
     ...(secondaryItemUsed ? { secondaryChange, secondaryItem: secondaryItemUsed } : {}),
     // The creatures of Bursting Arrow: their own post-damage projections after the commit.
     burstChanges: burstRows.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
+    // Vampiric Touch's healing of the caster: its own projection after the commit (no concentration warnings).
+    ...(casterHealChange?.changed ? { casterHealChange: { item: sourceItem, change: casterHealChange } } : {}),
     operations: [...(change?.changed || secondaryChange?.changed || activationPlan.tempHp.some((row) => row.change.changed)
-      || burstRows.some((row) => row.change.changed) ? [{ type: "hp:set", updates: [
+      || burstRows.some((row) => row.change.changed) || casterHealChange?.changed ? [{ type: "hp:set", updates: [
       ...(change?.changed ? [{
         itemId: targetItem.id, hp: change.afterHP, hpMax: change.hpMax,
         hpIntent: { mode: "damage", amount: change.requested, eventId: attackInstanceId },
@@ -909,13 +1052,19 @@ export function buildPcAttackMutation({
         expectedHP: bossMetadataSnapshot(row.item.metadata?.[META_KEY] || {}, "hp"),
         expectedHPMax: bossMetadataSnapshot(row.item.metadata?.[META_KEY] || {}, "hpMax"),
       })),
+      // One write for the caster in the same command, as the boss's drain: the target is never the caster.
+      ...(casterHealChange?.changed ? [{
+        itemId: sourceItem.id, hp: casterHealChange.afterHP, hpMax: casterHealChange.hpMax,
+        hpIntent: { mode: QUICK_HP_MODES.HEAL, amount: casterHealChange.requested, eventId: attackInstanceId },
+        expectedHP: bossMetadataSnapshot(sourceHpMeta, "hp"), expectedHPMax: bossMetadataSnapshot(sourceHpMeta, "hpMax"),
+      }] : []),
     ] }] : []), ...conditionOperations,
     ...(conditionOperations.length ? [{ type: "condition:automate", subjectIds: [targetItem.id] }] : []), ...cantripOperations,
     ...activationPillOperations],
     options: {
       commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id,
       targetIds: [...new Set([targetItem.id, ...(secondaryItemUsed ? [secondaryItemUsed.id] : []), ...pillTargetIds,
-        ...burstRows.map((row) => row.item.id)])], kind: PC_ATTACK_HISTORY_KIND, label,
+        ...burstRows.map((row) => row.item.id), ...(casterHealChange?.changed ? [sourceItem.id] : [])])], kind: PC_ATTACK_HISTORY_KIND, label,
       // The quick action read from the attacker's card, and the defenses read from the target's card,
       // must still be the ones at commit.
       metadataPatches: [

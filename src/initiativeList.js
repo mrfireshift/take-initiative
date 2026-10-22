@@ -190,6 +190,7 @@ import {
 } from "./quickActionsCore.js";
 import {
   spellbookCantripAttackAction,
+  spellbookSpellAttackAction,
   spellbookMenuSections,
   spellbookTrackerQuickActions,
 } from "./spellbookCatalog.js";
@@ -8154,14 +8155,15 @@ async function __runTrackerQuickAction(sourceEntry, action) {
     await openPcAttackPopover(sourceId, action.id);
     return { mode: "review", route: "pc-attack" };
   }
-  // A cantrip of the spellbook recorded in the attack console: the 🪄 menu opens the console with the character's
-  // cantrip attack, as the sheet does (spellbookCatalog.js).
+  // A cantrip (or a leveled attack spell, lotto L4) of the spellbook recorded in the attack console: the 🪄 menu opens
+  // the console with the character's attack action, on that spell, as the sheet does (spellbookCatalog.js).
   const cantripAttack = isSpellbookQuickAction(action)
     ? spellbookCantripAttackAction(sourceEntry?.quickActions, action.spellId)
+      || spellbookSpellAttackAction(sourceEntry?.quickActions, action.spellId)
     : null;
   if (cantripAttack) {
     if (!IS_GM) throw new Error("Solo il GM può registrare un attacco.");
-    await openPcAttackPopover(sourceId, cantripAttack.id);
+    await openPcAttackPopover(sourceId, cantripAttack.id, action.spellId);
     return { mode: "review", route: "pc-attack" };
   }
   const result = await executeDirectQuickAction({
