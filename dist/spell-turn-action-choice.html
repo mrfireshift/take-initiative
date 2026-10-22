@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Azione incantesimo</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
     <link rel="stylesheet" href="/ui-scrollbars.css" />
     <link rel="stylesheet" href="/spell-popover.css" />
     <style>
@@ -18,7 +19,7 @@
       .action { min-height:62px; padding:8px; text-align:left; border-color:rgba(196,181,253,.4); background:rgba(76,29,149,.18); }
       .action:hover:not(:disabled) { border-color:rgba(221,214,254,.85); background:rgba(109,40,217,.38); }
       .action strong { display:block; font-size:12px; line-height:1.1; }
-      .action span { display:block; margin-top:4px; color:rgba(226,232,240,.68); font-size:9px; line-height:1.2; }
+      .action span { display:block; margin-top:4px; color:rgba(226,232,240,.68); font-size: var(--obrt-type-micro, 10px); line-height:1.2; }
       #app[data-spell="telekinesis"] .actions { margin-top:4px; }
       .action--telekinesis { min-height:30px; padding:5px 8px; text-align:center; }
       .action--telekinesis strong { font-weight:700; }

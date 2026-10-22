@@ -31,7 +31,7 @@
     .close { display: inline-flex; align-items: center; justify-content: center; width: var(--obrt-close-size, 28px); height: var(--obrt-close-size, 28px); min-height: var(--obrt-close-size, 28px); padding: 0; border: 1px solid transparent; border-radius: var(--obrt-close-radius, 8px); background: transparent; color: inherit; font-size: var(--obrt-close-font, 18px); line-height: 1; cursor: pointer; transition: background-color .12s ease; }
     .close:hover { background: var(--obrt-close-hover, rgba(255, 255, 255, .08)); }
     .small:hover { background: var(--obrt-btn-bg-hover); }
-    .controls { display: grid; grid-template-columns: minmax(0, 1fr) 118px; gap: var(--obrt-space-md); align-items: end; }
+    .controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--obrt-space-md); align-items: end; }
     .mode-group { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--obrt-space-xs); padding: var(--obrt-space-xs); border: 1px solid var(--line); border-radius: var(--obrt-radius-lg); background: var(--surface-row); }
     .mode, .factor { min-height: var(--obrt-h-control-md); padding: 5px 8px; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; color: rgba(255, 255, 255, .78); font-size: var(--obrt-type-body); cursor: pointer; transition: background-color .12s ease, color .12s ease; }
     .mode.active { font-weight: var(--obrt-weight-bold); }
@@ -43,6 +43,9 @@
     .caption { color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; line-height: var(--obrt-leading-snug); }
     .amount { width: 100%; height: 42px; padding: 5px 10px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-lg); outline: none; background: var(--surface); color: #fff; font-size: 22px; font-weight: var(--obrt-weight-bold); text-align: center; font-variant-numeric: tabular-nums; }
     .amount:focus { border-color: rgba(96, 165, 250, .7); box-shadow: 0 0 0 2px rgba(37, 99, 235, .18); }
+    /* The value sits next to Apply, under the targets: choose the mode, tick the targets, type the value, apply. */
+    .footer .amount-wrap { display: flex; align-items: center; gap: var(--obrt-space-sm); }
+    .footer .amount { width: 92px; height: var(--obrt-btn-height-lg, 36px); font-size: 18px; }
     .save-options { display: grid; gap: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
     .condition-card { display: flex; flex-direction: column; gap: var(--obrt-space-sm); padding: 0; border: 0; border-radius: 0; background: transparent; }
     .condition-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--obrt-space-sm); }
@@ -78,6 +81,7 @@
     .delta.temp { color: #93c5fd; }
     .factor-group, .outcome-group { width: 100%; display: grid; gap: var(--obrt-space-xs); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); overflow: hidden; }
     .factor-group { grid-template-columns: repeat(4, minmax(32px, 1fr)); }
+    .factor-group.with-critical { grid-template-columns: repeat(5, minmax(32px, 1fr)); }
     .outcome-group { grid-template-columns: repeat(3, minmax(54px, 1fr)); }
     .factor, .outcome { min-width: 0; min-height: var(--obrt-h-control-sm); padding: 0 5px; border: 0; border-right: 1px solid rgba(148, 163, 184, .18); border-radius: 0; background: transparent; color: rgba(255, 255, 255, .78); cursor: pointer; font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); }
     .factor:last-child, .outcome:last-child { border-right: 0; }
@@ -91,6 +95,8 @@
     .bulk-actions { margin-left: auto; }
     .bulk-actions .small { min-width: 0; color: #bfdbfe; font-size: var(--obrt-type-secondary); }
     .bulk-panel > .status { min-height: 30px; padding: var(--obrt-space-md); border-top: 1px solid rgba(148, 163, 184, .14); color: #bfdbfe; font-size: var(--obrt-type-secondary); }
+    /* No message, no row: the empty status left a bordered box under "Imposta selezionati". */
+    .bulk-panel > .status:empty { display: none; }
     .footer { flex: 0 0 auto; min-height: 42px; padding-top: 9px; border-top: 1px solid var(--obrt-footer-border, rgba(148, 163, 184, .20)); }
     .summary { min-width: 0; flex: 1 1 auto; color: var(--muted); font-size: var(--obrt-type-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .footer-actions { flex: 0 0 auto; }
@@ -99,16 +105,16 @@
     .apply.heal { background: #15803d; }
     .apply.temp { background: #1d4ed8; }
     .apply:disabled, .small:disabled { opacity: var(--obrt-btn-disabled-opacity); cursor: default; background: var(--disabled); color: rgba(255, 255, 255, .62); }
-    @media(max-width:760px){.panel{padding:12px;gap:10px}.controls{grid-template-columns:minmax(0,1fr) 94px}.mode{min-height:38px;padding:5px 6px;font-size:var(--obrt-type-body)}.amount{height:42px}.target-header{align-items:center}.target-actions{gap:5px}.target-name-filter{flex:1 1 auto;width:auto}.target{grid-template-columns:20px minmax(80px,1fr) minmax(98px,auto) minmax(180px,auto);min-height:46px;padding:5px 7px}.identity{grid-column:2}.hp-preview{grid-column:3;min-width:0}.factor-group{grid-column:4}.target.save-target .outcome-group{grid-column:4}.footer{gap:8px}.footer-actions{gap:5px}}
+    @media(max-width:760px){.panel{padding:12px;gap:10px}.mode{min-height:38px;padding:5px 6px;font-size:var(--obrt-type-body)}.target-header{align-items:center}.target-actions{gap:5px}.target-name-filter{flex:1 1 auto;width:auto}.target{grid-template-columns:20px minmax(80px,1fr) minmax(98px,auto) minmax(180px,auto);min-height:46px;padding:5px 7px}.identity{grid-column:2}.hp-preview{grid-column:3;min-width:0}.factor-group{grid-column:4}.target.save-target .outcome-group{grid-column:4}.footer{gap:8px}.footer-actions{gap:5px}}
     @media(max-width:520px){.mode-group{grid-template-columns:repeat(2,minmax(0,1fr))}.controls{grid-template-columns:1fr}.target-header{align-items:flex-start;flex-direction:column}.target-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}.target-name-filter{grid-column:1/-1;width:100%}.faction-toggle{padding-inline:7px}.condition-details{grid-template-columns:1fr}.target{grid-template-columns:20px minmax(0,1fr);padding-inline:7px}.identity{grid-column:2;grid-row:1}.hp-preview{grid-column:2;grid-row:2;text-align:left}.factor-group,.outcome-group{grid-column:2;grid-row:3}.bulk-row{align-items:flex-start;flex-direction:column;gap:6px}.bulk-actions{width:100%;margin-left:0}.footer{align-items:flex-end;flex-direction:column}.summary{width:100%;white-space:normal}.footer-actions{width:100%;justify-content:flex-end}.apply{min-width:0}}
   </style>
-  <script type="module" crossorigin src="/assets/quickHpModal-S39CUBaL.js"></script>
+  <script type="module" crossorigin src="/assets/quickHpModal-C8ea7joM.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
-  <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-chCHihnd.js">
+  <link rel="modulepreload" crossorigin href="/assets/sharedHpCore--G4cn45h.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-DYfqXO8y.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-C3HIQi06.js">
-  <link rel="modulepreload" crossorigin href="/assets/sharedHpViewCore-X_ejiTCx.js">
+  <link rel="modulepreload" crossorigin href="/assets/sharedHpViewCore-BN9ZgZhM.js">
   <link rel="modulepreload" crossorigin href="/assets/sharedHpControls-C9rGDIcd.js">
   <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BiYU2Jbj.js">
   <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-hLLJ2f7Z.js">
@@ -116,14 +122,15 @@
   <link rel="modulepreload" crossorigin href="/assets/reminderProjectionBroadcast-BV7KLhQi.js">
   <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-28TsGb8f.js">
+  <link rel="modulepreload" crossorigin href="/assets/deathSaveCore-Bm-6wQ3Z.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3dCore-DjQKSEJL.js">
-  <link rel="modulepreload" crossorigin href="/assets/history-D4y83DeA.js">
-  <link rel="modulepreload" crossorigin href="/assets/hpbar-items-DSsc8Hd3.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-Cik0kmdw.js">
+  <link rel="modulepreload" crossorigin href="/assets/hpbar-items-DbUMI7eA.js">
   <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-Bc--_DL6.js">
   <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-EIlt4P7I.js">
   <link rel="modulepreload" crossorigin href="/assets/blinkRules-D0eEQH_b.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-B7Q7KHUT.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditions-DvIaRS8w.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-BoqHdn73.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-BoDx6c7C.js">
   <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BEeUqVid.js">
   <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-D3Xi8I_j.js">
   <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-CM2pHA0o.js">
@@ -131,15 +138,15 @@
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-CUzjg6Rv.js">
   <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BrtQzeT5.js">
   <link rel="modulepreload" crossorigin href="/assets/customAuraCore-DmeqJ36W.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-vu_KOeG9.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-CHqeezTf.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-mOkcZX8z.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-BkmFsRTq.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-DZ_ZEXTI.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3d-CeFYQ3b2.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-DfEG5pB8.js">
-  <link rel="modulepreload" crossorigin href="/assets/hpConditionAutomation-Ctklu7Ku.js">
-  <link rel="modulepreload" crossorigin href="/assets/hpMemory-CK-B4P-B.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-CIf9ou3k.js">
+  <link rel="modulepreload" crossorigin href="/assets/hpConditionAutomation-CDSUortQ.js">
+  <link rel="modulepreload" crossorigin href="/assets/hpMemory-Cj0CKGZJ.js">
   <link rel="modulepreload" crossorigin href="/assets/historyUndoResultCore-DAaki4Ma.js">
-  <link rel="modulepreload" crossorigin href="/assets/concentrationSaveReminder-pVI1NXQH.js">
+  <link rel="modulepreload" crossorigin href="/assets/concentrationSaveReminder-DdYMT6tZ.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
 </head>
 <body>
@@ -153,7 +160,6 @@
           <button class="mode" data-mode="heal" type="button">Cura</button>
           <button class="mode" data-mode="temp" type="button">HP temp.</button>
         </div>
-        <label class="amount-wrap"><span class="caption">Valore</span><input class="amount" id="amount" type="text" inputmode="numeric" pattern="[0-9]*" value="0" autocomplete="off" /></label>
       </section>
       <section class="save-options" id="saveOptions" hidden>
         <div class="condition-card">
@@ -175,7 +181,7 @@
         <div class="bulk-panel"><div class="bulk-row"><span class="caption">Imposta selezionati</span><div class="bulk-actions" id="bulkActions"></div></div><div class="status" id="status" role="status"></div></div>
       </section>
       <div id="sharedHpControls" hidden style="padding:10px;border:1px solid var(--line);border-radius:8px;font-size:12px;line-height:1.8"></div>
-      <footer class="footer"><div class="summary" id="summary">Nessun bersaglio selezionato</div><div class="footer-actions"><button class="apply damage" id="apply" type="button" disabled>Applica effetti</button></div></footer>
+      <footer class="footer"><div class="summary" id="summary">Nessun bersaglio selezionato</div><div class="footer-actions"><label class="amount-wrap"><span class="caption">Valore</span><input class="amount" id="amount" type="text" inputmode="numeric" pattern="[0-9]*" value="0" autocomplete="off" /></label><button class="apply damage" id="apply" type="button" disabled>Applica effetti</button></div></footer>
     </main>
   </div>
 </body>

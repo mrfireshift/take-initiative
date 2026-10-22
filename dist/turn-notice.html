@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cambio Turno</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
     <link rel="stylesheet" href="/ui-scrollbars.css" />
     <style>
       html, body { width: 100%; height: 100%; margin: 0; background: transparent; }
@@ -125,7 +126,7 @@
         justify-content: center;
         background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
         color: #fff;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 35px;
         font-weight: 800;
         text-shadow: 0 2px 4px #000;
@@ -133,7 +134,7 @@
       .copy { position: relative; min-width: 0; z-index: 1; }
       .eyebrow {
         color: var(--accent);
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 10px;
         font-weight: 800;
         letter-spacing: .8px;
@@ -142,7 +143,7 @@
       .title {
         margin-top: 3px;
         overflow: hidden;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: clamp(18px, 3.5vw, 23px);
         font-weight: 800;
         line-height: 1.05;
@@ -154,8 +155,8 @@
         position: absolute;
         top: 14px;
         right: 15px;
-        width: 38px;
-        height: 38px;
+        width: 44px;
+        height: 44px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -169,8 +170,8 @@
         line-height: 1;
         z-index: 1;
       }
-      .round-badge span { color: var(--accent); font-size: 7px; font-weight: 900; letter-spacing: .4px; }
-      .round-badge strong { margin-top: 2px; font-family: Georgia, "Times New Roman", serif; font-size: 14px; }
+      .round-badge span { color: var(--accent); font-size: var(--obrt-type-micro, 10px); font-weight: 900; letter-spacing: 0; }
+      .round-badge strong { margin-top: 2px; font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif); font-size: 14px; }
       .next {
         position: relative;
         margin-top: 14px;
@@ -181,7 +182,7 @@
         z-index: 1;
       }
       .next span { margin-right: 5px; color: var(--accent); font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
-      .next strong { color: #fff; font-family: Georgia, "Times New Roman", serif; font-size: 11px; }
+      .next strong { color: #fff; font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif); font-size: 11px; }
       .timer {
         position: absolute;
         right: 0;
@@ -259,7 +260,7 @@
         align-items: center;
         justify-content: center;
         background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 15px;
         font-weight: 800;
         text-shadow: 0 2px 4px #000;
@@ -273,7 +274,7 @@
         margin-bottom: 2px;
         color: var(--accent);
         font-family: system-ui, -apple-system, sans-serif;
-        font-size: 8px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
         letter-spacing: .6px;
         line-height: 1.15;
@@ -295,7 +296,7 @@
         align-items: baseline;
         gap: 5px;
         overflow: hidden;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: clamp(13px, 2.5vw, 14.5px);
         font-weight: 800;
         line-height: 1.15;
@@ -312,7 +313,7 @@
         background: rgba(255, 255, 255, .08);
         color: rgba(255, 255, 255, .70);
         font-family: system-ui, -apple-system, sans-serif;
-        font-size: 9px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 700;
         line-height: 1.2;
         letter-spacing: 0;
@@ -320,7 +321,7 @@
       .zone-subtitle {
         margin-top: 1px;
         overflow: hidden;
-        font-size: 9.5px;
+        font-size: var(--obrt-type-micro, 10px);
         line-height: 1.2;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -332,7 +333,7 @@
       .zone-source {
         color: rgba(255, 255, 255, .46);
         font-weight: 500;
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
       }
       .zone-detail {
         position: relative;
@@ -352,7 +353,7 @@
       .zone-detail strong {
         flex: 1 1 100%;
         overflow: hidden;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 10px;
         font-weight: 800;
         text-overflow: ellipsis;
@@ -371,7 +372,7 @@
         align-items: center;
         color: rgba(255, 255, 255, .82);
         font-family: system-ui, -apple-system, sans-serif;
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 700;
         line-height: 1.2;
         border: none;
@@ -399,7 +400,7 @@
         flex: 1 1 100%;
         margin-top: 2px;
         color: rgba(255, 255, 255, .50);
-        font-size: 8px;
+        font-size: var(--obrt-type-micro, 10px);
         line-height: 1.25;
         letter-spacing: .05px;
         max-width: 440px;
@@ -430,10 +431,11 @@
         border-radius: 4px;
         background: rgba(4, 8, 13, .82);
         color: #fff;
-        font: 700 8.5px/1 system-ui, sans-serif;
+        font: 700 10px/1 system-ui, sans-serif;
         pointer-events: auto;
       }
       .zone-resolution button {
+        min-height: 24px;
         padding: 2px 6px;
         cursor: pointer;
       }
@@ -452,7 +454,7 @@
         align-items: center;
         gap: 3px;
         color: rgba(255,255,255,.76);
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 700;
       }
       .zone-resolution-damage input {
@@ -464,7 +466,7 @@
         display: block;
         flex-basis: 100%;
         color: var(--accent);
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
       }
       .zone-close {
@@ -515,7 +517,7 @@
         .notice { padding: 13px 54px 12px 88px; min-height: 114px; }
         .portrait { left: 11px; width: 66px; height: 66px; }
         .title { font-size: 18px; }
-        .round-badge { top: 12px; right: 12px; width: 36px; height: 36px; }
+        .round-badge { top: 12px; right: 12px; width: 42px; height: 42px; }
         .next { margin-top: 12px; }
         .zone-notice {
           min-height: 62px;
@@ -525,42 +527,43 @@
         .zone-title { font-size: 14px; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/turnNotice-D-j3r8Yc.js"></script>
+    <script type="module" crossorigin src="/assets/turnNotice-Dd7OKA8r.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
     <link rel="modulepreload" crossorigin href="/assets/distance3dCore-DjQKSEJL.js">
     <link rel="modulepreload" crossorigin href="/assets/blinkRules-D0eEQH_b.js">
-    <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-B7Q7KHUT.js">
+    <link rel="modulepreload" crossorigin href="/assets/deathSaveCore-Bm-6wQ3Z.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-BoqHdn73.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeStyle-CUzjg6Rv.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ci4uQNGU.js">
     <link rel="modulepreload" crossorigin href="/assets/customAuraCore-DmeqJ36W.js">
     <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-CM2pHA0o.js">
     <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-DYfqXO8y.js">
-    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-vu_KOeG9.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-CHqeezTf.js">
     <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BrtQzeT5.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-BkmFsRTq.js">
-    <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-D6-w0QEh.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-DZ_ZEXTI.js">
+    <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-CGQgovId.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
-    <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-chCHihnd.js">
+    <link rel="modulepreload" crossorigin href="/assets/sharedHpCore--G4cn45h.js">
     <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BEeUqVid.js">
     <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BiYU2Jbj.js">
     <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-D3Xi8I_j.js">
-    <link rel="modulepreload" crossorigin href="/assets/conditions-DvIaRS8w.js">
+    <link rel="modulepreload" crossorigin href="/assets/conditions-BoDx6c7C.js">
     <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-mOkcZX8z.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-28TsGb8f.js">
     <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-hLLJ2f7Z.js">
-    <link rel="modulepreload" crossorigin href="/assets/history-D4y83DeA.js">
+    <link rel="modulepreload" crossorigin href="/assets/history-Cik0kmdw.js">
     <link rel="modulepreload" crossorigin href="/assets/distance3d-CeFYQ3b2.js">
-    <link rel="modulepreload" crossorigin href="/assets/effectsMutations-DfEG5pB8.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectsMutations-CIf9ou3k.js">
     <link rel="modulepreload" crossorigin href="/assets/optionsProjection-CgWy5yEC.js">
-    <link rel="modulepreload" crossorigin href="/assets/hpbar-items-DSsc8Hd3.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpbar-items-DbUMI7eA.js">
     <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-Bc--_DL6.js">
     <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-EIlt4P7I.js">
-    <link rel="modulepreload" crossorigin href="/assets/hpConditionAutomation-Ctklu7Ku.js">
-    <link rel="modulepreload" crossorigin href="/assets/hpMemory-CK-B4P-B.js">
-    <link rel="modulepreload" crossorigin href="/assets/concentrationSaveReminder-pVI1NXQH.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpConditionAutomation-CDSUortQ.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpMemory-Cj0CKGZJ.js">
+    <link rel="modulepreload" crossorigin href="/assets/concentrationSaveReminder-DdYMT6tZ.js">
     <link rel="modulepreload" crossorigin href="/assets/combatLogCausalityCore-CMBZlm78.js">
-    <link rel="modulepreload" crossorigin href="/assets/reminderResolution-BpShxBJb.js">
+    <link rel="modulepreload" crossorigin href="/assets/reminderResolution-BfsPSVfg.js">
     <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-5hUM_IHG.js">
     <link rel="modulepreload" crossorigin href="/assets/turnNotice-DXhVTBiS.js">
   </head>

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Risolvi incantesimo</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
     <style>
       html, body {
         width: 100%;
@@ -63,21 +64,24 @@
       }
       #close {
         flex: none;
-        width: 22px;
-        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--obrt-close-size, 28px);
+        height: var(--obrt-close-size, 28px);
         padding: 0;
-        border: 1px solid rgba(196, 181, 253, .45);
-        border-radius: 6px;
-        background: rgba(15, 23, 42, .55);
+        border: 1px solid transparent;
+        border-radius: var(--obrt-close-radius, 8px);
+        background: transparent;
         color: rgba(248, 250, 252, .82);
         cursor: pointer;
-        font-size: 15px;
-        line-height: 18px;
+        font-size: var(--obrt-close-font, 18px);
+        line-height: 1;
       }
-      #close:hover { background: rgba(139, 92, 246, .5); }
+      #close:hover { background: var(--obrt-close-hover, rgba(255, 255, 255, .08)); }
       #spellName {
         overflow: hidden;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 16px;
         line-height: 1.1;
         text-overflow: ellipsis;
@@ -148,7 +152,7 @@
       }
       #app[data-state="stale"] { --accent: #94a3b8; filter: saturate(.4); }
     </style>
-    <script type="module" crossorigin src="/assets/preparedSpellResolution-FNW20L5I.js"></script>
+    <script type="module" crossorigin src="/assets/preparedSpellResolution-ytH1kcVO.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
@@ -161,46 +165,47 @@
     <link rel="modulepreload" crossorigin href="/assets/aoeStyle-CUzjg6Rv.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ci4uQNGU.js">
     <link rel="modulepreload" crossorigin href="/assets/customAuraCore-DmeqJ36W.js">
-    <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-B7Q7KHUT.js">
-    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-vu_KOeG9.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-oxSUAaIj.js">
-    <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-chCHihnd.js">
+    <link rel="modulepreload" crossorigin href="/assets/deathSaveCore-Bm-6wQ3Z.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-BoqHdn73.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-CHqeezTf.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-DqEMWSsn.js">
+    <link rel="modulepreload" crossorigin href="/assets/sharedHpCore--G4cn45h.js">
     <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BEeUqVid.js">
     <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BiYU2Jbj.js">
     <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-D3Xi8I_j.js">
-    <link rel="modulepreload" crossorigin href="/assets/conditions-DvIaRS8w.js">
+    <link rel="modulepreload" crossorigin href="/assets/conditions-BoDx6c7C.js">
     <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BrtQzeT5.js">
     <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-mOkcZX8z.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-BkmFsRTq.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-DZ_ZEXTI.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-28TsGb8f.js">
     <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-hLLJ2f7Z.js">
-    <link rel="modulepreload" crossorigin href="/assets/history-D4y83DeA.js">
+    <link rel="modulepreload" crossorigin href="/assets/history-Cik0kmdw.js">
     <link rel="modulepreload" crossorigin href="/assets/distance3d-CeFYQ3b2.js">
-    <link rel="modulepreload" crossorigin href="/assets/effectsMutations-DfEG5pB8.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionCore-DSMNA86H.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectsMutations-CIf9ou3k.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionCore-C1RM-vCk.js">
     <link rel="modulepreload" crossorigin href="/assets/spellExpiryCore-DbSfb06C.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-BM6EzWvL.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-BOMrlpRx.js">
     <link rel="modulepreload" crossorigin href="/assets/combatLogCausalityCore-CMBZlm78.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellCastRecordCore-CWA3tAHZ.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellCastRecordCore-BjjyMcV_.js">
     <link rel="modulepreload" crossorigin href="/assets/spellCastContextCore-B5Jfmsjh.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-C6LBZ-w1.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellDamageHealingCore-CZuf6qjd.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-C-wq-cDh.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellDamageHealingCore-DXl9pkXe.js">
     <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-5hUM_IHG.js">
     <link rel="modulepreload" crossorigin href="/assets/optionsProjection-CgWy5yEC.js">
     <link rel="modulepreload" crossorigin href="/assets/reminderProjectionBroadcast-BV7KLhQi.js">
-    <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-D6-w0QEh.js">
-    <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-BJQOsxiG.js">
-    <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-CDVVB6vo.js">
+    <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-CGQgovId.js">
+    <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-Ch1faZpy.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-BcisCt5H.js">
     <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-CJ-dHtGF.js">
     <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-Bc--_DL6.js">
     <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-PltgbF9j.js">
     <link rel="modulepreload" crossorigin href="/assets/spellbookCore-DF9lL3tV.js">
     <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-EIlt4P7I.js">
-    <link rel="modulepreload" crossorigin href="/assets/initiativeCards-Cd6e2gmY.js">
+    <link rel="modulepreload" crossorigin href="/assets/initiativeCards-BTB8zBwq.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-CbH9Xf-k.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-DFWCdi_F.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-DmXaT8eC.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-lUNp6q5y.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-DpDjNZlM.js">
     <link rel="modulepreload" crossorigin href="/assets/spellsPanelTargetPicker-B0PfSkGs.js">
     <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPopupProtocol-Biye1IXq.js">
   </head>
