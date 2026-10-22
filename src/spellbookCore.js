@@ -25,6 +25,9 @@ function uniqueSpellIds(values, limit) {
   return ids;
 }
 
+// unpreparedIds, a subset of spellIds, lists the spells a preparing caster (spellPreparationCore.js) has in the
+// book but not prepared today: the default is prepared, so the field is stored only when it lists something and
+// the books of the other casters keep their shape and their bytes in the Room registry.
 export function sanitizeSpellbook(value) {
   const source = value && typeof value === "object" ? value : {};
   const spellIds = uniqueSpellIds(source.spellIds, MAX_SPELLBOOK_SPELLS);
@@ -32,7 +35,9 @@ export function sanitizeSpellbook(value) {
   const pinnedIds = uniqueSpellIds(source.pinnedIds, MAX_SPELLBOOK_SPELLS)
     .filter((id) => known.has(id))
     .slice(0, MAX_SPELLBOOK_PINNED);
-  return { spellIds, pinnedIds };
+  const unpreparedIds = uniqueSpellIds(source.unpreparedIds, MAX_SPELLBOOK_SPELLS)
+    .filter((id) => known.has(id));
+  return { spellIds, pinnedIds, ...(unpreparedIds.length ? { unpreparedIds } : {}) };
 }
 
 export function hasSpellbook(value) {

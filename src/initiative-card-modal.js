@@ -44,10 +44,13 @@ import {
 import {
   spellbookCantripAttackAction,
   spellbookGroups,
+  spellbookGroupsForProfile,
+  spellbookPreparation,
   spellbookQuickAction,
   spellbookSearchOptions,
   spellbookSpell,
 } from "./spellbookCatalog.js";
+import { subclassGrantedSpells, subclassSuggestedSpells } from "./subclassSpellsCatalog.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
 import {
   SHEET_IMPORT_LIST_SECTIONS,
@@ -152,6 +155,8 @@ let activeCardTab = "stats";
 let editing = false;
 // The spellbook being edited: rebuilt from the profile each time the editor opens, saved with Salva.
 let draftSpellbook = sanitizeSpellbook(null);
+// Prepara mode (renderSpellPreparation): the spells left unprepared while the GM ticks, null outside it.
+let spellPreparationDraft = null;
 
 const spellOptions = getQuickActionSpellOptions();
 
@@ -859,6 +864,9 @@ function spellbookCantripAttack(spellId) {
 }
 
 function spellbookSpellSummary(spell, cantripAttack) {
+  if (!spell.prepared) return "Non preparato";
+  // A spell of the subclass (subclassSpellsCatalog.js): always prepared, never counted.
+  if (spell.granted) return `🔒 ${spell.granted}`;
   if (cantripAttack) return "Attacco · console attacchi";
   if (!spell.launchable) return "Solo riferimento";
   // The plugin records the cast and the slot it spends; the table resolves the spell. An attack cantrip deals its
@@ -986,17 +994,113 @@ async function setSpellSlotCurrent(poolId, current, name) {
   }
 }
 
+// The spells prepared today, for a character who prepares them (spellPreparationCore.js): the count against the
+// limit, and for the GM the Prepara mode, where ticks choose the prepared spells and Salva preparazione stores
+// them in one write (the book's unpreparedIds).
+function renderSpellPreparation(preparation) {
+  const bar = $("spellbookPreparation");
+  bar.hidden = !preparation.preparing;
+  if (!preparation.preparing) return;
+  const over = preparation.limit !== null && preparation.prepared > preparation.limit;
+  bar.dataset.over = over ? "1" : "0";
+  const count = document.createElement("span");
+  count.append("Preparati ");
+  const value = document.createElement("strong");
+  value.textContent = preparation.limit === null ? String(preparation.prepared) : `${preparation.prepared}/${preparation.limit}`;
+  count.appendChild(value);
+  count.title = preparation.classes
+    .map((entry) => `${entry.label} ${entry.level}: ${entry.limit === null ? "manca il modificatore" : entry.limit}`)
+    .join(" · ");
+  const parts = [count];
+  if (preparation.limit === null) {
+    const hint = document.createElement("small");
+    hint.textContent = "Per il limite servono i modificatori di caratteristica.";
+    parts.push(hint);
+  } else if (over) {
+    const hint = document.createElement("small");
+    hint.textContent = "Oltre il limite.";
+    parts.push(hint);
+  }
+  if (isGM) {
+    const actions = document.createElement("div");
+    actions.className = "rest-actions";
+    const button = (label, title, onClick) => {
+      const control = document.createElement("button");
+      control.type = "button";
+      control.textContent = label;
+      control.title = title;
+      control.addEventListener("click", onClick);
+      return control;
+    };
+    if (spellPreparationDraft) {
+      actions.append(
+        button("Annulla", "Lascia la preparazione com'era", () => {
+          spellPreparationDraft = null;
+          renderSpellbook();
+        }),
+        button("Salva preparazione", "Conserva gli incantesimi spuntati come preparati", () => void saveSpellPreparation()),
+      );
+    } else {
+      actions.append(button("Prepara", "Scegli gli incantesimi preparati oggi", () => {
+        spellPreparationDraft = new Set(sanitizeSpellbook(profile?.[SPELLBOOK_FIELD]).unpreparedIds || []);
+        renderSpellbook();
+      }));
+    }
+    parts.push(actions);
+  }
+  bar.replaceChildren(...parts);
+}
+
+async function saveSpellPreparation() {
+  const operation = sceneLifecycle.capture({ operationId: `initiative-spell-preparation:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation) || !isGM || !item || !spellPreparationDraft) return;
+  const status = $("spellbookRunStatus");
+  const next = sanitizeSpellbook({
+    ...sanitizeSpellbook(profile?.[SPELLBOOK_FIELD]),
+    unpreparedIds: [...spellPreparationDraft],
+  });
+  try {
+    const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    // A partial update: the other fields of the card stay as stored, the exhaustion base included.
+    await saveInitiativeCard(item.id, item.name, { [SPELLBOOK_FIELD]: next }, {
+      isCurrent: () => sceneLifecycle.isCurrent(operation),
+      commandId: ownerSceneContext.commandId,
+      sceneIdentity: ownerSceneContext.sceneIdentity,
+      preserveExhaustion: true,
+    });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    [item] = await OBR.scene.items.getItems([item.id]);
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    profile = getInitiativeCard(item);
+    spellPreparationDraft = null;
+    renderSpellbook();
+    status.textContent = "Preparazione salvata.";
+    status.dataset.tone = "success";
+  } catch (error) {
+    console.warn("[initiative-card] spell preparation:", error?.message || error);
+    status.textContent = error?.message || "Preparazione non salvata.";
+    status.dataset.tone = "error";
+  }
+}
+
 function renderSpellbook() {
   const spellbook = sanitizeSpellbook(profile?.[SPELLBOOK_FIELD]);
   renderSpellSlots();
-  setSpellbookTabCount(spellbook.spellIds.length);
   $("spellbookSaveDC").textContent = valueText(profile?.spellSaveDC);
   $("spellbookAttackBonus").textContent = signedText(profile?.spellAttackBonus);
   $("spellbookRunStatus").textContent = "";
   $("spellbookRunStatus").dataset.tone = "";
+  // In the Prepara mode the ticks in progress, otherwise what the card stores.
+  const shownProfile = spellPreparationDraft
+    ? { ...profile, [SPELLBOOK_FIELD]: { ...spellbook, unpreparedIds: [...spellPreparationDraft] } }
+    : profile;
+  renderSpellPreparation(spellbookPreparation(shownProfile));
   const list = $("spellbookList");
   list.replaceChildren();
-  const groups = spellbookGroups(spellbook);
+  const groups = spellbookGroupsForProfile(shownProfile);
+  // The book and the spells of the subclass.
+  setSpellbookTabCount(groups.reduce((total, group) => total + group.spells.length, 0));
   if (!groups.length) {
     const empty = document.createElement("div");
     empty.className = "quick-actions-empty";
@@ -1021,8 +1125,33 @@ function renderSpellbook() {
 function buildSpellbookEntry(spell) {
   const entry = document.createElement("div");
   entry.className = "spellbook-entry";
+  // Prepara mode: a tick per spell (cantrips and the subclass's spells are always ready), nothing to launch.
+  if (spellPreparationDraft && spell.level && !spell.granted) {
+    const row = document.createElement("label");
+    row.className = "quick-action";
+    row.dataset.preparing = "1";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = spell.prepared;
+    box.addEventListener("change", () => {
+      if (box.checked) spellPreparationDraft.delete(spell.id);
+      else spellPreparationDraft.add(spell.id);
+      renderSpellbook();
+    });
+    const copy = document.createElement("span");
+    copy.className = "quick-action-copy";
+    const label = document.createElement("strong");
+    label.textContent = spell.label;
+    const summary = document.createElement("small");
+    summary.textContent = spell.prepared ? "Preparato" : "Non preparato";
+    copy.append(label, summary);
+    row.append(box, copy);
+    entry.appendChild(row);
+    return entry;
+  }
   const cantripAttack = spell.attackCantrip ? spellbookCantripAttack(spell.id) : null;
-  const runnable = !!cantripAttack || spell.launchable;
+  // A spell not prepared today stays in the book as a reference.
+  const runnable = spell.prepared && (!!cantripAttack || spell.launchable);
   // A spell the card cannot launch stays a reference: no button, nothing to press.
   const main = document.createElement(runnable ? "button" : "div");
   main.className = "quick-action";
@@ -1046,7 +1175,7 @@ function buildSpellbookEntry(spell) {
   copy.append(label, summary);
   main.append(icon, copy);
   entry.appendChild(main);
-  if (spell.launchable && !cantripAttack) {
+  if (spell.prepared && spell.launchable && !cantripAttack) {
     const panel = document.createElement("button");
     panel.type = "button";
     panel.className = "spellbook-panel";
@@ -2427,14 +2556,50 @@ function renderSpellbookEditor() {
     remove.setAttribute("aria-label", remove.title);
     remove.addEventListener("click", () => {
       draftSpellbook = sanitizeSpellbook({
+        ...draftSpellbook,
         spellIds: draftSpellbook.spellIds.filter((id) => id !== spell.id),
-        pinnedIds: draftSpellbook.pinnedIds,
       });
       setSpellbookEditStatus();
       renderSpellbookEditor();
     });
     row.append(level, name, pin, remove);
     return row;
+  }));
+  renderSpellbookSubclassHelp();
+}
+
+// Below the book: the spells the subclass gives (always there, not edited here) and, for a warlock, the spells
+// its patron adds to the list it chooses from, one click to put one in the book.
+function renderSpellbookSubclassHelp() {
+  const granted = subclassGrantedSpells(profile);
+  const note = $("spellbookGrantedNote");
+  note.hidden = !granted.length;
+  note.textContent = granted.length
+    ? `🔒 Sempre preparati da ${granted[0].source || "sottoclasse"} (si aggiornano con il livello, non si modificano qui): ${granted.map((entry) => spellbookSpell(entry.spellId).label).join(", ")}.`
+    : "";
+  const suggestions = subclassSuggestedSpells(profile)
+    .filter((entry) => !draftSpellbook.spellIds.includes(entry.spellId));
+  const box = $("spellbookSuggestions");
+  box.hidden = !suggestions.length;
+  if (!suggestions.length) {
+    box.replaceChildren();
+    return;
+  }
+  const title = document.createElement("span");
+  title.textContent = `Suggeriti dal patrono (${suggestions[0].source}): la lista ampliata tra cui scegliere.`;
+  box.replaceChildren(title, ...suggestions.map((entry) => {
+    const label = spellbookSpell(entry.spellId).label;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `+ ${label}`;
+    button.title = `Aggiungi ${label} al libro`;
+    button.disabled = draftSpellbook.spellIds.length >= MAX_SPELLBOOK_SPELLS;
+    button.addEventListener("click", () => {
+      draftSpellbook = sanitizeSpellbook({ ...draftSpellbook, spellIds: [...draftSpellbook.spellIds, entry.spellId] });
+      setSpellbookEditStatus(`Aggiunto: ${label}. Premi Salva per conservarlo.`, "success");
+      renderSpellbookEditor();
+    });
+    return button;
   }));
 }
 
@@ -3553,11 +3718,13 @@ function collectDamageDefenses() {
 
 function setEditing(active) {
   editing = !!active;
+  // The editor writes the whole book: a preparation in progress is left as stored.
+  spellPreparationDraft = null;
   if (!editing) {
     const stored = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
     setQuickActionsTabCount(stored.filter((action) => !isAttackQuickAction(action)).length);
     setAttacksTabCount(stored.filter(isAttackQuickAction).length);
-    setSpellbookTabCount(sanitizeSpellbook(profile?.[SPELLBOOK_FIELD]).spellIds.length);
+    setSpellbookTabCount(spellbookGroupsForProfile(profile).reduce((total, group) => total + group.spells.length, 0));
     renderClassFeatures();
     syncCardTabs();
     return;

@@ -139,3 +139,28 @@ test("every catalog spell can be searched, each under its own name", () => {
   assert.ok(options.length > 400);
   assert.equal(new Set(options.map((option) => option.label)).size, options.length);
 });
+
+test("a preparing caster's book keeps the unprepared spells apart; other books keep their shape", async () => {
+  const { spellbookGroupsForProfile, spellbookPreparation } = await import("../src/spellbookCatalog.js");
+  assert.deepEqual(sanitizeSpellbook({ spellIds: ["shield", "bless"], unpreparedIds: [] }), { spellIds: ["shield", "bless"], pinnedIds: [] });
+  assert.deepEqual(sanitizeSpellbook({ spellIds: ["shield", "bless"], unpreparedIds: ["bless", "fireball"] }),
+    { spellIds: ["shield", "bless"], pinnedIds: [], unpreparedIds: ["bless"] }, "only spells of the book");
+  const cleric = {
+    characterBuild: [{ classId: "chierico", level: 3 }],
+    abilityModifiers: { wis: 2 },
+    spellbook: { spellIds: ["guidance", "bless", "shield-of-faith", "hold-person"], pinnedIds: ["bless"], unpreparedIds: ["hold-person", "guidance"] },
+  };
+  const prepared = (profile) => spellbookGroupsForProfile(profile).flatMap((group) => group.spells)
+    .map((spell) => [spell.id, spell.prepared]);
+  assert.deepEqual(prepared(cleric), [["guidance", true], ["bless", true], ["shield-of-faith", true], ["hold-person", false]],
+    "a cantrip is always ready");
+  assert.deepEqual(spellbookPreparation(cleric), { preparing: true, prepared: 2, limit: 5,
+    classes: [{ classId: "chierico", label: "Chierico", level: 3, limit: 5 }] });
+  assert.equal(spellbookTrackerQuickActions(cleric).some((action) => action.id === "book:hold-person"), false);
+  assert.equal(spellbookMenuSections(cleric).flatMap((section) => section.actionIds).includes("book:hold-person"), false);
+  // A sorcerer knows its spells: every one is ready, whatever the book says.
+  const sorcerer = { ...cleric, characterBuild: [{ classId: "stregone", level: 3 }] };
+  assert.equal(prepared(sorcerer).every(([, ready]) => ready), true);
+  assert.equal(spellbookPreparation(sorcerer).preparing, false);
+  assert.equal(spellbookTrackerQuickActions(sorcerer).some((action) => action.id === "book:hold-person"), true);
+});

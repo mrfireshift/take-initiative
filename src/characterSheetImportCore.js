@@ -262,6 +262,7 @@ function importedSpells(data, unresolved) {
   collect(data.spells ?? data.incantesimi);
   const spellIds = [];
   const pinnedIds = [];
+  const unpreparedIds = [];
   for (const entry of entries) {
     const raw = entry && typeof entry === "object" ? entry : { name: entry };
     const name = text(raw.name ?? raw.nome ?? raw.id);
@@ -273,9 +274,11 @@ function importedSpells(data, unresolved) {
     }
     if (!spellIds.includes(spell.id)) spellIds.push(spell.id);
     if (raw.pinned === true && !pinnedIds.includes(spell.id)) pinnedIds.push(spell.id);
+    // A spell in the book but not prepared today (a wizard's spellbook): spellPreparationCore.js.
+    if (raw.prepared === false && !unpreparedIds.includes(spell.id)) unpreparedIds.push(spell.id);
   }
   if (spellIds.length > MAX_SPELLBOOK_SPELLS) unresolved.push(`${spellIds.length - MAX_SPELLBOOK_SPELLS} incantesimi oltre il limite di ${MAX_SPELLBOOK_SPELLS}`);
-  const spellbook = sanitizeSpellbook({ spellIds, pinnedIds });
+  const spellbook = sanitizeSpellbook({ spellIds, pinnedIds, unpreparedIds });
   return spellbook.spellIds.length ? spellbook : null;
 }
 
@@ -387,7 +390,8 @@ export function sheetImportSectionSummary(id, section, { classNameOf = (classId)
 }
 
 // The book after an import: "add" keeps the current spells and adds the missing ones, "replace" keeps only
-// the imported ones. Favourites survive when their spell is still in the book.
+// the imported ones. Favourites survive when their spell is still in the book; an imported spell takes the
+// preparation the block gives it (prepared unless "prepared": false).
 export function mergeImportedSpellbook(current, imported, mode = "add") {
   const base = sanitizeSpellbook(current);
   const incoming = sanitizeSpellbook(imported);
@@ -395,10 +399,13 @@ export function mergeImportedSpellbook(current, imported, mode = "add") {
     return sanitizeSpellbook({
       spellIds: incoming.spellIds,
       pinnedIds: [...incoming.pinnedIds, ...base.pinnedIds],
+      unpreparedIds: incoming.unpreparedIds || [],
     });
   }
+  const importedIds = new Set(incoming.spellIds);
   return sanitizeSpellbook({
     spellIds: [...base.spellIds, ...incoming.spellIds],
     pinnedIds: [...base.pinnedIds, ...incoming.pinnedIds],
+    unpreparedIds: [...(base.unpreparedIds || []).filter((id) => !importedIds.has(id)), ...(incoming.unpreparedIds || [])],
   });
 }

@@ -5,6 +5,8 @@ import { getQuickActionSpellOptions, getSpellCatalog, getSpellDefinition } from 
 import { PC_ATTACK_CANTRIPS } from "./pcAttackCantripCatalog.js";
 import { QUICK_ACTION_VERSION, sanitizeQuickAction } from "./quickActionsCore.js";
 import { sanitizeSpellbook, spellbookQuickActionId } from "./spellbookCore.js";
+import { preparesSpells, spellPreparationClasses, spellPreparationLimit } from "./spellPreparationCore.js";
+import { subclassGrantedSpells } from "./subclassSpellsCatalog.js";
 
 let launchOptionsById = null;
 
@@ -61,13 +63,24 @@ export function spellbookCantripAttackAction(quickActions, spellId) {
   )) || null;
 }
 
-// The book grouped by level, cantrips first; spells outside the catalog last.
-export function spellbookGroups(value) {
-  const { spellIds, pinnedIds } = sanitizeSpellbook(value);
+// The book grouped by level, cantrips first; spells outside the catalog last. preparing: the character prepares
+// its spells (spellPreparationCore.js); then a spell of the book is prepared unless listed in unpreparedIds, and a
+// cantrip always is. For the other casters every spell they know is ready. granted: the spells its subclasses give
+// ([{ spellId, source }], subclassSpellsCatalog.js), listed with their source and always prepared.
+export function spellbookGroups(value, { preparing = false, granted = [] } = {}) {
+  const { spellIds, pinnedIds, unpreparedIds = [] } = sanitizeSpellbook(value);
   const pinned = new Set(pinnedIds);
+  const unprepared = new Set(preparing ? unpreparedIds : []);
+  const grantedBy = new Map((Array.isArray(granted) ? granted : []).map((entry) => [entry.spellId, entry.source || "Sottoclasse"]));
   const groups = new Map();
-  for (const spellId of spellIds) {
-    const spell = { ...spellbookSpell(spellId), pinned: pinned.has(spellId) };
+  for (const spellId of [...spellIds, ...[...grantedBy.keys()].filter((id) => !spellIds.includes(id))]) {
+    const entry = spellbookSpell(spellId);
+    const spell = {
+      ...entry,
+      pinned: pinned.has(spellId),
+      prepared: entry.level === 0 || grantedBy.has(spellId) || !unprepared.has(spellId),
+      ...(grantedBy.has(spellId) ? { granted: grantedBy.get(spellId) } : {}),
+    };
     const key = spell.level ?? 99;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(spell);
@@ -100,12 +113,37 @@ export function spellbookQuickAction(spellId, { launchMode = "auto" } = {}) {
   });
 }
 
-// The launchable spells of the book by level, favourites first in each level, then by name.
+// The book of a profile, with its prepared spells when the character prepares them.
+export function spellbookGroupsForProfile(profile) {
+  return spellbookGroups(profile?.spellbook, {
+    preparing: preparesSpells(profile?.characterBuild),
+    granted: subclassGrantedSpells(profile),
+  });
+}
+
+// How many spells the character has prepared, against its limit: { preparing, prepared, limit, classes }.
+// Cantrips and the spells of the subclass do not count; limit is null when a modifier is missing on the sheet.
+export function spellbookPreparation(profile) {
+  const classes = spellPreparationClasses(profile?.characterBuild, profile?.abilityModifiers);
+  if (!classes.length) return { preparing: false, prepared: 0, limit: null, classes };
+  const prepared = spellbookGroupsForProfile(profile)
+    .flatMap((group) => group.spells)
+    .filter((spell) => spell.level && spell.prepared && !spell.granted).length;
+  return {
+    preparing: true,
+    prepared,
+    limit: spellPreparationLimit(profile?.characterBuild, profile?.abilityModifiers),
+    classes,
+  };
+}
+
+// The spells the card can cast now, by level, favourites first in each level, then by name: launchable and,
+// for a character who prepares, prepared.
 function launchableBookGroups(profile) {
-  return spellbookGroups(profile?.spellbook)
+  return spellbookGroupsForProfile(profile)
     .map((group) => ({
       ...group,
-      spells: group.spells.filter((spell) => spell.launchable)
+      spells: group.spells.filter((spell) => spell.launchable && spell.prepared)
         .sort((left, right) => Number(right.pinned) - Number(left.pinned)),
     }))
     .filter((group) => group.spells.length);

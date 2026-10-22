@@ -79,6 +79,24 @@ che il personaggio conosce o ha preparato, raggruppati per livello, con CD e
 bonus di attacco in testa. In **Modifica** si cercano nel catalogo, si
 aggiungono (anche con Invio) e si tolgono; la ★ li mette tra i preferiti.
 
+Chierici, druidi, maghi e paladini **preparano** gli incantesimi: sotto gli
+slot compare "Preparati N/M", con il limite delle regole (modificatore di
+Saggezza, Intelligenza o Carisma più il livello di classe, metà livello per
+il paladino; servono i modificatori nella scheda). **Prepara** permette di
+spuntare gli incantesimi preparati oggi e **Salva preparazione** li conserva.
+Gli incantesimi non preparati restano nel libro, attenuati e senza lancio, e
+non compaiono nel menu 🪄; i trucchetti sono sempre pronti. Oltre il limite il
+contatore diventa arancio ma nulla viene bloccato. Gli altri incantatori
+conoscono i loro incantesimi: tutto ciò che è nel libro è pronto.
+
+Gli incantesimi della sottoclasse (dominio, giuramento, circolo, quelli dei
+ranger e degli stregoni di Tasha e Xanathar) si aggiungono da soli fino al
+livello di classe raggiunto: compaiono con 🔒 e il nome della sottoclasse,
+sono sempre preparati e non contano nel limite. Il Circolo della Terra resta
+manuale. Per il warlock la lista ampliata del patrono è solo un suggerimento:
+in **Modifica** compare sotto il libro, con un pulsante per aggiungere ogni
+incantesimo lanciabile con i suoi slot del Patto.
+
 Sulla card del tracker il GM trova tre pulsanti in colonna sul bordo del
 ritratto: ⚡ azioni rapide, 🪄 incantesimi, 🗡️ attacchi. Il menu 🪄 mostra in
 alto i preferiti, lanciabili subito, e sotto un sottomenu per livello

@@ -50,7 +50,7 @@ testo (`"+7"`, `"15"`).
   "savingThrows": { "int": 7, "wis": 4 },
   "damageDefenses": { "resistances": ["freddo"], "immunities": [], "vulnerabilities": [] },
   "cantrips": ["Dardo di fuoco", "Mano magica"],
-  "spells": ["Scudo", "Armatura magica", { "name": "Palla di fuoco", "pinned": true }],
+  "spells": ["Scudo", "Armatura magica", { "name": "Palla di fuoco", "pinned": true }, { "name": "Volare", "prepared": false }],
   "attacks": [
     { "label": "Pugnale", "range": "melee", "components": [{ "type": "perforanti", "formula": "1d4+2" }] },
     { "label": "Trucchetti", "source": { "kind": "cantrip" } }
@@ -68,7 +68,7 @@ testo (`"+7"`, `"15"`).
 | `abilities` | Punteggi (`"int": 18`) oppure `{ "score": 18, "modifier": 4 }`. In alternativa `abilityScores` (punteggi) o `abilityModifiers` (modificatori). Chiavi `str dex con int wis cha` oppure `for des cos int sag car`, anche per esteso. |
 | `savingThrows` | Bonus totali dei tiri salvezza, stesse chiavi. |
 | `damageDefenses` | Liste `resistances`, `immunities`, `vulnerabilities` di tipi di danno, con l'id inglese (`fire`) o il nome italiano (`fuoco`). |
-| `cantrips`, `spells` | Nomi in italiano o in inglese. `spells` può essere una lista o un oggetto per livello (`{ "1": [...], "3": [...] }`). `"pinned": true` mette l'incantesimo tra i preferiti del pulsante ⚡. |
+| `cantrips`, `spells` | Nomi in italiano o in inglese. `spells` può essere una lista o un oggetto per livello (`{ "1": [...], "3": [...] }`). `"pinned": true` mette l'incantesimo tra i preferiti del menu 🪄; `"prepared": false` lo tiene nel libro ma non preparato (il grimorio del mago). |
 | `attacks` | Come l'import della scheda Attacchi: `label`, `range` (`melee` o `ranged`), `components` (1-3, con `type` e `formula` facoltativa) oppure `source: { "kind": "cantrip" }` per l'azione Trucchetto. Il tipo di danno può essere anche in italiano. |
 | `notes` | Testo breve, fino a 280 caratteri. |
 
@@ -92,7 +92,8 @@ str dex con int wis cha; savingThrows: bonus totali con le stesse chiavi;
 damageDefenses: { resistances, immunities, vulnerabilities } con i tipi di
 danno; cantrips: nomi dei trucchetti; spells: nomi degli incantesimi
 conosciuti o preparati della classe (escludi quelli concessi da talenti,
-specie od oggetti); attacks: [{ label, range: "melee" o "ranged",
+specie od oggetti), con { name, prepared: false } per quelli scritti nel
+grimorio ma non preparati; attacks: [{ label, range: "melee" o "ranged",
 components: [{ type, formula }] }] per ogni attacco con arma, con il tipo di
 danno e la formula del danno; notes: al massimo 280 caratteri di note utili
 al combattimento.

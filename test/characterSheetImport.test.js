@@ -143,3 +143,14 @@ test("the sheet editor offers the import only to the GM, while editing", () => {
   assert.match(html, /<form id="form"[^>]*>\s*<section id="sheetImport"/);
   assert.match(source, /\$\("sheetImportToggle"\)\.hidden = !isGM \|\| !editing/);
 });
+
+test("an imported spell marked prepared: false stays in the book as unprepared", () => {
+  const { sections } = read({ spells: ["Shield", { name: "Fireball", prepared: false }] });
+  assert.deepEqual(sections.spells, { spellIds: ["shield", "fireball"], pinnedIds: [], unpreparedIds: ["fireball"] });
+  const current = { spellIds: ["fireball", "bless"], pinnedIds: [], unpreparedIds: ["bless", "fireball"] };
+  const imported = { spellIds: ["fireball", "shield"], pinnedIds: [] };
+  assert.deepEqual(mergeImportedSpellbook(current, imported, "add"),
+    { spellIds: ["fireball", "bless", "shield"], pinnedIds: [], unpreparedIds: ["bless"] }, "the import says Fireball is prepared");
+  assert.deepEqual(mergeImportedSpellbook(current, { ...imported, unpreparedIds: ["shield"] }, "replace"),
+    { spellIds: ["fireball", "shield"], pinnedIds: [], unpreparedIds: ["shield"] });
+});
