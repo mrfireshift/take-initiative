@@ -453,6 +453,9 @@ const TARGETING_OVERRIDES = Object.freeze({
     }),
   }),
   "aid": Object.freeze({ maximum: 3 }),
+  // "Any number of creatures" (2014 texts).
+  "beacon-of-hope": Object.freeze({ unbounded: true }),
+  "enthrall": Object.freeze({ unbounded: true }),
   "feather-fall": Object.freeze({ maximum: 5 }),
   "prayer-of-healing": Object.freeze({ maximum: 6 }),
   "mass-healing-word": Object.freeze({ maximum: 6 }),
@@ -1114,6 +1117,186 @@ const SPELL_EFFECTS = Object.freeze({
       expiry: Object.freeze({ mode: "turn-end", actor: "target", remaining: 1, anchor: "next-turn" }),
     }),
   ]),
+  // Passive benefits of the 2014 texts (lotto L1 of docs/PIANO_AUTOMAZIONE_INCANTESIMI.md): what the spell grants,
+  // as pills. Armour Class, rolls and defenses stay the table's: no mechanics change damage or HP.
+  "mage-armor": Object.freeze([
+    Object.freeze({
+      id: "mage-armor-ac",
+      kind: "buff",
+      label: "CA 13 + Des",
+      detail: "Senza armatura, la CA base del bersaglio diventa 13 + il suo modificatore di Destrezza. Termina se indossa un'armatura o se il caster la congeda.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "mage-armor-armor-class", label: "CA 13 + Des" }),
+      ]),
+    }),
+  ]),
+  "barkskin": Object.freeze([
+    Object.freeze({
+      id: "barkskin-ac",
+      kind: "buff",
+      label: "CA minima 16",
+      detail: "La CA del bersaglio non può essere inferiore a 16, qualunque armatura indossi.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "barkskin-armor-class-floor", label: "CA min 16" }),
+      ]),
+    }),
+  ]),
+  "beacon-of-hope": Object.freeze([
+    Object.freeze({
+      id: "beacon-of-hope-benefits",
+      kind: "buff",
+      label: "Vant. TS Sag/morte · cure max",
+      detail: "Vantaggio ai tiri salvezza su Saggezza e ai tiri salvezza contro la morte; ogni cura gli fa recuperare il massimo dei punti ferita possibili.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "beacon-of-hope-wisdom-save-advantage", label: "Vant. TS Sag" }),
+        Object.freeze({ id: "beacon-of-hope-death-save-advantage", label: "Vant. TS morte" }),
+        Object.freeze({ id: "beacon-of-hope-maximum-healing", label: "Cure al massimo" }),
+      ]),
+    }),
+  ]),
+  // The creatures that failed the Wisdom save at the cast.
+  "enthrall": Object.freeze([
+    Object.freeze({
+      id: "enthrall-perception-disadvantage",
+      kind: "debuff",
+      label: "Svant. Percezione verso altri",
+      detail: "Svantaggio alle prove di Saggezza (Percezione) per notare creature diverse dal caster, finché la spell dura o finché non può più sentirlo.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "enthrall-perception-disadvantage", label: "Svant. Percezione" }),
+      ]),
+    }),
+  ]),
+  "expeditious-retreat": Object.freeze([
+    Object.freeze({
+      id: "expeditious-retreat-dash",
+      kind: "buff",
+      label: "Scatto come azione bonus",
+      detail: "Può effettuare l'azione di Scatto come azione bonus in ciascuno dei suoi turni.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "expeditious-retreat-bonus-dash", label: "Scatto: az. bonus" }),
+      ]),
+    }),
+  ]),
+  "foresight": Object.freeze([
+    Object.freeze({
+      id: "foresight-benefits",
+      kind: "buff",
+      label: "Vant. tiri e TS · att. contro svant.",
+      detail: "Non può essere sorpreso; vantaggio ai tiri per colpire, alle prove di caratteristica e ai tiri salvezza; le altre creature hanno svantaggio ai tiri per colpire contro di lui.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "foresight-no-surprise", label: "Non sorpreso" }),
+        Object.freeze({ id: "foresight-roll-advantage", label: "Vant. att./prove/TS" }),
+        Object.freeze({ id: "foresight-incoming-attack-disadvantage", label: "Att. contro svant." }),
+      ]),
+    }),
+  ]),
+  "jump": Object.freeze([
+    Object.freeze({
+      id: "jump-distance",
+      kind: "buff",
+      label: "Salto triplicato",
+      detail: "La distanza di salto del bersaglio è triplicata.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "jump-distance-tripled", label: "Salto ×3" }),
+      ]),
+    }),
+  ]),
+  // An unwilling creature makes a Constitution save at the cast: the pill goes on the creatures that are lifted.
+  "levitate": Object.freeze([
+    Object.freeze({
+      id: "levitate-lifted",
+      kind: "debuff",
+      label: "Levita: ±6 m in verticale",
+      detail: "Fluttua in verticale: il caster può alzarlo o abbassarlo fino a 6 metri per turno. Si sposta in orizzontale solo spingendo o tirando un oggetto o una superficie a portata, come se scalasse; a fine spell scende dolcemente a terra.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "levitate-vertical", label: "±6 m in verticale" }),
+        Object.freeze({ id: "levitate-horizontal-by-pushing", label: "Orizzontale solo spingendo" }),
+      ]),
+    }),
+  ]),
+  // Suggestion ends when the caster or a companion damages the creature, not on any damage: the pill is removed by
+  // hand (endsOnDamage would end it on every hit).
+  "suggestion": Object.freeze([
+    Object.freeze({
+      id: "suggestion-compelled",
+      kind: "debuff",
+      label: "Segue la suggestione",
+      detail: "Segue il corso d'azione suggerito dal caster finché la spell dura o finché non lo ha completato. Termina se il caster o un suo compagno lo danneggia: rimuovere la pill.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "suggestion-follows", label: "Segue il suggerimento" }),
+        Object.freeze({ id: "suggestion-ends-on-ally-damage", label: "Danno dal caster o alleati: fine" }),
+      ]),
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+    }),
+  ]),
+  // Mass Suggestion ends for one creature at a time: removing its pill leaves the others under the spell.
+  "mass-suggestion": Object.freeze([
+    Object.freeze({
+      id: "mass-suggestion-compelled",
+      kind: "debuff",
+      label: "Segue la suggestione",
+      detail: "Segue il corso d'azione suggerito dal caster per 24 ore o finché non lo ha completato. Per questa creatura termina se il caster o un suo compagno la danneggia: rimuovere la pill.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "mass-suggestion-follows", label: "Segue il suggerimento" }),
+        Object.freeze({ id: "mass-suggestion-ends-on-ally-damage", label: "Danno dal caster o alleati: fine" }),
+      ]),
+      manualRemoval: true,
+    }),
+  ]),
+  "protection-from-evil-and-good": Object.freeze([
+    Object.freeze({
+      id: "protection-from-evil-and-good-ward",
+      kind: "buff",
+      label: "Svant. ai loro att. · no charme/paura",
+      detail: "Aberrazioni, celestiali, elementali, folletti, immondi e non morti hanno svantaggio ai tiri per colpire contro il bersaglio, che non può essere affascinato, spaventato né posseduto da loro; se lo è già, ha vantaggio al nuovo tiro salvezza.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "protection-from-evil-and-good-attack-disadvantage", label: "Svant. att. da 6 tipi" }),
+        Object.freeze({ id: "protection-from-evil-and-good-no-charm-fear-possession", label: "No charme/paura/possessione" }),
+      ]),
+    }),
+  ]),
+  // The poison resistance is applied to damage (damageDefensesCore.js: the PC attack and boss consoles); its mini
+  // pill keeps the id the defenses derive, so it shows once.
+  "protection-from-poison": Object.freeze([
+    Object.freeze({
+      id: "protection-from-poison-ward",
+      kind: "buff",
+      label: "Vant. TS veleno · res. veleno",
+      detail: "Neutralizza un veleno che lo affligge; vantaggio ai tiri salvezza per non essere avvelenato e resistenza ai danni da veleno.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "protection-from-poison-save-advantage", label: "Vant. TS avvelenato" }),
+        Object.freeze({ id: "damage-defense-resistance-poison", label: "Res. veleno" }),
+      ]),
+      mechanics: Object.freeze({
+        damageDefenses: Object.freeze({ resistances: Object.freeze(["poison"]) }),
+      }),
+    }),
+  ]),
+  // An unwilling creature makes a Dexterity save at the cast: the pill goes on the creature enclosed.
+  "resilient-sphere": Object.freeze([
+    Object.freeze({
+      id: "resilient-sphere-enclosed",
+      kind: "debuff",
+      label: "Chiuso nella sfera",
+      detail: "Racchiuso in una sfera di forza: nulla la attraversa, né dentro né fuori, e i danni non la colpiscono. Con un'azione può farla rotolare a metà della sua velocità; Disintegrazione la distrugge senza danneggiare chi è dentro.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "resilient-sphere-nothing-passes", label: "Nulla entra né esce" }),
+        Object.freeze({ id: "resilient-sphere-roll", label: "Rotola a metà vel." }),
+      ]),
+    }),
+  ]),
+  "stoneskin": Object.freeze([
+    Object.freeze({
+      id: "stoneskin-resistance",
+      kind: "buff",
+      label: "Res. C/P/T non magici",
+      detail: "Resistenza ai danni contundenti, perforanti e taglienti non magici.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "stoneskin-nonmagical-resistance", label: "Res. C/P/T non magici" }),
+      ]),
+    }),
+  ]),
   ...SUPPLEMENT_EFFECTS,
   ...PHB2014_EFFECTS,
 });
@@ -1515,20 +1698,25 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
       })]),
     }),
   ]),
+  // The resistance of the type chosen is applied to damage (damageDefensesCore.js), with the defenses' own mini pill id.
   "protection-from-energy": Object.freeze([
-    ...["acido", "freddo", "fulmine", "fuoco", "tuono"].map((type) => Object.freeze({
-      id: type,
-      label: `Resistenza: ${type}`,
-      effects: Object.freeze([Object.freeze({
-        id: `resistance-${type}`,
-        kind: "buff",
-        label: `Res. ${type}`,
-        detail: `Resistenza ai danni da ${type}.`,
-        summaryParts: Object.freeze([
-          Object.freeze({ id: `protection-from-energy-resistance-${type}`, label: `Res. ${type}` }),
-        ]),
-      })]),
-    })),
+    ...[["acido", "acid"], ["freddo", "cold"], ["fulmine", "lightning"], ["fuoco", "fire"], ["tuono", "thunder"]]
+      .map(([type, damageType]) => Object.freeze({
+        id: type,
+        label: `Resistenza: ${type}`,
+        effects: Object.freeze([Object.freeze({
+          id: `resistance-${type}`,
+          kind: "buff",
+          label: `Res. ${type}`,
+          detail: `Resistenza ai danni da ${type}.`,
+          summaryParts: Object.freeze([
+            Object.freeze({ id: `damage-defense-resistance-${damageType}`, label: `Res. ${type}` }),
+          ]),
+          mechanics: Object.freeze({
+            damageDefenses: Object.freeze({ resistances: Object.freeze([damageType]) }),
+          }),
+        })]),
+      })),
   ]),
   contagion: CONTAGION_EFFECT_CHOICES,
   ...SUPPLEMENT_EFFECT_CHOICES,

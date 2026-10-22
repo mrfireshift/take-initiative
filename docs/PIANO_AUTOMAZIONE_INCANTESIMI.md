@@ -10,8 +10,8 @@ li aggiorna con il lavoro di ottobre e risponde a due domande:
 2. come registrare l'uso di **qualunque** incantesimo nel sistema a slot,
    anche di quelli che non si automatizzano.
 
-La seconda è già risolta (sezione 2). La prima è un piano: nessuna nuova
-automazione è stata scritta per questo documento.
+La seconda è risolta (sezione 2). La prima è un piano a lotti: il lotto L1 è
+fatto (sezione 5.1), gli altri aspettano il via, uno per volta.
 
 Il perimetro è quello di sempre: un **tracker assistito**. Dadi, linea di
 vista, immunità finali e decisioni narrative restano al tavolo; il plugin
@@ -22,24 +22,25 @@ conferma.
 
 | Categoria | Incantesimi | Che cosa fa oggi il plugin |
 | --- | ---: | --- |
-| Automatizzati | 197 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
+| Automatizzati | 214 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
 | Tracciati, nessuna automazione utile | 112 | Pill con durata e concentrazione; informazioni, evocazioni e ambiente al tavolo. |
 | Solo registrazione, nessuna automazione utile | 32 | Istantanei di utilità: lo slot e il registro di combattimento. |
-| **Pronti: bastano i dati** | **43** | Si lanciano e registrano; l'automazione richiede soltanto dati e test. |
+| **Pronti: bastano i dati** | **26** | Si lanciano e registrano; l'automazione richiede soltanto dati e test. |
 | **Dopo una capacità condivisa** | **80** | Si lanciano e registrano; serve prima una capacità del motore. |
 | Su misura | 11 | Si lanciano e registrano; lo stato è troppo specifico per un'automazione generica. |
 | Da verificare | 2 | Testo o perimetro delle regole mancanti. |
 | **Totale** | **477** | **Tutti lanciabili dal libro, dalle azioni rapide e dal pannello, con il loro slot.** |
 
-Il lavoro di automazione residuo è di **134 incantesimi** (43 + 80 + 11) più i
+Il lavoro di automazione residuo è di **117 incantesimi** (26 + 80 + 11) più i
 2 da verificare, contro i 152 di settembre: nel frattempo la console attacchi
-ha chiuso 17 trucchetti e Prigione Mentale è stata completata.
+ha chiuso 17 trucchetti, Prigione Mentale è stata completata e il lotto L1 ha
+chiuso altri 17 incantesimi.
 
 Ordine consigliato, dal più sicuro al più costoso:
 
 | Lotto | Incantesimi | Contenuto | Tocca i PF |
 | --- | ---: | --- | --- |
-| L1 | 17 | Benefici passivi e un'aura: solo pill ed effetti | No |
+| L1 ✓ | 17 | Benefici passivi e un'aura (fatto il 22 ottobre) | Solo le difese di 3 incantesimi, nelle console attacchi e boss |
 | L2 | 14 | Cure, TS con danno, condizioni che finiscono al danno, TS ripetuti | Sì |
 | L3 | 12 | Zone e aree persistenti, due azioni ad area ripetibili | Sì (danni di zona) |
 | L4 | 7 | Incantesimi d'attacco nella console attacchi, con il loro slot | Sì |
@@ -149,14 +150,30 @@ browser per incantesimo rappresentativo.
 
 | Lotto | Famiglia | Registri da toccare | Modello già funzionante |
 | --- | --- | --- | --- |
-| L1 | Benefici passivi (16) | `SPELL_EFFECTS` e summaryParts in `src/spells-srd.js`, `supplementSpellRules.js` | Benedizione, Scudo della fede |
-| L1 | Aura sui bersagli scelti (1) | regola aura in `src/spellAreaRules.js` con i soli bersagli dell'incantesimo | Aura di vitalità, Guardiani spirituali |
+| L1 ✓ | Benefici passivi (16) | `SPELL_EFFECTS` e summaryParts in `src/spells-srd.js`, `supplementSpellRules.js` | Benedizione, Scudo della fede |
+| L1 ✓ | Aura sui bersagli scelti (1) | aura mobile in `src/spellAreaCatalog.js` e `src/spellAreaRules.js` | Aura di vita |
 | L2 | Cure discrete (4) | `AREA_HEALING_SPELL_ID_SET` in `src/areaSaveSpellRules.js`, limite bersagli | Cura ferite di massa |
 | L2 | TS con danno (4) | `MULTI_TARGET_SAVE_SPELL_IDS`, `SPELL_SAVE_WORKFLOW_RULES`, `SPELL_CAST_RESOLUTION_RULES` | Scheggia della Mente, Prigione Mentale |
 | L2 | Condizioni dal TS (4) | `AUTOMATION` e `SPELL_EXPIRY`, `mechanics.endsOnDamage` | Sguardo penetrante (Addormentato) |
 | L2 | TS ripetuti (2) | `saveReminder.damage` con `baseSlot` e `additionalPerSlotAbove` | Colpo intrappolante |
 | L3 | Zone (10) | `SPELL_AREA_RULES`, varianti, terreno e marker | Ragnatela, Crescita di spine |
 | L3 | Aree ripetibili (2) | `SPELL_ACTIVE_RESOLUTION_ACTIONS` con save-area | Invocare il fulmine, Investitura della fiamma |
+
+**L1, fatto il 22 ottobre.** I 15 benefici hanno la pill e le mini pill del
+testo 2014; Protezione dall'energia le aveva già, per variante. CA, tiri e
+vantaggi restano informativi. Le difese di Protezione dai veleni (veleno),
+Protezione dall'energia (il tipo scelto) e Invulnerabilità (tutti i tipi) sono
+**effettive**: la pill porta `mechanics.damageDefenses`, che la console attacchi
+e la console boss applicano ai danni, con il chip che il GM può ignorare; la
+difesa finisce con l'incantesimo. Pelle di pietra resta informativa, perché
+vale solo per i danni non magici e il motore non li distingue; i danni scritti
+nel pannello incantesimi e nella console HP restano il valore finale del GM.
+Suggestione e Suggestione di massa finiscono quando il
+caster o un alleato danneggia il bersaglio, non a qualunque danno: la pill si
+rimuove a mano. Faro di speranza ed Estasiare accettano qualunque numero di
+creature. Passare senza tracce è un'aura mobile di 9 m: +10 Furtività alle
+creature dello schieramento del caster (PG e alleati per un PG), caster
+compreso; la pill segue i movimenti. Test: `test/spellPassiveBenefits.test.js`.
 
 Il rischio di L2 e L3 sta negli HP: cure e danni passano dai percorsi
 esistenti (comando ad area discreto, risoluzione dei TS), mai da un percorso
@@ -264,42 +281,28 @@ Piccole, senza HP, utili subito al tavolo:
 Lotti: L1–L4 come nella sezione 1, L5+ dopo la capacità indicata, — nessun
 lotto. Gli incantesimi senza lavoro residuo sono elencati per livello.
 
-### Pronti: bastano i dati (43)
+### Pronti: bastano i dati (26)
 
 Le primitive esistono: si aggiungono dati e test, nessun nuovo motore.
 
 | Incantesimo | Liv. | Come automatizzarlo | Lotto |
 | --- | --- | --- | --- |
-| Armatura magica (`mage-armor`) | 1° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Pill «CA 13 + Des» senza armatura, 8 ore. | L1 |
 | Catapulta (`xanathar-catapulta`) | 1° | TS discreto con danno: `MULTI_TARGET_SAVE_SPELL_IDS`, regola TS, danno per esito e per slot (modello: Scheggia della Mente). TS Destrezza, 3d8 contundenti (+1d8 per slot), nessun danno se superato. | L2 |
 | Cura ferite (`cure-wounds`) | 1° | Cura discreta: set delle cure del pannello (`AREA_HEALING_SPELL_ID_SET`, come Cura ferite di massa) senza sagoma. 1 creatura a contatto, 1d8 + mod (+1d8 per slot); niente su non morti e costrutti. | L2 |
 | Intimorire infernale (`hellish-rebuke`) · reazione | 1° | TS discreto con danno: `MULTI_TARGET_SAVE_SPELL_IDS`, regola TS, danno per esito e per slot (modello: Scheggia della Mente). Reazione, TS Destrezza, 2d10 fuoco (+1d10 per slot), metà se superato. | L2 |
 | Parola guaritrice (`healing-word`) | 1° | Cura discreta: set delle cure del pannello (`AREA_HEALING_SPELL_ID_SET`, come Cura ferite di massa) senza sagoma. 1 creatura entro 18 m, 1d4 + mod (+1d4 per slot); azione bonus. | L2 |
-| Protezione dal bene e dal male (`protection-from-evil-and-good`) | 1° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Pill «Contro aberrazioni, celestiali, elementali, fatati, immondi, non morti: svantaggio ai loro attacchi». | L1 |
-| Ritirata rapida (`expeditious-retreat`) | 1° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Pill «Scatto come azione bonus», concentrazione 10 minuti. | L1 |
-| Saltare (`jump`) | 1° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Pill «Salto triplo», 1 minuto. | L1 |
 | Scossa Tellurica (`xanathar-scossa-tellurica`) | 1° | Dati di zona: geometria, varianti e appartenenza (`SPELL_AREA_RULES`). Residuo: terreno difficile finché non viene sgomberato (fine manuale). | L3 |
 | Sonno (`sleep`) | 1° | Dati: condizioni del TS fallito, fine al danno (`endsOnDamage`), scadenza corretta. Privo di sensi 1 minuto, finisce al danno o se svegliato (`endsOnDamage`); i 5d8 PF li conta il GM. | L2 |
 | Spruzzo colorato (`color-spray`) | 1° | Dati: condizioni del TS fallito, fine al danno (`endsOnDamage`), scadenza corretta. Accecato fino alla fine del prossimo turno del caster (allineare la scadenza al testo); i 6d10 PF li conta il GM. | L2 |
 | Sussurri Dissonanti (`phb2014-sussurri-dissonanti`) | 1° | TS discreto con danno: `MULTI_TARGET_SAVE_SPELL_IDS`, regola TS, danno per esito e per slot (modello: Scheggia della Mente). TS Saggezza, 3d6 psichici (+1d6 per slot), metà se superato; se fallisce si allontana con la reazione. | L2 |
-| Estasiare (`enthrall`) | 2° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). TS Saggezza; pill «Svantaggio a Percezione verso altri» per 1 minuto. | L1 |
-| Levitazione (`levitate`) | 2° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). TS Costituzione per chi non è consenziente; pill «Levita: sale o scende di 6 m». | L1 |
-| Passare senza tracce (`pass-without-trace`) | 2° | Aura mobile limitata ai bersagli scelti (regola aura, bersagli dell'incantesimo). +10 Furtività ai bersagli scelti entro 9 m dal caster, che seguono il caster. | L1 |
-| Pelle coriacea (`barkskin`) | 2° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Pill «CA minima 16», concentrazione 1 ora. | L1 |
 | Pirotecnica (`xanathar-pirotecnica`) | 2° | Dati di zona: geometria, varianti e appartenenza (`SPELL_AREA_RULES`). Variante fumo: nube di 6 m, pesantemente oscurata per 1 minuto, senza concentrazione. | L3 |
 | Preghiera di guarigione (`prayer-of-healing`) | 2° | Cura discreta: set delle cure del pannello (`AREA_HEALING_SPELL_ID_SET`, come Cura ferite di massa) senza sagoma. Fino a 6 creature, 2d8 + mod (+1d8 per slot); 10 minuti di lancio. | L2 |
-| Protezione dai veleni (`protection-from-poison`) | 2° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Pill «Vantaggio TS veleno · resistenza al veleno», 1 ora. | L1 |
-| Suggestione (`suggestion`) | 2° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). TS Saggezza; pill «Suggestione», concentrazione fino a 8 ore. | L1 |
 | Cerchio magico (`magic-circle`) | 3° | Dati di zona: geometria, varianti e appartenenza (`SPELL_AREA_RULES`). Cilindro di 3 m: i tipi scelti non entrano volontariamente, svantaggio ai loro attacchi; variante invertita. | L3 |
-| Faro di speranza (`beacon-of-hope`) | 3° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Pill «Vantaggio TS Saggezza e morte · cure al massimo» sui bersagli scelti. | L1 |
 | Muro di Sabbia (`xanathar-muro-di-sabbia`) | 3° | Dati di zona: geometria, varianti e appartenenza (`SPELL_AREA_RULES`). Muro 9 × 3 × 3 m: blocca la vista, movimento a un terzo dentro. | L3 |
 | Parola guaritrice di massa (`mass-healing-word`) | 3° | Cura discreta: set delle cure del pannello (`AREA_HEALING_SPELL_ID_SET`, come Cura ferite di massa) senza sagoma. Fino a 6 creature, 1d4 + mod (+1d4 per slot sopra il 3°); azione bonus. | L2 |
-| Protezione dall'energia (`protection-from-energy`) | 3° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Variante del tipo (acido, freddo, fuoco, fulmine, tuono); pill «Resistenza: tipo». | L1 |
 | Trama ipnotica (`hypnotic-pattern`) | 3° | Dati: condizioni del TS fallito, fine al danno (`endsOnDamage`), scadenza corretta. Affascinato + Incapacitato, velocità 0; `endsOnDamage` sulle due condizioni. | L2 |
 | Allucinazione mortale (`phantasmal-killer`) | 4° | Dati: TS ripetuto nel promemoria, danno scalato per slot o stato da rimuovere. Al promemoria di fine turno: `baseSlot: 4`, `additionalPerSlotAbove: 1` sui 4d10 psichici. | L2 |
 | Inaridire (`blight`) | 4° | TS discreto con danno: `MULTI_TARGET_SAVE_SPELL_IDS`, regola TS, danno per esito e per slot (modello: Scheggia della Mente). TS Costituzione, 8d8 necrotici (+1d8 per slot sopra il 4°), metà se superato; piante: svantaggio e danno massimo. | L2 |
-| Pelle di pietra (`stoneskin`) | 4° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Pill «Resistenza a contundenti, perforanti e taglienti non magici». | L1 |
-| Sfera elastica (`resilient-sphere`) | 4° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). TS Destrezza; pill «Nella sfera: niente danni dall'esterno», concentrazione 1 minuto. | L1 |
 | Tempesta di ghiaccio (`ice-storm`) | 4° | Dati di zona: geometria, varianti e appartenenza (`SPELL_AREA_RULES`). Residuo: terreno difficile fino alla fine del prossimo turno del caster. | L3 |
 | Muro di forza (`wall-of-force`) | 5° | Dati di zona: geometria, varianti e appartenenza (`SPELL_AREA_RULES`). Varianti muro, cupola o sfera; marker «Nulla attraversa» sulla geometria. | L3 |
 | Risveglio (`awaken`) | 5° | Dati: condizioni del TS fallito, fine al danno (`endsOnDamage`), scadenza corretta. Pill «Affascinato dal caster» per 30 giorni, rimozione a mano. | L2 |
@@ -307,12 +310,9 @@ Le primitive esistono: si aggiungono dati e test, nessun nuovo motore.
 | Bagliore solare (`sunbeam`) | 6° | Azione attiva TS ad area ripetibile sul parent (`SPELL_ACTIVE_RESOLUTION_ACTIONS`). Azione ripetibile: linea di 18 m, TS Costituzione, 6d8 radiosi e Accecato fino al prossimo turno. | L3 |
 | Globo di invulnerabilità (`globe-of-invulnerability`) | 6° | Dati di zona: geometria, varianti e appartenenza (`SPELL_AREA_RULES`). Marker «Incantesimi di 5° livello o inferiore non hanno effetto» (+1 livello per slot). | L3 |
 | Proibizione (`forbiddance`) | 6° | Dati di zona: geometria, varianti e appartenenza (`SPELL_AREA_RULES`). Zona 24 ore: 5d10 radiosi o necrotici a ingresso e inizio turno per i tipi scelti; nessun teletrasporto. | L3 |
-| Suggestione di massa (`mass-suggestion`) | 6° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Fino a 12 creature, TS Saggezza; pill «Suggestione» 24 ore, rimozione a mano. | L1 |
 | Antipatia/simpatia (`antipathy-sympathy`) | 8° | Dati di zona: geometria, varianti e appartenenza (`SPELL_AREA_RULES`). Variante antipatia o simpatia; TS Saggezza all'ingresso, Spaventato o attratto. | L3 |
 | Drago Illusorio (`xanathar-drago-illusorio`) | 8° | Azione attiva TS ad area ripetibile sul parent (`SPELL_ACTIVE_RESOLUTION_ACTIONS`). Azione bonus ripetibile: soffio 7d6, TS Intelligenza, metà se superato; Spaventato all'apparizione. | L3 |
 | Labirinto (`maze`) | 8° | Dati: TS ripetuto nel promemoria, danno scalato per slot o stato da rimuovere. Pill «Nel labirinto» + promemoria «prova d'Intelligenza CD 20 come azione» per uscire. | L2 |
-| Invulnerabilità (`xanathar-invulnerabilita`) | 9° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Pill «Immune a tutti i danni», concentrazione 10 minuti. | L1 |
-| Previsione (`foresight`) | 9° | Dati: effetti e pill dei benefici (`SPELL_EFFECTS`, summaryParts). Pill «Vantaggio a tiri e TS · gli altri hanno svantaggio contro di lui», 8 ore. | L1 |
 
 ### Dopo una capacità condivisa (80)
 
@@ -428,20 +428,20 @@ Mancano testo o perimetro delle regole.
 | Manto del Crociato (`legacy-crusaders-mantle`) | 3° | Regole da verificare prima di decidere. | — |
 | Imprigionare (`imprisonment`) | 9° | Regole da verificare prima di decidere. | — |
 
-### Automatizzati (197)
+### Automatizzati (214)
 
 Lancio e risoluzione assistiti dal pannello, dalla console ad area o dalla console attacchi.
 
 - **Trucchetti**: Amicizia, Beffa crudele, Colpo accurato, Creare Falò, Dardo di fuoco, Deflagrazione occulta, Ferocia Primordiale, Fiamma sacra, Fiotto acido, Frusta di Spine, Guida, Infestazione, Interdizione alle Lame, Lama Verdefiamma, Lenza Elettrizzante, Morsa del Gelo, Parola Radiosa, Produrre fiamma, Raggio di gelo, Resistenza, Rintocco dei Morti, Rombo di Tuono, Scheggia della Mente, Spruzzo velenoso, Stretta folgorante, Tocco gelido, Turbine di Spade.
-- **1° livello**: Amicizia con gli animali, Anatema, Assorbire Elementi (reazione), Benedizione, Braccia di Hadar, Cerimonia (R), Charme su persone, Colpo dello Zefiro, Colpo Intrappolante, Coltello di Ghiaccio, Comando, Favore divino, Incuti Paura, Intralciare, Legame con le Bestie, Luminescenza, Mani brucianti, Miscela Caustica di Tasha, Nube di nebbia, Onda tonante, Passo veloce, Punizione Collerica, Punizione Incandescente, Punizione Tonante, Raffica di Spine, Raggio di Infermità, Risata incontenibile, Scudo (reazione), Scudo della fede, Trabocchetto, Unto.
-- **2° livello**: Aculeo Mentale, Allucinazione di Forza, Arma magica, Arma spirituale, Bagliore lunare, Blocca persone, Caratteristica potenziata, Cecità/sordità, Crescita di spine, Diavoletto di Polvere, Folata di vento, Frantumare, Freccia acida, Ingrandire/ridurre, Movimenti del ragno, Nube di Pugnali, Oscurità, Passo velato, Percezione delle Bestie (R), Punizione Marchiante, Raggio di affaticamento, Ragnatela, Riscaldare il metallo, Sciame di Palle di Neve di Snilloc, Scudiscio Mentale di Tasha, Sfera infuocata, Sfocatura, Silenzio (R), Spirito Guaritore, Stretta della Terra di Maximilian, Vampa di Aganazzar, Vento di Interdizione, Vincolo della Terra, Zona di verità.
-- **3° livello**: Arma Elementale, Aura di Vitalità, Eruzione Terrestre, Evoca Raffica, Fame di Hadar, Forma gassosa, Fortezza della Mente, Frecce Infuocate, Freccia Folgorante, Fulmine, Guardiani spirituali, Intermittenza, Invocare il fulmine, Lentezza, Luce diurna, Morte Apparente (R), Muro di vento, Nemici in Abbondanza, Nube maleodorante, Onda di Marea, Palla di fuoco, Paura, Punizione Accecante, Sonnellino, Sudario Spirituale, Tempesta di nevischio, Velocità, Volare.
-- **4° livello**: Anatema Elementale, Aura di Purezza, Aura di Vita, Charme sui Mostri, Compulsione, Confusione, Controllare acqua, Dominare bestie, Esilio, Fulgore Nauseante, Guardiano della Natura, Invisibilità superiore, Libertà di movimento, Muro di fuoco, Porta dimensionale, Punizione Demoralizzante, Sfera al Vetriolo, Sfera della Tempesta, Tentacoli neri.
+- **1° livello**: Amicizia con gli animali, Anatema, Armatura magica, Assorbire Elementi (reazione), Benedizione, Braccia di Hadar, Cerimonia (R), Charme su persone, Colpo dello Zefiro, Colpo Intrappolante, Coltello di Ghiaccio, Comando, Favore divino, Incuti Paura, Intralciare, Legame con le Bestie, Luminescenza, Mani brucianti, Miscela Caustica di Tasha, Nube di nebbia, Onda tonante, Passo veloce, Protezione dal bene e dal male, Punizione Collerica, Punizione Incandescente, Punizione Tonante, Raffica di Spine, Raggio di Infermità, Risata incontenibile, Ritirata rapida, Saltare, Scudo (reazione), Scudo della fede, Trabocchetto, Unto.
+- **2° livello**: Aculeo Mentale, Allucinazione di Forza, Arma magica, Arma spirituale, Bagliore lunare, Blocca persone, Caratteristica potenziata, Cecità/sordità, Crescita di spine, Diavoletto di Polvere, Estasiare, Folata di vento, Frantumare, Freccia acida, Ingrandire/ridurre, Levitazione, Movimenti del ragno, Nube di Pugnali, Oscurità, Passare senza tracce, Passo velato, Pelle coriacea, Percezione delle Bestie (R), Protezione dai veleni, Punizione Marchiante, Raggio di affaticamento, Ragnatela, Riscaldare il metallo, Sciame di Palle di Neve di Snilloc, Scudiscio Mentale di Tasha, Sfera infuocata, Sfocatura, Silenzio (R), Spirito Guaritore, Stretta della Terra di Maximilian, Suggestione, Vampa di Aganazzar, Vento di Interdizione, Vincolo della Terra, Zona di verità.
+- **3° livello**: Arma Elementale, Aura di Vitalità, Eruzione Terrestre, Evoca Raffica, Fame di Hadar, Faro di speranza, Forma gassosa, Fortezza della Mente, Frecce Infuocate, Freccia Folgorante, Fulmine, Guardiani spirituali, Intermittenza, Invocare il fulmine, Lentezza, Luce diurna, Morte Apparente (R), Muro di vento, Nemici in Abbondanza, Nube maleodorante, Onda di Marea, Palla di fuoco, Paura, Protezione dall'energia, Punizione Accecante, Sonnellino, Sudario Spirituale, Tempesta di nevischio, Velocità, Volare.
+- **4° livello**: Anatema Elementale, Aura di Purezza, Aura di Vita, Charme sui Mostri, Compulsione, Confusione, Controllare acqua, Dominare bestie, Esilio, Fulgore Nauseante, Guardiano della Natura, Invisibilità superiore, Libertà di movimento, Muro di fuoco, Pelle di pietra, Porta dimensionale, Punizione Demoralizzante, Sfera al Vetriolo, Sfera della Tempesta, Sfera elastica, Tentacoli neri.
 - **5° livello**: Abilità Potenziata, Alba, Animare oggetti, Arma Sacra, Blocca mostri, Cerchio di Potere, Collera della Natura, Colpo infuocato, Cono di freddo, Contagio, Controllare Venti, Cura ferite di massa, Dominare persona, Evoca Pioggia di Armi, Guscio anti-vita, Immolazione, Maelstrom, Mano arcana, Muro di Luce, Nube mortale, Onda Distruttiva, Piaga degli insetti, Punizione Esiliante, Scossa Sinaptica, Telecinesi.
-- **6° livello**: Abito Ultraterreno di Tasha, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di spine, Prigione Mentale, Sguardo penetrante.
+- **6° livello**: Abito Ultraterreno di Tasha, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di spine, Prigione Mentale, Sguardo penetrante, Suggestione di massa.
 - **7° livello**: Corona di Stelle, Gabbia di forza, Palla di fuoco ritardata, Parola del Potere Dolore, Spada arcana, Spruzzo prismatico, Turbine.
 - **8° livello**: Aura sacra, Dominare mostri, Esplosione solare, Nube incendiaria, Orrido Avvizzimento di Abi-Dalzim, Oscurità della Follia, Parola del potere stordire, Terremoto.
-- **9° livello**: Fatale, Lama del Disastro, Muro prismatico, Urlo Psichico.
+- **9° livello**: Fatale, Invulnerabilità, Lama del Disastro, Muro prismatico, Previsione, Urlo Psichico.
 
 ### Tracciati: nessuna automazione utile (112)
 

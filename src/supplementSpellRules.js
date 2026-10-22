@@ -8,6 +8,12 @@ const nextTurn = (mode, actor = "source") => Object.freeze({
 const rounds = (remaining) => Object.freeze({ mode: "rounds", remaining });
 const manual = Object.freeze({ mode: "manual" });
 const concentration = Object.freeze({ mode: "concentration" });
+// The damage types of damageDefensesCore.js DAMAGE_TYPES (not imported: the spell catalog stays free of the class
+// feature core); test/spellPassiveBenefits.test.js checks they match.
+export const ALL_DAMAGE_TYPES = Object.freeze([
+  "acid", "bludgeoning", "cold", "fire", "force", "lightning", "necrotic",
+  "piercing", "poison", "psychic", "radiant", "slashing", "thunder",
+]);
 
 export const SUPPLEMENT_TRACKING = Object.freeze({
   "xanathar-cerimonia": Object.freeze({ trackable: true, defaultTurns: 14400 }),
@@ -476,6 +482,20 @@ const SKILL_EMPOWERMENT_OPTIONS = Object.freeze([
 ]);
 
 export const SUPPLEMENT_EFFECTS = Object.freeze({
+  // Immune to every damage type, applied to damage (damageDefensesCore.js: the PC attack and boss consoles); the mini
+  // pill keeps the id the defenses derive for "all", so it shows once.
+  "xanathar-invulnerabilita": Object.freeze([Object.freeze({
+    id: "invulnerability-immunity",
+    kind: "buff",
+    label: "Immune a tutti i danni",
+    detail: "Immunità a tutti i danni finché la spell dura.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "damage-defense-immunity-all", label: "Imm. tutti i danni" }),
+    ]),
+    mechanics: Object.freeze({
+      damageDefenses: Object.freeze({ immunities: ALL_DAMAGE_TYPES }),
+    }),
+  })]),
   "xanathar-prigione-mentale": Object.freeze([Object.freeze({
     id: "mental-prison-link",
     kind: "debuff",

@@ -643,10 +643,10 @@ da questo audit.
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
-- Opzioni trackable del runtime: **358**; definizioni con tracking persistente verificate dall'audit: **355**; definizioni con regole d'area: **135** (140 regole).
+- Opzioni trackable del runtime: **358**; definizioni con tracking persistente verificate dall'audit: **355**; definizioni con regole d'area: **136** (141 regole).
 - Workflow che richiedono smoke test runtime: **392**.
 - Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `05e254e15e8e6e06`.
+- Impronta deterministica: `1c1c272a92ac2ea9`.
 
 ## Decisioni di prodotto chiuse
 
@@ -660,8 +660,8 @@ da questo audit.
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 85 |
-| PARTIAL | 183 |
-| TRACK_ONLY | 143 |
+| PARTIAL | 198 |
+| TRACK_ONLY | 128 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -701,9 +701,9 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | ACTIVE_ACTION | 41 |
-| AREA_GEOMETRY | 135 |
-| CAST | 225 |
-| CLEANUP | 109 |
+| AREA_GEOMETRY | 136 |
+| CAST | 240 |
+| CLEANUP | 110 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 355 |
 | TURN_TRIGGER | 91 |
@@ -784,7 +784,7 @@ Nessuna voce.
 | Arma Sacra | `xanathar-arma-sacra` | Xanathar / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Arma spirituale | `spiritual-weapon` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Armatura di Agathys | `phb2014-armatura-di-agathys` | PHB 2014 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Armatura magica | `mage-armor` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Armatura magica | `mage-armor` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Artificio druidico | `druidcraft` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Assorbire Elementi | `xanathar-assorbire-elementi` | Xanathar / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Aura di Purezza | `phb2014-aura-di-purezza` | PHB 2014 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -891,7 +891,7 @@ Nessuna voce.
 | Eruzione Terrestre | `xanathar-eruzione-terrestre` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Esilio | `banishment` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Esplosione solare | `sunburst` | SRD 5.1 / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Estasiare | `enthrall` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Estasiare | `enthrall` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Evoca Aberrazione | `tasha-evoca-aberrazione` | Tasha / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Evoca animali | `conjure-animals` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Evoca Bestia d'Ombra | `tasha-evoca-bestia-dombra` | Tasha / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -915,7 +915,7 @@ Nessuna voce.
 | Fabbricare | `fabricate` | SRD 5.1 / 4 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fame di Hadar | `phb2014-fame-di-hadar` | PHB 2014 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Faretra Rapida | `phb2014-faretra-rapida` | PHB 2014 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Faro di speranza | `beacon-of-hope` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Faro di speranza | `beacon-of-hope` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fatale | `weird` | SRD 5.1 / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Favore divino | `divine-favor` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Ferire | `harm` | SRD 5.1 / 6 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -988,7 +988,7 @@ Nessuna voce.
 | Invisibilità | `invisibility` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Invisibilità superiore | `greater-invisibility` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Invocare il fulmine | `call-lightning` | SRD 5.1 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
-| Invulnerabilità | `xanathar-invulnerabilita` | Xanathar / 9 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Invulnerabilità | `xanathar-invulnerabilita` | Xanathar / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Labirinto | `maze` | SRD 5.1 / 8 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Lama d'Ombra | `xanathar-lama-dombra` | Xanathar / 2 | TRACK_ONLY | CLOSED | TRACK_ONLY | UNIFIED | reachable | — | — |
 | Lama del Disastro | `tasha-lama-del-disastro` | Tasha / 9 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
@@ -1000,7 +1000,7 @@ Nessuna voce.
 | Legame telepatico | `telepathic-bond` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Lentezza | `slow` | SRD 5.1 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Lenza Elettrizzante | `tasha-lenza-elettrizzante` | Tasha / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Levitazione | `levitate` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Levitazione | `levitate` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Libertà di movimento | `freedom-of-movement` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Linguaggi | `tongues` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Localizza animali o vegetali | `locate-animals-or-plants` | SRD 5.1 / 2 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1077,8 +1077,8 @@ Nessuna voce.
 | Passo velato | `misty-step` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Passo veloce | `longstrider` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Paura | `fear` | SRD 5.1 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
-| Pelle coriacea | `barkskin` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Pelle di pietra | `stoneskin` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Pelle coriacea | `barkskin` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Pelle di pietra | `stoneskin` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Percezione delle Bestie | `phb2014-percezione-delle-bestie` | PHB 2014 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Piaga degli insetti | `insect-plague` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Pietra Magica | `xanathar-pietra-magica` | Xanathar / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1089,13 +1089,13 @@ Nessuna voce.
 | Preghiera di guarigione | `prayer-of-healing` | SRD 5.1 / 2 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Presagio | `augury` | SRD 5.1 / 2 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Prestidigitazione | `prestidigitation` | SRD 5.1 / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Previsione | `foresight` | SRD 5.1 / 9 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Previsione | `foresight` | SRD 5.1 / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Prigione Mentale | `xanathar-prigione-mentale` | Xanathar / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Produrre fiamma | `produce-flame` | SRD 5.1 / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Proibizione | `forbiddance` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Proiezione astrale | `astral-projection` | SRD 5.1 / 9 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Protezione dai veleni | `protection-from-poison` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Protezione dal bene e dal male | `protection-from-evil-and-good` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Protezione dai veleni | `protection-from-poison` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Protezione dal bene e dal male | `protection-from-evil-and-good` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Protezione dall'energia | `protection-from-energy` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Punizione Accecante | `phb2014-punizione-accecante` | PHB 2014 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Punizione Collerica | `phb2014-punizione-collerica` | PHB 2014 / 1 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
@@ -1133,9 +1133,9 @@ Nessuna voce.
 | Ristorare inferiore | `lesser-restoration` | SRD 5.1 / 2 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Ristorare superiore | `greater-restoration` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Risveglio | `awaken` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Ritirata rapida | `expeditious-retreat` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Ritirata rapida | `expeditious-retreat` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rombo di Tuono | `xanathar-rombo-di-tuono` | Xanathar / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Saltare | `jump` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Saltare | `jump` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Salvare i morenti | `spare-the-dying` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Santificare | `hallow` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Santuario | `sanctuary` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1169,7 +1169,7 @@ Nessuna voce.
 | Sfera al Vetriolo | `xanathar-sfera-al-vetriolo` | Xanathar / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Sfera congelante | `freezing-sphere` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sfera della Tempesta | `xanathar-sfera-della-tempesta` | Xanathar / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
-| Sfera elastica | `resilient-sphere` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Sfera elastica | `resilient-sphere` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sfera infuocata | `flaming-sphere` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Sfocatura | `blur` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sguardo penetrante | `eyebite` | SRD 5.1 / 6 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
@@ -1191,8 +1191,8 @@ Nessuna voce.
 | Stretta della Terra di Maximilian | `xanathar-stretta-della-terra-di-maximilian` | Xanathar / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Stretta folgorante | `shocking-grasp` | SRD 5.1 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sudario Spirituale | `tasha-sudario-spirituale` | Tasha / 3 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
-| Suggestione | `suggestion` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Suggestione di massa | `mass-suggestion` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Suggestione | `suggestion` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Suggestione di massa | `mass-suggestion` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sussurri Dissonanti | `phb2014-sussurri-dissonanti` | PHB 2014 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Taumaturgia | `thaumaturgy` | SRD 5.1 / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Telecinesi | `telekinesis` | SRD 5.1 / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |

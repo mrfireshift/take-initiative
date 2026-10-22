@@ -13,6 +13,7 @@ export const SPELL_AURA_META_KEY = `${ID}/spellAura`;
 // Aura di Vita ora proietta la stessa pill tramite la membership condivisa.
 const MOBILE_AURA_LEGACY_CASTER_EFFECT_IDS = Object.freeze({
   "phb2014-aura-di-vita": Object.freeze(["aura-of-life"]),
+  "pass-without-trace": Object.freeze(["stealth-bonus"]),
 });
 
 const uniqueIds = (values = []) => Array.from(new Set(

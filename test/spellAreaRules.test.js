@@ -908,10 +908,11 @@ test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio trac
 
 test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () => {
   assert.equal(AREA_SAVE_SPELL_IDS.length, 94);
-  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 36);
-  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 131);
+  // 37 with Pass without Trace's aura (lotto L1).
+  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 37);
+  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 132);
   assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 13);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 144);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 145);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),

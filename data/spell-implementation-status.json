@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 184,
-      "PARTIAL": 95,
+      "COMPLETE / CURRENT": 201,
+      "PARTIAL": 78,
       "NO AUTOMATION REQUIRED": 144,
       "MISSING": 39,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 134,
+    "implementableBacklog": 117,
     "readiness": {
       "GREEN": {
-        "count": 43,
-        "percent": 32.08955223880597
+        "count": 26,
+        "percent": 22.22222222222222
       },
       "YELLOW": {
         "count": 80,
-        "percent": 59.70149253731343
+        "percent": 68.37606837606837
       },
       "RED": {
         "count": 11,
-        "percent": 8.208955223880597
+        "percent": 9.401709401709402
       }
     },
     "scenarios": [
@@ -5807,8 +5807,8 @@
       "id": "barkskin",
       "spell": "Pelle coriacea",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -5858,9 +5858,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "barkskin",
@@ -5869,6 +5869,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -5882,7 +5883,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking generico presente; mancano effects/summaryParts canonici dei benefici, rappresentabili dal contratto corrente senza enforcement globale.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -5903,8 +5904,8 @@
       "id": "beacon-of-hope",
       "spell": "Faro di speranza",
       "level": 3,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -5954,9 +5955,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "beacon-of-hope",
@@ -5965,6 +5966,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -5978,7 +5980,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking generico presente; mancano effects/summaryParts canonici dei benefici, rappresentabili dal contratto corrente senza enforcement globale.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -15147,8 +15149,8 @@
       "id": "enthrall",
       "spell": "Estasiare",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -15198,9 +15200,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "enthrall",
@@ -15209,6 +15211,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -15222,7 +15225,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Istanza presente; aggiungere effetti/condizioni concise, outcome manuale e scadenza/prova assistita; movimento verticale non automatico.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -15347,8 +15350,8 @@
       "id": "expeditious-retreat",
       "spell": "Ritirata rapida",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -15398,9 +15401,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "expeditious-retreat",
@@ -15409,6 +15412,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -15422,7 +15426,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Istanza presente; aggiungere effetti/condizioni concise, outcome manuale e scadenza/prova assistita; movimento verticale non automatico.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -18712,8 +18716,8 @@
       "id": "foresight",
       "spell": "Previsione",
       "level": 9,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -18763,9 +18767,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "foresight",
@@ -18774,6 +18778,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -18787,7 +18792,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking generico presente; mancano effects/summaryParts canonici dei benefici, rappresentabili dal contratto corrente senza enforcement globale.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -24401,8 +24406,8 @@
       "id": "jump",
       "spell": "Saltare",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -24452,9 +24457,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "jump",
@@ -24463,6 +24468,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -24476,7 +24482,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Istanza presente; aggiungere effetti/condizioni concise, outcome manuale e scadenza/prova assistita; movimento verticale non automatico.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -24808,8 +24814,8 @@
       "id": "levitate",
       "spell": "Levitazione",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -24859,9 +24865,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "levitate",
@@ -24870,6 +24876,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -24883,7 +24890,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Istanza presente; aggiungere effetti/condizioni concise, outcome manuale e scadenza/prova assistita; movimento verticale non automatico.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -25578,8 +25585,8 @@
       "id": "mage-armor",
       "spell": "Armatura magica",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -25629,9 +25636,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "mage-armor",
@@ -25640,6 +25647,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -25655,7 +25663,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking generico presente; mancano effects/summaryParts canonici dei benefici, rappresentabili dal contratto corrente senza enforcement globale.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -26886,8 +26894,8 @@
       "id": "mass-suggestion",
       "spell": "Suggestione di massa",
       "level": 6,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -26937,9 +26945,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "mass-suggestion",
@@ -26948,6 +26956,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -26961,7 +26970,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Istanza presente; aggiungere effetti/condizioni concise, outcome manuale e scadenza/prova assistita; movimento verticale non automatico.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -28738,8 +28747,8 @@
       "id": "pass-without-trace",
       "spell": "Passare senza tracce",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -28790,9 +28799,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "AURA-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-AURA-DATA",
+      "implementationFamily": "AURA-EFFECT",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "pass-without-trace",
@@ -28801,6 +28810,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellAuraCore.test.js",
           "test/spellAuraReminderCore.test.js",
           "test/spellAreaMembershipCore.test.js",
@@ -28815,7 +28825,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Bonus +10 già presente; manca membership mobile entro 9 m sui target scelti, componibile con aura e targetScope spell-targets.",
+        "reason": "Lotto L1 (2026-10-22): aura mobile di 9 m sul caster, +10 Furtività alle creature del suo schieramento, caster compreso; la scelta delle creature è letta dagli schieramenti.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -31358,8 +31368,8 @@
       "id": "protection-from-energy",
       "spell": "Protezione dall'energia",
       "level": 3,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -31409,9 +31419,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "protection-from-energy",
@@ -31420,6 +31430,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -31433,7 +31444,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking generico presente; mancano effects/summaryParts canonici dei benefici, rappresentabili dal contratto corrente senza enforcement globale.",
+        "reason": "Lotto L1 (2026-10-22): la variante del tipo applica la pill e la resistenza effettiva (mechanics.damageDefenses) nelle console attacchi e boss, con chip ignorabile.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -31462,8 +31473,8 @@
       "id": "protection-from-evil-and-good",
       "spell": "Protezione dal bene e dal male",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -31513,9 +31524,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "protection-from-evil-and-good",
@@ -31524,6 +31535,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -31537,7 +31549,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Istanza presente; aggiungere effetti/condizioni concise, outcome manuale e scadenza/prova assistita; movimento verticale non automatico.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -31558,8 +31570,8 @@
       "id": "protection-from-poison",
       "spell": "Protezione dai veleni",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -31609,9 +31621,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "protection-from-poison",
@@ -31620,6 +31632,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -31633,7 +31646,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Istanza presente; aggiungere effetti/condizioni concise, outcome manuale e scadenza/prova assistita; movimento verticale non automatico.",
+        "reason": "Lotto L1 (2026-10-22): pill dal testo 2014; la resistenza al veleno è effettiva (mechanics.damageDefenses) nelle console attacchi e boss, con chip ignorabile; il vantaggio ai TS resta al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -32420,8 +32433,8 @@
       "id": "resilient-sphere",
       "spell": "Sfera elastica",
       "level": 4,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -32471,9 +32484,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "resilient-sphere",
@@ -32482,6 +32495,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -32495,7 +32509,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Istanza presente; aggiungere effetti/condizioni concise, outcome manuale e scadenza/prova assistita; movimento verticale non automatico.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -36893,8 +36907,8 @@
       "id": "stoneskin",
       "spell": "Pelle di pietra",
       "level": 4,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -36944,9 +36958,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "stoneskin",
@@ -36955,6 +36969,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -36968,7 +36983,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking generico presente; mancano effects/summaryParts canonici dei benefici, rappresentabili dal contratto corrente senza enforcement globale.",
+        "reason": "Lotto L1 (2026-10-22): pill dal testo 2014; la resistenza resta informativa perché vale solo per i danni non magici, che il motore non distingue.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -37147,8 +37162,8 @@
       "id": "suggestion",
       "spell": "Suggestione",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -37198,9 +37213,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "suggestion",
@@ -37209,6 +37224,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -37222,7 +37238,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Istanza presente; aggiungere effetti/condizioni concise, outcome manuale e scadenza/prova assistita; movimento verticale non automatico.",
+        "reason": "Lotto L1 (2026-10-22): pill e mini pill del beneficio dal testo 2014; informative, CA, tiri e difese restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -47830,8 +47846,8 @@
       "id": "xanathar-invulnerabilita",
       "spell": "Invulnerabilità",
       "level": 9,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/supplementSpellRules.js",
         "src/spellApplicationPlanCore.js"
@@ -47881,9 +47897,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "PASSIVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-PASSIVE-DATA",
+      "implementationFamily": "EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-invulnerabilita",
@@ -47892,6 +47908,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellPassiveBenefits.test.js",
           "test/spellLifecycleOperationsCore.test.js",
           "test/spellCastAutomationCore.test.js",
           "test/spellMechanicsCore.test.js",
@@ -47905,7 +47922,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking generico presente; mancano effects/summaryParts canonici dei benefici, rappresentabili dal contratto corrente senza enforcement globale.",
+        "reason": "Lotto L1 (2026-10-22): immunità effettiva a tutti i tipi di danno (mechanics.damageDefenses) nelle console attacchi e boss, finché dura la concentrazione.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62663,6 +62680,10 @@
     {
       "date": "2026-10-22",
       "note": "Piano di automazione: console attacchi (17 trucchetti) e Prigione Mentale completi; Lama Roboante aspetta CAP-LINK, Dardo di Caos passa a YELLOW con la console attacchi. Le proiezioni di summary.scenarios restano del 2026-09-14: piano e ordine in docs/PIANO_AUTOMAZIONE_INCANTESIMI.md."
+    },
+    {
+      "date": "2026-10-22",
+      "note": "Lotto L1: 17 incantesimi completi; le difese di Protezione dai veleni, Protezione dall'energia e Invulnerabilità sono effettive nelle console attacchi e boss."
     }
   ]
 }

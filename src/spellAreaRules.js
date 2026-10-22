@@ -715,6 +715,12 @@ const SELF_CAST_AURA_TARGETING_BY_SPELL = Object.freeze({
     ...SELF_CAST_AURA_TARGETING,
     includeCaster: true,
   }),
+  // "Each creature you choose within 30 feet of you (including you)": the caster's side, read from the attitudes.
+  "pass-without-trace": Object.freeze({
+    ...SELF_CAST_AURA_TARGETING,
+    filter: "friendly",
+    includeCaster: true,
+  }),
 });
 const NO_CONFIRM_TARGETING = Object.freeze({
   ...COMMON_TARGETING,
@@ -729,6 +735,7 @@ const NO_CONFIRM_AREA_SAVE_SPELL_IDS = new Set([
 ]);
 const SELF_CAST_AURA_SPELL_IDS = new Set([
   "antilife-shell",
+  "pass-without-trace",
   "phb2014-aura-di-purezza",
   "phb2014-aura-di-vita",
   "phb2014-aura-di-vitalita",
@@ -2188,6 +2195,19 @@ function catalogAreaRule(spec) {
         "Il vento raddoppia il costo del movimento per le altre creature.",
       ),
     ],
+    "pass-without-trace": [{
+      id: "pass-without-trace-aura",
+      kind: "buff",
+      label: "+10 Furtività",
+      detail: "Aggiunge 10 alle prove di Destrezza (Furtività); non lascia tracce e non può essere seguito con mezzi non magici.",
+      summaryParts: [
+        { id: "pass-without-trace-stealth", label: "Furtività +10" },
+      ],
+      mechanics: {
+        deriveLabel: true,
+        abilityCheck: { bonus: 10, skill: "Furtività" },
+      },
+    }],
     "phb2014-aura-di-purezza": [{
       id: "aura-of-purity-zone",
       kind: "buff",

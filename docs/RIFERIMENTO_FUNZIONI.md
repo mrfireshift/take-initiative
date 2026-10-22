@@ -116,7 +116,7 @@ Condizioni, Incantesimi e Console HP condividono la stessa logica:
 
 Il pannello unificato espone tutte le 477 voci: 358 provengono dalle opzioni
 trackable e 84 sono incantesimi di cui il plugin registra soltanto il lancio,
-con il suo slot. Il catalogo comprende inoltre 140 regole di area per 135 incantesimi
+con il suo slot. Il catalogo comprende inoltre 141 regole di area per 136 incantesimi
 distinti, 81 definizioni con `saveAutomation` e 32 definizioni con azioni
 attive esposte dal contratto unificato. La presenza di una
 geometria non implica che ogni clausola RAW dell'incantesimo sia già

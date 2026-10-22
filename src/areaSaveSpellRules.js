@@ -155,6 +155,7 @@ export const AREA_PLACEMENT_ONLY_SPELL_IDS = Object.freeze([
   "dimension-door",
   "misty-step",
   "move-earth",
+  "pass-without-trace",
   "private-sanctum",
   "silence",
   "sleep",

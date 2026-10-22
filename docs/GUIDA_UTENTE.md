@@ -95,6 +95,11 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   effetti si risolvono al tavolo. I bersagli selezionati compaiono nel
   registro, ma non servono. Nel pannello il pulsante si chiama **Registra
   lancio**; dal menu 🪄 un avviso dice quale slot è stato speso.
+- Protezione dai veleni, Protezione dall'energia e Invulnerabilità danno
+  difese vere finché durano: la console attacchi e la console boss dimezzano
+  o azzerano il danno di quel tipo, e il GM può ignorare il chip della difesa
+  per un singolo attacco. Le altre pill dei benefici (Armatura magica, Pelle
+  coriacea, Pelle di pietra…) sono promemoria per il tavolo.
 
 Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni
 rapide.

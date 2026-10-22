@@ -43,8 +43,8 @@ attiva.
 
 Il catalogo dichiara inoltre:
 
-- 140 regole geometriche per 135 incantesimi distinti: 55 effetti istantanei,
-  68 zone persistenti, 13 aure mobili e 4 emissioni;
+- 141 regole geometriche per 136 incantesimi distinti: 55 effetti istantanei,
+  68 zone persistenti, 14 aure mobili e 4 emissioni;
 - 81 definizioni con `saveAutomation` nel catalogo runtime;
 - 32 definizioni con azioni attive esposte dal contratto del pannello unificato.
 
@@ -89,6 +89,18 @@ bersagli, che restano facoltativi. Un lancio registrato che non spende nulla
 va soltanto nel registro. Il percorso è in `src/spellCastRecord.js`; quali
 incantesimi automatizzare, e come, è nel
 [Piano di automazione](PIANO_AUTOMAZIONE_INCANTESIMI.md).
+
+I benefici passivi del 2014 (Armatura magica, Pelle coriacea, Faro di
+speranza, Previsione, Suggestione e gli altri del lotto L1) mettono sui
+bersagli la pill con le mini pill del beneficio. Sono informative (CA, tiri e
+vantaggi restano al tavolo), tranne le difese di Protezione dai veleni,
+Protezione dall'energia e Invulnerabilità: la pill porta
+`mechanics.damageDefenses` e la console attacchi e la console boss le
+applicano ai danni come le difese del profilo, con il chip che il GM può
+ignorare, finché l'incantesimo dura. Pelle di pietra resta informativa: vale
+solo per i danni non magici, che il motore non distingue. Passare senza
+tracce è un'aura mobile di 9 m sul caster: +10 Furtività alle creature del suo
+schieramento al suo interno, caster compreso, aggiornata quando si muovono.
 
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la

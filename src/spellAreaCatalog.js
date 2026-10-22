@@ -92,6 +92,7 @@ const MOBILE_AURA_SPELL_IDS = new Set([
   "antilife-shell",
   "antimagic-field",
   "globe-of-invulnerability",
+  "pass-without-trace",
   "speak-with-plants",
   "xanathar-vento-di-interdizione",
   "xanathar-investitura-della-fiamma",
@@ -171,6 +172,12 @@ const AREA_OVERRIDES = Object.freeze({
     note: "Dopo la sagoma, sblocca la selezione e mantieni soltanto le creature coperte dal totale di dadi",
   },
   "divine-word": {
+    shape: "circle",
+    sizeMeters: 9,
+    origin: "caster",
+  },
+  // Range "Self": the 30-foot reach of the creatures it covers.
+  "pass-without-trace": {
     shape: "circle",
     sizeMeters: 9,
     origin: "caster",

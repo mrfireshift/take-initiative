@@ -56,7 +56,7 @@ automatizzata.
 | --- | --- |
 | Incantesimi | 477 definizioni, 358 opzioni trackable, 477 voci nel pannello unificato (84 come registrazione del lancio). |
 | Tracking persistente audit | 355 definizioni; è un sottoinsieme più restrittivo delle 358 opzioni trackable. |
-| Regole di area | 140 regole per 135 incantesimi distinti. |
+| Regole di area | 141 regole per 136 incantesimi distinti. |
 | Tiri salvezza spell | 81 definizioni con `saveAutomation` nel catalogo runtime. |
 | Azioni spell successive | 32 definizioni con activeActions nel catalogo runtime. |
 | Capacità di classe | 860 record runtime, 267 pronti all'attivazione, 593 non automatizzati. |

@@ -55,6 +55,7 @@ export const SPELL_AREA_GEOMETRY_BY_ID = Object.freeze({
   "misty-step": {"area":null,"range":"Self"},
   "moonbeam": {"area":{"type":"cylinder","size":5},"range":"120 feet"},
   "move-earth": {"area":{"type":"cone","size":40},"range":"120 feet"},
+  "pass-without-trace": {"area":null,"range":"Self"},
   "phb2014-allucinazione-di-forza": {"area":{"type":"cube","sizeText":"3 metri","confidence":"candidate"},"range":"18 metri"},
   "phb2014-aura-di-purezza": {"area":{"type":"radius","sizeText":"9 metri","confidence":"candidate"},"range":"Incantatore (raggio di 9 metri)"},
   "phb2014-aura-di-vita": {"area":{"type":"radius","sizeText":"9 metri","confidence":"candidate"},"range":"Incantatore (raggio di 9 metri)"},

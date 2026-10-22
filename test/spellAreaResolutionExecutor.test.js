@@ -370,7 +370,7 @@ test("Investitura automatica e Sfera obbligatoria gestiscono il rispettivo place
 });
 
 test("le aure self non richiedono bersagli discreti e persistono lo spell sul caster", () => {
-  for (const spellId of ["phb2014-aura-di-purezza", "phb2014-aura-di-vita"]) {
+  for (const spellId of ["phb2014-aura-di-purezza", "phb2014-aura-di-vita", "pass-without-trace"]) {
     const contract = buildSpellUnifiedPanelContract({ spellId, phase: "cast" });
     assert.equal(contract.presentation.inputs.targets.required, false, spellId);
     const command = commandFor(spellId, {
