@@ -30,7 +30,6 @@ const CLASSIC_WIDTH = 340;
 const COMPACT_DEFAULT_WIDTH = 1180;
 const COMPACT_MAX_WIDTH = 1180;
 const COMPACT_HEIGHT = 156;
-const COMPACT_ROUND_TAB_WIDTH = 124;
 const COMPACT_SPEED_READOUT_WIDTH = 154;
 const COMPACT_SPEED_READOUT_RIGHT_INSET = 18;
 const COMPACT_ROUND_TAB_HEIGHT = 21;
@@ -234,32 +233,10 @@ function compactPartUrl(part, scale) {
   return scale !== 1 ? `/compact-round-tab.html?part=${part}&scale=${scale}` : `/compact-round-tab.html?part=${part}`;
 }
 
-async function openCompactRoundTabPopover(anchorPosition, trackerHeight, scale = 1) {
-  const top = Math.round(
-    Number(anchorPosition?.top || 0)
-      - Math.max(0, Number(trackerHeight) || COMPACT_HEIGHT)
-      + COMPACT_ROUND_TAB_OVERLAP * scale,
-  );
-  try {
-    await OBR.popover.open({
-      id: COMPACT_ROUND_TAB_POPOVER_ID,
-      url: compactPartUrl("round", scale),
-      width: Math.round(COMPACT_ROUND_TAB_WIDTH * scale),
-      height: Math.round(COMPACT_ROUND_TAB_HEIGHT * scale),
-      anchorReference: "POSITION",
-      anchorPosition: {
-        left: Math.round(Number(anchorPosition?.left) || 0),
-        top: Math.max(0, top),
-      },
-      anchorOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
-      transformOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
-      disableClickAway: true,
-      marginThreshold: 0,
-      hidePaper: true,
-    });
-  } catch (error) {
-    console.warn("[tracker-layout] linguetta round non aperta:", error?.message || error);
-  }
+// The round is part of the compact bar (its left column, initiativeList.js): the old tab above the bar is closed, in
+// case an earlier version of the plugin left it open.
+function closeCompactRoundTabPopover() {
+  return OBR.popover.close(COMPACT_ROUND_TAB_POPOVER_ID).catch(() => {});
 }
 
 async function openCompactSpeedReadoutPopover(anchorPosition, trackerWidth, trackerHeight, scale = 1) {
@@ -295,7 +272,7 @@ async function openCompactSpeedReadoutPopover(anchorPosition, trackerWidth, trac
 export async function syncCompactTrackerCompanionParts(width, height, scale = 1) {
   const anchor = await getCompactTrackerPopoverAnchor();
   await Promise.all([
-    openCompactRoundTabPopover(anchor, height, scale),
+    closeCompactRoundTabPopover(),
     openCompactSpeedReadoutPopover(anchor, width, height, scale),
   ]);
 }
@@ -378,7 +355,7 @@ export async function openTrackerPopover({ refresh = false, compactSize = null }
       OBR.popover.getWidth(TRACKER_POPOVER_ID).catch(() => width),
     ]);
     await Promise.all([
-      openCompactRoundTabPopover(compactAnchor, Number(actualHeight) || height, compactScale),
+      closeCompactRoundTabPopover(),
       openCompactSpeedReadoutPopover(
         compactAnchor,
         Number(actualWidth) || width,

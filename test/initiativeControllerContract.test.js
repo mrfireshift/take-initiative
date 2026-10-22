@@ -703,3 +703,17 @@ test("lotto 6.4: il GM modifica gli HP dal compatto con l'editor del classico, e
   // Only the text opens the editor: the HP bar has no handler of its own.
   assert.ok(!compactSection.includes("hpTrack.addEventListener"));
 });
+
+test("barra compatta: il round sta nella colonna sinistra, non in una linguetta sopra la barra", () => {
+  assert.ok(source.includes("compactRoundControls.replaceChildren(trackerDragHandle, roundStatus, compactBottomControls);"));
+  assert.ok(source.includes('gridTemplateRows: "26px auto minmax(0, 1fr)"'));
+  // Both render paths write the caption and the number through the same helper.
+  assert.equal(source.split('__writeRoundLabel(document.getElementById("tbp-round-label")').length - 1, 2);
+  assert.ok(!source.includes("lbl.textContent = `Round"));
+
+  const popoverSource = readFileSync(new URL("../src/trackerPopover.js", import.meta.url), "utf8");
+  assert.ok(!popoverSource.includes("openCompactRoundTabPopover"));
+  assert.equal(popoverSource.split("closeCompactRoundTabPopover(),").length - 1, 2);
+  const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  assert.ok(indexHtml.includes('[data-tracker-layout="compact"] #tbp-round-label [data-round-number]'));
+});

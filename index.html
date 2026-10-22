@@ -54,6 +54,30 @@
         to { opacity: 1; }
       }
 
+      /* The round in the compact bar's left column: a small caption over a number large enough for the table. */
+      [data-tracker-layout="compact"] #tbp-round-label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+        margin: 6px 0 0;
+        line-height: 1;
+        text-align: center;
+      }
+      [data-tracker-layout="compact"] #tbp-round-label [data-round-caption] {
+        color: rgba(226, 232, 240, .7);
+        font-size: var(--obrt-type-micro, 10px);
+        font-weight: 600;
+        letter-spacing: .02em;
+      }
+      [data-tracker-layout="compact"] #tbp-round-label [data-round-number] {
+        color: #fff;
+        /* The UI font, not Georgia: Georgia's old-style figures make a lone 1 look small. */
+        font-size: 22px;
+        font-weight: var(--obrt-weight-heavy, 800);
+        font-variant-numeric: tabular-nums;
+      }
+
       /* The compact card's HP text while its inline editor is open: it reads as a field. */
       [data-card-hp-text="1"][data-hp-editing="1"] {
         background: rgba(2, 6, 12, .85);

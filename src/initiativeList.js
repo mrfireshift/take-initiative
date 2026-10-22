@@ -1279,6 +1279,19 @@ Object.assign(roundResetSlot.style, {
 
 roundStatus.append(roundLabel);
 roundPill.appendChild(roundStatus);
+
+// "Round N" as a caption and a number: one line in the extended header, two in the compact bar's left column, where
+// the number is large enough to read from the table (index.html styles both spans by layout).
+function __writeRoundLabel(label, round) {
+  if (!label) return;
+  const caption = document.createElement("span");
+  caption.dataset.roundCaption = "1";
+  caption.textContent = "Round";
+  const value = document.createElement("span");
+  value.dataset.roundNumber = "1";
+  value.textContent = String(Math.max(1, round || 1));
+  label.replaceChildren(caption, " ", value);
+}
 const trackerDragHandle = document.createElement("button");
 trackerDragHandle.type = "button";
 trackerDragHandle.draggable = true;
@@ -3406,7 +3419,7 @@ function applyHeaderLayoutPresentation(compact) {
   roundStatus.style.paddingBottom = "0";
   roundStatus.style.borderBottom = "none";
   roundLabel.style.fontSize = classic ? "15px" : "13px";
-  roundLabel.style.whiteSpace = "nowrap";
+  roundLabel.style.whiteSpace = classic ? "nowrap" : "normal";
   roundActions.style.width = classic ? "auto" : "100%";
   roundActions.style.display = classic ? "flex" : "contents";
   roundActions.style.gridColumn = compact ? "1" : "auto";
@@ -3537,7 +3550,8 @@ function mountCompactSideControls() {
     compactAdminMenu.replaceChildren();
     compactBottomControls.replaceChildren(layoutToggleButton);
   }
-  compactRoundControls.replaceChildren(trackerDragHandle, compactBottomControls);
+  // The round sits in the column, between the drag handle and the buttons: part of the bar, for GM and players.
+  compactRoundControls.replaceChildren(trackerDragHandle, roundStatus, compactBottomControls);
   roundPill.replaceChildren(compactRoundControls, compactAdminMenu);
 }
 
@@ -3613,8 +3627,8 @@ function applyTrackerLayout() {
       height: "100%",
       flex: "1 1 auto",
       display: "grid",
-      gridTemplateColumns: "26px",
-      gridTemplateRows: "26px minmax(0, 1fr)",
+      gridTemplateColumns: "minmax(0, 1fr)",
+      gridTemplateRows: "26px auto minmax(0, 1fr)",
       placeItems: "center",
       justifyContent: "center",
       gap: "0",
@@ -10356,8 +10370,7 @@ function __renderOptimisticNavigationState(state) {
   const activeId = __activeIdForState(state);
   const animateActive = activeId !== __prevActiveId;
   try {
-    const lbl = document.getElementById("tbp-round-label");
-    if (lbl) lbl.textContent = `Round ${Math.max(1, state.round || 1)}`;
+    __writeRoundLabel(document.getElementById("tbp-round-label"), state.round);
     renderTrack(ordered, state, { animateActive });
     __prevActiveId = activeId;
     __optimisticNavigationDigest = initiativeStateDigest(state);
@@ -10704,8 +10717,7 @@ __activeLabelEntriesById = byId;
     zoomChk.checked = isAutoFocusEnabled(stateClean);
     setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
     try {
-      const lbl = document.getElementById("tbp-round-label");
-      if (lbl) lbl.textContent = `Round ${Math.max(1, stateClean.round || 1)}`;
+      __writeRoundLabel(document.getElementById("tbp-round-label"), stateClean.round);
     } catch {}
     // === Active Turn Label: risolvi l'ancora e aggiorna/crea la label ===
 try {
