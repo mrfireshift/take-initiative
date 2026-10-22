@@ -244,7 +244,19 @@ const AUTOMATION = Object.freeze({
     conditions: ["Affascinato", "Incapacitato"],
     targetMode: "area",
   },
-  "invisibility": { mode: "automatic", conditions: ["Invisibile"] },
+  // 2014: it ends for a target that attacks or casts a spell (CAP-LINK): removing its pill ends the spell on that
+  // target only.
+  "invisibility": {
+    mode: "automatic",
+    conditions: ["Invisibile"],
+    conditionOptions: {
+      Invisibile: {
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "target",
+      },
+    },
+  },
   "irresistible-dance": {
     mode: "confirm",
     conditions: ["Danza: sul posto · svant. TS DES/att. · attacchi contro con vant."],
@@ -359,6 +371,44 @@ const AUTOMATION = Object.freeze({
 });
 
 const SRD_ACTIVE_ACTIONS = Object.freeze({
+  // CAP-LINK (2014): the mark moves to a new creature once the marked one drops to 0 hit points. The new target gets
+  // the spell instance and the pills of the cast; the old one leaves the concentration.
+  "hunters-mark": Object.freeze([
+    Object.freeze({
+      id: "hunters-mark-move",
+      label: "Sposta il Marchio del cacciatore",
+      buttonLabel: "Sposta il marchio",
+      detail: "Azione bonus, in un turno successivo al lancio: se la creatura marchiata è scesa a 0 PF, sposta il marchio su una nuova creatura. La concentrazione resta la stessa.",
+      economy: "bonus-action",
+      showInOverview: true,
+      availableAfterCast: true,
+      subjectMode: "selected",
+      requiresTargets: true,
+      maxTargets: 1,
+      forbidCasterTarget: true,
+      requiresParentInstance: true,
+      replaceSpellTargets: true,
+      effectsFromCast: true,
+    }),
+  ]),
+  "phb2014-sortilegio": Object.freeze([
+    Object.freeze({
+      id: "hex-move",
+      label: "Sposta il Sortilegio",
+      buttonLabel: "Sposta il sortilegio",
+      detail: "Azione bonus, in un turno successivo al lancio: se la creatura maledetta è scesa a 0 PF, sposta la maledizione su una nuova creatura, con la stessa caratteristica. La concentrazione resta la stessa.",
+      economy: "bonus-action",
+      showInOverview: true,
+      availableAfterCast: true,
+      subjectMode: "selected",
+      requiresTargets: true,
+      maxTargets: 1,
+      forbidCasterTarget: true,
+      requiresParentInstance: true,
+      replaceSpellTargets: true,
+      effectsFromCast: true,
+    }),
+  ]),
   "blink": Object.freeze([
     Object.freeze({
       id: "blink-terminate",
@@ -494,9 +544,20 @@ const TARGETING_OVERRIDES = Object.freeze({
   "astral-projection": Object.freeze({ resolver: "passenger-capacity" }),
   "wind-walk": Object.freeze({ resolver: "passenger-capacity" }),
   "mass-cure-wounds": Object.freeze({ maximum: 6 }),
+  // 2014: one more creature for each slot level above 2nd.
+  "invisibility": Object.freeze({
+    baseMaximum: 1,
+    additionalPerSlotAbove: 1,
+    baseSlot: 2,
+  }),
 });
 
 const SLOT_DURATION_OVERRIDES = Object.freeze({
+  // 2014: concentration up to 1 hour; 8 hours with a 3rd or 4th-level slot, 24 hours with a 5th-level slot or higher.
+  "hunters-mark": Object.freeze({
+    baseSlot: 1,
+    turnsBySlot: Object.freeze({ 1: 600, 3: 4800, 5: 14400 }),
+  }),
   // 2014: 1 hour, +1 hour for each slot level above 3rd (lotto L3).
   "magic-circle": Object.freeze({
     baseSlot: 3,

@@ -315,6 +315,17 @@ export function spellActiveActionPresentation(
   };
 }
 
+// The pills a cast put on its target, read from the spell (its effects and those of the variant chosen at cast, e.g.
+// Hex's ability): a moved mark (CAP-LINK) puts the same ones on the new creature. An unknown variant gives none.
+function spellCastEffects(spell, castContext = {}) {
+  const choice = String(castContext?.choice || "").trim();
+  const choices = Array.isArray(spell?.effectChoices) ? spell.effectChoices : [];
+  return [
+    ...(Array.isArray(spell?.effects) ? spell.effects : []),
+    ...(choice ? choices.find((entry) => entry?.id === choice)?.effects || [] : []),
+  ];
+}
+
 export function buildSpellActiveActionPlan({
   spell = null,
   actionId = "",
@@ -525,7 +536,9 @@ export function buildSpellActiveActionPlan({
       removals,
     });
   }
-  for (const effect of action.effects || []) {
+  // effectsFromCast: the pills of the cast itself (a moved mark), lasting with the concentration like the cast's.
+  const castEffects = action.effectsFromCast === true ? spellCastEffects(spell, group?.castContext) : [];
+  for (const effect of [...(action.effects || []), ...castEffects]) {
     const label = spellEffectConditionName(effect);
     const kind = effect?.kind === "buff" || effect?.kind === "debuff"
       ? effect.kind
@@ -539,6 +552,7 @@ export function buildSpellActiveActionPlan({
         sourceId: casterId,
         sourceName: String(casterName || "").trim(),
         ...(appliedAt ? { appliedAt: clone(appliedAt) } : {}),
+        ...(castEffects.includes(effect) && spell?.concentration === true ? { expiry: { mode: "concentration" } } : {}),
       }, parentInstanceId),
     });
   }

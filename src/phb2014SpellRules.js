@@ -210,6 +210,20 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
         summaryParts: Object.freeze([
           Object.freeze({ id: "compelled-duel-attack-restriction", label: "Svant. attacchi vs altri" }),
         ]),
+        // CAP-LINK (2014): the duel ends if the caster ends the turn more than 9 m away; the other ends (an attack
+        // on another creature, an ally damaging the target) are removed by hand.
+        saveReminder: Object.freeze({
+          timing: "turn-end",
+          actor: "source",
+          mode: "choice",
+          label: "Duello obbligato: il caster finisce il turno entro 9 m dal bersaglio? Termina anche se ha attaccato un'altra creatura o un alleato ha danneggiato il bersaglio.",
+          resolution: Object.freeze({
+            mode: "choice",
+            choiceLabels: Object.freeze({ passed: "Entro 9 m", failed: "Termina" }),
+            success: "keep-effect",
+            failure: "remove-effect",
+          }),
+        }),
       },
     ),
   ]),
@@ -267,6 +281,19 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
         summaryParts: Object.freeze([
           Object.freeze({ id: "crown-of-madness-commanded-attack", label: "Azione: attacco imposto" }),
         ]),
+        // CAP-LINK (2014): the caster must use its action on each of its turns to maintain control, or the spell ends.
+        saveReminder: Object.freeze({
+          timing: "turn-start",
+          actor: "source",
+          mode: "choice",
+          label: "Corona di Follia: il caster usa l'azione per mantenere il controllo? Altrimenti l'incantesimo termina.",
+          resolution: Object.freeze({
+            mode: "choice",
+            choiceLabels: Object.freeze({ passed: "Mantieni (azione)", failed: "Termina" }),
+            success: "keep-effect",
+            failure: "remove-effect",
+          }),
+        }),
       },
     ),
   ]),

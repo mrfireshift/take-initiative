@@ -503,3 +503,35 @@ test("an area cast names its slot level and what it spent in its causality", asy
   assert.equal(entry.payload.causality.slotLevel, 5);
   assert.deepEqual(entry.payload.causality.cost, { label: "slot di 5° livello" });
 });
+
+// CAP-LINK: Hex moved to a new creature once the cursed one drops to 0 hit points, through the real coordinator. One
+// History entry, one Undo: the spell, its pill and the concentration's target go back to the first creature.
+test("Hex moves to a new creature with its ability, and one Undo moves it back", async () => {
+  await resetScene();
+  const SECOND_ID = "second-slot";
+  sceneState.items.push({ id: SECOND_ID, name: "Secondo", layer: "CHARACTER", position: { x: 400, y: 0 },
+    metadata: { [META_KEY]: { hp: 30, hpMax: 30, inInitiative: true, conditions: [], [CONCENTRATION_KEY]: {}, [SPELLS_KEY]: [] } } });
+  const hex = getSpellDefinition("phb2014-sortilegio");
+  await executeSpellApplication({ spell: hex, casterId: CASTER_ID, targetIds: [TARGET_ID], turns: 600, selectedChoice: "forza",
+    castContext: { slotLevel: 1, phase: "cast", choice: "forza" } });
+  const target = sceneState.items.find((item) => item.id === TARGET_ID);
+  target.metadata[META_KEY].hp = 0;
+  const { spellOverviewGroups } = await import("../src/spellsPanelViewCore.js");
+  const { executeSpellActiveAction } = await import("../src/spellApplicationExecutor.js?slot-real-application");
+  const group = spellOverviewGroups(sceneState.items).find((entry) => entry.spellId === "phb2014-sortilegio");
+  assert.ok(group, "Hex is on the field");
+  await executeSpellActiveAction({ spell: hex, actionId: "hex-move", group, selectedTargetIds: [SECOND_ID], casterName: "Maga" });
+  await convergeDeferredEffectsHistory();
+  const meta = (id) => sceneState.items.find((item) => item.id === id).metadata[META_KEY];
+  const pills = (id) => (Array.isArray(meta(id).conditions) ? meta(id).conditions : meta(id).conditions?.instances || []).map((entry) => entry.effectId);
+  assert.deepEqual(pills(SECOND_ID), ["hex-forza"], "the same ability on the new creature");
+  assert.equal(meta(SECOND_ID)[SPELLS_KEY].length, 1);
+  assert.deepEqual(pills(TARGET_ID), []);
+  assert.equal(meta(TARGET_ID)[SPELLS_KEY].length, 0);
+  const concentration = Object.values(meta(CASTER_ID)[CONCENTRATION_KEY])[0];
+  assert.deepEqual(concentration.targets, [SECOND_ID]);
+  await undoLast();
+  assert.deepEqual(pills(TARGET_ID), ["hex-forza"]);
+  assert.deepEqual(pills(SECOND_ID), []);
+  assert.deepEqual(Object.values(meta(CASTER_ID)[CONCENTRATION_KEY])[0].targets, [TARGET_ID]);
+});

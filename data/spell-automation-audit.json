@@ -99,13 +99,13 @@
       "CAST_NO_MUTATIONS": 3
     },
     "smokeCategories": {
-      "ACTIVE_ACTION": 43,
+      "ACTIVE_ACTION": 46,
       "AREA_GEOMETRY": 139,
       "CAST": 249,
       "CLEANUP": 116,
       "CONCENTRATION": 218,
       "PERSISTENCE": 358,
-      "TURN_TRIGGER": 95
+      "TURN_TRIGGER": 96
     },
     "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
@@ -13241,6 +13241,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "CAST",
         "CONCENTRATION",
         "PERSISTENCE"
@@ -13252,7 +13253,8 @@
       "scope": "combattimento",
       "signals": [],
       "coverage": [
-        "tracking"
+        "tracking",
+        "fasi/azioni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -13269,10 +13271,13 @@
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "witch-bolt-repeat"
+        ],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
@@ -13318,14 +13323,19 @@
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "witch-bolt-repeat"
+          ],
+          "panelActionIds": [
+            "witch-bolt-repeat"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
@@ -15368,7 +15378,8 @@
       "smokeCategories": [
         "CAST",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -15380,7 +15391,8 @@
       ],
       "coverage": [
         "tracking",
-        "TS"
+        "TS",
+        "turni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -15403,7 +15415,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -15456,7 +15469,8 @@
         "smokeCategories": [
           "CAST",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -30914,6 +30928,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "CAST",
         "CONCENTRATION",
         "PERSISTENCE"
@@ -30928,7 +30943,8 @@
         "fasi/azioni"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "fasi/azioni"
       ],
       "assessment": "escluso: decisione curata",
       "priority": "—",
@@ -30945,10 +30961,13 @@
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "hunters-mark-move"
+        ],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
@@ -30994,14 +31013,19 @@
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "hunters-mark-move"
+          ],
+          "panelActionIds": [
+            "hunters-mark-move"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
@@ -50864,6 +50888,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -50878,6 +50903,7 @@
       ],
       "coverage": [
         "tracking",
+        "fasi/azioni",
         "varianti"
       ],
       "assessment": "escluso: decisione curata",
@@ -50895,10 +50921,13 @@
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 6,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "hex-move"
+        ],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -50944,14 +50973,19 @@
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "hex-move"
+          ],
+          "panelActionIds": [
+            "hex-move"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CONCENTRATION",
           "PERSISTENCE"
         ]

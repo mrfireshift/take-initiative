@@ -700,13 +700,13 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 43 |
+| ACTIVE_ACTION | 46 |
 | AREA_GEOMETRY | 139 |
 | CAST | 249 |
 | CLEANUP | 116 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 358 |
-| TURN_TRIGGER | 95 |
+| TURN_TRIGGER | 96 |
 
 ### Stato di integrazione console unificata
 

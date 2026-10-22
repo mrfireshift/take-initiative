@@ -457,6 +457,38 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       casterHealingFromAppliedDamage: 0.5,
     },
   ],
+  // Witch Bolt (2014, CAP-LINK): the action on the next turns deals 1d12 lightning automatically to the linked
+  // target, as Enervation's repeat; the initial damage's extra dice never apply to it. Range and cover at the table.
+  "phb2014-dardo-stregato": [
+    {
+      id: "witch-bolt-repeat",
+      label: "Ripeti Dardo stregato · 1d12 fulmine",
+      buttonLabel: "Ripeti Dardo stregato",
+      detail: "Azione: il fulmine colpisce di nuovo il bersaglio collegato, 1d12 danni da fulmine senza tiro. L'incantesimo termina se il caster usa l'azione per altro, se il bersaglio va oltre 9 m o ha copertura totale: termina a mano.",
+      economy: "action",
+      turnStartPrompt: true,
+      showInOverview: true,
+      availableAfterCast: true,
+      resolutionKind: "single-save",
+      manualSaveAtTable: true,
+      assumedOutcome: "failed",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      rangeOrigin: "caster",
+      range: { value: 9, unit: "m" },
+      maxTargets: 1,
+      save: { ability: "dex", onSuccess: "none" },
+      damage: damage({
+        formula: "1d12",
+        type: "fulmine",
+        onSave: "none",
+      }),
+      requiredTargetEffectId: "witch-bolt-link",
+      linkedTargetHint: "collegato a Dardo stregato: danno automatico, nessun tiro per colpire.",
+    },
+  ],
   "heat-metal": [
     {
       id: "heat-metal-repeat",

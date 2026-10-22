@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 234,
-      "PARTIAL": 59,
+      "COMPLETE / CURRENT": 241,
+      "PARTIAL": 52,
       "NO AUTOMATION REQUIRED": 144,
       "MISSING": 25,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 84,
+    "implementableBacklog": 77,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 73,
-        "percent": 86.90476190476191
+        "count": 66,
+        "percent": 85.71428571428571
       },
       "RED": {
         "count": 11,
-        "percent": 13.095238095238097
+        "percent": 14.285714285714285
       }
     },
     "scenarios": [
@@ -22962,11 +22962,13 @@
       "id": "hunters-mark",
       "spell": "Marchio del cacciatore",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
+        "src/spellActiveActionCore.js",
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/callLightningTurnPromptCore.js",
+        "src/effectsMutationCore.js"
       ],
       "mechanicsRequired": [
         "Bonus/varianti esistono; trasferimento del link e persistenza dopo morte senza rompere concentrazione richiedono generalizzare il retarget di Telecinesi."
@@ -22982,9 +22984,7 @@
         "C-HISTORY",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "CAP-LINK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -23023,8 +23023,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "RETARGET",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-LINK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "hunters-mark",
@@ -23033,6 +23033,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellLinks.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -23055,7 +23056,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Bonus/varianti esistono; trasferimento del link e persistenza dopo morte senza rompere concentrazione richiedono generalizzare il retarget di Telecinesi.",
+        "reason": "CAP-LINK, primo lotto (2026-10-22): azione bonus «Sposta il marchio» proposta a inizio turno quando la creatura marchiata è a 0 PF o non c'è più: incantesimo, pill e concentrazione passano alla nuova creatura; durata 8 h dal 3°, 24 h dal 5°.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -24187,11 +24188,10 @@
       "id": "invisibility",
       "spell": "Invisibilità",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spells-srd.js"
       ],
       "mechanicsRequired": [
         "Condizione già applicata; termina al primo attacco/cast del beneficiario, manca evento assistito dichiarativo generalizzato (non inferire da HP)."
@@ -24209,9 +24209,7 @@
         "C-SAVE",
         "C-REPEATSAVE"
       ],
-      "missingCapabilities": [
-        "CAP-LINK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -24250,8 +24248,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "EVENT-END",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-LINK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "invisibility",
@@ -24260,6 +24258,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellLinks.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -24283,7 +24282,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Condizione già applicata; termina al primo attacco/cast del beneficiario, manca evento assistito dichiarativo generalizzato (non inferire da HP).",
+        "reason": "CAP-LINK, primo lotto (2026-10-22): togliere la pill termina l'incantesimo solo su quella creatura (attacca o lancia un incantesimo: a mano); +1 bersaglio per slot sopra il 2°.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -44813,13 +44812,11 @@
       "id": "xanathar-debilitazione",
       "spell": "Debilitazione",
       "level": 5,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js",
         "src/spellActiveResolutionRules.js",
-        "src/spellApplicationExecutor.js"
+        "src/callLightningTurnPromptCore.js"
       ],
       "mechanicsRequired": [
         "Condizione/istanza presenti; mantenimento per azione e terminazione contestuale non hanno policy dichiarativa completa. Range/LOS/danno di terzi restano verifiche GM con un evento condiviso esplicito.",
@@ -44839,9 +44836,7 @@
         "C-REPEATSAVE",
         "C-ACTIVE"
       ],
-      "missingCapabilities": [
-        "CAP-LINK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -44913,8 +44908,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MAINTAIN-LINK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-LINK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-debilitazione",
@@ -44923,6 +44918,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellLinks.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -44951,7 +44947,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Condizione/istanza presenti; mantenimento per azione e terminazione contestuale non hanno policy dichiarativa completa. Range/LOS/danno di terzi restano verifiche GM con un evento condiviso esplicito.",
+        "reason": "CAP-LINK, primo lotto (2026-10-22): azione ripetuta già automatizzata con la cura del caster; la fine se il caster non usa l'azione resta il «Termina» generico.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -57933,11 +57929,12 @@
       "id": "phb2014-dardo-stregato",
       "spell": "Dardo Stregato",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/phb2014SpellRules.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellActiveResolutionRules.js",
+        "src/callLightningTurnPromptCore.js",
+        "src/spellApplicationExecutor.js"
       ],
       "mechanicsRequired": [
         "Condizione/istanza presenti; mantenimento per azione e terminazione contestuale non hanno policy dichiarativa completa. Range/LOS/danno di terzi restano verifiche GM con un evento condiviso esplicito."
@@ -57953,9 +57950,7 @@
         "C-HISTORY",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "CAP-LINK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -57994,8 +57989,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MAINTAIN-LINK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-LINK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-phb2014-extra.json",
         "spellId": "phb2014-dardo-stregato",
@@ -58004,6 +57999,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellLinks.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -58024,7 +58020,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Condizione/istanza presenti; mantenimento per azione e terminazione contestuale non hanno policy dichiarativa completa. Range/LOS/danno di terzi restano verifiche GM con un evento condiviso esplicito.",
+        "reason": "CAP-LINK, primo lotto (2026-10-22): azione ripetuta a inizio turno: 1d12 fulmine automatici al bersaglio collegato; gittata, copertura e azione usata per altro al GM, che termina a mano.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -58049,11 +58045,12 @@
       "id": "phb2014-duello-obbligato",
       "spell": "Duello Obbligato",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/phb2014SpellRules.js",
-        "src/spellApplicationPlanCore.js"
+        "src/effectSaveReminderCore.js",
+        "src/reminderResolutionCore.js"
       ],
       "mechanicsRequired": [
         "Condizione/istanza presenti; mantenimento per azione e terminazione contestuale non hanno policy dichiarativa completa. Range/LOS/danno di terzi restano verifiche GM con un evento condiviso esplicito."
@@ -58071,9 +58068,7 @@
         "C-SAVE",
         "C-REPEATSAVE"
       ],
-      "missingCapabilities": [
-        "CAP-LINK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -58112,8 +58107,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MAINTAIN-LINK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-LINK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-phb2014-extra.json",
         "spellId": "phb2014-duello-obbligato",
@@ -58122,6 +58117,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellLinks.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -58145,7 +58141,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Condizione/istanza presenti; mantenimento per azione e terminazione contestuale non hanno policy dichiarativa completa. Range/LOS/danno di terzi restano verifiche GM con un evento condiviso esplicito.",
+        "reason": "CAP-LINK, primo lotto (2026-10-22): a fine turno il caster conferma «Entro 9 m» o «Termina»; attacco ad altri e danno degli alleati: fine a mano.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -59000,11 +58996,13 @@
       "id": "phb2014-sortilegio",
       "spell": "Sortilegio",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/phb2014SpellRules.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellActiveActionCore.js",
+        "src/spells-srd.js",
+        "src/callLightningTurnPromptCore.js",
+        "src/effectsMutationCore.js"
       ],
       "mechanicsRequired": [
         "Bonus/varianti esistono; trasferimento del link e persistenza dopo morte senza rompere concentrazione richiedono generalizzare il retarget di Telecinesi."
@@ -59020,9 +59018,7 @@
         "C-HISTORY",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "CAP-LINK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -59061,8 +59057,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "RETARGET",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-LINK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-phb2014-extra.json",
         "spellId": "phb2014-sortilegio",
@@ -59071,6 +59067,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellLinks.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -59093,7 +59090,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Bonus/varianti esistono; trasferimento del link e persistenza dopo morte senza rompere concentrazione richiedono generalizzare il retarget di Telecinesi.",
+        "reason": "CAP-LINK, primo lotto (2026-10-22): azione bonus «Sposta il sortilegio» con la stessa caratteristica scelta al lancio, proposta quando la creatura maledetta è a 0 PF o non c'è più.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -59573,11 +59570,12 @@
       "id": "phb2014-corona-di-follia",
       "spell": "Corona di Follia",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/phb2014SpellRules.js",
-        "src/spellApplicationPlanCore.js"
+        "src/effectSaveReminderCore.js",
+        "src/reminderResolutionCore.js"
       ],
       "mechanicsRequired": [
         "Condizione/istanza presenti; mantenimento per azione e terminazione contestuale non hanno policy dichiarativa completa. Range/LOS/danno di terzi restano verifiche GM con un evento condiviso esplicito."
@@ -59595,9 +59593,7 @@
         "C-SAVE",
         "C-REPEATSAVE"
       ],
-      "missingCapabilities": [
-        "CAP-LINK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -59636,8 +59632,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "MAINTAIN-LINK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-LINK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-phb2014-extra.json",
         "spellId": "phb2014-corona-di-follia",
@@ -59646,6 +59642,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellLinks.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -59669,7 +59666,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Condizione/istanza presenti; mantenimento per azione e terminazione contestuale non hanno policy dichiarativa completa. Range/LOS/danno di terzi restano verifiche GM con un evento condiviso esplicito.",
+        "reason": "CAP-LINK, primo lotto (2026-10-22): a inizio turno il caster sceglie «Mantieni (azione)» o «Termina»; il TS a fine turno del bersaglio resta.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62743,6 +62740,10 @@
     {
       "date": "2026-10-22",
       "note": "Lotto L4: 7 incantesimi completi. Fonte «Incantesimo d'attacco» nella console attacchi: lo slot speso una volta per lancio nel comando della prima registrazione, un raggio o dardo per registrazione, Dardo incantato senza tiro e bloccato da Scudo, tipo scelto per Globo cromatico e Dardo di caos con il balzo, Tocco del vampiro con la cura del caster."
+    },
+    {
+      "date": "2026-10-22",
+      "note": "CAP-LINK, primo lotto: 7 incantesimi completi. Spostamento del marchio (replaceSpellTargets con le pill del lancio, promemoria quando il bersaglio è a 0 PF) per Marchio del cacciatore e Sortilegio; azione ripetuta di Dardo stregato; scelte del caster per Corona di follia e Duello obbligato; fine per bersaglio di Invisibilità. Lama roboante resta al secondo lotto."
     }
   ]
 }

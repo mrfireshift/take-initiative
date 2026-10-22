@@ -151,6 +151,13 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   TS: si segna ogni esito come superato. Bagliore solare e Drago illusorio
   propongono a inizio turno la nuova linea o il soffio, come Invocare il
   fulmine.
+- Quando la creatura colpita da Marchio del cacciatore o Sortilegio scende a
+  0 PF (o sparisce dalla scena), a inizio turno il caster può spostare il
+  marchio: seleziona la nuova creatura e conferma. Sortilegio mantiene la
+  caratteristica scelta. Dardo stregato propone a ogni turno l'azione da 1d12
+  fulmine; Corona di follia chiede se il caster mantiene il controllo con
+  l'azione, Duello obbligato se resta entro 9 m. Togliere la pill di
+  Invisibilità a una creatura (quando attacca o lancia) la termina solo per lei.
 
 Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni
 rapide.

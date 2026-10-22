@@ -132,6 +132,13 @@ lancio (`pcAttackState.spellCast` tiene il lancio aperto), ogni raggio o dardo
 attacchi con arma. Tocco del vampiro resta lanciato dal pannello e cura il
 caster nello stesso comando del tocco.
 
+Il primo lotto di CAP-LINK sposta un incantesimo su un nuovo bersaglio
+(`replaceSpellTargets` con `effectsFromCast` in `src/spellActiveActionCore.js`):
+Marchio del cacciatore e Sortilegio, proposti dal promemoria di turno quando la
+creatura marchiata è a 0 PF. Dardo stregato ripete il danno con un'azione come
+Debilitazione; Corona di follia e Duello obbligato chiedono al caster se
+l'incantesimo continua (promemoria a scelta con `remove-effect`).
+
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la
 **Console effetti ad area**. Dal registro il GM può:

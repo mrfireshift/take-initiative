@@ -91,6 +91,13 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     ownerContext: "target",
     availableAfterCast: true,
   }),
+  // Witch Bolt (CAP-LINK): the caster's action on the next turns, like Enervation's.
+  Object.freeze({
+    spellId: "phb2014-dardo-stregato",
+    actionId: "witch-bolt-repeat",
+    ownerContext: "target",
+    availableAfterCast: true,
+  }),
   Object.freeze({
     spellId: "heat-metal",
     actionId: HEAT_METAL_TURN_PROMPT_ACTION_ID,
@@ -130,6 +137,29 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     actionId: AURA_OF_VITALITY_TURN_PROMPT_ACTION_ID,
     ownerContext: "caster",
     availableOnCastTurn: true,
+  }),
+  // CAP-LINK: the mark moves only once the marked creature is at 0 hit points (or gone from the scene).
+  Object.freeze({
+    spellId: "hunters-mark",
+    actionId: "hunters-mark-move",
+    ownerContext: "caster",
+    availableAfterCast: true,
+    choice: true,
+    executionKind: "active-action",
+    targetSelection: true,
+    requiresLinkedTargetDown: true,
+    choiceHint: "La creatura marchiata è a 0 PF: con un'azione bonus puoi spostare il marchio su una nuova creatura.",
+  }),
+  Object.freeze({
+    spellId: "phb2014-sortilegio",
+    actionId: "hex-move",
+    ownerContext: "caster",
+    availableAfterCast: true,
+    choice: true,
+    executionKind: "active-action",
+    targetSelection: true,
+    requiresLinkedTargetDown: true,
+    choiceHint: "La creatura maledetta è a 0 PF: con un'azione bonus puoi maledire una nuova creatura, con la stessa caratteristica.",
   }),
   Object.freeze({
     spellId: "tasha-sudario-spirituale",
@@ -330,6 +360,22 @@ function buildSpellTurnActiveActionPayload({
   };
 }
 
+// A linked spell's targets other than its caster: one at 0 hit points, or no longer in the scene, frees the mark.
+function linkedTargetDown(items, group) {
+  const casterId = baseActorId(group?.casterId);
+  const targets = group?.targets instanceof Map ? [...group.targets.keys()]
+    : Array.isArray(group?.targets) ? group.targets
+      : group?.targets && typeof group.targets === "object" ? Object.keys(group.targets) : [];
+  const ids = targets.map((value) => String(value || "").trim()).filter((id) => id && baseActorId(id) !== casterId);
+  const byId = new Map((Array.isArray(items) ? items : []).map((item) => [String(item?.id || "").trim(), item]));
+  return ids.some((id) => {
+    const item = byId.get(id);
+    if (!item) return true;
+    const hp = Number(item.metadata?.[META_KEY]?.hp);
+    return Number.isFinite(hp) && hp <= 0;
+  });
+}
+
 function choiceCandidateTargets(items, group, actions) {
   const excludedEffectIds = new Set(
     (Array.isArray(actions) ? actions : [])
@@ -405,6 +451,7 @@ export function spellTurnPromptRequests({
         && telekinesisActivationAlreadyUsed(group?.castContext, normalizedTurnKey)) {
         continue;
       }
+      if (prompt.requiresLinkedTargetDown === true && !linkedTargetDown(items, group)) continue;
       const payloads = activeActionPrompt
         ? actions.map((action) => buildSpellTurnActiveActionPayload({
           spell,
