@@ -88,6 +88,16 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      /* An item with a current value shows it on a second, quieter line (e.g. the map labels' mode). */
+      .label .detail {
+        display: block;
+        margin-top: 1px;
+        overflow: hidden;
+        color: rgba(255, 255, 255, .62);
+        font-size: var(--obrt-type-micro, 10px);
+        font-weight: 500;
+        text-overflow: ellipsis;
+      }
     </style>
   </head>
   <body>

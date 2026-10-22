@@ -151,8 +151,8 @@ function renderPreview() {
     : "";
   const cards = [
     ["Tracker", `HP nemici: ${hpModeLabels[hp.trackerClassic.enemy]}. Effetti: ${effectLabels[shared.effects.conditions]}.`],
-    ["Reminder", `${reminderLabels[shared.reminders.visibility]}${reminderDetails}.`],
-    ["Turno e mappa", `Popup ${shared.popup ? "attivo" : "disattivo"}; risoluzione ${shared.directResolution === "assisted" ? "assistita" : "informativa"}; reminder movimento ${shared.movementReminder ? "attivo" : "disattivo"}; label ${shared.activeTurnLabel ? "attiva" : "disattiva"}; mini-pill ${shared.summaryParts ? "attive" : "disattivate"}.`],
+    ["Promemoria", `${reminderLabels[shared.reminders.visibility]}${reminderDetails}.`],
+    ["Turno e mappa", `Avviso di turno ${shared.popup ? "attivo" : "disattivo"}; risoluzione ${shared.directResolution === "assisted" ? "assistita" : "informativa"}; promemoria di movimento ${shared.movementReminder ? "attivo" : "disattivo"}; nome sulla mappa ${shared.activeTurnLabel ? "attivo" : "disattivo"}; dettagli sotto le etichette ${shared.summaryParts ? "attivi" : "disattivati"}.`],
   ];
   previewNode.replaceChildren(...cards.map(([title, copy]) => {
     const card = document.createElement("article");
@@ -173,9 +173,9 @@ function render() {
   }
   document.getElementById("scope-help").textContent = editScope === "room"
     ? "Valori condivisi per tutte le scene."
-    : "Eredita dalla Room o personalizza questa scena.";
+    : "Eredita dalla stanza o personalizza questa scena.";
   for (const badge of document.querySelectorAll("[data-current-scope-badge]")) {
-    badge.textContent = editScope === "room" ? "Room" : "Scena";
+    badge.textContent = editScope === "room" ? "Stanza" : "Scena";
   }
   for (const node of document.querySelectorAll("[data-room-only]")) node.hidden = editScope !== "room";
   for (const node of document.querySelectorAll("[data-room-section]")) node.hidden = editScope !== "room";

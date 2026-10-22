@@ -176,7 +176,11 @@ test("OPTIONS-003: il pannello usa selector e writer, non storage o metadata dir
   assert.match(source, /saveOptionsPanelDraft/);
   assert.match(source, /broadcastRuntimeOptionsInvalidation/);
   assert.doesNotMatch(source, /localStorage|\.getMetadata\(|\.setMetadata\(/);
-  assert.match(html, /Anteprima Player/);
+  assert.match(html, /Anteprima per i giocatori/);
+  // Decision D6: the panel is in Italian (proper names like Take Initiative, Embers, GM and token stay).
+  // Only the visible text between tags: attributes such as data-family="movementReminder" are code names.
+  assert.doesNotMatch(html, />[^<]*(?:Room|Combat Log|Player|Reminder|mini-pill|Spell)[^<]*</);
+  assert.doesNotMatch(html, />(?:On|Off)</);
   assert.match(html, /Automazioni e integrazioni/);
   assert.match(html, /turn-options-grid/);
   assert.match(html, /option-card-actions inline/);

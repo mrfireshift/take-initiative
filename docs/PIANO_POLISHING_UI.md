@@ -270,6 +270,23 @@ Può partire subito dopo la fase 2, in parallelo alle fasi 3 e 4: tocca file div
   - **Bottoni di risoluzione degli avvisi:** alti 24px (prima 19).
   - **Popover di risoluzione:** chiusura 28px come le modali (prima 22–24px senza bordo); il disabilitato usa l'opacità comune. Il tema viola (`--obrt-spell-*`) resta.
   - **Verifica:** l'avviso di turno aperto nell'anteprima con un messaggio simulato (round 12, nome lungo). Etichetta "ROUND" 37,6px nei 40px del badge, titolo che finisce 3px prima del badge, titolo in Georgia tramite il token, nessun testo sotto i 10px. Gli altri avvisi e i popover sono verificati solo sul CSS: le loro schede compatte (zone, tiri salvezza) vanno controllate in OBR, perché il testo più grande può allungarle.
+- **5.4 — fatto il 2026-10-22.**
+  - **Opzioni in italiano (D6).**
+    - "Room" → "Stanza" (selettore e badge); "Combat Log" → "Registro combattimento".
+    - "Player" → "giocatori" (Vista giocatori, HP dei giocatori, Effetti per i giocatori, Anteprima per i giocatori).
+    - "Reminder" → "Promemoria"; "Spell"/"spell" → "Incantesimi"/"incantesimi"; "Popup cambio turno" → "Avviso di cambio turno".
+    - "Mini-pill" → "Dettagli sotto le etichette"; "Layout" → "Vista e posizione del tracker"; On/Off → Attivo/Spento.
+    - Anche il riepilogo generato da `options-modal.js` è tradotto.
+    - Restano i nomi propri e di OBR: Take Initiative, Embers/JB2A, GM, token.
+    - Un test controlla che nel testo visibile non tornino i termini inglesi.
+  - **Etichette sulla mappa al posto di "Pill".** Le tre modalità sono:
+    - "compatte su tutti i token";
+    - "complete su tutti i token";
+    - "complete sui selezionati, compatte sugli altri".
+
+    Nel selettore stretto della vista classica (55px) compaiono "Compatte", "Complete" e "Su selezione"; il nome completo è nel suggerimento. Nel menu "…" la voce è "Etichette mappa" con la modalità su una seconda riga. Il vecchio "solo selezione" era fuorviante, perché gli altri token restano visibili in forma compatta.
+  - **Verifica:** nel menu la voce sta intera (contenuto 250px su 250); nel selettore classico le tre parole stanno nei 55px; nelle Opzioni non c'è testo inglese.
+  - Resta da allineare il resto del plugin, dove compaiono ancora "reminder" e "spell" (avvisi, scheda, pannelli): nella fase 7, insieme alla Guida utente.
 
 ### Fase 6 — Flussi e riduzione dei clic (gruppo B)
 

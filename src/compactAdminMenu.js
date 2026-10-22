@@ -9,7 +9,7 @@ const CHANNEL = `${ID}/compact-admin-menu`;
 const params = new URLSearchParams(window.location.search);
 const requestId = params.get("request") || "";
 // The current mode of the effect labels on the map; choosing the item moves to the next one.
-const MAP_LABEL_MODES = Object.freeze({ compact: "compatte", all: "espanse", selected: "solo selezione" });
+const MAP_LABEL_MODES = Object.freeze({ compact: "compatte", all: "complete", selected: "complete sui selezionati" });
 const mapLabelsMode = MAP_LABEL_MODES[params.get("mapLabels")] || MAP_LABEL_MODES.selected;
 const shell = document.querySelector("#shell");
 const menu = document.querySelector("#menu");
@@ -38,7 +38,7 @@ function iconNode(icon) {
   return node;
 }
 
-function addAction({ action, label, icon, danger = false }) {
+function addAction({ action, label, icon, danger = false, detail = "" }) {
   const button = document.createElement("button");
   button.type = "button";
   button.setAttribute("role", "menuitem");
@@ -48,6 +48,12 @@ function addAction({ action, label, icon, danger = false }) {
   const text = document.createElement("span");
   text.className = "label";
   text.textContent = label;
+  if (detail) {
+    const value = document.createElement("span");
+    value.className = "detail";
+    value.textContent = detail;
+    text.appendChild(value);
+  }
   button.appendChild(text);
   button.addEventListener("click", (event) => {
     event.preventDefault();
@@ -63,7 +69,7 @@ if (requestId) {
     { action: "history", label: "Cronologia", icon: "history.svg" },
     { action: "add-all", label: "Aggiungi attori", icon: "+" },
     { action: "fill-initiative", label: "Compila iniziativa", icon: "✎" },
-    { action: "map-labels", label: `Etichette mappa: ${mapLabelsMode}`, icon: "☷" },
+    { action: "map-labels", label: "Etichette mappa", detail: mapLabelsMode, icon: "☷" },
     { action: "options", label: "Opzioni", icon: "options.svg" },
     { action: "clear-initiative", label: "Svuota iniziativa", icon: "×", danger: true },
   ].forEach(addAction);

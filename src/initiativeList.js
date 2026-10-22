@@ -2679,9 +2679,17 @@ zoomChk.addEventListener("change", async (e) => {
 });
 
 const EFFECTS_DISPLAY_MODE_LABELS = Object.freeze({
-  compact: "Pill compatte",
-  all: "Pill espanse",
-  selected: "Pill selezione",
+  // What the effect labels on the map show: short on every token, complete on every token, or complete only on the
+  // selected ones (short on the others).
+  compact: "compatte su tutti i token",
+  all: "complete su tutti i token",
+  selected: "complete sui selezionati, compatte sugli altri",
+});
+// The extended layout's selector is narrow: it shows a short word, and its tooltip the full name above.
+const EFFECTS_DISPLAY_MODE_SHORT_LABELS = Object.freeze({
+  compact: "Compatte",
+  all: "Complete",
+  selected: "Su selezione",
 });
 const EFFECTS_DISPLAY_MODE_VALUES = Object.freeze(["compact", "all", "selected"]);
 const effectsDisplayModeControl = document.createElement("div");
@@ -2767,11 +2775,11 @@ function buildEffectsDisplayModeArrow(symbol, label) {
 }
 const effectsDisplayModePreviousButton = buildEffectsDisplayModeArrow(
   "‹",
-  "Vista pill precedente",
+  "Etichette sulla mappa: modalità precedente",
 );
 const effectsDisplayModeNextButton = buildEffectsDisplayModeArrow(
   "›",
-  "Vista pill successiva",
+  "Etichette sulla mappa: modalità successiva",
 );
 effectsDisplayModeControl.append(
   effectsDisplayModeIcon,
@@ -2788,11 +2796,11 @@ function normalizeEffectsDisplayModeControlValue(value) {
 function updateEffectsDisplayModeControl(value) {
   const mode = normalizeEffectsDisplayModeControlValue(value);
   effectsDisplayModeControl.dataset.mode = mode;
-  effectsDisplayModeValue.textContent = EFFECTS_DISPLAY_MODE_LABELS[mode];
-  effectsDisplayModeControl.title = `Vista pill: ${EFFECTS_DISPLAY_MODE_LABELS[mode]}`;
+  effectsDisplayModeValue.textContent = EFFECTS_DISPLAY_MODE_SHORT_LABELS[mode];
+  effectsDisplayModeControl.title = `Etichette sulla mappa: ${EFFECTS_DISPLAY_MODE_LABELS[mode]}`;
   effectsDisplayModeControl.setAttribute(
     "aria-label",
-    `Vista pill: ${EFFECTS_DISPLAY_MODE_LABELS[mode]}`,
+    `Etichette sulla mappa: ${EFFECTS_DISPLAY_MODE_LABELS[mode]}`,
   );
   const currentIndex = EFFECTS_DISPLAY_MODE_VALUES.indexOf(mode);
   const previousMode = EFFECTS_DISPLAY_MODE_VALUES[
@@ -2802,9 +2810,9 @@ function updateEffectsDisplayModeControl(value) {
   const nextMode = EFFECTS_DISPLAY_MODE_VALUES[
     (currentIndex + 1) % EFFECTS_DISPLAY_MODE_VALUES.length
   ];
-  effectsDisplayModePreviousButton.title = `Passa a ${EFFECTS_DISPLAY_MODE_LABELS[previousMode]}`;
+  effectsDisplayModePreviousButton.title = `Passa a etichette ${EFFECTS_DISPLAY_MODE_LABELS[previousMode]}`;
   effectsDisplayModePreviousButton.setAttribute("aria-label", effectsDisplayModePreviousButton.title);
-  effectsDisplayModeNextButton.title = `Passa a ${EFFECTS_DISPLAY_MODE_LABELS[nextMode]}`;
+  effectsDisplayModeNextButton.title = `Passa a etichette ${EFFECTS_DISPLAY_MODE_LABELS[nextMode]}`;
   effectsDisplayModeNextButton.setAttribute("aria-label", effectsDisplayModeNextButton.title);
 }
 
@@ -2863,8 +2871,8 @@ const COMPACT_ADMIN_MENU_HEIGHT = 256;
 // a notification says the mode just chosen.
 const EFFECTS_DISPLAY_MODE_MENU_LABELS = Object.freeze({
   compact: "compatte",
-  all: "espanse",
-  selected: "solo selezione",
+  all: "complete",
+  selected: "complete sui selezionati",
 });
 const mapLabelsCycleButton = document.createElement("button");
 mapLabelsCycleButton.type = "button";
