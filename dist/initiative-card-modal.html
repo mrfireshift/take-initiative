@@ -151,14 +151,36 @@
     .spell-slot-pip[data-pact="1"][data-available="1"] { background:#a855f7; box-shadow:0 0 6px rgba(168,85,247,.55); }
     span.spell-slot-pip { display:inline-block; box-sizing:border-box; }
     .spell-slot-pip[data-temporary="1"] { border-style:dashed; }
+    .spell-slot-row[data-pending="1"] .spell-slot-pips { opacity:.7; }
     .rest-actions { display:flex; justify-content:flex-end; gap:5px; margin:2px 0 7px; }
     .rest-actions[hidden] { display:none; }
     .spell-slots .rest-actions { margin:3px 0 0; }
     .rest-actions button { min-height:24px; padding:2px 9px; border-radius:8px; font-size:10px; border-color:rgba(var(--faction-rgb),.38); background:rgba(var(--faction-rgb),.10); }
+    .spellbook-preparation { display:flex; align-items:center; gap:8px; margin-top:7px; padding:6px 10px; border-radius:7px; background:linear-gradient(145deg,rgba(var(--faction-rgb),.065),rgba(7,12,19,.28)); border:1px solid rgba(var(--faction-rgb),.20); color:rgba(255,255,255,.72); font-size:var(--obrt-type-secondary); }
+    .spellbook-preparation[hidden] { display:none; }
+    .spellbook-preparation strong { color:var(--accent-bright); font-variant-numeric:tabular-nums; }
+    .spellbook-preparation[data-over="1"] strong { color:#fdba74; }
+    .spellbook-preparation small { color:rgba(255,255,255,.52); font-size:10px; }
+    .spellbook-preparation .rest-actions { margin:0 0 0 auto; }
+    .spellbook-preparation small.spellbook-preparation-reminder { color:#fde68a; }
+    .spellbook-preparation button[data-attention="1"] { border-color:#fde047; background:rgba(234,179,8,.20); color:#fde68a; box-shadow:0 0 6px rgba(234,179,8,.35); }
+    .spellbook-entry .quick-action[data-preparing="1"] { cursor:pointer; }
+    .spellbook-entry .quick-action input { flex:0 0 auto; width:15px; height:15px; min-height:15px; margin:0 3px; padding:0; accent-color:var(--accent); }
     .spellbook-list .section-title { margin:12px 0 0; }
     .spellbook-list .quick-actions-list { grid-template-columns:minmax(0,1fr); gap:5px; }
     .spellbook-list .quick-action { min-height:36px; padding:5px 9px; }
-    .spellbook-entry { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px; }
+    .spellbook-entry { min-width:0; display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+    .spellbook-entry > .quick-action { flex:1 1 0; }
+    .spellbook-toggle { font-size:11px; }
+    .spellbook-ritual-badge { display:inline-block; margin-left:5px; padding:0 4px; border:1px solid rgba(var(--faction-rgb),.55); border-radius:4px; color:var(--accent-bright); font-size:9px; line-height:13px; vertical-align:1px; }
+    .spellbook-details { flex:1 0 100%; display:grid; gap:6px; padding:8px 10px; border-radius:8px; border:1px solid rgba(var(--faction-rgb),.20); background:rgba(0,0,0,.20); color:rgba(255,255,255,.78); font-size:var(--obrt-type-secondary); line-height:1.4; }
+    .spellbook-details > small { color:rgba(255,255,255,.52); font-size:10px; }
+    .spellbook-details dl { display:grid; grid-template-columns:auto minmax(0,1fr); gap:2px 10px; margin:0; }
+    .spellbook-details dt { color:rgba(255,255,255,.52); }
+    .spellbook-details dd { margin:0; }
+    .spellbook-details p { margin:0; white-space:pre-line; }
+    .spellbook-details p strong { color:var(--accent-bright); }
+    .spellbook-details .rest-actions { margin:0; }
     .spellbook-entry .quick-action[data-reference="1"] { border:1px solid rgba(var(--faction-rgb),.32); cursor:default; opacity:.62; }
     .spellbook-entry .quick-action[data-reference="1"]:hover { background:linear-gradient(145deg,rgba(var(--faction-rgb),.13),rgba(7,12,19,.34)); }
     .spellbook-panel { width:28px; min-height:28px; padding:0; align-self:center; border-radius:8px; font-size:13px; line-height:1; }
@@ -170,6 +192,10 @@
     .spellbook-editor-row button { width:28px; min-height:28px; padding:0; border-radius:8px; line-height:1; }
     .spellbook-pin[aria-pressed="true"] { border-color:#fde047; background:rgba(234,179,8,.20); color:#fde047; }
     .spellbook-pin:disabled { opacity:.32; cursor:default; }
+    .spellbook-suggestions { display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin-top:9px; }
+    .spellbook-suggestions[hidden] { display:none; }
+    .spellbook-suggestions > span { flex-basis:100%; color:rgba(255,255,255,.62); font-size:10px; }
+    .spellbook-suggestions button { min-height:24px; padding:2px 8px; border-radius:8px; font-size:10px; border-color:rgba(var(--faction-rgb),.38); background:rgba(var(--faction-rgb),.10); }
     .spellbook-pin:disabled:hover { border-color:rgba(255,255,255,.18); background:rgba(255,255,255,.08); }
     .class-feature-choice { min-width:88px; max-width:150px; min-height:28px; padding:4px 7px; border:1px solid var(--feature-accent,rgba(var(--faction-rgb),.42)); border-radius:8px; background:rgba(0,0,0,.30); color:#fff; font:inherit; font-size:10px; }
     .class-feature-choice-compact { width:100%; max-width:none; min-height:26px; }
@@ -353,7 +379,7 @@
       .eyebrow { display:none; }
     }
   </style>
-  <script type="module" crossorigin src="/assets/initiativeCardModal-B1I4l0BU.js"></script>
+  <script type="module" crossorigin src="/assets/initiativeCardModal-CDluMZmI.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
@@ -361,58 +387,59 @@
   <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-chCHihnd.js">
   <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BEeUqVid.js">
   <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BiYU2Jbj.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-BalZ0QVy.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-D3Xi8I_j.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3dCore-DjQKSEJL.js">
-  <link rel="modulepreload" crossorigin href="/assets/blinkRules-PLF7SvZn.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-Db_3V8pN.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditions-DtY3ne1s.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-D5cnEwSY.js">
+  <link rel="modulepreload" crossorigin href="/assets/blinkRules-D0eEQH_b.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-DU74XGmS.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-CFj9DWyz.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-BtoSV1ih.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ci4uQNGU.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-CUzjg6Rv.js">
   <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BrtQzeT5.js">
   <link rel="modulepreload" crossorigin href="/assets/customAuraCore-DmeqJ36W.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-DYfqXO8y.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-Dluj8aNi.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-C5iSobKF.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-mOkcZX8z.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-DCvdVtS_.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-Bi1TViJz.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-28TsGb8f.js">
   <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-hLLJ2f7Z.js">
-  <link rel="modulepreload" crossorigin href="/assets/history-BlPKPrUS.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-EaE8f_4x.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3d-CeFYQ3b2.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-p2SAYW6w.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-MZSKNO1U.js">
   <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-CJ-dHtGF.js">
   <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-Bc--_DL6.js">
-  <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-DIeGA-80.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellbookCore-CdJSBNnE.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-PltgbF9j.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellbookCore-DF9lL3tV.js">
   <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-EIlt4P7I.js">
-  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-DoFEtTkx.js">
-  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-CXnREJZk.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionRules-a15z8-9P.js">
-  <link rel="modulepreload" crossorigin href="/assets/spells-srd-BS3drj55.js">
+  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-Dpcu_IRB.js">
+  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-C9_gKT3O.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionRules-Cbi0Hg1Z.js">
+  <link rel="modulepreload" crossorigin href="/assets/spells-srd-Drec7ft-.js">
   <link rel="modulepreload" crossorigin href="/assets/spellExpiryCore-8hlvXKR5.js">
   <link rel="modulepreload" crossorigin href="/assets/combatLogCausalityCore-CMBZlm78.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellCastRecordCore-BPd8H-KS.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellCastRecordCore-Cqckjc5G.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-BV1BjmXC.js">
   <link rel="modulepreload" crossorigin href="/assets/spellCastContextCore-B5Jfmsjh.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-DUDlvp8D.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionCore-BQCg7NZV.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-CZ6vbylm.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellAreaResolutionCommandCore-FmqqXKIi.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelSceneProvider-C0SbJmjy.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-Bo2gNcrG.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditionApplicationExecutor-DryGFwzr.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-BR_dBlS6.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-Cla0dI6g.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionCore-Dron1QM2.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-CDZ80ZNa.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellAreaResolutionCommandCore-DNYuf4b4.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelSceneProvider-B0InTeSG.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-B3rsccZy.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditionApplicationExecutor-CnypkzH6.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-i3g16fn2.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellDamageHealingCore-CZuf6qjd.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-5hUM_IHG.js">
   <link rel="modulepreload" crossorigin href="/assets/optionsProjection-CgWy5yEC.js">
   <link rel="modulepreload" crossorigin href="/assets/reminderProjectionBroadcast-BV7KLhQi.js">
-  <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-ChNGRQWs.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-B3KbRIyn.js">
+  <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-aolMmdYJ.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-CbH9Xf-k.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-CbqwMVaE.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-B5QfpfrF.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-Bb-ignHQ.js">
-  <link rel="modulepreload" crossorigin href="/assets/quickActionExecution-CTr6DQI6.js">
-  <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-BBSrtnir.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureRuntime-Cgg45p9c.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-B0IRkt6f.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-B5o6YviM.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-CgKR9KaG.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickActionExecution-CBiP62vw.js">
+  <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-etIAOfqN.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureRuntime-BXcGJbU-.js">
 </head>
 <body>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/initiative-card-modal">
@@ -467,6 +494,7 @@
         <span>Attacco <strong id="spellbookAttackBonus">-</strong></span>
       </div>
       <div id="spellSlots" class="spell-slots" hidden></div>
+      <div id="spellbookPreparation" class="spellbook-preparation" hidden></div>
       <div id="spellbookList" class="spellbook-list"></div>
       <div id="spellbookRunStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
     </section>
@@ -535,6 +563,8 @@
         <datalist id="spellbookSpellOptions"></datalist>
         <div id="spellbookEditStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
         <div id="spellbookEditorList" class="spellbook-editor-list"></div>
+        <div id="spellbookSuggestions" class="spellbook-suggestions" hidden></div>
+        <p id="spellbookGrantedNote" class="class-feature-help" hidden></p>
         <p class="class-feature-help">★ mette l'incantesimo tra i preferiti, in cima al menu 🪄 della card. Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni rapide.</p>
       </section>
       <section id="quickActionsEditPane" class="quick-actions-editor edit-pane" hidden>
