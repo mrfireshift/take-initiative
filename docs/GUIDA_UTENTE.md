@@ -88,8 +88,13 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   subito quando non serve altro, altrimenti aperto nel pannello incantesimi.
 - ⚙ apre sempre il pannello, per scegliere slot, bersagli e varianti.
 - I trucchetti d'attacco aprono la console attacchi quando negli **Attacchi**
-  c'è un'azione Trucchetto; gli incantesimi che il plugin non lancia restano
-  in elenco come riferimento.
+  c'è un'azione Trucchetto, anche dal menu 🪄.
+- Gli incantesimi che il plugin non automatizza (Controincantesimo, Cura
+  ferite, Desiderio, Identificare…) mostrano **Registra il lancio**: il lancio
+  spende lo slot e finisce nel registro di combattimento, senza pill; gli
+  effetti si risolvono al tavolo. I bersagli selezionati compaiono nel
+  registro, ma non servono. Nel pannello il pulsante si chiama **Registra
+  lancio**; dal menu 🪄 un avviso dice quale slot è stato speso.
 
 Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni
 rapide.
@@ -105,16 +110,21 @@ ripristinarlo, con Undo.
 
 Un lancio dalla scheda, dai pulsanti ⚡ e 🪄 o dal pannello incantesimi spende lo
 slot nello stesso comando dell'incantesimo: un solo Undo li annulla entrambi.
+Vale per **ogni** incantesimo del catalogo, anche per quelli di cui il plugin
+registra soltanto il lancio. Il registro di combattimento mostra il livello
+dello slot e **Speso: …** per ogni lancio.
 
 - Si spende uno slot del livello scelto; un warlock usa la Magia del Patto,
-  al livello dei suoi slot.
+  al livello dei suoi slot (anche scegliendo il Patto nel pannello).
 - Nel pannello, il menu **Slot** mostra quanti ne restano per livello e il
   menu **Spendi** sceglie la Magia del Patto o **Senza slot** (rituale,
   lancio gratuito).
 - Senza slot disponibili il plugin chiede se lanciare comunque senza
   scalarne uno.
 - Trucchetti, risoluzioni successive, azioni attive, trigger di zona e
-  creature senza classi non spendono slot.
+  creature senza classi non spendono slot. Il loro lancio registrato, come
+  quello **Senza slot**, va soltanto nel registro di combattimento: non
+  cambiando nulla, non ha una voce da annullare in History.
 
 Anche queste azioni scalano gli slot nel loro comando, con un solo Undo:
 

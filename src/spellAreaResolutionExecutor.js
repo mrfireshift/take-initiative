@@ -133,6 +133,7 @@ import {
   isDelayedBlastFireball,
 } from "./delayedBlastFireballRules.js";
 import { buildTerminationResumeOperation } from "./spellTerminationGatewayCore.js";
+import { withSpellCastCost } from "./spellCastRecordCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_KEY = `${ID}/spells`;
@@ -1857,10 +1858,13 @@ function spellAreaCausality(plan) {
   );
   const primaryAmount = Number(command?.hp?.primaryAmount);
   const primaryFactor = causalDamageFactor(command?.hp?.primaryOutcomeFactor);
+  // The level of the slot the spell is cast with, for the combat log (cantrips have none).
+  const slotLevel = Math.floor(Number(command?.spell?.slotLevel));
   return applyMonsterActionContext({
     source: "spell-area",
     spellId: plan?.spell?.id || "",
     spellName: plan?.spell?.displayName || plan?.spell?.name || plan?.spell?.id || "",
+    ...(slotLevel >= 1 && slotLevel <= 9 ? { slotLevel } : {}),
     casterId: plan?.caster?.id || "",
     ...(plan?.caster?.name ? { casterName: plan.caster.name } : {}),
     ...(teleportRule
@@ -2166,7 +2170,7 @@ export async function executeSpellAreaResolution(
         history: {
           kind: "spell",
           label: `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Porta Dimensionale"}`,
-          payload: { causality: spellAreaCausality(plan) },
+          payload: { causality: withSpellCastCost(spellAreaCausality(plan), runtime.castCost) },
         },
         kind: "spell",
         label: `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Porta Dimensionale"}`,
@@ -2244,7 +2248,7 @@ export async function executeSpellAreaResolution(
           ...decorated,
           payload: {
             ...(decorated?.payload || {}),
-            causality: spellAreaCausality(plan),
+            causality: withSpellCastCost(spellAreaCausality(plan), runtime.castCost),
           },
         };
       },

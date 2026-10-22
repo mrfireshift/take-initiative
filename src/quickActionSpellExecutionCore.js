@@ -486,7 +486,9 @@ export function buildQuickActionSpellLaunchPlan({
     });
   }
 
-  if (!directTargetIds.length) {
+  // A spell the plugin does not automate is recorded at once, with the creatures selected (any number, none too).
+  const recordOnly = contract.execution?.recordOnly === true;
+  if (!recordOnly && !directTargetIds.length) {
     return review({
       normalized,
       spell,
@@ -504,7 +506,7 @@ export function buildQuickActionSpellLaunchPlan({
     spell,
     contract,
     casterId,
-    targetIds: directTargetIds,
+    targetIds: recordOnly ? initialTargetIds : directTargetIds,
   });
   let lifecycleRequest;
   try {
@@ -539,6 +541,7 @@ export function buildQuickActionSpellLaunchPlan({
     initialTargetIds,
     fallbackRoute: spellReviewRoute({ normalized, spell, session, initialTargetIds }),
     replacesConcentration,
+    ...(recordOnly ? { recordOnly: true } : {}),
   };
 }
 

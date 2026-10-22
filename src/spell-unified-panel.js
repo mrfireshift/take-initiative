@@ -513,8 +513,21 @@ export function bootSpellUnifiedPanel(
       patchSession({ feedback: { state: "info", message: "Lancio annullato: niente da spendere." } }, { clearFeedback: false });
       return null;
     }
-    return { extraOperations: cost.operation ? [cost.operation] : [], spellCost: cost.spent };
+    return { extraOperations: cost.operation ? [cost.operation] : [], spellCost: cost.spent, slotLevel: cost.slotLevel };
   };
+
+  // The session the cast runs with: a Pact Magic slot casts the spell at its own level, as the quick actions do.
+  const sessionAtSpentSlot = (slotSpend) => (
+    Number.isInteger(slotSpend?.slotLevel) && slotSpend.slotLevel !== state.session.slotLevel
+      ? {
+        ...state.session,
+        slotLevel: slotSpend.slotLevel,
+        castContext: { ...(state.session.castContext || {}), slotLevel: slotSpend.slotLevel },
+      }
+      : state.session
+  );
+
+  const spentText = (slotSpend) => (slotSpend?.spellCost ? ` · speso: ${slotSpend.spellCost}` : "");
 
   const render = () => {
     if (destroyed) return null;
@@ -1039,8 +1052,9 @@ export function bootSpellUnifiedPanel(
       ),
     });
     if (initial) {
+      // A recorded cast starts from the creatures selected, never from its caster as a default target.
       const contextIds = sourceId
-        ? await provider.getCardTargetIds?.(sourceId, state.casters)
+        ? await provider.getCardTargetIds?.(state.contract?.execution?.recordOnly === true ? "" : sourceId, state.casters)
         : await provider.getContextOrSelectionIds?.();
       if (!sceneLifecycle.isCurrent(operation)) return false;
       const routeIds = targetIdsForCandidates(
@@ -1691,6 +1705,7 @@ export function bootSpellUnifiedPanel(
     const runtime = {
       ...areaRuntime(operation, ownerSceneContext),
       extraOperations: slotSpend.extraOperations,
+      castCost: slotSpend.spellCost,
     };
     const sceneEpoch = operation.epoch;
     state.session = updateSpellPanelSession(state.session, {
@@ -1702,7 +1717,7 @@ export function bootSpellUnifiedPanel(
     try {
       const result = await executeSpellUnifiedArea({
         contract: state.contract,
-        session: state.session,
+        session: sessionAtSpentSlot(slotSpend),
         source: {
           sceneEpoch,
           commandId: operation.operationId,
@@ -1744,7 +1759,7 @@ export function bootSpellUnifiedPanel(
             state: result.status === SPELL_UNIFIED_AREA_STATUS.NOOP ? "info" : "success",
             message: result.status === SPELL_UNIFIED_AREA_STATUS.NOOP
               ? areaMessageForResult(result)
-              : `Applicazione completata su ${result.changedIds.length} elementi.`,
+              : `Applicazione completata su ${result.changedIds.length} elementi${spentText(slotSpend)}.`,
           },
         });
         state.revision += 1;
@@ -2684,9 +2699,11 @@ export function bootSpellUnifiedPanel(
     const slotSpend = await prepareSpellSlotSpend(operation);
     if (!slotSpend) return;
     state.committing = true;
+    // A spell the plugin does not automate: the cast is recorded with what it spends (spellCastRecord.js).
+    const recordOnly = state.contract?.execution?.recordOnly === true;
     state.session = updateSpellPanelSession(state.session, {
       commitState: { state: "committing" },
-      feedback: { state: "loading", message: "Applicazione in corso…" },
+      feedback: { state: "loading", message: recordOnly ? "Registrazione in corso…" : "Applicazione in corso…" },
     });
     state.revision += 1;
     render();
@@ -2696,7 +2713,7 @@ export function bootSpellUnifiedPanel(
     );
     const result = await executeSpellUnifiedLifecycle({
       contract: state.contract,
-      session: state.session,
+      session: sessionAtSpentSlot(slotSpend),
         runtime: {
           sceneEpoch: operation.epoch,
           visualSceneEpoch: currentSceneEpoch(),
@@ -2712,6 +2729,7 @@ export function bootSpellUnifiedPanel(
             ? { executor: runtimeOverrides.lifecycleExecutor }
             : {}),
           extraOperations: slotSpend.extraOperations,
+          castCost: slotSpend.spellCost,
       },
     });
     if (!sceneLifecycle.isCurrent(operation)) return;
@@ -2730,7 +2748,7 @@ export function bootSpellUnifiedPanel(
         },
         feedback: {
           state: "success",
-          message: "Incantesimo applicato.",
+          message: `${recordOnly ? "Lancio registrato: effetti al tavolo" : "Incantesimo applicato"}${spentText(slotSpend)}.`,
         },
       });
       await refreshScene();

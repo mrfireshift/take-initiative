@@ -212,7 +212,8 @@ test("il catalogo completo ha un percorso canonico senza whitelist di eccezioni"
     })
     .filter(Boolean);
 
-  assert.equal(entries.length, 393);
+  // The whole catalog: the spells the plugin does not automate have their recorded cast.
+  assert.equal(entries.length, 477);
   assert.deepEqual(unhandled, []);
 });
 

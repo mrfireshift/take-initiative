@@ -165,6 +165,7 @@ export async function executeDirectQuickAction({
         validateSpatial: (input) => validateSpellAreaSceneSpatial(OBR, input),
         getInitiativeActorId: async () => (await getCurrentSpellAppliedAt())?.actorId || null,
         extraOperations,
+        castCost: spellCost,
       },
     });
     if (areaResult.status === "rejected") {
@@ -206,6 +207,7 @@ export async function executeDirectQuickAction({
       ),
       executor: executeSpellApplication,
       extraOperations,
+      castCost: spellCost,
     },
   });
   if (lifecycleResult.status === "rejected") {
@@ -235,5 +237,7 @@ export async function executeDirectQuickAction({
     changedIds: lifecycleResult.changedIds,
     lifecycleResult,
     spellCost,
+    // A spell the plugin does not automate: its cast is recorded, the table resolves it.
+    ...(decision.recordOnly ? { recorded: true } : {}),
   };
 }

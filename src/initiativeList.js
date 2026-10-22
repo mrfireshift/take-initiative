@@ -188,7 +188,12 @@ import {
   findQuickAction,
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
-import { spellbookMenuSections, spellbookTrackerQuickActions } from "./spellbookCatalog.js";
+import {
+  spellbookCantripAttackAction,
+  spellbookMenuSections,
+  spellbookTrackerQuickActions,
+} from "./spellbookCatalog.js";
+import { isSpellbookQuickAction } from "./spellbookCore.js";
 import {
   buildSpellUnifiedPanelRouteQuery,
   resolveGlobalSpellSourceEntryCore,
@@ -8149,12 +8154,29 @@ async function __runTrackerQuickAction(sourceEntry, action) {
     await openPcAttackPopover(sourceId, action.id);
     return { mode: "review", route: "pc-attack" };
   }
+  // A cantrip of the spellbook recorded in the attack console: the 🪄 menu opens the console with the character's
+  // cantrip attack, as the sheet does (spellbookCatalog.js).
+  const cantripAttack = isSpellbookQuickAction(action)
+    ? spellbookCantripAttackAction(sourceEntry?.quickActions, action.spellId)
+    : null;
+  if (cantripAttack) {
+    if (!IS_GM) throw new Error("Solo il GM può registrare un attacco.");
+    await openPcAttackPopover(sourceId, cantripAttack.id);
+    return { mode: "review", route: "pc-attack" };
+  }
   const result = await executeDirectQuickAction({
     action,
     sourceItem: { id: sourceId, name: sourceEntry?.name || "" },
     confirmConcentration: (message) => window.confirm(message),
     confirmSpellSlot: (message) => window.confirm(message),
   });
+  // A recorded cast changes nothing on the map: the GM reads what it spent here.
+  if (result.mode === "executed" && result.recorded) {
+    void OBR.notification.show(
+      `Lancio registrato: ${action.label}${result.spellCost ? ` · speso: ${result.spellCost}` : ""}.`,
+      "INFO",
+    ).catch(() => {});
+  }
   if (result.mode === "invalid") return result;
   if (result.mode !== "review") return result;
 

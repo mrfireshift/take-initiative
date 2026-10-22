@@ -412,3 +412,94 @@ test("a short rest restores Pact Magic but not the other slots; the long rest re
   resources = await casterSlots();
   assert.deepEqual([resources["spell-slot-1"].current, resources["stregone-punti-stregoneria"].current, resources["quick-action-uses:misty"].current], [4, 3, 1]);
 });
+
+// A spell the plugin does not automate (spellCastRecord.js): the cast spends its slot in its own command and History
+// entry, with no pill, and the production Undo gives the slot back; a cast that spends nothing goes to the combat log.
+const { getActiveCombatLogData } = await import("../src/combatLog.js");
+
+async function combatLogSpellEvents() {
+  const { events } = await getActiveCombatLogData();
+  return events.filter((event) => event.category === "spell");
+}
+
+test("a recorded cast spends its slot in one History entry, leaves no pill, and the Undo gives the slot back", async () => {
+  await resetScene();
+  await executeSpellApplication({
+    spell: getSpellDefinition("counterspell"),
+    casterId: CASTER_ID,
+    casterName: "Maga",
+    targetIds: [TARGET_ID],
+    castContext: { slotLevel: 3, phase: "cast" },
+    extraOperations: [slotOperation(3)],
+    castCost: "slot di 3° livello",
+    recordOnly: true,
+  });
+  assert.equal((await casterSlots())["spell-slot-3"].current, 2);
+  const [target] = await sdkStub.scene.items.getItems([TARGET_ID]);
+  assert.deepEqual(target.metadata[META_KEY][SPELLS_KEY], [], "no pill: the table resolves Counterspell");
+  await convergeDeferredEffectsHistory();
+  const [entry] = await history.getHistoryEntries();
+  assert.equal(entry.label, "Incantesimo: Controincantesimo");
+  assert.equal(entry.payload.causality.recorded, true);
+  assert.deepEqual(entry.payload.causality.cost, { label: "slot di 3° livello" });
+  assert.deepEqual(entry.payload.causality.targets, [{ id: TARGET_ID, name: "Nemico" }]);
+  const [logged] = await combatLogSpellEvents();
+  assert.equal(logged?.label, "Incantesimo: Controincantesimo", "the History owner writes its combat log entry");
+  const { entries } = await undoLast();
+  assert.equal(entries.length, 1);
+  assert.equal((await casterSlots())["spell-slot-3"]?.current ?? 3, 3);
+});
+
+test("a recorded cast that spends nothing has no History entry and goes to the combat log", async () => {
+  await resetScene();
+  await executeSpellApplication({
+    spell: getSpellDefinition("mending"),
+    casterId: CASTER_ID,
+    casterName: "Maga",
+    targetIds: [],
+    castContext: { slotLevel: 0, phase: "cast" },
+    recordOnly: true,
+  });
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual(await history.getHistoryEntries(), [], "nothing changed, nothing to undo");
+  assert.deepEqual(await casterSlots(), {});
+  const events = await combatLogSpellEvents();
+  const logged = events.find((event) => event.label === "Incantesimo: Riparare");
+  assert.ok(logged, "the cast is in the combat log");
+  assert.equal(logged.historyEntryId, "");
+  assert.equal(logged.provenance?.recordingSource, "spell-cast-record");
+  assert.equal(logged.payload?.causality?.recorded, true);
+});
+
+test("an automated cast names what it spent in its causality", async () => {
+  await resetScene();
+  await executeSpellApplication({
+    spell: getSpellDefinition("bless"),
+    casterId: CASTER_ID,
+    targetIds: [TARGET_ID],
+    turns: 10,
+    castContext: { slotLevel: 1, phase: "cast" },
+    extraOperations: [slotOperation(1)],
+    castCost: "slot di 1° livello",
+  });
+  await convergeDeferredEffectsHistory();
+  const [entry] = await history.getHistoryEntries();
+  assert.deepEqual(entry.payload.causality.cost, { label: "slot di 1° livello" });
+  assert.equal(entry.payload.causality.recorded, undefined);
+  const [target] = await sdkStub.scene.items.getItems([TARGET_ID]);
+  assert.equal(target.metadata[META_KEY][SPELLS_KEY].length, 1, "Bless keeps its pill");
+});
+
+test("an area cast names its slot level and what it spent in its causality", async () => {
+  await resetScene();
+  const result = await executeSpellAreaResolution(immolationCommand([TARGET_ID]), {
+    ...areaRuntime(),
+    extraOperations: [slotOperation(5)],
+    castCost: "slot di 5° livello",
+  });
+  assert.equal(result.status, "applied");
+  await convergeDeferredEffectsHistory();
+  const [entry] = await history.getHistoryEntries();
+  assert.equal(entry.payload.causality.slotLevel, 5);
+  assert.deepEqual(entry.payload.causality.cost, { label: "slot di 5° livello" });
+});

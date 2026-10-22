@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "5eac222a6d41c98d",
+  "fingerprint": "05e254e15e8e6e06",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -23,25 +23,23 @@
       "TRACK_ONLY": 143
     },
     "coverageStatus": {
-      "ACCEPTED": 71,
+      "ACCEPTED": 72,
       "CLOSED": 14,
       "GAP": 11,
-      "UNREVIEWED": 381
+      "UNREVIEWED": 380
     },
     "targetAutomationLevel": {
       "FULL": 66,
-      "MANUAL": 3,
+      "MANUAL": 4,
       "PARTIAL": 13,
       "TRACK_ONLY": 3,
-      "UNREVIEWED": 392
+      "UNREVIEWED": 391
     },
     "currentUiExposure": {
-      "REFERENCE_ONLY": 84,
-      "UNIFIED": 393
+      "UNIFIED": 477
     },
     "targetUiExposure": {
-      "UNIFIED": 393,
-      "UNREVIEWED": 84
+      "UNIFIED": 477
     },
     "trackableOptions": 358,
     "trackable": 355,
@@ -92,15 +90,13 @@
     },
     "byIntegrationStatus": {
       "partial": 11,
-      "reachable": 382,
-      "unexposed": 84
+      "reachable": 466
     },
     "byIntegrationPriority": {
       "—": 477
     },
     "byIntegrationIssue": {
-      "CAST_NO_MUTATIONS": 3,
-      "UNIFIED_CATALOG_MISSING": 84
+      "CAST_NO_MUTATIONS": 3
     },
     "smokeCategories": {
       "ACTIVE_ACTION": 41,
@@ -111,7 +107,7 @@
       "PERSISTENCE": 355,
       "TURN_TRIGGER": 91
     },
-    "unifiedCatalogExposed": 393,
+    "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
     "integrationFragile": 0,
     "runtimeSmokeRequired": 392,
@@ -871,10 +867,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -900,18 +898,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -1946,10 +1940,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [
@@ -1979,18 +1975,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -3160,10 +3152,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [
@@ -3191,18 +3185,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -4040,10 +4030,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -4069,18 +4061,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -4438,10 +4426,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -4467,18 +4457,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -4684,14 +4670,16 @@
       "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [
         "CAST",
         "CLEANUP",
         "TURN_TRIGGER"
       ],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -4726,18 +4714,14 @@
         ]
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -6644,10 +6628,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -6675,18 +6661,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -8097,10 +8079,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -8126,18 +8110,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -8499,10 +8479,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -8528,18 +8510,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -9590,10 +9568,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -9619,18 +9599,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -9951,10 +9927,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -9980,18 +9958,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -10393,10 +10367,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -10422,18 +10398,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -11578,10 +11550,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [
@@ -11609,18 +11583,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -11827,10 +11797,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [
@@ -11860,18 +11832,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -11934,10 +11902,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -11963,18 +11933,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -12036,10 +12002,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -12065,18 +12033,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -12391,10 +12355,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -12420,18 +12386,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -12493,10 +12455,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -12522,18 +12486,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -12953,10 +12913,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -12982,18 +12944,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -13052,10 +13010,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -13081,18 +13041,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -13150,10 +13106,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -13179,18 +13137,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -13635,10 +13589,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -13664,18 +13620,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -13733,10 +13685,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "ACCEPTED",
       "targetAutomationLevel": "MANUAL",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "manuale",
       "signals": [
@@ -13765,18 +13719,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -14202,10 +14152,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -14233,18 +14185,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -14308,10 +14256,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "ACCEPTED",
       "targetAutomationLevel": "MANUAL",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "manuale",
       "signals": [
@@ -14339,18 +14289,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -14525,10 +14471,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -14554,18 +14502,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -14624,10 +14568,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -14656,18 +14602,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -14730,10 +14672,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -14759,18 +14703,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -18432,10 +18372,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -18461,18 +18403,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -19169,10 +19107,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -19200,18 +19140,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -19272,10 +19208,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -19301,18 +19239,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -19371,10 +19305,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -19400,18 +19336,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -19574,10 +19506,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -19605,18 +19539,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -19677,10 +19607,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -19708,18 +19640,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -19779,10 +19707,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -19811,18 +19741,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -19886,10 +19812,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -19917,18 +19845,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -21364,10 +21288,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -21393,18 +21319,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -22380,10 +22302,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -22409,18 +22333,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -23014,10 +22934,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -23043,18 +22965,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -23113,10 +23031,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -23142,18 +23062,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -23457,10 +23373,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -23486,18 +23404,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -24483,10 +24397,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -24514,18 +24430,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -25166,10 +25078,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -25198,18 +25112,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -25271,10 +25181,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -25300,18 +25212,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -26095,10 +26003,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -26126,18 +26036,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -28356,10 +28262,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -28385,18 +28293,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -28929,10 +28833,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -28960,18 +28866,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -29371,10 +29273,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -29400,18 +29304,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -36002,10 +35902,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -36034,18 +35936,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -36855,10 +36753,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -36884,18 +36784,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -37079,10 +36975,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -37108,18 +37006,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -37178,10 +37072,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -37207,18 +37103,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -37398,10 +37290,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -37427,18 +37321,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -37497,10 +37387,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -37526,18 +37418,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -39618,10 +39506,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -39647,18 +39537,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -39717,10 +39603,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -39746,18 +39634,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -41759,10 +41643,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -41788,18 +41674,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -42382,10 +42264,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -42411,18 +42295,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -42975,10 +42855,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -43006,18 +42888,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -43079,10 +42957,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -43108,18 +42988,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -43404,10 +43280,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -43433,18 +43311,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -43503,10 +43377,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -43532,18 +43408,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -43602,10 +43474,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -43631,18 +43505,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -43917,10 +43787,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -43946,18 +43818,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -44016,10 +43884,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -44045,18 +43915,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -44115,10 +43981,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -44146,18 +44014,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -44217,10 +44081,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -44246,18 +44112,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -44693,10 +44555,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -44722,18 +44586,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -44792,10 +44652,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -44821,18 +44683,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -44891,10 +44749,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [
@@ -44925,18 +44785,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -45329,10 +45185,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -45358,18 +45216,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -45927,10 +45781,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [
@@ -45958,18 +45814,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -46401,10 +46253,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -46430,18 +46284,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -46610,10 +46460,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
@@ -46639,18 +46491,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -46975,10 +46823,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [
@@ -47006,18 +46856,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -51140,12 +50986,14 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "MANUAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "MANUAL",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
@@ -51173,18 +51021,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -51510,10 +51354,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -51541,18 +51387,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -51761,14 +51603,16 @@
       "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [
         "CAST",
         "CLEANUP",
         "TURN_TRIGGER"
       ],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -51802,18 +51646,14 @@
         ]
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -52252,10 +52092,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
@@ -52283,18 +52125,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -52712,10 +52550,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -52741,18 +52581,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -54507,10 +54343,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
@@ -54536,18 +54374,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -55261,10 +55095,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -55290,18 +55126,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -55360,10 +55192,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [],
@@ -55389,18 +55223,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",
@@ -55459,10 +55289,12 @@
       "currentAutomationLevel": "MANUAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
-      "currentUiExposure": "REFERENCE_ONLY",
-      "targetUiExposure": "UNREVIEWED",
+      "currentUiExposure": "UNIFIED",
+      "targetUiExposure": "UNIFIED",
       "smokeCategories": [],
-      "verificationEvidence": [],
+      "verificationEvidence": [
+        "STRUCTURAL"
+      ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "fuori perimetro: casting time",
       "signals": [
@@ -55491,18 +55323,14 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "unexposed",
+        "status": "reachable",
         "priority": "—",
-        "issues": [
-          {
-            "code": "UNIFIED_CATALOG_MISSING",
-            "severity": "—",
-            "label": "incantesimo non esposto nella console unificata"
-          }
-        ],
+        "issues": [],
         "catalog": {
-          "exposed": false,
-          "sources": []
+          "exposed": true,
+          "sources": [
+            "cast-record"
+          ]
         },
         "contract": {
           "lane": "spell-lifecycle",

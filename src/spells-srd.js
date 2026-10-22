@@ -1900,6 +1900,13 @@ const TRACKABLE_SPELLS = ALL_SPELLS.filter((spell) =>
   !["instantaneous", "istantanea"].includes(String(spell.duration).toLocaleLowerCase())
 );
 
+// The spells the plugin neither tracks nor places: instantaneous, without an area (Counterspell, Cure Wounds,
+// Wish...). Their cast is recorded (spellCastRecord.js): the slot it spends and a combat log entry, no pill.
+const TRACKABLE_SPELL_IDS = new Set(TRACKABLE_SPELLS.map((spell) => spell.id));
+const RECORD_ONLY_SPELL_IDS = new Set(ALL_SPELLS
+  .filter((spell) => !TRACKABLE_SPELL_IDS.has(spell.id) && !AREA_POPOVER_SPELL_ID_SET.has(spell.id))
+  .map((spell) => spell.id));
+
 const BY_LOOKUP = new Map();
 for (const spell of ALL_SPELLS) {
   for (const value of [spell.id, spell.name, spell.displayName, spell.catalogLabel, ...spell.aliases]) {
@@ -1929,13 +1936,10 @@ export function getTrackableSpellOptions() {
   }));
 }
 
+// Every spell of the catalog can be launched from a quick action or the spellbook. recordOnly: the plugin only
+// records its cast (isSpellCastRecordOnly).
 export function getQuickActionSpellOptions() {
-  const trackableIds = new Set(TRACKABLE_SPELLS.map((spell) => spell.id));
   return ALL_SPELLS
-    .filter((spell) => (
-      trackableIds.has(spell.id)
-      || AREA_POPOVER_SPELL_ID_SET.has(spell.id)
-    ))
     .map((spell) => ({
       id: spell.id,
       value: spell.catalogLabel || spell.displayName,
@@ -1951,7 +1955,18 @@ export function getQuickActionSpellOptions() {
         || spell.effects?.length
         || spell.effectChoices?.length
       ),
+      recordOnly: RECORD_ONLY_SPELL_IDS.has(spell.id),
     }));
+}
+
+// The spells whose cast the plugin only records, for the spell panel's catalog.
+export function getRecordOnlySpellOptions() {
+  return getQuickActionSpellOptions().filter((option) => option.recordOnly);
+}
+
+export function isSpellCastRecordOnly(value) {
+  const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
+  return RECORD_ONLY_SPELL_IDS.has(String(spell?.id || ""));
 }
 
 export function getAreaSaveSpellOptions() {

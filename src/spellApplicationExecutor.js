@@ -87,6 +87,8 @@ import {
   attachSpellExecutionHistory,
 } from "./spellExecutionHistoryCore.js";
 import { buildSpellCausality } from "./combatLogCausalityCore.js";
+import { executeSpellCastRecord } from "./spellCastRecord.js";
+import { withSpellCastCost } from "./spellCastRecordCore.js";
 
 const STATE_KEY = `${ID}/state`;
 
@@ -1994,7 +1996,29 @@ export async function executeSpellApplication({
   ignoreTargetLimit = false,
   // Operations committed with the spell in the same command and History entry (the spell slot spent).
   extraOperations = [],
+  // What the cast spends (planSpellCastCost's spent), named in the combat log: "slot di 3° livello".
+  castCost = "",
+  // A spell the plugin does not automate, launched from a quick action, the spellbook or the spell panel: the cast is
+  // recorded with what it spends, without a pill (spellCastRecord.js).
+  recordOnly = false,
 } = {}) {
+  if (recordOnly === true) {
+    return executeSpellCastRecord({
+      spell,
+      enteredName,
+      casterId,
+      casterName,
+      targetIds,
+      castContext,
+      sceneEpoch,
+      visualSceneEpoch,
+      sceneIdentity,
+      commandId,
+      isCurrent,
+      extraOperations,
+      castCost,
+    });
+  }
   const matchedVisualSceneEpoch = Number.isInteger(visualSceneEpoch)
     ? visualSceneEpoch
     : currentSceneEpoch();
@@ -2145,7 +2169,7 @@ export async function executeSpellApplication({
       kind: "spell",
       label: applicationPlan.historyLabel,
       payload: {
-        causality: buildSpellCausality({
+        causality: withSpellCastCost(buildSpellCausality({
           eventType: applicationPlan.phasePlan?.phase === "prepare"
             ? "prepare"
             : applicationPlan.phasePlan?.phase === "resolve"
@@ -2187,7 +2211,7 @@ export async function executeSpellApplication({
           ...(banishmentEligibleTargetIds !== null
             ? { banishmentEligibleTargetIds }
             : {}),
-        }),
+        }), castCost),
       },
     },
     ...(sceneIdentity ? { sceneIdentity } : {}),

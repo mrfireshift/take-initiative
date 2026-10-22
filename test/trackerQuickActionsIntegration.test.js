@@ -207,3 +207,18 @@ test("card menus open towards the side with room and never grow past it, so thei
   assert.match(contextMenuSource, /Math\.min\(viewportHeight - 24, ROOM_HEIGHT \|\| Infinity\)/);
   assert.match(popoverSource, /Math\.min\(naturalHeight, viewportHeight - 24, ROOM_HEIGHT \|\| Infinity\)/);
 });
+
+test("il menu 🪄 apre la console attacchi per un trucchetto d'attacco e avvisa di un lancio registrato", () => {
+  const runner = initiativeSource.slice(
+    initiativeSource.indexOf("async function __runTrackerQuickAction"),
+    initiativeSource.indexOf("function __mountTrackerQuickActions"),
+  );
+  assert.match(runner, /isSpellbookQuickAction\(action\)\s*\?\s*spellbookCantripAttackAction\(sourceEntry\?\.quickActions, action\.spellId\)/u);
+  assert.match(runner, /await openPcAttackPopover\(sourceId, cantripAttack\.id\);/u);
+  assert.ok(
+    runner.indexOf("spellbookCantripAttackAction") < runner.indexOf("executeDirectQuickAction"),
+    "the console opens before any cast",
+  );
+  assert.match(runner, /result\.mode === "executed" && result\.recorded/u);
+  assert.match(runner, /`Lancio registrato: \$\{action\.label\}/u);
+});

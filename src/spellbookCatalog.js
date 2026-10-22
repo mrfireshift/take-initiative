@@ -8,7 +8,8 @@ import { sanitizeSpellbook, spellbookQuickActionId } from "./spellbookCore.js";
 
 let launchOptionsById = null;
 
-// The spells a spell quick action can launch: the others are kept in the book as a reference.
+// How a spell quick action launches the spell: every catalog spell, recordOnly for the spells whose cast the plugin
+// only records.
 function launchOption(spellId) {
   if (!launchOptionsById) {
     launchOptionsById = new Map(getQuickActionSpellOptions().map((option) => [option.id, option]));
@@ -28,7 +29,7 @@ export function spellbookLevelTitle(level) {
 export function spellbookSpell(spellId) {
   const spell = getSpellDefinition(spellId);
   if (!spell) {
-    return { id: spellId, label: spellId, level: null, concentration: false, launchable: false, automated: false, area: false, attackCantrip: false, targetMode: "selection" };
+    return { id: spellId, label: spellId, level: null, concentration: false, launchable: false, automated: false, recordOnly: false, area: false, attackCantrip: false, targetMode: "selection" };
   }
   const option = launchOption(spell.id);
   return {
@@ -38,6 +39,8 @@ export function spellbookSpell(spellId) {
     concentration: spell.concentration === true,
     launchable: !!option,
     automated: option?.automated === true,
+    // The plugin records its cast, the slot it spends and a combat log entry; the table resolves it.
+    recordOnly: option?.recordOnly === true,
     // A spell with a shape (sphere, cone...): it is placed on the map. The area console also hosts some
     // multi-target spells without a shape, such as Hold Person.
     area: !!spell.area,
@@ -45,6 +48,17 @@ export function spellbookSpell(spellId) {
     // A personal spell targets its caster; an area spell is placed in the panel, never on the caster.
     targetMode: spell.targetMode === "self" && option?.area !== true ? "self" : "selection",
   };
+}
+
+// The cantrip attack quick action that records this cantrip in the attack console, when the character has one: the
+// sheet and the 🪄 menu open the console with it instead of casting the spell.
+export function spellbookCantripAttackAction(quickActions, spellId) {
+  if (!ATTACK_CANTRIP_IDS.has(spellId)) return null;
+  return (Array.isArray(quickActions) ? quickActions : []).find((action) => (
+    action?.kind === "attack"
+    && action.source?.kind === "cantrip"
+    && (!action.source.spellIds?.length || action.source.spellIds.includes(spellId))
+  )) || null;
 }
 
 // The book grouped by level, cantrips first; spells outside the catalog last.

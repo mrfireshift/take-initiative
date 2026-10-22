@@ -5,6 +5,7 @@ import {
   getSpellEffectChoices,
   getSpellAttackResolution,
   getSpellDurationTurns,
+  isSpellCastRecordOnly,
 } from "./spells-srd.js";
 import {
   getSpellCastPhaseOptions,
@@ -1156,8 +1157,9 @@ function inputDescriptor({
       visible: teleport?.available === true && teleport?.passenger?.available === true,
       maximum: teleport?.passenger?.maximum ?? null,
     },
+    // A recorded cast names its targets in the combat log, when the GM picks them; it needs none.
     targets: {
-      required: targetSelectionRequired,
+      required: targetSelectionRequired && execution?.recordOnly !== true,
       visible: targetSelectionRequired,
       maximum: targeting.limit.maximum,
     },
@@ -1407,8 +1409,13 @@ function executionDescriptor({
   const undoCapable = selectedLane === SPELL_UNIFIED_PANEL_LANES.ACTIVE_RESOLUTION
     || (selectedLane !== SPELL_UNIFIED_PANEL_LANES.ACTIVE_RESOLUTION
       && (selectedLane === SPELL_UNIFIED_PANEL_LANES.SPELL_LIFECYCLE || compositeUndo));
+  // A spell the plugin does not automate: the cast is recorded with what it spends (spellCastRecord.js).
+  const recordOnly = selectedLane === SPELL_UNIFIED_PANEL_LANES.SPELL_LIFECYCLE
+    && !selectedAction
+    && isSpellCastRecordOnly(spell);
   return {
     lane: selectedLane,
+    recordOnly,
     lanes: LANE_ORDER.filter((lane) => lanes.includes(lane)),
     requiresCompositeUndo: compositeUndo,
     undo: {
@@ -2442,6 +2449,7 @@ function primaryActionFor(contract, session, validation, placement, activeAction
     && !activeAction;
 
   const applyLabel = () => {
+    if (execution.recordOnly === true) return "Registra lancio";
     if (isBoardTokenCast && contract?.spell?.id === "xanathar-stretta-della-terra-di-maximilian") {
       return "Crea mano e afferra";
     }
@@ -2469,10 +2477,10 @@ function primaryActionFor(contract, session, validation, placement, activeAction
   }
   const commitState = session.commitState?.state;
   if (commitState === SPELL_PANEL_COMMIT_STATES.COMMITTING) {
-    return { id: "commit", label: "Applicazione in corso", disabled: true };
+    return { id: "commit", label: execution.recordOnly === true ? "Registrazione in corso" : "Applicazione in corso", disabled: true };
   }
   if (commitState === SPELL_PANEL_COMMIT_STATES.COMMITTED) {
-    return { id: "apply", label: "Applica di nuovo", disabled: false };
+    return { id: "apply", label: execution.recordOnly === true ? "Registra di nuovo" : "Applica di nuovo", disabled: false };
   }
   if (placement.pending) {
     return { id: "placement", label: "Placement in corso", disabled: true };

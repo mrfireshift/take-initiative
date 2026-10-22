@@ -42,6 +42,7 @@ import {
   sanitizeSpellbook,
 } from "./spellbookCore.js";
 import {
+  spellbookCantripAttackAction,
   spellbookGroups,
   spellbookQuickAction,
   spellbookSearchOptions,
@@ -727,7 +728,7 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
         renderSpellSlots();
         renderQuickActions();
       }
-      setStatus(`Applicata: ${action.label}${result.spellCost ? ` · speso: ${result.spellCost}` : ""}.`, "success");
+      setStatus(`${result.recorded ? "Lancio registrato" : "Applicata"}: ${action.label}${result.spellCost ? ` · speso: ${result.spellCost}` : ""}.`, "success");
       quickActionLaunching = false;
       setButtonsDisabled(false);
       return;
@@ -854,21 +855,18 @@ function renderQuickActionList(list, actions, emptyText) {
 
 // The cantrip attack that records this cantrip in the attack console, when the character has one.
 function spellbookCantripAttack(spellId) {
-  if (!isGM) return null;
-  const stored = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
-  return stored.find((action) => (
-    action?.kind === "attack"
-    && action.source?.kind === "cantrip"
-    && (!action.source.spellIds?.length || action.source.spellIds.includes(spellId))
-  )) || null;
+  return isGM ? spellbookCantripAttackAction(profile?.quickActions, spellId) : null;
 }
 
 function spellbookSpellSummary(spell, cantripAttack) {
   if (cantripAttack) return "Attacco · console attacchi";
-  if (spell.attackCantrip && !spell.launchable) {
-    return isGM ? "Attacco · aggiungi il trucchetto negli Attacchi" : "Attacco · lo registra il GM";
-  }
   if (!spell.launchable) return "Solo riferimento";
+  // The plugin records the cast and the slot it spends; the table resolves the spell. An attack cantrip deals its
+  // damage in the attack console.
+  if (spell.recordOnly) {
+    if (!spell.attackCantrip) return "Registra il lancio";
+    return isGM ? "Registra il lancio · danni: aggiungi il trucchetto negli Attacchi" : "Registra il lancio · danni dal GM";
+  }
   const parts = [spell.area ? "Area" : spell.automated ? "Automatizzato" : "Solo tracciamento"];
   if (spell.concentration) parts.push("concentrazione");
   if (spell.targetMode === "self") parts.push("su di sé");

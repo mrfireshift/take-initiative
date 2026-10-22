@@ -318,6 +318,8 @@ export function buildSpellUnifiedLifecycleRequest({
     manualAttackOutcomeRequired: attackOutcomeRequired,
     ...(appliedAt !== undefined ? { appliedAt } : {}),
     ...(text(casterName) ? { casterName: text(casterName) } : {}),
+    // A spell the plugin does not automate: the executor records the cast (spellCastRecord.js).
+    ...(contract.execution?.recordOnly === true ? { recordOnly: true } : {}),
   };
 }
 
@@ -393,6 +395,8 @@ export async function executeSpellUnifiedLifecycle({
       ...(Array.isArray(runtime.extraOperations) && runtime.extraOperations.length
         ? { extraOperations: runtime.extraOperations }
         : {}),
+      // What they spend, named in the combat log.
+      ...(text(runtime.castCost) ? { castCost: text(runtime.castCost) } : {}),
     };
   } catch (error) {
     const normalized = normalizedError(error, "session-incomplete");

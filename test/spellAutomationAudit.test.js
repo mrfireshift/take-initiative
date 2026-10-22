@@ -286,26 +286,26 @@ test("Investitura del Vento e Investitura della Pietra sono accettate", () => {
   }
 });
 
-test("una spell intenzionalmente manuale ha target MANUAL e non forza targetUiExposure UNIFIED", () => {
+test("una spell intenzionalmente manuale resta MANUAL anche se il pannello ne registra il lancio", () => {
   const audit = buildSpellAutomationAudit();
   const wish = audit.rows.find((row) => row.id === "wish");
   assert.ok(wish);
   assert.equal(wish.currentAutomationLevel, "MANUAL");
   assert.equal(wish.coverageStatus, "ACCEPTED");
   assert.equal(wish.targetAutomationLevel, "MANUAL");
-  assert.equal(wish.currentUiExposure, "REFERENCE_ONLY");
-  assert.equal(wish.targetUiExposure, "UNREVIEWED");
+  // Exposed to record its cast and its slot (spellCastRecord.js), not to automate it.
+  assert.equal(wish.currentUiExposure, "UNIFIED");
 });
 
-test("una spell non-unified senza decisione esplicita ha targetUiExposure UNREVIEWED e non e bloccante P0", () => {
+test("una spell soltanto registrata è esposta nel pannello senza gap di catalogo e non è bloccante", () => {
   const audit = buildSpellAutomationAudit();
   const planeShift = audit.rows.find((row) => row.id === "plane-shift");
   assert.ok(planeShift);
-  assert.equal(planeShift.integration.catalog.exposed, false);
-  assert.equal(planeShift.currentUiExposure, "REFERENCE_ONLY");
-  assert.equal(planeShift.targetUiExposure, "UNREVIEWED");
-  assert.ok(planeShift.integration.issues.some((issue) => issue.code === "UNIFIED_CATALOG_MISSING"));
+  assert.equal(planeShift.integration.catalog.exposed, true);
+  assert.equal(planeShift.currentUiExposure, "UNIFIED");
+  assert.equal(planeShift.integration.issues.some((issue) => issue.code === "UNIFIED_CATALOG_MISSING"), false);
   assert.equal(planeShift.integration.priority, "—");
+  assert.equal(audit.rows.every((row) => row.integration.catalog.exposed), true, "every spell can be cast and recorded");
 });
 
 test("verificationEvidence non assegna UNIT_TEST tramite whitelist hardcoded e releaseReady resta false", () => {

@@ -81,6 +81,13 @@ del Patto o nessuno slot. Le fasi successive (risoluzioni preparate, azioni
 attive, trigger di zona) non spendono slot. Le regole sono in
 `src/spellSlotSpendCore.js`.
 
+Il pannello elenca tutti i 477 incantesimi del catalogo. Gli 84 che il plugin
+non automatizza (istantanei senza area né tracciamento: Controincantesimo,
+Cura ferite, Desiderio…) si **registrano**: un solo comando spende il loro
+costo, con History, Undo e voce nel registro di combattimento, senza pill sui
+bersagli, che restano facoltativi. Un lancio registrato che non spende nulla
+va soltanto nel registro. Il percorso è in `src/spellCastRecord.js`.
+
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la
 **Console effetti ad area**. Dal registro il GM può:

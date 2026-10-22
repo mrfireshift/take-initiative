@@ -23,7 +23,7 @@ test("i tre producer CL-3 usano il core puro e conservano il percorso History", 
 test("la risoluzione area arricchisce decorateEntry e non crea entry per target", () => {
   const source = sourceFor(files.area);
   assert.match(source, /withItemMetaHistory\(\{/u);
-  assert.match(source, /causality: spellAreaCausality\(plan\)/u);
+  assert.match(source, /causality: withSpellCastCost\(spellAreaCausality\(plan\), runtime\.castCost\)/u);
   assert.match(source, /decorateCompositeEffectsHistoryEntry/u);
   assert.doesNotMatch(source, /for \(const .*target.*\)\s*\{[\s\S]{0,300}withItemMetaHistory/u);
 });

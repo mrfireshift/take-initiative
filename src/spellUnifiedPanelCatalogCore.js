@@ -1,5 +1,6 @@
 import {
   getAreaSaveSpellOptions,
+  getRecordOnlySpellOptions,
   getSpellCatalog,
   getSpellDefinition,
   getTrackableSpellOptions,
@@ -9,6 +10,8 @@ import { buildSpellUnifiedPanelContract } from "./spellUnifiedPanelCore.js";
 export const SPELL_UNIFIED_CATALOG_SOURCES = Object.freeze({
   SPELLS_PANEL: "legacy-spells-panel",
   AREA_CONSOLE: "legacy-area-console",
+  // The spells the plugin does not automate: their cast is recorded with the slot it spends (spellCastRecord.js).
+  CAST_RECORD: "cast-record",
 });
 
 const EXECUTORS_BY_LANE = Object.freeze({
@@ -31,11 +34,13 @@ function sourceList(sources = null) {
     return [
       [SPELL_UNIFIED_CATALOG_SOURCES.SPELLS_PANEL, sources.spells],
       [SPELL_UNIFIED_CATALOG_SOURCES.AREA_CONSOLE, sources.area],
+      [SPELL_UNIFIED_CATALOG_SOURCES.CAST_RECORD, sources.record],
     ];
   }
   return [
     [SPELL_UNIFIED_CATALOG_SOURCES.SPELLS_PANEL, getTrackableSpellOptions()],
     [SPELL_UNIFIED_CATALOG_SOURCES.AREA_CONSOLE, getAreaSaveSpellOptions()],
+    [SPELL_UNIFIED_CATALOG_SOURCES.CAST_RECORD, getRecordOnlySpellOptions()],
   ];
 }
 
@@ -97,9 +102,11 @@ function normalizedEntry(entry, source, contractBuilder) {
     executor: EXECUTORS_BY_LANE[lane] || null,
     status: !contract
       ? "mancante"
-      : contract.presentation?.capabilities?.manualSpellEffect?.available === true
-        ? "manuale"
-        : "operativo",
+      : contract.execution?.recordOnly === true
+        ? "registrazione"
+        : contract.presentation?.capabilities?.manualSpellEffect?.available === true
+          ? "manuale"
+          : "operativo",
   };
 }
 
@@ -148,10 +155,12 @@ export function buildSpellUnifiedCatalogSourceStats(sources = null) {
   ]));
   const spellIds = bySource[SPELL_UNIFIED_CATALOG_SOURCES.SPELLS_PANEL] || new Set();
   const areaIds = bySource[SPELL_UNIFIED_CATALOG_SOURCES.AREA_CONSOLE] || new Set();
-  const union = new Set([...spellIds, ...areaIds]);
+  const recordIds = bySource[SPELL_UNIFIED_CATALOG_SOURCES.CAST_RECORD] || new Set();
+  const union = new Set([...spellIds, ...areaIds, ...recordIds]);
   return {
     spellsPanel: spellIds.size,
     areaConsole: areaIds.size,
+    castRecord: recordIds.size,
     intersection: [...spellIds].filter((id) => areaIds.has(id)).length,
     union: union.size,
   };

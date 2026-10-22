@@ -1425,3 +1425,31 @@ test("Dimension Door reidrata il passeggero dalla selezione scena iniziale", asy
   assert.equal(requiredNode(root, "#spell-unified-teleport-passenger").value, "target-a");
   await panel.destroy();
 });
+
+test("un incantesimo non automatizzato si registra dal pannello, anche senza bersagli", async () => {
+  const provider = createProvider();
+  const requests = [];
+  const { root, panel } = boot({
+    provider,
+    broadcast: new FakeBroadcast(),
+    route: { status: "ready", spellId: "counterspell", session: { casterId: "caster-a" } },
+    lifecycleExecutor: async (request) => {
+      requests.push(request);
+      return [];
+    },
+  });
+  await settle();
+  const primary = requiredNode(root, '[data-primary-action="apply"]');
+  assert.equal(primary.textContent, "Registra lancio");
+  assert.equal(primary.disabled, false, "no target is needed to record the cast");
+  await primary.click();
+  await settle(10);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].recordOnly, true);
+  assert.equal(requests[0].spell.id, "counterspell");
+  assert.deepEqual(requests[0].targetIds, []);
+  assert.equal(requests[0].castContext.slotLevel, 3);
+  assert.equal(panel.state.session.feedback.state, "success");
+  assert.match(panel.state.session.feedback.message, /^Lancio registrato: effetti al tavolo/u);
+  await panel.destroy();
+});

@@ -220,6 +220,16 @@ producer coperti sono `spellApplicationExecutor.js`,
 `spellAreaResolutionExecutor.js` e `reminderResolution.js`, con il passaggio
 del contesto già disponibile nel reminder da `turn-notice.ts`.
 
+Il payload di un lancio aggiunge due campi letti così come sono
+(`src/spellCastRecordCore.js`): `cost: { label }`, ciò che il lancio ha speso
+(«slot di 3° livello», un uso di un'azione rapida), e `recorded: true` per un
+incantesimo che il plugin registra senza automatizzarlo. Il dettaglio
+dell'evento li mostra come «Speso: …» ed «Effetti: risolti al tavolo». Un
+lancio registrato che non spende nulla non modifica alcun metadata e quindi non
+ha voce History: `src/spellCastRecord.js` lo scrive direttamente nel registro,
+con `historyEntryId` vuoto e `provenance.recordingSource: "spell-cast-record"`,
+come le note del DM. È l'unica scrittura diretta di un producer spell.
+
 Sono coperti cast/application, prepare, resolution, active action, risoluzioni
 area/save, reminder, movimento e rotazione delle zone, board token e stato
 della concentrazione. Sono preservati spell, caster, istanza, slot, target e

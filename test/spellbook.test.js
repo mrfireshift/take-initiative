@@ -13,6 +13,7 @@ const {
   spellbookQuickActionId,
 } = await import("../src/spellbookCore.js");
 const {
+  spellbookCantripAttackAction,
   spellbookGroups,
   spellbookQuickAction,
   spellbookMenuSections,
@@ -64,15 +65,18 @@ test("a recreated token recovers a spellbook-only profile from the Room", () => 
 
 test("the book reads names, levels and what each spell can do from the catalog", () => {
   assert.deepEqual(spellbookSpell("shield"), {
-    id: "shield", label: "Scudo", level: 1, concentration: false, launchable: true, automated: true, area: false,
-    attackCantrip: false, targetMode: "self",
+    id: "shield", label: "Scudo", level: 1, concentration: false, launchable: true, automated: true, recordOnly: false,
+    area: false, attackCantrip: false, targetMode: "self",
   });
   const fireball = spellbookSpell("fireball");
   assert.equal(fireball.area, true);
   assert.equal(fireball.targetMode, "selection", "an area spell is placed, never cast on its caster");
   const fireBolt = spellbookSpell("fire-bolt");
   assert.equal(fireBolt.attackCantrip, true);
-  assert.equal(fireBolt.launchable, false, "an attack cantrip is recorded in the attack console");
+  assert.equal(fireBolt.launchable, true, "without a cantrip attack its cast is recorded");
+  assert.equal(fireBolt.recordOnly, true);
+  const counterspell = spellbookSpell("counterspell");
+  assert.deepEqual([counterspell.launchable, counterspell.recordOnly], [true, true], "every spell of the catalog is launched");
   assert.equal(spellbookSpell("not-a-spell").launchable, false);
 });
 
@@ -91,7 +95,9 @@ test("a book spell launches as a spell quick action of its own", () => {
   assert.equal(action.launchMode, "auto");
   assert.equal(action.slotLevel, null);
   assert.equal(spellbookQuickAction("hold-person", { launchMode: "review" }).launchMode, "review");
-  assert.equal(spellbookQuickAction("fire-bolt"), null);
+  // A spell the plugin does not automate launches too: its cast is recorded with the slot it spends.
+  assert.equal(spellbookQuickAction("counterspell").spellId, "counterspell");
+  assert.equal(spellbookQuickAction("not-a-spell"), null);
   assert.equal(isSpellbookQuickAction({ id: "quick-1" }), false);
   assert.equal(trackerQuickActionSummary(action), "Lancio rapido · bersaglio selezionato");
 });
@@ -102,11 +108,13 @@ test("the tracker card carries every launchable spell of the book after its quic
     quickActions: [ownFireball],
     spellbook: { spellIds: ["fireball", "bless", "shield", "fire-bolt", "hold-person"], pinnedIds: ["fireball", "shield", "fire-bolt"] },
   };
-  // By level, favourites first in each; Fire Bolt is recorded in the attack console, not launched from here.
+  // By level, favourites first in each. Fire Bolt opens the attack console when the character has a cantrip attack
+  // (initiativeList.js), otherwise its cast is recorded.
   assert.deepEqual(spellbookTrackerQuickActions(profile).map((action) => action.id),
-    ["quick-fireball", "book:shield", "book:bless", "book:hold-person", "book:fireball"]);
+    ["quick-fireball", "book:fire-bolt", "book:shield", "book:bless", "book:hold-person", "book:fireball"]);
   assert.deepEqual(spellbookMenuSections(profile), [
-    { title: "Preferiti", inline: true, actionIds: ["book:shield", "book:fireball"] },
+    { title: "Preferiti", inline: true, actionIds: ["book:fire-bolt", "book:shield", "book:fireball"] },
+    { title: "Trucchetti", actionIds: ["book:fire-bolt"] },
     { title: "1° livello", actionIds: ["book:shield", "book:bless"] },
     { title: "2° livello", actionIds: ["book:hold-person"] },
     { title: "3° livello", actionIds: ["book:fireball"] },
@@ -114,6 +122,16 @@ test("the tracker card carries every launchable spell of the book after its quic
   assert.equal(spellbookTrackerQuickActions({ quickActions: [ownFireball] })[0], ownFireball);
   assert.deepEqual(spellbookTrackerQuickActions({}), []);
   assert.deepEqual(spellbookMenuSections({}), []);
+});
+
+test("an attack cantrip of the book goes to the attack console when the character has a cantrip attack", () => {
+  const cantrips = { version: 2, id: "cantrips", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["fire-bolt"] } };
+  assert.equal(spellbookCantripAttackAction([cantrips], "fire-bolt"), cantrips);
+  assert.equal(spellbookCantripAttackAction([cantrips], "ray-of-frost"), null, "a cantrip the action does not list");
+  const every = { ...cantrips, source: { kind: "cantrip", spellIds: [] } };
+  assert.equal(spellbookCantripAttackAction([every], "ray-of-frost"), every, "an action listing none offers them all");
+  assert.equal(spellbookCantripAttackAction([every], "counterspell"), null, "not an attack cantrip");
+  assert.equal(spellbookCantripAttackAction(undefined, "fire-bolt"), null);
 });
 
 test("every catalog spell can be searched, each under its own name", () => {

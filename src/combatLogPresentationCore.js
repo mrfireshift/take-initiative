@@ -576,6 +576,10 @@ function causalityDetailLines(event) {
   if (causality.cause?.slotLevel !== undefined) {
     lines.push(`Livello slot: ${numberText(causality.cause.slotLevel)}`);
   }
+  // What the cast spent, and a cast the plugin only records (spellCastRecordCore.js): read from the raw payload.
+  const spent = stringValue(event?.payload?.causality?.cost?.label);
+  if (spent) lines.push(`Speso: ${spent}`);
+  if (event?.payload?.causality?.recorded === true) lines.push("Effetti: risolti al tavolo");
   if (causality.phase) lines.push(`Fase: ${causality.phase}`);
   if (causality.action?.label) lines.push(`Azione: ${causality.action.label}`);
   if (causality.action?.attackOutcome) {
