@@ -408,6 +408,7 @@ async function writeTokenProfile(
     commandId = "",
     sceneIdentity = null,
     transportTimeoutMs = undefined,
+    deferRecoveryHistory = false,
   } = {},
 ) {
   if (!isCurrent()) throw new Error("scene-stale-before-card-token-write");
@@ -438,6 +439,8 @@ async function writeTokenProfile(
     ...(commandId ? { commandId } : {}),
     ...(sceneIdentity ? { sceneIdentity } : {}),
     ...(transportTimeoutMs !== undefined ? { transportTimeoutMs } : {}),
+    // A save from the sheet: answered once the token write is journaled, the History follows (effectsRecovery.js).
+    ...(deferRecoveryHistory ? { deferRecoveryHistory: true } : {}),
   });
   if (!isCurrent()) throw new Error("scene-stale-after-card-token-write");
   requireAppliedEffectsMutation(mutation);
@@ -805,6 +808,7 @@ export async function saveInitiativeCard(
         commandId,
         sceneIdentity,
         transportTimeoutMs,
+        deferRecoveryHistory: true,
       });
     } catch (error) {
       if (!isAmbiguousInitiativeCardTransportError(error)) throw error;

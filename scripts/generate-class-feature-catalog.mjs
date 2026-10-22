@@ -3,6 +3,9 @@ import path from "node:path";
 
 const SOURCE_DIR = path.resolve("data", "class-features");
 const OUTPUT_PATH = path.resolve("src", "class-features-runtime.json");
+// The rules text of every feature, apart: only the character sheet shows it and loads it on demand
+// (classFeatureDescriptions.js, through classFeatureDescriptionsData.js), so the tracker and the background do not parse it.
+const DESCRIPTIONS_PATH = path.resolve("src", "class-features-descriptions.json");
 const RUNTIME_VERSION = 4;
 const RUNTIME_OVERRIDES_FILE = "runtime-feature-overrides.json";
 const UNTRACKED_RESOURCE_POOL_IDS = new Set([
@@ -1183,7 +1186,7 @@ const output = {
   resourcePools: [...poolById.values()].sort((left, right) =>
     left.name.localeCompare(right.name, "it")
   ),
-  features,
+  features: features.map(({ description, ...feature }) => feature),
   validation: {
     catalogRecords: recordsById.size,
     mechanicRecords: mechanicById.size,
@@ -1195,4 +1198,8 @@ const output = {
 };
 
 fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(output, null, 2)}\n`, "utf8");
+const descriptions = Object.fromEntries(features
+  .filter((feature) => feature.description)
+  .map((feature) => [feature.id, feature.description]));
+fs.writeFileSync(DESCRIPTIONS_PATH, `${JSON.stringify(descriptions, null, 2)}\n`, "utf8");
 console.log(JSON.stringify(output.validation));

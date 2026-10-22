@@ -9,6 +9,8 @@ import {
   spellbookRitualCastable,
   spellbookSpell,
   spellbookSpellDetails,
+  spellbookSpellReferenceLoaded,
+  loadSpellbookSpellReference,
 } from "../src/spellbookCatalog.js";
 import { routeSpellUnifiedPanelOpenRequest, buildSpellUnifiedPanelRouteQuery } from "../src/spellUnifiedPanelRoutingCore.js";
 
@@ -16,7 +18,12 @@ const bookSpell = (profile, spellId) => spellbookGroupsForProfile(profile)
   .flatMap((group) => group.spells)
   .find((spell) => spell.id === spellId);
 
-test("an expanded spell shows its rules text from the Italian reference", () => {
+test("an expanded spell shows its rules text from the Italian reference, loaded on the first expansion", async () => {
+  assert.equal(spellbookSpellReferenceLoaded(), false, "the catalog never loads the 466 KB reference");
+  assert.equal(spellbookSpellDetails("detect-magic"), null);
+  assert.equal(spellbookSpell("detect-magic").ritual, true, "the ritual badge needs no reference");
+  await loadSpellbookSpellReference();
+  assert.equal(spellbookSpellReferenceLoaded(), true);
   const details = spellbookSpellDetails("detect-magic");
   assert.equal(details.castingTime, "1 azione");
   assert.equal(details.components, "V, S");

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import FEATURE_DESCRIPTIONS from "../src/class-features-descriptions.json" with { type: "json" };
 import {
   CLASS_FEATURE_BY_ID,
   CLASS_FEATURE_RESOURCE_POOL_BY_ID,
@@ -144,7 +145,7 @@ test("i reminder conservano i trigger e i limiti distintivi del testo PHB", () =
     "mago-scuola-di-invocazione-saturazione-magica": [/1° e il 5°/i, /massimo dei danni/i, /prima volta/i, /2d12/i, /riposo lungo/i],
   };
   for (const [id, patterns] of Object.entries(expected)) {
-    const description = feature(id).description;
+    const description = FEATURE_DESCRIPTIONS[id];
     for (const pattern of patterns) assert.match(description, pattern, id);
   }
 });

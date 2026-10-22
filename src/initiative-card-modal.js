@@ -51,8 +51,11 @@ import {
   spellbookSearchOptions,
   spellbookSpell,
   spellbookSpellDetails,
+  spellbookSpellReferenceLoaded,
+  loadSpellbookSpellReference,
 } from "./spellbookCatalog.js";
 import { subclassGrantedSpells, subclassSuggestedSpells } from "./subclassSpellsCatalog.js";
+import { classFeatureDescription, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
 import {
   SHEET_IMPORT_LIST_SECTIONS,
@@ -148,6 +151,8 @@ let item = null;
 let profile = null;
 let isGM = false;
 let exhaustionSaving = false;
+// The exhaustion level being saved, shown at once; null when no save runs.
+let exhaustionPending = null;
 let quickActionLaunching = false;
 let classFeatureMutating = false;
 let currentRoundValue = 1;
@@ -1255,7 +1260,9 @@ function buildSpellbookEntry(spell) {
   main.append(icon, copy);
   entry.appendChild(main);
   const details = spellbookSpellDetails(spell.id);
-  const expanded = !!details && expandedSpellbookSpellId === spell.id;
+  // Every catalog spell has a text: the SRD ones arrive with the reference, loaded on the first expansion.
+  const hasDetails = !!details || (spell.level !== null && !spellbookSpellReferenceLoaded());
+  const expanded = hasDetails && expandedSpellbookSpellId === spell.id;
   if (spell.prepared && spell.launchable && !cantripAttack) {
     const panel = document.createElement("button");
     panel.type = "button";
@@ -1266,7 +1273,7 @@ function buildSpellbookEntry(spell) {
     panel.addEventListener("click", () => void launchSpellbookSpell(spell.id, "review"));
     entry.appendChild(panel);
   }
-  if (details) {
+  if (hasDetails) {
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "spellbook-panel spellbook-toggle";
@@ -1280,8 +1287,28 @@ function buildSpellbookEntry(spell) {
     });
     entry.appendChild(toggle);
   }
-  if (expanded) entry.appendChild(buildSpellbookDetails(spell, details));
+  if (expanded && details) entry.appendChild(buildSpellbookDetails(spell, details));
+  else if (expanded) entry.appendChild(buildSpellbookDetailsLoading());
   return entry;
+}
+
+// The first expansion loads the Italian reference, then draws the book again.
+function buildSpellbookDetailsLoading() {
+  const block = document.createElement("div");
+  block.className = "spellbook-details";
+  const text = document.createElement("small");
+  text.textContent = "Caricamento…";
+  block.appendChild(text);
+  loadSpellbookSpellReference()
+    .catch((error) => {
+      // Closed again: a failed load is not retried in a loop, the next click tries again.
+      console.warn("[initiative-card] spell reference:", error?.message || error);
+      expandedSpellbookSpellId = "";
+    })
+    .finally(() => {
+      if (sceneLifecycle.isReady() && !editing) renderSpellbook();
+    });
+  return block;
 }
 
 // The rules text of an expanded spell, and the ritual cast when the character can cast it as a ritual.
@@ -2613,11 +2640,12 @@ function renderClassFeatures() {
           }
         }
         card.appendChild(head);
-        if (feature.description) {
+        const descriptionText = classFeatureDescription(feature);
+        if (descriptionText) {
           const description = document.createElement("p");
           description.className = "class-feature-description";
-          description.textContent = feature.description;
-          description.title = feature.description;
+          description.textContent = descriptionText;
+          description.title = descriptionText;
           card.appendChild(description);
         }
         if (featureControls) card.appendChild(featureControls);
@@ -3769,7 +3797,7 @@ function renderView() {
   renderQuickActions();
   renderSpellbook();
   renderClassFeatures();
-  $("exhaustion").textContent = String(profile.exhaustion || 0);
+  $("exhaustion").textContent = String(exhaustionPending ?? (profile.exhaustion || 0));
   for (const [id, disabled] of [
     ["exhaustionDown", exhaustionSaving || !isGM || profile.exhaustion <= 0],
     ["exhaustionUp", exhaustionSaving || !isGM || profile.exhaustion >= 5],
@@ -3916,6 +3944,7 @@ async function adjustExhaustion(delta) {
   const next = Math.max(0, Math.min(5, Number(profile.exhaustion || 0) + delta));
   if (next === profile.exhaustion) return;
   exhaustionSaving = true;
+  exhaustionPending = next;
   renderView();
   try {
     const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
@@ -3933,6 +3962,7 @@ async function adjustExhaustion(delta) {
     console.warn("[initiative-card] Indebolimento:", err?.message || err);
   } finally {
     exhaustionSaving = false;
+    exhaustionPending = null;
     if (sceneLifecycle.isReady()) renderView();
   }
 }
@@ -4028,6 +4058,12 @@ OBR.onReady(async () => {
     subscribeToSourceItemChanges();
     subscribeToSceneStateChanges();
     renderView();
+    // The rules text of the class features arrives after the first render (classFeatureDescriptions.js).
+    void loadClassFeatureDescriptions()
+      .then(() => {
+        if (sceneLifecycle.isReady() && !editing && !classFeatureMutating) renderClassFeatures();
+      })
+      .catch((error) => console.warn("[initiative-card] class feature descriptions:", error?.message || error));
     if (isGM && !hasInitiativeCardValues(profile)) setEditing(true);
     else syncCardTabs();
     if (!editing) await runRequestedQuickActionOnce();

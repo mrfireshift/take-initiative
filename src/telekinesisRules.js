@@ -1,4 +1,5 @@
-import referenceData from "./spell-reference-it.json" with { type: "json" };
+// The runtime excerpt of the Italian reference: the full file loads only where its text is shown.
+import referenceData from "./spell-reference-it-runtime.json" with { type: "json" };
 
 export const TELEKINESIS_SPELL_ID = "telekinesis";
 export const TELEKINESIS_CONTEST_RESOLUTION_KIND = "telekinesis-contest";

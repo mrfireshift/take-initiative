@@ -1,4 +1,5 @@
-import blinkReferenceData from "./spell-reference-it.json" with { type: "json" };
+// The runtime excerpt of the Italian reference: the full file loads only where its text is shown.
+import blinkReferenceData from "./spell-reference-it-runtime.json" with { type: "json" };
 import {
   gridPlanarDistance,
   gridScaleParts,

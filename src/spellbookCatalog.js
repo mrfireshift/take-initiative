@@ -7,7 +7,7 @@ import { QUICK_ACTION_VERSION, sanitizeQuickAction } from "./quickActionsCore.js
 import { sanitizeSpellbook, spellbookQuickActionId } from "./spellbookCore.js";
 import { preparesSpells, spellPreparationClasses, spellPreparationLimit } from "./spellPreparationCore.js";
 import { subclassGrantedSpells } from "./subclassSpellsCatalog.js";
-import spellReferenceData from "./spell-reference-it.json" with { type: "json" };
+import spellReferenceRuntime from "./spell-reference-it-runtime.json" with { type: "json" };
 
 let launchOptionsById = null;
 
@@ -50,17 +50,37 @@ export function spellbookSpell(spellId) {
     attackCantrip: ATTACK_CANTRIP_IDS.has(spell.id),
     // A personal spell targets its caster; an area spell is placed in the panel, never on the caster.
     targetMode: spell.targetMode === "self" && option?.area !== true ? "self" : "selection",
-    ritual: spellReference(spell)?.ritual === true,
+    ritual: SRD_RITUAL_IDS.has(spell.id) || spell.italianReference?.ritual === true,
   };
 }
 
-// The Italian text of a spell: the SRD reference file, or the reference a supplement spell carries.
+const SRD_RITUAL_IDS = new Set(spellReferenceRuntime.ritualIds || []);
+
+// The Italian reference of the SRD spells (466 KB): loaded on the first expanded spell, never with the catalog.
+let spellReferenceSpells = null;
+let spellReferenceLoading = null;
+
+export function spellbookSpellReferenceLoaded() {
+  return !!spellReferenceSpells;
+}
+
+export function loadSpellbookSpellReference() {
+  spellReferenceLoading ||= import("./spellReferenceItData.js")
+    .then((module) => { spellReferenceSpells = module.default?.spells || {}; })
+    .catch((error) => {
+      spellReferenceLoading = null;
+      throw error;
+    });
+  return spellReferenceLoading;
+}
+
+// The Italian text of a spell: the SRD reference file once loaded, or the reference a supplement spell carries.
 function spellReference(spell) {
-  return spellReferenceData?.spells?.[spell?.id] || spell?.italianReference || null;
+  return spellReferenceSpells?.[spell?.id] || spell?.italianReference || null;
 }
 
 // What the card shows when a spell is expanded: { school, castingTime, range, components, duration, description,
-// higherLevels }; null for a spell without a reference.
+// higherLevels }; null for a spell without a reference, or before loadSpellbookSpellReference for an SRD spell.
 export function spellbookSpellDetails(spellId) {
   const reference = spellReference(getSpellDefinition(spellId));
   if (!reference) return null;
