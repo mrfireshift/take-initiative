@@ -1340,7 +1340,8 @@ async function buildPlan(command, runtime) {
       spellId: spell.id,
       targetId,
       position: targetId === casterId ? teleportDestination : passengerDestination,
-      skipAnimation: true,
+      // Animated like Embers (hidden at 1 s, moved at 1.5 s, shown at 3 s): the matched visual sent before the
+      // commit runs on that clock. An instant move put the token on the destination before the mist.
       ...(teleportOperationId ? { operationId: teleportOperationId } : {}),
     }))
     : [];

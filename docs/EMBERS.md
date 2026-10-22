@@ -72,7 +72,9 @@ rimosso quando termina il lifecycle, senza creare loop o eventi JS duplicati.
    locale dell’estensione e lo invia ai client della room.
 3. Ogni renderer calcola la variante WebM più vicina alla geometria e crea un
    local item OBR, usando `attachedTo` quando il visual deve seguire caster,
-   bersaglio o zona.
+   bersaglio o zona. Un popover che emette (pannello incantesimi, console attacchi) non
+   disegna la propria copia: l'evento `ALL` arriva al renderer del suo
+   background, e una seconda copia sfalsata sembrava un clip ripetuto.
 4. Le mutation applicate emettono gli eventi di fine per istanze spell o
    capacità rimosse. ID evento e lifecycle impediscono duplicazioni e render
    tardivi nella scena sbagliata.
@@ -100,7 +102,9 @@ Passo Velato, Porta Dimensionale e Passo del Tuono animano il token come Embers:
 lo nascondono a 1 s, lo spostano a 1,5 s e lo mostrano a 3 s, con i timer che
 partono dentro la mutation. Per questo la visuale matched parte prima del commit
 (fase `pre-commit` in `spellAreaResolutionExecutor`), sullo stesso orologio dei
-timer del token. Passo del Tuono fa esplodere il tuono sull'origine, nel raggio
+timer del token. Il side effect `token:teleport` degli incantesimi è quindi animato (senza
+`skipAnimation`): con lo spostamento immediato il token arrivava a destinazione
+prima della nebbia. Passo del Tuono fa esplodere il tuono sull'origine, nel raggio
 di 3 m.
 
 ### Tempi e durate

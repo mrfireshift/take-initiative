@@ -204,6 +204,10 @@ test.after(() => {
   globalThis.IDBKeyRange = previousKeyRange;
 });
 
+// Token timers of an animated teleport: hidden at 1 s, moved at 1.5 s, shown at 3 s.
+const TELEPORT_ANIMATION_MS = 3100;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 test("Normal teleport undo: ripristina la posizione iniziale del caster senza conflitti", async () => {
   const origin = { x: 0, y: 0 };
   const destination = { x: 300, y: 300 };
@@ -700,6 +704,7 @@ test("Dimension Door non raccoglie più un esito destinazione nel command", asyn
     onEffectSaveWarnings: async () => {},
   });
   assert.equal(result.status, "applied", JSON.stringify(result));
+  await sleep(TELEPORT_ANIMATION_MS);
   const items = await sdkStub.scene.items.getItems(["dimension-caster", "dimension-passenger"]);
   assert.deepEqual(items.map((item) => item.position), [
     { x: 300, y: 300 },
@@ -733,10 +738,12 @@ test("Dimension Door mantiene il teleport se il VFX matched fallisce", async () 
     onEffectSaveWarnings: async () => {},
   });
   assert.equal(result.status, "applied", JSON.stringify(result));
-  assert.deepEqual(
-    (await sdkStub.scene.items.getItems(["dimension-caster"]))[0].position,
-    destination,
-  );
+  // The token waits for the mist: still on the origin at the commit, on the destination and visible after it.
+  assert.deepEqual((await sdkStub.scene.items.getItems(["dimension-caster"]))[0].position, origin);
+  await sleep(TELEPORT_ANIMATION_MS);
+  const [arrived] = await sdkStub.scene.items.getItems(["dimension-caster"]);
+  assert.deepEqual(arrived.position, destination);
+  assert.notEqual(arrived.visible, false);
   assert.equal(result.visualEvents.some((event) => event.type === "matched-spell"), true);
   assert.equal((await history.getHistoryEntries()).length, 1);
 });

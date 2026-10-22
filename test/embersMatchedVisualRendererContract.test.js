@@ -103,3 +103,11 @@ test("VFX-001A.2: i layer one-shot non dipendono dal lifecycle timer", () => {
   assert.match(renderLayer, /!isOneShot[\s\S]*?lifecycleTargetEnded/u);
   assert.match(source, /oneShot: layer\.oneShot === true/u);
 });
+
+test("VFX-002: un popover che emette non disegna una seconda copia accanto al renderer del background", () => {
+  const block = functionBlock("emitVisual");
+  const sent = block.slice(block.indexOf("await OBR.broadcast.sendMessage("), block.indexOf("} catch (error) {"));
+  assert.match(sent, /if \(unsubscribe\) \{[\s\S]*?renderEvent\(event\)[\s\S]*?\}[\s\S]*?return \{ sent: true/u);
+  // Un broadcast fallito resta disegnato in locale.
+  assert.match(block.slice(block.indexOf("} catch (error) {")), /renderEvent\(event\)/u);
+});

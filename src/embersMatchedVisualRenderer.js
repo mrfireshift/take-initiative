@@ -802,8 +802,12 @@ async function emitVisual({
       event,
       { destination: "ALL" },
     );
-    const scheduleEvent = hasOneShotLayers(event) ? scheduleIndependent : schedule;
-    scheduleEvent(() => renderEvent(event), 0, event.lifecycleId);
+    // ALL reaches this client's background renderer. A popover (spell panel, attack console) drawing its own copy
+    // put two clips on the GM's screen, offset by the broadcast, and left that copy's cleanup to the popover's timers.
+    if (unsubscribe) {
+      const scheduleEvent = hasOneShotLayers(event) ? scheduleIndependent : schedule;
+      scheduleEvent(() => renderEvent(event), 0, event.lifecycleId);
+    }
     return { sent: true, eventId: event.eventId, sceneEpoch: originEpoch };
   } catch (error) {
     const scheduleEvent = hasOneShotLayers(event) ? scheduleIndependent : schedule;
