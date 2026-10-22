@@ -189,7 +189,9 @@ della scheda Capacità, ripristinano le risorse del personaggio: il riposo
 breve quelle che tornano con un riposo breve al suo livello (slot del Patto,
 ki, Incanalare Divinità…), il riposo lungo tutto, slot e usi delle azioni
 rapide compresi. **Ripristina risorse** nel menu della card equivale al
-riposo lungo.
+riposo lungo. Dopo il riposo lungo della scheda, chi prepara gli incantesimi
+trova l'invito "rivedi gli incantesimi preparati" e il pulsante **Prepara**
+evidenziato, finché non lo apre.
 
 ### Importare una scheda
 
@@ -352,7 +354,9 @@ plugin chiede bersagli e variante senza creare una seconda concentrazione.
 Un incantatore in concentrazione mostra una `C` sulla card e sul token.
 Interrompere la concentrazione termina l'istanza collegata e rimuove le zone,
 le aure, le pill e le condizioni figlie che dipendono da essa. La stessa
-pulizia avviene quando termina la durata naturale.
+pulizia avviene quando termina la durata naturale. Lanciare un altro
+incantesimo a concentrazione, da un'azione rapida o dal pannello, chiede prima
+conferma: annullando, la concentrazione in corso resta e non si spende nulla.
 
 Per **Palla di Fuoco Ritardata**, l'interruzione volontaria, un TS di
 concentrazione fallito, la sostituzione con un'altra spell concentrata e la

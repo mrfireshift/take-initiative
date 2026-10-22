@@ -516,6 +516,31 @@ export function bootSpellUnifiedPanel(
     return { extraOperations: cost.operation ? [cost.operation] : [], spellCost: cost.spent, slotLevel: cost.slotLevel };
   };
 
+  // A new concentration spell ends the one the caster keeps: the GM confirms first, as the quick actions do
+  // (quickActionExecution.js). Read again at the cast; false when the GM keeps the old one.
+  const confirmConcentrationReplacement = async (operation) => {
+    if (!slotSpendApplies()
+      || state.contract?.spell?.concentration !== true
+      || state.contract?.presentation?.phase?.plan?.concentrationAction !== "replace") return true;
+    const concentrations = await provider.getCasterConcentrations?.(state.session.casterId) || {};
+    if (!sceneLifecycle.isCurrent(operation)) return false;
+    const names = Array.from(new Set(concentrationSummary(concentrations).map((entry) => entry.name)));
+    if (!names.length) return true;
+    const caster = state.casters.find((item) => item.id === state.session.casterId);
+    const spell = state.contract.spell.label || state.contract.spell.id;
+    const message = [
+      `${caster?.name || "Il personaggio"} sta già mantenendo la concentrazione su`,
+      names.join(", "),
+      `Lanciare ${spell} la sostituirà. Continuare?`,
+    ].join("\n\n");
+    const windowRef = runtimeOverrides.windowRef || globalThis.window;
+    if (typeof windowRef?.confirm === "function" && windowRef.confirm(message)) return true;
+    patchSession({
+      feedback: { state: "info", message: `Lancio annullato: la concentrazione resta su ${names.join(", ")}.` },
+    }, { clearFeedback: false });
+    return false;
+  };
+
   // The session the cast runs with: a Pact Magic slot casts the spell at its own level, as the quick actions do.
   const sessionAtSpentSlot = (slotSpend) => (
     Number.isInteger(slotSpend?.slotLevel) && slotSpend.slotLevel !== state.session.slotLevel
@@ -1699,6 +1724,7 @@ export function bootSpellUnifiedPanel(
       }
       if (!sceneLifecycle.isCurrent(operation)) return;
     }
+    if (!await confirmConcentrationReplacement(operation)) return;
     const slotSpend = await prepareSpellSlotSpend(operation);
     if (!slotSpend) return;
     state.committing = true;
@@ -2696,6 +2722,7 @@ export function bootSpellUnifiedPanel(
       }
       if (!sceneLifecycle.isCurrent(operation)) return;
     }
+    if (!await confirmConcentrationReplacement(operation)) return;
     const slotSpend = await prepareSpellSlotSpend(operation);
     if (!slotSpend) return;
     state.committing = true;

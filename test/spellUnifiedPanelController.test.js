@@ -1453,3 +1453,42 @@ test("un incantesimo non automatizzato si registra dal pannello, anche senza ber
   assert.match(panel.state.session.feedback.message, /^Lancio registrato: effetti al tavolo/u);
   await panel.destroy();
 });
+
+test("un incantesimo a concentrazione chiede conferma se il caster ne mantiene già una", async () => {
+  const provider = createProvider();
+  provider.getCasterConcentrations = async () => ({
+    "shield-of-faith": { spellId: "shield-of-faith", targets: ["caster-a"] },
+  });
+  const requests = [];
+  const answers = [false, true];
+  const messages = [];
+  const windowRef = new FakeWindow();
+  windowRef.confirm = (message) => {
+    messages.push(message);
+    return answers.shift();
+  };
+  const { root, panel } = boot({
+    provider,
+    broadcast: new FakeBroadcast(),
+    windowRef,
+    route: { status: "ready", spellId: "bless", session: { casterId: "caster-a" } },
+    lifecycleExecutor: async (request) => {
+      requests.push(request);
+      return ["target-a"];
+    },
+  });
+  await settle();
+  const target = targetInput(root, "target-a");
+  target.checked = true;
+  await target.emit("change");
+  await requiredNode(root, '[data-primary-action="apply"]').click();
+  await settle(10);
+  assert.equal(requests.length, 0, "kept the old concentration: nothing cast");
+  assert.match(messages[0], /Caster A sta già mantenendo la concentrazione/u);
+  assert.match(messages[0], /Scudo della fede/u);
+  assert.match(panel.state.session.feedback.message, /^Lancio annullato/u);
+  await requiredNode(root, '[data-primary-action="apply"]').click();
+  await settle(10);
+  assert.equal(requests.length, 1, "confirmed: Bless replaces it");
+  await panel.destroy();
+});

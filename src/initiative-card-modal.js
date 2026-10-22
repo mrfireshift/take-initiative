@@ -161,6 +161,8 @@ let draftSpellbook = sanitizeSpellbook(null);
 let spellPreparationDraft = null;
 // The spell of the book whose details are open (one at a time), "" when none is.
 let expandedSpellbookSpellId = "";
+// After a long rest from the card, a character who prepares spells is reminded to review them, until Prepara.
+let spellPreparationReminder = false;
 
 const spellOptions = getQuickActionSpellOptions();
 
@@ -960,10 +962,16 @@ async function takeRest(shortRest, statusId) {
     await refreshClassFeatureItem();
     if (!sceneLifecycle.isCurrent(sceneOperation)) throw new Error("Scena cambiata: riapri la scheda.");
     classFeatureMutating = false;
-    renderSpellSlots();
+    const reviewPreparation = !shortRest && spellbookPreparation(profile).preparing;
+    if (reviewPreparation) spellPreparationReminder = true;
+    // The book shows the reminder on its preparation bar; it redraws the slots too.
+    if (reviewPreparation) renderSpellbook();
+    else renderSpellSlots();
     renderClassFeatures();
     renderQuickActions();
-    status.textContent = shortRest ? "Riposo breve: risorse ripristinate." : "Riposo lungo: risorse ripristinate.";
+    status.textContent = shortRest
+      ? "Riposo breve: risorse ripristinate."
+      : `Riposo lungo: risorse ripristinate.${reviewPreparation ? " Rivedi gli incantesimi preparati." : ""}`;
     status.dataset.tone = "success";
   } catch (error) {
     console.warn("[initiative-card] rest:", error?.message || error);
@@ -1017,7 +1025,12 @@ function renderSpellPreparation(preparation) {
     .map((entry) => `${entry.label} ${entry.level}: ${entry.limit === null ? "manca il modificatore" : entry.limit}`)
     .join(" · ");
   const parts = [count];
-  if (preparation.limit === null) {
+  if (spellPreparationReminder && isGM && !spellPreparationDraft) {
+    const hint = document.createElement("small");
+    hint.className = "spellbook-preparation-reminder";
+    hint.textContent = "Riposo lungo: rivedi gli incantesimi preparati.";
+    parts.push(hint);
+  } else if (preparation.limit === null) {
     const hint = document.createElement("small");
     hint.textContent = "Per il limite servono i modificatori di caratteristica.";
     parts.push(hint);
@@ -1046,10 +1059,13 @@ function renderSpellPreparation(preparation) {
         button("Salva preparazione", "Conserva gli incantesimi spuntati come preparati", () => void saveSpellPreparation()),
       );
     } else {
-      actions.append(button("Prepara", "Scegli gli incantesimi preparati oggi", () => {
+      const prepare = button("Prepara", "Scegli gli incantesimi preparati oggi", () => {
+        spellPreparationReminder = false;
         spellPreparationDraft = new Set(sanitizeSpellbook(profile?.[SPELLBOOK_FIELD]).unpreparedIds || []);
         renderSpellbook();
-      }));
+      });
+      if (spellPreparationReminder) prepare.dataset.attention = "1";
+      actions.append(prepare);
     }
     parts.push(actions);
   }
