@@ -96,14 +96,14 @@ Fase 0  Preparazione ──┬── Fase 2  Token ── Fase 3  Compatta ─�
 
 **0.1 Repository pulito.** Le modifiche in corso sugli incantesimi vanno committate o messe da parte, così il polishing parte da un `main` pulito su un branch dedicato. **Decisione tua.**
 
-**0.2 Anteprima completa.**
-- In `test-support/boss-actions-browser/fake-obr-sdk.js`, `OBR.modal.open/close` deve aprire e chiudere un iframe come fa già `popover`. Così diventano visibili le modali Condizioni, scheda personaggio e notice.
-- Il parametro `?scale=` in `test-support/ui-audit-browser/host.js` deve simulare la "Dimensione tracker" dei giocatori (es. 150%).
-- In `frame.html`, un pulsante per selezionare un token, utile ad aprire i pannelli contestuali.
+**0.2 Anteprima completa — fatta il 2026-10-22.**
+- Le "modali" sono in realtà popover, quindi il fake SDK non andava toccato: l'anteprima le mostrava già.
+- `?scale=0.5…2` imposta la "Dimensione tracker" sia del GM (opzioni locali) sia dei giocatori (opzioni della stanza).
+- Il menu "Seleziona token" seleziona una creatura, così i pannelli contestuali si aprono su di lei.
+- I popover restano dentro lo schermo come in OBR, e ogni avvio riparte dalla posizione predefinita del tracker: gli screenshot prima/dopo sono confrontabili.
+- È emerso un nuovo punto da verificare in OBR: la vista giocatore compatta a 150% (audit, punto 5.8).
 
-**0.3 Committare** l'audit e l'anteprima.
-
-*Fatto quando:* tutte le modali dell'audit si aprono nell'anteprima con dati veri.
+**0.3 Committare** l'audit e l'anteprima — fatto.
 
 ### Fase 0b — Verifica dei bug in OBR — **fatta il 2026-10-22**
 

@@ -41,7 +41,7 @@ Poi si apre `http://127.0.0.1:5199/test-support/ui-audit-browser/frame.html?layo
 Ogni voce riporta `file:riga`.
 
 **Limiti.**
-- L'SDK simulato ha `OBR.modal.open` vuoto, quindi le modali (Condizioni, scheda personaggio con dati reali) non si vedono nell'anteprima: sono state lette nel codice. I popover invece funzionano (console effetti, incantesimi, menu "…", popover effetti).
+- ~~L'SDK simulato ha `OBR.modal.open` vuoto, quindi le modali non si vedono nell'anteprima.~~ Corretto nella fase 0.2: il plugin apre tutti i pannelli come popover (`OBR.modal` serve solo a chiudere quelli vecchi), quindi l'anteprima li mostra già. Basta selezionare un token dal menu "Seleziona token" (`before/20`).
 - I ritratti sono segnaposto (`/quick-damage.svg`) e non dicono nulla sulla resa delle immagini vere.
 - Le voci marcate **da verificare in OBR** vanno confermate in una stanza reale prima di correggerle.
 
@@ -148,6 +148,10 @@ Screenshot: `before/09`–`11`, `16`.
 - **A3.3 Console effetti manuali** (`before/12`, `13`). Ben fatta nel complesso. Due ritocchi:
   - un riquadro vuoto sotto "Imposta selezionati" occupa spazio senza contenuto;
   - il campo "Valore" è isolato in alto a destra, lontano dai bersagli.
+- **A3.3b Pannello Condizioni** (`before/20`).
+  - Il pulsante "Aggiungi" sta **sopra** la lista dei bersagli su cui agisce: l'ordine visivo è condizione → Aggiungi → bersagli, mentre il flusso reale è condizione → bersagli → Aggiungi.
+  - "Rimuovi Tutto" è un pulsante rosso pieno alla stessa altezza di "Rimuovi selezionati": il distruttivo ha più peso visivo dell'azione normale.
+  - Ogni riga degli effetti attivi ha un "Rimuovi" rosso: la colonna di rossi domina il pannello.
 - **A3.4 Notice e avvisi.** turn-notice, speed-warning, boss-link-notice e concentration-warning usano testo da **7–8.5px** (es. `turn-notice.html:172`) e titoli in Georgia serif. Sono di fatto un terzo stile tipografico. 13 pagine non includono `ui-typography.css`.
 - **A3.5 Tema.** L'interfaccia è solo scura (`color-scheme: dark` in `ui-typography.css:168`). Solo 3 menu contestuali seguono il tema di OBR. Non è un problema per lo schermo del tavolo, ma va deciso esplicitamente (consiglio: restare solo scuri).
 - **A3.6 Codice morto.** `src/style.css` è il boilerplate Vite e non viene importato da nessuna pagina del plugin.
@@ -210,6 +214,7 @@ Verifica in una stanza OBR reale fatta il 2026-10-22 (fase 0b del piano). Esiti:
 5. **Toggle "Tana" sempre nascosto** (`initiativeList.js:2619`) e glifi ‹/◀ duplicati (`:3344` contro `:3549`). È codice morto da rimuovere solo con conferma.
 6. **Menu "…" che non si chiude → non confermato.** In OBR si chiude cliccando altrove: era un limite dell'anteprima.
 7. **Pannello destro tagliato → confermato** (nuovo, da `before/18`). La seconda riga della griglia è tagliata a metà e il badge della build la copre (A1.5).
+8. **Vista giocatore compatta a scala 150% → da verificare in OBR** (nuovo, da `before/19`). Nell'anteprima il tracker cresce correttamente (178 → 267px), ma sopra le card resta una fascia vuota e il fondo delle card (pill e "+") viene tagliato. È la configurazione dello schermo del tavolo, quindi va controllata prima della fase 3.
 
 ---
 
@@ -311,3 +316,5 @@ Le immagini sono in `docs/ui-audit/before/`. Quelle "ingrandite" sono a zoom 2×
 | `16-classica-incantesimi-e-pill-sovrapposte.jpg` | Pannello incantesimi, durate "0 round", pill sovrapposte |
 | `17-obr-classica-pill-espanse-sovrapposte.png` | Stanza OBR reale: pill espanse con il "+" che coprono la card successiva |
 | `18-obr-compatta-stanza-reale.webp` | Stanza OBR reale: tracker compatto con boss epico, popover effetti aperto, pannello destro tagliato |
+| `19-compatta-giocatore-scala-150.jpg` | Vista giocatore compatta a scala 150%: fascia vuota sopra le card, fondo tagliato |
+| `20-condizioni.jpg` | Pannello Condizioni: "Aggiungi" sopra i bersagli, "Rimuovi Tutto" in rosso pieno |

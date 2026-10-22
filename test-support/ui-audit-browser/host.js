@@ -60,16 +60,43 @@ fakeHost.onPopover = (action, options, previous) => {
     frame?.remove(); frame = document.createElement("iframe"); frame.title = options.id.split("/").at(-1);
     frame.src = options.url; frames.set(options.id, frame); document.body.append(frame);
   }
-  const current = fakeHost.state.popovers.get(options.id) || options;
+  placeFrame(options.id);
+};
+// Like OBR, keep a popover that fits inside the viewport (the audit's false "off screen" bug came from not doing so).
+// Placed again on resize, since the viewport can be 0×0 while the preview pane is still hidden.
+function placeFrame(id) {
+  const frame = frames.get(id);
+  const current = fakeHost.state.popovers.get(id);
+  if (!frame || !current) return;
   const left = current.anchorPosition.left - (current.transformOrigin?.horizontal === "RIGHT" ? current.width : current.transformOrigin?.horizontal === "CENTER" ? current.width / 2 : 0);
   const top = current.anchorPosition.top - (current.transformOrigin?.vertical === "BOTTOM" ? current.height : current.transformOrigin?.vertical === "CENTER" ? current.height / 2 : 0);
-  Object.assign(frame.style, { width: `${current.width}px`, height: `${current.height}px`, left: `${Math.max(0, left)}px`, top: `${Math.max(0, top)}px` });
-};
-const layoutParam = new URLSearchParams(location.search).get("layout") === "compact" ? "compact" : "classic";
+  const fit = (start, size, room) => Math.max(0, room >= size ? Math.min(start, room - size) : start);
+  Object.assign(frame.style, { width: `${current.width}px`, height: `${current.height}px`,
+    left: `${fit(left, current.width, innerWidth)}px`, top: `${fit(top, current.height, innerHeight)}px` });
+}
+addEventListener("resize", () => { for (const id of frames.keys()) placeFrame(id); });
+const params = new URLSearchParams(location.search);
+const layoutParam = params.get("layout") === "compact" ? "compact" : "classic";
+// Tracker size, 0.5-2: the GM's comes from this browser's options, the players' from the room options (table screen).
+const scaleParam = Math.min(2, Math.max(0.5, Number(params.get("scale")) || 1));
+// Every run starts from the default tracker position and width, so before/after screenshots are comparable.
+for (const key of Object.keys(localStorage)) {
+  if (key.startsWith("com.thebigpicture.initiative/tracker-")) localStorage.removeItem(key);
+}
 localStorage.setItem("com.thebigpicture.initiative/tracker-layout", layoutParam);
+localStorage.setItem("com.thebigpicture.initiative/options-local",
+  JSON.stringify({ version: 1, updatedAt: Date.now(), tracker: { layout: layoutParam, scale: scaleParam } }));
+fakeHost.state.roomMetadata["com.thebigpicture.initiative/options-room"] =
+  { version: 1, updatedAt: Date.now(), playerView: { trackerScale: scaleParam } };
 markSceneEpochReady("ui-audit-preview");
 await mountHistoryOwner(); await mountEffectsMutationCoordinatorService();
 await openTrackerPopover({ refresh: true });
+// Selecting a token is what opens the contextual panels (conditions, spells, character sheet) on that creature.
+const tokenSelect = document.getElementById("select-token");
+for (const item of fakeHost.state.items.filter((item) => item.metadata?.[KEY]?.inInitiative)) {
+  tokenSelect.append(new Option(item.name, item.id));
+}
+tokenSelect.onchange = () => fakeHost.setSelection(tokenSelect.value ? [tokenSelect.value] : []);
 document.getElementById("open-manual").onclick = () => OBR.popover.open({ id: "com.thebigpicture.initiative/quick-hp-modal",
   url: "/quick-hp-modal.html", width: 560, height: Math.min(760, innerHeight - 32),
   anchorPosition: { left: 16, top: 16 }, anchorReference: "POSITION",
