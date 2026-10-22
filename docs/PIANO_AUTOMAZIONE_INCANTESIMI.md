@@ -11,7 +11,8 @@ li aggiorna con il lavoro di ottobre e risponde a due domande:
    anche di quelli che non si automatizzano.
 
 La seconda è risolta (sezione 2). La prima è un piano a lotti: il lotto L1 è
-fatto (sezione 5.1), gli altri aspettano il via, uno per volta.
+fatto (sezione 5.1), gli altri aspettano il via, uno per volta. Chi lavora a
+un lotto parte dalle note pratiche della sezione 8.
 
 Il perimetro è quello di sempre: un **tracker assistito**. Dadi, linea di
 vista, immunità finali e decisioni narrative restano al tavolo; il plugin
@@ -276,7 +277,130 @@ Piccole, senza HP, utili subito al tavolo:
   `test/spellCastRecord.test.js` fissano oggi il conteggio a 84 e vanno
   aggiornati con il lotto.
 
-## 8. Elenco completo
+## 8. Note pratiche per lavorare a un lotto
+
+Quello che il lotto L1 ha insegnato e che il codice non dice da solo. Valgono
+per ogni lotto, insieme ad `AGENTS.md`.
+
+### 8.1 Prima di cominciare
+
+- **Regole del 2014**: i testi del PHB 2014 e dei supplementi del catalogo,
+  mai le revisioni del 2024. Dadi, TS e bersagli di L2–L4 sono nell'elenco
+  della sezione 9.
+- **Un lotto per volta**, con il via dell'utente. Prima del codice si spiega
+  la patch; L2, L3 e L4 toccano gli HP, come molte capacità di L5+, e prima
+  di quei lotti ci si ferma a spiegarne il rischio, come chiede `AGENTS.md`.
+- **Dati prima di codice nuovo**: in L1–L3 si copia la forma di un
+  incantesimo che funziona già (colonna «Modello già funzionante» della
+  sezione 5.1); L4 e L5+ aggiungono codice solo dove lo dice la sezione 5. In
+  L2–L4 cure e danni passano dai percorsi esistenti, mai da uno nuovo.
+- **Nella cartella principale del repository**, non in un worktree (sezione
+  8.6).
+
+### 8.2 Trappole del motore
+
+- `mechanics.endsOnDamage` toglie la pill a **qualunque** danno, senza
+  guardare chi lo infligge (`resolveDamageEndsConditionRemovals` in
+  `src/hpConditionRulesCore.js`): va bene solo se il testo dice così. Quando
+  la fine dipende da chi colpisce, come per Suggestione, la pill ha
+  `manualRemoval` ed `endsParentOnRemoval` e la toglie il GM.
+- Le difese ai danni (`mechanics.damageDefenses`) le applicano soltanto la
+  console attacchi dei PG (`src/pc-attack.js`) e la console boss
+  (`src/boss-actions.js`). Il pannello incantesimi, la console ad area e la
+  console HP prendono il danno come valore finale del GM.
+- Le mini pill delle difese si aggiungono da sole (`effectSummaryPartsFor` in
+  `src/effectLabelCore.js`), con id `damage-defense-<difesa>-<tipo>`: per
+  esempio `damage-defense-resistance-poison`, oppure
+  `damage-defense-immunity-all` per tutti i tipi. Se le summaryParts
+  configurate ripetono una difesa, usano lo stesso id, altrimenti la mini pill
+  compare due volte.
+- «Qualunque numero di creature» si dichiara in `TARGETING_OVERRIDES`
+  (`src/spells-srd.js`) con `{ unbounded: true }`; senza, vale il limite di
+  bersagli predefinito.
+- Un'aura mobile si dichiara in più punti: `MOBILE_AURA_SPELL_IDS` e
+  `AREA_OVERRIDES` in `src/spellAreaCatalog.js`;
+  `SELF_CAST_AURA_TARGETING_BY_SPELL`, `SELF_CAST_AURA_SPELL_IDS` e l'effetto
+  di appartenenza (`membershipEffects`) in `src/spellAreaRules.js`; se l'aura
+  non chiede TS, anche `AREA_PLACEMENT_ONLY_SPELL_IDS` in
+  `src/areaSaveSpellRules.js`. Se l'incantesimo dava già una pill personale
+  al caster, il suo id va in `MOBILE_AURA_LEGACY_CASTER_EFFECT_IDS`
+  (`src/spellAuraCore.js`), che la toglie quando parte l'aura. Modello:
+  Passare senza tracce.
+- Il ticking degli incantesimi e il cambio di round possono passare da più di
+  un percorso (`AGENTS.md`): per i TS ripetuti di L2 e i danni di zona di L3
+  si leggono tutti prima di toccarne uno.
+
+### 8.3 Test
+
+- Test di famiglia sui pianificatori veri, non solo sui dati. Modello:
+  `test/spellPassiveBenefits.test.js`, che segue la catena intera: piano
+  dell'incantesimo, mutazione degli effetti, pill sul token, console attacchi
+  e danno boss, fine con la concentrazione.
+- Il pianificatore puro `buildEffectsMutationPlan`
+  (`src/effectsMutationCore.js`) vuole le operazioni già preparate:
+  `instanceIds` per le condizioni ed `entryIds` per gli incantesimi, come fa
+  `prepareOperation` in `src/effectsMutations.js`. Senza id non produce
+  condizioni, e il test non prova nulla.
+- Coordinatore, History e Undo veri: `test/spellSlotSpendUndo.test.js`.
+- Conteggi fissati che un lotto sposta: gli 84 incantesimi solo registrabili
+  in `test/spellCastRecord.test.js`; in `test/spellAreaRules.test.js`
+  `AREA_PLACEMENT_ONLY_SPELL_IDS` (37), `MULTI_TARGET_SAVE_SPELL_IDS` (13),
+  `AREA_PLACEABLE_SPELL_IDS` (132) e `AREA_POPOVER_SPELL_IDS` (145). Si
+  aggiornano con il lotto, con un commento che dice perché.
+- `test/spellAreaIndex.test.js` fallisce finché `src/spellAreaIndex.js` non è
+  rigenerato.
+
+### 8.4 Verifica nel browser
+
+- Server: la configurazione `boss-actions-preview` di `.claude/launch.json`
+  (Vite con l'SDK di Owlbear simulato, porta 5199).
+- Scheda e libro degli incantesimi:
+  `/test-support/boss-actions-browser/class-features-card.html?pc=mago`, con
+  il coordinatore degli effetti e la History veri; `?pc=` sceglie il
+  personaggio, `?role=PLAYER` mostra la vista giocatore. Solo `mago` ha un
+  libro (`spellbook`): per provare altri incantesimi se ne aggiunge uno al
+  personaggio, per esempio a `chierico` per le cure di L2. Il pannello
+  incantesimi si apre in un iframe su `/spell-unified-panel.html`, con la
+  query di `buildSpellUnifiedPanelRouteQuery`.
+- Mappa, aree e aure: `/test-support/boss-actions-browser/frame.html`
+  (griglia da 70 px, token, Round +1, console boss e HP, Undo). Il controller
+  delle aure non parte da solo: dalla console si importa
+  `/src/spellAuraController.js`, si chiama `mountSpellAuraController()` e poi
+  `requestSpellAuraReconcile()`.
+- Un controllo per incantesimo rappresentativo, con la console del browser
+  senza errori.
+
+### 8.5 Chiudere il lotto
+
+1. `npm run generate:spell-area-index` dopo ogni modifica alle regole di
+   area o di TS.
+2. `npm run audit:spells`: rigenera lo snapshot strutturale e conserva il
+   blocco semantico.
+3. Righe della matrice semantica e conteggi di questo documento (sezione 7);
+   dove cambiano, anche `docs/GUIDA_UTENTE.md`, `docs/INCANTESIMI_E_ZONE.md`,
+   `docs/RIFERIMENTO_FUNZIONI.md` e `docs/INDICE.md`.
+4. `npm run check:spells`, `npm test`, `npm run build`, `npm run verify:dist`.
+
+### 8.6 Commit, bundle e Windows
+
+- Commit su `main`, uno per lotto, con il messaggio in inglese come i
+  precedenti; poi un commit a parte, `build: publish production bundle from
+  <sha>`, con il bundle generato da quel commit. Il push lo decide l'utente.
+- La build del bundle va fatta con l'albero pulito: `dirty` in
+  `dist/build-info.json` viene da `git status --porcelain`
+  (`scripts/build-metadata.mjs`). `dist/` è nel `.gitignore` ma tracciato: si
+  aggiunge con `git add -A -f -- dist`.
+- Windows: il Git di sistema ha `core.autocrlf=true` e `.gitattributes`
+  protegge soltanto `dist/`. Un worktree o un checkout nuovo scrive i file
+  con fine riga CRLF, e i test che confrontano byte o hash SHA-256
+  falliscono senza un vero errore. Se un worktree serve davvero:
+  `core.autocrlf=false` prima del checkout; `git ls-files --eol` si legge
+  separando sul tab, perché i percorsi contengono spazi; un `node_modules`
+  collegato (junction) si toglie con `cmd /c rmdir` prima di
+  `git worktree remove --force`, per non rischiare i `node_modules`
+  principali.
+
+## 9. Elenco completo
 
 Lotti: L1–L4 come nella sezione 1, L5+ dopo la capacità indicata, — nessun
 lotto. Gli incantesimi senza lavoro residuo sono elencati per livello.

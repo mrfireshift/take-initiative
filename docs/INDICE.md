@@ -18,7 +18,7 @@ plugin.
 | [Capacità di classe](CAPACITA_CLASSE.md) | Classi, sottoclassi, risorse e capacità attivabili. |
 | [Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md) | Catalogo, registro, aree, zone, aure e limiti RAW. |
 | [Spell Architecture Master](SPELL_ARCHITECTURE_MASTER.md) | Reuse map runtime per polishing, nuove spell e batch futuri. |
-| [Piano di automazione degli incantesimi](PIANO_AUTOMAZIONE_INCANTESIMI.md) | Stato al 22/10/2026 dei 477 incantesimi, registrazione dei lanci con lo slot, come automatizzare i restanti e in che ordine. |
+| [Piano di automazione degli incantesimi](PIANO_AUTOMAZIONE_INCANTESIMI.md) | Stato al 22/10/2026 dei 477 incantesimi, registrazione dei lanci con lo slot, come automatizzare i restanti e in che ordine, note pratiche per lavorare a un lotto. |
 | [Audit automazione incantesimi](AUDIT_AUTOMAZIONE_INCANTESIMI.md) | Matrice completa tra testi RAW e tracking, aree, status, trigger e fasi. |
 | [Architettura e dati](ARCHITETTURA.md) | Entry point, metadata, persistenza e riconciliazione. |
 | [Contratto del movimento](MOVEMENT_MECHANICS.md) | Modalità di movimento, costi e condizioni. |
