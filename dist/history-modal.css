@@ -415,6 +415,36 @@ input {
 }
 
 /* Confirmation banner */
+/* Combat Log selection mode: one compact row above the timeline */
+.history-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  margin: 0 10px 4px;
+  border: 1px solid rgba(248, 113, 113, .38);
+  border-radius: 7px;
+  background: rgba(127, 29, 29, .22);
+  flex: 0 0 auto;
+}
+
+.history-selection-bar[hidden] {
+  display: none;
+}
+
+.history-selection-count {
+  font-size: var(--obrt-type-caption, 10px);
+  font-weight: var(--obrt-weight-semibold, 600);
+  color: rgba(255, 255, 255, .78);
+  white-space: nowrap;
+  margin-right: 2px;
+}
+
+/* the buttons carry an inline display */
+.history-selection-bar button[hidden] {
+  display: none !important;
+}
+
 .history-confirmation-banner {
   display: flex;
   align-items: center;
