@@ -92,6 +92,24 @@
   --obrt-hp-mid: #f59e0b;
   --obrt-hp-low: #ef4444;
 
+  /* Buttons: one look for every panel. The panels' own button classes read these (console effetti, Condizioni,
+     Incantesimi), and new code uses the .obrt-btn classes below. */
+  --obrt-btn-height: var(--obrt-h-control-md);
+  --obrt-btn-height-lg: var(--obrt-h-control-lg);
+  --obrt-btn-radius: var(--obrt-radius-md);
+  --obrt-btn-pad-x: var(--obrt-space-xl);
+  --obrt-btn-border: rgba(148, 163, 184, .28);
+  --obrt-btn-bg: rgba(255, 255, 255, .055);
+  --obrt-btn-bg-hover: rgba(255, 255, 255, .10);
+  --obrt-btn-primary-bg: var(--obrt-accent);
+  --obrt-btn-primary-bg-hover: #1d4ed8;
+  --obrt-btn-primary-border: rgba(255, 255, 255, .20);
+  --obrt-btn-danger-bg: rgba(220, 38, 38, .28);
+  --obrt-btn-danger-bg-hover: rgba(220, 38, 38, .46);
+  --obrt-btn-danger-border: rgba(248, 113, 113, .42);
+  --obrt-btn-danger-text: #fecaca;
+  --obrt-btn-disabled-opacity: .48;
+
   /* Carets & Forms */
   --obrt-select-bg: #0f172a;
   --obrt-select-caret-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M2 2 6 6 10 2' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -116,6 +134,72 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+/* Buttons: secondary is the base look; primary for the panel's main action, danger for what removes or clears,
+   ghost for quiet controls, icon for square icon-only buttons. */
+.obrt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--obrt-space-sm);
+  min-height: var(--obrt-btn-height);
+  padding: 0 var(--obrt-btn-pad-x);
+  border: 1px solid var(--obrt-btn-border);
+  border-radius: var(--obrt-btn-radius);
+  background: var(--obrt-btn-bg);
+  color: var(--obrt-text);
+  font-size: var(--obrt-type-body);
+  font-weight: var(--obrt-weight-semibold);
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease, opacity .12s ease;
+}
+
+.obrt-btn:hover:not(:disabled) {
+  background: var(--obrt-btn-bg-hover);
+}
+
+.obrt-btn:focus-visible {
+  outline: 2px solid var(--obrt-line-strong);
+  outline-offset: 2px;
+}
+
+.obrt-btn:disabled {
+  opacity: var(--obrt-btn-disabled-opacity);
+  cursor: default;
+}
+
+.obrt-btn--primary {
+  border-color: var(--obrt-btn-primary-border);
+  background: var(--obrt-btn-primary-bg);
+  font-weight: var(--obrt-weight-bold);
+}
+
+.obrt-btn--primary:hover:not(:disabled) {
+  background: var(--obrt-btn-primary-bg-hover);
+}
+
+.obrt-btn--danger {
+  border-color: var(--obrt-btn-danger-border);
+  background: var(--obrt-btn-danger-bg);
+  color: var(--obrt-btn-danger-text);
+}
+
+.obrt-btn--danger:hover:not(:disabled) {
+  background: var(--obrt-btn-danger-bg-hover);
+}
+
+.obrt-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.obrt-btn--icon {
+  width: var(--obrt-h-control-sm);
+  min-width: var(--obrt-h-control-sm);
+  min-height: var(--obrt-h-control-sm);
+  padding: 0;
 }
 
 /* Typographic Hierarchy Utility Classes */

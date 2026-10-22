@@ -246,6 +246,14 @@ Può partire subito dopo la fase 2, in parallelo alle fasi 3 e 4: tocca file div
 | **5.4 Opzioni e lingua** | A3.2 secondo D6. Nomi chiari al posto di "Pill selezione/espanse/compatte". |
 | **5.5 Console effetti** | A3.3: via il riquadro vuoto, campo "Valore" vicino ai bersagli. |
 
+**Stato.**
+- **5.1 — fatto il 2026-10-22.**
+  - `public/ui-typography.css` ha i token dei bottoni (`--obrt-btn-*`: altezza, raggio, bordo, sfondo base, primario, pericolo, opacità da disabilitato) e le classi comuni `.obrt-btn`, `--primary`, `--danger`, `--ghost`, `--icon` per il codice nuovo. La base fa da "secondario".
+  - **Migrazione senza rinominare:** le classi esistenti leggono i token, così markup, JavaScript e test non cambiano. Classi coinvolte: console effetti (`.small`, `.apply`), Condizioni (`.effects-btn`, `-primary`, `-danger`), Incantesimi (base comune, `.unified-primary-button`). Le varianti di significato restano locali: per esempio il pulsante Applica rosso per il danno e verde per la cura.
+  - **Verifica (valori calcolati nell'anteprima):** base con raggio 8px, bordo grigio al 28% e sfondo bianco al 5,5%, uguale nelle tre pagine; primario blu `#2563eb`, bordo bianco al 20%, grassetto; pericolo rosso tenue, uguale ovunque.
+  - "Rimuovi selezionati" disabilitato ha opacità 0,5 scritta dal codice (`effects-modal.ts`) invece di 0,48: differenza trascurabile, lasciata.
+  - Le altre pagine (opzioni, orologi, aure, avvisi) si migrano con lo stesso metodo in un lotto successivo.
+
 ### Fase 6 — Flussi e riduzione dei clic (gruppo B)
 
 Un lotto per volta, nell'ordine della tabella (dal rapporto beneficio/rischio più alto). Ogni lotto con ⚠ presenta prima il piano e aspetta l'approvazione.

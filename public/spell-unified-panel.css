@@ -113,11 +113,11 @@ select:disabled {
 .unified-filter-button,
 .unified-combobox-toggle,
 .unified-outcome-button {
-  min-height: 32px;
+  min-height: var(--obrt-btn-height, 32px);
   padding: 6px 10px;
-  border: 1px solid var(--unified-line);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, .055);
+  border: 1px solid var(--obrt-btn-border, rgba(148, 163, 184, .28));
+  border-radius: var(--obrt-btn-radius, 8px);
+  background: var(--obrt-btn-bg, rgba(255, 255, 255, .055));
   color: var(--unified-text);
   cursor: pointer;
   font-weight: var(--obrt-weight-medium);
@@ -1336,14 +1336,14 @@ select:disabled {
 
 .unified-primary-button {
   min-width: 132px;
-  border-color: rgba(96, 165, 250, .58);
-  background: var(--unified-primary);
+  border-color: var(--obrt-btn-primary-border, rgba(255, 255, 255, .20));
+  background: var(--obrt-btn-primary-bg, #2563eb);
   color: #fff;
   font-weight: var(--obrt-weight-bold);
 }
 
 .unified-primary-button:hover:not(:disabled) {
-  background: var(--unified-primary-hover);
+  background: var(--obrt-btn-primary-bg-hover, #1d4ed8);
 }
 
 .unified-quiet-button {
