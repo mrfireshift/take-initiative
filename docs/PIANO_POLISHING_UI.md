@@ -359,6 +359,20 @@ Stato dei lotti:
     - Lavera `-7` e Invio: da 98 a 91, testo "HP 91 / 98", barra al 92,9%, voce "Modifica HP" in cronologia, avviso di concentrazione;
     - Tab dal massimo di Auril apre l'editor di Lavera, saltando l'azione epica in mezzo;
     - HP di Lavera portati a 40 da fuori con l'editor aperto: campi intatti, barra al 40,8%; alla chiusura resta 40, nessuna scrittura del valore vecchio.
+- **6.5 — in pausa (2026-10-23).** Piano presentato: il badge compatto riceve le etichette e l'editor del classico, e così "Compila iniziativa" funziona anche nel compatto (oggi non trova badge e risponde "Non ci sono iniziative da compilare"). Da riprendere dopo la revisione qui sotto. Nota aperta: nel classico anche i giocatori aprono l'editor dell'iniziativa e il valore finisce sul token; da chiarire se è voluto.
+
+#### Revisione della barra compatta (dopo un test in OBR, 2026-10-23)
+
+Quattro problemi visti dall'utente in una stanza reale, un commit ciascuno.
+
+1. **Round dentro la barra.** Non è più un popover separato sopra la barra: sta nella colonna sinistra, tra la maniglia e i pulsanti, per GM e giocatori ("Round" a 10px sopra il numero a 22px, nel carattere dell'interfaccia perché i numeri di Georgia fanno sembrare piccolo un 1). Il classico resta "Round N" su una riga. Il popover del movimento resta separato.
+2. **Lanciatori in colonna.** ⚡ 🪄 ⚔ e Boss Actions fanno una colonna a destra del ritratto, cerchi che si toccano come nel classico: non coprono più l'icona della scheda (sovrapposizione introdotta nel 6.2). Il KO passa sul fondo del ritratto; la "E" del Boss Epico resta nell'angolo e la colonna parte sotto. Anche `syncTrackerHPNow` mette il KO lì (solo la posizione).
+3. **Compagni in una linguetta laterale.** Token collegati ed evocazioni non si impilano più sotto la card (la barra si allungava). Una linguetta di 22px a destra della card mostra fino a tre ritratti e il numero; aperta, le righe dei compagni (quelle del classico, con editor HP e selezione) stanno in colonne alte quanto la card e le card dopo scorrono a destra. Il classico non cambia.
+4. **Effetti in un cassetto laterale.** Al posto del popover sotto la barra, la pillola o il "+N" aprono un cassetto a destra della card: le pillole della card a 10px con i dettagli, in colonne alte quanto la card, una maniglia "◂" per chiudere. Uno aperto alla volta; scorrimento e aggiornamento della card non lo chiudono.
+
+- **Meccanismo comune:** `appendCompactSideDock` mette un elemento oltre il bordo destro della card e allarga del margine corrispondente lo spazio della card; la larghezza automatica del tracker conta i cassetti aperti, fino al massimo. Struttura del DOM, render incrementale e guardie di `renderAll()` invariati.
+- **Verifica nell'anteprima:** round nella colonna in GM e giocatori, nessun popover del round; colonna di tre lanciatori su Brann a 0 HP, con scheda e KO senza sovrapposizioni; linguetta di Auril (3) e di Lavera (10, tre colonne), righe leggibili, clic che seleziona la pedina, editor HP; cassetto degli effetti di Klos aperto e chiuso, stabile durante lo scorrimento, uno alla volta; altezza del tracker sempre 156px.
+- **Da provare in OBR:** larghezza reale con cassetti aperti vicino al massimo (1180px), e la centratura automatica sulla card attiva con un cassetto aperto prima di essa.
 
 ### Fase 7 — Rilascio
 
