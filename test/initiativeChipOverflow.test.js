@@ -271,3 +271,26 @@ test("the card grows to the measured chip lines, even after the tracker reconcil
   syncChipDockCardHeight(live);
   assert.equal(live.style.height, "74px", "never below the base height");
 });
+
+test("the open \"…\" list grows the card, so it pushes the next card down instead of covering it", async () => {
+  const { syncChipDockCardHeight } = await import("../src/initiativeChipOverflow.js");
+  const row = { offsetHeight: 18 };
+  const openRow = { offsetHeight: 20, style: { display: "none" } };
+  const card = {
+    isConnected: true,
+    dataset: { chipDockCard: "1", chipBaseHeight: "74", chipDockTop: "55" },
+    style: {},
+    querySelector: (selector) => (selector.includes("[data-chip-row='2']")
+      ? openRow
+      : selector.includes("[data-chip-row='1']") ? row : null),
+  };
+  syncChipDockCardHeight(card);
+  assert.equal(card.style.height, "76px", "closed: only the first line, 55 + 18 + 3");
+  openRow.style.display = "flex";
+  syncChipDockCardHeight(card);
+  assert.equal(card.style.height, "96px", "open: both lines, 55 + 18 + 20 + 3");
+  assert.equal(card.style.minHeight, "96px", "the list's flex column cannot shrink it back");
+  openRow.style.display = "none";
+  syncChipDockCardHeight(card);
+  assert.equal(card.style.height, "76px", "closed again");
+});

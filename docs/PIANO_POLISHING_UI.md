@@ -208,6 +208,13 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
 | **4.2 Coerenza della riga** | A2.2: durata "(0)" omessa. A2.3: linguette Epica/Boss Epico senza collisioni. A2.4: icone accanto agli HP in slot fissi. A2.6: etichetta "Incantesimi". | basso |
 | **4.3 Intestazione** | A2.5: "Svuota" separato da "+" e "✎", con tono "danger". | basso (la rete di sicurezza è nel lotto 6.3) |
 
+**Stato.**
+- **4.1 — fatto il 2026-10-22** (branch `ui-polish/fase-3`).
+  - **Cause trovate:** in `src/initiativeChipOverflow.js` la riga aperta con "…" era volutamente sovrapposta e non contava nell'altezza della card. In più, quando la lista è più alta del suo spazio, la colonna flessibile comprimeva la card fino al proprio contenuto (95px), ignorando l'altezza misurata. Per questo nell'anteprima anche le card con due righe di pill si sovrapponevano al primo rendering.
+  - **Correzione:** `syncChipDockCardHeight()` conta anche la riga aperta e fissa anche l'altezza minima. Il clic su "…" / "−" ricalcola subito l'altezza.
+  - Nessun cambiamento a turno attivo, HP, ordine o metadata.
+  - **Verifica con misure di layout nell'anteprima.** Goblin capobanda con 4 condizioni: da chiuso card 95px; da aperto card 113px, riga aperta fino a 110px, card successiva da 101 a 119px; richiuso torna a 95. Tutte le card con due righe di pill ora le contengono.
+
 ### Fase 5 — Pannelli e modali
 
 Può partire subito dopo la fase 2, in parallelo alle fasi 3 e 4: tocca file diversi.

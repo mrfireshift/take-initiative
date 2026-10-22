@@ -77,6 +77,7 @@ export function mountChipsWithOverflow(
   });
 
   const row2 = documentRef.createElement("div");
+  row2.dataset.chipRow = "2";
   Object.assign(row2.style, {
     display: "none",
     flexDirection: "row",
@@ -145,6 +146,8 @@ export function mountChipsWithOverflow(
     const ownerCard = dock.closest('[data-tracker-card="1"]');
     const ownerZIndex = ownerCard?.style.zIndex || "";
     if (ownerCard) ownerCard.style.zIndex = expanded ? "30" : ownerZIndex;
+    // The open list takes room in the card, so it pushes the next cards down instead of covering them.
+    if (ownerCard) syncChipDockCardHeight(ownerCard);
   });
 
   row1.appendChild(more);
@@ -153,7 +156,8 @@ export function mountChipsWithOverflow(
 
 // The card grows to hold the visible chip lines, measured on screen. The parameters live in data
 // attributes, so they survive the tracker reconciling a live card with a freshly built one; after
-// every render (and on resize) one sweep measures every card on screen. The "…" list stays an overlay.
+// every render (and on resize) one sweep measures every card on screen. The "…" list, once open,
+// counts too: it no longer covers the card below.
 const CHIP_DOCK_CARD_SELECTOR = "[data-chip-dock-card='1']";
 let chipDockResizeBound = false;
 let chipDockSweepScheduled = false;
@@ -164,9 +168,14 @@ export function syncChipDockCardHeight(card) {
   const dockTop = Number(card.dataset.chipDockTop) || 0;
   const row = card.querySelector?.("[data-chip-dock='1'] [data-chip-row='1']")
     || card.querySelector?.("[data-chip-dock='1']")?.firstElementChild;
-  const lines = Math.ceil(Number(row?.offsetHeight) || 0);
+  const openRow = card.querySelector?.("[data-chip-dock='1'] [data-chip-row='2']");
+  const openLines = openRow && openRow.style?.display !== "none" ? Math.ceil(Number(openRow.offsetHeight) || 0) : 0;
+  const lines = Math.ceil(Number(row?.offsetHeight) || 0) + openLines;
   const height = Math.max(baseHeight, lines ? dockTop + lines + 3 : baseHeight);
   if (card.style.height !== `${height}px`) card.style.height = `${height}px`;
+  // The card is an item of the list's flex column: when the list is taller than its room, the column would shrink
+  // the card back to its own content, under the chip lines. The minimum height keeps the measured one.
+  if (card.style.minHeight !== `${height}px`) card.style.minHeight = `${height}px`;
   return true;
 }
 
