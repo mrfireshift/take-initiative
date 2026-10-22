@@ -253,6 +253,8 @@ import {
   compactStatusBadge,
   deriveCompactCardPresentation,
   enableCompactCardRename,
+  compactHPTextHTML,
+  markCompactHPTextEditable,
   writeCompactHPText,
 } from "./initiativeCardCompact.js";
 import { compactScrollFadeEdges } from "./compactScrollFadeCore.js";
@@ -6406,14 +6408,16 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
         : "none";
     card.style.opacity = knockedOut ? ".84" : "1";
 
-    const pill = card.querySelector("[data-badge='hp']");
+    // The compact HP text carries data-badge="hp" for its editor (lot 6.4) but keeps its own format, written below.
+    const pill = card.querySelector("[data-badge='hp']:not([data-card-hp-text='1'])");
     if (pill && pill.dataset.hpEditing !== "1") {
       pill.innerHTML = formatHPHTML(nHP, nHPMax);
       pill.style.color = knockedOut ? "rgba(255,255,255,.58)" : "#fff";
     }
 
     const hpText = card.querySelector("[data-card-hp-text='1']");
-    if (hpText) {
+    // An open editor keeps its fields: it shows the result itself when it commits.
+    if (hpText && hpText.dataset.hpEditing !== "1") {
       if (showHP) writeCompactHPText(hpText, nHP, nHPMax);
       else hpText.textContent = "";
       hpText.style.display = showHP ? "block" : "none";
@@ -9822,6 +9826,7 @@ function renderCompactTrack(
     const {
       hpText,
       hpTrack,
+      hpFill,
       knockedOutBadge,
     } = buildCompactCardHP(entry, {
       showHP,
@@ -9832,6 +9837,16 @@ function renderCompactTrack(
       hpColorByPct,
     });
     if (knockedOutBadge) card.appendChild(knockedOutBadge);
+    // HP in one click (lot 6.4): the classic card's inline editor and save path, for the same cards as the classic
+    // (GM; not collapsed groups, Lair turns or Epic Actions). The compact card has no ± button.
+    if (
+      IS_GM && showHP && !virtual && !entry.__groupCollapsed
+      && !isLairId(entry.id) && !isEpicActionId(entry.id)
+      && (entry.hpDisclosure?.mode || "exact") === "exact"
+    ) {
+      markCompactHPTextEditable(hpText, entry.id);
+      bindHPEditorForEntry(hpText, hpFill, () => {}, entry, { formatHP: compactHPTextHTML });
+    }
 
     const name = buildCompactCardName(entry, { active, boss });
     const virtualTurnLabel = virtual

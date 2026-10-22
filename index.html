@@ -54,6 +54,13 @@
         to { opacity: 1; }
       }
 
+      /* The compact card's HP text while its inline editor is open: it reads as a field. */
+      [data-card-hp-text="1"][data-hp-editing="1"] {
+        background: rgba(2, 6, 12, .85);
+        outline: 1px solid rgba(147, 197, 253, .72);
+        border-radius: 4px;
+      }
+
       @media (prefers-reduced-motion: reduce) {
         [data-active-turn-halo] { animation: none !important; opacity: 0.8; }
       }

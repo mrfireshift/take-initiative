@@ -741,6 +741,30 @@ export function writeCompactHPText(
   }
 }
 
+// The same text as writeCompactHPText, as HTML: the inline HP editor writes its result with innerHTML (formatHP).
+export function compactHPTextHTML(hp, hpMax) {
+  const current = Math.round(Number(hp) || 0);
+  const maximum = Math.round(Number(hpMax) || 0);
+  return `<span style="font-weight:600;opacity:.65">HP </span>`
+    + `<span style="font-weight:var(--obrt-weight-heavy, 800)">${current}</span>`
+    + `<span style="font-weight:600;opacity:.65"> / ${maximum}</span>`;
+}
+
+// GM: a click on the HP text opens the classic card's inline editor (bindHPEditorForEntry), with the same save path.
+// Tagged like the classic HP pill, so the editor's hand-off and Tab to the next card find it.
+export function markCompactHPTextEditable(hpText, entryId) {
+  if (!hpText?.dataset || !entryId) return hpText;
+  hpText.dataset.badge = "hp";
+  hpText.dataset.itemId = String(entryId);
+  hpText.title = "Clic: modifica HP (-7 danno, +5 cura, oppure il nuovo valore)";
+  Object.assign(hpText.style, {
+    position: "relative",
+    cursor: "text",
+    pointerEvents: "auto",
+  });
+  return hpText;
+}
+
 export function buildCompactCardHP(
   entry,
   {

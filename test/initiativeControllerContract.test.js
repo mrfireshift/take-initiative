@@ -690,3 +690,16 @@ test("il renderer classico delega la costruzione completa al builder estratto", 
   assert.match(adapter, /return buildClassicTrackerCard\(entry,\s*\{/);
   assert.match(render, /buildClassicTrackerCardForRender\(entry,\s*state,\s*nextId\)/);
 });
+
+test("lotto 6.4: il GM modifica gli HP dal compatto con l'editor del classico, e il sync non chiude l'editor", () => {
+  const syncSection = sourceSection("function syncTrackerHPNow(", "const fill = card.querySelector(\"[data-hp-fill='1']\");");
+  assert.ok(syncSection.includes(`querySelector("[data-badge='hp']:not([data-card-hp-text='1'])")`));
+  assert.ok(syncSection.includes(`if (hpText && hpText.dataset.hpEditing !== "1")`));
+
+  const compactSection = sourceSection("} = buildCompactCardHP(entry, {", "const name = buildCompactCardName(entry, { active, boss });");
+  assert.ok(compactSection.includes("IS_GM && showHP && !virtual && !entry.__groupCollapsed"));
+  assert.ok(compactSection.includes("!isLairId(entry.id) && !isEpicActionId(entry.id)"));
+  assert.ok(compactSection.includes("bindHPEditorForEntry(hpText, hpFill, () => {}, entry, { formatHP: compactHPTextHTML })"));
+  // Only the text opens the editor: the HP bar has no handler of its own.
+  assert.ok(!compactSection.includes("hpTrack.addEventListener"));
+});

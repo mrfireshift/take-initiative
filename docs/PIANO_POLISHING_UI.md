@@ -347,6 +347,18 @@ Stato dei lotti:
     - Svuota a round 4, turno 3: ordine (13 voci con le Azioni epiche), turno con Lavera attiva, round, token in iniziativa e durate tornano identici;
     - un gruppo inventato in `seededGroups` viene scartato dalla riconciliazione, come per qualunque gruppo che non esiste;
     - toast visibile nel compatto (sopra il fondo delle card) e nel classico (in fondo al pannello); nessun errore in console.
+- **6.4 — fatto il 2026-10-22.**
+  - **Cosa:** il GM clicca sul testo "HP 78 / 100" della card compatta e si apre l'editor in linea del classico: due campi, HP e massimo, con valore, delta (`-7`, `+5`) o calcolo. Invio conferma, Esc annulla, Tab va al massimo e poi alla card successiva.
+  - **Stesso percorso:** `bindHPEditorForEntry` con il suo salvataggio (gruppo, cronologia, avviso di concentrazione). Cambia solo il formato del risultato (`compactHPTextHTML`, identico a `writeCompactHPText`).
+  - **Dove:** solo GM, e non su gruppi collassati, turni di Tana, azioni epiche e HP non esatti, come nel classico. Solo il testo apre l'editor, la barra no (scelta dell'utente). Il compatto non ha il pulsante ±: il massimo si cambia nel secondo campo.
+  - **Etichette:** il testo riceve `data-badge="hp"` e `data-item-id` come la pillola del classico, così il passaggio tra editor, il Tab e le guardie di `renderAll()` lo trovano senza modifiche.
+  - **`syncTrackerHPNow`:** non scrive il formato classico nel testo compatto, e non lo riscrive mentre è in modifica; un aggiornamento che arriva da altrove aggiorna solo la barra.
+  - **Aspetto in modifica:** sfondo scuro e bordo azzurro (regola in `index.html`); l'editor condiviso non cambia.
+  - **Verifica nell'anteprima:**
+    - editor solo sulle card giuste (non sulle azioni epiche); il clic non seleziona il token;
+    - Lavera `-7` e Invio: da 98 a 91, testo "HP 91 / 98", barra al 92,9%, voce "Modifica HP" in cronologia, avviso di concentrazione;
+    - Tab dal massimo di Auril apre l'editor di Lavera, saltando l'azione epica in mezzo;
+    - HP di Lavera portati a 40 da fuori con l'editor aperto: campi intatti, barra al 40,8%; alla chiusura resta 40, nessuna scrittura del valore vecchio.
 
 ### Fase 7 — Rilascio
 

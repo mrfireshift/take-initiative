@@ -21,6 +21,8 @@ import {
   enableCompactCardRename,
   syncCompactEffectsToggleState,
   writeCompactHPText,
+  compactHPTextHTML,
+  markCompactHPTextEditable,
 } from "../src/initiativeCardCompact.js";
 
 function createTestDocument() {
@@ -1209,4 +1211,23 @@ test("la scheda personaggio si apre dal compatto in un clic, per PG e alleati", 
   assert.equal(buildCompactSheetButton({ id: "foe", attitude: "enemy" }, { onOpen, documentRef }), null);
   assert.equal(buildCompactSheetButton({ id: "g", attitude: "pc", __groupCollapsed: true }, { onOpen, documentRef }), null);
   assert.equal(buildCompactSheetButton({ id: "pc", attitude: "pc" }, { documentRef }), null);
+});
+
+test("il testo HP compatto si apre all'editor del classico e conserva il suo formato", () => {
+  const documentRef = createTestDocument();
+  const html = compactHPTextHTML(78.4, 100);
+  assert.equal(html.replace(/<[^>]+>/g, ""), "HP 78 / 100");
+  assert.ok(html.includes(`font-weight:var(--obrt-weight-heavy, 800)">78<`));
+
+  const hpText = documentRef.createElement("div");
+  hpText.dataset.cardHpText = "1";
+  assert.equal(markCompactHPTextEditable(hpText, "omar"), hpText);
+  // Tagged like the classic HP pill: the editor's hand-off and Tab look for [data-badge="hp"][data-item-id].
+  assert.equal(hpText.dataset.badge, "hp");
+  assert.equal(hpText.dataset.itemId, "omar");
+  assert.equal(hpText.style.cursor, "text");
+  assert.match(hpText.title, /modifica HP/);
+  const untouched = documentRef.createElement("div");
+  markCompactHPTextEditable(untouched, "");
+  assert.equal(untouched.dataset.badge, undefined);
 });
