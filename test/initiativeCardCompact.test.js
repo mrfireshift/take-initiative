@@ -18,6 +18,7 @@ import {
   deriveCompactCardPresentation,
   enableCompactCardRename,
   syncCompactEffectsToggleState,
+  writeCompactHPText,
 } from "../src/initiativeCardCompact.js";
 
 function createTestDocument() {
@@ -39,6 +40,10 @@ function createTestDocument() {
           child.parentNode = this;
           child.isConnected = true;
           return child;
+        },
+        replaceChildren(...nodes) {
+          this.children = [];
+          for (const node of nodes) this.appendChild(node);
         },
         replaceWith(replacement) {
           if (!this.parentNode) return;
@@ -682,7 +687,8 @@ test("la presentazione HP compatta conserva dataset, barra e badge KO", () => {
   );
 
   assert.equal(visible.hpText.dataset.cardHpText, "1");
-  assert.equal(visible.hpText.textContent, "HP 0 / 12");
+  // The exact HP is written in three parts (see writeCompactHPText); together they read the same as before.
+  assert.equal(visible.hpText.children.map((part) => part.textContent).join(""), "HP 0 / 12");
   assert.equal(visible.hpFill.dataset.hpFill, "1");
   assert.equal(visible.hpFill.dataset.itemId, "enemy-1");
   assert.equal(visible.hpFill.style.background, "#475569");
@@ -693,6 +699,27 @@ test("la presentazione HP compatta conserva dataset, barra e badge KO", () => {
   assert.equal(hidden.hpText.style.display, "none");
   assert.equal(hidden.hpFill.style.width, "0%");
   assert.equal(hidden.knockedOutBadge, null);
+});
+
+test("il testo HP compatto mette in evidenza il valore e si riscrive senza accumulare parti", () => {
+  const documentRef = createTestDocument();
+  const hpText = documentRef.createElement("div");
+
+  writeCompactHPText(hpText, 78, 100, { documentRef });
+  assert.deepEqual(hpText.children.map((part) => part.textContent), ["HP ", "78", " / 100"]);
+  assert.equal(hpText.children[1].style.fontWeight, "var(--obrt-weight-heavy, 800)");
+  assert.equal(hpText.children[0].style.opacity, ".65");
+  assert.equal(hpText.children[2].style.opacity, ".65");
+
+  // The live HP sync writes again on every change: the parts are replaced, never appended.
+  writeCompactHPText(hpText, 41.6, 100, { documentRef });
+  assert.deepEqual(hpText.children.map((part) => part.textContent), ["HP ", "42", " / 100"]);
+});
+
+test("il testo HP compatto ripiega sul testo semplice se non può costruire le parti", () => {
+  const hpText = { textContent: "", replaceChildren() { throw new Error("no DOM"); } };
+  writeCompactHPText(hpText, 7, 12, { documentRef: createTestDocument() });
+  assert.equal(hpText.textContent, "HP 7 / 12");
 });
 
 test("la shell compatta conserva tutti i contratti di riconciliazione", () => {

@@ -607,6 +607,12 @@ test("i reminder di zona usano il layer persistente del turno senza un secondo p
   assert.match(turnNoticeHostSource, /await OBR\.popover\.close\(TURN_NOTICE_POPOVER_ID\)/);
 });
 
+test("il sync HP immediato scrive il testo della card compatta con lo stesso formato della card, poi la barra", () => {
+  const syncSection = sourceSection("function syncTrackerHPNow(", "const fill = card.querySelector(\"[data-hp-fill='1']\");");
+  assert.match(syncSection, /if \(showHP\) writeCompactHPText\(hpText, nHP, nHPMax\);\s*else hpText\.textContent = "";/);
+  assert.doesNotMatch(syncSection, /hpText\.textContent = showHP \?/);
+});
+
 test("HP immediati e rendering incrementale restano separati dal fallback globale", () => {
   const hpSection = sourceSection(
     "subscribeSceneItemChanges(({ items }) => {",

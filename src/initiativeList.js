@@ -251,6 +251,7 @@ import {
   compactStatusBadge,
   deriveCompactCardPresentation,
   enableCompactCardRename,
+  writeCompactHPText,
 } from "./initiativeCardCompact.js";
 import {
   compactTrackerGroupProgress,
@@ -6225,7 +6226,8 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
 
     const hpText = card.querySelector("[data-card-hp-text='1']");
     if (hpText) {
-      hpText.textContent = showHP ? `HP ${nHP} / ${nHPMax}` : "";
+      if (showHP) writeCompactHPText(hpText, nHP, nHPMax);
+      else hpText.textContent = "";
       hpText.style.display = showHP ? "block" : "none";
       hpText.style.color = knockedOut ? "rgba(255,255,255,.58)" : "rgba(226,232,240,.82)";
     }

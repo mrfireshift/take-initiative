@@ -622,6 +622,35 @@ export function buildCompactCardName(
   return name;
 }
 
+// "HP 78 / 100" with the current value standing out and the label and the maximum quieter. The card and the live HP
+// sync (syncTrackerHPNow) both write it here, so an HP change keeps the same look. It never throws: if the parts
+// cannot be built, the plain text is written instead, and the caller goes on to update the bar.
+export function writeCompactHPText(
+  hpText,
+  hp,
+  hpMax,
+  { documentRef = globalThis.document } = {},
+) {
+  const current = String(Math.round(Number(hp) || 0));
+  const maximum = String(Math.round(Number(hpMax) || 0));
+  try {
+    const document = compactDocument(documentRef);
+    const part = (text, style) => {
+      const span = document.createElement("span");
+      span.textContent = text;
+      Object.assign(span.style, style);
+      return span;
+    };
+    hpText.replaceChildren(
+      part("HP ", { fontWeight: "600", opacity: ".65" }),
+      part(current, { fontWeight: "var(--obrt-weight-heavy, 800)" }),
+      part(` / ${maximum}`, { fontWeight: "600", opacity: ".65" }),
+    );
+  } catch {
+    hpText.textContent = `HP ${current} / ${maximum}`;
+  }
+}
+
 export function buildCompactCardHP(
   entry,
   {
@@ -646,11 +675,13 @@ export function buildCompactCardHP(
     hurt: "Provato",
     healthy: "In salute",
   };
-  hpText.textContent = !showHP || hpMode === "bar"
-    ? ""
-    : hpMode === "status"
-      ? (statusLabels[disclosure?.status] || "Stato sconosciuto")
-      : `HP ${Math.round(safeHP)} / ${Math.round(hpMax)}`;
+  if (showHP && hpMode === "exact") {
+    writeCompactHPText(hpText, safeHP, hpMax, { documentRef });
+  } else {
+    hpText.textContent = !showHP || hpMode === "bar"
+      ? ""
+      : statusLabels[disclosure?.status] || "Stato sconosciuto";
+  }
   Object.assign(hpText.style, {
     display: showHP && hpMode !== "bar" ? "block" : "none",
     width: "100%",
