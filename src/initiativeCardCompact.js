@@ -791,14 +791,14 @@ export function appendCompactSideDock(card, element, width) {
 }
 
 // The effects past the first, in a drawer on the card's right (opened from the card's pill or "+N") instead of a list
-// under the bar: the card's own pills at 10px, with their detail lines, in columns as tall as the card. A handle on
-// its left closes it.
+// under the bar: the same pills as on the card (14px, 8px text, the card's width), with their detail lines, in columns
+// as tall as the card. A handle on its left closes it.
 const EFFECTS_DRAWER_HANDLE_WIDTH = 14;
-const EFFECTS_DRAWER_COLUMN_WIDTH = 124;
+const EFFECTS_DRAWER_COLUMN_WIDTH = 80;
 const EFFECTS_DRAWER_INNER_HEIGHT = 106;
 const EFFECTS_DRAWER_PADDING = 5;
 const EFFECTS_DRAWER_GAP = 4;
-const EFFECTS_DRAWER_PILL_HEIGHT = 17;
+const EFFECTS_DRAWER_PILL_HEIGHT = 14;
 const EFFECTS_DRAWER_DETAIL_HEIGHT = 16;
 
 function compactEffectsDrawerItemHeight(effect) {
@@ -899,14 +899,9 @@ export function appendCompactEffectsDrawer(
       minWidth: "0",
     });
     for (const effect of columnEffects) {
-      const pill = __buildCompactEffectPill(effect, false, { documentRef, spellColor, onTerminateClassFeature });
-      Object.assign(pill.style, {
-        display: "block",
-        width: "100%",
-        maxWidth: "100%",
-        height: `${EFFECTS_DRAWER_PILL_HEIGHT}px`,
-        fontSize: "var(--obrt-type-micro, 10px)",
-      });
+      // The card's pill (preview): same height, text and width as the one on the card.
+      const pill = __buildCompactEffectPill(effect, true, { documentRef, spellColor, onTerminateClassFeature });
+      Object.assign(pill.style, { display: "block", width: "100%" });
       column.appendChild(buildEffectSummaryContainer(effect, pill, { documentRef, preview: true }));
     }
     drawer.appendChild(column);

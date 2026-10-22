@@ -1243,13 +1243,14 @@ test("il testo HP compatto si apre all'editor del classico e conserva il suo for
 
 test("gli altri effetti si aprono in un cassetto a destra della card, in colonne alte quanto la card", () => {
   const effects = Array.from({ length: 7 }, (_, index) => ({ key: `e${index}`, label: `Effetto ${index}`, kind: "buff" }));
-  // 17px per pill, 2px apart, in 106px: five pills per column.
-  assert.deepEqual(compactEffectsDrawerColumns(effects).map((column) => column.length), [5, 2]);
-  // Detail lines (16px each) take room: a pill with four details fills a column with one more pill.
+  // 14px per pill (the card's), 2px apart, in 106px: six pills per column.
+  assert.deepEqual(compactEffectsDrawerColumns(effects).map((column) => column.length), [6, 1]);
+  // Detail lines (16px each) take room: a pill with four details leaves room for one more pill.
   const detailed = { key: "bless", label: "Benedizione", kind: "buff", summaryParts: [{ label: "a" }, { label: "b" }, { label: "c" }, { label: "d" }] };
   assert.deepEqual(compactEffectsDrawerColumns([detailed, ...effects.slice(0, 2)]).map((column) => column.length), [2, 1]);
-  assert.equal(compactEffectsDrawerWidth(1), 14 + 10 + 4 + 124);
-  assert.equal(compactEffectsDrawerWidth(2), 14 + 10 + 4 + 2 * 124 + 4);
+  // Columns as wide as the card's pill.
+  assert.equal(compactEffectsDrawerWidth(1), 14 + 10 + 4 + 80);
+  assert.equal(compactEffectsDrawerWidth(2), 14 + 10 + 4 + 2 * 80 + 4);
 
   const documentRef = createTestDocument();
   const card = documentRef.createElement("article");
@@ -1259,9 +1260,13 @@ test("gli altri effetti si aprono in un cassetto a destra della card, in colonne
   assert.equal(card.style.marginRight, `${3 + compactEffectsDrawerWidth(2)}px`);
   assert.equal(drawer.style.left, "calc(100% + 3px)");
   const [handle, firstColumn, secondColumn] = drawer.children;
-  assert.equal(firstColumn.children.length, 5);
-  assert.equal(secondColumn.children.length, 2);
-  assert.equal(firstColumn.children[0].style.fontSize, "var(--obrt-type-micro, 10px)");
+  assert.equal(firstColumn.children.length, 6);
+  assert.equal(secondColumn.children.length, 1);
+  // The same pill as on the card: 14px, 8px text, the card's padding.
+  const cardPill = __buildCompactEffectPill(effects[0], true, { documentRef });
+  for (const key of ["height", "fontSize", "fontWeight", "lineHeight", "padding"]) {
+    assert.equal(firstColumn.children[0].style[key], cardPill.style[key], key);
+  }
   handle.dispatch("click", createTestEvent());
   assert.equal(closed, 1);
   assert.equal(appendCompactEffectsDrawer(documentRef.createElement("article"), [], { documentRef }), null);
