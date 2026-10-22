@@ -24,12 +24,22 @@ export function effectsMutationTransportJsonBytes(value) {
   }
 }
 
+// The UTF-8 length of one character (a whole code point, as for...of yields it), without encoding it: a lone
+// surrogate counts 3, as the replacement character TextEncoder writes for it.
+function codePointUtf8Bytes(character) {
+  const codePoint = character.codePointAt(0);
+  if (codePoint <= 0x7f) return 1;
+  if (codePoint <= 0x7ff) return 2;
+  if (codePoint <= 0xffff) return 3;
+  return 4;
+}
+
 function splitUtf8(serialized, targetBytes = CHUNK_PAYLOAD_TARGET_BYTES) {
   const chunks = [];
   let chunk = "";
   let chunkBytes = 0;
   for (const character of serialized) {
-    const characterBytes = utf8Bytes(character);
+    const characterBytes = codePointUtf8Bytes(character);
     if (chunk && chunkBytes + characterBytes > targetBytes) {
       chunks.push(chunk);
       chunk = "";
