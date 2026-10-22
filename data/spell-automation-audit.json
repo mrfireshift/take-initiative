@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "b3a3804ce1279f68",
+  "fingerprint": "33e93f74f4cecab7",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -19,8 +19,8 @@
     "currentAutomationLevel": {
       "FULL": 66,
       "MANUAL": 76,
-      "PARTIAL": 208,
-      "TRACK_ONLY": 127
+      "PARTIAL": 211,
+      "TRACK_ONLY": 124
     },
     "coverageStatus": {
       "ACCEPTED": 72,
@@ -41,10 +41,10 @@
     "targetUiExposure": {
       "UNIFIED": 477
     },
-    "trackableOptions": 359,
-    "trackable": 356,
-    "withAreaRules": 136,
-    "areaRuleEntries": 141,
+    "trackableOptions": 361,
+    "trackable": 358,
+    "withAreaRules": 139,
+    "areaRuleEntries": 144,
     "openRows": 11,
     "confirmed": 10,
     "highConfidence": 1,
@@ -99,13 +99,13 @@
       "CAST_NO_MUTATIONS": 3
     },
     "smokeCategories": {
-      "ACTIVE_ACTION": 41,
-      "AREA_GEOMETRY": 136,
-      "CAST": 246,
-      "CLEANUP": 110,
+      "ACTIVE_ACTION": 43,
+      "AREA_GEOMETRY": 139,
+      "CAST": 249,
+      "CLEANUP": 116,
       "CONCENTRATION": 218,
-      "PERSISTENCE": 356,
-      "TURN_TRIGGER": 91
+      "PERSISTENCE": 358,
+      "TURN_TRIGGER": 95
     },
     "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
@@ -2287,7 +2287,8 @@
         "AREA_GEOMETRY",
         "CAST",
         "CLEANUP",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -2323,7 +2324,10 @@
         "areaKinds": [
           "zone"
         ],
-        "triggerIds": [],
+        "triggerIds": [
+          "antipathy-sympathy-antipathy-on-entry",
+          "antipathy-sympathy-sympathy-on-entry"
+        ],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
@@ -2334,7 +2338,8 @@
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -2359,8 +2364,6 @@
             "targets",
             "placement",
             "outcomes",
-            "hp",
-            "damage",
             "automation"
           ]
         },
@@ -2390,7 +2393,8 @@
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -4291,6 +4295,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "AREA_GEOMETRY",
         "CAST",
         "CONCENTRATION",
@@ -4312,7 +4317,8 @@
         "aree:instant",
         "TS",
         "status:Accecato",
-        "turni"
+        "turni",
+        "fasi/azioni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -4335,10 +4341,13 @@
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "sunbeam-line"
+        ],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CONCENTRATION",
@@ -4385,14 +4394,21 @@
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
-          "reminderActionIds": [],
+          "declaredActionIds": [
+            "sunbeam-line"
+          ],
+          "panelActionIds": [
+            "sunbeam-line"
+          ],
+          "reminderActionIds": [
+            "sunbeam-line"
+          ],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel-and-reminder"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CONCENTRATION",
@@ -7511,7 +7527,8 @@
         "aree:zone",
         "lifecycle",
         "TS",
-        "movimento"
+        "movimento",
+        "varianti"
       ],
       "assessment": "escluso: casting time",
       "priority": "—",
@@ -7560,8 +7577,10 @@
           "visibleInputs": [
             "caster",
             "slot",
+            "variant",
             "targets",
-            "placement"
+            "placement",
+            "automation"
           ]
         },
         "cast": {
@@ -15196,6 +15215,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "AREA_GEOMETRY",
         "CAST",
         "CONCENTRATION",
@@ -15215,6 +15235,7 @@
         "aree:instant",
         "TS",
         "status:Spaventato",
+        "fasi/azioni",
         "varianti"
       ],
       "assessment": "coperto",
@@ -15240,10 +15261,13 @@
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "illusory-dragon-breath"
+        ],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CONCENTRATION",
@@ -15288,14 +15312,21 @@
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
-          "reminderActionIds": [],
+          "declaredActionIds": [
+            "illusory-dragon-breath"
+          ],
+          "panelActionIds": [
+            "illusory-dragon-breath"
+          ],
+          "reminderActionIds": [
+            "illusory-dragon-breath"
+          ],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel-and-reminder"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CONCENTRATION",
@@ -22446,9 +22477,10 @@
       "signals": [],
       "coverage": [
         "tracking",
-        "aree:aura",
+        "aree:zone",
         "lifecycle",
-        "TS"
+        "TS",
+        "movimento"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -22463,7 +22495,7 @@
           "globe-of-invulnerability:cast"
         ],
         "areaKinds": [
-          "aura"
+          "zone"
         ],
         "triggerIds": [],
         "saveAutomation": true,
@@ -22471,7 +22503,7 @@
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
           "AREA_GEOMETRY",
           "CAST",
@@ -22494,7 +22526,7 @@
         "contract": {
           "lane": "area-transaction",
           "targetingMode": "geometric",
-          "placementPolicy": "automatic",
+          "placementPolicy": "optional",
           "visibleInputs": [
             "caster",
             "slot",
@@ -32831,12 +32863,15 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "AREA_GEOMETRY",
+        "CAST",
+        "CLEANUP",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -32849,7 +32884,11 @@
         "ingresso/attraversamento"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "aree:zone",
+        "lifecycle",
+        "TS",
+        "movimento"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -32860,16 +32899,23 @@
       },
       "runtime": {
         "trackable": true,
-        "areaRuleIds": [],
-        "areaKinds": [],
+        "areaRuleIds": [
+          "wall-of-force:cast"
+        ],
+        "areaKinds": [
+          "zone"
+        ],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -32881,34 +32927,34 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
-          "placementPolicy": "unavailable",
+          "lane": "area-transaction",
+          "targetingMode": "geometric",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "placement"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "concentration:register"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
           "required": true,
           "declared": true,
-          "ruleIds": []
+          "ruleIds": [
+            "wall-of-force:cast"
+          ]
         },
         "actions": {
           "declaredActionIds": [],
@@ -32919,6 +32965,9 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -33531,12 +33580,15 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "AREA_GEOMETRY",
+        "CAST",
+        "CLEANUP",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -33547,27 +33599,41 @@
       "scope": "utilità/riferimento",
       "signals": [],
       "coverage": [
-        "tracking"
+        "tracking",
+        "aree:zone",
+        "lifecycle",
+        "TS",
+        "status:Accecato",
+        "movimento"
       ],
       "assessment": "coperto",
       "priority": "—",
       "gaps": [],
       "conditions": {
         "raw": [],
-        "implemented": []
+        "implemented": [
+          "Accecato"
+        ]
       },
       "runtime": {
         "trackable": true,
-        "areaRuleIds": [],
-        "areaKinds": [],
+        "areaRuleIds": [
+          "xanathar-muro-di-sabbia:cast"
+        ],
+        "areaKinds": [
+          "zone"
+        ],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -33579,34 +33645,34 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
-          "placementPolicy": "unavailable",
+          "lane": "area-transaction",
+          "targetingMode": "geometric",
+          "placementPolicy": "optional",
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "placement"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "concentration:register"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
           "required": true,
           "declared": true,
-          "ruleIds": []
+          "ruleIds": [
+            "xanathar-muro-di-sabbia:cast"
+          ]
         },
         "actions": {
           "declaredActionIds": [],
@@ -33617,6 +33683,9 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -39110,6 +39179,7 @@
       "smokeCategories": [
         "AREA_GEOMETRY",
         "CAST",
+        "CLEANUP",
         "PERSISTENCE",
         "TURN_TRIGGER"
       ],
@@ -39126,9 +39196,11 @@
       ],
       "coverage": [
         "tracking",
-        "aree:instant",
+        "aree:zone",
+        "lifecycle",
         "TS",
         "status:Accecato",
+        "movimento",
         "turni",
         "varianti"
       ],
@@ -39147,7 +39219,7 @@
           "xanathar-pirotecnica:cast"
         ],
         "areaKinds": [
-          "instant"
+          "zone"
         ],
         "triggerIds": [],
         "saveAutomation": true,
@@ -39155,10 +39227,11 @@
         "effectCount": 2,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
           "AREA_GEOMETRY",
           "CAST",
+          "CLEANUP",
           "PERSISTENCE",
           "TURN_TRIGGER"
         ]
@@ -39196,9 +39269,11 @@
           "errors": []
         },
         "persistence": {
-          "required": false,
+          "required": true,
           "declared": true,
-          "ruleIds": []
+          "ruleIds": [
+            "xanathar-pirotecnica:cast"
+          ]
         },
         "actions": {
           "declaredActionIds": [],
@@ -39211,6 +39286,7 @@
         "smokeCategories": [
           "AREA_GEOMETRY",
           "CAST",
+          "CLEANUP",
           "PERSISTENCE",
           "TURN_TRIGGER"
         ]
@@ -40254,13 +40330,17 @@
       "saveScope": "—",
       "inAuditScope": false,
       "exclusionReason": "casting time maggiore di 1 azione",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
-        "PERSISTENCE"
+        "AREA_GEOMETRY",
+        "CAST",
+        "CLEANUP",
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -40272,7 +40352,13 @@
         "ingresso/attraversamento"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "aree:zone",
+        "lifecycle",
+        "TS",
+        "movimento",
+        "turni",
+        "varianti"
       ],
       "assessment": "escluso: casting time",
       "priority": "—",
@@ -40283,17 +40369,30 @@
       },
       "runtime": {
         "trackable": true,
-        "areaRuleIds": [],
-        "areaKinds": [],
-        "triggerIds": [],
-        "saveAutomation": false,
+        "areaRuleIds": [
+          "forbiddance:cast"
+        ],
+        "areaKinds": [
+          "zone"
+        ],
+        "triggerIds": [
+          "forbiddance-radiant-on-enter",
+          "forbiddance-radiant-on-turn-start",
+          "forbiddance-necrotic-on-enter",
+          "forbiddance-necrotic-on-turn-start"
+        ],
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
-          "PERSISTENCE"
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -40303,31 +40402,36 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
-          "placementPolicy": "unavailable",
+          "lane": "area-transaction",
+          "targetingMode": "geometric",
+          "placementPolicy": "optional",
           "visibleInputs": [
+            "caster",
             "slot",
-            "targets"
+            "variant",
+            "targets",
+            "placement",
+            "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
-          "required": false,
+          "required": true,
           "declared": true,
-          "ruleIds": []
+          "ruleIds": [
+            "forbiddance:cast"
+          ]
         },
         "actions": {
           "declaredActionIds": [],
@@ -40338,7 +40442,11 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
-          "PERSISTENCE"
+          "AREA_GEOMETRY",
+          "CAST",
+          "CLEANUP",
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -45422,7 +45530,8 @@
         "AREA_GEOMETRY",
         "CAST",
         "CLEANUP",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -45439,7 +45548,9 @@
         "aree:zone",
         "lifecycle",
         "TS",
-        "movimento"
+        "movimento",
+        "turni",
+        "varianti"
       ],
       "assessment": "escluso: casting time",
       "priority": "—",
@@ -45456,7 +45567,10 @@
         "areaKinds": [
           "zone"
         ],
-        "triggerIds": [],
+        "triggerIds": [
+          "hallow-extra-effect-on-entry",
+          "hallow-extra-effect-on-turn-start"
+        ],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
@@ -45467,7 +45581,8 @@
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -45488,8 +45603,10 @@
           "visibleInputs": [
             "caster",
             "slot",
+            "variant",
             "targets",
-            "placement"
+            "placement",
+            "automation"
           ]
         },
         "cast": {
@@ -45518,7 +45635,8 @@
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -46831,7 +46949,9 @@
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
         "AREA_GEOMETRY",
-        "CAST"
+        "CAST",
+        "CLEANUP",
+        "PERSISTENCE"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -46843,9 +46963,12 @@
         "movimento"
       ],
       "coverage": [
-        "aree:instant",
+        "tracking",
+        "aree:zone",
+        "lifecycle",
         "TS",
-        "status:Prono"
+        "status:Prono",
+        "movimento"
       ],
       "assessment": "istantaneo: gestione manuale",
       "priority": "—",
@@ -46857,12 +46980,12 @@
         ]
       },
       "runtime": {
-        "trackable": false,
+        "trackable": true,
         "areaRuleIds": [
           "xanathar-scossa-tellurica:cast"
         ],
         "areaKinds": [
-          "instant"
+          "zone"
         ],
         "triggerIds": [],
         "saveAutomation": true,
@@ -46870,10 +46993,12 @@
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST"
+          "CAST",
+          "CLEANUP",
+          "PERSISTENCE"
         ]
       },
       "integration": {
@@ -46883,13 +47008,14 @@
         "catalog": {
           "exposed": true,
           "sources": [
+            "legacy-spells-panel",
             "legacy-area-console"
           ]
         },
         "contract": {
           "lane": "area-transaction",
           "targetingMode": "geometric",
-          "placementPolicy": "required",
+          "placementPolicy": "optional",
           "visibleInputs": [
             "caster",
             "slot",
@@ -46909,9 +47035,11 @@
           "errors": []
         },
         "persistence": {
-          "required": false,
-          "declared": false,
-          "ruleIds": []
+          "required": true,
+          "declared": true,
+          "ruleIds": [
+            "xanathar-scossa-tellurica:cast"
+          ]
         },
         "actions": {
           "declaredActionIds": [],
@@ -46923,7 +47051,9 @@
         "smokeRequired": true,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST"
+          "CAST",
+          "CLEANUP",
+          "PERSISTENCE"
         ]
       },
       "evidence": {
@@ -52939,7 +53069,10 @@
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
         "AREA_GEOMETRY",
-        "CAST"
+        "CAST",
+        "CLEANUP",
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -52953,8 +53086,12 @@
         "turni"
       ],
       "coverage": [
-        "aree:instant",
-        "TS"
+        "tracking",
+        "aree:zone",
+        "lifecycle",
+        "TS",
+        "movimento",
+        "turni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -52964,12 +53101,12 @@
         "implemented": []
       },
       "runtime": {
-        "trackable": false,
+        "trackable": true,
         "areaRuleIds": [
           "ice-storm:cast"
         ],
         "areaKinds": [
-          "instant"
+          "zone"
         ],
         "triggerIds": [],
         "saveAutomation": true,
@@ -52977,10 +53114,13 @@
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST"
+          "CAST",
+          "CLEANUP",
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -52990,6 +53130,7 @@
         "catalog": {
           "exposed": true,
           "sources": [
+            "legacy-spells-panel",
             "legacy-area-console"
           ]
         },
@@ -53015,9 +53156,11 @@
           "errors": []
         },
         "persistence": {
-          "required": false,
-          "declared": false,
-          "ruleIds": []
+          "required": true,
+          "declared": true,
+          "ruleIds": [
+            "ice-storm:cast"
+          ]
         },
         "actions": {
           "declaredActionIds": [],
@@ -53029,7 +53172,10 @@
         "smokeRequired": true,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST"
+          "CAST",
+          "CLEANUP",
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {

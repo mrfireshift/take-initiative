@@ -54,6 +54,19 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     actionId: STORM_SPHERE_TURN_PROMPT_ACTION_ID,
     availableOnCastTurn: true,
   }),
+  // Lotto L3: Sunbeam's new line and the Illusory Dragon's breath.
+  Object.freeze({
+    spellId: "sunbeam",
+    actionId: "sunbeam-line",
+    ownerContext: "caster",
+    availableAfterCast: true,
+  }),
+  Object.freeze({
+    spellId: "xanathar-drago-illusorio",
+    actionId: "illusory-dragon-breath",
+    ownerContext: "caster",
+    availableAfterCast: true,
+  }),
   Object.freeze({
     spellId: "xanathar-investitura-del-vento",
     actionId: WIND_INVESTITURE_TURN_PROMPT_ACTION_ID,

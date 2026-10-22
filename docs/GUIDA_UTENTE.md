@@ -109,6 +109,11 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
 - Sonno e Trama ipnotica finiscono quando la creatura subisce danno: la pill
   sparisce da sola solo su quella creatura. Per svegliarla senza danno si
   rimuove la pill a mano.
+- Cerchio magico, Santificare, Proibizione e Pirotecnica chiedono la variante
+  nel pannello prima di piazzare la zona. Con il Fumo di Pirotecnica non c'è
+  TS: si segna ogni esito come superato. Bagliore solare e Drago illusorio
+  propongono a inizio turno la nuova linea o il soffio, come Invocare il
+  fulmine.
 
 Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni
 rapide.

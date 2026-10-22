@@ -19,6 +19,10 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
     }),
   }),
   "grease": Object.freeze({ initialHP: false }),
+  // Its initial save blinds; no damage (lotto L3).
+  "xanathar-pirotecnica": Object.freeze({ initialHP: false }),
+  // Its initial save frightens or attracts; no damage (lotto L3).
+  "antipathy-sympathy": Object.freeze({ initialHP: false }),
   "wall-of-fire": Object.freeze({
     initialHP: true,
     damageByOutcome: Object.freeze({
@@ -198,6 +202,9 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   }),
   "branding-smite": { initialHP: false, deferredHP: "next-weapon-hit" },
   "call-lightning": { initialHP: true, deferredHP: "active-action" },
+  // Lotto L3: the first line or breath at cast, the next ones as active actions.
+  "sunbeam": { initialHP: true, deferredHP: "active-action" },
+  "xanathar-drago-illusorio": { deferredHP: "active-action" },
   "chill-touch": { initialHP: true, resolution: "single-attack" },
   "divine-favor": { initialHP: false, deferredHP: "weapon-hit" },
   "dream": { initialHP: false, deferredHP: "variant" },

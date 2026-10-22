@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 215,
-      "PARTIAL": 73,
+      "COMPLETE / CURRENT": 227,
+      "PARTIAL": 61,
       "NO AUTOMATION REQUIRED": 144,
       "MISSING": 30,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 103,
+    "implementableBacklog": 91,
     "readiness": {
       "GREEN": {
-        "count": 12,
-        "percent": 11.650485436893204
+        "count": 0,
+        "percent": 0
       },
       "YELLOW": {
         "count": 80,
-        "percent": 77.66990291262135
+        "percent": 87.91208791208791
       },
       "RED": {
         "count": 11,
-        "percent": 10.679611650485436
+        "percent": 12.087912087912088
       }
     },
     "scenarios": [
@@ -4374,14 +4374,13 @@
       "id": "antipathy-sympathy",
       "spell": "Antipatia/simpatia",
       "level": 8,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
+        "src/spellAreaCatalog.js",
         "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/areaSaveSpellRules.js",
+        "src/spellStaticZone.js"
       ],
       "mechanicsRequired": [
         "Tracking/geometria presenti; completare varianti, membership informative e trigger/immune marker configurabili; enforcement planare e immunità manuali."
@@ -4449,8 +4448,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ZONE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ZONE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "antipathy-sympathy",
@@ -4459,6 +4458,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellAreaRules.test.js",
           "test/spellAreaPlacementCore.test.js",
           "test/spellStaticZoneCore.test.js",
@@ -4477,7 +4477,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking/geometria presenti; completare varianti, membership informative e trigger/immune marker configurabili; enforcement planare e immunità manuali.",
+        "reason": "Lotto L3 (2026-10-22): TS Saggezza all'ingresso per variante (Spaventato o attratto), TS iniziale senza campo HP.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -18488,11 +18488,13 @@
       "id": "forbiddance",
       "spell": "Proibizione",
       "level": 6,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellAreaCatalog.js",
+        "src/spellAreaRules.js",
+        "src/areaSaveSpellRules.js",
+        "src/spellStaticZone.js"
       ],
       "mechanicsRequired": [
         "Tracking/geometria presenti; completare varianti, membership informative e trigger/immune marker configurabili; enforcement planare e immunità manuali."
@@ -18541,8 +18543,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ZONE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ZONE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "forbiddance",
@@ -18551,6 +18553,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellAreaRules.test.js",
           "test/spellAreaPlacementCore.test.js",
           "test/spellStaticZoneCore.test.js",
@@ -18566,7 +18569,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking/geometria presenti; completare varianti, membership informative e trigger/immune marker configurabili; enforcement planare e immunità manuali.",
+        "reason": "Lotto L3 (2026-10-22): zona quadrata di 60 m, 5d10 radiosi o necrotici scelti al lancio all'ingresso e a inizio turno, senza TS; tipi e teletrasporto al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -19712,14 +19715,13 @@
       "id": "globe-of-invulnerability",
       "spell": "Globo di invulnerabilità",
       "level": 6,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
+        "src/spellAreaCatalog.js",
         "src/spellAreaRules.js",
-        "src/spellAuraController.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/areaSaveSpellRules.js",
+        "src/spellStaticZone.js"
       ],
       "mechanicsRequired": [
         "Tracking/geometria presenti; completare varianti, membership informative e trigger/immune marker configurabili; enforcement planare e immunità manuali."
@@ -19788,8 +19790,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ZONE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ZONE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "globe-of-invulnerability",
@@ -19798,6 +19800,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellAreaRules.test.js",
           "test/spellAreaPlacementCore.test.js",
           "test/spellStaticZoneCore.test.js",
@@ -19818,7 +19821,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking/geometria presenti; completare varianti, membership informative e trigger/immune marker configurabili; enforcement planare e immunità manuali.",
+        "reason": "Lotto L3 (2026-10-22): zona immobile di 3 m sul caster (il testo la dice immobile), pill degli incantesimi ≤5° dall'esterno.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -21122,14 +21125,13 @@
       "id": "hallow",
       "spell": "Santificare",
       "level": 5,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
+        "src/spellAreaCatalog.js",
         "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/areaSaveSpellRules.js",
+        "src/spellStaticZone.js"
       ],
       "mechanicsRequired": [
         "Tracking/geometria presenti; completare varianti, membership informative e trigger/immune marker configurabili; enforcement planare e immunità manuali."
@@ -21197,8 +21199,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ZONE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ZONE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "hallow",
@@ -21207,6 +21209,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellAreaRules.test.js",
           "test/spellAreaPlacementCore.test.js",
           "test/spellStaticZoneCore.test.js",
@@ -21225,7 +21228,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking/geometria presenti; completare varianti, membership informative e trigger/immune marker configurabili; enforcement planare e immunità manuali.",
+        "reason": "Lotto L3 (2026-10-22): pill di protezione più l'effetto aggiuntivo scelto (10 varianti) e promemoria del TS Carisma; tipi di creatura al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -23229,14 +23232,13 @@
       "id": "ice-storm",
       "spell": "Tempesta di ghiaccio",
       "level": 4,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
+        "src/spellAreaCatalog.js",
         "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/areaSaveSpellRules.js",
+        "src/spellStaticZone.js"
       ],
       "mechanicsRequired": [
         "Danno/TS presenti; residuo terreno difficile con expiry (turno source per Ice Storm, manuale per Earth Tremor) componibile con zona persistente.",
@@ -23305,8 +23307,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ZONE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ZONE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "ice-storm",
@@ -23315,6 +23317,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellAreaRules.test.js",
           "test/spellAreaPlacementCore.test.js",
           "test/spellStaticZoneCore.test.js",
@@ -23333,7 +23336,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Danno/TS presenti; residuo terreno difficile con expiry (turno source per Ice Storm, manuale per Earth Tremor) componibile con zona persistente.",
+        "reason": "Lotto L3 (2026-10-22): zona con il TS e il danno del lancio e il terreno difficile fino alla fine del prossimo turno del caster; anche dal boss Auril.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -25800,14 +25803,13 @@
       "id": "magic-circle",
       "spell": "Cerchio magico",
       "level": 3,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
+        "src/spellAreaCatalog.js",
         "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/areaSaveSpellRules.js",
+        "src/spellStaticZone.js"
       ],
       "mechanicsRequired": [
         "Tracking/geometria presenti; completare varianti, membership informative e trigger/immune marker configurabili; enforcement planare e immunità manuali."
@@ -25875,8 +25877,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ZONE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ZONE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "magic-circle",
@@ -25885,6 +25887,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellAreaRules.test.js",
           "test/spellAreaPlacementCore.test.js",
           "test/spellStaticZoneCore.test.js",
@@ -25903,7 +25906,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking/geometria presenti; completare varianti, membership informative e trigger/immune marker configurabili; enforcement planare e immunità manuali.",
+        "reason": "Lotto L3 (2026-10-22): varianti protezione o prigione con la pill per chi è dentro; durata +1 ora per slot sopra il 3°; tipi di creatura al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -37277,13 +37280,12 @@
       "id": "sunbeam",
       "spell": "Bagliore solare",
       "level": 6,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
+        "src/spellActiveResolutionRules.js",
+        "src/callLightningTurnPromptCore.js",
+        "src/spellCastResolutionRules.js",
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
@@ -37358,8 +37360,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ACTIVE-AREA-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ACTIVE-AREA-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "sunbeam",
@@ -37368,6 +37370,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellActiveResolutionCore.test.js",
           "test/spellActiveActionCore.test.js",
           "test/spellAreaRules.test.js",
@@ -37389,7 +37392,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Geometria/istanza esistono; manca active action save-area per ripetere il soffio/raggio con parent corrente; frightened/TS reminder o blindness nei descriptor.",
+        "reason": "Lotto L3 (2026-10-22): azione «Nuova linea» ogni turno: TS Costituzione, 6d8 radiosi, Accecato fino al prossimo turno del caster.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -39958,11 +39961,13 @@
       "id": "wall-of-force",
       "spell": "Muro di forza",
       "level": 5,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellAreaCatalog.js",
+        "src/spellAreaRules.js",
+        "src/areaSaveSpellRules.js",
+        "src/spellStaticZone.js"
       ],
       "mechanicsRequired": [
         "Tracking esiste; aggiungere geometria/varianti e membership informative nel registro area. Interazioni strutturali/collisioni manuali come Forcecage."
@@ -40012,8 +40017,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ZONE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ZONE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "wall-of-force",
@@ -40022,6 +40027,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellAreaRules.test.js",
           "test/spellAreaPlacementCore.test.js",
           "test/spellStaticZoneCore.test.js",
@@ -40039,7 +40045,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking esiste; aggiungere geometria/varianti e membership informative nel registro area. Interazioni strutturali/collisioni manuali come Forcecage.",
+        "reason": "Lotto L3 (2026-10-22): zona da piazzare: dieci pannelli in linea o cupola di 3 m, nota «Nulla attraversa»; interazioni strutturali al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -45255,13 +45261,12 @@
       "id": "xanathar-drago-illusorio",
       "spell": "Drago Illusorio",
       "level": 8,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
+        "src/spellActiveResolutionRules.js",
+        "src/callLightningTurnPromptCore.js",
+        "src/spellCastResolutionRules.js",
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
@@ -45330,8 +45335,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ACTIVE-AREA-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ACTIVE-AREA-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-drago-illusorio",
@@ -45340,6 +45345,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellActiveResolutionCore.test.js",
           "test/spellActiveActionCore.test.js",
           "test/spellAreaRules.test.js",
@@ -45361,7 +45367,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Geometria/istanza esistono; manca active action save-area per ripetere il soffio/raggio con parent corrente; frightened/TS reminder o blindness nei descriptor.",
+        "reason": "Lotto L3 (2026-10-22): azione bonus «Soffio»: cono di 18 m, TS Intelligenza, 7d6 del tipo scelto (indicato dal GM), metà se superato.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -49197,11 +49203,13 @@
       "id": "xanathar-muro-di-sabbia",
       "spell": "Muro di Sabbia",
       "level": 3,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellAreaCatalog.js",
+        "src/spellAreaRules.js",
+        "src/areaSaveSpellRules.js",
+        "src/spellStaticZone.js"
       ],
       "mechanicsRequired": [
         "Tracking esiste; aggiungere geometria/varianti e membership informative nel registro area. Interazioni strutturali/collisioni manuali come Forcecage."
@@ -49251,8 +49259,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ZONE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ZONE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-muro-di-sabbia",
@@ -49261,6 +49269,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellAreaRules.test.js",
           "test/spellAreaPlacementCore.test.js",
           "test/spellStaticZoneCore.test.js",
@@ -49278,7 +49287,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking esiste; aggiungere geometria/varianti e membership informative nel registro area. Interazioni strutturali/collisioni manuali come Forcecage.",
+        "reason": "Lotto L3 (2026-10-22): zona a linea 9 × 3 m entro 27 m: dentro Accecato e terreno ×3.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -50678,14 +50687,13 @@
       "id": "xanathar-pirotecnica",
       "spell": "Pirotecnica",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js",
+        "src/spellAreaCatalog.js",
         "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/areaSaveSpellRules.js",
+        "src/spellStaticZone.js"
       ],
       "mechanicsRequired": [
         "Varianti/Accecato presenti; completare zona fumo senza concentrazione e scadenza rounds con membership condivisa."
@@ -50753,8 +50761,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ZONE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ZONE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-pirotecnica",
@@ -50763,6 +50771,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellAreaRules.test.js",
           "test/spellAreaPlacementCore.test.js",
           "test/spellStaticZoneCore.test.js",
@@ -50785,7 +50794,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Varianti/Accecato presenti; completare zona fumo senza concentrazione e scadenza rounds con membership condivisa.",
+        "reason": "Lotto L3 (2026-10-22): Fuochi d'artificio: TS Costituzione entro 3 m dalla fiamma, Accecato; Fumo: zona di 6 m oscurata per 1 minuto, esiti segnati come superati dal GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -51616,14 +51625,13 @@
       "id": "xanathar-scossa-tellurica",
       "spell": "Scossa Tellurica",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js",
+        "src/spellAreaCatalog.js",
         "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/areaSaveSpellRules.js",
+        "src/spellStaticZone.js"
       ],
       "mechanicsRequired": [
         "Danno/TS presenti; residuo terreno difficile con expiry (turno source per Ice Storm, manuale per Earth Tremor) componibile con zona persistente."
@@ -51698,8 +51706,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ZONE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-ZONE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-scossa-tellurica",
@@ -51708,6 +51716,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellZonesAndRepeatedAreas.test.js",
           "test/spellAreaRules.test.js",
           "test/spellAreaPlacementCore.test.js",
           "test/spellStaticZoneCore.test.js",
@@ -51729,7 +51738,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Danno/TS presenti; residuo terreno difficile con expiry (turno source per Ice Storm, manuale per Earth Tremor) componibile con zona persistente.",
+        "reason": "Lotto L3 (2026-10-22): zona con il TS Destrezza del lancio, Prono indipendente e terreno difficile finché non viene sgomberato (fine manuale).",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62714,6 +62723,10 @@
     {
       "date": "2026-10-22",
       "note": "Lotto L2: 14 incantesimi completi. Cure discrete e TS con danno dal comando ad area esistente; Sonno e Trama ipnotica finiscono al danno sulla sola creatura colpita; Spruzzo colorato con la scadenza del testo 2014; Risveglio, Allucinazione mortale e Labirinto completati."
+    },
+    {
+      "date": "2026-10-22",
+      "note": "Lotto L3: 12 incantesimi completi. Zone del catalogo con effetti per variante (Cerchio magico, Santificare, Pirotecnica), Proibizione e Antipatia/simpatia con i loro trigger, Globo di invulnerabilità zona immobile, Tempesta di ghiaccio e Scossa tellurica zone di terreno difficile; Bagliore solare e Drago illusorio con l'azione ripetibile."
     }
   ]
 }

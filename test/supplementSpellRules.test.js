@@ -14,8 +14,9 @@ import { effectSummaryPartsFor } from "../src/effectLabelCore.js";
 
 test("tutti i supplementi sono nel catalogo e le spell istantanee pure restano escluse dal tracker", () => {
   assert.equal(getSpellCatalog().length, 477);
-  // 359 with Awaken, instantaneous but charmed for 30 days (lotto L2).
-  assert.equal(getTrackableSpellOptions().length, 359);
+  // 359 with Awaken, instantaneous but charmed for 30 days (lotto L2); 361 with Ice Storm and Earth Tremor, whose
+  // difficult terrain outlasts the cast (lotto L3).
+  assert.equal(getTrackableSpellOptions().length, 361);
   assert.equal(getSpellDefinition("Catapulta").trackable, false);
   assert.equal(getSpellDefinition("Morsa del Gelo").trackable, true);
 });

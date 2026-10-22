@@ -157,10 +157,13 @@ const sdkStub = {
   },
   broadcast: { onMessage: () => () => {}, sendMessage: async () => {} },
 };
+// A fluent path builder: since lotto L3 Ice Storm leaves a zone of difficult terrain on the map.
+const fluentPath = () => new Proxy({}, { get: (node, key) => (key === "build" ? () => ({ id: "mock-path", type: "PATH" }) : () => fluentPathNode) });
+const fluentPathNode = fluentPath();
 mock.module("@owlbear-rodeo/sdk", {
   exports: {
     default: sdkStub,
-    buildPath: () => ({ build: () => ({}) }), buildLabel: () => ({ build: () => ({}) }),
+    buildPath: fluentPath, buildLabel: () => ({ build: () => ({}) }),
     buildImage: () => ({ build: () => ({}) }), buildText: () => ({ build: () => ({}) }),
     buildShape: () => ({ build: () => ({}) }), Command: { MOVE: 0, LINE: 1, CUBIC: 2, CLOSE: 3 },
   },
@@ -436,6 +439,13 @@ test("Ice Storm through the shared area executor: DC 19 from Auril, typed-total 
   assert.equal(plan.valid, true, JSON.stringify(plan.errors));
   assert.equal(plan.spell, getSpellDefinition("ice-storm"));
   assert.ok(plan.bossActionUse, "the Spellcasting 1/Round use is spent with the resolution");
+  // Lotto L3: the storm leaves difficult terrain until the end of Auril's next turn, a zone held by Auril.
+  assert.ok(plan.nextStaticZoneItems.length > 0, "the zone of difficult terrain is drawn");
+  assert.deepEqual(plan.effectOperations.map((operation) => [operation.type, operation.targetIds]), [
+    ["spell:upsert", ["auril-token"]],
+    ["condition:add", ["target-a", "target-b"]],
+  ]);
+  assert.equal(plan.effectOperations[1].conditionName, "Terreno difficile / Tempesta di ghiaccio");
   const result = await executeSpellAreaResolution(command, fixture.runtime);
   assert.equal(result.status, "applied", JSON.stringify(result.errors));
   const causal = fixture.history[0].payload.causality;

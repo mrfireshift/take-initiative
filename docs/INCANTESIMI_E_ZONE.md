@@ -43,8 +43,8 @@ attiva.
 
 Il catalogo dichiara inoltre:
 
-- 141 regole geometriche per 136 incantesimi distinti: 55 effetti istantanei,
-  68 zone persistenti, 14 aure mobili e 4 emissioni;
+- 144 regole geometriche per 139 incantesimi distinti: 52 effetti istantanei,
+  75 zone persistenti, 13 aure mobili e 4 emissioni;
 - 81 definizioni con `saveAutomation` nel catalogo runtime;
 - 32 definizioni con azioni attive esposte dal contratto del pannello unificato.
 
@@ -110,6 +110,18 @@ sono TS su una creatura con i dadi dello slot. Sonno e Trama ipnotica hanno
 `mechanics.endsOnDamage`: il danno toglie la condizione alla sola creatura
 colpita. Spruzzo colorato scade alla fine del prossimo turno del caster;
 Risveglio, Allucinazione mortale e Labirinto completano i loro testi 2014.
+
+Con il lotto L3 le zone del catalogo possono avere effetti per variante
+(`CATALOG_MEMBERSHIP_EFFECTS_BY_CHOICE` in `src/spellAreaRules.js`): Cerchio
+magico (protezione o prigione), Santificare (la protezione più uno dei 10
+effetti) e Pirotecnica (Fuochi d'artificio o Fumo). Muro di sabbia, Muro di
+forza e Proibizione diventano zone sulla mappa; Globo di invulnerabilità passa
+da aura mobile a zona immobile, come dice il testo. Proibizione e
+Antipatia/simpatia hanno i loro trigger d'ingresso e di inizio turno.
+Tempesta di ghiaccio e Scossa tellurica lasciano una zona di terreno
+difficile dopo il TS del lancio, anche quando la Tempesta la lancia il boss
+Auril. Bagliore solare e Drago illusorio ripetono la linea e il soffio con
+un'azione attiva, come Invocare il fulmine.
 
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la

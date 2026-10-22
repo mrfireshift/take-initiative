@@ -35,13 +35,16 @@ const PERSISTENT_ZONE_SPELL_IDS = new Set([
   "entangle",
   "flaming-sphere",
   "fog-cloud",
+  "forbiddance",
   "forcecage",
+  "globe-of-invulnerability",
   "grease",
   "guardian-of-faith",
   "gust-of-wind",
   "glyph-of-warding",
   "hallow",
   "hallucinatory-terrain",
+  "ice-storm",
   "incendiary-cloud",
   "insect-plague",
   "magic-circle",
@@ -60,6 +63,7 @@ const PERSISTENT_ZONE_SPELL_IDS = new Set([
   "teleportation-circle",
   "tiny-hut",
   "wall-of-fire",
+  "wall-of-force",
   "wall-of-ice",
   "wall-of-thorns",
   "web",
@@ -74,7 +78,10 @@ const PERSISTENT_ZONE_SPELL_IDS = new Set([
   "xanathar-fulgore-nauseante",
   "xanathar-maelstrom",
   "xanathar-muro-di-luce",
+  "xanathar-muro-di-sabbia",
   "xanathar-oscurita-della-follia",
+  "xanathar-pirotecnica",
+  "xanathar-scossa-tellurica",
   "xanathar-sfera-acquea",
   "xanathar-sfera-della-tempesta",
   "xanathar-spirito-guaritore",
@@ -91,7 +98,6 @@ const PERSISTENT_ZONE_SPELL_IDS = new Set([
 const MOBILE_AURA_SPELL_IDS = new Set([
   "antilife-shell",
   "antimagic-field",
-  "globe-of-invulnerability",
   "pass-without-trace",
   "speak-with-plants",
   "xanathar-vento-di-interdizione",
@@ -162,6 +168,64 @@ const DECLARATIVE_ZONE_MOVEMENTS = Object.freeze({
 // Override curati per record senza geometria strutturata o per campi SRD che
 // descrivono l'altezza/estensione massima invece del raggio utile sulla mappa.
 const AREA_OVERRIDES = Object.freeze({
+  // Zones of lotto L3 (2014 texts).
+  "xanathar-muro-di-sabbia": {
+    shape: "line",
+    sizeMeters: 9,
+    widthMeters: 3,
+    origin: "point",
+    rangeMeters: 27,
+    heightMeters: 3,
+    note: "Muro di sabbia 9 × 3 × 3 m: blocca la vista, non il movimento.",
+  },
+  "wall-of-force": {
+    shape: "line",
+    sizeMeters: 30,
+    widthMeters: 0.3,
+    origin: "point",
+    rangeMeters: 36,
+    snapOrigin: "vertex",
+    widthAnchor: "edge",
+    placementOptional: false,
+    placementChoices: [
+      { id: "panels", label: "Dieci pannelli in linea", shape: "line", sizeMeters: 30, widthMeters: 0.3, snapOrigin: "vertex", widthAnchor: "edge" },
+      { id: "dome", label: "Cupola o sfera di 3 m", shape: "circle", sizeMeters: 3 },
+    ],
+    note: "Nulla attraversa il muro; immune ai danni e a Dissolvi magie, Disintegrazione lo distrugge.",
+  },
+  // Pyrotechnics (XGtE): the fireworks blind within 3 m of the flame (Constitution save); the smoke fills 6 m for
+  // 1 minute. One zone for both: with the smoke the GM marks every outcome as passed.
+  "xanathar-pirotecnica": {
+    shape: "circle",
+    sizeMeters: 3,
+    origin: "point",
+    rangeMeters: 18,
+    placementOptional: false,
+    initialSave: { ability: "con" },
+    placementChoices: [
+      { id: "fireworks", label: "Fuochi d'artificio: 3 m attorno alla fiamma", shape: "circle", sizeMeters: 3 },
+      { id: "smoke", label: "Fumo: 6 m attorno alla fiamma", shape: "circle", sizeMeters: 6 },
+    ],
+    note: "La fiamma scelta si spegne. Fumo: nessun TS, segnare ogni esito come superato.",
+  },
+  // The difficult terrain lasts until the end of the caster's next turn; the save is the cast's.
+  "ice-storm": {
+    shape: "circle",
+    sizeMeters: 6,
+    origin: "point",
+    rangeMeters: 90,
+    heightMeters: 12,
+    placementOptional: false,
+    initialSave: { ability: "dex" },
+  },
+  "forbiddance": {
+    shape: "square",
+    sizeMeters: 60,
+    origin: "point",
+    rangeMeters: 1.5,
+    heightMeters: 9,
+    note: "Niente teletrasporto né viaggi planari nell'area; il danno colpisce soltanto i tipi scelti.",
+  },
   "antipathy-sympathy": {
     shape: "circle",
     sizeMeters: 18,
@@ -427,6 +491,8 @@ const AREA_OVERRIDES = Object.freeze({
     shape: "circle",
     sizeMeters: 3,
     origin: "caster",
+    // Lotto L3: a zone for the difficult terrain it leaves, with the Dexterity save of the cast.
+    initialSave: { ability: "dex" },
     note: "Su pietra o terra smossa, il terreno diventa difficile finché non viene sgombrato; lo sgombero manuale richiede 1 minuto per ogni porzione di diametro 1,5 m.",
   },
   "xanathar-vampa-di-aganazzar": {

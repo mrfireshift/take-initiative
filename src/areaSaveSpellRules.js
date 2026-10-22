@@ -178,6 +178,10 @@ export const AREA_PLACEMENT_ONLY_SPELL_IDS = Object.freeze([
   "phb2014-aura-di-vita",
   "phb2014-aura-di-vitalita",
   "phb2014-cerchio-di-potere",
+  // Zones of lotto L3 (2014 texts).
+  "xanathar-muro-di-sabbia",
+  "wall-of-force",
+  "forbiddance",
 ]);
 
 export const AREA_PLACEMENT_ONLY_SPELL_ID_SET = new Set(
@@ -224,7 +228,6 @@ export const AREA_FIELD_NON_POPOVER_REASONS = Object.freeze({
   "detect-poison-and-disease": "sensory-radius",
   "disintegrate": "single-object-size",
   "fire-shield": "light-radius",
-  "forbiddance": "complex-footprint",
   "guards-and-wards": "complex-footprint",
   "xanathar-arma-sacra": "active-dismissal-area",
   "magnificent-mansion": "created-portal-volume",
@@ -281,6 +284,8 @@ export const AREA_SAVE_EFFECT_RULES = Object.freeze({
   "faerie-fire": Object.freeze({
     failedEffectIds: Object.freeze(["incoming-attack-advantage"]),
   }),
+  // The blindness of the fireworks only: with the smoke variant a failed save blinds nothing (lotto L3). choiceId is
+  // the variant when none is chosen.
   "xanathar-pirotecnica": Object.freeze({
     choiceId: "fireworks",
     failedEffectIds: Object.freeze(["fireworks-blinded"]),
@@ -707,6 +712,27 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
 // incompatibili. La Console HP deve chiedere quale sotto-effetto si sta
 // risolvendo, invece di applicare una condizione arbitraria.
 export const AREA_SAVE_RULE_CHOICES = Object.freeze({
+  // Zone variants of lotto L3 (2014 texts): the membership and triggers of the variant (spellAreaRules.js).
+  "magic-circle": Object.freeze([
+    Object.freeze({ id: "ward", label: "Protegge chi è dentro", automation: noPersistentEffect }),
+    Object.freeze({ id: "prison", label: "Invertito: trattiene i tipi scelti", automation: noPersistentEffect, replaceBase: true }),
+  ]),
+  "hallow": Object.freeze([
+    Object.freeze({ id: "courage", label: "Coraggio", automation: noPersistentEffect }),
+    Object.freeze({ id: "darkness", label: "Oscurità", automation: noPersistentEffect, replaceBase: true }),
+    Object.freeze({ id: "daylight", label: "Luce diurna", automation: noPersistentEffect, replaceBase: true }),
+    Object.freeze({ id: "energy-protection", label: "Protezione dall'energia", automation: noPersistentEffect, replaceBase: true }),
+    Object.freeze({ id: "energy-vulnerability", label: "Vulnerabilità all'energia", automation: noPersistentEffect, replaceBase: true }),
+    Object.freeze({ id: "everlasting-rest", label: "Riposo eterno", automation: noPersistentEffect, replaceBase: true }),
+    Object.freeze({ id: "extradimensional-interference", label: "Interferenza extradimensionale", automation: noPersistentEffect, replaceBase: true }),
+    Object.freeze({ id: "fear", label: "Paura", automation: noPersistentEffect, replaceBase: true }),
+    Object.freeze({ id: "silence", label: "Silenzio", automation: noPersistentEffect, replaceBase: true }),
+    Object.freeze({ id: "tongues", label: "Linguaggi", automation: noPersistentEffect, replaceBase: true }),
+  ]),
+  "forbiddance": Object.freeze([
+    Object.freeze({ id: "radiant", label: "Danni radiosi", automation: noPersistentEffect }),
+    Object.freeze({ id: "necrotic", label: "Danni necrotici", automation: noPersistentEffect, replaceBase: true }),
+  ]),
   "antipathy-sympathy": Object.freeze([
     Object.freeze({
       id: "antipathy",

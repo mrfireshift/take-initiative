@@ -50,8 +50,9 @@ test("i record recuperati dalla Console area mantengono lane e contratto", () =>
     entry.sources.length === 1
       && entry.sources[0] === SPELL_UNIFIED_CATALOG_SOURCES.AREA_CONSOLE
   ));
-  // 43 with the discrete heals and the saves with damage of lotto L2.
-  assert.equal(recovered.length, 43);
+  // 43 with the discrete heals and the saves with damage of lotto L2; 41 since Ice Storm and Earth Tremor are
+  // tracked too (lotto L3).
+  assert.equal(recovered.length, 41);
   for (const id of ["fireball", "chain-lightning", "mass-cure-wounds", "misty-step", "cure-wounds", "blight"]) {
     const entry = entries.find((candidate) => candidate.key === id);
     assert.ok(entry, id);

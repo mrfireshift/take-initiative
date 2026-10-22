@@ -23,6 +23,8 @@ export const SUPPLEMENT_TRACKING = Object.freeze({
   "xanathar-parola-del-potere-dolore": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "xanathar-pirotecnica": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "xanathar-scossa-sinaptica": Object.freeze({ trackable: true, defaultTurns: 10 }),
+  // Instantaneous, but its difficult terrain stays until cleared (lotto L3).
+  "xanathar-scossa-tellurica": Object.freeze({ trackable: true, defaultTurns: 10 }),
   "xanathar-urlo-psichico": Object.freeze({ trackable: true, defaultTurns: 1 }),
 });
 
@@ -458,6 +460,7 @@ export const SUPPLEMENT_EXPIRY = Object.freeze({
   "xanathar-morsa-del-gelo": nextTurn("turn-end", "target"),
   "xanathar-parola-del-potere-dolore": manual,
   "xanathar-urlo-psichico": manual,
+  "xanathar-scossa-tellurica": manual,
 });
 
 const SKILL_EMPOWERMENT_OPTIONS = Object.freeze([

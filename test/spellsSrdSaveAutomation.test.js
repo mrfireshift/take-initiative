@@ -292,6 +292,9 @@ test("Pirotecnica applica solo la variante con tiro salvezza", () => {
     remaining: 1,
     anchor: "next-turn",
   });
+  // The smoke variant blinds no one through a failed save (lotto L3): its zone obscures the area.
+  assert.equal(getAreaSaveAutomation("xanathar-pirotecnica", "fireworks").failed[0].effectId, "fireworks-blinded");
+  assert.equal(getAreaSaveAutomation("xanathar-pirotecnica", "smoke"), null);
 });
 
 test("Nube Maleodorante collega Conati alla zona fino alla fine del turno corrente", () => {

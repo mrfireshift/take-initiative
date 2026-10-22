@@ -871,6 +871,67 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       ],
     },
   ],
+  // Lotto L3 (2014 texts). Sunbeam: a new line as an action on each turn while the concentration lasts.
+  "sunbeam": [
+    {
+      id: "sunbeam-line",
+      label: "Nuova linea",
+      buttonLabel: "Nuova linea",
+      detail: "Azione: una nuova linea di 18 m × 1,5 m dal caster. TS Costituzione: 6d8 radiosi e Accecato fino al prossimo turno del caster se fallisce, metà e niente cecità se supera.",
+      economy: "action",
+      resolutionKind: "save-area",
+      subjectMode: "none",
+      requiresTargets: false,
+      turnStartPrompt: true,
+      showInOverview: true,
+      availableAfterCast: true,
+      placementRuleId: "sunbeam:cast",
+      rangeOrigin: "caster",
+      save: { ability: "con", onSuccess: "half" },
+      damage: damage({
+        formula: "6d8",
+        type: "radiosi",
+        onSave: "half",
+      }),
+      failureEffects: [
+        {
+          id: "sunbeam-blinded",
+          label: "Accecato",
+          detail: "Accecato dal Bagliore solare fino all'inizio del prossimo turno del caster.",
+          parentEffectId: "",
+          expiry: { mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" },
+          manualRemoval: true,
+        },
+      ],
+      requiresParentInstance: true,
+    },
+  ],
+  // Illusory Dragon (XGtE): as a bonus action the dragon moves and breathes a 18 m cone. The damage type is the
+  // one chosen at cast, which the action cannot read: the GM knows it.
+  "xanathar-drago-illusorio": [
+    {
+      id: "illusory-dragon-breath",
+      label: "Soffio del drago",
+      buttonLabel: "Soffio",
+      detail: "Azione bonus: sposta il drago fino a 18 m e fallo soffiare in un cono di 18 m. TS Intelligenza: 7d6 del tipo scelto al lancio, metà se superato.",
+      economy: "bonus-action",
+      resolutionKind: "save-area",
+      subjectMode: "none",
+      requiresTargets: false,
+      turnStartPrompt: true,
+      showInOverview: true,
+      availableAfterCast: true,
+      placementRuleId: "xanathar-drago-illusorio:cast",
+      rangeOrigin: "caster",
+      save: { ability: "int", onSuccess: "half" },
+      damage: damage({
+        formula: "7d6",
+        type: "del tipo scelto",
+        onSave: "half",
+      }),
+      requiresParentInstance: true,
+    },
+  ],
   "xanathar-sfera-della-tempesta": [
     {
       id: "storm-sphere-lightning",

@@ -72,8 +72,9 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
   const trackableIds = new Set(getTrackableSpellOptions().map((option) => option.id));
   const instantaneous = catalog.spells.filter((entry) => entry.durationKind === "instantaneous");
 
-  // 359 with Awaken, instantaneous but charmed for 30 days (lotto L2).
-  assert.equal(getTrackableSpellOptions().length, 359);
+  // 359 with Awaken, instantaneous but charmed for 30 days (lotto L2); 361 with Ice Storm and Earth Tremor, whose
+  // difficult terrain outlasts the cast (lotto L3).
+  assert.equal(getTrackableSpellOptions().length, 361);
   assert.equal(trackableIds.has("phb2014-raggio-di-infermita"), true);
   for (const entry of instantaneous) {
     if (entry.id === "phb2014-raggio-di-infermita") continue;

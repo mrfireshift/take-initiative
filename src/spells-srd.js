@@ -497,6 +497,11 @@ const TARGETING_OVERRIDES = Object.freeze({
 });
 
 const SLOT_DURATION_OVERRIDES = Object.freeze({
+  // 2014: 1 hour, +1 hour for each slot level above 3rd (lotto L3).
+  "magic-circle": Object.freeze({
+    baseSlot: 3,
+    turnsBySlot: Object.freeze({ 3: 600, 4: 1200, 5: 1800, 6: 2400, 7: 3000, 8: 3600, 9: 4200 }),
+  }),
   "dominate-beast": Object.freeze({
     baseSlot: 4,
     turnsBySlot: Object.freeze({ 4: 10, 5: 100, 6: 600, 7: 4800 }),
@@ -588,6 +593,7 @@ const SAVE_AUTOMATION = Object.freeze({
 const SPELL_EXPIRY = Object.freeze({
   "xanathar-assorbire-elementi": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   "chill-touch": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
+  "ice-storm": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   // 2014: blinded "until the end of your next turn", like its area condition.
   "color-spray": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   "command": Object.freeze({ mode: "turn-end", actor: "target", remaining: 1, anchor: "next-turn" }),
@@ -1953,6 +1959,8 @@ const SPELL_TRACKING_OVERRIDES = Object.freeze({
   "acid-arrow": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "power-word-stun": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "ray-of-frost": Object.freeze({ trackable: true, defaultTurns: 1 }),
+  // Instantaneous, but its difficult terrain lasts until the end of the caster's next turn (lotto L3).
+  "ice-storm": Object.freeze({ trackable: true, defaultTurns: 1 }),
   // Instantaneous, but its charm lasts 30 days (lotto L2).
   "awaken": Object.freeze({ trackable: true, defaultTurns: 30 * 14400 }),
 });
@@ -2031,10 +2039,12 @@ function areaSaveAutomationForSpell(spell, choiceValue = "") {
   );
   const effectRule = AREA_SAVE_EFFECT_RULES[spell.id] || null;
   const failedEffectIds = new Set(effectRule?.failedEffectIds || []);
-  const selectedChoiceId = effectRule?.choiceId || choiceValue;
   const fixedEffects = SPELL_EFFECTS[spell.id] || [];
   const choices = SPELL_EFFECT_CHOICES[spell.id] || [];
-  const selectedChoice = choices.find((choice) => choice.id === selectedChoiceId) || null;
+  // The variant chosen; a rule's choiceId is the one used when no known variant is chosen.
+  const selectedChoice = choices.find((choice) => choice.id === choiceValue)
+    || choices.find((choice) => choice.id === effectRule?.choiceId)
+    || null;
   const failedEffects = [...fixedEffects, ...(selectedChoice?.effects || [])]
     .filter((effect) => failedEffectIds.has(effect.id))
     .map((effect) => effectSaveRule(effect, spell))

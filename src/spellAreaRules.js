@@ -811,6 +811,7 @@ const ZONE_INITIAL_SAVE_SPELL_IDS = new Set([
   "earthquake",
   "entangle",
   "grease",
+  "ice-storm",
   "incendiary-cloud",
   "insect-plague",
   "reverse-gravity",
@@ -826,9 +827,133 @@ const ZONE_INITIAL_SAVE_SPELL_IDS = new Set([
   "xanathar-sfera-della-tempesta",
   "xanathar-trasmutare-roccia",
   "xanathar-turbine",
+  "xanathar-scossa-tellurica",
+  "xanathar-pirotecnica",
   "phb2014-tsunami",
 ]);
 const CATALOG_ZONE_TRIGGERS = Object.freeze({
+  // Lotto L3 (2014 texts). Forbiddance: the chosen types take the damage chosen at cast, no save; the GM skips
+  // the others.
+  "forbiddance": [
+    {
+      id: "forbiddance-radiant-on-enter",
+      group: "forbiddance-damage",
+      label: "Proibizione: 5d10 radiosi ai tipi scelti che entrano nell'area.",
+      event: "enter",
+      frequency: "once-per-turn",
+      resolution: "manual-effect",
+      ruleChoice: "radiant",
+      requiresRuleChoices: ["radiant"],
+      requiresOwnTurn: false,
+      triggerOnAreaMove: false,
+      damage: {
+        dice: "5d10",
+        type: "radiosi",
+        onSave: "none",
+      },
+    },
+    {
+      id: "forbiddance-radiant-on-turn-start",
+      group: "forbiddance-damage",
+      label: "Proibizione: 5d10 radiosi ai tipi scelti che iniziano il turno nell'area.",
+      event: "turn-start",
+      frequency: "once-per-turn",
+      resolution: "manual-effect",
+      ruleChoice: "radiant",
+      requiresRuleChoices: ["radiant"],
+      damage: {
+        dice: "5d10",
+        type: "radiosi",
+        onSave: "none",
+      },
+    },
+    {
+      id: "forbiddance-necrotic-on-enter",
+      group: "forbiddance-damage",
+      label: "Proibizione: 5d10 necrotici ai tipi scelti che entrano nell'area.",
+      event: "enter",
+      frequency: "once-per-turn",
+      resolution: "manual-effect",
+      ruleChoice: "necrotic",
+      requiresRuleChoices: ["necrotic"],
+      requiresOwnTurn: false,
+      triggerOnAreaMove: false,
+      damage: {
+        dice: "5d10",
+        type: "necrotici",
+        onSave: "none",
+      },
+    },
+    {
+      id: "forbiddance-necrotic-on-turn-start",
+      group: "forbiddance-damage",
+      label: "Proibizione: 5d10 necrotici ai tipi scelti che iniziano il turno nell'area.",
+      event: "turn-start",
+      frequency: "once-per-turn",
+      resolution: "manual-effect",
+      ruleChoice: "necrotic",
+      requiresRuleChoices: ["necrotic"],
+      damage: {
+        dice: "5d10",
+        type: "necrotici",
+        onSave: "none",
+      },
+    },
+  ],
+  // Antipathy/Sympathy: a creature of the chosen kind that comes within reach saves on Wisdom.
+  "antipathy-sympathy": [
+    {
+      id: "antipathy-sympathy-antipathy-on-entry",
+      group: "antipathy-sympathy-entry",
+      label: "Antipatia: TS Saggezza per la creatura del tipo scelto che si avvicina",
+      event: "enter",
+      frequency: "once-per-turn",
+      resolution: "manual-save",
+      ability: "wis",
+      requiresOwnTurn: false,
+      triggerOnAreaMove: false,
+      ruleChoice: "antipathy",
+      requiresRuleChoices: ["antipathy"],
+      skipLinkedConditions: ["Spaventato"],
+      failureEffect: "Spaventato.",
+    },
+    {
+      id: "antipathy-sympathy-sympathy-on-entry",
+      group: "antipathy-sympathy-entry",
+      label: "Simpatia: TS Saggezza per la creatura del tipo scelto che si avvicina",
+      event: "enter",
+      frequency: "once-per-turn",
+      resolution: "manual-save",
+      ability: "wis",
+      requiresOwnTurn: false,
+      triggerOnAreaMove: false,
+      ruleChoice: "sympathy",
+      requiresRuleChoices: ["sympathy"],
+      skipLinkedConditions: ["Simpatia: attratto dalla destinazione"],
+      failureEffect: "Simpatia: attratto dalla destinazione.",
+    },
+  ],
+  // Hallow: entering or starting the turn there, a creature may save on Charisma to ignore the extra effect.
+  "hallow": [
+    {
+      id: "hallow-extra-effect-on-entry",
+      group: "hallow-extra-effect",
+      label: "Santificare: TS Carisma per ignorare l'effetto aggiuntivo finché non esce.",
+      event: "enter",
+      frequency: "once-per-turn",
+      resolution: "informational",
+      requiresOwnTurn: false,
+      triggerOnAreaMove: false,
+    },
+    {
+      id: "hallow-extra-effect-on-turn-start",
+      group: "hallow-extra-effect",
+      label: "Santificare: TS Carisma per ignorare l'effetto aggiuntivo finché non esce.",
+      event: "turn-start",
+      frequency: "once-per-turn",
+      resolution: "informational",
+    },
+  ],
   "xanathar-turbine": [
     {
       id: "xanathar-turbine-entry-save",
@@ -1809,6 +1934,20 @@ const PRISMATIC_WALL_PROXIMITY_REMINDER = Object.freeze({
 });
 
 const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
+  "antipathy-sympathy-antipathy-on-entry": {
+    ability: "wis",
+    failureCondition: {
+      condition: "Spaventato",
+      options: { manualRemoval: true, effectDetail: "Spaventato dall'oggetto o dall'area finché dura la spell; a fine turno lontano oltre 18 m o fuori vista, nuovo TS Saggezza per liberarsi." },
+    },
+  },
+  "antipathy-sympathy-sympathy-on-entry": {
+    ability: "wis",
+    failureCondition: {
+      condition: "Simpatia: attratto dalla destinazione",
+      options: { manualRemoval: true, effectKind: "debuff", effectId: "sympathy-attraction", effectDetail: "Deve usare il movimento per raggiungere la destinazione e non può allontanarsene volontariamente; a fine turno lontano oltre 18 m o fuori vista, nuovo TS Saggezza per liberarsi." },
+    },
+  },
   "control-water-whirlpool-save-on-entry": {
     ability: "str",
     failureCondition: { condition: "Intrappolato nel vortice" },
@@ -2002,6 +2141,60 @@ function withReminderResolutionData(rule) {
     ...(triggerPolicy ? { triggerPolicy } : {}),
   };
 }
+
+// Variant memberships of catalog zones (lotto L3, 2014 texts): the effect of the variant chosen at cast.
+const MAGIC_CIRCLE_TYPES = "celestiali, elementali, folletti, immondi o non morti scelti";
+const HALLOW_WARD = Object.freeze({
+  id: "hallow-ward",
+  kind: "buff",
+  label: "Santificato",
+  detail: "Celestiali, elementali, folletti, immondi e non morti (salvo i tipi esclusi) non entrano nell'area e non possono affascinare, spaventare o possedere chi è dentro.",
+  summaryParts: [
+    { id: "hallow-ward-no-entry", label: "Tipi esclusi: non entrano" },
+    { id: "hallow-ward-no-charm", label: "No charme/paura/possessione" },
+  ],
+});
+const hallowExtra = (id, kind, label, detail) => [HALLOW_WARD, { id: `hallow-${id}`, kind, label, detail }];
+const CATALOG_MEMBERSHIP_EFFECTS_BY_CHOICE = Object.freeze({
+  "xanathar-pirotecnica": {
+    fireworks: [],
+    smoke: [conditionMembershipEffect("pyrotechnics-smoke", "Accecato", "Il fumo rende l'area pesantemente oscurata per 1 minuto o finché un vento forte non lo disperde.")],
+  },
+  "magic-circle": {
+    ward: [{
+      id: "magic-circle-ward",
+      kind: "buff",
+      label: "Cerchio magico: protetto",
+      detail: `I ${MAGIC_CIRCLE_TYPES} non entrano volontariamente nel cilindro (per teletrasporto serve un TS Carisma), hanno svantaggio agli attacchi contro chi è dentro e non possono affascinarlo, spaventarlo o possederlo.`,
+      summaryParts: [
+        { id: "magic-circle-no-entry", label: "Tipi scelti: non entrano" },
+        { id: "magic-circle-attack-disadvantage", label: "Loro att. svant." },
+        { id: "magic-circle-no-charm", label: "No charme/paura/possessione" },
+      ],
+    }],
+    prison: [{
+      id: "magic-circle-prison",
+      kind: "debuff",
+      label: "Cerchio magico: trattenuto",
+      detail: `Invertito: i ${MAGIC_CIRCLE_TYPES} dentro il cilindro non possono uscirne volontariamente né attaccare chi è fuori; il resto delle creature non è toccato.`,
+      summaryParts: [
+        { id: "magic-circle-no-exit", label: "Tipi scelti: non escono" },
+      ],
+    }],
+  },
+  "hallow": {
+    courage: hallowExtra("courage", "buff", "Coraggio", "Le creature scelte non possono essere spaventate nell'area."),
+    darkness: [HALLOW_WARD, conditionMembershipEffect("hallow-darkness", "Accecato", "L'oscurità magica riempie l'area: la luce non la rischiara.")],
+    daylight: hallowExtra("daylight", "buff", "Luce intensa", "Luce intensa riempie l'area; l'oscurità magica non la attenua."),
+    "energy-protection": hallowExtra("energy-protection", "buff", "Res. al tipo scelto", "Le creature scelte hanno resistenza al tipo di danno scelto al lancio (al tavolo)."),
+    "energy-vulnerability": hallowExtra("energy-vulnerability", "debuff", "Vuln. al tipo scelto", "Le creature scelte hanno vulnerabilità al tipo di danno scelto al lancio (al tavolo)."),
+    "everlasting-rest": [HALLOW_WARD],
+    "extradimensional-interference": hallowExtra("extradimensional-interference", "debuff", "No viaggi extradimensionali", "Le creature scelte non possono teletrasportarsi né viaggiare tra i piani dall'area."),
+    fear: [HALLOW_WARD, conditionMembershipEffect("hallow-fear", "Spaventato", "Le creature scelte sono spaventate finché restano nell'area.")],
+    silence: [HALLOW_WARD, conditionMembershipEffect("hallow-silence", "Assordato", "Nessun suono nasce né arriva nell'area.")],
+    tongues: hallowExtra("tongues", "buff", "Linguaggi", "Le creature scelte comunicano con qualunque creatura che parli una lingua, anche senza conoscerla."),
+  },
+});
 
 function catalogAreaRule(spec) {
   const zone = spec.kind === "zone";
@@ -2240,6 +2433,44 @@ function catalogAreaRule(spec) {
         },
       },
     }],
+    // Lotto L3 (2014 texts).
+    "ice-storm": [
+      difficultTerrainEffect(
+        "ice-storm-difficult-terrain",
+        "Terreno difficile / Tempesta di ghiaccio",
+        "La grandine rende l'area terreno difficile fino alla fine del prossimo turno del caster.",
+      ),
+    ],
+    "xanathar-scossa-tellurica": [
+      difficultTerrainEffect(
+        "earth-tremor-difficult-terrain",
+        "Terreno difficile / Scossa Tellurica",
+        "Su terra smossa o pietra il terreno resta difficile finché non viene sgomberato (1 minuto per ogni porzione di 1,5 m).",
+      ),
+    ],
+    "xanathar-muro-di-sabbia": [
+      conditionMembershipEffect(
+        "wall-of-sand-blinded",
+        "Accecato",
+        "Dentro il muro di sabbia la creatura è accecata.",
+      ),
+      difficultTerrainEffect(
+        "wall-of-sand-difficult-terrain",
+        "Terreno difficile ×3 / Muro di Sabbia",
+        "Ogni metro percorso nel muro costa tre metri di movimento.",
+        3,
+      ),
+    ],
+    "globe-of-invulnerability": [{
+      id: "globe-of-invulnerability-zone",
+      kind: "buff",
+      label: "Globo: incantesimi ≤5° dall'esterno senza effetto",
+      detail: "Gli incantesimi di 5° livello o inferiore lanciati dall'esterno non hanno effetto su chi è dentro, anche se lanciati con uno slot superiore; la barriera esclude un livello in più per ogni slot oltre il 6°. Dall'interno si lancia normalmente.",
+      summaryParts: [
+        { id: "globe-of-invulnerability-outside-spells", label: "Incantesimi ≤5° dall'esterno: nulla" },
+        { id: "globe-of-invulnerability-upcast", label: "+1 livello per slot oltre il 6°" },
+      ],
+    }],
     "phb2014-cerchio-di-potere": [{
       id: "circle-of-power-zone",
       kind: "buff",
@@ -2251,8 +2482,9 @@ function catalogAreaRule(spec) {
       ],
     }],
   }[spec.spellId] || [];
-  const membershipEffectsByChoice = spec.spellId === "xanathar-controllare-venti"
-    ? {
+  // Membership effects by zone variant (the rule choice of the cast or of an active action).
+  const membershipEffectsByChoice = {
+    "xanathar-controllare-venti": {
       gusts: [{
         id: "control-winds-membership",
         kind: "debuff",
@@ -2286,8 +2518,9 @@ function catalogAreaRule(spec) {
         ],
       }],
       paused: [],
-    }
-    : null;
+    },
+    ...CATALOG_MEMBERSHIP_EFFECTS_BY_CHOICE,
+  }[spec.spellId] || null;
   const placementChoices = Array.isArray(spec.placementChoices)
     ? spec.placementChoices.map((choice) => {
       const choiceShape = choice?.shape || spec.shape;

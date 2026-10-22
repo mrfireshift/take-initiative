@@ -643,10 +643,10 @@ da questo audit.
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
-- Opzioni trackable del runtime: **359**; definizioni con tracking persistente verificate dall'audit: **356**; definizioni con regole d'area: **136** (141 regole).
+- Opzioni trackable del runtime: **361**; definizioni con tracking persistente verificate dall'audit: **358**; definizioni con regole d'area: **139** (144 regole).
 - Workflow che richiedono smoke test runtime: **397**.
 - Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `b3a3804ce1279f68`.
+- Impronta deterministica: `33e93f74f4cecab7`.
 
 ## Decisioni di prodotto chiuse
 
@@ -660,8 +660,8 @@ da questo audit.
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 76 |
-| PARTIAL | 208 |
-| TRACK_ONLY | 127 |
+| PARTIAL | 211 |
+| TRACK_ONLY | 124 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -700,13 +700,13 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 41 |
-| AREA_GEOMETRY | 136 |
-| CAST | 246 |
-| CLEANUP | 110 |
+| ACTIVE_ACTION | 43 |
+| AREA_GEOMETRY | 139 |
+| CAST | 249 |
+| CLEANUP | 116 |
 | CONCENTRATION | 218 |
-| PERSISTENCE | 356 |
-| TURN_TRIGGER | 91 |
+| PERSISTENCE | 358 |
+| TURN_TRIGGER | 95 |
 
 ### Stato di integrazione console unificata
 
@@ -1032,12 +1032,12 @@ Nessuna voce.
 | Movimenti del ragno | `spider-climb` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muovere il terreno | `move-earth` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro d'Acqua | `xanathar-muro-dacqua` | Xanathar / 3 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | meccanica di movimento assente; trigger condizionale durante la durata assente |
-| Muro di forza | `wall-of-force` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Muro di forza | `wall-of-force` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di fuoco | `wall-of-fire` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Muro di ghiaccio | `wall-of-ice` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di Luce | `xanathar-muro-di-luce` | Xanathar / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Muro di pietra | `wall-of-stone` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Muro di Sabbia | `xanathar-muro-di-sabbia` | Xanathar / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Muro di Sabbia | `xanathar-muro-di-sabbia` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di spine | `wall-of-thorns` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di vento | `wind-wall` | SRD 5.1 / 3 | PARTIAL | ACCEPTED | PARTIAL | UNIFIED | reachable | — | — |
 | Muro prismatico | `prismatic-wall` | SRD 5.1 / 9 | PARTIAL | ACCEPTED | PARTIAL | UNIFIED | reachable | — | — |
@@ -1092,7 +1092,7 @@ Nessuna voce.
 | Previsione | `foresight` | SRD 5.1 / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Prigione Mentale | `xanathar-prigione-mentale` | Xanathar / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Produrre fiamma | `produce-flame` | SRD 5.1 / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Proibizione | `forbiddance` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Proibizione | `forbiddance` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Proiezione astrale | `astral-projection` | SRD 5.1 / 9 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Protezione dai veleni | `protection-from-poison` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Protezione dal bene e dal male | `protection-from-evil-and-good` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
