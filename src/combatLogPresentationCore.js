@@ -775,7 +775,7 @@ function detailSections(event, targets, outcomes, turnName) {
     sections.push({ label: "Movimento", lines: movementLines });
   }
   const initiativeLines = initiativeCardDiffLines(event);
-  if (initiativeLines.length) sections.push({ label: "Diff scheda iniziativa", lines: initiativeLines });
+  if (initiativeLines.length) sections.push({ label: "Diff scheda personaggio", lines: initiativeLines });
   const contextLines = explicitContextLines(event);
   if (contextLines.length) sections.push({ label: "Contesto", lines: contextLines });
   if (turnName && turnName !== "Fuori turno") {

@@ -17,6 +17,9 @@ import {
 } from "./initiativeEditors.js";
 import { compactStatusBadge } from "./initiativeCardCompact.js";
 import { fitCardToChipDock } from "./initiativeChipOverflow.js";
+import { buildReactionIndicator } from "./reactionIndicator.js";
+import { buildCardIconGlyph, styleCardIconButton } from "./cardIconButton.js";
+import { hasReactionUsed } from "./reactionTrackerCore.js";
 
 export function buildClassicTrackerCard(e, context) {
   const {
@@ -81,6 +84,7 @@ export function buildClassicTrackerCard(e, context) {
       setLegendaryResistanceMax,
       setParagonActions,
       setSceneState,
+      toggleReactionUsedOnTrackerCard,
     },
   } = context;
 
@@ -1026,34 +1030,12 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   if (["pc", "ally"].includes(e.attitude)) {
     initiativeCardButton = document.createElement("button");
     initiativeCardButton.type = "button";
-    initiativeCardButton.title = "Apri scheda iniziativa";
+    initiativeCardButton.title = "Apri scheda personaggio";
     initiativeCardButton.setAttribute("aria-label", initiativeCardButton.title);
-    Object.assign(initiativeCardButton.style, {
-      flex: "0 0 auto",
-      minWidth: "18px",
-      width: "18px",
-      height: "18px",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "0",
-      borderRadius: "999px",
-      border: "1px solid rgba(255,255,255,.22)",
-      background: "rgba(0,0,0,.52)",
-      cursor: "pointer",
-      boxShadow: "0 1px 3px rgba(0,0,0,.35)",
-      pointerEvents: "auto",
-    });
-    const initiativeCardIcon = document.createElement("img");
-    initiativeCardIcon.src = `${import.meta.env.BASE_URL || "/"}character-sheet.svg`;
-    initiativeCardIcon.alt = "";
-    Object.assign(initiativeCardIcon.style, {
-      width: "13px",
-      height: "13px",
-      display: "block",
-      pointerEvents: "none",
-    });
-    initiativeCardButton.appendChild(initiativeCardIcon);
+    // Same look as the reaction indicator (cardIconButton.js), in the sheet's blue.
+    styleCardIconButton(initiativeCardButton, "sheet");
+    initiativeCardButton.style.cursor = "pointer";
+    initiativeCardButton.appendChild(buildCardIconGlyph("character-sheet.svg", 12));
     initiativeCardButton.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
       event.preventDefault();
@@ -1123,6 +1105,15 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     hpDeltaButton.style.fontSize = "13px";
   }
 
+  // Reaction indicator (reactionTrackerCore.js): the GM marks it on any creature, players see it on PCs and allies.
+  const reactionIndicator = IS_GM || ["pc", "ally"].includes(e.attitude)
+    ? buildReactionIndicator({
+      used: hasReactionUsed(cardEffectData),
+      interactive: IS_GM && typeof toggleReactionUsedOnTrackerCard === "function",
+      onToggle: () => toggleReactionUsedOnTrackerCard(e),
+    })
+    : null;
+
   const hpCaption = document.createElement("span");
   hpCaption.textContent = "HP";
   Object.assign(hpCaption.style, {
@@ -1145,6 +1136,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     legendaryHPRow.append(hpCaption, pill);
     if (initiativeCardButton) legendaryHPRow.appendChild(initiativeCardButton);
     if (hpDeltaButton) legendaryHPRow.appendChild(hpDeltaButton);
+    if (reactionIndicator) legendaryHPRow.appendChild(reactionIndicator);
     hpControlsRow.appendChild(hpBarWrap);
   } else if (bossTopRow) {
     hpCaption.style.fontSize = "9px";
@@ -1158,12 +1150,14 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     bossTopRow.append(hpCaption, pill);
     if (initiativeCardButton) bossTopRow.appendChild(initiativeCardButton);
     if (hpDeltaButton) bossTopRow.appendChild(hpDeltaButton);
+    if (reactionIndicator) bossTopRow.appendChild(reactionIndicator);
     hpControlsRow.appendChild(hpBarWrap);
   } else {
     hpControlsRow.appendChild(hpCaption);
     hpControlsRow.appendChild(pill);
     if (initiativeCardButton) hpControlsRow.appendChild(initiativeCardButton);
     if (hpDeltaButton) hpControlsRow.appendChild(hpDeltaButton);
+    if (reactionIndicator) hpControlsRow.appendChild(reactionIndicator);
     hpControlsRow.appendChild(hpBarWrap);
   }
   card.appendChild(hpControlsRow);

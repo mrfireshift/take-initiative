@@ -26,7 +26,7 @@ persistita nei metadata canonici del token:
 }
 ```
 
-La stessa stringa vive nel profilo della scheda iniziativa e nell'entry del
+La stessa stringa vive nel profilo della scheda personaggio e nell'entry del
 registry delle schede. Dopo il collegamento, nome e ritratto servono solo per
 visualizzazione o compatibilità legacy.
 

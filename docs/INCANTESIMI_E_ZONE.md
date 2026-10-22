@@ -202,7 +202,7 @@ viene considerata obsoleta e non viene applicata.
 
 ## Azioni rapide delle card
 
-La scheda iniziativa dispone di una sezione **Azioni rapide**. Ogni profilo può
+La scheda personaggio dispone di una sezione **Azioni rapide**. Ogni profilo può
 conservarne fino a 12.
 
 Un'azione rapida può:

@@ -86,7 +86,7 @@ campi già compilati.
 
 Fai doppio clic sul nome per rinominare rapidamente il token. Il nuovo nome viene sincronizzato anche sotto il token sulla battlemap.
 
-Il controllo accanto agli HP apre la modifica rapida o la scheda iniziativa, a seconda del tipo di attore. La dimensione dell'editor HP corrisponde al testo mostrato nella card.
+Il controllo accanto agli HP apre la modifica rapida o la scheda personaggio, a seconda del tipo di attore. La dimensione dell'editor HP corrisponde al testo mostrato nella card.
 
 Le card di creature con lo stesso nome vengono raggruppate. Una card collassata mostra **(Gruppo)** e il numero di membri. Il gruppo si espande automaticamente quando il turno entra nello stack e si richiude quando lo lascia; può anche essere aperto manualmente. L'animazione mantiene la prima card come ancora.
 
@@ -127,6 +127,23 @@ I gruppi omonimi, le azioni di tana, i turni Paragon e le azioni epiche possono 
 - **Follow** centra o segue il token attivo, utile quando il DM controlla la regia da un altro schermo.
 - **Tana** abilita la gestione delle azioni di tana nell'incontro.
 
+### Reazione e azione preparata
+
+Nella riga HP di ogni card c'è l'icona della reazione (una freccia curva):
+verde quando la reazione è disponibile, rossa e spenta quando è stata usata. Il GM la segna o la
+ripristina con un clic; i giocatori la vedono sulle card dei PG e degli
+alleati. La reazione usata torna da sola all'inizio del turno successivo della
+creatura.
+
+Dal menu contestuale della card, **Azione preparata** la segna fino
+all'inizio del prossimo turno della creatura; quando è attiva compaiono
+**Innesca azione preparata** (toglie l'azione preparata e segna la reazione
+come usata, in un solo passo annullabile) e **Annulla azione preparata**.
+
+Entrambe sono condizioni normali: compaiono come pill sulla card e sulla
+mappa, si annullano dalla Cronologia e seguono le opzioni di visibilità degli
+effetti per i giocatori.
+
 ## 5. HP e modifiche rapide
 
 Gli HP canonici sono quelli della card/token. Le barre sulla mappa sono una rappresentazione derivata e si aggiornano insieme al lister.
@@ -162,7 +179,7 @@ Nella card vengono mostrate le prime due pill; il pulsante `…` espande le altr
 
 ### Indebolimento
 
-L'indebolimento è gestito direttamente nella scheda iniziativa con un controllo bidirezionale da 0 a 5. Il valore nella scheda e la condizione sul token restano sincronizzati. Non è trattato come una normale condizione a durata breve.
+L'indebolimento è gestito direttamente nella scheda personaggio con un controllo bidirezionale da 0 a 5. Il valore nella scheda e la condizione sul token restano sincronizzati. Non è trattato come una normale condizione a durata breve.
 
 ## 7. Incantesimi e concentrazione
 

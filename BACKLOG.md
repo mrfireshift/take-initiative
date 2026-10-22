@@ -27,7 +27,7 @@ Il riferimento generale è [Indice della documentazione](docs/INDICE.md).
   della concentrazione.
 - Risoluzione differita degli incantesimi preparati e azioni attive dal
   registro.
-- Azioni rapide persistenti nelle schede iniziativa.
+- Azioni rapide persistenti nelle schede personaggio.
 - Automazioni dei principali incantesimi da combattimento elencati nella
   documentazione corrente.
 - Guscio Anti-vita: PASS con spell instance, concentrazione, durata, aura mobile

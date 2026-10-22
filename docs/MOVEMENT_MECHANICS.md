@@ -14,7 +14,7 @@ Il profilo espone quattro modalità:
 - `swim`: nuotare;
 - `climb`: scalare.
 
-La velocità salvata nella scheda iniziativa rimane la velocità base di
+La velocità salvata nella scheda personaggio rimane la velocità base di
 camminare. Le altre modalità esistono soltanto quando un effetto le concede o
 le copia da una modalità esistente.
 

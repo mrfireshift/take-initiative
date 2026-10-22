@@ -20,6 +20,8 @@ export const INITIATIVE_CARD_MENU_ACTIONS = Object.freeze([
   "attitude",
   "boss-mode",
   "table-side",
+  "readied-action",
+  "readied-action-trigger",
   "remove",
 ]);
 

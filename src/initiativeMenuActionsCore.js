@@ -2,6 +2,7 @@ import {
   isAllowedCompactAdminMenuAction,
   isAllowedInitiativeCardMenuAction,
 } from "./menuPopoverProtocolCore.js";
+import { hasReadiedAction } from "./reactionTrackerCore.js";
 
 const COMPACT_ADMIN_MENU_ACTION_SELECTORS = Object.freeze({
   "reset-round": "[data-reset-round='1']",
@@ -68,6 +69,10 @@ export function buildInitiativeCardContextMenuPayload({
     ...(showTableSideMenu
       ? { showTableSideMenu: true, ...(tableSide !== undefined ? { tableSide: tableSide || "none" } : {}) }
       : {}),
+    // Readied action (reactionTrackerCore.js), one creature at a time.
+    ...(!isBulkScope && !sourceEntry?.__groupCollapsed
+      ? { showReadiedActionMenu: true, hasReadiedAction: hasReadiedAction(sourceEntry?.conditions) }
+      : {}),
   };
 }
 
@@ -125,6 +130,12 @@ export async function routeInitiativeCardContextMenuAction(
   }
   if (action === "table-side") {
     return invoke("setTableSide", sourceEntry, value === "none" ? null : value);
+  }
+  if (action === "readied-action") {
+    return invoke("toggleReadiedAction", sourceEntry);
+  }
+  if (action === "readied-action-trigger") {
+    return invoke("triggerReadiedAction", sourceEntry);
   }
   if (action === "remove") {
     return invoke("removeFromInitiative", scopeIds);

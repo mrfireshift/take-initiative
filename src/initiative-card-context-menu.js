@@ -279,9 +279,26 @@ function render(payload) {
   }
 
   if (payload.showInitiativeCard) {
-    makeAction(root, "Scheda iniziativa", "character-sheet.svg", "initiative-card");
+    makeAction(root, "Scheda personaggio", "character-sheet.svg", "initiative-card");
     divider(root);
   } else if (!payload.expandedTokenMenu) {
+    divider(root);
+  }
+
+  if (payload.showReadiedActionMenu) {
+    // Readied action: until the start of the creature's next turn; going off uses its reaction.
+    makeAction(root, payload.hasReadiedAction ? "Annulla azione preparata" : "Azione preparata", "mark.svg", "readied-action", {
+      current: !!payload.hasReadiedAction,
+      trailing: payload.hasReadiedAction ? "Attiva" : "",
+      title: payload.hasReadiedAction
+        ? "Toglie l'azione preparata senza usare la reazione"
+        : "Dura fino all'inizio del suo prossimo turno",
+    });
+    if (payload.hasReadiedAction) {
+      makeAction(root, "Innesca azione preparata", "mark.svg", "readied-action-trigger", {
+        title: "Toglie l'azione preparata e segna la reazione come usata",
+      });
+    }
     divider(root);
   }
 

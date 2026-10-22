@@ -1,6 +1,6 @@
 # Capacità di classe
 
-Take Initiative! conserva nella scheda iniziativa la classe, la sottoclasse e
+Take Initiative! conserva nella scheda personaggio la classe, la sottoclasse e
 il livello di un personaggio e può offrire un workflow per le capacità di
 classe. Il sistema è un assistente per il tavolo: registra risorse, durata,
 bersagli e reminder, ma non tira dadi e non decide gli esiti di gioco.

@@ -422,7 +422,7 @@ async function writeTokenProfile(
     level: storedProfile?.exhaustion,
   }], {
     kind: "initiative-card",
-    label: "Scheda iniziativa aggiornata",
+    label: "Scheda personaggio aggiornata",
     targetIds: [itemId],
     metadataPatches: [{
       id: itemId,
@@ -448,7 +448,7 @@ async function removeTokenProfile(itemId) {
     level: 0,
   }], {
     kind: "initiative-card",
-    label: "Scheda iniziativa rimossa",
+    label: "Scheda personaggio rimossa",
     targetIds: [itemId],
     metadataPatches: [{
       id: itemId,

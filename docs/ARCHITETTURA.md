@@ -34,7 +34,7 @@ Il progetto evita un backend proprio: la sincronizzazione avviene tramite metada
 | `src/aoeTargetTool.js` | Creazione, persistenza e selezione delle aree. |
 | `src/hpbar-items.js` | Elementi derivati della barra HP sulla mappa. |
 | `src/initiativeCards.js` | Profilo persistente delle card tra scene. |
-| `src/initiative-card-modal.js` | Scheda iniziativa, build e capacità di classe. |
+| `src/initiative-card-modal.js` | Scheda personaggio, build e capacità di classe. |
 | `src/classFeatureCatalog.js` / `src/classFeatureCore.js` | Catalogo, stato e proiezione delle capacità. |
 | `src/classFeatureRuntime.js` | Attivazione, risorse e pulizia delle capacità. |
 | `src/classFeatureAuraController.js` / `src/classFeatureReminderController.js` | Aure e reminder delle capacità. |

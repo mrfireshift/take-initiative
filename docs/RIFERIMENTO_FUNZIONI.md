@@ -47,7 +47,7 @@ Il catalogo comprende:
 - Ira
 - Giuramento di Inimicizia
 
-L'indebolimento è riconosciuto dal catalogo ma viene modificato dalla scheda iniziativa, non dal selettore generico. È inoltre possibile definire condizioni personalizzate.
+L'indebolimento è riconosciuto dal catalogo ma viene modificato dalla scheda personaggio, non dal selettore generico. È inoltre possibile definire condizioni personalizzate.
 
 ### Modalità di scadenza
 

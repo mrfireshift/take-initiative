@@ -2856,7 +2856,7 @@ function renderPortrait() {
 
 function renderView() {
   const meta = item?.metadata?.[META_KEY] || {};
-  $("title").textContent = item?.name || "Scheda iniziativa";
+  $("title").textContent = item?.name || "Scheda personaggio";
   const buildLabels = classFeatureBuildLabel(profile.characterBuild);
   $("characterBuildLine").textContent = buildLabels.join(" / ");
   $("characterBuildLine").hidden = buildLabels.length === 0;

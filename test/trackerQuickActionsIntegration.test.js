@@ -143,7 +143,7 @@ test("le azioni rapide vengono reidratate dalla memoria senza aprire la scheda",
 });
 
 
-test("Tocco Purificatore dalle Azioni Rapide del tracker riusa il workflow speciale della Scheda Iniziativa", () => {
+test("Tocco Purificatore dalle Azioni Rapide del tracker riusa il workflow speciale della Scheda Personaggio", () => {
   assert.match(
     initiativeSource,
     /feature\?\.runtimeSupport\?\.adapter === "purifying-touch"/,

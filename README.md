@@ -42,7 +42,7 @@ dopo la stabilizzazione 1.3 e non ancora raccolte in una nuova release.
   del token, configurando raggio, stile, bersagli, pill persistente e warning
   a inizio o fine turno;
 - permette di indicare classe, sottoclasse e livello (anche multiclasse) nella
-  scheda iniziativa e di attivare capacità di classe con usi e durata tracciati;
+  scheda personaggio e di attivare capacità di classe con usi e durata tracciati;
 - materializza gli effetti attivi delle capacità come condizioni persistenti sui
   token, rimovibili dalla finestra Condizioni, distinguendo caster, bersaglio
   singolo e aura, con aree mobili e proiezioni buff/debuff sui token dentro

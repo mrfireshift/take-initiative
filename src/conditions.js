@@ -50,7 +50,7 @@ export const CONDITION_LIST = [
   "Ira",
 ];
 
-// Indebolimento si gestisce dalla scheda iniziativa: resta nel catalogo per
+// Indebolimento si gestisce dalla scheda personaggio: resta nel catalogo per
 // ordinamento e riconoscimento, ma non viene proposto come condizione generica.
 export const APPLICABLE_CONDITION_LIST = CONDITION_LIST.filter(
   (name) => name !== EXHAUSTION_CONDITION

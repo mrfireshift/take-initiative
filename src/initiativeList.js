@@ -49,10 +49,19 @@ import { readFullRenderItemSnapshot } from "./initiativeFullRenderSnapshotCore.j
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js";
 import {
+  conditionMutationOperations,
   getEffectsMutationSceneContext,
   requireAppliedEffectsMutation,
   runEffectsMutation,
 } from "./effectsMutations.js";
+import {
+  READIED_ACTION_CONDITION,
+  REACTION_USED_CONDITION,
+  conditionInstancesNamed,
+  hasReactionUsed,
+  reactionConditionOptions,
+  reactionTargetId,
+} from "./reactionTrackerCore.js";
 import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments, undoHistoryThrough } from "./history.js";
 import { decorateCompositeEffectsHistoryEntry } from "./effectsMutationCompositeHistoryCore.js";
@@ -7873,6 +7882,72 @@ async function __removeConditionOnTrackerCard(itemId, group) {
   await refreshConditionLabels([itemId]);
 }
 
+// Reaction used / readied action (reactionTrackerCore.js): ordinary conditions ending at the start of the creature's
+// next turn, through the effects coordinator like every other condition (History, Undo, map pills). Nothing runs on
+// the turn change.
+function __reactionTrackerTargetId(entry) {
+  const itemId = IS_GM ? reactionTargetId(entry) : null;
+  return itemId && !isLairId(itemId) && !isEpicActionId(itemId) ? itemId : null;
+}
+
+async function __toggleTurnLimitedCondition(entry, conditionName) {
+  const itemId = __reactionTrackerTargetId(entry);
+  if (!itemId) return;
+  const instances = conditionInstancesNamed(entry?.conditions, conditionName);
+  if (instances.length) {
+    await __removeConditionOnTrackerCard(itemId, { name: conditionName, instances });
+    return;
+  }
+  const label = `Applicata: ${conditionName}`;
+  const mutation = await runEffectsMutation(conditionMutationOperations({
+    targetIds: [itemId],
+    conditionName,
+    options: reactionConditionOptions(__latestInitiativeState),
+  }), {
+    kind: "condition",
+    label,
+    targetIds: [itemId],
+    history: { kind: "condition", label },
+  });
+  requireAppliedEffectsMutation(mutation);
+  await refreshConditionLabels([itemId]);
+}
+
+function __toggleReactionUsedOnTrackerCard(entry) {
+  return __toggleTurnLimitedCondition(entry, REACTION_USED_CONDITION);
+}
+
+function __toggleReadiedActionFromContext(entry) {
+  return __toggleTurnLimitedCondition(entry, READIED_ACTION_CONDITION);
+}
+
+// The readied action goes off: it uses the reaction, in one command (one Undo).
+async function __triggerReadiedActionFromContext(entry) {
+  const itemId = __reactionTrackerTargetId(entry);
+  const readied = conditionInstancesNamed(entry?.conditions, READIED_ACTION_CONDITION);
+  if (!itemId || !readied.length) return;
+  const operations = [{
+    type: "condition:remove-instances",
+    removals: readied.map((instance) => ({ itemId, instanceId: String(instance.id) })),
+  }];
+  if (!hasReactionUsed(entry?.conditions)) {
+    operations.push(...conditionMutationOperations({
+      targetIds: [itemId],
+      conditionName: REACTION_USED_CONDITION,
+      options: reactionConditionOptions(__latestInitiativeState),
+    }));
+  }
+  const label = `Innescata: ${READIED_ACTION_CONDITION}`;
+  const mutation = await runEffectsMutation(operations, {
+    kind: "condition",
+    label,
+    targetIds: [itemId],
+    history: { kind: "condition", label },
+  });
+  requireAppliedEffectsMutation(mutation);
+  await refreshConditionLabels([itemId]);
+}
+
 function __pendingTerminationRecord(value) {
   return value?.pendingTermination && typeof value.pendingTermination === "object"
     ? value.pendingTermination
@@ -8221,6 +8296,8 @@ async function __handleInitiativeCardContextMenuAction(context, data, sceneEpoch
     setTableSide: (entry, side) => writeTableSide([entry?.id], side, {
       isCurrent: () => __isCurrentSceneOperation(sceneEpoch, "set-card-table-side"),
     }),
+    toggleReadiedAction: __toggleReadiedActionFromContext,
+    triggerReadiedAction: __triggerReadiedActionFromContext,
     removeFromInitiative: (ids) => __removeCardFromInitiative(ids, sceneEpoch),
   });
 }
@@ -9720,6 +9797,7 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
       setLegendaryResistanceMax,
       setParagonActions,
       setSceneState,
+      toggleReactionUsedOnTrackerCard: __toggleReactionUsedOnTrackerCard,
     },
   });
 }

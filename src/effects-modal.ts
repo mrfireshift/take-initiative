@@ -641,7 +641,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       text.append(targetBadge, effectText);
       if (row.managed) {
         const managed = document.createElement("small");
-        managed.textContent = " · scheda iniziativa";
+        managed.textContent = " · scheda personaggio";
         managed.style.color = "rgba(255,255,255,.55)";
         text.appendChild(managed);
         selectRow.style.cursor = "default";

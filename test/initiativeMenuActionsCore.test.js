@@ -97,6 +97,8 @@ test("il payload card conserva titolo, scope e visibilità del menu", () => {
     groupCollapsed: false,
     showInitiativeCard: false,
     showBossMenu: true,
+    showReadiedActionMenu: true,
+    hasReadiedAction: false,
   });
 
   assert.deepEqual(buildInitiativeCardContextMenuPayload({

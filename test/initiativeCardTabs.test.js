@@ -15,7 +15,7 @@ const trackerSource = readFileSync(
   "utf8",
 );
 
-test("la Scheda iniziativa espone tre tab accessibili", () => {
+test("la Scheda personaggio espone tre tab accessibili", () => {
   assert.match(html, /class="card-tabs"\s+role="tablist"/);
   assert.match(html, /id="statsTab"[^>]*role="tab"[^>]*aria-controls="view"/);
   assert.match(html, /id="quickActionsTab"[^>]*role="tab"[^>]*aria-controls="quickActionsView"/);
@@ -69,7 +69,7 @@ test("il cambio tab sincronizza vista, editor e altezza del popover", () => {
   assert.match(source, /classFeaturesActive \? 760 : quickActionsActive \|\| attacksActive \? 680 : 640/);
 });
 
-test("la Scheda iniziativa apre più alta senza ampliare gli altri popover", () => {
+test("la Scheda personaggio apre più alta senza ampliare gli altri popover", () => {
   assert.match(trackerSource, /url: `\/initiative-card-modal\.html\?source=\$\{encodeURIComponent\(sourceId\)\}\$\{quickActionId \? `[\s\S]*?` : ""\}`,[\s\S]*?height: 560/);
   assert.match(trackerSource, /data\.id === `\$\{ID\}\/initiative-card-modal` \? 760 : 560/);
 });
@@ -83,7 +83,7 @@ test("l'editor salva build multiclasse e capacità abilitate", () => {
   assert.match(source, /classFeaturesConfigured: true/);
 });
 
-test("la Scheda iniziativa importa tutti gli helper Class Feature usati nel render risorse", () => {
+test("la Scheda personaggio importa tutti gli helper Class Feature usati nel render risorse", () => {
   const coreImport = source.match(
     /import\s*\{([\s\S]*?)\}\s*from\s*"\.\/classFeatureCore\.js";/,
   )?.[1] || "";
@@ -94,7 +94,7 @@ test("la Scheda iniziativa importa tutti gli helper Class Feature usati nel rend
     "resolveClassFeatureResourceDie",
   ]) {
     assert.match(coreImport, new RegExp(`\\b${helper}\\b`), `${helper} deve essere importato da classFeatureCore.js`);
-    assert.match(source, new RegExp(`${helper}\\s*\\(`), `${helper} deve essere realmente usato dalla Scheda iniziativa`);
+    assert.match(source, new RegExp(`${helper}\\s*\\(`), `${helper} deve essere realmente usato dalla Scheda personaggio`);
   }
 });
 
