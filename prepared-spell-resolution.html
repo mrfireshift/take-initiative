@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Risolvi incantesimo</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
     <style>
       html, body {
         width: 100%;
@@ -63,21 +64,24 @@
       }
       #close {
         flex: none;
-        width: 22px;
-        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--obrt-close-size, 28px);
+        height: var(--obrt-close-size, 28px);
         padding: 0;
-        border: 1px solid rgba(196, 181, 253, .45);
-        border-radius: 6px;
-        background: rgba(15, 23, 42, .55);
+        border: 1px solid transparent;
+        border-radius: var(--obrt-close-radius, 8px);
+        background: transparent;
         color: rgba(248, 250, 252, .82);
         cursor: pointer;
-        font-size: 15px;
-        line-height: 18px;
+        font-size: var(--obrt-close-font, 18px);
+        line-height: 1;
       }
-      #close:hover { background: rgba(139, 92, 246, .5); }
+      #close:hover { background: var(--obrt-close-hover, rgba(255, 255, 255, .08)); }
       #spellName {
         overflow: hidden;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 16px;
         line-height: 1.1;
         text-overflow: ellipsis;

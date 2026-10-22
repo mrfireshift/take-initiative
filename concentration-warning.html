@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tiro di Concentrazione</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
     <link rel="stylesheet" href="/ui-scrollbars.css" />
     <style>
       html, body, #app { width: 100%; height: 100%; margin: 0; background: transparent; }
@@ -73,7 +74,7 @@
         align-items: center;
         justify-content: center;
         background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 16px;
         font-weight: 800;
         text-shadow: 0 2px 4px #000;
@@ -87,7 +88,7 @@
         margin-bottom: 2px;
         color: var(--accent);
         font-family: system-ui, -apple-system, sans-serif;
-        font-size: 8px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
         letter-spacing: .6px;
         line-height: 1.15;
@@ -96,7 +97,7 @@
       .title {
         margin: 0;
         overflow: hidden;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: clamp(13px, 2.5vw, 15px);
         font-weight: 800;
         line-height: 1.15;
@@ -121,7 +122,7 @@
       }
       .save-badge span {
         color: var(--accent);
-        font: 800 8px system-ui, sans-serif;
+        font: 800 10px system-ui, sans-serif;
         letter-spacing: .4px;
         text-transform: uppercase;
       }
@@ -173,14 +174,14 @@
         overflow: hidden;
         color: #fff;
         font-family: system-ui, -apple-system, sans-serif;
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
         letter-spacing: .2px;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
       .warning-multiple .name {
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 10px;
         font-weight: 800;
       }
@@ -188,7 +189,7 @@
         overflow: hidden;
         color: rgba(255, 255, 255, .50);
         font-family: system-ui, -apple-system, sans-serif;
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 500;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -197,7 +198,7 @@
         display: inline-flex;
         align-items: center;
         font-family: system-ui, -apple-system, sans-serif;
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
         line-height: 1.2;
         border: none;
         background: transparent;
@@ -220,14 +221,14 @@
         pointer-events: auto;
       }
       .resolution button {
-        min-height: 19px;
+        min-height: 24px;
         padding: 2px 6px;
         border: 1px solid rgba(255,255,255,.26);
         border-radius: 4px;
         background: rgba(4, 8, 13, .82);
         color: #fff;
         cursor: pointer;
-        font: 700 8.5px/1 system-ui, sans-serif;
+        font: 700 10px/1 system-ui, sans-serif;
         pointer-events: auto;
       }
       .resolution button:hover {
@@ -238,7 +239,7 @@
       .resolution-status {
         flex-basis: 100%;
         color: var(--accent);
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
       }
       .timer {

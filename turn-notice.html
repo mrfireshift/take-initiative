@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cambio Turno</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
     <link rel="stylesheet" href="/ui-scrollbars.css" />
     <style>
       html, body { width: 100%; height: 100%; margin: 0; background: transparent; }
@@ -125,7 +126,7 @@
         justify-content: center;
         background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
         color: #fff;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 35px;
         font-weight: 800;
         text-shadow: 0 2px 4px #000;
@@ -133,7 +134,7 @@
       .copy { position: relative; min-width: 0; z-index: 1; }
       .eyebrow {
         color: var(--accent);
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 10px;
         font-weight: 800;
         letter-spacing: .8px;
@@ -142,7 +143,7 @@
       .title {
         margin-top: 3px;
         overflow: hidden;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: clamp(18px, 3.5vw, 23px);
         font-weight: 800;
         line-height: 1.05;
@@ -154,8 +155,8 @@
         position: absolute;
         top: 14px;
         right: 15px;
-        width: 38px;
-        height: 38px;
+        width: 44px;
+        height: 44px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -169,8 +170,8 @@
         line-height: 1;
         z-index: 1;
       }
-      .round-badge span { color: var(--accent); font-size: 7px; font-weight: 900; letter-spacing: .4px; }
-      .round-badge strong { margin-top: 2px; font-family: Georgia, "Times New Roman", serif; font-size: 14px; }
+      .round-badge span { color: var(--accent); font-size: var(--obrt-type-micro, 10px); font-weight: 900; letter-spacing: 0; }
+      .round-badge strong { margin-top: 2px; font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif); font-size: 14px; }
       .next {
         position: relative;
         margin-top: 14px;
@@ -181,7 +182,7 @@
         z-index: 1;
       }
       .next span { margin-right: 5px; color: var(--accent); font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
-      .next strong { color: #fff; font-family: Georgia, "Times New Roman", serif; font-size: 11px; }
+      .next strong { color: #fff; font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif); font-size: 11px; }
       .timer {
         position: absolute;
         right: 0;
@@ -259,7 +260,7 @@
         align-items: center;
         justify-content: center;
         background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 15px;
         font-weight: 800;
         text-shadow: 0 2px 4px #000;
@@ -273,7 +274,7 @@
         margin-bottom: 2px;
         color: var(--accent);
         font-family: system-ui, -apple-system, sans-serif;
-        font-size: 8px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
         letter-spacing: .6px;
         line-height: 1.15;
@@ -295,7 +296,7 @@
         align-items: baseline;
         gap: 5px;
         overflow: hidden;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: clamp(13px, 2.5vw, 14.5px);
         font-weight: 800;
         line-height: 1.15;
@@ -312,7 +313,7 @@
         background: rgba(255, 255, 255, .08);
         color: rgba(255, 255, 255, .70);
         font-family: system-ui, -apple-system, sans-serif;
-        font-size: 9px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 700;
         line-height: 1.2;
         letter-spacing: 0;
@@ -320,7 +321,7 @@
       .zone-subtitle {
         margin-top: 1px;
         overflow: hidden;
-        font-size: 9.5px;
+        font-size: var(--obrt-type-micro, 10px);
         line-height: 1.2;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -332,7 +333,7 @@
       .zone-source {
         color: rgba(255, 255, 255, .46);
         font-weight: 500;
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
       }
       .zone-detail {
         position: relative;
@@ -352,7 +353,7 @@
       .zone-detail strong {
         flex: 1 1 100%;
         overflow: hidden;
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--obrt-font-display, Georgia, "Times New Roman", serif);
         font-size: 10px;
         font-weight: 800;
         text-overflow: ellipsis;
@@ -371,7 +372,7 @@
         align-items: center;
         color: rgba(255, 255, 255, .82);
         font-family: system-ui, -apple-system, sans-serif;
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 700;
         line-height: 1.2;
         border: none;
@@ -399,7 +400,7 @@
         flex: 1 1 100%;
         margin-top: 2px;
         color: rgba(255, 255, 255, .50);
-        font-size: 8px;
+        font-size: var(--obrt-type-micro, 10px);
         line-height: 1.25;
         letter-spacing: .05px;
         max-width: 440px;
@@ -430,10 +431,11 @@
         border-radius: 4px;
         background: rgba(4, 8, 13, .82);
         color: #fff;
-        font: 700 8.5px/1 system-ui, sans-serif;
+        font: 700 10px/1 system-ui, sans-serif;
         pointer-events: auto;
       }
       .zone-resolution button {
+        min-height: 24px;
         padding: 2px 6px;
         cursor: pointer;
       }
@@ -452,7 +454,7 @@
         align-items: center;
         gap: 3px;
         color: rgba(255,255,255,.76);
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 700;
       }
       .zone-resolution-damage input {
@@ -464,7 +466,7 @@
         display: block;
         flex-basis: 100%;
         color: var(--accent);
-        font-size: 8.5px;
+        font-size: var(--obrt-type-micro, 10px);
         font-weight: 800;
       }
       .zone-close {
@@ -515,7 +517,7 @@
         .notice { padding: 13px 54px 12px 88px; min-height: 114px; }
         .portrait { left: 11px; width: 66px; height: 66px; }
         .title { font-size: 18px; }
-        .round-badge { top: 12px; right: 12px; width: 36px; height: 36px; }
+        .round-badge { top: 12px; right: 12px; width: 42px; height: 42px; }
         .next { margin-top: 12px; }
         .zone-notice {
           min-height: 62px;

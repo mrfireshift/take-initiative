@@ -261,6 +261,15 @@ Può partire subito dopo la fase 2, in parallelo alle fasi 3 e 4: tocca file div
   - **Footer** con lo stesso bordo e la stessa spaziatura dove esiste: console, Incantesimi, Opzioni, Aure, HP condivisi, Fazioni.
   - `&times;` e `×` sono lo stesso carattere: markup invariato.
   - **Esclusi di proposito:** i popover di risoluzione degli incantesimi (`spell-popover.css`, tema viola con titoli in Georgia) e quello degli incantesimi preparati, da trattare con gli avvisi nel lotto 5.3; l'intestazione con ritratto della scheda personaggio; la `.zone-close` degli avvisi di turno, che è CSS non usato.
+- **5.3 — fatto il 2026-10-22.**
+  - **Pagine:** avvisi (turno, velocità, concentrazione, collegamento boss, zone) e popover di risoluzione (incantesimo attivo, incantesimi preparati, palla di fuoco ritardata, scelta dell'azione a turno, `spell-popover.css`).
+  - **`ui-typography.css` incluso** prima degli stili delle pagine, che mantengono la precedenza.
+  - **Nessun testo sotto i 10px:** 35 dichiarazioni portate a `--obrt-type-micro` (10px), contro i 7–9,5px di prima.
+  - **Titoli** su `--obrt-font-display`, che vale Georgia.
+  - **Badge del round/ciclo:** passano da 38–40px a 44px (42px su schermo stretto) e l'etichetta ha la spaziatura delle lettere a zero, così "ROUND" a 10px ci sta. A destra c'è il margine dell'avviso, quindi il badge non tocca il titolo.
+  - **Bottoni di risoluzione degli avvisi:** alti 24px (prima 19).
+  - **Popover di risoluzione:** chiusura 28px come le modali (prima 22–24px senza bordo); il disabilitato usa l'opacità comune. Il tema viola (`--obrt-spell-*`) resta.
+  - **Verifica:** l'avviso di turno aperto nell'anteprima con un messaggio simulato (round 12, nome lungo). Etichetta "ROUND" 37,6px nei 40px del badge, titolo che finisce 3px prima del badge, titolo in Georgia tramite il token, nessun testo sotto i 10px. Gli altri avvisi e i popover sono verificati solo sul CSS: le loro schede compatte (zone, tiri salvezza) vanno controllate in OBR, perché il testo più grande può allungarle.
 
 ### Fase 6 — Flussi e riduzione dei clic (gruppo B)
 
