@@ -178,7 +178,7 @@ test("TEST 7 — Fireball delayed scene switch: delayed explosion and updates ar
 
   const startEpoch = currentSceneEpoch();
 
-  // Fireball with source and destination produces a WebM plan with beam (immediate) and explosion (+3000ms)
+  // Fireball with source and destination produces a WebM plan with beam (immediate) and explosion (+2200ms)
   await emitFireballVisual({
     preview: {
       start: { x: 500, y: 500 },
@@ -195,7 +195,7 @@ test("TEST 7 — Fireball delayed scene switch: delayed explosion and updates ar
   await sleep(150);
   assert.equal(localCalls.addItems.length, 1, "Initial beam added on Scene A");
 
-  // Switch to Scene B before delayed explosion (scheduled for +3000ms)
+  // Switch to Scene B before delayed explosion (scheduled for +2200ms)
   invalidateSceneEpoch("switch-to-B-before-explosion");
   markSceneEpochReady("scene-B-ready");
 

@@ -1,9 +1,6 @@
 import OBR, { buildImage, buildPath, Command } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
-import {
-  emitFireballVisual as emitEmbersFireballVisual,
-  getCasterCenter,
-} from "./embersBridge.js";
+import { getCasterCenter } from "./embersBridge.js";
 import { isEmbersFireballItem } from "./embersFireballCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import {
@@ -519,17 +516,9 @@ export async function emitFireballVisual({
   });
   if (!event) return { sent: false, reason: "invalid-preview" };
 
-  // Embers resta un renderer opzionale: il suo broadcast parte in parallelo;
-  // l'evento locale non deve aspettarlo per iniziare il raggio.
-  void emitEmbersFireballVisual({
-    preview,
-    casterId,
-    eventId,
-    sceneEpoch: originEpoch,
-  }).catch((error) => {
-    console.warn("[fireball] optional Embers visual:", error?.message || error);
-  });
-
+  // Palla di Fuoco la disegna solo questo renderer, come tutte le altre visuali matched: un'estensione Embers
+  // installata che risponde dopo la sonda produceva un secondo raggio sfalsato, che sembrava un loop. Un raggio
+  // creato comunque da Embers (lanciato dalla sua interfaccia) resta riconosciuto e non viene duplicato.
   if (!isCurrentSceneEpoch(originEpoch)) {
     return { sent: false, reason: "stale-scene-epoch" };
   }

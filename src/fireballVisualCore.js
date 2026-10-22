@@ -4,6 +4,7 @@ export const FIREBALL_VISUAL_CHANNEL = `${ID}/fireball-visual`;
 export const FIREBALL_VISUAL_EVENT_TYPE = "fireball";
 export const FIREBALL_LOCAL_ANIMATION_MS = 1200;
 export const FIREBALL_WEBM_ANIMATION_MS = 4040;
+export const FIREBALL_EXPLOSION_DELAY_MS = 2200;
 export const FIREBALL_WEBM_EFFECT_DPI = 200;
 export const FIREBALL_ASSET_BASE_URL = "https://jb2a-free.s3.eu-west-3.amazonaws.com";
 
@@ -124,7 +125,8 @@ export function fireballVideoPlan(event) {
         offset: { x: 0.5, y: 0.5 },
       }
       : null,
-    explosionDelay: beamVariant ? 3000 : 0,
+    // The ball lands 2.2 s into the beam clip: the explosion starts then, not 0.8 s later.
+    explosionDelay: beamVariant ? FIREBALL_EXPLOSION_DELAY_MS : 0,
     duration: FIREBALL_WEBM_ANIMATION_MS,
   };
 }

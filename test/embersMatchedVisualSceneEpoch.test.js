@@ -446,7 +446,7 @@ test("TEST 6 — same-scene normal behavior: transient, persistent, and explicit
   await sleep(50);
   assert.equal(localCalls.addItems.length, 1, "Cure wounds added");
 
-  await sleep(2600);
+  await sleep(3200);
   assert.equal(localCalls.deleteItems.length, 1, "Cure wounds cleaned up");
 
   // 2. Persistent: added and stays

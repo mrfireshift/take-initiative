@@ -860,7 +860,7 @@ test("Lama Verdefiamma: fiamma sul bersaglio, salto dal bersaglio alla seconda c
   assert.deepEqual(event.layers.map((layer) => [layer.kind, layer.effectId, layer.targetId, layer.delay]), [
     ["circle", "impactFire", "target-1", 0],
     ["target", "greenProjectile", "target-2", 700],
-    ["circle", "impactFire", "target-2", 2000],
+    ["circle", "impactFire", "target-2", 1400],
   ]);
   assert.deepEqual(event.layers[1].source, { x: 750, y: 150 }, "the leap starts at the target, never at the caster");
   assert.deepEqual(cantripEvent("tasha-lama-verdefiamma").layers.map((layer) => layer.targetId), ["target-1"],
@@ -883,4 +883,16 @@ test("un clip non quadrato si centra sulla sua arte: il graffio di Ferocia Primo
   assert.deepEqual([plan.width, plan.height, plan.offset], [800, 600, { x: 400 / 600, y: 0.5 }]);
   const [whirl] = cantripEvent("tasha-turbine-di-spade").layers;
   assert.deepEqual(matchedVisualLayerPlan(whirl, 150).offset, { x: 0.5, y: 0.5 }, "the whirlwind is drawn around 300 px across");
+});
+
+test("Passo del Tuono: il tuono esplode sull'origine (3 m di raggio) mentre l'incantatore sparisce, la nebbia d'arrivo sulla destinazione", () => {
+  const event = buildMatchedVisualEvent({
+    spellId: "xanathar-passo-del-tuono", eventId: "thunder-step", lifecycleId: "thunder-step", casterId: "caster-1",
+    caster: { x: 600, y: 600, diameter: 150 }, targetIds: ["caster-1"], sceneDpi: 150,
+    preview: { type: "circle", origin: { x: 150, y: 150 }, destination: { x: 600, y: 600 }, start: { x: 600, y: 600 }, end: { x: 600, y: 600 } },
+  });
+  const layer = (id) => event.layers.find((entry) => entry.effectId === id);
+  assert.deepEqual(layer("mistyStepOut").center, { x: 150, y: 150 }, "the mist where the caster was");
+  assert.deepEqual([layer("thunderExplosion").center, layer("thunderExplosion").radius, layer("thunderExplosion").delay], [{ x: 150, y: 150 }, 375, 900]);
+  assert.deepEqual([layer("mistyStepIn").center, layer("mistyStepIn").delay], [{ x: 600, y: 600 }, 1500]);
 });

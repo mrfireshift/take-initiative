@@ -18,8 +18,8 @@ Le fonti operative sono:
 | --- | --- |
 | `src/embersMatchedVisualCore.js` | Mappa spell/capacità, blueprint, geometria, varianti e URL degli asset. |
 | `src/embersMatchedVisualRenderer.js` | Eventi matched, render di local item WebM, ancoraggi, lifecycle e cleanup. |
-| `src/fireballVisualRenderer.js` | Renderer dedicato di Fireball, fallback locale e coordinamento con Embers esterno. |
-| `src/embersBridge.js` / `src/embersFireballCore.js` | Protocollo esterno Embers per beam/esplosione di Fireball. |
+| `src/fireballVisualRenderer.js` | Renderer dedicato di Fireball (raggio ed esplosione in locale). |
+| `src/embersBridge.js` / `src/embersFireballCore.js` | Protocollo esterno Embers per Fireball; non più usato dal renderer, resta il centro del caster. |
 | `src/options/optionalRuntimeLifecycle.js` | Serializzazione di enable/disable e cleanup del runtime opzionale. |
 
 Lo stato canonico resta nei metadata dei token e nelle mutation degli effetti.
@@ -83,12 +83,34 @@ deve impedire la mutation canonica; il risultato è quindi best-effort.
 
 ### Fireball
 
-Fireball mantiene un percorso di compatibilità separato. Il bridge invia il
-protocollo esterno `eu.armindo.embers/effects` con gli effetti
-`fireball.beam` e `fireball.explosion`; il renderer controlla se Embers ha
-creato un nuovo item e, se non lo rileva, usa il proprio visual locale come
-fallback. Il fallback non cancella né ricrea item appartenenti all’estensione
-Embers.
+Fireball ha un renderer dedicato (`src/fireballVisualRenderer.js`), che parte
+prima del commit e disegna in locale il raggio e poi l'esplosione. L'esplosione
+parte a 2,2 s, quando la palla arriva nel clip del raggio.
+
+Il renderer non invia più nulla all'estensione Embers esterna: se Embers
+rispondeva dopo la sonda di 120 ms, i due renderer disegnavano due raggi
+sfalsati. La sonda resta, quindi un raggio creato da Embers stessa, lanciato
+dalla sua interfaccia, non viene duplicato. Il protocollo
+`eu.armindo.embers/effects` (`src/embersBridge.js`, `src/embersFireballCore.js`)
+resta nel codice, ma non è più usato.
+
+### Teletrasporti
+
+Passo Velato, Porta Dimensionale e Passo del Tuono animano il token come Embers:
+lo nascondono a 1 s, lo spostano a 1,5 s e lo mostrano a 3 s, con i timer che
+partono dentro la mutation. Per questo la visuale matched parte prima del commit
+(fase `pre-commit` in `spellAreaResolutionExecutor`), sullo stesso orologio dei
+timer del token. Passo del Tuono fa esplodere il tuono sull'origine, nel raggio
+di 3 m.
+
+### Tempi e durate
+
+Le durate del catalogo sono quelle reali dei clip, misurate. Una durata più
+lunga del clip lo fa ripartire, perché OBR riproduce i video in loop finché non
+vengono rimossi; una più corta lo taglia. I ritardi fra due layer seguono
+l'arrivo reale del proiettile o la fine dell'intro: per esempio la scintilla di
+Dardo Tracciante parte a 3,9 s, l'esplosione di Coltello di Ghiaccio a 1 s, il
+loop di Scudo della Fede a 1,5 s.
 
 ## Disattivazione e cleanup
 

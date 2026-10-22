@@ -158,7 +158,7 @@ const EFFECTS = freeze({
     "1st_Level/Burning_Hands/BurningHands_01_Regular_Orange", 600, 600, 600, 600, "600x600", 5570,
   ),
   cureWounds: circleEffect(
-    "1st_Level/Cure_Wounds/CureWounds_01_Blue", 200, 400, "400x400", 2470,
+    "1st_Level/Cure_Wounds/CureWounds_01_Blue", 200, 400, "400x400", 3067,
     [
       { distance: 200, width: 200, height: 200, suffix: "200x200" },
       { distance: 400, width: 400, height: 400, suffix: "400x400" },
@@ -294,7 +294,7 @@ const EFFECTS = freeze({
     "3rd_Level/Spirit_Guardians/SpiritGuardians_01_Light_BlueYellow", 200, 600, "600x600", 6250,
   ),
   rangedSpell: targetEffect(
-    "Generic/RangedSpell/02/RangedInstant02_01_Regular_Yellow", 200, [930, 1470, 1730, 1630, 1830],
+    "Generic/RangedSpell/02/RangedInstant02_01_Regular_Yellow", 200, [1500, 1733, 1833, 1833, 1933],
   ),
   portal: circleEffect(
     "Generic/Portals/Portal_Bright_Yellow_H", 100, 400, "400x400", 8042,
@@ -621,7 +621,8 @@ const VISUALS = freeze({
   "eldritch-blast": [target("eldritchBlast")],
   "fire-bolt": [target("fireBolt")],
   "ray-of-frost": [target("rayOfFrost")],
-  "sacred-flame": [circle("sacredFlameSource", "caster"), circle("sacredFlameTarget", "target", { delay: 3000 })],
+  // The target's column starts while the caster's flame peaks (its clip builds up for 2.5 s before the strike).
+  "sacred-flame": [circle("sacredFlameSource", "caster"), circle("sacredFlameTarget", "target", { delay: 1500 })],
   bless: [
     circle("blessIntro", "target", { attachedTo: "target" }),
     circle("blessLoop", "target", persistent({ delay: 4000, attachedTo: "target" })),
@@ -637,7 +638,7 @@ const VISUALS = freeze({
   grease: [circle("grease", "area", persistent())],
   "guiding-bolt": [
     target("guidingBolt"),
-    circle("glintMany", "target", persistent({ delay: 3500, attachedTo: "target" })),
+    circle("glintMany", "target", persistent({ delay: 3900, attachedTo: "target" })),
   ],
   "hunters-mark": [
     circle("huntersMarkPulse", "target"),
@@ -648,8 +649,8 @@ const VISUALS = freeze({
     circle("shieldLoop", "caster", persistent({ delay: 1100, scale: 1.5, attachedTo: "caster" })),
   ],
   "shield-of-faith": [
-    circle("shieldFaithIntro", "target", { attachedTo: "target" }),
-    circle("shieldFaithLoop", "target", persistent({ delay: 6200, attachedTo: "target" })),
+    circle("shieldFaithIntro", "target", { attachedTo: "target", duration: 1800 }),
+    circle("shieldFaithLoop", "target", persistent({ delay: 1500, attachedTo: "target" })),
   ],
   sleep: [circle("sleepSymbol", "target", persistent({ attachedTo: "target" }))],
   darkness: [circle("darkness", "area", persistent())],
@@ -728,9 +729,15 @@ const VISUALS = freeze({
     circle("genericMarkerPurple", "target", { scale: 2, layer: "PROP" }),
     circle("markerHorror", "target", persistent({ delay: 2000, attachedTo: "target" })),
   ],
-  "xanathar-coltello-di-ghiaccio": [target("daggerThrow"), circle("iceBurst", "target", { delay: 1500 })],
+  "xanathar-coltello-di-ghiaccio": [target("daggerThrow"), circle("iceBurst", "target", { delay: 1000 })],
   "phb2014-nube-di-pugnali": [circle("cloudOfDaggers", "area", persistent())],
-  "xanathar-passo-del-tuono": [circle("mistyStepOut", "caster"), circle("thunderExplosion", "area", { delay: 900 }), circle("mistyStepIn", "area", { delay: 1000 })],
+  // Like Misty Step on the token's clock (hidden at 1 s, shown at 3 s): the thunder bursts on the origin as the caster
+  // vanishes, the arrival mist peaks as it shows up.
+  "xanathar-passo-del-tuono": [
+    circle("mistyStepOut", "caster"),
+    circle("thunderExplosion", "caster", { delay: 900, radiusCells: 4 }),
+    circle("mistyStepIn", "area", { delay: 1500 }),
+  ],
   "xanathar-turbine": [circle("whirlwind", "area", persistent({
     attachedTo: "zone",
     layer: "DRAWING",
@@ -741,13 +748,13 @@ const VISUALS = freeze({
   // sends no loop.
   "chill-touch": [
     target("greenProjectile"),
-    circle("necromancyRuneLoop", "target", persistent({ delay: 1300, scale: 1.8, attachedTo: "target" })),
+    circle("necromancyRuneLoop", "target", persistent({ delay: 900, scale: 1.8, attachedTo: "target" })),
   ],
   "shocking-grasp": [
     circle("lightningBall", "target", { scale: 1.6 }),
     circle("staticElectricityLoop", "target", persistent({ delay: 1600, scale: 1.5, attachedTo: "target" })),
   ],
-  "produce-flame": [target("orangeProjectile"), circle("impactFire", "target", { delay: 1300, scale: 2 })],
+  "produce-flame": [target("orangeProjectile"), circle("impactFire", "target", { delay: 600, scale: 2 })],
   "phb2014-frusta-di-spine": [circle("thornRing", "target", { scale: 1.5 })],
   "xanathar-ferocia-primordiale": [circle("creatureClaw", "target", { scale: 2.4 })],
   "vicious-mockery": [
@@ -759,11 +766,11 @@ const VISUALS = freeze({
   "xanathar-infestazione": [circle("bats", "target", { scale: 1.7 })],
   "xanathar-morsa-del-gelo": [
     circle("snowflakeBurst", "target", { scale: 1.5 }),
-    circle("snowflakeLoop", "target", persistent({ delay: 2100, scale: 1.3, attachedTo: "target" })),
+    circle("snowflakeLoop", "target", persistent({ delay: 1200, scale: 1.3, attachedTo: "target" })),
   ],
   "tasha-scheggia-della-mente": [
     circle("genericHealingPurple", "target", { scale: 1.4 }),
-    circle("enchantmentRuneLoop", "target", persistent({ delay: 1400, scale: 1.6, attachedTo: "target" })),
+    circle("enchantmentRuneLoop", "target", persistent({ delay: 1100, scale: 1.6, attachedTo: "target" })),
   ],
   "tasha-lenza-elettrizzante": [target("witchBolt")],
   "tasha-lama-roboante": [
@@ -774,7 +781,7 @@ const VISUALS = freeze({
   "tasha-lama-verdefiamma": [
     circle("impactFire", "target", { targets: "first", scale: 2 }),
     chain("greenProjectile", "greenProjectile", { delay: 700, skipPrimary: true }),
-    circle("impactFire", "target", { targets: "others", delay: 2000, scale: 2 }),
+    circle("impactFire", "target", { targets: "others", delay: 1400, scale: 2 }),
   ],
   // Emanations of 1.5 m around the caster: the clip covers the caster's square and the eight around it.
   "xanathar-parola-radiosa": [
@@ -1144,7 +1151,7 @@ export function buildMatchedVisualEvent({
   const casterTarget = normalizedTargets.find((targetValue) => (
     normalizedCasterId && targetValue.id === normalizedCasterId
   ));
-  const teleportOrigin = ["misty-step", "dimension-door"].includes(normalizedSpellId)
+  const teleportOrigin = ["misty-step", "dimension-door", "xanathar-passo-del-tuono"].includes(normalizedSpellId)
     ? previewData?.origin
     : null;
   const source = teleportOrigin

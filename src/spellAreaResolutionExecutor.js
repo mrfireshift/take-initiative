@@ -2098,6 +2098,7 @@ export async function executeSpellAreaResolution(
   let addedNextZone = false;
   let canonicalCommitted = false;
   let suppressMatchedVisual = false;
+  let teleportVisualSent = false;
   let teleportHistoryPending = false;
   const sceneEpoch = plan.operationSceneEpoch;
   const optimisticUpdates = plan.sharedHpPreview.groups.length ? plan.sharedHpPreview.updates : quickHPVisualUpdates(entries);
@@ -2151,6 +2152,15 @@ export async function executeSpellAreaResolution(
         ...extraOperations,
       ];
       const coordinatedSideEffects = spellBoardTokenSideEffects;
+      // The teleport side effect starts its token timers (hide 1 s, move 1.5 s, show 3 s) inside the mutation: the
+      // matched visual starts now, like Fireball's, so the mist and the token run on the same clock.
+      if (plan.matchedVisualContext) {
+        teleportVisualSent = true;
+        visualEvents.push({ type: "matched-spell", phase: "pre-commit", spellId: plan.spell.id });
+        void runtime.emitMatchedSpellVisual(plan.matchedVisualContext).catch((error) => {
+          warnings.push(normalizedError(error, "matched-spell-visual"));
+        });
+      }
       const mutation = await runtime.runEffectsMutation(operations, {
         sharedHp: command.sharedHp,
         history: {
@@ -2408,7 +2418,7 @@ export async function executeSpellAreaResolution(
     });
   }
 
-  if (plan.matchedVisualContext && !suppressMatchedVisual) {
+  if (plan.matchedVisualContext && !suppressMatchedVisual && !teleportVisualSent) {
     visualEvents.push({ type: "matched-spell", phase: "post-commit", spellId: plan.spell.id });
     void runtime.emitMatchedSpellVisual(plan.matchedVisualContext).catch((error) => {
       warnings.push(normalizedError(error, "matched-spell-visual"));

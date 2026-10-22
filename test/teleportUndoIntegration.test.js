@@ -771,3 +771,31 @@ test("Dimension Door stale non applica il comando alla scena successiva", async 
   );
   assert.equal((await history.getHistoryEntries()).length, 0);
 });
+
+test("Dimension Door: il VFX parte prima del commit, sullo stesso orologio dei timer del token, e una sola volta", async () => {
+  const origin = { x: 0, y: 0 };
+  const destination = { x: 600, y: 300 };
+  resetScene(dimensionDoorToken("dimension-caster", origin));
+  const command = dimensionDoorCommand({ destination, commandId: "dimension-door-vfx-timing-command" });
+  const emitted = [];
+  const result = await executeSpellAreaResolution(command, {
+    getItems: sdkStub.scene.items.getItems,
+    updateItems: sdkStub.scene.items.updateItems,
+    getSceneMetadata: sdkStub.scene.getMetadata,
+    currentSceneEpoch,
+    isCurrent: () => true,
+    syncHPVisuals: async () => {},
+    readAuthoritativeHPVisualUpdates: async () => [],
+    syncHPBatchToMemory: async () => {},
+    emitFireballVisual: async () => {},
+    emitMatchedSpellVisual: async (context) => {
+      emitted.push({ spellId: context.spellId, historyEntries: (await history.getHistoryEntries()).length });
+    },
+    onConcentrationWarnings: async () => {},
+    onEffectSaveWarnings: async () => {},
+  });
+  assert.equal(result.status, "applied", JSON.stringify(result));
+  assert.deepEqual(emitted, [{ spellId: "dimension-door", historyEntries: 0 }], "sent once, before the mutation committed");
+  assert.deepEqual(result.visualEvents.filter((event) => event.type === "matched-spell").map((event) => event.phase), ["pre-commit"]);
+  assert.equal((await history.getHistoryEntries()).length, 1);
+});

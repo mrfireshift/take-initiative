@@ -59,7 +59,7 @@ test("replica il piano video WebM di Embers con beam, ritardo e dimensioni coere
     dpi: 150,
   });
 
-  assert.equal(plan.explosionDelay, 3000);
+  assert.equal(plan.explosionDelay, 2200, "the explosion starts as the ball lands, 2.2 s into the beam clip");
   assert.equal(plan.duration, 4040);
   assert.equal(plan.explosion.width, 800);
   assert.equal(plan.explosion.height, 800);
