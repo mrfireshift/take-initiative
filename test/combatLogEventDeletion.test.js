@@ -138,6 +138,36 @@ test("export recalculates the event count after cleaning an imported session", a
   assert.equal(direct.session.eventCount, 1);
 });
 
+test("several events are deleted in one transaction with one notification; missing or foreign ones are skipped", async () => {
+  const session = await log.startCombatLogSession("Selezione");
+  await append("batch-a");
+  await append("batch-b");
+  await append("batch-keep");
+  const other = await log.startCombatLogSession("Altra selezione");
+  await log.activateCombatLogSession(other.id);
+  await append("batch-foreign");
+  const before = notifications;
+  const deleted = await log.deleteCombatLogEvents(session.id, ["batch-a", "batch-b", "batch-a", "missing", "batch-foreign"]);
+  assert.deepEqual([...deleted].sort(), ["batch-a", "batch-b"]);
+  assert.equal(notifications, before + 1);
+  assert.deepEqual((await log.getCombatLogEvents(session.id)).map((event) => event.id), ["batch-keep"]);
+  assert.deepEqual((await log.getCombatLogEvents(other.id)).map((event) => event.id), ["batch-foreign"]);
+  assert.deepEqual(await log.deleteCombatLogEvents(session.id, ["batch-a"]), [], "a repeated deletion is a no-op");
+  assert.equal(notifications, before + 1);
+  // The suppression list keeps a retry from recreating them.
+  await log.activateCombatLogSession(session.id);
+  assert.equal((await append("batch-b")).length, 0);
+});
+
+test("only a GM may delete several events", async () => {
+  const session = await log.startCombatLogSession("Permessi selezione");
+  await append("guarded-batch");
+  role = "PLAYER";
+  await assert.rejects(log.deleteCombatLogEvents(session.id, ["guarded-batch"]), /Solo il GM/);
+  role = "GM";
+  assert.equal((await log.getCombatLogEvents(session.id)).length, 1);
+});
+
 test("cleanup remains available with automatic recording disabled", async () => {
   const session = await log.startCombatLogSession("Disabilitato");
   await append("disabled-recording-event");

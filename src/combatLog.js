@@ -1094,6 +1094,73 @@ export async function deleteCombatLogEvent(
   });
 }
 
+// Several events at once (the log's selection mode): one transaction, one suppression-list write, one notification.
+// Same rules as deleteCombatLogEvent; returns the IDs actually deleted (events of other sessions are skipped).
+export async function deleteCombatLogEvents(
+  sessionId,
+  eventIds,
+  { sceneEpoch = currentSceneEpoch() } = {},
+) {
+  const ids = [...new Set((Array.isArray(eventIds) ? eventIds : []).map((id) => String(id || "").trim()).filter(Boolean))];
+  if (!isSceneEpochCurrent(sceneEpoch)) return [];
+  if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM può eliminare eventi dal registro.");
+  if (!isSceneEpochCurrent(sceneEpoch)) return [];
+  if (!sessionId || !ids.length) throw new Error("Registro o eventi non validi.");
+  return queueWrite(async () => {
+    if (!isSceneEpochCurrent(sceneEpoch)) return [];
+    const db = await openDatabase();
+    if (!isSceneEpochCurrent(sceneEpoch)) return [];
+    const deletedIds = [];
+    await new Promise((resolve, reject) => {
+      let stale = false;
+      const tx = db.transaction([SESSION_STORE, EVENT_STORE], "readwrite");
+      const sessions = tx.objectStore(SESSION_STORE);
+      const events = tx.objectStore(EVENT_STORE);
+      const abortIfStale = () => {
+        if (isSceneEpochCurrent(sceneEpoch)) return false;
+        stale = true;
+        tx.abort();
+        return true;
+      };
+      const sessionRequest = sessions.get(sessionId);
+      sessionRequest.onsuccess = () => {
+        if (abortIfStale() || !sessionRequest.result) return;
+        const session = sessionRequest.result;
+        let pending = ids.length;
+        const settle = () => {
+          pending -= 1;
+          if (pending > 0 || !deletedIds.length || stale) return;
+          sessions.put({
+            ...session,
+            deletedEventIds: [...new Set([...(Array.isArray(session.deletedEventIds) ? session.deletedEventIds : []), ...deletedIds])],
+            updatedAt: Date.now(),
+          });
+        };
+        for (const eventId of ids) {
+          const eventRequest = events.get(eventId);
+          eventRequest.onsuccess = () => {
+            if (abortIfStale()) return;
+            const event = eventRequest.result;
+            if (event && event.sessionId === sessionId) {
+              events.delete(eventId);
+              deletedIds.push(eventId);
+            }
+            settle();
+          };
+        }
+      };
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(storageFailure(tx.error, "Eliminazione eventi fallita."));
+      tx.onabort = () => stale
+        ? resolve()
+        : reject(storageFailure(tx.error, "Eliminazione eventi annullata."));
+    });
+    if (!deletedIds.length || !isSceneEpochCurrent(sceneEpoch)) return [];
+    await notifyChange("event-delete", sessionId, { sceneEpoch });
+    return isSceneEpochCurrent(sceneEpoch) ? deletedIds : [];
+  });
+}
+
 export async function clearCombatLogSession(
   sessionId,
   { sceneEpoch = currentSceneEpoch() } = {},

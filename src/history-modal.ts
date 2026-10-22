@@ -13,6 +13,7 @@ import {
   activateCombatLogSession,
   clearCombatLogSession,
   deleteCombatLogEvent,
+  deleteCombatLogEvents,
   deleteCombatLogSession,
   exportCombatLogJSONFromStorage,
   getCombatLogExportData,
@@ -115,6 +116,12 @@ const combatLogUiState = {
   collapsedRounds: new Set<string>(),
   collapsedTurns: new Set<string>(),
   expandedEvents: new Set<string>(),
+  // Selection mode: several entries deleted together.
+  selecting: false,
+  selectedEvents: new Set<string>(),
+  // Open delete confirmations survive the re-renders a scene change triggers.
+  confirmDeleteEventId: "",
+  confirmingSelectionDelete: false,
   timelineScrollTop: 0,
   focusControl: "",
   selectionStart: null as number | null,
@@ -513,7 +520,22 @@ function appendDetailSections(parent: HTMLElement, event: any) {
   parent.appendChild(technical);
 }
 
-function makeEventRow(event: any, onDelete: (event: any) => Promise<void>) {
+// Selection mode of the timeline: a checkbox replaces the trash button and a click on the row toggles it.
+type EventRowSelection = { active: boolean; selected: boolean; onToggle: (event: any, selected: boolean) => void };
+
+function bindRowSelection(row: HTMLElement, top: HTMLElement) {
+  row.style.cursor = "pointer";
+  row.addEventListener("click", (click) => {
+    const checkbox = top.querySelector('[data-combat-log-control="select-event"]') as HTMLInputElement | null;
+    if (!checkbox || checkbox.disabled || click.target === checkbox) return;
+    // In selection mode a click selects the row instead of opening its details.
+    click.preventDefault();
+    checkbox.checked = !checkbox.checked;
+    checkbox.dispatchEvent(new Event("change"));
+  });
+}
+
+function makeEventRow(event: any, onDelete: (event: any) => Promise<void>, selection: EventRowSelection | null = null) {
   const meta = getCombatLogCategoryMeta(event?.category);
   const time = formatCombatLogTimestamp(event?.at, { timeOnly: true });
   const top = document.createElement("div");
@@ -527,34 +549,82 @@ function makeEventRow(event: any, onDelete: (event: any) => Promise<void>) {
   Object.assign(timestamp.style, { marginLeft: "auto", flex: "0 0 auto", color: "rgba(255,255,255,.5)", fontSize: "var(--obrt-type-caption, 10px)", fontWeight: "var(--obrt-weight-regular, 400)" });
   top.append(categoryBadge(event), label, timestamp);
 
+  const selecting = !!selection?.active;
+  if (selecting) {
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = !!selection?.selected;
+    checkbox.dataset.combatLogControl = "select-event";
+    checkbox.setAttribute("aria-label", `Seleziona: ${event?.title || "Evento"}`);
+    checkbox.disabled = combatLogStorageAction || combatLogPageLoading || !sceneLifecycle.isReady();
+    Object.assign(checkbox.style, { width: "14px", height: "14px", margin: "0", flex: "0 0 auto", accentColor: "#f87171", cursor: "pointer" });
+    const paintSelected = () => {
+      const row = top.closest("[data-event-id]") as HTMLElement | null;
+      if (row) row.style.boxShadow = checkbox.checked ? "inset 0 0 0 1px rgba(248,113,113,.6)" : "";
+    };
+    checkbox.addEventListener("click", (click) => click.stopPropagation());
+    checkbox.addEventListener("change", () => {
+      paintSelected();
+      selection?.onToggle(event, checkbox.checked);
+    });
+    queueMicrotask(paintSelected);
+    top.prepend(checkbox);
+  }
+
+  // Delete: the trash button turns into a compact inline confirmation on the same line (Elimina · ✕, Esc cancels).
   const remove = button("Elimina evento dal log", "danger", "log-delete.svg", true);
   remove.dataset.combatLogControl = "delete-event";
   remove.title = "Elimina questa voce dal log";
   remove.disabled = combatLogStorageAction || combatLogPageLoading || !sceneLifecycle.isReady();
-  Object.assign(remove.style, { minHeight: "26px", height: "26px", width: "26px", minWidth: "26px", flex: "0 0 auto" });
-  top.appendChild(remove);
-  const confirmation = document.createElement("div");
+  Object.assign(remove.style, { minHeight: "24px", height: "24px", width: "24px", minWidth: "24px", flex: "0 0 auto", borderRadius: "7px" });
+  const confirmation = document.createElement("span");
   confirmation.dataset.combatLogDeleteConfirmation = String(event?.id || "");
-  Object.assign(confirmation.style, { display: "none", alignItems: "center", flexWrap: "wrap", gap: "5px", padding: "5px 0" });
-  const question = document.createElement("span");
-  question.textContent = "Eliminare definitivamente questa voce dal log?";
-  Object.assign(question.style, { fontSize: "var(--obrt-type-secondary, 11px)", overflowWrap: "anywhere" });
-  const cancel = button("Annulla");
-  const confirm = button("Elimina evento", "danger");
-  confirmation.append(question, cancel, confirm);
+  confirmation.setAttribute("role", "group");
+  confirmation.setAttribute("aria-label", "Eliminare definitivamente questa voce dal log?");
+  confirmation.title = "Eliminare definitivamente questa voce dal log?";
+  Object.assign(confirmation.style, { display: "none", alignItems: "center", gap: "4px", flex: "0 0 auto" });
+  const cancel = button("Annulla", "default", "", true);
+  cancel.textContent = "✕";
+  cancel.setAttribute("aria-label", "Annulla");
+  cancel.title = "Annulla";
+  const confirm = button("Elimina", "danger");
+  for (const control of [cancel, confirm]) {
+    Object.assign(control.style, { minHeight: "24px", height: "24px", borderRadius: "7px", fontSize: "var(--obrt-type-caption, 10px)" });
+  }
+  Object.assign(cancel.style, { width: "24px", minWidth: "24px", padding: "0" });
+  Object.assign(confirm.style, { padding: "0 8px" });
+  confirmation.append(confirm, cancel);
+  if (!selecting) top.append(remove, confirmation);
+  const closeConfirmation = () => {
+    combatLogUiState.confirmDeleteEventId = "";
+    confirmation.style.display = "none";
+    remove.style.display = "";
+    remove.disabled = false;
+    remove.focus();
+  };
+  const openConfirmation = (focus: boolean) => {
+    combatLogUiState.confirmDeleteEventId = String(event?.id || "");
+    confirmation.style.display = "inline-flex";
+    remove.style.display = "none";
+    remove.disabled = true;
+    if (focus) confirm.focus();
+  };
   remove.addEventListener("click", (click) => {
     click.preventDefault();
     click.stopPropagation();
-    confirmation.style.display = "flex";
-    remove.disabled = true;
-    confirm.focus();
+    openConfirmation(true);
   });
+  if (!selecting && !remove.disabled && event?.id && combatLogUiState.confirmDeleteEventId === String(event.id)) openConfirmation(false);
   cancel.addEventListener("click", (click) => {
     click.preventDefault();
     click.stopPropagation();
-    confirmation.style.display = "none";
-    remove.disabled = false;
-    remove.focus();
+    closeConfirmation();
+  });
+  confirmation.addEventListener("keydown", (key: KeyboardEvent) => {
+    if (key.key !== "Escape") return;
+    key.preventDefault();
+    key.stopPropagation();
+    closeConfirmation();
   });
   confirm.addEventListener("click", async (click) => {
     click.preventDefault();
@@ -581,7 +651,8 @@ function makeEventRow(event: any, onDelete: (event: any) => Promise<void>) {
       borderRadius: "7px",
       background: "rgba(15,23,42,.46)",
     });
-    boundary.append(top, confirmation);
+    boundary.append(top);
+    if (selecting) bindRowSelection(boundary, top);
     const boundarySummary = document.createElement("div");
     boundarySummary.textContent = String(event?.summary || "");
     Object.assign(boundarySummary.style, { color: "rgba(255,255,255,.58)", fontSize: "var(--obrt-type-caption, 10px)", overflowWrap: "anywhere" });
@@ -609,7 +680,8 @@ function makeEventRow(event: any, onDelete: (event: any) => Promise<void>) {
   summary.setAttribute("aria-label", `${event?.title || "Evento"} · ${event?.categoryLabel || meta.label} · ${event?.summary || ""}`);
   summary.setAttribute("aria-expanded", String(details.open));
   Object.assign(summary.style, { display: "grid", gap: "3px", padding: "7px 8px", cursor: "pointer", listStylePosition: "inside" });
-  summary.append(top, confirmation);
+  summary.append(top);
+  if (selecting) bindRowSelection(summary, top);
   const essential = document.createElement("div");
   essential.textContent = String(event?.summary || "");
   Object.assign(essential.style, { color: "rgba(255,255,255,.7)", fontSize: "var(--obrt-type-secondary, 11px)", lineHeight: "1.35", overflowWrap: "anywhere" });
@@ -1599,9 +1671,103 @@ async function render(
     }
   });
 
+  const compact = (control: HTMLButtonElement) => {
+    Object.assign(control.style, { minHeight: "24px", height: "24px", padding: "0 8px", borderRadius: "7px", fontSize: "var(--obrt-type-caption, 10px)" });
+    return control;
+  };
+  const selectToggle = compact(button(combatLogUiState.selecting ? "Fine" : "Seleziona", combatLogUiState.selecting ? "primary" : "default"));
+  selectToggle.dataset.combatLogControl = "select-mode";
+  selectToggle.title = combatLogUiState.selecting ? "Esci dalla selezione" : "Seleziona più voci da eliminare insieme";
+  selectToggle.setAttribute("aria-pressed", String(combatLogUiState.selecting));
+  selectToggle.style.marginLeft = "auto";
+  selectToggle.disabled = !session?.id || !sceneLifecycle.isReady();
+
   const projectionRow = document.createElement("div");
   projectionRow.className = "history-projection-row";
-  projectionRow.append(pageControls, projectionSummary);
+  projectionRow.append(pageControls, projectionSummary, selectToggle);
+
+  // Selection bar: count, all/none of the visible entries, delete with an inline confirmation.
+  const selectionBar = document.createElement("div");
+  selectionBar.className = "history-selection-bar";
+  selectionBar.dataset.combatLogControl = "selection-bar";
+  selectionBar.hidden = !combatLogUiState.selecting;
+  const selectionCount = document.createElement("span");
+  selectionCount.className = "history-selection-count";
+  const selectAll = compact(button("Tutti"));
+  selectAll.title = "Seleziona tutte le voci visibili";
+  const selectNone = compact(button("Nessuno"));
+  selectNone.title = "Deseleziona tutto";
+  const deleteSelected = compact(button("Elimina", "danger", "log-delete.svg"));
+  deleteSelected.dataset.combatLogControl = "delete-selected";
+  const deleteSelectedConfirm = compact(button("Conferma", "danger"));
+  const deleteSelectedCancel = compact(button("Annulla", "default", "", true));
+  deleteSelectedCancel.textContent = "✕";
+  deleteSelectedCancel.title = "Annulla";
+  Object.assign(deleteSelectedCancel.style, { width: "24px", minWidth: "24px", padding: "0" });
+  deleteSelectedConfirm.hidden = true;
+  deleteSelectedCancel.hidden = true;
+  deleteSelected.style.marginLeft = "auto";
+  selectionBar.append(selectionCount, selectAll, selectNone, deleteSelected, deleteSelectedConfirm, deleteSelectedCancel);
+
+  const setDeleteSelectedConfirming = (confirming: boolean, focus = true) => {
+    combatLogUiState.confirmingSelectionDelete = confirming;
+    deleteSelected.hidden = confirming;
+    deleteSelectedConfirm.hidden = !confirming;
+    deleteSelectedCancel.hidden = !confirming;
+    if (confirming && focus) deleteSelectedConfirm.focus();
+  };
+  const syncSelectionBar = () => {
+    const count = combatLogUiState.selectedEvents.size;
+    const busy = combatLogStorageAction || combatLogPageLoading || !sceneLifecycle.isReady();
+    selectionCount.textContent = count === 1 ? "1 voce selezionata" : `${count} voci selezionate`;
+    deleteSelected.disabled = busy || count === 0;
+    deleteSelectedConfirm.disabled = busy || count === 0;
+    const label = deleteSelected.querySelector("[data-button-label]");
+    if (label) label.textContent = count ? `Elimina ${count}` : "Elimina";
+    deleteSelectedConfirm.textContent = `Elimina ${count} ${count === 1 ? "voce" : "voci"}`;
+    setDeleteSelectedConfirming(combatLogUiState.selecting && count > 0 && combatLogUiState.confirmingSelectionDelete, false);
+  };
+  const toggleEventSelection = (event: any, selected: boolean) => {
+    const id = String(event?.id || "");
+    if (!id) return;
+    if (selected) combatLogUiState.selectedEvents.add(id);
+    else combatLogUiState.selectedEvents.delete(id);
+    syncSelectionBar();
+  };
+  const rerenderKeepingScroll = () => {
+    const previousScrollTop = timeline.scrollTop;
+    renderTimeline();
+    timeline.scrollTop = previousScrollTop;
+  };
+  selectToggle.addEventListener("click", () => {
+    combatLogUiState.selecting = !combatLogUiState.selecting;
+    combatLogUiState.selectedEvents.clear();
+    combatLogUiState.confirmingSelectionDelete = false;
+    combatLogUiState.confirmDeleteEventId = "";
+    void scheduleRender();
+  });
+  selectAll.addEventListener("click", () => {
+    for (const row of timeline.querySelectorAll<HTMLElement>("[data-event-id]")) {
+      if (row.dataset.eventId) combatLogUiState.selectedEvents.add(row.dataset.eventId);
+    }
+    rerenderKeepingScroll();
+  });
+  selectNone.addEventListener("click", () => {
+    combatLogUiState.selectedEvents.clear();
+    rerenderKeepingScroll();
+  });
+  deleteSelected.addEventListener("click", () => setDeleteSelectedConfirming(true));
+  deleteSelectedCancel.addEventListener("click", () => {
+    setDeleteSelectedConfirming(false);
+    deleteSelected.focus();
+  });
+  selectionBar.addEventListener("keydown", (key: KeyboardEvent) => {
+    if (key.key !== "Escape" || deleteSelectedConfirm.hidden) return;
+    key.preventDefault();
+    key.stopPropagation();
+    setDeleteSelectedConfirming(false);
+    deleteSelected.focus();
+  });
 
   const timelineMore = button("Mostra altri eventi");
   timelineMore.dataset.combatLogControl = "timeline-more";
@@ -1624,6 +1790,7 @@ async function render(
     try {
       const deleted = await deleteCombatLogEvent(session?.id, event?.id, { sceneEpoch: operation.epoch });
       if (!sceneLifecycle.isCurrent(operation)) return;
+      combatLogUiState.confirmDeleteEventId = "";
       if (deleted) combatLogUiState.expandedEvents.delete(String(event?.id || ""));
       resultMessage = deleted
         ? "Evento eliminato dal log. La scena e il journal Undo non sono stati modificati."
@@ -1635,6 +1802,32 @@ async function render(
       if (sceneLifecycle.isCurrent(operation)) await scheduleRender(resultMessage);
     }
   };
+
+  deleteSelectedConfirm.addEventListener("click", async () => {
+    const ids = [...combatLogUiState.selectedEvents];
+    if (!ids.length || combatLogStorageAction || combatLogPageLoading || !sceneLifecycle.isCurrent(operation)) return;
+    combatLogStorageAction = true;
+    syncCombatLogPageControls();
+    syncSelectionBar();
+    let resultMessage = "";
+    try {
+      const deletedIds = await deleteCombatLogEvents(session?.id, ids, { sceneEpoch: operation.epoch });
+      if (!sceneLifecycle.isCurrent(operation)) return;
+      for (const id of deletedIds) {
+        combatLogUiState.expandedEvents.delete(id);
+        combatLogUiState.selectedEvents.delete(id);
+      }
+      if (deletedIds.length) combatLogUiState.selecting = false;
+      resultMessage = deletedIds.length
+        ? `${deletedIds.length === 1 ? "1 evento eliminato" : `${deletedIds.length} eventi eliminati`} dal log. La scena e il journal Undo non sono stati modificati.`
+        : "Gli eventi selezionati non sono più presenti nel registro.";
+    } catch (error: any) {
+      resultMessage = `Eliminazione eventi fallita: ${error?.message || error}`;
+    } finally {
+      combatLogStorageAction = false;
+      if (sceneLifecycle.isCurrent(operation)) await scheduleRender(resultMessage);
+    }
+  });
 
   const renderTimeline = () => {
     timeline.replaceChildren();
@@ -1661,6 +1854,11 @@ async function render(
     );
     const visibleEvents = timelineWindow.events;
     const visibleEventIds = new Set(visibleEvents.map((event) => String(event?.id || "")));
+    // Only visible entries can stay selected: a filter never deletes what the GM cannot see.
+    for (const id of [...combatLogUiState.selectedEvents]) {
+      if (!visibleEventIds.has(id)) combatLogUiState.selectedEvents.delete(id);
+    }
+    syncSelectionBar();
     const visibleSuffix = timelineWindow.hasMore
       ? ` · ${visibleEvents.length} più recenti`
       : "";
@@ -1752,7 +1950,16 @@ async function render(
         });
         const turnBody = document.createElement("div");
         Object.assign(turnBody.style, { display: "grid", gap: "5px", padding: "0 5px 5px" });
-        for (const event of [...turn.events].reverse()) turnBody.appendChild(makeEventRow(event, deleteEvent));
+        for (const event of [...turn.events].reverse()) {
+          const selection = combatLogUiState.selecting
+            ? {
+              active: true,
+              selected: combatLogUiState.selectedEvents.has(String(event?.id || "")),
+              onToggle: toggleEventSelection,
+            }
+            : null;
+          turnBody.appendChild(makeEventRow(event, deleteEvent, selection));
+        }
         turnDetails.append(turnSummary, turnBody);
         roundBody.appendChild(turnDetails);
       }
@@ -1785,7 +1992,7 @@ async function render(
     overflow: "hidden",
   });
 
-  logPanel.append(sessionBar, clearConfirmation, deleteConfirmation, filters, projectionRow, timeline, noteForm, status);
+  logPanel.append(sessionBar, clearConfirmation, deleteConfirmation, filters, projectionRow, selectionBar, timeline, noteForm, status);
 
   const undoPanel = makeUndoPanel(undoState, async (undoMessage) => scheduleRender(undoMessage));
   Object.assign(undoPanel.style, {

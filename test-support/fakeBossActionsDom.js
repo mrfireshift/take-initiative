@@ -18,6 +18,14 @@ export class FakeNode {
     }
   }
   appendChild(node) { this.append(node); return node; }
+  prepend(node) {
+    if (node.parentNode) node.parentNode.removeChild(node);
+    node.parentNode = this; this.children.unshift(node);
+  }
+  closest(selector) {
+    for (let node = this; node; node = node.parentNode) if (node.matches?.(selector)) return node;
+    return null;
+  }
   removeChild(node) { const index = this.children.indexOf(node); if (index >= 0) { this.children.splice(index, 1); node.parentNode = null; } return node; }
   replaceChildren(...nodes) { [...this.children].forEach((child) => this.removeChild(child)); this.append(...nodes); }
   replaceWith(node) {
