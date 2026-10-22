@@ -123,7 +123,9 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
     };
   }
 
-  async function resume(input, isCurrent, { canonicalCommitted = false } = {}) {
+  // deferHistory (a command with deferRecoveryHistory): stop at HISTORY_PENDING and answer the caller; the
+  // History append and the cleanup run later on the Effects lane (recover), behind the existing Undo barrier.
+  async function resume(input, isCurrent, { canonicalCommitted = false, deferHistory = false } = {}) {
     let record = clone(input);
     if (!compatible(record)) return null;
     try {
@@ -133,7 +135,10 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
         check(isCurrent);
         if (state === "before") { await remove(record, isCurrent); return null; }
         if (state !== "after") throw new Error("recovery-canonical-conflict");
-        record = await save({ ...record, phase: "CANONICAL_COMMITTED" }, isCurrent);
+        // Without side effects HISTORY_PENDING always follows CANONICAL_COMMITTED: a deferred command writes it
+        // at once, one scene write less, with the same crash window after the canonical commit.
+        const skipToHistory = deferHistory && !record.sideEffects.length;
+        record = await save({ ...record, phase: skipToHistory ? "HISTORY_PENDING" : "CANONICAL_COMMITTED" }, isCurrent);
       }
       if (record.phase !== "HISTORY_PENDING" && record.phase !== "COMPLETE") {
         for (let index = 0; index < record.sideEffects.length; index++) {
@@ -144,6 +149,10 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
           record = await save({ ...record, phase: "SIDE_EFFECTS_PENDING", completedSideEffects: [...record.completedSideEffects, identity] }, isCurrent);
         }
         record = await save({ ...record, phase: "HISTORY_PENDING" }, isCurrent);
+      }
+      if (deferHistory && record.phase === "HISTORY_PENDING") {
+        retryable.add(record.commandId);
+        return result(record, false);
       }
       if (record.phase !== "COMPLETE") {
         check(isCurrent);
@@ -179,6 +188,12 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
     }
     const receipt = Array.isArray(store?.receipts) ? store.receipts.find((entry) => entry.commandId === command.commandId && entry.roomId === currentRoom()) : null;
     if (scope && receipt) return { status: "applied", committed: true, duplicate: true, historyEntryId: receipt.historyEntryId, historyEntry: { id: receipt.historyEntryId }, historyPending: false, changedIds: [], changes: [] };
+    // A command that records its History at once first completes the deferred ones, so the History keeps the
+    // order of the commits; another deferred command does not wait.
+    if (command.deferRecoveryHistory !== true
+      && Object.values(store?.records || {}).some((pending) => compatible(pending) && pending.phase === "HISTORY_PENDING")) {
+      await recover(isCurrent);
+    }
     // Do not let a newer canonical write erase the evidence needed to resolve
     // an ambiguous commit. Ordinary HISTORY_PENDING records need no such gate.
     if (Object.values(store?.records || {}).some((pending) => compatible(pending) && pending.phase === "PREPARED")) {

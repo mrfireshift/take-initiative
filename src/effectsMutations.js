@@ -3810,8 +3810,16 @@ async function commitCoordinatedEffectsPlan(plan, { isCurrent, command = {} }) {
   }
   if (plan?.bossLinkNotices?.length) void showBossLinkNotices(plan.bossLinkNotices);
   if (recoveryRecord) {
-    const recovered = await recovery.resume(recoveryRecord, isCurrent, { canonicalCommitted: !effectsCommit.postCommitErrors?.length });
-    if (isCurrent() && recovery.retryPending()) schedulePendingEffectsHistoryRetry();
+    const deferHistory = command.deferRecoveryHistory === true;
+    const recovered = await recovery.resume(recoveryRecord, isCurrent, {
+      canonicalCommitted: !effectsCommit.postCommitErrors?.length,
+      deferHistory,
+    });
+    if (isCurrent() && recovery.retryPending()) {
+      // A deferred History is completed right after this command, on the same lane; the timer stays as a retry.
+      if (deferHistory) void enqueuePendingEffectsPostCommitRetry().catch(() => {});
+      schedulePendingEffectsHistoryRetry();
+    }
     return { ...recovered, postCommitErrors: [...(effectsCommit.postCommitErrors || []), ...(recovered?.postCommitErrors || [])] };
   }
   const sideEffects = [
@@ -4346,6 +4354,8 @@ export async function runEffectsMutation(operations = [], options = {}) {
       && compatible?.historySkipped !== true
       && compatible?.plan
       && !(compatible?.commitResult?.sideEffectsPending?.length)
+      // The background recovery journal owns that History: a local copy would never be released here.
+      && compatible?.commitResult?.recoveryManaged !== true
     ) {
       // Mantieni anche nel realm chiamante la History deferred finché l'owner
       // non conferma l'append; stessa commandId = append idempotente.

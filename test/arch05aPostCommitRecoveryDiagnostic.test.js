@@ -1124,3 +1124,124 @@ test("incident T1 failed-save — end-turn failure keeps the effect and records 
   assert.equal(historyEntries().length, 1);
   assert.equal(pendingRecovery().length, 0);
 });
+
+// deferRecoveryHistory: the caller is answered once the canonical write is journaled; History and cleanup follow.
+function recordRecoveryWrites() {
+  const phases = [];
+  const original = sdkStub.scene.setMetadata;
+  let gate = null;
+  sdkStub.scene.setMetadata = async (update) => {
+    if (update?.[RECOVERY_KEY]) {
+      phases.push(Object.values(update[RECOVERY_KEY].records || {}).map((record) => record.phase).join(",") || "cleared");
+    }
+    if (gate && Object.hasOwn(update || {}, HISTORY_KEY)) await gate.promise;
+    return original(update);
+  };
+  return {
+    phases,
+    holdHistory() {
+      let release;
+      gate = { promise: new Promise((resolve) => { release = resolve; }) };
+      gate.release = release;
+    },
+    releaseHistory() {
+      gate?.release();
+      gate = null;
+    },
+    restore() {
+      gate?.release();
+      sdkStub.scene.setMetadata = original;
+    },
+  };
+}
+
+test("deferred History — answered at HISTORY_PENDING, then History and cleanup on the lane", async () => {
+  const runtime = await bootRuntime("deferred-history");
+  const writes = recordRecoveryWrites();
+  try {
+    writes.holdHistory();
+    const result = await runtime.client.runEffectsMutation(addConditionOperation(), {
+      commandId: "deferred-one",
+      deferRecoveryHistory: true,
+    });
+    assert.equal(result.status, "applied");
+    assert.equal(result.historyPending, true);
+    assert.deepEqual(conditionIds(), ["arch05a-condition"]);
+    assert.deepEqual(writes.phases, ["PREPARED", "HISTORY_PENDING"], "no CANONICAL_COMMITTED, no wait for the History");
+    assert.equal(historyEntries().length, 0);
+    assert.equal(await runtime.client.hasPendingEffectsHistoryAuthoritative(), true);
+    writes.releaseHistory();
+    assert.equal(await eventually(() => historyEntries().length === 1 && pendingRecovery().length === 0), true);
+    assert.deepEqual(writes.phases, ["PREPARED", "HISTORY_PENDING", "COMPLETE", "cleared"]);
+    assert.equal(historyEntries()[0].effectsMutation.commandId, "deferred-one");
+    assert.equal(await runtime.client.hasPendingEffectsHistoryAuthoritative(), false);
+  } finally {
+    writes.restore();
+  }
+});
+
+test("deferred History — a command without the option keeps today's journal sequence", async () => {
+  const runtime = await bootRuntime("immediate-history");
+  const writes = recordRecoveryWrites();
+  try {
+    const result = await runtime.client.runEffectsMutation(addConditionOperation(), { commandId: "immediate-one" });
+    assert.equal(result.historyPending, false);
+    assert.equal(historyEntries().length, 1, "History written before the answer");
+    assert.deepEqual(writes.phases, ["PREPARED", "CANONICAL_COMMITTED", "HISTORY_PENDING", "COMPLETE", "cleared"]);
+  } finally {
+    writes.restore();
+  }
+});
+
+test("deferred History — an immediate command completes the deferred one first: History keeps the commit order", async () => {
+  const runtime = await bootRuntime("deferred-order");
+  await runtime.client.runEffectsMutation(addConditionOperation("zero", "caster"), { commandId: "order-zero" });
+  // The deferred append fails once, so only the next command can complete it before its own.
+  fault.failHistoryWrites = true;
+  const attempts = fault.historyWriteAttempts;
+  const deferred = await runtime.client.runEffectsMutation(addConditionOperation("one", "target"), {
+    commandId: "order-deferred",
+    deferRecoveryHistory: true,
+  });
+  assert.equal(deferred.status, "applied");
+  assert.equal(await eventually(() => fault.historyWriteAttempts > attempts, 500), true);
+  fault.failHistoryWrites = false;
+  // A background command (turn ticks, round effects) asks no context first: only beforeCommand orders it.
+  const immediate = await runtime.background.runEffectsMutation(addConditionOperation("two", "secondary"), {
+    commandId: "order-immediate",
+  });
+  assert.equal(immediate.status, "applied");
+  const order = historyEntries().map((entry) => entry.effectsMutation.commandId).join(",");
+  assert.ok(
+    order === "order-zero,order-deferred,order-immediate" || order === "order-immediate,order-deferred,order-zero",
+    `History out of commit order: ${order}`,
+  );
+  assert.equal(pendingRecovery().length, 0);
+});
+
+test("deferred History — Undo does not cross a deferred append, then undoes the right entry", async () => {
+  const runtime = await bootRuntime("deferred-undo");
+  await runtime.client.runEffectsMutation(addConditionOperation("zero", "caster"), { commandId: "undo-zero" });
+  const writes = recordRecoveryWrites();
+  try {
+    writes.holdHistory();
+    await runtime.client.runEffectsMutation(addConditionOperation("one", "target"), {
+      commandId: "undo-deferred",
+      deferRecoveryHistory: true,
+    });
+    // The History UI asks the background: the barrier refuses while the deferred append is pending.
+    const blocked = await runtime.client.undoEffectsMutation(historyEntries()[0]);
+    assert.equal(blocked.status, "rejected");
+    assert.equal(blocked.reason, "history-pending");
+    assert.deepEqual(conditionIds("caster"), ["zero"]);
+    writes.releaseHistory();
+    assert.equal(await eventually(() => historyEntries().length === 2 && pendingRecovery().length === 0), true);
+    const latest = historyEntries().find((entry) => entry.effectsMutation.commandId === "undo-deferred");
+    const undone = await runtime.background.undoEffectsMutation(latest, { transport: "background" });
+    assert.equal(undone.status, "applied");
+    assert.deepEqual(conditionIds("target"), []);
+    assert.deepEqual(conditionIds("caster"), ["zero"]);
+  } finally {
+    writes.restore();
+  }
+});

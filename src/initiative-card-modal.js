@@ -163,6 +163,11 @@ let spellPreparationDraft = null;
 let expandedSpellbookSpellId = "";
 // After a long rest from the card, a character who prepares spells is reminded to review them, until Prepara.
 let spellPreparationReminder = false;
+// Spell slot pips: the values the GM clicked and not yet stored (poolId → current, poolId → name), shown at once;
+// spellSlotWriting while one write runs, the next one taking the latest click.
+const spellSlotPending = new Map();
+const spellSlotPendingNames = new Map();
+let spellSlotWriting = false;
 
 const spellOptions = getQuickActionSpellOptions();
 
@@ -894,8 +899,12 @@ function renderSpellSlots() {
   const rows = item && profile ? spellSlotStatus(profile.characterBuild, getClassFeatureState(item).resources) : [];
   const block = $("spellSlots");
   block.hidden = rows.length === 0;
-  block.replaceChildren(...rows.map((row) => {
+  block.replaceChildren(...rows.map((stored) => {
+    // A click not yet stored is drawn at once, marked until the write ends.
+    const pending = spellSlotPending.has(stored.poolId) && spellSlotPending.get(stored.poolId) !== stored.current;
+    const row = pending ? { ...stored, current: spellSlotPending.get(stored.poolId) } : stored;
     const line = document.createElement("div");
+    if (pending) line.dataset.pending = "1";
     line.className = "spell-slot-row";
     const label = document.createElement("span");
     label.textContent = row.pact ? `Patto ${row.level}°` : `${row.level}° livello`;
@@ -913,7 +922,8 @@ function renderSpellSlots() {
       if (isGM) {
         const next = available ? index : index + 1;
         pip.type = "button";
-        pip.disabled = classFeatureMutating;
+        // Locked only while another change of the card runs; a slot write in progress takes the new click.
+        pip.disabled = classFeatureMutating && !spellSlotWriting;
         pip.title = `${available ? "Spendi" : "Ripristina"}: ${name}, ne restano ${next} su ${row.maximum}`;
         pip.setAttribute("aria-label", pip.title);
         pip.addEventListener("click", () => void setSpellSlotCurrent(row.poolId, next, name));
@@ -982,28 +992,69 @@ async function takeRest(shortRest, statusId) {
   }
 }
 
-async function setSpellSlotCurrent(poolId, current, name) {
-  const sceneOperation = sceneLifecycle.capture({ operationId: `initiative-spell-slot:${Date.now().toString(36)}` });
-  if (!sceneLifecycle.isCurrent(sceneOperation) || !isGM || !item || classFeatureMutating) return;
-  classFeatureMutating = true;
-  const status = $("spellbookRunStatus");
-  status.textContent = "Aggiornamento…";
-  status.dataset.tone = "";
+// A pip click: shown at once, stored by one write at a time. Clicks during a write only move the value the next
+// write stores, so a burst of clicks costs at most two commands (History, Undo).
+function setSpellSlotCurrent(poolId, current, name) {
+  if (!sceneLifecycle.isReady() || !isGM || !item || (classFeatureMutating && !spellSlotWriting)) return;
+  spellSlotPending.set(poolId, current);
+  spellSlotPendingNames.set(poolId, name);
   renderSpellSlots();
+  if (!spellSlotWriting) void writeSpellSlots();
+}
+
+function storedSpellSlotCurrent(poolId) {
+  return spellSlotStatus(profile?.characterBuild, getClassFeatureState(item).resources)
+    .find((row) => row.poolId === poolId)?.current;
+}
+
+async function writeSpellSlots() {
+  const sceneOperation = sceneLifecycle.capture({ operationId: `initiative-spell-slot:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(sceneOperation)) return;
+  spellSlotWriting = true;
+  classFeatureMutating = true;
+  // The faded row already says the write is running: no "Aggiornamento…" over the pips.
+  const status = $("spellbookRunStatus");
+  status.textContent = "";
+  status.dataset.tone = "";
+  const names = [];
+  let stored = false;
   try {
-    await adjustClassFeatureResource(item.id, poolId, { current });
-    if (!sceneLifecycle.isCurrent(sceneOperation)) throw new Error("Scena cambiata: riapri la scheda.");
-    await refreshClassFeatureItem();
-    if (!sceneLifecycle.isCurrent(sceneOperation)) throw new Error("Scena cambiata: riapri la scheda.");
-    status.textContent = `Aggiornato: ${name}.`;
-    status.dataset.tone = "success";
+    for (;;) {
+      const next = [...spellSlotPending].find(([poolId, value]) => value !== storedSpellSlotCurrent(poolId));
+      if (!next) break;
+      const [poolId, value] = next;
+      await adjustClassFeatureResource(item.id, poolId, { current: value });
+      if (!sceneLifecycle.isCurrent(sceneOperation)) throw new Error("Scena cambiata: riapri la scheda.");
+      await refreshClassFeatureItem();
+      if (!sceneLifecycle.isCurrent(sceneOperation)) throw new Error("Scena cambiata: riapri la scheda.");
+      // Written: a value the rules adjust is not written again; a newer click stays pending.
+      if (spellSlotPending.get(poolId) === value) spellSlotPending.delete(poolId);
+      const name = spellSlotPendingNames.get(poolId);
+      if (name && !names.includes(name)) names.push(name);
+    }
+    stored = true;
+    status.textContent = names.length ? `Aggiornato: ${names.join(", ")}.` : "";
+    status.dataset.tone = names.length ? "success" : "";
   } catch (error) {
     console.warn("[initiative-card] spell slot:", error?.message || error);
     status.textContent = error?.message || "Aggiornamento non riuscito.";
     status.dataset.tone = "error";
   } finally {
+    // What is not stored goes back to the stored value.
+    spellSlotPending.clear();
+    spellSlotPendingNames.clear();
+    spellSlotWriting = false;
     classFeatureMutating = false;
-    if (sceneLifecycle.isReady()) renderSpellSlots();
+    if (sceneLifecycle.isReady()) {
+      // One full render at the end of the burst: it also records the token, so its echo does not redraw again.
+      if (stored && !editing) {
+        const message = [status.textContent, status.dataset.tone];
+        renderView();
+        [status.textContent, status.dataset.tone] = message;
+      } else {
+        renderSpellSlots();
+      }
+    }
   }
 }
 
@@ -3687,7 +3738,20 @@ function renderPortrait() {
   portrait.appendChild(image);
 }
 
+// What the token looked like at the last full render: the scene sends every item on every change, and the card
+// redraws only when its own token changed.
+let renderedItemSignature = "";
+
+function sourceItemSignature(entry) {
+  try {
+    return JSON.stringify([entry?.name, entry?.image?.url, entry?.metadata]);
+  } catch {
+    return "";
+  }
+}
+
 function renderView() {
+  renderedItemSignature = sourceItemSignature(item);
   const meta = item?.metadata?.[META_KEY] || {};
   $("title").textContent = item?.name || "Scheda personaggio";
   const buildLabels = classFeatureBuildLabel(profile.characterBuild);
@@ -3894,6 +3958,9 @@ function subscribeToSourceItemChanges() {
     if (!next) return;
     item = next;
     if (editing || classFeatureMutating || quickActionLaunching) return;
+    // Another token moved, a label or a bar changed: the card stays as drawn, its buttons under the cursor.
+    const signature = sourceItemSignature(next);
+    if (signature && signature === renderedItemSignature) return;
     profile = getInitiativeCard(item);
     applyFactionTheme();
     renderView();

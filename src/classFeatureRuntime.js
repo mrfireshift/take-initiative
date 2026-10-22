@@ -1578,6 +1578,9 @@ export async function adjustClassFeatureResource(
     kind: "class-feature",
     label: `Risorsa: ${pool.name}`,
     targetIds: [sourceId],
+    // A manual edit from the card: the caller gets its answer once the token is written; the History follows
+    // on the Effects lane (effectsRecovery.js).
+    deferRecoveryHistory: true,
   });
   return requireClassFeatureStateMutation(mutation, operationId);
 }
