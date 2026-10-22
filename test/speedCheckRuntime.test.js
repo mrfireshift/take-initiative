@@ -456,6 +456,11 @@ test("the clear-initiative button drains and clears movement after the scene sta
     async resetTrackerState() { env.turn = { order: [], current: 0, round: 1 }; api.syncSpeedCheckTurn(env.turn); },
     clearSpeedCheckCombatMovement: api.clearSpeedCheckCombatMovement,
     renderAll: async () => {},
+    // The "Annulla" toast (decision D3) is not part of this check.
+    getSceneState: async () => env.turn,
+    clearedInitiativeSnapshot: () => null,
+    showUndoToast: () => null,
+    __undoClearInitiative: async () => {},
   };
   const create = new Function("dependencies", `const { ${Object.keys(dependencies).join(", ")} } = dependencies;
     ${body}\nreturn makeClearInitiativeBtn();`);

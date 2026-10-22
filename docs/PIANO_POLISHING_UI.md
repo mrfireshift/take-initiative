@@ -330,6 +330,23 @@ Stato dei lotti:
     - posizione 11px da sinistra e 35px dall'alto, sotto il badge (7–31px), lontana dai lanciatori;
     - clic su Lavera (GM): si apre `initiative-card-modal.html?source=lavera`, selezione invariata;
     - vista giocatore: stesse cinque card, il clic su Omar apre la sua scheda.
+- **6.3 — fatto il 2026-10-22.**
+  - **Toast:** dopo "Svuota iniziativa" e "Reset round" compare in basso nel tracker (solo GM) "Iniziativa svuotata · Annulla" o "Round riportato a 1 (era N) · Annulla". Dura 8 secondi, si chiude con ×; un toast nuovo sostituisce il precedente. Vale per il classico e per il menu ⋯ del compatto, che usano gli stessi pulsanti.
+  - **Perché non la cronologia:** registra i flag `inInitiative` dei token, non ordine, turno e round. Il toast salva lo stato prima dell'azione (`initiativeUndoCore.js`).
+  - **Annulla di Svuota:**
+    - riscrive prima ordine, turno, round e gruppi, poi rimette `inInitiative` sui token (unendo i metadata);
+    - in quest'ordine si passa da un ordine vuoto a quello salvato, quindi nessun turno o round risulta passato: durate invariate, nessun avviso di turno;
+    - al contrario, la riconciliazione costruirebbe un ordine nuovo, e rimettere il turno sopra farebbe scattare gli effetti;
+    - se nel frattempo è iniziato un altro combattimento non sovrascrive niente e lo segnala;
+    - il movimento contato per il controllo velocità non torna: riparte come a inizio turno.
+  - **Annulla di Reset round:**
+    - rimette il round se è ancora 1, segnato come un passo indietro, come fa ◀, così i turni intermedi non scattano di nuovo;
+    - resta il solo conteggio dei round, opposto a quello del reset: le durate tornano come prima.
+  - **Verifica nell'anteprima:**
+    - reset da round 4, turno 3: il toast compare, Annulla torna a round 4, turno 3, con le durate identiche (6 / 3,5 / 2 / 1);
+    - Svuota a round 4, turno 3: ordine (13 voci con le Azioni epiche), turno con Lavera attiva, round, token in iniziativa e durate tornano identici;
+    - un gruppo inventato in `seededGroups` viene scartato dalla riconciliazione, come per qualunque gruppo che non esiste;
+    - toast visibile nel compatto (sopra il fondo delle card) e nel classico (in fondo al pannello); nessun errore in console.
 
 ### Fase 7 — Rilascio
 

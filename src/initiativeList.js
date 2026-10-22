@@ -290,6 +290,13 @@ import {
   createOptionalRuntimeLifecycle,
 } from "./options/optionalRuntimeLifecycle.js";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
+import {
+  CLEARED_INITIATIVE_STATE_FIELDS,
+  clearedInitiativeRestorePatch,
+  clearedInitiativeSnapshot,
+  roundResetRestorePatch,
+} from "./initiativeUndoCore.js";
+import { showUndoToast } from "./undoToast.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -1501,13 +1508,96 @@ function makeRoundResetBtn() {
   b.addEventListener("click", async (e) => {
     e.stopPropagation();
     try {
+      const sceneEpoch = currentSceneEpoch();
+      const previousRound = Math.max(1, Math.floor(Number((await getSceneState())?.round) || 1));
       await setSceneState(prev => ({ ...(prev || {}), round: 1 }));
       await renderAll();
+      // Decision D3: no confirmation, a few seconds to take it back instead.
+      if (previousRound > 1 && __isCurrentSceneOperation(sceneEpoch, "round-reset")) {
+        showUndoToast({
+          message: `Round riportato a 1 (era ${previousRound})`,
+          onUndo: () => __undoRoundReset(previousRound, sceneEpoch),
+        });
+      }
     } catch (err) {
       console.warn("[round-reset] errore reset turno:", err?.message || err);
     }
   });
   return b;
+}
+
+// "Annulla" of Reset round: the round goes back while it is still 1. The write is hinted as a step back, as ◀ does,
+// so the turns in between are not crossed again: only the round tick runs, the reverse of the reset's (durations
+// lengthened by the reset shorten by as much).
+async function __undoRoundReset(previousRound, sceneEpoch) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "round-reset-undo")) return;
+  const state = await getSceneState();
+  if (!__isCurrentSceneOperation(sceneEpoch, "round-reset-undo")) return;
+  if (!roundResetRestorePatch(state, previousRound)) {
+    await OBR.notification.show("Reset round non annullato: il round è già cambiato.", "WARNING").catch(() => {});
+    return;
+  }
+  const hint = {
+    activeId: __activeIdForState(state),
+    current: Math.floor(Number(state?.current) || 0),
+    round: previousRound,
+    direction: -1,
+  };
+  __conditionNavigationHint = hint;
+  let restored = false;
+  await setSceneState((prev) => {
+    const next = roundResetRestorePatch(prev, previousRound);
+    restored = !!next;
+    return next || prev;
+  }, sceneEpoch);
+  if (!restored && __conditionNavigationHint === hint) __conditionNavigationHint = null;
+  if (!__isCurrentSceneOperation(sceneEpoch, "round-reset-undo")) return;
+  await renderAll();
+}
+
+// "Annulla" of Svuota iniziativa, while no new combat has started. The turn state goes back first, then the tokens:
+// the order passes from empty to the saved one, so no turn or round counts as passed (effects keep their durations,
+// no turn notice). Tokens first would let the reconcile build a fresh order, and putting the saved turn back on it
+// would tick the effects. The speed check's counted movement is not restored: it restarts as at a turn's start.
+async function __undoClearInitiative(snapshot, sceneEpoch) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative-undo")) return;
+  const notRestored = () => OBR.notification.show(
+    "Svuotamento non annullato: è già iniziato un altro combattimento.",
+    "WARNING",
+  ).catch(() => {});
+  const state = await getSceneState();
+  if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative-undo")) return;
+  if (!clearedInitiativeRestorePatch(state, snapshot)) {
+    await notRestored();
+    return;
+  }
+  let restored = false;
+  await setSceneState((prev) => {
+    const next = clearedInitiativeRestorePatch(prev, snapshot);
+    restored = !!next;
+    return next || prev;
+  }, sceneEpoch, {
+    kind: "clear-initiative-undo",
+    ownedFields: [...CLEARED_INITIATIVE_STATE_FIELDS],
+  });
+  if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative-undo")) return;
+  if (!restored) {
+    await notRestored();
+    return;
+  }
+  const existingIds = new Set((await OBR.scene.items.getItems(snapshot.itemIds)).map((item) => item.id));
+  if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative-undo")) return;
+  const ids = snapshot.itemIds.filter((id) => existingIds.has(id));
+  if (ids.length) {
+    await OBR.scene.items.updateItems(ids, (drafts) => {
+      for (const it of drafts) {
+        const me = { ...(it.metadata?.[META_KEY] || {}), inInitiative: true };
+        it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
+      }
+    });
+  }
+  if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative-undo")) return;
+  await renderAll();
 }
 
 function makeAddAllInitiativeBtn() {
@@ -1676,6 +1766,9 @@ function makeClearInitiativeBtn() {
     if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative")) return;
     b.disabled = true;
     try {
+      // What "Annulla" puts back (decision D3): the turn state as it is now, and the tokens taken out below.
+      const stateBeforeClear = await getSceneState();
+      if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative")) return;
       const items = await OBR.scene.items.getItems(
         it => it.metadata?.[META_KEY]?.inInitiative === true
           || !!it.metadata?.[META_KEY]?.speedCheckMovement
@@ -1697,6 +1790,13 @@ function makeClearInitiativeBtn() {
       await clearSpeedCheckCombatMovement(items.map(it => it.id), { sceneEpoch });
       if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative")) return;
       await renderAll();
+      const snapshot = clearedInitiativeSnapshot(stateBeforeClear, ids);
+      if (snapshot && __isCurrentSceneOperation(sceneEpoch, "clear-initiative")) {
+        showUndoToast({
+          message: "Iniziativa svuotata",
+          onUndo: () => __undoClearInitiative(snapshot, sceneEpoch),
+        });
+      }
     } catch (err) {
       console.warn("[initiative-clear] errore svuotamento:", err?.message || err);
     } finally {
