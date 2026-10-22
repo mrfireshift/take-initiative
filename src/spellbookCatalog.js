@@ -86,20 +86,42 @@ export function spellbookQuickAction(spellId, { launchMode = "auto" } = {}) {
   });
 }
 
-// The favourites of the book as quick actions, after the profile's own: a spell that already has a spell
-// quick action is not repeated.
+// The launchable spells of the book by level, favourites first in each level, then by name.
+function launchableBookGroups(profile) {
+  return spellbookGroups(profile?.spellbook)
+    .map((group) => ({
+      ...group,
+      spells: group.spells.filter((spell) => spell.launchable)
+        .sort((left, right) => Number(right.pinned) - Number(left.pinned)),
+    }))
+    .filter((group) => group.spells.length);
+}
+
+// The tracker card's actions: the profile's own, then every launchable spell of the book, which the 🪄 launcher
+// lists (trackerQuickActions.js tells them apart by their id).
 export function spellbookTrackerQuickActions(profile) {
   const quickActions = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
-  const { pinnedIds } = sanitizeSpellbook(profile?.spellbook);
-  if (!pinnedIds.length) return quickActions;
-  const present = new Set(quickActions
-    .filter((action) => action?.kind === "spell")
-    .map((action) => getSpellDefinition(action.spellId)?.id || action.spellId));
-  const favourites = pinnedIds
-    .filter((spellId) => !present.has(spellId))
-    .map((spellId) => spellbookQuickAction(spellId))
+  const bookActions = launchableBookGroups(profile)
+    .flatMap((group) => group.spells.map((spell) => spellbookQuickAction(spell.id)))
     .filter(Boolean);
-  return favourites.length ? [...quickActions, ...favourites] : quickActions;
+  return bookActions.length ? [...quickActions, ...bookActions] : quickActions;
+}
+
+// The sections of the 🪄 menu: the favourites at its top, then one submenu per level ({ title, actionIds }).
+export function spellbookMenuSections(profile) {
+  const groups = launchableBookGroups(profile);
+  const favourites = groups.flatMap((group) => group.spells.filter((spell) => spell.pinned));
+  return [
+    ...(favourites.length ? [{
+      title: "Preferiti",
+      inline: true,
+      actionIds: favourites.map((spell) => spellbookQuickActionId(spell.id)),
+    }] : []),
+    ...groups.map((group) => ({
+      title: group.title,
+      actionIds: group.spells.map((spell) => spellbookQuickActionId(spell.id)),
+    })),
+  ];
 }
 
 let searchOptions = null;

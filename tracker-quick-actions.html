@@ -35,6 +35,16 @@
       .label,.detail { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .label { font-size:11px; font-weight:700; }
       .detail { color:rgba(255,255,255,.58); font-size:9px; font-weight:500; }
+      /* The 🪄 menu: favourites, then one submenu per spell level; violet like its launcher. */
+      .section-title { padding:7px 8px 3px; color:rgba(255,255,255,.52); font-size:9px; font-weight:750; letter-spacing:.06em; text-transform:uppercase; }
+      button.submenu { min-height:32px; grid-template-columns:minmax(0,1fr) auto auto; }
+      .count { color:rgba(255,255,255,.55); font-size:10px; font-variant-numeric:tabular-nums; }
+      .chevron { color:rgba(255,255,255,.62); font-size:13px; line-height:1; }
+      button.back { min-height:30px; margin-bottom:3px; grid-template-columns:22px minmax(0,1fr); border-bottom:1px solid rgba(255,255,255,.08); border-radius:8px 8px 0 0; font-weight:750; }
+      body[data-tone="spells"] .title { color:#ddd6fe; border-bottom-color:rgba(167,139,250,.28); }
+      body[data-tone="spells"] button:hover { background:rgba(167,139,250,.14); }
+      body[data-tone="spells"] button:focus-visible { outline-color:rgba(167,139,250,.82); }
+      body[data-tone="spells"] .icon { background:rgba(167,139,250,.16); color:#c4b5fd; }
       @media (prefers-reduced-motion:reduce) {
         .glass-shell,button { transition:none!important; }
       }

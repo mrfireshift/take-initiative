@@ -188,7 +188,7 @@ import {
   findQuickAction,
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
-import { spellbookTrackerQuickActions } from "./spellbookCatalog.js";
+import { spellbookMenuSections, spellbookTrackerQuickActions } from "./spellbookCatalog.js";
 import {
   buildSpellUnifiedPanelRouteQuery,
   resolveGlobalSpellSourceEntryCore,
@@ -4751,6 +4751,7 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
     quickActions: IS_GM
       ? spellbookTrackerQuickActions(initiativeCard)
       : spellbookTrackerQuickActions(initiativeCard).filter((action) => action?.kind !== "feature"),
+    spellbookMenu: IS_GM ? spellbookMenuSections(initiativeCard) : [],
     classFeatures: IS_GM
       ? buildClassFeatureContextEntries(
         initiativeCard,
@@ -8182,9 +8183,9 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {})
     return;
   }
   const sourceId = splitParagonId(sourceEntry.id).baseId;
-  // The quick actions (⚡) and, beside them, the attacks (⚔): two launchers, two menus.
+  // The quick actions (⚡), the spellbook (🪄) and the attacks (⚔): three launchers, three menus.
   let launchers = 0;
-  for (const group of ["quick", "attacks"]) {
+  for (const group of ["quick", "spells", "attacks"]) {
     const expanded = !!__trackerQuickActionsRequestId
       && __trackerQuickActionsSourceId === sourceId
       && __trackerQuickActionsGroup === group;
@@ -8268,13 +8269,19 @@ async function __getInitiativeCardContextMenuPlacement(event) {
   const horizontal = left + width > viewportWidth - margin
     ? "RIGHT"
     : "LEFT";
-  const vertical = top + height > viewportHeight - margin
-    ? "BOTTOM"
-    : "TOP";
+  // Downwards when the estimate fits below the click or below has more room, upwards otherwise. maxHeight is the
+  // room on that side: the menu never grows past it (beyond it, it scrolls), or its last items would be cut.
+  const roomBelow = viewportHeight - margin - top;
+  const roomAbove = top - margin;
+  const vertical = roomBelow >= height || roomBelow >= roomAbove
+    ? "TOP"
+    : "BOTTOM";
+  const maxHeight = Math.max(120, Math.floor(vertical === "TOP" ? roomBelow : roomAbove));
 
   return {
     width,
-    height,
+    height: Math.min(height, maxHeight),
+    maxHeight,
     anchorPosition: { left: Math.round(left), top: Math.round(top) },
     anchorOrigin: { horizontal, vertical },
     transformOrigin: { horizontal, vertical },
@@ -8430,9 +8437,11 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event, group = 
     TRACKER_QUICK_ACTIONS_PAYLOAD_PREFIX,
     requestId,
     {
-      title: `${sourceEntry.name || "Personaggio"} · ${group === "attacks" ? "Attacchi" : "Azioni rapide"}`,
+      title: `${sourceEntry.name || "Personaggio"} · ${group === "attacks" ? "Attacchi" : group === "spells" ? "Incantesimi" : "Azioni rapide"}`,
       sourceId,
       actions,
+      // 🪄: the favourites, then one submenu per spell level.
+      ...(group === "spells" && sourceEntry.spellbookMenu?.length ? { sections: sourceEntry.spellbookMenu } : {}),
       ...(disabledActionIds.length ? { disabledActionIds } : {}),
     },
   )) {
@@ -8461,11 +8470,12 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event, group = 
     }
     await OBR.popover.open({
       id: TRACKER_QUICK_ACTIONS_POPOVER_ID,
-      url: `/tracker-quick-actions.html?request=${encodeURIComponent(requestId)}`,
+      url: `/tracker-quick-actions.html?request=${encodeURIComponent(requestId)}&maxHeight=${basePlacement.maxHeight}`,
       width: TRACKER_QUICK_ACTIONS_WIDTH,
       height: Math.min(
         TRACKER_QUICK_ACTIONS_INITIAL_HEIGHT,
         54 + (actions.length * 38),
+        basePlacement.maxHeight,
       ),
       anchorReference: "POSITION",
       anchorPosition: basePlacement.anchorPosition,
@@ -8538,13 +8548,14 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
     if (!__isCurrentSceneOperation(sceneEpoch, "card-context-menu-open")) return;
     if (__initiativeCardContextMenuRevision !== openRevision) return;
     if (__initiativeCardContextMenuRequestId !== requestId) return;
+    const { maxHeight, ...popoverPlacement } = placement;
     await OBR.popover.open({
       id: INITIATIVE_CARD_CONTEXT_MENU_ID,
-      url: `/initiative-card-context-menu.html?request=${encodeURIComponent(requestId)}`,
+      url: `/initiative-card-context-menu.html?request=${encodeURIComponent(requestId)}&maxHeight=${maxHeight}`,
       width: placement.width,
       height: placement.height,
       anchorReference: "POSITION",
-      ...placement,
+      ...popoverPlacement,
       disableClickAway: true,
       marginThreshold: 12,
       hidePaper: true,

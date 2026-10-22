@@ -15,6 +15,7 @@ const {
 const {
   spellbookGroups,
   spellbookQuickAction,
+  spellbookMenuSections,
   spellbookSearchOptions,
   spellbookSpell,
   spellbookTrackerQuickActions,
@@ -92,19 +93,27 @@ test("a book spell launches as a spell quick action of its own", () => {
   assert.equal(spellbookQuickAction("hold-person", { launchMode: "review" }).launchMode, "review");
   assert.equal(spellbookQuickAction("fire-bolt"), null);
   assert.equal(isSpellbookQuickAction({ id: "quick-1" }), false);
-  assert.match(trackerQuickActionSummary(action), /^Incantesimi · lancio rapido/);
+  assert.equal(trackerQuickActionSummary(action), "Lancio rapido · bersaglio selezionato");
 });
 
-test("⚡ lists the quick actions, then the favourites the quick actions do not already cast", () => {
+test("the tracker card carries every launchable spell of the book after its quick actions, for the 🪄 menu", () => {
   const ownFireball = { version: 2, id: "quick-fireball", label: "Palla di fuoco", kind: "spell", spellId: "fireball", targetMode: "selection", slotLevel: 4, turns: null, applyAutomations: true, launchMode: "review" };
   const profile = {
     quickActions: [ownFireball],
-    spellbook: { spellIds: ["fireball", "bless", "shield", "fire-bolt"], pinnedIds: ["fireball", "bless", "fire-bolt"] },
+    spellbook: { spellIds: ["fireball", "bless", "shield", "fire-bolt", "hold-person"], pinnedIds: ["fireball", "shield", "fire-bolt"] },
   };
-  const actions = spellbookTrackerQuickActions(profile);
-  assert.deepEqual(actions.map((action) => action.id), ["quick-fireball", "book:bless"]);
+  // By level, favourites first in each; Fire Bolt is recorded in the attack console, not launched from here.
+  assert.deepEqual(spellbookTrackerQuickActions(profile).map((action) => action.id),
+    ["quick-fireball", "book:shield", "book:bless", "book:hold-person", "book:fireball"]);
+  assert.deepEqual(spellbookMenuSections(profile), [
+    { title: "Preferiti", inline: true, actionIds: ["book:shield", "book:fireball"] },
+    { title: "1° livello", actionIds: ["book:shield", "book:bless"] },
+    { title: "2° livello", actionIds: ["book:hold-person"] },
+    { title: "3° livello", actionIds: ["book:fireball"] },
+  ]);
   assert.equal(spellbookTrackerQuickActions({ quickActions: [ownFireball] })[0], ownFireball);
   assert.deepEqual(spellbookTrackerQuickActions({}), []);
+  assert.deepEqual(spellbookMenuSections({}), []);
 });
 
 test("every catalog spell can be searched, each under its own name", () => {

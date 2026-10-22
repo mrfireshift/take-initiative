@@ -195,6 +195,22 @@ const isNext = e.__groupMembers
       inset 0 0 0 2px rgba(255,255,255,.48)`;
 
     card.dataset.active = "1";
+
+    // A halo pulsing in the faction colour marks the active turn (the GM view has no ⚔️ badge). It is a child of
+    // its own: the selection adds its glow to the card's box-shadow, and the halo only animates its opacity
+    // (index.html, tbp-active-turn-pulse). The delay keeps the pulse in phase when the card is rebuilt.
+    const halo = document.createElement("div");
+    halo.dataset.activeTurnHalo = "1";
+    Object.assign(halo.style, {
+      position: "absolute",
+      inset: "0",
+      borderRadius: "inherit",
+      pointerEvents: "none",
+      boxShadow: `0 0 0 2px ${c.border}, 0 0 26px 8px ${rgba(c.base, .78)}`,
+      animation: "tbp-active-turn-pulse 1.6s ease-in-out infinite alternate",
+      animationDelay: `-${Date.now() % 3200}ms`,
+    });
+    card.insertBefore(halo, card.firstChild);
 {
 
   // --- ZOOM ATTIVO: anima SOLTANTO quando cambia l’attivo ---
@@ -205,8 +221,9 @@ const isNext = e.__groupMembers
     card.style.zIndex = "6";
   }
 
-  // Badge "turno attivo" (⚔) dimensionato in proporzione alla card/boss
-if (isActive) {
+  // Badge "turno attivo" (⚔️) dimensionato in proporzione alla card/boss. Solo nella vista player: il GM
+  // riconosce il turno dall'alone e usa quel lato del ritratto per ⚡ 🪄 🗡️ (trackerQuickActions.js).
+if (isActive && !IS_GM) {
   // Fattore di scala: i boss usano avatar 1.5× (vedi AVA = AVA_BASE * 1.5)
   const K = IS_BOSS ? 1.3 : 1;
 
@@ -219,7 +236,7 @@ if (isActive) {
   const F = Math.round(BADGE_BASE_FONT * K);  // font-size
 
   const activeBadge = document.createElement("div");
-  activeBadge.textContent = "⚔";
+  activeBadge.textContent = "⚔️";
   Object.assign(activeBadge.style, {
     position: "absolute",
     left: IS_BOSS ? "-8px" : `${L}px`,

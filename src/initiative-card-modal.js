@@ -1038,7 +1038,7 @@ function buildSpellbookEntry(spell) {
   const icon = document.createElement("span");
   icon.className = "quick-action-icon";
   icon.textContent = spell.pinned ? "★" : cantripAttack ? "✧" : "✦";
-  if (spell.pinned) icon.title = "Tra i preferiti del pulsante ⚡";
+  if (spell.pinned) icon.title = "Tra i preferiti del menu 🪄";
   const copy = document.createElement("span");
   copy.className = "quick-action-copy";
   const label = document.createElement("strong");
@@ -2410,10 +2410,10 @@ function renderSpellbookEditor() {
     const pinFull = !pinned.has(spell.id) && pinned.size >= MAX_SPELLBOOK_PINNED;
     pin.disabled = !spell.launchable || pinFull;
     pin.title = !spell.launchable
-      ? "Non si lancia dalla card: non può stare nel pulsante ⚡"
+      ? "Non si lancia dalla card: non può stare tra i preferiti"
       : pinFull
         ? `Massimo ${MAX_SPELLBOOK_PINNED} preferiti`
-        : pinned.has(spell.id) ? "Togli dai preferiti del pulsante ⚡" : "Aggiungi ai preferiti del pulsante ⚡";
+        : pinned.has(spell.id) ? "Togli dai preferiti del menu 🪄" : "Aggiungi ai preferiti del menu 🪄";
     pin.setAttribute("aria-label", `${pin.title}: ${spell.label}`);
     pin.addEventListener("click", () => {
       const pinnedIds = pinned.has(spell.id)

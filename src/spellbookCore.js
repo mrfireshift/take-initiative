@@ -1,13 +1,13 @@
 // The character's spellbook, stored in the Actor Profile (initiativeCard.spellbook).
 // Pure data: no SDK and no spell catalog, so initiativeCards.js stays light for every page that reads a card.
 // spellIds lists the spells the character knows or has prepared; pinnedIds, a subset of them, are the
-// favourites shown in the ⚡ menu of the tracker card. Spells from feats, species or items stay quick actions.
+// favourites shown at the top of the 🪄 menu of the tracker card. Spells from feats, species or items stay quick actions.
 
 export const SPELLBOOK_FIELD = "spellbook";
 export const MAX_SPELLBOOK_SPELLS = 64;
 export const MAX_SPELLBOOK_PINNED = 12;
 
-// A spellbook spell launched from the card or the ⚡ menu runs as a spell quick action with this id.
+// A spellbook spell launched from the card or the 🪄 menu runs as a spell quick action with this id.
 const SPELLBOOK_QUICK_ACTION_PREFIX = "book:";
 
 function spellIdValue(value) {

@@ -77,8 +77,12 @@ Ogni card può contenere:
 La scheda **Incantesimi** della scheda personaggio raccoglie gli incantesimi
 che il personaggio conosce o ha preparato, raggruppati per livello, con CD e
 bonus di attacco in testa. In **Modifica** si cercano nel catalogo, si
-aggiungono (anche con Invio) e si tolgono; la ★ li mette tra i preferiti del
-pulsante ⚡ sulla card del tracker.
+aggiungono (anche con Invio) e si tolgono; la ★ li mette tra i preferiti.
+
+Sulla card del tracker il GM trova tre pulsanti in colonna sul bordo del
+ritratto: ⚡ azioni rapide, 🪄 incantesimi, 🗡️ attacchi. Il menu 🪄 mostra in
+alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
+(Trucchetti, 1° livello…) con i suoi incantesimi; "‹" torna al menu.
 
 - Il pulsante dell'incantesimo lo lancia come un'azione rapida: applicato
   subito quando non serve altro, altrimenti aperto nel pannello incantesimi.
@@ -99,7 +103,7 @@ parte. La scheda Incantesimi li mostra come pallini, uno per slot
 disponibile: il GM clicca un pallino per segnare uno slot speso o
 ripristinarlo, con Undo.
 
-Un lancio dalla scheda, dal pulsante ⚡ o dal pannello incantesimi spende lo
+Un lancio dalla scheda, dai pulsanti ⚡ e 🪄 o dal pannello incantesimi spende lo
 slot nello stesso comando dell'incantesimo: un solo Undo li annulla entrambi.
 
 - Si spende uno slot del livello scelto; un warlock usa la Magia del Patto,
@@ -189,7 +193,7 @@ La testata mostra il round corrente e i comandi principali. Puoi:
 - aprire la cronologia/Undo;
 - passare tra layout compatto ed esteso.
 
-Il turno attivo è evidenziato con colore e glow di fazione. Sulla mappa compare un'etichetta **Turno di…** sopra il token attivo.
+Il turno attivo è evidenziato con colore e glow di fazione e con un alone che pulsa lentamente (fermo se il sistema chiede di ridurre il movimento). Nella vista giocatori il ritratto della card attiva porta anche il badge ⚔️; nella vista GM quel lato del ritratto è occupato dai pulsanti ⚡ 🪄 🗡️. Sulla mappa compare un'etichetta **Turno di…** sopra il token attivo.
 
 I gruppi omonimi, le azioni di tana, i turni Paragon e le azioni epiche possono introdurre voci virtuali nell'ordine. Queste voci non corrispondono necessariamente a un elemento reale della scena.
 

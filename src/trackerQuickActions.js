@@ -6,27 +6,43 @@ const CLASSIC_COMBAT_BADGE_SIZE = 18;
 const CLASSIC_COMBAT_BADGE_LEFT = -15;
 const CLASSIC_QUICK_ACTION_LEFT = CLASSIC_COMBAT_BADGE_LEFT
   - ((QUICK_ACTION_BUTTON_SIZE - CLASSIC_COMBAT_BADGE_SIZE) / 2);
-// ⚡ and ⚔ have the geometry of the active-turn badge (initiativeCardClassicBuilder.js): an 18px circle with
-// a 2px ring. In the classic card they stand in a column above it, on its left edge: the badge sits at
-// top 50% + translateY(55%) of its size, each launcher one pitch (circle + both rings) higher, rings touching.
-const LAUNCHER_SIZE = CLASSIC_COMBAT_BADGE_SIZE;
-const LAUNCHER_RING = 2;
+// ⚡, 🪄 and 🗡️ are 15px circles with a 1px ring. In the classic card they stand in a column centred on the
+// card's height, rings touching: they are the GM's, and the GM view has no active-turn badge on that side of the
+// portrait (initiativeCardClassicBuilder.js: the active card has its halo instead).
+const LAUNCHER_SIZE = 15;
+const LAUNCHER_RING = 1;
 const LAUNCHER_PITCH = LAUNCHER_SIZE + 2 * LAUNCHER_RING;
-const CLASSIC_COMBAT_BADGE_TOP_OFFSET = 0.55 * CLASSIC_COMBAT_BADGE_SIZE;
-// Fixed slots, top to bottom, so 🗡️ keeps its place on a card without ⚡.
-// The column straddles the portrait rim, a few px left of the badge, towards the list's edge; no further, or
-// the list would clip the ring of the active card (scaled 1.035 about its centre).
-const CLASSIC_LAUNCHER_LEFT = -21;
-const CLASSIC_LAUNCHER_SLOT = Object.freeze({ quick: 0, attacks: 1 });
+// Fixed slots, top to bottom, so 🗡️ keeps its place on a card without ⚡ or 🪄.
+// The column straddles the portrait rim, a few px left of where the badge stands in the player view, towards
+// the list's edge; no further, or the list would clip the ring of the active card (scaled 1.035 about its centre).
+const CLASSIC_LAUNCHER_AXIS = -12;
+const CLASSIC_LAUNCHER_SLOT = Object.freeze({ quick: 0, spells: 1, attacks: 2 });
+const CLASSIC_LAUNCHER_MIDDLE_SLOT = 1;
+// The compact card: a row from the right edge, the first centre where the 18px launchers had theirs.
+const COMPACT_LAUNCHER_AXIS_RIGHT = 29;
+const COMPACT_LAUNCHER_AXIS_TOP = 46;
+const COMPACT_LAUNCHER_GAP = 3;
+
+function px(value) {
+  return `${Math.round(value * 10) / 10}px`;
+}
 
 function launcherPosition(group, offset, compact) {
   if (compact) {
     const index = Math.max(0, Math.floor(Number(offset) || 0));
-    return { left: "auto", right: `${20 + index * (LAUNCHER_PITCH + 4)}px`, top: "37px" };
+    return {
+      left: "auto",
+      right: px(COMPACT_LAUNCHER_AXIS_RIGHT - LAUNCHER_SIZE / 2 + index * (LAUNCHER_PITCH + COMPACT_LAUNCHER_GAP)),
+      top: px(COMPACT_LAUNCHER_AXIS_TOP - LAUNCHER_SIZE / 2),
+    };
   }
-  const above = 2 - (CLASSIC_LAUNCHER_SLOT[group] ?? 0);
-  const top = Math.round((CLASSIC_COMBAT_BADGE_TOP_OFFSET - above * LAUNCHER_PITCH) * 10) / 10;
-  return { left: `${CLASSIC_LAUNCHER_LEFT}px`, right: "auto", top: `calc(50% - ${Math.abs(top)}px)` };
+  const slot = CLASSIC_LAUNCHER_SLOT[group] ?? 0;
+  const top = Math.round(((slot - CLASSIC_LAUNCHER_MIDDLE_SLOT) * LAUNCHER_PITCH - LAUNCHER_SIZE / 2) * 10) / 10;
+  return {
+    left: px(CLASSIC_LAUNCHER_AXIS - LAUNCHER_SIZE / 2),
+    right: "auto",
+    top: `calc(50% ${top < 0 ? "-" : "+"} ${Math.abs(top)}px)`,
+  };
 }
 
 export function trackerQuickActionSummary(action) {
@@ -48,20 +64,27 @@ export function trackerQuickActionSummary(action) {
     return `Attacco · ${range} · ${count} ${count === 1 ? "componente" : "componenti"}`;
   }
   const launch = normalized.launchMode === "review" ? "revisione" : "lancio rapido";
-  // A favourite of the character's spellbook (spellbookCore.js) rather than a quick action of its own.
-  const source = isSpellbookQuickAction(normalized) ? "Incantesimi" : "Incantesimo";
-  return `${source} · ${launch} · ${target}`;
+  // A spell of the character's spellbook (spellbookCore.js), listed in the 🪄 menu: no kind to repeat.
+  if (isSpellbookQuickAction(normalized)) return `${launch[0].toUpperCase()}${launch.slice(1)} · ${target}`;
+  return `Incantesimo · ${launch} · ${target}`;
 }
 
-// The quick actions (⚡) and the attacks (⚔) of a card: one launcher each, over the same menu.
+// The quick actions (⚡), the spellbook (🪄) and the attacks (⚔) of a card: one launcher each, over the same menu.
 const TRACKER_LAUNCHER_GROUPS = Object.freeze({
   quick: { icon: "⚡", name: "azioni rapide", border: "#fde047", color: "#fef08a", open: "rgba(161,98,7,.94)", ring: "rgba(253,224,71,.22)" },
+  spells: { icon: "🪄", name: "incantesimi", border: "#a78bfa", color: "#ddd6fe", open: "rgba(91,33,182,.94)", ring: "rgba(167,139,250,.24)" },
   attacks: { icon: "🗡️", name: "attacchi", border: "#fb923c", color: "#fed7aa", open: "rgba(154,52,18,.94)", ring: "rgba(251,146,60,.24)" },
 });
 
+// The group of an action: the spellbook's spells (spellbookCore.js), the attacks, the other quick actions.
+export function trackerQuickActionGroup(action) {
+  if (isSpellbookQuickAction(action)) return "spells";
+  return isAttackQuickAction(action) ? "attacks" : "quick";
+}
+
 export function trackerQuickActionsForGroup(actions, group = "quick") {
   return sanitizeQuickActions(actions, { limit: 64, attackLimit: 64 })
-    .filter((action) => isAttackQuickAction(action) === (group === "attacks"));
+    .filter((action) => trackerQuickActionGroup(action) === group);
 }
 
 // offset: the launcher's place in the compact card's row (the classic card has fixed slots per group).
@@ -80,7 +103,7 @@ export function buildTrackerQuickActionLauncher({
   const position = launcherPosition(group, offset, compact);
 
   const container = documentRef.createElement("div");
-  container.dataset.trackerQuickActions = group === "attacks" ? "attacks" : "1";
+  container.dataset.trackerQuickActions = group === "quick" ? "1" : group;
   container.dataset.cardSelectionIgnore = "1";
   Object.assign(container.style, {
     position: "absolute",
@@ -100,7 +123,7 @@ export function buildTrackerQuickActionLauncher({
   toggle.setAttribute("aria-haspopup", "menu");
   toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
   toggle.dataset.cardSelectionIgnore = "1";
-  toggle.dataset.trackerQuickActionToggle = group === "attacks" ? "attacks" : "1";
+  toggle.dataset.trackerQuickActionToggle = group === "quick" ? "1" : group;
   Object.assign(toggle.style, {
     boxSizing: "border-box",
     minWidth: `${LAUNCHER_SIZE}px`,
@@ -116,7 +139,7 @@ export function buildTrackerQuickActionLauncher({
       ? look.open
       : "linear-gradient(180deg,rgba(51,65,85,.98),rgba(15,23,42,.98))",
     color: look.color,
-    fontSize: "12px",
+    fontSize: "9px",
     fontWeight: "700",
     lineHeight: "1",
     cursor: "pointer",

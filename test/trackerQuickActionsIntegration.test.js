@@ -182,3 +182,28 @@ test("l'autorun della quick action viene consumato una sola volta", () => {
   );
   assert.match(cardModalSource, /requestedQuickActionHandled = true;[\s\S]*?await launchQuickAction\(action\)/);
 });
+
+test("the spellbook launcher (🪄) sits between ⚡ and 🗡️ and its menu opens one submenu per spell level", () => {
+  assert.match(initiativeSource, /for \(const group of \["quick", "spells", "attacks"\]\)/);
+  assert.match(initiativeSource, /spellbookMenu: IS_GM \? spellbookMenuSections\(initiativeCard\) : \[\]/);
+  assert.match(initiativeSource, /group === "spells" && sourceEntry\.spellbookMenu\?\.length \? \{ sections: sourceEntry\.spellbookMenu \}/);
+  assert.match(initiativeSource, /group === "spells" \? "Incantesimi"/);
+  // The menu: inline favourites, a submenu per level with a way back, the plain list without sections.
+  assert.match(popoverSource, /function menuSections\(payload, actions\)/);
+  assert.match(popoverSource, /button\.className = "submenu"/);
+  assert.match(popoverSource, /back\.className = "back"/);
+  assert.match(popoverSource, /if \(!sections\.length\) \{\s*for \(const action of actions\)/);
+  assert.match(popoverHtml, /body\[data-tone="spells"\]/);
+});
+
+test("card menus open towards the side with room and never grow past it, so their last items are not cut", () => {
+  const contextMenuSource = readFileSync(new URL("../src/initiative-card-context-menu.js", import.meta.url), "utf8");
+  assert.match(initiativeSource, /const vertical = roomBelow >= height \|\| roomBelow >= roomAbove\s*\? "TOP"\s*: "BOTTOM";/);
+  assert.match(initiativeSource, /const maxHeight = Math\.max\(120, Math\.floor\(vertical === "TOP" \? roomBelow : roomAbove\)\);/);
+  assert.match(initiativeSource, /initiative-card-context-menu\.html\?request=\$\{encodeURIComponent\(requestId\)\}&maxHeight=\$\{maxHeight\}/);
+  assert.match(initiativeSource, /tracker-quick-actions\.html\?request=\$\{encodeURIComponent\(requestId\)\}&maxHeight=\$\{basePlacement\.maxHeight\}/);
+  // maxHeight never reaches OBR.popover.open: it travels in the menu's URL.
+  assert.match(initiativeSource, /const \{ maxHeight, \.\.\.popoverPlacement \} = placement;/);
+  assert.match(contextMenuSource, /Math\.min\(viewportHeight - 24, ROOM_HEIGHT \|\| Infinity\)/);
+  assert.match(popoverSource, /Math\.min\(naturalHeight, viewportHeight - 24, ROOM_HEIGHT \|\| Infinity\)/);
+});

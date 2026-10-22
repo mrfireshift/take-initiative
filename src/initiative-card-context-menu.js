@@ -10,6 +10,8 @@ import { TABLE_SIDES } from "./tableOrientationCore.js";
 const CHANNEL = `${ID}/initiative-card-context-menu`;
 const PAYLOAD_PREFIX = `${ID}/initiative-card-context-menu/`;
 const requestId = new URLSearchParams(window.location.search).get("request") || "";
+// The room on the side of the click the menu opens towards (initiativeList.js); 0 when unknown.
+const ROOM_HEIGHT = Math.max(0, Math.floor(Number(new URLSearchParams(window.location.search).get("maxHeight")) || 0));
 const shell = document.querySelector("#shell");
 const root = document.querySelector("#menu");
 let openSubmenu = null;
@@ -60,7 +62,9 @@ function requestMenuResize() {
     try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
     if (revision !== resizeRevision) return;
 
-    const availableHeight = Math.max(120, viewportHeight - 24);
+    // The tracker opens the menu on the side of the click with more room and passes that room (maxHeight):
+    // beyond it the menu scrolls instead of running off the screen.
+    const availableHeight = Math.max(120, Math.min(viewportHeight - 24, ROOM_HEIGHT || Infinity));
     const targetHeight = Math.max(120, Math.min(naturalHeight, availableHeight));
     root.style.maxHeight = `${Math.max(118, targetHeight - 2)}px`;
     root.style.overflowY = naturalHeight > targetHeight ? "auto" : "hidden";
