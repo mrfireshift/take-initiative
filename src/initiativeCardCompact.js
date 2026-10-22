@@ -11,6 +11,11 @@ import { COMPACT_CARD_WIDTH } from "./constants.js";
 
 export { COMPACT_CARD_WIDTH };
 export const COMPACT_CARD_HEIGHT = 120;
+// Space above every portrait; the boss frame is centred on the portrait, so it is placed with the same value.
+const COMPACT_PORTRAIT_MARGIN_TOP = 4;
+// The corner badges (initiative, KO, E/EP/L/xN) share one size, and a second badge on the right stacks below the first.
+const COMPACT_CORNER_BADGE_SIZE = 24;
+const COMPACT_STACKED_BADGE_TOP = 6 + COMPACT_CORNER_BADGE_SIZE + 4;
 
 function compactSpellKey(name) {
   return String(name || "").trim().toLowerCase();
@@ -433,8 +438,8 @@ export function buildCompactCardIndicators(
     position: "absolute",
     left: "6px",
     top: "6px",
-    minWidth: "25px",
-    height: "25px",
+    minWidth: `${COMPACT_CORNER_BADGE_SIZE}px`,
+    height: `${COMPACT_CORNER_BADGE_SIZE}px`,
     padding: "0 4px",
     boxSizing: "border-box",
     display: "inline-flex",
@@ -471,8 +476,8 @@ export function buildCompactCardIndicators(
       position: "absolute",
       right: "6px",
       top: "6px",
-      height: "24px",
-      minWidth: "27px",
+      height: `${COMPACT_CORNER_BADGE_SIZE}px`,
+      minWidth: `${COMPACT_CORNER_BADGE_SIZE}px`,
       zIndex: "5",
     });
   }
@@ -524,7 +529,7 @@ export function buildCompactCardPortrait(
     width: `${portraitSize}px`,
     height: `${portraitSize}px`,
     flex: `0 0 ${portraitSize}px`,
-    marginTop: boss ? "6px" : "4px",
+    marginTop: `${COMPACT_PORTRAIT_MARGIN_TOP}px`,
     overflow: "hidden",
     border: `2px solid ${faction.border}`,
     borderRadius: "50%",
@@ -575,7 +580,7 @@ export function buildCompactCardPortrait(
     Object.assign(bossFrame.style, {
       position: "absolute",
       left: "50%",
-      top: `${3 + (boss ? 6 : 4) + (portraitSize / 2)}px`,
+      top: `${3 + COMPACT_PORTRAIT_MARGIN_TOP + (portraitSize / 2)}px`,
       width: `${bossFrameSize}px`,
       height: `${bossFrameSize}px`,
       objectFit: "contain",
@@ -595,6 +600,7 @@ export function buildCompactCardName(
   entry,
   {
     active,
+    boss = false,
     documentRef = globalThis.document,
   },
 ) {
@@ -608,7 +614,8 @@ export function buildCompactCardName(
   Object.assign(name.style, {
     width: "100%",
     height: "14px",
-    marginTop: "1px",
+    // Under a boss the name starts below the frame's ring, which overhangs the portrait.
+    marginTop: boss ? "6px" : "1px",
     overflow: "hidden",
     color: active ? "#fff" : "rgba(255,255,255,.90)",
     fontSize: "var(--obrt-type-tracker-name, 11px)",
@@ -620,6 +627,41 @@ export function buildCompactCardName(
     textShadow: "0 1px 3px #000",
   });
   return name;
+}
+
+// A virtual turn (a boss's epic action, the lair) has no HP and no effects of its own: a label says what the turn is,
+// so the card does not look half empty. Null for every other card.
+export function buildCompactVirtualTurnLabel(
+  entry,
+  {
+    isLair = false,
+    faction,
+    rgba,
+    documentRef = globalThis.document,
+  },
+) {
+  if (!entry?.isEpicAction && !isLair) return null;
+  const label = compactDocument(documentRef).createElement("div");
+  label.dataset.cardVirtualTurnLabel = "1";
+  label.textContent = entry.isEpicAction ? "Azione epica" : "Azione di tana";
+  Object.assign(label.style, {
+    maxWidth: "100%",
+    marginTop: "4px",
+    padding: "2px 8px",
+    boxSizing: "border-box",
+    overflow: "hidden",
+    border: `1px dashed ${rgba(faction.border, .7)}`,
+    borderRadius: "999px",
+    background: rgba(faction.base, .18),
+    color: "rgba(255,255,255,.86)",
+    fontSize: "var(--obrt-type-tracker-meta, 10px)",
+    fontWeight: "600",
+    lineHeight: "12px",
+    textAlign: "center",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  });
+  return label;
 }
 
 // "HP 78 / 100" with the current value standing out and the label and the maximum quieter. The card and the live HP
@@ -731,11 +773,14 @@ export function buildCompactCardHP(
       { documentRef },
     );
     knockedOutBadge.dataset.cardKoBadge = "1";
+    // A group's xN and an epic boss's E hold the top-right corner: the KO stacks below them instead of covering them.
+    const cornerTaken = (entry.__groupCollapsed && entry.__groupCount > 1) || !!entry.isEpic;
     Object.assign(knockedOutBadge.style, {
       position: "absolute",
       right: "6px",
-      top: entry.__groupCollapsed && entry.__groupCount > 1 ? "34px" : "6px",
-      height: "21px",
+      top: `${cornerTaken ? COMPACT_STACKED_BADGE_TOP : 6}px`,
+      height: `${COMPACT_CORNER_BADGE_SIZE}px`,
+      minWidth: `${COMPACT_CORNER_BADGE_SIZE}px`,
       zIndex: "6",
     });
   }
@@ -1020,7 +1065,9 @@ export function deriveCompactCardPresentation(
     active,
     boss,
     attitude,
-    portraitSize: boss ? 59 : 49,
+    // 57, not 59: the boss frame's ring reaches 9px below the portrait, and the name needs that room under it
+    // without making the card taller.
+    portraitSize: boss ? 57 : 49,
     canSeeHP,
     hp,
     hpMax,

@@ -14,6 +14,7 @@ import {
   buildCompactCardShell,
   buildCompactCardStatus,
   buildCompactLegendaryResourcePips,
+  buildCompactVirtualTurnLabel,
   compactStatusBadge,
   deriveCompactCardPresentation,
   enableCompactCardRename,
@@ -180,7 +181,8 @@ test("Epic, Paragon e leggendari condividono la presentazione boss", () => {
   ]) {
     const presentation = deriveCompactCardPresentation(entry, null);
     assert.equal(presentation.boss, true);
-    assert.equal(presentation.portraitSize, 59);
+    // 57: the frame's ring overhangs the portrait, and the name sits below it without a taller card.
+    assert.equal(presentation.portraitSize, 57);
   }
 });
 
@@ -626,7 +628,9 @@ test("il ritratto compatto conserva immagine, fallback e cornice boss", () => {
   assert.equal(regular.portrait.style.marginTop, "4px");
   assert.equal(regular.bossFrame, null);
   assert.equal(boss.portrait.children[0].src, "dragon.png");
-  assert.equal(boss.portrait.style.marginTop, "6px");
+  // Every portrait has the same top margin; the boss frame is centred with it.
+  assert.equal(boss.portrait.style.marginTop, "4px");
+  assert.equal(boss.bossFrame.style.top, `${3 + 4 + 59 / 2}px`);
   assert.equal(boss.bossFrame.src, "/boss-frame-ui.png");
   assert.equal(boss.bossFrame.attributes["aria-hidden"], "true");
   assert.equal(boss.bossFrame.draggable, false);
@@ -839,6 +843,38 @@ test("gli indicatori compatti distinguono gruppo, Epic, Lair e turno attivo", ()
   assert.equal(epic.activeMarker, null);
   assert.equal(lair.statusBadge.textContent, "L");
   assert.equal(lair.statusBadge.title, "Azione di Tana");
+  // The corner badges share one size, on both sides.
+  for (const badge of [group.initiativeBadge, group.statusBadge, epic.statusBadge, lair.statusBadge]) {
+    assert.equal(badge.style.height, "24px");
+    assert.equal(badge.style.minWidth, "24px");
+    assert.equal(badge.style.top, "6px");
+  }
+});
+
+test("le card dei turni virtuali dicono che turno sono, le altre no", () => {
+  const documentRef = createTestDocument();
+  const options = { faction: { base: "#7f1d1d", border: "#ef4444" }, rgba: (color, alpha) => `${color}@${alpha}`, documentRef };
+
+  const epic = buildCompactVirtualTurnLabel({ id: "__EPIC__::boss::after::pc", isEpicAction: true }, options);
+  const lair = buildCompactVirtualTurnLabel({ id: "__LAIR__" }, { ...options, isLair: true });
+  assert.equal(epic.textContent, "Azione epica");
+  assert.equal(epic.dataset.cardVirtualTurnLabel, "1");
+  assert.equal(epic.style.border, "1px dashed #ef4444@0.7");
+  assert.equal(lair.textContent, "Azione di tana");
+  assert.equal(buildCompactVirtualTurnLabel({ id: "goblin" }, options), null);
+});
+
+test("sotto un boss il nome scende oltre la cornice; il KO non copre la E del boss epico", () => {
+  const documentRef = createTestDocument();
+  assert.equal(buildCompactCardName({ name: "Auril" }, { active: false, boss: true, documentRef }).style.marginTop, "6px");
+  assert.equal(buildCompactCardName({ name: "Goblin" }, { active: false, documentRef }).style.marginTop, "1px");
+
+  const hpOptions = { showHP: true, safeHP: 0, hpMax: 12, hpPercent: 0, knockedOut: true, hpColorByPct: () => "#22c55e", documentRef };
+  const epicBoss = buildCompactCardHP({ id: "auril", isEpic: true }, hpOptions);
+  const goblin = buildCompactCardHP({ id: "goblin" }, hpOptions);
+  assert.equal(epicBoss.knockedOutBadge.style.top, "34px");
+  assert.equal(goblin.knockedOutBadge.style.top, "6px");
+  assert.equal(goblin.knockedOutBadge.style.height, "24px");
 });
 
 test("lo status compatto senza effetti resta vuoto e ignora la selezione", () => {

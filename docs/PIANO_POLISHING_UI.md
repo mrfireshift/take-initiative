@@ -158,6 +158,21 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
   - **Valore HP evidenziato — fatto con approvazione.** "HP" e "/ max" sono attenuati e il valore è in grassetto pesante. `writeCompactHPText()` è usata sia dalla card sia da `syncTrackerHPNow()`. In `syncTrackerHPNow()` è cambiata solo la riga che scrive il testo; i dati non sono toccati. La funzione non lancia mai errori: in caso di problemi scrive il testo semplice e la barra viene aggiornata comunque. È coperta da test unitari e da un test di contratto sul sorgente.
   - **Ancora sotto i 10px:** le pill (8px), le mini-pill (7px) e le etichette delle strisce "Token collegati" ed "Evocazioni" (8px). Portarle a 10px aumenta i troncamenti dentro una card larga 92px, quindi è una scelta da fare.
   - Prima/dopo in `docs/ui-audit/after/3.2-tipografia/`.
+- **3.3 — fatto il 2026-10-22.**
+  - Le card dei turni virtuali (azione epica, tana) mostrano sotto il nome un'etichetta tratteggiata "Azione epica" / "Azione di tana" al posto dello spazio vuoto. La larghezza resta uguale, perché il calcolo della larghezza del tracker dipende da essa.
+  - I badge d'angolo (iniziativa, KO, E/EP/L/xN) sono tutti 24×24 a 6px dal bordo. Il KO di un boss epico o di un gruppo si impila sotto (34px) invece di coprire la E o la xN.
+  - Il ritratto del boss passa da 59 a 57px e tutti i ritratti hanno 4px sopra. Sotto il boss il nome scende di 5px, così esce dall'anello della cornice. La card resta alta 120px.
+  - Il KO creato al volo da `syncTrackerHPNow()` mantiene ancora le misure vecchie (21px, in alto) per circa 100ms, finché il rendering incrementale non ricostruisce la card. Non ho toccato la funzione: l'approvazione copriva solo la scrittura del testo HP.
+  - Verifica con le misure del DOM nell'anteprima, perché il pannello non produceva screenshot:
+
+    | Misura | Prima | Dopo |
+    |---|---|---|
+    | Fondo della cornice del boss | 78px | 73px |
+    | Inizio del nome del boss | 70px | 71px (le lettere iniziano ~3px sotto) |
+    | Badge E/EP/L | 24×27 | 24×24 |
+    | Badge KO | 21×24 | 24×24 |
+    | Badge iniziativa | 25×25 | 24×24 |
+    | KO di un boss epico a 0 HP | sopra la E (7px) | sotto la E (35px) |
 
 ### Fase 4 — Vista classica
 

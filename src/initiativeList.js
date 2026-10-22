@@ -248,6 +248,7 @@ import {
   buildCompactCardShell,
   buildCompactCardStatus,
   buildCompactLegendaryResourcePips,
+  buildCompactVirtualTurnLabel,
   compactStatusBadge,
   deriveCompactCardPresentation,
   enableCompactCardRename,
@@ -9638,7 +9639,10 @@ function renderCompactTrack(
     });
     if (knockedOutBadge) card.appendChild(knockedOutBadge);
 
-    const name = buildCompactCardName(entry, { active });
+    const name = buildCompactCardName(entry, { active, boss });
+    const virtualTurnLabel = virtual
+      ? buildCompactVirtualTurnLabel(entry, { isLair: isLairId(entry.id), faction, rgba })
+      : null;
     if (IS_GM && !virtual && !entry.__groupCollapsed) {
       enableCompactCardRename({
         card,
@@ -9708,7 +9712,7 @@ function renderCompactTrack(
       "Resistenze leggendarie",
     );
 
-    card.append(portrait, name, hpText, hpTrack, status);
+    card.append(portrait, name, ...(virtualTurnLabel ? [virtualTurnLabel] : []), hpText, hpTrack, status);
     __mountTrackerQuickActions(card, entry, { compact: true });
     appendSpellBoardTokenCompanions(
       card,
