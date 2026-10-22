@@ -1183,9 +1183,30 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   } else {
     hpControlsRow.appendChild(hpCaption);
     hpControlsRow.appendChild(pill);
-    if (initiativeCardButton) hpControlsRow.appendChild(initiativeCardButton);
-    if (hpDeltaButton) hpControlsRow.appendChild(hpDeltaButton);
-    if (reactionIndicator) hpControlsRow.appendChild(reactionIndicator);
+    // Fixed slots at the row's right end: sheet, ± (the GM's) and reaction keep their place on every card, an empty
+    // slot keeps its room, so each icon lines up down the list whatever the HP text and the creature.
+    const emptyHPToolSlot = () => {
+      const slot = document.createElement("span");
+      slot.dataset.hpToolSlot = "empty";
+      slot.setAttribute("aria-hidden", "true");
+      Object.assign(slot.style, { flex: "0 0 18px", width: "18px", height: "18px", visibility: "hidden" });
+      return slot;
+    };
+    const hpTools = document.createElement("span");
+    hpTools.dataset.hpTools = "1";
+    Object.assign(hpTools.style, {
+      marginLeft: "auto",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "4px",
+      flex: "0 0 auto",
+    });
+    hpTools.append(
+      initiativeCardButton || emptyHPToolSlot(),
+      ...(IS_GM ? [hpDeltaButton || emptyHPToolSlot()] : []),
+      reactionIndicator || emptyHPToolSlot(),
+    );
+    hpControlsRow.appendChild(hpTools);
     hpControlsRow.appendChild(hpBarWrap);
   }
   card.appendChild(hpControlsRow);
