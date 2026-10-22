@@ -792,8 +792,8 @@ export function appendCompactSideDock(card, element, width) {
 
 // The effects past the first, in a drawer on the card's right (opened from the card's pill or "+N") instead of a list
 // under the bar: the same pills as on the card (14px, 8px text, the card's width), with their detail lines, in columns
-// as tall as the card. A handle on its left closes it.
-const EFFECTS_DRAWER_HANDLE_WIDTH = 14;
+// as tall as the card. It has no close button of its own, which would take the pills' room: the card's pill closes it
+// as it opened it.
 const EFFECTS_DRAWER_COLUMN_WIDTH = 80;
 const EFFECTS_DRAWER_INNER_HEIGHT = 106;
 const EFFECTS_DRAWER_PADDING = 5;
@@ -827,7 +827,7 @@ export function compactEffectsDrawerColumns(effects = []) {
 
 export function compactEffectsDrawerWidth(columnCount) {
   const columns = Math.max(1, Math.floor(Number(columnCount) || 0));
-  return EFFECTS_DRAWER_HANDLE_WIDTH + EFFECTS_DRAWER_PADDING * 2 + EFFECTS_DRAWER_GAP
+  return EFFECTS_DRAWER_PADDING * 2
     + columns * EFFECTS_DRAWER_COLUMN_WIDTH + (columns - 1) * EFFECTS_DRAWER_GAP;
 }
 
@@ -837,7 +837,6 @@ export function appendCompactEffectsDrawer(
   {
     spellColor = null,
     onTerminateClassFeature = null,
-    onClose = null,
     documentRef = globalThis.document,
   } = {},
 ) {
@@ -847,6 +846,7 @@ export function appendCompactEffectsDrawer(
   const drawer = document.createElement("div");
   drawer.dataset.compactEffectsDrawer = "1";
   drawer.dataset.cardSelectionIgnore = "1";
+  drawer.title = "Altri effetti: clicca di nuovo la pillola della card per chiudere";
   Object.assign(drawer.style, {
     display: "flex",
     alignItems: "stretch",
@@ -862,30 +862,6 @@ export function appendCompactEffectsDrawer(
   // Clicks in the drawer stay there: on the card they would select the token.
   drawer.addEventListener("click", (event) => event.stopPropagation());
   drawer.addEventListener("pointerdown", (event) => event.stopPropagation());
-
-  const handle = document.createElement("button");
-  handle.type = "button";
-  handle.textContent = "◂";
-  handle.title = "Nascondi gli altri effetti";
-  handle.setAttribute("aria-label", handle.title);
-  Object.assign(handle.style, {
-    flex: `0 0 ${EFFECTS_DRAWER_HANDLE_WIDTH}px`,
-    width: `${EFFECTS_DRAWER_HANDLE_WIDTH}px`,
-    padding: "0",
-    border: "0",
-    borderRadius: "6px",
-    background: "rgba(255,255,255,.06)",
-    color: "rgba(226,232,240,.8)",
-    font: "inherit",
-    fontSize: "var(--obrt-type-micro, 10px)",
-    cursor: "pointer",
-  });
-  handle.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    onClose?.();
-  });
-  drawer.appendChild(handle);
 
   for (const columnEffects of columns) {
     const column = document.createElement("div");

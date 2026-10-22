@@ -1249,17 +1249,18 @@ test("gli altri effetti si aprono in un cassetto a destra della card, in colonne
   const detailed = { key: "bless", label: "Benedizione", kind: "buff", summaryParts: [{ label: "a" }, { label: "b" }, { label: "c" }, { label: "d" }] };
   assert.deepEqual(compactEffectsDrawerColumns([detailed, ...effects.slice(0, 2)]).map((column) => column.length), [2, 1]);
   // Columns as wide as the card's pill.
-  assert.equal(compactEffectsDrawerWidth(1), 14 + 10 + 4 + 80);
-  assert.equal(compactEffectsDrawerWidth(2), 14 + 10 + 4 + 2 * 80 + 4);
+  assert.equal(compactEffectsDrawerWidth(1), 10 + 80);
+  assert.equal(compactEffectsDrawerWidth(2), 10 + 2 * 80 + 4);
 
   const documentRef = createTestDocument();
   const card = documentRef.createElement("article");
-  let closed = 0;
-  const drawer = appendCompactEffectsDrawer(card, effects, { documentRef, onClose: () => { closed += 1; } });
+  const drawer = appendCompactEffectsDrawer(card, effects, { documentRef });
   assert.equal(drawer.dataset.compactEffectsDrawer, "1");
   assert.equal(card.style.marginRight, `${3 + compactEffectsDrawerWidth(2)}px`);
   assert.equal(drawer.style.left, "calc(100% + 3px)");
-  const [handle, firstColumn, secondColumn] = drawer.children;
+  // No close button: only the pill columns (the card's pill closes the drawer).
+  assert.equal(drawer.children.length, 2);
+  const [firstColumn, secondColumn] = drawer.children;
   assert.equal(firstColumn.children.length, 6);
   assert.equal(secondColumn.children.length, 1);
   // The same pill as on the card: 14px, 8px text, the card's padding.
@@ -1267,7 +1268,5 @@ test("gli altri effetti si aprono in un cassetto a destra della card, in colonne
   for (const key of ["height", "fontSize", "fontWeight", "lineHeight", "padding"]) {
     assert.equal(firstColumn.children[0].style[key], cardPill.style[key], key);
   }
-  handle.dispatch("click", createTestEvent());
-  assert.equal(closed, 1);
   assert.equal(appendCompactEffectsDrawer(documentRef.createElement("article"), [], { documentRef }), null);
 });

@@ -9916,7 +9916,6 @@ function renderCompactTrack(
         onTerminateClassFeature: IS_GM
           ? (instance) => __terminateClassFeatureOnTrackerCard(entry.id, instance)
           : null,
-        onClose: () => void __toggleCompactEffectsPopover(card, previewPill, entry.id, compactEffects),
       });
       if (effectsDrawer) bindReferenceChips(effectsDrawer);
     }
