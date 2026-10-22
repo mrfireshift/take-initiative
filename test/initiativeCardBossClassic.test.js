@@ -7,6 +7,7 @@ import {
   buildClassicLegendaryResourceDock,
   buildClassicParagonDock,
   buildLegendaryResourcePips,
+  classicEpicTagOverhang,
 } from "../src/initiativeCardBossClassic.js";
 
 function createTestDocument() {
@@ -152,6 +153,19 @@ test("i tag Epic mantengono ordine boss poi azione virtuale", () => {
   assert.equal(docks[0].style.right, "152px");
   assert.equal(docks[1].children[0].textContent, "Azione Epica");
   assert.equal(docks[1].style.right, "167px");
+});
+
+test("la card tiene sopra di sé lo spazio della linguetta Epica, così non tocca la card precedente", () => {
+  const config = {
+    posBoss: { top: -6 },
+    posAction: { top: -6 },
+  };
+  assert.equal(classicEpicTagOverhang(config, { isEpicAction: true }), 6);
+  assert.equal(classicEpicTagOverhang(config, { isEpic: true }), 6);
+  assert.equal(classicEpicTagOverhang({ posBoss: { top: -4 }, posAction: { top: -9 } }, { isEpic: true, isEpicAction: true }), 9);
+  // No tag, or a tag inside the card: no room needed.
+  assert.equal(classicEpicTagOverhang(config, {}), 0);
+  assert.equal(classicEpicTagOverhang({ posAction: { top: 2 } }, { isEpicAction: true }), 0);
 });
 
 test("il dock Legendary conserva cluster e routing dei controlli", async () => {

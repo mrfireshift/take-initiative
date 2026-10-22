@@ -214,6 +214,9 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
   - **Correzione:** `syncChipDockCardHeight()` conta anche la riga aperta e fissa anche l'altezza minima. Il clic su "…" / "−" ricalcola subito l'altezza.
   - Nessun cambiamento a turno attivo, HP, ordine o metadata.
   - **Verifica con misure di layout nell'anteprima.** Goblin capobanda con 4 condizioni: da chiuso card 95px; da aperto card 113px, riga aperta fino a 110px, card successiva da 101 a 119px; richiuso torna a 95. Tutte le card con due righe di pill ora le contengono.
+  - **Segnalato in OBR (2026-10-22):** la card di azione epica sembrava non essere spinta dalle pill. In realtà scende, ma la sua linguetta "Azione Epica" sporge 6px sopra il bordo e arrivava al fondo della card precedente: con la card precedente attiva (ingrandita del 3,5% e con l'alone) finiva sulle pill.
+    - **Correzione:** le card con linguetta ("Azione Epica", "Boss Epico") tengono sopra di sé lo spazio della linguetta come margine (6px, da `classicEpicTagOverhang()`). Anticipa la parte A2.3 del lotto 4.2.
+    - **Verifica:** Klos con le pill aperte seguito da un'azione epica. Prima c'erano 0px tra la card e la linguetta, ora 6px (circa 4px con la card attiva); tra le pill e la linguetta 9px. Il margine compare solo sulle card con linguetta.
 
 ### Fase 5 — Pannelli e modali
 

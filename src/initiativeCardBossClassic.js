@@ -221,6 +221,13 @@ function buildBossTag(config, document) {
   return tag;
 }
 
+// How far the card's "Boss Epico" / "Azione Epica" tags reach above its top (their docks sit at a negative top), in px;
+// 0 without a tag. The classic builder keeps that much room above the card.
+export function classicEpicTagOverhang(config, { isEpic = false, isEpicAction = false } = {}) {
+  const tops = [isEpic && config?.posBoss?.top, isEpicAction && config?.posAction?.top].filter(Number.isFinite);
+  return Math.max(0, -Math.min(0, ...tops));
+}
+
 export function appendClassicEpicTags(
   header,
   entry,

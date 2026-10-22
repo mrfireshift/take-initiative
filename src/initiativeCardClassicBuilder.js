@@ -7,6 +7,7 @@ import {
 } from "./initiativeCardClassic.js";
 import {
   appendClassicEpicTags,
+  classicEpicTagOverhang,
   buildClassicBossChrome,
   buildClassicLegendaryResourceDock,
   buildClassicParagonDock,
@@ -601,12 +602,18 @@ if (cardToolsDock && e.__groupCollapsed) {
     });
   }
 
-appendClassicEpicTags(header, e, {
+const epicTagDocks = appendClassicEpicTags(header, e, {
   isEpic: IS_EPIC,
   config: EPIC_TAG_CFG,
   badgeRight: BADGE_RIGHT,
   badgeSize: BADGE_SIZE,
 });
+// The "Azione Epica" / "Boss Epico" tag overhangs the card's top: the card keeps that room above it, so the tag never
+// reaches the card above (its open pills, or its halo and scale when it is the active one).
+if (epicTagDocks.length) {
+  const overhang = classicEpicTagOverhang(EPIC_TAG_CFG, { isEpic: IS_EPIC, isEpicAction: !!e.isEpicAction });
+  if (overhang) card.style.marginTop = `${overhang}px`;
+}
 // --- CHIP ×N SULL'AVATAR (solo se collassato) ---
 if (e.__groupCollapsed && e.__groupCount > 1) {
   const CHIP = 32;            // diametro chip (regola qui)
