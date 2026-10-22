@@ -253,6 +253,7 @@ import {
   compactStatusBadge,
   deriveCompactCardPresentation,
   enableCompactCardRename,
+  appendCompactEffectsDrawer,
   compactHPTextHTML,
   compactKnockedOutBadgeStyle,
   markCompactHPTextEditable,
@@ -3959,7 +3960,7 @@ trackWrap.addEventListener("wheel", (event) => {
   markCompactCarouselScrolling();
 }, { passive: false });
 trackWrap.addEventListener("scroll", () => {
-  if (__expandedCompactEffectsId) void __closeCompactEffectsPopover();
+  // The effects drawer is part of the strip: scrolling keeps it open.
   markCompactCarouselScrolling();
   updateCompactScrollFade();
 }, { passive: true });
@@ -9125,9 +9126,6 @@ function __replaceTrackCardsIncremental(nextNodes) {
       __markEditorDirtyFromCard(liveCard);
       continue;
     }
-    if (__expandedCompactEffectsId === liveCard.dataset.itemId) {
-      void __closeCompactEffectsPopover();
-    }
     liveCard.replaceWith(nextCard);
     replaced += 1;
   }
@@ -9658,7 +9656,6 @@ function __replaceTrackCardsAnimated(nodes, options) {
 let __expandedCompactEffectsId = null;
 
 const COMPACT_EFFECTS_POPOVER_ID = `${ID}/compact-effects-popover`;
-const COMPACT_EFFECTS_PAYLOAD_KEY = `${ID}/compact-effects-payload`;
 
 async function __closeCompactEffectsPopover() {
   __expandedCompactEffectsId = null;
@@ -9682,54 +9679,18 @@ function __compactTrackerFrameOrigin(trackerAnchor) {
 }
 
 async function __toggleCompactEffectsPopover(card, effectAnchor, entryId, effects) {
-  if (__expandedCompactEffectsId === entryId) {
-    await __closeCompactEffectsPopover();
-    return false;
-  }
-
-  const remainingEffects = effects.slice(1);
-  if (!remainingEffects.length) return false;
-  localStorage.setItem(COMPACT_EFFECTS_PAYLOAD_KEY, JSON.stringify({ effects: remainingEffects }));
-
-  const trackerAnchor = await getCompactTrackerPopoverAnchor();
-  const cardRect = card.getBoundingClientRect();
-  const effectAnchorRect = effectAnchor.getBoundingClientRect();
-  const trackerOrigin = __compactTrackerFrameOrigin(trackerAnchor);
-  const anchorPosition = {
-    left: Math.round(trackerOrigin.left + effectAnchorRect.left + effectAnchorRect.width / 2),
-    top: Math.round(trackerOrigin.top + effectAnchorRect.bottom),
-  };
-  const width = Math.max(72, Math.round(cardRect.width));
-  const height = remainingEffects.reduce((total, effect, index) => {
-    const summaryPartCount = Array.isArray(effect?.summaryParts)
-      ? effect.summaryParts.length
-      : 0;
-    const effectHeight = 14 + summaryPartCount * 16;
-    return total + effectHeight + (index > 0 ? 1 : 0);
-  }, 4);
-
+  // The effects open in a drawer beside the card (appendCompactEffectsDrawer), drawn by the render, one card at a
+  // time; no more popover under the bar (closed here in case an earlier version left it open).
+  if (!effects?.length || effects.length < 2) return false;
+  __expandedCompactEffectsId = __expandedCompactEffectsId === entryId ? null : entryId;
   await OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {});
-  try {
-    await openTrackedPopover({
-      id: COMPACT_EFFECTS_POPOVER_ID,
-      url: "/compact-effects.html",
-      width,
-      height,
-      anchorReference: "POSITION",
-      anchorPosition,
-      anchorOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
-      transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
-      disableClickAway: true,
-      marginThreshold: 0,
-      hidePaper: true,
-    });
-    __expandedCompactEffectsId = entryId;
-    return true;
-  } catch (error) {
-    __expandedCompactEffectsId = null;
-    console.warn("[compact-effects] apertura pannello fallita:", error?.message || error);
-    return false;
+  await renderAll("compact-effects-drawer");
+  const opened = __expandedCompactEffectsId === entryId;
+  if (opened) {
+    const drawer = track.querySelector(`[data-item-id="${entryId}"] [data-compact-effects-drawer="1"]`);
+    drawer?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }
+  return opened;
 }
 
 function renderCompactTrack(
@@ -9948,6 +9909,17 @@ function renderCompactTrack(
 
     card.append(portrait, name, ...(virtualTurnLabel ? [virtualTurnLabel] : []), hpText, hpTrack, status);
     __mountTrackerQuickActions(card, entry, { compact: true });
+    // The other effects, when opened, in a drawer on the card's right (before the companions' tab).
+    if (hasExpandableEffects && effectsPopoverOpen) {
+      const effectsDrawer = appendCompactEffectsDrawer(card, compactEffects.slice(1), {
+        spellColor: __spellColor,
+        onTerminateClassFeature: IS_GM
+          ? (instance) => __terminateClassFeatureOnTrackerCard(entry.id, instance)
+          : null,
+        onClose: () => void __toggleCompactEffectsPopover(card, previewPill, entry.id, compactEffects),
+      });
+      if (effectsDrawer) bindReferenceChips(effectsDrawer);
+    }
     // Linked tokens and summons in a tab on the card's right, opening sideways: the bar does not grow downwards.
     appendCompactCompanionDrawer(
       card,

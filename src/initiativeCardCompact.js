@@ -790,6 +790,131 @@ export function appendCompactSideDock(card, element, width) {
   return { element, resize };
 }
 
+// The effects past the first, in a drawer on the card's right (opened from the card's pill or "+N") instead of a list
+// under the bar: the card's own pills at 10px, with their detail lines, in columns as tall as the card. A handle on
+// its left closes it.
+const EFFECTS_DRAWER_HANDLE_WIDTH = 14;
+const EFFECTS_DRAWER_COLUMN_WIDTH = 124;
+const EFFECTS_DRAWER_INNER_HEIGHT = 106;
+const EFFECTS_DRAWER_PADDING = 5;
+const EFFECTS_DRAWER_GAP = 4;
+const EFFECTS_DRAWER_PILL_HEIGHT = 17;
+const EFFECTS_DRAWER_DETAIL_HEIGHT = 16;
+
+function compactEffectsDrawerItemHeight(effect) {
+  const details = Array.isArray(effect?.summaryParts) ? effect.summaryParts.length : 0;
+  return EFFECTS_DRAWER_PILL_HEIGHT + details * EFFECTS_DRAWER_DETAIL_HEIGHT;
+}
+
+// Effects grouped in columns, top to bottom, each column as tall as the card allows (a taller effect gets its own).
+export function compactEffectsDrawerColumns(effects = []) {
+  const columns = [];
+  let column = null;
+  let used = 0;
+  for (const effect of (Array.isArray(effects) ? effects : []).filter(Boolean)) {
+    const height = compactEffectsDrawerItemHeight(effect);
+    if (!column || used + 2 + height > EFFECTS_DRAWER_INNER_HEIGHT) {
+      column = [];
+      columns.push(column);
+      used = height;
+    } else {
+      used += 2 + height;
+    }
+    column.push(effect);
+  }
+  return columns;
+}
+
+export function compactEffectsDrawerWidth(columnCount) {
+  const columns = Math.max(1, Math.floor(Number(columnCount) || 0));
+  return EFFECTS_DRAWER_HANDLE_WIDTH + EFFECTS_DRAWER_PADDING * 2 + EFFECTS_DRAWER_GAP
+    + columns * EFFECTS_DRAWER_COLUMN_WIDTH + (columns - 1) * EFFECTS_DRAWER_GAP;
+}
+
+export function appendCompactEffectsDrawer(
+  card,
+  effects = [],
+  {
+    spellColor = null,
+    onTerminateClassFeature = null,
+    onClose = null,
+    documentRef = globalThis.document,
+  } = {},
+) {
+  const columns = compactEffectsDrawerColumns(effects);
+  if (!card || !columns.length) return null;
+  const document = compactDocument(documentRef);
+  const drawer = document.createElement("div");
+  drawer.dataset.compactEffectsDrawer = "1";
+  drawer.dataset.cardSelectionIgnore = "1";
+  Object.assign(drawer.style, {
+    display: "flex",
+    alignItems: "stretch",
+    gap: `${EFFECTS_DRAWER_GAP}px`,
+    padding: `${EFFECTS_DRAWER_PADDING}px`,
+    border: "1px solid rgba(148,163,184,.42)",
+    borderRadius: "10px",
+    background: "rgba(13,18,27,.9)",
+    boxShadow: "0 4px 10px rgba(0,0,0,.28)",
+    zIndex: "6",
+    pointerEvents: "auto",
+  });
+  // Clicks in the drawer stay there: on the card they would select the token.
+  drawer.addEventListener("click", (event) => event.stopPropagation());
+  drawer.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+  const handle = document.createElement("button");
+  handle.type = "button";
+  handle.textContent = "◂";
+  handle.title = "Nascondi gli altri effetti";
+  handle.setAttribute("aria-label", handle.title);
+  Object.assign(handle.style, {
+    flex: `0 0 ${EFFECTS_DRAWER_HANDLE_WIDTH}px`,
+    width: `${EFFECTS_DRAWER_HANDLE_WIDTH}px`,
+    padding: "0",
+    border: "0",
+    borderRadius: "6px",
+    background: "rgba(255,255,255,.06)",
+    color: "rgba(226,232,240,.8)",
+    font: "inherit",
+    fontSize: "var(--obrt-type-micro, 10px)",
+    cursor: "pointer",
+  });
+  handle.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onClose?.();
+  });
+  drawer.appendChild(handle);
+
+  for (const columnEffects of columns) {
+    const column = document.createElement("div");
+    Object.assign(column.style, {
+      flex: `0 0 ${EFFECTS_DRAWER_COLUMN_WIDTH}px`,
+      width: `${EFFECTS_DRAWER_COLUMN_WIDTH}px`,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "flex-start",
+      gap: "2px",
+      minWidth: "0",
+    });
+    for (const effect of columnEffects) {
+      const pill = __buildCompactEffectPill(effect, false, { documentRef, spellColor, onTerminateClassFeature });
+      Object.assign(pill.style, {
+        display: "block",
+        width: "100%",
+        maxWidth: "100%",
+        height: `${EFFECTS_DRAWER_PILL_HEIGHT}px`,
+        fontSize: "var(--obrt-type-micro, 10px)",
+      });
+      column.appendChild(buildEffectSummaryContainer(effect, pill, { documentRef, preview: true }));
+    }
+    drawer.appendChild(column);
+  }
+  appendCompactSideDock(card, drawer, compactEffectsDrawerWidth(columns.length));
+  return drawer;
+}
+
 // The KO badge sits on the portrait, across its lower part: the top-right corner is left to the GM's launchers
 // (trackerQuickActions.js). Shared with syncTrackerHPNow, which adds the badge when HP drop to 0 between renders.
 const COMPACT_KO_BADGE_HEIGHT = 18;

@@ -717,3 +717,16 @@ test("barra compatta: il round sta nella colonna sinistra, non in una linguetta 
   const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   assert.ok(indexHtml.includes('[data-tracker-layout="compact"] #tbp-round-label [data-round-number]'));
 });
+
+test("barra compatta: gli effetti si aprono in un cassetto accanto alla card, non in un popover sotto la barra", () => {
+  const compactSection = source.slice(source.indexOf("function renderCompactTrack("));
+  const effectsAt = compactSection.indexOf("appendCompactEffectsDrawer(card, compactEffects.slice(1)");
+  const companionsAt = compactSection.indexOf("appendCompactCompanionDrawer(");
+  assert.ok(effectsAt > 0 && companionsAt > effectsAt, "the effects drawer sits next to the card, before the companions");
+  const toggle = source.slice(source.indexOf("async function __toggleCompactEffectsPopover("), source.indexOf("function renderCompactTrack("));
+  assert.ok(toggle.includes('await renderAll("compact-effects-drawer");'));
+  assert.ok(!toggle.includes("openTrackedPopover("));
+  // Scrolling the strip or refreshing the card keeps the drawer open.
+  const scrollHandler = source.slice(source.indexOf('trackWrap.addEventListener("scroll"'), source.indexOf('trackWrap.addEventListener("scroll"') + 240);
+  assert.ok(!scrollHandler.includes("__closeCompactEffectsPopover"));
+});
