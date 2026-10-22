@@ -261,7 +261,8 @@ export function applyToolbarLayoutPresentation(
       flexDirection: "column",
       justifyContent: "center",
       gap: classic ? "3px" : "2px",
-      padding: classic ? "0 2px" : "0",
+      // No side padding in either layout: the caption gets the whole width ("Incantesimi" touched the edges).
+      padding: "0",
       overflow: "hidden",
       borderRadius: classic ? "10px" : "9px",
       border: active
@@ -288,10 +289,10 @@ export function applyToolbarLayoutPresentation(
       caption.style.fontSize = classic ? "7.5px" : "var(--obrt-type-micro, 10px)";
       caption.style.fontWeight = classic ? "600" : "500";
       caption.style.lineHeight = "1";
-      caption.style.letterSpacing = classic ? "-.01em" : "-.02em";
+      caption.style.letterSpacing = "-.02em";
       caption.style.whiteSpace = "nowrap";
       caption.style.overflow = "hidden";
-      caption.style.textOverflow = classic ? "clip" : "ellipsis";
+      caption.style.textOverflow = "ellipsis";
       caption.style.textAlign = "center";
     }
   });

@@ -144,6 +144,9 @@ test("la presentazione toolbar passa tra layout esteso e compatto", () => {
   assert.equal(activeControl.style.width, "100%");
   assert.equal(activeControl.querySelector("[data-toolbar-caption='1']").style.display, "block");
   assert.match(activeControl.style.border, /147,197,253/);
+  // The caption has the button's whole width and ends in "…" rather than touching the edges.
+  assert.equal(activeControl.style.padding, "0");
+  assert.equal(activeControl.querySelector("[data-toolbar-caption='1']").style.textOverflow, "ellipsis");
 
   applyToolbarLayoutPresentation(true, context);
   assert.equal(viewOptionsRow.style.width, "116px");

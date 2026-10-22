@@ -217,6 +217,12 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
   - **Segnalato in OBR (2026-10-22):** la card di azione epica sembrava non essere spinta dalle pill. In realtà scende, ma la sua linguetta "Azione Epica" sporge 6px sopra il bordo e arrivava al fondo della card precedente: con la card precedente attiva (ingrandita del 3,5% e con l'alone) finiva sulle pill.
     - **Correzione:** le card con linguetta ("Azione Epica", "Boss Epico") tengono sopra di sé lo spazio della linguetta come margine (6px, da `classicEpicTagOverhang()`). Anticipa la parte A2.3 del lotto 4.2.
     - **Verifica:** Klos con le pill aperte seguito da un'azione epica. Prima c'erano 0px tra la card e la linguetta, ora 6px (circa 4px con la card attiva); tra le pill e la linguetta 9px. Il margine compare solo sulle card con linguetta.
+- **4.2 — fatto il 2026-10-22** (direttamente su `main`).
+  - **A2.2.** Un incantesimo senza round registrati non mostra più "(0)" nella pill né "Durata: 0 round" nel pannello: niente contatore, "durata non indicata". Lo 0 registrato davvero resta 0 (`spellRecordedTurns()`).
+  - **A2.3.** Fatta con la segnalazione del lotto 4.1 (margine sopra le card con linguetta).
+  - **A2.4.** Nella riga HP delle card normali le icone stanno in posti fissi a destra: scheda, ± (solo GM), reazione. Un posto vuoto mantiene il suo spazio. Verifica: scheda a 168px, ± a 190, reazione a 212 su tutte le card GM (+6px sulla card attiva, ingrandita); nella vista giocatore scheda a 189 e reazione a 211. Tra il testo HP e le icone restano almeno 47px. Le card dei boss mantengono la loro riga.
+  - **A2.6.** Le didascalie dei pulsanti non hanno più margine interno e finiscono con "…" se troppo lunghe. "Incantesimi" a 7,5px ha ora 4,4px di margine invece di toccare i bordi.
+  - **Da decidere:** le didascalie della barra classica restano a 7,5px, sotto l'obiettivo dei 10px. A 10px "Incantesimi" richiede circa 51px contro i 44 disponibili, quindi servirebbe riorganizzare la barra (per esempio due righe di pulsanti), togliendo circa 46px alla lista.
 
 ### Fase 5 — Pannelli e modali
 
