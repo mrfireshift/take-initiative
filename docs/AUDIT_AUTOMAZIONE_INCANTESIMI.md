@@ -1,6 +1,13 @@
 <!-- SPELL-COMPOSITION-AUDIT:BEGIN -->
 # Audit indipendente: completamento compositivo del catalogo
 
+> **Aggiornamento del 2026-10-22.** Stato, conteggi e ordine di lavoro sono
+> aggiornati nel [Piano di automazione degli incantesimi](PIANO_AUTOMAZIONE_INCANTESIMI.md):
+> il blocco sugli attacchi della sezione C è risolto, la console attacchi ha
+> completato 17 trucchetti, Prigione Mentale è completa e tutti i 477
+> incantesimi si lanciano e si registrano con il loro slot. Questo blocco resta
+> la fonte delle annotazioni per incantesimo.
+
 Verifica: **2026-09-14**, working tree Take Initiative **1.3.0**, non soltanto HEAD.
 Questo blocco è la valutazione semantica mantenuta dall'audit; lo snapshot generato
 in fondo conserva gli assi storici, senza determinare COMPLETE o GREEN.

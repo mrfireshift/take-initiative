@@ -86,7 +86,9 @@ non automatizza (istantanei senza area né tracciamento: Controincantesimo,
 Cura ferite, Desiderio…) si **registrano**: un solo comando spende il loro
 costo, con History, Undo e voce nel registro di combattimento, senza pill sui
 bersagli, che restano facoltativi. Un lancio registrato che non spende nulla
-va soltanto nel registro. Il percorso è in `src/spellCastRecord.js`.
+va soltanto nel registro. Il percorso è in `src/spellCastRecord.js`; quali
+incantesimi automatizzare, e come, è nel
+[Piano di automazione](PIANO_AUTOMAZIONE_INCANTESIMI.md).
 
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la

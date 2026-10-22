@@ -2729,26 +2729,26 @@
   "summary": {
     "total": 477,
     "statuses": {
-      "COMPLETE / CURRENT": 166,
       "COMPLETE / LEGACY": 13,
-      "PARTIAL": 100,
-      "MISSING": 52,
+      "COMPLETE / CURRENT": 184,
+      "PARTIAL": 95,
       "NO AUTOMATION REQUIRED": 144,
+      "MISSING": 39,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 152,
+    "implementableBacklog": 134,
     "readiness": {
       "GREEN": {
-        "count": 50,
-        "percent": 32.89473684210526
+        "count": 43,
+        "percent": 32.08955223880597
       },
       "YELLOW": {
-        "count": 90,
-        "percent": 59.21052631578947
+        "count": 80,
+        "percent": 59.70149253731343
       },
       "RED": {
-        "count": 12,
-        "percent": 7.894736842105263
+        "count": 11,
+        "percent": 8.208955223880597
       }
     },
     "scenarios": [
@@ -2970,7 +2970,8 @@
         ],
         "remainingYellow": 51
       }
-    ]
+    ],
+    "scenariosAsOf": "2026-09-14"
   },
   "rows": [
     {
@@ -3089,8 +3090,8 @@
       "id": "acid-splash",
       "spell": "Fiotto acido",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -3141,9 +3142,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "DISCRETE-SAVE",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-DISCRETE-SAVE",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "acid-splash",
@@ -3152,6 +3153,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
@@ -3166,7 +3171,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Dati/registrazione nel workflow save discreto già esistente, fattore zero/metà ed eventuale rider/summaryParts; danno finale inserito dal GM.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -7875,8 +7880,8 @@
       "id": "chill-touch",
       "spell": "Tocco gelido",
       "level": 0,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -7895,9 +7900,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -7938,9 +7941,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "ATTACK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "chill-touch",
@@ -7949,6 +7952,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -7971,7 +7978,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "BLOCKER riprodotto: getSpellAttackResolution(hit) aggiunge acid-arrow-delayed-acid anche a queste spell; cantrip non scala con characterLevel.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -12898,10 +12905,10 @@
         "C-EFFECT",
         "C-INSTANCE",
         "C-EXPIRY",
-    "C-TARGET",
-    "C-PLACEMENT",
-    "C-PRESENT",
-    "C-EFFECTS",
+        "C-TARGET",
+        "C-PLACEMENT",
+        "C-PRESENT",
+        "C-EFFECTS",
         "C-HISTORY",
         "C-RECOVERY",
         "C-VFX",
@@ -12986,12 +12993,12 @@
           "test/spellStaticZoneMovementUndoIntegration.test.js"
         ],
         "literalTestCandidates": [
-      "test/spellTeleportCore.test.js",
-      "test/spellUnifiedAreaAdapter.test.js",
-      "test/spellUnifiedPanelSceneProvider.test.js",
-      "test/spellUnifiedPanelViewCore.test.js",
-      "test/spellAreaPlacementCore.test.js",
-      "test/teleportUndoIntegration.test.js"
+          "test/spellTeleportCore.test.js",
+          "test/spellUnifiedAreaAdapter.test.js",
+          "test/spellUnifiedPanelSceneProvider.test.js",
+          "test/spellUnifiedPanelViewCore.test.js",
+          "test/spellAreaPlacementCore.test.js",
+          "test/teleportUndoIntegration.test.js"
         ],
         "qualification": "Unified contract, adapter, live spatial validation e Effects/History E2E coprono il workflow reale; occupancy/LOS/consenso/peso restano assistiti dal GM."
       },
@@ -14629,8 +14636,8 @@
       "id": "eldritch-blast",
       "spell": "Deflagrazione occulta",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -14648,9 +14655,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -14686,9 +14691,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "MULTI-HIT",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "eldritch-blast",
@@ -14697,6 +14702,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -14718,7 +14727,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Multi-hit è già presente come maxAttacks + attacks[] (Lama del Disastro), anche stesso target. Gap reale: esporlo al cast con conteggio scalato e policy auto-hit per i dardi, senza parent fittizio.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -17001,8 +17010,8 @@
       "id": "fire-bolt",
       "spell": "Dardo di fuoco",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -17020,9 +17029,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -17058,9 +17065,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "ATTACK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "fire-bolt",
@@ -17069,6 +17076,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -17090,7 +17101,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Manca cast attacco generico senza il differito hardcoded; usare outcome al tavolo, danno finale e scaling dichiarativo.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -29558,8 +29569,8 @@
       "id": "poison-spray",
       "spell": "Spruzzo velenoso",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -29610,9 +29621,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "DISCRETE-SAVE",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-DISCRETE-SAVE",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "poison-spray",
@@ -29621,6 +29632,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
@@ -29635,7 +29650,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Dati/registrazione nel workflow save discreto già esistente, fattore zero/metà ed eventuale rider/summaryParts; danno finale inserito dal GM.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -31017,8 +31032,8 @@
       "id": "produce-flame",
       "spell": "Produrre fiamma",
       "level": 0,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -31037,9 +31052,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -31075,9 +31088,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "ATTACK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "produce-flame",
@@ -31086,6 +31099,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -31107,7 +31124,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking luce presente; attacco opzionale al cast/dopo con fine spell; eliminare acid-arrow specialization e usare terminal action.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -31964,8 +31981,8 @@
       "id": "ray-of-frost",
       "spell": "Raggio di gelo",
       "level": 0,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -31984,9 +32001,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -32027,9 +32042,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "ATTACK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "ray-of-frost",
@@ -32038,6 +32053,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -32061,7 +32080,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "BLOCKER riprodotto: getSpellAttackResolution(hit) aggiunge acid-arrow-delayed-acid anche a queste spell; cantrip non scala con characterLevel.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -33096,8 +33115,8 @@
       "id": "sacred-flame",
       "spell": "Fiamma sacra",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -33148,9 +33167,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "DISCRETE-SAVE",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-DISCRETE-SAVE",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "sacred-flame",
@@ -33159,6 +33178,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
@@ -33173,7 +33196,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Dati/registrazione nel workflow save discreto già esistente, fattore zero/metà ed eventuale rider/summaryParts; danno finale inserito dal GM.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -34628,8 +34651,8 @@
       "id": "shocking-grasp",
       "spell": "Stretta folgorante",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -34647,9 +34670,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -34685,9 +34706,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "ATTACK-RIDER",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "shocking-grasp",
@@ -34696,6 +34717,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -34715,7 +34740,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Attacco + danno/rider; forced movement e dado arma restano manuali. Il secondo target/rider si compone dopo la correzione del contratto attacco.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -39611,8 +39636,8 @@
       "id": "vicious-mockery",
       "spell": "Beffa crudele",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -39663,9 +39688,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "DISCRETE-SAVE",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-DISCRETE-SAVE",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "vicious-mockery",
@@ -39674,6 +39699,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
@@ -39688,7 +39717,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Dati/registrazione nel workflow save discreto già esistente, fattore zero/metà ed eventuale rider/summaryParts; danno finale inserito dal GM.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -44626,7 +44655,7 @@
       "spell": "Dardo di Caos",
       "level": 1,
       "status": "MISSING",
-      "readiness": "RED",
+      "readiness": "YELLOW",
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -44644,7 +44673,7 @@
         "C-HISTORY"
       ],
       "missingCapabilities": [
-        "RANDOM-CHAIN"
+        "CAP-ATTACK"
       ],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
@@ -44681,7 +44710,7 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "RANDOM-CHAIN",
+      "implementationFamily": "ATTACK-CONSOLE",
       "estimatedEffort": "HIGH, individual design",
       "recommendedBatch": "RED / individual",
       "ruleEvidence": {
@@ -44711,7 +44740,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Scelta tipo dai dadi e rimbalzi dipendenti dai risultati: il cap non modella la catena di risoluzioni.",
+        "reason": "Con la console attacchi: tipo scelto dal d8 e rimbalzo come nuova registrazione dello stesso lancio, con lo slot speso una volta (lotto L4).",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -45678,8 +45707,8 @@
       "id": "xanathar-ferocia-primordiale",
       "spell": "Ferocia Primordiale",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -45696,9 +45725,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -45734,9 +45761,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "ATTACK",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-ferocia-primordiale",
@@ -45745,6 +45772,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -45764,7 +45795,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Manca cast attacco generico senza il differito hardcoded; usare outcome al tavolo, danno finale e scaling dichiarativo.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -46914,8 +46945,8 @@
       "id": "xanathar-infestazione",
       "spell": "Infestazione",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -46965,9 +46996,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "DISCRETE-SAVE",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-DISCRETE-SAVE",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-infestazione",
@@ -46976,6 +47007,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
@@ -46990,7 +47025,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Save discreto, danno manuale, filtro o variante GM e rider informativo componibili con workflow corrente; RNG manuale.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -48719,8 +48754,8 @@
       "id": "xanathar-morsa-del-gelo",
       "spell": "Morsa del Gelo",
       "level": 0,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/supplementSpellRules.js",
         "src/spellApplicationPlanCore.js"
@@ -48776,9 +48811,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "DISCRETE-SAVE",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-DISCRETE-SAVE",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-morsa-del-gelo",
@@ -48787,6 +48822,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
@@ -48801,7 +48840,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Penalità next-attack già presente; manca collegare TS iniziale e HP nel percorso discreto con successo zero.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -50745,8 +50784,8 @@
       "id": "xanathar-prigione-mentale",
       "spell": "Prigione Mentale",
       "level": 6,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/supplementSpellRules.js",
         "src/spellApplicationPlanCore.js"
@@ -50767,9 +50806,7 @@
         "C-SAVE",
         "C-REPEATSAVE"
       ],
-      "missingCapabilities": [
-        "CAP-LINK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -50807,9 +50844,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "CONDITIONAL-DAMAGE",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-LINK",
+      "implementationFamily": "SAVE-EFFECT",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-prigione-mentale",
@@ -50818,6 +50855,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/mentalPrisonWorkflow.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -50841,7 +50879,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Trattenuto presente; danno iniziale comune e detonazione al movimento/attacco attraverso illusione richiedono evento assistito, non membership indiscriminata.",
+        "reason": "Ottobre 2026: TS Intelligenza, 5d10 psichici, pill dei sensi e risoluzione dell'attraversamento da 10d10 senza nuovo TS.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -50972,8 +51010,8 @@
       "id": "xanathar-rintocco-dei-morti",
       "spell": "Rintocco dei Morti",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -51023,9 +51061,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "DISCRETE-SAVE",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-DISCRETE-SAVE",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-rintocco-dei-morti",
@@ -51034,6 +51072,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
@@ -51048,7 +51090,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Save discreto, danno manuale, filtro o variante GM e rider informativo componibili con workflow corrente; RNG manuale.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -56018,7 +56060,6 @@
         "C-HISTORY"
       ],
       "missingCapabilities": [
-        "CAP-ATTACK",
         "CAP-LINK"
       ],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
@@ -56093,7 +56134,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Rider presente; distinguere movimento volontario e consume del primo evento dopo hit, niente danno da semplice riposizionamento.",
+        "reason": "Console attacchi: attacco con arma, dado del trucchetto e pill sul bersaglio. Manca l'avviso automatico quando il bersaglio si muove volontariamente (CAP-LINK).",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -56116,8 +56157,8 @@
       "id": "tasha-lama-verdefiamma",
       "spell": "Lama Verdefiamma",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -56134,9 +56175,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -56172,9 +56211,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "ATTACK-RIDER",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "tasha-lama-verdefiamma",
@@ -56183,6 +56222,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -56202,7 +56245,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Attacco + danno/rider; forced movement e dado arma restano manuali. Il secondo target/rider si compone dopo la correzione del contratto attacco.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -56221,8 +56264,8 @@
       "id": "tasha-lenza-elettrizzante",
       "spell": "Lenza Elettrizzante",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -56239,9 +56282,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -56277,9 +56318,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "ATTACK-RIDER",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "tasha-lenza-elettrizzante",
@@ -56288,6 +56329,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -56309,7 +56354,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Attacco + danno/rider; forced movement e dado arma restano manuali. Il secondo target/rider si compone dopo la correzione del contratto attacco.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -57174,8 +57219,8 @@
       "id": "phb2014-frusta-di-spine",
       "spell": "Frusta di Spine",
       "level": 0,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "NONE: catalog only"
       ],
@@ -57192,9 +57237,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-ATTACK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -57230,9 +57273,9 @@
         "requiredForCompletion": false,
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
-      "implementationFamily": "ATTACK-RIDER",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK",
+      "implementationFamily": "PC-ATTACK-CONSOLE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-phb2014-extra.json",
         "spellId": "phb2014-frusta-di-spine",
@@ -57241,6 +57284,10 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/pcAttackCantrips.test.js",
+          "test/pcAttackCantripCatalog.test.js",
+          "test/pcAttackWeaponCantrips.test.js",
+          "test/pcAttackAreas.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -57260,7 +57307,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Attacco + danno/rider; forced movement e dado arma restano manuali. Il secondo target/rider si compone dopo la correzione del contratto attacco.",
+        "reason": "Ottobre 2026: console attacchi PG (pcAttackCantripCatalog.js), dadi per livello del personaggio, esito, danno tipizzato, pill dal catalogo incantesimi e Combat Log; gli effetti senza pill restano note per il GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62611,5 +62658,11 @@
       "legacy-crusaders-mantle"
     ],
     "policy": "Inventory uses canonical runtime IDs; source alias is not a second backlog spell."
-  }
+  },
+  "revisions": [
+    {
+      "date": "2026-10-22",
+      "note": "Piano di automazione: console attacchi (17 trucchetti) e Prigione Mentale completi; Lama Roboante aspetta CAP-LINK, Dardo di Caos passa a YELLOW con la console attacchi. Le proiezioni di summary.scenarios restano del 2026-09-14: piano e ordine in docs/PIANO_AUTOMAZIONE_INCANTESIMI.md."
+    }
+  ]
 }
