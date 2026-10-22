@@ -744,6 +744,25 @@ function enrichNativeConditionLineage(facet, entry) {
   };
 }
 
+// Death saving throws (deathSaveCore.js): the tally before and after the command, per creature,
+// read from the History entry's metadata changes (a roll, a hit at 0 HP, a healing that resets it).
+function deathSavesFacet(entry) {
+  const rows = (Array.isArray(entry?.changes) ? entry.changes : []).map((change) => {
+    const before = isObject(change?.beforeMetadata) && hasOwn(change.beforeMetadata, "deathSaves")
+      ? change.beforeMetadata.deathSaves : undefined;
+    const after = isObject(change?.afterMetadata) && hasOwn(change.afterMetadata, "deathSaves")
+      ? change.afterMetadata.deathSaves : undefined;
+    if (before === undefined && after === undefined) return null;
+    const value = (snapshot) => (isObject(snapshot) && snapshot.present === true && isObject(snapshot.value)
+      ? { successes: Number(snapshot.value.successes) || 0, failures: Number(snapshot.value.failures) || 0 }
+      : null);
+    const row = { targetId: textOrNull(change?.id), targetName: textOrNull(change?.name || change?.targetName),
+      before: value(before), after: value(after) };
+    return JSON.stringify(row.before) === JSON.stringify(row.after) ? null : row;
+  }).filter(Boolean);
+  return rows.length ? { targets: rows } : null;
+}
+
 export function combatEventFromHistoryEntryV3(entry, context = {}) {
   const legacy = combatEventFromHistoryEntry(entry, context);
   const teleport = teleportMovement(entry);
@@ -799,6 +818,8 @@ export function combatEventFromHistoryEntryV3(entry, context = {}) {
   delete initiativeCardInput.facets.initiativeCard;
   const initiativeCard = normalizeCombatLogInitiativeCardFacet(initiativeCardInput);
   if (initiativeCard) normalized.facets = { ...(normalized.facets || {}), initiativeCard };
+  const deathSaves = deathSavesFacet(entry);
+  if (deathSaves) normalized.facets = { ...(normalized.facets || {}), deathSaves };
   if (normalized.facets?.conditions) {
     normalized.facets.conditions = enrichNativeConditionLineage(
       normalized.facets.conditions,

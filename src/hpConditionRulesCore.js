@@ -20,7 +20,10 @@ export function resolveZeroHPUnconsciousAction(meta = {}, instances = []) {
     .filter((instance) => String(instance.type || "") === ZERO_HP_UNCONSCIOUS_TYPE)
     .map((instance) => String(instance.id || "").trim())
     .filter(Boolean);
-  const shouldHave = shouldPCBeUnconsciousAtZeroHP(meta);
+  // A PC dead by its death saves ("Morto") is no longer unconscious: that pill takes the place of this one.
+  const dead = (Array.isArray(instances) ? instances : [])
+    .some((instance) => instance?.active !== false && conditionKey(instance) === "morto");
+  const shouldHave = shouldPCBeUnconsciousAtZeroHP(meta) && !dead;
   return {
     shouldHave,
     add: shouldHave && automaticIds.length === 0,

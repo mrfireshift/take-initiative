@@ -2,6 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import { buildSharedHpPreview, sharedHpIntents, sharedHpCommittedUpdates, sharedHpDamageEntries } from "./sharedHpViewCore.js";
 import { resolveSharedHpGroup, sharedHpScopeIds } from "./sharedHpCore.js";
 import { ID } from "./constants.js";
+import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import {
   QUICK_HP_FACTORS,
   QUICK_HP_MODES,
@@ -323,6 +324,7 @@ function prismaticSprayHPEntries(items, prismaticSprayPlan) {
         factor: QUICK_HP_FACTORS.FULL,
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
+        deathSaveDamage: takesDeathSaveDamage(itemMeta(item)),
       });
       return {
         item,
@@ -367,6 +369,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
         factor: factorName,
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
+        deathSaveDamage: takesDeathSaveDamage(itemMeta(item)),
       });
       if (mode !== QUICK_HP_MODES.DAMAGE
         || targetId !== primaryTargetId
@@ -381,6 +384,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
           : normalizeFactor(hp.primaryOutcomeFactor),
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
+        deathSaveDamage: takesDeathSaveDamage(itemMeta(item)),
       });
       const combinedChange = calculateQuickHPChange({
         mode,
@@ -388,6 +392,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
         factor: QUICK_HP_FACTORS.FULL,
         hp: primaryChange.afterHP,
         hpMax: itemMeta(item).hpMax,
+        deathSaveDamage: takesDeathSaveDamage(itemMeta(item)),
       });
       return {
         item,
@@ -398,7 +403,9 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
           hp: primaryChange.hp,
           requested: primaryChange.requested + combinedChange.requested,
           delta: combinedChange.afterHP - primaryChange.hp,
-          changed: combinedChange.afterHP !== primaryChange.hp,
+          // A PC already at 0 HP: no HP change, but the hit counts on its death saves.
+          changed: combinedChange.afterHP !== primaryChange.hp
+            || primaryChange.deathSaveDamage === true || combinedChange.deathSaveDamage === true,
           primaryRequested: primaryChange.requested,
           primaryFactor: primaryChange.factor,
           areaRequested: combinedChange.requested,

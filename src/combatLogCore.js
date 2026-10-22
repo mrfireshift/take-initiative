@@ -1,4 +1,5 @@
 import { ID } from "./constants.js";
+import { DEATH_SAVE_OUTCOME_LABELS } from "./deathSaveCore.js";
 
 function clone(value) {
   if (value === undefined) return undefined;
@@ -470,6 +471,7 @@ export function combatEventDetail(event) {
       passed: "Superato",
       failed: "Fallito",
       immune: "Immune",
+      ...DEATH_SAVE_OUTCOME_LABELS,
     }[String(event?.payload?.outcome || "").trim().toLowerCase()] || "Risolto";
     const damage = Number(event?.payload?.damage) || 0;
     return `${outcome}${damage > 0 ? ` · ${numberText(damage)} danni` : ""}`;

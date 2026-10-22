@@ -81,6 +81,7 @@
     .delta.temp { color: #93c5fd; }
     .factor-group, .outcome-group { width: 100%; display: grid; gap: var(--obrt-space-xs); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); overflow: hidden; }
     .factor-group { grid-template-columns: repeat(4, minmax(32px, 1fr)); }
+    .factor-group.with-critical { grid-template-columns: repeat(5, minmax(32px, 1fr)); }
     .outcome-group { grid-template-columns: repeat(3, minmax(54px, 1fr)); }
     .factor, .outcome { min-width: 0; min-height: var(--obrt-h-control-sm); padding: 0 5px; border: 0; border-right: 1px solid rgba(148, 163, 184, .18); border-radius: 0; background: transparent; color: rgba(255, 255, 255, .78); cursor: pointer; font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); }
     .factor:last-child, .outcome:last-child { border-right: 0; }

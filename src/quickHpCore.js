@@ -40,6 +40,7 @@ export function calculateQuickHPChange({
   factor = QUICK_HP_FACTORS.FULL,
   hp = 0,
   hpMax = 0,
+  deathSaveDamage = false,
 } = {}) {
   const beforeHP = nonNegativeInteger(hp);
   const maxHP = nonNegativeInteger(hpMax);
@@ -59,6 +60,9 @@ export function calculateQuickHPChange({
   }
 
   const delta = afterHP - beforeHP;
+  // A PC already at 0 HP (takesDeathSaveDamage): the HP stay at 0, but the hit counts on its death saves,
+  // so the change goes on to the coordinator.
+  const deathSaveHit = deathSaveDamage === true && mode === QUICK_HP_MODES.DAMAGE && beforeHP <= 0 && requested > 0;
   return {
     mode,
     factor: FACTOR_VALUES[factor] == null ? QUICK_HP_FACTORS.FULL : factor,
@@ -67,7 +71,8 @@ export function calculateQuickHPChange({
     requested,
     afterHP,
     delta,
-    changed: delta !== 0,
+    changed: delta !== 0 || deathSaveHit,
+    ...(deathSaveHit ? { deathSaveDamage: true } : {}),
   };
 }
 

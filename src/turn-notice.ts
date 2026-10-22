@@ -28,6 +28,7 @@ import {
   turbineSizeFromToken,
 } from "./xanatharTurbineCore.js";
 import { resolveReminder } from "./reminderResolution.js";
+import { DEATH_SAVE_OUTCOME_LABELS, DEATH_SAVE_RESOLUTION_MODE } from "./deathSaveCore.js";
 import {
   createSpellAreaPlacementRequestId,
   requestSpellAreaPlacement,
@@ -175,6 +176,7 @@ const RESOLUTION_LABELS: Record<string, string> = {
   [REMINDER_OUTCOMES.FAILED]: "Fallito",
   apply: "Applica cura",
   ignore: "Ignora",
+  ...DEATH_SAVE_OUTCOME_LABELS,
 };
 const RESOLUTION_BUTTON_OUTCOMES = [
   REMINDER_OUTCOMES.PASSED,
@@ -897,7 +899,10 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     }
   };
 
-  const outcomeOptions = manualDamage
+  // Death saving throw: the four results of the d20 the player rolls at the table.
+  const outcomeOptions = row.resolution?.mode === DEATH_SAVE_RESOLUTION_MODE
+    ? Object.entries(DEATH_SAVE_OUTCOME_LABELS).map(([value, label]) => ({ value, label }))
+    : manualDamage
     ? [{ value: "confirmed", label: "Conferma" }]
     : manualHeal
       ? [{ value: "apply", label: "Applica cura" }, { value: "ignore", label: "Ignora" }]

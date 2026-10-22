@@ -75,6 +75,8 @@ export const CONDITION_EMOJI = Object.freeze({
   "Indebolimento": "🩸",
   "Ira": "🔥",
   "Santuario del Crepuscolo": "🌙",
+  "Stabile": "🛡️",
+  "Morto": "💀",
 });
 
 export function formatConditionName(name, preferredEmoji = "") {
@@ -594,6 +596,8 @@ const COND_BORDER = Object.freeze({
   "Indebolimento":   "#d81b60",
   "Ira":             "#ff0000",
   "Santuario del Crepuscolo": "#8b5cf6",
+  "Stabile":         "#27ae60",
+  "Morto":           "#2c3e50",
 });
 
 // Compatibilità per vecchi import: il watcher vive nel coordinatore effetti

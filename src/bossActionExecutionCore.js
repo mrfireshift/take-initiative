@@ -1,5 +1,6 @@
 import { ID } from "./constants.js";
 import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
+import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { createMonsterActionContext } from "./monsterActionContextCore.js";
 import { bossActionUsageAvailability, consumeBossActionUsage, bossActionUsageSummary } from "./bossActionUsageCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
@@ -343,7 +344,7 @@ export function buildBossActionMutation({
   if (!miss) {
     if (!Number.isFinite(targetMeta.hp) || !Number.isFinite(targetMeta.hpMax)
         || targetMeta.hp < 0 || targetMeta.hpMax < 0) throw new Error("Il bersaglio non ha HP canonici validi.");
-    change = calculateQuickHPChange({value:requestedDamage,hp:targetMeta.hp,hpMax:targetMeta.hpMax});
+    change = calculateQuickHPChange({value:requestedDamage,hp:targetMeta.hp,hpMax:targetMeta.hpMax,deathSaveDamage:takesDeathSaveDamage(targetMeta)});
   }
   const use=buildBossActionUse({profile,action,sourceItem,actionInstanceId,round});
   recordMarkUses(use.runtimeState,marked?[targetItem.id]:[],round);
@@ -640,7 +641,7 @@ export function buildBossActionGroupMutation({
       expectedDefenses === undefined ? undefined : expectedDefenses?.[target.id] || {},markedIds.includes(target.id));
     const requestedDamage = damageComponents.reduce((sum,component)=>sum+component.amount,0);
     const meta = target.metadata?.[META_KEY] || {};
-    const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax});
+    const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax,deathSaveDamage:takesDeathSaveDamage(meta)});
     changes.push({targetId:target.id,targetName:target.name || target.id,outcome,change});
     if (change.changed || components.length && (meta.sharedHpSourceId || targets.some(item=>item.metadata?.[META_KEY]?.sharedHpSourceId===target.id))) hpUpdates.push({itemId:target.id,hp:change.afterHP,hpMax:change.hpMax,
       hpIntent:{mode:"damage",amount:change.requested,eventId:actionInstanceId},
@@ -833,7 +834,7 @@ export function buildBossActionGroupAttackMutation({
       ignoredDefenses?.[target.id] || [],expectedDefenses === undefined ? undefined : expectedDefenses?.[target.id] || {},markedIds.includes(target.id));
     const requestedDamage = damageComponents.reduce((sum,component)=>sum+component.amount,0);
     const meta = target.metadata?.[META_KEY] || {};
-    const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax});
+    const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax,deathSaveDamage:takesDeathSaveDamage(meta)});
     changes.push({targetId:target.id,targetName:target.name || target.id,outcome,change});
     if (change.changed) hpUpdates.push({itemId:target.id,hp:change.afterHP,hpMax:change.hpMax,
       hpIntent:{mode:"damage",amount:change.requested,eventId:`${actionInstanceId}:${target.id}`},
@@ -917,7 +918,8 @@ export function buildBossThrowMutation({
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
   if (!Number.isFinite(targetMeta.hp) || !Number.isFinite(targetMeta.hpMax) || targetMeta.hp < 0 || targetMeta.hpMax < 0)
     throw new Error("Il bersaglio non ha HP canonici validi.");
-  const change = calculateQuickHPChange({ value: requestedDamage, hp: targetMeta.hp, hpMax: targetMeta.hpMax });
+  const change = calculateQuickHPChange({ value: requestedDamage, hp: targetMeta.hp, hpMax: targetMeta.hpMax,
+    deathSaveDamage: takesDeathSaveDamage(targetMeta) });
   // Scagliare: a creature the target is thrown against takes the same roll (its own defenses) and Prono on a failure.
   let collision = null;
   if (collisionItem) {
@@ -928,7 +930,8 @@ export function buildBossThrowMutation({
     const collisionComponents = defendedComponents([component], inputs, failed ? "full" : "zero", collisionItem, collisionIgnoredDefenses, collisionExpectedDefenses, false);
     const collisionDamage = collisionComponents.reduce((sum, entry) => sum + entry.amount, 0);
     collision = { item: collisionItem, meta: collisionMeta, outcome: collisionOutcome, components: collisionComponents, damage: collisionDamage,
-      change: calculateQuickHPChange({ value: collisionDamage, hp: collisionMeta.hp, hpMax: collisionMeta.hpMax }),
+      change: calculateQuickHPChange({ value: collisionDamage, hp: collisionMeta.hp, hpMax: collisionMeta.hpMax,
+        deathSaveDamage: takesDeathSaveDamage(collisionMeta) }),
       condition: failed ? { condition: execution.collision.onFailed.condition, instanceId: bossGroupConditionInstanceId(actionInstanceId, `collision-${execution.collision.onFailed.condition}`, collisionItem.id) } : null };
   }
   // The grapple ends: every Afferrato and Trattenuto the boss put on the target.

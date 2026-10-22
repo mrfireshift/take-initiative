@@ -24,6 +24,7 @@ import {
   shouldHandleQuickHPUndoShortcut,
 } from "./quickHpCore.js";
 import { APPLICABLE_CONDITION_LIST, getConditionInstances } from "./conditions.js";
+import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import {
@@ -67,6 +68,8 @@ let sharedHpItems = [];
 let sharedHpSelection = { policy: "once", chosenTargetIds: {} };
 let selectedIds = new Set();
 let factors = new Map();
+// The PCs at 0 HP whose damage comes from a critical hit: two death save failures instead of one.
+let criticalIds = new Set();
 let saveOutcomes = new Map();
 let selectionWriteDepth = 0;
 let selectionPollBusy = false;
@@ -266,6 +269,7 @@ function previewFor(item) {
     factor,
     hp: meta.hp,
     hpMax: meta.hpMax,
+    deathSaveDamage: takesDeathSaveDamage(meta),
   });
 }
 
@@ -380,6 +384,30 @@ function renderFactorButtons(item, disabled) {
     });
     group.appendChild(button);
   }
+  // A PC at 0 HP: the damage counts on its death saves, a critical hit twice.
+  if (mode === QUICK_HP_MODES.DAMAGE && takesDeathSaveDamage(item?.metadata?.[META_KEY] || {})) {
+    group.classList.add("with-critical");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `factor${criticalIds.has(item.id) ? " active" : ""}`;
+    button.textContent = "Crit";
+    button.title = "Colpo critico: due fallimenti ai TS contro la morte";
+    button.disabled = disabled || busy || !sceneAvailable();
+    button.dataset.critical = "1";
+    button.setAttribute("aria-pressed", criticalIds.has(item.id) ? "true" : "false");
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (button.disabled) return;
+      if (criticalIds.has(item.id)) criticalIds.delete(item.id);
+      else criticalIds.add(item.id);
+      if (!selectedIds.has(item.id)) {
+        selectedIds.add(item.id);
+        void updateSceneSelection([item.id], true);
+      }
+      renderTargets();
+    });
+    group.appendChild(button);
+  }
   return group;
 }
 
@@ -479,6 +507,12 @@ function renderTargets() {
         delta.className = `delta ${mode === QUICK_HP_MODES.SAVE ? QUICK_HP_MODES.DAMAGE : mode}`;
         delta.textContent = ` (${signed(result.delta)})`;
         preview.append(before, after, delta);
+        if (result.deathSaveDamage) {
+          const deathSave = document.createElement("span");
+          deathSave.className = "delta damage";
+          deathSave.textContent = criticalIds.has(item.id) ? " · TS morte +2 fallimenti" : " · TS morte +1 fallimento";
+          preview.append(deathSave);
+        }
       }
     }
     row.append(
@@ -504,7 +538,7 @@ function renderTargets() {
       toggle();
     });
     row.addEventListener("click", (event) => {
-      if (event.target.closest("[data-factor], [data-outcome]")) return;
+      if (event.target.closest("[data-factor], [data-outcome], [data-critical]")) return;
       toggle();
     });
     targetList.appendChild(row);
@@ -772,7 +806,8 @@ async function applyOperation() {
   const coordinatedOperations = [
     ...(entries.length ? [{ type: "hp:set", updates: entries.map(({ item, change }) => ({
       itemId: item.id, hp: change.afterHP, hpMax: change.hpMax,
-      hpIntent: sharedHpIntent({ change }, operation.operationId),
+      hpIntent: { ...sharedHpIntent({ change }, operation.operationId),
+        ...(change.deathSaveDamage && criticalIds.has(item.id) ? { critical: true } : {}) },
       expectedHP: { present: true, value: item.metadata[META_KEY].hp },
       expectedHPMax: { present: true, value: item.metadata[META_KEY].hpMax },
     })) }] : []),

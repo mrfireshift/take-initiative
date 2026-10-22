@@ -321,6 +321,16 @@ Puoi modificare un singolo attore dalla sua card oppure usare **Console HP rapid
 
 I bersagli selezionati salgono in cima alla lista. L'applicazione è atomica: un solo comando aggiorna tutti i token e crea un'unica voce annullabile. Se il danno colpisce creature in concentrazione, viene mostrato l'avviso relativo.
 
+### TS contro la morte
+
+Un PG a 0 PF, né stabile né morto, riceve a inizio turno il promemoria **TS contro la morte**, con i successi e i fallimenti accumulati (●●○ / ✕○○). Il popup compare anche sullo schermo del tavolo, ma i pulsanti li ha solo il GM: dopo il tiro del d20 segna **Successo**, **Fallimento**, **1 naturale** (due fallimenti) o **20 naturale** (torna a 1 PF). Ogni tiro è una voce annullabile della Cronologia.
+
+- Tre successi: la pill **Stabile**; i tiri si fermano e il conteggio si azzera.
+- Tre fallimenti: la pill **Morto** prende il posto di Privo di sensi. La toglie il GM.
+- Una cura sopra 0 PF azzera il conteggio e toglie Stabile.
+- Un danno che porta a 0 PF e avanza almeno quanto i PF massimi è morte istantanea.
+- Un danno subito mentre il PG è già a 0 PF conta un fallimento, due se critico; un danno pari ai PF massimi lo uccide; un PG stabile torna a tirare. Vale per la Console HP rapida, la console attacchi (l'esito **Critico** conta due fallimenti), le azioni boss e le console degli incantesimi. Nella Console HP rapida, sulla riga di un PG a 0 PF, il pulsante **Crit** segna il colpo critico; l'anteprima mostra «TS morte +1 fallimento».
+
 ## 6. Condizioni
 
 Apri **Condizioni** dalla toolbar. La finestra permette di:

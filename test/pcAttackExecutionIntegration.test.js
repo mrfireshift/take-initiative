@@ -593,3 +593,13 @@ test("an invisible attacker loses Invisibility with the attack; one Undo gives i
   await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
   assert.deepEqual(pills(), ["inv-pill"]);
 });
+
+test("a critical hit on a PC at 0 HP: no HP change, two death save failures, one Undo", async () => {
+  Object.assign(meta("ghoul"), { attitude: "pc", hp: 0,
+    conditions: { version: 2, instances: [{ id: "ko", condition: "Privo di sensi", active: true, targetId: "ghoul", type: "hp-zero" }] } });
+  await attack({ attackInstanceId: "coup-de-grace", outcome: "critical" });
+  assert.equal(meta("ghoul").hp, 0);
+  assert.deepEqual(meta("ghoul").deathSaves, { successes: 0, failures: 2 });
+  await history.undoHistoryThrough((await attackEntry()).id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("ghoul").deathSaves, undefined);
+});

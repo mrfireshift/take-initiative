@@ -43,6 +43,7 @@ import {
   validateChildZoneContainment,
 } from "./spellChildZoneCore.js";
 import { getSpellAreaRuleById } from "./spellAreaRules.js";
+import { DEATH_SAVES_FIELD, deathSaveConditionOperation, planDeathSaveHpChange } from "./deathSaveCore.js";
 import { spellAreaOriginWithinRange } from "./spellAreaPlacementCore.js";
 import { planSpellZoneMovement } from "./spellZoneMovementCore.js";
 import {
@@ -706,6 +707,47 @@ function metadataFieldSnapshot(meta, field) {
   return { present: true, value: clone(isDraft(value) ? current(value) : value) };
 }
 
+// A critical hit among the damage intents of an HP write: two death save failures at 0 HP.
+function hpWriteCritical(update) {
+  const intents = update?.hpIntents?.length ? update.hpIntents : [update?.hpIntent].filter(Boolean);
+  return intents.some((intent) => intent?.mode === "damage" && intent?.critical === true);
+}
+
+// The damage of an HP write: its damage intents, or the HP it takes away when it has none.
+function hpWriteDamage(update, meta) {
+  const intents = update?.hpIntents?.length ? update.hpIntents : [update?.hpIntent].filter(Boolean);
+  const declared = intents.filter((intent) => intent?.mode === "damage")
+    .reduce((sum, intent) => sum + Math.max(0, Math.floor(Number(intent.amount) || 0)), 0);
+  return declared || Math.max(0, Math.floor(Number(meta?.hp) || 0) - Math.floor(Number(update?.hp) || 0));
+}
+
+// Death saves (deathSaveCore.js) in the same command as the HP write: back above 0 HP the tally goes
+// back to zero and Stabile ends; down to 0 HP with damage left over equal to the HP maximum, Morto;
+// damage while already at 0 HP (a declared damage intent) adds one failure, two on a critical hit.
+function planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds) {
+  const meta = item?.metadata?.[META_KEY] || {};
+  const consequence = planDeathSaveHpChange({
+    meta,
+    instances: getConditionInstances(meta.conditions || {}),
+    hpAfter: update.hp,
+    hpMax: update.hpMax,
+    damage: hpWriteDamage(update, meta),
+    critical: hpWriteCritical(update),
+  });
+  if (!consequence) return {};
+  if (consequence.removeInstanceIds.length) {
+    hpOperations.push({
+      type: "condition:remove-instances",
+      removals: consequence.removeInstanceIds.map((instanceId) => ({ itemId: item.id, instanceId })),
+    });
+  }
+  if (consequence.addCondition) hpOperations.push(deathSaveConditionOperation(item.id, consequence.addCondition));
+  if (consequence.instantDeath) instantDeathIds.add(item.id);
+  return consequence.deathSaves
+    ? { [DEATH_SAVES_FIELD]: { ...consequence.deathSaves, expected: metadataFieldSnapshot(meta, DEATH_SAVES_FIELD) } }
+    : {};
+}
+
 function sceneItemMetadataSnapshot(item, field) {
   return metadataFieldSnapshot(item?.metadata || {}, field);
 }
@@ -1083,6 +1125,7 @@ export async function prepareEffectsMutation(operations = [], {
     ...(projectedAttitudes.has(item.id) ? { [META_KEY]: { ...item.metadata?.[META_KEY], attitude: projectedAttitudes.get(item.id) } } : {}),
   } }));
   const hpItemsById = new Map(hpProjectedItems.map((item) => [item.id, item]));
+  const instantDeathIds = new Set();
   for (const operation of operations) {
     if (operation?.type !== "hp:set") {
       hpOperations.push(operation);
@@ -1094,9 +1137,11 @@ export async function prepareEffectsMutation(operations = [], {
         return { status: EFFECTS_MUTATION_STATUS.CONFLICT, reason: "invalid-hp-target", conflicts: [{ itemId: update.itemId }] };
       }
       const meta = item.metadata?.[META_KEY] || {};
+      const deathSaveFields = planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds);
       hpPatches.push({ id: item.id, fields: {
         hp: { value: update.hp, ...(update.expectedHP ? { expected: update.expectedHP } : {}) },
         hpMax: { value: update.hpMax, ...(update.expectedHPMax ? { expected: update.expectedHPMax } : {}) },
+        ...deathSaveFields,
       } });
       if (operation.damageEnds !== false && update.sharedHpMirror !== true && Number.isFinite(Number(meta.hp)) && update.hp < Number(meta.hp)) {
         const removals = resolveDamageEndsConditionRemovals(getConditionInstances(meta.conditions || {}))
@@ -1105,6 +1150,30 @@ export async function prepareEffectsMutation(operations = [], {
       }
       item.metadata[META_KEY] = { ...meta, hp: update.hp, hpMax: update.hpMax };
       hpOperations.push({ type: "condition:reconcile-zero-hp", targetIds: [item.id] });
+    }
+  }
+  // The HP written by a metadata patch (area consoles, reminders), unless the patch already writes the tally.
+  for (const patch of metadataPatches) {
+    const hpField = patch?.fields?.hp;
+    if (!hpField || hpField.mode === "assert" || hpField.mode === "delete"
+      || Object.prototype.hasOwnProperty.call(patch.fields, DEATH_SAVES_FIELD)) continue;
+    const item = hpItemsById.get(patch.id);
+    const meta = item?.metadata?.[META_KEY] || {};
+    const hp = Number(hpField.value);
+    const hpMax = Number(patch.fields.hpMax?.mode === "assert" ? meta.hpMax : patch.fields.hpMax?.value ?? meta.hpMax);
+    if (!item || !Number.isFinite(hp) || !Number.isFinite(hpMax)) continue;
+    const deathSaveFields = planDeathSaveHpWrite(item, { hp, hpMax, hpIntent: patch.hpIntent, hpIntents: patch.hpIntents },
+      hpOperations, instantDeathIds);
+    if (Object.keys(deathSaveFields).length) hpPatches.push({ id: patch.id, fields: deathSaveFields });
+  }
+  // Instant death: Morto, not Privo di sensi.
+  if (instantDeathIds.size) {
+    for (let index = hpOperations.length - 1; index >= 0; index -= 1) {
+      const operation = hpOperations[index];
+      if (operation?.type !== "condition:reconcile-zero-hp") continue;
+      const targetIds = uniqueIds(operation.targetIds).filter((id) => !instantDeathIds.has(id));
+      if (targetIds.length) hpOperations[index] = { ...operation, targetIds };
+      else hpOperations.splice(index, 1);
     }
   }
   const preparedOperations = expandStateDependentOperations(

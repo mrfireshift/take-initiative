@@ -13,6 +13,7 @@ import {
 } from "./reminderResolutionCore.js";
 import { normalizeDeferredEffects } from "./spellLifecycleContracts.js";
 import { abilitySaveDC } from "./abilityModifiersCore.js";
+import { deathSaveNotice, isDyingPC } from "./deathSaveCore.js";
 
 const META_KEY = `${ID}/meta`;
 const CONC_META_KEY = `${ID}/concentration`;
@@ -824,6 +825,19 @@ function concentrationNoticesForTiming(
   return notices;
 }
 
+// Death saving throws: the PC at 0 HP, neither stable nor dead, rolls at the start of its own turn.
+function deathSaveNoticesForTiming(items, timing, boundaryActorId, eventKey, noticeTurnKey = eventKey) {
+  if (timing !== "turn-start") return [];
+  const item = (Array.isArray(items) ? items : []).find((entry) => actorId(entry?.id) === boundaryActorId);
+  const meta = item?.metadata?.[META_KEY];
+  if (!item?.id || !meta || !isDyingPC(meta, conditionInstances(item))) return [];
+  const notice = deathSaveNotice({ item, eventKey, noticeTurnKey, portrait: itemPortrait(item) });
+  const resolutions = meta[REMINDER_RESOLUTIONS_FIELD];
+  if (!notice || (resolutions && typeof resolutions === "object"
+    && Object.prototype.hasOwnProperty.call(resolutions, notice.activationId))) return [];
+  return [notice];
+}
+
 export function planEffectSaveReminderNotices({
   items = [],
   previousInitiativeState = null,
@@ -863,6 +877,13 @@ export function planEffectSaveReminderNotices({
       boundary.noticeTurnKey,
     ),
     ...concentrationNoticesForTiming(
+      list,
+      boundary.timing,
+      boundary.actorId,
+      boundary.turnKey,
+      boundary.noticeTurnKey,
+    ),
+    ...deathSaveNoticesForTiming(
       list,
       boundary.timing,
       boundary.actorId,

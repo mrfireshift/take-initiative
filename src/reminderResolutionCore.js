@@ -8,6 +8,14 @@ import {
   normalizeExhaustionLevel,
 } from "./exhaustionCore.js";
 import { normalizeSaveSpellAutomation } from "./saveSpellCore.js";
+import {
+  DEATH_SAVE_DEAD_CONDITION,
+  DEATH_SAVE_RESOLUTION_MODE,
+  DEATH_SAVES_FIELD,
+  deathSaveConditionOperation,
+  isDeathSaveOutcome,
+  planDeathSaveRoll,
+} from "./deathSaveCore.js";
 // Generated copy of getAreaSaveAutomation (spells-srd.js), so that the turn notice and Quick HP skip the catalog.
 import { lookupAreaSaveAutomation as getAreaSaveAutomation } from "./spellAreaIndex.js";
 import {
@@ -271,6 +279,7 @@ export function normalizeReminderResolution(value, context = {}) {
     "manual-damage",
     "manual-condition",
     "choice",
+    DEATH_SAVE_RESOLUTION_MODE,
   ].includes(value.mode)
     ? value.mode
     : "";
@@ -953,7 +962,9 @@ export function reminderResolutionNeedsDamage(resolution) {
 
 export function reminderResolutionControls({ role = "PLAYER", resolution = null } = {}) {
   if (String(role || "").toUpperCase() !== "GM" || !resolution) return [];
-  return resolution.mode === "manual-damage"
+  return resolution.mode === DEATH_SAVE_RESOLUTION_MODE
+    ? ["death-success", "death-failure", "death-nat1", "death-nat20"]
+    : resolution.mode === "manual-damage"
     ? ["confirmed"]
     : resolution.mode === "manual-condition"
       ? ["passed", "failed"]
@@ -1464,6 +1475,74 @@ function activationMetadata(root, metadataKey, activationId, targetId) {
   return { metadata, activation };
 }
 
+// A death saving throw from the popup (deathSaveCore.js): the tally, the Stabile or Morto pill, the HP of a
+// natural 20, and the reminder's marker, in one command (one Undo).
+function deathSaveReminderPlan({ target, meta, targetId, activationId, markerMap, normalizedOutcome, sceneMetadata, now }) {
+  const instances = conditionInstances(target);
+  const roll = planDeathSaveRoll({ meta, instances, outcome: normalizedOutcome });
+  if (roll.status !== "ready") return roll;
+  const operations = roll.addCondition ? [deathSaveConditionOperation(targetId, roll.addCondition)] : [];
+  // A natural 20 wakes the creature up; a death ends Privo di sensi, which Morto replaces.
+  const zeroAction = resolveZeroHPUnconsciousAction(
+    { ...meta, hp: roll.hpChange ? roll.hpChange.after : meta.hp },
+    roll.addCondition === DEATH_SAVE_DEAD_CONDITION ? [...instances, { condition: DEATH_SAVE_DEAD_CONDITION }] : instances,
+  );
+  if (zeroAction.removeInstanceIds.length) {
+    operations.push({
+      type: "condition:remove-instances",
+      removals: zeroAction.removeInstanceIds.map((instanceId) => ({ itemId: targetId, instanceId })),
+    });
+  }
+  const nextMarkers = {
+    ...markerMap,
+    [activationId]: {
+      version: REMINDER_RESOLUTION_VERSION,
+      outcome: normalizedOutcome,
+      resolvedAt: Math.max(0, Math.floor(Number(now) || Date.now())),
+    },
+  };
+  const markerSnapshot = metadataSnapshot(meta, REMINDER_RESOLUTIONS_FIELD);
+  const markerHistoryDelta = reminderMarkerHistoryDelta(markerMap, nextMarkers, { beforePresent: markerSnapshot.present });
+  const tallySnapshot = metadataSnapshot(meta, DEATH_SAVES_FIELD);
+  const fields = {
+    [REMINDER_RESOLUTIONS_FIELD]: {
+      expected: markerSnapshot,
+      value: Object.fromEntries(Object.entries(nextMarkers).slice(-128)),
+      historyBefore: markerHistoryDelta.before,
+      historyAfter: markerHistoryDelta.after,
+    },
+    ...(roll.deathSaves.mode === "delete"
+      ? (tallySnapshot.present ? { [DEATH_SAVES_FIELD]: { mode: "delete", expected: tallySnapshot } } : {})
+      : { [DEATH_SAVES_FIELD]: { value: roll.deathSaves.value, expected: tallySnapshot } }),
+    ...(roll.hpChange ? {
+      hp: { expected: metadataSnapshot(meta, "hp"), value: roll.hpChange.after },
+      hpMax: { expected: metadataSnapshot(meta, "hpMax"), value: roll.hpChange.hpMax },
+    } : {}),
+  };
+  return {
+    status: "ready",
+    outcome: normalizedOutcome,
+    resolutionMode: DEATH_SAVE_RESOLUTION_MODE,
+    deathSaveResult: roll.result,
+    // For the Combat Log: the result and the tally after the roll.
+    deathSave: { result: roll.result, ...roll.tally },
+    targetId,
+    sourceId: "",
+    activationId,
+    damage: { roll: 0, factor: "zero", amount: 0 },
+    healing: { roll: 0, amount: 0 },
+    hpChange: roll.hpChange,
+    operations,
+    metadataPatches: [{ id: targetId, fields }],
+    sideEffects: [],
+    targetIds: [targetId],
+    sceneMetadataPreconditions: sceneMetadata && Object.prototype.hasOwnProperty.call(sceneMetadata, `${ID}/state`)
+      ? [{ key: `${ID}/state`, value: clone(sceneMetadata[`${ID}/state`]) }]
+      : [],
+    message: roll.message,
+  };
+}
+
 export function buildReminderResolutionPlan({
   notice = null,
   items = [],
@@ -1490,7 +1569,10 @@ export function buildReminderResolutionPlan({
   const manualHeal = resolution?.mode === "manual-heal";
   const manualDamage = resolution?.mode === "manual-damage";
   const manualCondition = resolution?.mode === "manual-condition";
-  const validOutcome = blinkResolution
+  const deathSave = resolution?.mode === DEATH_SAVE_RESOLUTION_MODE;
+  const validOutcome = deathSave
+    ? isDeathSaveOutcome(normalizedOutcome)
+    : blinkResolution
     ? [REMINDER_OUTCOMES.PASSED, REMINDER_OUTCOMES.FAILED].includes(normalizedOutcome)
     : turbine
     ? ["passed", "failed"].includes(normalizedOutcome)
@@ -1543,6 +1625,12 @@ export function buildReminderResolutionPlan({
   const markerMap = normalizedMarkerMap(meta[REMINDER_RESOLUTIONS_FIELD]);
   if (Object.prototype.hasOwnProperty.call(markerMap, activationId)) {
     return { status: "already-resolved", message: "Questo reminder è già stato risolto." };
+  }
+
+  if (deathSave) {
+    return deathSaveReminderPlan({
+      target, meta, targetId, activationId, markerMap, normalizedOutcome, sceneMetadata, now,
+    });
   }
 
   const sourceId = text(resolution.source?.id, "", 200);

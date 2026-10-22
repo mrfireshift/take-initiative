@@ -3,6 +3,7 @@ import {
 } from "./combatLogCore.js";
 import { normalizeCombatLogCausality } from "./combatLogCausalityCore.js";
 import { normalizeCombatLogEventV3 } from "./combatLogV3Core.js";
+import { DEATH_SAVE_OUTCOME_LABELS, deathSaveTallyText } from "./deathSaveCore.js";
 
 export const COMBAT_LOG_CATEGORY_ORDER = Object.freeze([
   "hp",
@@ -48,6 +49,7 @@ const OUTCOME_LABELS = Object.freeze({
   immune: "Immune",
   resisted: "Resistito",
   resisted_successfully: "Resistito",
+  ...DEATH_SAVE_OUTCOME_LABELS,
 });
 
 const NO_TURN_KEY = "__NO_TURN__";
@@ -319,6 +321,22 @@ function hpTargets(event) {
   return Array.isArray(event?.targets) ? event.targets.filter((target) => target?.before || target?.after) : [];
 }
 
+// Death saving throws (the deathSaves facet): the tally after the command, by creature.
+function deathSaveLines(event, targets = []) {
+  const rows = Array.isArray(event?.facets?.deathSaves?.targets) ? event.facets.deathSaves.targets : [];
+  if (!rows.length) return [];
+  const names = new Map([
+    ...targets,
+    ...(Array.isArray(event?.targets) ? event.targets : []),
+    ...hpTargets(event),
+    ...(Array.isArray(event?.facets?.conditions?.targets) ? event.facets.conditions.targets : []),
+  ].map((target) => [stringValue(target?.id), stringValue(target?.name)]).filter(([id, name]) => id && name));
+  return rows.map((row) => {
+    const name = stringValue(row?.targetName) || names.get(stringValue(row?.targetId)) || "Creatura";
+    return row?.after ? `${name}: ${deathSaveTallyText(row.after)}` : `${name}: conteggio azzerato`;
+  });
+}
+
 function positionText(position) {
   if (!position || typeof position !== "object") return "posizione sconosciuta";
   const x = finiteNumber(position.x);
@@ -401,6 +419,9 @@ function reminderResolutionType(event) {
       || payload?.activation?.kind
       || "",
   ).trim().toLowerCase();
+  // A death saving throw is no spell: its own type (deathSaveCore.js).
+  if (payload.deathSave || resolution?.mode === "death-save" || activationKind === "death-save"
+    || /:death-save:/u.test(stringValue(payload.activationId))) return "death-save";
   const causality = payload.causality && typeof payload.causality === "object"
     ? payload.causality
     : {};
@@ -452,6 +473,14 @@ function reminderResolutionTitle(event, fallback) {
   const type = reminderResolutionType(event);
   if (!type) return fallback;
   const outcome = outcomeLabel(event?.payload?.outcome);
+  if (type === "death-save") {
+    const result = {
+      stable: "Stabile",
+      dead: "Morto",
+      revived: "Torna a 1 PF",
+    }[stringValue(event?.payload?.deathSave?.result)] || "";
+    return ["TS contro la morte", outcome, result].filter(Boolean).join(" · ");
+  }
   const spellName = reminderResolutionSpellName(event);
   const prefix = type === "concentration"
     ? "Concentrazione"
@@ -732,8 +761,10 @@ function sharedHpSummaryLines(event) {
 function eventSummary(event, targets, outcomes) {
   const category = event.category;
   const hpLines = hpTargets(event).map(hpTargetLine);
-  const facetLines = ["conditions", "spells", "concentrations"]
-    .flatMap((field) => facetChangeLines(event?.facets?.[field], field));
+  const facetLines = [
+    ...["conditions", "spells", "concentrations"].flatMap((field) => facetChangeLines(event?.facets?.[field], field)),
+    ...deathSaveLines(event, targets),
+  ];
   const sharedHpLines = sharedHpSummaryLines(event);
   if (sharedHpLines.length) {
     const memberIds = new Set(event.payload.sharedHp.groups.flatMap(group => group.memberIds || []));
@@ -747,6 +778,10 @@ function eventSummary(event, targets, outcomes) {
   if (category === "movement") {
     const movement = targets.map((target) => `${target.name}: ${numberText(target.cells)} caselle`);
     return movement.join(" · ") || "Movimento registrato";
+  }
+  // A death saving throw: the tally (and Stabile or Morto) says it all.
+  if (category === "save" && reminderResolutionType(event) === "death-save" && facetLines.length) {
+    return facetLines.join(" · ");
   }
   if (category === "save") {
     const outcomeText = outcomes.join(", ");
@@ -779,6 +814,8 @@ function detailSections(event, targets, outcomes, turnName) {
     const lines = facetChangeLines(event?.facets?.[field], field);
     if (lines.length) sections.push({ label, lines });
   }
+  const deathLines = deathSaveLines(event, targets);
+  if (deathLines.length) sections.push({ label: "TS contro la morte", lines: deathLines });
   if (outcomes.length) sections.push({ label: "Esito", lines: outcomes });
   const causalityLines = causalityDetailLines(event);
   if (causalityLines.length) sections.push({ label: "Causalità", lines: causalityLines });

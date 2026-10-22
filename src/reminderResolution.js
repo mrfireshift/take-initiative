@@ -17,6 +17,7 @@ import {
 } from "./sceneEpoch.js";
 import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 import { buildSpellCausality } from "./combatLogCausalityCore.js";
+import { DEATH_SAVE_OUTCOME_LABELS } from "./deathSaveCore.js";
 
 const STATE_KEY = `${ID}/state`;
 const META_KEY = `${ID}/meta`;
@@ -396,6 +397,7 @@ function formatReminderResolutionLabel({ notice, plan }) {
     failed: isSave ? "TS fallito" : "Fallito",
     immune: "Immune",
     confirmed: "Confermato",
+    ...DEATH_SAVE_OUTCOME_LABELS,
   }[outcome] || (plan?.resolutionMode === "consume" ? "Chiuso" : outcome || "Risolto");
   return `${labelName} · ${outcomeText}`;
 }
@@ -536,6 +538,7 @@ async function executeReminderResolution({
     failed: "Fallito",
     immune: "Immune",
     confirmed: "Confermato",
+    ...DEATH_SAVE_OUTCOME_LABELS,
   }[plan.outcome] || (plan.resolutionMode === "consume" ? "Chiuso" : plan.outcome);
   const commandId = `reminder-resolution:${plan.activationId}:${resolutionAttemptId}`;
 
@@ -597,7 +600,10 @@ async function executeReminderResolution({
           ...(historyReplay && typeof historyReplay === "object"
             ? { replay: JSON.parse(JSON.stringify(historyReplay)) }
             : {}),
-          causality: reminderCausality(notice, plan),
+          // A death saving throw is no spell: its own record, without the spell causality.
+          ...(plan.deathSave
+            ? { deathSave: cloneValue(plan.deathSave) }
+            : { causality: reminderCausality(notice, plan) }),
         },
       },
     }),

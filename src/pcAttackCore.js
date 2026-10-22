@@ -7,6 +7,7 @@
 // its save and its pill, committed with the attack.
 import { ID } from "./constants.js";
 import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
+import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
 import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES } from "./quickActionsCore.js";
 import {
@@ -844,7 +845,8 @@ export function buildPcAttackMutation({
   if (!miss) {
     if (!Number.isFinite(targetMeta.hp) || !Number.isFinite(targetMeta.hpMax)
         || targetMeta.hp < 0 || targetMeta.hpMax < 0) throw new Error("Il bersaglio non ha HP canonici validi.");
-    change = calculateQuickHPChange({ value: requestedDamage, hp: targetMeta.hp, hpMax: targetMeta.hpMax });
+    change = calculateQuickHPChange({ value: requestedDamage, hp: targetMeta.hp, hpMax: targetMeta.hpMax,
+      deathSaveDamage: takesDeathSaveDamage(targetMeta) });
   }
   // The second creature: Green-Flame Blade's fire, or an activation's die (Sweeping Attack, Slashing Flourish, Wails from
   // the Grave); its own defenses (as seen in the console) and HP.
@@ -870,7 +872,7 @@ export function buildPcAttackMutation({
     if (!Number.isFinite(secondaryMeta.hp) || !Number.isFinite(secondaryMeta.hpMax) || secondaryMeta.hp < 0 || secondaryMeta.hpMax < 0)
       throw new Error("La seconda creatura non ha HP canonici validi.");
     secondaryChange = calculateQuickHPChange({ value: secondaryComponents.reduce((sum, component) => sum + component.amount, 0),
-      hp: secondaryMeta.hp, hpMax: secondaryMeta.hpMax });
+      hp: secondaryMeta.hp, hpMax: secondaryMeta.hpMax, deathSaveDamage: takesDeathSaveDamage(secondaryMeta) });
   }
   // Bursting Arrow: the die hits every creature the GM kept around the target, each with its own defenses and HP.
   const burstRows = (activationPlan.burst?.items || []).map((item) => {
@@ -881,7 +883,7 @@ export function buildPcAttackMutation({
       featureId: activationPlan.burst.id, name: activationPlan.burst.option.label, activation: true } }],
     { b1: activationPlan.burst.amount }, "full", item, [], expectedBurstDefenses?.[item.id]);
     return { item, meta, components, change: calculateQuickHPChange({ value: components.reduce((sum, component) => sum + component.amount, 0),
-      hp: meta.hp, hpMax: meta.hpMax }) };
+      hp: meta.hp, hpMax: meta.hpMax, deathSaveDamage: takesDeathSaveDamage(meta) }) };
   });
   const sourceName = sourceItem.name || sourceItem.id;
   const targetName = targetItem.name || targetItem.id;
@@ -1038,7 +1040,9 @@ export function buildPcAttackMutation({
       || burstRows.some((row) => row.change.changed) || casterHealChange?.changed ? [{ type: "hp:set", updates: [
       ...(change?.changed ? [{
         itemId: targetItem.id, hp: change.afterHP, hpMax: change.hpMax,
-        hpIntent: { mode: "damage", amount: change.requested, eventId: attackInstanceId },
+        // A critical hit on a PC at 0 HP: two death save failures.
+        hpIntent: { mode: "damage", amount: change.requested, eventId: attackInstanceId,
+          ...(outcome === "critical" && change.deathSaveDamage ? { critical: true } : {}) },
         expectedHP: bossMetadataSnapshot(targetMeta, "hp"), expectedHPMax: bossMetadataSnapshot(targetMeta, "hpMax"),
       }] : []),
       ...(secondaryChange?.changed ? [{
@@ -1309,7 +1313,8 @@ export function buildPcAttackQuiveringPalmMutation({
     if (!validAmount(amount)) throw new Error("Inserisci i danni necrotici (10d10).");
     damageComponents = defendedComponents([{ id: "c1", type: "necrotic", source: { kind: "class-feature", featureId: PC_ATTACK_QUIVERING_PALM_FEATURE_ID, name } }],
       { c1: damageAmount(amount) }, "full", targetItem, ignoredDefenses, expectedDefenses);
-    change = calculateQuickHPChange({ value: damageComponents.reduce((sum, component) => sum + component.amount, 0), hp: targetMeta.hp, hpMax: targetMeta.hpMax });
+    change = calculateQuickHPChange({ value: damageComponents.reduce((sum, component) => sum + component.amount, 0), hp: targetMeta.hp, hpMax: targetMeta.hpMax,
+      deathSaveDamage: takesDeathSaveDamage(targetMeta) });
   }
   // The active class feature on this target ends with the vibrations (the card shows it no more).
   const state = normalizeClassFeatureState(sourceMeta[CLASS_FEATURE_STATE_FIELD]);
@@ -1489,7 +1494,7 @@ export function buildPcAttackAreaMutation({
     const damageComponents = defendedComponents(components, inputs, factor, member.item, [], expectedDefenses?.[member.item.id]);
     const requested = damageComponents.reduce((sum, component) => sum + component.amount, 0);
     return { item: member.item, meta, outcome: member.outcome, factor, damageComponents,
-      change: calculateQuickHPChange({ value: requested, hp: meta.hp, hpMax: meta.hpMax }) };
+      change: calculateQuickHPChange({ value: requested, hp: meta.hp, hpMax: meta.hpMax, deathSaveDamage: takesDeathSaveDamage(meta) }) };
   });
   const newUses = [
     ...(turn ? chosenRiders.filter((rider) => rider.option.limit).map((rider) => ({ riderId: rider.id, turnKey: turn.turnKey })) : []),

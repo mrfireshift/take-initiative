@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { resolveSharedHpGroup } from "./sharedHpCore.js";
 import { createSpellInstanceId } from "./spells.js";
 import { getConditionInstances, refreshConditionLabels } from "./conditions.js";
@@ -546,6 +547,7 @@ async function buildPreparedInitialDamageMutation({
       factor: QUICK_HP_FACTORS.FULL,
       hp: currentHp,
       hpMax: meta.hpMax,
+      deathSaveDamage: takesDeathSaveDamage(meta),
     });
     currentHpById.set(targetId, hpChange.afterHP);
     targets.push({
@@ -1287,6 +1289,7 @@ export async function executeSpellActiveResolution({
           factor: QUICK_HP_FACTORS.FULL,
           hp: currentHp,
           hpMax: meta.hpMax,
+          deathSaveDamage: takesDeathSaveDamage(meta),
         });
         currentHpById.set(contribution.targetId, hpChange.afterHP);
         const existingPatch = metadataPatches.find((patch) => patch.id === contribution.targetId);
@@ -1531,6 +1534,7 @@ export async function executeSpellActiveResolution({
           factor: QUICK_HP_FACTORS.FULL,
           hp: currentHp,
           hpMax: meta.hpMax,
+          deathSaveDamage: takesDeathSaveDamage(meta),
         });
         currentHpById.set(targetId, hpChange.afterHP);
         if (!hpChange.changed) continue;
