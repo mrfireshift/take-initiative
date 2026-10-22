@@ -117,7 +117,9 @@ Fase 0  Preparazione ──┬── Fase 2  Token ── Fase 3  Compatta ─�
 
 Dettagli in [AUDIT_UI.md, sezione 5](AUDIT_UI.md#5-possibili-bug-emersi-durante-laudit).
 
-### Fase 2 — Token
+### Fase 2 — Token — **fatta il 2026-10-22**
+
+Branch `ui-polish/fase-2`. Unica pagina toccata dai valori cambiati: la Cronologia (`micro` 9 → 10px, nessun testo a 9px rimasto). `radius-lg` 11 → 12px nelle console e nelle card dei boss, differenza di 1px. Prima/dopo in `docs/ui-audit/after/2-token/`.
 
 **2.1** Estendere `public/ui-typography.css` come da sezione 6 dell'audit:
 - tipografia: `micro` a 10px, `tracker-name`, `tracker-meta`, `weight-heavy`, `font-display`;

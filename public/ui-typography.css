@@ -4,6 +4,8 @@
   /* Font Families */
   --obrt-font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --obrt-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  /* Titles of the turn notices and warnings only; everything else uses --obrt-font-ui. */
+  --obrt-font-display: Georgia, "Times New Roman", serif;
 
   /* Typographic Scale */
   --obrt-type-display: 20px;
@@ -12,13 +14,19 @@
   --obrt-type-body: 12px;
   --obrt-type-secondary: 11px;
   --obrt-type-caption: 10px;
-  --obrt-type-micro: 9px;
+  /* The smallest text anywhere: nothing goes below it, so the table screen stays readable from a distance. */
+  --obrt-type-micro: 10px;
+  /* Tracker cards (compact and classic) at 100% scale. */
+  --obrt-type-tracker-name: 11px;
+  --obrt-type-tracker-meta: 10px;
 
   /* Font Weights */
   --obrt-weight-regular: 400;
   --obrt-weight-medium: 500;
   --obrt-weight-semibold: 600;
   --obrt-weight-bold: 700;
+  /* Numbers that must stand out (initiative, HP); 750 and 900 fold into this or into bold. */
+  --obrt-weight-heavy: 800;
 
   /* Line Heights */
   --obrt-leading-tight: 1.15;
@@ -45,7 +53,7 @@
   --obrt-radius-xs: 4px;
   --obrt-radius-sm: 6px;
   --obrt-radius-md: 8px;
-  --obrt-radius-lg: 11px;
+  --obrt-radius-lg: 12px;
   --obrt-radius-xl: 16px;
   --obrt-radius-pill: 999px;
 
@@ -55,6 +63,8 @@
   --obrt-h-control-md: 32px;
   --obrt-h-control-lg: 36px;
   --obrt-h-header: 44px;
+  /* Smallest clickable area (WCAG 2.5.8); a smaller drawing gets transparent padding up to it. */
+  --obrt-hit-min: 24px;
 
   /* Shared Surfaces & Colors */
   --obrt-text: #fff;
@@ -66,6 +76,21 @@
   --obrt-surface-soft: rgba(15, 23, 42, .58);
   --obrt-surface-row: rgba(15, 23, 42, .72);
   --obrt-hover: rgba(255, 255, 255, .08);
+  --obrt-surface-0: #080b10;
+
+  /* Role Colors: one value per role, in place of the near-duplicates spread across the files */
+  --obrt-faction-pc: #3aa7ff;
+  --obrt-faction-enemy: #ef4444;
+  --obrt-faction-ally: #22c55e;
+  --obrt-faction-neutral: #eab308;
+  --obrt-accent: #2563eb;
+  --obrt-danger: #dc2626;
+  --obrt-warning: #f59e0b;
+  --obrt-success: #16a34a;
+  /* The map HP bars' colors (src/hpbar-items.js), so the tracker can match them. */
+  --obrt-hp-high: #22c55e;
+  --obrt-hp-mid: #f59e0b;
+  --obrt-hp-low: #ef4444;
 
   /* Carets & Forms */
   --obrt-select-bg: #0f172a;
