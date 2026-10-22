@@ -1439,6 +1439,8 @@ async function selectAreaTargetsAndOpen(area, panel) {
   await OBR.broadcast.sendMessage(TRACKER_PANEL_REQUEST_CHANNEL, {
     type: "open",
     panel,
+    // Decision D2: the area's effects console is a damage entry, so it opens on "Danno".
+    ...(panel === "quick-hp" ? { mode: "damage" } : {}),
   }, { destination: "LOCAL" });
 }
 

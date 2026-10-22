@@ -7437,7 +7437,8 @@ function mountTrackerPopoverToggleListener() {
       && !spellIntent
       && __openTrackerPopoverId !== QUICK_HP_POPUP_ID
     ) {
-      void openGlobalQuickHPPopup({ sourceId, quickActionId });
+      // The console checks the requested tab itself; unknown values fall back to "Effetti".
+      void openGlobalQuickHPPopup({ sourceId, quickActionId, mode: String(data.mode || "").trim() });
     }
   });
 }
@@ -7457,6 +7458,7 @@ async function beginTrackerPopoverToggle(popupId) {
 async function openQuickHPPopup({
   sourceId = "",
   quickActionId = "",
+  mode = "",
 } = {}) {
   const popupId = QUICK_HP_POPUP_ID;
   if (!await beginTrackerPopoverToggle(popupId)) return;
@@ -7466,6 +7468,7 @@ async function openQuickHPPopup({
   const popupQuery = new URLSearchParams();
   if (sourceId) popupQuery.set("source", sourceId);
   if (quickActionId) popupQuery.set("quickAction", quickActionId);
+  if (mode) popupQuery.set("mode", mode);
   const popupUrl = `/quick-hp-modal.html${popupQuery.size ? `?${popupQuery}` : ""}`;
   try {
     await openTrackedPopover({

@@ -5,6 +5,12 @@ export const QUICK_HP_MODES = Object.freeze({
   SAVE: "save",
 });
 
+// The console's starting tab requested by the opener (`?mode=damage`); "" keeps the page default.
+export function quickHPModeFromQuery(search = "") {
+  const requested = new URLSearchParams(search).get("mode") || "";
+  return Object.values(QUICK_HP_MODES).includes(requested) ? requested : "";
+}
+
 export const QUICK_HP_FACTORS = Object.freeze({
   FULL: "full",
   HALF: "half",

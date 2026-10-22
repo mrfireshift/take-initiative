@@ -312,6 +312,15 @@ Un lotto per volta, nell'ordine della tabella (dal rapporto beneficio/rischio pi
 | **6.7** | B7: "Danno/cura…" e "Condizioni…" nel menu contestuale del token | meno passaggi dalla mappa | basso |
 | **6.8** | B6 e B9: scorciatoie da tastiera per il turno, maniglia di riordino a parità di iniziativa | — | ⚠ turno attivo (stesse code dei pulsanti) |
 
+Stato dei lotti:
+
+- **6.1 — fatto il 2026-10-22.**
+  - **Come funziona:** chi apre la console può chiedere la scheda di partenza con `?mode=` (danno, cura, temporanei, effetti). Un valore sconosciuto o assente lascia "Effetti", che resta la scheda di partenza del pulsante della barra (D2).
+  - **Ingressi di danno oggi:** "Seleziona e apri Console effetti ad area" dal menu del modello d'area apre su "Danno". Il clic sugli HP del compatto (6.4) e la voce "Danno/cura…" del menu del token (6.7) non esistono ancora: useranno lo stesso parametro.
+  - **Verifica nell'anteprima:**
+    - richiesta dall'area: URL `quick-hp-modal.html?mode=damage`, scheda attiva "Danno", opzioni dei tiri salvezza nascoste;
+    - pulsante "Effetti" della barra: URL senza `mode`, scheda attiva "Effetti".
+
 ### Fase 7 — Rilascio
 
 1. Giro completo dell'anteprima, con screenshot finali in `docs/ui-audit/after/finale/`.

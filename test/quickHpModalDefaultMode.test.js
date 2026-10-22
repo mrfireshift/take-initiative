@@ -49,3 +49,21 @@ test("il workflow manuale conserva le quattro operazioni e la cronologia", () =>
   assert.doesNotMatch(source, /withItemMetaHistory/);
   assert.match(source, /undoHistoryThrough/);
 });
+
+test("la console apre su Danno solo quando l'ingresso lo chiede (decisione D2)", async () => {
+  const { QUICK_HP_MODES, quickHPModeFromQuery } = await import("../src/quickHpCore.js");
+  assert.equal(quickHPModeFromQuery("?mode=damage"), QUICK_HP_MODES.DAMAGE);
+  assert.equal(quickHPModeFromQuery("?source=a&mode=heal"), QUICK_HP_MODES.HEAL);
+  assert.equal(quickHPModeFromQuery(""), "");
+  assert.equal(quickHPModeFromQuery("?mode=boom"), "");
+  assert.match(source, /mode = quickHPModeFromQuery\(location\.search\) \|\| mode;/);
+
+  const tracker = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
+  assert.match(tracker, /if \(mode\) popupQuery\.set\("mode", mode\);/);
+  assert.match(tracker, /openGlobalQuickHPPopup\(\{ sourceId, quickActionId, mode: /);
+  // The toolbar button keeps opening on "Effetti".
+  assert.match(tracker, /openGlobalQuickHPPopup\(\)/);
+
+  const areaTool = readFileSync(new URL("../src/aoeTargetTool.js", import.meta.url), "utf8");
+  assert.match(areaTool, /panel === "quick-hp" \? \{ mode: "damage" \} : \{\}/);
+});

@@ -82,7 +82,7 @@ test("il fallback conserva i pannelli esistenti per le azioni non dirette", () =
   assert.match(initiativeSource, /result\.mode !== "review"/);
   assert.match(initiativeSource, /openCardEffectsPopup\(sourceEntry/);
   assert.match(initiativeSource, /openCardSpellsPopup\(sourceEntry/);
-  assert.match(initiativeSource, /openGlobalQuickHPPopup\(\{\s*sourceId,\s*quickActionId\s*\}\)/);
+  assert.match(initiativeSource, /openGlobalQuickHPPopup\(\{\s*sourceId,\s*quickActionId[\s,}]/);
 });
 
 test("il routing delle quick action spell risolve l'azione dal catalogo della card", () => {

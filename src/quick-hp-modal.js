@@ -19,6 +19,7 @@ import {
   calculateQuickHPChange,
   createQuickHPVisualTransaction,
   isQuickHPDamageChange,
+  quickHPModeFromQuery,
   quickHPVisualUpdates,
   shouldHandleQuickHPUndoShortcut,
 } from "./quickHpCore.js";
@@ -59,6 +60,8 @@ const factorOptions = [
 ];
 
 let mode = QUICK_HP_MODES.SAVE;
+// Decision D2: a damage entry point opens the console on "Danno"; the toolbar button keeps "Effetti".
+mode = quickHPModeFromQuery(location.search) || mode;
 let targets = [];
 let sharedHpItems = [];
 let sharedHpSelection = { policy: "once", chosenTargetIds: {} };
@@ -981,7 +984,10 @@ document.querySelectorAll("[data-mode]").forEach((button) => {
     status.textContent = "";
     renderTargets();
   });
+  // The requested tab shows as active from the first paint, before the scene is ready.
+  button.classList.toggle("active", button.dataset.mode === mode);
 });
+saveOptions.hidden = mode !== QUICK_HP_MODES.SAVE;
 conditionSelect.addEventListener("change", () => {
   status.textContent = "";
   renderTargets();
