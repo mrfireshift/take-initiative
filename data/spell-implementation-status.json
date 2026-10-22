@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 201,
-      "PARTIAL": 78,
+      "COMPLETE / CURRENT": 215,
+      "PARTIAL": 73,
       "NO AUTOMATION REQUIRED": 144,
-      "MISSING": 39,
+      "MISSING": 30,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 117,
+    "implementableBacklog": 103,
     "readiness": {
       "GREEN": {
-        "count": 26,
-        "percent": 22.22222222222222
+        "count": 12,
+        "percent": 11.650485436893204
       },
       "YELLOW": {
         "count": 80,
-        "percent": 68.37606837606837
+        "percent": 77.66990291262135
       },
       "RED": {
         "count": 11,
-        "percent": 9.401709401709402
+        "percent": 10.679611650485436
       }
     },
     "scenarios": [
@@ -5287,10 +5287,11 @@
       "id": "awaken",
       "spell": "Risveglio",
       "level": 5,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/spells-srd.js",
+        "src/spellApplicationPlanCore.js"
       ],
       "mechanicsRequired": [
         "Affascinato persistente e rimozione manuale al danno di alleati; trasformazione ambientale/statistiche affidate al GM. Nessun engine creature richiesto."
@@ -5338,8 +5339,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "SAVE-EFFECT-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-SAVE-EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "awaken",
@@ -5348,6 +5349,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellLifecycleOperationsCore.test.js",
@@ -5362,7 +5364,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Affascinato persistente e rimozione manuale al danno di alleati; trasformazione ambientale/statistiche affidate al GM. Nessun engine creature richiesto.",
+        "reason": "Lotto L2 (2026-10-22): tracciato per 30 giorni con la pill «Affascinato dal caster»; termina a mano se il caster o un compagno gli fa del male.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -6559,10 +6561,13 @@
       "id": "blight",
       "spell": "Inaridire",
       "level": 4,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/areaSaveSpellRules.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/spellCastResolutionRules.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
         "Save discreto, danno manuale, filtro o variante GM e rider informativo componibili con workflow corrente; RNG manuale.",
@@ -6612,8 +6617,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "DISCRETE-SAVE",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-DISCRETE-SAVE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "blight",
@@ -6622,6 +6627,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
@@ -6636,7 +6642,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Save discreto, danno manuale, filtro o variante GM e rider informativo componibili con workflow corrente; RNG manuale.",
+        "reason": "Lotto L2 (2026-10-22): TS Costituzione discreto, 8d8 necrotici (+1d8 per slot sopra il 4°), metà se superato; piante (svantaggio, danno massimo) al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -8511,14 +8517,11 @@
       "id": "color-spray",
       "spell": "Spruzzo colorato",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/areaSaveSpellRules.js"
       ],
       "mechanicsRequired": [
         "Selezione del budget HP resta al tavolo; configurare scadenza/cleanup corretti. Color Spray ha expiry discordante start/end; Sleep deve chiudersi al danno/sveglia senza rimuovere altri effetti."
@@ -8592,8 +8595,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "SAVE-EFFECT-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-SAVE-EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "color-spray",
@@ -8602,6 +8605,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellLifecycleOperationsCore.test.js",
@@ -8625,7 +8629,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Selezione del budget HP resta al tavolo; configurare scadenza/cleanup corretti. Color Spray ha expiry discordante start/end; Sleep deve chiudersi al danno/sveglia senza rimuovere altri effetti.",
+        "reason": "Lotto L2 (2026-10-22): scadenza dell'incantesimo allineata alla condizione: Accecato fino alla fine del prossimo turno del caster; il budget di PF resta al GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -11520,10 +11524,12 @@
       "id": "cure-wounds",
       "spell": "Cura ferite",
       "level": 1,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/areaSaveSpellRules.js",
+        "src/spellAreaResolutionCommandCore.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
         "Registrare percorso area-transaction discreto e healing set come mass-cure-wounds; cura finale al tavolo, targeting condiviso, nessuna nuova semantica runtime."
@@ -11570,8 +11576,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HEAL",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-HEAL",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "cure-wounds",
@@ -11580,6 +11586,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/quickHpCore.test.js",
@@ -11593,7 +11600,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Registrare percorso area-transaction discreto e healing set come mass-cure-wounds; cura finale al tavolo, targeting condiviso, nessuna nuova semantica runtime.",
+        "reason": "Lotto L2 (2026-10-22): cura discreta dal comando ad area (set delle cure), 1 creatura; cura finale del GM, mai oltre i PF massimi.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -21726,10 +21733,12 @@
       "id": "healing-word",
       "spell": "Parola guaritrice",
       "level": 1,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/areaSaveSpellRules.js",
+        "src/spellAreaResolutionCommandCore.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
         "Registrare percorso area-transaction discreto e healing set come mass-cure-wounds; cura finale al tavolo, targeting condiviso, nessuna nuova semantica runtime."
@@ -21776,8 +21785,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HEAL",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-HEAL",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "healing-word",
@@ -21786,6 +21795,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/quickHpCore.test.js",
@@ -21796,7 +21806,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Registrare percorso area-transaction discreto e healing set come mass-cure-wounds; cura finale al tavolo, targeting condiviso, nessuna nuova semantica runtime.",
+        "reason": "Lotto L2 (2026-10-22): cura discreta dal comando ad area (set delle cure), 1 creatura entro 18 m; cura finale del GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -22037,10 +22047,13 @@
       "id": "hellish-rebuke",
       "spell": "Intimorire infernale",
       "level": 1,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/areaSaveSpellRules.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/spellCastResolutionRules.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
         "Dati/registrazione nel workflow save discreto già esistente, fattore zero/metà ed eventuale rider/summaryParts; danno finale inserito dal GM.",
@@ -22090,8 +22103,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "DISCRETE-SAVE",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-DISCRETE-SAVE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "hellish-rebuke",
@@ -22100,6 +22113,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
@@ -22114,7 +22128,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Dati/registrazione nel workflow save discreto già esistente, fattore zero/metà ed eventuale rider/summaryParts; danno finale inserito dal GM.",
+        "reason": "Lotto L2 (2026-10-22): TS Destrezza discreto, 2d10 fuoco (+1d10 per slot), metà se superato; la reazione resta al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -23062,14 +23076,11 @@
       "id": "hypnotic-pattern",
       "spell": "Trama ipnotica",
       "level": 3,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/hpConditionRulesCore.js"
       ],
       "mechanicsRequired": [
         "Due condizioni e movimento 0 presenti; manca endsOnDamage nei descriptor runtime. Configurarlo e verificare cleanup per target di entrambi i child, con sveglia manuale."
@@ -23139,8 +23150,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "SAVE-EFFECT-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-SAVE-EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "hypnotic-pattern",
@@ -23149,6 +23160,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellLifecycleOperationsCore.test.js",
@@ -23176,7 +23188,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Due condizioni e movimento 0 presenti; manca endsOnDamage nei descriptor runtime. Configurarlo e verificare cleanup per target di entrambi i child, con sveglia manuale.",
+        "reason": "Lotto L2 (2026-10-22): Affascinato e Incapacitato con endsOnDamage, rimozione limitata alla creatura; la concentrazione resta sugli altri; sveglia a mano.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -26805,10 +26817,12 @@
       "id": "mass-healing-word",
       "spell": "Parola guaritrice di massa",
       "level": 3,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/areaSaveSpellRules.js",
+        "src/spellAreaResolutionCommandCore.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
         "Registrare percorso area-transaction discreto e healing set come mass-cure-wounds; cura finale al tavolo, targeting condiviso, nessuna nuova semantica runtime."
@@ -26855,8 +26869,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HEAL",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-HEAL",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "mass-healing-word",
@@ -26865,6 +26879,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/quickHpCore.test.js",
@@ -26875,7 +26890,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Registrare percorso area-transaction discreto e healing set come mass-cure-wounds; cura finale al tavolo, targeting condiviso, nessuna nuova semantica runtime.",
+        "reason": "Lotto L2 (2026-10-22): cura discreta dal comando ad area (set delle cure), fino a 6 creature; cura finale del GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -26989,8 +27004,8 @@
       "id": "maze",
       "spell": "Labirinto",
       "level": 8,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
         "src/spellApplicationPlanCore.js"
@@ -27040,8 +27055,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "REPEAT-SAVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-REPEAT-SAVE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "maze",
@@ -27050,6 +27065,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/blindnessDeafnessWorkflow.test.js",
           "test/deferredSpellWorkflow.test.js",
@@ -27062,7 +27078,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Tracking presente; aggiungere stato Esiliato e azione/prova Int CD20 manuale con cleanup parent; nessun engine planare.",
+        "reason": "Lotto L2 (2026-10-22): pill «Nel labirinto» con «Azione: prova Int CD 20»; rimuoverla termina la spell.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -28954,11 +28970,11 @@
       "id": "phantasmal-killer",
       "spell": "Allucinazione mortale",
       "level": 4,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/reminderResolutionCore.js"
       ],
       "mechanicsRequired": [
         "Repeat-save e 4d10 su fallimento presenti; reminder.damage non dichiara baseSlot/additionalPerSlotAbove per upcast. È data gap, non nuovo runtime.",
@@ -29007,8 +29023,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "REPEAT-SAVE-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-REPEAT-SAVE-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "phantasmal-killer",
@@ -29017,6 +29033,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/blindnessDeafnessWorkflow.test.js",
           "test/deferredSpellWorkflow.test.js",
@@ -29032,7 +29049,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Repeat-save e 4d10 su fallimento presenti; reminder.damage non dichiara baseSlot/additionalPerSlotAbove per upcast. È data gap, non nuovo runtime.",
+        "reason": "Lotto L2 (2026-10-22): il promemoria di fine turno scala i 4d10 psichici di 1d10 per slot sopra il 4°.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -30007,10 +30024,12 @@
       "id": "prayer-of-healing",
       "spell": "Preghiera di guarigione",
       "level": 2,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/areaSaveSpellRules.js",
+        "src/spellAreaResolutionCommandCore.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
         "Registrare percorso area-transaction discreto e healing set come mass-cure-wounds; cura finale al tavolo, targeting condiviso, nessuna nuova semantica runtime."
@@ -30057,8 +30076,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HEAL",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-HEAL",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "prayer-of-healing",
@@ -30067,6 +30086,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/quickHpCore.test.js",
@@ -30077,7 +30097,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Registrare percorso area-transaction discreto e healing set come mass-cure-wounds; cura finale al tavolo, targeting condiviso, nessuna nuova semantica runtime.",
+        "reason": "Lotto L2 (2026-10-22): cura discreta dal comando ad area (set delle cure), fino a 6 creature; cura finale del GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -35126,14 +35146,11 @@
       "id": "sleep",
       "spell": "Sonno",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/areaSaveSpellRules.js",
+        "src/hpConditionRulesCore.js"
       ],
       "mechanicsRequired": [
         "Selezione del budget HP resta al tavolo; configurare scadenza/cleanup corretti. Color Spray ha expiry discordante start/end; Sleep deve chiudersi al danno/sveglia senza rimuovere altri effetti."
@@ -35202,8 +35219,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "SAVE-EFFECT-DATA",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-SAVE-EFFECT-DATA",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "sleep",
@@ -35212,6 +35229,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellLifecycleOperationsCore.test.js",
@@ -35235,7 +35253,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Selezione del budget HP resta al tavolo; configurare scadenza/cleanup corretti. Color Spray ha expiry discordante start/end; Sleep deve chiudersi al danno/sveglia senza rimuovere altri effetti.",
+        "reason": "Lotto L2 (2026-10-22): Privo di sensi con endsOnDamage: il danno sveglia solo quella creatura; la sveglia a mano rimuove la pill; il budget di PF resta al GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -43061,10 +43079,13 @@
       "id": "xanathar-catapulta",
       "spell": "Catapulta",
       "level": 1,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/areaSaveSpellRules.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/spellCastResolutionRules.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
         "Dati/registrazione nel workflow save discreto già esistente, fattore zero/metà ed eventuale rider/summaryParts; danno finale inserito dal GM."
@@ -43113,8 +43134,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "DISCRETE-SAVE",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-DISCRETE-SAVE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-catapulta",
@@ -43123,6 +43144,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
@@ -43137,7 +43159,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Dati/registrazione nel workflow save discreto già esistente, fattore zero/metà ed eventuale rider/summaryParts; danno finale inserito dal GM.",
+        "reason": "Lotto L2 (2026-10-22): TS Destrezza discreto, 3d8 contundenti (+1d8 per slot), nessun danno se superato; danno finale del GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -59080,10 +59102,13 @@
       "id": "phb2014-sussurri-dissonanti",
       "spell": "Sussurri Dissonanti",
       "level": 1,
-      "status": "MISSING",
-      "readiness": "GREEN",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/areaSaveSpellRules.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/spellCastResolutionRules.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
         "Dati/registrazione nel workflow save discreto già esistente, fattore zero/metà ed eventuale rider/summaryParts; danno finale inserito dal GM."
@@ -59132,8 +59157,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "DISCRETE-SAVE",
-      "estimatedEffort": "LOW (0.25–1 engineering day/spell, amortized; review/tests dominate)",
-      "recommendedBatch": "G-DISCRETE-SAVE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-phb2014-extra.json",
         "spellId": "phb2014-sussurri-dissonanti",
@@ -59142,6 +59167,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellHealingAndSaves.test.js",
           "test/rayOfSicknessWorkflow.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/spellAreaResolutionCommandCore.test.js",
@@ -59156,7 +59182,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Dati/registrazione nel workflow save discreto già esistente, fattore zero/metà ed eventuale rider/summaryParts; danno finale inserito dal GM.",
+        "reason": "Lotto L2 (2026-10-22): TS Saggezza discreto, 3d6 psichici (+1d6 per slot), metà se superato; la fuga con la reazione resta al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62684,6 +62710,10 @@
     {
       "date": "2026-10-22",
       "note": "Lotto L1: 17 incantesimi completi; le difese di Protezione dai veleni, Protezione dall'energia e Invulnerabilità sono effettive nelle console attacchi e boss."
+    },
+    {
+      "date": "2026-10-22",
+      "note": "Lotto L2: 14 incantesimi completi. Cure discrete e TS con danno dal comando ad area esistente; Sonno e Trama ipnotica finiscono al danno sulla sola creatura colpita; Spruzzo colorato con la scadenza del testo 2014; Risveglio, Allucinazione mortale e Labirinto completati."
     }
   ]
 }

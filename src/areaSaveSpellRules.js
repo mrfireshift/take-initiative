@@ -114,6 +114,11 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "xanathar-urlo-psichico",
   "hold-person",
   "hold-monster",
+  // A save with damage on one creature (lotto L2, 2014 texts).
+  "xanathar-catapulta",
+  "hellish-rebuke",
+  "phb2014-sussurri-dissonanti",
+  "blight",
 ]);
 
 export const MULTI_TARGET_SAVE_SPELL_ID_SET = new Set(
@@ -182,6 +187,11 @@ export const AREA_PLACEMENT_ONLY_SPELL_ID_SET = new Set(
 export const AREA_HEALING_SPELL_ID_SET = new Set([
   "mass-cure-wounds",
   "phb2014-aura-di-vitalita",
+  // Discrete heals of lotto L2 (2014 texts): no shape, the creatures chosen in the panel, the same area command.
+  "cure-wounds",
+  "healing-word",
+  "prayer-of-healing",
+  "mass-healing-word",
 ]);
 
 export const AREA_PLACEABLE_SPELL_IDS = Object.freeze(
@@ -306,6 +316,7 @@ function conditionRule(condition, {
   summaryParts = null,
   saveReminder = null,
   deferredEffect = null,
+  mechanics = null,
 } = {}) {
   const ruleOptions = {
     ...(independent ? { parentEffectId: "" } : {}),
@@ -324,6 +335,7 @@ function conditionRule(condition, {
     ...(Array.isArray(summaryParts) ? { summaryParts } : {}),
     ...(saveReminder ? { saveReminder } : {}),
     ...(deferredEffect ? { deferredEffect } : {}),
+    ...(mechanics && typeof mechanics === "object" ? { mechanics: Object.freeze({ ...mechanics }) } : {}),
   });
 }
 
@@ -369,11 +381,14 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
   ], { track: false }),
   "mass-cure-wounds": noPersistentEffect,
   "wind-wall": noPersistentEffect,
+  // 2014: the sleeper wakes if it takes damage or someone shakes it awake (removed by hand). Sleep has no
+  // concentration, so the removal ends the spell on that creature only.
   "sleep": failedAutomation([
     conditionRule("Privo di sensi", {
       expiry: rounds(10),
       manualRemoval: true,
       endsParentOnRemoval: true,
+      mechanics: { endsOnDamage: true },
     }),
   ]),
   "compulsion": failedAutomation([

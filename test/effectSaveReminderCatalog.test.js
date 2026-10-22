@@ -205,5 +205,8 @@ test("Allucinazione Mortale risolve danno e fine della concentrazione dal remind
     dice: "4d10",
     type: "psichici",
     onSave: "none",
+    // 2014: +1d10 for each slot level above 4th (lotto L2).
+    baseSlot: 4,
+    additionalPerSlotAbove: 1,
   });
 });

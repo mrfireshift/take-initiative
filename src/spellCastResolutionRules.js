@@ -102,6 +102,37 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
     initialHP: true,
     successfulSaveDamage: "none",
   }),
+  // Lotto L2 (2014 texts): the dice by slot; the GM enters the final damage.
+  "xanathar-catapulta": Object.freeze({
+    initialHP: true,
+    successfulSaveDamage: "none",
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "3d8", baseSlot: 1, additionalPerSlotAbove: 1, type: "contundenti" }),
+      failed: Object.freeze({ formula: "3d8", baseSlot: 1, additionalPerSlotAbove: 1, type: "contundenti" }),
+    }),
+  }),
+  "hellish-rebuke": Object.freeze({
+    initialHP: true,
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "2d10", baseSlot: 1, additionalPerSlotAbove: 1, type: "fuoco" }),
+      failed: Object.freeze({ formula: "2d10", baseSlot: 1, additionalPerSlotAbove: 1, type: "fuoco" }),
+    }),
+  }),
+  "phb2014-sussurri-dissonanti": Object.freeze({
+    initialHP: true,
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "3d6", baseSlot: 1, additionalPerSlotAbove: 1, type: "psichici" }),
+      failed: Object.freeze({ formula: "3d6", baseSlot: 1, additionalPerSlotAbove: 1, type: "psichici" }),
+    }),
+  }),
+  // Plant creatures: disadvantage and maximum damage, at the table.
+  "blight": Object.freeze({
+    initialHP: true,
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "8d8", baseSlot: 4, additionalPerSlotAbove: 1, type: "necrotici" }),
+      failed: Object.freeze({ formula: "8d8", baseSlot: 4, additionalPerSlotAbove: 1, type: "necrotici" }),
+    }),
+  }),
   "xanathar-sfera-della-tempesta": Object.freeze({
     initialHP: true,
     successfulSaveDamage: "none",

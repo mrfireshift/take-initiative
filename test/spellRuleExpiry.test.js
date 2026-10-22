@@ -10,7 +10,8 @@ import {
 const NEXT_TURN_EXPIRIES = Object.freeze({
   "Assorbire Elementi": ["turn-end", "source"],
   "Tocco gelido": ["turn-start", "source"],
-  "Spruzzo colorato": ["turn-start", "source"],
+  // 2014: blinded "until the end of your next turn" (lotto L2).
+  "Spruzzo colorato": ["turn-end", "source"],
   "Comando": ["turn-end", "target"],
   "Dardo tracciante": ["turn-end", "source"],
   "Messaggio": ["turn-start", "source"],

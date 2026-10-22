@@ -471,6 +471,51 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       maxMeters: 18,
     },
   }),
+  // A save with damage on one creature (lotto L2, 2014 texts); the damage by outcome is in spellCastResolutionRules.js.
+  "xanathar-catapulta": workflowRule({
+    spellId: "xanathar-catapulta",
+    ability: "dex",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 1,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+  }),
+  "hellish-rebuke": workflowRule({
+    spellId: "hellish-rebuke",
+    ability: "dex",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 1,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+  }),
+  "phb2014-sussurri-dissonanti": workflowRule({
+    spellId: "phb2014-sussurri-dissonanti",
+    ability: "wis",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 1,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+  }),
+  "blight": workflowRule({
+    spellId: "blight",
+    ability: "con",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 4,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 9,
+    },
+  }),
   "phb2014-allucinazione-di-forza": workflowRule({
     spellId: "phb2014-allucinazione-di-forza",
     ability: "int",

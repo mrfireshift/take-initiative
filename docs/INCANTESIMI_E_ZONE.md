@@ -81,9 +81,9 @@ del Patto o nessuno slot. Le fasi successive (risoluzioni preparate, azioni
 attive, trigger di zona) non spendono slot. Le regole sono in
 `src/spellSlotSpendCore.js`.
 
-Il pannello elenca tutti i 477 incantesimi del catalogo. Gli 84 che il plugin
-non automatizza (istantanei senza area né tracciamento: Controincantesimo,
-Cura ferite, Desiderio…) si **registrano**: un solo comando spende il loro
+Il pannello elenca tutti i 477 incantesimi del catalogo. I 75 che il plugin
+non automatizza (istantanei senza area, cura né tracciamento:
+Controincantesimo, Dardo incantato, Desiderio…) si **registrano**: un solo comando spende il loro
 costo, con History, Undo e voce nel registro di combattimento, senza pill sui
 bersagli, che restano facoltativi. Un lancio registrato che non spende nulla
 va soltanto nel registro. Il percorso è in `src/spellCastRecord.js`; quali
@@ -101,6 +101,15 @@ ignorare, finché l'incantesimo dura. Pelle di pietra resta informativa: vale
 solo per i danni non magici, che il motore non distingue. Passare senza
 tracce è un'aura mobile di 9 m sul caster: +10 Furtività alle creature del suo
 schieramento al suo interno, caster compreso, aggiornata quando si muovono.
+
+Con il lotto L2 le cure discrete (Cura ferite, Parola guaritrice, Preghiera
+di guarigione, Parola guaritrice di massa) entrano nel set delle cure senza
+sagoma: il comando ad area le applica alle creature scelte, come Cura ferite
+di massa. Catapulta, Intimorire infernale, Sussurri dissonanti e Inaridire
+sono TS su una creatura con i dadi dello slot. Sonno e Trama ipnotica hanno
+`mechanics.endsOnDamage`: il danno toglie la condizione alla sola creatura
+colpita. Spruzzo colorato scade alla fine del prossimo turno del caster;
+Risveglio, Allucinazione mortale e Labirinto completano i loro testi 2014.
 
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la

@@ -42,7 +42,15 @@
         "guerriero-maestro-di-battaglia-manovre-attacco-preciso",
       ],
     },
-    chierico: { name: "Oren", build: [{ classId: "chierico", level: 6, subclassId: "chierico-dominio-dell-ordine" }] },
+    chierico: {
+      name: "Oren",
+      build: [{ classId: "chierico", level: 6, subclassId: "chierico-dominio-dell-ordine" }],
+      // Le cure discrete del lotto L2 e un TS con danno.
+      spellbook: {
+        spellIds: ["sacred-flame", "cure-wounds", "healing-word", "bless", "prayer-of-healing", "mass-healing-word"],
+        pinnedIds: ["cure-wounds"],
+      },
+    },
     druido: { name: "Ilse", build: [{ classId: "druido", level: 6, subclassId: "druido-circolo-della-terra" }] },
     bardo: { name: "Lyra", build: [{ classId: "bardo", level: 3, subclassId: "bardo-collegio-dell-incanto" }] },
     ladro: { name: "Vex", build: [{ classId: "ladro", level: 9, subclassId: "ladro-lama-spirituale" }] },

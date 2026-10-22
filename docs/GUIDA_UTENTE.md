@@ -89,8 +89,8 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
 - ⚙ apre sempre il pannello, per scegliere slot, bersagli e varianti.
 - I trucchetti d'attacco aprono la console attacchi quando negli **Attacchi**
   c'è un'azione Trucchetto, anche dal menu 🪄.
-- Gli incantesimi che il plugin non automatizza (Controincantesimo, Cura
-  ferite, Desiderio, Identificare…) mostrano **Registra il lancio**: il lancio
+- Gli incantesimi che il plugin non automatizza (Controincantesimo, Dardo
+  incantato, Desiderio, Identificare…) mostrano **Registra il lancio**: il lancio
   spende lo slot e finisce nel registro di combattimento, senza pill; gli
   effetti si risolvono al tavolo. I bersagli selezionati compaiono nel
   registro, ma non servono. Nel pannello il pulsante si chiama **Registra
@@ -100,6 +100,15 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   o azzerano il danno di quel tipo, e il GM può ignorare il chip della difesa
   per un singolo attacco. Le altre pill dei benefici (Armatura magica, Pelle
   coriacea, Pelle di pietra…) sono promemoria per il tavolo.
+- Cura ferite, Parola guaritrice, Preghiera di guarigione e Parola
+  guaritrice di massa si risolvono nel pannello come Cura ferite di massa: si
+  scelgono le creature (una, o fino a sei), si scrive la cura e gli HP salgono,
+  mai oltre il massimo, con Undo. Catapulta, Intimorire infernale, Sussurri
+  dissonanti e Inaridire chiedono l'esito del TS e il danno, con i dadi dello
+  slot.
+- Sonno e Trama ipnotica finiscono quando la creatura subisce danno: la pill
+  sparisce da sola solo su quella creatura. Per svegliarla senza danno si
+  rimuove la pill a mano.
 
 Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni
 rapide.

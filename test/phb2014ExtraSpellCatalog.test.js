@@ -72,7 +72,8 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
   const trackableIds = new Set(getTrackableSpellOptions().map((option) => option.id));
   const instantaneous = catalog.spells.filter((entry) => entry.durationKind === "instantaneous");
 
-  assert.equal(getTrackableSpellOptions().length, 358);
+  // 359 with Awaken, instantaneous but charmed for 30 days (lotto L2).
+  assert.equal(getTrackableSpellOptions().length, 359);
   assert.equal(trackableIds.has("phb2014-raggio-di-infermita"), true);
   for (const entry of instantaneous) {
     if (entry.id === "phb2014-raggio-di-infermita") continue;
@@ -84,7 +85,8 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
   assert.equal(spell("Tsunami").defaultTurns, 6);
 });
 
-test("HP rapidi riceve le 15 spell PHB con area o trigger spaziale", () => {
+// Dissonant Whispers joins them as a discrete save with damage (lotto L2).
+test("HP rapidi riceve le 16 spell PHB con area, trigger spaziale o TS discreto con danno", () => {
   const ids = getAreaSaveSpellOptions()
     .filter((option) => spell(option.id).source === "phb2014")
     .map((option) => option.id);
@@ -92,6 +94,7 @@ test("HP rapidi riceve le 15 spell PHB con area o trigger spaziale", () => {
   assert.deepEqual(ids, [
     "phb2014-braccia-di-hadar",
     "phb2014-raffica-di-spine",
+    "phb2014-sussurri-dissonanti",
     "phb2014-allucinazione-di-forza",
     "phb2014-cordone-di-frecce",
     "phb2014-nube-di-pugnali",
@@ -107,7 +110,6 @@ test("HP rapidi riceve le 15 spell PHB con area o trigger spaziale", () => {
     "phb2014-tsunami",
   ]);
   for (const excluded of [
-    "Sussurri Dissonanti",
     "Punizione Accecante",
   ]) {
     assert.equal(ids.includes(spell(excluded).id), false, excluded);

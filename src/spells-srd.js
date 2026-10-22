@@ -3,6 +3,7 @@ import italianData from "./spells-it-2014.json" with { type: "json" };
 import supplementData from "./spells-supplements-runtime.json" with { type: "json" };
 import phb2014ExtraData from "./spells-phb2014-extra.json" with { type: "json" };
 import {
+  AREA_HEALING_SPELL_ID_SET,
   AREA_POPOVER_SAVE_SPELL_ID_SET,
   AREA_POPOVER_SPELL_ID_SET,
   AREA_SAVE_AUTOMATION_RULES,
@@ -285,10 +286,13 @@ const AUTOMATION = Object.freeze({
           ability: "wis",
           timing: "turn-end",
           dcSource: "source-spell",
+          // 2014: +1d10 for each slot level above 4th.
           damage: {
             dice: "4d10",
             type: "psichici",
             onSave: "none",
+            baseSlot: 4,
+            additionalPerSlotAbove: 1,
           },
           label: "4d10 psichici se fallisce; se supera, termina la spell.",
         },
@@ -539,6 +543,8 @@ const SAVE_AUTOMATION = Object.freeze({
       endsParentOnRemoval: true,
     })]),
   }),
+  // 2014: it ends for a creature that takes damage or is shaken awake (removed by hand); the removal is scoped
+  // to that creature (scopedParentRemovalRule).
   "hypnotic-pattern": Object.freeze({
     trackOutcomes: Object.freeze(["failed"]),
     failed: Object.freeze([
@@ -547,12 +553,14 @@ const SAVE_AUTOMATION = Object.freeze({
         expiry: CONCENTRATION_EXPIRY,
         manualRemoval: true,
         endsParentOnRemoval: true,
+        mechanics: Object.freeze({ endsOnDamage: true }),
       }),
       Object.freeze({
         condition: "Incapacitato",
         expiry: CONCENTRATION_EXPIRY,
         manualRemoval: true,
         endsParentOnRemoval: true,
+        mechanics: Object.freeze({ endsOnDamage: true }),
       }),
     ]),
   }),
@@ -580,7 +588,8 @@ const SAVE_AUTOMATION = Object.freeze({
 const SPELL_EXPIRY = Object.freeze({
   "xanathar-assorbire-elementi": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   "chill-touch": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
-  "color-spray": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
+  // 2014: blinded "until the end of your next turn", like its area condition.
+  "color-spray": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   "command": Object.freeze({ mode: "turn-end", actor: "target", remaining: 1, anchor: "next-turn" }),
   "guiding-bolt": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   "message": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
@@ -1297,6 +1306,37 @@ const SPELL_EFFECTS = Object.freeze({
       ]),
     }),
   ]),
+  // Lotto L2 (2014 texts). Awaken: charmed for 30 days or until the caster or a companion harms it, not on any
+  // damage, so its pill is removed by hand.
+  "awaken": Object.freeze([
+    Object.freeze({
+      id: "awaken-charmed",
+      kind: "debuff",
+      label: "Affascinato dal caster",
+      detail: "La bestia o il vegetale risvegliato ha Intelligenza 10 ed è affascinato dal caster per 30 giorni. Termina prima se il caster o un suo compagno gli fanno qualcosa di dannoso: rimuovere la pill. Dopo, sceglie da sé se restare amichevole.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "awaken-charmed-by-caster", label: "Affascinato dal caster" }),
+        Object.freeze({ id: "awaken-ends-on-harm", label: "Danno dal caster o alleati: fine" }),
+      ]),
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+    }),
+  ]),
+  // Maze: banished to a labyrinth; a DC 20 Intelligence check as an action frees it and ends the spell.
+  "maze": Object.freeze([
+    Object.freeze({
+      id: "maze-banished",
+      kind: "debuff",
+      label: "Nel labirinto",
+      detail: "Esiliato in un semipiano labirintico finché dura la spell. Con un'azione può tentare di uscire con una prova di Intelligenza CD 20: se riesce, la spell termina e ricompare dove era (o nello spazio libero più vicino). Minotauri e demoni goristro riescono automaticamente.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "maze-banished-state", label: "Esiliato" }),
+        Object.freeze({ id: "maze-escape-check", label: "Azione: prova Int CD 20" }),
+      ]),
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+    }),
+  ]),
   ...SUPPLEMENT_EFFECTS,
   ...PHB2014_EFFECTS,
 });
@@ -1913,6 +1953,8 @@ const SPELL_TRACKING_OVERRIDES = Object.freeze({
   "acid-arrow": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "power-word-stun": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "ray-of-frost": Object.freeze({ trackable: true, defaultTurns: 1 }),
+  // Instantaneous, but its charm lasts 30 days (lotto L2).
+  "awaken": Object.freeze({ trackable: true, defaultTurns: 30 * 14400 }),
 });
 const ITALIAN_NAMES = italianData?.names && typeof italianData.names === "object"
   ? italianData.names
@@ -2088,11 +2130,13 @@ const TRACKABLE_SPELLS = ALL_SPELLS.filter((spell) =>
   !["instantaneous", "istantanea"].includes(String(spell.duration).toLocaleLowerCase())
 );
 
-// The spells the plugin neither tracks nor places: instantaneous, without an area (Counterspell, Cure Wounds,
-// Wish...). Their cast is recorded (spellCastRecord.js): the slot it spends and a combat log entry, no pill.
+// The spells the plugin neither tracks nor places: instantaneous, without an area (Counterspell, Wish, Magic
+// Missile...). Their cast is recorded (spellCastRecord.js): the slot it spends and a combat log entry, no pill.
+// The discrete heals (Cure Wounds...) resolve in the area command, like the spells of the area popover.
 const TRACKABLE_SPELL_IDS = new Set(TRACKABLE_SPELLS.map((spell) => spell.id));
+const resolvedByAreaCommand = (spellId) => AREA_POPOVER_SPELL_ID_SET.has(spellId) || AREA_HEALING_SPELL_ID_SET.has(spellId);
 const RECORD_ONLY_SPELL_IDS = new Set(ALL_SPELLS
-  .filter((spell) => !TRACKABLE_SPELL_IDS.has(spell.id) && !AREA_POPOVER_SPELL_ID_SET.has(spell.id))
+  .filter((spell) => !TRACKABLE_SPELL_IDS.has(spell.id) && !resolvedByAreaCommand(spell.id))
   .map((spell) => spell.id));
 
 const BY_LOOKUP = new Map();
@@ -2142,6 +2186,7 @@ export function getQuickActionSpellOptions() {
         || spell.activeActions?.length
         || spell.effects?.length
         || spell.effectChoices?.length
+        || AREA_HEALING_SPELL_ID_SET.has(spell.id)
       ),
       recordOnly: RECORD_ONLY_SPELL_IDS.has(spell.id),
     }));
@@ -2159,7 +2204,7 @@ export function isSpellCastRecordOnly(value) {
 
 export function getAreaSaveSpellOptions() {
   return ALL_SPELLS
-    .filter((spell) => AREA_POPOVER_SPELL_ID_SET.has(spell.id) || !!spell.boardToken)
+    .filter((spell) => resolvedByAreaCommand(spell.id) || !!spell.boardToken)
     .map((spell) => ({
       id: spell.id,
       value: spell.catalogLabel || spell.displayName,
@@ -2168,6 +2213,7 @@ export function getAreaSaveSpellOptions() {
       concentration: spell.concentration === true,
       automated: !!spell.saveAutomation
         || SPELL_SAVE_WORKFLOW_SPELL_IDS.includes(spell.id)
+        || AREA_HEALING_SPELL_ID_SET.has(spell.id)
         || !!spell.boardToken,
     }));
 }

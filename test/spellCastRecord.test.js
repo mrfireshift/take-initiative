@@ -12,7 +12,7 @@ import {
   getTrackableSpellOptions,
   isSpellCastRecordOnly,
 } from "../src/spells-srd.js";
-import { AREA_POPOVER_SPELL_ID_SET } from "../src/areaSaveSpellRules.js";
+import { AREA_HEALING_SPELL_ID_SET, AREA_POPOVER_SPELL_ID_SET } from "../src/areaSaveSpellRules.js";
 import {
   buildSpellPanelViewModel,
   buildSpellUnifiedPanelContract,
@@ -49,19 +49,21 @@ function bookAction(spellId, overrides = {}) {
   };
 }
 
-test("the plugin only records the instantaneous spells it neither tracks nor places: 84 of the catalog", () => {
+// 75 since lotto L2: the discrete heals, four saves with damage and Awaken left the recording.
+test("the plugin only records the instantaneous spells it neither tracks nor places: 75 of the catalog", () => {
   const catalog = getSpellCatalog();
   const tracked = new Set(getTrackableSpellOptions().map((option) => option.id));
   const expected = catalog
-    .filter((spell) => !tracked.has(spell.id) && !AREA_POPOVER_SPELL_ID_SET.has(spell.id))
+    .filter((spell) => !tracked.has(spell.id) && !AREA_POPOVER_SPELL_ID_SET.has(spell.id)
+      && !AREA_HEALING_SPELL_ID_SET.has(spell.id))
     .map((spell) => spell.id);
   const recorded = getRecordOnlySpellOptions().map((option) => option.id);
   assert.deepEqual(recorded, expected);
-  assert.equal(recorded.length, 84);
-  for (const id of ["counterspell", "cure-wounds", "wish", "magic-missile", "mending", "identify"]) {
+  assert.equal(recorded.length, 75);
+  for (const id of ["counterspell", "heal", "wish", "magic-missile", "mending", "identify"]) {
     assert.equal(isSpellCastRecordOnly(id), true, id);
   }
-  for (const id of ["bless", "fireball", "shield", "hold-person", "mass-cure-wounds"]) {
+  for (const id of ["bless", "fireball", "shield", "hold-person", "mass-cure-wounds", "cure-wounds", "blight", "awaken"]) {
     assert.equal(isSpellCastRecordOnly(id), false, id);
   }
   assert.equal(isSpellCastRecordOnly("Controincantesimo"), true, "by name too");
@@ -73,7 +75,7 @@ test("the plugin only records the instantaneous spells it neither tracks nor pla
 test("every spell of the catalog is a quick action option, the recorded ones flagged", () => {
   const options = getQuickActionSpellOptions();
   assert.equal(options.length, getSpellCatalog().length);
-  assert.equal(options.filter((option) => option.recordOnly).length, 84);
+  assert.equal(options.filter((option) => option.recordOnly).length, 75);
   assert.equal(options.find((option) => option.id === "counterspell").recordOnly, true);
   assert.equal(options.find((option) => option.id === "fireball").recordOnly, false);
 });
@@ -132,7 +134,7 @@ test("a quick action records the spell at once, with no creature, one or several
 });
 
 test("the lifecycle hands the executor a recorded request and what the cast spends", async () => {
-  const contract = buildSpellUnifiedPanelContract({ spellId: "cure-wounds", castContext: { slotLevel: 2 } });
+  const contract = buildSpellUnifiedPanelContract({ spellId: "lesser-restoration", castContext: { slotLevel: 2 } });
   const session = { ...createSpellPanelSession({ contract, casterId: "cleric" }), slotLevel: 2, targetIds: ["fighter"] };
   const request = buildSpellUnifiedLifecycleRequest({ contract, session });
   assert.equal(request.recordOnly, true);
