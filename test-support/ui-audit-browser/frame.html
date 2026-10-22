@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><title>Audit UI · Take Initiative</title>
+<link rel="stylesheet" href="/ui-typography.css"><style>
+html,body{margin:0;height:100%;background:#17212b;color:#fff;font-family:var(--obrt-font-ui)}
+body{background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:60px 60px}
+main{position:absolute;right:24px;top:24px;max-width:300px;font-size:12px;line-height:1.5;opacity:.75}h1{font-size:15px;margin:0 0 4px}a{color:#93c5fd}iframe{position:absolute;border:0;background:transparent}
+</style></head><body><main><h1>Audit UI</h1><p>SDK simulato, nove creature. <a href="?layout=compact">Compatta GM</a> · <a href="?layout=compact&role=PLAYER">Compatta giocatore</a> · <a href="?layout=classic">Classica GM</a> · <a href="?layout=classic&role=PLAYER">Classica giocatore</a></p><button id="open-manual">Effetti Manuali</button> <button id="capture-snapshot">Crea snapshot</button><details><summary>Snapshot JSON</summary><pre id="snapshot-json" style="max-height:200px;overflow:auto"></pre></details><div id="snapshot-board"></div></main><script type="module" src="/test-support/ui-audit-browser/host.js"></script></body></html>
