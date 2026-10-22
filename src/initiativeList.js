@@ -245,6 +245,7 @@ import {
   buildCompactCardIndicators,
   buildCompactCardName,
   buildCompactCardPortrait,
+  buildCompactSheetButton,
   buildCompactCardShell,
   buildCompactCardStatus,
   buildCompactLegendaryResourcePips,
@@ -9713,6 +9714,10 @@ function renderCompactTrack(
     card.appendChild(initiativeBadge);
     if (statusBadge) card.appendChild(statusBadge);
     if (activeMarker) card.appendChild(activeMarker);
+    const sheetButton = buildCompactSheetButton(entry, {
+      onOpen: () => void openInitiativeCardPopup(entry),
+    });
+    if (sheetButton) card.appendChild(sheetButton);
 
     const {
       hpText,

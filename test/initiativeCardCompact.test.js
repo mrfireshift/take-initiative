@@ -14,6 +14,7 @@ import {
   buildCompactCardShell,
   buildCompactCardStatus,
   buildCompactLegendaryResourcePips,
+  buildCompactSheetButton,
   buildCompactVirtualTurnLabel,
   compactStatusBadge,
   deriveCompactCardPresentation,
@@ -1178,4 +1179,34 @@ test("l'editor nome compatto annulla o ripristina il nome dopo un errore", async
     assert.equal(card.dataset.renaming, undefined);
     assert.equal(card.draggable, false);
   }
+});
+
+test("la scheda personaggio si apre dal compatto in un clic, per PG e alleati", async () => {
+  const documentRef = createTestDocument();
+  let opened = 0;
+  const onOpen = () => { opened += 1; };
+
+  const button = buildCompactSheetButton({ id: "pc", attitude: "pc" }, { onOpen, documentRef });
+  assert.equal(button.tagName, "BUTTON");
+  assert.equal(button.title, "Apri scheda personaggio");
+  assert.equal(button.attributes["aria-label"], "Apri scheda personaggio");
+  // Under the initiative badge (6px + 24px + 4px), centred on its axis; the top-right corner is the KO badge's.
+  assert.equal(button.style.position, "absolute");
+  assert.equal(button.style.left, "10px");
+  assert.equal(button.style.top, "34px");
+  assert.equal(button.style.width, "16px");
+  assert.ok(button.children.some((child) => child.dataset.hitArea === "1"));
+
+  const down = createTestEvent();
+  await button.dispatch("pointerdown", down);
+  assert.equal(down.propagationStopped, true);
+  const click = createTestEvent();
+  await button.dispatch("click", click);
+  assert.equal(click.propagationStopped, true);
+  assert.equal(opened, 1);
+
+  assert.ok(buildCompactSheetButton({ id: "ally", attitude: "ally" }, { onOpen, documentRef }));
+  assert.equal(buildCompactSheetButton({ id: "foe", attitude: "enemy" }, { onOpen, documentRef }), null);
+  assert.equal(buildCompactSheetButton({ id: "g", attitude: "pc", __groupCollapsed: true }, { onOpen, documentRef }), null);
+  assert.equal(buildCompactSheetButton({ id: "pc", attitude: "pc" }, { documentRef }), null);
 });

@@ -29,9 +29,9 @@ export function cardIconAssetUrl(name) {
   return `${import.meta.env?.BASE_URL || "/"}${name}`;
 }
 
-export function buildCardIconGlyph(name, size = 11) {
+export function buildCardIconGlyph(name, size = 11, documentRef = globalThis.document) {
   const url = cardIconAssetUrl(name);
-  const glyph = document.createElement("span");
+  const glyph = documentRef.createElement("span");
   glyph.setAttribute("aria-hidden", "true");
   Object.assign(glyph.style, {
     display: "block",

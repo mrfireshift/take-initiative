@@ -9,6 +9,7 @@ import { buildEffectSummaryContainer } from "./effectSummaryViewCore.js";
 import { getSpellSummaryParts } from "./spells-srd.js";
 import { COMPACT_CARD_WIDTH } from "./constants.js";
 import { HIT_AREA_MIN_SIZE, extendHitArea } from "./hitAreaCore.js";
+import { CARD_ICON_BUTTON_SIZE, buildCardIconGlyph, styleCardIconButton } from "./cardIconButton.js";
 
 export { COMPACT_CARD_WIDTH };
 export const COMPACT_CARD_HEIGHT = 120;
@@ -511,6 +512,48 @@ export function buildCompactCardIndicators(
     statusBadge,
     activeMarker,
   };
+}
+
+// The character sheet in one click, for the same creatures as the classic card's icon (PCs and allies, GM and
+// players). It stands under the initiative badge, on its axis: the top-right corner belongs to the KO badge, and the
+// GM's launchers fill the row on the right.
+export function buildCompactSheetButton(
+  entry,
+  {
+    onOpen,
+    documentRef = globalThis.document,
+  } = {},
+) {
+  if (typeof onOpen !== "function" || entry?.__groupCollapsed || !["pc", "ally"].includes(entry?.attitude)) {
+    return null;
+  }
+  const document = compactDocument(documentRef);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.compactSheetButton = "1";
+  button.title = "Apri scheda personaggio";
+  button.setAttribute("aria-label", button.title);
+  styleCardIconButton(button, "sheet");
+  Object.assign(button.style, {
+    position: "absolute",
+    left: `${6 + (COMPACT_CORNER_BADGE_SIZE - CARD_ICON_BUTTON_SIZE) / 2}px`,
+    top: `${COMPACT_STACKED_BADGE_TOP}px`,
+    cursor: "pointer",
+    zIndex: "4",
+  });
+  button.appendChild(buildCardIconGlyph("character-sheet.svg", 10, document));
+  extendHitArea(button, { documentRef: document });
+  // The card is draggable and selects its token on click: the icon keeps both gestures to itself.
+  button.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+  });
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    onOpen();
+  });
+  return button;
 }
 
 export function buildCompactCardPortrait(

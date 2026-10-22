@@ -320,6 +320,16 @@ Stato dei lotti:
   - **Verifica nell'anteprima:**
     - richiesta dall'area: URL `quick-hp-modal.html?mode=damage`, scheda attiva "Danno", opzioni dei tiri salvezza nascoste;
     - pulsante "Effetti" della barra: URL senza `mode`, scheda attiva "Effetti".
+- **6.2 — fatto il 2026-10-22.**
+  - **Prima:** nel compatto la scheda si apriva solo dal menu del clic destro (due clic, solo GM). I giocatori non avevano un accesso.
+  - **Ora:** la stessa icona blu del classico (16px, area cliccabile 24px) sta sotto il badge dell'iniziativa, sul suo asse. Compare per PG e alleati, nella vista GM e in quella giocatori, come nel classico; un gruppo collassato non la mostra.
+  - **Perché lì:** l'angolo in alto a destra è del badge KO, che un PG a 0 HP mostra, e sulla destra stanno i lanciatori del GM.
+  - **Gesti della card:** il clic sull'icona non seleziona il token e non avvia il trascinamento.
+  - **Verifica nell'anteprima:**
+    - icona su Omar, Lavera, Klos, Brann e Lupo alleato, assente su nemici, boss e turni virtuali;
+    - posizione 11px da sinistra e 35px dall'alto, sotto il badge (7–31px), lontana dai lanciatori;
+    - clic su Lavera (GM): si apre `initiative-card-modal.html?source=lavera`, selezione invariata;
+    - vista giocatore: stesse cinque card, il clic su Omar apre la sua scheda.
 
 ### Fase 7 — Rilascio
 
