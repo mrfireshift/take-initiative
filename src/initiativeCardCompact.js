@@ -8,6 +8,7 @@ import { effectSummaryPartsFor } from "./effectLabelCore.js";
 import { buildEffectSummaryContainer } from "./effectSummaryViewCore.js";
 import { getSpellSummaryParts } from "./spells-srd.js";
 import { COMPACT_CARD_WIDTH } from "./constants.js";
+import { HIT_AREA_MIN_SIZE, extendHitArea } from "./hitAreaCore.js";
 
 export { COMPACT_CARD_WIDTH };
 export const COMPACT_CARD_HEIGHT = 120;
@@ -299,8 +300,11 @@ export function __buildCompactEffectPill(
     terminate.dataset.cardSelectionIgnore = "1";
     terminate.title = `Termina ${effect.label}`;
     terminate.setAttribute("aria-label", terminate.title);
-    // Pinned to the right edge, so a long label is cut before the × and never hides it.
+    // Pinned to the right edge, so a long label is cut before the × and never hides it. Its 24px clickable square
+    // reaches past the pill, so the pill clips with a margin instead of at its border (the text still ends in "…").
     pill.style.paddingRight = "14px";
+    pill.style.overflow = "clip";
+    pill.style.overflowClipMargin = "8px";
     Object.assign(terminate.style, {
       position: "absolute",
       right: "2px",
@@ -337,6 +341,7 @@ export function __buildCompactEffectPill(
           console.warn("[initiative-card] terminate class feature:", error?.message || error);
         });
     });
+    extendHitArea(terminate, { documentRef: compactDocument(documentRef) });
     pill.appendChild(terminate);
   }
   return buildEffectSummaryContainer(effect, pill, {
@@ -805,6 +810,8 @@ export function syncCompactEffectsToggleState({
     : `Mostra altri ${effectsCount - 1} effetti`;
 
   moreEffectsButton.textContent = `+${effectsCount - 1}`;
+  // Writing the text drops the children: the clickable square goes back in.
+  if (moreEffectsButton.__hitArea) moreEffectsButton.appendChild(moreEffectsButton.__hitArea);
   moreEffectsButton.style.display = opened ? "none" : "inline-flex";
   moreEffectsButton.setAttribute("aria-expanded", expanded);
   moreEffectsButton.setAttribute("aria-label", label);
@@ -978,6 +985,27 @@ export function buildCompactCardStatus(
       previewPill.setAttribute("role", "button");
       previewPill.setAttribute("tabindex", "0");
       previewPill.style.cursor = "pointer";
+      // The pill is 14px tall: a 24px band behind it, as wide as the slot, takes the clicks just above and below it
+      // and passes them to the pill. It comes first, so the pill and the "+N" button stay on top of it.
+      const pillHitArea = document.createElement("span");
+      pillHitArea.dataset.hitArea = "1";
+      pillHitArea.setAttribute("aria-hidden", "true");
+      Object.assign(pillHitArea.style, {
+        position: "absolute",
+        left: "0",
+        right: "0",
+        top: "50%",
+        height: `${HIT_AREA_MIN_SIZE}px`,
+        transform: "translateY(-50%)",
+        cursor: "pointer",
+      });
+      pillHitArea.addEventListener("pointerdown", (event) => event.stopPropagation());
+      pillHitArea.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        previewPill.click();
+      });
+      effectSlot.appendChild(pillHitArea);
     }
     effectSlot.appendChild(previewPill);
     status.appendChild(effectSlot);
@@ -1012,6 +1040,7 @@ export function buildCompactCardStatus(
       transform: "translateX(-50%)",
       zIndex: "22",
     });
+    moreEffectsButton.__hitArea = extendHitArea(moreEffectsButton, { documentRef: document });
     effectSlot.appendChild(moreEffectsButton);
     syncCompactEffectsToggleState({
       previewPill,

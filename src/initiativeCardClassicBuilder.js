@@ -19,6 +19,7 @@ import { compactStatusBadge } from "./initiativeCardCompact.js";
 import { fitCardToChipDock } from "./initiativeChipOverflow.js";
 import { buildReactionIndicator } from "./reactionIndicator.js";
 import { buildCardIconGlyph, styleCardIconButton } from "./cardIconButton.js";
+import { extendHitArea } from "./hitAreaCore.js";
 import { hasReactionUsed } from "./reactionTrackerCore.js";
 
 export function buildClassicTrackerCard(e, context) {
@@ -528,6 +529,7 @@ if (cardToolsDock && e.__groupCollapsed) {
     cursor: "pointer",
     boxShadow: "0 1px 3px rgba(0,0,0,.35)",
   });
+  extendHitArea(groupDeltaButton);
   bindGroupHPDeltaEditor({
     button: groupDeltaButton,
     card,
@@ -1053,6 +1055,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     styleCardIconButton(initiativeCardButton, "sheet");
     initiativeCardButton.style.cursor = "pointer";
     initiativeCardButton.appendChild(buildCardIconGlyph("character-sheet.svg", 12));
+    extendHitArea(initiativeCardButton);
     initiativeCardButton.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
       event.preventDefault();
@@ -1090,6 +1093,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
       boxShadow: "0 1px 3px rgba(0,0,0,.35)",
       pointerEvents: "auto",
     });
+    extendHitArea(hpDeltaButton);
     hpDeltaButton.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
       event.preventDefault();

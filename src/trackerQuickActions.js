@@ -1,5 +1,6 @@
 import { isAttackQuickAction, sanitizeQuickAction, sanitizeQuickActions } from "./quickActionsCore.js";
 import { isSpellbookQuickAction } from "./spellbookCore.js";
+import { extendHitArea } from "./hitAreaCore.js";
 
 const QUICK_ACTION_BUTTON_SIZE = 22;
 const CLASSIC_COMBAT_BADGE_SIZE = 18;
@@ -152,6 +153,10 @@ export function buildTrackerQuickActionLauncher({
       ? `0 0 0 ${LAUNCHER_RING}px ${look.border},0 0 0 ${LAUNCHER_RING + 2}px ${look.ring},0 2px 6px rgba(0,0,0,.85)`
       : `0 0 0 ${LAUNCHER_RING}px ${look.border},0 2px 6px rgba(0,0,0,.85)`,
   });
+
+  // The circle stays 15px; a 24px square around it takes the clicks. Neighbouring launchers are 17-20px apart, so
+  // their squares overlap by a few px, where the later launcher answers.
+  extendHitArea(toggle, { documentRef });
 
   const stopPointer = (event) => {
     event.preventDefault();

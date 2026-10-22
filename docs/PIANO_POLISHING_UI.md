@@ -187,6 +187,14 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
     | Etichette sotto le icone | assenti nel compatto | intere a 10px |
     | Checkbox Focus token | 13×13 | interruttore 107×28 |
     | Etichette mappa da menu | — | da "solo selezione" a "compatte", notifica, voce aggiornata |
+- **3.5 — fatto il 2026-10-22.**
+  - `src/hitAreaCore.js` aggiunge ai controlli piccoli un quadrato trasparente di 24×24 centrato su di loro. Il disegno non cambia; cambia solo l'area che risponde al clic.
+  - Applicato a: "×" delle capacità di classe, "+N", launcher ⚡🪄🗡️, icone tonde della card classica (scheda personaggio, ±, ± del gruppo, reazione).
+  - La pill cliccabile riceve una fascia alta 24px, larga quanto il suo spazio, dietro di sé; i clic passano alla pill.
+  - Perché l'area della "×" possa uscire dalla pill, la pill ritaglia con un margine di 8px (`overflow: clip` + `overflow-clip-margin`); il testo finisce ancora con "…". Dove `overflow-clip-margin` non è supportato (Safari), l'area resta limitata all'altezza della pill, come prima.
+  - I launcher vicini distano 17–20px, quindi le loro aree si sovrappongono di qualche px; lì risponde il launcher successivo.
+  - **Escluse le maniglie di ridimensionamento** (12px sul bordo del tracker): allargarle coprirebbe la colonna di sinistra (a 2px) e il pannello destro, che la maniglia di destra già oggi copre per 5px.
+  - Verifica con `elementFromPoint` nell'anteprima: la fascia della pill risponde fino a 5px sopra e sotto; "+1" (23×17 disegnato) su 24px; la "×" (10×10) fino a 6px sopra e sotto e 8px ai lati.
 
 ### Fase 4 — Vista classica
 

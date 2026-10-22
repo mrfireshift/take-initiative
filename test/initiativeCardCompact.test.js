@@ -921,10 +921,12 @@ test("lo status con overflow conserva struttura e ARIA negli stati chiuso e aper
       documentRef: createTestDocument(),
     });
 
-    assert.deepEqual(
-      result.effectSlot.children,
-      [result.previewPill, result.moreEffectsButton],
-    );
+    // First the 24px band that passes its clicks to the 14px pill, then the pill and the "+N" button on top of it.
+    const [pillHitArea, ...drawn] = result.effectSlot.children;
+    assert.equal(pillHitArea.dataset.hitArea, "1");
+    assert.equal(pillHitArea.style.height, "24px");
+    assert.deepEqual(drawn, [result.previewPill, result.moreEffectsButton]);
+    assert.ok(result.moreEffectsButton.children.some((child) => child.dataset.hitArea === "1"));
     assert.equal(result.previewPill.attributes.role, "button");
     assert.equal(result.previewPill.attributes.tabindex, "0");
     assert.equal(result.previewPill.attributes["aria-expanded"], expanded);

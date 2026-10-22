@@ -3,6 +3,7 @@
 // colour): bright green = reaction available; dimmed red = used (it comes back at the start of the creature's turn).
 // The GM clicks it to mark or restore the reaction; players only see it.
 import { buildCardIconGlyph, styleCardIconButton } from "./cardIconButton.js";
+import { extendHitArea } from "./hitAreaCore.js";
 
 function paint(node, used) {
   node.dataset.reactionUsed = used ? "1" : "0";
@@ -25,6 +26,8 @@ export function buildReactionIndicator({ used = false, interactive = false, onTo
   node.type = "button";
   node.setAttribute("aria-pressed", String(!!used));
   node.style.cursor = "pointer";
+  // Drawn at 18px, clickable on 24px (hitAreaCore.js).
+  extendHitArea(node);
   node.addEventListener("pointerdown", (event) => {
     event.stopPropagation();
     event.preventDefault();
