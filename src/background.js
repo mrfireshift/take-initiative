@@ -18,6 +18,7 @@ import { mountCompulsionMovementReminderController } from "./compulsionMovementR
 import { mountBossCollapseController } from "./bossCollapseController.js";
 import { mountEffectsMutationCoordinatorService, runEffectsMutation } from "./effectsMutations.js";
 import { mountTurnNoticeHost } from "./turnNoticeHost.js";
+import { createTableOrientationBridge } from "./tableOrientationBridge.js";
 import "./sync-open.js";
 import "./speedMoveTool.js";
 import {
@@ -274,6 +275,10 @@ OBR.onReady(async () => {
   void startRuntimeOptions().catch(() => {});
   mountCombatLogEventSink();
   mountTurnNoticeHost();
+  // Silent until the table browser's userscript says hello (public/table-rotation.user.js).
+  const tableOrientationBridge = createTableOrientationBridge({ obr: OBR, subscribeItems: subscribeSceneItemChanges });
+  tableOrientationBridge.mount();
+  window.addEventListener("pagehide", () => tableOrientationBridge.unmount(), { once: true });
   void reconcileRoomMetadataBudget().catch((error) => {
     console.warn("[room-metadata-budget] bootstrap:", error?.message || error);
   });

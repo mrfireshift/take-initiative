@@ -19,6 +19,7 @@ export const INITIATIVE_CARD_MENU_ACTIONS = Object.freeze([
   "initiative-card",
   "attitude",
   "boss-mode",
+  "table-side",
   "remove",
 ]);
 
@@ -36,17 +37,28 @@ export const INITIATIVE_CARD_BOSS_MODES = Object.freeze([
   "epic",
 ]);
 
+// Table screen rotation (tableOrientationCore.js); "none" clears the side.
+export const INITIATIVE_CARD_TABLE_SIDES = Object.freeze([
+  "south",
+  "west",
+  "north",
+  "east",
+  "none",
+]);
+
 const COMPACT_ADMIN_MENU_ACTION_SET = new Set(COMPACT_ADMIN_MENU_ACTIONS);
 const INITIATIVE_CARD_SIMPLE_ACTION_SET = new Set(
   INITIATIVE_CARD_MENU_ACTIONS.filter((action) =>
     action !== "attitude"
       && action !== "boss-mode"
+      && action !== "table-side"
       && action !== "class-feature-activate"
       && action !== "class-feature-deactivate"
   )
 );
 const INITIATIVE_CARD_ATTITUDE_SET = new Set(INITIATIVE_CARD_ATTITUDES);
 const INITIATIVE_CARD_BOSS_MODE_SET = new Set(INITIATIVE_CARD_BOSS_MODES);
+const INITIATIVE_CARD_TABLE_SIDE_SET = new Set(INITIATIVE_CARD_TABLE_SIDES);
 
 export function createMenuRequestId({
   now = Date.now,
@@ -138,6 +150,9 @@ export function isAllowedInitiativeCardMenuAction(action, value = "") {
   }
   if (normalizedAction === "boss-mode") {
     return INITIATIVE_CARD_BOSS_MODE_SET.has(normalizedValue);
+  }
+  if (normalizedAction === "table-side") {
+    return INITIATIVE_CARD_TABLE_SIDE_SET.has(normalizedValue);
   }
   if (
     normalizedAction === "class-feature-activate"

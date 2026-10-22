@@ -24,6 +24,20 @@
       "port": 5173
     },
     {
+      "name": "table-rotation-lab",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--config",
+        "test-support/table-rotation/vite.config.mjs",
+        "--port",
+        "5197",
+        "--strictPort"
+      ],
+      "port": 5197,
+      "url": "http://127.0.0.1:5197"
+    },
+    {
       "name": "embers-gallery",
       "runtimeExecutable": "npx",
       "runtimeArgs": [

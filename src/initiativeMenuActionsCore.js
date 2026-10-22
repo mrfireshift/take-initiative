@@ -31,6 +31,8 @@ export function buildInitiativeCardContextMenuPayload({
   sourceEntry,
   scopeIds = [],
   hasActiveConcentration = false,
+  // Current side of the table (south/west/north/east), null when none, undefined when unknown.
+  tableSide = undefined,
 } = {}) {
   const normalizedScopeIds = Array.isArray(scopeIds) ? scopeIds : [];
   const isBulkScope = normalizedScopeIds.length > 1;
@@ -41,6 +43,10 @@ export function buildInitiativeCardContextMenuPayload({
     ? sourceEntry.classFeatures.slice(0, 64)
     : [];
   const showClassFeatureResourceReset = !isBulkScope
+    && ["pc", "ally"].includes(sourceEntry?.attitude);
+  // A player's creature, one card at a time: the side the table screen turns to on its turn.
+  const showTableSideMenu = !isBulkScope
+    && !sourceEntry?.__groupCollapsed
     && ["pc", "ally"].includes(sourceEntry?.attitude);
 
   return {
@@ -59,6 +65,9 @@ export function buildInitiativeCardContextMenuPayload({
     showBossMenu: !isBulkScope && sourceEntry?.attitude === "enemy",
     ...(classFeatures.length ? { classFeatures } : {}),
     ...(showClassFeatureResourceReset ? { showClassFeatureResourceReset: true } : {}),
+    ...(showTableSideMenu
+      ? { showTableSideMenu: true, ...(tableSide !== undefined ? { tableSide: tableSide || "none" } : {}) }
+      : {}),
   };
 }
 
@@ -113,6 +122,9 @@ export async function routeInitiativeCardContextMenuAction(
   }
   if (action === "boss-mode") {
     return invoke("setBossMode", sourceEntry, value);
+  }
+  if (action === "table-side") {
+    return invoke("setTableSide", sourceEntry, value === "none" ? null : value);
   }
   if (action === "remove") {
     return invoke("removeFromInitiative", scopeIds);

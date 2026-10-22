@@ -416,3 +416,34 @@ Dopo il combattimento:
 2. conserva o azzera i clock secondo la scena;
 3. termina gli effetti non più validi e verifica che zone, aure e condizioni
    collegate siano state ripulite.
+
+## 16. Schermo del tavolo che ruota verso chi gioca
+
+Con lo schermo steso sul tavolo, l'intera pagina di Owlbear (mappa, token,
+tracker e avvisi) può girarsi verso il giocatore di turno. Owlbear non permette
+alle estensioni di ruotare la vista, quindi la rotazione la fa il browser dello
+schermo del tavolo con uno userscript; il plugin gli dice soltanto verso quale
+lato guardare.
+
+1. Installa Tampermonkey o Violentmonkey nel Chrome che apre la finestra dei
+   giocatori, poi apri `<URL_BASE>/table-rotation.user.js` e conferma
+   l'installazione. Se la finestra dei giocatori è in incognito, in
+   `chrome://extensions` → Tampermonkey → Dettagli attiva «Consenti in
+   modalità di navigazione in incognito» (e «Consenti script utente», se
+   presente). Lo script può girare anche nella finestra del GM: il plugin
+   risponde solo ai client giocatore, quindi quella non ruota. Usa la finestra
+   dei giocatori solo per guardare: con la pagina ruotata, clic e trascinamenti
+   non corrispondono più a ciò che si vede.
+2. Nel tracker del GM, clic destro sulla card di ogni PG (o alleato) →
+   **Lato del tavolo** e scegli il bordo dello schermo dove siede il
+   giocatore: Sud (in basso), Ovest (sinistra), Nord (in alto), Est (destra).
+   «Nessuno» lo toglie; il lato attuale è segnato come «Attivo».
+3. Durante il combattimento, a ogni turno di un PG con un lato la pagina si gira
+   verso di lui. Mostri, voci virtuali (tana, Paragon, Epic) e assenza di
+   combattimento usano l'orientamento predefinito dello userscript
+   (`defaultDegrees`, 0 = Sud).
+
+Sullo schermo del tavolo **Alt+Shift+R** sospende o riprende la rotazione. I
+lati Est e Ovest scambiano larghezza e altezza della pagina: sono sperimentali e
+si possono disattivare nello userscript (`allowQuarterTurns: false`). Gli altri
+client, senza userscript, non ricevono niente e non cambiano.

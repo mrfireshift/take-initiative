@@ -5,6 +5,7 @@ import {
   isAllowedInitiativeCardMenuAction,
   readStoredMenuPayload,
 } from "./menuPopoverProtocolCore.js";
+import { TABLE_SIDES } from "./tableOrientationCore.js";
 
 const CHANNEL = `${ID}/initiative-card-context-menu`;
 const PAYLOAD_PREFIX = `${ID}/initiative-card-context-menu/`;
@@ -301,6 +302,24 @@ function render(payload) {
       trailing: (!payload.isBulkScope || payload.groupCollapsed) && payload.attitude === item.value ? "Attiva" : "",
     },
   })));
+
+  if (payload.showTableSideMenu) {
+    // The edge of the table screen the player sits at: the table browser turns toward it on this creature's turn.
+    const sides = [
+      ...TABLE_SIDES.map((side) => ({ value: side.id, label: `${side.label} · ${side.hint}` })),
+      { value: "none", label: "Nessuno" },
+    ];
+    addSubmenu(root, "Lato del tavolo", "table-side.svg", sides.map((item) => ({
+      label: item.label,
+      icon: "table-side.svg",
+      action: "table-side",
+      options: {
+        value: item.value,
+        current: payload.tableSide === item.value,
+        trailing: payload.tableSide === item.value ? "Attivo" : "",
+      },
+    })));
+  }
 
   if (payload.showBossMenu) {
     const modes = [

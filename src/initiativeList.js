@@ -167,6 +167,8 @@ import {
   resolveCompactAdminMenuAction,
   routeInitiativeCardContextMenuAction,
 } from "./initiativeMenuActionsCore.js";
+import { tableSideOfItem } from "./tableOrientationCore.js";
+import { writeTableSide } from "./tableSideWriter.js";
 import { buildLegendaryResourcePips } from "./initiativeCardBossClassic.js";
 import { buildClassicTrackerCard } from "./initiativeCardClassicBuilder.js";
 import {
@@ -8216,6 +8218,9 @@ async function __handleInitiativeCardContextMenuAction(context, data, sceneEpoch
     openInitiativeCard: openInitiativeCardPopup,
     setAttitude: (ids, attitude) => __setCardAttitude(ids, attitude, sceneEpoch),
     setBossMode: (entry, mode) => __setCardBossMode(entry, mode, sceneEpoch),
+    setTableSide: (entry, side) => writeTableSide([entry?.id], side, {
+      isCurrent: () => __isCurrentSceneOperation(sceneEpoch, "set-card-table-side"),
+    }),
     removeFromInitiative: (ids) => __removeCardFromInitiative(ids, sceneEpoch),
   });
 }
@@ -8421,10 +8426,16 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
   );
 
   const requestId = createMenuRequestId();
+  // Current table side, from the Event Hub snapshot (undefined when it is not complete: no "Attivo" mark).
+  const sceneSnapshot = readSceneItemsSnapshot(sceneEpoch);
+  const sourceItem = sceneSnapshot.complete
+    ? sceneSnapshot.items.find((item) => item?.id === sourceEntry.id)
+    : null;
   const payload = buildInitiativeCardContextMenuPayload({
     sourceEntry,
     scopeIds,
     hasActiveConcentration,
+    tableSide: sourceItem ? tableSideOfItem(sourceItem) : undefined,
   });
   if (!writeStoredMenuPayload(
     localStorage,

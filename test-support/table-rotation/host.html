@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Banco rotazione tavolo — finto Owlbear</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #111827; color: #e5e7eb; font: 14px "Helvetica Neue", Arial, sans-serif; }
+      #app { position: absolute; inset: 0; }
+      #map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      .toolbar { position: fixed; top: 12px; left: 12px; padding: 8px 12px; border-radius: 10px; background: rgba(30,41,59,.92); }
+      .popover { position: fixed; right: 16px; bottom: 16px; width: 280px; height: 170px; border: 0; border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,.5); background: transparent; }
+      .readout { position: fixed; left: 12px; bottom: 12px; padding: 6px 10px; border-radius: 8px; background: rgba(15,23,42,.9); font: 12px monospace; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="map"></canvas>
+      <div class="toolbar">Owlbear (finto) · in alto a sinistra</div>
+      <div class="readout" id="readout"></div>
+    </div>
+    <!-- The plugin's background: cross-origin, like Owlbear's extension iframes. -->
+    <iframe id="plugin" class="popover" title="Plugin"></iframe>
+    <script>
+      const plugin = document.getElementById("plugin");
+      const pluginOrigin = `http://localhost:${location.port}`;
+      plugin.src = `${pluginOrigin}/test-support/table-rotation/plugin.html${location.search}`;
+
+      // A canvas sized from its container, as Owlbear's renderer does.
+      const canvas = document.getElementById("map");
+      const readout = document.getElementById("readout");
+      const tokens = [
+        { name: "Aria (Nord)", x: .5, y: .2 }, { name: "Borin (Sud)", x: .5, y: .8 },
+        { name: "Cael (Est)", x: .82, y: .5 }, { name: "Dorn (Ovest)", x: .18, y: .5 }, { name: "Goblin", x: .5, y: .5 },
+      ];
+      function draw() {
+        const { width, height } = canvas.getBoundingClientRect();
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#1f2937"; ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "rgba(148,163,184,.18)";
+        for (let x = 0; x < w; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+        for (let y = 0; y < h; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+        ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center";
+        for (const token of tokens) {
+          ctx.fillStyle = "#3b82f6"; ctx.beginPath(); ctx.arc(token.x * w, token.y * h, 24, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#f8fafc"; ctx.fillText(token.name, token.x * w, token.y * h + 46);
+        }
+        ctx.fillStyle = "#fbbf24"; ctx.fillText("▲ alto della mappa", w / 2, 24);
+        readout.textContent = `canvas ${w}×${h} · innerWidth ${window.innerWidth} × innerHeight ${window.innerHeight}`;
+      }
+      new ResizeObserver(draw).observe(canvas);
+      window.addEventListener("resize", draw);
+    </script>
+    <!-- The real userscript, as Tampermonkey would inject it. -->
+    <script src="/table-rotation.user.js"></script>
+  </body>
+</html>

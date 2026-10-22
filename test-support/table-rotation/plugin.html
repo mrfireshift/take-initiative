@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <title>Plugin (finto background)</title>
+    <style>
+      body { margin: 0; padding: 10px; background: rgba(15,23,42,.95); color: #e5e7eb; font: 13px "Helvetica Neue", Arial, sans-serif; border-radius: 12px; }
+      h1 { margin: 0 0 6px; font-size: 13px; }
+      ol { margin: 0 0 8px; padding-left: 18px; }
+      li.active { color: #fbbf24; font-weight: 700; }
+      button { padding: 5px 10px; border: 1px solid #475569; border-radius: 8px; background: #1e293b; color: #fff; cursor: pointer; }
+      #status { margin-top: 6px; font: 11px monospace; color: #94a3b8; }
+    </style>
+  </head>
+  <body>
+    <h1>Iniziativa (finta)</h1>
+    <ol id="order"></ol>
+    <button type="button" id="next">Turno successivo</button>
+    <div id="status">in attesa dell'hello…</div>
+    <script type="module" src="./plugin.js"></script>
+  </body>
+</html>
