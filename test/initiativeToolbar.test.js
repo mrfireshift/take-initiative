@@ -149,10 +149,28 @@ test("la presentazione toolbar passa tra layout esteso e compatto", () => {
   assert.equal(viewOptionsRow.style.width, "116px");
   assert.equal(encounterToolbar.heading.style.display, "none");
   assert.equal(inactiveControl.style.width, "100%");
-  assert.equal(inactiveControl.style.height, "34px");
+  // The compact panel shows each tool's caption under its icon, at 10px, inside a 42px button: the four tools and
+  // the Focus toggle fit the 156px compact tracker without cutting the second row.
+  assert.equal(inactiveControl.style.height, "42px");
+  assert.equal(inactiveControl.style.flexDirection, "column");
+  assert.equal(viewOptionsRow.style.padding, "6px 4px");
   assert.equal(toolOptionsGroup.style.gap, "4px");
-  assert.equal(toolOptionsGroup.style.padding, "5px 0 4px");
-  assert.equal(inactiveControl.querySelector("[data-toolbar-caption='1']").style.display, "none");
+  assert.equal(toolOptionsGroup.style.padding, "5px 0 0");
+  const compactCaption = inactiveControl.querySelector("[data-toolbar-caption='1']");
+  assert.equal(compactCaption.style.display, "block");
+  assert.equal(compactCaption.style.fontSize, "var(--obrt-type-micro, 10px)");
+  assert.equal(compactCaption.style.textOverflow, "ellipsis");
+});
+
+test("un toggle spento resta riconoscibile anche nel pannello compatto", () => {
+  const documentRef = createTestDocument();
+  const control = documentRef.createElement("label");
+  setToolbarToggleVisual(control, false, { compact: true });
+  assert.equal(control.style.borderColor, "rgba(148,163,184,.24)");
+  assert.equal(
+    control.style.background,
+    "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))",
+  );
 });
 
 test("la toolbar non GM resta nascosta", () => {

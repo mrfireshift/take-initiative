@@ -1271,7 +1271,19 @@ roundPill.appendChild(roundStatus);
 const trackerDragHandle = document.createElement("button");
 trackerDragHandle.type = "button";
 trackerDragHandle.draggable = true;
-trackerDragHandle.textContent = "\u2630";
+// A grip of 2x3 dots, not \u2630: \u2630 reads as "menu", and the tracker's menu is the "\u2026" button.
+const trackerDragGrip = document.createElement("span");
+trackerDragGrip.setAttribute("aria-hidden", "true");
+Object.assign(trackerDragGrip.style, {
+  width: "10px",
+  height: "16px",
+  display: "block",
+  backgroundImage: "radial-gradient(circle, currentColor 1.5px, transparent 1.8px)",
+  backgroundSize: "5px 5.33px",
+  backgroundPosition: "0 0",
+  pointerEvents: "none",
+});
+trackerDragHandle.appendChild(trackerDragGrip);
 trackerDragHandle.title = "Trascina per spostare il tracker. Doppio click per ricentrare";
 trackerDragHandle.setAttribute("aria-label", trackerDragHandle.title);
 Object.assign(trackerDragHandle.style, {
@@ -2833,7 +2845,25 @@ const compactMoreButton = mkBtn("…");
 const COMPACT_ADMIN_MENU_ID = `${ID}/compact-admin-menu`;
 const COMPACT_ADMIN_MENU_CHANNEL = `${ID}/compact-admin-menu`;
 const COMPACT_ADMIN_MENU_WIDTH = 216;
-const COMPACT_ADMIN_MENU_HEIGHT = 220;
+const COMPACT_ADMIN_MENU_HEIGHT = 256;
+// The compact panel has no room for the map labels' mode: the "…" menu cycles it through this hidden button, and
+// a notification says the mode just chosen.
+const EFFECTS_DISPLAY_MODE_MENU_LABELS = Object.freeze({
+  compact: "compatte",
+  all: "espanse",
+  selected: "solo selezione",
+});
+const mapLabelsCycleButton = document.createElement("button");
+mapLabelsCycleButton.type = "button";
+mapLabelsCycleButton.dataset.mapLabelsCycle = "1";
+mapLabelsCycleButton.style.display = "none";
+mapLabelsCycleButton.addEventListener("click", () => {
+  stepEffectsDisplayMode(1);
+  const mode = normalizeEffectsDisplayModeControlValue(effectsDisplayModeControl.dataset.mode);
+  void OBR.notification.show(`Etichette sulla mappa: ${EFFECTS_DISPLAY_MODE_MENU_LABELS[mode]}`, "INFO")
+    .catch(() => {});
+});
+// Mounted in the hidden menu by mountCompactSideControls, with the other GM-only admin controls.
 let __compactAdminMenuOpen = false;
 let __compactAdminMenuRequestId = "";
 let __compactAdminMenuRevision = 0;
@@ -2897,7 +2927,8 @@ function __openCompactAdminMenu() {
     if (__compactAdminMenuRequestId !== requestId) return;
     await OBR.popover.open({
       id: COMPACT_ADMIN_MENU_ID,
-      url: `/compact-admin-menu.html?request=${encodeURIComponent(requestId)}`,
+      url: `/compact-admin-menu.html?request=${encodeURIComponent(requestId)}&mapLabels=${
+        encodeURIComponent(normalizeEffectsDisplayModeControlValue(effectsDisplayModeControl.dataset.mode))}`,
       width: COMPACT_ADMIN_MENU_WIDTH,
       height: COMPACT_ADMIN_MENU_HEIGHT,
       anchorReference: "POSITION",
@@ -2965,21 +2996,24 @@ function applyEncounterCheckboxPresentation(compact) {
     [zoomToggleWrap, zoomChk, zoomLbl],
     [lairToggleWrap, lairChk, lairLbl],
   ]) {
+    // In the compact panel the whole wrap is the toggle: the checkbox is hidden (the label still toggles it) and the
+    // wrap's fill, set by setCompactToggleVisual, shows the state.
     Object.assign(wrap.style, {
       width: "100%",
       minWidth: "0",
       maxWidth: "100%",
-      height: "24px",
-      minHeight: "24px",
+      height: compact ? "28px" : "24px",
+      minHeight: compact ? "28px" : "24px",
       padding: "0 7px",
       flexDirection: "row",
-      justifyContent: "flex-start",
+      justifyContent: compact ? "center" : "flex-start",
       gap: "6px",
       borderRadius: "7px",
       boxSizing: "border-box",
       overflow: "hidden",
     });
     Object.assign(input.style, {
+      display: compact ? "none" : "",
       position: "static",
       width: "13px",
       height: "13px",
@@ -2991,10 +3025,10 @@ function applyEncounterCheckboxPresentation(compact) {
     Object.assign(label.style, {
       display: "block",
       maxWidth: "100%",
-      fontSize: "8px",
+      fontSize: compact ? "var(--obrt-type-micro, 10px)" : "8px",
       fontWeight: "600",
       lineHeight: "1",
-      textAlign: "left",
+      textAlign: compact ? "center" : "left",
     });
   }
 
@@ -3073,6 +3107,8 @@ function placeEffectsDisplayModeControl(compact) {
     sceneOptionsGroup.append(...controls);
   }
   applyEffectsDisplayModeControlPresentation(false);
+  // Compact: the mode lives in the "…" menu (see mapLabelsCycleButton), so the panel keeps room for the tools.
+  effectsDisplayModeControl.style.display = compact ? "none" : "flex";
 }
 
 function applyToolbarLayoutPresentation(compact) {
@@ -3369,7 +3405,7 @@ function mountCompactSideControls() {
   roundStatus.remove();
   compactHeaderRow.replaceChildren();
   if (IS_GM) {
-    compactAdminMenu.replaceChildren(roundResetSlot, roundHistorySlot, roundActions);
+    compactAdminMenu.replaceChildren(roundResetSlot, roundHistorySlot, roundActions, mapLabelsCycleButton);
     compactBottomControls.replaceChildren(layoutToggleButton, compactMoreButton);
   } else {
     compactAdminMenu.replaceChildren();

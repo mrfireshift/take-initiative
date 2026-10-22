@@ -173,6 +173,20 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
     | Badge KO | 21×24 | 24×24 |
     | Badge iniziativa | 25×25 | 24×24 |
     | KO di un boss epico a 0 HP | sopra la E (7px) | sotto la E (35px) |
+- **3.4 — fatto il 2026-10-22.**
+  - **Pannello destro.** Ogni strumento ha l'etichetta sotto l'icona (10px). I pulsanti passano da 34 a 42px. I margini laterali del pannello scendono da 6 a 4px, così le colonne sono larghe 52px senza allargare il pannello (116px).
+  - **Pill selezione.** Esce dal pannello compatto e diventa la voce "Etichette mappa: …" del menu "…". La voce mostra la modalità attuale; ogni scelta passa alla successiva, con una notifica. Nella vista classica il selettore resta dov'era.
+  - **Focus token.** Nel compatto è un interruttore 107×28: la checkbox è nascosta e lo stato si vede dal colore. Da spento ha bordo e fondo leggeri in entrambe le viste, così si riconosce come pulsante.
+  - **Maniglia.** L'icona ☰ diventa una griglia di 2×3 puntini: ☰ si legge come "menu", e il menu è "…".
+  - Il badge "LOCALE" non l'ho toccato: compare solo nelle build `npm run dev`.
+  - Verifica con le misure del DOM nell'anteprima:
+
+    | Misura | Prima | Dopo |
+    |---|---|---|
+    | Fondo dell'ultimo pulsante, tracker a 150px (spazio disponibile 139px) | 150px, tagliato | 138px, intero |
+    | Etichette sotto le icone | assenti nel compatto | intere a 10px |
+    | Checkbox Focus token | 13×13 | interruttore 107×28 |
+    | Etichette mappa da menu | — | da "solo selezione" a "compatte", notifica, voce aggiornata |
 
 ### Fase 4 — Vista classica
 

@@ -37,6 +37,14 @@ test("il menu amministrativo risolve ogni azione sul controllo esistente", () =>
     action: "fill-initiative",
     selector: "[data-fill-initiative='1']",
   });
+  // The map labels' mode left the compact panel for the "…" menu.
+  assert.deepEqual(resolveCompactAdminMenuAction({
+    type: "action",
+    action: "map-labels",
+  }), {
+    action: "map-labels",
+    selector: "[data-map-labels-cycle='1']",
+  });
   assert.deepEqual(resolveCompactAdminMenuAction({
     type: "action",
     action: "options",

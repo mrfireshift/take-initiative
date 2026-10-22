@@ -82,20 +82,17 @@ export function decorateToolbarControl(
   return control;
 }
 
-export function setToolbarToggleVisual(wrap, active, { compact }) {
-  const classic = !compact;
+// Off, the toggle keeps a faint fill and border in both layouts: in the compact panel it has no checkbox, so without
+// them an off toggle would read as plain text.
+export function setToolbarToggleVisual(wrap, active, { compact } = {}) {
   wrap.setAttribute("aria-pressed", active ? "true" : "false");
   wrap.style.background = active
     ? "linear-gradient(180deg, rgba(37,99,235,.88), rgba(30,64,175,.72))"
-    : classic
-      ? "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))"
-      : "transparent";
-  wrap.style.borderColor = active
-    ? "rgba(147,197,253,.8)"
-    : classic ? "rgba(148,163,184,.24)" : "transparent";
+    : "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))";
+  wrap.style.borderColor = active ? "rgba(147,197,253,.8)" : "rgba(148,163,184,.24)";
   wrap.style.boxShadow = active
     ? "inset 0 1px 0 rgba(255,255,255,.2), 0 5px 14px rgba(30,64,175,.26)"
-    : classic ? "inset 0 1px 0 rgba(255,255,255,.04)" : "none";
+    : compact ? "none" : "inset 0 1px 0 rgba(255,255,255,.04)";
 }
 
 export function buildGlobalPanelButton(
@@ -192,7 +189,8 @@ export function applyToolbarLayoutPresentation(
     alignItems: "stretch",
     justifyContent: "flex-start",
     gap: "5px",
-    padding: "6px",
+    // 4px at the sides: the two tool columns get 52px, enough for "Incantesimi" at 10px under its icon.
+    padding: "6px 4px",
     overflow: "hidden",
     boxSizing: "border-box",
     border: "1px solid rgba(148,163,184,.24)",
@@ -236,7 +234,7 @@ export function applyToolbarLayoutPresentation(
     alignItems: "center",
     justifyContent: classic ? "center" : "stretch",
     gap: classic ? "3px" : "4px",
-    padding: classic ? "0 0 0 7px" : "5px 0 4px",
+    padding: classic ? "0 0 0 7px" : "5px 0 0",
     boxSizing: "border-box",
     borderLeft: classic ? "1px solid rgba(148,163,184,.24)" : "none",
     borderTop: classic ? "none" : "1px solid rgba(148,163,184,.24)",
@@ -257,12 +255,13 @@ export function applyToolbarLayoutPresentation(
       minWidth: "0",
       maxWidth: "100%",
       boxSizing: "border-box",
-      height: classic ? "46px" : "34px",
-      minHeight: classic ? "46px" : "34px",
-      flexDirection: classic ? "column" : "row",
+      // In the compact panel too the icon carries its caption under it, so the four tools read without a hover.
+      height: classic ? "46px" : "42px",
+      minHeight: classic ? "46px" : "42px",
+      flexDirection: "column",
       justifyContent: "center",
-      gap: classic ? "3px" : "0",
-      padding: "0 2px",
+      gap: classic ? "3px" : "2px",
+      padding: classic ? "0 2px" : "0",
       overflow: "hidden",
       borderRadius: classic ? "10px" : "9px",
       border: active
@@ -277,21 +276,22 @@ export function applyToolbarLayoutPresentation(
     });
     const icon = control.querySelector("img");
     if (icon) {
-      icon.style.width = "18px";
-      icon.style.height = "18px";
+      icon.style.width = classic ? "18px" : "17px";
+      icon.style.height = classic ? "18px" : "17px";
       icon.style.flex = "0 0 auto";
     }
     const caption = control.querySelector("[data-toolbar-caption='1']");
     if (caption) {
-      caption.style.display = classic ? "block" : "none";
+      caption.style.display = "block";
       caption.style.width = "100%";
       caption.style.maxWidth = "100%";
-      caption.style.fontSize = "7.5px";
+      caption.style.fontSize = classic ? "7.5px" : "var(--obrt-type-micro, 10px)";
+      caption.style.fontWeight = classic ? "600" : "500";
       caption.style.lineHeight = "1";
-      caption.style.letterSpacing = "-.01em";
+      caption.style.letterSpacing = classic ? "-.01em" : "-.02em";
       caption.style.whiteSpace = "nowrap";
       caption.style.overflow = "hidden";
-      caption.style.textOverflow = "clip";
+      caption.style.textOverflow = classic ? "clip" : "ellipsis";
       caption.style.textAlign = "center";
     }
   });
