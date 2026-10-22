@@ -150,6 +150,11 @@
     .spell-slot-pip[data-pact="1"] { border-color:#c084fc; }
     .spell-slot-pip[data-pact="1"][data-available="1"] { background:#a855f7; box-shadow:0 0 6px rgba(168,85,247,.55); }
     span.spell-slot-pip { display:inline-block; box-sizing:border-box; }
+    .spell-slot-pip[data-temporary="1"] { border-style:dashed; }
+    .rest-actions { display:flex; justify-content:flex-end; gap:5px; margin:2px 0 7px; }
+    .rest-actions[hidden] { display:none; }
+    .spell-slots .rest-actions { margin:3px 0 0; }
+    .rest-actions button { min-height:24px; padding:2px 9px; border-radius:8px; font-size:10px; border-color:rgba(var(--faction-rgb),.38); background:rgba(var(--faction-rgb),.10); }
     .spellbook-list .section-title { margin:12px 0 0; }
     .spellbook-list .quick-actions-list { grid-template-columns:minmax(0,1fr); gap:5px; }
     .spellbook-list .quick-action { min-height:36px; padding:5px 9px; }
@@ -348,7 +353,7 @@
       .eyebrow { display:none; }
     }
   </style>
-  <script type="module" crossorigin src="/assets/initiativeCardModal-DB9fNrBJ.js"></script>
+  <script type="module" crossorigin src="/assets/initiativeCardModal-DQUgrl8f.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
@@ -359,53 +364,55 @@
   <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-BalZ0QVy.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3dCore-DjQKSEJL.js">
   <link rel="modulepreload" crossorigin href="/assets/blinkRules-BY6AaSSe.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-CNOzvZgJ.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditions-BI5FnQA6.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-7AT0ISmh.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-aeoudsDf.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-BcDMVNtV.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-DIn1ceyb.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ci4uQNGU.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-CUzjg6Rv.js">
   <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BrtQzeT5.js">
   <link rel="modulepreload" crossorigin href="/assets/customAuraCore-DmeqJ36W.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-DYfqXO8y.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-DwV-iKf9.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-BGuvM4mc.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-mOkcZX8z.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-CaGHfO_T.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-BuWMdMfX.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-28TsGb8f.js">
-  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-CBr2y0RT.js">
-  <link rel="modulepreload" crossorigin href="/assets/history-b_fuoCT1.js">
+  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-hLLJ2f7Z.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-Bfmu-Rqa.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3d-CeFYQ3b2.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-CnoKHJfB.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-B_si548B.js">
   <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-CJ-dHtGF.js">
   <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-Bc--_DL6.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellbookCore-D7kuk0L-.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-DIeGA-80.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellbookCore-CdJSBNnE.js">
   <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-EIlt4P7I.js">
-  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-BUMk04NA.js">
-  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-C0yiPown.js">
+  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-BvXiBHcB.js">
+  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-C8iAhEb2.js">
   <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionRules-BGeMpy3Q.js">
-  <link rel="modulepreload" crossorigin href="/assets/spells-srd-CNOLTET7.js">
+  <link rel="modulepreload" crossorigin href="/assets/spells-srd-DNXRmn-P.js">
   <link rel="modulepreload" crossorigin href="/assets/spellExpiryCore-8hlvXKR5.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellDamageHealingCore-Cn94tXgv.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellCastContextCore-B5Jfmsjh.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-CNK8F_16.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionCore-BrM2Q-f9.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-Dx2O2S9H.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellAreaResolutionCommandCore-BF4P75oO.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-B3TCrFTA.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-BVufgV5s.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditionApplicationExecutor-D0iRNlPE.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-BRUw2dRr.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-5hUM_IHG.js">
-  <link rel="modulepreload" crossorigin href="/assets/optionsProjection-TU2sRu02.js">
-  <link rel="modulepreload" crossorigin href="/assets/reminderProjectionBroadcast-B7hCZDJY.js">
-  <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-DsICU4QE.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-Cdv0K93c.js">
-  <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-CbH9Xf-k.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-D2HFGN7d.js">
   <link rel="modulepreload" crossorigin href="/assets/combatLogCausalityCore-CMBZlm78.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-BBf5hvnJ.js">
-  <link rel="modulepreload" crossorigin href="/assets/quickActionExecution-CsYRmml0.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellCastRecordCore-BGQYPrZR.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellCastContextCore-B5Jfmsjh.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-DEhDIAoa.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionCore-B-8YwtAO.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-BrYYpLdr.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellAreaResolutionCommandCore-P_92_xYf.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelSceneProvider-BC1Y6-er.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-CavJW3uB.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditionApplicationExecutor-BAX1STUd.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-C6uFY0sg.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-5hUM_IHG.js">
+  <link rel="modulepreload" crossorigin href="/assets/optionsProjection-CgWy5yEC.js">
+  <link rel="modulepreload" crossorigin href="/assets/reminderProjectionBroadcast-BV7KLhQi.js">
+  <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-DNXJPPRR.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-l397Oc2M.js">
+  <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-CbH9Xf-k.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-CgRAQ72K.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-SlNuEnN7.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-DUtkghHt.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickActionExecution-B92rbntT.js">
   <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-BBSrtnir.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureRuntime-D-uga_mg.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureRuntime-CGErist9.js">
 </head>
 <body>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/initiative-card-modal">
@@ -480,6 +487,7 @@
     <section id="classFeaturesView" role="tabpanel" aria-labelledby="classFeaturesTab" hidden>
       <div id="classBuildSummary" class="class-build-summary"></div>
       <span class="section-title">Risorse</span>
+      <div id="classFeatureRestActions" class="rest-actions" hidden></div>
       <div id="classFeatureResources" class="class-feature-resources"></div>
       <span class="section-title">Attive</span>
       <div id="classFeatureActive" class="class-feature-active"></div>
@@ -527,7 +535,7 @@
         <datalist id="spellbookSpellOptions"></datalist>
         <div id="spellbookEditStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
         <div id="spellbookEditorList" class="spellbook-editor-list"></div>
-        <p class="class-feature-help">★ mette l'incantesimo tra i preferiti del pulsante ⚡ sulla card. Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni rapide.</p>
+        <p class="class-feature-help">★ mette l'incantesimo tra i preferiti, in cima al menu 🪄 della card. Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni rapide.</p>
       </section>
       <section id="quickActionsEditPane" class="quick-actions-editor edit-pane" hidden>
         <div class="quick-actions-heading">
