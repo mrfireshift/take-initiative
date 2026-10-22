@@ -9,11 +9,21 @@ export function isSpellTurnBoundaryExpiry(value) {
   return value?.mode === "turn-start" || value?.mode === "turn-end";
 }
 
+// The rounds left as recorded on the spell, or null when it records none (a spell put on by hand, without a
+// duration): such a spell shows no counter and no "0 round", while a recorded 0 still reads 0.
+export function spellRecordedTurns(spell = {}) {
+  const raw = spell?.turns;
+  if (raw === undefined || raw === null || raw === "") return null;
+  const turns = Math.floor(Number(raw));
+  return Number.isFinite(turns) ? Math.max(0, turns) : null;
+}
+
 export function spellExpiryCounter(spell = {}) {
   const expiry = spell?.expiry || {};
   if (expiry.mode === "manual") return "M";
   if (!isSpellTurnBoundaryExpiry(expiry)) {
-    const turns = Math.max(0, Math.floor(Number(spell?.turns) || 0));
+    const turns = spellRecordedTurns(spell);
+    if (turns === null) return "";
     return turns > MAX_VISIBLE_SPELL_ROUNDS ? "" : String(turns);
   }
   const phase = expiry.mode === "turn-start" ? "I" : "F";
@@ -35,7 +45,8 @@ export function spellExpiryDescription(spell = {}) {
   const expiry = spell?.expiry || {};
   if (expiry.mode === "manual") return "rimozione manuale";
   if (!isSpellTurnBoundaryExpiry(expiry)) {
-    const turns = Math.max(0, Math.floor(Number(spell?.turns) || 0));
+    const turns = spellRecordedTurns(spell);
+    if (turns === null) return "durata non indicata";
     if (turns > MAX_VISIBLE_SPELL_ROUNDS) return "durata estesa";
     return `${turns} round rimanenti`;
   }

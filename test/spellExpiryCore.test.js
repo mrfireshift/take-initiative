@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   spellExpiryCounter,
   spellExpiryDescription,
+  spellRecordedTurns,
 } from "../src/spellExpiryCore.js";
 
 test("le scadenze di turno distinguono fase, caster e bersaglio", () => {
@@ -27,6 +28,18 @@ test("le durate superiori a dieci round non vengono mostrate", () => {
   assert.equal(spellExpiryCounter({ turns: 11 }), "");
   assert.equal(spellExpiryCounter({ turns: 600 }), "");
   assert.equal(spellExpiryDescription({ turns: 600 }), "durata estesa");
+});
+
+test("una spell senza round registrati non mostra \"(0)\": nessun contatore e durata non indicata", () => {
+  for (const turns of [undefined, null, ""]) {
+    assert.equal(spellRecordedTurns({ turns }), null);
+    assert.equal(spellExpiryCounter({ turns }), "");
+    assert.equal(spellExpiryDescription({ turns }), "durata non indicata");
+  }
+  // A recorded 0 still reads 0.
+  assert.equal(spellRecordedTurns({ turns: 0 }), 0);
+  assert.equal(spellExpiryCounter({ turns: 0 }), "0");
+  assert.equal(spellExpiryDescription({ turns: 0 }), "0 round rimanenti");
 });
 
 test("le spell senza durata determinabile mostrano la rimozione manuale", () => {

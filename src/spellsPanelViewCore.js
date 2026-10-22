@@ -1,6 +1,6 @@
 import { ID } from "./constants.js";
 import { getSpellDefinition } from "./spells-srd.js";
-import { spellExpiryCounter } from "./spellExpiryCore.js";
+import { spellExpiryCounter, spellRecordedTurns } from "./spellExpiryCore.js";
 
 const META_KEY = ID + "/meta";
 const SPELLS_META_KEY = ID + "/spells";
@@ -107,7 +107,9 @@ export function spellOverviewGroups(items = []) {
       if (!isTechnicalOwnerRecord(spell, target.id)) {
         group.targets.set(target.id, target.name || target.id);
       }
-      group.turns.push(Math.max(0, Math.floor(Number(spell?.turns) || 0)));
+      // A spell without a recorded duration adds no round count: the panel then reads "Durata non indicata".
+      const recordedTurns = spellRecordedTurns(spell);
+      if (recordedTurns !== null) group.turns.push(recordedTurns);
       group.counters.push(spellExpiryCounter(spell));
     }
   }
