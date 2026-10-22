@@ -7,7 +7,7 @@
   html, body { margin: 0; height: 100%; background: #1b1d22; font: 12px "Helvetica Neue", Arial, sans-serif; color: #fff; }
   #toolbar { display: flex; gap: 6px; padding: 8px 10px; background: rgba(42,47,64,.85); }
   #toolbar a { padding: 4px 9px; border-radius: 8px; border: 1px solid rgba(148,163,184,.3); background: #0f172a; color: #fff; text-decoration: none; }
-  iframe { display: block; width: 420px; height: calc(100% - 44px); border: 0; margin: 0 auto; }
+  iframe { display: block; width: 440px; height: calc(100% - 44px); border: 0; margin: 0 auto; }
 </style>
 </head>
 <body>
@@ -48,14 +48,23 @@
     ladro: { name: "Vex", build: [{ classId: "ladro", level: 9, subclassId: "ladro-lama-spirituale" }] },
     paladino: { name: "Aldric", build: [{ classId: "paladino", level: 7, subclassId: "paladino-giuramento-di-conquista" }] },
     stregone: { name: "Sable", build: [{ classId: "stregone", level: 18, subclassId: "stregone-discendenza-draconica" }] },
-    mago: { name: "Nyx", build: [{ classId: "mago", level: 10, subclassId: "mago-scuola-di-divinazione" }] },
+    mago: {
+      name: "Nyx",
+      build: [{ classId: "mago", level: 10, subclassId: "mago-scuola-di-divinazione" }],
+      // La scheda Incantesimi: un trucchetto d'attacco, spell rapide, d'area, di riferimento e due preferiti.
+      spellbook: {
+        spellIds: ["fire-bolt", "mage-hand", "shield", "mage-armor", "detect-magic", "hold-person", "fireball", "counterspell", "wall-of-force"],
+        pinnedIds: ["shield", "fireball"],
+      },
+    },
     orizzonte: { name: "Corin", build: [{ classId: "ranger", level: 7, subclassId: "ranger-viandante-dell-orizzonte" }] },
     ranger: { name: "Tamsin", build: [{ classId: "ranger", level: 7, subclassId: "ranger-cacciatore" }] },
   };
   const selected = characters[params.get("pc")] ? params.get("pc") : "warlock";
   fakeHost.state.role = params.get("role") === "PLAYER" ? "PLAYER" : "GM";
   // options: opzioni a scelta da abilitare oltre alle capacità di default.
-  const cardFor = (pc) => (pc.options
+  const cardFor = (pc) => ({ ...cardBuildFor(pc), ...(pc.spellbook ? { spellbook: pc.spellbook } : {}) });
+  const cardBuildFor = (pc) => (pc.options
     ? {
       characterBuild: pc.build,
       classFeaturesConfigured: true,

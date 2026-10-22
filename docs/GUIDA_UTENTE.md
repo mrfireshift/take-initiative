@@ -72,6 +72,33 @@ Ogni card può contenere:
 - dati di movimento;
 - risorse boss, quando applicabili.
 
+### Incantesimi
+
+La scheda **Incantesimi** della scheda personaggio raccoglie gli incantesimi
+che il personaggio conosce o ha preparato, raggruppati per livello, con CD e
+bonus di attacco in testa. In **Modifica** si cercano nel catalogo, si
+aggiungono (anche con Invio) e si tolgono; la ★ li mette tra i preferiti del
+pulsante ⚡ sulla card del tracker.
+
+- Il pulsante dell'incantesimo lo lancia come un'azione rapida: applicato
+  subito quando non serve altro, altrimenti aperto nel pannello incantesimi.
+- ⚙ apre sempre il pannello, per scegliere slot, bersagli e varianti.
+- I trucchetti d'attacco aprono la console attacchi quando negli **Attacchi**
+  c'è un'azione Trucchetto; gli incantesimi che il plugin non lancia restano
+  in elenco come riferimento.
+
+Gli slot non vengono ancora contati. Gli incantesimi concessi da talenti,
+specie o oggetti restano nelle Azioni rapide.
+
+### Importare una scheda
+
+In **Modifica**, **Importa** compila la scheda da un blocco JSON ricavato da
+una scheda personaggio (anche da un PDF, con l'aiuto di un assistente).
+Scegli quali sezioni applicare: classi, specie, statistiche, caratteristiche,
+tiri salvezza, difese, incantesimi, attacchi e note. Nulla è salvato finché
+non premi **Salva**. Formato e prompt sono in
+[Importare una scheda](IMPORT_SCHEDA.md).
+
 La scheda della card include anche la sezione **Azioni rapide**. Puoi
 configurare fino a 12 scorciatoie per:
 

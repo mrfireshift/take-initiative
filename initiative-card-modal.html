@@ -85,10 +85,10 @@
       border:1px solid rgba(var(--faction-rgb),.24); border-radius:10px; background:rgba(0,0,0,.20);
     }
     .card-tab {
-      min-width:0; min-height:32px; padding:0 6px; display:flex; align-items:center; justify-content:center; gap:4px;
+      min-width:0; min-height:32px; padding:0 4px; display:flex; align-items:center; justify-content:center; gap:4px;
       border:0; border-radius:7px; font-size:11px; background:transparent; color:rgba(255,255,255,.64); font-weight:var(--obrt-weight-bold);
     }
-    .card-tab[hidden] { display:none; }
+    .card-tab[hidden],.tab-count[hidden] { display:none; }
     .card-tab > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .card-tab[aria-selected="true"] {
       background:linear-gradient(145deg,rgba(var(--faction-rgb),.24),rgba(var(--faction-rgb),.10));
@@ -137,6 +137,24 @@
     .quick-action-run-status { min-height:16px; margin-top:6px; color:rgba(255,255,255,.68); font-size:11px; }
     .quick-action-run-status[data-tone="success"] { color:#86efac; }
     .quick-action-run-status[data-tone="error"] { color:#fca5a5; }
+    .spellbook-summary { display:flex; gap:14px; padding:7px 10px; border-radius:7px; color:rgba(255,255,255,.68); font-size:var(--obrt-type-secondary); background:linear-gradient(145deg,rgba(var(--faction-rgb),.065),rgba(7,12,19,.28)); border:1px solid rgba(var(--faction-rgb),.20); }
+    .spellbook-summary strong { color:var(--accent-bright); font-variant-numeric:tabular-nums; }
+    .spellbook-list .section-title { margin:12px 0 0; }
+    .spellbook-list .quick-actions-list { grid-template-columns:minmax(0,1fr); gap:5px; }
+    .spellbook-list .quick-action { min-height:36px; padding:5px 9px; }
+    .spellbook-entry { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px; }
+    .spellbook-entry .quick-action[data-reference="1"] { border:1px solid rgba(var(--faction-rgb),.32); cursor:default; opacity:.62; }
+    .spellbook-entry .quick-action[data-reference="1"]:hover { background:linear-gradient(145deg,rgba(var(--faction-rgb),.13),rgba(7,12,19,.34)); }
+    .spellbook-panel { width:28px; min-height:28px; padding:0; align-self:center; border-radius:8px; font-size:13px; line-height:1; }
+    .spellbook-add { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; margin-top:9px; align-items:center; }
+    .spellbook-editor-list { display:grid; gap:5px; margin-top:6px; }
+    .spellbook-editor-row { min-width:0; display:grid; grid-template-columns:30px minmax(0,1fr) auto auto; gap:6px; align-items:center; padding:5px 6px 5px 8px; border:1px solid rgba(var(--faction-rgb),.20); border-radius:8px; background:rgba(0,0,0,.18); }
+    .spellbook-editor-row > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .spellbook-level { color:var(--accent-bright); font-size:10px; font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; }
+    .spellbook-editor-row button { width:28px; min-height:28px; padding:0; border-radius:8px; line-height:1; }
+    .spellbook-pin[aria-pressed="true"] { border-color:#fde047; background:rgba(234,179,8,.20); color:#fde047; }
+    .spellbook-pin:disabled { opacity:.32; cursor:default; }
+    .spellbook-pin:disabled:hover { border-color:rgba(255,255,255,.18); background:rgba(255,255,255,.08); }
     .class-feature-choice { min-width:88px; max-width:150px; min-height:28px; padding:4px 7px; border:1px solid var(--feature-accent,rgba(var(--faction-rgb),.42)); border-radius:8px; background:rgba(0,0,0,.30); color:#fff; font:inherit; font-size:10px; }
     .class-feature-choice-compact { width:100%; max-width:none; min-height:26px; }
     .class-build-summary { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
@@ -260,6 +278,19 @@
     .attack-import textarea { width:100%; min-height:96px; box-sizing:border-box; padding:6px 8px; border-radius:10px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:11px/1.35 ui-monospace,Consolas,monospace; resize:vertical; }
     .attack-import-actions { display:flex; justify-content:flex-end; gap:4px; }
     #attackImportStatus:empty { display:none; }
+    .sheet-import { display:grid; gap:6px; margin-bottom:12px; padding:9px; border:1px solid rgba(var(--faction-rgb),.32); border-radius:10px; background:rgba(0,0,0,.20); }
+    .sheet-import[hidden],.sheet-import-sections[hidden] { display:none !important; }
+    .sheet-import .section-title { margin:0; }
+    .sheet-import textarea { width:100%; min-height:96px; box-sizing:border-box; font:11px/1.35 ui-monospace,Consolas,monospace; resize:vertical; }
+    .sheet-import-sections { display:grid; gap:5px; }
+    .sheet-import-section { min-width:0; display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:8px; align-items:center; padding:6px 8px; border:1px solid rgba(var(--faction-rgb),.18); border-radius:8px; background:rgba(0,0,0,.15); font-weight:var(--obrt-weight-regular); cursor:pointer; }
+    .sheet-import-section:has(input:checked) { border-color:rgba(var(--faction-rgb),.55); background:rgba(var(--faction-rgb),.10); }
+    .sheet-import-section input { width:15px; height:15px; min-height:15px; margin:0; padding:0; accent-color:var(--accent); }
+    .sheet-import-section strong { display:block; color:#fff; font-size:var(--obrt-type-secondary); }
+    .sheet-import-section small { display:block; overflow:hidden; color:rgba(255,255,255,.62); font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+    .sheet-import-section select { min-height:28px; padding:3px 6px; border-radius:8px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; font-size:10px; }
+    .sheet-import-unresolved { margin:0; padding:7px 9px; border-radius:8px; border:1px solid rgba(252,165,165,.30); background:rgba(127,29,29,.18); color:#fecaca; font-size:10px; line-height:1.4; }
+    #sheetImportStatus:empty { display:none; }
     .status { min-height:16px; margin-top:8px; color:#fca5a5; font-size:11px; }
     .purifying-spell-modal-backdrop {
       position:fixed; inset:0; z-index:100; display:grid; place-items:center; padding:12px;
@@ -316,11 +347,15 @@
       <div class="heading"><div class="eyebrow">Scheda personaggio</div><h1 class="title" id="title">Scheda personaggio</h1><div id="characterBuildLine" class="character-build-line" hidden></div></div>
       <div class="header-actions">
         <button id="edit" class="edit" type="button">Modifica</button>
+        <button id="sheetImportToggle" class="edit" type="button" aria-expanded="false" aria-controls="sheetImport" hidden>Importa</button>
         <button id="close" class="close" type="button" aria-label="Chiudi" title="Chiudi">×</button>
       </div>
     </header>
     <nav class="card-tabs" role="tablist" aria-label="Contenuto scheda personaggio">
       <button id="statsTab" class="card-tab" type="button" role="tab" aria-selected="true" aria-controls="view">Statistiche</button>
+      <button id="spellbookTab" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="spellbookView">
+        <span>Incantesimi</span><span id="spellbookTabCount" class="tab-count">0</span>
+      </button>
       <button id="quickActionsTab" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="quickActionsView">
         <span>Azioni rapide</span><span id="quickActionsTabCount" class="tab-count">0</span>
       </button>
@@ -350,6 +385,14 @@
       <div id="damageDefensesBlock" class="notes" hidden><span>Difese ai danni</span><p id="damageDefenses"></p></div>
       <div id="notesBlock" class="notes" hidden><span>Note</span><p id="notes"></p></div>
     </section>
+    <section id="spellbookView" role="tabpanel" aria-labelledby="spellbookTab" hidden>
+      <div class="spellbook-summary">
+        <span>CD <strong id="spellbookSaveDC">-</strong></span>
+        <span>Attacco <strong id="spellbookAttackBonus">-</strong></span>
+      </div>
+      <div id="spellbookList" class="spellbook-list"></div>
+      <div id="spellbookRunStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
+    </section>
     <section id="quickActionsView" role="tabpanel" aria-labelledby="quickActionsTab" hidden>
       <section id="quickActionsBlock" class="quick-actions-block">
         <div class="quick-actions-heading"><span class="section-title">Azioni rapide</span></div>
@@ -375,6 +418,19 @@
       <div id="classFeatureRunStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
     </section>
     <form id="form" autocomplete="off">
+      <section id="sheetImport" class="sheet-import" hidden>
+        <span class="section-title">Importa da una scheda</span>
+        <textarea id="sheetImportText" spellcheck="false" autocomplete="off" aria-label="JSON della scheda personaggio" placeholder="Incolla qui il JSON della scheda personaggio"></textarea>
+        <div class="attack-import-actions">
+          <button id="sheetImportClose" class="quick-action-add" type="button">Chiudi</button>
+          <button id="sheetImportRead" class="quick-action-add" type="button">Leggi</button>
+        </div>
+        <div id="sheetImportSections" class="sheet-import-sections" hidden></div>
+        <div id="sheetImportStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
+        <div id="sheetImportApplyRow" class="attack-import-actions" hidden>
+          <button id="sheetImportApply" class="quick-action-add" type="button">Applica al modulo</button>
+        </div>
+      </section>
       <div id="statsEditPane" class="edit-pane">
         <div class="form-grid">
           <label>Classe Armatura<input id="armorClassInput" type="number" min="0" max="99" /></label>
@@ -392,6 +448,17 @@
         <span class="section-title">Difese ai danni</span>
         <div id="defenseInputs" class="save-inputs defense-inputs"></div>
       </div>
+      <section id="spellbookEditPane" class="quick-actions-editor edit-pane" hidden>
+        <div class="quick-actions-heading"><span class="section-title">Incantesimi</span></div>
+        <div class="spellbook-add">
+          <input id="spellbookSearch" list="spellbookSpellOptions" autocomplete="off" spellcheck="false" placeholder="Cerca un incantesimo" aria-label="Incantesimo da aggiungere" />
+          <button id="spellbookAdd" class="quick-action-add" type="button">+ Aggiungi</button>
+        </div>
+        <datalist id="spellbookSpellOptions"></datalist>
+        <div id="spellbookEditStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
+        <div id="spellbookEditorList" class="spellbook-editor-list"></div>
+        <p class="class-feature-help">★ mette l'incantesimo tra i preferiti del pulsante ⚡ sulla card. Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni rapide.</p>
+      </section>
       <section id="quickActionsEditPane" class="quick-actions-editor edit-pane" hidden>
         <div class="quick-actions-heading">
           <span class="section-title">Azioni rapide</span>

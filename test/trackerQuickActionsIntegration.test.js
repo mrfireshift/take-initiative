@@ -35,14 +35,14 @@ const contextMenuSource = readFileSync(
   "utf8",
 );
 
-test("il tracker usa solo le azioni rapide configurate nella scheda", () => {
+test("il tracker usa solo le azioni rapide e i preferiti configurati nella scheda", () => {
   assert.match(
     initiativeSource,
     /const initiativeCard = getInitiativeCard\(it\)/,
   );
   assert.match(
     initiativeSource,
-    /quickActions: IS_GM\s*\?\s*initiativeCard\.quickActions/,
+    /quickActions: IS_GM\s*\?\s*spellbookTrackerQuickActions\(initiativeCard\)/,
   );
   assert.doesNotMatch(initiativeSource, /buildClassFeatureQuickActions\(initiativeCard\)/);
   assert.match(initiativeSource, /action\?\.kind === "feature"/);

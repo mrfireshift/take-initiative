@@ -1,0 +1,145 @@
+// Character sheet import: a JSON block from a character sheet read into sections for the sheet editor.
+import test, { mock } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+mock.module("@owlbear-rodeo/sdk", { exports: { default: { onReady() {} }, buildLabel() {}, buildImage() {}, buildText() {}, buildPath() {}, buildShape() {}, Command: class {} } });
+const {
+  SHEET_IMPORT_SECTIONS,
+  mergeImportedSpellbook,
+  parseCharacterSheetImport,
+  sheetImportSectionSummary,
+} = await import("../src/characterSheetImportCore.js");
+
+const read = (data) => parseCharacterSheetImport(JSON.stringify(data));
+
+test("an unreadable or empty block is reported, never thrown", () => {
+  assert.match(parseCharacterSheetImport("non json").error, /non leggibile/);
+  assert.match(parseCharacterSheetImport("[1, 2]").error, /oggetto JSON/);
+  assert.match(read({ name: "Nyx" }).error, /nessun dato/);
+  assert.deepEqual(read({ name: "Nyx" }).sections, {});
+});
+
+test("classes in Italian or English, with subclasses by full or partial name", () => {
+  const { sections, unresolved } = read({
+    classes: [
+      { class: "Wizard", level: 5, subclass: "Divinazione" },
+      { class: "Guerriero", level: "2", subclass: "Campione" },
+      { class: "Artefice", level: 3 },
+      { class: "Ladro", level: 1, subclass: "Phantom" },
+    ],
+  });
+  assert.deepEqual(sections.classes, [
+    { classId: "mago", level: 5, subclassId: "mago-scuola-di-divinazione" },
+    { classId: "guerriero", level: 2, subclassId: "guerriero-campione" },
+    { classId: "ladro", level: 1, subclassId: "" },
+  ]);
+  assert.deepEqual(unresolved, ['classe "Artefice"', 'sottoclasse "Phantom"']);
+  assert.deepEqual(read({ class: "Bardo", level: 3 }).sections.classes, [{ classId: "bardo", level: 3, subclassId: "" }]);
+});
+
+test("species: the dragonborn the plugin knows; any other is reported", () => {
+  assert.deepEqual(read({ species: { name: "Dragonide cromatico", ancestry: "Bianco" } }).sections.species,
+    { id: "dragonide-cromatico", ancestryId: "bianco" });
+  const elf = read({ species: "Elfo", armorClass: 12 });
+  assert.equal(elf.sections.species, undefined);
+  assert.match(elf.unresolved[0], /specie "Elfo"/);
+});
+
+test("statistics: numbers or text, speed in metres or feet", () => {
+  const { sections } = read({ armorClass: "15", speed: "30 ft", passivePerception: 13, spellSaveDC: 15, spellAttackBonus: "+7" });
+  assert.deepEqual(sections.stats, { armorClass: 15, speed: 9, passivePerception: 13, spellSaveDC: 15, spellAttackBonus: 7 });
+  assert.equal(read({ speed: "9 m" }).sections.stats.speed, 9);
+  assert.equal(read({ speed: 10.5 }).sections.stats.speed, 10.5);
+  assert.equal(read({ spellAttackBonus: "-1" }).sections.stats.spellAttackBonus, -1);
+  assert.equal(read({ armorClass: "molto alta", notes: "x" }).sections.stats, undefined);
+});
+
+test("abilities as scores or modifiers, saves as bonuses; keys in Italian or English", () => {
+  const { sections } = read({
+    abilities: { FOR: 8, destrezza: { score: 14, modifier: 3 }, con: 14 },
+    abilityModifiers: { int: "+4" },
+    savingThrows: { INT: "+7", wisdom: 4 },
+  });
+  assert.deepEqual(sections.abilities, { str: -1, dex: 3, con: 2, int: 4, wis: null, cha: null });
+  assert.deepEqual(sections.saves, { str: null, dex: null, con: null, int: 7, wis: 4, cha: null });
+  assert.deepEqual(read({ abilityScores: { cha: 17 } }).sections.abilities.cha, 3);
+});
+
+test("damage defenses with ids or Italian names", () => {
+  const { sections, unresolved } = read({ damageDefenses: { resistances: ["fuoco", "cold", "banana"], immunities: ["veleno"] } });
+  assert.deepEqual(sections.defenses, { immunities: ["poison"], resistances: ["cold", "fire"], vulnerabilities: [] });
+  assert.deepEqual(unresolved, ['tipo di danno "banana"']);
+  assert.deepEqual(read({ resistances: ["necrotici"] }).sections.defenses.resistances, ["necrotic"]);
+});
+
+test("spells by name in either language, as a list or by level, with favourites", () => {
+  const { sections, unresolved } = read({
+    cantrips: ["Fire Bolt"],
+    spells: { 1: ["Scudo", { name: "Shield" }], 3: [{ name: "Fireball", pinned: true }, "Incantesimo inventato"] },
+  });
+  assert.deepEqual(sections.spells, { spellIds: ["fire-bolt", "shield", "fireball"], pinnedIds: ["fireball"] });
+  assert.deepEqual(unresolved, ['incantesimo "Incantesimo inventato"']);
+});
+
+test("attacks as in the Attacks import, damage types also in Italian", () => {
+  const { sections, unresolved } = read({ attacks: [
+    { name: "Pugnale", range: "melee", components: [{ type: "perforanti", formula: "1d4+2" }] },
+    { label: "Trucchetto", source: { kind: "cantrip", spellIds: ["ray-of-frost"] } },
+    { label: "Senza danni", components: [] },
+    "testo",
+  ] });
+  assert.deepEqual(sections.attacks.map((attack) => attack.label), ["Pugnale", "Trucchetto"]);
+  assert.deepEqual(sections.attacks[0].components, [{ id: "c1", type: "piercing", formula: "1d4+2" }]);
+  assert.equal("id" in sections.attacks[0], false, "the editor gives the ids");
+  assert.deepEqual(unresolved, ["2 attacchi non validi"]);
+});
+
+test("hit points are not imported: they live in the token's canonical metadata", () => {
+  const { sections, error } = read({ hp: 30, hpMax: 38, notes: "Prova" });
+  assert.equal(error, "");
+  assert.deepEqual(Object.keys(sections), ["notes"]);
+});
+
+test("each section has a one-line summary for the panel", () => {
+  const { sections } = read({
+    classes: [{ class: "Mago", level: 5, subclass: "Divinazione" }],
+    species: { name: "Dragonide", ancestry: "Rosso" },
+    armorClass: 15, speed: 9, spellAttackBonus: 7,
+    abilities: { int: 18 }, damageDefenses: { resistances: ["fire"] },
+    spells: ["Shield", "Fireball"], attacks: [{ label: "Pugnale", components: [{ type: "piercing" }] }],
+    notes: "Breve",
+  });
+  const names = {
+    classNameOf: () => "Mago",
+    subclassNameOf: () => "Scuola di Divinazione",
+    spellNameOf: (id) => ({ shield: "Scudo", fireball: "Palla di fuoco" })[id],
+  };
+  const summary = (id) => sheetImportSectionSummary(id, sections[id], names);
+  assert.equal(summary("classes"), "Mago 5 (Scuola di Divinazione)");
+  assert.equal(summary("species"), "Dragonide (rosso)");
+  assert.equal(summary("stats"), "CA 15 · Velocità 9 m · Attacco incantesimi +7");
+  assert.equal(summary("abilities"), "INT +4");
+  assert.equal(summary("defenses"), "Res. fuoco");
+  assert.equal(summary("spells"), "2 incantesimi: Scudo, Palla di fuoco");
+  assert.equal(summary("attacks"), "1 attacco: Pugnale");
+  assert.equal(summary("notes"), "Breve");
+  assert.deepEqual(SHEET_IMPORT_SECTIONS.map((section) => section.id).filter((id) => !sections[id]), ["saves"]);
+});
+
+test("imported spells add to the book or replace it, keeping surviving favourites", () => {
+  const current = { spellIds: ["shield", "bless"], pinnedIds: ["bless"] };
+  const imported = { spellIds: ["fireball", "shield"], pinnedIds: ["fireball"] };
+  assert.deepEqual(mergeImportedSpellbook(current, imported, "add"),
+    { spellIds: ["shield", "bless", "fireball"], pinnedIds: ["bless", "fireball"] });
+  assert.deepEqual(mergeImportedSpellbook(current, imported, "replace"),
+    { spellIds: ["fireball", "shield"], pinnedIds: ["fireball"] });
+});
+
+test("the sheet editor offers the import only to the GM, while editing", () => {
+  const source = readFileSync(new URL("../src/initiative-card-modal.js", import.meta.url), "utf8");
+  const html = readFileSync(new URL("../initiative-card-modal.html", import.meta.url), "utf8");
+  assert.match(html, /id="sheetImportToggle"[^>]*hidden/);
+  assert.match(html, /<form id="form"[^>]*>\s*<section id="sheetImport"/);
+  assert.match(source, /\$\("sheetImportToggle"\)\.hidden = !isGM \|\| !editing/);
+});

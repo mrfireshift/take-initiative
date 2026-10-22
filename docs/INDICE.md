@@ -10,6 +10,7 @@ plugin.
 | Documento | Uso |
 | --- | --- |
 | [Guida utente](GUIDA_UTENTE.md) | Preparazione della scena e flusso al tavolo. |
+| [Importare una scheda](IMPORT_SCHEDA.md) | Formato JSON, regole di applicazione e prompt per ricavarlo da un PDF. |
 | [Architettura Options](OPTIONS-ARCHITECTURE.md) | Scope, precedenza, proiezioni e lifecycle delle opzioni. |
 | [Combat Log](COMBAT-LOG.md) | Contratto locale, eventi, causalità, export e retention. |
 | [Embers/JB2A](EMBERS.md) | Copertura visuale, bridge esterno e cleanup degli output locali. |

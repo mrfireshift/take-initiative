@@ -188,6 +188,7 @@ import {
   findQuickAction,
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
+import { spellbookTrackerQuickActions } from "./spellbookCatalog.js";
 import {
   buildSpellUnifiedPanelRouteQuery,
   resolveGlobalSpellSourceEntryCore,
@@ -4746,9 +4747,10 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
       return { max, current };
     })(),
     bossActionBinding: initiativeCard.bossActionBinding || null,
+    // ⚡ lists the quick actions, then the favourite spells of the character's spellbook.
     quickActions: IS_GM
-      ? initiativeCard.quickActions
-      : initiativeCard.quickActions.filter((action) => action?.kind !== "feature"),
+      ? spellbookTrackerQuickActions(initiativeCard)
+      : spellbookTrackerQuickActions(initiativeCard).filter((action) => action?.kind !== "feature"),
     classFeatures: IS_GM
       ? buildClassFeatureContextEntries(
         initiativeCard,

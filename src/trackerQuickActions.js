@@ -1,4 +1,5 @@
 import { isAttackQuickAction, sanitizeQuickAction, sanitizeQuickActions } from "./quickActionsCore.js";
+import { isSpellbookQuickAction } from "./spellbookCore.js";
 
 const QUICK_ACTION_BUTTON_SIZE = 22;
 const CLASSIC_COMBAT_BADGE_SIZE = 18;
@@ -47,7 +48,9 @@ export function trackerQuickActionSummary(action) {
     return `Attacco · ${range} · ${count} ${count === 1 ? "componente" : "componenti"}`;
   }
   const launch = normalized.launchMode === "review" ? "revisione" : "lancio rapido";
-  return `Incantesimo · ${launch} · ${target}`;
+  // A favourite of the character's spellbook (spellbookCore.js) rather than a quick action of its own.
+  const source = isSpellbookQuickAction(normalized) ? "Incantesimi" : "Incantesimo";
+  return `${source} · ${launch} · ${target}`;
 }
 
 // The quick actions (⚡) and the attacks (⚔) of a card: one launcher each, over the same menu.

@@ -66,7 +66,9 @@ test("il cambio tab sincronizza vista, editor e altezza del popover", () => {
   assert.match(source, /\$\("classFeaturesTab"\)\.addEventListener\("click", \(\) => setCardTab\("class-features"\)\)/);
   assert.match(source, /\$\("attacksView"\)\.hidden = editing \|\| !attacksActive/);
   assert.match(source, /\$\("attacksTab"\)\.addEventListener\("click", \(\) => setCardTab\("attacks"\)\)/);
-  assert.match(source, /classFeaturesActive \? 760 : quickActionsActive \|\| attacksActive \? 680 : 640/);
+  assert.match(source, /classFeaturesActive \? 760 : spellbookActive \|\| quickActionsActive \|\| attacksActive \? 680 : 640/);
+  assert.match(source, /\$\("spellbookView"\)\.hidden = editing \|\| !spellbookActive/);
+  assert.match(source, /\$\("spellbookTab"\)\.addEventListener\("click", \(\) => setCardTab\("spellbook"\)\)/);
 });
 
 test("la Scheda personaggio apre più alta senza ampliare gli altri popover", () => {

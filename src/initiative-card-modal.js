@@ -31,6 +31,27 @@ import {
   parseQuickActionAttackImport,
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
+import {
+  MAX_SPELLBOOK_PINNED,
+  MAX_SPELLBOOK_SPELLS,
+  SPELLBOOK_FIELD,
+  hasSpellbook,
+  isSpellbookQuickAction,
+  sanitizeSpellbook,
+} from "./spellbookCore.js";
+import {
+  spellbookGroups,
+  spellbookQuickAction,
+  spellbookSearchOptions,
+  spellbookSpell,
+} from "./spellbookCatalog.js";
+import {
+  SHEET_IMPORT_LIST_SECTIONS,
+  SHEET_IMPORT_SECTIONS,
+  mergeImportedSpellbook,
+  parseCharacterSheetImport,
+  sheetImportSectionSummary,
+} from "./characterSheetImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
 import { PC_ATTACK_CANTRIPS } from "./pcAttackCantripCatalog.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
@@ -123,6 +144,8 @@ let draftEnabledFeatureIds = new Set();
 let draftKnownAvailableFeatureIds = new Set();
 let activeCardTab = "stats";
 let editing = false;
+// The spellbook being edited: rebuilt from the profile each time the editor opens, saved with Salva.
+let draftSpellbook = sanitizeSpellbook(null);
 
 const spellOptions = getQuickActionSpellOptions();
 
@@ -201,50 +224,67 @@ function requestPopoverHeight(height) {
   }, { destination: "LOCAL" }).catch(() => {});
 }
 
+// Five tabs share the sheet's width: an empty tab shows no count, so the labels keep their room.
+function setTabCount(id, count) {
+  const value = Math.max(0, Number(count) || 0);
+  $(id).textContent = String(value);
+  $(id).hidden = value === 0;
+}
+
 function setQuickActionsTabCount(count) {
-  $("quickActionsTabCount").textContent = String(Math.max(0, Number(count) || 0));
+  setTabCount("quickActionsTabCount", count);
+}
+
+function setSpellbookTabCount(count) {
+  setTabCount("spellbookTabCount", count);
 }
 
 function setAttacksTabCount(count) {
-  $("attacksTabCount").textContent = String(Math.max(0, Number(count) || 0));
+  setTabCount("attacksTabCount", count);
 }
 
 function setClassFeaturesTabCount(count) {
-  $("classFeaturesTabCount").textContent = String(Math.max(0, Number(count) || 0));
+  setTabCount("classFeaturesTabCount", count);
 }
 
 function syncCardTabs() {
+  const spellbookActive = activeCardTab === "spellbook";
   const quickActionsActive = activeCardTab === "quick-actions";
   // Attacks (weapons and cantrips) are a GM tool: their tab is the GM's only.
   const attacksActive = isGM && activeCardTab === "attacks";
   const classFeaturesActive = activeCardTab === "class-features";
-  const statsActive = !quickActionsActive && !attacksActive && !classFeaturesActive;
+  const statsActive = !spellbookActive && !quickActionsActive && !attacksActive && !classFeaturesActive;
   $("statsTab").setAttribute("aria-selected", statsActive ? "true" : "false");
+  $("spellbookTab").setAttribute("aria-selected", spellbookActive ? "true" : "false");
   $("quickActionsTab").setAttribute("aria-selected", quickActionsActive ? "true" : "false");
   $("attacksTab").setAttribute("aria-selected", attacksActive ? "true" : "false");
   $("classFeaturesTab").setAttribute("aria-selected", classFeaturesActive ? "true" : "false");
   $("attacksTab").hidden = !isGM;
   $("statsTab").tabIndex = statsActive ? 0 : -1;
+  $("spellbookTab").tabIndex = spellbookActive ? 0 : -1;
   $("quickActionsTab").tabIndex = quickActionsActive ? 0 : -1;
   $("attacksTab").tabIndex = attacksActive ? 0 : -1;
   $("classFeaturesTab").tabIndex = classFeaturesActive ? 0 : -1;
   $("view").hidden = editing || !statsActive;
+  $("spellbookView").hidden = editing || !spellbookActive;
   $("quickActionsView").hidden = editing || !quickActionsActive;
   $("attacksView").hidden = editing || !attacksActive;
   $("classFeaturesView").hidden = editing || !classFeaturesActive;
   $("statsEditPane").hidden = !editing || !statsActive;
+  $("spellbookEditPane").hidden = !editing || !spellbookActive;
   $("quickActionsEditPane").hidden = !editing || !quickActionsActive;
   $("attacksEditPane").hidden = !editing || !attacksActive;
   $("classFeaturesEditPane").hidden = !editing || !classFeaturesActive;
   $("form").classList.toggle("active", editing);
   $("edit").style.display = isGM && !editing ? "inline-block" : "none";
+  $("sheetImportToggle").hidden = !isGM || !editing;
   requestPopoverHeight(editing
-    ? (classFeaturesActive ? 760 : quickActionsActive || attacksActive ? 680 : 640)
-    : (classFeaturesActive ? 680 : 560));
+    ? (classFeaturesActive ? 760 : spellbookActive || quickActionsActive || attacksActive ? 680 : 640)
+    : (classFeaturesActive || spellbookActive ? 680 : 560));
 }
 
 function setCardTab(tab) {
-  activeCardTab = tab === "quick-actions" || tab === "attacks" || tab === "class-features"
+  activeCardTab = tab === "spellbook" || tab === "quick-actions" || tab === "attacks" || tab === "class-features"
     ? tab
     : "stats";
   syncCardTabs();
@@ -591,17 +631,25 @@ async function launchSpecialClassFeature(feature, targetIds) {
   }
 }
 
-async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
+// The list a launch starts from and its status line: the spellbook, the quick actions or the attacks.
+function quickActionSurface(action) {
+  if (isSpellbookQuickAction(action)) return { listId: "spellbookList", statusId: "spellbookRunStatus" };
+  return isAttackQuickAction(action)
+    ? { listId: "attacks", statusId: "attackRunStatus" }
+    : { listId: "quickActions", statusId: "quickActionRunStatus" };
+}
+
+async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surface = quickActionSurface(action)) {
   const operation = sceneLifecycle.capture({ operationId: `initiative-quick-action:${action?.id || "unknown"}:${Date.now().toString(36)}` });
   if (!sceneLifecycle.isCurrent(operation) || !item || quickActionLaunching) return;
   quickActionLaunching = true;
-  const status = $(isAttackQuickAction(action) ? "attackRunStatus" : "quickActionRunStatus");
+  const status = $(surface.statusId);
   const setStatus = (message, tone = "") => {
     status.textContent = message;
     status.dataset.tone = tone;
   };
   const setButtonsDisabled = (disabled) => {
-    $(isAttackQuickAction(action) ? "attacks" : "quickActions").querySelectorAll("button").forEach((button) => {
+    $(surface.listId).querySelectorAll("button").forEach((button) => {
       button.disabled = disabled || button.dataset.unsupportedFeature === "1";
     });
   };
@@ -785,6 +833,114 @@ function renderQuickActionList(list, actions, emptyText) {
     for (const control of autoChoiceControls.values()) actionEntry.appendChild(control);
     list.appendChild(actionEntry);
   }
+}
+
+// The cantrip attack that records this cantrip in the attack console, when the character has one.
+function spellbookCantripAttack(spellId) {
+  if (!isGM) return null;
+  const stored = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
+  return stored.find((action) => (
+    action?.kind === "attack"
+    && action.source?.kind === "cantrip"
+    && (!action.source.spellIds?.length || action.source.spellIds.includes(spellId))
+  )) || null;
+}
+
+function spellbookSpellSummary(spell, cantripAttack) {
+  if (cantripAttack) return "Attacco · console attacchi";
+  if (spell.attackCantrip && !spell.launchable) {
+    return isGM ? "Attacco · aggiungi il trucchetto negli Attacchi" : "Attacco · lo registra il GM";
+  }
+  if (!spell.launchable) return "Solo riferimento";
+  const parts = [spell.area ? "Area" : spell.automated ? "Automatizzato" : "Solo tracciamento"];
+  if (spell.concentration) parts.push("concentrazione");
+  if (spell.targetMode === "self") parts.push("su di sé");
+  return parts.join(" · ");
+}
+
+function renderSpellbook() {
+  const spellbook = sanitizeSpellbook(profile?.[SPELLBOOK_FIELD]);
+  setSpellbookTabCount(spellbook.spellIds.length);
+  $("spellbookSaveDC").textContent = valueText(profile?.spellSaveDC);
+  $("spellbookAttackBonus").textContent = signedText(profile?.spellAttackBonus);
+  $("spellbookRunStatus").textContent = "";
+  $("spellbookRunStatus").dataset.tone = "";
+  const list = $("spellbookList");
+  list.replaceChildren();
+  const groups = spellbookGroups(spellbook);
+  if (!groups.length) {
+    const empty = document.createElement("div");
+    empty.className = "quick-actions-empty";
+    empty.style.marginTop = "9px";
+    empty.textContent = isGM
+      ? "Nessun incantesimo: premi Modifica per aggiungerli."
+      : "Nessun incantesimo.";
+    list.appendChild(empty);
+    return;
+  }
+  for (const group of groups) {
+    const title = document.createElement("span");
+    title.className = "section-title";
+    title.textContent = group.title;
+    const spells = document.createElement("div");
+    spells.className = "quick-actions-list";
+    for (const spell of group.spells) spells.appendChild(buildSpellbookEntry(spell));
+    list.append(title, spells);
+  }
+}
+
+function buildSpellbookEntry(spell) {
+  const entry = document.createElement("div");
+  entry.className = "spellbook-entry";
+  const cantripAttack = spell.attackCantrip ? spellbookCantripAttack(spell.id) : null;
+  const runnable = !!cantripAttack || spell.launchable;
+  // A spell the card cannot launch stays a reference: no button, nothing to press.
+  const main = document.createElement(runnable ? "button" : "div");
+  main.className = "quick-action";
+  if (runnable) {
+    main.type = "button";
+    main.title = cantripAttack ? `Attacco con ${spell.label}` : `Lancia ${spell.label}`;
+    main.addEventListener("click", () => void launchSpellbookSpell(spell.id, "auto"));
+  } else {
+    main.dataset.reference = "1";
+  }
+  const icon = document.createElement("span");
+  icon.className = "quick-action-icon";
+  icon.textContent = spell.pinned ? "★" : cantripAttack ? "✧" : "✦";
+  if (spell.pinned) icon.title = "Tra i preferiti del pulsante ⚡";
+  const copy = document.createElement("span");
+  copy.className = "quick-action-copy";
+  const label = document.createElement("strong");
+  label.textContent = spell.label;
+  const summary = document.createElement("small");
+  summary.textContent = spellbookSpellSummary(spell, cantripAttack);
+  copy.append(label, summary);
+  main.append(icon, copy);
+  entry.appendChild(main);
+  if (spell.launchable && !cantripAttack) {
+    const panel = document.createElement("button");
+    panel.type = "button";
+    panel.className = "spellbook-panel";
+    panel.textContent = "⚙";
+    panel.title = `Apri ${spell.label} nel pannello incantesimi: slot, bersagli e scelte`;
+    panel.setAttribute("aria-label", panel.title);
+    panel.addEventListener("click", () => void launchSpellbookSpell(spell.id, "review"));
+    entry.appendChild(panel);
+  }
+  return entry;
+}
+
+// A spellbook spell runs through the quick action path: "auto" applies it when nothing needs the GM,
+// "review" opens the spell panel. An attack cantrip opens the attack console instead.
+async function launchSpellbookSpell(spellId, launchMode) {
+  const surface = { listId: "spellbookList", statusId: "spellbookRunStatus" };
+  const cantripAttack = spellbookSpell(spellId).attackCantrip ? spellbookCantripAttack(spellId) : null;
+  if (cantripAttack) {
+    await launchQuickAction(cantripAttack, "", {}, surface);
+    return;
+  }
+  const action = spellbookQuickAction(spellId, { launchMode });
+  if (action) await launchQuickAction(action, "", {}, surface);
 }
 
 function classFeatureActivationLabel(feature) {
@@ -2078,6 +2234,105 @@ function renderClassFeatures() {
   ));
 }
 
+function populateSpellbookDatalist() {
+  $("spellbookSpellOptions").replaceChildren(...spellbookSearchOptions().map((entry) => {
+    const option = document.createElement("option");
+    option.value = entry.label;
+    return option;
+  }));
+}
+
+function setSpellbookEditStatus(message = "", tone = "") {
+  $("spellbookEditStatus").textContent = message;
+  $("spellbookEditStatus").dataset.tone = tone;
+}
+
+function buildSpellbookEditor() {
+  draftSpellbook = sanitizeSpellbook(profile?.[SPELLBOOK_FIELD]);
+  $("spellbookSearch").value = "";
+  setSpellbookEditStatus();
+  renderSpellbookEditor();
+}
+
+// The draft as rows, by level and then name; ★ and ✕ change the draft, Salva stores it.
+function renderSpellbookEditor() {
+  const pinned = new Set(draftSpellbook.pinnedIds);
+  const rows = spellbookGroups(draftSpellbook).flatMap((group) => group.spells);
+  setSpellbookTabCount(rows.length);
+  $("spellbookAdd").disabled = rows.length >= MAX_SPELLBOOK_SPELLS;
+  $("spellbookEditorList").replaceChildren(...rows.map((spell) => {
+    const row = document.createElement("div");
+    row.className = "spellbook-editor-row";
+    const level = document.createElement("span");
+    level.className = "spellbook-level";
+    level.textContent = spell.level === 0 ? "T" : spell.level === null ? "?" : `${spell.level}°`;
+    level.title = spell.level === 0 ? "Trucchetto" : spell.level === null ? "Fuori catalogo" : `${spell.level}° livello`;
+    const name = document.createElement("span");
+    name.textContent = spell.label;
+    name.title = spell.label;
+    const pin = document.createElement("button");
+    pin.type = "button";
+    pin.className = "spellbook-pin";
+    pin.textContent = "★";
+    pin.setAttribute("aria-pressed", pinned.has(spell.id) ? "true" : "false");
+    const pinFull = !pinned.has(spell.id) && pinned.size >= MAX_SPELLBOOK_PINNED;
+    pin.disabled = !spell.launchable || pinFull;
+    pin.title = !spell.launchable
+      ? "Non si lancia dalla card: non può stare nel pulsante ⚡"
+      : pinFull
+        ? `Massimo ${MAX_SPELLBOOK_PINNED} preferiti`
+        : pinned.has(spell.id) ? "Togli dai preferiti del pulsante ⚡" : "Aggiungi ai preferiti del pulsante ⚡";
+    pin.setAttribute("aria-label", `${pin.title}: ${spell.label}`);
+    pin.addEventListener("click", () => {
+      const pinnedIds = pinned.has(spell.id)
+        ? draftSpellbook.pinnedIds.filter((id) => id !== spell.id)
+        : [...draftSpellbook.pinnedIds, spell.id];
+      draftSpellbook = sanitizeSpellbook({ ...draftSpellbook, pinnedIds });
+      renderSpellbookEditor();
+    });
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "✕";
+    remove.title = `Togli ${spell.label} dal libro`;
+    remove.setAttribute("aria-label", remove.title);
+    remove.addEventListener("click", () => {
+      draftSpellbook = sanitizeSpellbook({
+        spellIds: draftSpellbook.spellIds.filter((id) => id !== spell.id),
+        pinnedIds: draftSpellbook.pinnedIds,
+      });
+      setSpellbookEditStatus();
+      renderSpellbookEditor();
+    });
+    row.append(level, name, pin, remove);
+    return row;
+  }));
+}
+
+function addSpellbookSpell() {
+  const input = $("spellbookSearch");
+  const query = input.value.trim();
+  if (!query) return;
+  const spell = getSpellDefinition(query);
+  if (!spell) {
+    setSpellbookEditStatus(`"${query}" non è nel catalogo: sceglilo dall'elenco.`, "error");
+    return;
+  }
+  const label = spellbookSpell(spell.id).label;
+  if (draftSpellbook.spellIds.includes(spell.id)) {
+    setSpellbookEditStatus(`${label} è già nel libro.`, "error");
+    return;
+  }
+  if (draftSpellbook.spellIds.length >= MAX_SPELLBOOK_SPELLS) {
+    setSpellbookEditStatus(`Massimo ${MAX_SPELLBOOK_SPELLS} incantesimi.`, "error");
+    return;
+  }
+  draftSpellbook = sanitizeSpellbook({ ...draftSpellbook, spellIds: [...draftSpellbook.spellIds, spell.id] });
+  input.value = "";
+  setSpellbookEditStatus(`Aggiunto: ${label}. Premi Salva per conservarlo.`, "success");
+  renderSpellbookEditor();
+  input.focus();
+}
+
 function populateQuickActionDatalists() {
   $("quickActionSpellOptions").replaceChildren(...spellOptions.map((entry) => {
     const option = document.createElement("option");
@@ -2511,6 +2766,169 @@ function importAttacks() {
   }
 }
 
+// Character sheet import: a JSON block read into sections; the GM picks some and they fill the editor
+// on every tab. Nothing is saved until Salva, as with the Attacks import.
+let sheetImportResult = null;
+
+function setSheetImportStatus(message = "", tone = "") {
+  $("sheetImportStatus").textContent = message;
+  $("sheetImportStatus").dataset.tone = tone;
+}
+
+function resetSheetImport() {
+  sheetImportResult = null;
+  $("sheetImportSections").replaceChildren();
+  $("sheetImportSections").hidden = true;
+  $("sheetImportApplyRow").hidden = true;
+  setSheetImportStatus();
+}
+
+function setSheetImportOpen(open) {
+  $("sheetImport").hidden = !open;
+  $("sheetImportToggle").setAttribute("aria-expanded", open ? "true" : "false");
+  if (!open) {
+    $("sheetImportText").value = "";
+    resetSheetImport();
+    return;
+  }
+  $("sheetImportText").focus();
+}
+
+function sheetImportNames() {
+  return {
+    classNameOf: (classId) => CLASS_FEATURE_CLASSES.find((entry) => entry.id === classId)?.name || classId,
+    subclassNameOf: (classId, subclassId) => getClassFeatureSubclasses(classId)
+      .find((entry) => entry.id === subclassId)?.name || "",
+    spellNameOf: (spellId) => spellbookSpell(spellId).label,
+  };
+}
+
+function readSheetImport() {
+  resetSheetImport();
+  const result = parseCharacterSheetImport($("sheetImportText").value);
+  if (result.error) {
+    setSheetImportStatus(result.error, "error");
+    return;
+  }
+  sheetImportResult = result;
+  const names = sheetImportNames();
+  const rows = SHEET_IMPORT_SECTIONS
+    .filter((section) => result.sections[section.id] !== undefined)
+    .map((section) => {
+      const row = document.createElement("label");
+      row.className = "sheet-import-section";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = true;
+      checkbox.dataset.sheetImportSection = section.id;
+      const copy = document.createElement("span");
+      const title = document.createElement("strong");
+      title.textContent = section.label;
+      const summary = document.createElement("small");
+      summary.textContent = sheetImportSectionSummary(section.id, result.sections[section.id], names);
+      summary.title = summary.textContent;
+      copy.append(title, summary);
+      row.append(checkbox, copy);
+      if (SHEET_IMPORT_LIST_SECTIONS.includes(section.id)) {
+        const mode = selectControl([["add", "Aggiungi"], ["replace", "Sostituisci"]], "add");
+        mode.dataset.sheetImportMode = section.id;
+        mode.title = "Aggiungi i mancanti all'elenco attuale o sostituiscilo";
+        row.appendChild(mode);
+      } else {
+        row.appendChild(document.createElement("span"));
+      }
+      return row;
+    });
+  if (result.unresolved.length) {
+    const unresolved = document.createElement("p");
+    unresolved.className = "sheet-import-unresolved";
+    unresolved.textContent = `Non riconosciuti, da sistemare a mano: ${result.unresolved.join(", ")}.`;
+    rows.push(unresolved);
+  }
+  $("sheetImportSections").replaceChildren(...rows);
+  $("sheetImportSections").hidden = false;
+  $("sheetImportApplyRow").hidden = false;
+  setSheetImportStatus(`${result.name ? `Scheda di ${result.name}: s` : "S"}cegli le sezioni da applicare.`);
+}
+
+function applyImportedAttacks(attacks, mode) {
+  const list = $("attackEditorList");
+  if (mode === "replace") list.replaceChildren();
+  const nameKey = (value) => String(value || "").trim().toLocaleLowerCase("it");
+  const names = new Set(Array.from(list.querySelectorAll("[data-quick-action-row='1'] [data-quick-action-field='label']"))
+    .map((input) => nameKey(input.value)));
+  for (const attack of attacks) {
+    if (names.has(nameKey(attack.label))) continue;
+    if (list.querySelectorAll("[data-quick-action-row='1']").length >= MAX_QUICK_ACTION_ATTACKS) break;
+    list.appendChild(buildQuickActionEditorRow({ ...attack, id: quickActionId() }, { attack: true }));
+    names.add(nameKey(attack.label));
+  }
+  syncQuickActionAddState();
+}
+
+// Only the values the block states are written: a missing value keeps what the editor holds. Classes,
+// species and defenses are a whole: the imported ones replace the current ones.
+function applySheetImport() {
+  if (!sheetImportResult) return;
+  const { sections } = sheetImportResult;
+  const chosen = Array.from($("sheetImportSections").querySelectorAll("[data-sheet-import-section]"))
+    .filter((checkbox) => checkbox.checked)
+    .map((checkbox) => checkbox.dataset.sheetImportSection);
+  const modeOf = (id) => $("sheetImportSections").querySelector(`[data-sheet-import-mode="${id}"]`)?.value || "add";
+  if (!chosen.length) {
+    setSheetImportStatus("Nessuna sezione scelta.", "error");
+    return;
+  }
+  for (const id of chosen) {
+    const section = sections[id];
+    if (id === "classes") {
+      // A subclass the block lacks, or that was not recognised, keeps the one the editor already holds.
+      const current = collectCharacterBuildEditor();
+      const build = section.map((entry) => ({
+        ...entry,
+        subclassId: entry.subclassId || current.find((row) => row.classId === entry.classId)?.subclassId || "",
+      }));
+      $("classBuildEditorList").replaceChildren(...build.map((entry) => buildClassBuildEditorRow(entry)));
+      syncClassBuildAddState();
+      buildClassFeatureEditor();
+    } else if (id === "species") {
+      $("speciesInput").value = section.id;
+      buildSpeciesAncestryOptions(section.id, section.ancestryId);
+    } else if (id === "stats") {
+      const inputs = {
+        armorClass: "armorClassInput",
+        speed: "speedInput",
+        passivePerception: "passivePerceptionInput",
+        spellSaveDC: "spellSaveDCInput",
+        spellAttackBonus: "spellAttackBonusInput",
+      };
+      for (const [key, inputId] of Object.entries(inputs)) {
+        if (section[key] !== undefined) $(inputId).value = section[key];
+      }
+    } else if (id === "abilities" || id === "saves") {
+      for (const key of ABILITY_KEYS) {
+        if (section[key] !== null && section[key] !== undefined) {
+          $(`${id === "abilities" ? "ability" : "save"}-${key}`).value = section[key];
+        }
+      }
+    } else if (id === "defenses") {
+      for (const type of DAMAGE_TYPES) $(`defense-${type.id}`).value = damageDefenseFor(section, type.id) || "";
+    } else if (id === "spells") {
+      draftSpellbook = mergeImportedSpellbook(draftSpellbook, section, modeOf(id));
+      renderSpellbookEditor();
+    } else if (id === "attacks") {
+      applyImportedAttacks(section, modeOf(id));
+    } else if (id === "notes") {
+      $("notesInput").value = section;
+    }
+  }
+  const labelsById = new Map(SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]));
+  setSheetImportStatus(
+    `Compilato: ${chosen.map((id) => labelsById.get(id)).join(", ")}. Controlla le schede e premi Salva.`,
+    "success",
+  );
+}
+
 // Both editors save into quickActions: the quick actions first, then the attacks.
 function collectQuickActions() {
   const rows = [
@@ -2870,6 +3288,7 @@ function renderView() {
   $("notes").textContent = profile.notes || "";
   $("notesBlock").hidden = !profile.notes;
   renderQuickActions();
+  renderSpellbook();
   renderClassFeatures();
   $("exhaustion").textContent = String(profile.exhaustion || 0);
   for (const [id, disabled] of [
@@ -2984,6 +3403,7 @@ function setEditing(active) {
     const stored = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
     setQuickActionsTabCount(stored.filter((action) => !isAttackQuickAction(action)).length);
     setAttacksTabCount(stored.filter(isAttackQuickAction).length);
+    setSpellbookTabCount(sanitizeSpellbook(profile?.[SPELLBOOK_FIELD]).spellIds.length);
     renderClassFeatures();
     syncCardTabs();
     return;
@@ -2996,6 +3416,8 @@ function setEditing(active) {
   $("spellAttackBonusInput").value = profile.spellAttackBonus ?? "";
   $("notesInput").value = profile.notes ?? "";
   buildQuickActionEditor();
+  buildSpellbookEditor();
+  setSheetImportOpen(false);
   buildSpeciesEditor();
   buildClassBuildEditor();
   const abilityModifiers = sanitizeAbilityModifiers(profile?.[ABILITY_MODIFIERS_FIELD]);
@@ -3115,6 +3537,7 @@ OBR.onReady(async () => {
     applyFactionTheme();
     profile = await loadInitiativeCard(item, { hydrate: isGM });
     populateQuickActionDatalists();
+    populateSpellbookDatalist();
     buildAbilityModifierInputs();
     buildSaveInputs();
     buildDefenseInputs();
@@ -3135,6 +3558,18 @@ $("close").addEventListener("click", closeInitiativeCardPopover);
 $("edit").addEventListener("click", () => setEditing(true));
 $("cancel").addEventListener("click", () => setEditing(false));
 $("statsTab").addEventListener("click", () => setCardTab("stats"));
+$("spellbookTab").addEventListener("click", () => setCardTab("spellbook"));
+$("spellbookAdd").addEventListener("click", addSpellbookSpell);
+$("sheetImportToggle").addEventListener("click", () => setSheetImportOpen($("sheetImport").hidden));
+$("sheetImportClose").addEventListener("click", () => setSheetImportOpen(false));
+$("sheetImportRead").addEventListener("click", readSheetImport);
+$("sheetImportApply").addEventListener("click", applySheetImport);
+// Enter adds the spell: it must not submit the whole sheet.
+$("spellbookSearch").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  addSpellbookSpell();
+});
 $("quickActionsTab").addEventListener("click", () => setCardTab("quick-actions"));
 $("attacksTab").addEventListener("click", () => setCardTab("attacks"));
 $("classFeaturesTab").addEventListener("click", () => setCardTab("class-features"));
@@ -3198,6 +3633,10 @@ $("form").addEventListener("submit", async (event) => {
     const species = collectSpecies();
     if (species && !species.ancestryId) throw new Error("Scegli l'ascendenza della specie.");
     const speciesPatch = species || Object.hasOwn(profile || {}, SPECIES_FIELD) ? { [SPECIES_FIELD]: species } : {};
+    // Come la specie: il libro si scrive solo se usato o già presente.
+    const spellbook = sanitizeSpellbook(draftSpellbook);
+    const spellbookPatch = hasSpellbook(spellbook) || Object.hasOwn(profile || {}, SPELLBOOK_FIELD)
+      ? { [SPELLBOOK_FIELD]: spellbook } : {};
     await saveInitiativeCard(item.id, item.name, {
       armorClass: $("armorClassInput").value,
       passivePerception: $("passivePerceptionInput").value,
@@ -3214,6 +3653,7 @@ $("form").addEventListener("submit", async (event) => {
       ...defensePatch,
       ...abilityPatch,
       ...speciesPatch,
+      ...spellbookPatch,
     }, {
       isCurrent: () => sceneLifecycle.isCurrent(operation),
       commandId: ownerSceneContext.commandId,

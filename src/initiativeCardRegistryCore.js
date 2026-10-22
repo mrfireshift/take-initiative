@@ -1,5 +1,6 @@
 import { canonicalImageUrl, normalizedItemName } from "./factionRegistryCore.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
+import { hasSpellbook } from "./spellbookCore.js";
 import {
   actorProfileIdFromItem,
   actorProfileIdFromRegistryEntry,
@@ -370,6 +371,7 @@ export function initiativeCardQuickActionMemoryCandidates(
       ? roomEntry.profile
       : roomEntry;
     return sanitizeQuickActions(roomProfile.quickActions).length > 0
+      || hasSpellbook(roomProfile.spellbook)
       || Array.isArray(roomProfile.characterBuild) && roomProfile.characterBuild.length > 0
       || Array.isArray(roomProfile.enabledClassFeatureIds)
         && roomProfile.enabledClassFeatureIds.length > 0;
