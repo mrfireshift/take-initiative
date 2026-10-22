@@ -139,6 +139,16 @@ creatura marchiata è a 0 PF. Dardo stregato ripete il danno con un'azione come
 Debilitazione; Corona di follia e Duello obbligato chiedono al caster se
 l'incantesimo continua (promemoria a scelta con `remove-effect`).
 
+Il secondo lotto chiude CAP-LINK con gli eventi che il plugin vede. Un attacco
+della console attacchi (`pcAttackLinkEnds` in `src/pcAttackCore.js`) toglie
+nello stesso comando la pill di Invisibilità dell'attaccante e quella di Duello
+obbligato quando il caster attacca un'altra creatura o un suo alleato danneggia
+il bersaglio; l'incantesimo si riconosce dall'istanza genitore, non dal nome
+della condizione. Lama roboante salva sulla pill i danni di movimento
+(`mechanics.movementDamage`); il movimento della creatura nel proprio turno
+apre un promemoria con i danni da confermare
+(`planBoomingBladeMovementNotices` in `src/compulsionMovementReminderCore.js`).
+
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la
 **Console effetti ad area**. Dal registro il GM può:

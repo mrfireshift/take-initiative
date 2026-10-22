@@ -1,10 +1,13 @@
 import { ID } from "./constants.js";
-import { buildEffectSaveReminderResolution } from "./reminderResolutionCore.js";
+import { buildDeferredEffectResolution, buildEffectSaveReminderResolution } from "./reminderResolutionCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 
 const META_KEY = `${ID}/meta`;
 export const COMPULSION_SPELL_ID = "compulsion";
 export const COMPULSION_MOVEMENT_EFFECT_ID = "compulsion-forced-movement";
+// Booming Blade (CAP-LINK): the pill a woven hit leaves; moving willingly sets off its thunder damage.
+export const BOOMING_BLADE_SPELL_ID = "tasha-lama-roboante";
+export const BOOMING_BLADE_MOVEMENT_EFFECT_ID = "movement-triggered-thunder-damage";
 
 function actorId(value) {
   const id = String(value || "").trim();
@@ -125,5 +128,64 @@ export function planCompulsionMovementReminderNotices({
     });
   }
 
+  return notices;
+}
+
+// Booming Blade: the creature with the pill moves during its own turn (the nearest the tracker gets to "willingly").
+// The GM enters the thunder damage and confirms; resolving it removes the pill, which ends the spell on that creature.
+// A forced move is dismissed by the GM.
+export function planBoomingBladeMovementNotices({
+  items = [],
+  changedRecords = [],
+  initiativeState = null,
+} = {}) {
+  const turnKey = currentInitiativeTurnKey(initiativeState);
+  const activeActorId = currentActorId(initiativeState);
+  if (!turnKey || !activeActorId) return [];
+  if (!new Set(movedTargetIds(changedRecords)).has(activeActorId)) return [];
+  const list = Array.isArray(items) ? items : [];
+  const itemsById = new Map(list.map((item) => [String(item?.id || "").trim(), item]));
+  const target = itemsById.get(activeActorId);
+  if (!target) return [];
+  const notices = [];
+  for (const instance of conditionInstances(target)) {
+    if (instance?.active === false || String(instance?.effectId || "").trim() !== BOOMING_BLADE_MOVEMENT_EFFECT_ID) continue;
+    const damage = instance?.mechanics?.movementDamage;
+    if (!String(instance?.id || "").trim() || !String(damage?.dice || "").trim()) continue;
+    const activationId = `${instance.id}:booming-blade:${turnKey}`;
+    const source = itemsById.get(String(instance?.sourceId || "").trim());
+    const reminder = `Si muove volontariamente: ${damage.dice} danni da tuono, poi Lama Roboante termina. Se lo spostamento è forzato, chiudi l'avviso.`;
+    const resolution = buildDeferredEffectResolution({
+      item: target,
+      instance,
+      deferredEffect: {
+        id: "booming-blade-movement",
+        reminder,
+        resolution: { mode: "manual-damage", damage: { dice: String(damage.dice), type: String(damage.type || "tuono"), onSave: "none" } },
+      },
+      activationId,
+      turnKey,
+    });
+    if (!resolution) continue;
+    notices.push({
+      activationId,
+      turnKey,
+      effectName: "Lama Roboante",
+      spellName: "Lama Roboante",
+      spellId: BOOMING_BLADE_SPELL_ID,
+      saveLabel: `${damage.dice} tuono`,
+      instruction: reminder,
+      timing: "movement-end",
+      ...(source?.name ? { sourceName: String(source.name).trim().slice(0, 100) } : {}),
+      kind: "effect-reminder",
+      eyebrow: "Promemoria effetto",
+      resolution,
+      target: {
+        id: target.id,
+        name: String(target.name || "Token").trim().slice(0, 100) || "Token",
+        portrait: itemPortrait(target),
+      },
+    });
+  }
   return notices;
 }

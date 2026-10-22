@@ -578,3 +578,18 @@ test("Vampiric Touch heals the caster in the touch's command; one Undo restores 
   await history.undoHistoryThrough((await attackEntry()).id, { sceneEpoch: currentSceneEpoch() });
   assert.deepEqual([meta("ghoul").hp, meta("aria").hp], [30, 20]);
 });
+
+// CAP-LINK: Invisibility ends when its bearer attacks, in the attack's command; one Undo makes the bearer invisible again.
+test("an invisible attacker loses Invisibility with the attack; one Undo gives it back", async () => {
+  Object.assign(meta("aria"), {
+    conditions: { version: 2, instances: [{ id: "inv-pill", condition: "Invisibile", active: true, targetId: "aria", parentEffectId: "inv-1", sourceId: "aria", type: "spell" }] },
+    "com.thebigpicture.initiative/spells": [{ instanceId: "inv-1", spellId: "invisibility", name: "Invisibilità", source: "aria", turns: 600 }],
+  });
+  await attack({ attackInstanceId: "invisible-strike", outcome: "miss", componentAmounts: {} });
+  const pills = () => (Array.isArray(meta("aria").conditions) ? meta("aria").conditions : meta("aria").conditions?.instances || []).map((entry) => entry.id);
+  assert.deepEqual(pills(), []);
+  const entry = await attackEntry();
+  assert.equal(entry.payload.causality.linkEnds[0].spellId, "invisibility");
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.deepEqual(pills(), ["inv-pill"]);
+});

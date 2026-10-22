@@ -759,7 +759,7 @@ export function buildPcAttackMutation({
   action, sourceItem, targetItem, outcome = "", componentAmounts = {}, attackInstanceId,
   ignoredDefenses = [], expectedDefenses, turnState = null, riders = [], extras = [], spellId = "",
   weaponCantrip = null, secondaryItem = null, expectedSecondaryDefenses, activations = [], tempHpItems = [],
-  attackMode = "", modeAmount = null, burstItems = [], expectedBurstDefenses = {}, spellCast = null,
+  attackMode = "", modeAmount = null, burstItems = [], expectedBurstDefenses = {}, spellCast = null, linkItems = [],
 } = {}) {
   if (!isBossActionCreature(sourceItem) || !isBossActionCreature(targetItem))
     throw new Error("Attaccante e bersaglio devono essere token creatura reali.");
@@ -985,10 +985,12 @@ export function buildPcAttackMutation({
       // A leveled spell's pills on a hit (Guiding Bolt); Vampiric Touch's spell stays the panel's cast on the caster.
       ...(attack.spell && !attack.spell.fromActiveSpell ? pcAttackCantripPillOperations({ spellId: attack.spell.spellId, sourceItem, targetItem,
         attackInstanceId, appliedAt, slotLevel: spellPlan.slotLevel }) : []),
-      // Booming Blade: its pill from the spell catalog, with the movement damage at this level in the detail.
+      // Booming Blade: its pill from the spell catalog, with the movement damage at this level in the detail and as data
+      // (mechanics.movementDamage), for the movement reminder (CAP-LINK).
       ...(woven?.trigger ? pcAttackCantripPillOperations({ spellId: woven.spellId, sourceItem, targetItem, attackInstanceId, appliedAt })
         .map((operation) => operation.type !== "condition:add" ? operation : { ...operation, options: { ...operation.options,
-          effectDetail: `${operation.options?.effectDetail || ""} Danni: ${woven.dice.trigger} da tuono.`.trim() } }) : [])]
+          effectDetail: `${operation.options?.effectDetail || ""} Danni: ${woven.dice.trigger} da tuono.`.trim(),
+          mechanics: { ...(operation.options?.mechanics || {}), movementDamage: { dice: woven.dice.trigger, type: "tuono" } } } }) : [])]
     : [];
   const cantripPills = cantripOperations.filter((operation) => operation.type === "condition:add").map((operation) => operation.conditionName);
   if (cantripPills.length && attack.cantrip) causality.cantrip = { ...causality.cantrip, pills: cantripPills };
@@ -1015,8 +1017,11 @@ export function buildPcAttackMutation({
       ...(appliedAt ? { appliedAt } : {}) } }));
   const activationPillOperations = Object.keys(activationPlan.instancesByTarget).length
     ? [{ type: "condition:add-instances", instancesByTarget: activationPlan.instancesByTarget }] : [];
-  // The ids whose pills the attack changes outside the damaged creatures (a self pill on the attacker).
-  const pillTargetIds = Object.keys(activationPlan.instancesByTarget);
+  // CAP-LINK: Invisibility and Compelled Duel ended by this attack, in its own command (one Undo brings them back).
+  const linkEnds = pcAttackLinkEnds({ sourceItem, targetItem, linkItems, damaged: !!change?.changed && change.requested > 0 });
+  if (linkEnds.length) causality.linkEnds = linkEnds.map(({ itemId, spellId, reason }) => ({ itemId, spellId, reason }));
+  // The ids whose pills the attack changes outside the damaged creatures (a self pill on the attacker, an ended link).
+  const pillTargetIds = [...new Set([...Object.keys(activationPlan.instancesByTarget), ...linkEnds.map((end) => end.itemId)])];
   if (activationPlan.notes.length) causality.notes = [...activationPlan.notes];
   return {
     change, damageComponents, causality,
@@ -1060,7 +1065,8 @@ export function buildPcAttackMutation({
       }] : []),
     ] }] : []), ...conditionOperations,
     ...(conditionOperations.length ? [{ type: "condition:automate", subjectIds: [targetItem.id] }] : []), ...cantripOperations,
-    ...activationPillOperations],
+    ...activationPillOperations,
+    ...(linkEnds.length ? [{ type: "condition:remove-instances", removals: linkEnds.map(({ itemId, instanceId }) => ({ itemId, instanceId })) }] : [])],
     options: {
       commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id,
       targetIds: [...new Set([targetItem.id, ...(secondaryItemUsed ? [secondaryItemUsed.id] : []), ...pillTargetIds,
@@ -1089,6 +1095,41 @@ export function buildPcAttackMutation({
         ...(DAMAGING_OUTCOMES.has(outcome) && attack.cantrip?.effectNote ? { manualRemainder: attack.cantrip.effectNote } : {}) } },
     },
   };
+}
+
+// CAP-LINK: the links an attack ends (2014 texts). The spell is read from the instance on the token (the pill's parent),
+// never from the pill's name: "Invisibile" also comes from Greater Invisibility and other effects, which go on.
+const SPELLS_FIELD = `${ID}/spells`;
+function linkedSpellPills(item, spellId) {
+  const meta = item?.metadata?.[META_KEY] || {};
+  const instanceIds = new Set((Array.isArray(meta[SPELLS_FIELD]) ? meta[SPELLS_FIELD] : [])
+    .filter((entry) => entry?.spellId === spellId).map((entry) => String(entry?.instanceId || "")).filter(Boolean));
+  return conditionInstancesOf(item).filter((instance) => instance?.active !== false && instance?.id
+    && instanceIds.has(String(instance?.parentEffectId || "")));
+}
+function attitudeSide(item) {
+  const attitude = String(item?.metadata?.[META_KEY]?.attitude || "neutral").toLocaleLowerCase("it");
+  return attitude === "enemy" ? "enemy" : attitude === "pc" || attitude === "ally" ? "friendly" : "neutral";
+}
+// Invisibility ends for its bearer who attacks or casts (any registration of the console); Compelled Duel ends when
+// its caster attacks another creature, or when a creature friendly to the caster damages the duel's target.
+export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damaged = false } = {}) {
+  const ends = linkedSpellPills(sourceItem, "invisibility").map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id,
+    spellId: "invisibility", reason: "Ha attaccato o lanciato un incantesimo." }));
+  const byId = new Map([...(Array.isArray(linkItems) ? linkItems : []), targetItem, sourceItem].filter((item) => item?.id).map((item) => [item.id, item]));
+  for (const item of byId.values()) {
+    for (const instance of linkedSpellPills(item, "phb2014-duello-obbligato")) {
+      const casterId = String(instance.sourceId || "");
+      if (casterId === sourceItem.id && item.id !== targetItem.id) {
+        ends.push({ itemId: item.id, instanceId: instance.id, spellId: "phb2014-duello-obbligato", reason: "Il caster ha attaccato un'altra creatura." });
+      } else if (item.id === targetItem.id && casterId && casterId !== sourceItem.id && damaged) {
+        const caster = byId.get(casterId);
+        if (caster && attitudeSide(caster) !== "neutral" && attitudeSide(caster) === attitudeSide(sourceItem))
+          ends.push({ itemId: item.id, instanceId: instance.id, spellId: "phb2014-duello-obbligato", reason: "Una creatura alleata del caster ha danneggiato il bersaglio." });
+      }
+    }
+  }
+  return ends;
 }
 
 // Phase 3A: the activations chosen for this attack, checked against the live attacker, target and turn, and planned

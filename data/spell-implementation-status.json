@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 241,
-      "PARTIAL": 52,
+      "COMPLETE / CURRENT": 242,
+      "PARTIAL": 51,
       "NO AUTOMATION REQUIRED": 144,
       "MISSING": 25,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 77,
+    "implementableBacklog": 76,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 66,
-        "percent": 85.71428571428571
+        "count": 65,
+        "percent": 85.52631578947368
       },
       "RED": {
         "count": 11,
-        "percent": 14.285714285714285
+        "percent": 14.473684210526317
       }
     },
     "scenarios": [
@@ -24191,7 +24191,9 @@
       "status": "COMPLETE / CURRENT",
       "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js"
+        "src/spells-srd.js",
+        "src/pcAttackCore.js",
+        "src/pcAttackExecution.js"
       ],
       "mechanicsRequired": [
         "Condizione già applicata; termina al primo attacco/cast del beneficiario, manca evento assistito dichiarativo generalizzato (non inferire da HP)."
@@ -24259,6 +24261,7 @@
       "behavioralEvidence": {
         "familyTests": [
           "test/spellLinks.test.js",
+          "test/pcAttackExecutionIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -24282,7 +24285,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "CAP-LINK, primo lotto (2026-10-22): togliere la pill termina l'incantesimo solo su quella creatura (attacca o lancia un incantesimo: a mano); +1 bersaglio per slot sopra il 2°.",
+        "reason": "CAP-LINK, secondo lotto (2026-10-22): togliere la pill termina l'incantesimo solo su quella creatura; attaccare o lanciare dalla console attacchi la toglie da sola (un Annulla la rende); un incantesimo lanciato fuori dalla console: a mano. +1 bersaglio per slot sopra il 2°.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -56094,11 +56097,13 @@
       "id": "tasha-lama-roboante",
       "spell": "Lama Roboante",
       "level": 0,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js"
+        "src/pcAttackCore.js",
+        "src/compulsionMovementReminderCore.js",
+        "src/compulsionMovementReminderController.js",
+        "src/reminderResolutionCore.js"
       ],
       "mechanicsRequired": [
         "Rider presente; distinguere movimento volontario e consume del primo evento dopo hit, niente danno da semplice riposizionamento."
@@ -56113,9 +56118,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-LINK"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": "Unsafe cast helper donor; see BLOCKER-ATTACK",
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -56159,8 +56162,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ATTACK-MOVEMENT",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-ATTACK + CAP-LINK",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "tasha-lama-roboante",
@@ -56169,6 +56172,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellLinks.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -56188,7 +56192,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Console attacchi: attacco con arma, dado del trucchetto e pill sul bersaglio. Manca l'avviso automatico quando il bersaglio si muove volontariamente (CAP-LINK).",
+        "reason": "CAP-LINK, secondo lotto (2026-10-22): il colpo dalla console attacchi lascia la pill con i danni di movimento come dato; quando la creatura si muove nel proprio turno compare l'avviso con i danni da tuono da confermare, e la conferma toglie la pill. Lo spostamento forzato: il GM chiude l'avviso.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -58050,7 +58054,9 @@
       "currentImplementationOwner": [
         "src/phb2014SpellRules.js",
         "src/effectSaveReminderCore.js",
-        "src/reminderResolutionCore.js"
+        "src/reminderResolutionCore.js",
+        "src/pcAttackCore.js",
+        "src/pcAttackExecution.js"
       ],
       "mechanicsRequired": [
         "Condizione/istanza presenti; mantenimento per azione e terminazione contestuale non hanno policy dichiarativa completa. Range/LOS/danno di terzi restano verifiche GM con un evento condiviso esplicito."
@@ -58141,7 +58147,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "CAP-LINK, primo lotto (2026-10-22): a fine turno il caster conferma «Entro 9 m» o «Termina»; attacco ad altri e danno degli alleati: fine a mano.",
+        "reason": "CAP-LINK, secondo lotto (2026-10-22): a fine turno il caster conferma «Entro 9 m» o «Termina»; dalla console attacchi il duello finisce quando il caster attacca un'altra creatura o una creatura alleata del caster danneggia il bersaglio. Incantesimi ostili su altri: a mano.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62744,6 +62750,10 @@
     {
       "date": "2026-10-22",
       "note": "CAP-LINK, primo lotto: 7 incantesimi completi. Spostamento del marchio (replaceSpellTargets con le pill del lancio, promemoria quando il bersaglio è a 0 PF) per Marchio del cacciatore e Sortilegio; azione ripetuta di Dardo stregato; scelte del caster per Corona di follia e Duello obbligato; fine per bersaglio di Invisibilità. Lama roboante resta al secondo lotto."
+    },
+    {
+      "date": "2026-10-22",
+      "note": "CAP-LINK, secondo lotto: Lama roboante completa (avviso di movimento con i danni da tuono). Fine automatica di Invisibilità quando il portatore attacca dalla console attacchi; Duello obbligato finisce quando il caster attacca un'altra creatura o un suo alleato danneggia il bersaglio. CAP-LINK chiusa."
     }
   ]
 }

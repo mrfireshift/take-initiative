@@ -135,3 +135,68 @@ test("Witch Bolt's action is offered at the start of the caster's next turns", (
   assert.equal(request.kind, "action");
   assert.equal(request.payload.actionId, "witch-bolt-repeat");
 });
+
+// Second batch: the links an event ends by itself.
+import { planBoomingBladeMovementNotices } from "../src/compulsionMovementReminderCore.js";
+import { buildReminderResolutionPlan } from "../src/reminderResolutionCore.js";
+import { buildPcAttackMutation, pcAttackLinkEnds } from "../src/pcAttackCore.js";
+import { damageDefensesForItem } from "../src/damageDefensesCore.js";
+
+const STATE = "com.thebigpicture.initiative/state";
+const moved = (id) => [{ flags: { movement: true }, after: { item: { id } } }];
+
+test("Booming Blade: the creature with the pill moves in its turn; the GM's damage ends the pill and the spell", () => {
+  const pill = { id: "bb-pill", condition: "Movimento: danni tuono", active: true, effectId: "movement-triggered-thunder-damage",
+    sourceId: "caster", parentEffectId: "bb-1", mechanics: { movementDamage: { dice: "2d8", type: "tuono" } } };
+  const target = { id: "target", name: "Orco", layer: "CHARACTER", metadata: { [META]: { hp: 30, hpMax: 30, conditions: [pill] } } };
+  const initiativeState = { order: ["caster", "target"], current: 1, round: 2 };
+  const notices = planBoomingBladeMovementNotices({ items: [target], changedRecords: moved("target"), initiativeState });
+  assert.equal(notices.length, 1);
+  assert.match(notices[0].instruction, /2d8 danni da tuono/u);
+  assert.equal(notices[0].resolution.mode, "manual-damage");
+  assert.deepEqual(planBoomingBladeMovementNotices({ items: [target], changedRecords: moved("target"),
+    initiativeState: { ...initiativeState, current: 0 } }), [], "moved outside its own turn: no notice");
+  const caster = { id: "caster", name: "Lama", layer: "CHARACTER", metadata: { [META]: { hp: 20, hpMax: 20 } } };
+  const plan = buildReminderResolutionPlan({ notice: notices[0], items: [caster, target], outcome: "confirmed", damageRoll: 9,
+    sceneMetadata: { [STATE]: initiativeState } });
+  assert.equal(plan.status, "ready");
+  const hp = plan.operations.find((operation) => operation.type === "hp:set") || plan.metadataPatches?.find((patch) => patch.fields?.hp);
+  assert.ok(hp, "the thunder damage is applied");
+  assert.ok(plan.operations.some((operation) => operation.type === "condition:remove-instances"
+    && operation.removals.some((removal) => removal.instanceId === "bb-pill")), "the pill goes, and the spell with it");
+});
+
+const creatureItem = (id, attitude, state) => ({ id, name: id, type: "IMAGE", layer: "CHARACTER",
+  metadata: { [META]: { hp: 20, hpMax: 20, inInitiative: true, attitude, conditions: state?.conditions || [], [SPELLS]: state?.spells || [],
+    [CONCENTRATION]: state?.concentrations || {}, initiativeCard: { quickActions: [{ id: "sword", label: "Spada", kind: "attack", range: "melee",
+      components: [{ type: "slashing" }] }] } } } });
+
+test("Invisibility ends when its bearer attacks, in the attack's command; Greater Invisibility goes on", () => {
+  const field = castOnField("invisibility", { targetIds: ["target"] });
+  const rogue = creatureItem("target", "pc", stateOf(field, "target"));
+  const orc = creatureItem("other", "enemy");
+  const ends = pcAttackLinkEnds({ sourceItem: rogue, targetItem: orc });
+  assert.deepEqual(ends.map((end) => [end.itemId, end.spellId]), [["target", "invisibility"]]);
+  const attack = buildPcAttackMutation({ action: rogue.metadata[META].initiativeCard.quickActions[0], sourceItem: rogue, targetItem: orc,
+    outcome: "miss", attackInstanceId: "a1", expectedDefenses: damageDefensesForItem(orc, META) });
+  assert.ok(attack.operations.some((operation) => operation.type === "condition:remove-instances"), "a miss ends it too");
+  assert.equal(attack.causality.linkEnds[0].spellId, "invisibility");
+  // An "Invisibile" pill of another spell is not touched.
+  const greater = creatureItem("target", "pc", { conditions: [{ id: "gi", condition: "Invisibile", active: true, parentEffectId: "gi-1" }],
+    spells: [{ instanceId: "gi-1", spellId: "greater-invisibility" }] });
+  assert.deepEqual(pcAttackLinkEnds({ sourceItem: greater, targetItem: orc }), []);
+});
+
+test("Compelled Duel ends when its caster attacks another creature, or an ally of the caster damages the duel's target", () => {
+  const field = castOnField("phb2014-duello-obbligato", { targetIds: ["target"] });
+  const paladin = creatureItem("caster", "pc", stateOf(field, "caster"));
+  const dueled = creatureItem("target", "enemy", stateOf(field, "target"));
+  const goblin = creatureItem("other", "enemy");
+  assert.deepEqual(pcAttackLinkEnds({ sourceItem: paladin, targetItem: dueled, linkItems: [goblin] }), [], "attacking the duel's target keeps it");
+  assert.deepEqual(pcAttackLinkEnds({ sourceItem: paladin, targetItem: goblin, linkItems: [dueled] }).map((end) => [end.itemId, end.spellId]),
+    [["target", "phb2014-duello-obbligato"]]);
+  const ranger = creatureItem("ranger", "pc");
+  assert.deepEqual(pcAttackLinkEnds({ sourceItem: ranger, targetItem: dueled, linkItems: [paladin], damaged: false }), [], "a miss of an ally keeps it");
+  assert.equal(pcAttackLinkEnds({ sourceItem: ranger, targetItem: dueled, linkItems: [paladin], damaged: true }).length, 1);
+  assert.deepEqual(pcAttackLinkEnds({ sourceItem: goblin, targetItem: dueled, linkItems: [paladin], damaged: true }), [], "an enemy of the caster keeps it");
+});

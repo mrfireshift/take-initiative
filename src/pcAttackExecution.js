@@ -179,6 +179,8 @@ export function createPcAttackRuntime({
       const burstIds=[...new Set((Array.isArray(request.activations)?request.activations:[])
         .flatMap(activation=>Array.isArray(activation?.burstTargetIds)?activation.burstTargetIds:[]).filter(Boolean))];
       const burstItems=burstIds.length?await api.scene.items.getItems(burstIds):[];
+      // CAP-LINK: the creatures whose links this attack may end (a Compelled Duel on another creature).
+      const linkItems=(await api.scene.items.getItems()).filter(item=>isBossActionCreature(item));
       if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri l'attacco.");
       const attackInstanceId=request.attackInstanceId || newId();
       const decisionKey=JSON.stringify({sourceId,actionId,targetId,outcome:request.outcome || "",
@@ -200,7 +202,7 @@ export function createPcAttackRuntime({
           spellId:request.spellId || "",weaponCantrip:request.weaponCantrip || null,secondaryItem:secondaryItem || null,
           expectedSecondaryDefenses:request.expectedSecondaryDefenses,activations:request.activations || [],tempHpItems,
           attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,burstItems,expectedBurstDefenses:request.expectedBurstDefenses || {},
-          spellCast:request.spellCast || null});
+          spellCast:request.spellCast || null,linkItems});
         spendSmiteSlots(scope.item,plan,request.castWithoutSlot===true);
         spendSpellCastSlot(scope.item,plan,request.castWithoutSlot===true);
         draft={decisionKey,plan,options:{...plan.options,...(bossLinkResisted.length?{bossLinkResisted}:{}),

@@ -3,7 +3,7 @@ import {
   EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
   ID,
 } from "./constants.js";
-import { planCompulsionMovementReminderNotices } from "./compulsionMovementReminderCore.js";
+import { planBoomingBladeMovementNotices, planCompulsionMovementReminderNotices } from "./compulsionMovementReminderCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
@@ -21,11 +21,14 @@ async function handleMovement(event) {
   const metadata = await OBR.scene.getMetadata().catch(() => ({}));
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
 
-  const notices = planCompulsionMovementReminderNotices({
+  // Compulsion's forced movement and Booming Blade's thunder (CAP-LINK): the same movement of the creature in turn.
+  const movement = {
     items: event?.allItems,
     changedRecords: event?.changedRecords,
     initiativeState: metadata?.[STATE_KEY] || null,
-  }).filter((notice) => !announcedActivationIds.has(notice.activationId));
+  };
+  const notices = [...planCompulsionMovementReminderNotices(movement), ...planBoomingBladeMovementNotices(movement)]
+    .filter((notice) => !announcedActivationIds.has(notice.activationId));
   if (!notices.length || !isCurrentSceneEpoch(sceneEpoch)) return;
 
   for (const notice of notices) announcedActivationIds.add(notice.activationId);

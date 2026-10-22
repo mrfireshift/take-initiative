@@ -158,6 +158,13 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   fulmine; Corona di follia chiede se il caster mantiene il controllo con
   l'azione, Duello obbligato se resta entro 9 m. Togliere la pill di
   Invisibilità a una creatura (quando attacca o lancia) la termina solo per lei.
+- Dalla console attacchi alcune fini sono automatiche, nello stesso comando
+  dell'attacco (un Annulla le rende): una creatura invisibile per Invisibilità
+  che attacca perde la pill; Duello obbligato finisce quando il caster attacca
+  un'altra creatura o un suo alleato ferisce il bersaglio del duello. Dopo un
+  colpo con Lama roboante, se il bersaglio si muove nel suo turno compare
+  l'avviso con i danni da tuono: conferma per applicarli, o chiudi l'avviso se
+  lo spostamento era forzato.
 
 Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni
 rapide.
