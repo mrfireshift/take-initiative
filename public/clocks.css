@@ -40,14 +40,14 @@ button { color: inherit; }
 .clock-header-spacer { flex: 1; }
 
 .icon-button, .step-button, .primary-button, .quiet-button {
-  border: 1px solid var(--clock-border);
-  background: rgba(15, 23, 42, .58);
+  border: 1px solid var(--obrt-btn-border, rgba(148, 163, 184, .28));
+  background: var(--obrt-btn-bg, rgba(255, 255, 255, .055));
   cursor: pointer;
   transition: background .14s ease, border-color .14s ease, transform .14s ease;
 }
-.icon-button:hover, .step-button:hover, .quiet-button:hover { background: rgba(51, 65, 85, .78); border-color: rgba(255,255,255,.25); }
+.icon-button:hover, .step-button:hover, .quiet-button:hover { background: var(--obrt-btn-bg-hover, rgba(255, 255, 255, .10)); border-color: rgba(255,255,255,.25); }
 .icon-button:active, .step-button:active, .quiet-button:active, .primary-button:active { transform: translateY(1px); }
-.icon-button { height: 32px; min-width: 32px; padding: 0 9px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.icon-button { height: var(--obrt-btn-height, 32px); min-width: var(--obrt-btn-height, 32px); padding: 0 9px; border-radius: var(--obrt-btn-radius, 8px); font-size: 11px; font-weight: 700; }
 .clock-header .icon-button {
   flex: 0 0 18px;
   width: 18px !important;
@@ -62,10 +62,11 @@ button { color: inherit; }
   font-weight: 500;
   line-height: 16px;
 }
-.primary-button { min-height: 36px; padding: 0 14px; border-color: rgba(96,165,250,.72); background: linear-gradient(180deg, #2563eb, #1d4ed8); border-radius: 10px; font-weight: 700; }
-.primary-button:hover { background: linear-gradient(180deg, #3b82f6, #2563eb); }
-.quiet-button { min-height: 28px; padding: 0 9px; border-radius: 8px; color: #dbe4f0; font-size: 11px; font-weight: 600; }
-.quiet-button.danger { color: #fecaca; border-color: rgba(248,113,113,.35); }
+.primary-button { min-height: var(--obrt-btn-height-lg, 36px); padding: 0 14px; border-color: var(--obrt-btn-primary-border, rgba(255, 255, 255, .20)); background: var(--obrt-btn-primary-bg, #2563eb); border-radius: var(--obrt-btn-radius, 8px); font-weight: 700; }
+.primary-button:hover { background: var(--obrt-btn-primary-bg-hover, #1d4ed8); }
+.quiet-button { min-height: 28px; padding: 0 9px; border-radius: var(--obrt-btn-radius, 8px); color: #dbe4f0; font-size: 11px; font-weight: 600; }
+.quiet-button.danger { color: var(--obrt-btn-danger-text, #fecaca); border-color: var(--obrt-btn-danger-border, rgba(248, 113, 113, .42)); background: var(--obrt-btn-danger-bg, rgba(220, 38, 38, .28)); }
+.quiet-button.danger:hover { background: var(--obrt-btn-danger-bg-hover, rgba(220, 38, 38, .46)); }
 
 .clock-create {
   flex: 0 0 auto;

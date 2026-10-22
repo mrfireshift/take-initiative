@@ -252,7 +252,8 @@ Può partire subito dopo la fase 2, in parallelo alle fasi 3 e 4: tocca file div
   - **Migrazione senza rinominare:** le classi esistenti leggono i token, così markup, JavaScript e test non cambiano. Classi coinvolte: console effetti (`.small`, `.apply`), Condizioni (`.effects-btn`, `-primary`, `-danger`), Incantesimi (base comune, `.unified-primary-button`). Le varianti di significato restano locali: per esempio il pulsante Applica rosso per il danno e verde per la cura.
   - **Verifica (valori calcolati nell'anteprima):** base con raggio 8px, bordo grigio al 28% e sfondo bianco al 5,5%, uguale nelle tre pagine; primario blu `#2563eb`, bordo bianco al 20%, grassetto; pericolo rosso tenue, uguale ovunque.
   - "Rimuovi selezionati" disabilitato ha opacità 0,5 scritta dal codice (`effects-modal.ts`) invece di 0,48: differenza trascurabile, lasciata.
-  - Le altre pagine (opzioni, orologi, aure, avvisi) si migrano con lo stesso metodo in un lotto successivo.
+  - **Esteso** (stesso giorno) a Opzioni (`options-modal.css`), Orologi (`clocks.css`) e Aure (`custom-aura.css`): base, primario (non più sfumato) e pericolo leggono i token, con valori di riserva nei `var()`. Verifica: "Annulla"/"Salva opzioni", "Crea" dell'orologio e "+ Nuova aura" hanno gli stessi valori degli altri pannelli. Nelle Aure il bottone disabilitato non diventa più grigio pieno, ma usa la stessa opacità degli altri.
+  - **Avvisi** (turn-notice, concentration-warning): i loro bottoni sono mini-controlli alti 19px con testo a 8,5px e il colore dell'avviso. Per ora condividono solo l'opacità da disabilitato; misure e testo a 10px vanno nel lotto 5.3.
 
 ### Fase 6 — Flussi e riduzione dei clic (gruppo B)
 
