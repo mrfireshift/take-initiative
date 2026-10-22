@@ -389,6 +389,10 @@ export async function executeSpellUnifiedLifecycle({
         : { visualSceneEpoch: runtime.visualSceneEpoch }),
       ...(runtime.sceneIdentity ? { sceneIdentity: runtime.sceneIdentity } : {}),
       ...(runtime.commandId ? { commandId: runtime.commandId } : {}),
+      // Committed with the spell, in the same command (the spell slot spent: spellSlotSpendCore.js).
+      ...(Array.isArray(runtime.extraOperations) && runtime.extraOperations.length
+        ? { extraOperations: runtime.extraOperations }
+        : {}),
     };
   } catch (error) {
     const normalized = normalizedError(error, "session-incomplete");

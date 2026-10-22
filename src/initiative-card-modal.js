@@ -45,6 +45,7 @@ import {
   spellbookSearchOptions,
   spellbookSpell,
 } from "./spellbookCatalog.js";
+import { spellSlotStatus } from "./spellSlotCore.js";
 import {
   SHEET_IMPORT_LIST_SECTIONS,
   SHEET_IMPORT_SECTIONS,
@@ -707,10 +708,17 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
       action,
       sourceItem: item,
       confirmConcentration: (message) => window.confirm(message),
+      confirmSpellSlot: (message) => window.confirm(message),
     });
     if (!sceneStillCurrent()) return;
     if (result.mode === "executed") {
-      setStatus(`Applicata: ${action.label}.`, "success");
+      setStatus(`Applicata: ${action.label}${result.spellSlot ? ` · speso uno ${result.spellSlot}` : ""}.`, "success");
+      // The token changed while the launch held the renders back: the slot pips read it again.
+      if (result.spellSlot) {
+        await refreshClassFeatureItem();
+        if (!sceneStillCurrent()) return;
+        renderSpellSlots();
+      }
       quickActionLaunching = false;
       setButtonsDisabled(false);
       return;
@@ -858,8 +866,71 @@ function spellbookSpellSummary(spell, cantripAttack) {
   return parts.join(" · ");
 }
 
+// Spell slots: one row of pips per level, Pact Magic last. A filled pip is an available slot; the GM clicks a
+// pip to spend from it onward or to restore up to it, through the class-feature resources (History, Undo).
+function renderSpellSlots() {
+  const rows = item && profile ? spellSlotStatus(profile.characterBuild, getClassFeatureState(item).resources) : [];
+  const block = $("spellSlots");
+  block.hidden = rows.length === 0;
+  block.replaceChildren(...rows.map((row) => {
+    const line = document.createElement("div");
+    line.className = "spell-slot-row";
+    const label = document.createElement("span");
+    label.textContent = row.pact ? `Patto ${row.level}°` : `${row.level}° livello`;
+    const pips = document.createElement("span");
+    pips.className = "spell-slot-pips";
+    const name = row.pact ? `slot del Patto (${row.level}°)` : `slot di ${row.level}° livello`;
+    for (let index = 0; index < row.maximum; index += 1) {
+      const available = index < row.current;
+      const pip = document.createElement(isGM ? "button" : "span");
+      pip.className = "spell-slot-pip";
+      pip.dataset.available = available ? "1" : "0";
+      if (row.pact) pip.dataset.pact = "1";
+      if (isGM) {
+        const next = available ? index : index + 1;
+        pip.type = "button";
+        pip.disabled = classFeatureMutating;
+        pip.title = `${available ? "Spendi" : "Ripristina"}: ${name}, ne restano ${next} su ${row.maximum}`;
+        pip.setAttribute("aria-label", pip.title);
+        pip.addEventListener("click", () => void setSpellSlotCurrent(row.poolId, next, name));
+      }
+      pips.appendChild(pip);
+    }
+    const count = document.createElement("span");
+    count.textContent = `${row.current}/${row.maximum}`;
+    line.append(label, pips, count);
+    return line;
+  }));
+}
+
+async function setSpellSlotCurrent(poolId, current, name) {
+  const sceneOperation = sceneLifecycle.capture({ operationId: `initiative-spell-slot:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(sceneOperation) || !isGM || !item || classFeatureMutating) return;
+  classFeatureMutating = true;
+  const status = $("spellbookRunStatus");
+  status.textContent = "Aggiornamento…";
+  status.dataset.tone = "";
+  renderSpellSlots();
+  try {
+    await adjustClassFeatureResource(item.id, poolId, { current });
+    if (!sceneLifecycle.isCurrent(sceneOperation)) throw new Error("Scena cambiata: riapri la scheda.");
+    await refreshClassFeatureItem();
+    if (!sceneLifecycle.isCurrent(sceneOperation)) throw new Error("Scena cambiata: riapri la scheda.");
+    status.textContent = `Aggiornato: ${name}.`;
+    status.dataset.tone = "success";
+  } catch (error) {
+    console.warn("[initiative-card] spell slot:", error?.message || error);
+    status.textContent = error?.message || "Aggiornamento non riuscito.";
+    status.dataset.tone = "error";
+  } finally {
+    classFeatureMutating = false;
+    if (sceneLifecycle.isReady()) renderSpellSlots();
+  }
+}
+
 function renderSpellbook() {
   const spellbook = sanitizeSpellbook(profile?.[SPELLBOOK_FIELD]);
+  renderSpellSlots();
   setSpellbookTabCount(spellbook.spellIds.length);
   $("spellbookSaveDC").textContent = valueText(profile?.spellSaveDC);
   $("spellbookAttackBonus").textContent = signedText(profile?.spellAttackBonus);

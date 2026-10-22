@@ -74,6 +74,13 @@ Il pannello **Incantesimi** consente di scegliere l'incantesimo, l'incantatore,
 lo slot, la durata e gli eventuali bersagli. Quando previsto, espone anche la
 scelta dell'effetto e le azioni successive.
 
+Per un incantatore con classi sulla scheda, il lancio spende uno slot nello
+stesso comando dell'incantesimo, così l'Undo li annulla insieme: il menu
+**Slot** mostra quanti ne restano per livello e **Spendi** sceglie la Magia
+del Patto o nessuno slot. Le fasi successive (risoluzioni preparate, azioni
+attive, trigger di zona) non spendono slot. Le regole sono in
+`src/spellSlotSpendCore.js`.
+
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la
 **Console effetti ad area**. Dal registro il GM può:

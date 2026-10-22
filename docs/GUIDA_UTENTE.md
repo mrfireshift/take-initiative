@@ -87,8 +87,32 @@ pulsante ⚡ sulla card del tracker.
   c'è un'azione Trucchetto; gli incantesimi che il plugin non lancia restano
   in elenco come riferimento.
 
-Gli slot non vengono ancora contati. Gli incantesimi concessi da talenti,
-specie o oggetti restano nelle Azioni rapide.
+Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni
+rapide.
+
+#### Slot incantesimo
+
+Gli slot si ricavano da classi e livelli della scheda: incantatori pieni,
+mezzi incantatori (paladino, ranger), Cavaliere Mistico e Mistificatore
+Arcano, con la regola del multiclasse; la Magia del Patto del warlock resta a
+parte. La scheda Incantesimi li mostra come pallini, uno per slot
+disponibile: il GM clicca un pallino per segnare uno slot speso o
+ripristinarlo, con Undo.
+
+Un lancio dalla scheda, dal pulsante ⚡ o dal pannello incantesimi spende lo
+slot nello stesso comando dell'incantesimo: un solo Undo li annulla entrambi.
+
+- Si spende uno slot del livello scelto; un warlock usa la Magia del Patto,
+  al livello dei suoi slot.
+- Nel pannello, il menu **Slot** mostra quanti ne restano per livello e il
+  menu **Spendi** sceglie la Magia del Patto o **Senza slot** (rituale,
+  lancio gratuito).
+- Senza slot disponibili il plugin chiede se lanciare comunque senza
+  scalarne uno.
+- Trucchetti, risoluzioni successive, azioni attive, trigger di zona e
+  creature senza classi non spendono slot.
+
+**Ripristina risorse** riporta al massimo anche gli slot.
 
 ### Importare una scheda
 

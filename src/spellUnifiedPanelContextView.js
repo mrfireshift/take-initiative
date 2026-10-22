@@ -65,6 +65,22 @@ export function renderWorkflowContextBar(documentRef, model, callbacks = {}) {
       invalid: model.workflow.validation.firstInvalidField === "slot-level",
     }));
   }
+  // Which of the caster's slots the cast spends (spell-unified-panel.js, spellSlotSpendCore.js).
+  if (context.slotSpend?.visible) {
+    const select = createSelect(documentRef, {
+      id: "spell-unified-slot-spend",
+      options: context.slotSpend.options,
+      value: context.slotSpend.value,
+      attributes: { "data-field": "slot-spend" },
+    });
+    select.addEventListener("change", (event) => callbacks.onSlotSourceChange?.(event.target.value));
+    grid.append(createField(documentRef, {
+      id: select.id,
+      label: context.slotSpend.label,
+      control: select,
+      hint: "",
+    }));
+  }
   if (context.duration.visible) {
     const input = createNode(documentRef, "input", {
       id: "spell-unified-duration",

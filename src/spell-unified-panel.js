@@ -45,6 +45,12 @@ import {
   getSpellDefinition,
 } from "./spells-srd.js";
 import {
+  planSpellSlotSpend,
+  spellSlotChoices,
+  spellSlotLabel,
+  spellSlotSpendOperation,
+} from "./spellSlotSpendCore.js";
+import {
   buildSpellCatalogEntries,
   createSpellUnifiedPanelSceneProvider,
 } from "./spellUnifiedPanelSceneProvider.js";
@@ -323,6 +329,8 @@ function initialState(contract, catalogEntries, sourceId, route = {}) {
     }),
     catalogEntries,
     casters: [],
+    // Which slot the cast spends: "" the rules' pick, "pact" Pact Magic, "none" no slot (spellSlotSpendCore.js).
+    slotSource: "",
     targetCandidates: [],
     teleportPassengerCandidateIds: [],
     concentrationSummary: [],
@@ -439,6 +447,79 @@ export function bootSpellUnifiedPanel(
     });
   };
 
+  // Spell slots (spellSlotSpendCore.js). A cast spends one only at its cast or prepare phase: never for an
+  // active action, a zone trigger or a monster action.
+  const slotSpendApplies = () => !state.session?.triggerRuntime
+    && !String(state.session?.activeActionId || "").trim()
+    && !state.session?.monsterActionContext;
+
+  // The Slot menu shows what the caster has left at each level; "Spendi" picks Pact Magic or no slot (a
+  // ritual, a free cast). Hidden for a caster without slots.
+  const decorateSpellSlotControls = (model) => {
+    const slot = model?.context?.slot;
+    if (!slot) return;
+    const caster = state.casters.find((item) => item.id === state.session?.casterId);
+    const meta = caster?.metadata?.[`${ID}/meta`] || {};
+    const choices = slotSpendApplies()
+      ? spellSlotChoices({
+        characterBuild: meta.initiativeCard?.characterBuild,
+        resources: meta.classFeatureState?.resources,
+        spellLevel: getSpellDefinition(state.contract?.spell?.id)?.level,
+      })
+      : [];
+    if (!choices.length) {
+      model.context.slotSpend = { visible: false };
+      return;
+    }
+    const standard = new Map(choices.filter((choice) => !choice.pact).map((choice) => [choice.value, choice]));
+    slot.options = slot.options.map((option) => {
+      const choice = standard.get(String(option.value));
+      return choice ? { ...option, label: `${option.label} · ${choice.current}/${choice.maximum}` } : option;
+    });
+    const pact = choices.find((choice) => choice.pact);
+    model.context.slotSpend = {
+      visible: slot.visible === true,
+      label: "Spendi",
+      value: state.slotSource,
+      options: [
+        { value: "", label: "Automatico" },
+        ...(pact ? [{ value: "pact", label: pact.label }] : []),
+        { value: "none", label: "Senza slot" },
+      ],
+    };
+  };
+
+  // Reads the caster again and returns the operations that spend its slot with the cast; null when the GM
+  // cancels a cast without slots left.
+  const prepareSpellSlotSpend = async (operation) => {
+    if (!slotSpendApplies()) return { extraOperations: [] };
+    const spell = getSpellDefinition(state.contract?.spell?.id);
+    const [caster] = await OBR.scene.items.getItems([state.session.casterId]).catch(() => []);
+    if (!sceneLifecycle.isCurrent(operation)) return null;
+    const meta = caster?.metadata?.[`${ID}/meta`] || {};
+    const plan = planSpellSlotSpend({
+      characterBuild: meta.initiativeCard?.characterBuild,
+      resources: meta.classFeatureState?.resources,
+      spellLevel: spell?.level,
+      slotLevel: state.session.slotLevel,
+      source: state.slotSource,
+      phase: state.session.phase,
+    });
+    if (plan.exhausted && !window.confirm(`${plan.message}\n\nLanciare comunque senza scalare uno slot?`)) {
+      patchSession({ feedback: { state: "info", message: "Lancio annullato: nessuno slot disponibile." } }, { clearFeedback: false });
+      return null;
+    }
+    const spend = plan.spend
+      ? spellSlotSpendOperation({
+        sourceId: caster.id,
+        poolId: plan.spend.poolId,
+        characterBuild: meta.initiativeCard?.characterBuild,
+        abilityModifiers: meta.initiativeCard?.abilityModifiers || null,
+      })
+      : null;
+    return { extraOperations: spend ? [spend] : [], spellSlot: spellSlotLabel(plan.spend) };
+  };
+
   const render = () => {
     if (destroyed) return null;
     const model = buildUnifiedPanelViewModel({
@@ -457,6 +538,7 @@ export function bootSpellUnifiedPanel(
       concentrationSummary: state.concentrationSummary,
       activeOverview: state.activeOverview,
     });
+    decorateSpellSlotControls(model);
     state.model = model;
     renderSpellUnifiedPanel(documentRef, root, model, callbacks);
     if (state.focusCatalog) {
@@ -1607,8 +1689,13 @@ export function bootSpellUnifiedPanel(
       }
       if (!sceneLifecycle.isCurrent(operation)) return;
     }
+    const slotSpend = await prepareSpellSlotSpend(operation);
+    if (!slotSpend) return;
     state.committing = true;
-    const runtime = areaRuntime(operation, ownerSceneContext);
+    const runtime = {
+      ...areaRuntime(operation, ownerSceneContext),
+      extraOperations: slotSpend.extraOperations,
+    };
     const sceneEpoch = operation.epoch;
     state.session = updateSpellPanelSession(state.session, {
       commitState: { state: "committing" },
@@ -2598,6 +2685,8 @@ export function bootSpellUnifiedPanel(
       }
       if (!sceneLifecycle.isCurrent(operation)) return;
     }
+    const slotSpend = await prepareSpellSlotSpend(operation);
+    if (!slotSpend) return;
     state.committing = true;
     state.session = updateSpellPanelSession(state.session, {
       commitState: { state: "committing" },
@@ -2626,6 +2715,7 @@ export function bootSpellUnifiedPanel(
           ...(runtimeOverrides.lifecycleExecutor
             ? { executor: runtimeOverrides.lifecycleExecutor }
             : {}),
+          extraOperations: slotSpend.extraOperations,
       },
     });
     if (!sceneLifecycle.isCurrent(operation)) return;
@@ -2795,6 +2885,11 @@ export function bootSpellUnifiedPanel(
     onPassengerChange: async (passengerId) => {
       if (!isTeleportSpell(state.contract?.spell?.id)) return;
       await applyTeleportPassengerSelection(passengerId ? [passengerId] : []);
+    },
+    onSlotSourceChange: (value) => {
+      state.slotSource = ["pact", "none"].includes(value) ? value : "";
+      state.revision += 1;
+      render();
     },
     onSlotChange: (value) => {
       const slotLevel = numeric(value);

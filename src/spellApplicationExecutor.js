@@ -1992,6 +1992,8 @@ export async function executeSpellApplication({
   primaryTargetId = "",
   manualAttackOutcomeRequired = false,
   ignoreTargetLimit = false,
+  // Operations committed with the spell in the same command and History entry (the spell slot spent).
+  extraOperations = [],
 } = {}) {
   const matchedVisualSceneEpoch = Number.isInteger(visualSceneEpoch)
     ? visualSceneEpoch
@@ -2118,6 +2120,7 @@ export async function executeSpellApplication({
   const applicationOperations = [
     ...scopeBanishmentOperations(applicationPlan.operations, banishmentEligibleTargetIds),
     ...initialDamageMutation.operations,
+    ...(Array.isArray(extraOperations) ? extraOperations : []),
   ];
   const removeReplacedZones = intent.wantsConcentration
     && applicationPlan.concentrationAction === "replace"

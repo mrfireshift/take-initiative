@@ -14,6 +14,7 @@ import {
   classFeatureResourceCostUsesActiveParent,
 } from "./classFeatureCore.js";
 import { SPECIES_FEATURES, SPECIES_RESOURCE_POOLS, speciesFeaturesForProfile } from "./speciesTraitCore.js";
+import { SPELL_SLOT_RESOURCE_POOLS } from "./spellSlotCore.js";
 
 export { classFeatureIsReferenceOnly, classFeatureRuntimeSupport };
 
@@ -36,8 +37,10 @@ export const CLASS_FEATURE_RESOURCE_POOLS = Object.freeze(
 export const CLASS_FEATURE_BY_ID = new Map(
   [...CLASS_FEATURES, ...SPECIES_FEATURES].map((feature) => [feature.id, feature])
 );
+// Spell slot pools resolve by id too, for the state operations and the resource reset; like the species
+// pools they stay out of CLASS_FEATURE_RESOURCE_POOLS and its audits.
 export const CLASS_FEATURE_RESOURCE_POOL_BY_ID = new Map(
-  [...CLASS_FEATURE_RESOURCE_POOLS, ...SPECIES_RESOURCE_POOLS].map((pool) => [pool.id, pool])
+  [...CLASS_FEATURE_RESOURCE_POOLS, ...SPECIES_RESOURCE_POOLS, ...SPELL_SLOT_RESOURCE_POOLS].map((pool) => [pool.id, pool])
 );
 
 export function getClassFeatureDefinition(featureId) {

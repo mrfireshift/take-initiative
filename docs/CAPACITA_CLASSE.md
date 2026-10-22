@@ -158,8 +158,12 @@ esclusione, è nel catalogo JSON e nei test `test/*FeatureRuntime.test.js`.
   esito non vengono applicati senza conferma quando la regola lo richiede;
 - le capacità `not-automated` sono un riferimento descrittivo o un promemoria
   per la gestione al tavolo;
-- la gestione delle capacità non sostituisce l'inventario degli slot o il
-  registro delle decisioni del tavolo;
+- gli slot incantesimo sono pool di risorse ricavati dalla build
+  (`src/spellSlotCore.js`) e si spendono nel comando del lancio; le capacità
+  che creano, convertono o recuperano slot non li aggiornano ancora: si
+  correggono a mano dai pallini della scheda Incantesimi;
+- la gestione delle capacità non sostituisce il registro delle decisioni del
+  tavolo;
 - le aure rispettano le categorie di bersaglio dichiarate dalla capacità e non
   diventano automaticamente un effetto su ogni token della scena.
 

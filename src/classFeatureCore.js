@@ -1,6 +1,7 @@
 import { gridPlanarDistance } from "./distance3dCore.js";
 import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
 import { abilityModifier } from "./abilityModifiersCore.js";
+import { SPELL_SLOT_CAPACITY_TYPE, spellSlotPoolMaximum } from "./spellSlotCore.js";
 
 export const CLASS_FEATURE_STATE_FIELD = "classFeatureState";
 export const CLASS_FEATURE_STATE_VERSION = 1;
@@ -402,6 +403,10 @@ function abilityModifierFormulaValue(expression, characterBuild, abilityModifier
 export function resolveClassFeatureResourceMaximum(pool, characterBuild, abilityModifiers = null) {
   if (!pool || typeof pool !== "object") {
     return { maximum: null, unlimited: false };
+  }
+  // Spell slots (spellSlotCore.js): the maximum comes from the whole build, not from one class.
+  if (pool.capacity?.type === SPELL_SLOT_CAPACITY_TYPE) {
+    return { maximum: spellSlotPoolMaximum(pool, characterBuild), unlimited: false };
   }
   const capacity = pool.capacity && typeof pool.capacity === "object"
     ? pool.capacity

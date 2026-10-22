@@ -1711,6 +1711,8 @@ async function buildPlan(command, runtime) {
     ...sharedHpScopeIds(allItems, ids),
     ...effectSubjectIds,
     ...(bossActionUse ? [casterId] : []),
+    // The spell slot spent with the cast: the caster's entry keeps the History even when the area is empty.
+    ...(Array.isArray(runtime.extraOperations) && runtime.extraOperations.length && casterId ? [casterId] : []),
     ...(command?.source?.kind === "prepared-resolution" && casterId ? [casterId] : []),
     ...(cloudPlacement || teleportRule ? teleportSubjectIds : []),
     ...await runtime.getZeroHPConditionHistoryIds(ids),
@@ -2072,7 +2074,10 @@ export async function executeSpellAreaResolution(
     effectOperations,
     spellBoardTokenSideEffects,
   } = plan;
-  if (!entries.length && !effectOperations.length
+  // Committed with the spell, in the same command (the spell slot spent: spellSlotSpendCore.js). A slot is
+  // spent even when the area catches nobody.
+  const extraOperations = Array.isArray(runtime.extraOperations) ? runtime.extraOperations : [];
+  if (!entries.length && !effectOperations.length && !extraOperations.length
     && !plan.nextStaticZoneItems.length && !plan.requestedZoneTrigger
     && !spellBoardTokenSideEffects.length
     && !plan.fireballVisualContext
@@ -2143,6 +2148,7 @@ export async function executeSpellAreaResolution(
           removals: plan.damageEndsRemovals,
         }] : []),
         ...effectOperations,
+        ...extraOperations,
       ];
       const coordinatedSideEffects = spellBoardTokenSideEffects;
       const mutation = await runtime.runEffectsMutation(operations, {
@@ -2263,6 +2269,7 @@ export async function executeSpellAreaResolution(
             removals: plan.damageEndsRemovals,
           }] : []),
           ...effectOperations,
+          ...extraOperations,
         ];
         const zoneTriggerSideEffects = plan.requestedZoneTrigger
           ? zoneTriggerConsumeSideEffects(plan.requestedZoneTrigger, plan.triggerRootItems)

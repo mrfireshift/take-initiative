@@ -139,6 +139,17 @@
     .quick-action-run-status[data-tone="error"] { color:#fca5a5; }
     .spellbook-summary { display:flex; gap:14px; padding:7px 10px; border-radius:7px; color:rgba(255,255,255,.68); font-size:var(--obrt-type-secondary); background:linear-gradient(145deg,rgba(var(--faction-rgb),.065),rgba(7,12,19,.28)); border:1px solid rgba(var(--faction-rgb),.20); }
     .spellbook-summary strong { color:var(--accent-bright); font-variant-numeric:tabular-nums; }
+    .spell-slots { display:grid; gap:4px; margin-top:7px; padding:7px 10px; border-radius:7px; background:linear-gradient(145deg,rgba(var(--faction-rgb),.065),rgba(7,12,19,.28)); border:1px solid rgba(var(--faction-rgb),.20); }
+    .spell-slots[hidden] { display:none; }
+    .spell-slot-row { display:grid; grid-template-columns:62px minmax(0,1fr) auto; gap:8px; align-items:center; min-height:20px; }
+    .spell-slot-row > span:first-child { color:rgba(255,255,255,.68); font-size:var(--obrt-type-secondary); }
+    .spell-slot-row > span:last-child { color:var(--accent-bright); font-size:10px; font-variant-numeric:tabular-nums; }
+    .spell-slot-pips { display:flex; flex-wrap:wrap; gap:4px; }
+    .spell-slot-pip { width:14px; height:14px; min-height:14px; padding:0; border-radius:50%; border:1px solid rgba(var(--faction-rgb),.65); background:transparent; }
+    .spell-slot-pip[data-available="1"] { background:var(--accent); box-shadow:0 0 6px var(--accent-soft); }
+    .spell-slot-pip[data-pact="1"] { border-color:#c084fc; }
+    .spell-slot-pip[data-pact="1"][data-available="1"] { background:#a855f7; box-shadow:0 0 6px rgba(168,85,247,.55); }
+    span.spell-slot-pip { display:inline-block; box-sizing:border-box; }
     .spellbook-list .section-title { margin:12px 0 0; }
     .spellbook-list .quick-actions-list { grid-template-columns:minmax(0,1fr); gap:5px; }
     .spellbook-list .quick-action { min-height:36px; padding:5px 9px; }
@@ -390,6 +401,7 @@
         <span>CD <strong id="spellbookSaveDC">-</strong></span>
         <span>Attacco <strong id="spellbookAttackBonus">-</strong></span>
       </div>
+      <div id="spellSlots" class="spell-slots" hidden></div>
       <div id="spellbookList" class="spellbook-list"></div>
       <div id="spellbookRunStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
     </section>

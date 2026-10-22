@@ -8152,6 +8152,7 @@ async function __runTrackerQuickAction(sourceEntry, action) {
     action,
     sourceItem: { id: sourceId, name: sourceEntry?.name || "" },
     confirmConcentration: (message) => window.confirm(message),
+    confirmSpellSlot: (message) => window.confirm(message),
   });
   if (result.mode === "invalid") return result;
   if (result.mode !== "review") return result;

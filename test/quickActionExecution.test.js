@@ -168,3 +168,65 @@ test("un attacco non viene mai eseguito direttamente: va risolto nella sua conso
   assert.deepEqual(result, { mode: "review", kind: "attack", reason: "attack-requires-resolution" });
   assert.equal(areaCalls.length, 0);
 });
+
+function withBuild(characterBuild, resources = null) {
+  const caster = sceneItems.get("caster");
+  caster.metadata[META_KEY].initiativeCard = { characterBuild };
+  if (resources) caster.metadata[META_KEY].classFeatureState = { version: 1, resources, instances: [] };
+}
+
+test("a caster with slots spends one in the spell's own command", async () => {
+  resetScene();
+  withBuild([{ classId: "mago", level: 9 }]);
+  const result = await executeDirectQuickAction({
+    action: action(5),
+    sourceItem: sceneItems.get("caster"),
+    selectedTargetIds: ["target-a"],
+  });
+  assert.equal(result.mode, "executed");
+  assert.equal(result.spellSlot, "slot di 5° livello");
+  const [operation] = areaCalls[0].runtime.extraOperations;
+  assert.equal(operation.type, "class-feature:adjust-resource");
+  assert.equal(operation.sourceId, "caster");
+  assert.equal(operation.pool.id, "spell-slot-5");
+});
+
+test("with no slot left the GM confirms the cast without a slot, or cancels it", async () => {
+  resetScene();
+  withBuild([{ classId: "mago", level: 9 }], { "spell-slot-5": { current: 0, maximum: 1 } });
+  const asked = [];
+  const cancelled = await executeDirectQuickAction({
+    action: action(5),
+    sourceItem: sceneItems.get("caster"),
+    selectedTargetIds: ["target-a"],
+    confirmSpellSlot: (message) => { asked.push(message); return false; },
+  });
+  assert.equal(cancelled.mode, "cancelled");
+  assert.equal(cancelled.reason, "spell-slot-cancelled");
+  assert.equal(areaCalls.length, 0);
+  assert.match(asked[0], /Nessuno slot di 5° livello disponibile/);
+
+  const confirmed = await executeDirectQuickAction({
+    action: action(5),
+    sourceItem: sceneItems.get("caster"),
+    selectedTargetIds: ["target-a"],
+    confirmSpellSlot: () => true,
+  });
+  assert.equal(confirmed.mode, "executed");
+  assert.equal(confirmed.spellSlot, "");
+  assert.deepEqual(areaCalls[0].runtime.extraOperations, []);
+});
+
+test("a warlock spends a Pact Magic slot and casts at its level", async () => {
+  resetScene();
+  withBuild([{ classId: "warlock", level: 9 }]);
+  const result = await executeDirectQuickAction({
+    action: action(null),
+    sourceItem: sceneItems.get("caster"),
+    selectedTargetIds: ["target-a"],
+  });
+  assert.equal(result.mode, "executed");
+  assert.equal(result.spellSlot, "slot del Patto (5°)");
+  assert.equal(areaCalls[0].runtime.extraOperations[0].pool.id, "spell-slot-pact");
+  assert.equal(areaCalls[0].session.slotLevel, 5);
+});

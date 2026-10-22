@@ -22,6 +22,11 @@ import {
   validateSpellAreaSceneSpatial,
 } from "./spellUnifiedPanelSceneProvider.js";
 import { getSpellDefinition } from "./spells-srd.js";
+import {
+  planSpellSlotSpend,
+  spellSlotLabel,
+  spellSlotSpendOperation,
+} from "./spellSlotSpendCore.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -30,6 +35,8 @@ export async function executeDirectQuickAction({
   sourceItem = null,
   selectedTargetIds = null,
   confirmConcentration = null,
+  // Asked when the caster has spell slots but none left for this cast: true casts without spending one.
+  confirmSpellSlot = null,
 } = {}) {
   const sceneEpoch = currentSceneEpoch();
   const normalized = sanitizeQuickAction(action);
@@ -117,10 +124,47 @@ export async function executeDirectQuickAction({
     return { ...decision, mode: "executed", changedIds };
   }
 
+  // The spell slot (spellSlotCore.js): spent in the spell's own command, so one Undo gives both back. A Pact
+  // Magic slot casts the spell at its own level.
+  const sourceMeta = freshSource.metadata?.[META_KEY] || {};
+  const slotPlan = planSpellSlotSpend({
+    characterBuild: sourceMeta.initiativeCard?.characterBuild,
+    resources: sourceMeta.classFeatureState?.resources,
+    spellLevel: spell?.level,
+    slotLevel: decision.session?.slotLevel,
+    phase: decision.session?.phase,
+  });
+  if (slotPlan.exhausted) {
+    const message = `${slotPlan.message}\n\nLanciare comunque ${spell?.displayName || spell?.name || decision.spellId} senza scalare uno slot?`;
+    const confirmed = typeof confirmSpellSlot === "function"
+      ? await confirmSpellSlot(message)
+      : false;
+    if (!confirmed) {
+      return { ...decision, mode: "cancelled", reason: "spell-slot-cancelled" };
+    }
+  }
+  const slotOperation = slotPlan.spend
+    ? spellSlotSpendOperation({
+      sourceId: freshSource.id,
+      poolId: slotPlan.spend.poolId,
+      characterBuild: sourceMeta.initiativeCard?.characterBuild,
+      abilityModifiers: sourceMeta.initiativeCard?.abilityModifiers || null,
+    })
+    : null;
+  const extraOperations = slotOperation ? [slotOperation] : [];
+  const spellSlot = spellSlotLabel(slotPlan.spend);
+  const session = slotPlan.spend && slotPlan.slotLevel !== decision.session?.slotLevel
+    ? {
+      ...decision.session,
+      slotLevel: slotPlan.slotLevel,
+      castContext: { ...(decision.session?.castContext || {}), slotLevel: slotPlan.slotLevel },
+    }
+    : decision.session;
+
   if (decision.areaExecution === true) {
     const areaResult = await executeSpellUnifiedArea({
       contract: decision.contract,
-      session: decision.session,
+      session,
       source: { sceneEpoch },
       runtime: {
         spell,
@@ -129,6 +173,7 @@ export async function executeDirectQuickAction({
         getSpatialValidation: (input) => getSpellAreaSpatialValidation(OBR, input),
         validateSpatial: (input) => validateSpellAreaSceneSpatial(OBR, input),
         getInitiativeActorId: async () => (await getCurrentSpellAppliedAt())?.actorId || null,
+        extraOperations,
       },
     });
     if (areaResult.status === "rejected") {
@@ -148,6 +193,7 @@ export async function executeDirectQuickAction({
       mode: "executed",
       changedIds: areaResult.changedIds,
       areaResult,
+      spellSlot,
     };
   }
 
@@ -155,7 +201,7 @@ export async function executeDirectQuickAction({
 
   const lifecycleResult = await executeSpellUnifiedLifecycle({
     contract: decision.contract,
-    session: decision.session,
+    session,
     runtime: {
       spell,
       appliedAt,
@@ -168,6 +214,7 @@ export async function executeDirectQuickAction({
         spell,
       ),
       executor: executeSpellApplication,
+      extraOperations,
     },
   });
   if (lifecycleResult.status === "rejected") {
@@ -196,5 +243,6 @@ export async function executeDirectQuickAction({
     mode: "executed",
     changedIds: lifecycleResult.changedIds,
     lifecycleResult,
+    spellSlot,
   };
 }
