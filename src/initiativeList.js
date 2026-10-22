@@ -1448,6 +1448,18 @@ Object.assign(roundActions.style, {
   boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
 });
 
+// Separates the destructive "Svuota iniziativa" from the options and history in the extended header.
+const roundDangerDivider = document.createElement("span");
+roundDangerDivider.dataset.roundDangerDivider = "1";
+roundDangerDivider.setAttribute("aria-hidden", "true");
+Object.assign(roundDangerDivider.style, {
+  width: "1px",
+  height: "18px",
+  margin: "0 1px",
+  background: "rgba(148,163,184,.34)",
+  flex: "0 0 1px",
+});
+
 const roundHistorySlot = document.createElement("div");
 Object.assign(roundHistorySlot.style, {
   display: "inline-flex",
@@ -3185,7 +3197,7 @@ function applyAdminMenuPresentation(compact) {
     [roundActions.querySelector("[data-add-all-initiative='1']"), "Aggiungi attori", false],
     [roundActions.querySelector("[data-fill-initiative='1']"), "Compila iniziativa", false],
     [roundHistorySlot.querySelector("[data-options-panel='1']"), "Opzioni", false],
-    [roundActions.querySelector("[data-clear-initiative='1']"), "Svuota iniziativa", true],
+    [roundPill.querySelector("[data-clear-initiative='1']"), "Svuota iniziativa", true],
   ];
 
   roundPill.querySelectorAll("[data-admin-menu-label='1']").forEach((label) => {
@@ -3303,6 +3315,7 @@ function applyHeaderLayoutPresentation(compact) {
     paddingLeft: compact ? "0" : "2px",
     borderLeft: "none",
   });
+  roundDangerDivider.style.display = compact ? "none" : "block";
 
   roundPill.querySelectorAll("button").forEach((button) => {
     if (movementReadout.contains(button)) return;
@@ -3324,8 +3337,9 @@ function applyHeaderLayoutPresentation(compact) {
 
   for (const button of [trackerDragHandle, layoutToggleButton, compactMoreButton]) {
     Object.assign(button.style, {
-      marginLeft: classic && !playerClassic && button === layoutToggleButton ? "4px" : "0",
-      marginRight: classic && !playerClassic && button === layoutToggleButton ? "4px" : "0",
+      // No side margins: their 8px make room for "Svuota iniziativa" at the header's end.
+      marginLeft: "0",
+      marginRight: "0",
       alignSelf: "center",
       justifySelf: "center",
       boxSizing: "border-box",
@@ -10721,9 +10735,10 @@ try {
     if (!hasBtn) roundResetSlot.appendChild(makeRoundResetBtn());
     if (!hasAddAllBtn) roundActions.appendChild(makeAddAllInitiativeBtn());
     if (!hasFillBtn) roundActions.appendChild(makeInitiativeFillBtn());
-    if (!hasClearBtn) roundActions.appendChild(makeClearInitiativeBtn());
     if (!hasOptionsBtn) roundHistorySlot.appendChild(optionsPanelButton);
     if (!hasHistoryBtn) roundHistorySlot.appendChild(makeHistoryBtn());
+    // "Svuota iniziativa" at the header's far end, past a divider: away from "+" and "✎", which it sat next to.
+    if (!hasClearBtn) roundHistorySlot.append(roundDangerDivider, makeClearInitiativeBtn());
   } else {
     if (hasBtn) roundPill.querySelector('[data-reset-round="1"]').remove();
     if (hasAddAllBtn) roundPill.querySelector('[data-add-all-initiative="1"]').remove();

@@ -227,6 +227,12 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
     - **Dopo la prova in OBR:** le icone toccavano quasi la barra HP (1px). Ora sono disegnate a 16px invece di 18 (l'area cliccabile resta 24px) e alzate di 2px: 3px dalla barra e 2px dal nome sulle card normali, 4px dalla barra sui boss.
   - **A2.6.** Le didascalie dei pulsanti non hanno più margine interno e finiscono con "…" se troppo lunghe. "Incantesimi" a 7,5px ha ora 4,4px di margine invece di toccare i bordi.
   - **Da decidere:** le didascalie della barra classica restano a 7,5px, sotto l'obiettivo dei 10px. A 10px "Incantesimi" richiede circa 51px contro i 44 disponibili, quindi servirebbe riorganizzare la barra (per esempio due righe di pulsanti), togliendo circa 46px alla lista.
+- **4.3 — fatto il 2026-10-22.**
+  - Nell'intestazione classica "Svuota iniziativa" (×) non sta più nel gruppo con "+" (Aggiungi attori) e "✎" (Compila iniziativa). Va in fondo, dopo Opzioni e Cronologia, separato da una linea verticale e con il suo tono rosso.
+  - Lo spazio viene dai margini laterali del pulsante di cambio vista (8px). Nella vista compatta resta nel menu "…" e la linea è nascosta.
+  - **Verifica:** "×" a 279–305px, a 100px dal "+" (prima adiacente); l'intestazione ci sta come prima (1px libero).
+  - **Problema preesistente annotato:** con il round a due cifre ("Round 12", 68px di testo) l'intestazione classica GM è già più stretta del necessario e il testo del round può essere tagliato.
+  - La rete di sicurezza (toast "Annulla") resta per il lotto 6.3.
 
 ### Fase 5 — Pannelli e modali
 
