@@ -287,6 +287,15 @@ Può partire subito dopo la fase 2, in parallelo alle fasi 3 e 4: tocca file div
     Nel selettore stretto della vista classica (55px) compaiono "Compatte", "Complete" e "Su selezione"; il nome completo è nel suggerimento. Nel menu "…" la voce è "Etichette mappa" con la modalità su una seconda riga. Il vecchio "solo selezione" era fuorviante, perché gli altri token restano visibili in forma compatta.
   - **Verifica:** nel menu la voce sta intera (contenuto 250px su 250); nel selettore classico le tre parole stanno nei 55px; nelle Opzioni non c'è testo inglese.
   - Resta da allineare il resto del plugin, dove compaiono ancora "reminder" e "spell" (avvisi, scheda, pannelli): nella fase 7, insieme alla Guida utente.
+- **5.5 — fatto il 2026-10-22.**
+  - **Riquadro vuoto:** era la riga dei messaggi di stato sotto "Imposta selezionati", con altezza minima e bordo anche senza messaggio. Ora è nascosta quando è vuota e ricompare con un messaggio.
+  - **Campo Valore:** passa dall'angolo in alto a destra al footer, subito prima di "Applica". L'ordine dall'alto in basso diventa modalità, bersagli, valore, applica. Lo script lo trova per id: focus all'apertura e Invio funzionano come prima.
+  - **Verifica nell'anteprima:**
+    - riga di stato nascosta (0px) e visibile con un messaggio (30px);
+    - Valore a sinistra di "Applica danno";
+    - cursore nel Valore all'apertura;
+    - Danno a Omar con 5 e Invio: da 78 a 73 HP.
+- **Fase 5 completa.**
 
 ### Fase 6 — Flussi e riduzione dei clic (gruppo B)
 
