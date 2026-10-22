@@ -152,6 +152,12 @@ Il lotto non cambia nessun uso esistente, salvo `micro` e `radius-lg`: per quei 
   - Font su `--obrt-font-ui`.
   - Nella card il margine interno della pill scende a 2px, così nomi come "Pozione di Eroismo" restano interi; sulla card attiva mancano ancora pochi pixel (lotto 3.2).
   - Pagina di prova: `test-support/ui-audit-browser/pills.html`. Prima/dopo in `docs/ui-audit/after/3.1-pill/`.
+- **3.2 — in parte fatto il 2026-10-22.**
+  - Nome 11px, HP 10px in grassetto con cifre allineate, badge (KO, EP, E, L, xN) 10px, riepilogo velocità sulla linguetta del round 10px, editor del nome 11px. Tutto tramite i token.
+  - La card resta 92×120 (D1): le nuove misure stanno nelle righe esistenti.
+  - **Resta da fare:** il valore HP evidenziato rispetto a "HP" e "/ max" richiede di toccare `syncTrackerHPNow()` in `src/initiativeList.js`, che riscrive il testo HP a ogni cambio. È un'area fragile (sync HP), quindi serve l'approvazione.
+  - **Ancora sotto i 10px:** le pill (8px), le mini-pill (7px) e le etichette delle strisce "Token collegati" ed "Evocazioni" (8px). Portarle a 10px aumenta i troncamenti dentro una card larga 92px, quindi è una scelta da fare.
+  - Prima/dopo in `docs/ui-audit/after/3.2-tipografia/`.
 
 ### Fase 4 — Vista classica
 
