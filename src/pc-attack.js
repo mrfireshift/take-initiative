@@ -179,8 +179,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
   const spellControls=$("pc-attack-spell-controls");
   const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select"),pickerList=$("pc-attack-picker-list");
-  // The attacks and cantrips as chips (a select beyond six); the long lists' search.
-  const pickerChips=$("pc-attack-picker-chips"),pickerSearch=$("pc-attack-picker-search");
+  // The long lists' search.
+  const pickerSearch=$("pc-attack-picker-search");
   const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open");
   const attackView=$("pc-attack-attack-view"),launchBox=$("pc-attack-launch"),casterLine=$("pc-attack-caster");
   // A spell the console does not resolve (launched, woven into a weapon, or by hand): its card replaces the attack form.
@@ -199,7 +199,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // pendingReady: the attack that held the console is registered, the move is ready.
   let pendingFollow=null,pendingReady=false,followSignature="";
   // Off-turn actions (a reaction, an opportunity attack): the selected creature in the console, then back to the turn's.
-  const useSelectedButton=$("pc-attack-use-selected");
+  const useSelectedButton=$("pc-attack-use-selected"),useSelectedRow=$("pc-attack-use-selected-row");
   let offPing=null,offAutoOpen=null;
   const extrasCaption=$("pc-attack-extras-caption");
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
@@ -956,20 +956,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // The features to read (passive, triggered, reference) fold under their header: open when the GM opens it, or when
     // the entry on screen is one of them.
     const otherShown=otherOpen || (current.tab==="features" && current.group==="other");
-    // Up to six attacks or cantrips are chips (one click each); more keep the select.
-    const asChips=!asList && !!pickerChips && inTab.length>=2 && inTab.length<=6;
-    const chip=entry=>{
-      const button=node("button","","picker-chip");button.type="button";button.dataset.pickerKey=entry.key;button.title=label(entry);
-      button.append(node("span",`${entry.pinned?"★ ":""}${entry.label}${entry.tab!=="attacks" && entry.mode==="attack"?" ⚔":""}`,"picker-chip-name"));
-      const cost=entry.spellId?castingTimeLabel(entry.spellId):"";
-      if(cost) button.append(costTag(cost));
-      button.addEventListener("click",()=>chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key)));
-      return button;
-    };
     // Another tab starts its search afresh.
     if(pickerQueryTab!==current.tab){pickerQueryTab=current.tab;pickerQuery="";if(pickerSearch)pickerSearch.value="";}
     // Rebuilt only when the list changes: a live update never closes the select the GM has open, nor scrolls the list.
-    const signature=JSON.stringify([tabs.map(tab=>tab.id),current.tab,asList,asChips,otherShown,inTab.map(entry=>[entry.key,label(entry),rowTags(entry)]),
+    const signature=JSON.stringify([tabs.map(tab=>tab.id),current.tab,asList,otherShown,inTab.map(entry=>[entry.key,label(entry),rowTags(entry)]),
       slots.map(row=>[row.level,row.pact,row.current,row.maximum])]);
     if(signature!==pickerSignature) {
       pickerSignature=signature;
@@ -982,7 +972,6 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         return button;
       }));
       pickerSelect.replaceChildren(...(asList?[]:inTab.map(entry=>{const option=node("option",label(entry));option.value=entry.key;return option;})));
-      if(pickerChips) pickerChips.replaceChildren(...(asChips?inTab.map(chip):[]));
       // The spells by level (as in the 🪄 menu), the features by group: one row each, its marks on the right.
       if(pickerList) pickerList.replaceChildren(...(!asList?[]:groups.flatMap(group=>[
         (()=>{
@@ -1010,12 +999,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
     pickerTabs.hidden=tabs.length<2;
     for(const button of pickerTabs.querySelectorAll("button")){button.setAttribute("aria-pressed",String(button.dataset.pickerTab===current.tab));button.disabled=busy;}
-    pickerSelect.hidden=asList || asChips || inTab.length<2;
+    pickerSelect.hidden=asList || inTab.length<2;
     if(!asList){pickerSelect.value=current.key;pickerSelect.disabled=busy;}
-    if(pickerChips) {
-      pickerChips.hidden=!asChips;
-      for(const button of pickerChips.querySelectorAll("button")){button.setAttribute("aria-pressed",String(button.dataset.pickerKey===current.key));button.disabled=busy;}
-    }
     if(pickerSearch) {
       pickerSearch.hidden=!(asList && inTab.length>12);
       pickerSearch.placeholder=current.tab==="features"?"Cerca capacità…":"Cerca incantesimo…";
@@ -1751,6 +1736,27 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   areaPropose?.addEventListener("click",()=>{draft.area.proposalKey="";renderArea();});
   areaDraw?.addEventListener("click",()=>void drawBreathArea());
   // The console folds to its header while the GM draws on the map, then gets its height back.
+  // Riduci (−): the console folds to its header, as while drawing, and unfolds (+) to the height it had. A new actor
+  // (the turn moved on, an off-turn action) unfolds it.
+  const minimizeButton=$("pc-attack-minimize");
+  let minimizedHeight=0;
+  function renderMinimized() {
+    documentRef.body?.setAttribute?.("data-minimized",String(!!minimizedHeight));
+    if(!minimizeButton) return;
+    minimizeButton.textContent=minimizedHeight?"+":"−";
+    minimizeButton.title=minimizedHeight?"Espandi":"Riduci";
+    minimizeButton.setAttribute("aria-label",minimizeButton.title);
+    minimizeButton.setAttribute("aria-expanded",String(!minimizedHeight));
+    minimizeButton.disabled=!!drawing;
+  }
+  async function setMinimized(on) {
+    if(drawing || on===!!minimizedHeight) return;
+    if(on){minimizedHeight=await foldConsole(true) || PC_ATTACK_HEIGHT;}
+    else {const height=minimizedHeight;minimizedHeight=0;await foldConsole(false,height);}
+    renderMinimized();
+  }
+  minimizeButton?.addEventListener("click",()=>{void setMinimized(!minimizedHeight);});
+  renderMinimized();
   async function foldConsole(fold,restore=0) {
     try {
       if(fold) {
@@ -1770,7 +1776,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const ruleId=pcBreathAreaRuleId(attack?.area?.shape,breathAreaType(attack));
     if(!ruleId || drawing || busy || !draft) return;
     const requestId=createSpellAreaPlacementRequestId(),active=draft,shape=attack.area.shape==="line"?"la linea":"il cono";
-    drawing=requestId;renderArea();
+    drawing=requestId;renderArea();renderMinimized();
     setStatus(`Disegna ${shape} dal token di ${presentation.item?.name || "l'attaccante"}, poi conferma la sagoma. Esc annulla.`);
     const height=await foldConsole(true);
     let result;
@@ -1778,7 +1784,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     catch(error) {result={status:"error",error:String(error?.message || error)};}
     await foldConsole(false,height);
     if(drawing!==requestId) return;
-    drawing="";
+    drawing="";renderMinimized();
     if(draft!==active){void cancelArea(requestId).catch(()=>{});renderArea();return;}
     if(result?.status==="confirmed" && result.preview) {
       const ids=new Set((Array.isArray(result.preview.targetIds)?result.preview.targetIds:[]).map(id=>String(id || "")).filter(id=>id && id!==sourceId));
@@ -1898,6 +1904,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   // A new actor in place: a fresh attack (no target, no undo of the previous actor's entry: History keeps it).
   function switchActor(next,name="",{offTurn=false}={}) {
+    void setMinimized(false);
     pendingFollow=null;pendingReady=false;renderFollow();
     sourceId=next;actionId="";requestedSpellId="";launchKey="";launchSignature="";
     presentation=null;draft=null;liveSignature="";useReaction=true;reactionSignature="";
@@ -1971,8 +1978,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const target=selection.status==="single"?selection.target:null;
     const show=!!presentation && !!target && target.id!==sourceId && hasEntries(target);
     useSelectedButton.hidden=!show;
+    if(useSelectedRow) useSelectedRow.hidden=!show;
     if(!show) return;
     const name=String(target.name || "il token selezionato");
+    useSelectedButton.textContent=`⇄ Agisci con ${name}`;
     useSelectedButton.title=`Passa a ${name} (selezionato sulla mappa): un'azione fuori turno`;
     useSelectedButton.setAttribute("aria-label",useSelectedButton.title);
     useSelectedButton.disabled=busy || launchBusy;

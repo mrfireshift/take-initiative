@@ -12,7 +12,7 @@ const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const { pcAttackPickerEntries } = await import("../src/pcAttackPickerCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
-const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-chips", "pc-attack-picker-search", "pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
+const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", "pc-attack-minimize", "pc-attack-use-selected-row", "pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
@@ -1088,14 +1088,12 @@ test("the keyboard: the focus goes to the damage to type, Enter registers when r
   assert.equal(f.closed.length, 1);
 });
 
-test("the lists: chips for a few attacks, the favourites first, a search in long lists, the features to read folded", async () => {
+test("the lists: the favourites first, a search in long lists, the features to read folded", async () => {
   const f = fixture({ card: clericCard, attacker: clericMeta }); await f.controller.ready; await tick();
-  const chips = () => f.$("pc-attack-picker-chips").querySelectorAll("button");
   await pickerTabs(f).find((button) => button.textContent === "Trucchetti").click(); await tick();
-  assert.equal(f.$("pc-attack-picker-chips").hidden, false, "two cantrips: chips");
-  assert.deepEqual(chips().map((button) => textOf(button).trim()), ["Fiamma sacra ⚔ Azione", "Luce Azione"], "with their cost");
-  assert.equal(f.$("pc-attack-picker-select").hidden, true, "the select gives way to them");
-  assert.equal(chips().find((button) => button.getAttribute("aria-pressed") === "true").dataset.pickerKey, f.$("pc-attack-picker-select").value);
+  assert.deepEqual(f.$("pc-attack-picker-select").children.map((option) => option.textContent), ["Fiamma sacra ⚔ · Azione", "Luce · Azione"],
+    "the cantrips in the select, their cost capitalised");
+  assert.equal(f.$("pc-attack-picker-select").hidden, false);
   const book = Array.from({ length: 14 }, (_, index) => ["bless", "shield-of-faith", "cure-wounds", "command", "sanctuary", "guiding-bolt", "healing-word",
     "inflict-wounds", "detection-of-evil-and-good", "create-or-destroy-water", "purify-food-and-drink", "aid", "lesser-restoration", "spiritual-weapon"][index]);
   const longCard = { ...clericCard, spellbook: { spellIds: book, pinnedIds: ["aid"] } };
@@ -1117,6 +1115,23 @@ test("the lists: chips for a few attacks, the favourites first, a search in long
   assert.equal(other.dataset.count, String(others().length));
   await other.click(); await tick();
   assert.ok(others().every((row) => !row.hidden), "open on a click");
+});
+
+test("Riduci folds the console to its header and back; a creature selected offers its off-turn action by name", async () => {
+  const metas = { imp: { initiativeCard: { quickActions: [sword] } } };
+  const f = fixture({ metas }); await f.controller.ready; await tick();
+  const minimize = f.$("pc-attack-minimize");
+  assert.deepEqual([minimize.textContent, minimize.getAttribute("aria-expanded")], ["−", "true"]);
+  await minimize.click(); await tick();
+  assert.equal(f.documentRef.body.getAttribute("data-minimized"), "true");
+  assert.deepEqual([minimize.textContent, minimize.getAttribute("aria-expanded")], ["+", "false"]);
+  await minimize.click(); await tick();
+  assert.equal(f.documentRef.body.getAttribute("data-minimized"), "false");
+  await f.select(["imp"]);
+  assert.equal(f.$("pc-attack-use-selected-row").hidden, false);
+  assert.equal(f.$("pc-attack-use-selected").textContent, "⇄ Agisci con Imp");
+  await f.select([]);
+  assert.equal(f.$("pc-attack-use-selected-row").hidden, true);
 });
 
 test("the title names who acts, its badge whose turn it is", async () => {
