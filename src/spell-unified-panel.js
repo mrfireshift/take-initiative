@@ -1032,6 +1032,9 @@ export function bootSpellUnifiedPanel(
     const teleport = isTeleportSpell(state.contract?.spell?.id);
     if (!sceneAvailable()
       || (!teleport && state.session.placement?.targetLocked === true)) return;
+    // While the area is drawn the targets come from the shape: the selections Owlbear makes when the tool opens
+    // or closes (empty, or the caster) would otherwise replace an area-subset's preselection (Mass Cure Wounds).
+    if (state.session.placement?.state === "pending") return;
     if (teleport) {
       // Porta Dimensionale ha un controllo passeggero dedicato. L'attivazione
       // e la chiusura dello strumento di placement possono produrre eventi

@@ -1569,3 +1569,65 @@ test("Cura ferite di massa: the area selects the caster's side, the GM edits the
   assert.equal(areaCommands[0].valid, true, JSON.stringify(areaCommands[0].errors));
   assert.deepEqual(areaCommands[0].targeting.targetIds, ["ally-a", "caster-a"]);
 });
+
+test("Cura ferite di massa: a map selection while the area is drawn never replaces the caster's side", async () => {
+  // Owlbear selects the caster again when the area tool opens or closes; the caster stands out of the sphere here.
+  const provider = healProvider();
+  const selectionListeners = [];
+  provider.onSelectionChange = (callback) => {
+    selectionListeners.push(callback);
+    return () => {};
+  };
+  const areaCommands = [];
+  const { root, panel } = boot({
+    provider,
+    broadcast: new HealBroadcast(),
+    route: { status: "ready", spellId: "mass-cure-wounds", session: { casterId: "caster-a", slotLevel: 5 } },
+    areaExecutor: async (command) => {
+      areaCommands.push(command);
+      return { status: "applied", changedIds: command.targeting.targetIds, historyEntryId: "h", undoAvailable: true };
+    },
+  });
+  await settle();
+  await requiredNode(root, '[data-placement-action="required"]').click();
+  await settle(3);
+  assert.equal(panel.state.session.placement.state, "pending");
+  selectionListeners[0]?.(["caster-a"]);
+  await settle(3);
+  await requiredNode(root, "[data-placement-confirm]").click();
+  await settle(8);
+  assert.deepEqual(panel.state.session.targetIds, ["ally-a"], "the ally in the sphere, never the stray caster selection");
+  const healing = requiredNode(root, '[data-field="healing"]');
+  healing.value = "15";
+  await healing.emit("change");
+  const primary = requiredNode(root, '[data-primary-action="apply"]');
+  assert.equal(primary.disabled, false);
+  await primary.click();
+  await settle(10);
+  assert.equal(areaCommands.length, 1);
+  assert.deepEqual(areaCommands[0].targeting.targetIds, ["ally-a"]);
+  await panel.destroy();
+});
+
+test("Lentezza: a map selection while the area is drawn never replaces the other side's preselection", async () => {
+  const provider = healProvider();
+  const selectionListeners = [];
+  provider.onSelectionChange = (callback) => {
+    selectionListeners.push(callback);
+    return () => {};
+  };
+  const { root, panel } = boot({
+    provider,
+    broadcast: new HealBroadcast(),
+    route: { status: "ready", spellId: "slow", session: { casterId: "caster-a", slotLevel: 3 } },
+  });
+  await settle();
+  await requiredNode(root, '[data-placement-action="required"]').click();
+  await settle(3);
+  selectionListeners[0]?.(["caster-a"]);
+  await settle(3);
+  await requiredNode(root, "[data-placement-confirm]").click();
+  await settle(8);
+  assert.deepEqual(panel.state.session.targetIds, ["enemy-a"], "the enemy in the cube, never the stray caster selection");
+  await panel.destroy();
+});
