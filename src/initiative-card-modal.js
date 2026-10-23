@@ -256,29 +256,6 @@ function requestPopoverHeight(height) {
   }, { destination: "LOCAL" }).catch(() => {});
 }
 
-// Five tabs share the sheet's width: an empty tab shows no count, so the labels keep their room.
-function setTabCount(id, count) {
-  const value = Math.max(0, Number(count) || 0);
-  $(id).textContent = String(value);
-  $(id).hidden = value === 0;
-}
-
-function setQuickActionsTabCount(count) {
-  setTabCount("quickActionsTabCount", count);
-}
-
-function setSpellbookTabCount(count) {
-  setTabCount("spellbookTabCount", count);
-}
-
-function setAttacksTabCount(count) {
-  setTabCount("attacksTabCount", count);
-}
-
-function setClassFeaturesTabCount(count) {
-  setTabCount("classFeaturesTabCount", count);
-}
-
 function syncCardTabs() {
   const spellbookActive = activeCardTab === "spellbook";
   const quickActionsActive = activeCardTab === "quick-actions";
@@ -814,8 +791,6 @@ function renderQuickActions() {
   const actions = stored
     .filter((action) => !isAttackQuickAction(action) && (isGM || action?.kind !== "feature"));
   const attacks = isGM ? stored.filter(isAttackQuickAction) : [];
-  setQuickActionsTabCount(actions.length);
-  setAttacksTabCount(attacks.length);
   for (const id of ["quickActionRunStatus", "attackRunStatus"]) {
     $(id).textContent = "";
     $(id).dataset.tone = "";
@@ -1188,8 +1163,6 @@ function renderSpellbook() {
   const list = $("spellbookList");
   list.replaceChildren();
   const groups = spellbookGroupsForProfile(shownProfile);
-  // The book and the spells of the subclass.
-  setSpellbookTabCount(groups.reduce((total, group) => total + group.spells.length, 0));
   if (!groups.length) {
     const empty = document.createElement("div");
     empty.className = "quick-actions-empty";
@@ -2366,7 +2339,6 @@ function renderClassFeatures() {
   const orderedEnabled = orderClassFeaturesByParent(enabled);
   const state = getClassFeatureState(item);
   const active = activeClassFeatureInstances(state, currentRoundValue);
-  setClassFeaturesTabCount(enabled.length);
 
   const buildSummary = $("classBuildSummary");
   const speciesLabel = speciesDisplayName(profile?.[SPECIES_FIELD]);
@@ -2708,7 +2680,6 @@ function buildSpellbookEditor() {
 function renderSpellbookEditor() {
   const pinned = new Set(draftSpellbook.pinnedIds);
   const rows = spellbookGroups(draftSpellbook).flatMap((group) => group.spells);
-  setSpellbookTabCount(rows.length);
   $("spellbookAdd").disabled = rows.length >= MAX_SPELLBOOK_SPELLS;
   $("spellbookEditorList").replaceChildren(...rows.map((spell) => {
     const row = document.createElement("div");
@@ -2835,13 +2806,11 @@ function populateQuickActionDatalists() {
 
 function syncQuickActionAddState() {
   const count = $("quickActionEditorList").querySelectorAll("[data-quick-action-row='1']").length;
-  setQuickActionsTabCount(count);
   $("quickActionAdd").disabled = count >= MAX_QUICK_ACTIONS;
   $("quickActionAdd").title = count >= MAX_QUICK_ACTIONS
     ? `Massimo ${MAX_QUICK_ACTIONS} azioni rapide`
     : "Aggiungi azione rapida";
   const attackCount = $("attackEditorList").querySelectorAll("[data-quick-action-row='1']").length;
-  setAttacksTabCount(attackCount);
   $("attackAdd").disabled = attackCount >= MAX_QUICK_ACTION_ATTACKS;
   $("attackAdd").title = attackCount >= MAX_QUICK_ACTION_ATTACKS
     ? `Massimo ${MAX_QUICK_ACTION_ATTACKS} attacchi`
@@ -3614,7 +3583,6 @@ function buildClassFeatureEditor() {
         ? "Nessuna capacità attivabile per questa configurazione."
         : "Aggiungi almeno una classe."
     ));
-    setClassFeaturesTabCount(0);
     return;
   }
 
@@ -3652,9 +3620,6 @@ function buildClassFeatureEditor() {
       } else {
         draftEnabledFeatureIds.delete(feature.id);
       }
-      setClassFeaturesTabCount(
-        available.filter((entry) => draftEnabledFeatureIds.has(entry.id)).length
-      );
     });
     const copy = document.createElement("span");
     copy.className = "class-feature-editor-option-copy";
@@ -3697,9 +3662,6 @@ function buildClassFeatureEditor() {
     nodes.push(subgroup);
   }
   list.replaceChildren(...nodes);
-  setClassFeaturesTabCount(
-    available.filter((feature) => draftEnabledFeatureIds.has(feature.id)).length
-  );
 }
 
 function buildClassBuildEditorRow(entry = {}) {
@@ -3977,10 +3939,6 @@ function setEditing(active) {
   // The editor writes the whole book: a preparation in progress is left as stored.
   spellPreparationDraft = null;
   if (!editing) {
-    const stored = Array.isArray(profile?.quickActions) ? profile.quickActions : [];
-    setQuickActionsTabCount(stored.filter((action) => !isAttackQuickAction(action)).length);
-    setAttacksTabCount(stored.filter(isAttackQuickAction).length);
-    setSpellbookTabCount(spellbookGroupsForProfile(profile).reduce((total, group) => total + group.spells.length, 0));
     renderClassFeatures();
     syncCardTabs();
     return;

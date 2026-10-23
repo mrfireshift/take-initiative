@@ -440,6 +440,7 @@ Stato dei lotti:
     - il conteggio diventa un bollino da 15px in alto a destra della scheda, con fondo scuro pieno, bordo del colore di fazione e testo a 10px;
     - il riquadro ha 3px in più di margine sopra, per il bollino.
   - **Verifica nell'anteprima** (12 incantesimi, 7 azioni, 5 attacchi, 12 capacità): tutti e cinque i nomi sono interi e restano circa 23px liberi.
+  - **Poi tolti del tutto** su indicazione dell'utente: i numeri non servono. Via gli elementi `tab-count`, il loro CSS e le funzioni `set…TabCount` di `src/initiative-card-modal.js` che li aggiornavano; le schede mostrano solo il nome.
 
 ---
 

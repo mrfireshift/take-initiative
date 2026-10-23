@@ -102,7 +102,8 @@ test("la Scheda personaggio importa tutti gli helper Class Feature usati nel ren
 
 test("gli attacchi hanno una scheda, un elenco e un editor propri, separati dalle azioni rapide", () => {
   assert.match(html, /id="attacksTab"[^>]*aria-controls="attacksView"[^>]*hidden/);
-  assert.match(html, /id="attacksTabCount"/);
+  // The tabs carry only their names: no counts.
+  assert.doesNotMatch(html, /class="tab-count"/);
   assert.match(html, /id="attacks" class="quick-actions-list"/);
   assert.match(html, /id="attacksEditPane"/);
   assert.match(html, /id="attackEditorList"/);

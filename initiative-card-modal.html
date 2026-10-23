@@ -82,25 +82,18 @@
     .close { display:inline-flex; align-items:center; justify-content:center; width:var(--obrt-close-size, 28px); height:var(--obrt-close-size, 28px); min-height:var(--obrt-close-size, 28px); padding:0; border-color:transparent; border-radius:var(--obrt-close-radius, 8px); background:transparent; font-size:var(--obrt-close-font, 18px); line-height:1; }
     .close:hover { border-color:transparent; background:var(--obrt-close-hover, rgba(255, 255, 255, .08)); }
     .card-tabs {
-      position:relative; display:grid; grid-auto-flow:column; grid-auto-columns:auto; gap:3px; margin:0 0 12px; padding:6px 3px 3px;
+      position:relative; display:grid; grid-auto-flow:column; grid-auto-columns:auto; gap:3px; margin:0 0 12px; padding:3px;
       border:1px solid rgba(var(--faction-rgb),.24); border-radius:10px; background:rgba(0,0,0,.20);
     }
     .card-tab {
-      position:relative; min-width:0; min-height:32px; padding:0 6px; display:flex; align-items:center; justify-content:center; gap:4px;
+      min-width:0; min-height:32px; padding:0 6px; display:flex; align-items:center; justify-content:center; gap:4px;
       border:0; border-radius:7px; font-size:11px; background:transparent; color:rgba(255,255,255,.64); font-weight:var(--obrt-weight-bold);
     }
-    .card-tab[hidden],.tab-count[hidden] { display:none; }
+    .card-tab[hidden] { display:none; }
     .card-tab > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .card-tab[aria-selected="true"] {
       background:linear-gradient(145deg,rgba(var(--faction-rgb),.24),rgba(var(--faction-rgb),.10));
       color:#fff; box-shadow:inset 0 0 0 1px rgba(var(--faction-rgb),.40);
-    }
-    /* The count sits as a small badge on the tab's top-right corner, so the names keep the whole width. */
-    .tab-count {
-      position:absolute; top:-5px; right:-3px; z-index:1; box-sizing:border-box; min-width:15px; height:15px; padding:0 4px;
-      display:inline-flex; align-items:center; justify-content:center; border-radius:999px;
-      border:1px solid rgba(var(--faction-rgb),.55); background:var(--obrt-surface-0, #080b10);
-      color:var(--accent-bright); font-size:10px; line-height:1; font-variant-numeric:tabular-nums; pointer-events:none;
     }
     [role="tabpanel"][hidden], .edit-pane[hidden] { display:none !important; }
     .overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
@@ -400,16 +393,16 @@
     <nav class="card-tabs" role="tablist" aria-label="Contenuto scheda personaggio">
       <button id="statsTab" class="card-tab" type="button" role="tab" aria-selected="true" aria-controls="view">Statistiche</button>
       <button id="spellbookTab" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="spellbookView">
-        <span>Incantesimi</span><span id="spellbookTabCount" class="tab-count">0</span>
+        <span>Incantesimi</span>
       </button>
       <button id="quickActionsTab" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="quickActionsView">
-        <span>Azioni rapide</span><span id="quickActionsTabCount" class="tab-count">0</span>
+        <span>Azioni rapide</span>
       </button>
       <button id="attacksTab" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="attacksView" hidden>
-        <span>Attacchi</span><span id="attacksTabCount" class="tab-count">0</span>
+        <span>Attacchi</span>
       </button>
       <button id="classFeaturesTab" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="classFeaturesView">
-        <span>Capacità</span><span id="classFeaturesTabCount" class="tab-count">0</span>
+        <span>Capacità</span>
       </button>
     </nav>
     <section id="view" class="view" role="tabpanel" aria-labelledby="statsTab">
