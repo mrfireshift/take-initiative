@@ -263,3 +263,59 @@ test("ARCH-A: una mutazione canonica successiva sul pool resta un conflitto Undo
   assert.deepEqual(blocked, []);
   assert.equal(currentToken().metadata[META_KEY].classFeatureState.resources[TIDES_POOL_ID].current, 1);
 });
+
+const BEND_LUCK_ID = "stregone-magia-selvaggia-piegare-la-fortuna";
+const SORCERY_POINTS_ID = "stregone-punti-stregoneria";
+const reactionNames = () => (currentToken().metadata[META_KEY].conditions?.instances || [])
+  .filter((instance) => instance.condition === "Reazione usata");
+function bendLuckSorcerer() {
+  scene.items = scene.items.map((item) => item.id !== "sorcerer" ? item : produce(item, (draft) => {
+    draft.metadata[META_KEY].initiativeCard.enabledClassFeatureIds = [BEND_LUCK_ID];
+    draft.metadata[META_KEY].initiativeCard.characterBuild = [{ ...wildMagicBuild[0], level: 6 }];
+    draft.metadata[META_KEY].classFeatureState.resources = { [SORCERY_POINTS_ID]: { current: 6, maximum: 6, unlimited: false } };
+  }));
+}
+
+test("a feature used with a reaction marks the reaction in its own command: one Undo gives both back", async () => {
+  bendLuckSorcerer();
+  const result = await classFeatureRuntime.activateClassFeature({ sourceId: "sorcerer", featureId: BEND_LUCK_ID });
+  assert.deepEqual(result.reaction, { spent: true, alreadyUsed: false });
+  const [entry] = await waitForHistoryCount(1);
+  assert.equal(currentToken().metadata[META_KEY].classFeatureState.resources[SORCERY_POINTS_ID].current, 4);
+  assert.equal(reactionNames().length, 1);
+  assert.equal(reactionNames()[0].expiry?.mode, "turn-start", "back at the start of the sorcerer's next turn");
+
+  const again = await classFeatureRuntime.activateClassFeature({ sourceId: "sorcerer", featureId: BEND_LUCK_ID });
+  assert.deepEqual(again.reaction, { spent: false, alreadyUsed: true });
+  assert.equal(reactionNames().length, 1, "never marked twice");
+
+  await waitForHistoryCount(2);
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(currentToken().metadata[META_KEY].classFeatureState.resources[SORCERY_POINTS_ID].current, 6);
+  assert.equal(reactionNames().length, 0);
+});
+
+test("out of combat a reaction feature spends its resource only; a feature used otherwise never marks the reaction", async () => {
+  bendLuckSorcerer();
+  scene.metadata = { [STATE_KEY]: { order: [], current: 0, round: 1 } };
+  const result = await classFeatureRuntime.activateClassFeature({ sourceId: "sorcerer", featureId: BEND_LUCK_ID });
+  assert.equal(result.reaction, undefined);
+  assert.equal(currentToken().metadata[META_KEY].classFeatureState.resources[SORCERY_POINTS_ID].current, 4);
+  assert.equal(reactionNames().length, 0);
+  await mountRuntime();
+  await classFeatureRuntime.activateClassFeature({ sourceId: "sorcerer", featureId: TIDES_ID });
+  assert.equal(reactionNames().length, 0, "Tides of Chaos takes no reaction");
+});
+
+test("Spendi for a reaction feature marks the reaction with the resource; without the feature it spends the resource only", async () => {
+  bendLuckSorcerer();
+  const result = await classFeatureRuntime.adjustClassFeatureResource("sorcerer", SORCERY_POINTS_ID, { delta: -2 }, { featureId: BEND_LUCK_ID });
+  assert.deepEqual(result.reaction, { spent: true, alreadyUsed: false });
+  assert.equal(currentToken().metadata[META_KEY].classFeatureState.resources[SORCERY_POINTS_ID].current, 4);
+  assert.equal(reactionNames().length, 1);
+  await mountRuntime();
+  bendLuckSorcerer();
+  const plain = await classFeatureRuntime.adjustClassFeatureResource("sorcerer", SORCERY_POINTS_ID, { delta: -1 });
+  assert.equal(plain.reaction, undefined);
+  assert.equal(reactionNames().length, 0);
+});

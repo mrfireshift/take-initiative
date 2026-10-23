@@ -1158,7 +1158,7 @@ test("Spendi: a bard's Psychic Blades spends one Bardic Inspiration by hand", as
   assert.equal(f.$("pc-attack-launch-button").textContent, "Spendi 1");
   assert.match(textOf(f.$("pc-attack-launch")), /Effetto da risolvere al tavolo/);
   await f.$("pc-attack-launch-button").click(); await tick();
-  assert.deepEqual(runtime.calls, [["adjustClassFeatureResource", "aria", "bardo-ispirazione-bardica-usi", { delta: -1 }]]);
+  assert.deepEqual(runtime.calls, [["adjustClassFeatureResource", "aria", "bardo-ispirazione-bardica-usi", { delta: -1 }, { featureId: "bardo-collegio-dei-sussurri-lame-psichiche" }]]);
   assert.match(f.$("pc-attack-status").textContent, /Risorsa spesa: Ispirazione Bardica −1 \(Lame Psichiche\)\./);
 });
 
@@ -1182,4 +1182,43 @@ test("Font of Magic creates a slot from the console; Universal Speech shows the 
   const mode = g.$("pc-attack-launch").querySelector("select");
   mode.value = "slot"; await mode.emit("change");
   assert.equal(confirmation.hidden, false);
+});
+
+test("a feature used with a reaction: the console warns when it is already used, asks before Usa, and says when it marks it", async () => {
+  const sorcerer = { characterBuild: [{ classId: "stregone", level: 6, subclassId: "stregone-magia-selvaggia" }], abilityModifiers: { cha: 4 }, quickActions: [sword] };
+  const points = { enabledIds: [], active: {}, activeFeatureIds: [],
+    resources: { "stregone-magia-selvaggia-piegare-la-fortuna": [{ poolId: "stregone-punti-stregoneria", name: "Punti Stregoneria", current: 6, maximum: 6, unlimited: false }] } };
+  const asked = [];
+  const answers = [false, true];
+  const calls = [];
+  const featureRuntime = { activateClassFeature: async (params) => { calls.push(params); return { reaction: { spent: false, alreadyUsed: true } }; } };
+  const f = fixture({ card: sorcerer, featureState: points, featureRuntime, turnState: { order: ["aria", "ghoul"], current: 1, round: 2 },
+    attacker: { initiativeCard: sorcerer, conditions: { version: 2, instances: [{ id: "r1", condition: "Reazione usata" }] } },
+    confirm: (message) => { asked.push(message); return answers.shift(); } });
+  await f.controller.ready; await tick(); await openFeatures(f);
+  await featureRow(f, /Piegare la Fortuna/).click(); await tick();
+  assert.match(textOf(f.$("pc-attack-launch")), /Reazione.*Reazione già usata in questo round\./);
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.match(asked[0], /Aria ha già usato la reazione in questo round\.[\s\S]*Usare comunque Piegare la Fortuna\?/);
+  assert.deepEqual(calls, [], "declined: nothing spent");
+  assert.match(f.$("pc-attack-status").textContent, /annullata, reazione già usata/);
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.equal(calls.length, 1, "confirmed: the feature runs, the reaction stays marked once");
+  assert.doesNotMatch(f.$("pc-attack-status").textContent, /Reazione segnata/);
+});
+
+test("a feature used with a reaction, the reaction free: Usa runs at once and the status says it is marked", async () => {
+  const sorcerer = { characterBuild: [{ classId: "stregone", level: 6, subclassId: "stregone-magia-selvaggia" }], abilityModifiers: { cha: 4 }, quickActions: [sword] };
+  const points = { enabledIds: [], active: {}, activeFeatureIds: [],
+    resources: { "stregone-magia-selvaggia-piegare-la-fortuna": [{ poolId: "stregone-punti-stregoneria", name: "Punti Stregoneria", current: 6, maximum: 6, unlimited: false }] } };
+  const asked = [];
+  const featureRuntime = { activateClassFeature: async () => ({ reaction: { spent: true, alreadyUsed: false } }) };
+  const f = fixture({ card: sorcerer, featureState: points, featureRuntime, turnState: { order: ["aria", "ghoul"], current: 1, round: 2 },
+    attacker: { initiativeCard: sorcerer }, confirm: (message) => { asked.push(message); return true; } });
+  await f.controller.ready; await tick(); await openFeatures(f);
+  await featureRow(f, /Piegare la Fortuna/).click(); await tick();
+  assert.doesNotMatch(textOf(f.$("pc-attack-launch")), /già usata/);
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.deepEqual(asked, []);
+  assert.match(f.$("pc-attack-status").textContent, /Capacità usata: Piegare la Fortuna\. Reazione segnata\./);
 });

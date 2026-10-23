@@ -216,3 +216,15 @@ test("Hungry Jaws: a missed bite spends the use and leaves the hit points", asyn
   const [entry] = await waitForHistoryCount(1);
   assert.equal(entry.kind, "class-feature");
 });
+
+test("Stone's Endurance takes the goliath's reaction: marked with the reduction, given back by the same Undo", async () => {
+  await damage("kael", 18);
+  await waitForHistoryCount(1);
+  const result = await classFeatureRuntime.applySpeciesHpTrait({ sourceId: "kael", featureId: "specie-goliath-resistenza-della-pietra", value: "9" });
+  assert.deepEqual(result.reaction, { spent: true, alreadyUsed: false });
+  assert.ok(conditionNames("kael").includes("Reazione usata"), conditionNames("kael").join(","));
+  const [, entry] = await waitForHistoryCount(2);
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(metaOf("kael").hp, 22);
+  assert.ok(!conditionNames("kael").includes("Reazione usata"));
+});

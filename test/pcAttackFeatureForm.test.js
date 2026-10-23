@@ -87,7 +87,7 @@ test("a reference feature with a fixed cost spends it by hand: Spendi 1, blocked
   assert.deepEqual([blades.kind, blades.label, blades.fields.length], ["spend", "Spendi 1", 0]);
   assert.match(blades.note, /al tavolo/);
   const request = pcAttackFeatureRequest(feature("bardo-collegio-dei-sussurri-lame-psichiche"), blades, {}, { sourceId: "bar" });
-  assert.deepEqual([request.fn, request.args], ["adjustClassFeatureResource", ["bar", "bardo-ispirazione-bardica-usi", { delta: -1 }]]);
+  assert.deepEqual([request.fn, request.args], ["adjustClassFeatureResource", ["bar", "bardo-ispirazione-bardica-usi", { delta: -1 }, { featureId: "bardo-collegio-dei-sussurri-lame-psichiche" }]]);
   assert.match(request.done, /Risorsa spesa: .* −1 \(Lame Psichiche\)/);
   const empty = form("bardo-collegio-dei-sussurri-lame-psichiche", bard, { version: 1, instances: [], resources: { "bardo-ispirazione-bardica-usi": { current: 0 } } });
   assert.match(empty.disabledReason, /Non basta/);
@@ -98,7 +98,7 @@ test("a variable cost asks the amount, never more than the pool holds", () => {
   const bastion = form("stregone-anima-meccanica-bastione-della-legge", clockwork);
   assert.deepEqual([bastion.kind, bastion.label, bastion.fields[0].id, bastion.fields[0].max], ["spend", "Spendi", "amount", 6]);
   assert.deepEqual(pcAttackFeatureRequest(feature("stregone-anima-meccanica-bastione-della-legge"), bastion, { amount: "3" }, { sourceId: "sor" }).args,
-    ["sor", "stregone-punti-stregoneria", { delta: -3 }]);
+    ["sor", "stregone-punti-stregoneria", { delta: -3 }, { featureId: "stregone-anima-meccanica-bastione-della-legge" }]);
   assert.match(pcAttackFeatureRequest(feature("stregone-anima-meccanica-bastione-della-legge"), bastion, { amount: "9" }, { sourceId: "sor" }).error, /Non basta/);
 });
 

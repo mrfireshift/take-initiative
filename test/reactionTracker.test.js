@@ -8,6 +8,8 @@ import {
   conditionInstancesNamed,
   hasReactionUsed,
   hasReadiedAction,
+  isReactionClassFeature,
+  planReactionSpend,
   reactionAppliedAt,
   reactionConditionOptions,
   reactionTargetId,
@@ -94,4 +96,21 @@ test("the card menu offers the readied action to one creature and routes toggle 
   assert.equal(await routeInitiativeCardContextMenuAction(context, { action: "readied-action" }, handlers), true);
   assert.equal(await routeInitiativeCardContextMenuAction(context, { action: "readied-action-trigger" }, handlers), true);
   assert.deepEqual(calls, [["toggle", "goblin"], ["trigger", "goblin"]]);
+});
+
+test("an action taken with a reaction marks it in combat, once, and never out of combat", () => {
+  const state = { order: ["mira", "goblin"], current: 1, round: 3 };
+  const plan = planReactionSpend({ casterId: "mira", casterName: "Mira", conditions: { instances: [] }, initiativeState: state });
+  assert.deepEqual([plan.applies, plan.alreadyUsed], [true, false]);
+  assert.deepEqual(plan.operations.map((operation) => operation.type), ["condition:add", "condition:automate"]);
+  assert.equal(plan.operations[0].conditionName, REACTION_USED_CONDITION);
+  assert.deepEqual(plan.operations[0].options.expiry, NEXT_OWN_TURN_START_EXPIRY);
+  const again = planReactionSpend({ casterId: "mira", casterName: "Mira", initiativeState: state,
+    conditions: { instances: [{ id: "r1", condition: "Reazione usata" }] } });
+  assert.deepEqual([again.alreadyUsed, again.operations, again.message], [true, [], "Mira ha già usato la reazione in questo round."]);
+  assert.equal(planReactionSpend({ casterId: "mira", initiativeState: { order: [] } }).applies, false, "no initiative order");
+  assert.equal(planReactionSpend({ applies: false, casterId: "mira", initiativeState: state }).applies, false);
+  assert.equal(isReactionClassFeature({ activation: { primary: "reazione" } }), true);
+  assert.equal(isReactionClassFeature({ activation: { primary: "azione_bonus" } }), false);
+  assert.equal(isReactionClassFeature(null), false);
 });

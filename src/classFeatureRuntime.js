@@ -50,6 +50,7 @@ import { spellSlotPoolId, spellSlotStatus } from "./spellSlotCore.js";
 import { quickActionUsesPool } from "./quickActionsCore.js";
 import { getHistoryEntries } from "./history.js";
 import { planSpeciesHpTrait, SPECIES_HP_TRAIT_KINDS, speciesLastDamageTaken } from "./speciesHpTraitCore.js";
+import { isReactionClassFeature, planReactionSpend } from "./reactionTrackerCore.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -209,8 +210,22 @@ async function currentTurnState() {
   return {
     round: Math.max(1, Math.floor(Number(state.round) || 1)),
     turnKey: currentInitiativeTurnKey(state),
+    state,
   };
 }
+
+// A feature used with a reaction spends the actor's reaction ("Reazione usata", reactionTrackerCore.js) in the
+// feature's own command, so one Undo gives both back; in combat only, and never twice.
+function classFeatureReactionSpend(feature, sourceItem, initiativeState, applies = true) {
+  return planReactionSpend({
+    applies: applies && isReactionClassFeature(feature),
+    casterId: sourceItem?.id,
+    casterName: sourceItem?.name,
+    conditions: sourceItem?.metadata?.[META_KEY]?.conditions,
+    initiativeState,
+  });
+}
+const reactionResult = (reaction) => (reaction.applies ? { reaction: { spent: !reaction.alreadyUsed, alreadyUsed: reaction.alreadyUsed } } : {});
 
 async function resolveTargetIds(sourceId, feature, requestedTargetIds, characterBuild = []) {
   const targeting = classFeatureTargeting(feature, characterBuild);
@@ -555,8 +570,9 @@ async function applySpeciesHpTraitResolved({
     spent: speciesTraitSpent(feature, profile, beforeState, activation.state),
   };
   const kind = hpChanged ? SPECIES_HP_TRAIT_HISTORY_KIND : "class-feature";
+  const reaction = classFeatureReactionSpend(feature, currentSource, turnState.state);
   const mutation = await runEffectsMutation(
-    hpChanged ? [{
+    [...(hpChanged ? [{
       type: "hp:set",
       updates: [{
         itemId: targetId,
@@ -566,7 +582,7 @@ async function applySpeciesHpTraitResolved({
         expectedHP: metadataFieldExpectation(targetMeta, "hp"),
         expectedHPMax: metadataFieldExpectation(targetMeta, "hpMax"),
       }],
-    }] : [],
+    }] : []), ...reaction.operations],
     {
       kind,
       label,
@@ -595,6 +611,7 @@ async function applySpeciesHpTraitResolved({
     detail: plan.detail,
     ...(plan.warning ? { warning: plan.warning } : {}),
     ...(lastDamage ? { lastDamage } : {}),
+    ...reactionResult(reaction),
   };
 }
 
@@ -1195,6 +1212,7 @@ export async function activateClassFeature({
   sceneEpoch = null,
   damage = "",
   hit = true,
+  spendReaction = true,
 } = {}) {
   const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
   const feature = featureOverride || getClassFeatureDefinition(featureId);
@@ -1369,6 +1387,7 @@ export async function activateClassFeature({
         featureId: autoActivateParentFeatureId,
         suppressAutoActivation,
         sceneEpoch: originEpoch,
+        spendReaction: false,
       }));
     }
   }
@@ -1433,6 +1452,8 @@ export async function activateClassFeature({
   }
   const currentItems = await OBR.scene.items.getItems(itemIds);
   const currentById = new Map(currentItems.map((item) => [item.id, item]));
+  // Only the feature the GM used: a parent or a child activated along with it spends nothing.
+  const reaction = classFeatureReactionSpend(feature, currentById.get(sourceItem.id) || sourceItem, turnState.state, spendReaction);
   const metadataPatches = [{
     id: sourceItem.id,
     fields: {
@@ -1483,6 +1504,7 @@ export async function activateClassFeature({
       casterIds: [sourceItem.id],
     });
   }
+  activationOperations.push(...reaction.operations);
   const classFeatureMutation = await runEffectsMutation(
     activationOperations,
     {
@@ -1538,6 +1560,7 @@ export async function activateClassFeature({
         choiceId: String(autoChoiceIds?.[childId] || "").trim(),
         suppressAutoActivation: true,
         sceneEpoch: originEpoch,
+        spendReaction: false,
       }));
     }
   }
@@ -1547,6 +1570,7 @@ export async function activateClassFeature({
     state: activation.state,
     targetIds: resolvedTargetIds,
     autoResults,
+    ...reactionResult(reaction),
   };
 }
 
@@ -1751,10 +1775,13 @@ export async function reconcileClassFeatureActivationsAfterConditionRemoval(
   return returnDetails ? { changed: ids, details } : ids;
 }
 
+// featureId: the feature the resource is spent for (the attack console's Spendi): one used with a reaction spends the
+// reaction too, in the same command.
 export async function adjustClassFeatureResource(
   sourceId,
   poolId,
   adjustment = {},
+  { featureId = "" } = {},
 ) {
   const pool = getClassFeatureResourcePool(poolId);
   if (!pool) throw classFeatureError("resource-pool-missing", poolId);
@@ -1762,6 +1789,10 @@ export async function adjustClassFeatureResource(
   if (!sourceItem) throw classFeatureError("source-not-found");
   const profile = getInitiativeCard(sourceItem);
   const operationId = classFeatureStateOperationId("adjust-resource");
+  const spentFor = featureId ? getClassFeatureDefinition(featureId) : null;
+  const reaction = isReactionClassFeature(spentFor) && Number(adjustment?.delta) < 0
+    ? classFeatureReactionSpend(spentFor, sourceItem, (await currentTurnState()).state)
+    : planReactionSpend({ applies: false });
   const mutation = await runEffectsMutation([{
     type: "class-feature:adjust-resource",
     operationId,
@@ -1770,7 +1801,7 @@ export async function adjustClassFeatureResource(
     characterBuild: profile.characterBuild,
     abilityModifiers: profile.abilityModifiers,
     adjustment,
-  }], {
+  }, ...reaction.operations], {
     kind: "class-feature",
     label: `Risorsa: ${pool.name}`,
     targetIds: [sourceId],
@@ -1778,7 +1809,8 @@ export async function adjustClassFeatureResource(
     // on the Effects lane (effectsRecovery.js).
     deferRecoveryHistory: true,
   });
-  return requireClassFeatureStateMutation(mutation, operationId);
+  const result = requireClassFeatureStateMutation(mutation, operationId);
+  return reaction.applies ? { ...result, ...reactionResult(reaction) } : result;
 }
 
 // Every resource pool of the character: those already in its state, those of its class and species features

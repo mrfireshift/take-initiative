@@ -52,3 +52,37 @@ export function reactionAppliedAt(state) {
 export function reactionConditionOptions(state) {
   return { appliedAt: reactionAppliedAt(state), expiry: { ...NEXT_OWN_TURN_START_EXPIRY } };
 }
+
+// A class feature or species trait used with a reaction (the catalog's activation "reazione").
+export function isReactionClassFeature(feature) {
+  return String(feature?.activation?.primary || "").trim() === "reazione";
+}
+
+// What an action taken with a reaction spends of the actor's reaction, in the action's own command. Only in combat:
+// without an initiative order there is no turn for the reaction to come back at. alreadyUsed: nothing more is spent
+// (the caller asks the GM first when it can).
+export function planReactionSpend({ applies = true, casterId = "", casterName = "", conditions = null, initiativeState = null } = {}) {
+  const id = String(casterId || "").trim();
+  const order = Array.isArray(initiativeState?.order) ? initiativeState.order.filter(Boolean) : [];
+  if (!applies || !id || !order.length) {
+    return { applies: false, alreadyUsed: false, operations: [], message: "" };
+  }
+  const name = String(casterName || "").trim() || "Il caster";
+  if (hasReactionUsed(conditions)) {
+    return { applies: true, alreadyUsed: true, operations: [], message: `${name} ha già usato la reazione in questo round.` };
+  }
+  return {
+    applies: true,
+    alreadyUsed: false,
+    operations: [
+      {
+        type: "condition:add",
+        targetIds: [id],
+        conditionName: REACTION_USED_CONDITION,
+        options: reactionConditionOptions(initiativeState),
+      },
+      { type: "condition:automate", subjectIds: [id] },
+    ],
+    message: "",
+  };
+}

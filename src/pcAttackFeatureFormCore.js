@@ -227,7 +227,7 @@ export function pcAttackFeatureRequest(feature, form, values = {}, { sourceId = 
     const amount = form.variable ? Number(values.amount) : form.amount;
     if (!Number.isInteger(amount) || amount < 1) return { error: `Inserisci quanti ${form.poolName} spendere.` };
     if (form.remaining !== null && form.remaining !== undefined && amount > form.remaining) return { error: `Non basta: ${form.poolName} ${form.remaining}.` };
-    return { fn: "adjustClassFeatureResource", args: [sourceId, form.poolId, { delta: -amount }], done: `Risorsa spesa: ${form.poolName} −${amount} (${feature.name}).` };
+    return { fn: "adjustClassFeatureResource", args: [sourceId, form.poolId, { delta: -amount }, { featureId: feature.id }], done: `Risorsa spesa: ${form.poolName} −${amount} (${feature.name}).` };
   }
   if (form.call === "sorcerySource") {
     const [operation, rawLevel] = String(values.operation || "").split(":");

@@ -20,6 +20,7 @@ import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellRefer
 import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
 import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFormCore.js";
 import { getSpellCatalog } from "./spells-srd.js";
+import { hasReactionUsed, isReactionClassFeature } from "./reactionTrackerCore.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { classFeatureDescription, classFeatureDescriptionsLoaded, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
@@ -976,6 +977,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       .filter(spell=>spell?.castContext?.staticZoneOwner!==true && (spell?.instanceId || spell?.name));
     return {item,spells};
   }
+  // A feature used with a reaction, in combat, by an actor that has already used its reaction this round: the runtime
+  // spends nothing more, and the console asks first, as for a reaction spell (spellReactionCore.js).
+  const reactionAlreadyUsed=definition=>isReactionClassFeature(definition)
+    && (Array.isArray(presentation?.turnState?.order)?presentation.turnState.order.filter(Boolean).length>0:false)
+    && hasReactionUsed(presentation?.item?.metadata?.[META_KEY]?.conditions);
   function featureCard(entry) {
     const form=featureForm(entry);
     const state=presentation?.featureState || {};
@@ -994,7 +1000,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         ...(active.length?[[Number.isFinite(remaining)?`Attiva · ${remaining} r`:"Attiva","warning"]]:[]),...(entry.species?[["Specie",""]]:[])],
       detailText:resources.join(" · "),
       notes:[...(form.note?[[form.note,""]]:[]),...(form.disabledReason?[[form.disabledReason,"warning"]]:[]),
-        ...(spent && !form.disabledReason?[["Nessun uso rimasto.","warning"]]:[])],
+        ...(spent && !form.disabledReason?[["Nessun uso rimasto.","warning"]]:[]),
+        ...(form.kind!=="reference" && reactionAlreadyUsed(definition)?[["Reazione già usata in questo round.","warning"]]:[])],
       blocked:!!form.disabledReason || spent,
     };
   }
@@ -1092,14 +1099,19 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
     const request=pcAttackFeatureRequest(definition,form,values,{sourceId,targetIds});
     if(request.error){setStatus(request.error);return;}
+    const name=definition?.name || entry.label;
+    if(request.fn!=="deactivateClassFeature" && reactionAlreadyUsed(definition)
+      && !confirmSwitch(`${presentation?.item?.name || "Il personaggio"} ha già usato la reazione in questo round.\n\nUsare comunque ${name}?`)) {
+      setStatus(`${name}: annullata, reazione già usata.`);return;
+    }
     launchBusy=true;launchSignature="";renderLaunch();
     try {
       const runtime=overrides.featureRuntime || await import("./classFeatureRuntime.js");
-      await (request.args?runtime[request.fn](...request.args):runtime[request.fn](request.params));
-      const name=definition?.name || entry.label;
+      const result=await (request.args?runtime[request.fn](...request.args):runtime[request.fn](request.params));
       // "Capacità" agrees with every verb, whatever the feature's gender (il Tocco, l'Aura).
-      setStatus(request.done?request.done:request.fn==="deactivateClassFeature"?`Capacità ${form.kind==="toggle"?"disattivata":"terminata"}: ${name}.`
-        :definition?.trackingMode==="instant" || form.label==="Usa"?`Capacità usata: ${name}.`:`Capacità attivata: ${name}.`);
+      const done=request.done?request.done:request.fn==="deactivateClassFeature"?`Capacità ${form.kind==="toggle"?"disattivata":"terminata"}: ${name}.`
+        :definition?.trackingMode==="instant" || form.label==="Usa"?`Capacità usata: ${name}.`:`Capacità attivata: ${name}.`;
+      setStatus(result?.reaction?.spent?`${done} Reazione segnata.`:done);
     } catch(error) {
       if(!error?.cancelled) setStatus(String(error?.message || error || "Capacità non applicata."));
     } finally {launchBusy=false;launchSignature="";renderLaunch();}
