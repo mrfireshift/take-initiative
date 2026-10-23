@@ -8442,6 +8442,11 @@ async function __runTrackerQuickAction(sourceEntry, action) {
       await openPcAttackPopover(sourceId, pcAttackBreathActionId(feature.id));
       return { mode: "review", route: "pc-attack" };
     }
+    // A species trait that changes hit points asks its roll in the card, which writes the HP (speciesHpTraitCore.js).
+    if (feature?.hpTrait) {
+      await openInitiativeCardPopup(sourceEntry, { quickActionId: action.id });
+      return { mode: "review", route: "initiative-card" };
+    }
     const { activateClassFeature } = await __loadClassFeatureRuntime();
     return activateClassFeature({
       sourceId,

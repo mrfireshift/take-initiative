@@ -88,7 +88,27 @@ Correzioni fatte dopo il confronto:
   pieno se fallito, metà se superato, con le resistenze di ogni bersaglio. La
   conferma scrive i PF e spende l'uso in un solo comando, annullabile. Il soffio
   metallico del 5° livello, che non fa danni, resta un semplice consumo.
-- **Altri tratti con usi** (incantesimi innati, Tenacia implacabile…):
+- **Tratti che cambiano i PF**: la card scrive i PF e spende l'uso in un solo
+  comando, annullabile; il registro di combattimento dice tratto, effetto e uso.
+  - *Tenacia implacabile* (mezzorco, orco): a 0 PF «Resta a 1 PF» riporta i PF
+    a 1; scendendo a 0 PF compare l'avviso. Non vale da morto né durante i tiri
+    contro la morte. Prono resta: rialzarsi è una mossa del personaggio.
+  - *Mani guaritrici* (aasimar): cura la creatura selezionata entro 1,5 m (o il
+    personaggio stesso), pari al livello (Volo) o al totale dei d4 tirati
+    (Mostri del Multiverso).
+  - PF temporanei: *Scarica di adrenalina* (orco), *Fauci fameliche*
+    (lucertoloide: «Colpito» o «Mancato», l'uso si spende comunque) e la
+    *Mutazione* dello shifter (livello + Costituzione in Eberron, il doppio del
+    bonus di competenza in Mostri del Multiverso, più il d6 tirato di Pelle
+    bestiale). Non si sommano a quelli già presenti; a 0 PF non si usano.
+  - *Resistenza della pietra* (goliath) e *Schivata hadozee*: il GM inserisce il
+    totale tirato; i danni subiti si leggono dalla cronologia se nulla ha
+    cambiato i PF da allora, altrimenti si inseriscono. Torna il minore tra
+    riduzione e danni, PF temporanei compresi. Il TS di concentrazione già
+    chiesto non cambia: il GM ne abbassa la CD a mano.
+  - Limite noto: i PF temporanei sono la parte di PF oltre il massimo, quindi su
+    un personaggio ferito si sommano ai PF come una cura.
+- **Altri tratti con usi** (incantesimi innati…):
   **Conferma consumo** scala l'uso, che torna con il riposo indicato. L'effetto
   si risolve al tavolo: il plugin non tocca PF, tiri o bersagli.
 - **Trasformazioni da 1 minuto** (Anima radiosa, Consunzione radiosa, Sudario

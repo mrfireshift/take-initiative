@@ -31,7 +31,7 @@ const shifting = (speciesUses, tempHp, longtoothBite) => [
   ["passo-rapido", "Passo rapido", "+3 m alla velocità camminando; quando una creatura termina il turno entro 1,5 m da te, con una reazione ti muovi fino a 3 m senza provocare attacchi di opportunità."],
   ["caccia-selvaggia", "Caccia selvaggia", "vantaggio alle prove di Saggezza, e nessuna creatura entro 9 m può avere vantaggio ai tiri per colpire contro di te, a meno che tu non sia incapacitato."],
 ].map(([option, name, effect]) => use(`mutazione-${option}`, `Mutazione: ${name}`, "azione_bonus", "mutazione",
-  `Con un'azione bonus assumi un aspetto ferino per 1 minuto (puoi terminarlo prima con un'azione bonus) e ottieni ${tempHp}, da aggiungere a mano. Finché sei mutato, ${effect} ${speciesUses}`,
+  `Con un'azione bonus assumi un aspetto ferino per 1 minuto (puoi terminarlo prima con un'azione bonus) e ottieni ${tempHp}, applicati all'attivazione. Finché sei mutato, ${effect} ${speciesUses}`,
   { option, effect: { detail: `${name}: ${effect}`, rounds: MINUTE } }));
 
 const SHIFTER_OPTIONS = [

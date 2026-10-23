@@ -1,9 +1,11 @@
 import { ID } from "./constants.js";
-import { getEnabledClassFeatures } from "./classFeatureCatalog.js";
+import { CLASS_FEATURE_RESOURCE_POOL_BY_ID, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import {
   activeClassFeatureInstances,
   CLASS_FEATURE_STATE_FIELD,
+  classFeatureResourceEntries,
 } from "./classFeatureCore.js";
+import { speciesHpTargetDead } from "./speciesHpTraitCore.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -60,6 +62,47 @@ export function shouldAnnounceRelentlessRage({
   return isZeroHPTransition(beforeItem, afterItem)
     && relentlessRageIsEnabled(afterItem)
     && rageIsActive(afterItem, currentRound);
+}
+
+// Relentless Endurance (half-orc, orc): the enabled trait with its use left, or null.
+export function relentlessEnduranceFeature(item) {
+  const profile = initiativeCardProfile(item);
+  const feature = getEnabledClassFeatures(profile).find((entry) => entry.hpTrait?.kind === "relentless");
+  if (!feature) return null;
+  const [entry] = classFeatureResourceEntries(itemMeta(item)[CLASS_FEATURE_STATE_FIELD], [feature],
+    CLASS_FEATURE_RESOURCE_POOL_BY_ID, profile.characterBuild, profile.abilityModifiers);
+  return entry && !entry.unlimited && entry.current !== null && entry.current < 1 ? null : feature;
+}
+
+export function shouldAnnounceRelentlessEndurance({ beforeItem, afterItem } = {}) {
+  return isZeroHPTransition(beforeItem, afterItem)
+    && !speciesHpTargetDead(itemMeta(afterItem))
+    && !!relentlessEnduranceFeature(afterItem);
+}
+
+export function relentlessEnduranceNotice({
+  item,
+  activationId,
+  turnKey = "",
+} = {}) {
+  const id = String(item?.id || "").trim();
+  const noticeId = String(activationId || "").trim();
+  if (!id || !noticeId) return null;
+  const name = String(item?.name || "Token").trim() || "Token";
+  return {
+    activationId: noticeId,
+    ...(String(turnKey || "").trim() ? { turnKey: String(turnKey).trim() } : {}),
+    timing: "damage",
+    effectName: "Tenacia implacabile",
+    kind: "effect-reminder",
+    eyebrow: "Tenacia implacabile",
+    instruction: "Sceso a 0 PF senza morire sul colpo: può restare a 1 PF. Sulla scheda, «Resta a 1 PF» lo applica e spende l'uso (una volta per riposo lungo).",
+    target: {
+      id,
+      name: name.slice(0, 100),
+      portrait: portraitUrl(item),
+    },
+  };
 }
 
 export function relentlessRageNotice({

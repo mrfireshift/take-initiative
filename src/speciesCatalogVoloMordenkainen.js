@@ -417,7 +417,7 @@ export const SPECIES_CATALOG_MULTIVERSO = [
     pools: [perPb("scarica-di-adrenalina", "Scarica di adrenalina"), once("tenacia-implacabile", "Tenacia implacabile")],
     traits: [
       use("scarica-di-adrenalina", "Scarica di adrenalina", "azione_bonus", "scarica-di-adrenalina", `Con un'azione bonus compi l'azione Scattare e ottieni punti ferita temporanei pari al bonus di competenza. ${PB_LONG}`),
-      use("tenacia-implacabile", "Tenacia implacabile", "innesco", "tenacia-implacabile", `Quando scendi a 0 punti ferita ma non vieni ucciso sul colpo, puoi scendere invece a 1 punto ferita. ${ONCE_LONG} Riporta i PF a 1 e spendi l'uso.`),
+      use("tenacia-implacabile", "Tenacia implacabile", "innesco", "tenacia-implacabile", `Quando scendi a 0 punti ferita ma non vieni ucciso sul colpo, puoi scendere invece a 1 punto ferita. ${ONCE_LONG} A 0 PF, «Resta a 1 PF» riporta i PF a 1 e spende l'uso.`),
     ],
   },
   {

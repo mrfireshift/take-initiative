@@ -9,7 +9,9 @@ import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 import {
+  relentlessEnduranceNotice,
   relentlessRageNotice,
+  shouldAnnounceRelentlessEndurance,
   shouldAnnounceRelentlessRage,
 } from "./classFeatureReminderCore.js";
 
@@ -46,18 +48,27 @@ async function reconcileRelentlessRageReminders(event) {
       continue;
     }
     if (zeroHPItems.has(itemId)) continue;
-    if (!shouldAnnounceRelentlessRage({
+    const rage = shouldAnnounceRelentlessRage({
       beforeItem,
       afterItem,
       currentRound: turn.round,
-    })) continue;
+    });
+    // Relentless Endurance (half-orc, orc): the species trait with its use left.
+    const endurance = !rage && shouldAnnounceRelentlessEndurance({ beforeItem, afterItem });
+    if (!rage && !endurance) continue;
 
     zeroHPItems.add(itemId);
-    const notice = relentlessRageNotice({
-      item: afterItem,
-      activationId: `relentless-rage:${itemId}:${++noticeSequence}`,
-      turnKey: turn.turnKey,
-    });
+    const notice = rage
+      ? relentlessRageNotice({
+        item: afterItem,
+        activationId: `relentless-rage:${itemId}:${++noticeSequence}`,
+        turnKey: turn.turnKey,
+      })
+      : relentlessEnduranceNotice({
+        item: afterItem,
+        activationId: `relentless-endurance:${itemId}:${++noticeSequence}`,
+        turnKey: turn.turnKey,
+      });
     if (notice) notices.push(notice);
   }
   if (!notices.length) return;

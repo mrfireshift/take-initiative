@@ -275,6 +275,28 @@ export function speciesDamageDefenses(value) {
 }
 
 const SELF_TARGETING = Object.freeze({ mode: "self", rangeMeters: null, maxTargets: 1, excludeSource: false });
+// Healing Hands: one creature touched, the character itself included (the token selected on the map, or itself).
+const TOUCH_TARGETING = Object.freeze({ mode: "single-target", rangeMeters: 1.5, maxTargets: 1, excludeSource: false });
+
+// The traits that change hit points (speciesHpTraitCore.js): the kind of write and where its amount comes from.
+// amount: "level", "pb", "2pb", "con-min1", "level-con-min1"; dice "pb-d4" (rolled at the table); onHit: Hungry Jaws'
+// bite; bonusDie: Beasthide's extra d6; die and bonus: the reduction's roll.
+const shiftTraits = (speciesId, amount) => Object.fromEntries(["pelle-bestiale", "zanna-lunga", "passo-rapido", "caccia-selvaggia"]
+  .map((key) => [`specie-${speciesId}-mutazione-${key}`, Object.freeze({ kind: "shift", amount, ...(key === "pelle-bestiale" ? { bonusDie: "1d6" } : {}) })]));
+const SPECIES_HP_TRAITS = Object.freeze({
+  "specie-mezzorco-tenacia-implacabile": Object.freeze({ kind: "relentless" }),
+  "specie-orco-multiverso-tenacia-implacabile": Object.freeze({ kind: "relentless" }),
+  "specie-aasimar-mani-guaritrici": Object.freeze({ kind: "heal", amount: "level" }),
+  "specie-aasimar-multiverso-mani-guaritrici": Object.freeze({ kind: "heal", dice: "pb-d4" }),
+  "specie-orco-multiverso-scarica-di-adrenalina": Object.freeze({ kind: "temp", amount: "pb" }),
+  "specie-lucertoloide-fauci-fameliche": Object.freeze({ kind: "temp", amount: "con-min1", onHit: true }),
+  "specie-lucertoloide-multiverso-fauci-fameliche": Object.freeze({ kind: "temp", amount: "pb", onHit: true }),
+  ...shiftTraits("shifter", "level-con-min1"),
+  ...shiftTraits("shifter-multiverso", "2pb"),
+  "specie-goliath-resistenza-della-pietra": Object.freeze({ kind: "reduce", die: "1d12", bonus: "con" }),
+  "specie-goliath-multiverso-resistenza-della-pietra": Object.freeze({ kind: "reduce", die: "1d12", bonus: "con" }),
+  "specie-hadozee-schivata-hadozee": Object.freeze({ kind: "reduce", die: "1d6", bonus: "pb" }),
+});
 const NOT_AUTOMATED = Object.freeze({ status: "not-automated", adapter: null, reason: "adapter-not-implemented" });
 const CONDITION_ADAPTER = Object.freeze({ status: "implemented", adapter: "condition", reason: null });
 // A trait resolved at the table: the button only spends its use, without pills or effects.
@@ -428,8 +450,10 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
   const passive = activation === "passiva";
   // A trait with an effect plan (an aasimar's transformation) puts a pill on the character.
   const runtimeSupport = effectPlan ? CONDITION_ADAPTER : passive ? NOT_AUTOMATED : RESOURCE_ONLY;
+  const id = giftId ? `dono-${giftId}-${key}` : `specie-${speciesId}-${key}`;
+  const hpTrait = SPECIES_HP_TRAITS[id] || null;
   return Object.freeze({
-    id: giftId ? `dono-${giftId}-${key}` : `specie-${speciesId}-${key}`,
+    id,
     name,
     description,
     classId: "",
@@ -451,8 +475,8 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
     runtimeSupport,
     activation: Object.freeze({ primary: activation }),
     trackedResourcePoolIds: Object.freeze(poolId ? [poolId] : []),
-    targetMode: "self",
-    targeting: SELF_TARGETING,
+    targetMode: hpTrait?.kind === "heal" ? "selection" : "self",
+    targeting: hpTrait?.kind === "heal" ? TOUCH_TARGETING : SELF_TARGETING,
     theme: species.theme,
     effectPlan,
     breaksConcentration: false,
@@ -460,6 +484,7 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
     trackingMode: effectPlan ? "active" : "instant",
     resourceCosts: Object.freeze(poolId ? [Object.freeze({ poolId, amount: 1 })] : []),
     ...(breath ? { breath } : {}),
+    ...(hpTrait ? { hpTrait } : {}),
   });
 }
 
@@ -517,7 +542,7 @@ const PHB_FEATURES = [
 
   speciesTrait({ speciesId: "mezzorco", key: "tenacia-implacabile", name: "Tenacia implacabile", page: 41,
     activation: "innesco", poolId: "specie-mezzorco-tenacia-implacabile-usi",
-    description: "Quando scendi a 0 punti ferita ma non vieni ucciso sul colpo, puoi scendere invece a 1 punto ferita. Una volta per riposo lungo: riporta i PF a 1 e spendi l'uso." }),
+    description: "Quando scendi a 0 punti ferita ma non vieni ucciso sul colpo, puoi scendere invece a 1 punto ferita. Una volta per riposo lungo. A 0 PF, «Resta a 1 PF» riporta i PF a 1 e spende l'uso." }),
   speciesTrait({ speciesId: "mezzorco", key: "attacchi-selvaggi", name: "Attacchi selvaggi", page: 41,
     description: "Con un colpo critico in un attacco con arma da mischia tiri un dado di danno dell'arma in più e lo aggiungi ai danni extra del critico." }),
 

@@ -126,11 +126,14 @@ import {
   deactivateClassFeature,
   getClassFeatureState,
   applyLayOnHands,
+  applySpeciesHpTrait,
+  previewSpeciesHpTrait,
   purifyClassFeatureSpell,
   restoreWildMagicTidesOfChaos,
   resetClassFeatureResources,
   shortRestClassFeatureResources,
 } from "./classFeatureRuntime.js";
+import { speciesHealDice, speciesHpTraitAmount, speciesHpTraitAmountLabel, speciesReductionHint } from "./speciesHpTraitCore.js";
 
 const META_KEY = `${ID}/meta`;
 const MODAL_ID = `${ID}/initiative-card-modal`;
@@ -650,6 +653,36 @@ async function launchSpecialClassFeature(feature, targetIds) {
   }
 }
 
+// A species trait that changes hit points, from a quick action: the roll it needs is asked here, the runtime writes
+// the HP and spends the use in one command.
+async function launchSpeciesHpTrait(feature, targetIds) {
+  const spec = feature.hpTrait;
+  const ask = (message, initial = "") => {
+    const raw = window.prompt(message, initial);
+    if (raw === null) throw { cancelled: true };
+    return raw;
+  };
+  if (spec.kind === "shift") {
+    const value = spec.bonusDie ? ask(`${feature.name}: risultato del ${spec.bonusDie} di PF temporanei in più.`) : "";
+    await activateClassFeature({ sourceId: item.id, featureId: feature.id, value });
+    return;
+  }
+  let value = "";
+  let damage = "";
+  let hit = true;
+  const dice = spec.kind === "heal" ? speciesHealDice(spec, profile) : null;
+  if (dice) value = ask(`${feature.name}: totale di ${dice.label} (${dice.min}–${dice.max}).`);
+  if (spec.kind === "temp" && spec.onHit) {
+    hit = !/^n/iu.test(ask(`${feature.name}: il morso ha colpito? (s/n; mancato spende comunque l'uso)`, "s").trim());
+  }
+  if (spec.kind === "reduce") {
+    value = ask(`${feature.name}: totale tirato (${speciesReductionHint(spec, profile)}).`);
+    const { lastDamage } = await previewSpeciesHpTrait({ sourceId: item.id, featureId: feature.id });
+    if (!lastDamage) damage = ask(`${feature.name}: danni subiti (non trovati nella cronologia).`);
+  }
+  await applySpeciesHpTrait({ sourceId: item.id, featureId: feature.id, targetIds, value, damage, hit });
+}
+
 // The list a launch starts from and its status line: the spellbook, the quick actions or the attacks.
 function quickActionSurface(action) {
   if (isSpellbookQuickAction(action)) return { listId: "spellbookList", statusId: "spellbookRunStatus" };
@@ -701,7 +734,9 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
       const feature = CLASS_FEATURE_BY_ID.get(action.featureId);
       const targetIds = await classFeatureSelectionTargetIds(feature);
       if (!sceneStillCurrent()) return;
-      if (["lay-on-hands", "purifying-touch"].includes(feature?.runtimeSupport?.adapter)) {
+      if (feature?.hpTrait) {
+        await launchSpeciesHpTrait(feature, targetIds);
+      } else if (["lay-on-hands", "purifying-touch"].includes(feature?.runtimeSupport?.adapter)) {
         await launchSpecialClassFeature(feature, targetIds);
       } else {
         let resourceValues = {};
@@ -1947,6 +1982,92 @@ function buildBreathControls(feature) {
   return button;
 }
 
+// A species trait that changes hit points (speciesHpTraitCore.js): the roll it needs, the amount from the sheet; the
+// runtime writes the HP and spends the use in one command (one Undo).
+function buildSpeciesHpTraitControls(feature, state, active = []) {
+  const spec = feature.hpTrait;
+  const controls = document.createElement("div");
+  controls.className = "class-feature-special-controls";
+  const spent = classFeatureResourceRemaining(feature, state) === 0;
+  const hp = Number(item?.metadata?.[META_KEY]?.hp);
+  const note = (text) => {
+    const small = document.createElement("small");
+    small.textContent = text;
+    controls.appendChild(small);
+    return small;
+  };
+  const numberField = (labelText, { min = 1, max = null, placeholder = "" } = {}) => {
+    const label = document.createElement("label");
+    label.textContent = labelText;
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = String(min);
+    input.step = "1";
+    input.inputMode = "numeric";
+    if (max !== null) input.max = String(max);
+    if (placeholder) input.placeholder = placeholder;
+    label.appendChild(input);
+    controls.appendChild(label);
+    return input;
+  };
+  const apply = (label, title, values, message, disabled = false) => {
+    controls.appendChild(classFeatureButton(label, title, async () => {
+      const targetIds = await classFeatureSelectionTargetIds(feature);
+      await applySpeciesHpTrait({ sourceId: item.id, featureId: feature.id, targetIds, ...values() });
+    }, message, spent || disabled));
+  };
+  const amount = spec.amount ? speciesHpTraitAmount(spec.amount, profile) : null;
+  const amountText = amount === null ? "?" : String(amount);
+  if (spec.kind === "relentless") {
+    note(hp > 0 ? "Disponibile a 0 PF, quando il personaggio ci scende." : "A 0 PF: il personaggio può restare a 1 PF.");
+    apply("Resta a 1 PF", "Riporta i PF da 0 a 1 e spende l'uso", () => ({}), `${feature.name}: resta a 1 PF.`, !(hp <= 0));
+  } else if (spec.kind === "heal") {
+    const dice = speciesHealDice(spec, profile);
+    note(dice
+      ? `Tira ${dice.label} al tavolo e inserisci il totale. Seleziona la creatura toccata (nessuna: il personaggio stesso).`
+      : `Cura ${amountText} PF (${speciesHpTraitAmountLabel(spec.amount)}). Seleziona la creatura toccata (nessuna: il personaggio stesso).`);
+    const input = dice ? numberField(`Totale ${dice.label}`, { min: dice.min, max: dice.max, placeholder: `${dice.min}–${dice.max}` }) : null;
+    apply("Cura", "Cura la creatura selezionata entro 1,5 m e spende l'uso", () => ({ value: input?.value ?? "" }), `${feature.name} usata.`);
+  } else if (spec.kind === "temp" && spec.onHit) {
+    note(`Se il morso colpisce: ${amountText} PF temporanei (${speciesHpTraitAmountLabel(spec.amount)}). L'uso si spende anche se manca.`);
+    apply("Colpito", `Ottieni ${amountText} PF temporanei e spendi l'uso`, () => ({ hit: true }), `${feature.name}: PF temporanei applicati.`);
+    apply("Mancato", "Spende soltanto l'uso", () => ({ hit: false }), `${feature.name}: uso speso.`);
+  } else if (spec.kind === "temp") {
+    note(`${amountText} PF temporanei (${speciesHpTraitAmountLabel(spec.amount)}); non si sommano a quelli che hai già.`);
+    apply("Usa", `Ottieni ${amountText} PF temporanei e spendi l'uso`, () => ({}), `${feature.name}: PF temporanei applicati.`);
+  } else if (spec.kind === "shift") {
+    const alreadyActive = active.some((entry) => entry.featureId === feature.id);
+    note(`Ottieni ${amountText} PF temporanei${spec.bonusDie ? ` + ${spec.bonusDie}` : ""} (${speciesHpTraitAmountLabel(spec.amount)}).`);
+    const input = spec.bonusDie ? numberField(`${spec.bonusDie} tirato`, { min: 1, max: 6, placeholder: "1–6" }) : null;
+    controls.appendChild(classFeatureButton(
+      "Attiva",
+      alreadyActive ? "La mutazione è già attiva" : "Attiva la mutazione con i suoi PF temporanei",
+      () => activateClassFeature({ sourceId: item.id, featureId: feature.id, value: input?.value ?? "" }),
+      `${feature.name} attivata.`,
+      spent || alreadyActive,
+    ));
+  } else if (spec.kind === "reduce") {
+    const hint = speciesReductionHint(spec, profile);
+    const info = note("Ultimi danni: ricerca nella cronologia…");
+    const rollInput = numberField(`Riduzione (${hint})`, { min: 1, placeholder: hint });
+    const damageInput = numberField("Danni subiti", { min: 1 });
+    void previewSpeciesHpTrait({ sourceId: item.id, featureId: feature.id }).then(({ lastDamage }) => {
+      if (lastDamage) {
+        damageInput.value = String(lastDamage.amount);
+        damageInput.disabled = true;
+        info.textContent = `Ultimi danni dalla cronologia: ${lastDamage.amount} (PF ${lastDamage.beforeHP} → ${lastDamage.afterHP}).`;
+      } else {
+        info.textContent = "Ultimi danni non trovati nella cronologia: inseriscili a mano.";
+      }
+    }).catch(() => {
+      info.textContent = "Inserisci i danni subiti.";
+    });
+    apply("Riduci", "Restituisce i PF della riduzione e spende l'uso",
+      () => ({ value: rollInput.value, damage: damageInput.value }), `${feature.name}: danni ridotti.`);
+  }
+  return controls;
+}
+
 function buildResourceOnlyControls(feature) {
   return classFeatureButton(
     "Conferma consumo",
@@ -2575,6 +2696,8 @@ function renderClassFeatures() {
             appendFeatureControl(buildWildMagicTidesControls());
           } else if (adapter === "spell-thief") {
             appendFeatureControl(buildSpellThiefControls(feature));
+          } else if (feature.hpTrait) {
+            appendFeatureControl(buildSpeciesHpTraitControls(feature, state, active));
           } else if (feature.breath) {
             appendFeatureControl(buildBreathControls(feature));
           } else if (adapter === "resource-only" && feature.id === TWINNED_SPELL_FEATURE_ID) {

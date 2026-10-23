@@ -32,6 +32,7 @@ import {
   classFeatureTargeting,
   resolveClassFeatureResourceDie,
   classFeatureResourceRefreshEvents,
+  classFeatureResourceEntries,
   normalizeClassFeatureState,
   planClassFeatureActivation,
   planClassFeatureDeactivation,
@@ -47,6 +48,8 @@ import {
 import { emitMatchedClassFeatureVisual } from "./embersMatchedVisualRenderer.js";
 import { spellSlotPoolId, spellSlotStatus } from "./spellSlotCore.js";
 import { quickActionUsesPool } from "./quickActionsCore.js";
+import { getHistoryEntries } from "./history.js";
+import { planSpeciesHpTrait, SPECIES_HP_TRAIT_KINDS, speciesLastDamageTaken } from "./speciesHpTraitCore.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -442,6 +445,180 @@ export async function applyLayOnHands({
     mode,
     conditionCount,
   });
+}
+
+function speciesShiftTemporaryHp(feature, profile, sourceItem, value) {
+  if (feature?.hpTrait?.kind !== SPECIES_HP_TRAIT_KINDS.SHIFT) return [];
+  const plan = planSpeciesHpTrait({
+    feature,
+    card: profile,
+    targetMeta: sourceItem.metadata?.[META_KEY] || {},
+    targetName: sourceItem.name,
+    value,
+  });
+  if (!plan.ok) throw new Error(plan.blocker);
+  return [{ targetId: sourceItem.id, amount: plan.amount }];
+}
+
+// The kind of the HP command of a species trait: an HP event of the combat log (combatLogCore.js).
+export const SPECIES_HP_TRAIT_HISTORY_KIND = "hp-species-trait";
+
+// The use of a trait: its pool before and after, for the combat log.
+function speciesTraitSpent(feature, profile, beforeState, afterState) {
+  const entries = (state) => classFeatureResourceEntries(state, [feature], CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    profile.characterBuild, profile.abilityModifiers);
+  const after = entries(afterState);
+  return entries(beforeState).map((entry) => {
+    const left = after.find((row) => row.pool.id === entry.pool.id)?.current;
+    return { poolId: entry.pool.id, name: entry.pool.name, amount: 1, ...(entry.current !== null ? { before: entry.current } : {}),
+      ...(left !== null && left !== undefined ? { after: left } : {}) };
+  });
+}
+
+// A species trait that changes hit points (speciesHpTraitCore.js): Relentless Endurance, Healing Hands, Adrenaline
+// Rush, Hungry Jaws, Stone's Endurance and Hadozee Dodge. One command writes the HP through hp:set (death saves,
+// Unconscious, shared HP) and spends the trait's use, so one Undo restores both. Stone's Endurance and Hadozee Dodge
+// give back the damage just taken, read from the history when nothing changed the HP since (else entered by the GM).
+// Shifting gives its temporary hit points with its pill, in activateClassFeature.
+async function applySpeciesHpTraitResolved({
+  feature,
+  sourceItem,
+  profile,
+  targetIds,
+  value = "",
+  damage = "",
+  hit = true,
+  sceneEpoch = null,
+} = {}) {
+  const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
+  const spec = feature?.hpTrait;
+  if (!spec || spec.kind === SPECIES_HP_TRAIT_KINDS.SHIFT) throw classFeatureError("invalid-activation");
+  const resolvedTargetIds = spec.kind === SPECIES_HP_TRAIT_KINDS.HEAL
+    ? await resolveTargetIds(sourceItem.id, feature, targetIds, profile.characterBuild)
+    : [sourceItem.id];
+  const [targetId] = resolvedTargetIds;
+  const itemIds = Array.from(new Set([sourceItem.id, targetId]));
+  const currentItems = await OBR.scene.items.getItems(itemIds);
+  const currentById = new Map(currentItems.map((entry) => [entry.id, entry]));
+  const currentSource = currentById.get(sourceItem.id);
+  const targetItem = currentById.get(targetId);
+  if (!currentSource || !targetItem) throw classFeatureError("target-required");
+  const sourceMeta = currentSource.metadata?.[META_KEY] || {};
+  const targetMeta = targetItem.metadata?.[META_KEY] || {};
+  const lastDamage = spec.kind === SPECIES_HP_TRAIT_KINDS.REDUCE
+    ? speciesLastDamageTaken(await getHistoryEntries().catch(() => []), targetId, Number(targetMeta.hp))
+    : null;
+  if (spec.kind === SPECIES_HP_TRAIT_KINDS.REDUCE && !lastDamage && Number(targetMeta.hp) <= 0) {
+    throw new Error(`${feature.name}: a 0 PF, senza gli ultimi danni nella cronologia, correggi i PF a mano.`);
+  }
+  const plan = planSpeciesHpTrait({
+    feature,
+    card: profile,
+    targetMeta,
+    targetName: targetItem.name,
+    value,
+    damage: lastDamage ? lastDamage.amount : damage,
+    hit,
+  });
+  if (!plan.ok) throw new Error(plan.blocker);
+  const turnState = await currentTurnState();
+  const instanceId = createInstanceId();
+  const beforeState = sourceMeta[CLASS_FEATURE_STATE_FIELD];
+  const activation = planClassFeatureActivation({
+    state: beforeState,
+    feature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
+    sourceId: sourceItem.id,
+    targetIds: resolvedTargetIds,
+    currentRound: turnState.round,
+    currentTurnKey: turnState.turnKey,
+    instanceId,
+    enabledFeatureIds: getEnabledClassFeatures(profile).map((entry) => entry.id),
+  });
+  if (!activation.ok) {
+    throw classFeatureError(activation.reason || "invalid-activation", activation.poolId);
+  }
+  const sourceName = String(currentSource.name || "Personaggio").trim() || "Personaggio";
+  const targetName = String(targetItem.name || "Bersaglio").trim() || "Bersaglio";
+  const label = `${sourceName}: ${feature.name}${targetId !== sourceItem.id ? ` → ${targetName}` : ""}`;
+  const change = plan.change;
+  const hpChanged = !!change?.changed;
+  const speciesTrait = {
+    featureId: feature.id,
+    name: feature.name,
+    actor: { id: sourceItem.id, name: sourceName },
+    target: { id: targetId, name: targetName },
+    detail: plan.detail,
+    ...(lastDamage ? { damageFrom: "history" } : {}),
+    spent: speciesTraitSpent(feature, profile, beforeState, activation.state),
+  };
+  const kind = hpChanged ? SPECIES_HP_TRAIT_HISTORY_KIND : "class-feature";
+  const mutation = await runEffectsMutation(
+    hpChanged ? [{
+      type: "hp:set",
+      updates: [{
+        itemId: targetId,
+        hp: change.afterHP,
+        hpMax: change.hpMax,
+        hpIntent: { mode: plan.mode, amount: plan.amount, eventId: instanceId },
+        expectedHP: metadataFieldExpectation(targetMeta, "hp"),
+        expectedHPMax: metadataFieldExpectation(targetMeta, "hpMax"),
+      }],
+    }] : [],
+    {
+      kind,
+      label,
+      targetIds: itemIds,
+      sceneEpoch: originEpoch,
+      metadataPatches: [{
+        id: sourceItem.id,
+        fields: {
+          [CLASS_FEATURE_STATE_FIELD]: {
+            mode: "set",
+            value: activation.state,
+            expected: metadataFieldExpectation(sourceMeta, CLASS_FEATURE_STATE_FIELD),
+          },
+        },
+      }],
+      history: { kind, label, payload: { speciesTrait } },
+    },
+  );
+  requireAppliedEffectsMutation(mutation);
+  await refreshConditionLabels(itemIds);
+  return {
+    feature,
+    state: activation.state,
+    targetIds: resolvedTargetIds,
+    hpChange: change,
+    detail: plan.detail,
+    ...(plan.warning ? { warning: plan.warning } : {}),
+    ...(lastDamage ? { lastDamage } : {}),
+  };
+}
+
+export async function applySpeciesHpTrait({
+  sourceId,
+  featureId,
+  targetIds,
+  value = "",
+  damage = "",
+  hit = true,
+  sceneEpoch = null,
+} = {}) {
+  const feature = getClassFeatureDefinition(featureId);
+  const { sourceItem, profile } = await loadEnabledClassFeatureSource(sourceId, feature);
+  return applySpeciesHpTraitResolved({ feature, sourceItem, profile, targetIds, value, damage, hit, sceneEpoch });
+}
+
+// The damage a reduction trait would give back now (read from the history), for the card's controls. Reads only.
+export async function previewSpeciesHpTrait({ sourceId, featureId } = {}) {
+  const feature = getClassFeatureDefinition(featureId);
+  if (feature?.hpTrait?.kind !== SPECIES_HP_TRAIT_KINDS.REDUCE) return { lastDamage: null };
+  const [sourceItem] = await OBR.scene.items.getItems([sourceId]);
+  const hp = Number(sourceItem?.metadata?.[META_KEY]?.hp);
+  return { lastDamage: speciesLastDamageTaken(await getHistoryEntries().catch(() => []), sourceId, Number.isFinite(hp) ? hp : null) };
 }
 
 export async function purifyClassFeatureSpell({
@@ -1016,6 +1193,8 @@ export async function activateClassFeature({
   resourceValues = {},
   featureOverride = null,
   sceneEpoch = null,
+  damage = "",
+  hit = true,
 } = {}) {
   const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
   const feature = featureOverride || getClassFeatureDefinition(featureId);
@@ -1064,6 +1243,19 @@ export async function activateClassFeature({
       targetIds,
       spellInstanceId,
       spellName,
+    });
+  }
+  // A species trait that changes hit points (Shifting excepted: its pill goes on below, with its temporary HP).
+  if (feature.hpTrait && feature.hpTrait.kind !== SPECIES_HP_TRAIT_KINDS.SHIFT) {
+    return applySpeciesHpTraitResolved({
+      feature,
+      sourceItem,
+      profile,
+      targetIds,
+      value,
+      damage,
+      hit,
+      sceneEpoch: originEpoch,
     });
   }
   if (!featureOverride && adapter === "unsettling-words") {
@@ -1199,11 +1391,15 @@ export async function activateClassFeature({
   const instanceId = createInstanceId();
   let activation = null;
   const itemIds = Array.from(new Set([sourceItem.id, ...resolvedTargetIds]));
-  const temporaryHpApplications = classFeatureTemporaryHpApplications(feature, {
-    sourceId: sourceItem.id,
-    targetIds: resolvedTargetIds,
-    choiceId,
-  });
+  const temporaryHpApplications = [
+    ...classFeatureTemporaryHpApplications(feature, {
+      sourceId: sourceItem.id,
+      targetIds: resolvedTargetIds,
+      choiceId,
+    }),
+    // A shifter's Shifting: temporary hit points from the sheet (Beasthide's d6 entered at the table, as value).
+    ...speciesShiftTemporaryHp(feature, profile, sourceItem, value),
+  ];
   activation = planClassFeatureActivation({
     state: sourceItem.metadata?.[META_KEY]?.[CLASS_FEATURE_STATE_FIELD],
     feature,

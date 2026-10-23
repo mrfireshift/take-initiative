@@ -581,8 +581,24 @@ function explicitContextLines(event) {
   if (legacyCasterName) lines.push(`Caster: ${casterName}`);
   else if (casterName) lines.push(`Incantatore: ${casterName}`);
   if (explicitSource) lines.push(`Fonte esplicita: ${explicitSource}`);
+  // A species trait that changed hit points (Relentless Endurance, Healing Hands, temporary HP, a reduced damage).
+  const speciesTrait = payload.speciesTrait && typeof payload.speciesTrait === "object" ? payload.speciesTrait : null;
+  if (speciesTrait) {
+    const actorName = stringValue(speciesTrait.actor?.name);
+    lines.push(`Tratto di specie: ${stringValue(speciesTrait.name)}${actorName ? ` di ${actorName}` : ""}`);
+    if (stringValue(speciesTrait.detail)) {
+      lines.push(`${stringValue(speciesTrait.detail)}${speciesTrait.damageFrom === "history" ? " (danni dalla cronologia)" : ""}`);
+    }
+    const spent = (Array.isArray(speciesTrait.spent) ? speciesTrait.spent : []).map((entry) => (
+      finiteNumber(entry?.before) !== null && finiteNumber(entry?.after) !== null
+        ? `${stringValue(entry.name)} ${numberText(entry.before)} → ${numberText(entry.after)}`
+        : `${stringValue(entry?.name)} −${numberText(entry?.amount ?? 1)}`
+    )).filter(Boolean);
+    if (spent.length) lines.push(`Speso: ${spent.join(", ")}`);
+  }
   const causalSourceKnown = !!(
-    causality?.cause?.spellId
+    speciesTrait
+    || causality?.cause?.spellId
     || causality?.cause?.spellName
     || causality?.actor?.id
     || causality?.actor?.name

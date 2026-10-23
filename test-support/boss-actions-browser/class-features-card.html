@@ -70,7 +70,7 @@
     // I tratti di specie: senza sottorazza (tiefling) e con sottorazza (drow).
     tiefling: { name: "Zar", build: [{ classId: "warlock", level: 5, subclassId: "warlock-l-immondo" }], species: { id: "tiefling", ancestryId: "" } },
     drow: { name: "Ilvara", build: [{ classId: "ladro", level: 3, subclassId: "ladro-lama-spirituale" }], species: { id: "elfo", ancestryId: "drow" } },
-    aasimar: { name: "Aela", build: [{ classId: "paladino", level: 5, subclassId: "paladino-giuramento-di-conquista" }], species: { id: "aasimar-multiverso", ancestryId: "" } },
+    aasimar: { name: "Aela", build: [{ classId: "paladino", level: 5, subclassId: "paladino-giuramento-di-conquista" }], species: { id: "aasimar-multiverso", ancestryId: "anima-radiosa" }, hp: 30 },
     genasi: { name: "Pyra", build: [{ classId: "mago", level: 5, subclassId: "mago-scuola-di-divinazione" }], species: { id: "genasi-multiverso", ancestryId: "terra" } },
     shifter: { name: "Geth", build: [{ classId: "ranger", level: 5, subclassId: "ranger-cacciatore" }], species: { id: "shifter-multiverso", ancestryId: "pelle-bestiale" } },
     harengon: { name: "Pip", build: [{ classId: "ladro", level: 9, subclassId: "ladro-lama-spirituale" }], species: { id: "harengon", ancestryId: "" } },
@@ -79,6 +79,11 @@
     kender: { name: "Tasslehoff", build: [{ classId: "ladro", level: 5, subclassId: "ladro-lama-spirituale" }], species: { id: "kender", ancestryId: "" } },
     dragonide: { name: "Kriv", build: [{ classId: "paladino", level: 6, subclassId: "paladino-giuramento-di-conquista" }], species: { id: "dragonide", ancestryId: "rosso" }, abilityModifiers: { con: 2 } },
     simic: { name: "Vorel", build: [{ classId: "guerriero", level: 5, subclassId: "guerriero-campione" }], species: { id: "ibrido-simic", ancestryId: "planata-sputo" }, abilityModifiers: { con: 2 } },
+    // I tratti che cambiano i PF: Tenacia implacabile a 0 PF, Resistenza della pietra ferito, PF temporanei.
+    mezzorco: { name: "Grom", build: [{ classId: "guerriero", level: 5, subclassId: "guerriero-campione" }], species: { id: "mezzorco", ancestryId: "" }, hp: 0 },
+    goliath: { name: "Kael", build: [{ classId: "guerriero", level: 5, subclassId: "guerriero-campione" }], species: { id: "goliath", ancestryId: "" }, abilityModifiers: { con: 2 }, hp: 22 },
+    orco: { name: "Urza", build: [{ classId: "guerriero", level: 5, subclassId: "guerriero-campione" }], species: { id: "orco-multiverso", ancestryId: "" } },
+    lucertoloide: { name: "Ssa", build: [{ classId: "ranger", level: 5, subclassId: "ranger-cacciatore" }], species: { id: "lucertoloide", ancestryId: "" }, abilityModifiers: { con: 3 } },
   };
   const selected = characters[params.get("pc")] ? params.get("pc") : "warlock";
   fakeHost.state.role = params.get("role") === "PLAYER" ? "PLAYER" : "GM";
@@ -98,7 +103,7 @@
   fakeHost.setItems(Object.entries(characters).map(([id, pc], index) => ({
     id, name: pc.name, type: "IMAGE", layer: "CHARACTER", visible: true,
     position: { x: 200 + index * 120, y: 300 }, preview: { size: 70, color: "#0e7490" },
-    metadata: { [META]: { hp: 40, hpMax: 40, attitude: "pc", inInitiative: true, initiativeCard: cardFor(pc) } },
+    metadata: { [META]: { hp: pc.hp ?? 40, hpMax: 40, attitude: "pc", inInitiative: true, initiativeCard: cardFor(pc) } },
   })));
   fakeHost.setSceneMetadata({ [STATE]: { round: 1, order: Object.keys(characters), currentId: selected } });
 
