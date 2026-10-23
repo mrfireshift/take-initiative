@@ -1,82 +1,81 @@
-  <!doctype html>
-  <html lang="it">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <link rel="stylesheet" href="/ui-typography.css" />
-    <style>
-      :root {
-        --obrt-text: #fff;         /* popolato dal TS con applyTheme */
-        --obrt-hover: rgba(255,255,255,.06);
-      }
-      html, body {
-        margin: 0; padding: 0;
-        background: transparent; color: var(--obrt-text);
-        font-size: var(--obrt-type-body); line-height: 1.25;
-      }
-      .wrap {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-        padding: 8px;
-        min-width: 100px;
-        max-width: 360px;
-      }
-      .chip {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 5px 3px; border-radius: 10px;
-        background: var(--obrt-hover);
-        cursor: pointer; user-select: none;
-        border: 1px solid rgba(255,255,255,.10);
-        white-space: nowrap;
-      }
-      .chip:hover { background: rgba(255,255,255,.10); }
-      .chip .dot {
-        width: 10px; height: 10px; border-radius: 999px;
-        border: 1px solid rgba(255,255,255,.35);
-        background: rgba(255,255,255,.15);
-      }
-      .chip .dot.on {
-      background: #3ba55d;   /* verde acceso; cambia se preferisci */
-      border-color: #3ba55d;
-      }
-      .chip .dot.mixed {
-      background: repeating-linear-gradient(
-      45deg,
-    rgba(255,255,255,.45) 0 3px,
-    rgba(255,255,255,.15) 3px 6px
-  );
-}
-      .row { grid-column: 1 / -1; display: flex; gap: 6px; }
-      input[type="text"] {
-        flex: 1; min-width: 0;
-        padding: 6px 8px; border-radius: 10px;
-        border: 1px solid rgba(255,255,255,.15);
-        background: rgba(0,0,0,.35); color: var(--obrt-text);
-        font-size: var(--obrt-type-body); line-height: 1.25;
-      }
-      button {
-        padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15);
-        background: rgba(255,255,255,.07); color: var(--obrt-text); cursor: pointer;
-        font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-semibold); line-height: 1.25;
-      }
-      button:hover { background: rgba(255,255,255,.12); }
-      .footer { grid-column: 1 / -1; display:flex; justify-content: space-between; gap:8px; }
-      .muted { opacity: .75; font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }
-    </style>
-  </head>
-  <body>
-    <div class="wrap" id="wrap">
-      <div id="grid"></div>  <!-- ← contenitore dove il TS inietterà i chip -->
-      <div class="row">
-        <input id="customText" type="text" placeholder="Altre condizioni..." />
-        <input id="conditionTurns" type="number" min="1" step="1" placeholder="Round" style="max-width:72px" />
-        <button id="btnAdd">Aggiungi</button>
-      </div>
-      <div class="footer">
-        <button id="btnClear">Rimuovi tutte le condizioni</button>
-      </div>
-    </div>
-    <script type="module" src="/src/ctx-conditions.ts"></script>
-  </body>
-  </html>
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Condizioni</title>
+  <link rel="stylesheet" href="/ui-typography.css" />
+  <style>
+    /* "Condizioni…" in OBR's token menu: the quick conditions of the card menu (quickConditionsCore.js), then the
+       full panel. Colours follow OBR's theme text (ctx-conditions.ts). */
+    :root {
+      --obrt-text: #fff;
+      --obrt-hover: rgba(255,255,255,.08);
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: transparent !important;
+      color: var(--obrt-text);
+      font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
+      font-size: 12px;
+    }
+    .wrap {
+      box-sizing: border-box;
+      display: grid;
+      gap: 4px;
+      padding: 6px;
+    }
+    .quick-conditions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 2px;
+    }
+    button {
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+      min-height: 28px;
+      padding: 4px 5px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+    }
+    button:hover:not(:disabled) { background: var(--obrt-hover); }
+    button:focus-visible { outline: 2px solid rgba(147,197,253,.9); outline-offset: -2px; }
+    button:disabled { cursor: progress; opacity: .6; }
+    .emoji { flex: 0 0 15px; width: 15px; text-align: center; }
+    /* 11px: OBR's menu is narrower than the card menu, and "Privo di sensi" has to fit in its column. */
+    .name { min-width: 0; flex: 1 1 auto; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    /* Active on every selected token, or on some of them. */
+    button[data-state="on"] {
+      background: rgba(59,130,246,.34);
+      box-shadow: inset 0 0 0 1px rgba(147,197,253,.6);
+    }
+    button[data-state="mixed"] {
+      background: rgba(59,130,246,.12);
+      box-shadow: inset 0 0 0 1px rgba(147,197,253,.38);
+    }
+    .all {
+      border-top: 1px solid rgba(255,255,255,.12);
+      border-radius: 0 0 7px 7px;
+      padding-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="quick-conditions" id="grid" role="group" aria-label="Condizioni rapide"></div>
+    <button type="button" class="all" id="allConditions">Tutte le condizioni…</button>
+  </div>
+  <script type="module" src="/src/ctx-conditions.ts"></script>
+</body>
+</html>

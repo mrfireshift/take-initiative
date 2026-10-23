@@ -96,3 +96,24 @@ test("le condizioni rapide stanno nel sottomenu Condizioni, con il pannello comp
   assert.ok(submenu.indexOf("addQuickConditions(content, quickConditions);") < submenu.indexOf('makeAction(content, "Tutte le condizioni…"'));
   assert.ok(!render.includes("addQuickConditions(root"), "not inline at the top of the menu");
 });
+
+test("lotto 6.7: il menu del token ha Danno/cura… sulla console in Danno e Condizioni… con le condizioni rapide", () => {
+  const menuSource = readFileSync(new URL("../src/contextMenu.js", import.meta.url), "utf8");
+  const damage = menuSource.slice(menuSource.indexOf("id: `${ID}/damage-heal`"), menuSource.indexOf("id: `${ID}/conditions`"));
+  assert.ok(damage.includes('label: "Danno/cura…", filter: { roles: ["GM"], every: [isCharacter()] }'));
+  assert.ok(damage.indexOf("OBR.player.select(ids, false)") < damage.indexOf("TRACKER_PANEL_REQUEST_CHANNEL"), "select first");
+  assert.ok(damage.includes('panel: "quick-hp",') && damage.includes('mode: "damage",'));
+  const conditions = menuSource.slice(menuSource.indexOf("id: `${ID}/conditions`"));
+  assert.ok(conditions.includes('label: "Condizioni…", filter: { roles: ["GM"], every: [isCharacter()] }'));
+  assert.ok(conditions.includes('embed: { url: "/ctx-conditions.html", height: CONDITIONS_EMBED_H },'));
+
+  const viteConfig = readFileSync(new URL("../vite.config.js", import.meta.url), "utf8");
+  assert.ok(viteConfig.includes('ctxConditions: path.resolve(process.cwd(), "ctx-conditions.html"),'), "built for production");
+
+  const embed = readFileSync(new URL("../src/ctx-conditions.ts", import.meta.url), "utf8");
+  assert.ok(embed.includes("quickConditionMenuEntries(scope, CONDITION_EMOJI)"));
+  assert.ok(embed.includes("quickConditionToggleTargets(await readScope(ids), conditionName)"));
+  assert.ok(embed.includes('history: { kind: "condition", label },'));
+  assert.ok(embed.includes("await refreshConditionLabels(plan.targetIds);"));
+  assert.ok(embed.includes('{ type: "open", panel: "conditions" }'));
+});

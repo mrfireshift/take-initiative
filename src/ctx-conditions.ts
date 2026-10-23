@@ -1,11 +1,10 @@
-// /ctx-conditions.js
+// "Condizioni…" in OBR's token menu (lot 6.7): the card menu's quick conditions (quickConditionsCore.js) for the
+// tokens the menu was opened on, with their state (on every token, on some, on none). A click adds the condition or
+// takes it off through the effects panel's operation and automation, with History and the map labels, and the grid
+// shows the new state, so several can be set in a row. "Tutte le condizioni…" opens the full panel on those tokens.
 import OBR from "@owlbear-rodeo/sdk";
-import { ID } from "./constants.js";
-import {
-  CONDITION_LIST,
-  APPLICABLE_CONDITION_LIST,
-  getConditionInstances
-} from "./conditions.js";
+import { ID, TRACKER_PANEL_REQUEST_CHANNEL } from "./constants.js";
+import { CONDITION_EMOJI, getConditionInstances, refreshConditionLabels } from "./conditions.js";
 import {
   conditionMutationOperations,
   getEffectsMutationSceneContext,
@@ -13,299 +12,164 @@ import {
   runEffectsMutation,
 } from "./effectsMutations.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
+import { quickConditionMenuEntries, quickConditionToggleTargets } from "./quickConditionsCore.js";
 
 const META_KEY = `${ID}/meta`;
 const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
+const grid = document.getElementById("grid");
+const allConditionsButton = document.getElementById("allConditions") as HTMLButtonElement | null;
 
-// --- UI helpers -----------------------------------------------------------
-function makeChip(name) {
-  const chip = document.createElement("div");
-  chip.className = "chip";
-  const dot = document.createElement("div");
-  dot.className = "dot";
-  const label = document.createElement("span");
-  label.textContent = name;
-  chip.append(dot, label);
-  chip.dataset.name = name;
-  return chip;
-}
+let currentIds: string[] = [];
+let busy = false;
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-function paintChip(chip: HTMLElement, state: "on" | "off" | "mixed") {
-  const dot = chip.querySelector<HTMLDivElement>(".dot");
-  if (!dot) return;
-  dot.classList.remove("on", "mixed"); // reset
-  if (state === "on") dot.classList.add("on");
-  else if (state === "mixed") dot.classList.add("mixed");
-}
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-let __REFRESH_TIMER: any = null;
-let __CURRENT_IDS: string[] = [];
-
-function readDuration(input: HTMLInputElement | null): number | null {
-  const n = Math.floor(Number(input?.value || 0));
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-function durationOpts(input: HTMLInputElement | null) {
-  const turns = readDuration(input);
-  return turns ? { turns } : {};
-}
-
-function queueRefresh(grid: HTMLElement) {
-  if (!sceneLifecycle.isReady()) return;
-  clearTimeout(__REFRESH_TIMER);
-  __REFRESH_TIMER = setTimeout(async () => {
-    if (!sceneLifecycle.isReady()) return;
-    const ids = __CURRENT_IDS.length ? __CURRENT_IDS : await getSelectedIdsSafe({ robust: false });
-    if (!sceneLifecycle.isReady()) return;
-    await refreshChipsState(grid, ids);
-  }, 5);
-}
-
-
-// Piccolo helper
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-/**
- * Tenta di leggere gli ID dal context menu (robusto), poi fallback alla selection.
- * - robust=true: fino a 6 retry ogni 40ms (≈240ms worst-case)
- * - robust=false: 1 tentativo solo (velocissimo)
- */
-async function getSelectedIdsSafe(opts: { robust?: boolean } = {}): Promise<string[]> {
-  const robust = !!opts.robust;
+// The tokens of the context menu (a few retries: OBR fills the context just after opening), else the selection.
+async function contextItemIds({ robust = false } = {}): Promise<string[]> {
   const tries = robust ? 6 : 1;
   for (let i = 0; i < tries; i++) {
     try {
-      if (OBR?.contextMenu?.getContext) {
-        const ctx = await OBR.contextMenu.getContext();
-        const ids = (ctx?.items || []).map(i => i.id).filter(Boolean);
-        if (ids.length) return ids;
-      }
+      const context = await OBR.contextMenu.getContext();
+      const ids = (context?.items || []).map((item) => item.id).filter(Boolean);
+      if (ids.length) return ids;
     } catch {}
     if (robust) await sleep(40);
   }
   try {
-    const sel = await OBR.player.getSelection();
-    return Array.isArray(sel) ? sel : [];
+    const selection = await OBR.player.getSelection();
+    return Array.isArray(selection) ? selection : [];
   } catch {
     return [];
   }
 }
 
+async function readScope(ids: string[]) {
+  if (!ids.length) return [];
+  const wanted = new Set(ids);
+  const items = await OBR.scene.items.getItems((item) => wanted.has(item.id));
+  return items.map((item) => ({
+    id: item.id,
+    conditions: getConditionInstances(item?.metadata?.[META_KEY]?.conditions || {})
+      .map((instance) => instance.condition),
+  }));
+}
 
-async function readFlagsFor(ids) {
-  if (!sceneLifecycle.isReady()) return { byCond: new Map(), anyCustom: false };
-  if (!ids.length) return { byCond: new Map(), anyCustom: false };
-  const idset = new Set(ids.filter(Boolean));
-  const items = await OBR.scene.items.getItems(i => idset.has(i.id));
-  const byCond = new Map();
-  const allNames = [...CONDITION_LIST];
-  let anyCustom = false;
-
-  for (const it of items) {
-    const instances = getConditionInstances(it?.metadata?.[META_KEY]?.conditions || {});
-    const names = new Set(instances.map((instance) => String(instance.condition || "").toLocaleLowerCase()));
-    if (instances.some((instance) => !CONDITION_LIST.includes(String(instance.condition || "")))) {
-      anyCustom = true;
-    }
-
-    for (const name of allNames) {
-      const active = names.has(name.toLocaleLowerCase());
-      if (!byCond.has(name)) byCond.set(name, { all: true, some: false });
-      const state = byCond.get(name);
-      state.all = state.all && active;
-      state.some = state.some || active;
-    }
+function render(scope) {
+  if (!grid) return;
+  grid.replaceChildren();
+  for (const entry of quickConditionMenuEntries(scope, CONDITION_EMOJI)) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.disabled = busy || !scope.length;
+    button.dataset.state = entry.state;
+    button.setAttribute("aria-pressed", entry.state === "on" ? "true" : entry.state === "mixed" ? "mixed" : "false");
+    button.title = entry.state === "on"
+      ? `Togli ${entry.name}`
+      : entry.state === "mixed"
+      ? `${entry.name} solo su alcuni: applica a tutti`
+      : `Applica ${entry.name}`;
+    const emoji = document.createElement("span");
+    emoji.className = "emoji";
+    emoji.setAttribute("aria-hidden", "true");
+    emoji.textContent = entry.emoji;
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = entry.name;
+    button.append(emoji, name);
+    button.addEventListener("click", () => { void toggle(entry.name); });
+    grid.appendChild(button);
   }
-  return { byCond, anyCustom };
-}
-async function refreshChipsState(grid, ids) {
-  if (!sceneLifecycle.isReady()) return;
-  const { byCond } = await readFlagsFor(ids);
-  if (!sceneLifecycle.isReady()) return;
-  grid.querySelectorAll(".chip").forEach(chip => {
-    const name = chip.dataset.name;
-    const s = byCond.get(name) || { all: false, some: false };
-    const state = s.all ? "on" : (s.some ? "mixed" : "off");
-    paintChip(chip, state);
-  });
+  if (allConditionsButton) allConditionsButton.disabled = !scope.length;
 }
 
-// --- Theme ---------------------------------------------------------------
+async function refresh() {
+  if (!sceneLifecycle.isReady()) return;
+  render(await readScope(currentIds));
+}
+
+function queueRefresh() {
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => { void refresh(); }, 30);
+}
+
+async function toggle(conditionName: string) {
+  if (busy || !sceneLifecycle.isReady()) return;
+  const operation = sceneLifecycle.capture({ operationId: `ctx-condition:${conditionName}:${Date.now().toString(36)}` });
+  busy = true;
+  try {
+    const ids = currentIds.length ? currentIds : await contextItemIds();
+    if (!sceneLifecycle.isCurrent(operation) || !ids.length) return;
+    const plan = quickConditionToggleTargets(await readScope(ids), conditionName);
+    if (!sceneLifecycle.isCurrent(operation) || !plan.targetIds.length) return;
+    const label = `${plan.mode === "remove" ? "Rimossa" : "Applicata"}: ${conditionName}${ids.length > 1 ? " (selezione)" : ""}`;
+    const owner = await getEffectsMutationSceneContext({ commandId: operation.operationId });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    const mutation = await runEffectsMutation(conditionMutationOperations({
+      targetIds: plan.targetIds,
+      conditionName,
+      mode: plan.mode === "remove" ? "toggle" : "add",
+    }), {
+      kind: "condition",
+      label,
+      targetIds: plan.targetIds,
+      history: { kind: "condition", label },
+      commandId: owner.commandId,
+      sceneIdentity: owner.sceneIdentity,
+    });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    requireAppliedEffectsMutation(mutation);
+    await refreshConditionLabels(plan.targetIds);
+  } catch (error) {
+    console.warn("[ctx-conditions] condizione rapida:", (error as Error)?.message || error);
+  } finally {
+    busy = false;
+    queueRefresh();
+  }
+}
+
 async function applyTheme() {
   try {
-    const t = await OBR.theme.getTheme();
-    document.documentElement.style.setProperty("--obrt-text", t?.text ?? "#fff");
-    // hover: se hai un colore di pannello, puoi calcolarlo qui
+    const theme = await OBR.theme.getTheme();
+    document.documentElement.style.setProperty("--obrt-text", theme?.text?.primary ?? "#fff");
   } catch {}
 }
 
-// --- MOUNT ---------------------------------------------------------------
 async function mount() {
   await OBR.onReady();
   await sceneLifecycle.mount();
   if (!sceneLifecycle.isReady()) return;
-
   await applyTheme();
 
-  const wrap = document.getElementById("wrap");
-  if (!wrap) return;
-
-  // griglia: inseriamo i chip PRIMA della row custom
-  const grid = document.createElement("div");
-  grid.style.display = "contents"; // sfrutta la grid del parent
-  wrap.insertBefore(grid, wrap.firstElementChild);
-
-  const turnsInput = document.getElementById("conditionTurns") as HTMLInputElement | null;
-
-  // crea chip per ogni condizione
-APPLICABLE_CONDITION_LIST.forEach((name) => {
-  const chip = makeChip(name);
-
-  chip.addEventListener("click", () => {
-  if (!sceneLifecycle.isReady()) return;
-  const operation = sceneLifecycle.capture({ operationId: `ctx-condition:${name}:${Date.now().toString(36)}` });
-  if (!sceneLifecycle.isCurrent(operation)) return;
-  // 1) UI ottimistica immediata
-  const wasOn = chip.querySelector(".dot")?.classList.contains("on");
-  paintChip(chip, wasOn ? "off" : "on");
-
-  // 2) prendi gli ID dalla cache (istantaneo); fallback leggero se vuota
-  const run = async () => {
-    let ids = __CURRENT_IDS.length ? __CURRENT_IDS : await getSelectedIdsSafe({ robust: false });
-    if (!sceneLifecycle.isCurrent(operation)) return;
-    if (!ids.length) {
-      // nessun target reale → revert visivo e stop
-      paintChip(chip, wasOn ? "on" : "off");
-      return;
-    }
-
-    // 3) fire‑and‑forget: non bloccare il listener
-    const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
-    if (!sceneLifecycle.isCurrent(operation)) return;
-    const mutation = await runEffectsMutation(conditionMutationOperations({
-      targetIds: ids,
-      commandId: ownerSceneContext.commandId,
-      sceneIdentity: ownerSceneContext.sceneIdentity,
-      conditionName: name,
-      options: wasOn ? {} : durationOpts(turnsInput),
-      mode: "toggle",
-    }), {
-      kind: "condition",
-      label: `${wasOn ? "Rimossa" : "Applicata"}: ${name}`,
-      targetIds: ids,
-      history: {
-        kind: "condition",
-        label: `${wasOn ? "Rimossa" : "Applicata"}: ${name}`,
-      },
-    });
-    if (!sceneLifecycle.isCurrent(operation)) return;
-    requireAppliedEffectsMutation(mutation);
-    queueRefresh(grid);
-  };
-  run().catch(() => {
-    // in caso di errore: ripristina lo stato visivo precedente
-    paintChip(chip, wasOn ? "on" : "off");
-    queueRefresh(grid);
-  });
-  };
-  // lancia senza attendere
-  run();
-});
-
-  grid.appendChild(chip);
-});
-
-  // controlli extra (custom + clear)
-  const input = document.getElementById("customText") as HTMLInputElement | null;
-  const btnAdd = document.getElementById("btnAdd");
-  const btnClear = document.getElementById("btnClear");
-
-  btnAdd?.addEventListener("click", async () => {
-    const operation = sceneLifecycle.capture({ operationId: `ctx-condition-add:${Date.now().toString(36)}` });
-    if (!sceneLifecycle.isCurrent(operation)) return;
-    const text = (input?.value || "").trim();
-    if (!text) return;
-    const ids = await getSelectedIdsSafe();
-    if (!sceneLifecycle.isCurrent(operation)) return;
+  allConditionsButton?.addEventListener("click", async () => {
+    const ids = currentIds.length ? currentIds : await contextItemIds();
     if (!ids.length) return;
-    const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
-    if (!sceneLifecycle.isCurrent(operation)) return;
-    const mutation = await runEffectsMutation(conditionMutationOperations({
-      targetIds: ids,
-      commandId: ownerSceneContext.commandId,
-      sceneIdentity: ownerSceneContext.sceneIdentity,
-      conditionName: text,
-      options: durationOpts(turnsInput),
-      mode: "custom",
-    }), {
-      kind: "condition",
-      label: `Applicata: ${text}`,
-      targetIds: ids,
-      history: { kind: "condition", label: `Applicata: ${text}` },
-    });
-    if (!sceneLifecycle.isCurrent(operation)) return;
-    requireAppliedEffectsMutation(mutation);
-    input.value = "";
-    await refreshChipsState(grid, ids);
+    // The full panel works on the selection: select the menu's tokens, then ask the tracker to open it.
+    try { await OBR.player.select(ids, false); } catch {}
+    await OBR.broadcast.sendMessage(TRACKER_PANEL_REQUEST_CHANNEL, { type: "open", panel: "conditions" }, { destination: "LOCAL" });
   });
 
-  btnClear?.addEventListener("click", async () => {
-    const operation = sceneLifecycle.capture({ operationId: `ctx-condition-clear:${Date.now().toString(36)}` });
-    if (!sceneLifecycle.isCurrent(operation)) return;
-    const ids = await getSelectedIdsSafe();
-    if (!sceneLifecycle.isCurrent(operation)) return;
-    if (!ids.length) return;
-    const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
-    if (!sceneLifecycle.isCurrent(operation)) return;
-    const mutation = await runEffectsMutation([{
-      type: "condition:clear",
-      targetIds: ids,
-      commandId: ownerSceneContext.commandId,
-      sceneIdentity: ownerSceneContext.sceneIdentity,
-    }], {
-      kind: "condition",
-      label: "Rimosse tutte le condizioni",
-      targetIds: ids,
-      history: { kind: "condition", label: "Rimosse tutte le condizioni" },
-    });
-    if (!sceneLifecycle.isCurrent(operation)) return;
-    requireAppliedEffectsMutation(mutation);
-    await refreshChipsState(grid, ids);
-  });
-
-// Prima verniciata: prendi gli ID in modo ROBUSTO
-__CURRENT_IDS = await getSelectedIdsSafe({ robust: true });
-await refreshChipsState(grid, __CURRENT_IDS);
-
-// Quando il popup riprende focus, riallinea gli ID e lo stato
+  currentIds = await contextItemIds({ robust: true });
+  await refresh();
   window.addEventListener("focus", async () => {
-  if (!sceneLifecycle.isReady()) return;
-  __CURRENT_IDS = await getSelectedIdsSafe({ robust: true });
-  if (!sceneLifecycle.isReady()) return;
-  await refreshChipsState(grid, __CURRENT_IDS);
-});
-
-  // aggiorna i dot se cambiano i metadata dei selezionati (best-effort)
-  OBR.scene.items.onChange(() => {
-  if (!sceneLifecycle.isReady()) return;
-  queueRefresh(grid);
-});
-
-  // aggiorna il tema live
-  OBR.theme.onChange(applyTheme);
+    currentIds = await contextItemIds({ robust: true });
+    queueRefresh();
+  });
+  OBR.scene.items.onChange(() => queueRefresh());
+  OBR.theme.onChange(() => { void applyTheme(); });
 }
 
 sceneLifecycle.subscribe((event) => {
   if (event.phase === "unavailable") {
-    clearTimeout(__REFRESH_TIMER);
-    __REFRESH_TIMER = null;
-    __CURRENT_IDS = [];
-    document.querySelectorAll("button, input").forEach((element) => { element.disabled = true; });
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = null;
+    currentIds = [];
+    document.querySelectorAll("button").forEach((element) => { (element as HTMLButtonElement).disabled = true; });
   }
 });
 
-mount().catch((e) => {
-  console.error("[ctx-conditions] mount error:", e);
+mount().catch((error) => {
+  console.error("[ctx-conditions] mount error:", error);
 });
 
 window.addEventListener("pagehide", () => sceneLifecycle.dispose());

@@ -7,7 +7,7 @@
   } from "./elevationLabel.js";
   import OBR from "@owlbear-rodeo/sdk";
   import { openBossActionsPopover } from "./bossActionsLauncher.js";
-  import { ID } from "./constants.js";
+  import { ID, TRACKER_PANEL_REQUEST_CHANNEL } from "./constants.js";
   import { openTrackedPopover } from "./popoverDragHost.js";
   import {
     enqueueInitiativeStateReducer,
@@ -91,6 +91,8 @@ async function dumpItems(ids, label) {
   const PAD_Y = 8;
   const EMBED_3ROWS_H = PAD_Y * 2 + ROW_H * 3 + GAP_Y * 2; // = 124px
   const EMBED_4ROWS_H = PAD_Y * 2 + ROW_H * 4 + GAP_Y * 3; // = 170px circa
+  // ctx-conditions.html: 7 rows of quick conditions (28px, 2px apart), the "Tutte le condizioni…" row, 6px padding.
+  const CONDITIONS_EMBED_H = 6 * 2 + 28 * 7 + 2 * 6 + 4 + 34;
 
   /* --------------------------- Group unificato ---------------------------- */
   const MENU_GROUP = `${ID}/initiative-manage`;
@@ -288,6 +290,32 @@ async function toggleEpicBossOn(ids) {
           anchorOrigin: { horizontal: "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
           disableClickAway: true, hidePaper: true });
       },
+    });
+
+    /* ============ “Danno/cura…” e “Condizioni…” (lotto 6.7, GM) ============ */
+    // Damage from the map: the effects console on "Danno" (decision D2), on the tokens the menu was opened on. The
+    // console works on the selection, so the tokens are selected first; the tracker opens it, as for an area.
+    OBR.contextMenu.create({
+      id: `${ID}/damage-heal`, group: MENU_GROUP,
+      icons: [{ icon: ASSET("quick-damage.svg"), label: "Danno/cura…", filter: { roles: ["GM"], every: [isCharacter()] } }],
+      onClick: async ({ items }) => {
+        if (await OBR.player.getRole() !== "GM") return;
+        const ids = (items || []).map((item) => item.id).filter(Boolean);
+        if (!ids.length) return;
+        try { await OBR.player.select(ids, false); } catch {}
+        await OBR.broadcast.sendMessage(TRACKER_PANEL_REQUEST_CHANNEL, {
+          type: "open",
+          panel: "quick-hp",
+          mode: "damage",
+        }, { destination: "LOCAL" });
+      },
+    });
+
+    // The card menu's quick conditions in a submenu (ctx-conditions.html), the full panel at its end.
+    OBR.contextMenu.create({
+      id: `${ID}/conditions`, group: MENU_GROUP,
+      icons: [{ icon: ASSET("conditions-panel.svg"), label: "Condizioni…", filter: { roles: ["GM"], every: [isCharacter()] } }],
+      embed: { url: "/ctx-conditions.html", height: CONDITIONS_EMBED_H },
     });
 
     /* ======================= “Segna come…” (EMBED) ======================= */

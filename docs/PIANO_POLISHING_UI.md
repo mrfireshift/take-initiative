@@ -376,6 +376,12 @@ Stato dei lotti:
   - **Ira:** non è più una condizione ma la capacità del Barbaro. Esce dalle condizioni proposte (pannello, console, scheda), come Indebolimento; resta nel catalogo per le istanze salvate e per colore ed emoji dell'etichetta della capacità.
   - **Non fatto:** la "×" su ogni pillola (facile da toccare per sbaglio al tavolo, e senza spazio nel compatto); il menu nativo del token è il lotto 6.7.
   - **Verifica nell'anteprima:** Prono su Lavera applicata e tolta dal menu (stato "attiva" alla riapertura, due voci in cronologia, pillola sulla card); Goblin e capobanda selezionati insieme: Prono mista, il clic la aggiunge solo al Goblin; menu del capobanda con le sue quattro condizioni evidenziate.
+- **6.7 — fatto il 2026-10-23.**
+  - **"Danno/cura…"** nel menu del token di OBR (solo GM, token personaggio): seleziona i token del menu e chiede al tracker la console effetti su "Danno" (meccanismo del 6.1), come gli strumenti d'area.
+  - **"Condizioni…"**: un sottomenu incorporato (scelta dell'utente, al posto di aprire il pannello) con le stesse 13 condizioni rapide del menu della card, il loro stato sui token del menu e "Tutte le condizioni…" in fondo (seleziona i token e apre il pannello). Il clic applica o toglie con la stessa operazione, cronologia ed etichette del 6.6, e il sottomenu resta aperto con lo stato aggiornato, così se ne mettono più di una di fila.
+  - **Pagina:** riscritta la vecchia `ctx-conditions` (stesso nome; il sottomenu "Condizioni…" era stato tolto nella v1.1.5 e la pagina non era più nella build): ora è negli input di Vite. Tolta la copia morta `public/ctx-conditions.html`, che avrebbe oscurato la pagina in sviluppo e sarebbe andata in conflitto nella build. Nomi a 11px, perché il menu di OBR è più stretto di quello della card.
+  - **Verifica nell'anteprima** (la pagina aperta come popover largo 220px, con la selezione al posto del contesto del menu, che l'anteprima non simula): Goblin e capobanda con quattro condizioni miste, nessun nome tagliato, altezza di 258px senza scorrimento; Prono aggiunta solo al Goblin, pulsante subito "attiva", voce in cronologia; "Tutte le condizioni…" apre il pannello; i passi di "Danno/cura…" aprono la console su "Danno" con il token selezionato.
+  - **Da provare in OBR:** larghezza reale del sottomenu nel menu del token e la voce "Danno/cura…" dal vero menu.
 
 #### Revisione della barra compatta (dopo un test in OBR, 2026-10-23)
 

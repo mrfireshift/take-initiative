@@ -52,6 +52,7 @@ export default defineConfig(() => {
         ctxElevation: path.resolve(process.cwd(), "ctx-elevation.html"),
         ctxSpells: path.resolve(process.cwd(), "ctx-spells.html"),
         ctxRemoveCondition: path.resolve(process.cwd(), "ctx-remove-condition.html"),
+        ctxConditions: path.resolve(process.cwd(), "ctx-conditions.html"),
         effectsModal: path.resolve(process.cwd(), "effects-modal.html"),
         effectDuration: path.resolve(process.cwd(), "effect-duration.html"),
         spellsModal: path.resolve(process.cwd(), "spells-modal.html"),
