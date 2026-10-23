@@ -17,6 +17,7 @@ import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossT
 import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
 import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL } from "./pcAttackLauncher.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
+import { getClassFeatureResourcePool } from "./classFeatureCatalog.js";
 import { pcAttackPickerDefault, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
 import "./popoverDrag.js";
 
@@ -869,7 +870,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function renderCaster() {
     if(!casterLine) return;
     const tab=currentEntry()?.tab;
-    casterLine.hidden=!tab || tab==="attacks";
+    casterLine.hidden=!["cantrips","spells"].includes(tab);
     if(casterLine.hidden) return;
     const meta=presentation.item?.metadata?.[META_KEY] || {};
     const slots=tab==="spells"?spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources).filter(row=>row.maximum>0):[];
@@ -878,7 +879,25 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ...(slots.length?[node("span",`Slot ${slots.map(row=>`${row.pact?"Patto ":""}${row.level}° ${row.current}/${row.maximum}`).join(" · ")}`)]:[]),
       names.length?node("span",`Concentrazione: ${names.join(", ")}`,"concentrating"):node("span","Nessuna concentrazione"));
   }
-  // The card of a spell the console does not resolve: what it is, what it costs, and Lancia when the tracker casts it.
+  const USE_KIND_LABELS=Object.freeze({feature:"Capacità",condition:"Condizione",spell:"Azione rapida"});
+  // A ⚡ quick action (Capacità): its uses left and whether it is active, as the tracker card shows them. A feature
+  // active on its owner or as an aura cannot be used again, as in the ⚡ menu.
+  function useCard(entry) {
+    const feature=entry.featureId?(presentation?.features || []).find(item=>item.featureId===entry.featureId):null;
+    const resources=(feature?.resources || []).map(row=>{
+      const name=getClassFeatureResourcePool(row.poolId)?.name || row.poolId;
+      return row.unlimited?`${name}: illimitati`:Number.isFinite(row.current) && Number.isFinite(row.maximum)?`${name} ${row.current}/${row.maximum}`:name;
+    });
+    const blocked=!!feature?.active && ["self","aura"].includes(feature.targetMode);
+    return {
+      tags:[...(feature?.targetLabel?[[feature.targetLabel,""]]:[]),...(feature?.active?[["Attiva","warning"]]:[])],
+      detailText:resources.join(" · "),
+      notes:[...(blocked?[["Già attiva.","warning"]]:[]),...(feature && !feature.resourceReady && !blocked?[["Nessun uso rimasto.","warning"]]:[])],
+      blocked,
+    };
+  }
+  // The card of an entry the console does not resolve: what it is, what it costs, and Lancia (a spell) or Usa (a ⚡
+  // quick action) when the tracker runs it.
   function renderLaunch() {
     if(!launchBox) return;
     if(attackView) attackView.hidden=true;
@@ -887,8 +906,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const entry=currentEntry();
     const level=entry?.level;
     $("pc-attack-title").textContent=entry?.label || presentation?.item?.name || "Attacco";
+    const using=entry?.mode==="use";
     $("pc-attack-subtitle").textContent=[presentation?.item?.name || presentation?.item?.id,
-      ...(entry?[level===0?"Trucchetto":`Incantesimo di ${level}° livello`]:[])].filter(Boolean).join(" · ");
+      ...(!entry?[]:using?[USE_KIND_LABELS[entry.kind] || "Azione rapida"]:[level===0?"Trucchetto":`Incantesimo di ${level}° livello`])].filter(Boolean).join(" · ");
     if(entry?.spellId && !spellbookSpellReferenceLoaded()) {
       // The Italian reference (casting time, range, duration) loads once, on the first spell shown.
       void loadSpellbookSpellReference().then(()=>{launchSignature="";if(launching())renderLaunch();}).catch(()=>{});
@@ -898,16 +918,18 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const meta=presentation?.item?.metadata?.[META_KEY] || {};
     const freeSlot=!level || spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources)
       .some(row=>row.level>=level && row.current>0);
+    const use=using?useCard(entry):null;
     const notes=!entry?[["Nessun attacco o incantesimo da mostrare per questo attore.",""]]
+      :using?use.notes
       :entry.mode==="weapon"?[["Si lancia con un attacco con arma da mischia: scegli l'arma nella scheda Attacchi e attivalo fra gli extra al colpo.",""]]
       :entry.mode==="manual"?[["Non automatizzato: risolvilo al tavolo.",""]]
       :[...(entry.concentration && others.length?[[`Lanciandolo termina la concentrazione su ${others.join(", ")}.`,"warning"]]:[]),
         ...(!freeSlot?[[`Nessuno slot libero dal ${level}° livello in su.`,"warning"]]:[]),
         ...(entry.recordOnly?[["Il plugin registra il lancio e lo slot: gli effetti si risolvono al tavolo.",""]]:[])];
-    const tags=entry?[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])]:[];
-    const detailText=details?[details.castingTime,details.range,details.duration].filter(Boolean).join(" · "):"";
-    const canLaunch=entry?.mode==="launch";
-    const signature=JSON.stringify([entry?.key,notes,tags,detailText,canLaunch,launchBusy,busy]);
+    const tags=using?use.tags:entry?[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])]:[];
+    const detailText=using?use.detailText:details?[details.castingTime,details.range,details.duration].filter(Boolean).join(" · "):"";
+    const canLaunch=entry?.mode==="launch" || using;
+    const signature=JSON.stringify([entry?.key,notes,tags,detailText,canLaunch,use?.blocked,launchBusy,busy]);
     if(signature===launchSignature) return;
     launchSignature=signature;
     const children=[];
@@ -915,8 +937,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(detailText) children.push(node("p",detailText,"launch-details"));
     children.push(...notes.map(([text,kind])=>node("p",text,`launch-note${kind?" "+kind:""}`)));
     if(canLaunch) {
-      const button=node("button",launchBusy?"Lancio…":"Lancia","apply");button.type="button";button.id="pc-attack-launch-button";
-      button.disabled=launchBusy || busy || invalidated;
+      const button=node("button",using?(launchBusy?"Uso…":"Usa"):(launchBusy?"Lancio…":"Lancia"),"apply");button.type="button";button.id="pc-attack-launch-button";
+      button.disabled=launchBusy || busy || invalidated || !!use?.blocked;
       button.addEventListener("click",()=>{void launchSpell(entry);});
       children.push(button);
     }
@@ -941,17 +963,24 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         {type:"launch",requestId,sourceId,actionId:entry.actionId},{destination:"LOCAL"})).catch(()=>finish(null));
     });
   }
+  // What the tracker did, in the status bar: a ⚡ quick action by its kind, a spell by its route.
+  function launchSummary(entry,result) {
+    const using=entry.mode==="use";
+    if(!result) return `Il tracker non risponde: aprilo per ${using?"usare":"lanciare"} ${entry.label}${using?"":" dal grimorio"}.`;
+    if(!result.ok) return String(result.message || `${entry.label}: ${using?"uso":"lancio"} non riuscito.`);
+    if(using && entry.kind==="feature") return result.mode==="review"?`${entry.label}: scheda personaggio aperta.`:`${entry.label}: attivata.`;
+    if(using && entry.kind==="condition") return result.mode==="review"?`${entry.label}: pannello effetti aperto.`
+      :result.mode==="executed"?`${entry.label}: applicata.`:String(result.message || `${entry.label}: non applicata.`);
+    return result.mode==="review"?`${entry.label}: pannello incantesimi aperto.`
+      :result.mode==="executed"?`${entry.label}: lancio registrato.`
+      :String(result.message || `${entry.label}: lancio non valido.`);
+  }
   async function launchSpell(entry) {
-    if(launchBusy || busy || invalidated || entry?.mode!=="launch") return;
+    if(launchBusy || busy || invalidated || !["launch","use"].includes(entry?.mode)) return;
     if(typeof api.broadcast?.onMessage!=="function"){setStatus("Lancio non disponibile.");return;}
     launchBusy=true;renderLaunch();
     try {
-      const result=await askTrackerToLaunch(entry);
-      setStatus(!result?`Il tracker non risponde: aprilo per lanciare ${entry.label} dal grimorio.`
-        :!result.ok?String(result.message || `${entry.label}: lancio non riuscito.`)
-        :result.mode==="review"?`${entry.label}: pannello incantesimi aperto.`
-        :result.mode==="executed"?`${entry.label}: lancio registrato.`
-        :String(result.message || `${entry.label}: lancio non valido.`));
+      setStatus(launchSummary(entry,await askTrackerToLaunch(entry)));
     } finally {launchBusy=false;renderLaunch();}
   }
   function renderHeader() {

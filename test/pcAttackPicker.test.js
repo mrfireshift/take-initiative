@@ -14,12 +14,13 @@ test("the picker lists weapons, then cantrips, then attack spells, one entry eac
     ["attacks", "sword"], ["attacks", "bow"],
     ["cantrips", "cantrip::fire-bolt"], ["cantrips", "cantrip::ray-of-frost"],
     ["spells", "spells::guiding-bolt"],
+    ["features", "heal"],
   ]);
   assert.equal(entries[0].label, "Spada lunga");
   assert.equal(entries[2].label, "Dardo di fuoco");
   assert.equal(entries[4].label, "Dardo tracciante");
   assert.equal(entries[4].level, 1);
-  assert.ok(entries.every((entry) => entry.mode === "attack"), "without a book every entry is the console's");
+  assert.ok(entries.filter((entry) => entry.tab !== "features").every((entry) => entry.mode === "attack"), "without a book every attack entry is the console's");
 });
 
 test("a cantrip offered by two actions points at the first one", () => {
@@ -31,7 +32,8 @@ test("a cantrip offered by two actions points at the first one", () => {
 test("tabs appear only when they have entries", () => {
   assert.deepEqual(pcAttackPickerTabs(pcAttackPickerEntries([sword, bow])).map((tab) => tab.id), ["attacks"]);
   assert.deepEqual(pcAttackPickerTabs(pcAttackPickerEntries([sword, cantrips, spells])).map((tab) => tab.label), ["Attacchi", "Trucchetti", "Incantesimi"]);
-  assert.deepEqual(pcAttackPickerTabs(pcAttackPickerEntries([heal])), []);
+  assert.deepEqual(pcAttackPickerTabs(pcAttackPickerEntries([heal])).map((tab) => tab.label), ["Capacità"]);
+  assert.deepEqual(pcAttackPickerTabs(pcAttackPickerEntries([])), []);
 });
 
 test("the entry for an action and spell falls back to the action's first entry", () => {
@@ -103,4 +105,17 @@ test("the runtime's default is an attack: never a spell to launch", () => {
   const entries = pcAttackPickerEntries({ quickActions: [], spellbook: book(["bless"]) });
   assert.equal(pcAttackPickerDefault(entries, { attackOnly: true }), null);
   assert.equal(pcAttackPickerDefault(entries, {}).spellId, "bless");
+});
+
+test("the Capacità tab lists the card's ⚡ quick actions: features, conditions and spell actions of its own", () => {
+  const rage = { id: "rage", label: "Ira", kind: "feature", featureId: "barbaro-ira" };
+  const blessed = { id: "bless-me", label: "Benedetto", kind: "condition", conditionName: "Benedetto", targetMode: "self" };
+  const entries = pcAttackPickerEntries({ quickActions: [sword, rage, blessed, heal], spellbook: book(["bless"]) });
+  const features = entries.filter((entry) => entry.tab === "features");
+  assert.deepEqual(features.map((entry) => [entry.label, entry.mode, entry.kind]),
+    [["Ira", "use", "feature"], ["Benedetto", "use", "condition"], ["Cura", "use", "spell"]]);
+  assert.equal(features[0].featureId, "barbaro-ira");
+  assert.equal(features[0].key, "rage");
+  assert.ok(!features.some((entry) => entry.actionId.startsWith("book:")), "the book's spells stay in their tabs");
+  assert.equal(pcAttackPickerDefault(entries, { attackOnly: true }).key, "sword", "a feature is never the runtime's default");
 });

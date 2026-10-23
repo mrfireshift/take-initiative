@@ -40,7 +40,7 @@ const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
 // actions: the actor's quick actions, for the picker (the runtime then loads the one asked for, like pcAttackExecution).
-function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, actionId = "holy-sword", confirm, broadcast, autoOpenOption } = {}) {
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, features = [], actionId = "holy-sword", confirm, broadcast, autoOpenOption } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
   const items = [creature("aria", "Aria", 40, attacker), creature("ghoul", "Ghoul", 30, defenses ? { initiativeCard: { damageDefenses: defenses } } : {}), creature("imp", "Imp", 10)];
@@ -65,7 +65,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
       // Without an action asked for, like the runtime: an attack of the picker, else none (an actor with spells only).
       const chosen = list.find((entry) => entry.id === asked)
         || (asked ? null : list.find((entry) => picker.some((item) => item.mode === "attack" && item.actionId === entry.id))) || null;
-      return { item: items[0], action: chosen, actionId: chosen?.id || "", picker, targets: items.slice(1), turnState, sceneIdentity: "scene-A" };
+      return { item: items[0], action: chosen, actionId: chosen?.id || "", picker, features, targets: items.slice(1), turnState, sceneIdentity: "scene-A" };
     },
     endQuiveringPalm: async (request) => {
       calls.push({ palm: request });
@@ -904,4 +904,36 @@ test("a turn back to the console's actor clears the bar; a clean console closes 
   const h = fixture({ broadcast: clean.broadcast }); await h.controller.ready;
   await clean.follow("", "");
   assert.deepEqual(h.closed, ["com.thebigpicture.initiative/pc-attack"]);
+});
+
+// A barbarian with Rage as a ⚡ quick action, 2 rages left of 3.
+const rageAction = { id: "rage", label: "Ira", kind: "feature", featureId: "barbaro-ira" };
+const barbarianCard = { quickActions: [sword, rageAction] };
+const rageStatus = (active = false) => [{ featureId: "barbaro-ira", label: "Ira", targetMode: "self", targetLabel: "su di sé", active,
+  resourceReady: true, resources: [{ poolId: "barbaro-ira-usi", amount: 1, current: 2, maximum: 3, unlimited: false, ready: true }] }];
+
+test("the Capacità tab shows a ⚡ feature with its uses left; Usa runs it through the tracker", async () => {
+  const bus = launchBroadcast({ result: { ok: true, mode: "" } });
+  const f = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, features: rageStatus(), broadcast: bus.broadcast });
+  await f.controller.ready; await tick();
+  assert.deepEqual(pickerTabs(f).map((button) => button.textContent), ["Attacchi", "Capacità"]);
+  await pickerTabs(f)[1].click(); await tick();
+  assert.equal(f.$("pc-attack-title").textContent, "Ira");
+  assert.match(f.$("pc-attack-subtitle").textContent, /Capacità/);
+  assert.match(textOf(f.$("pc-attack-launch")), /su di sé/);
+  assert.match(textOf(f.$("pc-attack-launch")), /Ire 2\/3/);
+  assert.equal(f.$("pc-attack-caster").hidden, true, "no slots line for the features");
+  const button = f.$("pc-attack-launch").querySelector("#pc-attack-launch-button");
+  assert.equal(button.textContent, "Usa");
+  await button.click(); await tick(); await tick();
+  assert.deepEqual(bus.sent.find((message) => message.data.type === "launch").data.actionId, "rage");
+  assert.equal(f.$("pc-attack-status").textContent, "Ira: attivata.");
+});
+
+test("a feature already active on its owner cannot be used again, as in the ⚡ menu", async () => {
+  const f = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, features: rageStatus(true) });
+  await f.controller.ready; await tick();
+  await pickerTabs(f)[1].click(); await tick();
+  assert.match(textOf(f.$("pc-attack-launch")), /Attiva.*Già attiva\./);
+  assert.equal(f.$("pc-attack-launch").querySelector("#pc-attack-launch-button").disabled, true);
 });

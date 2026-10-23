@@ -3,18 +3,21 @@ import { pcAttackAction, pcAttackBreathActionsForCard, pcAttackCantripIds, pcAtt
 import { getPcAttackCantrip } from "./pcAttackCantripCatalog.js";
 import { getPcAttackSpell } from "./pcAttackSpellCatalog.js";
 import { spellbookCantripAttackAction, spellbookGroupsForProfile, spellbookSpellAttackAction } from "./spellbookCatalog.js";
-import { spellbookQuickActionId } from "./spellbookCore.js";
+import { isSpellbookQuickAction, spellbookQuickActionId } from "./spellbookCore.js";
 
 // The attack console's picker: everything the actor can do with an attack or a spell on its turn, one entry each.
 // Attacchi: the weapon attacks and the breath weapons. Trucchetti and Incantesimi: the spells of the book the actor
-// can cast now (as the 🪄 menu lists them), or, without a book, the ones its attack actions offer.
+// can cast now (as the 🪄 menu lists them), or, without a book, the ones its attack actions offer. Capacità: the card's
+// other quick actions, as the ⚡ menu lists them (class features, conditions, spell actions of its own).
 // mode: "attack" resolves in the console (actionId: the attack action that records it, the first one offering it);
 // "launch" goes to the spell panel through the tracker, as the 🪄 menu does (actionId: the book's spell action);
-// "weapon" is woven into a melee weapon attack (Booming Blade); "manual" is not automated, the table resolves it.
+// "weapon" is woven into a melee weapon attack (Booming Blade); "manual" is not automated, the table resolves it;
+// "use" is a ⚡ quick action, run by the tracker like the ⚡ menu (actionId: the quick action; kind and featureId).
 export const PC_ATTACK_PICKER_TABS = Object.freeze([
   Object.freeze({ id: "attacks", label: "Attacchi" }),
   Object.freeze({ id: "cantrips", label: "Trucchetti" }),
   Object.freeze({ id: "spells", label: "Incantesimi" }),
+  Object.freeze({ id: "features", label: "Capacità" }),
 ]);
 
 export function pcAttackPickerKey(actionId, spellId = "") {
@@ -28,7 +31,7 @@ const attackLabel = (spellId) => getPcAttackCantrip(spellId)?.name || getPcAttac
 export function pcAttackPickerEntries(card) {
   const profile = Array.isArray(card) ? { quickActions: card } : (card && typeof card === "object" ? card : {});
   const quickActions = sanitizeQuickActions(profile.quickActions, { limit: 64, attackLimit: 64 });
-  const entries = { attacks: [], cantrips: [], spells: [] };
+  const entries = { attacks: [], cantrips: [], spells: [], features: [] };
   const seen = new Set();
   const add = (tab, actionId, spellId, label, extra = {}) => {
     const unique = spellId ? `${tab}::${spellId}` : pcAttackPickerKey(actionId);
@@ -49,6 +52,11 @@ export function pcAttackPickerEntries(card) {
     if (!["cantrip", "spell"].includes(action.source?.kind)) add("attacks", action.id, "", action.label || action.id);
   }
   for (const action of pcAttackBreathActionsForCard(profile)) add("attacks", action.id, "", action.label || action.id);
+  for (const action of quickActions) {
+    if (action.kind === "attack" || isSpellbookQuickAction(action)) continue;
+    add("features", action.id, "", action.label || action.id,
+      { mode: "use", kind: action.kind, ...(action.featureId ? { featureId: action.featureId } : {}) });
+  }
   const book = spellbookGroupsForProfile(profile)
     .filter((group) => group.level !== null)
     .flatMap((group) => group.spells.filter((spell) => spell.prepared).sort((left, right) => Number(right.pinned) - Number(left.pinned)));

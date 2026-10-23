@@ -8,8 +8,8 @@ const CHANNEL = "com.thebigpicture.initiative/pc-attack-spell-launch";
 const source = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 // The tracker's listener for the attack console's Lancia, cut out of initiativeList.js with its collaborators faked.
-function harness({ isGm = true, current = true, entries = null, run = async () => ({ mode: "review" }) } = {}) {
-  const start = source.indexOf("// The attack console (pc-attack.js) launches a spell");
+function harness({ isGm = true, current = true, entries = null, run = async () => ({ mode: "review" }), activeFeatureIds = [] } = {}) {
+  const start = source.indexOf("function mountPcAttackSpellLaunchListener()");
   const end = source.indexOf("function __toggleTrackerQuickActionsPopover", start);
   assert.ok(start >= 0 && end > start);
   const listeners = [], sent = [], runs = [];
@@ -19,11 +19,14 @@ function harness({ isGm = true, current = true, entries = null, run = async () =
   } };
   const bless = { id: "book:bless", label: "Benedizione", kind: "spell", spellId: "bless" };
   const mace = { id: "mace", label: "Mazza", kind: "attack", range: "melee", components: [{ type: "bludgeoning", formula: "1d6" }] };
-  const list = entries || [{ id: "mira", name: "Mira", quickActions: [mace, bless] }];
+  const rage = { id: "rage", label: "Ira", kind: "feature", featureId: "barbaro-ira" };
+  const list = entries || [{ id: "mira", name: "Mira", quickActions: [mace, bless, rage] }];
+  // The ⚡ menu's rule: a feature active on its owner or as an aura is disabled.
+  const disabledIds = (entry, actions) => actions.filter((action) => action.kind === "feature" && activeFeatureIds.includes(action.featureId)).map((action) => action.id);
   const mount = new Function("OBR", "PC_ATTACK_SPELL_LAUNCH_CHANNEL", "IS_GM", "currentSceneEpoch", "readEntries",
-    "__isCurrentSceneOperation", "sanitizeQuickActions", "isSpellbookQuickAction", "__runTrackerQuickAction",
+    "__isCurrentSceneOperation", "sanitizeQuickActions", "isSpellbookQuickAction", "__disabledTrackerQuickActionIds", "__runTrackerQuickAction",
     `${source.slice(start, end)}\nreturn mountPcAttackSpellLaunchListener;`)(
-    OBR, CHANNEL, isGm, () => 7, async () => list, () => current, sanitizeQuickActions, isSpellbookQuickAction,
+    OBR, CHANNEL, isGm, () => 7, async () => list, () => current, sanitizeQuickActions, isSpellbookQuickAction, disabledIds,
     async (entry, action) => { runs.push([entry.id, action.id]); return run(entry, action); });
   mount();
   const send = async (data) => {
@@ -45,7 +48,7 @@ test("Lancia runs the 🪄 routing for a spell of the book, acknowledged at once
   assert.ok(h.sent.every((message) => message.channel === CHANNEL && message.options?.destination === "LOCAL"));
 });
 
-test("only the book's spell actions: an attack or an unknown action is refused, never run", async () => {
+test("every quick action but the attacks: an attack or an unknown action is refused, never run", async () => {
   const h = harness();
   await h.send({ type: "launch", requestId: "r2", sourceId: "mira", actionId: "mace" });
   await h.send({ type: "launch", requestId: "r3", sourceId: "mira", actionId: "book:fireball" });
@@ -53,7 +56,7 @@ test("only the book's spell actions: an attack or an unknown action is refused, 
   assert.deepEqual(h.runs, []);
   const results = h.sent.filter((message) => message.data.type === "launch-result").map((message) => message.data);
   assert.deepEqual(results.map((result) => [result.requestId, result.ok]), [["r2", false], ["r3", false], ["r4", false]]);
-  assert.match(results[0].message, /non più nel grimorio/);
+  assert.match(results[0].message, /non più disponibile/);
 });
 
 test("a player's tracker, a request without id or another message type stays silent", async () => {
@@ -74,4 +77,14 @@ test("a scene change or a failed cast answers with the reason", async () => {
   const failing = harness({ run: async () => { throw new Error("Slot esauriti."); } });
   await failing.send({ type: "launch", requestId: "r8", sourceId: "mira", actionId: "book:bless" });
   assert.deepEqual(failing.sent.at(-1).data, { requestId: "r8", type: "launch-result", ok: false, message: "Slot esauriti." });
+});
+
+test("a ⚡ feature runs like the ⚡ menu; one the menu disables (active on its owner) is refused", async () => {
+  const h = harness();
+  await h.send({ type: "launch", requestId: "r9", sourceId: "mira", actionId: "rage" });
+  assert.deepEqual(h.runs, [["mira", "rage"]]);
+  const active = harness({ activeFeatureIds: ["barbaro-ira"] });
+  await active.send({ type: "launch", requestId: "r10", sourceId: "mira", actionId: "rage" });
+  assert.deepEqual(active.runs, []);
+  assert.deepEqual(active.sent.at(-1).data, { requestId: "r10", type: "launch-result", ok: false, message: "Ira: già attiva." });
 });

@@ -85,6 +85,12 @@ come capacità attivabile. Il dettaglio dello snapshot è in
   danno/cura e terminazione RAW; nessun nuovo motore di movimento o controllo
   forzato.
 
+- Console attacchi per i mostri normali: oggi un mostro compare nella console
+  (e la apre a inizio turno) solo se gli si aggiungono a mano azioni d'attacco.
+  Obiettivo: importare gli attacchi da uno stat block (testo incollato o scheda
+  importata) come azioni d'attacco del mostro, con tiro, danni e tipi, così la
+  console funziona anche al turno dei mostri senza preparazione.
+
 - Creare icone dedicate per i token PROP generati dagli incantesimi (Arma
   spirituale, Spada arcana, Lama del Disastro e Mano arcana), sostituendo gli
   asset provvisori senza modificare lifecycle, targeting o integrazione nel

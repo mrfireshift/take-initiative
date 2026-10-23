@@ -8740,8 +8740,8 @@ function __disabledTrackerQuickActionIds(sourceEntry, actions) {
     .map((action) => action.id);
 }
 
-// The attack console (pc-attack.js) launches a spell of the actor's book as the 🪄 menu does: the same routing,
-// for the book's spell actions only (never an attack, a feature or a condition).
+// The attack console (pc-attack.js) runs a quick action of the actor as the 🪄 and ⚡ menus do: the same routing,
+// for every quick action but the attacks (the console resolves them), and never a feature the ⚡ menu disables.
 function mountPcAttackSpellLaunchListener() {
   OBR.broadcast.onMessage(PC_ATTACK_SPELL_LAUNCH_CHANNEL, (event) => {
     const data = event?.data;
@@ -8755,8 +8755,9 @@ function mountPcAttackSpellLaunchListener() {
       if (!__isCurrentSceneOperation(sceneEpoch, "pc-attack-spell-launch")) return { ok: false, message: "Scena cambiata." };
       const sourceEntry = entries.find((entry) => entry.id === String(data.sourceId || ""));
       const action = sanitizeQuickActions(sourceEntry?.quickActions, { limit: 64, attackLimit: 64 })
-        .find((entry) => entry.id === String(data.actionId || "") && isSpellbookQuickAction(entry));
-      if (!sourceEntry || !action) return { ok: false, message: "Incantesimo non più nel grimorio." };
+        .find((entry) => entry.id === String(data.actionId || "") && entry.kind !== "attack");
+      if (!sourceEntry || !action) return { ok: false, message: "Azione non più disponibile." };
+      if (__disabledTrackerQuickActionIds(sourceEntry, [action]).length) return { ok: false, message: `${action.label}: già attiva.` };
       const result = await __runTrackerQuickAction(sourceEntry, action);
       return { ok: true, mode: result?.mode || "", ...(result?.message ? { message: String(result.message) } : {}) };
     })()
