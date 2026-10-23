@@ -1,0 +1,64 @@
+/* The frame Boss Actions (boss-actions.html) and the PC attack console (pc-attack.html) share: their local colour
+   names, the shell, header, panel, outcome buttons, main and small buttons, total, defense chips and status bar.
+   Loaded after ui-typography.css and popover-glass.css; each page keeps its own rules, and its differences, in its
+   inline style, which comes after this sheet. */
+:root {
+  --text: var(--obrt-text, #fff);
+  --muted: var(--obrt-muted, rgba(255, 255, 255, .66));
+  --dim: var(--obrt-dim, rgba(255, 255, 255, .48));
+  --line: var(--obrt-line, rgba(148, 163, 184, .20));
+  --surface: var(--obrt-surface, #0f172a);
+  --surface-soft: var(--obrt-surface-soft, rgba(15, 23, 42, .58));
+  --surface-row: var(--obrt-surface-row, rgba(15, 23, 42, .72));
+  --disabled: #374151;
+  /* Text colours the consoles use everywhere and the shared tokens do not have: warnings and information. */
+  --warn-text: #fde68a;
+  --info-text: #bfdbfe;
+  --focus-ring: rgba(96, 165, 250, .75);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+body { color: var(--text); font-family: var(--obrt-font-ui); font-size: var(--obrt-type-body); line-height: var(--obrt-leading-snug); }
+button, input, select { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.glass-shell { width: 100%; height: 100%; min-height: 0 !important; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Header: the title and subtitle, the icon buttons; it drags the popover. */
+.header { flex: 0 0 auto; display: flex; align-items: center; gap: var(--obrt-space-sm); min-height: var(--obrt-h-header); padding: var(--obrt-space-sm) var(--obrt-space-md) var(--obrt-space-sm) var(--obrt-space-xl); border-bottom: 1px solid var(--line); background: rgba(15, 23, 42, .24); cursor: grab; user-select: none; }
+.header-text { min-width: 0; flex: 1 1 auto; display: grid; gap: 1px; }
+.title { min-width: 0; margin: 0; overflow: hidden; font-size: var(--obrt-type-card-title); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-tight); line-height: var(--obrt-leading-snug); text-overflow: ellipsis; white-space: nowrap; }
+.subtitle { min-width: 0; overflow: hidden; color: var(--muted); font-size: var(--obrt-type-secondary); text-overflow: ellipsis; white-space: nowrap; }
+.icon-button { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: var(--obrt-h-control-sm); height: var(--obrt-h-control-sm); padding: 0; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; font-size: 18px; line-height: 1; cursor: pointer; transition: background-color .12s ease; }
+.icon-button:hover { background: var(--obrt-hover); }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* The scrolling panel and its stacks. */
+.panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--obrt-space-lg) var(--obrt-space-xl); }
+.view { display: flex; flex-direction: column; gap: var(--obrt-space-md); }
+.caption { color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; line-height: var(--obrt-leading-snug); }
+
+/* Segmented choices (outcomes, saves): hit and failed in red, miss and passed in green, any other choice in blue. */
+.segmented { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); overflow: hidden; }
+.segmented button { min-height: var(--obrt-h-control-md); padding: 0 6px; border: 0; border-right: 1px solid rgba(148, 163, 184, .18); background: transparent; color: rgba(255, 255, 255, .78); font-weight: var(--obrt-weight-semibold); cursor: pointer; }
+.segmented button:last-child { border-right: 0; }
+.segmented button[aria-pressed="true"] { color: #fff; background: rgba(37, 99, 235, .42); }
+.segmented button[aria-pressed="true"][data-outcome=hit], .segmented button[aria-pressed="true"][data-outcome=failed] { color: #fecaca; background: rgba(185, 28, 28, .38); }
+.segmented button[aria-pressed="true"][data-outcome=miss], .segmented button[aria-pressed="true"][data-outcome=passed] { color: #bbf7d0; background: rgba(21, 128, 61, .38); }
+
+/* The main button (red: it registers damage), the small ones, the total beside them. */
+.apply { min-width: 112px; min-height: var(--obrt-h-control-lg); padding: 7px 14px; border: 1px solid rgba(255, 255, 255, .18); border-radius: var(--obrt-radius-md); background: var(--obrt-danger); font-weight: var(--obrt-weight-bold); cursor: pointer; transition: background-color .12s ease; }
+.small { min-height: 27px; padding: 4px 9px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); cursor: pointer; }
+.small:hover { background: var(--obrt-hover); }
+.apply:disabled, .small:disabled { opacity: .48; cursor: default; background: var(--disabled); color: rgba(255, 255, 255, .62); }
+.total { flex: 1 1 auto; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
+.total strong { color: #fff; font-size: var(--obrt-type-card-title); }
+
+/* The target's defenses, each ignored with a click. */
+.defense-chips { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.defense-chip { min-height: 18px; padding: 0 6px; border: 1px solid rgba(96, 165, 250, .45); border-radius: var(--obrt-radius-pill); background: rgba(30, 64, 175, .22); color: var(--info-text); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); cursor: pointer; }
+.defense-chip[aria-pressed="false"] { border-color: var(--line); background: transparent; color: var(--dim); text-decoration: line-through; }
+
+/* The status line at the bottom, with Annulla. */
+.status-bar { flex: 0 0 auto; display: flex; align-items: center; gap: var(--obrt-space-md); min-height: 34px; padding: 6px var(--obrt-space-xl); border-top: 1px solid var(--line); background: rgba(15, 23, 42, .24); }
+.status { flex: 1 1 auto; min-width: 0; max-height: 52px; overflow-y: auto; margin: 0; color: var(--info-text); font-size: var(--obrt-type-secondary); white-space: pre-wrap; }
+.status:empty::before { content: "Pronto."; color: var(--dim); }
