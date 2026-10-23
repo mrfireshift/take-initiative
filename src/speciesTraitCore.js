@@ -5,16 +5,19 @@
 // a subrace/variant ("ancestries" keeps its name). Species without options leave it empty.
 // Tranche 1: the PHB 2014 species and the Fizban's dragonborn variants; tranche 2, declared in
 // speciesCatalogVoloMordenkainen.js: Volo, Tomo dei Nemici and Mostri del Multiverso; tranche 3, in
-// speciesCatalogCostaElementalEvil.js: Elemental Evil and Costa della Spada (see docs/SPECIE.md).
+// speciesCatalogCostaElementalEvil.js: Elemental Evil and Costa della Spada; tranche 4, in
+// speciesCatalogEberron.js: Eberron (see docs/SPECIE.md).
 
 import { SPECIES_CATALOG_MULTIVERSO, SPECIES_CATALOG_TOMO, SPECIES_CATALOG_VOLO } from "./speciesCatalogVoloMordenkainen.js";
 import { SPECIES_CATALOG_COSTA, SPECIES_CATALOG_ELEMENTAL, SPECIES_CATALOG_MULTIVERSO_ELEMENTAL } from "./speciesCatalogCostaElementalEvil.js";
+import { SPECIES_CATALOG_EBERRON, SPECIES_CATALOG_MULTIVERSO_EBERRON } from "./speciesCatalogEberron.js";
 
 export const SPECIES_FIELD = "species";
 
 const ancestry = (id, label, damageType, damageLabel) => Object.freeze({ id, label, damageType, damageLabel });
-const option = (id, label, { aliases = [], resistances = [] } = {}) =>
-  Object.freeze({ id, label, aliases: Object.freeze(aliases), resistances: Object.freeze(resistances), immunities: Object.freeze([]) });
+// fullName: the option's label names the character by itself ("Marchio dell'ombra (elfo)").
+const option = (id, label, { aliases = [], resistances = [], fullName = false } = {}) =>
+  Object.freeze({ id, label, aliases: Object.freeze(aliases), resistances: Object.freeze(resistances), immunities: Object.freeze([]), fullName });
 const theme = (emoji, accent, background, text) => Object.freeze({ emoji, accent, background, text });
 // sourceAliases let the sheet import pick the manual when a species is in more than one.
 const book = (source, sourceLabel, sourceAliases) => Object.freeze({ source, sourceLabel, sourceAliases: Object.freeze(sourceAliases) });
@@ -22,6 +25,7 @@ const PHB = book("phb2014", "Manuale del Giocatore 2014", ["phb", "manuale del g
 const FIZBAN = book("fizban", "Il Tesoro dei Draghi di Fizban", ["fizban", "ftod", "fizban s treasury of dragons"]);
 const BOOKS = Object.freeze({
   elemental: book("elemental-evil", "Elemental Evil Player's Companion", ["eepc", "elemental evil", "elemental evil player s companion"]),
+  eberron: book("eberron", "Eberron: Rising from the Last War", ["erlw", "eberron", "rising from the last war", "eberron rising from the last war"]),
   costa: book("costa-della-spada", "Guida del Giocatore alla Costa della Spada", ["scag", "costa della spada", "sword coast", "sword coast adventurer s guide"]),
   volo: book("volo", "Guida di Volo ai Mostri", ["volo", "vgm", "guida di volo", "volo s guide to monsters"]),
   tomo: book("mordenkainen-nemici", "Il Tomo dei Nemici di Mordenkainen", ["mtof", "tomo dei nemici", "tome of foes", "mordenkainen s tome of foes"]),
@@ -139,18 +143,19 @@ const catalogBook = (spec) => (spec.alsoIn?.length
   : BOOKS[spec.book]);
 const catalogSpecies = (spec) => speciesEntry({
   id: spec.id, label: spec.label, book: catalogBook(spec), optionLabel: spec.optionLabel || "",
-  options: (spec.options || []).map((entry) => option(entry.id, entry.label, { aliases: entry.aliases, resistances: entry.resistances || [] })),
+  options: (spec.options || []).map((entry) => option(entry.id, entry.label, { aliases: entry.aliases, resistances: entry.resistances || [], fullName: entry.fullName === true })),
   resistances: spec.resistances || [], immunities: spec.immunities || [], aliases: spec.aliases || [], look: theme(...spec.look),
 });
 // Mostri del Multiverso gathers the reprints of several tranches, in its own alphabetical order.
-const MULTIVERSO = [...SPECIES_CATALOG_MULTIVERSO, ...SPECIES_CATALOG_MULTIVERSO_ELEMENTAL]
+const MULTIVERSO = [...SPECIES_CATALOG_MULTIVERSO, ...SPECIES_CATALOG_MULTIVERSO_ELEMENTAL, ...SPECIES_CATALOG_MULTIVERSO_EBERRON]
   .sort((left, right) => left.label.localeCompare(right.label, "it"));
-const CATALOG = [...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, ...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO, ...MULTIVERSO];
+const BEFORE_FIZBAN = [...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, ...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO, ...SPECIES_CATALOG_EBERRON];
+const CATALOG = [...BEFORE_FIZBAN, ...MULTIVERSO];
 
 // In order of publication: the select groups them by manual.
 export const SPECIES = Object.freeze([
   ...PHB_SPECIES,
-  ...[...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, ...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO].map(catalogSpecies),
+  ...BEFORE_FIZBAN.map(catalogSpecies),
   ...FIZBAN_SPECIES,
   ...MULTIVERSO.map(catalogSpecies),
 ]);
@@ -186,7 +191,7 @@ export function speciesDisplayName(value) {
   if (!ancestryValue) return label;
   if (ancestryValue.damageLabel) return `${label} (${ancestryValue.label.toLocaleLowerCase("it")} · ${ancestryValue.damageLabel})`;
   // "Alto elfo" names its species; "Alato" (a tiefling variant) needs it: "Tiefling (alato)".
-  return ancestryValue.label.toLocaleLowerCase("it").includes(label.toLocaleLowerCase("it"))
+  return ancestryValue.fullName || ancestryValue.label.toLocaleLowerCase("it").includes(label.toLocaleLowerCase("it"))
     ? ancestryValue.label
     : `${label} (${ancestryValue.label.toLocaleLowerCase("it")})`;
 }

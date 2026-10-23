@@ -287,11 +287,119 @@ Da controllare con più attenzione:
 | Tiefling | Fuoco infernale | Fuoco infernale: Oscurità | 118 | Azione · 1/riposo lungo | 5 |
 | Tiefling | Alato | Alato | 118 | Passiva | 1 |
 
+## Tranche 4 — Eberron
+
+Il titolo è indicato in inglese, come per Elemental Evil: da correggere se
+c'è un'edizione italiana con titolo e nomi ufficiali. Kalashtar, warforged e marchi del drago non hanno
+ristampa in Mostri del Multiverso; changeling e shifter sì.
+
+Bugbear, goblin, hobgoblin e orco di Eberron hanno gli stessi tratti di gioco
+delle voci di Volo (l'orco di Eberron cambia solo punteggi e competenze): non
+sono doppioni, e l'import li trova anche con `source: "Eberron"`.
+
+- **Shifter**: la seconda scelta è la forma (pelle bestiale, zanna lunga, passo
+  rapido, caccia selvaggia); **Mutazione** mette una pill di 1 minuto. I punti
+  ferita temporanei si aggiungono a mano: il plugin non tocca i PF.
+- **Marchio del drago**: una specie con il **Marchio** come seconda scelta (i
+  dodici marchi di Eberron, con la specie d'origine tra parentesi). Ogni marchio
+  porta i tratti di gioco della specie d'origine che non sostituisce (per
+  esempio Fortunato per gli halfling, Resilienza nanica per il marchio della
+  protezione); gli incantesimi del marchio per le classi sono un promemoria,
+  la tabella è sul manuale.
+
+Restano fuori il talento Marchio del drago aberrante, gli strumenti di Dono del
+creatore e le competenze di Progettazione specializzata dei warforged.
+
+Da controllare con più attenzione:
+
+- **tutte le pagine di Eberron**, in particolare quelle dei dodici marchi (qui
+  tutti a p. 40), e quelle di changeling e shifter in Mostri del Multiverso;
+- il raggio di Caccia selvaggia: qui 9 m in Eberron e 3 m in Mostri del
+  Multiverso;
+- i nomi italiani dei marchi e dei loro tratti, scritti senza un manuale
+  italiano di riferimento.
+
+### Eberron: Rising from the Last War
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Changeling | — | Mutaforma | 18 | Passiva | 1 |
+| Kalashtar | — | Mente duplice | 23 | Passiva | 1 |
+| Kalashtar | — | Disciplina mentale | 23 | Passiva | 1 |
+| Kalashtar | — | Legame mentale | 23 | Passiva | 1 |
+| Kalashtar | — | Separato dai sogni | 23 | Passiva | 1 |
+| Shifter | Shifter pelle bestiale | Mutazione: Pelle bestiale | 27 | Azione bonus · 1/riposo breve · pill 1 min | 1 |
+| Shifter | Shifter zanna lunga | Mutazione: Zanna lunga | 27 | Azione bonus · 1/riposo breve · pill 1 min | 1 |
+| Shifter | Shifter passo rapido | Mutazione: Passo rapido | 27 | Azione bonus · 1/riposo breve · pill 1 min | 1 |
+| Shifter | Shifter caccia selvaggia | Mutazione: Caccia selvaggia | 27 | Azione bonus · 1/riposo breve · pill 1 min | 1 |
+| Warforged | — | Resilienza costruita | 36 | Passiva | 1 |
+| Warforged | — | Riposo della sentinella | 36 | Passiva | 1 |
+| Warforged | — | Protezione integrata | 36 | Passiva | 1 |
+| Marchio del drago | — | Incantesimi del marchio | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della scoperta (mezzelfo) | Ascendenza fatata | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della scoperta (mezzelfo) | Intuizione deduttiva | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della scoperta (mezzelfo) | Individuazione magica | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della scoperta (mezzelfo) | Individuazione magica: Individuazione del magico | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio della scoperta (mezzelfo) | Individuazione magica: Individuazione delle malattie e dei veleni | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio della scoperta (mezzelfo) | Individuazione magica: Vedere invisibilità | 40 | Azione · 1/riposo lungo | 3 |
+| Marchio del drago | Marchio del ritrovamento (mezzorco o umano) | Intuizione del cacciatore | 40 | Passiva | 1 |
+| Marchio del drago | Marchio del ritrovamento (mezzorco o umano) | Magia del cercatore | 40 | Passiva | 1 |
+| Marchio del drago | Marchio del ritrovamento (mezzorco o umano) | Magia del cercatore: Marchio del cacciatore | 40 | Azione bonus · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio del ritrovamento (mezzorco o umano) | Magia del cercatore: Localizza oggetto | 40 | Azione · 1/riposo lungo | 3 |
+| Marchio del drago | Marchio dell'addestramento (umano) | Intuizione selvaggia | 40 | Passiva | 1 |
+| Marchio del drago | Marchio dell'addestramento (umano) | Legame primordiale | 40 | Passiva | 1 |
+| Marchio del drago | Marchio dell'addestramento (umano) | Legame primordiale: Amicizia con gli animali | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio dell'addestramento (umano) | Legame primordiale: Parlare con gli animali | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio dell'addestramento (umano) | Più sono grossi | 40 | Passiva | 3 |
+| Marchio del drago | Marchio della guarigione (halfling) | Fortunato | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della guarigione (halfling) | Coraggioso | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della guarigione (halfling) | Agilità halfling | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della guarigione (halfling) | Intuizione medica | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della guarigione (halfling) | Tocco guaritore | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della guarigione (halfling) | Tocco guaritore: Cura ferite | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio della guarigione (halfling) | Tocco guaritore: Ristorare inferiore | 40 | Azione · 1/riposo lungo | 3 |
+| Marchio del drago | Marchio dell'ospitalità (halfling) | Fortunato | 40 | Passiva | 1 |
+| Marchio del drago | Marchio dell'ospitalità (halfling) | Coraggioso | 40 | Passiva | 1 |
+| Marchio del drago | Marchio dell'ospitalità (halfling) | Agilità halfling | 40 | Passiva | 1 |
+| Marchio del drago | Marchio dell'ospitalità (halfling) | Sempre ospitale | 40 | Passiva | 1 |
+| Marchio del drago | Marchio dell'ospitalità (halfling) | Magia del locandiere | 40 | Passiva | 1 |
+| Marchio del drago | Marchio dell'ospitalità (halfling) | Magia del locandiere: Purificare cibo e bevande | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio dell'ospitalità (halfling) | Magia del locandiere: Servitore inosservato | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio della creazione (umano) | Intuizione dell'artigiano | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della creazione (umano) | Forgiatore di incantesimi | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della creazione (umano) | Forgiatore di incantesimi: Arma magica | 40 | Azione bonus · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio del passaggio (umano) | Velocità del corriere | 40 | Passiva | 1 |
+| Marchio del drago | Marchio del passaggio (umano) | Movimento intuitivo | 40 | Passiva | 1 |
+| Marchio del drago | Marchio del passaggio (umano) | Passaggio magico: Passo velato | 40 | Azione bonus · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio della scrittura (gnomo) | Astuzia gnomesca | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della scrittura (gnomo) | Scrittore dotato | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della scrittura (gnomo) | Intuizione dello scriba | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della scrittura (gnomo) | Intuizione dello scriba: Comprensione dei linguaggi | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio della scrittura (gnomo) | Intuizione dello scriba: Bocca magica | 40 | Azione · 1/riposo lungo | 3 |
+| Marchio del drago | Marchio della sentinella (umano) | Intuizione della sentinella | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della sentinella (umano) | Scudo del guardiano: Scudo | 40 | Reazione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio della sentinella (umano) | Guardiano vigile | 40 | Reazione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio dell'ombra (elfo) | Ascendenza fatata | 40 | Passiva | 1 |
+| Marchio del drago | Marchio dell'ombra (elfo) | Intuizione astuta | 40 | Passiva | 1 |
+| Marchio del drago | Marchio dell'ombra (elfo) | Plasmare le ombre | 40 | Passiva | 1 |
+| Marchio del drago | Marchio dell'ombra (elfo) | Plasmare le ombre: Invisibilità | 40 | Azione · 1/riposo lungo | 3 |
+| Marchio del drago | Marchio della tempesta (mezzelfo) | Ascendenza fatata | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della tempesta (mezzelfo) | Intuizione del maestro dei venti | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della tempesta (mezzelfo) | Dono della tempesta | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della tempesta (mezzelfo) | Venti contrari | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della tempesta (mezzelfo) | Venti contrari: Folata di vento | 40 | Azione · 1/riposo lungo | 3 |
+| Marchio del drago | Marchio della protezione (nano) | Resilienza nanica | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della protezione (nano) | Intuizione del custode | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della protezione (nano) | Protezioni e sigilli | 40 | Passiva | 1 |
+| Marchio del drago | Marchio della protezione (nano) | Protezioni e sigilli: Allarme | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio della protezione (nano) | Protezioni e sigilli: Armatura magica | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio della protezione (nano) | Protezioni e sigilli: Serratura arcana | 40 | Azione · 1/riposo lungo | 3 |
+
 ## Mordenkainen presenta: Mostri del Multiverso
 
 Le ristampe delle specie delle tranche precedenti, in ordine alfabetico. Le
-altre specie del manuale (centauro, changeling, fata, harengon, minotauro,
-satiro, shifter, tortle) arrivano con il loro manuale d'origine.
+altre specie del manuale (centauro, fata, harengon, minotauro, satiro, tortle)
+arrivano con il loro manuale d'origine.
 
 | Specie | Opzione | Tratto | Pag. | Uso | Liv. |
 |---|---|---|---|---|---|
@@ -307,6 +415,7 @@ satiro, shifter, tortle) arrivano con il loro manuale d'origine.
 | Bugbear | — | Ascendenza fatata | 8 | Passiva | 1 |
 | Bugbear | — | Arti lunghi | 8 | Passiva | 1 |
 | Bugbear | — | Attacco a sorpresa | 8 | Passiva | 1 |
+| Changeling | — | Mutaforma | 10 | Passiva | 1 |
 | Coboldo | — | Grido draconico | 25 | Azione bonus · competenza/riposo lungo | 1 |
 | Coboldo | Retaggio della sfida | Retaggio coboldo: Sfida | 25 | Passiva | 1 |
 | Coboldo | Retaggio della stregoneria draconica | Retaggio coboldo: Stregoneria draconica | 25 | Passiva | 1 |
@@ -381,6 +490,10 @@ satiro, shifter, tortle) arrivano con il loro manuale d'origine.
 | Shadar-kai | — | Ascendenza fatata | 31 | Passiva | 1 |
 | Shadar-kai | — | Resistenza necrotica | 31 | Passiva | 1 |
 | Shadar-kai | — | Benedizione della Regina Corvo | 31 | Azione bonus · competenza/riposo lungo | 1 |
+| Shifter | Shifter pelle bestiale | Mutazione: Pelle bestiale | 32 | Azione bonus · competenza/riposo lungo · pill 1 min | 1 |
+| Shifter | Shifter zanna lunga | Mutazione: Zanna lunga | 32 | Azione bonus · competenza/riposo lungo · pill 1 min | 1 |
+| Shifter | Shifter passo rapido | Mutazione: Passo rapido | 32 | Azione bonus · competenza/riposo lungo · pill 1 min | 1 |
+| Shifter | Shifter caccia selvaggia | Mutazione: Caccia selvaggia | 32 | Azione bonus · competenza/riposo lungo · pill 1 min | 1 |
 | Tabaxi | — | Artigli felini | 33 | Passiva | 1 |
 | Tabaxi | — | Agilità felina | 33 | Passiva | 1 |
 | Tritone | — | Anfibio | 35 | Passiva | 1 |
@@ -397,7 +510,7 @@ satiro, shifter, tortle) arrivano con il loro manuale d'origine.
 
 ## Tranche successive
 
-Ancora da scrivere: Eberron, Ravnica, Theros, Wildemount, Strixhaven,
+Ancora da scrivere: Ravnica, Theros, Wildemount, Strixhaven,
 Witchlight, Van Richten, Spelljammer, Dragonlance, il lignaggio personalizzato
 di Tasha e le specie minori (Locathah, Grung, Verdan), ciascuna con la propria
 ristampa in Mostri del Multiverso dove c'è. Una specie fuori catalogo,

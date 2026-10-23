@@ -16,7 +16,7 @@ const whiteDragonborn = (level = 5) => ({ species: { id: "dragonide-cromatico", 
 test("the species field is sanitized and optional", () => {
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "bianco" }), { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "oro" }), { id: "dragonide-cromatico", ancestryId: "" }, "gold is metallic, not chromatic");
-  assert.equal(sanitizeSpecies({ id: "warforged" }), null, "not in the catalog yet");
+  assert.equal(sanitizeSpecies({ id: "loxodon" }), null, "not in the catalog yet");
   assert.equal(Object.hasOwn(sanitizeInitiativeCard({}), "species"), false, "profiles without a species keep their shape");
   assert.deepEqual(sanitizeInitiativeCard({ species: { id: "dragonide-cromatico", ancestryId: "bianco" } }).species, { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.equal(hasInitiativeCardValues(sanitizeInitiativeCard({ species: { id: "dragonide", ancestryId: "rosso" } })), true);
@@ -130,7 +130,8 @@ test("Volo, Tomo dei Nemici and Mostri del Multiverso: two versions side by side
     "Mostri del Multiverso: proficiency bonus uses");
   const groups = [...new Set(SPECIES.map((entry) => entry.sourceLabel))];
   assert.deepEqual(groups, ["Manuale del Giocatore 2014", "Elemental Evil Player's Companion", "Guida del Giocatore alla Costa della Spada",
-    "Guida di Volo ai Mostri", "Il Tomo dei Nemici di Mordenkainen", "Il Tesoro dei Draghi di Fizban", "Mordenkainen presenta: Mostri del Multiverso"]);
+    "Guida di Volo ai Mostri", "Il Tomo dei Nemici di Mordenkainen", "Eberron: Rising from the Last War", "Il Tesoro dei Draghi di Fizban",
+    "Mordenkainen presenta: Mostri del Multiverso"]);
 });
 
 test("a yuan-ti is immune to poison; a Tomo tiefling gets its bloodline's spells", () => {
@@ -174,4 +175,29 @@ test("an identical reprint names its other manuals instead of a duplicate entry"
   assert.equal(SPECIES.some((entry) => entry.id.startsWith("goliath") && entry.source === "elemental-evil"), false);
   assert.ok(SPECIES.find((entry) => entry.id === "goliath").sourceAliases.includes("elemental evil"));
   assert.ok(SPECIES.find((entry) => entry.id === "duergar").sourceAliases.includes("scag"));
+});
+
+test("Eberron: a dragonmark keeps the traits of its base species and names itself on the card", () => {
+  assert.equal(speciesDisplayName({ id: "marchio-del-drago", ancestryId: "ombra" }), "Marchio dell'ombra (elfo)");
+  assert.deepEqual(speciesDamageDefenses({ id: "marchio-del-drago", ancestryId: "protezione" }), { resistances: ["poison"] });
+  assert.deepEqual(speciesDamageDefenses({ id: "marchio-del-drago", ancestryId: "tempesta" }), { resistances: ["lightning"] }, "Storm's Boon");
+  const healing = traits({ id: "marchio-del-drago", ancestryId: "guarigione" }, 1);
+  assert.ok(healing.includes("specie-marchio-del-drago-guarigione-fortunato"), "the halfling keeps Lucky");
+  assert.ok(healing.includes("specie-marchio-del-drago-incantesimi-del-marchio"));
+  assert.equal(healing.includes("specie-marchio-del-drago-tocco-guaritore-ristorare-inferiore"), false, "Lesser Restoration from 3rd level");
+  assert.deepEqual(speciesDamageDefenses({ id: "kalashtar" }), { resistances: ["psychic"] });
+  assert.deepEqual(speciesDamageDefenses({ id: "warforged" }), { resistances: ["poison"] });
+});
+
+test("shifting is a 1-minute pill: once per short rest in Eberron, proficiency bonus uses in Mostri del Multiverso", () => {
+  const build = [{ classId: "ranger", level: 5 }];
+  assert.equal(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-shifter-mutazione-usi").refresh.length, 2);
+  assert.equal(resolveClassFeatureResourceMaximum(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-shifter-multiverso-mutazione-usi"), build).maximum, 3);
+  const feature = CLASS_FEATURE_BY_ID.get("specie-shifter-mutazione-pelle-bestiale");
+  const activation = planClassFeatureActivation({ state: null, feature, poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID, characterBuild: build,
+    sourceId: "geth", targetIds: ["geth"], currentRound: 1, currentTurnKey: "1:geth", instanceId: "shift-1" });
+  assert.equal(activation.ok, true, activation.reason);
+  const [instance] = classFeatureConditionInstancesForActivation(feature, activation.instance, "Geth", build);
+  assert.equal(instance.expiry.remaining, 10);
+  assert.deepEqual(traits({ id: "shifter", ancestryId: "zanna-lunga" }), ["specie-shifter-mutazione-zanna-lunga"]);
 });

@@ -125,14 +125,14 @@ export const SPECIES_CATALOG_VOLO = [
     ],
   },
   {
-    id: "bugbear", label: "Bugbear", book: "volo", page: 119, look: ["🐻", "#d6a35c", "#3b2307", "#fff7ed"],
+    id: "bugbear", label: "Bugbear", book: "volo", page: 119, alsoIn: ["eberron"], look: ["🐻", "#d6a35c", "#3b2307", "#fff7ed"],
     traits: [
       passive("arti-lunghi", "Arti lunghi", "Quando attacchi in mischia nel tuo turno, la tua portata aumenta di 1,5 m."),
       passive("attacco-a-sorpresa", "Attacco a sorpresa", "Se sorprendi una creatura e la colpisci con un attacco nel tuo primo turno di combattimento, l'attacco infligge 2d6 danni extra. Una volta per combattimento."),
     ],
   },
   {
-    id: "goblin", label: "Goblin", book: "volo", page: 119, look: ["👺", "#a3e635", "#1a2e05", "#f7fee7"],
+    id: "goblin", label: "Goblin", book: "volo", page: 119, alsoIn: ["eberron"], look: ["👺", "#a3e635", "#1a2e05", "#f7fee7"],
     pools: [once("furia-dei-piccoli", "Furia dei piccoli", "breve")],
     traits: [
       use("furia-dei-piccoli", "Furia dei piccoli", "innesco", "furia-dei-piccoli", `Quando danneggi con un attacco o un incantesimo una creatura di taglia più grande della tua, infliggi danni extra pari al tuo livello. ${ONCE_SHORT}`),
@@ -140,7 +140,7 @@ export const SPECIES_CATALOG_VOLO = [
     ],
   },
   {
-    id: "hobgoblin", label: "Hobgoblin", book: "volo", page: 119, look: ["🛡️", "#f97316", "#431407", "#fff7ed"],
+    id: "hobgoblin", label: "Hobgoblin", book: "volo", page: 119, alsoIn: ["eberron"], look: ["🛡️", "#f97316", "#431407", "#fff7ed"],
     pools: [once("salvare-la-faccia", "Salvare la faccia", "breve")],
     traits: [
       use("salvare-la-faccia", "Salvare la faccia", "innesco", "salvare-la-faccia", `Quando manchi un tiro per colpire o fallisci una prova di caratteristica o un tiro salvezza, aggiungi al tiro un bonus pari al numero di alleati entro 9 m che puoi vedere (massimo +5). ${ONCE_SHORT}`),
@@ -156,7 +156,7 @@ export const SPECIES_CATALOG_VOLO = [
     ],
   },
   {
-    id: "orco", label: "Orco", book: "volo", page: 120, aliases: ["orc"], look: ["👹", "#84cc16", "#1a2e05", "#f7fee7"],
+    id: "orco", label: "Orco", book: "volo", page: 120, alsoIn: ["eberron"], aliases: ["orc"], look: ["👹", "#84cc16", "#1a2e05", "#f7fee7"],
     traits: [
       passive("aggressivo", "Aggressivo", "Con un'azione bonus ti muovi fino alla tua velocità verso una creatura ostile che puoi vedere."),
     ],

@@ -72,6 +72,7 @@
     drow: { name: "Ilvara", build: [{ classId: "ladro", level: 3, subclassId: "ladro-lama-spirituale" }], species: { id: "elfo", ancestryId: "drow" } },
     aasimar: { name: "Aela", build: [{ classId: "paladino", level: 5, subclassId: "paladino-giuramento-di-conquista" }], species: { id: "aasimar-multiverso", ancestryId: "" } },
     genasi: { name: "Pyra", build: [{ classId: "mago", level: 5, subclassId: "mago-scuola-di-divinazione" }], species: { id: "genasi-multiverso", ancestryId: "terra" } },
+    shifter: { name: "Geth", build: [{ classId: "ranger", level: 5, subclassId: "ranger-cacciatore" }], species: { id: "shifter-multiverso", ancestryId: "pelle-bestiale" } },
   };
   const selected = characters[params.get("pc")] ? params.get("pc") : "warlock";
   fakeHost.state.role = params.get("role") === "PLAYER" ? "PLAYER" : "GM";
