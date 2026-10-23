@@ -50,6 +50,8 @@
     .caster-state { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
     .caster-state .concentrating { color: #fde68a; }
     .launch { gap: 8px; }
+    /* The turn moved on while an attack is in progress: the console waits for the GM (pcAttackTurnController.js). */
+    .follow-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: var(--obrt-space-md); padding: 6px 10px; border: 1px solid rgba(253, 230, 138, .45); border-radius: var(--obrt-radius-lg); background: rgba(161, 98, 7, .18); color: #fde68a; font-size: var(--obrt-type-secondary); }
     .launch-meta { display: flex; flex-wrap: wrap; gap: 4px; }
     .launch-tag { padding: 1px 7px; border: 1px solid var(--line); border-radius: var(--obrt-radius-pill); color: var(--muted); font-size: var(--obrt-type-caption); }
     .launch-tag.warning { border-color: rgba(253, 230, 138, .45); color: #fde68a; }
@@ -145,7 +147,7 @@
     .status { flex: 1 1 auto; min-width: 0; max-height: 52px; overflow-y: auto; margin: 0; color: #bfdbfe; font-size: var(--obrt-type-secondary); white-space: pre-wrap; }
     .status:empty::before { content: "Pronto."; color: var(--dim); }
   </style>
-  <script type="module" crossorigin src="/assets/pcAttack-Dd3Qjo4H.js"></script>
+  <script type="module" crossorigin src="/assets/pcAttack-Bd34NuJv.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
   <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
@@ -166,7 +168,7 @@
   <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-IlqqaWVh.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-DhsHPZi8.js">
-  <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-DpOBBl4o.js">
+  <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-B7vp4XFF.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-CUzjg6Rv.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-D3QrJC8M.js">
   <link rel="modulepreload" crossorigin href="/assets/customAuraCore-DHb778YP.js">
@@ -189,7 +191,7 @@
   <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-CcbrdViD.js">
   <link rel="modulepreload" crossorigin href="/assets/initiativeCards-C9JafbfW.js">
   <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-CznVr6lc.js">
-  <link rel="modulepreload" crossorigin href="/assets/pcAttackPickerCore-DfECQ7jz.js">
+  <link rel="modulepreload" crossorigin href="/assets/pcAttackPickerCore-C1ZsB4Ta.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-CgOOTA8w.js">
   <link rel="modulepreload" crossorigin href="/assets/sharedHpViewCore-B0n3EhSx.js">
   <link rel="modulepreload" crossorigin href="/assets/bossActionProfileStore-BzJ9B7JT.js">
@@ -207,6 +209,7 @@
       <button class="icon-button" id="pc-attack-close" type="button" title="Chiudi" aria-label="Chiudi">&times;</button>
     </header>
     <main class="panel">
+      <div class="follow-bar" id="pc-attack-follow" role="status" hidden></div>
       <section class="view" id="pc-attack-form" aria-label="Attacco" hidden>
         <section class="picker" id="pc-attack-picker" aria-label="Scelta dell'attacco" hidden>
           <div class="segmented picker-tabs" id="pc-attack-picker-tabs" role="group" aria-label="Tipo di attacco"></div>
