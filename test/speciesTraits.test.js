@@ -16,7 +16,7 @@ const whiteDragonborn = (level = 5) => ({ species: { id: "dragonide-cromatico", 
 test("the species field is sanitized and optional", () => {
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "bianco" }), { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "oro" }), { id: "dragonide-cromatico", ancestryId: "" }, "gold is metallic, not chromatic");
-  assert.equal(sanitizeSpecies({ id: "goblin" }), null, "not in the catalog yet");
+  assert.equal(sanitizeSpecies({ id: "aarakocra" }), null, "not in the catalog yet");
   assert.equal(Object.hasOwn(sanitizeInitiativeCard({}), "species"), false, "profiles without a species keep their shape");
   assert.deepEqual(sanitizeInitiativeCard({ species: { id: "dragonide-cromatico", ancestryId: "bianco" } }).species, { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.equal(hasInitiativeCardValues(sanitizeInitiativeCard({ species: { id: "dragonide", ancestryId: "rosso" } })), true);
@@ -118,4 +118,41 @@ test("an innate spell spends its own long-rest use", () => {
   assert.equal(again.ok, false);
   assert.equal(classFeatureRuntimeSupport(CLASS_FEATURE_BY_ID.get("specie-dragonide-arma-a-soffio-rosso")).ready, true, "the breath weapon spends its use too");
   assert.equal(classFeatureRuntimeSupport(CLASS_FEATURE_BY_ID.get("specie-halfling-fortunato")).ready, false, "a passive trait is a reminder");
+});
+
+test("Volo, Tomo dei Nemici and Mostri del Multiverso: two versions side by side", () => {
+  const volo = SPECIES.find((entry) => entry.id === "firbolg");
+  const motm = SPECIES.find((entry) => entry.id === "firbolg-multiverso");
+  assert.equal(volo.sourceLabel, "Guida di Volo ai Mostri");
+  assert.equal(motm.sourceLabel, "Mordenkainen presenta: Mostri del Multiverso");
+  assert.equal(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-firbolg-passo-nascosto-usi").refresh.length, 2, "Volo: short or long rest");
+  assert.equal(resolveClassFeatureResourceMaximum(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-firbolg-multiverso-passo-nascosto-usi"), [{ classId: "druido", level: 9 }]).maximum, 4,
+    "Mostri del Multiverso: proficiency bonus uses");
+  const groups = [...new Set(SPECIES.map((entry) => entry.sourceLabel))];
+  assert.deepEqual(groups, ["Manuale del Giocatore 2014", "Guida di Volo ai Mostri", "Il Tomo dei Nemici di Mordenkainen", "Il Tesoro dei Draghi di Fizban", "Mordenkainen presenta: Mostri del Multiverso"]);
+});
+
+test("a yuan-ti is immune to poison; a Tomo tiefling gets its bloodline's spells", () => {
+  assert.deepEqual(speciesDamageDefenses({ id: "yuan-ti" }), { immunities: ["poison"] });
+  assert.deepEqual(profileDamageDefenses({ species: { id: "yuan-ti" } }), { immunities: ["poison"], resistances: [], vulnerabilities: [] });
+  assert.deepEqual(traits({ id: "tiefling-stirpe", ancestryId: "levistus" }, 3), [
+    "specie-tiefling-stirpe-resistenza-infernale", "specie-tiefling-stirpe-eredita-levistus", "specie-tiefling-stirpe-eredita-levistus-3",
+  ]);
+  assert.deepEqual(traits({ id: "tiefling-stirpe", ancestryId: "" }), []);
+});
+
+test("an aasimar transformation is a 1-minute pill that spends its long-rest use", () => {
+  const feature = CLASS_FEATURE_BY_ID.get("specie-aasimar-multiverso-rivelazione-celestiale-ali");
+  const build = [{ classId: "paladino", level: 3 }];
+  assert.equal(classFeatureRuntimeSupport(feature).ready, true);
+  const activation = planClassFeatureActivation({ state: null, feature, poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID, characterBuild: build,
+    sourceId: "aela", targetIds: ["aela"], currentRound: 1, currentTurnKey: "1:aela", instanceId: "wings-1" });
+  assert.equal(activation.ok, true, activation.reason);
+  const [instance] = classFeatureConditionInstancesForActivation(feature, activation.instance, "Aela", build);
+  assert.equal(instance.condition, "Rivelazione celestiale: Ali celestiali");
+  assert.equal(instance.expiry.remaining, 10);
+  const shroud = CLASS_FEATURE_BY_ID.get("specie-aasimar-multiverso-rivelazione-celestiale-sudario");
+  const again = planClassFeatureActivation({ state: activation.state, feature: shroud, poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID, characterBuild: build,
+    sourceId: "aela", targetIds: ["aela"], currentRound: 2, currentTurnKey: "2:aela", instanceId: "shroud-1" });
+  assert.equal(again.ok, false, "the three revelations share one use");
 });

@@ -48,10 +48,22 @@ test("species: by name, alias or option; one outside the catalog is reported", (
   assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "drow" }), "Elfo oscuro (drow)");
   assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "" }), "Elfo · sottorazza da scegliere");
   assert.equal(sheetImportSectionSummary("species", { id: "tiefling", ancestryId: "" }), "Tiefling");
-  const goblin = read({ species: "Goblin", armorClass: 12 });
-  assert.equal(goblin.sections.species, undefined);
-  assert.match(goblin.unresolved[0], /specie "Goblin"/);
+  const aarakocra = read({ species: "Aarakocra", armorClass: 12 });
+  assert.equal(aarakocra.sections.species, undefined);
+  assert.match(aarakocra.unresolved[0], /specie "Aarakocra"/);
   assert.match(read({ species: { name: "Elfo", subrace: "Elfo marino" } }).unresolved[0], /sottorazza "Elfo marino"/);
+});
+
+test("species in more than one manual: source picks the version, else the first with a note", () => {
+  assert.deepEqual(read({ species: { name: "Aasimar", source: "Mostri del Multiverso" } }).sections.species, { id: "aasimar-multiverso", ancestryId: "" });
+  assert.deepEqual(read({ species: { name: "Firbolg", source: "MotM" } }).sections.species, { id: "firbolg-multiverso", ancestryId: "" });
+  const volo = read({ species: "Firbolg" });
+  assert.deepEqual(volo.sections.species, { id: "firbolg", ancestryId: "" });
+  assert.match(volo.unresolved[0], /più manuali: usata Guida di Volo ai Mostri/);
+  assert.deepEqual(read({ species: { name: "Tiefling", source: "Tomo dei Nemici", subrace: "Zariel" } }).sections.species, { id: "tiefling-stirpe", ancestryId: "zariel" });
+  assert.deepEqual(read({ species: { name: "Aasimar", subrace: "Fallen" } }).sections.species, { id: "aasimar", ancestryId: "caduto" });
+  assert.deepEqual(read({ species: "Yuan-ti Pureblood" }).sections.species, { id: "yuan-ti", ancestryId: "" });
+  assert.match(read({ species: { name: "Goblin", source: "Eberron" } }).unresolved[0], /manuale "Eberron"/);
 });
 
 test("statistics: numbers or text, speed in metres or feet", () => {

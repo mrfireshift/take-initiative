@@ -197,10 +197,15 @@ function importedClasses(data, unresolved) {
   return clean.length ? clean : null;
 }
 
-// species: "Elfo oscuro (drow)", "Hill Dwarf" or { name, ancestry | subrace | variant }. A name may be the
-// species, one of its aliases or directly one of its options (ancestry, subrace, variant).
+// species: "Elfo oscuro (drow)", "Hill Dwarf" or { name, ancestry | subrace | variant, source }. A name may be
+// the species, one of its aliases or directly one of its options (ancestry, subrace, variant). A species in
+// more than one manual (Volo and Mostri del Multiverso) takes the one named by source, else the first.
 function speciesNameMatches(entry, key) {
   return [entry.id, entry.label, ...(entry.aliases || [])].some((name) => lookupKey(name) === key);
+}
+
+function speciesSourceMatches(entry, key) {
+  return [entry.source, entry.sourceLabel, ...(entry.sourceAliases || [])].some((name) => lookupKey(name) === key);
 }
 
 function importedSpecies(data, unresolved) {
@@ -210,18 +215,22 @@ function importedSpecies(data, unresolved) {
   const name = text(source.name ?? source.id);
   const key = lookupKey(name);
   const optionName = source.ancestry ?? source.ascendenza ?? source.subrace ?? source.sottorazza ?? source.variant ?? source.variante;
-  let species = SPECIES.find((entry) => speciesNameMatches(entry, key));
+  const bookName = text(source.source ?? source.manuale ?? source.book);
+  const bookKey = lookupKey(bookName);
+  const fromBook = (entries) => (bookKey ? entries.filter((entry) => speciesSourceMatches(entry, bookKey)) : entries);
+  let candidates = SPECIES.filter((entry) => speciesNameMatches(entry, key));
   let ancestry = null;
-  if (!species && key) {
-    for (const entry of SPECIES) {
-      ancestry = entry.ancestries.find((choice) => speciesNameMatches(choice, key));
-      if (ancestry) { species = entry; break; }
-    }
+  if (!candidates.length && key) {
+    candidates = SPECIES.filter((entry) => entry.ancestries.some((choice) => speciesNameMatches(choice, key)));
   }
+  if (bookKey && candidates.length && !fromBook(candidates).length) unresolved.push(`manuale "${bookName}" per la specie "${name}"`);
+  const species = fromBook(candidates)[0] || candidates[0];
   if (!species) {
     if (name) unresolved.push(`specie "${name}" (non ancora nel catalogo del plugin)`);
     return null;
   }
+  if (!bookKey && candidates.length > 1) unresolved.push(`specie "${name}" presente in più manuali: usata ${species.sourceLabel} (indica source per cambiarla)`);
+  ancestry = species.ancestries.find((choice) => speciesNameMatches(choice, key)) || null;
   const ancestryName = lookupKey(optionName);
   if (ancestryName) {
     ancestry = species.ancestries.find((entry) => speciesNameMatches(entry, ancestryName)) || null;

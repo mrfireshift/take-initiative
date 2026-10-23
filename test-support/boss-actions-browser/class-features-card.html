@@ -70,6 +70,7 @@
     // I tratti di specie: senza sottorazza (tiefling) e con sottorazza (drow).
     tiefling: { name: "Zar", build: [{ classId: "warlock", level: 5, subclassId: "warlock-l-immondo" }], species: { id: "tiefling", ancestryId: "" } },
     drow: { name: "Ilvara", build: [{ classId: "ladro", level: 3, subclassId: "ladro-lama-spirituale" }], species: { id: "elfo", ancestryId: "drow" } },
+    aasimar: { name: "Aela", build: [{ classId: "paladino", level: 5, subclassId: "paladino-giuramento-di-conquista" }], species: { id: "aasimar-multiverso", ancestryId: "" } },
   };
   const selected = characters[params.get("pc")] ? params.get("pc") : "warlock";
   fakeHost.state.role = params.get("role") === "PLAYER" ? "PLAYER" : "GM";

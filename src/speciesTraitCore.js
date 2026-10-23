@@ -3,16 +3,26 @@
 // class-feature runtime activates them (pill, duration, resource pool) like any other feature.
 // The profile stores { id, ancestryId }: ancestryId is the species option, a dragonborn's ancestry or
 // a subrace/variant ("ancestries" keeps its name). Species without options leave it empty.
-// Tranche 1: the PHB 2014 species and the Fizban's dragonborn variants (see docs/SPECIE.md).
+// Tranche 1: the PHB 2014 species and the Fizban's dragonborn variants; tranche 2, declared in
+// speciesCatalogVoloMordenkainen.js: Volo, Tomo dei Nemici and Mostri del Multiverso (see docs/SPECIE.md).
+
+import { SPECIES_CATALOG_MULTIVERSO, SPECIES_CATALOG_TOMO, SPECIES_CATALOG_VOLO } from "./speciesCatalogVoloMordenkainen.js";
 
 export const SPECIES_FIELD = "species";
 
 const ancestry = (id, label, damageType, damageLabel) => Object.freeze({ id, label, damageType, damageLabel });
 const option = (id, label, { aliases = [], resistances = [] } = {}) =>
-  Object.freeze({ id, label, aliases: Object.freeze(aliases), resistances: Object.freeze(resistances) });
+  Object.freeze({ id, label, aliases: Object.freeze(aliases), resistances: Object.freeze(resistances), immunities: Object.freeze([]) });
 const theme = (emoji, accent, background, text) => Object.freeze({ emoji, accent, background, text });
-const PHB = Object.freeze({ source: "phb2014", sourceLabel: "Manuale del Giocatore 2014" });
-const FIZBAN = Object.freeze({ source: "fizban", sourceLabel: "Il Tesoro dei Draghi di Fizban" });
+// sourceAliases let the sheet import pick the manual when a species is in more than one.
+const book = (source, sourceLabel, sourceAliases) => Object.freeze({ source, sourceLabel, sourceAliases: Object.freeze(sourceAliases) });
+const PHB = book("phb2014", "Manuale del Giocatore 2014", ["phb", "manuale del giocatore", "player s handbook", "players handbook"]);
+const FIZBAN = book("fizban", "Il Tesoro dei Draghi di Fizban", ["fizban", "ftod", "fizban s treasury of dragons"]);
+const BOOKS = Object.freeze({
+  volo: book("volo", "Guida di Volo ai Mostri", ["volo", "vgm", "guida di volo", "volo s guide to monsters"]),
+  tomo: book("mordenkainen-nemici", "Il Tomo dei Nemici di Mordenkainen", ["mtof", "tomo dei nemici", "tome of foes", "mordenkainen s tome of foes"]),
+  multiverso: book("mostri-multiverso", "Mordenkainen presenta: Mostri del Multiverso", ["motm", "mpmm", "mostri del multiverso", "multiverso", "monsters of the multiverse"]),
+});
 
 const DRAGON_ANCESTRIES = Object.freeze({
   nero: ancestry("nero", "Nero", "acid", "acido"),
@@ -37,12 +47,12 @@ const DRAGON_THEME = theme("🐉", "#a78bfa", "#3b0764", "#f5f3ff");
 
 // optionLabel names the second select; resistances are passive defenses of the whole species,
 // an option adds its own. aliases help the sheet import (English names included).
-const speciesEntry = ({ id, label, book, optionLabel = "", options = [], resistances = [], aliases = [], look = DRAGON_THEME }) => Object.freeze({
-  id, label, ...book, optionLabel, ancestries: Object.freeze(options), resistances: Object.freeze(resistances),
+const speciesEntry = ({ id, label, book, optionLabel = "", options = [], resistances = [], immunities = [], aliases = [], look = DRAGON_THEME }) => Object.freeze({
+  id, label, ...book, optionLabel, ancestries: Object.freeze(options), resistances: Object.freeze(resistances), immunities: Object.freeze(immunities),
   aliases: Object.freeze(aliases), theme: look,
 });
 
-export const SPECIES = Object.freeze([
+const PHB_SPECIES = [
   speciesEntry({
     id: "nano", label: "Nano", book: PHB, optionLabel: "Sottorazza", resistances: ["poison"], aliases: ["dwarf"],
     look: theme("⛏️", "#f59e0b", "#451a03", "#fffbeb"),
@@ -100,6 +110,9 @@ export const SPECIES = Object.freeze([
     id: "tiefling", label: "Tiefling", book: PHB, resistances: ["fire"],
     look: theme("😈", "#fb7185", "#4c0519", "#fff1f2"),
   }),
+];
+
+const FIZBAN_SPECIES = [
   speciesEntry({
     id: "dragonide-cromatico", label: "Dragonide cromatico", book: FIZBAN, optionLabel: "Ascendenza", aliases: ["chromatic dragonborn"],
     options: pick("nero", "blu", "verde", "rosso", "bianco"),
@@ -112,6 +125,22 @@ export const SPECIES = Object.freeze([
     id: "dragonide-gemma", label: "Dragonide di gemma", book: FIZBAN, optionLabel: "Ascendenza", aliases: ["gem dragonborn"],
     options: pick("ametista", "cristallo", "smeraldo", "zaffiro", "topazio"),
   }),
+];
+
+// A catalog entry (speciesCatalogVoloMordenkainen.js) as a species of the select.
+const catalogSpecies = (spec) => speciesEntry({
+  id: spec.id, label: spec.label, book: BOOKS[spec.book], optionLabel: spec.optionLabel || "",
+  options: (spec.options || []).map((entry) => option(entry.id, entry.label, { aliases: entry.aliases })),
+  resistances: spec.resistances || [], immunities: spec.immunities || [], aliases: spec.aliases || [], look: theme(...spec.look),
+});
+const CATALOG = [...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO, ...SPECIES_CATALOG_MULTIVERSO];
+
+// In order of publication: the select groups them by manual.
+export const SPECIES = Object.freeze([
+  ...PHB_SPECIES,
+  ...[...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO].map(catalogSpecies),
+  ...FIZBAN_SPECIES,
+  ...SPECIES_CATALOG_MULTIVERSO.map(catalogSpecies),
 ]);
 const SPECIES_BY_ID = new Map(SPECIES.map((entry) => [entry.id, entry]));
 
@@ -147,8 +176,8 @@ export function speciesDisplayName(value) {
     : ancestryValue.label;
 }
 
-// Passive defenses of the profile: the species' own (a dwarf's poison resistance), the option's
-// (a stout halfling's) and a dragonborn's ancestry damage type.
+// Passive defenses of the profile: the species' own (a dwarf's poison resistance, a yuan-ti's poison
+// immunity), the option's (a stout halfling's) and a dragonborn's ancestry damage type.
 export function speciesDamageDefenses(value) {
   const clean = sanitizeSpecies(value);
   if (!clean) return {};
@@ -158,7 +187,11 @@ export function speciesDamageDefenses(value) {
     ...(ancestryValue?.resistances || []),
     ...(ancestryValue?.damageType ? [ancestryValue.damageType] : []),
   ])];
-  return resistances.length ? { resistances } : {};
+  const immunities = [...new Set([...getSpecies(clean.id).immunities, ...(ancestryValue?.immunities || [])])];
+  return {
+    ...(immunities.length ? { immunities } : {}),
+    ...(resistances.length ? { resistances } : {}),
+  };
 }
 
 const SELF_TARGETING = Object.freeze({ mode: "self", rangeMeters: null, maxTargets: 1, excludeSource: false });
@@ -183,6 +216,11 @@ export const SPECIES_RESOURCE_POOLS = Object.freeze([
   pool("specie-mezzorco-tenacia-implacabile-usi", "Tenacia implacabile", { type: "fixed", value: 1 }, ["riposo_lungo"]),
   pool("specie-tiefling-intimorire-infernale-usi", "Eredità infernale: Intimorire infernale", { type: "fixed", value: 1 }, ["riposo_lungo"]),
   pool("specie-tiefling-oscurita-usi", "Eredità infernale: Oscurità", { type: "fixed", value: 1 }, ["riposo_lungo"]),
+  ...CATALOG.flatMap((spec) => (spec.pools || []).map((entry) => pool(
+    `specie-${spec.id}-${entry.key}-usi`, entry.name,
+    entry.count === "pb" ? { type: "formula", expression: "bonus_competenza" } : { type: "fixed", value: entry.count },
+    entry.rest === "breve" ? ["riposo_breve", "riposo_lungo"] : ["riposo_lungo"],
+  ))),
 ]);
 
 function trait({ key, speciesId, ancestryValue, name, description, minimumLevel = 1, activation, poolId, effectPlan = null, rounds = null, page }) {
@@ -280,9 +318,11 @@ const DRAGONBORN_FEATURES = SPECIES.filter((entry) => DRAGONBORN_IDS.has(entry.i
 // A trait of the whole species (optionId empty) or of one subrace/variant. Passive traits are a
 // reference card; the others spend their own use with a button and are resolved at the table. Proficiencies,
 // languages, ability scores and plain darkvision stay out: they are part of the sheet, not of play.
-function speciesTrait({ speciesId, optionId = "", key, name, page, description, activation = "passiva", minimumLevel = 1, poolId = "" }) {
+function speciesTrait({ speciesId, optionId = "", key, name, page, description, activation = "passiva", minimumLevel = 1, poolId = "", effectPlan = null, rounds = null }) {
   const species = getSpecies(speciesId);
   const passive = activation === "passiva";
+  // A trait with an effect plan (an aasimar's transformation) puts a pill on the character.
+  const runtimeSupport = effectPlan ? CONDITION_ADAPTER : passive ? NOT_AUTOMATED : RESOURCE_ONLY;
   return Object.freeze({
     id: `specie-${speciesId}-${key}`,
     name,
@@ -297,20 +337,20 @@ function speciesTrait({ speciesId, optionId = "", key, name, page, description, 
     page,
     collection: "tratti-specie",
     defaultEnabled: true,
-    automationLevel: passive ? "riferimento" : "manuale",
+    automationLevel: effectPlan ? "assistita" : passive ? "riferimento" : "manuale",
     completenessStatus: passive ? "reference" : "partial",
     runtimeRequirements: Object.freeze([]),
     missingForExecution: Object.freeze([]),
-    runtimeSupport: passive ? NOT_AUTOMATED : RESOURCE_ONLY,
+    runtimeSupport,
     activation: Object.freeze({ primary: activation }),
     trackedResourcePoolIds: Object.freeze(poolId ? [poolId] : []),
     targetMode: "self",
     targeting: SELF_TARGETING,
     theme: species.theme,
-    effectPlan: null,
+    effectPlan,
     breaksConcentration: false,
-    duration: Object.freeze({ rounds: null }),
-    trackingMode: "instant",
+    duration: Object.freeze({ rounds }),
+    trackingMode: effectPlan ? "active" : "instant",
     resourceCosts: Object.freeze(poolId ? [Object.freeze({ poolId, amount: 1 })] : []),
   });
 }
@@ -385,7 +425,16 @@ const PHB_FEATURES = [
     description: "Lanci Oscurità senza slot, con Carisma. Una volta per riposo lungo." }),
 ];
 
-export const SPECIES_FEATURES = Object.freeze([...DRAGONBORN_FEATURES, ...PHB_FEATURES]);
+// Tranche 2: the catalog's traits, ids "specie-<species>-<key>" like those of the PHB.
+const CATALOG_FEATURES = CATALOG.flatMap((spec) => spec.traits.map((entry) => speciesTrait({
+  speciesId: spec.id, optionId: entry.option || "", key: entry.key, name: entry.name, page: entry.page ?? spec.page,
+  description: entry.text, activation: entry.act || "passiva", minimumLevel: entry.level || 1,
+  poolId: entry.uses ? `specie-${spec.id}-${entry.uses}-usi` : "",
+  effectPlan: entry.effect ? Object.freeze({ kind: "condition", conditionName: entry.name, effectKind: "buff", detail: entry.effect.detail }) : null,
+  rounds: entry.effect?.rounds ?? null,
+})));
+
+export const SPECIES_FEATURES = Object.freeze([...DRAGONBORN_FEATURES, ...PHB_FEATURES, ...CATALOG_FEATURES]);
 
 // A species trait is available for the profile's species, and for its chosen option when the
 // trait belongs to one, once the total character level reaches it. A species with options and none

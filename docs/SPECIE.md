@@ -7,7 +7,13 @@ capacità della card, con manuale e pagina.
 
 Il catalogo segue le regole 2014 (mai le 2024). I testi sono sintesi in
 italiano scritte per il plugin: vanno verificati sul manuale indicato.
-Il codice è in `src/speciesTraitCore.js`.
+Il codice è in `src/speciesTraitCore.js`; le specie dalla tranche 2 in poi
+sono dichiarate in `src/speciesCatalogVoloMordenkainen.js`.
+
+Una specie ristampata in un manuale successivo resta in entrambe le versioni,
+come i dragonidi del Manuale del Giocatore e di Fizban: nella tendina compare
+sotto ciascun manuale (per esempio Aasimar in Volo e in Mostri del
+Multiverso).
 
 ## Come funzionano i tratti
 
@@ -18,6 +24,11 @@ Il codice è in `src/speciesTraitCore.js`.
 - **Tratti con usi** (incantesimi innati, Tenacia implacabile, armi a soffio):
   **Conferma consumo** scala l'uso, che torna con il riposo indicato. L'effetto
   si risolve al tavolo: il plugin non tocca PF, tiri o bersagli.
+- **Trasformazioni da 1 minuto** (Anima radiosa, Consunzione radiosa, Sudario
+  necrotico, Rivelazione celestiale): **Attiva** scala l'uso e mette una pill
+  di 10 round sul personaggio, con il promemoria dei danni extra.
+- Gli usi "pari al bonus di competenza" di Mostri del Multiverso seguono il
+  livello totale del personaggio.
 - Un tratto compare dal livello indicato, contando il livello totale del
   personaggio.
 
@@ -67,11 +78,225 @@ aumenti dei punteggi, competenze, linguaggi e scurovisione normale.
 | Dragonide metallico | ottone, bronzo, rame, oro, argento | Resistenza (automatica), Arma a soffio, Arma a soffio metallica dal 5° | 20, 22 |
 | Dragonide di gemma | ametista, cristallo, smeraldo, zaffiro, topazio | Resistenza (automatica), Arma a soffio, Volo della gemma dal 5° | 20–21 |
 
+## Tranche 2 — Volo, Tomo dei Nemici, Mostri del Multiverso
+
+Mostri del Multiverso contiene qui solo le ristampe delle specie di Volo e del
+Tomo dei Nemici. Le altre sue specie (aarakocra, centauro, changeling, fata,
+genasi, harengon, minotauro, satiro, shifter, tortle) arrivano con i manuali
+d'origine.
+
+Nel Tomo dei Nemici eladrin, elfo marino e shadar-kai sono sottorazze
+dell'elfo, il duergar del nano e lo gnomo delle profondità dello gnomo: qui
+sono specie a sé, con il tratto della specie madre che conta in combattimento
+(Ascendenza fatata, Resilienza nanica, Astuzia gnomesca). Il tiefling del Tomo
+è una specie con la **stirpe** come seconda scelta; il tiefling del Manuale del
+Giocatore resta com'era (equivale alla stirpe di Asmodeus).
+
+Restano fuori, oltre a competenze e linguaggi: Costituzione possente (capacità
+di carico), Trance e Sensi acuti, Conoscenza astrale dei githyanki di Mostri
+del Multiverso (una competenza a scelta dopo il riposo lungo).
+
+Da controllare con più attenzione, perché il ricordo è meno sicuro:
+
+- **tutte le pagine di Mostri del Multiverso**, e le pagine delle singole
+  stirpi tiefling (21–23);
+- il danno del Morso del lucertoloide in Mostri del Multiverso (qui tagliente;
+  in Volo è perforante);
+- l'opzione Dispetto del Dono fatato dell'hobgoblin di Mostri del Multiverso;
+- l'Elfo marino di Mostri del Multiverso: qui senza resistenza al freddo;
+- i nomi italiani dei tratti, scritti senza il manuale italiano davanti.
+
+### Guida di Volo ai Mostri
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Aasimar | — | Resistenza celestiale | 105 | Passiva | 1 |
+| Aasimar | — | Mani guaritrici | 105 | Azione · 1/riposo lungo | 1 |
+| Aasimar | — | Portatore di luce | 105 | Passiva | 1 |
+| Aasimar | Aasimar protettore | Anima radiosa | 105 | Azione · 1/riposo lungo · pill 1 min | 3 |
+| Aasimar | Aasimar flagello | Consunzione radiosa | 105 | Azione · 1/riposo lungo · pill 1 min | 3 |
+| Aasimar | Aasimar caduto | Sudario necrotico | 105 | Azione · 1/riposo lungo · pill 1 min | 3 |
+| Firbolg | — | Magia firbolg | 107 | Passiva | 1 |
+| Firbolg | — | Magia firbolg: Individuazione del magico | 107 | Azione · 1/riposo breve | 1 |
+| Firbolg | — | Magia firbolg: Camuffare se stesso | 107 | Azione · 1/riposo breve | 1 |
+| Firbolg | — | Passo nascosto | 107 | Azione bonus · 1/riposo breve | 1 |
+| Firbolg | — | Linguaggio delle bestie e delle foglie | 107 | Passiva | 1 |
+| Goliath | — | Resistenza della pietra | 109 | Reazione · 1/riposo breve | 1 |
+| Goliath | — | Nato sulle montagne | 109 | Passiva | 1 |
+| Kenku | — | Contraffazione esperta | 111 | Passiva | 1 |
+| Kenku | — | Mimica | 111 | Passiva | 1 |
+| Lucertoloide | — | Morso | 113 | Passiva | 1 |
+| Lucertoloide | — | Artigiano astuto | 113 | Passiva | 1 |
+| Lucertoloide | — | Trattenere il respiro | 113 | Passiva | 1 |
+| Lucertoloide | — | Armatura naturale | 113 | Passiva | 1 |
+| Lucertoloide | — | Fauci fameliche | 113 | Azione bonus · 1/riposo breve | 1 |
+| Tabaxi | — | Agilità felina | 115 | Passiva | 1 |
+| Tabaxi | — | Artigli felini | 115 | Passiva | 1 |
+| Tritone | — | Anfibio | 118 | Passiva | 1 |
+| Tritone | — | Controllo di aria e acqua | 118 | Passiva | 1 |
+| Tritone | — | Controllo di aria e acqua: Nube di nebbia | 118 | Azione · 1/riposo lungo | 1 |
+| Tritone | — | Controllo di aria e acqua: Folata di vento | 118 | Azione · 1/riposo lungo | 3 |
+| Tritone | — | Controllo di aria e acqua: Muro d'acqua | 118 | Azione · 1/riposo lungo | 5 |
+| Tritone | — | Emissario del mare | 118 | Passiva | 1 |
+| Tritone | — | Guardiano degli abissi | 118 | Passiva | 1 |
+| Bugbear | — | Arti lunghi | 119 | Passiva | 1 |
+| Bugbear | — | Attacco a sorpresa | 119 | Passiva | 1 |
+| Goblin | — | Furia dei piccoli | 119 | Innesco · 1/riposo breve | 1 |
+| Goblin | — | Fuga agile | 119 | Passiva | 1 |
+| Hobgoblin | — | Salvare la faccia | 119 | Innesco · 1/riposo breve | 1 |
+| Coboldo | — | Strisciare, piagnucolare e implorare | 119 | Azione · 1/riposo breve | 1 |
+| Coboldo | — | Tattiche del branco | 119 | Passiva | 1 |
+| Coboldo | — | Sensibilità alla luce del sole | 119 | Passiva | 1 |
+| Orco | — | Aggressivo | 120 | Passiva | 1 |
+| Yuan-ti purosangue | — | Incantesimi innati | 120 | Passiva | 1 |
+| Yuan-ti purosangue | — | Incantesimi innati: Suggestione | 120 | Azione · 1/riposo lungo | 3 |
+| Yuan-ti purosangue | — | Resistenza alla magia | 120 | Passiva | 1 |
+| Yuan-ti purosangue | — | Immunità al veleno | 120 | Passiva | 1 |
+
+### Il Tomo dei Nemici di Mordenkainen
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Tiefling | — | Resistenza infernale | 21 | Passiva | 1 |
+| Tiefling | Tiefling di Asmodeus | Eredità di Asmodeus | 21 | Passiva | 1 |
+| Tiefling | Tiefling di Asmodeus | Eredità di Asmodeus: Intimorire infernale | 21 | Reazione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Asmodeus | Eredità di Asmodeus: Oscurità | 21 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Baalzebul | Eredità di Baalzebul | 21 | Passiva | 1 |
+| Tiefling | Tiefling di Baalzebul | Eredità di Baalzebul: Raggio di infermità | 21 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Baalzebul | Eredità di Baalzebul: Corona di follia | 21 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Dispater | Eredità di Dispater | 21 | Passiva | 1 |
+| Tiefling | Tiefling di Dispater | Eredità di Dispater: Camuffare se stesso | 21 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Dispater | Eredità di Dispater: Individuazione dei pensieri | 21 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Fierna | Eredità di Fierna | 22 | Passiva | 1 |
+| Tiefling | Tiefling di Fierna | Eredità di Fierna: Charme su persone | 22 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Fierna | Eredità di Fierna: Suggestione | 22 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Glasya | Eredità di Glasya | 22 | Passiva | 1 |
+| Tiefling | Tiefling di Glasya | Eredità di Glasya: Camuffare se stesso | 22 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Glasya | Eredità di Glasya: Invisibilità | 22 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Levistus | Eredità di Levistus | 22 | Passiva | 1 |
+| Tiefling | Tiefling di Levistus | Eredità di Levistus: Armatura di Agathys | 22 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Levistus | Eredità di Levistus: Oscurità | 22 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Mammon | Eredità di Mammon | 22 | Passiva | 1 |
+| Tiefling | Tiefling di Mammon | Eredità di Mammon: Disco fluttuante di Tenser | 22 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Mammon | Eredità di Mammon: Serratura arcana | 22 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Mefistofele | Eredità di Mefistofele | 23 | Passiva | 1 |
+| Tiefling | Tiefling di Mefistofele | Eredità di Mefistofele: Mani brucianti | 23 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Mefistofele | Eredità di Mefistofele: Lama infuocata | 23 | Azione bonus · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Zariel | Eredità di Zariel | 23 | Passiva | 1 |
+| Tiefling | Tiefling di Zariel | Eredità di Zariel: Punizione incandescente | 23 | Azione bonus · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Zariel | Eredità di Zariel: Punizione marchiante | 23 | Azione bonus · 1/riposo lungo | 5 |
+| Eladrin | — | Ascendenza fatata | 61 | Passiva | 1 |
+| Eladrin | — | Passo fatato | 61 | Azione bonus · 1/riposo breve | 1 |
+| Elfo marino | — | Ascendenza fatata | 62 | Passiva | 1 |
+| Elfo marino | — | Figlio del mare | 62 | Passiva | 1 |
+| Elfo marino | — | Amico del mare | 62 | Passiva | 1 |
+| Shadar-kai | — | Ascendenza fatata | 62 | Passiva | 1 |
+| Shadar-kai | — | Resistenza necrotica | 62 | Passiva | 1 |
+| Shadar-kai | — | Benedizione della Regina Corvo | 62 | Azione bonus · 1/riposo lungo | 1 |
+| Duergar | — | Resilienza nanica | 81 | Passiva | 1 |
+| Duergar | — | Resilienza duergar | 81 | Passiva | 1 |
+| Duergar | — | Magia duergar | 81 | Passiva | 1 |
+| Duergar | — | Magia duergar: Ingrandire | 81 | Azione · 1/riposo lungo | 3 |
+| Duergar | — | Magia duergar: Invisibilità | 81 | Azione · 1/riposo lungo | 5 |
+| Duergar | — | Sensibilità alla luce del sole | 81 | Passiva | 1 |
+| Githyanki | — | Psionica githyanki | 96 | Passiva | 1 |
+| Githyanki | — | Psionica githyanki: Saltare | 96 | Azione · 1/riposo lungo | 3 |
+| Githyanki | — | Psionica githyanki: Passo velato | 96 | Azione bonus · 1/riposo lungo | 5 |
+| Githzerai | — | Disciplina mentale | 96 | Passiva | 1 |
+| Githzerai | — | Psionica githzerai | 96 | Passiva | 1 |
+| Githzerai | — | Psionica githzerai: Scudo | 96 | Reazione · 1/riposo lungo | 3 |
+| Githzerai | — | Psionica githzerai: Individuazione dei pensieri | 96 | Azione · 1/riposo lungo | 5 |
+| Gnomo delle profondità | — | Astuzia gnomesca | 113 | Passiva | 1 |
+| Gnomo delle profondità | — | Mimetismo della pietra | 113 | Passiva | 1 |
+
+### Mordenkainen presenta: Mostri del Multiverso
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Aasimar | — | Resistenza celestiale | 7 | Passiva | 1 |
+| Aasimar | — | Mani guaritrici | 7 | Azione · 1/riposo lungo | 1 |
+| Aasimar | — | Portatore di luce | 7 | Passiva | 1 |
+| Aasimar | — | Rivelazione celestiale: Ali celestiali | 7 | Azione bonus · 1/riposo lungo · pill 1 min | 3 |
+| Aasimar | — | Rivelazione celestiale: Radiosità interiore | 7 | Azione bonus · 1/riposo lungo · pill 1 min | 3 |
+| Aasimar | — | Rivelazione celestiale: Sudario necrotico | 7 | Azione bonus · 1/riposo lungo · pill 1 min | 3 |
+| Bugbear | — | Ascendenza fatata | 8 | Passiva | 1 |
+| Bugbear | — | Arti lunghi | 8 | Passiva | 1 |
+| Bugbear | — | Attacco a sorpresa | 8 | Passiva | 1 |
+| Duergar | — | Magia duergar | 12 | Passiva | 1 |
+| Duergar | — | Magia duergar: Ingrandire/ridurre | 12 | Azione · 1/riposo lungo | 3 |
+| Duergar | — | Magia duergar: Invisibilità | 12 | Azione · 1/riposo lungo | 5 |
+| Duergar | — | Resilienza nanica | 12 | Passiva | 1 |
+| Duergar | — | Fortezza psionica | 12 | Passiva | 1 |
+| Eladrin | — | Ascendenza fatata | 13 | Passiva | 1 |
+| Eladrin | — | Passo fatato | 13 | Azione bonus · competenza/riposo lungo | 1 |
+| Eladrin | Eladrin d'autunno | Passo fatato d'autunno | 13 | Passiva | 3 |
+| Eladrin | Eladrin d'inverno | Passo fatato d'inverno | 13 | Passiva | 3 |
+| Eladrin | Eladrin di primavera | Passo fatato di primavera | 13 | Passiva | 3 |
+| Eladrin | Eladrin d'estate | Passo fatato d'estate | 13 | Passiva | 3 |
+| Elfo marino | — | Ascendenza fatata | 30 | Passiva | 1 |
+| Elfo marino | — | Figlio del mare | 30 | Passiva | 1 |
+| Elfo marino | — | Amico del mare | 30 | Passiva | 1 |
+| Firbolg | — | Magia firbolg | 15 | Passiva | 1 |
+| Firbolg | — | Magia firbolg: Individuazione del magico | 15 | Azione · 1/riposo lungo | 1 |
+| Firbolg | — | Magia firbolg: Camuffare se stesso | 15 | Azione · 1/riposo lungo | 1 |
+| Firbolg | — | Passo nascosto | 15 | Azione bonus · competenza/riposo lungo | 1 |
+| Firbolg | — | Linguaggio delle bestie e delle foglie | 15 | Passiva | 1 |
+| Githyanki | — | Psionica githyanki | 18 | Passiva | 1 |
+| Githyanki | — | Psionica githyanki: Saltare | 18 | Azione · 1/riposo lungo | 3 |
+| Githyanki | — | Psionica githyanki: Passo velato | 18 | Azione bonus · 1/riposo lungo | 5 |
+| Githyanki | — | Resilienza psichica | 18 | Passiva | 1 |
+| Githzerai | — | Disciplina mentale | 19 | Passiva | 1 |
+| Githzerai | — | Psionica githzerai | 19 | Passiva | 1 |
+| Githzerai | — | Psionica githzerai: Scudo | 19 | Reazione · 1/riposo lungo | 3 |
+| Githzerai | — | Psionica githzerai: Individuazione dei pensieri | 19 | Azione · 1/riposo lungo | 5 |
+| Githzerai | — | Resilienza psichica | 19 | Passiva | 1 |
+| Gnomo delle profondità | — | Dono degli svirfneblin | 11 | Passiva | 1 |
+| Gnomo delle profondità | — | Dono degli svirfneblin: Camuffare se stesso | 11 | Azione · 1/riposo lungo | 3 |
+| Gnomo delle profondità | — | Dono degli svirfneblin: Anti-individuazione | 11 | Azione · 1/riposo lungo | 5 |
+| Gnomo delle profondità | — | Resistenza alla magia gnomesca | 11 | Passiva | 1 |
+| Gnomo delle profondità | — | Mimetismo svirfneblin | 11 | Innesco · competenza/riposo lungo | 1 |
+| Goblin | — | Ascendenza fatata | 20 | Passiva | 1 |
+| Goblin | — | Furia dei piccoli | 20 | Innesco · competenza/riposo lungo | 1 |
+| Goblin | — | Fuga agile | 20 | Passiva | 1 |
+| Goliath | — | Nato sulle montagne | 21 | Passiva | 1 |
+| Goliath | — | Resistenza della pietra | 21 | Reazione · competenza/riposo lungo | 1 |
+| Hobgoblin | — | Ascendenza fatata | 23 | Passiva | 1 |
+| Hobgoblin | — | Dono fatato | 23 | Azione bonus · competenza/riposo lungo | 1 |
+| Hobgoblin | — | Fortuna dei molti | 23 | Innesco · competenza/riposo lungo | 1 |
+| Kenku | — | Duplicazione esperta | 24 | Passiva | 1 |
+| Kenku | — | Memoria kenku | 24 | Innesco · competenza/riposo lungo | 1 |
+| Kenku | — | Mimica | 24 | Passiva | 1 |
+| Coboldo | — | Grido draconico | 25 | Azione bonus · competenza/riposo lungo | 1 |
+| Coboldo | Retaggio della sfida | Retaggio coboldo: Sfida | 25 | Passiva | 1 |
+| Coboldo | Retaggio della stregoneria draconica | Retaggio coboldo: Stregoneria draconica | 25 | Passiva | 1 |
+| Lucertoloide | — | Morso | 26 | Passiva | 1 |
+| Lucertoloide | — | Trattenere il respiro | 26 | Passiva | 1 |
+| Lucertoloide | — | Armatura naturale | 26 | Passiva | 1 |
+| Lucertoloide | — | Fauci fameliche | 26 | Azione bonus · competenza/riposo lungo | 1 |
+| Orco | — | Scarica di adrenalina | 28 | Azione bonus · competenza/riposo breve | 1 |
+| Orco | — | Tenacia implacabile | 28 | Innesco · 1/riposo lungo | 1 |
+| Shadar-kai | — | Ascendenza fatata | 31 | Passiva | 1 |
+| Shadar-kai | — | Resistenza necrotica | 31 | Passiva | 1 |
+| Shadar-kai | — | Benedizione della Regina Corvo | 31 | Azione bonus · competenza/riposo lungo | 1 |
+| Tabaxi | — | Artigli felini | 33 | Passiva | 1 |
+| Tabaxi | — | Agilità felina | 33 | Passiva | 1 |
+| Tritone | — | Anfibio | 35 | Passiva | 1 |
+| Tritone | — | Controllo di aria e acqua | 35 | Passiva | 1 |
+| Tritone | — | Controllo di aria e acqua: Nube di nebbia | 35 | Azione · 1/riposo lungo | 1 |
+| Tritone | — | Controllo di aria e acqua: Folata di vento | 35 | Azione · 1/riposo lungo | 3 |
+| Tritone | — | Controllo di aria e acqua: Camminare sull'acqua | 35 | Azione · 1/riposo lungo | 5 |
+| Tritone | — | Emissario del mare | 35 | Passiva | 1 |
+| Tritone | — | Guardiano degli abissi | 35 | Passiva | 1 |
+| Yuan-ti | — | Resistenza alla magia | 36 | Passiva | 1 |
+| Yuan-ti | — | Resilienza al veleno | 36 | Passiva | 1 |
+| Yuan-ti | — | Incantesimi serpentini | 36 | Passiva | 1 |
+| Yuan-ti | — | Incantesimi serpentini: Suggestione | 36 | Azione · 1/riposo lungo | 3 |
+
 ## Tranche successive
 
 Ancora da scrivere: le varianti della Guida del Giocatore alla Costa della
-Spada, Volo, il Tomo dei Nemici di Mordenkainen, Mostri del Multiverso, Elemental
-Evil, Eberron, Ravnica, Theros, Wildemount, Strixhaven, Witchlight, Van Richten,
-Spelljammer, Dragonlance, il lignaggio personalizzato di Tasha e le specie
-minori (Locathah, Grung, Verdan). Una specie fuori catalogo, importata da una
-scheda, viene segnalata e non applicata.
+Spada, Elemental Evil, Eberron, Ravnica, Theros, Wildemount, Strixhaven,
+Witchlight, Van Richten, Spelljammer, Dragonlance, il lignaggio personalizzato
+di Tasha e le specie minori (Locathah, Grung, Verdan), ciascuna con la propria
+ristampa in Mostri del Multiverso dove c'è. Una specie fuori catalogo,
+importata da una scheda, viene segnalata e non applicata.
