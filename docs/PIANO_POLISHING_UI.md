@@ -440,7 +440,12 @@ Stato dei lotti:
     - il conteggio diventa un bollino da 15px in alto a destra della scheda, con fondo scuro pieno, bordo del colore di fazione e testo a 10px;
     - il riquadro ha 3px in più di margine sopra, per il bollino.
   - **Verifica nell'anteprima** (12 incantesimi, 7 azioni, 5 attacchi, 12 capacità): tutti e cinque i nomi sono interi e restano circa 23px liberi.
-  - **Poi tolti del tutto** su indicazione dell'utente: i numeri non servono. Via gli elementi `tab-count`, il loro CSS e le funzioni `set…TabCount` di `src/initiative-card-modal.js` che li aggiornavano; le schede mostrano solo il nome.
+  - **Poi tolti del tutto** (commit `6f85473`) su indicazione dell'utente: i numeri non servono. Via gli elementi `tab-count`, il loro CSS e le funzioni `set…TabCount` di `src/initiative-card-modal.js` che li aggiornavano; le schede mostrano solo il nome.
+- **7.5 — fatto il 2026-10-23.**
+  - **Versione 1.5.0** in `package.json`, `package-lock.json` (due voci), `public/manifest.json` e nel test del manifest; commit `255a2b2` "release: 1.5.0".
+  - **Gate di rilascio** in un worktree pulito di `255a2b2`: `verify:version`, `npm test` (4108 test, tutti passati), `check:spells`, `build`, `artifact:checksums` (261 file), `verify:dist`, tutti a posto. `build-info.json`: commit `255a2b2`, `dirty: false`.
+  - **`dist/` pubblicata** nel commit `26ac9d8` "build: publish production bundle from 255a2b2", identica al bundle del worktree.
+  - **Resta:** il giro in OBR (7.4) ora si può fare anche con la build di produzione; tag annotato `v1.5.0` e push (7.6) solo con il via libera dell'utente.
 
 ---
 
