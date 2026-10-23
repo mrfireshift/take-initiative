@@ -85,12 +85,16 @@
     orco: { name: "Urza", build: [{ classId: "guerriero", level: 5, subclassId: "guerriero-campione" }], species: { id: "orco-multiverso", ancestryId: "" } },
     // Incantesimi innati con la caratteristica a scelta (Mostri del Multiverso).
     githyanki: { name: "Vlaakith", build: [{ classId: "mago", level: 5, subclassId: "mago-scuola-di-divinazione" }], species: { id: "githyanki-multiverso", ancestryId: "" }, abilityModifiers: { int: 4, wis: 1, cha: 2 } },
+    // Tratti con tiro salvezza o condizione (Ruggito, Presenza inquietante, soffio metallico).
+    leonin: { name: "Nemeia", build: [{ classId: "guerriero", level: 5, subclassId: "guerriero-campione" }], species: { id: "leonin", ancestryId: "" }, abilityModifiers: { con: 2 } },
+    hollow: { name: "Vesna", build: [{ classId: "ladro", level: 5, subclassId: "ladro-lama-spirituale" }], species: { id: "umano", ancestryId: "" }, supernaturalGift: { id: "hollow-one" } },
+    metallico: { name: "Aurum", build: [{ classId: "paladino", level: 6, subclassId: "paladino-giuramento-di-conquista" }], species: { id: "dragonide-metallico", ancestryId: "oro" }, abilityModifiers: { con: 2 } },
     lucertoloide: { name: "Ssa", build: [{ classId: "ranger", level: 5, subclassId: "ranger-cacciatore" }], species: { id: "lucertoloide", ancestryId: "" }, abilityModifiers: { con: 3 } },
   };
   const selected = characters[params.get("pc")] ? params.get("pc") : "warlock";
   fakeHost.state.role = params.get("role") === "PLAYER" ? "PLAYER" : "GM";
   // options: opzioni a scelta da abilitare oltre alle capacità di default.
-  const cardFor = (pc) => ({ ...cardBuildFor(pc), ...(pc.spellbook ? { spellbook: pc.spellbook } : {}), ...(pc.species ? { species: pc.species } : {}),
+  const cardFor = (pc) => ({ ...cardBuildFor(pc), ...(pc.spellbook ? { spellbook: pc.spellbook } : {}), ...(pc.species ? { species: pc.species } : {}), ...(pc.supernaturalGift ? { supernaturalGift: pc.supernaturalGift } : {}),
     ...(pc.abilityModifiers ? { abilityModifiers: pc.abilityModifiers } : {}) });
   const cardBuildFor = (pc) => (pc.options
     ? {

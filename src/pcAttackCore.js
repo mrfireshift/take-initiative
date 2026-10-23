@@ -10,7 +10,7 @@ import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
 import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
 import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES, QUICK_ACTION_VERSION } from "./quickActionsCore.js";
-import { pcAttackBreathActionId, pcAttackBreathFeatureId } from "./pcAttackBreathId.js";
+import { pcAttackBreathActionId, pcAttackBreathFeatureId, pcAttackBreathVariant } from "./pcAttackBreathId.js";
 import {
   isBossActionCreature, bossMetadataSnapshot, bossConditionAppliedAt,
   damageAmount, defendedComponents, targetProfileAssert, bossGroupConditionInstanceId,
@@ -90,15 +90,19 @@ export function pcAttackAction(action) {
 // A dragonborn's breath weapon (a species trait with a breath spec): an area of creatures picked by hand, a save that
 // halves the damage, one damage roll of the ancestry's type. Built from the trait, never stored: its id is
 // "breath:<trait id>" (pcAttackBreathId.js) and its use is the trait's own, spent with the damage.
+// A breath without damage (the metallic breath) has no component and an option ("variant") with its condition.
 function breathActionShape(action) {
   const featureId = pcAttackBreathFeatureId(action?.id);
+  const variant = pcAttackBreathVariant(action?.id);
   const breath = featureId === action?.source?.featureId ? getClassFeatureDefinition(featureId)?.breath : null;
   const component = Array.isArray(action?.components) ? action.components[0] : null;
-  if (!breath || component?.type !== breath.damageType) return null;
+  if (!breath || (breath.damageType && component?.type !== breath.damageType)) return null;
+  if (breath.variants ? !breath.variants[variant] : !!variant) return null;
   return {
-    version: QUICK_ACTION_VERSION, id: pcAttackBreathActionId(featureId), label: String(action.label || ""), kind: "attack",
-    targetMode: "selection", range: "ranged", source: { kind: "breath", featureId },
-    components: [{ id: "c1", type: breath.damageType, ...(component.formula ? { formula: String(component.formula) } : {}) }],
+    version: QUICK_ACTION_VERSION, id: pcAttackBreathActionId(featureId, variant), label: String(action.label || ""), kind: "attack",
+    targetMode: "selection", range: "ranged", source: { kind: "breath", featureId, ...(variant ? { variant } : {}) },
+    components: breath.damageType
+      ? [{ id: "c1", type: breath.damageType, ...(component.formula ? { formula: String(component.formula) } : {}) }] : [],
   };
 }
 
@@ -111,18 +115,24 @@ export function pcAttackBreathDice(breath, card = {}) {
 
 // The breath action of this card for that id, or null when the card has no such enabled trait (another species,
 // another ancestry, a level too low).
+// Without an option the metallic breath opens on its first one (the console's picker offers the other).
 export function pcAttackBreathAction(card = {}, actionId = "") {
   const featureId = pcAttackBreathFeatureId(actionId);
   const feature = featureId ? getEnabledClassFeatures(card).find((entry) => entry.id === featureId && entry.breath) : null;
   if (!feature) return null;
-  return breathActionShape({ id: actionId, label: feature.name, source: { kind: "breath", featureId },
-    components: [{ type: feature.breath.damageType, formula: pcAttackBreathDice(feature.breath, card) }] });
+  const variant = pcAttackBreathVariant(actionId) || Object.keys(feature.breath.variants || {})[0] || "";
+  const option = variant ? feature.breath.variants?.[variant] : null;
+  return breathActionShape({ id: pcAttackBreathActionId(featureId, variant), label: option ? `${feature.name}: ${option.label}` : feature.name,
+    source: { kind: "breath", featureId },
+    components: feature.breath.damageType ? [{ type: feature.breath.damageType, formula: pcAttackBreathDice(feature.breath, card) }] : [] });
 }
 
-// The breath weapons a card offers: one per enabled breath trait.
+// The breath weapons a card offers: one per enabled breath trait, one per option of the metallic breath.
 export function pcAttackBreathActionsForCard(card = {}) {
   return getEnabledClassFeatures(card).filter((feature) => feature.breath)
-    .map((feature) => pcAttackBreathAction(card, pcAttackBreathActionId(feature.id))).filter(Boolean);
+    .flatMap((feature) => (feature.breath.variants ? Object.keys(feature.breath.variants) : [""])
+      .map((variant) => pcAttackBreathAction(card, pcAttackBreathActionId(feature.id, variant))))
+    .filter(Boolean);
 }
 
 // The cantrips a cantrip quick action offers: the ones the actor knows, or every attack cantrip.
@@ -192,9 +202,16 @@ export function pcAttackResolvedAction(action, spellId = "", attackMode = "") {
     const feature = getClassFeatureDefinition(attack.source.featureId);
     const breath = feature?.breath;
     if (!breath) return null;
-    return { ...attack, save: breath.save, saveHalf: true,
-      area: { manual: true, shape: breath.shape, lengthFeet: breath.lengthFeet, ...(breath.widthFeet ? { widthFeet: breath.widthFeet } : {}) },
-      breath: { featureId: feature.id, name: feature.name, damageType: breath.damageType } };
+    // Acid Spit: one creature ticked (shape "target"); the metallic breath: its option's save and condition.
+    const option = attack.source.variant ? breath.variants?.[attack.source.variant] : null;
+    const onFail = option?.condition
+      ? { condition: option.condition, ...(option.expiry ? { expiry: option.expiry, when: option.when } : {}), ...(option.note ? { note: option.note } : {}) } : null;
+    return { ...attack, save: option?.save || breath.save, saveHalf: breath.half !== false,
+      area: breath.shape === "target"
+        ? { manual: true, shape: "target", maxTargets: breath.maxTargets || 1, rangeFeet: breath.rangeFeet }
+        : { manual: true, shape: breath.shape, lengthFeet: breath.lengthFeet, ...(breath.widthFeet ? { widthFeet: breath.widthFeet } : {}) },
+      breath: { featureId: feature.id, name: attack.label || feature.name, damageType: breath.damageType || "", half: breath.half !== false,
+        ...(option ? { variant: attack.source.variant } : {}), ...(onFail ? { onFail } : {}) } };
   }
   // A leveled attack spell (lotto L4): its range and one damage component, of the first of its types until the
   // console picks one (pcAttackWithSpellType).
@@ -1514,6 +1531,7 @@ export function pcAttackAreaPreview({
     return option.types.includes(rider.type) ? "" : `${option.label}: scegli il tipo di danno.`;
   }).find(Boolean) || "";
   const blocker = !chosen.length ? "Scegli le creature dell'area."
+    : attack.area.maxTargets && chosen.length > attack.area.maxTargets ? `${attack.breath?.name || attack.label}: un solo bersaglio.`
     : modeOption && !modeOption.available ? `${modeOption.label}: ${modeOption.reason}`
     : breathOption && !breathOption.available ? `${attack.breath.name}: ${breathOption.reason}`
     : rows.some((row) => !PC_ATTACK_SAVE_OUTCOMES.includes(row.outcome)) ? "Scegli l'esito del tiro salvezza di ogni creatura."
@@ -1539,6 +1557,7 @@ export function buildPcAttackAreaMutation({
   const list = Array.isArray(members) ? members : [];
   if (!list.length) throw new Error("Scegli le creature dell'area.");
   if (new Set(list.map((member) => member?.item?.id)).size !== list.length) throw new Error("La stessa creatura è indicata due volte.");
+  if (attack.area.maxTargets && list.length > attack.area.maxTargets) throw new Error(`${attack.breath?.name || attack.label}: un solo bersaglio.`);
   for (const member of list) {
     if (!isBossActionCreature(member?.item)) throw new Error("Una creatura dell'area non è più nella scena.");
     if (member.item.id === sourceItem.id) throw new Error("L'attaccante non è tra le creature colpite dalla sua area.");
@@ -1609,7 +1628,8 @@ export function buildPcAttackAreaMutation({
     action: { id: attack.id, label: actionName },
     attack: { range: attack.range, outcome: "area", source: attack.cantrip ? "cantrip" : attack.breath ? "breath" : "weapon" },
     ...(breathInfo ? { breath: { featureId: attack.breath.featureId, name: breathInfo.name, dice: breathInfo.dice, shape: breathInfo.shape,
-      type: breathInfo.damageType, typeLabel: damageTypeLabel(breathInfo.damageType), spent: breathSpend.spent } } : {}),
+      type: breathInfo.damageType, typeLabel: breathInfo.damageType ? damageTypeLabel(breathInfo.damageType) : "", half: attack.breath.half,
+      ...(attack.breath.onFail ? { onFail: { ...attack.breath.onFail } } : {}), spent: breathSpend.spent } } : {}),
     ...(attack.cantrip ? { cantrip: { ...attack.cantrip, ...(cantripDice ? { dice: cantripDice } : {}), saveLabel: pcAttackSaveLabel(attack, card) } } : {}),
     ...(attack.mode ? { mode: { id: attack.mode.id, label: attack.mode.label, kind: attack.mode.kind } } : {}),
     save: { ability: pcAttackSave(attack), ...(dc ? { dc } : {}) },
@@ -1627,15 +1647,30 @@ export function buildPcAttackAreaMutation({
       requestedDamage: row.change.requested, appliedHpDelta: row.change.delta, damageComponents: structuredClone(row.damageComponents) })),
   };
   const changed = rows.filter((row) => row.change.changed);
+  // The metallic breath: its condition on each creature that failed the save, ending with the dragonborn's turn when
+  // the option says so (Incapacitato), else removed by hand (Prono).
+  const onFail = attack.breath?.onFail || null;
+  const appliedAt = bossConditionAppliedAt(turnState);
+  const conditionOperations = onFail ? rows.filter((row) => row.outcome === "failed").map((row) => ({
+    type: "condition:add", targetIds: [row.item.id], conditionName: onFail.condition,
+    instanceIds: { [row.item.id]: bossGroupConditionInstanceId(`${attackInstanceId}:breath`, onFail.condition, row.item.id) },
+    options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: !onFail.expiry,
+      expiry: onFail.expiry ? { ...onFail.expiry, ...(onFail.expiry.actor === "source" ? { actorId: sourceItem.id } : {}) } : { mode: "manual" },
+      ...(appliedAt ? { appliedAt } : {}) } })) : [];
+  if (conditionOperations.length) {
+    causality.conditionsApplied = conditionOperations.map((operation) => ({ targetId: operation.targetIds[0], condition: onFail.condition,
+      ...(appliedAt ? { appliedAt } : {}) }));
+  }
   const nextFeatureState = spend?.state || breathSpend?.state || null;
   const stateChanged = !!nextFeatureState && JSON.stringify(nextFeatureState) !== JSON.stringify(originalState);
   return {
     causality, rows, changes: changed.map((row) => ({ item: row.item, change: row.change })),
-    operations: changed.length ? [{ type: "hp:set", updates: changed.map((row) => ({
+    labelTargetIds: conditionOperations.map((operation) => operation.targetIds[0]),
+    operations: [...(changed.length ? [{ type: "hp:set", updates: changed.map((row) => ({
       itemId: row.item.id, hp: row.change.afterHP, hpMax: row.change.hpMax,
       hpIntent: { mode: "damage", amount: row.change.requested, eventId: attackInstanceId },
       expectedHP: bossMetadataSnapshot(row.meta, "hp"), expectedHPMax: bossMetadataSnapshot(row.meta, "hpMax"),
-    })) }] : [],
+    })) }] : []), ...conditionOperations],
     options: {
       commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id, targetIds: rows.map((row) => row.item.id),
       kind: PC_ATTACK_HISTORY_KIND, label,

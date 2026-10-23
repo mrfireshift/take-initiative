@@ -135,7 +135,7 @@ import {
   shortRestClassFeatureResources,
 } from "./classFeatureRuntime.js";
 import { speciesHealDice, speciesHpTraitAmount, speciesHpTraitAmountLabel, speciesReductionHint } from "./speciesHpTraitCore.js";
-import { speciesSpellCast, speciesSpellActionId, speciesSpellOpenRequest } from "./speciesInnateSpellCore.js";
+import { speciesSpellCast, speciesSpellActionId, speciesSpellOpenRequest, speciesTraitSave } from "./speciesInnateSpellCore.js";
 
 const META_KEY = `${ID}/meta`;
 const MODAL_ID = `${ID}/initiative-card-modal`;
@@ -2007,18 +2007,30 @@ function buildSpeciesSpellControls(feature, state) {
 
 // A breath weapon opens the PC attack console: the creatures of its area, their saves and the damage; its use is
 // spent when the attack is confirmed there.
+// Acid Spit (one creature) shows Sputa; the metallic breath one button per option.
 function buildBreathControls(feature) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = "Soffia";
-  button.title = "Apre l'attacco ad area del soffio: creature, tiri salvezza e danni. L'uso si spende alla conferma.";
-  button.disabled = classFeatureMutating;
-  button.addEventListener("click", async () => {
-    if (!item) return;
-    await openPcAttackPopover(item.id, pcAttackBreathActionId(feature.id));
-    closeInitiativeCardPopover();
+  const variants = Object.entries(feature.breath?.variants || {});
+  const entries = variants.length
+    ? variants.map(([variant, option]) => [option.label.replace(/^Soffio /u, "").replace(/^./u, (letter) => letter.toUpperCase()), variant])
+    : [[feature.breath?.shape === "target" ? "Sputa" : "Soffia", ""]];
+  const buttons = entries.map(([label, variant]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.title = "Apre la console d'attacco: creature, tiri salvezza ed effetti. L'uso si spende alla conferma.";
+    button.disabled = classFeatureMutating;
+    button.addEventListener("click", async () => {
+      if (!item) return;
+      await openPcAttackPopover(item.id, pcAttackBreathActionId(feature.id, variant));
+      closeInitiativeCardPopover();
+    });
+    return button;
   });
-  return button;
+  if (buttons.length === 1) return buttons[0];
+  const controls = document.createElement("div");
+  controls.className = "class-feature-special-controls";
+  controls.append(...buttons);
+  return controls;
 }
 
 // A species trait that changes hit points (speciesHpTraitCore.js): the roll it needs, the amount from the sheet; the
@@ -2755,6 +2767,13 @@ function renderClassFeatures() {
           });
           if (choiceControl) appendFeatureControl(choiceControl);
           for (const control of autoChoiceControls.values()) appendFeatureControl(control);
+          // A species trait with a save (Daunting Roar, Taunt): its DC, and whom to select before Attiva.
+          const speciesSave = speciesTraitSave(feature, profile);
+          if (speciesSave) {
+            const note = document.createElement("small");
+            note.textContent = `${speciesSave.label}: seleziona sulla mappa solo chi lo fallisce, poi Attiva.`;
+            appendFeatureControl(note);
+          }
           const activate = document.createElement("button");
           activate.type = "button";
           const activeInstance = active.find((entry) => entry.featureId === feature.id) || null;

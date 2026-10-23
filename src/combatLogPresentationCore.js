@@ -668,14 +668,19 @@ function causalityDetailLines(event) {
         ? `${stringValue(entry.name)} ${numberText(entry.before)} → ${numberText(entry.after)}`
         : `${stringValue(entry?.name)} −${numberText(entry?.amount ?? 1)}`
     )).filter(Boolean);
-    lines.push(`Soffio: ${breathName}${dice ? ` (${dice})` : ""}${ability ? ` · TS ${ability}${dc !== null ? ` CD ${numberText(dc)}` : ""}, metà se superato` : ""}`
+    // Acid Spit deals nothing on a success; the metallic breath deals no damage but puts its condition on a failure.
+    const onFail = rawAttack.breath.onFail && typeof rawAttack.breath.onFail === "object" ? rawAttack.breath.onFail : null;
+    const saveEffect = onFail ? `, ${stringValue(onFail.condition)} se fallito` : rawAttack.breath.half === false ? ", niente se superato" : ", metà se superato";
+    lines.push(`Soffio: ${breathName}${dice ? ` (${dice})` : ""}${ability ? ` · TS ${ability}${dc !== null ? ` CD ${numberText(dc)}` : ""}${saveEffect}` : ""}`
       + `${spent.length ? ` · ${spent.join(", ")}` : ""}`);
+    if (stringValue(onFail?.note)) lines.push(`Da fare: ${stringValue(onFail.note)}`);
   }
   if (rawAttack?.area && typeof rawAttack.area === "object") {
     const count = finiteNumber(rawAttack.area.count);
     const creatures = count !== null ? `${numberText(count)} ${count === 1 ? "creatura" : "creature"}` : "creature";
     const radius = finiteNumber(rawAttack.area.radiusFeet);
-    lines.push(rawAttack.area.manual ? `Area: ${creatures} ${stringValue(rawAttack.area.shape) === "cone" ? "nel cono" : "sulla linea"}`
+    const manualShape = stringValue(rawAttack.area.shape);
+    lines.push(rawAttack.area.manual ? `Area: ${creatures} ${manualShape === "cone" ? "nel cono" : manualShape === "target" ? "come bersaglio" : "sulla linea"}`
       : `Area: ${creatures} entro ${radius !== null ? `${numberText((radius / 10) * 3).replace(".", ",")} m` : "l'area"}${stringValue(rawAttack.actor?.name) ? ` da ${rawAttack.actor.name}` : ""}`);
   }
   // A weapon cantrip woven into the attack (Booming Blade, Green-Flame Blade).

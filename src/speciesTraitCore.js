@@ -287,6 +287,36 @@ const SELF_TARGETING = Object.freeze({ mode: "self", rangeMeters: null, maxTarge
 // Healing Hands: one creature touched, the character itself included (the token selected on the map, or itself).
 const TOUCH_TARGETING = Object.freeze({ mode: "single-target", rangeMeters: 1.5, maxTargets: 1, excludeSource: false });
 
+// The traits that put a condition on the creatures the GM selects, as Conquering Presence does: those that failed
+// the save (speciesSave: its ability, and the ability of its DC, 8 + proficiency + that modifier; "choice" is the
+// card's speciesSpellAbility), or the one creature unsettled. The pill ends with the timing of the source's turn.
+const conditionTrait = ({ condition, label = "", detail, rangeMeters, maxTargets = null, timing = "", rounds, save = null }) => Object.freeze({
+  effectPlan: Object.freeze({ kind: "condition", conditionName: condition, ...(label ? { displayLabel: label } : {}), detail }),
+  targeting: Object.freeze({ mode: "single-target", rangeMeters, maxTargets, excludeSource: true }),
+  duration: Object.freeze({ rounds, ...(timing ? { timing } : {}) }),
+  ...(save ? { speciesSave: Object.freeze(save) } : {}),
+});
+// Acid Spit (Simic hybrid): a save attack on one creature within 9 m, as the breath is resolved (the attack console),
+// no damage on a success.
+const SPECIES_TARGET_BREATHS = Object.freeze({
+  "specie-ibrido-simic-potenziamento-sputo-acido": Object.freeze({ shape: "target", rangeFeet: 30, maxTargets: 1, save: "dex",
+    damageType: "acid", dice: Object.freeze({ 5: "2d10", 11: "3d10", 17: "4d10" }), dc: "con", half: false }),
+});
+
+const SPECIES_CONDITION_TRAITS = Object.freeze({
+  "specie-leonin-ruggito-intimidatorio": conditionTrait({
+    condition: "Spaventato", label: "Spaventato · Ruggito intimidatorio", rangeMeters: 3, timing: "next-turn-end", rounds: 1,
+    detail: "Spaventato dal leonin fino alla fine del suo prossimo turno. Va solo su chi fallisce il TS su Saggezza.",
+    save: { ability: "wis", dc: "con" } }),
+  "specie-kender-provocazione": conditionTrait({
+    condition: "Provocato", rangeMeters: 18, maxTargets: 1, timing: "next-turn", rounds: 1,
+    detail: "Svantaggio ai tiri per colpire contro bersagli diversi dal kender, fino all'inizio del suo prossimo turno. Va solo se fallisce il TS su Saggezza.",
+    save: { ability: "wis", dc: "choice" } }),
+  "dono-hollow-one-presenza-inquietante": conditionTrait({
+    condition: "Turbato", rangeMeters: 4.5, maxTargets: 1, rounds: 10,
+    detail: "Svantaggio al prossimo tiro salvezza entro 1 minuto: togli la pill dopo quel tiro. Immuni costrutti, non morti e chi non può essere spaventato." }),
+});
+
 // The spells a species casts without a slot (speciesInnateSpellCore.js): the trait's text names the spell, the level
 // it is cast at and the casting ability; this table gives the spell catalog's id for each name (spells-srd.js).
 const INNATE_SPELL_IDS = Object.freeze({
@@ -486,10 +516,23 @@ function chromaticWarding(ancestryValue) {
   });
 }
 
+// The metallic breath (Fizban): a 4.5 m cone without damage; each option puts its condition on the creatures that fail
+// (the push of the repulsion breath stays a note: the GM moves the token).
+const METALLIC_BREATH = Object.freeze({
+  shape: "cone", lengthFeet: 15, save: "", damageType: "", dice: null, dc: "con", half: false,
+  variants: Object.freeze({
+    debilitante: Object.freeze({ label: "Soffio debilitante", save: "con", condition: "Incapacitato",
+      expiry: Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
+      when: "fino all'inizio del prossimo turno del dragonide" }),
+    repulsivo: Object.freeze({ label: "Soffio repulsivo", save: "str", condition: "Prono",
+      note: "Spinto di 6 m lontano dal dragonide: sposta il token a mano." }),
+  }),
+});
+
 function metallicBreath(ancestryValue) {
   return trait({
     key: "arma-a-soffio-metallica", speciesId: "dragonide-metallico", ancestryValue, name: "Arma a soffio metallica", minimumLevel: 5,
-    activation: "azione_attacco", poolId: "specie-dragonide-metallico-arma-a-soffio-metallica-usi", page: 22,
+    activation: "azione_attacco", poolId: "specie-dragonide-metallico-arma-a-soffio-metallica-usi", page: 22, breath: METALLIC_BREATH,
     description: "Dal 5° livello, durante l'azione di Attacco sostituisci un attacco con un cono di 4,5 m (CD 8 + Costituzione + competenza): soffio debilitante (TS su Costituzione o incapacitato fino all'inizio del tuo prossimo turno) o soffio repulsivo (TS su Forza o spinto di 6 m e prono). Una volta per riposo lungo.",
   });
 }
@@ -528,10 +571,12 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
   const species = giftId ? getSupernaturalGift(giftId) : getSpecies(speciesId);
   const passive = activation === "passiva";
   // A trait with an effect plan (an aasimar's transformation) puts a pill on the character.
-  const runtimeSupport = effectPlan ? CONDITION_ADAPTER : passive ? NOT_AUTOMATED : RESOURCE_ONLY;
   const id = giftId ? `dono-${giftId}-${key}` : `specie-${speciesId}-${key}`;
+  const runtimeSupport = effectPlan || SPECIES_CONDITION_TRAITS[id] ? CONDITION_ADAPTER : passive ? NOT_AUTOMATED : RESOURCE_ONLY;
   const hpTrait = SPECIES_HP_TRAITS[id] || null;
   const innateSpell = poolId && !passive ? innateSpellFromText(description) : null;
+  const conditionSpec = SPECIES_CONDITION_TRAITS[id] || null;
+  const plan = conditionSpec?.effectPlan || effectPlan;
   return Object.freeze({
     id,
     name,
@@ -555,17 +600,18 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
     runtimeSupport,
     activation: Object.freeze({ primary: activation }),
     trackedResourcePoolIds: Object.freeze(poolId ? [poolId] : []),
-    targetMode: hpTrait?.kind === "heal" ? "selection" : "self",
-    targeting: hpTrait?.kind === "heal" ? TOUCH_TARGETING : SELF_TARGETING,
+    targetMode: hpTrait?.kind === "heal" || conditionSpec ? "selection" : "self",
+    targeting: conditionSpec?.targeting || (hpTrait?.kind === "heal" ? TOUCH_TARGETING : SELF_TARGETING),
     theme: species.theme,
-    effectPlan,
+    effectPlan: plan,
     breaksConcentration: false,
-    duration: Object.freeze({ rounds }),
-    trackingMode: effectPlan ? "active" : "instant",
+    duration: conditionSpec?.duration || Object.freeze({ rounds }),
+    trackingMode: plan ? "active" : "instant",
     resourceCosts: Object.freeze(poolId ? [Object.freeze({ poolId, amount: 1 })] : []),
-    ...(breath ? { breath } : {}),
+    ...(breath || SPECIES_TARGET_BREATHS[id] ? { breath: breath || SPECIES_TARGET_BREATHS[id] } : {}),
     ...(hpTrait ? { hpTrait } : {}),
     ...(innateSpell ? { innateSpell } : {}),
+    ...(conditionSpec?.speciesSave ? { speciesSave: conditionSpec.speciesSave } : {}),
   });
 }
 
@@ -660,7 +706,8 @@ export const SPECIES_FEATURES = Object.freeze([...DRAGONBORN_FEATURES, GEM_PSION
 // Whether a species casts innate spells with the ability chosen by the player (the card shows the field then).
 export function speciesHasSpellAbilityChoice(speciesId) {
   const id = String(speciesId || "").trim();
-  return !!id && SPECIES_FEATURES.some((feature) => feature.speciesId === id && feature.innateSpell?.ability === "choice");
+  return !!id && SPECIES_FEATURES.some((feature) => feature.speciesId === id
+    && (feature.innateSpell?.ability === "choice" || feature.speciesSave?.dc === "choice"));
 }
 
 // A species trait is available for the profile's species, and for its chosen option when the

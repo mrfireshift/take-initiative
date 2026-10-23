@@ -86,8 +86,17 @@ Correzioni fatte dopo il confronto:
   mano. Il GM segna il tiro salvezza di ognuna e inserisce il danno tirato (la console suggerisce
   i dadi al livello del personaggio e la CD, 8 + Costituzione + competenza):
   pieno se fallito, metà se superato, con le resistenze di ogni bersaglio. La
-  conferma scrive i PF e spende l'uso in un solo comando, annullabile. Il soffio
-  metallico del 5° livello, che non fa danni, resta un semplice consumo.
+  conferma scrive i PF e spende l'uso in un solo comando, annullabile.
+- **Soffio metallico** (dragonidi metallici, dal 5° livello): sulla card
+  **Debilitante** e **Repulsivo** aprono la console sul cono di 4,5 m, senza
+  danni (nel selettore della console ci sono entrambe). Chi fallisce il TS
+  (Costituzione o Forza, CD 8 + Costituzione + competenza) riceve la condizione:
+  Incapacitato fino all'inizio del prossimo turno del dragonide, oppure Prono;
+  la spinta di 6 m resta da fare a mano (il registro lo ricorda). Uso e
+  condizioni in un solo comando, annullabile.
+- **Sputo acido** (ibrido simic): **Sputa** apre la console su un bersaglio
+  entro 9 m: TS su Destrezza, 2d10 acido (3d10 all'11°, 4d10 al 17°) se fallito,
+  niente se superato, con le resistenze del bersaglio e l'uso speso.
 - **Tratti che cambiano i PF**: la card scrive i PF e spende l'uso in un solo
   comando, annullabile; il registro di combattimento dice tratto, effetto e uso.
   - *Tenacia implacabile* (mezzorco, orco): a 0 PF «Resta a 1 PF» riporta i PF
@@ -108,6 +117,17 @@ Correzioni fatte dopo il confronto:
     chiesto non cambia: il GM ne abbassa la CD a mano.
   - Limite noto: i PF temporanei sono la parte di PF oltre il massimo, quindi su
     un personaggio ferito si sommano ai PF come una cura.
+- **Ruggito intimidatorio, Provocazione, Presenza inquietante**: come la
+  Presenza conquistatrice del paladino, si selezionano sulla mappa le creature
+  che falliscono il TS (la card mostra TS e CD, 8 + competenza + la
+  caratteristica del tratto; per il kender quella a scelta della specie) e
+  **Attiva** mette la pill e spende l'uso. Ruggito: Spaventato, entro 3 m, fino
+  alla fine del prossimo turno del leonin. Provocazione: «Provocato» (svantaggio
+  ai tiri per colpire contro bersagli diversi dal kender), una creatura entro
+  18 m, fino all'inizio del suo prossimo turno. Presenza inquietante (hollow
+  one): «Turbato» (svantaggio al prossimo TS), una creatura entro 4,5 m, senza
+  TS, per 1 minuto: la pill si toglie a mano dopo quel tiro; le immunità
+  (costrutti, non morti, chi non può essere spaventato) le valuta il GM.
 - **Incantesimi innati** (99 tratti: Eredità infernale, Magia drow, psionica
   dei gith, marchi del drago…): **Lancia**, o la stessa capacità come Azione
   rapida o dal menu del tracker, apre il pannello incantesimi sull'incantesimo,

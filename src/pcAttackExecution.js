@@ -349,6 +349,12 @@ export function createPcAttackRuntime({
           sceneIdentity:scope.scene.sceneIdentity,isCurrent:scope.isCurrent}) || []));}
         catch(error) {warnings.push(String(error?.message || error));}
       }
+      // The metallic breath's conditions on creatures the damage projection did not refresh.
+      const areaLabelIds=(plan.labelTargetIds || []).filter(id=>!plan.changes.some(row=>row.item.id===id));
+      if(result.duplicate!==true && areaLabelIds.length && scope.isCurrent()) {
+        try {await refreshLabels(areaLabelIds);}
+        catch(error) {warnings.push(String(error?.message || error));}
+      }
       draft.result={...result,attackInstanceId,area:true,warnings,
         rows:plan.rows.map(row=>({id:row.item.id,name:row.item.name || row.item.id,outcome:row.outcome,
           damage:row.damageComponents.reduce((sum,component)=>sum+component.amount,0),before:row.change.hp,after:row.change.afterHP})),

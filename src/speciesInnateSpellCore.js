@@ -36,7 +36,11 @@ export function getSpeciesSpellFeature(featureId) {
 // The casting ability: the trait's, or for "a scelta" the one stored on the card, else the highest of Intelligence,
 // Wisdom and Charisma (the first of them on a tie).
 export function speciesSpellAbility(feature, card = {}) {
-  const ability = feature?.innateSpell?.ability;
+  return speciesChosenAbility(feature?.innateSpell?.ability, card);
+}
+
+// An ability of the species: itself, or for "choice" the card's speciesSpellAbility, else the highest of Int, Wis, Cha.
+function speciesChosenAbility(ability, card = {}) {
   if (!ability) return "";
   if (ability !== "choice") return ability;
   const chosen = sanitizeSpeciesSpellAbility(card?.[SPECIES_SPELL_ABILITY_FIELD]);
@@ -53,6 +57,19 @@ export function speciesSpellSaveDC(feature, card = {}) {
   const proficiency = proficiencyBonusForLevel(totalCharacterLevel(card?.characterBuild));
   const modifier = abilityModifier(card?.abilityModifiers, speciesSpellAbility(feature, card));
   return proficiency === null || modifier === null ? null : 8 + proficiency + modifier;
+}
+
+// The save a species trait forces (speciesSave: Daunting Roar, Taunt): { ability, abilityLabel, dc, dcAbility, label },
+// or null. The DC is 8 + proficiency + the modifier of its ability ("choice": as for the innate spells).
+export function speciesTraitSave(feature, card = {}) {
+  const save = feature?.speciesSave;
+  if (!save) return null;
+  const dcAbility = speciesChosenAbility(save.dc, card);
+  const proficiency = proficiencyBonusForLevel(totalCharacterLevel(card?.characterBuild));
+  const modifier = abilityModifier(card?.abilityModifiers, dcAbility);
+  const dc = proficiency === null || modifier === null ? null : 8 + proficiency + modifier;
+  return { ability: save.ability, abilityLabel: ABILITY_LABELS[save.ability] || "", dc, dcAbility,
+    label: `TS ${ABILITY_LABELS[save.ability] || ""}${dc !== null ? ` CD ${dc} (${ABILITY_LABELS[dcAbility]})` : ""}` };
 }
 
 // The trait's use: { pool, current, maximum, unlimited }, or null.

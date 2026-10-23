@@ -529,6 +529,16 @@ const scenarios = {
     const { pcAttackBreathActionId } = await import("/src/pcAttackBreathId.js");
     await openPcAttackPopover("mira", pcAttackBreathActionId("specie-dragonide-arma-a-soffio-rosso"));
   },
+  // The metallic breath (gold dragonborn, 6th level): Soffio debilitante, a cone without damage, Incapacitato on a failure.
+  async "pc-metal"() {
+    const mira = fakeHost.state.items.find((item) => item.id === "mira");
+    mira.metadata[META].initiativeCard = { characterBuild: [{ classId: "paladino", level: 6 }], abilityModifiers: { str: 3, dex: 0, con: 2, int: 0, wis: 1, cha: 2 },
+      species: { id: "dragonide-metallico", ancestryId: "oro" }, quickActions: [] };
+    fakeHost.setItems([...fakeHost.state.items]);
+    const { openPcAttackPopover } = await import("/src/pcAttackLauncher.js");
+    const { pcAttackBreathActionId } = await import("/src/pcAttackBreathId.js");
+    await openPcAttackPopover("mira", pcAttackBreathActionId("specie-dragonide-metallico-arma-a-soffio-metallica-oro", "debilitante"));
+  },
   async compare() { document.getElementById("open-hp").click(); await sleep(600); fakeHost.setSelection(["dars"]); await openBossActionsPopover("auril"); await sleep(400);
     const frame = bossFrame(); fakeHost.state.popovers.get("com.thebigpicture.initiative/boss-actions").anchorPosition = { left: 600, top: 60 }; frame.style.left = "600px"; frame.style.top = "60px";
     (await row("Icekiss +2")).click(); await sleep(200); await press('[data-outcome="hit"]'); },
