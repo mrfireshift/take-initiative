@@ -28,6 +28,9 @@
     .subtitle { min-width: 0; overflow: hidden; color: var(--muted); font-size: var(--obrt-type-secondary); text-overflow: ellipsis; white-space: nowrap; }
     .icon-button { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: var(--obrt-h-control-sm); height: var(--obrt-h-control-sm); padding: 0; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; font-size: 18px; line-height: 1; cursor: pointer; }
     .icon-button:hover { background: var(--obrt-hover); }
+    /* The local option of the turn auto-open (pcAttackTurnController.js), next to the close button. */
+    .auto-toggle { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--obrt-type-caption); cursor: pointer; }
+    .auto-toggle input { width: 13px; height: 13px; margin: 0; accent-color: #2563eb; cursor: pointer; }
     button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid rgba(96, 165, 250, .75); outline-offset: 1px; }
     .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--obrt-space-lg) var(--obrt-space-xl); }
     .view { display: flex; flex-direction: column; gap: var(--obrt-space-md); }
@@ -43,6 +46,17 @@
     /* The picker: weapon attacks, cantrips and attack spells of the actor, one tab each, then the entry. */
     .picker { display: grid; gap: 6px; }
     .picker-tabs button[aria-pressed="true"] { color: #fff; background: rgba(37, 99, 235, .38); }
+    /* Cantrips and spells: the slots left and the concentration in progress; a spell the console does not resolve. */
+    .caster-state { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
+    .caster-state .concentrating { color: #fde68a; }
+    .launch { gap: 8px; }
+    .launch-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+    .launch-tag { padding: 1px 7px; border: 1px solid var(--line); border-radius: var(--obrt-radius-pill); color: var(--muted); font-size: var(--obrt-type-caption); }
+    .launch-tag.warning { border-color: rgba(253, 230, 138, .45); color: #fde68a; }
+    .launch-details { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); }
+    .launch-note { margin: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
+    .launch-note.warning { color: #fde68a; }
+    .launch .apply { justify-self: end; }
     .cantrip-row { display: grid; gap: 4px; }
     .cantrip-note { margin: 0; color: var(--muted); font-size: var(--obrt-type-caption); line-height: 1.3; }
     .spell-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -131,62 +145,65 @@
     .status { flex: 1 1 auto; min-width: 0; max-height: 52px; overflow-y: auto; margin: 0; color: #bfdbfe; font-size: var(--obrt-type-secondary); white-space: pre-wrap; }
     .status:empty::before { content: "Pronto."; color: var(--dim); }
   </style>
-  <script type="module" crossorigin src="/assets/pcAttack-VoZHB5yk.js"></script>
+  <script type="module" crossorigin src="/assets/pcAttack-Dd3Qjo4H.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
   <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-28TsGb8f.js">
-  <link rel="modulepreload" crossorigin href="/assets/sharedHpCore--G4cn45h.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-D3RsO0kz.js">
+  <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-CanP3gxT.js">
   <link rel="modulepreload" crossorigin href="/assets/deathSaveCore-Dwb48nXF.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellDamageHealingCore-DXl9pkXe.js">
-  <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-DNypsDyh.js">
-  <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
-  <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-CbH9Xf-k.js">
-  <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-DAfDKgzX.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellDamageHealingCore-9kIdedGc.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3dCore-DjQKSEJL.js">
   <link rel="modulepreload" crossorigin href="/assets/blinkRules-cyn8KJw3.js">
   <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-VK4NJjYt.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-DYfqXO8y.js">
   <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionRules-BdxcAFfz.js">
-  <link rel="modulepreload" crossorigin href="/assets/spells-srd-DifFelNt.js">
+  <link rel="modulepreload" crossorigin href="/assets/spells-srd-BnxHFy-P.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellbookCore-C04eQqNv.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-BofcGDfJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-DcMfG7YX.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-IlqqaWVh.js">
+  <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
+  <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-DhsHPZi8.js">
+  <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-DpOBBl4o.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-CUzjg6Rv.js">
-  <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ci4uQNGU.js">
-  <link rel="modulepreload" crossorigin href="/assets/customAuraCore-DL674Egq.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-BcdXN5uK.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-X74w3_4u.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-BtSAThzN.js">
-  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-RYmLb3IU.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-BFE3fsEj.js">
+  <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-D3QrJC8M.js">
+  <link rel="modulepreload" crossorigin href="/assets/customAuraCore-DHb778YP.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-Ctv3IZXq.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-DRMn3vpy.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-Xa9SU4hK.js">
   <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BEeUqVid.js">
   <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BTTQphJo.js">
   <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-BSymOU8U.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditions-ZF5kDdfQ.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BrtQzeT5.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-Ci6qYvCz.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-Cdz46GuY.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-mOkcZX8z.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-C8ipypv2.js">
-  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-CW04rH-Q.js">
-  <link rel="modulepreload" crossorigin href="/assets/history-s1HEEAtJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-BK8h2wkL.js">
+  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-B9pvBwba.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-B5aNXmx4.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3d-CeFYQ3b2.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-J6idOz3U.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-GkHKhbt3.js">
   <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-CJ-dHtGF.js">
   <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-C7pg-15d.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellbookCore-DF9lL3tV.js">
   <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-CcbrdViD.js">
-  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-FHYsx6Vy.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-gNURcN7_.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-CDkLs5nh.js">
+  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-C9JafbfW.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-CznVr6lc.js">
+  <link rel="modulepreload" crossorigin href="/assets/pcAttackPickerCore-DfECQ7jz.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-CgOOTA8w.js">
-  <link rel="modulepreload" crossorigin href="/assets/sharedHpViewCore-D32tEfk5.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionProfileStore-CVcezYZC.js">
+  <link rel="modulepreload" crossorigin href="/assets/sharedHpViewCore-B0n3EhSx.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionProfileStore-BzJ9B7JT.js">
   <link rel="modulepreload" crossorigin href="/assets/bossCollapseCore-BpWnXKe6.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-HqF5KcUU.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionExecution-CSLVo_SO.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-DZrA0BND.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-ByUUaYXA.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossAuraCore-ul8vaLc1.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionExecution-Bn36-8ZO.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-ChcfDwkX.js">
 </head>
 <body>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/pc-attack">
     <header class="header" data-drag-handle draggable="true" title="Trascina per spostare">
       <div class="header-text"><h1 class="title" id="pc-attack-title">Attacco</h1><div class="subtitle" id="pc-attack-subtitle"></div></div>
+      <label class="auto-toggle" id="pc-attack-auto-open-row" title="Apri la console da sola a ogni turno di un attore con attacchi (questo browser)" hidden><input type="checkbox" id="pc-attack-auto-open" /><span>Ogni turno</span></label>
       <button class="icon-button" id="pc-attack-close" type="button" title="Chiudi" aria-label="Chiudi">&times;</button>
     </header>
     <main class="panel">
@@ -195,6 +212,9 @@
           <div class="segmented picker-tabs" id="pc-attack-picker-tabs" role="group" aria-label="Tipo di attacco"></div>
           <select class="target-select" id="pc-attack-picker-select" aria-label="Attacco"></select>
         </section>
+        <p class="caster-state" id="pc-attack-caster" hidden></p>
+        <section class="card launch" id="pc-attack-launch" aria-label="Incantesimo" hidden></section>
+        <div class="view" id="pc-attack-attack-view">
         <section class="card" aria-label="Bersaglio">
           <span class="caption" id="pc-attack-target-caption">Bersaglio</span>
           <select class="target-select" id="pc-attack-target" aria-label="Bersaglio"></select>
@@ -243,6 +263,7 @@
           </div>
           <div class="defense-chips" id="pc-attack-defenses"></div>
         </section>
+        </div>
       </section>
     </main>
     <div class="apply-row" id="pc-attack-apply-row" hidden><span class="total" id="pc-attack-total"></span><button class="apply" id="pc-attack-apply" type="button">Registra</button></div>
