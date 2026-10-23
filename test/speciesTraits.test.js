@@ -16,7 +16,7 @@ const whiteDragonborn = (level = 5) => ({ species: { id: "dragonide-cromatico", 
 test("the species field is sanitized and optional", () => {
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "bianco" }), { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "oro" }), { id: "dragonide-cromatico", ancestryId: "" }, "gold is metallic, not chromatic");
-  assert.equal(sanitizeSpecies({ id: "owlin" }), null, "not in the catalog yet");
+  assert.equal(sanitizeSpecies({ id: "tortle" }), null, "not in the catalog yet");
   assert.equal(Object.hasOwn(sanitizeInitiativeCard({}), "species"), false, "profiles without a species keep their shape");
   assert.deepEqual(sanitizeInitiativeCard({ species: { id: "dragonide-cromatico", ancestryId: "bianco" } }).species, { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.equal(hasInitiativeCardValues(sanitizeInitiativeCard({ species: { id: "dragonide", ancestryId: "rosso" } })), true);
@@ -133,7 +133,7 @@ test("Volo, Tomo dei Nemici and Mostri del Multiverso: two versions side by side
   const groups = [...new Set(SPECIES.map((entry) => entry.sourceLabel))];
   assert.deepEqual(groups, ["Manuale del Giocatore 2014", "Elemental Evil Player's Companion", "Guida del Giocatore alla Costa della Spada",
     "Guida di Volo ai Mostri", "Il Tomo dei Nemici di Mordenkainen", "Guildmasters' Guide to Ravnica", "Eberron: Rising from the Last War",
-    "Mythic Odysseys of Theros", "Il Tesoro dei Draghi di Fizban",
+    "Mythic Odysseys of Theros", "The Wild Beyond the Witchlight", "Il Tesoro dei Draghi di Fizban", "Strixhaven: A Curriculum of Chaos",
     "Mordenkainen presenta: Mostri del Multiverso"]);
 });
 
@@ -219,4 +219,12 @@ test("Theros: the leonin roar spends a short-rest use; a satyr is a fey with mag
   assert.equal(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-leonin-ruggito-intimidatorio-usi").refresh.length, 2);
   assert.deepEqual(traits({ id: "satiro" }), ["specie-satiro-fatato", "specie-satiro-ariete", "specie-satiro-resistenza-alla-magia", "specie-satiro-balzi-gioiosi"]);
   assert.ok(SPECIES.find((entry) => entry.id === "centauro").sourceAliases.includes("theros"), "the Theros centaur is the Ravnica one");
+});
+
+test("Witchlight and Strixhaven: the fairy's spells from 3rd and 5th level, the harengon's proficiency bonus hops", () => {
+  assert.deepEqual(traits({ id: "fata" }, 3), ["specie-fata-fatato", "specie-fata-volo", "specie-fata-magia-fatata", "specie-fata-magia-fatata-luminescenza"]);
+  assert.equal(resolveClassFeatureResourceMaximum(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-harengon-salto-del-coniglio-usi"), [{ classId: "ladro", level: 9 }]).maximum, 4);
+  assert.deepEqual(traits({ id: "owlin" }), ["specie-owlin-volo"]);
+  assert.ok(SPECIES.find((entry) => entry.id === "harengon").sourceAliases.includes("motm"), "the Mostri del Multiverso reprint has the same text");
+  assert.equal(SPECIES.some((entry) => entry.id === "fata-multiverso"), false);
 });

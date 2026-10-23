@@ -48,9 +48,9 @@ test("species: by name, alias or option; one outside the catalog is reported", (
   assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "drow" }), "Elfo oscuro (drow)");
   assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "" }), "Elfo · sottorazza da scegliere");
   assert.equal(sheetImportSectionSummary("species", { id: "tiefling", ancestryId: "" }), "Tiefling");
-  const owlin = read({ species: "Owlin", armorClass: 12 });
-  assert.equal(owlin.sections.species, undefined);
-  assert.match(owlin.unresolved[0], /specie "Owlin"/);
+  const tortle = read({ species: "Tortle", armorClass: 12 });
+  assert.equal(tortle.sections.species, undefined);
+  assert.match(tortle.unresolved[0], /specie "Tortle"/);
   assert.match(read({ species: { name: "Elfo", subrace: "Elfo marino" } }).unresolved[0], /sottorazza "Elfo marino"/);
 });
 
@@ -67,6 +67,8 @@ test("species in more than one manual: source picks the version, else the first 
   assert.deepEqual(read({ species: { name: "Minotaur", source: "Theros" } }).sections.species, { id: "minotauro", ancestryId: "" });
   assert.deepEqual(read({ species: { name: "Minotaur", source: "MotM" } }).sections.species, { id: "minotauro-multiverso", ancestryId: "" });
   assert.deepEqual(read({ species: "Simic Hybrid" }).sections.species, { id: "ibrido-simic", ancestryId: "" });
+  assert.deepEqual(read({ species: { name: "Fairy", source: "Monsters of the Multiverse" } }).sections.species, { id: "fata", ancestryId: "" });
+  assert.equal(read({ species: "Harengon" }).unresolved.length, 0, "one entry, no ambiguity");
   assert.deepEqual(read({ species: { name: "Goblin", source: "Eberron" } }).sections.species, { id: "goblin", ancestryId: "" }, "same traits as Volo");
   assert.deepEqual(read({ species: "Mark of Shadow" }).sections.species, { id: "marchio-del-drago", ancestryId: "ombra" });
   assert.deepEqual(read({ species: { name: "Shifter", subrace: "Wildhunt", source: "MotM" } }).sections.species, { id: "shifter-multiverso", ancestryId: "caccia-selvaggia" });

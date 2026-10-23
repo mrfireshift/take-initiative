@@ -465,11 +465,57 @@ Da controllare con più attenzione:
 | Satiro | — | Resistenza alla magia | 25 | Passiva | 1 |
 | Satiro | — | Balzi gioiosi | 25 | Passiva | 1 |
 
+## Tranche 6 — Witchlight, Strixhaven
+
+Titoli indicati in inglese, come per le tranche precedenti: da correggere se
+c'è un'edizione italiana.
+
+Witchlight usa già lo stile di Mostri del Multiverso, e fata e harengon vi sono
+ristampati con lo stesso testo: c'è una voce sola, sotto Witchlight, che
+l'import trova anche con `source: "Mostri del Multiverso"`. L'owlin non ha
+ristampa.
+
+- **Fata**: tipo folletto, volo, Magia fatata con Luminescenza dal 3° livello e
+  Ingrandire/ridurre dal 5°, ciascuno con il proprio uso.
+- **Harengon**: Salto del coniglio con usi pari al bonus di competenza.
+  Grilletto della lepre (bonus di competenza all'iniziativa) è un promemoria:
+  il plugin non tira l'iniziativa dei PG, va compreso nel valore inserito.
+- **Owlin**: volo.
+
+Restano fuori le competenze (Sensi leporini, Piume silenziose) e la
+scurovisione.
+
+Da controllare con più attenzione:
+
+- le pagine di Witchlight e Strixhaven;
+- che fata e harengon di Mostri del Multiverso abbiano davvero lo stesso testo
+  di Witchlight;
+- i nomi italiani dei tratti.
+
+### The Wild Beyond the Witchlight
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Fata | — | Fatato | 12 | Passiva | 1 |
+| Fata | — | Volo | 12 | Passiva | 1 |
+| Fata | — | Magia fatata | 12 | Passiva | 1 |
+| Fata | — | Magia fatata: Luminescenza | 12 | Azione · 1/riposo lungo | 3 |
+| Fata | — | Magia fatata: Ingrandire/ridurre | 12 | Azione · 1/riposo lungo | 5 |
+| Harengon | — | Grilletto della lepre | 13 | Passiva | 1 |
+| Harengon | — | Passo fortunato | 13 | Passiva | 1 |
+| Harengon | — | Salto del coniglio | 13 | Azione bonus · competenza/riposo lungo | 1 |
+
+### Strixhaven: A Curriculum of Chaos
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Owlin | — | Volo | 29 | Passiva | 1 |
+
 ## Mordenkainen presenta: Mostri del Multiverso
 
 Le ristampe delle specie delle tranche precedenti, in ordine alfabetico. Le
-altre specie del manuale (fata, harengon, tortle) arrivano con il loro manuale
-d'origine.
+altre specie del manuale arrivano con il loro manuale d'origine (il tortle);
+fata e harengon sono le voci di Witchlight, con lo stesso testo.
 
 | Specie | Opzione | Tratto | Pag. | Uso | Liv. |
 |---|---|---|---|---|---|
@@ -592,8 +638,8 @@ d'origine.
 
 ## Tranche successive
 
-Ancora da scrivere: Wildemount, Strixhaven,
-Witchlight, Van Richten, Spelljammer, Dragonlance, il lignaggio personalizzato
-di Tasha e le specie minori (Locathah, Grung, Verdan), ciascuna con la propria
-ristampa in Mostri del Multiverso dove c'è. Una specie fuori catalogo,
-importata da una scheda, viene segnalata e non applicata.
+Ancora da scrivere: il tortle (Tortle Package, con la ristampa in Mostri del
+Multiverso), Wildemount, Van Richten, Spelljammer, Dragonlance, il lignaggio
+personalizzato di Tasha e le specie minori (Locathah, Grung, Verdan). Una
+specie fuori catalogo, importata da una scheda, viene segnalata e non
+applicata.

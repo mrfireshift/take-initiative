@@ -6,13 +6,14 @@
 // Tranche 1: the PHB 2014 species and the Fizban's dragonborn variants; tranche 2, declared in
 // speciesCatalogVoloMordenkainen.js: Volo, Tomo dei Nemici and Mostri del Multiverso; tranche 3, in
 // speciesCatalogCostaElementalEvil.js: Elemental Evil and Costa della Spada; tranche 4, in
-// speciesCatalogEberron.js: Eberron; tranche 5, in speciesCatalogRavnicaTheros.js: Ravnica and Theros
-// (see docs/SPECIE.md).
+// speciesCatalogEberron.js: Eberron; tranche 5, in speciesCatalogRavnicaTheros.js: Ravnica and Theros;
+// tranche 6, in speciesCatalogWitchlightStrixhaven.js: Witchlight and Strixhaven (see docs/SPECIE.md).
 
 import { SPECIES_CATALOG_MULTIVERSO, SPECIES_CATALOG_TOMO, SPECIES_CATALOG_VOLO } from "./speciesCatalogVoloMordenkainen.js";
 import { SPECIES_CATALOG_COSTA, SPECIES_CATALOG_ELEMENTAL, SPECIES_CATALOG_MULTIVERSO_ELEMENTAL } from "./speciesCatalogCostaElementalEvil.js";
 import { SPECIES_CATALOG_EBERRON, SPECIES_CATALOG_MULTIVERSO_EBERRON } from "./speciesCatalogEberron.js";
 import { SPECIES_CATALOG_MULTIVERSO_RAVNICA_THEROS, SPECIES_CATALOG_RAVNICA, SPECIES_CATALOG_THEROS } from "./speciesCatalogRavnicaTheros.js";
+import { SPECIES_CATALOG_STRIXHAVEN, SPECIES_CATALOG_WITCHLIGHT } from "./speciesCatalogWitchlightStrixhaven.js";
 
 export const SPECIES_FIELD = "species";
 
@@ -29,6 +30,8 @@ const BOOKS = Object.freeze({
   elemental: book("elemental-evil", "Elemental Evil Player's Companion", ["eepc", "elemental evil", "elemental evil player s companion"]),
   ravnica: book("ravnica", "Guildmasters' Guide to Ravnica", ["ggr", "ravnica", "guildmasters guide to ravnica", "guildmaster s guide to ravnica"]),
   theros: book("theros", "Mythic Odysseys of Theros", ["moot", "theros", "mythic odysseys of theros", "mitiche odissee di theros"]),
+  witchlight: book("witchlight", "The Wild Beyond the Witchlight", ["wbtw", "witchlight", "the wild beyond the witchlight", "wild beyond the witchlight"]),
+  strixhaven: book("strixhaven", "Strixhaven: A Curriculum of Chaos", ["scc", "strixhaven", "strixhaven a curriculum of chaos", "strixhaven un curriculum del caos"]),
   eberron: book("eberron", "Eberron: Rising from the Last War", ["erlw", "eberron", "rising from the last war", "eberron rising from the last war"]),
   costa: book("costa-della-spada", "Guida del Giocatore alla Costa della Spada", ["scag", "costa della spada", "sword coast", "sword coast adventurer s guide"]),
   volo: book("volo", "Guida di Volo ai Mostri", ["volo", "vgm", "guida di volo", "volo s guide to monsters"]),
@@ -154,14 +157,16 @@ const catalogSpecies = (spec) => speciesEntry({
 const MULTIVERSO = [...SPECIES_CATALOG_MULTIVERSO, ...SPECIES_CATALOG_MULTIVERSO_ELEMENTAL, ...SPECIES_CATALOG_MULTIVERSO_EBERRON, ...SPECIES_CATALOG_MULTIVERSO_RAVNICA_THEROS]
   .sort((left, right) => left.label.localeCompare(right.label, "it"));
 const BEFORE_FIZBAN = [...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, ...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO,
-  ...SPECIES_CATALOG_RAVNICA, ...SPECIES_CATALOG_EBERRON, ...SPECIES_CATALOG_THEROS];
-const CATALOG = [...BEFORE_FIZBAN, ...MULTIVERSO];
+  ...SPECIES_CATALOG_RAVNICA, ...SPECIES_CATALOG_EBERRON, ...SPECIES_CATALOG_THEROS, ...SPECIES_CATALOG_WITCHLIGHT];
+const AFTER_FIZBAN = [...SPECIES_CATALOG_STRIXHAVEN];
+const CATALOG = [...BEFORE_FIZBAN, ...AFTER_FIZBAN, ...MULTIVERSO];
 
 // In order of publication: the select groups them by manual.
 export const SPECIES = Object.freeze([
   ...PHB_SPECIES,
   ...BEFORE_FIZBAN.map(catalogSpecies),
   ...FIZBAN_SPECIES,
+  ...AFTER_FIZBAN.map(catalogSpecies),
   ...MULTIVERSO.map(catalogSpecies),
 ]);
 const SPECIES_BY_ID = new Map(SPECIES.map((entry) => [entry.id, entry]));
