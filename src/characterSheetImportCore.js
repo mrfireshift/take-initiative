@@ -6,7 +6,7 @@
 import { getSpellDefinition } from "./spells-srd.js";
 import { CLASS_FEATURE_CLASSES, getClassFeatureSubclasses } from "./classFeatureCatalog.js";
 import { MAX_CHARACTER_CLASSES, sanitizeCharacterBuild } from "./classFeatureCore.js";
-import { SPECIES } from "./speciesTraitCore.js";
+import { SPECIES, speciesDisplayName } from "./speciesTraitCore.js";
 import { DAMAGE_TYPES, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
 import { ABILITY_KEYS, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import { MAX_QUICK_ACTION_ATTACKS, sanitizeQuickAction } from "./quickActionsCore.js";
@@ -385,7 +385,7 @@ export function sheetImportSectionSummary(id, section, { classNameOf = (classId)
   if (id === "species") {
     const species = SPECIES.find((entry) => entry.id === section.id);
     const ancestry = species?.ancestries.find((entry) => entry.id === section.ancestryId);
-    if (ancestry) return ancestry.damageLabel ? `${species.label} (${ancestry.label.toLocaleLowerCase("it")})` : ancestry.label;
+    if (ancestry) return ancestry.damageLabel ? `${species.label} (${ancestry.label.toLocaleLowerCase("it")})` : speciesDisplayName(section);
     return `${species?.label || section.id}${species?.ancestries.length ? ` · ${species.optionLabel.toLocaleLowerCase("it")} da scegliere` : ""}`;
   }
   if (id === "stats") {

@@ -80,10 +80,8 @@ aumenti dei punteggi, competenze, linguaggi e scurovisione normale.
 
 ## Tranche 2 — Volo, Tomo dei Nemici, Mostri del Multiverso
 
-Mostri del Multiverso contiene qui solo le ristampe delle specie di Volo e del
-Tomo dei Nemici. Le altre sue specie (aarakocra, centauro, changeling, fata,
-genasi, harengon, minotauro, satiro, shifter, tortle) arrivano con i manuali
-d'origine.
+Le ristampe di Mostri del Multiverso, di questa tranche e delle successive,
+sono raccolte nella sezione dedicata in fondo.
 
 Nel Tomo dei Nemici eladrin, elfo marino e shadar-kai sono sottorazze
 dell'elfo, il duergar del nano e lo gnomo delle profondità dello gnomo: qui
@@ -209,10 +207,97 @@ Da controllare con più attenzione, perché il ricordo è meno sicuro:
 | Gnomo delle profondità | — | Astuzia gnomesca | 113 | Passiva | 1 |
 | Gnomo delle profondità | — | Mimetismo della pietra | 113 | Passiva | 1 |
 
-### Mordenkainen presenta: Mostri del Multiverso
+## Tranche 3 — Elemental Evil, Costa della Spada
+
+Il goliath di Elemental Evil ha lo stesso testo di quello di Volo, il duergar
+della Costa della Spada quello del Tomo dei Nemici, e lo gnomo delle profondità
+di entrambi quello del Tomo dei Nemici: non sono doppioni nella tendina. Si
+sceglie la voce di Volo o del Tomo; l'import li riconosce anche con
+`source: "Elemental Evil"` o `"Costa della Spada"`.
+
+Il genasi ha l'**Elemento** come seconda scelta (aria, terra, fuoco, acqua).
+Nella Costa della Spada:
+
+- il **mezzelfo** ha la **Variante** al posto di Versatilità nelle abilità
+  (addestramento nelle armi elfiche, trucchetto dell'alto elfo, piede lesto,
+  maschera della selva, magia drow, discendenza acquatica);
+- il **tiefling** ha la **Variante** al posto di Eredità infernale (lingua del
+  diavolo, fuoco infernale, alato); il tiefling ferino o dall'aspetto diverso
+  cambia solo i punteggi e usa "Eredità infernale";
+- l'**halfling spettrale** è una specie a sé con i tratti dell'halfling;
+- elfi del sole e della luna, nani dorati e dello scudo, halfling cuorforte:
+  sono i nomi del Faerûn per alto elfo, nano delle colline e delle montagne,
+  halfling tozzo; l'import li riconosce.
+
+Restano fuori il talento Magia svirfneblin (un talento, non un tratto di
+specie) e le etnie umane, senza regole proprie.
+
+Da controllare con più attenzione:
+
+- **le pagine di Elemental Evil Player's Companion**, in particolare quelle
+  dei quattro genasi (qui tutte a p. 9), e quelle di aarakocra e genasi in
+  Mostri del Multiverso;
+- il nome italiano dell'halfling spettrale (ghostwise) e quelli dei tratti dei
+  genasi;
+- il titolo: Elemental Evil Player's Companion è indicato in inglese.
+
+### Elemental Evil Player's Companion
 
 | Specie | Opzione | Tratto | Pag. | Uso | Liv. |
 |---|---|---|---|---|---|
+| Aarakocra | — | Volo | 5 | Passiva | 1 |
+| Aarakocra | — | Artigli | 5 | Passiva | 1 |
+| Genasi | Genasi dell'aria | Respiro inesauribile | 9 | Passiva | 1 |
+| Genasi | Genasi dell'aria | Mescolarsi al vento: Levitazione | 9 | Azione · 1/riposo lungo | 1 |
+| Genasi | Genasi della terra | Camminare sulla terra | 9 | Passiva | 1 |
+| Genasi | Genasi della terra | Fondersi con la pietra: Passare senza tracce | 9 | Azione · 1/riposo lungo | 1 |
+| Genasi | Genasi del fuoco | Resistenza al fuoco | 9 | Passiva | 1 |
+| Genasi | Genasi del fuoco | Raggiungere la fiamma | 9 | Passiva | 1 |
+| Genasi | Genasi del fuoco | Raggiungere la fiamma: Mani brucianti | 9 | Azione · 1/riposo lungo | 3 |
+| Genasi | Genasi dell'acqua | Resistenza all'acido | 9 | Passiva | 1 |
+| Genasi | Genasi dell'acqua | Anfibio | 9 | Passiva | 1 |
+| Genasi | Genasi dell'acqua | Richiamo dell'onda | 9 | Passiva | 1 |
+| Genasi | Genasi dell'acqua | Richiamo dell'onda: Creare o distruggere acqua | 9 | Azione · 1/riposo lungo | 3 |
+
+### Guida del Giocatore alla Costa della Spada
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Halfling spettrale | — | Fortunato | 110 | Passiva | 1 |
+| Halfling spettrale | — | Coraggioso | 110 | Passiva | 1 |
+| Halfling spettrale | — | Agilità halfling | 110 | Passiva | 1 |
+| Halfling spettrale | — | Linguaggio silenzioso | 110 | Passiva | 1 |
+| Mezzelfo | — | Ascendenza fatata | 116 | Passiva | 1 |
+| Mezzelfo | Trucchetto dell'alto elfo | Trucchetto | 116 | Passiva | 1 |
+| Mezzelfo | Piede lesto | Piede lesto | 116 | Passiva | 1 |
+| Mezzelfo | Maschera della selva | Maschera della selva | 116 | Passiva | 1 |
+| Mezzelfo | Magia drow | Magia drow | 116 | Passiva | 1 |
+| Mezzelfo | Magia drow | Magia drow: Luminescenza | 116 | Azione · 1/riposo lungo | 3 |
+| Mezzelfo | Magia drow | Magia drow: Oscurità | 116 | Azione · 1/riposo lungo | 5 |
+| Mezzelfo | Discendenza acquatica | Discendenza acquatica | 116 | Passiva | 1 |
+| Tiefling | — | Resistenza infernale | 118 | Passiva | 1 |
+| Tiefling | Eredità infernale | Eredità infernale | 118 | Passiva | 1 |
+| Tiefling | Eredità infernale | Eredità infernale: Intimorire infernale | 118 | Reazione · 1/riposo lungo | 3 |
+| Tiefling | Eredità infernale | Eredità infernale: Oscurità | 118 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Lingua del diavolo | Lingua del diavolo | 118 | Passiva | 1 |
+| Tiefling | Lingua del diavolo | Lingua del diavolo: Charme su persone | 118 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Lingua del diavolo | Lingua del diavolo: Estasiare | 118 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Fuoco infernale | Fuoco infernale | 118 | Passiva | 1 |
+| Tiefling | Fuoco infernale | Fuoco infernale: Mani brucianti | 118 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Fuoco infernale | Fuoco infernale: Oscurità | 118 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Alato | Alato | 118 | Passiva | 1 |
+
+## Mordenkainen presenta: Mostri del Multiverso
+
+Le ristampe delle specie delle tranche precedenti, in ordine alfabetico. Le
+altre specie del manuale (centauro, changeling, fata, harengon, minotauro,
+satiro, shifter, tortle) arrivano con il loro manuale d'origine.
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Aarakocra | — | Volo | 6 | Passiva | 1 |
+| Aarakocra | — | Artigli | 6 | Passiva | 1 |
+| Aarakocra | — | Richiamo del vento: Folata di vento | 6 | Azione · 1/riposo lungo | 3 |
 | Aasimar | — | Resistenza celestiale | 7 | Passiva | 1 |
 | Aasimar | — | Mani guaritrici | 7 | Azione · 1/riposo lungo | 1 |
 | Aasimar | — | Portatore di luce | 7 | Passiva | 1 |
@@ -222,6 +307,9 @@ Da controllare con più attenzione, perché il ricordo è meno sicuro:
 | Bugbear | — | Ascendenza fatata | 8 | Passiva | 1 |
 | Bugbear | — | Arti lunghi | 8 | Passiva | 1 |
 | Bugbear | — | Attacco a sorpresa | 8 | Passiva | 1 |
+| Coboldo | — | Grido draconico | 25 | Azione bonus · competenza/riposo lungo | 1 |
+| Coboldo | Retaggio della sfida | Retaggio coboldo: Sfida | 25 | Passiva | 1 |
+| Coboldo | Retaggio della stregoneria draconica | Retaggio coboldo: Stregoneria draconica | 25 | Passiva | 1 |
 | Duergar | — | Magia duergar | 12 | Passiva | 1 |
 | Duergar | — | Magia duergar: Ingrandire/ridurre | 12 | Azione · 1/riposo lungo | 3 |
 | Duergar | — | Magia duergar: Invisibilità | 12 | Azione · 1/riposo lungo | 5 |
@@ -241,6 +329,24 @@ Da controllare con più attenzione, perché il ricordo è meno sicuro:
 | Firbolg | — | Magia firbolg: Camuffare se stesso | 15 | Azione · 1/riposo lungo | 1 |
 | Firbolg | — | Passo nascosto | 15 | Azione bonus · competenza/riposo lungo | 1 |
 | Firbolg | — | Linguaggio delle bestie e delle foglie | 15 | Passiva | 1 |
+| Genasi | Genasi dell'aria | Respiro inesauribile | 16 | Passiva | 1 |
+| Genasi | Genasi dell'aria | Resistenza al fulmine | 16 | Passiva | 1 |
+| Genasi | Genasi dell'aria | Mescolarsi al vento | 16 | Passiva | 1 |
+| Genasi | Genasi dell'aria | Mescolarsi al vento: Caduta morbida | 16 | Reazione · 1/riposo lungo | 3 |
+| Genasi | Genasi dell'aria | Mescolarsi al vento: Levitazione | 16 | Azione · 1/riposo lungo | 5 |
+| Genasi | Genasi della terra | Camminare sulla terra | 16 | Passiva | 1 |
+| Genasi | Genasi della terra | Fondersi con la pietra | 16 | Passiva | 1 |
+| Genasi | Genasi della terra | Fondersi con la pietra: Interdizione alle lame | 16 | Azione bonus · competenza/riposo lungo | 1 |
+| Genasi | Genasi della terra | Fondersi con la pietra: Passare senza tracce | 16 | Azione · 1/riposo lungo | 5 |
+| Genasi | Genasi del fuoco | Resistenza al fuoco | 16 | Passiva | 1 |
+| Genasi | Genasi del fuoco | Raggiungere la fiamma | 16 | Passiva | 1 |
+| Genasi | Genasi del fuoco | Raggiungere la fiamma: Mani brucianti | 16 | Azione · 1/riposo lungo | 3 |
+| Genasi | Genasi del fuoco | Raggiungere la fiamma: Lama infuocata | 16 | Azione bonus · 1/riposo lungo | 5 |
+| Genasi | Genasi dell'acqua | Resistenza all'acido | 16 | Passiva | 1 |
+| Genasi | Genasi dell'acqua | Anfibio | 16 | Passiva | 1 |
+| Genasi | Genasi dell'acqua | Richiamo dell'onda | 16 | Passiva | 1 |
+| Genasi | Genasi dell'acqua | Richiamo dell'onda: Creare o distruggere acqua | 16 | Azione · 1/riposo lungo | 3 |
+| Genasi | Genasi dell'acqua | Richiamo dell'onda: Camminare sull'acqua | 16 | Azione · 1/riposo lungo | 5 |
 | Githyanki | — | Psionica githyanki | 18 | Passiva | 1 |
 | Githyanki | — | Psionica githyanki: Saltare | 18 | Azione · 1/riposo lungo | 3 |
 | Githyanki | — | Psionica githyanki: Passo velato | 18 | Azione bonus · 1/riposo lungo | 5 |
@@ -266,9 +372,6 @@ Da controllare con più attenzione, perché il ricordo è meno sicuro:
 | Kenku | — | Duplicazione esperta | 24 | Passiva | 1 |
 | Kenku | — | Memoria kenku | 24 | Innesco · competenza/riposo lungo | 1 |
 | Kenku | — | Mimica | 24 | Passiva | 1 |
-| Coboldo | — | Grido draconico | 25 | Azione bonus · competenza/riposo lungo | 1 |
-| Coboldo | Retaggio della sfida | Retaggio coboldo: Sfida | 25 | Passiva | 1 |
-| Coboldo | Retaggio della stregoneria draconica | Retaggio coboldo: Stregoneria draconica | 25 | Passiva | 1 |
 | Lucertoloide | — | Morso | 26 | Passiva | 1 |
 | Lucertoloide | — | Trattenere il respiro | 26 | Passiva | 1 |
 | Lucertoloide | — | Armatura naturale | 26 | Passiva | 1 |
@@ -294,8 +397,7 @@ Da controllare con più attenzione, perché il ricordo è meno sicuro:
 
 ## Tranche successive
 
-Ancora da scrivere: le varianti della Guida del Giocatore alla Costa della
-Spada, Elemental Evil, Eberron, Ravnica, Theros, Wildemount, Strixhaven,
+Ancora da scrivere: Eberron, Ravnica, Theros, Wildemount, Strixhaven,
 Witchlight, Van Richten, Spelljammer, Dragonlance, il lignaggio personalizzato
 di Tasha e le specie minori (Locathah, Grung, Verdan), ciascuna con la propria
 ristampa in Mostri del Multiverso dove c'è. Una specie fuori catalogo,

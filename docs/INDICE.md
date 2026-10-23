@@ -16,7 +16,7 @@ plugin.
 | [Embers/JB2A](EMBERS.md) | Copertura visuale, bridge esterno e cleanup degli output locali. |
 | [Riferimento delle funzioni](RIFERIMENTO_FUNZIONI.md) | Matrice GM/player, dati e regole applicate. |
 | [Capacità di classe](CAPACITA_CLASSE.md) | Classi, sottoclassi, risorse e capacità attivabili. |
-| [Specie](SPECIE.md) | Specie per manuale (Manuale del Giocatore, Volo, Tomo dei Nemici, Fizban, Mostri del Multiverso), con i tratti e le pagine da verificare. |
+| [Specie](SPECIE.md) | Specie per manuale (Manuale del Giocatore, Elemental Evil, Costa della Spada, Volo, Tomo dei Nemici, Fizban, Mostri del Multiverso), con i tratti e le pagine da verificare. |
 | [Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md) | Catalogo, registro, aree, zone, aure e limiti RAW. |
 | [Spell Architecture Master](SPELL_ARCHITECTURE_MASTER.md) | Reuse map runtime per polishing, nuove spell e batch futuri. |
 | [Piano di automazione degli incantesimi](PIANO_AUTOMAZIONE_INCANTESIMI.md) | Stato al 22/10/2026 dei 477 incantesimi, registrazione dei lanci con lo slot, come automatizzare i restanti e in che ordine, note pratiche per lavorare a un lotto. |

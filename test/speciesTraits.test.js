@@ -16,7 +16,7 @@ const whiteDragonborn = (level = 5) => ({ species: { id: "dragonide-cromatico", 
 test("the species field is sanitized and optional", () => {
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "bianco" }), { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "oro" }), { id: "dragonide-cromatico", ancestryId: "" }, "gold is metallic, not chromatic");
-  assert.equal(sanitizeSpecies({ id: "aarakocra" }), null, "not in the catalog yet");
+  assert.equal(sanitizeSpecies({ id: "warforged" }), null, "not in the catalog yet");
   assert.equal(Object.hasOwn(sanitizeInitiativeCard({}), "species"), false, "profiles without a species keep their shape");
   assert.deepEqual(sanitizeInitiativeCard({ species: { id: "dragonide-cromatico", ancestryId: "bianco" } }).species, { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.equal(hasInitiativeCardValues(sanitizeInitiativeCard({ species: { id: "dragonide", ancestryId: "rosso" } })), true);
@@ -129,7 +129,8 @@ test("Volo, Tomo dei Nemici and Mostri del Multiverso: two versions side by side
   assert.equal(resolveClassFeatureResourceMaximum(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-firbolg-multiverso-passo-nascosto-usi"), [{ classId: "druido", level: 9 }]).maximum, 4,
     "Mostri del Multiverso: proficiency bonus uses");
   const groups = [...new Set(SPECIES.map((entry) => entry.sourceLabel))];
-  assert.deepEqual(groups, ["Manuale del Giocatore 2014", "Guida di Volo ai Mostri", "Il Tomo dei Nemici di Mordenkainen", "Il Tesoro dei Draghi di Fizban", "Mordenkainen presenta: Mostri del Multiverso"]);
+  assert.deepEqual(groups, ["Manuale del Giocatore 2014", "Elemental Evil Player's Companion", "Guida del Giocatore alla Costa della Spada",
+    "Guida di Volo ai Mostri", "Il Tomo dei Nemici di Mordenkainen", "Il Tesoro dei Draghi di Fizban", "Mordenkainen presenta: Mostri del Multiverso"]);
 });
 
 test("a yuan-ti is immune to poison; a Tomo tiefling gets its bloodline's spells", () => {
@@ -155,4 +156,22 @@ test("an aasimar transformation is a 1-minute pill that spends its long-rest use
   const again = planClassFeatureActivation({ state: activation.state, feature: shroud, poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID, characterBuild: build,
     sourceId: "aela", targetIds: ["aela"], currentRound: 2, currentTurnKey: "2:aela", instanceId: "shroud-1" });
   assert.equal(again.ok, false, "the three revelations share one use");
+});
+
+test("Elemental Evil and Costa della Spada: the element or the variant chooses traits and resistances", () => {
+  assert.deepEqual(speciesDamageDefenses({ id: "genasi", ancestryId: "acqua" }), { resistances: ["acid"] });
+  assert.deepEqual(speciesDamageDefenses({ id: "genasi-multiverso", ancestryId: "aria" }), { resistances: ["lightning"] });
+  assert.deepEqual(speciesDamageDefenses({ id: "genasi", ancestryId: "aria" }), {}, "the Elemental Evil air genasi has no resistance");
+  assert.deepEqual(traits({ id: "genasi", ancestryId: "fuoco" }, 2), ["specie-genasi-resistenza-al-fuoco", "specie-genasi-raggiungere-la-fiamma"]);
+  assert.deepEqual(traits({ id: "tiefling-variante", ancestryId: "alato" }, 5), ["specie-tiefling-variante-resistenza-infernale", "specie-tiefling-variante-alato"]);
+  assert.equal(traits({ id: "mezzelfo-variante", ancestryId: "abilita" }).length, 1, "skill versatility leaves only Fey Ancestry");
+  assert.equal(speciesDisplayName({ id: "tiefling-variante", ancestryId: "alato" }), "Tiefling (alato)");
+  assert.equal(speciesDisplayName({ id: "genasi", ancestryId: "terra" }), "Genasi della terra");
+  assert.equal(resolveClassFeatureResourceMaximum(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-genasi-multiverso-interdizione-alle-lame-usi"), [{ classId: "mago", level: 5 }]).maximum, 3);
+});
+
+test("an identical reprint names its other manuals instead of a duplicate entry", () => {
+  assert.equal(SPECIES.some((entry) => entry.id.startsWith("goliath") && entry.source === "elemental-evil"), false);
+  assert.ok(SPECIES.find((entry) => entry.id === "goliath").sourceAliases.includes("elemental evil"));
+  assert.ok(SPECIES.find((entry) => entry.id === "duergar").sourceAliases.includes("scag"));
 });

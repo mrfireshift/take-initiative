@@ -4,27 +4,27 @@
 // Every text is a summary written for the plugin, to check on the manual at the page given.
 //
 // Species: { id, label, book, page, look: [emoji, accent, background, text], optionLabel?, options?,
-//   resistances?, immunities?, aliases?, pools?, traits }. A pool is { key, name, count: 1 | "pb", rest }.
+//   resistances?, immunities?, aliases?, alsoIn? (manuals with the same text), pools?, traits }. A pool is { key, name, count: 1 | "pb", rest }.
 // A trait: { key, name, text, page?, option?, act? (passiva), level? (1), uses? (pool key),
 //   effect? ({ detail, rounds }: a buff pill on the character) }.
 
-const passive = (key, name, text, extra = {}) => ({ key, name, text, ...extra });
-const use = (key, name, act, uses, text, extra = {}) => ({ key, name, act, uses, text, ...extra });
-const once = (key, name, rest = "lungo") => ({ key, name, count: 1, rest });
-const perPb = (key, name, rest = "lungo") => ({ key, name, count: "pb", rest });
-const opt = (id, label, aliases = []) => ({ id, label, aliases });
+export const passive = (key, name, text, extra = {}) => ({ key, name, text, ...extra });
+export const use = (key, name, act, uses, text, extra = {}) => ({ key, name, act, uses, text, ...extra });
+export const once = (key, name, rest = "lungo") => ({ key, name, count: 1, rest });
+export const perPb = (key, name, rest = "lungo") => ({ key, name, count: "pb", rest });
+export const opt = (id, label, aliases = [], resistances = []) => ({ id, label, aliases, resistances });
 
-const FEY_ANCESTRY = "Vantaggio ai tiri salvezza per non essere affascinato; la magia non può farti addormentare.";
+export const FEY_ANCESTRY = "Vantaggio ai tiri salvezza per non essere affascinato; la magia non può farti addormentare.";
 const FEY_ANCESTRY_MM = "Vantaggio ai tiri salvezza per evitare o terminare la condizione affascinato.";
 const SUNLIGHT = "Svantaggio ai tiri per colpire e alle prove di Saggezza (Percezione) basate sulla vista quando tu, il bersaglio o ciò che cerchi di percepire si trova alla luce diretta del sole.";
-const MM_ABILITY = "caratteristica a scelta tra Intelligenza, Saggezza e Carisma";
-const PB_LONG = "Usi pari al bonus di competenza per riposo lungo.";
-const ONCE_LONG = "Una volta per riposo lungo.";
+export const MM_ABILITY = "caratteristica a scelta tra Intelligenza, Saggezza e Carisma";
+export const PB_LONG = "Usi pari al bonus di competenza per riposo lungo.";
+export const ONCE_LONG = "Una volta per riposo lungo.";
 const ONCE_SHORT = "Una volta per riposo breve o lungo.";
 const MINUTE = 10;
 
 // An innate spell: it spends the species' own use and appears from the given level.
-const spell = (key, name, act, uses, level, text) => use(key, name, act, uses, text, { level });
+export const spell = (key, name, act, uses, level, text, extra = {}) => use(key, name, act, uses, text, { level, ...extra });
 
 const TIEFLING_BLOODLINES = [
   // [option, label, page, cantrip, 3rd-level spell, cast as 2nd level, act, 5th-level spell, act]
@@ -79,7 +79,7 @@ export const SPECIES_CATALOG_VOLO = [
     ],
   },
   {
-    id: "goliath", label: "Goliath", book: "volo", page: 109, look: ["⛰️", "#cbd5e1", "#1e293b", "#f8fafc"],
+    id: "goliath", label: "Goliath", book: "volo", page: 109, alsoIn: ["elemental"], look: ["⛰️", "#cbd5e1", "#1e293b", "#f8fafc"],
     pools: [once("resistenza-della-pietra", "Resistenza della pietra", "breve")],
     traits: [
       use("resistenza-della-pietra", "Resistenza della pietra", "reazione", "resistenza-della-pietra", `Quando subisci danni, con una reazione tiri 1d12 + Costituzione e riduci i danni di quel totale. ${ONCE_SHORT}`),
@@ -210,7 +210,7 @@ export const SPECIES_CATALOG_TOMO = [
     ],
   },
   {
-    id: "duergar", label: "Duergar", book: "tomo", page: 81, resistances: ["poison"], aliases: ["grey dwarf", "gray dwarf", "nano grigio"], look: ["⚒️", "#a8a29e", "#1c1917", "#fafaf9"],
+    id: "duergar", label: "Duergar", book: "tomo", page: 81, alsoIn: ["costa"], resistances: ["poison"], aliases: ["grey dwarf", "gray dwarf", "nano grigio"], look: ["⚒️", "#a8a29e", "#1c1917", "#fafaf9"],
     pools: [once("ingrandire", "Magia duergar: Ingrandire/ridurre"), once("invisibilita", "Magia duergar: Invisibilità")],
     traits: [
       passive("resilienza-nanica", "Resilienza nanica", "Tratto del nano (Manuale del Giocatore p. 20): vantaggio ai tiri salvezza contro il veleno; la resistenza ai danni da veleno è già applicata alle difese."),
@@ -241,7 +241,7 @@ export const SPECIES_CATALOG_TOMO = [
     ],
   },
   {
-    id: "gnomo-profondita", label: "Gnomo delle profondità", book: "tomo", page: 113, aliases: ["deep gnome", "svirfneblin"], look: ["💎", "#7dd3fc", "#0c4a6e", "#f0f9ff"],
+    id: "gnomo-profondita", label: "Gnomo delle profondità", book: "tomo", page: 113, alsoIn: ["elemental", "costa"], aliases: ["deep gnome", "svirfneblin"], look: ["💎", "#7dd3fc", "#0c4a6e", "#f0f9ff"],
     traits: [
       passive("astuzia-gnomesca", "Astuzia gnomesca", "Tratto dello gnomo (Manuale del Giocatore p. 37): vantaggio a tutti i tiri salvezza di Intelligenza, Saggezza e Carisma contro la magia."),
       passive("mimetismo-della-pietra", "Mimetismo della pietra", "Vantaggio alle prove di Destrezza (Furtività) per nasconderti in terreno roccioso."),

@@ -48,9 +48,9 @@ test("species: by name, alias or option; one outside the catalog is reported", (
   assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "drow" }), "Elfo oscuro (drow)");
   assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "" }), "Elfo · sottorazza da scegliere");
   assert.equal(sheetImportSectionSummary("species", { id: "tiefling", ancestryId: "" }), "Tiefling");
-  const aarakocra = read({ species: "Aarakocra", armorClass: 12 });
-  assert.equal(aarakocra.sections.species, undefined);
-  assert.match(aarakocra.unresolved[0], /specie "Aarakocra"/);
+  const warforged = read({ species: "Warforged", armorClass: 12 });
+  assert.equal(warforged.sections.species, undefined);
+  assert.match(warforged.unresolved[0], /specie "Warforged"/);
   assert.match(read({ species: { name: "Elfo", subrace: "Elfo marino" } }).unresolved[0], /sottorazza "Elfo marino"/);
 });
 
@@ -64,6 +64,13 @@ test("species in more than one manual: source picks the version, else the first 
   assert.deepEqual(read({ species: { name: "Aasimar", subrace: "Fallen" } }).sections.species, { id: "aasimar", ancestryId: "caduto" });
   assert.deepEqual(read({ species: "Yuan-ti Pureblood" }).sections.species, { id: "yuan-ti", ancestryId: "" });
   assert.match(read({ species: { name: "Goblin", source: "Eberron" } }).unresolved[0], /manuale "Eberron"/);
+  assert.deepEqual(read({ species: { name: "Goliath", source: "Elemental Evil" } }).sections.species, { id: "goliath", ancestryId: "" }, "same text as Volo");
+  assert.deepEqual(read({ species: { name: "Duergar", source: "SCAG" } }).sections.species, { id: "duergar", ancestryId: "" });
+  assert.deepEqual(read({ species: { name: "Genasi", subrace: "Fire", source: "MotM" } }).sections.species, { id: "genasi-multiverso", ancestryId: "fuoco" });
+  assert.deepEqual(read({ species: { name: "Tiefling", source: "Sword Coast", variant: "Winged" } }).sections.species, { id: "tiefling-variante", ancestryId: "alato" });
+  assert.deepEqual(read({ species: "Ghostwise Halfling" }).sections.species, { id: "halfling-spettrale", ancestryId: "" });
+  assert.deepEqual(read({ species: "Sun Elf" }).sections.species, { id: "elfo", ancestryId: "alto" });
+  assert.equal(sheetImportSectionSummary("species", { id: "tiefling-variante", ancestryId: "alato" }), "Tiefling (alato)");
 });
 
 test("statistics: numbers or text, speed in metres or feet", () => {

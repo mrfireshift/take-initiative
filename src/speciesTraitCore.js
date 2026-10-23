@@ -4,9 +4,11 @@
 // The profile stores { id, ancestryId }: ancestryId is the species option, a dragonborn's ancestry or
 // a subrace/variant ("ancestries" keeps its name). Species without options leave it empty.
 // Tranche 1: the PHB 2014 species and the Fizban's dragonborn variants; tranche 2, declared in
-// speciesCatalogVoloMordenkainen.js: Volo, Tomo dei Nemici and Mostri del Multiverso (see docs/SPECIE.md).
+// speciesCatalogVoloMordenkainen.js: Volo, Tomo dei Nemici and Mostri del Multiverso; tranche 3, in
+// speciesCatalogCostaElementalEvil.js: Elemental Evil and Costa della Spada (see docs/SPECIE.md).
 
 import { SPECIES_CATALOG_MULTIVERSO, SPECIES_CATALOG_TOMO, SPECIES_CATALOG_VOLO } from "./speciesCatalogVoloMordenkainen.js";
+import { SPECIES_CATALOG_COSTA, SPECIES_CATALOG_ELEMENTAL, SPECIES_CATALOG_MULTIVERSO_ELEMENTAL } from "./speciesCatalogCostaElementalEvil.js";
 
 export const SPECIES_FIELD = "species";
 
@@ -19,6 +21,8 @@ const book = (source, sourceLabel, sourceAliases) => Object.freeze({ source, sou
 const PHB = book("phb2014", "Manuale del Giocatore 2014", ["phb", "manuale del giocatore", "player s handbook", "players handbook"]);
 const FIZBAN = book("fizban", "Il Tesoro dei Draghi di Fizban", ["fizban", "ftod", "fizban s treasury of dragons"]);
 const BOOKS = Object.freeze({
+  elemental: book("elemental-evil", "Elemental Evil Player's Companion", ["eepc", "elemental evil", "elemental evil player s companion"]),
+  costa: book("costa-della-spada", "Guida del Giocatore alla Costa della Spada", ["scag", "costa della spada", "sword coast", "sword coast adventurer s guide"]),
   volo: book("volo", "Guida di Volo ai Mostri", ["volo", "vgm", "guida di volo", "volo s guide to monsters"]),
   tomo: book("mordenkainen-nemici", "Il Tomo dei Nemici di Mordenkainen", ["mtof", "tomo dei nemici", "tome of foes", "mordenkainen s tome of foes"]),
   multiverso: book("mostri-multiverso", "Mordenkainen presenta: Mostri del Multiverso", ["motm", "mpmm", "mostri del multiverso", "multiverso", "monsters of the multiverse"]),
@@ -57,15 +61,15 @@ const PHB_SPECIES = [
     id: "nano", label: "Nano", book: PHB, optionLabel: "Sottorazza", resistances: ["poison"], aliases: ["dwarf"],
     look: theme("⛏️", "#f59e0b", "#451a03", "#fffbeb"),
     options: [
-      option("colline", "Nano delle colline", { aliases: ["hill dwarf", "delle colline"] }),
-      option("montagne", "Nano delle montagne", { aliases: ["mountain dwarf", "delle montagne"] }),
+      option("colline", "Nano delle colline", { aliases: ["hill dwarf", "delle colline", "gold dwarf", "nano dorato"] }),
+      option("montagne", "Nano delle montagne", { aliases: ["mountain dwarf", "delle montagne", "shield dwarf", "nano dello scudo"] }),
     ],
   }),
   speciesEntry({
     id: "elfo", label: "Elfo", book: PHB, optionLabel: "Sottorazza", aliases: ["elf"],
     look: theme("🍃", "#4ade80", "#052e16", "#f0fdf4"),
     options: [
-      option("alto", "Alto elfo", { aliases: ["high elf", "elfo alto"] }),
+      option("alto", "Alto elfo", { aliases: ["high elf", "elfo alto", "sun elf", "moon elf", "elfo del sole", "elfo della luna"] }),
       option("boschi", "Elfo dei boschi", { aliases: ["wood elf", "dei boschi"] }),
       option("drow", "Elfo oscuro (drow)", { aliases: ["drow", "dark elf", "elfo oscuro"] }),
     ],
@@ -75,7 +79,7 @@ const PHB_SPECIES = [
     look: theme("🍀", "#a3e635", "#1a2e05", "#f7fee7"),
     options: [
       option("piedelesto", "Halfling piedelesto", { aliases: ["lightfoot", "lightfoot halfling", "piedelesto"] }),
-      option("tozzo", "Halfling tozzo", { aliases: ["stout", "stout halfling", "tozzo"], resistances: ["poison"] }),
+      option("tozzo", "Halfling tozzo", { aliases: ["stout", "stout halfling", "tozzo", "strongheart", "strongheart halfling"], resistances: ["poison"] }),
     ],
   }),
   speciesEntry({
@@ -128,19 +132,27 @@ const FIZBAN_SPECIES = [
 ];
 
 // A catalog entry (speciesCatalogVoloMordenkainen.js) as a species of the select.
+// alsoIn: manuals with the same text (the Elemental Evil goliath is the Volo one), for the import.
+const catalogBook = (spec) => (spec.alsoIn?.length
+  ? book(BOOKS[spec.book].source, BOOKS[spec.book].sourceLabel, [...BOOKS[spec.book].sourceAliases,
+    ...spec.alsoIn.flatMap((key) => [BOOKS[key].source, BOOKS[key].sourceLabel, ...BOOKS[key].sourceAliases])])
+  : BOOKS[spec.book]);
 const catalogSpecies = (spec) => speciesEntry({
-  id: spec.id, label: spec.label, book: BOOKS[spec.book], optionLabel: spec.optionLabel || "",
-  options: (spec.options || []).map((entry) => option(entry.id, entry.label, { aliases: entry.aliases })),
+  id: spec.id, label: spec.label, book: catalogBook(spec), optionLabel: spec.optionLabel || "",
+  options: (spec.options || []).map((entry) => option(entry.id, entry.label, { aliases: entry.aliases, resistances: entry.resistances || [] })),
   resistances: spec.resistances || [], immunities: spec.immunities || [], aliases: spec.aliases || [], look: theme(...spec.look),
 });
-const CATALOG = [...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO, ...SPECIES_CATALOG_MULTIVERSO];
+// Mostri del Multiverso gathers the reprints of several tranches, in its own alphabetical order.
+const MULTIVERSO = [...SPECIES_CATALOG_MULTIVERSO, ...SPECIES_CATALOG_MULTIVERSO_ELEMENTAL]
+  .sort((left, right) => left.label.localeCompare(right.label, "it"));
+const CATALOG = [...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, ...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO, ...MULTIVERSO];
 
 // In order of publication: the select groups them by manual.
 export const SPECIES = Object.freeze([
   ...PHB_SPECIES,
-  ...[...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO].map(catalogSpecies),
+  ...[...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, ...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO].map(catalogSpecies),
   ...FIZBAN_SPECIES,
-  ...SPECIES_CATALOG_MULTIVERSO.map(catalogSpecies),
+  ...MULTIVERSO.map(catalogSpecies),
 ]);
 const SPECIES_BY_ID = new Map(SPECIES.map((entry) => [entry.id, entry]));
 
@@ -170,10 +182,13 @@ export function speciesDisplayName(value) {
   const clean = sanitizeSpecies(value);
   if (!clean) return "";
   const ancestryValue = speciesAncestry(clean);
-  if (!ancestryValue) return getSpecies(clean.id).label;
-  return ancestryValue.damageLabel
-    ? `${getSpecies(clean.id).label} (${ancestryValue.label.toLocaleLowerCase("it")} · ${ancestryValue.damageLabel})`
-    : ancestryValue.label;
+  const label = getSpecies(clean.id).label;
+  if (!ancestryValue) return label;
+  if (ancestryValue.damageLabel) return `${label} (${ancestryValue.label.toLocaleLowerCase("it")} · ${ancestryValue.damageLabel})`;
+  // "Alto elfo" names its species; "Alato" (a tiefling variant) needs it: "Tiefling (alato)".
+  return ancestryValue.label.toLocaleLowerCase("it").includes(label.toLocaleLowerCase("it"))
+    ? ancestryValue.label
+    : `${label} (${ancestryValue.label.toLocaleLowerCase("it")})`;
 }
 
 // Passive defenses of the profile: the species' own (a dwarf's poison resistance, a yuan-ti's poison
