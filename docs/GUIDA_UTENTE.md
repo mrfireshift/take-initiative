@@ -344,6 +344,13 @@ Entrambe sono condizioni normali: compaiono come etichette sulla card e sulla
 mappa, si annullano dalla Cronologia e seguono le opzioni di visibilità degli
 effetti per i giocatori.
 
+Gli incantesimi a reazione (Scudo, Assorbire elementi, Intimorire infernale,
+Caduta morbida, Controincantesimo, Gabbia dell'anima) spendono da soli la
+reazione del caster quando li lanci dal pannello incantesimi o da un'azione
+rapida, nello stesso passo annullabile dello slot. Succede solo in
+combattimento, con un ordine di iniziativa. Se la reazione è già usata, il
+plugin chiede conferma prima di lanciare.
+
 ## 5. HP e modifiche rapide
 
 Gli HP canonici sono quelli della card/token. Le barre sulla mappa sono una rappresentazione derivata e si aggiornano insieme al tracker.

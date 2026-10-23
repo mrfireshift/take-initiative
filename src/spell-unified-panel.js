@@ -45,6 +45,7 @@ import {
   getSpellDefinition,
 } from "./spells-srd.js";
 import { planSpellCastCost, spellSlotChoices } from "./spellSlotSpendCore.js";
+import { planSpellReactionSpend } from "./spellReactionCore.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
 import {
   buildSpellCatalogEntries,
@@ -513,7 +514,19 @@ export function bootSpellUnifiedPanel(
       patchSession({ feedback: { state: "info", message: "Lancio annullato: niente da spendere." } }, { clearFeedback: false });
       return null;
     }
-    return { extraOperations: cost.operation ? [cost.operation] : [], spellCost: cost.spent, slotLevel: cost.slotLevel };
+    // A reaction spell spends the caster's reaction with its slot (spellReactionCore.js), in combat only.
+    const sceneMetadata = await Promise.resolve().then(() => OBR.scene.getMetadata()).catch(() => ({}));
+    if (!sceneLifecycle.isCurrent(operation)) return null;
+    const reaction = planSpellReactionSpend({ spellId: spell?.id, caster, initiativeState: sceneMetadata?.[`${ID}/state`] });
+    if (reaction.alreadyUsed && !window.confirm(`${reaction.message}\n\nLanciare comunque ${spell?.displayName || spell?.name || "l'incantesimo"}?`)) {
+      patchSession({ feedback: { state: "info", message: "Lancio annullato: reazione già usata." } }, { clearFeedback: false });
+      return null;
+    }
+    return {
+      extraOperations: [...(cost.operation ? [cost.operation] : []), ...reaction.operations],
+      spellCost: cost.spent,
+      slotLevel: cost.slotLevel,
+    };
   };
 
   // A new concentration spell ends the one the caster keeps: the GM confirms first, as the quick actions do

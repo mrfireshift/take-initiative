@@ -23,6 +23,7 @@ import {
 } from "./spellUnifiedPanelSceneProvider.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import { planSpellCastCost } from "./spellSlotSpendCore.js";
+import { planSpellReactionSpend } from "./spellReactionCore.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -142,7 +143,24 @@ export async function executeDirectQuickAction({
       return { ...decision, mode: "cancelled", reason: "spell-slot-cancelled" };
     }
   }
-  const extraOperations = cost.operation ? [cost.operation] : [];
+  // A reaction spell spends the caster's reaction with its slot (spellReactionCore.js), in combat only; when it is
+  // already used, the GM confirms as for a missing slot.
+  const sceneMetadata = await Promise.resolve().then(() => OBR.scene.getMetadata()).catch(() => ({}));
+  const reaction = planSpellReactionSpend({
+    spellId: decision.spellId,
+    caster: freshSource,
+    initiativeState: sceneMetadata?.[`${ID}/state`],
+  });
+  if (reaction.alreadyUsed) {
+    const message = `${reaction.message}\n\nLanciare comunque ${spell?.displayName || spell?.name || decision.spellId}?`;
+    const confirmed = typeof confirmSpellSlot === "function"
+      ? await confirmSpellSlot(message)
+      : false;
+    if (!confirmed) {
+      return { ...decision, mode: "cancelled", reason: "spell-reaction-cancelled" };
+    }
+  }
+  const extraOperations = [...(cost.operation ? [cost.operation] : []), ...reaction.operations];
   const spellCost = cost.spent;
   const session = cost.slotLevel !== null && cost.slotLevel !== decision.session?.slotLevel
     ? {
