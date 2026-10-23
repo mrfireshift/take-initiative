@@ -198,6 +198,22 @@ export function sanitizeState(state, byId) {
   return { order: cleanOrder, current, round, seededGroups, collapsed, paragonInits, ui };
 }
 
+// Epic Actions are virtual turns placed right after a creature: "__EPIC__::<bossId>::after::<creatureId>"
+// (initiativeList.js). In a reorder they move with that creature.
+const EPIC_ACTION_PREFIX = "__EPIC__::";
+const EPIC_ACTION_ANCHOR = "::after::";
+
+export function epicActionAnchorId(id) {
+  const value = String(id || "");
+  if (!value.startsWith(EPIC_ACTION_PREFIX)) return "";
+  const at = value.indexOf(EPIC_ACTION_ANCHOR, EPIC_ACTION_PREFIX.length);
+  return at >= 0 ? value.slice(at + EPIC_ACTION_ANCHOR.length) : "";
+}
+
+function isEpicActionTurn(id) {
+  return String(id || "").startsWith(EPIC_ACTION_PREFIX);
+}
+
 function tieBlock(state, entries, initiative) {
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const order = Array.isArray(state?.order) ? state.order.slice() : [];
@@ -206,8 +222,36 @@ function tieBlock(state, entries, initiative) {
     .filter((index) => index >= 0);
   if (!indices.length) return null;
   const start = Math.min(...indices);
-  const end = Math.max(...indices);
+  let end = Math.max(...indices);
+  // The Epic Actions that follow the tie's last cards belong to the tie: without them they would stay behind.
+  const members = new Set(order.slice(start, end + 1));
+  while (end + 1 < order.length && members.has(epicActionAnchorId(order[end + 1]))) end += 1;
   return { byId, order, start, end, ids: order.slice(start, end + 1) };
+}
+
+// The tie's cards, each with the Epic Actions that follow it: an Epic Action goes with the creature it is anchored
+// to, or (anchored elsewhere) with the card before it, so one left out of place by an older reorder finds its
+// creature again. Returns the cards in order and a function that lays them out again with their Epic Actions.
+function tieUnits(ids) {
+  const cards = ids.filter((id) => !isEpicActionTurn(id));
+  const trailing = new Map(cards.map((id) => [id, []]));
+  const leading = [];
+  let previous = "";
+  for (const id of ids) {
+    if (!isEpicActionTurn(id)) {
+      previous = id;
+      continue;
+    }
+    const anchor = epicActionAnchorId(id);
+    const owner = trailing.has(anchor) ? anchor : previous;
+    if (owner) trailing.get(owner).push(id);
+    else leading.push(id);
+  }
+  const layout = (orderedCards) => [
+    ...leading,
+    ...orderedCards.flatMap((id) => [id, ...(trailing.get(id) || [])]),
+  ];
+  return { cards, layout };
 }
 
 function reorderedStateSlice(state, block, tieIds) {
@@ -239,7 +283,9 @@ export function reorderWithinSameInitiativeState(
 
   const block = tieBlock(state, entries, initiative);
   if (!block?.order.length) return null;
-  const tieIds = block.ids.slice();
+  // The cards move; their Epic Actions follow them (tieUnits).
+  const units = tieUnits(block.ids);
+  const tieIds = units.cards.slice();
   const pinnedCount = isLairInitiative
     ? tieIds.filter((id) => !!byId.get(id)?.isEpic).length
     : 0;
@@ -252,7 +298,7 @@ export function reorderWithinSameInitiativeState(
   if (targetIndex > sourceIndex) insertAt -= 1;
   if (isLairInitiative && insertAt < pinnedCount) insertAt = pinnedCount;
   tieIds.splice(insertAt, 0, movingId);
-  return reorderedStateSlice(state, block, tieIds);
+  return reorderedStateSlice(state, block, units.layout(tieIds));
 }
 
 export function reorderBlockWithinSameInitiativeState(
@@ -278,19 +324,21 @@ export function reorderBlockWithinSameInitiativeState(
 
   const block = tieBlock(state, entries, initiative);
   if (!block?.order.length) return null;
+  // The cards move; their Epic Actions follow them (tieUnits).
+  const units = tieUnits(block.ids);
   const pinnedCount = isLairInitiative
-    ? block.ids.filter((id) => !!byId.get(id)?.isEpic).length
+    ? units.cards.filter((id) => !!byId.get(id)?.isEpic).length
     : 0;
   const sourceSet = new Set(uniqueSourceIds);
-  const moving = block.ids.filter((id) => sourceSet.has(id));
+  const moving = units.cards.filter((id) => sourceSet.has(id));
   if (!moving.length) return null;
   if (isLairInitiative && moving.some((id) => !!byId.get(id)?.isEpic)) return null;
 
-  const filtered = block.ids.filter((id) => !sourceSet.has(id));
+  const filtered = units.cards.filter((id) => !sourceSet.has(id));
   const targetIndex = filtered.indexOf(targetId);
   if (targetIndex < 0) return null;
   let insertAt = placeBefore ? targetIndex : targetIndex + 1;
   if (isLairInitiative && insertAt < pinnedCount) insertAt = pinnedCount;
   filtered.splice(insertAt, 0, ...moving);
-  return reorderedStateSlice(state, block, filtered);
+  return reorderedStateSlice(state, block, units.layout(filtered));
 }

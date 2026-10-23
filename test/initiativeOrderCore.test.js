@@ -157,3 +157,41 @@ test("le entry Epic a iniziativa 20 restano appuntate", () => {
     ["epic", "b", "a"],
   );
 });
+
+test("nel riordino a pari merito l'Azione epica si muove con la creatura a cui è agganciata", () => {
+  const epic = (id) => `__EPIC__::auril::after::${id}`;
+  const entries = [
+    { id: "boss", initiative: 9 },
+    { id: "wolf", initiative: 8 },
+    { id: "brann", initiative: 8, attitude: "pc" },
+    { id: "goblin", initiative: 5 },
+  ];
+  // The reported case: Brann last in the tie, his Epic Action just past the real cards.
+  const state = { order: ["boss", "wolf", "brann", epic("brann"), "goblin"], current: 3 };
+  const after = reorderWithinSameInitiativeState(state, entries, "wolf", "brann", false);
+  assert.deepEqual(after.order, ["boss", "brann", epic("brann"), "wolf", "goblin"]);
+  // The active turn stays on the same card (here the Epic Action), found by id.
+  assert.equal(after.order[after.current], epic("brann"));
+
+  // Moving the creature itself takes its Epic Action along.
+  const moved = reorderWithinSameInitiativeState(after, entries, "brann", "wolf", false);
+  assert.deepEqual(moved.order, ["boss", "wolf", "brann", epic("brann"), "goblin"]);
+
+  // An Epic Action left out of place by an older reorder goes back after its creature.
+  const misplaced = { order: ["boss", "brann", "wolf", epic("brann"), "goblin"], current: 0 };
+  const healed = reorderWithinSameInitiativeState(misplaced, entries, "wolf", "brann", true);
+  assert.deepEqual(healed.order, ["boss", "wolf", "brann", epic("brann"), "goblin"]);
+});
+
+test("anche spostando un gruppo collassato le Azioni epiche restano dopo le loro creature", () => {
+  const epic = (id) => `__EPIC__::auril::after::${id}`;
+  const entries = [
+    { id: "pc", initiative: 12, attitude: "pc" },
+    { id: "g1", initiative: 12 },
+    { id: "g2", initiative: 12 },
+  ];
+  const state = { order: ["pc", epic("pc"), "g1", "g2"], current: 0 };
+  const result = reorderBlockWithinSameInitiativeState(state, entries, ["g1", "g2"], "pc", true);
+  assert.deepEqual(result.order, ["g1", "g2", "pc", epic("pc")]);
+  assert.equal(result.order[result.current], "pc");
+});
