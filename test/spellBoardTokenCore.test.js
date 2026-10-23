@@ -21,7 +21,6 @@ import {
   spellBoardTokenCompanionsByCasterId,
 } from "../src/spellBoardTokenTrackerCore.js";
 import {
-  buildSpellActiveActionPlan,
   getSpellOverviewActions,
 } from "../src/spellActiveActionCore.js";
 import { getSpellDefinition } from "../src/spells-srd.js";
@@ -308,34 +307,26 @@ test("le pedine si filtrano per istanza o caster e terminano col lifecycle spell
   assert.deepEqual(ended.map((item) => item.id), ["entity-1"]);
 });
 
-test("modalita e PF di Mano arcana producono aggiornamenti revisionati", () => {
+test("i PF di Mano arcana producono aggiornamenti revisionati; la pedina non ha più modalità", () => {
   const item = boardToken();
+  // The hand's effects are resolved in the spell's popup: the token keeps no mode of its own.
   const mode = planSpellBoardTokenStateUpdate({
     item,
     instanceId: "cast-1",
     action: { type: "set-mode", mode: "grasping", actionId: "arcane-hand-grasping" },
-    targetIds: ["target", "target"],
+    targetIds: ["target"],
   });
-  assert.equal(mode.valid, true);
-  assert.equal(mode.after.mode, "grasping");
-  assert.deepEqual(mode.after.targetIds, ["target"]);
-  assert.equal(mode.after.revision, 1);
+  assert.equal(mode.valid, false);
+  assert.ok(mode.errors.includes("spell-board-token-mode-invalid"));
 
-  const updatedItem = {
-    ...item,
-    metadata: {
-      ...item.metadata,
-      [SPELL_BOARD_TOKEN_META_KEY]: mode.metadata,
-    },
-  };
   const hp = planSpellBoardTokenStateUpdate({
-    item: updatedItem,
+    item,
     instanceId: "cast-1",
     hp: 31,
   });
   assert.equal(hp.valid, true);
   assert.equal(hp.after.hp, 31);
-  assert.equal(hp.after.revision, 2);
+  assert.equal(hp.after.revision, 1);
 
   const invalid = planSpellBoardTokenStateUpdate({
     item,
@@ -346,27 +337,17 @@ test("modalita e PF di Mano arcana producono aggiornamenti revisionati", () => {
   assert.ok(invalid.errors.includes("spell-board-token-hp-invalid"));
 });
 
-test("le modalita di Mano arcana aggiornano la pedina senza condizioni automatiche", () => {
+test("le azioni di Mano arcana vengono dal popup dell'incantesimo, non dalla pedina", () => {
   const spell = getSpellDefinition("arcane-hand");
-  const plan = buildSpellActiveActionPlan({
-    spell,
-    actionId: "arcane-hand-interposing",
-    group: {
-      instanceId: "cast-1",
-      casterId: "caster",
-      name: spell.displayName,
-      effectInstances: [],
-    },
-    selectedTargetIds: ["target"],
-  });
-  assert.equal(plan.valid, true);
-  assert.deepEqual(plan.operations, []);
-  assert.deepEqual(plan.subjectIds, ["target"]);
-  assert.deepEqual(plan.entityAction, {
-    type: "set-mode",
-    mode: "interposing",
-    actionId: "arcane-hand-interposing",
-  });
+  assert.deepEqual(spell.activeActions.map((action) => action.id), [
+    "arcane-hand-clenched",
+    "arcane-hand-grasping",
+    "arcane-hand-crush",
+    "arcane-hand-forceful",
+    "arcane-hand-interposing",
+  ]);
+  assert.equal(spell.boardToken.actions, undefined);
+  assert.ok(spell.activeActions.every((action) => !action.entityAction && action.turnStartPrompt === true));
 });
 
 test("le azioni descrittive restano riferimenti e non richiedono bersagli", () => {

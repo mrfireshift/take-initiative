@@ -558,8 +558,19 @@ async function validateStorm({ payload, targetIds, outcomes, damageRoll, attackO
   ]);
   const targetOrigin = itemCenter(targetBounds, target);
   if (!target || !targetBounds) errors.push("target-missing");
+  // adjacentRing: the reach of a large root (Mano arcana) is measured from its edge, as for the single saves.
+  const rootBounds = payload.action.adjacentRing === true && payload.action.rangeOrigin === "root" && boardRoot
+    ? await OBR.scene.items.getItemBounds([root.id]).catch(() => null)
+    : null;
   if (targetOrigin && payload.action.range) {
-    const inRange = payload.action.rangeFromZoneArea === true && rootArea
+    const metersPerCell = Number(scale?.parsed?.multiplier ?? scale?.multiplier ?? 1.5) || 1.5;
+    const planar = rootBounds && targetBounds
+      ? gridPlanarDistance(itemCenter(rootBounds, root), targetOrigin, dpi, metersPerCell,
+        boundsSize(rootBounds, dpi), boundsSize(targetBounds, dpi))
+      : null;
+    const inRange = planar
+      ? planar.squares > 0 && planar.squares <= 1 + 1e-9
+      : payload.action.rangeFromZoneArea === true && rootArea
       ? wallOfLightTargetWithinRange({
         area: rootArea,
         targetBounds,

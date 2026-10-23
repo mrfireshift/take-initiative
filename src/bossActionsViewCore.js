@@ -3,7 +3,7 @@ import { bossSpellReferenceIds, BOSS_ACTION_SPELL_IDS } from "./bossActionProfil
 import { scaledQuickHPAmount } from "./quickHpCore.js";
 import { componentDamageAfterDefense, damageDefenseFor, evasionFactor } from "./damageDefensesCore.js";
 import { buildCircleArea, areaHitsBounds } from "./aoeGeometryCore.js";
-import { bossAreaShapeLabel, bossGroupRequiresConfirmation, bossEffectSummaryParts, bossMarkedDefenses } from "./bossActionExecutionCore.js";
+import { bossAreaShapeLabel, bossGroupRequiresConfirmation, bossEffectSummaryParts, bossMarkedDefenses, isBossActionObjectTarget } from "./bossActionExecutionCore.js";
 
 const META_KEY = `${ID}/meta`;
 // Compact floating console size; the height fits the longest simple resolution (Blizzard / multi-target) without scrolling.
@@ -23,8 +23,10 @@ export function isBossActionSourceItem(item) {
 
 export function bossActionTargets(items = [], sourceId = "") {
   return (Array.isArray(items) ? items : [])
-    .filter((item) => isBossActionSourceItem(item) && item.id !== sourceId
+    .filter((item) => (isBossActionSourceItem(item) && item.id !== sourceId
       && (item.metadata?.[META_KEY]?.inInitiative === true || !!item.metadata?.[META_KEY]?.sharedHpSourceId))
+      // A spell's token with hit points (Mano arcana) can be hit like a creature.
+      || isBossActionObjectTarget(item))
     .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), "it"));
 }
 

@@ -53,6 +53,7 @@ import { mobileAuraTargetIds, getMobileAuraRule } from "./spellAuraCore.js";
 import { loadAoEStyle } from "./aoeStyle.js";
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
 import { SPELL_STATIC_ZONE_META_KEY, translatedZoneArea } from "./spellStaticZoneCore.js";
+import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { wallOfLightTargetWithinRange } from "./wallOfLightActiveCore.js";
 import {
   buildSpellUnifiedPopupEvent,
@@ -905,12 +906,23 @@ async function stormTargetData() {
   if (!origin) return { area: null, entries: [] };
   const dpi = await OBR.scene.grid.getDpi().catch(() => 150);
   const scale = await OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } }));
+  // adjacentRing: the reach of a large root (Mano arcana) is measured from its edge, not from its centre.
+  const rootBounds = payload?.action?.adjacentRing === true && payload?.action?.rangeOrigin === "root" && root
+    ? await OBR.scene.items.getItemBounds([root.id]).catch(() => null)
+    : null;
+  const metersPerCell = Number(scale?.parsed?.multiplier ?? scale?.multiplier ?? 1.5) || 1.5;
   const candidates = characters().filter((item) => item.id !== payload.casterId);
   const entries = await Promise.all(candidates.map(async (item) => {
     const bounds = await OBR.scene.items.getItemBounds([item.id]).catch(() => null);
     const center = itemCenter(bounds, item);
     if (!center) return null;
-    const inRange = payload.action.range
+    const planar = rootBounds
+      ? gridPlanarDistance(itemCenter(rootBounds, root), center, dpi, metersPerCell,
+        boundsSize(rootBounds, dpi), boundsSize(bounds, dpi))
+      : null;
+    const inRange = planar
+      ? planar.squares > 0 && planar.squares <= 1 + 1e-9
+      : payload.action.range
       ? payload.action.rangeFromZoneArea === true && area
         ? wallOfLightTargetWithinRange({
           area,
@@ -933,7 +945,12 @@ async function stormTargetData() {
     return { item, inside };
   }));
   if (!sceneLifecycle.isCurrent(operation)) return { area: null, entries: [] };
-  return { area, entries: entries.filter(Boolean) };
+  // The root of a board token (Mano arcana) is the token of the same cast, as validateStorm accepts it.
+  const boardRoot = root?.metadata?.[SPELL_BOARD_TOKEN_META_KEY];
+  const rootReady = !!area || (boardRoot?.kind === "spell-board-token"
+    && String(boardRoot.instanceId || "") === String(payload?.instanceId || "")
+    && String(boardRoot.casterId || "") === String(payload?.casterId || ""));
+  return { area, rootReady, entries: entries.filter(Boolean) };
 }
 
 function setStatus(message, stale = false) {
@@ -1294,7 +1311,7 @@ async function renderStorm() {
   if (!sceneLifecycle.isCurrent(operation)) return;
   const select = $("attackTarget");
   const previous = selectedAttackTarget;
-  const { entries, area } = await stormTargetData();
+  const { entries, area, rootReady } = await stormTargetData();
   if (!sceneLifecycle.isCurrent(operation)) return;
   const multi = isMultiAttack();
   const outcomeDefinitions = Array.isArray(payload?.action?.attack?.outcomes)
@@ -1354,7 +1371,7 @@ async function renderStorm() {
   const requiresZoneRoot = payload?.action?.requiresZoneRoot !== false;
   const baseReady = sceneLifecycle.isReady() && !busy
     && !!selectedAttackTarget
-    && (!requiresZoneRoot || !!area);
+    && (!requiresZoneRoot || rootReady);
   const damageValue = String($("attackDamage")?.value || "").trim();
   for (const button of document.querySelectorAll("[data-attack-outcome]")) {
     const outcome = button.dataset.attackOutcome;
@@ -1394,7 +1411,7 @@ async function renderStorm() {
         button.type = "button";
         button.textContent = outcomeLabels[value] || value;
         button.classList.toggle("active", entry.attackOutcome === value);
-        button.disabled = busy || !entry.targetId || (requiresZoneRoot && !area);
+        button.disabled = busy || !entry.targetId || (requiresZoneRoot && !rootReady);
         button.addEventListener("click", (event) => {
           event.stopPropagation();
           attackEntries[index] = { ...attackEntries[index], attackOutcome: value };
@@ -1422,10 +1439,10 @@ async function renderStorm() {
       attackRows.appendChild(row);
     }
   }
-  $("status").textContent = area || !requiresZoneRoot
+  $("status").textContent = rootReady || !requiresZoneRoot
     ? ""
     : "La zona dell'incantesimo non è più disponibile.";
-  $("status").hidden = !!area || !requiresZoneRoot;
+  $("status").hidden = rootReady || !requiresZoneRoot;
   requestCompactPopoverResize();
 }
 
@@ -1851,7 +1868,12 @@ function renderActiveMicropills() {
     // 2. Attacco / TS
     const saveArea = payload?.action?.resolutionKind === "save-area" || childZone()?.resolution === "save";
     const singleSave = isSingleSave();
-    if (saveArea || singleSave) {
+    // checkLabel: an action resolved at the table without a save (Mano arcana's grapple or contest) names its
+    // check instead, or nothing when empty.
+    const checkLabel = payload?.action?.checkLabel;
+    if (singleSave && typeof checkLabel === "string") {
+      if (checkLabel.trim()) pills.push(checkLabel.trim());
+    } else if (saveArea || singleSave) {
       const ability = payload?.action?.save?.ability || saveAbility;
       if (ability) pills.push(`TS ${saveAbilityLabel(ability) || ability}`);
       else pills.push("TS");
@@ -1893,9 +1915,11 @@ function renderActiveMicropills() {
     }
 
     // 5. Conseguenza del save
-    if (payload?.action?.save?.halfOnSuccess || payload?.action?.damage?.onSave === "half") {
+    // An attack's damage carries the default onSave "none": without a save there is no save pill.
+    const savePills = saveArea || singleSave;
+    if (savePills && (payload?.action?.save?.halfOnSuccess || payload?.action?.damage?.onSave === "half")) {
       pills.push("½ successo");
-    } else if (payload?.action?.damage?.onSave === "none" || payload?.action?.save?.noDamageOnSuccess) {
+    } else if (savePills && (payload?.action?.damage?.onSave === "none" || payload?.action?.save?.noDamageOnSuccess)) {
       pills.push("Nullo se supera");
     }
 

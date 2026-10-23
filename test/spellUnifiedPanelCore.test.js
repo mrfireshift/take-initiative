@@ -472,10 +472,11 @@ test("Mano arcana compone placement pedina, HP e azioni della pedina", () => {
   assert.deepEqual(
     model.presentation.activeActions.map((action) => action.id),
     [
-      "arcane-hand-interposing",
-      "arcane-hand-forceful",
-      "arcane-hand-grasping",
       "arcane-hand-clenched",
+      "arcane-hand-grasping",
+      "arcane-hand-crush",
+      "arcane-hand-forceful",
+      "arcane-hand-interposing",
     ],
   );
   assert.equal(model.execution.lane, SPELL_UNIFIED_PANEL_LANES.SPELL_LIFECYCLE);

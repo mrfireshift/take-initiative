@@ -24,22 +24,6 @@ const weaponReference = ({ id, label, detail }) => freezeAction({
   effects: Object.freeze([]),
 });
 
-const handMode = ({ id, label, mode, detail }) => freezeAction({
-  id,
-  label,
-  buttonLabel: label,
-  detail,
-  actionEconomy: "bonus",
-  subjectMode: "selected",
-  maxTargets: 1,
-  countLabelSingular: "bersaglio",
-  countLabelPlural: "bersagli",
-  emptySelectionTitle: "Seleziona la creatura o il token interessato dalla modalità della mano.",
-  tooManySelectionTitle: "Mano arcana può interessare un solo bersaglio per comando.",
-  entityAction: Object.freeze({ type: "set-mode", mode }),
-  effects: Object.freeze([]),
-});
-
 export const SPELL_BOARD_TOKEN_RULES = Object.freeze({
   "animate-objects": Object.freeze({
     spellId: "animate-objects",
@@ -150,38 +134,18 @@ export const SPELL_BOARD_TOKEN_RULES = Object.freeze({
     fillsSpace: false,
     creationRangeMeters: 36,
     movementMeters: 18,
+    // The speed check counts its moves on the caster's turn (speedCheck.js), flying or not.
+    speedCheck: true,
+    flies: true,
+    // A sheet of its own in the tracker (spell-board-token-card.html).
+    actorCard: true,
     reachMeters: 1.5,
     concentration: true,
     armorClass: 20,
     strength: 26,
     dexterity: 10,
     hasHitPoints: true,
-    actions: Object.freeze([
-      handMode({
-        id: "arcane-hand-interposing",
-        label: "Mano interposta",
-        mode: "interposing",
-        detail: "Fornisce mezza copertura contro il bersaglio scelto e ne ostacola il movimento verso il caster.",
-      }),
-      handMode({
-        id: "arcane-hand-forceful",
-        label: "Mano possente",
-        mode: "forceful",
-        detail: "Risolvi al tavolo la prova contrapposta di Forza e l'eventuale spinta; la mano resta entro 1,5 m dal bersaglio.",
-      }),
-      handMode({
-        id: "arcane-hand-grasping",
-        label: "Afferra / stritola",
-        mode: "grasping",
-        detail: "Afferra una creatura Enorme o inferiore; nei turni successivi può infliggere 2d6 + modificatore contundenti, con scaling dello slot.",
-      }),
-      handMode({
-        id: "arcane-hand-clenched",
-        label: "Pugno · 4d8 forza",
-        mode: "clenched",
-        detail: "Attacco in mischia con incantesimo entro 1,5 m. +2d8 per ogni slot sopra il 5°.",
-      }),
-    ]),
+    // The hand's effects are resolved in the spell's popup (spellActiveResolutionRules.js).
   }),
 });
 

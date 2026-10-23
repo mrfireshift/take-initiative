@@ -43,6 +43,13 @@ export const CONTROL_WINDS_PAUSE_TURN_PROMPT_ACTION_ID = "control-winds-pause";
 export const TELEKINESIS_MAINTAIN_TURN_PROMPT_ACTION_ID = TELEKINESIS_MAINTAIN_ACTION_ID;
 export const TELEKINESIS_RETARGET_TURN_PROMPT_ACTION_ID = TELEKINESIS_RETARGET_ACTION_ID;
 export const SPIRIT_SHROUD_TURN_PROMPT_ACTION_ID = "spirit-shroud-mark-hit";
+export const ARCANE_HAND_TURN_PROMPT_ACTION_IDS = Object.freeze([
+  "arcane-hand-clenched",
+  "arcane-hand-grasping",
+  "arcane-hand-crush",
+  "arcane-hand-forceful",
+  "arcane-hand-interposing",
+]);
 
 const TURN_PROMPT_SPELLS = Object.freeze([
   Object.freeze({
@@ -195,6 +202,15 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     ownerContext: "boardToken",
     availableAfterCast: true,
     choice: true,
+  }),
+  // Mano arcana (Bigby): one effect of the hand per bonus action, from the turn after the cast.
+  Object.freeze({
+    spellId: "arcane-hand",
+    actionIds: ARCANE_HAND_TURN_PROMPT_ACTION_IDS,
+    ownerContext: "boardToken",
+    availableAfterCast: true,
+    choice: true,
+    choiceHint: "Muovi la mano fino a 18 m, poi scegli il suo effetto.",
   }),
   Object.freeze({
     spellId: "eyebite",

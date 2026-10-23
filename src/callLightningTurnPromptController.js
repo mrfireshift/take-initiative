@@ -188,7 +188,7 @@ async function openRequest(request, stackIndex, taskRevision) {
   const casterId = request?.casterId || payload?.casterId;
   const anchorId = request?.kind === "choice"
     ? request?.zoneItemId || casterId
-    : payload?.spellId === "xanathar-stretta-della-terra-di-maximilian"
+    : ["xanathar-stretta-della-terra-di-maximilian", "arcane-hand"].includes(payload?.spellId)
       ? payload?.zoneItemId || casterId
       : casterId;
   const anchor = await casterAnchor(anchorId);

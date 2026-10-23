@@ -3,6 +3,7 @@ import {
   getSpellBoardTokenRule,
   spellBoardTokenView,
 } from "./spellBoardTokenCore.js";
+import { buildCardIconGlyph, styleCardIconButton } from "./cardIconButton.js";
 
 const normalizedId = (value) => String(value || "").trim();
 // Summoned tokens start collapsed: only the groups the GM expanded are remembered, for this page.
@@ -131,6 +132,8 @@ export function spellBoardTokenCompanionsByCasterId(items = []) {
       state: view?.state || {},
       hp: view?.state?.hp,
       hpMax: view?.state?.hpMax,
+      // A token with a sheet of its own (Mano arcana): CA, HP, abilities and speeds, read from its rule.
+      ...(rule.actorCard === true ? { actorCard: true } : {}),
     });
     companions.set(casterId, list);
   }
@@ -230,6 +233,7 @@ export function buildSpellBoardTokenCompanionCard(
     faction = null,
     onBindHP = null,
     onSelect = null,
+    onOpenCard = null,
     selectedIds = null,
     documentRef = globalThis.document,
   } = {},
@@ -366,6 +370,23 @@ export function buildSpellBoardTokenCompanionCard(
     });
     content.appendChild(hpBadge);
   }
+  if (companion.actorCard && typeof onOpenCard === "function") {
+    const sheet = documentRef.createElement("button");
+    sheet.type = "button";
+    sheet.dataset.spellBoardTokenSheet = "1";
+    sheet.title = `Apri la scheda di ${companion.label}`;
+    sheet.setAttribute("aria-label", sheet.title);
+    styleCardIconButton(sheet, "sheet");
+    Object.assign(sheet.style, { flex: "0 0 auto", pointerEvents: "auto", cursor: "pointer" });
+    sheet.appendChild(buildCardIconGlyph("character-sheet.svg", 9, documentRef));
+    sheet.addEventListener?.("pointerdown", (event) => event?.stopPropagation?.());
+    sheet.addEventListener?.("click", (event) => {
+      event?.stopPropagation?.();
+      event?.preventDefault?.();
+      onOpenCard(companion, event);
+    });
+    content.appendChild(sheet);
+  }
   card.appendChild(icon);
   card.appendChild(content);
   if (hpBadge && typeof onBindHP === "function") onBindHP(hpBadge, companion);
@@ -406,6 +427,7 @@ export function appendSpellBoardTokenCompanions(
     faction = null,
     onBindHP = null,
     onSelect = null,
+    onOpenCard = null,
     selectedIds = null,
     onStackChange = null,
     documentRef = globalThis.document,
@@ -428,6 +450,7 @@ export function appendSpellBoardTokenCompanions(
       faction,
       onBindHP,
       onSelect,
+      onOpenCard,
       selectedIds,
       documentRef,
     });

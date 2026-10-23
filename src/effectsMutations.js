@@ -758,6 +758,25 @@ function planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds) {
     : {};
 }
 
+// A spell's token with hit points (Mano arcana, an animated object) is an object, not a creature: no death saves and
+// no Privo di sensi. Brought to 0 HP by an HP write it leaves the map as it is (its HP are not written, so the
+// Undo puts it back with them), and Mano arcana's spell ends, as executeSpellBoardTokenStateUpdate does.
+function spellBoardTokenHpTarget(item) {
+  const metadata = item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY];
+  return item?.layer === "PROP" && metadata?.kind === "spell-board-token" ? metadata : null;
+}
+
+function planZeroHpSpellBoardToken(item, metadata, hpOperations, zeroHpBoardTokenIds) {
+  zeroHpBoardTokenIds.add(item.id);
+  const casterId = String(metadata?.casterId || "").trim();
+  const instanceId = String(metadata?.instanceId || "").trim();
+  if (String(metadata?.spellId || "").trim() !== "arcane-hand" || !casterId || !instanceId) return;
+  hpOperations.push(
+    { type: "concentration:break", casterIds: [casterId], reference: instanceId },
+    { type: "spell:remove-instance", targetIds: [casterId], instanceId },
+  );
+}
+
 function sceneItemMetadataSnapshot(item, field) {
   return metadataFieldSnapshot(item?.metadata || {}, field);
 }
@@ -1136,6 +1155,7 @@ export async function prepareEffectsMutation(operations = [], {
   } }));
   const hpItemsById = new Map(hpProjectedItems.map((item) => [item.id, item]));
   const instantDeathIds = new Set();
+  const zeroHpBoardTokenIds = new Set();
   for (const operation of operations) {
     if (operation?.type !== "hp:set") {
       hpOperations.push(operation);
@@ -1147,7 +1167,12 @@ export async function prepareEffectsMutation(operations = [], {
         return { status: EFFECTS_MUTATION_STATUS.CONFLICT, reason: "invalid-hp-target", conflicts: [{ itemId: update.itemId }] };
       }
       const meta = item.metadata?.[META_KEY] || {};
-      const deathSaveFields = planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds);
+      const boardToken = spellBoardTokenHpTarget(item);
+      if (boardToken && update.hp <= 0 && !(Number(meta.hp) <= 0)) {
+        planZeroHpSpellBoardToken(item, boardToken, hpOperations, zeroHpBoardTokenIds);
+        continue;
+      }
+      const deathSaveFields = boardToken ? {} : planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds);
       hpPatches.push({ id: item.id, fields: {
         hp: { value: update.hp, ...(update.expectedHP ? { expected: update.expectedHP } : {}) },
         hpMax: { value: update.hpMax, ...(update.expectedHPMax ? { expected: update.expectedHPMax } : {}) },
@@ -1159,7 +1184,7 @@ export async function prepareEffectsMutation(operations = [], {
         if (removals.length) hpOperations.push({ type: "condition:remove-instances", removals });
       }
       item.metadata[META_KEY] = { ...meta, hp: update.hp, hpMax: update.hpMax };
-      hpOperations.push({ type: "condition:reconcile-zero-hp", targetIds: [item.id] });
+      if (!boardToken) hpOperations.push({ type: "condition:reconcile-zero-hp", targetIds: [item.id] });
     }
   }
   // The HP written by a metadata patch (area consoles, reminders), unless the patch already writes the tally.
@@ -1172,6 +1197,8 @@ export async function prepareEffectsMutation(operations = [], {
     const hp = Number(hpField.value);
     const hpMax = Number(patch.fields.hpMax?.mode === "assert" ? meta.hpMax : patch.fields.hpMax?.value ?? meta.hpMax);
     if (!item || !Number.isFinite(hp) || !Number.isFinite(hpMax)) continue;
+    // A spell's token never has death saves (its own HP writers remove it at 0 HP).
+    if (spellBoardTokenHpTarget(item)) continue;
     const deathSaveFields = planDeathSaveHpWrite(item, { hp, hpMax, hpIntent: patch.hpIntent, hpIntents: patch.hpIntents },
       hpOperations, instantDeathIds);
     if (Object.keys(deathSaveFields).length) hpPatches.push({ id: patch.id, fields: deathSaveFields });
@@ -1249,6 +1276,7 @@ export async function prepareEffectsMutation(operations = [], {
   if (patchedPlan?.status) return patchedPlan;
   plan.sharedHpGroups = sharedHpGroups;
   if (bossLinkNotices.length) plan.bossLinkNotices = bossLinkNotices;
+  if (zeroHpBoardTokenIds.size) plan.zeroHpBoardTokenIds = [...zeroHpBoardTokenIds];
   plan.classFeatureMutationResults = classFeatureStatePlan.results;
   plan.mutationId = mutationId;
   plan.scannedItems = sceneItems.length;
@@ -2985,6 +3013,19 @@ async function prepareEffectsSideEffects(plan, command) {
           ELEVATION_FIELD,
         ),
       });
+    }
+  }
+  // A spell's token brought to 0 HP by this command leaves the map (planZeroHpSpellBoardToken), unless the command
+  // already removes it (a spell area, the token's own HP editor, the end of its spell).
+  const handledTokenIds = new Set(prepared.flatMap((entry) => [
+    entry?.item?.id,
+    entry?.type === "spell-board-token:update-state" ? entry.id : "",
+    ...(Array.isArray(entry?.items) ? entry.items.map((item) => item?.id) : []),
+  ]).filter(Boolean));
+  const zeroHpTokenIds = (plan.zeroHpBoardTokenIds || []).filter((id) => !handledTokenIds.has(id));
+  if (zeroHpTokenIds.length) {
+    for (const item of await OBR.scene.items.getItems(zeroHpTokenIds)) {
+      if (spellBoardTokenHpTarget(item)) prepared.push({ type: "spell-board-token:remove", item: clone(item) });
     }
   }
   plan.preparedSideEffects = prepared;

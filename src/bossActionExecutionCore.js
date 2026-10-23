@@ -4,6 +4,7 @@ import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { createMonsterActionContext } from "./monsterActionContextCore.js";
 import { bossActionUsageAvailability, consumeBossActionUsage, bossActionUsageSummary } from "./bossActionUsageCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
+import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem, profileDamageDefensesForItem, sanitizeDamageDefenses,
   EVASION_DEFENSE, evasionAppliesTo, evasionFactor, evasionForItem } from "./damageDefensesCore.js";
 
@@ -17,6 +18,18 @@ export function isBossActionCreature(item) {
   const id = String(item?.id || "");
   return !!id && item?.type === "IMAGE" && item?.layer === "CHARACTER" && !item.attachedTo
     && id !== "__LAIR__" && !id.startsWith("__EPIC__") && !/::p\d+$/.test(id);
+}
+
+// A spell's token with hit points (Mano arcana, an animated object) is an object a creature can hit: a target of an
+// attack or a save, never an actor. At 0 HP the HP write removes it (effectsMutations.js).
+export function isBossActionObjectTarget(item) {
+  return !!String(item?.id || "") && item?.type === "IMAGE" && item?.layer === "PROP" && !item.attachedTo
+    && item.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.kind === "spell-board-token"
+    && Number.isFinite(Number(item.metadata?.[META_KEY]?.hpMax));
+}
+
+export function isBossActionTargetItem(item) {
+  return isBossActionCreature(item) || isBossActionObjectTarget(item);
 }
 
 export function bossInstanceForItem(item, profile) {
@@ -296,7 +309,7 @@ export function buildBossActionMutation({
   componentAmounts = {}, actionInstanceId, round, manualConfirmed=false, ignoredDefenses = [], expectedDefenses,
   turnState = null, grappledIds = [], expectedMarkedIds, expectedEvasion, rider = "", teleport = null,
 } = {}) {
-  if (!isBossActionCreature(sourceItem) || !isBossActionCreature(targetItem))
+  if (!isBossActionCreature(sourceItem) || !isBossActionTargetItem(targetItem))
     throw new Error("Attore e bersaglio devono essere token creatura reali.");
   if (!actionInstanceId || typeof actionInstanceId !== "string") throw new Error("Identità azione mancante.");
   const execution = action?.execution;
@@ -586,7 +599,7 @@ export function buildBossActionGroupMutation({
   for (const item of Array.isArray(targetItems) ? targetItems : []) {
     if (!item || seen.has(item.id)) continue;
     seen.add(item.id);
-    if (!isBossActionCreature(item) || item.id === sourceItem.id) throw new Error("Ogni bersaglio deve essere un token creatura reale diverso dal boss.");
+    if (!isBossActionTargetItem(item) || item.id === sourceItem.id) throw new Error("Ogni bersaglio deve essere un token creatura reale diverso dal boss.");
     targets.push(item);
   }
   if (!targets.length) throw new Error("Seleziona almeno un bersaglio.");
@@ -801,7 +814,7 @@ export function buildBossActionGroupAttackMutation({
   for (const item of Array.isArray(targetItems) ? targetItems : []) {
     if (!item || seen.has(item.id)) continue;
     seen.add(item.id);
-    if (!isBossActionCreature(item) || item.id === sourceItem.id) throw new Error("Ogni bersaglio deve essere un token creatura reale diverso dal boss.");
+    if (!isBossActionTargetItem(item) || item.id === sourceItem.id) throw new Error("Ogni bersaglio deve essere un token creatura reale diverso dal boss.");
     targets.push(item);
   }
   if (!targets.length) throw new Error("Seleziona almeno un bersaglio.");

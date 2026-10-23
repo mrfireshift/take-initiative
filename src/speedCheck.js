@@ -10,6 +10,7 @@ import {
 } from "./conditionSpeedCore.js";
 import { readSceneItemsSnapshot, subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { suppressMovementHistory } from "./history.js";
+import { getSpellBoardTokenRule, SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import {
   advanceSpeedCycle,
@@ -93,6 +94,10 @@ const suppressedElevationResets = new Map();
 const movementStateListeners = new Set();
 const speedCheckEnabledListeners = new Set();
 const pendingMovementOrigins = new Map();
+// A spell's token that moves on its caster's turn (Mano arcana): its own movement budget, apart from the caster's.
+let boardTokenMovementState = null;
+let boardTokenMovementPromise = null;
+const boardTokenMoverChecks = new Map();
 
 function isCurrentSpeedOperation(sceneEpoch, generation) {
   return isCurrentSceneEpoch(sceneEpoch) && generation === movementGeneration;
@@ -105,6 +110,9 @@ function invalidateSpeedMovementRuntime({ clearTurn = false } = {}) {
   movementStatePrefetch = null;
   remoteMovementSnapshot = null;
   pendingMovementOrigins.clear();
+  boardTokenMovementState = null;
+  boardTokenMovementPromise = null;
+  boardTokenMoverChecks.clear();
   trackedDrags.clear();
   rejectedMovementRollbacks.clear();
   rejectedElevationRollbacks.clear();
@@ -703,34 +711,78 @@ async function prepareMovementSample(movement) {
   return { ...movement, beforeCell, afterCell };
 }
 
-async function loadMovementState(turn) {
+// The rule of a spell's token whose moves the speed check counts on its caster's turn (Mano arcana), or null.
+function speedCheckedBoardTokenRule(item, casterId) {
+  const token = item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY];
+  const rule = item?.layer === "PROP" && token?.kind === "spell-board-token"
+    ? getSpellBoardTokenRule(token.spellId)
+    : null;
+  return rule?.speedCheck === true && Number(rule.movementMeters) > 0
+    && String(token.casterId || "").trim() === String(casterId || "").trim()
+    ? rule
+    : null;
+}
+
+// The token's speed from its rule (18 m for Mano arcana), flying too when the rule says so, then its own effects.
+function boardTokenSpeedForItem(item, rule, preferredMode) {
+  const meta = item?.metadata?.[META_KEY] || {};
+  const flight = rule.flies === true
+    ? [{
+      id: `spell-board-token-fly:${item.id}`,
+      effectId: `${rule.spellId}-fly`,
+      condition: rule.label,
+      active: true,
+      mechanics: { movement: { modes: { fly: { grantMeters: Number(rule.movementMeters) } } } },
+    }]
+    : [];
+  return resolveConditionSpeed(
+    Number(rule.movementMeters),
+    [...flight, ...getConditionInstances(meta.conditions || {})],
+    [],
+    preferredMode,
+  );
+}
+
+// boardToken: the caster's own token (Mano arcana) instead of the turn's actor; null when itemId is not one.
+async function loadMovementState(turn, { itemId: requestedItemId = "", boardToken = false } = {}) {
   const { actorId, turnKey } = turn || {};
   if (!actorId || !turnKey) return null;
+  const itemId = boardToken ? requestedItemId : actorId;
+  if (!itemId) return null;
   const sceneEpoch = currentSceneEpoch();
   const generation = movementGeneration;
 
-  const [item] = await OBR.scene.items.getItems([actorId]);
+  const [item] = await OBR.scene.items.getItems([itemId]);
   if (!isCurrentSpeedOperation(sceneEpoch, generation)) return null;
   const meta = item?.metadata?.[META_KEY] || {};
-  if (!item || String(meta.attitude || "").toLowerCase() !== "pc") {
-    return { turnKey, itemId: actorId, sceneEpoch, generation, disabled: true, path: [] };
+  const boardTokenRule = boardToken ? speedCheckedBoardTokenRule(item, actorId) : null;
+  if (boardToken && !boardTokenRule) return null;
+  if (!item || (!boardTokenRule && String(meta.attitude || "").toLowerCase() !== "pc")) {
+    return { turnKey, itemId, sceneEpoch, generation, disabled: true, path: [] };
   }
 
   const [profile, gridDpi, lastCell] = await Promise.all([
-    loadInitiativeCard(item, { hydrate: false }),
+    boardTokenRule ? null : loadInitiativeCard(item, { hydrate: false }),
     OBR.scene.grid.getDpi().catch(() => 150),
     snapToGridCell(item.position),
   ]);
-  const baseSpeedMeters = Math.max(0, Number(profile?.speed) || 0);
+  const baseSpeedMeters = boardTokenRule
+    ? Number(boardTokenRule.movementMeters)
+    : Math.max(0, Number(profile?.speed) || 0);
   const persisted = meta?.[SPEED_CHECK_META_FIELD];
   const persistedMatches = String(persisted?.turnKey || "") === turnKey;
-  const resolvedSpeed = conditionSpeedForItem(
-    item,
-    baseSpeedMeters,
-    persistedMatches ? persisted.activeMode : "walk",
-  );
+  // A flying token starts the turn flying: its horizontal and vertical moves share the same 18 m.
+  const resolvedSpeed = boardTokenRule
+    ? boardTokenSpeedForItem(item, boardTokenRule, persistedMatches
+      ? persisted.activeMode
+      : boardTokenRule.flies === true ? "fly" : "walk")
+    : conditionSpeedForItem(
+      item,
+      baseSpeedMeters,
+      persistedMatches ? persisted.activeMode : "walk",
+    );
   if (!resolvedSpeed.hasMovementModes) {
-    return { turnKey, itemId: actorId, sceneEpoch, generation, disabled: true, path: [] };
+    return { turnKey, itemId, sceneEpoch, generation, disabled: true, path: [] };
   }
   const speedMeters = resolvedSpeed.speedMeters;
   const initialPosition = validPoint(item.position);
@@ -746,7 +798,8 @@ async function loadMovementState(turn) {
   const cycle = speedMeters > 0 ? Math.floor((totalMeters + 1e-9) / speedMeters) : 0;
   return {
     turnKey,
-    itemId: actorId,
+    itemId,
+    ...(boardTokenRule ? { boardToken: true } : {}),
     sceneEpoch,
     generation,
     disabled: false,
@@ -836,6 +889,43 @@ async function ensureMovementState(turn) {
   return movementState;
 }
 
+// The caster's token moved on the caster's turn (Mano arcana): its own state, loaded once per turn and item. Any
+// other item a GM moves is checked once and then ignored for the rest of the turn.
+async function ensureBoardTokenMovementState(turn, itemId) {
+  const { actorId, turnKey } = turn || {};
+  if (!actorId || !turnKey || !itemId) return null;
+  if (boardTokenMovementState?.turnKey === turnKey && boardTokenMovementState?.itemId === itemId) {
+    return boardTokenMovementState;
+  }
+  const key = `${turnKey}|${itemId}`;
+  if (boardTokenMoverChecks.get(key) === false) return null;
+  if (boardTokenMovementPromise?.key !== key) {
+    boardTokenMovementPromise = { key, promise: loadMovementState(turn, { itemId, boardToken: true }) };
+  }
+  const pending = boardTokenMovementPromise;
+  const generation = movementGeneration;
+  const sceneEpoch = currentSceneEpoch();
+  let loaded = null;
+  try {
+    loaded = await pending.promise;
+  } finally {
+    if (boardTokenMovementPromise === pending) boardTokenMovementPromise = null;
+  }
+  if (currentTurn?.turnKey !== turnKey || !isCurrentSpeedOperation(sceneEpoch, generation)) return null;
+  if (!loaded) {
+    boardTokenMoverChecks.set(key, false);
+    return null;
+  }
+  // The token takes its origin from its first move (awaitingFirstMovement), not from the caster's.
+  delete loaded.needsMovementOrigin;
+  boardTokenMovementState = loaded;
+  if (loaded.needsBaselinePersist) {
+    delete loaded.needsBaselinePersist;
+    void persistMovementState(loaded).catch(() => {});
+  }
+  return loaded;
+}
+
 export function prewarmSpeedCheckTurn(state) {
   const next = resolveSpeedCheckTurn(state);
   if (!processorEnabled || !speedCheckEnabled || !next.turnKey) return;
@@ -864,6 +954,9 @@ export function syncSpeedCheckTurn(state) {
       : null;
     movementStatePrefetch = null;
     pendingMovementOrigins.clear();
+    boardTokenMovementState = null;
+    boardTokenMovementPromise = null;
+    boardTokenMoverChecks.clear();
   }
   currentTurn = next.turnKey ? next : null;
   if (changed && processorEnabled) {
@@ -905,6 +998,7 @@ function finishTrackedDrag(itemId, dragId) {
   void movementQueue.then(() => {
     if (!isCurrentSpeedOperation(sceneEpoch, generation)) return;
     if (movementState?.itemId === itemId) return persistMovementState(movementState);
+    if (boardTokenMovementState?.itemId === itemId) return persistMovementState(boardTokenMovementState);
   }).catch(() => {});
   setTimeout(() => {
     if (trackedDrags.get(itemId) === entry) trackedDrags.delete(itemId);
@@ -1018,9 +1112,12 @@ async function processSpeedCheckMovement(movement, turn) {
   const generation = movementGeneration;
   const { actorId, turnKey } = turn || {};
   if (!actorId || !turnKey) return;
-  if (currentTurn?.turnKey !== turnKey || movement?.id !== actorId) return;
+  if (currentTurn?.turnKey !== turnKey || !movement?.id) return;
 
-  const state = await ensureMovementState(turn);
+  // The caster's own token (Mano arcana) moves on the caster's turn with a budget of its own.
+  const state = movement.id === actorId
+    ? await ensureMovementState(turn)
+    : await ensureBoardTokenMovementState(turn, movement.id);
   if (!state || state.disabled || currentTurn?.turnKey !== turnKey
     || !isCurrentSpeedOperation(sceneEpoch, generation)) return;
 

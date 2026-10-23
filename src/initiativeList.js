@@ -5129,6 +5129,35 @@ function __selectSpellBoardTokenCompanion(companion, event) {
   void __selectTrackerEntry({ id: companion.itemId }, event);
 }
 
+// A summoned token with a sheet of its own (Mano arcana): a read-only popover, toggled like the creature card.
+async function __openSpellBoardTokenCompanionCard(companion) {
+  const itemId = String(companion?.itemId || "").trim();
+  if (!itemId) return;
+  const popupId = `${ID}/spell-board-token-card`;
+  if (!await beginTrackerPopoverToggle(popupId)) return;
+  try { await OBR.popover.close(popupId); } catch {}
+  const anchorPosition = await getTrackerPopoverAnchor();
+  try {
+    await openTrackedPopover({
+      id: popupId,
+      url: `/spell-board-token-card.html?source=${encodeURIComponent(itemId)}`,
+      width: 400,
+      height: 330,
+      anchorReference: "POSITION",
+      anchorPosition,
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+    __openTrackerPopoverId = popupId;
+  } catch (err) {
+    __openTrackerPopoverId = "";
+    console.warn("[spell-board-token-card] popover open error:", err?.message || err);
+  }
+}
+
 async function __refreshTrackerSelectionFromScene() {
   if (__playerSelectionPollBusy) return;
   __playerSelectionPollBusy = true;
@@ -7520,6 +7549,7 @@ const TRACKER_POPOVER_IDS = [
   `${ID}/quick-hp-modal`,
   OPTIONS_POPUP_ID,
   `${ID}/initiative-card-modal`,
+  `${ID}/spell-board-token-card`,
   `${ID}/compact-effects-popover`,
   COMPACT_ADMIN_MENU_ID,
 ];
@@ -10109,6 +10139,7 @@ function renderCompactTrack(
         onLayoutChange: () => resizeCompactTrackerPopover(visibleEntries),
         onBindHP: IS_GM ? bindSpellBoardTokenCompanionHPEditor : null,
         onSelect: __selectSpellBoardTokenCompanion,
+        onOpenCard: __openSpellBoardTokenCompanionCard,
         selectedIds: __selectedSceneItemIds,
       },
     );
@@ -10315,6 +10346,7 @@ for (const e of entries) {
           faction: factionColors(entry.attitude),
           onBindHP: IS_GM ? bindSpellBoardTokenCompanionHPEditor : null,
           onSelect: __selectSpellBoardTokenCompanion,
+          onOpenCard: __openSpellBoardTokenCompanionCard,
           selectedIds: __selectedSceneItemIds,
         },
       );

@@ -55,6 +55,7 @@ export function appendCompactCompanionDrawer(
     faction = null,
     onBindHP = null,
     onSelect = null,
+    onOpenCard = null,
     selectedIds = null,
     onLayoutChange = null,
     documentRef = globalThis.document,
@@ -153,6 +154,7 @@ export function appendCompactCompanionDrawer(
       faction,
       onBindHP,
       onSelect,
+      onOpenCard,
       selectedIds,
       documentRef,
     });

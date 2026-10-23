@@ -12,7 +12,7 @@ import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
 import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES, QUICK_ACTION_VERSION } from "./quickActionsCore.js";
 import { pcAttackBreathActionId, pcAttackBreathFeatureId, pcAttackBreathVariant } from "./pcAttackBreathId.js";
 import {
-  isBossActionCreature, bossMetadataSnapshot, bossConditionAppliedAt,
+  isBossActionCreature, isBossActionTargetItem, bossMetadataSnapshot, bossConditionAppliedAt,
   damageAmount, defendedComponents, targetProfileAssert, bossGroupConditionInstanceId,
 } from "./bossActionExecutionCore.js";
 import { bossDefendedDamage } from "./bossActionsViewCore.js";
@@ -866,7 +866,7 @@ export function buildPcAttackMutation({
   weaponCantrip = null, secondaryItem = null, expectedSecondaryDefenses, activations = [], tempHpItems = [],
   attackMode = "", modeAmount = null, burstItems = [], expectedBurstDefenses = {}, spellCast = null, linkItems = [],
 } = {}) {
-  if (!isBossActionCreature(sourceItem) || !isBossActionCreature(targetItem))
+  if (!isBossActionCreature(sourceItem) || !isBossActionTargetItem(targetItem))
     throw new Error("Attaccante e bersaglio devono essere token creatura reali.");
   if (sourceItem.id === targetItem.id) throw new Error("L'attaccante non può essere anche il bersaglio.");
   if (!attackInstanceId || typeof attackInstanceId !== "string") throw new Error("Identità dell'attacco mancante.");
@@ -1560,7 +1560,7 @@ export function buildPcAttackAreaMutation({
   if (new Set(list.map((member) => member?.item?.id)).size !== list.length) throw new Error("La stessa creatura è indicata due volte.");
   if (attack.area.maxTargets && list.length > attack.area.maxTargets) throw new Error(`${attack.breath?.name || attack.label}: un solo bersaglio.`);
   for (const member of list) {
-    if (!isBossActionCreature(member?.item)) throw new Error("Una creatura dell'area non è più nella scena.");
+    if (!isBossActionTargetItem(member?.item)) throw new Error("Una creatura dell'area non è più nella scena.");
     if (member.item.id === sourceItem.id) throw new Error("L'attaccante non è tra le creature colpite dalla sua area.");
     if (!PC_ATTACK_SAVE_OUTCOMES.includes(member.outcome)) throw new Error("Scegli l'esito del tiro salvezza di ogni creatura.");
   }

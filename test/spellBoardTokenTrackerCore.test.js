@@ -384,3 +384,24 @@ test("a summon's portrait reads the plugin's own asset from the page showing it,
     "https://cdn.example.com/art/my-sword.png", "an image the GM set stays");
   assert.equal(spellBoardTokenPortraitUrl({}, "/spell-token-arcane-hand.webp"), "/spell-token-arcane-hand.webp");
 });
+
+test("Mano arcana opens its own sheet from its tracker row; other summons have no sheet button", () => {
+  const hand = boardToken({ id: "hand-a", spellId: "arcane-hand", instanceId: "cast-a", casterId: "caster-a" });
+  const weapon = boardToken({ id: "weapon-a", instanceId: "cast-b", casterId: "caster-a" });
+  const companions = spellBoardTokenCompanionsByCasterId([hand, weapon]).get("caster-a");
+  const handCompanion = companions.find((companion) => companion.itemId === "hand-a");
+  const weaponCompanion = companions.find((companion) => companion.itemId === "weapon-a");
+  assert.equal(handCompanion.actorCard, true);
+  assert.equal(weaponCompanion.actorCard, undefined);
+  const opened = [];
+  const onOpenCard = (companion) => opened.push(companion.itemId);
+  const card = buildSpellBoardTokenCompanionCard(handCompanion, { documentRef: testDocument(), onOpenCard });
+  const sheet = card.children[1].children.find((child) => child.dataset.spellBoardTokenSheet === "1");
+  assert.ok(sheet, "the hand's row has a sheet button");
+  let stopped = false;
+  sheet.listeners.click({ stopPropagation() { stopped = true; }, preventDefault() {} });
+  assert.deepEqual(opened, ["hand-a"]);
+  assert.equal(stopped, true, "opening the sheet never selects the token");
+  const weaponCard = buildSpellBoardTokenCompanionCard(weaponCompanion, { documentRef: testDocument(), onOpenCard });
+  assert.equal(weaponCard.children[1].children.some((child) => child.dataset.spellBoardTokenSheet === "1"), false);
+});

@@ -608,3 +608,45 @@ test("condition-only refresh charges standing once without reloading the card", 
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(env.snapshot.totalMeters, 7.5);
 });
+
+// Mano arcana: the caster's hand moves on the caster's turn with its own 18 m, flying or not.
+function hand(casterId = "hero", x = 20) {
+  return {
+    id: `hand-${casterId}`, name: `Mano arcana (${casterId})`, layer: "PROP", position: { x, y: 0 },
+    metadata: {
+      [META_KEY]: { hp: 45, hpMax: 45, attitude: "pc" },
+      "com.thebigpicture.initiative/spellBoardToken": {
+        kind: "spell-board-token", spellId: "arcane-hand", instanceId: `cast-${casterId}`, casterId,
+      },
+    },
+  };
+}
+const speedWarnings = () => env.broadcasts.filter((entry) => entry.channel.endsWith("/speed-warning"));
+
+test("Mano arcana: 18 m of its own on its caster's turn, apart from the caster's movement", async () => {
+  const api = await runtime({ items: [token(), token("ally"), hand()] });
+  await ready();
+  await move(api, 20, 32, { id: "hand-hero" });
+  assert.equal(speedWarnings().length, 0, "12 squares are its 18 m");
+  assert.equal(env.snapshot.totalMeters, 0, "the caster's own movement is untouched");
+  assert.equal(env.items.find((item) => item.id === "hand-hero").metadata[META_KEY].speedCheckMovement.totalMeters, 18);
+  assert.equal(env.items.find((item) => item.id === "hand-hero").metadata[META_KEY].speedCheckMovement.activeMode, "fly",
+    "the hand flies: its vertical moves share the same 18 m");
+  await move(api, 32, 33, { id: "hand-hero" });
+  const [warning] = speedWarnings();
+  assert.equal(warning.data.name, "Mano arcana (hero)");
+  assert.equal(warning.data.speedMeters, 18);
+  await move(api, 0, 2);
+  assert.equal(env.snapshot.totalMeters, 3, "the caster still has its own 9 m");
+});
+
+test("Mano arcana: the movement limit rolls the hand back past its 18 m, and another caster's hand is ignored", async () => {
+  const api = await runtime({ items: [token(), token("ally"), hand(), hand("ally", 40)] });
+  await ready();
+  api.setSpeedCheckMovementLimit(true);
+  await move(api, 20, 33, { id: "hand-hero" });
+  assert.equal(env.items.find((item) => item.id === "hand-hero").position.x, 20, "19,5 m: back to its start");
+  await move(api, 40, 70, { id: "hand-ally" });
+  assert.equal(env.items.find((item) => item.id === "hand-ally").position.x, 70, "not the turn's caster: untracked");
+  assert.equal(speedWarnings().length, 1);
+});

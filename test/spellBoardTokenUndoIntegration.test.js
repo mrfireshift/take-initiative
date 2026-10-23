@@ -427,6 +427,35 @@ test("T10 — Mano Arcana usa la stessa primitive board-token e l'Undo ripristin
   assert.deepEqual(caster.metadata[META_KEY][CONCENTRATION_KEY], {});
 });
 
+test("Mano Arcana a 0 PF da una console: niente TS contro la morte, pedina rimossa, incantesimo finito, un Undo", async () => {
+  resetScene();
+  // The hand copies the caster's attitude: a PC's hand must still never get death saves or Privo di sensi.
+  sceneState.items[0].metadata[META_KEY].attitude = "pc";
+  await cast(arcaneHandCommand());
+  const [hand] = await boardTokens();
+  const handMeta = hand.metadata[META_KEY];
+  assert.equal(handMeta.attitude, "pc");
+  const [castCaster] = await sdkStub.scene.items.getItems(["caster-board-token"]);
+  const instanceId = castCaster.metadata[META_KEY][SPELLS_KEY][0].instanceId;
+  const context = await effects.getEffectsMutationSceneContext({ commandId: "hand-to-zero" });
+  const result = await effects.runEffectsMutation([{ type: "hp:set", updates: [{
+    itemId: hand.id, hp: 0, hpMax: handMeta.hpMax, hpIntent: { mode: "damage", amount: handMeta.hp },
+  }] }], { kind: "hp", label: "Danni alla mano", targetIds: [hand.id], commandId: context.commandId, sceneIdentity: context.sceneIdentity });
+  effects.requireAppliedEffectsMutation(result);
+  assert.equal((await boardTokens()).length, 0, "the hand leaves the map");
+  const [caster] = await sdkStub.scene.items.getItems(["caster-board-token"]);
+  assert.equal(caster.metadata[META_KEY][SPELLS_KEY].some((spell) => spell.instanceId === instanceId), false);
+  assert.deepEqual(caster.metadata[META_KEY][CONCENTRATION_KEY], {});
+
+  const entries = await history.getHistoryEntries();
+  assert.equal((await undoEntry(entries[entries.length - 1])).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
+  const [restored] = await boardTokens();
+  assert.equal(restored?.metadata[META_KEY].hp, handMeta.hp, "Undo puts the hand back with its HP");
+  assert.equal(restored.metadata[META_KEY].deathSaves, undefined);
+  const [undoneCaster] = await sdkStub.scene.items.getItems(["caster-board-token"]);
+  assert.equal(undoneCaster.metadata[META_KEY][SPELLS_KEY].some((spell) => spell.instanceId === instanceId), true);
+});
+
 test("T6 — una modifica canonica successiva dell'identità blocca l'Undo del cast", async () => {
   resetScene();
   await cast(animateObjectsCommand([{ x: 75, y: 75 }, { x: 300, y: 300 }]));

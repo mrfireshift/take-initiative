@@ -40,6 +40,21 @@ function actionCopy(action = {}) {
   if (id === "maximilian-earth-grasp-crush") {
     return "2d6 contundenti · metà su superato";
   }
+  if (id === "arcane-hand-clenched") {
+    return "Attacco in mischia · 4d8 forza";
+  }
+  if (id === "arcane-hand-grasping") {
+    return "Presa al tavolo · Afferrato";
+  }
+  if (id === "arcane-hand-crush") {
+    return "2d6 + mod contundenti · afferrato";
+  }
+  if (id === "arcane-hand-forceful") {
+    return "Contesa di Forza · spinta al tavolo";
+  }
+  if (id === "arcane-hand-interposing") {
+    return "Mezza copertura contro il bersaglio";
+  }
   if (id === "eyebite-saved") {
     return "Immune a questo lancio";
   }

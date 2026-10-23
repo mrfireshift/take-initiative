@@ -69,6 +69,7 @@ export default defineConfig(() => {
         turnNotice: path.resolve(process.cwd(), "turn-notice.html"),
         zoneTriggerNotice: path.resolve(process.cwd(), "zone-trigger-notice.html"),
         initiativeCardModal: path.resolve(process.cwd(), "initiative-card-modal.html"),
+        spellBoardTokenCard: path.resolve(process.cwd(), "spell-board-token-card.html"),
         factionConfigurator: path.resolve(process.cwd(), "faction-configurator.html"),
         compactEffects: path.resolve(process.cwd(), "compact-effects.html"),
         initiativeCardContextMenu: path.resolve(process.cwd(), "initiative-card-context-menu.html"),
