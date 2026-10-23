@@ -56,11 +56,21 @@ function pingConsole(api, timeoutMs = CONSOLE_PING_TIMEOUT_MS) {
   });
 }
 
+// The open console follows the turn (pc-attack.js): the actor in the turn, or "" for a turn without one to show (the
+// Lair, an Epic Action slot, a creature without attacks or spells, at 0 HP).
+function tellConsole(api, sourceId, name) {
+  if (typeof api.broadcast?.sendMessage !== "function") return Promise.resolve();
+  return Promise.resolve()
+    .then(() => api.broadcast.sendMessage(PC_ATTACK_CONSOLE_CHANNEL, { type: "follow", sourceId, name }, { destination: "LOCAL" }))
+    .catch(() => {});
+}
+
 export function createPcAttackTurnController({
   api = OBR,
   isEnabled = () => runtimeOptionsService.get(selectPcAttackAutoOpen) === true,
   openConsole = openPcAttackConsoleForActor,
   isConsoleOpen = () => pingConsole(api),
+  followConsole = (sourceId, name) => tellConsole(api, sourceId, name),
   getCard = getInitiativeCard,
 } = {}) {
   // null: no turn seen yet. The first turn seen (mount, scene ready) is recorded, never opened: a reload opens nothing.
@@ -81,14 +91,18 @@ export function createPcAttackTurnController({
     const taskRevision = ++revision;
     if (first || !turn) return work;
     return enqueue(async () => {
-      // A later turn (the GM skipped several) wins: only the latest one opens.
+      // A later turn (the GM skipped several) wins: only the latest one opens or moves the console.
       if (taskRevision !== revision || !isEnabled()) return;
       const sourceId = pcAttackTurnSourceId(turn.actorId);
-      if (!sourceId) return;
-      const [item] = await api.scene.items.getItems([sourceId]);
-      if (taskRevision !== revision || !pcAttackTurnReady(item, getCard)) return;
-      if (await isConsoleOpen()) return;
+      const [item] = sourceId ? await api.scene.items.getItems([sourceId]) : [];
       if (taskRevision !== revision) return;
+      const ready = !!sourceId && pcAttackTurnReady(item, getCard);
+      // An open console is never reloaded: it moves to the new actor by itself (or closes), unless a draft holds it.
+      if (await isConsoleOpen()) {
+        if (taskRevision === revision) await followConsole(ready ? sourceId : "", String(item?.name || ""));
+        return;
+      }
+      if (!ready || taskRevision !== revision) return;
       await openConsole(sourceId);
     }).catch((error) => {
       console.warn("[pc-attack-turn] open:", error?.message || error);

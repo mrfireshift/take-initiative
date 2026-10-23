@@ -14,15 +14,16 @@ const archer = creature("mira", { initiativeCard: { quickActions: [bow] } });
 const state = (current, round = 1, order = ["mira", "goblin", "__LAIR__", "mira::p1"]) => ({ order, current, round });
 
 function fixture({ items = [archer, creature("goblin")], enabled = true, open = false } = {}) {
-  const opened = [];
+  const opened = [], followed = [];
   let consoleOpen = open, isEnabled = enabled;
   const controller = createPcAttackTurnController({
     api: { scene: { items: { getItems: async (ids) => items.filter((item) => ids.includes(item.id)) } } },
     isEnabled: () => isEnabled,
     openConsole: async (sourceId) => { opened.push(sourceId); },
     isConsoleOpen: async () => consoleOpen,
+    followConsole: async (sourceId, name) => { followed.push([sourceId, name]); },
   });
-  return { controller, opened, setOpen: (value) => { consoleOpen = value; }, setEnabled: (value) => { isEnabled = value; } };
+  return { controller, opened, followed, setOpen: (value) => { consoleOpen = value; }, setEnabled: (value) => { isEnabled = value; } };
 }
 
 test("the turn key changes with the round or the actor, not with the order", () => {
@@ -77,6 +78,7 @@ test("the option off, or a console already open, opens nothing", async () => {
   f.setEnabled(true); f.setOpen(true);
   await f.controller.onState(state(3, 2));
   assert.deepEqual(f.opened, [], "an open console is never reloaded");
+  assert.deepEqual(f.followed, [["mira", "mira"]], "it is told to follow instead");
 });
 
 test("several turns in a row: only the latest one opens", async () => {
@@ -100,4 +102,17 @@ test("a scene change records the new scene's turn without opening", async () => 
 
 test("the console channel is the one the console answers on", () => {
   assert.equal(PC_ATTACK_CONSOLE_CHANNEL, "com.thebigpicture.initiative/pc-attack-console");
+});
+
+test("an open console follows every turn: the actor, or nothing for a turn without one to show", async () => {
+  const f = fixture({ open: true });
+  await f.controller.onState(state(0));
+  await f.controller.onState(state(1));
+  await f.controller.onState(state(2));
+  await f.controller.onState(state(3));
+  assert.deepEqual(f.followed, [["", "goblin"], ["", ""], ["mira", "mira"]], "the goblin has no attacks, the Lair no creature");
+  assert.deepEqual(f.opened, []);
+  f.setEnabled(false);
+  await f.controller.onState(state(0, 2));
+  assert.equal(f.followed.length, 3, "the option off: the console stays where the GM left it");
 });

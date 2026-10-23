@@ -17,7 +17,7 @@ const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-att
   "pc-attack-palm", "pc-attack-palm-note", "pc-attack-palm-outcomes", "pc-attack-palm-amount", "pc-attack-palm-apply",
   "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-note", "pc-attack-area-list",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed", "pc-attack-picker", "pc-attack-picker-tabs", "pc-attack-picker-select",
-  "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster"];
+  "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
@@ -47,18 +47,19 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
   const listeners = { player: new Set(), items: new Set() };
   const subscribe = (set, listener) => { set.add(listener); return () => set.delete(listener); };
   let selection = [];
-  const calls = [], undoCalls = [], nearbyCalls = [], loads = [];
+  const calls = [], undoCalls = [], nearbyCalls = [], loads = [], sources = [], closed = [];
   const api = {
     player: { getRole: async () => "GM", getSelection: async () => selection, onChange: (listener) => subscribe(listeners.player, listener) },
     scene: { isReady: async () => true, onReadyChange: () => () => {},
       items: { getItems: async (ids) => Array.isArray(ids) ? items.filter((item) => ids.includes(item.id)) : items, onChange: (listener) => subscribe(listeners.items, listener) } },
-    popover: { close: async () => {} },
+    popover: { close: async (id) => { closed.push(id); } },
     ...(broadcast ? { broadcast } : {}),
   };
   const runtime = {
     getPcAttackPresentation: async (sourceId, asked) => {
-      loads.push(asked);
-      if (!actions && !card) return { item: items[0], action, targets: items.slice(1), turnState, sceneIdentity: "scene-A" };
+      loads.push(asked); sources.push(sourceId);
+      const attackerItem = items.find((item) => item.id === sourceId) || items[0];
+      if (!actions && !card) return { item: attackerItem, action, targets: items.filter((item) => item !== attackerItem), turnState, sceneIdentity: "scene-A" };
       const picker = pcAttackPickerEntries(card || actions);
       const list = card ? card.quickActions || [] : actions;
       // Without an action asked for, like the runtime: an attack of the picker, else none (an actor with spells only).
@@ -87,7 +88,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
   const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, schedule: (callback) => setTimeout(callback, 0),
     undo: async (entryId) => { undoCalls.push(entryId); return { ok: true }; } });
   const $ = (id) => documentRef.getElementById(id);
-  return { $, controller, calls, undoCalls, nearbyCalls, loads, runtime, items,
+  return { $, controller, calls, undoCalls, nearbyCalls, loads, sources, closed, runtime, items,
     select: async (ids) => { selection = ids; for (const listener of listeners.player) listener({ selection: ids }); await tick(); },
     outcome: (value) => $("pc-attack-outcomes").querySelector(`[data-outcome="${value}"]`),
     inputs: () => $("pc-attack-damage").querySelectorAll("input"),
@@ -837,4 +838,70 @@ test("a blade cantrip points to the weapon attack", async () => {
   assert.equal(f.$("pc-attack-title").textContent, "Lama Roboante");
   assert.match(textOf(f.$("pc-attack-launch")), /Si lancia con un attacco con arma da mischia/);
   assert.equal(f.$("pc-attack-launch").querySelector("#pc-attack-launch-button"), null);
+});
+
+function followBroadcast() {
+  const listeners = new Set();
+  return {
+    broadcast: { onMessage: (channel, listener) => { listeners.add(listener); return () => listeners.delete(listener); }, sendMessage: async () => {} },
+    follow: async (sourceId, name) => { for (const listener of [...listeners]) listener({ data: { type: "follow", sourceId, name } }); await tick(); await tick(); },
+  };
+}
+
+test("a clean console follows the turn: the new actor in place, a fresh attack, no undo of the previous one", async () => {
+  const bus = followBroadcast();
+  const f = fixture({ broadcast: bus.broadcast }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  await typeAmounts(f, ["8", "9"]);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.equal(f.$("pc-attack-undo").hidden, false);
+  await bus.follow("imp", "Imp");
+  assert.equal(f.sources.at(-1), "imp");
+  assert.equal(f.loads.at(-1), "", "the new actor opens on its own last attack");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Imp/);
+  assert.equal(f.controller.getDraft().outcome, "");
+  assert.equal(f.$("pc-attack-undo").hidden, true);
+  assert.equal(f.$("pc-attack-status").textContent, "Turno di Imp.");
+  await bus.follow("imp", "Imp");
+  assert.equal(f.sources.filter((id) => id === "imp").length, 1, "the same actor again changes nothing");
+});
+
+test("a console holding decisions waits: the bar offers the move, after a confirmation", async () => {
+  const bus = followBroadcast();
+  let answer = false;
+  const f = fixture({ broadcast: bus.broadcast, confirm: () => answer }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  await bus.follow("imp", "Imp");
+  assert.equal(f.sources.includes("imp"), false);
+  const bar = f.$("pc-attack-follow");
+  assert.equal(bar.hidden, false);
+  assert.match(textOf(bar), /È il turno di Imp\./);
+  const button = bar.querySelector("button");
+  assert.equal(button.textContent, "Passa a Imp");
+  await button.click(); await tick();
+  assert.equal(f.sources.includes("imp"), false, "the GM declined: the attack stays");
+  answer = true;
+  await button.click(); await tick(); await tick();
+  assert.equal(f.sources.at(-1), "imp");
+  assert.equal(bar.hidden, true);
+});
+
+test("a turn back to the console's actor clears the bar; a clean console closes on a turn with nothing to show", async () => {
+  const bus = followBroadcast();
+  const f = fixture({ broadcast: bus.broadcast }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  await bus.follow("imp", "Imp");
+  assert.equal(f.$("pc-attack-follow").hidden, false);
+  await bus.follow("aria", "Aria");
+  assert.equal(f.$("pc-attack-follow").hidden, true);
+  await bus.follow("", "");
+  assert.deepEqual(f.closed, [], "a held console never closes by itself");
+  assert.equal(f.$("pc-attack-follow").querySelector("button").textContent, "Chiudi");
+  const clean = followBroadcast();
+  const h = fixture({ broadcast: clean.broadcast }); await h.controller.ready;
+  await clean.follow("", "");
+  assert.deepEqual(h.closed, ["com.thebigpicture.initiative/pc-attack"]);
 });

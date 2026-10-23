@@ -136,7 +136,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const undoEntry=overrides.undo || defaultPcAttackUndo;
   const schedule=overrides.schedule || ((callback,delay)=>setTimeout(callback,delay));
   const params=new URLSearchParams(globalThis.location?.search || "");
-  const sourceId=overrides.sourceId ?? params.get("source");
+  // The open console follows the turn (pcAttackTurnController.js): the actor changes in place.
+  let sourceId=overrides.sourceId ?? params.get("source");
   // The picker switches the action (and the spell) in place: both change with it.
   let actionId=overrides.actionId ?? params.get("action") ?? "";
   // The spell the console opens with (the spellbook's or the 🪄 menu's), when the action offers it.
@@ -160,6 +161,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const attackView=$("pc-attack-attack-view"),launchBox=$("pc-attack-launch"),casterLine=$("pc-attack-caster");
   // A spell the console does not resolve (launched, woven into a weapon, or by hand): its card replaces the attack form.
   let launchKey="",launchBusy=false,launchSignature="";
+  // The turn moved on while this attack holds decisions: the actor it waits to move to ({sourceId, name}).
+  const followBar=$("pc-attack-follow");
+  let pendingFollow=null;
   let offPing=null,offAutoOpen=null;
   const extrasCaption=$("pc-attack-extras-caption");
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
@@ -1112,10 +1116,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     finally {busy=false;render();}
   }
   async function refresh(operation) {
-    const asked=actionId;
-    const loaded=await runtime.getPcAttackPresentation(sourceId,asked);
-    // A load for an action the picker has already left is stale.
-    if(!lifecycle.isCurrent(operation) || asked!==actionId) return;
+    const asked=actionId,askedSource=sourceId;
+    const loaded=await runtime.getPcAttackPresentation(askedSource,asked);
+    // A load for an action the picker has already left, or for the actor before the turn moved on, is stale.
+    if(!lifecycle.isCurrent(operation) || asked!==actionId || askedSource!==sourceId) return;
     // Without an action asked for, the runtime picked one (the last attack, else the first weapon).
     const switched=!!presentation && loaded.actionId!==undefined && loaded.actionId!==presentation.actionId;
     if(loaded.actionId) actionId=loaded.actionId;
@@ -1307,10 +1311,47 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       await refresh(operation);
     });
   });
-  $("pc-attack-close").addEventListener("click",()=>{destroy();void api.popover.close(PC_ATTACK_POPOVER_ID);});
-  documentRef.addEventListener?.("keydown",event=>{if(event.key==="Escape" && !busy){destroy();void api.popover.close(PC_ATTACK_POPOVER_ID);}});
+  function closeConsole() {destroy();void api.popover.close(PC_ATTACK_POPOVER_ID);}
+  // A new actor in place: a fresh attack (no target, no undo of the previous actor's entry: History keeps it).
+  function switchActor(next,name="") {
+    pendingFollow=null;renderFollow();
+    sourceId=next;actionId="";requestedSpellId="";launchKey="";launchSignature="";
+    presentation=null;draft=null;liveSignature="";
+    beamTally={spellId:"",count:0};palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
+    selection={status:"none",target:null,candidates:[]};
+    showUndo(null);setStatus(name?`Turno di ${name}.`:"");
+    render();
+    void perform(async operation=>{await refresh(operation);}).then(()=>readSelection());
+  }
+  // The turn moved on (next: "" for a turn with nothing to show). A clean console moves or closes by itself; one holding
+  // decisions (an outcome, an amount, an extra, a cast in flight) waits for the GM.
+  function followTurn(next,name="") {
+    if(invalidated) return;
+    if(next===sourceId){pendingFollow=null;renderFollow();return;}
+    if(busy || launchBusy || palmDraft.outcome || (draft && draftLocked(draft))){pendingFollow={sourceId:next,name};renderFollow();return;}
+    if(!next){closeConsole();return;}
+    switchActor(next,name);
+  }
+  function renderFollow() {
+    if(!followBar) return;
+    followBar.hidden=!pendingFollow;
+    if(!pendingFollow){followBar.replaceChildren();return;}
+    const {sourceId:next,name}=pendingFollow;
+    const button=node("button",next?(name?`Passa a ${name}`:"Passa al nuovo turno"):"Chiudi","small");button.type="button";
+    button.addEventListener("click",()=>{
+      const target=pendingFollow;
+      if(!target || busy || launchBusy) return;
+      if(((draft && draftLocked(draft)) || palmDraft.outcome) && !confirmSwitch("Lasciare questo attacco? Le scelte non registrate andranno perse.")) return;
+      if(!target.sourceId){closeConsole();return;}
+      switchActor(target.sourceId,target.name);
+    });
+    followBar.replaceChildren(node("span",name?`È il turno di ${name}.`:"È cambiato il turno."),button);
+  }
+  $("pc-attack-close").addEventListener("click",()=>closeConsole());
+  documentRef.addEventListener?.("keydown",event=>{if(event.key==="Escape" && !busy)closeConsole();});
   // The turn controller (pcAttackTurnController.js) asks whether a console is open: an open one is never reloaded.
   if(typeof api.broadcast?.onMessage==="function") offPing=api.broadcast.onMessage(PC_ATTACK_CONSOLE_CHANNEL,event=>{
+    if(event?.data?.type==="follow"){followTurn(String(event.data.sourceId || ""),String(event.data.name || ""));return;}
     if(event?.data?.type!=="ping") return;
     void Promise.resolve().then(()=>api.broadcast.sendMessage(PC_ATTACK_CONSOLE_CHANNEL,{type:"pong",sourceId,actionId},{destination:"LOCAL"})).catch(()=>{});
   });
