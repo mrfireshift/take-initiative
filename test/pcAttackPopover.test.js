@@ -1020,6 +1020,32 @@ test("the Capacità tab lists the features by group with their activation and us
   assert.match(f.$("pc-attack-status").textContent, /Capacità attivata: Ira\./);
 });
 
+test("opened without an entry asked, the console goes back to the entry last used with the actor", async () => {
+  const stored = new Map();
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => { stored.set(key, String(value)); } } });
+  try {
+    const runtime = fakeFeatureRuntime();
+    const f = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, featureState: rageStatus(), featureRuntime: runtime.runtime, actionId: "" });
+    await f.controller.ready; await tick();
+    assert.match(f.$("pc-attack-subtitle").textContent, /^Spada sacra/, "nothing used yet: the first attack");
+    await pickerTabs(f)[1].click(); await tick();
+    assert.equal(stored.size, 0, "choosing an entry is not using it");
+    await f.$("pc-attack-launch-button").click(); await tick();
+    assert.deepEqual([...stored.values()], ["feature::barbaro-ira"]);
+
+    const again = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, featureState: rageStatus(), featureRuntime: runtime.runtime, actionId: "" });
+    await again.controller.ready; await tick();
+    assert.match(again.$("pc-attack-subtitle").textContent, /^Ira · /, "the card's 🗡️ reopens on Rage");
+    const asked = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, featureState: rageStatus(), featureRuntime: runtime.runtime, actionId: "holy-sword" });
+    await asked.controller.ready; await tick();
+    assert.match(asked.$("pc-attack-subtitle").textContent, /^Spada sacra/, "an entry asked wins over the remembered one");
+  } finally {
+    if (previous) Object.defineProperty(globalThis, "localStorage", previous); else delete globalThis.localStorage;
+  }
+});
+
 test("an active feature offers Termina; a passive one is only read", async () => {
   const runtime = fakeFeatureRuntime();
   const f = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, featureState: rageStatus(true), featureRuntime: runtime.runtime });

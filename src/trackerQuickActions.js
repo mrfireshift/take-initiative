@@ -7,18 +7,19 @@ const CLASSIC_COMBAT_BADGE_SIZE = 18;
 const CLASSIC_COMBAT_BADGE_LEFT = -15;
 const CLASSIC_QUICK_ACTION_LEFT = CLASSIC_COMBAT_BADGE_LEFT
   - ((QUICK_ACTION_BUTTON_SIZE - CLASSIC_COMBAT_BADGE_SIZE) / 2);
-// ⚡, 🪄 and 🗡️ are 15px circles with a 1px ring. In the classic card they stand in a column centred on the
-// card's height, rings touching: they are the GM's, and the GM view has no active-turn badge on that side of the
-// portrait (initiativeCardClassicBuilder.js: the active card has its halo instead).
+// ⚡ and the attack console's 🗡️ are 15px circles with a 1px ring. In the classic card they stand in a column
+// centred on the portrait (the card's header, whatever rows of chips the card grows), rings touching: they are the
+// GM's, and the GM view has no active-turn badge on that side of the portrait (initiativeCardClassicBuilder.js: the
+// active card has its halo instead).
 const LAUNCHER_SIZE = 15;
 const LAUNCHER_RING = 1;
 const LAUNCHER_PITCH = LAUNCHER_SIZE + 2 * LAUNCHER_RING;
-// Fixed slots, top to bottom, so 🗡️ keeps its place on a card without ⚡ or 🪄.
+// Fixed slots in pitches from the portrait's centre, so each keeps its place on a card without the other: ⚡ half a
+// pitch above, the console half a pitch below (the 🪄 and 🗡️ menus, no longer on the card, keep their slots).
 // The column straddles the portrait rim, a few px left of where the badge stands in the player view, towards
 // the list's edge; no further, or the list would clip the ring of the active card (scaled 1.035 about its centre).
 const CLASSIC_LAUNCHER_AXIS = -12;
-const CLASSIC_LAUNCHER_SLOT = Object.freeze({ quick: 0, spells: 1, attacks: 2 });
-const CLASSIC_LAUNCHER_MIDDLE_SLOT = 1;
+const CLASSIC_LAUNCHER_SLOT = Object.freeze({ quick: -0.5, console: 0.5, spells: 0, attacks: 1 });
 // The compact card: a column on the portrait's right, rings touching as in the classic card, the first circle level
 // with the portrait's top. The initiative badge and the character sheet hold the left side, the KO badge sits on the
 // portrait; only an Epic Boss keeps a badge in the top-right corner ("E"), and there the column starts below it.
@@ -44,7 +45,7 @@ function px(value) {
 function launcherPosition(group, offset, compact, belowCorner = false) {
   if (compact) return compactLauncherSlot(offset, LAUNCHER_SIZE, { belowCorner });
   const slot = CLASSIC_LAUNCHER_SLOT[group] ?? 0;
-  const top = Math.round(((slot - CLASSIC_LAUNCHER_MIDDLE_SLOT) * LAUNCHER_PITCH - LAUNCHER_SIZE / 2) * 10) / 10;
+  const top = Math.round((slot * LAUNCHER_PITCH - LAUNCHER_SIZE / 2) * 10) / 10;
   return {
     left: px(CLASSIC_LAUNCHER_AXIS - LAUNCHER_SIZE / 2),
     right: "auto",
@@ -86,6 +87,62 @@ const TRACKER_LAUNCHER_GROUPS = Object.freeze({
   spells: { icon: "🪄", name: "incantesimi", border: "#a78bfa", color: "#ddd6fe", open: "rgba(91,33,182,.94)", ring: "rgba(167,139,250,.24)" },
   attacks: { icon: "🗡️", name: "attacchi", border: "#fb923c", color: "#fed7aa", open: "rgba(154,52,18,.94)", ring: "rgba(251,146,60,.24)" },
 });
+
+// Whether the attack console has something to show for this card (its attacks, breath, spells or features), read
+// from the card alone so the tracker does not load the console's catalogs: attack quick actions, spells in the book,
+// a class or a species. A card that passes with nothing to show opens the console on its empty state.
+export function trackerHasConsoleEntries(card) {
+  const value = card && typeof card === "object" ? card : {};
+  const quickActions = Array.isArray(value.quickActions) ? value.quickActions : [];
+  return quickActions.some((action) => isAttackQuickAction(action))
+    || (Array.isArray(value.spellbook?.spellIds) && value.spellbook.spellIds.length > 0)
+    || (Array.isArray(value.characterBuild) && value.characterBuild.some((entry) => entry?.classId))
+    || !!String(value.species?.id || "").trim();
+}
+
+// The attack console's launcher: one click opens the console for this actor (no menu). It replaces the 🪄 and 🗡️
+// menus on the card: the console lists the same spellbook and attacks, its features too.
+export function buildTrackerConsoleLauncher({
+  offset = 0,
+  compact = false,
+  belowCorner = false,
+  onOpen = () => {},
+  documentRef = globalThis.document,
+} = {}) {
+  if (!documentRef) return null;
+  const look = TRACKER_LAUNCHER_GROUPS.attacks;
+  const position = launcherPosition("console", offset, compact, belowCorner);
+  const container = documentRef.createElement("div");
+  container.dataset.trackerConsoleLauncher = "1";
+  container.dataset.cardSelectionIgnore = "1";
+  Object.assign(container.style, {
+    position: "absolute", left: position.left, right: position.right, bottom: "auto", top: position.top, zIndex: "12", pointerEvents: "auto",
+  });
+  const button = documentRef.createElement("button");
+  button.type = "button";
+  button.textContent = look.icon;
+  button.title = "Apri la console attacchi";
+  button.setAttribute("aria-label", button.title);
+  button.dataset.cardSelectionIgnore = "1";
+  Object.assign(button.style, {
+    boxSizing: "border-box", minWidth: `${LAUNCHER_SIZE}px`, width: `${LAUNCHER_SIZE}px`, height: `${LAUNCHER_SIZE}px`, padding: "0",
+    display: "flex", alignItems: "center", justifyContent: "center", border: "0", borderRadius: "50%",
+    background: "linear-gradient(180deg,rgba(51,65,85,.98),rgba(15,23,42,.98))", color: look.color,
+    fontSize: "9px", fontWeight: "700", lineHeight: "1", cursor: "pointer",
+    boxShadow: `0 0 0 ${LAUNCHER_RING}px ${look.border},0 2px 6px rgba(0,0,0,.85)`,
+  });
+  // The same 24px click area as the other launchers.
+  extendHitArea(button, { documentRef });
+  button.addEventListener("pointerdown", (event) => { event.preventDefault(); event.stopPropagation(); });
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onOpen(event);
+  });
+  container.appendChild(button);
+  container.__consoleButton = button;
+  return container;
+}
 
 // The group of an action: the spellbook's spells (spellbookCore.js), the attacks, the other quick actions.
 export function trackerQuickActionGroup(action) {

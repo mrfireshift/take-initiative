@@ -1188,7 +1188,8 @@ if (IS_GM) {
   bindHPEditorForEntry(pill, hpFill, setHPDeltaButtonActive, e);
 }
 }
-      mountTrackerQuickActions?.(card, e);
+      // The launchers stand on the portrait: in the header, whose height is the portrait's, however the card grows.
+      mountTrackerQuickActions?.(card, e, { anchor: header });
       __applyTrackerSelectionState(card);
       return card;
 }

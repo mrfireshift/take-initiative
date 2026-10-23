@@ -156,6 +156,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   let actionId=overrides.actionId ?? params.get("action") ?? "";
   // The spell the console opens with (the spellbook's or the 🪄 menu's), when the action offers it.
   let requestedSpellId=overrides.spellId ?? params.get("spell") ?? "";
+  // The entry last used with each actor, in this browser: opened for the actor without an entry asked (the card's 🗡️,
+  // the turn's auto-open, a new actor in place), the console goes back to it. Never needed: storage may be refused.
+  const lastEntryKey=id=>`${ID}/pc-attack-last-entry/${id}`;
+  const rememberEntry=key=>{try{if(key && sourceId)globalThis.localStorage?.setItem(lastEntryKey(sourceId),key);}catch{}};
+  const rememberedEntry=()=>{try{return globalThis.localStorage?.getItem(lastEntryKey(sourceId)) || "";}catch{return "";}};
+  let restoreLastAsked=!actionId && !requestedSpellId;
   const confirmSwitch=overrides.confirm || (message=>typeof globalThis.confirm==="function"?globalThis.confirm(message):true);
   // The GM's tracker, opened for a cast (trackerPopover.js, loaded only then): the players' tracker is left as it is.
   const openTracker=overrides.openTracker || (async()=>{
@@ -1272,6 +1278,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const done=request.done?request.done:request.fn==="deactivateClassFeature"?`Capacità ${form.kind==="toggle"?"disattivata":"terminata"}: ${name}.`
         :definition?.trackingMode==="instant" || form.label==="Usa"?`Capacità usata: ${name}.`:`Capacità attivata: ${name}.`;
       setStatus(result?.reaction?.spent && form.kind!=="reaction"?`${done} Reazione segnata.`:done,"ok");
+      rememberEntry(entry.key);
     } catch(error) {
       if(!error?.cancelled) setStatus(String(error?.message || error || "Capacità non applicata."),"error");
     } finally {launchBusy=false;launchSignature="";renderLaunch();}
@@ -1450,6 +1457,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         }
       }
       setStatus(launchSummary(entry,result),!result?"warn":result.ok && ["review","executed"].includes(result.mode)?"ok":"error");
+      if(result?.ok) rememberEntry(entry.key);
     } finally {launchBusy=false;renderLaunch();}
   }
   // The title is who acts (D3 of the console's audit); what it does goes in the subtitle, without the catalog's emoji.
@@ -1863,6 +1871,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(!lifecycle.isCurrent(operation)) return;
       showUndo(result);
       setStatus([areaSummary(result,attack.cantrip?.name || attack.breath?.name || attack.mode?.label),...(result.warnings || [])].join("\n"),"ok");
+      rememberEntry(currentEntry()?.key);
       markPendingReady();
       draft=emptyDraft(presentation.action,null,draft.spellId,draft.attackMode);
       await refresh(operation);
@@ -1907,6 +1916,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     showUndo(result);
     setStatus([resultSummary(result),...(result.spell?[spellResultSummary(result.spell)]:[]),...(result.reaction?.spent?["Reazione segnata."]:[]),
       ...(result.followUps || []),...(result.warnings || [])].join("\n"),"ok");
+    rememberEntry(currentEntry()?.key);
     markPendingReady();
     if(getPcAttackCantrip(draft.spellId)?.scaling==="beams")
       beamTally=beamTally.spellId===draft.spellId?{...beamTally,count:beamTally.count+1}:{spellId:draft.spellId,count:1};
@@ -1939,6 +1949,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       await refresh(operation);
     });
   });
+  function restoreLastEntry() {
+    if(!restoreLastAsked || invalidated || busy || !presentation) return;
+    restoreLastAsked=false;
+    const key=rememberedEntry(),entry=(presentation.picker || []).find(item=>item.key===key);
+    if(entry && entry.key!==currentEntry()?.key) chooseEntry(entry);
+  }
   function closeConsole() {destroy();void api.popover.close(PC_ATTACK_POPOVER_ID);}
   // A registration while a turn change waits: the bar offers the move in evidence (another attack still can be made).
   function markPendingReady() {
@@ -1955,7 +1971,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     selection={status:"none",target:null,candidates:[]};selectedItems=[];
     showUndo(null);setStatus(name?offTurn?`Fuori turno: ${name}.`:`Turno di ${name}.`:"");
     render();
-    void perform(async operation=>{await refresh(operation);}).then(()=>readSelection());
+    restoreLastAsked=true;
+    void perform(async operation=>{await refresh(operation);}).then(()=>readSelection()).then(()=>restoreLastEntry());
   }
   // The turn moved on (next: "" for a turn with nothing to show). A clean console moves or closes by itself; one holding
   // decisions (an outcome, an amount, an extra, a cast in flight) waits for the GM.
@@ -2091,7 +2108,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(await api.player.getRole()!=="GM"){invalidated=true;throw new Error("Solo il GM può registrare un attacco.");}
     await refresh(operation);
     mountLiveUpdates();
-  })).then(()=>readSelection());
+  })).then(()=>readSelection()).then(()=>restoreLastEntry());
   globalThis.addEventListener?.("beforeunload",()=>{unsubscribe();destroy();},{once:true});
   return {ready,getPresentation:()=>presentation,getDraft:()=>draft,destroy:()=>{unsubscribe();destroy();}};
 }

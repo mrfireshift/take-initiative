@@ -184,7 +184,15 @@ test("l'autorun della quick action viene consumato una sola volta", () => {
 });
 
 test("the spellbook launcher (🪄) sits between ⚡ and 🗡️ and its menu opens one submenu per spell level", () => {
-  assert.match(initiativeSource, /for \(const group of \["quick", "spells", "attacks"\]\)/);
+  // The card carries only ⚡ and the attack console's 🗡️, on its portrait; the 🪄 menu's code stays.
+  assert.match(initiativeSource, /for \(const group of \["quick"\]\)/);
+  assert.match(initiativeSource, /pcAttackConsole: IS_GM \? trackerHasConsoleEntries\(initiativeCard\) : false/);
+  assert.match(initiativeSource, /if \(sourceEntry\.pcAttackConsole && !sourceEntry\.isEpic\) \{\s*const consoleLauncher = buildTrackerConsoleLauncher\(/);
+  assert.match(initiativeSource, /openPcAttackConsoleForActor\(sourceId\)/);
+  assert.match(
+    readFileSync(new URL("../src/initiativeCardClassicBuilder.js", import.meta.url), "utf8"),
+    /mountTrackerQuickActions\?\.\(card, e, \{ anchor: header \}\)/,
+  );
   assert.match(initiativeSource, /spellbookMenu: IS_GM \? spellbookMenuSections\(initiativeCard\) : \[\]/);
   assert.match(initiativeSource, /group === "spells" && sourceEntry\.spellbookMenu\?\.length \? \{ sections: sourceEntry\.spellbookMenu \}/);
   assert.match(initiativeSource, /group === "spells" \? "Incantesimi"/);

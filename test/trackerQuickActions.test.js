@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 
 import {
   buildBossActionsLauncher,
+  buildTrackerConsoleLauncher,
   buildTrackerQuickActionLauncher,
   compactLauncherSlot,
   trackerQuickActionSummary,
+  trackerHasConsoleEntries,
   trackerQuickActionsForGroup,
 } from "../src/trackerQuickActions.js";
 
@@ -195,9 +197,9 @@ test("azioni rapide (⚡) e attacchi (🗡️) hanno ciascuno il proprio launche
   assert.equal(attacks.__quickActionToggle.textContent, "🗡️");
   assert.match(attacks.__quickActionToggle.title, /attacchi \(2\)/);
   assert.equal(attacks.dataset.trackerQuickActions, "attacks");
-  // One column straddling the portrait rim, centred on the card's height (the GM view has no active-turn badge):
-  // 🪄 in the middle, ⚡ one pitch (17px) above, 🗡️ one below.
-  assert.deepEqual([quick.style.left, quick.style.top], ["-19.5px", "calc(50% - 24.5px)"]);
+  // One column straddling the portrait rim, centred on the portrait (the GM view has no active-turn badge): ⚡ half
+  // a pitch (17px) above the centre; the 🗡️ menu keeps its old slot, one pitch below.
+  assert.deepEqual([quick.style.left, quick.style.top], ["-19.5px", "calc(50% - 16px)"]);
   assert.deepEqual([attacks.style.left, attacks.style.top], ["-19.5px", "calc(50% + 9.5px)"]);
   assert.match(attacks.__quickActionToggle.style.boxShadow, /^0 0 0 1px #fb923c,/);
   const compact = buildTrackerQuickActionLauncher({ actions, group: "attacks", offset: 1, compact: true, documentRef: createTestDocument() });
@@ -207,6 +209,33 @@ test("azioni rapide (⚡) e attacchi (🗡️) hanno ciascuno il proprio launche
   assert.equal(buildTrackerQuickActionLauncher({ actions: [sword], documentRef: createTestDocument() }), null);
   const alone = buildTrackerQuickActionLauncher({ actions: [sword], group: "attacks", documentRef: createTestDocument() });
   assert.equal(alone.style.top, "calc(50% + 9.5px)");
+});
+
+test("the attack console's launcher (🗡️) opens the console in one click, half a pitch below the portrait's centre", async () => {
+  const opened = [];
+  const launcher = buildTrackerConsoleLauncher({ offset: 1, onOpen: () => opened.push(true), documentRef: createTestDocument() });
+  const button = launcher.__consoleButton;
+  assert.equal(launcher.dataset.trackerConsoleLauncher, "1");
+  assert.equal(button.textContent, "🗡️");
+  assert.equal(button.title, "Apri la console attacchi");
+  // ⚡ above (calc(50% - 16px)), the console below, rings touching.
+  assert.deepEqual([launcher.style.left, launcher.style.top], ["-19.5px", "calc(50% + 1px)"]);
+  assert.match(button.style.boxShadow, /^0 0 0 1px #fb923c,/);
+  await button.dispatch("click");
+  assert.deepEqual(opened, [true]);
+  assert.equal(buildTrackerConsoleLauncher({ documentRef: null }), null);
+});
+
+test("the console launcher shows on cards with attacks, spells, a class or a species", () => {
+  assert.equal(trackerHasConsoleEntries(null), false);
+  assert.equal(trackerHasConsoleEntries({ quickActions: [action] }), false);
+  assert.equal(trackerHasConsoleEntries({ quickActions: [{ id: "sword", label: "Spada", kind: "attack", components: [{ type: "slashing" }] }] }), true);
+  assert.equal(trackerHasConsoleEntries({ spellbook: { spellIds: [] } }), false);
+  assert.equal(trackerHasConsoleEntries({ spellbook: { spellIds: ["shield"] } }), true);
+  assert.equal(trackerHasConsoleEntries({ characterBuild: [{ level: 3 }] }), false);
+  assert.equal(trackerHasConsoleEntries({ characterBuild: [{ classId: "fighter", level: 3 }] }), true);
+  assert.equal(trackerHasConsoleEntries({ species: { id: " " } }), false);
+  assert.equal(trackerHasConsoleEntries({ species: { id: "dragonborn" } }), true);
 });
 
 test("the spellbook's spells have a launcher of their own (🪄), between ⚡ and 🗡️", () => {

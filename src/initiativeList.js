@@ -1,6 +1,6 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { openBossActionsPopover } from "./bossActionsLauncher.js";
-import { openPcAttackPopover, PC_ATTACK_SPELL_LAUNCH_CHANNEL } from "./pcAttackLauncher.js";
+import { openPcAttackConsoleForActor, openPcAttackPopover, PC_ATTACK_SPELL_LAUNCH_CHANNEL } from "./pcAttackLauncher.js";
 import { pcAttackBreathActionId } from "./pcAttackBreathId.js";
 import { speciesSpellOpenRequest } from "./speciesInnateSpellCore.js";
 import { speciesHpTraitNeedsRoll } from "./speciesHpTraitCore.js";
@@ -207,7 +207,7 @@ import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { executeSpellBoardTokenStateUpdate } from "./spellApplicationExecutor.js";
 import { DELAYED_BLAST_FIREBALL_ID } from "./delayedBlastFireballRules.js";
 import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
-import { buildBossActionsLauncher, buildTrackerQuickActionLauncher, trackerQuickActionsForGroup } from "./trackerQuickActions.js";
+import { buildBossActionsLauncher, buildTrackerConsoleLauncher, buildTrackerQuickActionLauncher, trackerHasConsoleEntries, trackerQuickActionsForGroup } from "./trackerQuickActions.js";
 import {
   CLASS_FEATURE_BY_ID,
   buildClassFeatureContextEntries,
@@ -5010,6 +5010,8 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
       ? spellbookTrackerQuickActions(initiativeCard)
       : spellbookTrackerQuickActions(initiativeCard).filter((action) => action?.kind !== "feature"),
     spellbookMenu: IS_GM ? spellbookMenuSections(initiativeCard) : [],
+    // The card's attack console launcher (🗡️): the GM's, when the console has something to show.
+    pcAttackConsole: IS_GM ? trackerHasConsoleEntries(initiativeCard) : false,
     classFeatures: IS_GM
       ? buildClassFeatureContextEntries(
         initiativeCard,
@@ -8523,7 +8525,8 @@ async function __runTrackerQuickAction(sourceEntry, action) {
   return result;
 }
 
-function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {}) {
+// anchor: where the launchers stand (the classic card's header, centred on the portrait); the card by default.
+function __mountTrackerQuickActions(card, sourceEntry, { compact = false, anchor = null } = {}) {
   if (
     !IS_GM
     ||
@@ -8538,9 +8541,11 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {})
   const sourceId = splitParagonId(sourceEntry.id).baseId;
   // On the compact card the column starts below the top-right corner when an Epic Boss's "E" holds it.
   const belowCorner = compact && !!sourceEntry.isEpic;
-  // The quick actions (⚡), the spellbook (🪄) and the attacks (⚔): three launchers, three menus.
+  const host = anchor || card;
+  // The quick actions (⚡, a menu) and the attack console (🗡️, one click): the console lists the spellbook and the
+  // attacks the 🪄 and 🗡️ menus held, and the features too.
   let launchers = 0;
-  for (const group of ["quick", "spells", "attacks"]) {
+  for (const group of ["quick"]) {
     const expanded = !!__trackerQuickActionsRequestId
       && __trackerQuickActionsSourceId === sourceId
       && __trackerQuickActionsGroup === group;
@@ -8557,8 +8562,22 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {})
     });
     if (!launcher) continue;
     if (expanded) __trackerQuickActionsButton = launcher.__quickActionToggle;
-    card.appendChild(launcher);
+    host.appendChild(launcher);
     launchers += 1;
+  }
+  if (sourceEntry.pcAttackConsole && !sourceEntry.isEpic) {
+    const consoleLauncher = buildTrackerConsoleLauncher({
+      offset: launchers,
+      compact,
+      belowCorner,
+      onOpen: () => {
+        void openPcAttackConsoleForActor(sourceId).catch((error) => console.warn("[pc-attack] console:", error?.message || error));
+      },
+    });
+    if (consoleLauncher) {
+      host.appendChild(consoleLauncher);
+      launchers += 1;
+    }
   }
   // Boss Actions: a round icon in the quick-actions slot (Epic Bosses have no quick actions; otherwise after ⚡ and ⚔).
   if (sourceEntry.isEpic || sourceEntry.bossActionBinding) {
