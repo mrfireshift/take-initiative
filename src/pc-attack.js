@@ -1234,9 +1234,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const entry=currentEntry();
     const level=entry?.level;
     const isFeature=entry?.mode==="activate" || entry?.mode==="reference";
-    $("pc-attack-title").textContent=entry?.label || presentation?.item?.name || "Attacco";
-    $("pc-attack-subtitle").textContent=[presentation?.item?.name || presentation?.item?.id,
-      ...(!entry?[]:isFeature?[entry.species?"Tratto di specie":"Capacità di classe"]:[level===0?"Trucchetto":`Incantesimo di ${level}° livello`])].filter(Boolean).join(" · ");
+    $("pc-attack-title").textContent=actorName();
+    $("pc-attack-subtitle").textContent=!entry?"":[plainLabel(entry.label),
+      ...(isFeature?[entry.species?"Tratto di specie":"Capacità di classe"]:[level===0?"Trucchetto":`Incantesimo di ${level}° livello`])].filter(Boolean).join(" · ");
     const others=concentrationNames().filter(name=>name.toLocaleLowerCase("it")!==String(entry?.label || "").toLocaleLowerCase("it"));
     const meta=presentation?.item?.metadata?.[META_KEY] || {};
     const freeSlot=!level || spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources)
@@ -1352,14 +1352,28 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       setStatus(launchSummary(entry,result),!result?"warn":result.ok && ["review","executed"].includes(result.mode)?"ok":"error");
     } finally {launchBusy=false;renderLaunch();}
   }
+  // The title is who acts (D3 of the console's audit); what it does goes in the subtitle, without the catalog's emoji.
+  const actorName=()=>presentation?.item?.name || presentation?.item?.id || "Attacco";
+  const plainLabel=text=>String(text || "").replace(/^[\p{Extended_Pictographic}️‍\s]+/u,"").trim();
+  // Whose turn it is, beside the actor's name: its own, or another's (an off-turn action); nothing out of combat.
+  const turnBadge=$("pc-attack-turn");
+  function renderTurnBadge() {
+    if(!turnBadge) return;
+    const order=Array.isArray(presentation?.turnState?.order)?presentation.turnState.order.filter(Boolean):[];
+    turnBadge.hidden=!presentation || !order.length;
+    if(turnBadge.hidden) return;
+    const off=isOffTurn(presentation.turnState,sourceId);
+    turnBadge.dataset.turn=off?"off":"own";
+    turnBadge.textContent=off?"Fuori turno":"Turno";
+  }
   function renderHeader() {
     const action=presentation?.action,attack=resolved();
-    // With the picker the title names the cantrip or spell chosen, not the action that records it.
-    const named=pickerShown()?attack?.cantrip?.name || attack?.spell?.name:"";
-    $("pc-attack-title").textContent=named || action?.label || "Attacco";
+    $("pc-attack-title").textContent=actorName();
+    // The subtitle names the cantrip or spell chosen, not the action that records it.
+    const named=attack?.cantrip?.name || attack?.spell?.name || "";
     // A saving throw cantrip names its save (and the actor's DC) instead of a range.
     const saveLabel=pcAttackSaveLabel(attack,presentation?.item?.metadata?.[META_KEY]?.initiativeCard);
-    const parts=[presentation?.item?.name || presentation?.item?.id,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[]),
+    const parts=[named || action?.label,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[]),
       saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":RANGE_LABELS[attack?.range]) || ""].filter(Boolean);
     $("pc-attack-subtitle").textContent=presentation?parts.join(" · "):"";
   }
@@ -1505,7 +1519,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // Saving or loading: the console says so to assistive technology, Registra in words.
     documentRef.querySelector?.(".glass-shell")?.setAttribute?.("aria-busy",String(busy || launchBusy));
     apply.textContent=committing?"Registro…":"Registra";
-    renderFollow();renderUseSelected();renderReaction();
+    renderFollow();renderUseSelected();renderReaction();renderTurnBadge();
     if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
     form.hidden=false;
     // A spell that left the book (or a launch view on an entry gone) falls back to the attack, or the first spell.
@@ -1523,7 +1537,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Selection and scene updates never rebuild the outcome buttons or the amount fields: a click in
   // flight or the caret in a field survives them.
   function renderLive() {
-    renderFollow();renderUseSelected();renderReaction();
+    renderFollow();renderUseSelected();renderReaction();renderTurnBadge();
     if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
     renderPicker();renderCaster();
     if(launching()){renderLaunch();return;}
@@ -1846,6 +1860,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const back=node("button",away.name?`Torna a ${away.name}`:"Torna al turno","small");back.type="button";
       back.disabled=busy || launchBusy;
       back.addEventListener("click",()=>{if(!busy && !launchBusy && leaveDraft())switchActor(away.id,away.name);});
+      followBar.dataset.kind="off";
       followBar.replaceChildren(node("span",`Fuori turno${away.name?`: è il turno di ${away.name}`:""}.`),back);
       return;
     }
@@ -1853,7 +1868,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const pendingSignature=JSON.stringify(["pending",next,name,pendingReady]);
     if(pendingSignature===followSignature) return;
     followSignature=pendingSignature;
-    const button=node("button",next?(name?`Passa a ${name}`:"Passa al nuovo turno"):"Chiudi",pendingReady?"apply follow-ready":"small");button.type="button";
+    const button=node("button",next?(name?`Passa a ${name}`:"Passa al nuovo turno"):"Chiudi",pendingReady?"apply primary follow-ready":"small");button.type="button";
     button.addEventListener("click",()=>{
       const target=pendingFollow;
       if(!target || busy || launchBusy) return;
@@ -1861,6 +1876,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(!target.sourceId){closeConsole();return;}
       switchActor(target.sourceId,target.name);
     });
+    // The turn moved on (amber), or the attack is registered and the move is the main action (blue).
+    followBar.dataset.kind=pendingReady?"ready":"moved";
     followBar.classList?.toggle?.("ready",pendingReady);
     followBar.replaceChildren(node("span",pendingReady?`Registrato. ${name?`È il turno di ${name}.`:"È cambiato il turno."}`:name?`È il turno di ${name}.`:"È cambiato il turno."),button);
   }

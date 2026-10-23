@@ -12,7 +12,7 @@ const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const { pcAttackPickerEntries } = await import("../src/pcAttackPickerCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
-const IDS = ["pc-attack-reaction", "pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
+const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
@@ -106,8 +106,9 @@ async function typeAmounts(f, values) {
 test("the console shows the attack and asks for a target first", async () => {
   const f = fixture(); await f.controller.ready; await tick();
   assert.equal(f.$("pc-attack-form").hidden, false);
-  assert.equal(f.$("pc-attack-title").textContent, "Spada sacra");
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Aria · Mischia");
+  assert.equal(f.$("pc-attack-title").textContent, "Aria");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Spada sacra( · |$)/);
+  assert.equal(f.$("pc-attack-subtitle").textContent, "Spada sacra · Mischia");
   assert.match(textOf(f.$("pc-attack-damage")), /taglienti .*1d8\+3 .*radiosi .*2d8/i);
   assert.equal(f.$("pc-attack-apply").disabled, true);
   assert.equal(f.$("pc-attack-total").textContent, "Scegli il bersaglio.");
@@ -277,11 +278,11 @@ test("a cantrip action: pick the cantrip, its dice follow the character level, n
   assert.equal(f.$("pc-attack-cantrip-row").hidden, false);
   assert.deepEqual(picker.children.map((option) => option.textContent), ["Dardo di fuoco", "Deflagrazione occulta", "Stretta folgorante"]);
   assert.equal(picker.value, "eldritch-blast", "the cantrip used last comes first");
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Aria · Trucchetto · Distanza");
+  assert.equal(f.$("pc-attack-subtitle").textContent, "Deflagrazione occulta · Trucchetto · Distanza");
   assert.match(textOf(f.$("pc-attack-damage")), /Forza 1d10/);
   assert.match(f.$("pc-attack-cantrip-note").textContent, /Raggi: 2 al livello del personaggio/);
   picker.value = "shocking-grasp"; await picker.emit("change");
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Aria · Trucchetto · Mischia");
+  assert.equal(f.$("pc-attack-subtitle").textContent, "Stretta folgorante · Trucchetto · Mischia");
   assert.match(textOf(f.$("pc-attack-damage")), /Fulmine 2d8/);
   assert.equal(f.$("pc-attack-cantrip-note").textContent,
     "Vantaggio al tiro per colpire contro un bersaglio con armatura di metallo. Al colpo: etichetta «Niente reazioni».");
@@ -310,7 +311,7 @@ test("a saving throw cantrip: TS outcomes, the save in the subtitle, Toll the De
   picker.value = "xanathar-rintocco-dei-morti"; await picker.emit("change");
   assert.equal(f.controller.getDraft().outcome, "", "an attack outcome does not carry over to a save");
   assert.deepEqual(f.$("pc-attack-outcomes").children.map((button) => button.textContent), ["TS fallito", "TS superato"]);
-  assert.equal(f.$("pc-attack-subtitle").textContent, "Aria · Trucchetto · TS Saggezza (CD 14)");
+  assert.equal(f.$("pc-attack-subtitle").textContent, "Rintocco dei Morti · Trucchetto · TS Saggezza (CD 14)");
   assert.match(textOf(f.$("pc-attack-damage")), /Necrotici 2d8/);
   assert.equal(f.$("pc-attack-cantrip-note").hidden, true, "Toll the Dead has no note");
   picker.value = "fire-bolt"; await picker.emit("change");
@@ -679,7 +680,8 @@ test("the picker: one tab per kind, the entries of the current tab, the cantrip 
   assert.deepEqual(pickerOptions(f), ["holy-sword", "axe"]);
   assert.equal(f.$("pc-attack-picker-select").value, "holy-sword");
   await pickerTabs(f)[1].click(); await tick();
-  assert.equal(f.$("pc-attack-title").textContent, "Dardo di fuoco", "the title names the cantrip chosen");
+  assert.equal(f.$("pc-attack-title").textContent, "Aria");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Dardo di fuoco( · |$)/, "the title names the cantrip chosen");
   assert.deepEqual(pickerOptions(f), ["cantrip::fire-bolt", "cantrip::ray-of-frost"]);
   assert.equal(f.controller.getDraft().spellId, "fire-bolt");
   assert.equal(f.$("pc-attack-cantrip").hidden, true, "the picker replaces the cantrip select");
@@ -691,7 +693,8 @@ test("another weapon loads its action with a fresh draft; the target stays and t
   await f.select(["ghoul"]);
   assert.equal(f.$("pc-attack-picker-tabs").hidden, true, "a single tab shows no tabs");
   await pick(f, "axe");
-  assert.equal(f.$("pc-attack-title").textContent, "Ascia");
+  assert.equal(f.$("pc-attack-title").textContent, "Aria");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Ascia( · |$)/);
   assert.deepEqual(f.loads, ["holy-sword", "axe"]);
   assert.equal(f.controller.getDraft().targetId, "ghoul");
   await f.outcome("hit").click();
@@ -718,12 +721,14 @@ test("an attack with decisions asks before switching, and stays when the GM decl
   await f.outcome("hit").click();
   await pick(f, "axe");
   assert.equal(asked.length, 1);
-  assert.equal(f.$("pc-attack-title").textContent, "Spada sacra");
+  assert.equal(f.$("pc-attack-title").textContent, "Aria");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Spada sacra( · |$)/);
   assert.equal(f.$("pc-attack-picker-select").value, "holy-sword", "the select goes back to the attack in use");
   assert.equal(f.controller.getDraft().outcome, "hit");
   answer = true;
   await pick(f, "axe");
-  assert.equal(f.$("pc-attack-title").textContent, "Ascia");
+  assert.equal(f.$("pc-attack-title").textContent, "Aria");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Ascia( · |$)/);
   assert.equal(f.controller.getDraft().outcome, "");
 });
 
@@ -798,7 +803,8 @@ test("a spell the console does not resolve shows its card instead of the form; t
   await pickerTabs(f)[2].click(); await tick();
   assert.equal(f.$("pc-attack-attack-view").hidden, true);
   assert.equal(f.$("pc-attack-launch").hidden, false);
-  assert.equal(f.$("pc-attack-title").textContent, "Benedizione");
+  assert.equal(f.$("pc-attack-title").textContent, "Aria");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Benedizione( · |$)/);
   assert.match(f.$("pc-attack-subtitle").textContent, /Incantesimo di 1° livello/);
   assert.match(textOf(f.$("pc-attack-launch")), /Concentrazione/);
   assert.equal(f.$("pc-attack-launch-button").textContent, "Lancia");
@@ -820,7 +826,8 @@ test("a spell the console does not resolve shows its card instead of the form; t
     "the casting time at a glance");
   assert.equal(rows[0].getAttribute("aria-pressed"), "true");
   await rows[1].click(); await tick();
-  assert.equal(f.$("pc-attack-title").textContent, "Scudo della fede");
+  assert.equal(f.$("pc-attack-title").textContent, "Aria");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Scudo della fede( · |$)/);
   assert.equal(list.querySelectorAll("button")[1].getAttribute("aria-pressed"), "true");
   assert.match(textOf(f.$("pc-attack-launch")), /Lanciandolo termina la concentrazione su Benedizione/);
   await pickerTabs(f)[0].click(); await tick();
@@ -866,14 +873,16 @@ test("an actor with spells and no attack opens on its spells", async () => {
   assert.equal(f.controller.getDraft(), null);
   assert.equal(f.$("pc-attack-form").hidden, false);
   assert.equal(f.$("pc-attack-attack-view").hidden, true);
-  assert.equal(f.$("pc-attack-title").textContent, "Luce");
+  assert.equal(f.$("pc-attack-title").textContent, "Aria");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Luce( · |$)/);
 });
 
 test("a blade cantrip points to the weapon attack", async () => {
   const card = { quickActions: [sword], spellbook: { spellIds: ["tasha-lama-roboante", "light"] } };
   const f = fixture({ card, attacker: { initiativeCard: card } }); await f.controller.ready; await tick();
   await pickerTabs(f)[1].click(); await tick();
-  assert.equal(f.$("pc-attack-title").textContent, "Lama Roboante");
+  assert.equal(f.$("pc-attack-title").textContent, "Aria");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Lama Roboante( · |$)/);
   assert.match(textOf(f.$("pc-attack-launch")), /Si lancia con un attacco con arma da mischia/);
   assert.equal(f.$("pc-attack-launch-button").hidden, true, "no Lancia for a blade cantrip");
 });
@@ -897,7 +906,7 @@ test("a clean console follows the turn: the new actor in place, a fresh attack, 
   await bus.follow("imp", "Imp");
   assert.equal(f.sources.at(-1), "imp");
   assert.equal(f.loads.at(-1), "", "the new actor opens on its own last attack");
-  assert.match(f.$("pc-attack-subtitle").textContent, /^Imp/);
+  assert.equal(f.$("pc-attack-title").textContent, "Imp", "the title names the new actor");
   assert.equal(f.controller.getDraft().outcome, "");
   assert.equal(f.$("pc-attack-undo").hidden, true);
   assert.equal(f.$("pc-attack-status").textContent, "Turno di Imp.");
@@ -969,7 +978,8 @@ test("the Capacità tab lists the features by group with their activation and us
   assert.equal(list.hidden, false, "the features tab is a list");
   assert.deepEqual(list.querySelectorAll(".picker-level").map((header) => header.textContent), ["Utilizzabili", "Altre capacità"]);
   assert.match(textOf(list.querySelectorAll("button")[0]), /Ira.*Azione bonus · 2\/3/);
-  assert.match(f.$("pc-attack-title").textContent, /Ira$/);
+  assert.equal(f.$("pc-attack-title").textContent, "Aria");
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Ira · /, "the feature without the catalog's emoji");
   assert.match(f.$("pc-attack-subtitle").textContent, /Capacità di classe/);
   assert.match(textOf(f.$("pc-attack-launch")), /Azione bonus.*su di sé/);
   assert.match(textOf(f.$("pc-attack-total")), /Ire 2\/3/, "the uses left beside the button");
@@ -991,7 +1001,7 @@ test("an active feature offers Termina; a passive one is only read", async () =>
   assert.deepEqual(runtime.calls, [["deactivateClassFeature", "aria", "rage-1"]]);
   assert.match(f.$("pc-attack-status").textContent, /Capacità terminata: Ira\./);
   await f.$("pc-attack-picker-list").querySelectorAll("button")[2].click(); await tick();
-  assert.match(f.$("pc-attack-title").textContent, /Difesa Senza Armatura/);
+  assert.match(f.$("pc-attack-subtitle").textContent, /Difesa Senza Armatura/);
   assert.match(textOf(f.$("pc-attack-launch")), /Passiva/);
   assert.equal(f.$("pc-attack-launch-button").hidden, true, "a passive feature has no button");
 });
@@ -1045,6 +1055,16 @@ test("Lay on Hands takes its points in the card and heals the creature selected;
   await f.$("pc-attack-launch-button").click(); await tick();
   assert.deepEqual(runtime.calls.at(-1), ["purifyClassFeatureSpell",
     { sourceId: "aria", featureId: "paladino-tocco-purificatore", targetIds: ["ghoul"], spellInstanceId: "hold-1", spellName: "Blocca persone" }]);
+});
+
+test("the title names who acts, its badge whose turn it is", async () => {
+  const own = fixture({ turnState: { round: 1, order: ["aria", "ghoul"], current: 0 } }); await own.controller.ready; await tick();
+  assert.equal(own.$("pc-attack-title").textContent, "Aria");
+  assert.deepEqual([own.$("pc-attack-turn").hidden, own.$("pc-attack-turn").textContent, own.$("pc-attack-turn").dataset.turn], [false, "Turno", "own"]);
+  const off = fixture({ turnState: { round: 1, order: ["aria", "ghoul"], current: 1 } }); await off.controller.ready; await tick();
+  assert.deepEqual([off.$("pc-attack-turn").textContent, off.$("pc-attack-turn").dataset.turn], ["Fuori turno", "off"]);
+  const out = fixture({}); await out.controller.ready; await tick();
+  assert.equal(out.$("pc-attack-turn").hidden, true, "no badge out of combat");
 });
 
 test("a feature on the map selection says who it reaches; a spent one fades and says why beside its button", async () => {
@@ -1169,7 +1189,8 @@ test("an attack registered while a turn change waits: the bar offers the move in
   await typeAmounts(f, ["8", "9"]);
   await f.$("pc-attack-apply").click(); await tick();
   assert.match(textOf(bar), /Registrato\. È il turno di Imp\./);
-  assert.equal(bar.querySelector("button").className, "apply follow-ready");
+  assert.equal(bar.querySelector("button").className, "apply primary follow-ready");
+  assert.equal(bar.dataset.kind, "ready");
   assert.equal(f.sources.includes("imp"), false, "another attack can still be made: the move waits for the GM");
 });
 
