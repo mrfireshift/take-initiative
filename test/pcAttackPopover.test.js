@@ -12,7 +12,7 @@ const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const { pcAttackPickerEntries } = await import("../src/pcAttackPickerCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
-const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", "pc-attack-minimize", "pc-attack-use-selected-row", "pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
+const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", "pc-attack-minimize", "pc-attack-picker-dropdown", "pc-attack-picker-dropdown-button", "pc-attack-picker-menu", "pc-attack-use-selected-row", "pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
@@ -1092,8 +1092,7 @@ test("the lists: the favourites first, a search in long lists, the features to r
   const f = fixture({ card: clericCard, attacker: clericMeta }); await f.controller.ready; await tick();
   await pickerTabs(f).find((button) => button.textContent === "Trucchetti").click(); await tick();
   assert.deepEqual(f.$("pc-attack-picker-select").children.map((option) => option.textContent), ["Fiamma sacra ⚔ · Azione", "Luce · Azione"],
-    "the cantrips in the select, their cost capitalised");
-  assert.equal(f.$("pc-attack-picker-select").hidden, false);
+    "the cantrips in the select (the dropdown's fallback), their cost capitalised");
   const book = Array.from({ length: 14 }, (_, index) => ["bless", "shield-of-faith", "cure-wounds", "command", "sanctuary", "guiding-bolt", "healing-word",
     "inflict-wounds", "detection-of-evil-and-good", "create-or-destroy-water", "purify-food-and-drink", "aid", "lesser-restoration", "spiritual-weapon"][index]);
   const longCard = { ...clericCard, spellbook: { spellIds: book, pinnedIds: ["aid"] } };
@@ -1115,6 +1114,27 @@ test("the lists: the favourites first, a search in long lists, the features to r
   assert.equal(other.dataset.count, String(others().length));
   await other.click(); await tick();
   assert.ok(others().every((row) => !row.hidden), "open on a click");
+});
+
+test("the attacks' and cantrips' dropdown: each entry with its cost on the right; Esc closes the menu, not the console", async () => {
+  const f = fixture({ card: clericCard, attacker: clericMeta }); await f.controller.ready; await tick();
+  await pickerTabs(f).find((button) => button.textContent === "Trucchetti").click(); await tick();
+  const button = f.$("pc-attack-picker-dropdown-button"), menu = f.$("pc-attack-picker-menu");
+  assert.equal(f.$("pc-attack-picker-dropdown").hidden, false);
+  assert.equal(f.$("pc-attack-picker-select").hidden, true, "the select stays behind it");
+  assert.match(textOf(button), /Fiamma sacra .*Azione/);
+  await button.click(); await tick();
+  assert.equal(menu.hidden, false);
+  const rows = menu.querySelectorAll("button");
+  assert.deepEqual(rows.map((row) => textOf(row).trim()), ["Fiamma sacra Azione · ⚔", "Luce Azione"], "the cost first on the right, coloured");
+  assert.equal(rows[0].querySelector("[data-cost]").dataset.cost, "action");
+  await f.keydown("Escape", rows[0]);
+  assert.equal(menu.hidden, true, "Esc closes the menu");
+  assert.deepEqual(f.closed, [], "and not the console");
+  await button.click(); await tick();
+  await menu.querySelectorAll("button")[1].click(); await tick();
+  assert.equal(menu.hidden, true);
+  assert.match(f.$("pc-attack-subtitle").textContent, /^Luce/, "the entry chosen");
 });
 
 test("Riduci folds the console to its header and back; a creature selected offers its off-turn action by name", async () => {

@@ -84,6 +84,14 @@
     .picker-row:hover { background: var(--obrt-hover); }
     .picker-row[aria-pressed="true"] { border-color: rgba(96, 165, 250, .55); background: rgba(37, 99, 235, .28); }
     .picker-row:disabled { cursor: default; opacity: .6; }
+    /* The attacks' and cantrips' dropdown: the entry in use with its cost on the right; its menu, the list's rows. */
+    .picker-dropdown { position: relative; }
+    .picker-dropdown-button { width: 100%; display: flex; align-items: center; gap: 8px; min-height: var(--obrt-h-control-md); padding: 0 10px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); text-align: left; cursor: pointer; }
+    .picker-dropdown-button .picker-row-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .picker-dropdown-button[aria-expanded="true"] { border-color: rgba(96, 165, 250, .7); }
+    .picker-dropdown-button:disabled { cursor: default; opacity: .6; }
+    .picker-dropdown-caret { flex: 0 0 auto; width: 12px; height: 8px; background: var(--obrt-select-caret-image) no-repeat center / 12px 8px; }
+    .picker-menu { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; right: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; max-height: 264px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); box-shadow: 0 12px 28px rgba(0, 0, 0, .45); }
     .picker-search { width: 100%; min-height: var(--obrt-h-control-sm); padding: 4px var(--obrt-space-md); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-size: var(--obrt-type-secondary); }
     .picker-search:focus { border-color: rgba(96, 165, 250, .7); }
     /* The features to read, folded under their header (the number of entries, an arrow that turns when open). */
@@ -284,6 +292,10 @@
       <section class="view" id="pc-attack-form" aria-label="Attacco" hidden>
         <section class="picker" id="pc-attack-picker" aria-label="Scelta dell'attacco" hidden>
           <div class="segmented picker-tabs" id="pc-attack-picker-tabs" role="group" aria-label="Tipo di attacco"></div>
+          <div class="picker-dropdown" id="pc-attack-picker-dropdown" hidden>
+            <button class="picker-dropdown-button" id="pc-attack-picker-dropdown-button" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Attacco"></button>
+            <div class="picker-menu" id="pc-attack-picker-menu" role="group" aria-label="Attacchi" hidden></div>
+          </div>
           <select class="target-select" id="pc-attack-picker-select" aria-label="Attacco"></select>
           <input class="picker-search" id="pc-attack-picker-search" type="search" autocomplete="off" spellcheck="false" aria-label="Cerca nell'elenco" hidden />
           <div class="picker-list" id="pc-attack-picker-list" role="group" aria-label="Incantesimi" hidden></div>

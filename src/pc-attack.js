@@ -181,6 +181,28 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select"),pickerList=$("pc-attack-picker-list");
   // The long lists' search.
   const pickerSearch=$("pc-attack-picker-search");
+  // The attacks and cantrips in a menu of its own: the entry in use on its button, the cost of each on the right.
+  const pickerDropdown=$("pc-attack-picker-dropdown"),dropdownButton=$("pc-attack-picker-dropdown-button"),pickerMenu=$("pc-attack-picker-menu");
+  let menuOpen=false;
+  function setMenuOpen(open,{focus=false}={}) {
+    if(!pickerMenu || !dropdownButton) return;
+    menuOpen=!!open && !busy;
+    pickerMenu.hidden=!menuOpen;
+    dropdownButton.setAttribute("aria-expanded",String(menuOpen));
+    if(menuOpen) (pickerMenu.querySelector('[aria-pressed="true"]') || pickerMenu.querySelector("button"))?.focus?.();
+    else if(focus) dropdownButton.focus?.();
+  }
+  dropdownButton?.addEventListener("click",()=>setMenuOpen(!menuOpen));
+  dropdownButton?.addEventListener("keydown",event=>{if(event.key==="ArrowDown"){event.preventDefault?.();setMenuOpen(true);}});
+  // Up and down move through the menu's entries.
+  pickerMenu?.addEventListener("keydown",event=>{
+    if(!["ArrowDown","ArrowUp"].includes(event.key)) return;
+    event.preventDefault?.();
+    const rows=[...pickerMenu.querySelectorAll("button")],at=rows.indexOf(documentRef.activeElement);
+    rows[Math.max(0,Math.min(rows.length-1,at+(event.key==="ArrowDown"?1:-1)))]?.focus?.();
+  });
+  // A click elsewhere closes it.
+  documentRef.addEventListener?.("click",event=>{if(menuOpen && !event.target?.closest?.("#pc-attack-picker-dropdown"))setMenuOpen(false);});
   const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open");
   const attackView=$("pc-attack-attack-view"),launchBox=$("pc-attack-launch"),casterLine=$("pc-attack-caster");
   // A spell the console does not resolve (launched, woven into a weapon, or by hand): its card replaces the attack form.
@@ -925,12 +947,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // A row's marks: its cost first (the activation, or the casting time), coloured, then the uses left (a badge, red at
     // zero) or the spell's marks, each explained in its tooltip. A favourite spell, listed apart, names its level.
     const favourite=entry=>entry.tab==="spells" && entry.pinned;
-    const rowCost=entry=>entry.tab==="features"?entry.activation:castingTimeLabel(entry.spellId);
+    const rowCost=entry=>entry.tab==="features"?entry.activation:entry.tab==="attacks"?"azione":castingTimeLabel(entry.spellId);
     const rowParts=entry=>(entry.tab==="features"
       ?[...featureUses(entry).map(row=>({text:`${row.current}/${row.maximum}`,title:row.name,uses:true,zero:row.current===0})),
         featureActive(entry)?{text:"attiva",title:"Capacità attiva"}:null]
       :[favourite(entry)?{text:`${entry.level}°`,title:`Incantesimo di ${entry.level}° livello`}:null,
-        entry.mode==="attack"?{text:"⚔",title:"Si risolve nella console"}:null,entry.concentration?{text:"Conc.",title:"Concentrazione"}:null,
+        entry.tab!=="attacks" && entry.mode==="attack"?{text:"⚔",title:"Si risolve nella console"}:null,entry.concentration?{text:"Conc.",title:"Concentrazione"}:null,
         entry.ritual?{text:"Rit.",title:"Rituale"}:null,inProgress(entry)?{text:"in corso",title:"Lancio in corso: raggi o dardi ancora da registrare"}:null]).filter(Boolean);
     const rowTags=entry=>[capitalized(rowCost(entry)),...rowParts(entry).map(part=>part.text),exhausted(entry)?"esaurita":""].filter(Boolean).join(" · ");
     const rowTagsNode=entry=>{
@@ -972,6 +994,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         return button;
       }));
       pickerSelect.replaceChildren(...(asList?[]:inTab.map(entry=>{const option=node("option",label(entry));option.value=entry.key;return option;})));
+      // The menu's entries, the list's rows: the name on the left, the cost and marks on the right.
+      if(pickerMenu) pickerMenu.replaceChildren(...(asList?[]:inTab.map(entry=>{
+        const row=node("button","","picker-row");row.type="button";row.dataset.pickerKey=entry.key;row.title=label(entry);
+        row.append(node("span",`${entry.pinned?"★ ":""}${entry.label}`,"picker-row-name"),rowTagsNode(entry));
+        row.addEventListener("click",()=>{setMenuOpen(false,{focus:true});chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key));});
+        return row;
+      })));
       // The spells by level (as in the 🪄 menu), the features by group: one row each, its marks on the right.
       if(pickerList) pickerList.replaceChildren(...(!asList?[]:groups.flatMap(group=>[
         (()=>{
@@ -999,8 +1028,19 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
     pickerTabs.hidden=tabs.length<2;
     for(const button of pickerTabs.querySelectorAll("button")){button.setAttribute("aria-pressed",String(button.dataset.pickerTab===current.tab));button.disabled=busy;}
-    pickerSelect.hidden=asList || inTab.length<2;
+    const asDropdown=!asList && !!pickerDropdown && !!dropdownButton && inTab.length>=2;
+    pickerSelect.hidden=asList || asDropdown || inTab.length<2;
     if(!asList){pickerSelect.value=current.key;pickerSelect.disabled=busy;}
+    if(pickerDropdown) {
+      pickerDropdown.hidden=!asDropdown;
+      if(!asDropdown) setMenuOpen(false);
+      else {
+        dropdownButton.replaceChildren(node("span",`${current.pinned?"★ ":""}${current.label}`,"picker-row-name"),rowTagsNode(current),node("span","","picker-dropdown-caret"));
+        dropdownButton.title=label(current);dropdownButton.disabled=busy;
+        if(busy) setMenuOpen(false);
+        for(const row of pickerMenu?.querySelectorAll("button") || []){row.setAttribute("aria-pressed",String(row.dataset.pickerKey===current.key));row.disabled=busy;}
+      }
+    }
     if(pickerSearch) {
       pickerSearch.hidden=!(asList && inTab.length>12);
       pickerSearch.placeholder=current.tab==="features"?"Cerca capacità…":"Cerca incantesimo…";
@@ -1994,6 +2034,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   $("pc-attack-close").addEventListener("click",()=>closeConsole());
   documentRef.addEventListener?.("keydown",event=>{
     // Esc closes the console, after asking when an attack holds decisions not registered yet.
+    if(event.key==="Escape" && menuOpen){setMenuOpen(false,{focus:true});return;}
     if(event.key==="Escape"){
       if(busy) return;
       if(((draft && draftLocked(draft)) || palmDraft.outcome) && !confirmSwitch("Chiudere la console? Le scelte non registrate andranno perse.")) return;
