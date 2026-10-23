@@ -731,10 +731,11 @@ export function writeCompactHPText(
       Object.assign(span.style, style);
       return span;
     };
+    // One look for the whole text (white, the container's weight): no part stands out from the others.
     hpText.replaceChildren(
-      part("HP ", { fontWeight: "600", opacity: ".65" }),
-      part(current, { fontWeight: "var(--obrt-weight-heavy, 800)" }),
-      part(` / ${maximum}`, { fontWeight: "600", opacity: ".65" }),
+      part("HP ", {}),
+      part(current, {}),
+      part(` / ${maximum}`, {}),
     );
   } catch {
     hpText.textContent = `HP ${current} / ${maximum}`;
@@ -745,9 +746,7 @@ export function writeCompactHPText(
 export function compactHPTextHTML(hp, hpMax) {
   const current = Math.round(Number(hp) || 0);
   const maximum = Math.round(Number(hpMax) || 0);
-  return `<span style="font-weight:600;opacity:.65">HP </span>`
-    + `<span style="font-weight:var(--obrt-weight-heavy, 800)">${current}</span>`
-    + `<span style="font-weight:600;opacity:.65"> / ${maximum}</span>`;
+  return `<span>HP </span><span>${current}</span><span> / ${maximum}</span>`;
 }
 
 // GM: a click on the HP text opens the classic card's inline editor (bindHPEditorForEntry), with the same save path.
@@ -957,9 +956,10 @@ export function buildCompactCardHP(
     width: "100%",
     height: "11px",
     overflow: "hidden",
-    color: knockedOut ? "rgba(255,255,255,.58)" : "rgba(226,232,240,.82)",
+    // White at one weight; a knocked-out creature's text stays dimmed, like the rest of its card.
+    color: knockedOut ? "rgba(255,255,255,.58)" : "#fff",
     fontSize: "var(--obrt-type-tracker-meta, 10px)",
-    fontWeight: "700",
+    fontWeight: "600",
     fontVariantNumeric: "tabular-nums",
     lineHeight: "11px",
     textAlign: "center",

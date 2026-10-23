@@ -353,7 +353,7 @@ Stato dei lotti:
   - **Dove:** solo GM, e non su gruppi collassati, turni di Tana, azioni epiche e HP non esatti, come nel classico. Solo il testo apre l'editor, la barra no (scelta dell'utente). Il compatto non ha il pulsante ±: il massimo si cambia nel secondo campo.
   - **Etichette:** il testo riceve `data-badge="hp"` e `data-item-id` come la pillola del classico, così il passaggio tra editor, il Tab e le guardie di `renderAll()` lo trovano senza modifiche.
   - **`syncTrackerHPNow`:** non scrive il formato classico nel testo compatto, e non lo riscrive mentre è in modifica; un aggiornamento che arriva da altrove aggiorna solo la barra.
-  - **Aspetto in modifica:** su richiesta dell'utente (2026-10-23) niente sfondo né bordo, ma una differenza minima: "HP 78 / 100" resta al suo posto, tutto bianco al peso dei massimi (600), con una riga leggera sotto i due numeri; campi larghi quanto il numero (`field-sizing`, 3ch dove non c'è). Regole in `index.html`; l'editor condiviso non cambia.
+  - **Aspetto in modifica:** su richiesta dell'utente (2026-10-23) niente sfondo né bordo, ma una differenza minima: "HP 78 / 100" resta al suo posto con una riga leggera sotto i due numeri. Anche in lettura il testo è tutto bianco a un solo peso (600), senza risalto per gli HP attuali (abbassato solo per una creatura fuori combattimento); campi larghi quanto il numero (`field-sizing`, 3ch dove non c'è). Regole in `index.html`; l'editor condiviso non cambia.
   - **Verifica nell'anteprima:**
     - editor solo sulle card giuste (non sulle azioni epiche); il clic non seleziona il token;
     - Lavera `-7` e Invio: da 98 a 91, testo "HP 91 / 98", barra al 92,9%, voce "Modifica HP" in cronologia, avviso di concentrazione;

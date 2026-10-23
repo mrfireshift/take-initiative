@@ -713,15 +713,17 @@ test("la presentazione HP compatta conserva dataset, barra e badge KO", () => {
   assert.equal(hidden.knockedOutBadge, null);
 });
 
-test("il testo HP compatto mette in evidenza il valore e si riscrive senza accumulare parti", () => {
+test("il testo HP compatto è tutto bianco a un solo peso e si riscrive senza accumulare parti", () => {
   const documentRef = createTestDocument();
   const hpText = documentRef.createElement("div");
 
   writeCompactHPText(hpText, 78, 100, { documentRef });
   assert.deepEqual(hpText.children.map((part) => part.textContent), ["HP ", "78", " / 100"]);
-  assert.equal(hpText.children[1].style.fontWeight, "var(--obrt-weight-heavy, 800)");
-  assert.equal(hpText.children[0].style.opacity, ".65");
-  assert.equal(hpText.children[2].style.opacity, ".65");
+  // No part stands out: weight and colour come from the text itself.
+  for (const part of hpText.children) {
+    assert.equal(part.style.fontWeight, undefined);
+    assert.equal(part.style.opacity, undefined);
+  }
 
   // The live HP sync writes again on every change: the parts are replaced, never appended.
   writeCompactHPText(hpText, 41.6, 100, { documentRef });
@@ -1227,7 +1229,7 @@ test("il testo HP compatto si apre all'editor del classico e conserva il suo for
   const documentRef = createTestDocument();
   const html = compactHPTextHTML(78.4, 100);
   assert.equal(html.replace(/<[^>]+>/g, ""), "HP 78 / 100");
-  assert.ok(html.includes(`font-weight:var(--obrt-weight-heavy, 800)">78<`));
+  assert.equal(html, "<span>HP </span><span>78</span><span> / 100</span>");
 
   const hpText = documentRef.createElement("div");
   hpText.dataset.cardHpText = "1";
@@ -1294,4 +1296,12 @@ test("lotto 6.5: il badge di iniziativa compatto ha le etichette del classico pe
   const untouched = documentRef.createElement("span");
   markCompactInitiativeBadgeEditable(untouched, {});
   assert.equal(untouched.dataset.badge, undefined);
+});
+
+test("il testo HP compatto è bianco e a peso 600; abbassato solo per una creatura fuori combattimento", () => {
+  const options = (knockedOut) => ({ showHP: true, safeHP: knockedOut ? 0 : 78, hpMax: 100, hpPercent: knockedOut ? 0 : .78, knockedOut, hpColorByPct: () => "#22c55e", documentRef: createTestDocument() });
+  const healthy = buildCompactCardHP({ id: "omar" }, options(false));
+  assert.equal(healthy.hpText.style.color, "#fff");
+  assert.equal(healthy.hpText.style.fontWeight, "600");
+  assert.equal(buildCompactCardHP({ id: "brann" }, options(true)).hpText.style.color, "rgba(255,255,255,.58)");
 });

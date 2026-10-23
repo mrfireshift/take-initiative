@@ -6439,7 +6439,7 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
       if (showHP) writeCompactHPText(hpText, nHP, nHPMax);
       else hpText.textContent = "";
       hpText.style.display = showHP ? "block" : "none";
-      hpText.style.color = knockedOut ? "rgba(255,255,255,.58)" : "rgba(226,232,240,.82)";
+      hpText.style.color = knockedOut ? "rgba(255,255,255,.58)" : "#fff";
     }
 
     const fill = card.querySelector("[data-hp-fill='1']");
