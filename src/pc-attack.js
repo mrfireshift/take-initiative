@@ -396,12 +396,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   };
   const amountInput=(value,label)=>{
     const input=node("input","","amount");input.type="number";input.min="0";input.step="1";input.inputMode="numeric";input.value=value;
-    input.setAttribute("aria-label",label);return input;
+    input.setAttribute("aria-label",label);input.title="Il totale tirato";return input;
   };
   // Every damage row shares one grid: lead (checkbox, remove or nothing), name over a secondary line, amount.
   const componentRow=(lead,body,amount)=>{
     const row=node("div","","component-row");
-    const leadCell=node("div","","component-lead");if(lead)leadCell.append(lead);
+    const leadCell=node(lead?.type==="checkbox"?"label":"div","","component-lead");if(lead)leadCell.append(lead);
     row.append(leadCell,body,amount);return row;
   };
   const separator=()=>node("span","·","separator");
@@ -473,6 +473,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(field("type")) field("type").disabled=busy;
       const dice=option.slotLevels?(state.bonus?option.bonus.diceBySlot:option.diceBySlot)[state.slotLevel]:option.dice;
       field("dice").textContent=dice?(draft.outcome==="critical"?`${dice} · critico ${pcAttackCriticalDice(dice)}`:dice):"—";
+      field("amount").placeholder=dice?(draft.outcome==="critical"?pcAttackCriticalDice(dice):dice):"";
       if(field("options")) field("options").hidden=!state.on;
       for(const name of ["slot","bonus","onHit"]) if(field(name)) field(name).disabled=busy || (name==="slot" && option.slotLevels.length===1);
       field("reason").textContent=option.available?option.warning || "":option.reason;
@@ -488,6 +489,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     activationsBox.replaceChildren(...options.map(option=>{
       const state=draft.activations[option.id] ||= {on:false,type:option.types[0] || "",amount:"",saveOutcome:"",secondaryTargetId:"",choice:"",
         ...(option.tempHp?{tempHp:[{targetId:"",amount:""}]}:{})};
+      let tempHpList=null;
       const toggle=node("input");toggle.type="checkbox";toggle.dataset.activationField="on";toggle.setAttribute("aria-label",option.label);
       toggle.addEventListener("change",()=>{
         state.on=toggle.checked;
@@ -517,8 +519,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       }
       // Inspiring Smite: the creatures that share the total (the row's amount), each with its temporary hit points.
       if(option.tempHp) {
-        const list=node("div","","temp-hp-list");list.dataset.activationField="temp-hp";
-        extra.append(list);
+        tempHpList=node("div","","temp-hp-list");tempHpList.dataset.activationField="temp-hp";
       }
       // Bursting Arrow: the creatures around the target, proposed from the map and ticked by the GM.
       if(option.burst) {
@@ -546,6 +547,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const amount=amountInput(state.amount,option.tempHp?`Totale PF temporanei di ${option.label}`:`Danni di ${option.label}`);amount.dataset.activationField="amount";
       amount.addEventListener("input",()=>{state.amount=amount.value.trim();renderState();});
       const row=componentRow(toggle,body,amount);row.dataset.activationId=option.id;
+      if(tempHpList) row.append(tempHpList);
       return row;
     }));
     updateActivations(options);
@@ -556,6 +558,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     activationsBox.hidden=!options.length;
     // On a miss the section caption already says what these are ("Prima del tiro").
     if(activationsCaption) activationsCaption.hidden=!options.length || draft.outcome==="miss";
+    const resourceText=option=>option.resources.map(entry=>entry.unlimited || entry.current===null?entry.name:`${entry.name} ${entry.current}/${entry.maximum ?? "?"}`);
+    const listed=options.filter(option=>draft.outcome!=="miss" || option.preRoll).map(option=>resourceText(option).join(" · "));
+    const common=activationsCaption && !activationsCaption.hidden && listed.length>1 && listed[0] && listed.every(text=>text===listed[0])?listed[0]:"";
+    if(activationsCaption) activationsCaption.replaceChildren(node("span","Attivazioni"),...(common?[node("span",` · ${common}`,"subcaption-detail")]:[]));
     const critical=dice=>draft.outcome==="critical" && dice?`${dice} · critico ${pcAttackCriticalDice(dice)}`:dice;
     for(const option of options) {
       const row=activationsBox.querySelector(`[data-activation-id="${option.id}"]`);
@@ -565,7 +571,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(option.types.length && !option.types.includes(state.type)) state.type=option.types[0];
       const field=name=>row.querySelector(`[data-activation-field="${name}"]`);
       field("on").checked=state.on;field("on").disabled=busy || !option.available;
-      const resource=option.resources.map(entry=>entry.unlimited || entry.current===null?entry.name:`${entry.name} ${entry.current}/${entry.maximum ?? "?"}`);
+      const resource=common?[]:resourceText(option);
       const dice=option.tempHp?`${option.dice || "2d8 + livello"} PF temporanei`
         :option.damage || option.secondary?`${critical(option.dice) || "dado"} ${option.types.length===1?damageTypeLabel(option.types[0]):""}`.trim():"";
       // A choice's save and effect replace the activation's (Open Hand Technique).
@@ -574,15 +580,16 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const saveText=save?`TS ${save.label}${save.dc?` CD ${save.dc}`:""}`:"";
       // Each part keeps its words together ("TS Saggezza CD 16"): the line wraps only between parts.
       field("meta").textContent=[dice,option.rollBonus?`${option.rollBonus} al tiro per colpire`:"",
-        ...resource,saveText,option.size || ""].filter(Boolean).map(part=>part.replace(/ /gu," ")).join(" · ");
+        ...resource,...(state.on?[saveText,option.size || ""]:[])].filter(Boolean).map(part=>part.replace(/ /gu," ")).join(" · ");
       field("reason").textContent=option.available?option.warning || "":option.reason;
       field("options").hidden=!state.on;
       // On a miss only the activations used on the roll itself are listed.
       row.hidden=draft.outcome==="miss" && !option.preRoll;
       field("amount").hidden=!state.on || !(option.damage || option.secondary || option.tempHp);field("amount").disabled=busy;
+      field("amount").placeholder=option.tempHp?"":critical(option.dice)?.split(" · critico ").at(-1) || "";
       if(field("choice")){field("choice").value=state.choice;field("choice").disabled=busy;}
       if(field("save")) field("save").hidden=!save;
-      if(field("temp-hp")) updateTempHp(field("temp-hp"),option,state);
+      if(field("temp-hp")){field("temp-hp").hidden=!state.on;updateTempHp(field("temp-hp"),option,state);}
       if(field("burst")) updateBurst(field("burst"),option,state);
       const second=field("secondary");
       if(second) {
@@ -713,7 +720,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       areaList.dataset.signature=signature;
       areaList.replaceChildren(...presentation.targets.map(item=>{
         const row=node("div","","area-row");row.dataset.areaId=item.id;
-        const lead=node("div","","component-lead");
+        const lead=node("label","","component-lead");
         const box=node("input");box.type="checkbox";box.dataset.areaField="on";box.setAttribute("aria-label",`${item.name || item.id} nell'area`);
         box.addEventListener("change",()=>{const member=draft.area.members[item.id] ||= {on:false,outcome:""};member.on=box.checked;renderArea();renderState();});
         lead.append(box);
@@ -1362,6 +1369,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(isFeature && feature.form.fields?.length) children.push(...featureFields(entry,feature.form,feature.blocked));
     const shownNotes=isFeature && canLaunch && feature.blocked?notes.filter(([text])=>text!==feature.blockReason):notes;
     children.push(...shownNotes.map(([text,kind])=>node("p",text,`launch-note${kind?" "+kind:""}`)));
+    if(!entry) {
+      const sheet=node("button","Apri la scheda","small");sheet.type="button";
+      sheet.addEventListener("click",()=>openCharacterSheet());
+      children.push(sheet);
+    }
     if(body.length) children.push(detailsAccordion(body));
     // Never an empty card.
     if(!children.length) children.push(node("p","Nessun dettaglio da mostrare.","launch-details"));
@@ -1483,7 +1495,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       // A cantrip's dice follow the character level; a weapon shows the formula written in its quick action.
       const meta=node("div","","component-meta");meta.dataset.damageMeta=component.id;
       body.append(node("span",typeName,"component-title"),meta);
-      const input=amountInput(draft.amounts[component.id] ?? "",`Danni ${damageTypeLabel(component.type)}`);
+      const input=amountInput(draft.amounts[component.id] ?? "",`Danni ${damageTypeLabel(component.type)}`);input.dataset.damageInput=component.id;
       // No damage to enter on a miss or a passed save (half on a passed save with Potent Cantrip).
       input.disabled=busy || !!draft.outcome && pcAttackDamageFactor(attack,draft.outcome,attackerCard())==="zero";
       input.addEventListener("input",()=>{draft.amounts[component.id]=input.value.trim();renderState();});
@@ -1513,6 +1525,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const formula=(attack.cantrip?pcAttackCantripDiceFor(attack,presentation.item.metadata?.[META_KEY]?.initiativeCard,targetById(draft.targetId))
         :attack.spell?preview().spell?.dice || pcAttackSpellDice(getPcAttackSpell(attack.spell.spellId),draft.spell?.slotLevel):component.formula) || "";
       meta.textContent=formula?(draft.outcome==="critical"?`${formula} · critico ${pcAttackCriticalDice(formula)}`:formula):"";
+      const input=damage.querySelector(`[data-damage-input="${component.id}"]`);
+      if(input) input.placeholder=formula?(draft.outcome==="critical"?pcAttackCriticalDice(formula):formula):"";
       meta.hidden=!formula;
     }
   }

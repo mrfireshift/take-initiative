@@ -53,7 +53,7 @@
     /* Sections: a card for the target and one for the damage (weapon, then the extras below a rule). */
     .card { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--obrt-radius-lg); background: var(--surface-soft); }
     .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-    .card-note { color: var(--dim); font-size: var(--obrt-type-caption); }
+    .card-note { color: var(--muted); font-size: var(--obrt-type-caption); }
     .block { display: grid; gap: 6px; }
     /* The target card: its caption beside the select, on one line; the area, hint and Quivering Palm below, full width. */
     .target-card { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--obrt-space-md); }
@@ -68,7 +68,7 @@
     .picker-tabs button[aria-pressed="true"] { color: #fff; background: rgba(37, 99, 235, .38); }
     /* The spells tab: a list by level instead of a select (every spell in view, one click each). */
     .picker-list { flex: 0 1 auto; min-height: 132px; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 2px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
-    .picker-level { padding: 4px 6px 2px; color: var(--dim); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
+    .picker-level { padding: 4px 6px 2px; color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
     .picker-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 26px; padding: 3px 8px; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; text-align: left; cursor: pointer; }
     .picker-row:hover { background: var(--obrt-hover); }
     .picker-row[aria-pressed="true"] { border-color: rgba(96, 165, 250, .55); background: rgba(37, 99, 235, .28); }
@@ -118,7 +118,7 @@
     /* A feature's form (the character sheet's inputs): a label over its select or number. */
     .feature-field { display: grid; gap: 3px; }
     .feature-field-label { color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); }
-    .feature-field-hint { color: var(--dim); font-size: var(--obrt-type-caption); }
+    .feature-field-hint { color: var(--muted); font-size: var(--obrt-type-caption); }
     .feature-field .inline-select { height: 26px; }
     .feature-field .field { height: 26px; }
     /* Who a feature acting on the map selection reaches ("Su:"), in yellow when a creature must be selected first. */
@@ -167,8 +167,10 @@
        the name with its secondary line (dice, type, options), the amount always in the same right column. */
     .component-list { display: grid; gap: 4px; }
     .component-list:empty { display: none; }
-    .component-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) 72px; column-gap: 8px; align-items: start; }
-    .component-lead { height: 24px; display: flex; align-items: center; justify-content: center; }
+    .component-row { display: grid; grid-template-columns: var(--obrt-hit-min) minmax(0, 1fr) 72px; column-gap: 8px; align-items: start; }
+    .component-lead { width: var(--obrt-hit-min); height: var(--obrt-hit-min); display: flex; align-items: center; justify-content: center; border-radius: var(--obrt-radius-sm); }
+    label.component-lead { cursor: pointer; }
+    label.component-lead:hover { background: var(--obrt-hover); }
     .component-lead input[type=checkbox] { width: 15px; height: 15px; margin: 0; accent-color: var(--obrt-accent); cursor: pointer; }
     .component-body { min-width: 0; display: grid; gap: 0; }
     .component-title { min-height: 24px; display: flex; align-items: center; font-weight: var(--obrt-weight-semibold); line-height: 1.2; overflow-wrap: anywhere; }
@@ -180,23 +182,25 @@
     .component-options { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 3px; color: var(--muted); font-size: var(--obrt-type-secondary); }
     .option-check { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
     .option-check input { width: 14px; height: 14px; margin: 0; accent-color: var(--obrt-accent); }
+    .amount::placeholder { color: rgba(255, 255, 255, .42); font-weight: var(--obrt-weight-regular); }
     .amount { width: 72px; height: 26px; padding: 2px 6px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-weight: var(--obrt-weight-bold); text-align: center; font-variant-numeric: tabular-nums; }
     .amount:focus, .field:focus { border-color: rgba(96, 165, 250, .7); }
     .amount:disabled { opacity: .45; }
-    .inline-select { height: 22px; padding: 0 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); }
+    .inline-select { height: var(--obrt-hit-min); padding: 0 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); }
     .extras-section { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
-    .subcaption { margin-top: 2px; color: var(--dim); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
+    .subcaption { margin-top: 2px; color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
     /* An activation's save: the same colours as the outcome buttons, at the height of the inline selects. */
     .segmented.mini { display: inline-grid; grid-auto-columns: max-content; }
-    .segmented.mini button { min-height: 22px; padding: 0 8px; font-size: var(--obrt-type-secondary); }
+    .segmented.mini button { min-height: var(--obrt-hit-min); padding: 0 8px; font-size: var(--obrt-type-secondary); }
     .effect-hint { color: var(--muted); }
+    .subcaption-detail { letter-spacing: 0; text-transform: none; font-weight: var(--obrt-weight-semibold); }
     /* Inspiring Smite: one line per creature that receives temporary hit points, on the damage rows' grid: remove in the
        lead column, the creature in the body, its amount under the total. The list spans the whole row (lead + gap on the
        left, gap + amount on the right). */
-    .temp-hp-list { display: grid; gap: 4px; width: calc(100% + 108px); margin: 0 -80px 0 -28px; }
-    .temp-hp-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) 72px; column-gap: 8px; align-items: center; }
+    .temp-hp-list { grid-column: 1 / -1; display: grid; gap: 4px; margin-top: 4px; }
+    .temp-hp-row { display: grid; grid-template-columns: var(--obrt-hit-min) minmax(0, 1fr) 72px; column-gap: 8px; align-items: center; }
     .temp-hp-row .inline-select { min-width: 0; height: 26px; }
-    .temp-hp-add { justify-self: start; margin-left: 28px; padding: 2px 8px; border: 1px dashed rgba(148, 163, 184, .35); border-radius: var(--obrt-radius-md); background: transparent; color: var(--info-text); font-size: var(--obrt-type-secondary); cursor: pointer; }
+    .temp-hp-add { justify-self: start; margin-left: 32px; padding: 2px 8px; border: 1px dashed rgba(148, 163, 184, .35); border-radius: var(--obrt-radius-md); background: transparent; color: var(--info-text); font-size: var(--obrt-type-secondary); cursor: pointer; }
     .temp-hp-add:disabled { opacity: .45; cursor: default; }
     /* Area attacks: the creatures hit, each with its save (one row each: tick, name and HP, outcome). */
     .area { display: grid; gap: 4px; }
@@ -204,10 +208,10 @@
     .area-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
     .area-note { flex: 1 1 100%; min-width: 0; color: var(--muted); font-size: var(--obrt-type-secondary); line-height: var(--obrt-leading-normal); }
     .area-tools { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 4px; }
-    .mini-button { height: 22px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); cursor: pointer; }
+    .mini-button { height: var(--obrt-hit-min); padding: 0 8px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); cursor: pointer; }
     .mini-button:disabled { opacity: .45; cursor: default; }
     .area-list { display: grid; gap: 2px; }
-    .area-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; min-height: 26px; }
+    .area-row { display: grid; grid-template-columns: var(--obrt-hit-min) minmax(0, 1fr) auto; column-gap: 8px; align-items: center; min-height: 26px; }
     .area-row .component-lead input { width: 15px; height: 15px; margin: 0; accent-color: var(--obrt-accent); cursor: pointer; }
     .area-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .area-hp { color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
@@ -222,14 +226,14 @@
     .palm-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
     .extra-fields { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 6px; }
     .field { height: 26px; min-width: 0; padding: 2px 6px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-size: var(--obrt-type-secondary); }
-    .lead-remove { width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--obrt-radius-sm); background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+    .lead-remove { width: var(--obrt-hit-min); height: var(--obrt-hit-min); padding: 0; border: 0; border-radius: var(--obrt-radius-sm); background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
     .lead-remove:hover { background: var(--obrt-hover); color: #fff; }
-    .add-extra { justify-self: start; margin-left: 28px; padding: 4px 10px; border: 1px dashed rgba(148, 163, 184, .35); border-radius: var(--obrt-radius-md); background: transparent; color: var(--info-text); font-size: var(--obrt-type-secondary); cursor: pointer; }
+    .add-extra { justify-self: start; margin-left: 32px; padding: 4px 10px; border: 1px dashed rgba(148, 163, 184, .35); border-radius: var(--obrt-radius-md); background: transparent; color: var(--info-text); font-size: var(--obrt-type-secondary); cursor: pointer; }
     .add-extra:hover { background: var(--obrt-hover); }
     .add-extra:disabled { opacity: .45; cursor: default; }
     .defense-chips { display: inline-flex; flex-wrap: wrap; gap: 3px; }
     .defense-chips:empty { display: none; }
-    .defense-chip { min-height: 18px; padding: 0 6px; border: 1px solid rgba(96, 165, 250, .45); border-radius: var(--obrt-radius-pill); background: rgba(30, 64, 175, .22); color: var(--info-text); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); cursor: pointer; }
+    .defense-chip { min-height: var(--obrt-hit-min); padding: 0 6px; border: 1px solid rgba(96, 165, 250, .45); border-radius: var(--obrt-radius-pill); background: rgba(30, 64, 175, .22); color: var(--info-text); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); cursor: pointer; }
     .defense-chip[aria-pressed="false"] { border-color: var(--line); background: transparent; color: var(--dim); text-decoration: line-through; }
     /* Total and Registra stay in view whatever the number of extras: outside the scrolling panel. */
     .apply-row { flex: 0 0 auto; display: flex; align-items: center; gap: var(--obrt-space-md); padding: 8px var(--obrt-space-xl); border-top: 1px solid var(--line); background: rgba(15, 23, 42, .32); }
@@ -251,7 +255,7 @@
     .small { min-height: 27px; padding: 4px 9px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); cursor: pointer; }
     .status-bar { flex: 0 0 auto; display: flex; align-items: center; gap: var(--obrt-space-md); min-height: 40px; padding: 6px var(--obrt-space-xl); border-top: 1px solid var(--line); background: rgba(15, 23, 42, .24); }
     .status { flex: 1 1 auto; min-width: 0; max-height: 52px; overflow-y: auto; margin: 0; color: var(--info-text); font-size: var(--obrt-type-secondary); white-space: pre-wrap; }
-    .status:empty::before { content: "Pronto."; color: var(--dim); }
+    .status:empty::before { content: "Pronto."; color: var(--muted); }
     /* The message's kind (setStatus): done, nothing done, failed; an icon before the same text. */
     .status[data-kind="ok"] { color: #bbf7d0; }
     .status[data-kind="warn"] { color: var(--warn-text); }
@@ -309,12 +313,11 @@
           </div>
         </section>
         <section class="block" aria-label="Esito" id="pc-attack-outcome-block">
-          <span class="caption">Esito</span>
           <select class="target-select" id="pc-attack-mode" aria-label="Tiro" hidden></select>
           <div class="segmented" id="pc-attack-outcomes" role="group" aria-label="Esito dell'attacco"></div>
         </section>
         <section class="card" aria-label="Danno">
-          <div class="card-head"><span class="caption">Danno</span><span class="card-note">totali tirati</span></div>
+          <div class="card-head"><span class="caption">Danno</span></div>
           <div class="cantrip-row" id="pc-attack-cantrip-row" hidden>
             <select class="target-select" id="pc-attack-cantrip" aria-label="Trucchetto"></select>
             <div class="spell-controls" id="pc-attack-spell-controls" hidden></div>

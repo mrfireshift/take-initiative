@@ -420,12 +420,15 @@ test("activations on a hit: the maneuver's die, dice left and DC; one maneuver p
   await f.outcome("hit").click();
   assert.equal(f.$("pc-attack-activations-caption").hidden, false);
   const menacing = activationRow(f, "attacco-minaccioso"), distracting = activationRow(f, "colpo-distraente");
-  assert.equal(activationField(menacing, "meta").textContent.replace(/\u00a0/gu, " "), "1d10 · Dadi di Superiorità 5/5 · TS Saggezza CD 16");
-  assert.match(activationField(menacing, "meta").textContent, /TS\u00a0Saggezza\u00a0CD\u00a016/u, "a part never wraps inside");
+  assert.equal(activationField(menacing, "meta").textContent, "1d10", "not ticked: its die alone");
+  assert.match(textOf(f.$("pc-attack-activations-caption")), /Attivazioni · Dadi di Superiorità 5\/5/, "the resource they share, once");
   assert.equal(activationField(menacing, "options").hidden, true, "options only once ticked");
+  assert.equal(activationField(menacing, "amount").placeholder, "1d10", "the die as the amount's placeholder");
   const check = async (row) => { const box = activationField(row, "on"); box.checked = true; await box.emit("change"); };
   await check(distracting);
   await check(menacing);
+  assert.equal(activationField(menacing, "meta").textContent.replace(/\u00a0/gu, " "), "1d10 · TS Saggezza CD 16", "ticked: its save too");
+  assert.match(activationField(menacing, "meta").textContent, /TS\u00a0Saggezza\u00a0CD\u00a016/u, "a part never wraps inside");
   assert.equal(activationField(distracting, "on").checked, false, "ticking a maneuver unticks the other one");
   assert.equal(activationField(menacing, "options").hidden, false);
   assert.equal(activationField(menacing, "effect").textContent, "Se fallisce: Spaventato");
@@ -1069,6 +1072,7 @@ test("the keyboard: the focus goes to the damage to type, Enter registers when r
   await f.outcome("hit").click(); await tick();
   const [first, second] = f.inputs();
   assert.equal(f.documentRef.activeElement, first, "Colpito: the first damage field");
+  assert.deepEqual([first.placeholder, second.placeholder], ["1d8+3", "2d8"], "the formula as placeholder");
   first.value = "9"; await first.emit("input");
   await f.keydown("Enter");
   assert.equal(f.calls.length, 0, "not ready: Enter does nothing");
