@@ -364,6 +364,62 @@ function compactBackgroundInitiativeCardTransportResult(result) {
   return compact;
 }
 
+// Any other apply: the full result repeats the changes several times (the plan's keys spread at the top level, the
+// commit result's History and changes, the History's own changes) and can reach hundreds of kB with characters full
+// of effects, sent in 6 kB chunks one after the other. Only copies and fields no caller reads are dropped: the client
+// spreads the plan back (compatibilityPlan), the states keep the id and name the History reads, and the full
+// History entry stays while it is pending (the client keeps it until the owner appends it).
+const COMPACT_CHANGES_TRANSPORT_KINDS = new Set(["monster-action", "pc-attack"]);
+
+export function compactBackgroundApplyTransportResult(result) {
+  if (!result || typeof result !== "object" || !result.plan || typeof result.plan !== "object") {
+    return result;
+  }
+  const { plan } = result;
+  const compact = { ...result };
+  for (const key of Object.keys(plan)) {
+    if (key !== "plan" && key !== "operations" && compact[key] === plan[key]) delete compact[key];
+  }
+  delete compact.states;
+  const { metadataAssertions: _metadataAssertions, ...planRest } = plan;
+  compact.plan = {
+    ...planRest,
+    states: (Array.isArray(plan.states) ? plan.states : []).map((state) => ({ id: state?.id, name: state?.name })),
+  };
+  if (result.commitResult && typeof result.commitResult === "object") {
+    const { historyEntry: _commitHistoryEntry, changes: commitChanges, ...commitRest } = result.commitResult;
+    compact.commitResult = {
+      ...commitRest,
+      // A recovery result carries the changes here; the plan already does.
+      ...(!Array.isArray(plan.changes) && commitChanges ? { changes: commitChanges } : {}),
+    };
+  }
+  const historyKept = result.historyPending && result.historySkipped !== true;
+  // The Boss and attack consoles read only each change's id and HP after the hit (sharedHpCommittedUpdates): once
+  // the History is written their changes go back as that, whatever the targets' effects weigh.
+  if (!historyKept && COMPACT_CHANGES_TRANSPORT_KINDS.has(String(result.kind || "")) && Array.isArray(plan.changes)) {
+    compact.plan.changes = plan.changes.map((change) => ({
+      id: change?.id,
+      ...(change?.name ? { name: change.name } : {}),
+      fields: Object.fromEntries(Object.entries(change?.fields || {}).filter(([, touched]) => touched)),
+      metadataFields: Object.fromEntries(Object.entries(change?.metadataFields || {}).filter(([, touched]) => touched)),
+      afterMetadata: Object.fromEntries(["hp", "hpMax"]
+        .filter((field) => change?.afterMetadata?.[field])
+        .map((field) => [field, clone(change.afterMetadata[field])])),
+    }));
+  }
+  const entry = result.historyEntry;
+  if (entry && typeof entry === "object" && !historyKept) {
+    compact.historyEntry = {
+      id: entry.id,
+      ...(entry.kind ? { kind: entry.kind } : {}),
+      ...(entry.label ? { label: entry.label } : {}),
+      ...(entry.effectsMutation?.sceneIdentity ? { effectsMutation: { sceneIdentity: entry.effectsMutation.sceneIdentity } } : {}),
+    };
+  }
+  return compact;
+}
+
 function jsonUtf8Bytes(value) {
   let serialized = "";
   try {
@@ -4342,6 +4398,8 @@ export async function mountEffectsMutationCoordinatorService() {
             : data.kind === "apply"
               && handledCommand?.kind === "initiative-card"
               ? compactBackgroundInitiativeCardTransportResult(result)
+            : data.kind === "apply"
+              ? compactBackgroundApplyTransportResult(result)
             : result;
         const responsePayloads = buildEffectsMutationResultMessages(
           data.requestId,
