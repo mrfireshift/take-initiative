@@ -97,12 +97,10 @@ test("le condizioni rapide stanno nel sottomenu Condizioni, con il pannello comp
   assert.ok(!render.includes("addQuickConditions(root"), "not inline at the top of the menu");
 });
 
-test("lotto 6.7: il menu del token ha Danno/cura… sulla console in Danno e Condizioni… con le condizioni rapide", () => {
+test("lotto 6.7: il menu del token ha Condizioni… con le condizioni rapide, senza Danno/cura…", () => {
   const menuSource = readFileSync(new URL("../src/contextMenu.js", import.meta.url), "utf8");
-  const damage = menuSource.slice(menuSource.indexOf("id: `${ID}/damage-heal`"), menuSource.indexOf("id: `${ID}/conditions`"));
-  assert.ok(damage.includes('label: "Danno/cura…", filter: { roles: ["GM"], every: [isCharacter()] }'));
-  assert.ok(damage.indexOf("OBR.player.select(ids, false)") < damage.indexOf("TRACKER_PANEL_REQUEST_CHANNEL"), "select first");
-  assert.ok(damage.includes('panel: "quick-hp",') && damage.includes('mode: "damage",'));
+  // The GM edits HP from the card: no damage entry in the token menu.
+  assert.ok(!menuSource.includes("id: `${ID}/damage-heal`"));
   const conditions = menuSource.slice(menuSource.indexOf("id: `${ID}/conditions`"));
   assert.ok(conditions.includes('label: "Condizioni…", filter: { roles: ["GM"], every: [isCharacter()] }'));
   assert.ok(conditions.includes('embed: { url: "/ctx-conditions.html", height: CONDITIONS_EMBED_H },'));
@@ -111,9 +109,17 @@ test("lotto 6.7: il menu del token ha Danno/cura… sulla console in Danno e Con
   assert.ok(viteConfig.includes('ctxConditions: path.resolve(process.cwd(), "ctx-conditions.html"),'), "built for production");
 
   const embed = readFileSync(new URL("../src/ctx-conditions.ts", import.meta.url), "utf8");
-  assert.ok(embed.includes("quickConditionMenuEntries(scope, CONDITION_EMOJI)"));
+  assert.ok(embed.includes("quickConditionMenuEntries(scope, emojiByName)"));
+  // The heavy modules load alongside the page, not before it: the submenu draws at once.
+  assert.ok(embed.includes('const conditionsModule = import("./conditions.js");'));
+  assert.ok(embed.includes('const mutationsModule = import("./effectsMutations.js");'));
+  for (const heavy of ['from "./conditions.js";', 'from "./effectsMutations.js";']) assert.ok(!embed.includes(heavy), heavy);
+  assert.ok(embed.includes("render([]);"));
   assert.ok(embed.includes("quickConditionToggleTargets(await readScope(ids), conditionName)"));
   assert.ok(embed.includes('history: { kind: "condition", label },'));
   assert.ok(embed.includes("await refreshConditionLabels(plan.targetIds);"));
   assert.ok(embed.includes('{ type: "open", panel: "conditions" }'));
+  // OBR.onReady takes a callback and returns nothing: awaiting it left the grid empty in OBR.
+  assert.ok(!embed.includes("await OBR.onReady("));
+  assert.ok(embed.includes("OBR.onReady(() => {"));
 });

@@ -4,15 +4,13 @@
 // shows the new state, so several can be set in a row. "Tutte le condizioni…" opens the full panel on those tokens.
 import OBR from "@owlbear-rodeo/sdk";
 import { ID, TRACKER_PANEL_REQUEST_CHANNEL } from "./constants.js";
-import { CONDITION_EMOJI, getConditionInstances, refreshConditionLabels } from "./conditions.js";
-import {
-  conditionMutationOperations,
-  getEffectsMutationSceneContext,
-  requireAppliedEffectsMutation,
-  runEffectsMutation,
-} from "./effectsMutations.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { quickConditionMenuEntries, quickConditionToggleTargets } from "./quickConditionsCore.js";
+
+// The conditions catalogue and the effects coordinator weigh about 1 MB with what they import: loaded alongside,
+// not before the page, so the submenu draws at once and OBR's "ready" is not held up by their parsing.
+const conditionsModule = import("./conditions.js");
+const mutationsModule = import("./effectsMutations.js");
 
 const META_KEY = `${ID}/meta`;
 const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
@@ -20,6 +18,8 @@ const grid = document.getElementById("grid");
 const allConditionsButton = document.getElementById("allConditions") as HTMLButtonElement | null;
 
 let currentIds: string[] = [];
+let lastScope = [];
+let emojiByName = {};
 let busy = false;
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -46,6 +46,7 @@ async function contextItemIds({ robust = false } = {}): Promise<string[]> {
 
 async function readScope(ids: string[]) {
   if (!ids.length) return [];
+  const { getConditionInstances } = await conditionsModule;
   const wanted = new Set(ids);
   const items = await OBR.scene.items.getItems((item) => wanted.has(item.id));
   return items.map((item) => ({
@@ -57,11 +58,13 @@ async function readScope(ids: string[]) {
 
 function render(scope) {
   if (!grid) return;
+  lastScope = scope;
   grid.replaceChildren();
-  for (const entry of quickConditionMenuEntries(scope, CONDITION_EMOJI)) {
+  for (const entry of quickConditionMenuEntries(scope, emojiByName)) {
     const button = document.createElement("button");
     button.type = "button";
-    button.disabled = busy || !scope.length;
+    // Clicks wait for the scene lifecycle (their stale-scene guard); the states show as soon as OBR is ready.
+    button.disabled = busy || !scope.length || !sceneLifecycle.isReady();
     button.dataset.state = entry.state;
     button.setAttribute("aria-pressed", entry.state === "on" ? "true" : entry.state === "mixed" ? "mixed" : "false");
     button.title = entry.state === "on"
@@ -84,7 +87,7 @@ function render(scope) {
 }
 
 async function refresh() {
-  if (!sceneLifecycle.isReady()) return;
+  if (!OBR.isReady) return;
   render(await readScope(currentIds));
 }
 
@@ -102,6 +105,13 @@ async function toggle(conditionName: string) {
     if (!sceneLifecycle.isCurrent(operation) || !ids.length) return;
     const plan = quickConditionToggleTargets(await readScope(ids), conditionName);
     if (!sceneLifecycle.isCurrent(operation) || !plan.targetIds.length) return;
+    const [{ refreshConditionLabels }, {
+      conditionMutationOperations,
+      getEffectsMutationSceneContext,
+      requireAppliedEffectsMutation,
+      runEffectsMutation,
+    }] = await Promise.all([conditionsModule, mutationsModule]);
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const label = `${plan.mode === "remove" ? "Rimossa" : "Applicata"}: ${conditionName}${ids.length > 1 ? " (selezione)" : ""}`;
     const owner = await getEffectsMutationSceneContext({ commandId: operation.operationId });
     if (!sceneLifecycle.isCurrent(operation)) return;
@@ -136,10 +146,10 @@ async function applyTheme() {
 }
 
 async function mount() {
-  await OBR.onReady();
-  await sceneLifecycle.mount();
-  if (!sceneLifecycle.isReady()) return;
-  await applyTheme();
+  // OBR's "ready" reaches an embedded submenu late: as soon as it does, the tokens and their conditions come first,
+  // while the theme and the scene lifecycle (needed only by the clicks) load alongside.
+  void applyTheme();
+  const lifecycleMounted = sceneLifecycle.mount();
 
   allConditionsButton?.addEventListener("click", async () => {
     const ids = currentIds.length ? currentIds : await contextItemIds();
@@ -151,6 +161,9 @@ async function mount() {
 
   currentIds = await contextItemIds({ robust: true });
   await refresh();
+  await lifecycleMounted;
+  if (!sceneLifecycle.isReady()) return;
+  await refresh();
   window.addEventListener("focus", async () => {
     currentIds = await contextItemIds({ robust: true });
     queueRefresh();
@@ -158,6 +171,13 @@ async function mount() {
   OBR.scene.items.onChange(() => queueRefresh());
   OBR.theme.onChange(() => { void applyTheme(); });
 }
+
+// Drawn at once, before OBR is ready: the submenu never opens empty (emoji, states and clicks follow).
+render([]);
+conditionsModule.then((module) => {
+  emojiByName = module.CONDITION_EMOJI;
+  render(lastScope);
+}).catch((error) => console.error("[ctx-conditions] conditions:", error));
 
 sceneLifecycle.subscribe((event) => {
   if (event.phase === "unavailable") {
@@ -168,8 +188,11 @@ sceneLifecycle.subscribe((event) => {
   }
 });
 
-mount().catch((error) => {
-  console.error("[ctx-conditions] mount error:", error);
+// OBR.onReady takes a callback (it returns no promise to await): the page mounts from it, like the other embeds.
+OBR.onReady(() => {
+  mount().catch((error) => {
+    console.error("[ctx-conditions] mount error:", error);
+  });
 });
 
 window.addEventListener("pagehide", () => sceneLifecycle.dispose());

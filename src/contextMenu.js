@@ -7,7 +7,7 @@
   } from "./elevationLabel.js";
   import OBR from "@owlbear-rodeo/sdk";
   import { openBossActionsPopover } from "./bossActionsLauncher.js";
-  import { ID, TRACKER_PANEL_REQUEST_CHANNEL } from "./constants.js";
+  import { ID } from "./constants.js";
   import { openTrackedPopover } from "./popoverDragHost.js";
   import {
     enqueueInitiativeStateReducer,
@@ -292,26 +292,9 @@ async function toggleEpicBossOn(ids) {
       },
     });
 
-    /* ============ “Danno/cura…” e “Condizioni…” (lotto 6.7, GM) ============ */
-    // Damage from the map: the effects console on "Danno" (decision D2), on the tokens the menu was opened on. The
-    // console works on the selection, so the tokens are selected first; the tracker opens it, as for an area.
-    OBR.contextMenu.create({
-      id: `${ID}/damage-heal`, group: MENU_GROUP,
-      icons: [{ icon: ASSET("quick-damage.svg"), label: "Danno/cura…", filter: { roles: ["GM"], every: [isCharacter()] } }],
-      onClick: async ({ items }) => {
-        if (await OBR.player.getRole() !== "GM") return;
-        const ids = (items || []).map((item) => item.id).filter(Boolean);
-        if (!ids.length) return;
-        try { await OBR.player.select(ids, false); } catch {}
-        await OBR.broadcast.sendMessage(TRACKER_PANEL_REQUEST_CHANNEL, {
-          type: "open",
-          panel: "quick-hp",
-          mode: "damage",
-        }, { destination: "LOCAL" });
-      },
-    });
-
-    // The card menu's quick conditions in a submenu (ctx-conditions.html), the full panel at its end.
+    /* ===================== “Condizioni…” (lotto 6.7, GM) ===================== */
+    // The card menu's quick conditions in a submenu (ctx-conditions.html), the full panel at its end. No "Danno/cura…":
+    // the GM edits HP from the card (inline editor), the console stays one click away from the toolbar.
     OBR.contextMenu.create({
       id: `${ID}/conditions`, group: MENU_GROUP,
       icons: [{ icon: ASSET("conditions-panel.svg"), label: "Condizioni…", filter: { roles: ["GM"], every: [isCharacter()] } }],
