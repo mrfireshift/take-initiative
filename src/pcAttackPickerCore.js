@@ -2,7 +2,7 @@ import { sanitizeQuickActions } from "./quickActionsCore.js";
 import { pcAttackAction, pcAttackBreathActionsForCard, pcAttackCantripIds, pcAttackSpellIds } from "./pcAttackCore.js";
 import { getPcAttackCantrip } from "./pcAttackCantripCatalog.js";
 import { getPcAttackSpell } from "./pcAttackSpellCatalog.js";
-import { spellbookCantripAttackAction, spellbookGroupsForProfile, spellbookSpellAttackAction } from "./spellbookCatalog.js";
+import { spellbookCantripAttackAction, spellbookGroupsForProfile, spellbookSpell, spellbookSpellAttackAction } from "./spellbookCatalog.js";
 import { isSpellbookQuickAction, spellbookQuickActionId } from "./spellbookCore.js";
 
 // The attack console's picker: everything the actor can do with an attack or a spell on its turn, one entry each.
@@ -52,10 +52,15 @@ export function pcAttackPickerEntries(card) {
     if (!["cantrip", "spell"].includes(action.source?.kind)) add("attacks", action.id, "", action.label || action.id);
   }
   for (const action of pcAttackBreathActionsForCard(profile)) add("attacks", action.id, "", action.label || action.id);
+  // quickAction: the action itself, for its card (a spell action's cost and uses, a condition's target and duration).
   for (const action of quickActions) {
     if (action.kind === "attack" || isSpellbookQuickAction(action)) continue;
-    add("features", action.id, "", action.label || action.id,
-      { mode: "use", kind: action.kind, ...(action.featureId ? { featureId: action.featureId } : {}) });
+    const spell = action.kind === "spell" ? spellbookSpell(action.spellId) : null;
+    add("features", action.id, "", action.label || action.id, {
+      mode: "use", kind: action.kind, quickAction: action,
+      ...(action.featureId ? { featureId: action.featureId } : {}),
+      ...(spell ? { spellId: action.spellId, level: spell.level, concentration: spell.concentration, ritual: spell.ritual } : {}),
+    });
   }
   const book = spellbookGroupsForProfile(profile)
     .filter((group) => group.level !== null)

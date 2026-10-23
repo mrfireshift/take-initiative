@@ -971,3 +971,31 @@ test("the details accordion: its open state follows the GM from spell to spell; 
   await pickerTabs(f)[0].click(); await tick();
   assert.equal(f.$("pc-attack-spell-details").hidden, true, "a weapon attack has no spell details");
 });
+
+// A spell action of the card's own (a species trait with 1 use, spent), and a condition action.
+const gazeAction = { id: "gaze", label: "Sguardo penetrante", kind: "spell", spellId: "detect-magic", cost: "uses", uses: 1 };
+const blessedAction = { id: "blessed", label: "Benedetto", kind: "condition", conditionName: "Benedetto", targetMode: "self", expiryMode: "rounds", duration: 10 };
+const ownCard = { characterBuild: [{ classId: "chierico", level: 3 }], quickActions: [gazeAction, blessedAction] };
+
+test("a spell action of the Capacità tab reads like a spell: its cost, its uses, its details, Lancia", async () => {
+  const meta = { initiativeCard: ownCard, classFeatureState: { resources: { "quick-action-uses:gaze": { current: 0 } } } };
+  const f = fixture({ card: ownCard, attacker: meta, actionId: "" }); await f.controller.ready; await tick();
+  assert.equal(f.$("pc-attack-title").textContent, "Sguardo penetrante");
+  assert.match(f.$("pc-attack-subtitle").textContent, /Incantesimo di 1° livello/);
+  const card = textOf(f.$("pc-attack-launch"));
+  assert.doesNotMatch(card, /Nessun dettaglio/, "never an empty card");
+  assert.match(card, /Usi 0\/1/);
+  assert.match(card, /Nessun uso rimasto\./);
+  assert.equal(f.$("pc-attack-launch").querySelector("details").querySelector("summary").textContent, "Dettagli");
+  assert.match(textOf(f.$("pc-attack-launch").querySelector("details")), /Concentrazione.*Rituale/);
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Lancia");
+});
+
+test("a condition action shows what it applies, to whom and for how long", async () => {
+  const f = fixture({ card: ownCard, attacker: { initiativeCard: ownCard }, actionId: "" }); await f.controller.ready; await tick();
+  await pick(f, "blessed");
+  assert.equal(f.$("pc-attack-title").textContent, "Benedetto");
+  assert.match(f.$("pc-attack-subtitle").textContent, /Condizione/);
+  assert.match(textOf(f.$("pc-attack-launch")), /su di sé.*Applica «Benedetto» · 10 round/);
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Usa");
+});

@@ -115,6 +115,8 @@ test("the Capacità tab lists the card's ⚡ quick actions: features, conditions
   assert.deepEqual(features.map((entry) => [entry.label, entry.mode, entry.kind]),
     [["Ira", "use", "feature"], ["Benedetto", "use", "condition"], ["Cura", "use", "spell"]]);
   assert.equal(features[0].featureId, "barbaro-ira");
+  assert.deepEqual([features[2].spellId, features[2].level, features[2].key], ["cure-wounds", 1, "heal"], "a spell action carries its spell, its key stays its id");
+  assert.equal(features[1].quickAction.conditionName, "Benedetto", "the action itself rides along for its card");
   assert.equal(features[0].key, "rage");
   assert.ok(!features.some((entry) => entry.actionId.startsWith("book:")), "the book's spells stay in their tabs");
   assert.equal(pcAttackPickerDefault(entries, { attackOnly: true }).key, "sword", "a feature is never the runtime's default");
