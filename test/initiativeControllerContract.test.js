@@ -739,3 +739,17 @@ test("lotto 6.5: il GM modifica l'iniziativa dal compatto con l'editor del class
   const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   assert.ok(indexHtml.includes('[data-compact-card="1"] [data-badge="init"][data-init-editing="1"]'));
 });
+
+test("barra compatta: il testo HP in modifica resta com'era, senza sfondo né bordo", () => {
+  const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const start = indexHtml.indexOf('[data-card-hp-text="1"][data-hp-editing="1"] > div {');
+  const rules = indexHtml.slice(start, indexHtml.indexOf("</style>", start));
+  assert.ok(start > 0);
+  assert.ok(rules.includes(String.raw`content: "HP\00a0";`), "the caption stays");
+  assert.ok(rules.includes("color: inherit !important;"), "the text keeps its colour");
+  // No field look: the editing rules set no background and no outline.
+  const hpEditingRules = indexHtml.split('[data-card-hp-text="1"][data-hp-editing="1"]').slice(1)
+    .map((part) => part.slice(0, part.indexOf("}")));
+  assert.ok(hpEditingRules.length > 0);
+  assert.ok(hpEditingRules.every((rule) => !rule.includes("background") && !rule.includes("outline")));
+});

@@ -92,11 +92,44 @@
         font-size: 12px !important;
       }
 
-      /* The compact card's HP text while its inline editor is open: it reads as a field. */
-      [data-card-hp-text="1"][data-hp-editing="1"] {
-        background: rgba(2, 6, 12, .85);
-        outline: 1px solid rgba(147, 197, 253, .72);
-        border-radius: 4px;
+      /* The compact card's HP text while its inline editor is open looks as it did before the click: "HP 78 / 100" in
+         the same weights and colour, only the numbers become editable. The shared editor (initiativeEditors.js) drops
+         the caption and writes two 22px white fields: these rules put the text back. */
+      [data-card-hp-text="1"][data-hp-editing="1"] > div {
+        justify-content: center;
+        gap: 0 !important;
+      }
+      [data-card-hp-text="1"][data-hp-editing="1"] > div::before {
+        content: "HP\00a0";
+        font-weight: 600;
+        opacity: .65;
+      }
+      [data-card-hp-text="1"][data-hp-editing="1"] input {
+        width: 3ch !important;
+        color: inherit !important;
+        font-variant-numeric: tabular-nums;
+      }
+      [data-card-hp-text="1"][data-hp-editing="1"] input:first-child {
+        font-weight: var(--obrt-weight-heavy, 800) !important;
+        text-align: right !important;
+      }
+      [data-card-hp-text="1"][data-hp-editing="1"] input:last-child {
+        font-weight: 600 !important;
+        opacity: .65;
+        text-align: left !important;
+      }
+      [data-card-hp-text="1"][data-hp-editing="1"] span {
+        padding: 0 .28em;
+        font-weight: 600;
+        opacity: .65 !important;
+      }
+      /* Each field as wide as its number, where the browser can size fields to their content. */
+      @supports (field-sizing: content) {
+        [data-card-hp-text="1"][data-hp-editing="1"] input {
+          field-sizing: content;
+          width: auto !important;
+          min-width: 1ch;
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
