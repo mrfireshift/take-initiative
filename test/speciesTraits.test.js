@@ -17,7 +17,7 @@ const whiteDragonborn = (level = 5) => ({ species: { id: "dragonide-cromatico", 
 test("the species field is sanitized and optional", () => {
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "bianco" }), { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "oro" }), { id: "dragonide-cromatico", ancestryId: "" }, "gold is metallic, not chromatic");
-  assert.equal(sanitizeSpecies({ id: "autognome" }), null, "not in the catalog yet");
+  assert.equal(sanitizeSpecies({ id: "specie-inventata" }), null, "not in the catalog");
   assert.equal(Object.hasOwn(sanitizeInitiativeCard({}), "species"), false, "profiles without a species keep their shape");
   assert.deepEqual(sanitizeInitiativeCard({ species: { id: "dragonide-cromatico", ancestryId: "bianco" } }).species, { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.equal(hasInitiativeCardValues(sanitizeInitiativeCard({ species: { id: "dragonide", ancestryId: "rosso" } })), true);
@@ -136,7 +136,7 @@ test("Volo, Tomo dei Nemici and Mostri del Multiverso: two versions side by side
     "Guida di Volo ai Mostri", "The Tortle Package", "One Grung Above", "Il Tomo dei Nemici di Mordenkainen", "Guildmasters' Guide to Ravnica",
     "Acquisitions Incorporated", "Locathah Rising", "Eberron: Rising from the Last War", "Explorer's Guide to Wildemount",
     "Mythic Odysseys of Theros", "Van Richten's Guide to Ravenloft", "The Wild Beyond the Witchlight", "Il Tesoro dei Draghi di Fizban", "Strixhaven: A Curriculum of Chaos",
-    "Mordenkainen presenta: Mostri del Multiverso"]);
+    "Mordenkainen presenta: Mostri del Multiverso", "Spelljammer: Astral Adventurer's Guide", "Dragonlance: Shadow of the Dragon Queen"]);
 });
 
 test("a yuan-ti is immune to poison; a Tomo tiefling gets its bloodline's spells", () => {
@@ -273,4 +273,15 @@ test("a supernatural gift is an optional profile field next to the species, with
   assert.equal(unsettling.sourceLabel, "Explorer's Guide to Wildemount");
   assert.ok(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get(unsettling.resourceCosts[0].poolId));
   assert.equal(CLASS_FEATURES.some((feature) => feature.giftId), false, "gift traits stay out of the class catalog");
+});
+
+test("Spelljammer and Dragonlance: proficiency bonus uses, creature types and resistances", () => {
+  assert.deepEqual(speciesDamageDefenses({ id: "plasmoide" }), { resistances: ["acid", "poison"] });
+  assert.deepEqual(speciesDamageDefenses({ id: "autognomo" }), { resistances: ["poison"] });
+  const build = [{ classId: "guerriero", level: 9 }];
+  for (const poolId of ["specie-giff-scintilla-astrale-usi", "specie-hadozee-schivata-hadozee-usi", "specie-kender-provocazione-usi"]) {
+    assert.equal(resolveClassFeatureResourceMaximum(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get(poolId), build).maximum, 4, poolId);
+  }
+  assert.equal(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-kender-impavido-usi").capacity.value, 1);
+  assert.ok(traits({ id: "thri-kreen" }).includes("specie-thri-kreen-tipo-di-creatura"));
 });

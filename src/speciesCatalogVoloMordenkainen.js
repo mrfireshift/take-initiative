@@ -15,7 +15,7 @@ export const perPb = (key, name, rest = "lungo") => ({ key, name, count: "pb", r
 export const opt = (id, label, aliases = [], resistances = []) => ({ id, label, aliases, resistances });
 
 export const FEY_ANCESTRY = "Vantaggio ai tiri salvezza per non essere affascinato; la magia non può farti addormentare.";
-const FEY_ANCESTRY_MM = "Vantaggio ai tiri salvezza per evitare o terminare la condizione affascinato.";
+export const FEY_ANCESTRY_MM = "Vantaggio ai tiri salvezza per evitare o terminare la condizione affascinato.";
 const SUNLIGHT = "Svantaggio ai tiri per colpire e alle prove di Saggezza (Percezione) basate sulla vista quando tu, il bersaglio o ciò che cerchi di percepire si trova alla luce diretta del sole.";
 export const MM_ABILITY = "caratteristica a scelta tra Intelligenza, Saggezza e Carisma";
 export const PB_LONG = "Usi pari al bonus di competenza per riposo lungo.";

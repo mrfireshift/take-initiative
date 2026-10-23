@@ -48,9 +48,11 @@ test("species: by name, alias or option; one outside the catalog is reported", (
   assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "drow" }), "Elfo oscuro (drow)");
   assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "" }), "Elfo · sottorazza da scegliere");
   assert.equal(sheetImportSectionSummary("species", { id: "tiefling", ancestryId: "" }), "Tiefling");
-  const autognome = read({ species: "Autognome", armorClass: 12 });
-  assert.equal(autognome.sections.species, undefined);
-  assert.match(autognome.unresolved[0], /specie "Autognome"/);
+  const invented = read({ species: "Specie inventata", armorClass: 12 });
+  assert.equal(invented.sections.species, undefined);
+  assert.match(invented.unresolved[0], /specie "Specie inventata"/);
+  assert.deepEqual(read({ species: "Autognome" }).sections.species, { id: "autognomo", ancestryId: "" });
+  assert.deepEqual(read({ race: "Astral Elf" }).sections.species, { id: "elfo-astrale", ancestryId: "" });
   assert.match(read({ species: { name: "Elfo", subrace: "Elfo marino" } }).unresolved[0], /sottorazza "Elfo marino"/);
 });
 

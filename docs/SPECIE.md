@@ -781,9 +781,72 @@ voci di fata e harengon sono quelle di Witchlight, con lo stesso testo.
 | Yuan-ti | — | Incantesimi serpentini | 36 | Passiva | 1 |
 | Yuan-ti | — | Incantesimi serpentini: Suggestione | 36 | Azione · 1/riposo lungo | 3 |
 
+## Tranche 9 — Spelljammer, Dragonlance
+
+Usciti dopo Mostri del Multiverso e già nel suo stile (usi pari al bonus di
+competenza, caratteristica da incantatore a scelta): nessuna ristampa. Nella
+tendina stanno dopo Mostri del Multiverso. Titoli in inglese, come per le
+tranche precedenti.
+
+- **Autognomo, plasmoide e thri-kreen** non sono umanoidi (costrutto, melma,
+  mostruosità): è un promemoria, come per centauro e satiro.
+- **Resistenze applicate alle difese**: veleno per l'autognomo, acido e veleno
+  per il plasmoide.
+- **Kender**: Impavido dà vantaggio contro la condizione spaventato; una volta
+  per riposo lungo un tiro salvezza fallito diventa un successo (contatore a
+  parte). Provocazione ha usi pari al bonus di competenza.
+
+Restano fuori scurovisione, competenze (Sensi acuti, Progettazione
+specializzata, Attitudine kender) e la Trance astrale dell'elfo astrale.
+
+Da controllare con più attenzione:
+
+- le pagine di Spelljammer (10–15) e del kender (20), stimate;
+- i nomi italiani dei tratti e delle specie (elfo astrale, autognomo,
+  plasmoide).
+
+### Spelljammer: Astral Adventurer's Guide
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Elfo astrale | — | Ascendenza fatata | 10 | Passiva | 1 |
+| Elfo astrale | — | Fuoco astrale | 10 | Passiva | 1 |
+| Elfo astrale | — | Passo di luce stellare | 10 | Azione bonus · competenza/riposo lungo | 1 |
+| Autognomo | — | Tipo di creatura | 11 | Passiva | 1 |
+| Autognomo | — | Involucro corazzato | 11 | Passiva | 1 |
+| Autognomo | — | Costruito per il successo | 11 | Innesco · competenza/riposo lungo | 1 |
+| Autognomo | — | Macchina curativa | 11 | Passiva | 1 |
+| Autognomo | — | Natura meccanica | 11 | Passiva | 1 |
+| Autognomo | — | Riposo della sentinella | 11 | Passiva | 1 |
+| Giff | — | Scintilla astrale | 12 | Innesco · competenza/riposo lungo | 1 |
+| Giff | — | Padronanza delle armi da fuoco | 12 | Passiva | 1 |
+| Giff | — | Corporatura da ippopotamo | 12 | Passiva | 1 |
+| Hadozee | — | Piedi abili | 13 | Passiva | 1 |
+| Hadozee | — | Planata | 13 | Passiva | 1 |
+| Hadozee | — | Schivata hadozee | 13 | Reazione · competenza/riposo lungo | 1 |
+| Plasmoide | — | Tipo di creatura | 14 | Passiva | 1 |
+| Plasmoide | — | Amorfo | 14 | Passiva | 1 |
+| Plasmoide | — | Trattenere il respiro | 14 | Passiva | 1 |
+| Plasmoide | — | Resilienza naturale | 14 | Passiva | 1 |
+| Plasmoide | — | Plasmare sé stesso | 14 | Passiva | 1 |
+| Thri-kreen | — | Tipo di creatura | 15 | Passiva | 1 |
+| Thri-kreen | — | Carapace | 15 | Passiva | 1 |
+| Thri-kreen | — | Carapace camaleontico | 15 | Passiva | 1 |
+| Thri-kreen | — | Braccia secondarie | 15 | Passiva | 1 |
+| Thri-kreen | — | Insonne | 15 | Passiva | 1 |
+| Thri-kreen | — | Telepatia thri-kreen | 15 | Passiva | 1 |
+
+### Dragonlance: Shadow of the Dragon Queen
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Kender | — | Impavido | 20 | Passiva | 1 |
+| Kender | — | Impavido: successo | 20 | Innesco · 1/riposo lungo | 1 |
+| Kender | — | Provocazione | 20 | Azione bonus · competenza/riposo lungo | 1 |
+
 ## Tranche successive
 
-Ancora da scrivere: Spelljammer, Dragonlance e il lignaggio personalizzato di
-Tasha; eventuali altri doni soprannaturali (Theros) e doni oscuri (Van
-Richten) nel campo del dono. Una specie
-fuori catalogo, importata da una scheda, viene segnalata e non applicata.
+Ancora da scrivere: il lignaggio personalizzato e la personalizzazione
+dell'origine del Calderone di Tasha; eventuali altri doni soprannaturali
+(Theros) e doni oscuri (Van Richten) nel campo del dono. Una specie fuori
+catalogo, importata da una scheda, viene segnalata e non applicata.

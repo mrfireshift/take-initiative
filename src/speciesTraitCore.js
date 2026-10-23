@@ -9,7 +9,8 @@
 // speciesCatalogEberron.js: Eberron; tranche 5, in speciesCatalogRavnicaTheros.js: Ravnica and Theros;
 // tranche 6, in speciesCatalogWitchlightStrixhaven.js: Witchlight and Strixhaven; tranche 7, in
 // speciesCatalogMinori.js: the tortle and the minor species; tranche 8, in speciesCatalogWildemountRavenloft.js:
-// Wildemount and Van Richten (see docs/SPECIE.md).
+// Wildemount and Van Richten; tranche 9, in speciesCatalogSpelljammerDragonlance.js: Spelljammer and
+// Dragonlance (see docs/SPECIE.md).
 
 import { SPECIES_CATALOG_MULTIVERSO, SPECIES_CATALOG_TOMO, SPECIES_CATALOG_VOLO } from "./speciesCatalogVoloMordenkainen.js";
 import { SPECIES_CATALOG_COSTA, SPECIES_CATALOG_ELEMENTAL, SPECIES_CATALOG_MULTIVERSO_ELEMENTAL } from "./speciesCatalogCostaElementalEvil.js";
@@ -18,6 +19,7 @@ import { SPECIES_CATALOG_MULTIVERSO_RAVNICA_THEROS, SPECIES_CATALOG_RAVNICA, SPE
 import { SPECIES_CATALOG_STRIXHAVEN, SPECIES_CATALOG_WITCHLIGHT } from "./speciesCatalogWitchlightStrixhaven.js";
 import { SPECIES_CATALOG_ACQUISITIONS, SPECIES_CATALOG_GRUNG, SPECIES_CATALOG_LOCATHAH, SPECIES_CATALOG_MULTIVERSO_TORTLE, SPECIES_CATALOG_TORTLE } from "./speciesCatalogMinori.js";
 import { GIFT_CATALOG_WILDEMOUNT, SPECIES_CATALOG_RAVENLOFT, SPECIES_CATALOG_WILDEMOUNT } from "./speciesCatalogWildemountRavenloft.js";
+import { SPECIES_CATALOG_DRAGONLANCE, SPECIES_CATALOG_SPELLJAMMER } from "./speciesCatalogSpelljammerDragonlance.js";
 
 export const SPECIES_FIELD = "species";
 // A supernatural gift (the Wildemount hollow one) is added to the species: { id }, optional like it.
@@ -43,6 +45,8 @@ const BOOKS = Object.freeze({
   locathah: book("locathah-rising", "Locathah Rising", ["locathah rising", "lr"]),
   wildemount: book("wildemount", "Explorer's Guide to Wildemount", ["egtw", "wildemount", "explorer s guide to wildemount", "guida dell esploratore a wildemount"]),
   ravenloft: book("ravenloft", "Van Richten's Guide to Ravenloft", ["vrgr", "ravenloft", "van richten", "van richten s guide to ravenloft", "guida di van richten a ravenloft"]),
+  spelljammer: book("spelljammer", "Spelljammer: Astral Adventurer's Guide", ["spelljammer", "aag", "astral adventurer s guide", "spelljammer adventures in space"]),
+  dragonlance: book("dragonlance", "Dragonlance: Shadow of the Dragon Queen", ["dragonlance", "dsotdq", "shadow of the dragon queen"]),
   witchlight: book("witchlight", "The Wild Beyond the Witchlight", ["wbtw", "witchlight", "the wild beyond the witchlight", "wild beyond the witchlight"]),
   strixhaven: book("strixhaven", "Strixhaven: A Curriculum of Chaos", ["scc", "strixhaven", "strixhaven a curriculum of chaos", "strixhaven un curriculum del caos"]),
   eberron: book("eberron", "Eberron: Rising from the Last War", ["erlw", "eberron", "rising from the last war", "eberron rising from the last war"]),
@@ -174,7 +178,8 @@ const BEFORE_FIZBAN = [...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, .
   ...SPECIES_CATALOG_GRUNG, ...SPECIES_CATALOG_TOMO, ...SPECIES_CATALOG_RAVNICA, ...SPECIES_CATALOG_ACQUISITIONS, ...SPECIES_CATALOG_LOCATHAH,
   ...SPECIES_CATALOG_EBERRON, ...SPECIES_CATALOG_WILDEMOUNT, ...SPECIES_CATALOG_THEROS, ...SPECIES_CATALOG_RAVENLOFT, ...SPECIES_CATALOG_WITCHLIGHT];
 const AFTER_FIZBAN = [...SPECIES_CATALOG_STRIXHAVEN];
-const CATALOG = [...BEFORE_FIZBAN, ...AFTER_FIZBAN, ...MULTIVERSO];
+const AFTER_MULTIVERSO = [...SPECIES_CATALOG_SPELLJAMMER, ...SPECIES_CATALOG_DRAGONLANCE];
+const CATALOG = [...BEFORE_FIZBAN, ...AFTER_FIZBAN, ...MULTIVERSO, ...AFTER_MULTIVERSO];
 
 // In order of publication: the select groups them by manual.
 export const SPECIES = Object.freeze([
@@ -183,6 +188,7 @@ export const SPECIES = Object.freeze([
   ...FIZBAN_SPECIES,
   ...AFTER_FIZBAN.map(catalogSpecies),
   ...MULTIVERSO.map(catalogSpecies),
+  ...AFTER_MULTIVERSO.map(catalogSpecies),
 ]);
 const SPECIES_BY_ID = new Map(SPECIES.map((entry) => [entry.id, entry]));
 
