@@ -40,6 +40,9 @@
     .block { display: grid; gap: 6px; }
     .target-select { width: 100%; min-height: var(--obrt-h-control-md); padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); }
     .hint { margin: 0; color: #fde68a; font-size: var(--obrt-type-secondary); }
+    /* The picker: weapon attacks, cantrips and attack spells of the actor, one tab each, then the entry. */
+    .picker { display: grid; gap: 6px; }
+    .picker-tabs button[aria-pressed="true"] { color: #fff; background: rgba(37, 99, 235, .38); }
     .cantrip-row { display: grid; gap: 4px; }
     .cantrip-note { margin: 0; color: var(--muted); font-size: var(--obrt-type-caption); line-height: 1.3; }
     .spell-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -137,6 +140,10 @@
     </header>
     <main class="panel">
       <section class="view" id="pc-attack-form" aria-label="Attacco" hidden>
+        <section class="picker" id="pc-attack-picker" aria-label="Scelta dell'attacco" hidden>
+          <div class="segmented picker-tabs" id="pc-attack-picker-tabs" role="group" aria-label="Tipo di attacco"></div>
+          <select class="target-select" id="pc-attack-picker-select" aria-label="Attacco"></select>
+        </section>
         <section class="card" aria-label="Bersaglio">
           <span class="caption" id="pc-attack-target-caption">Bersaglio</span>
           <select class="target-select" id="pc-attack-target" aria-label="Bersaglio"></select>

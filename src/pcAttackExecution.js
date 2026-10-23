@@ -6,6 +6,7 @@ import { isBossActionCreature } from "./bossActionExecutionCore.js";
 import { bossActionTargets } from "./bossActionsViewCore.js";
 import { postBossDamage } from "./bossActionExecution.js";
 import { buildPcAttackAreaMutation, buildPcAttackMutation, buildPcAttackQuiveringPalmMutation, pcAttackAction, pcAttackNearbyIds } from "./pcAttackCore.js";
+import { pcAttackPickerDefault, pcAttackPickerEntries } from "./pcAttackPickerCore.js";
 import { bossFeetPerCell } from "./bossActionsViewCore.js";
 import { getEffectsMutationSceneContext, runEffectsMutation, requireAppliedEffectsMutation } from "./effectsMutations.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
@@ -143,12 +144,16 @@ export function createPcAttackRuntime({
   }
   async function getPcAttackPresentation(sourceId,actionId) {
     const scope=await session(sourceId);
-    const action=attackOf(scope.item,actionId);
+    // The console's picker (pcAttackPickerCore.js). Without an action: the last attack, else the first weapon.
+    const picker=pcAttackPickerEntries(getCard(scope.item)?.quickActions);
+    const chosen=actionId?null:pcAttackPickerDefault(picker,{lastAttack:scope.item?.metadata?.[`${ID}/meta`]?.pcAttackState?.lastAttack});
+    const action=attackOf(scope.item,actionId || chosen?.actionId);
     const items=await api.scene.items.getItems();
     if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri l'attacco.");
     const round=Number(scope.turnState?.round);
     const targets=bossActionTargets(items,scope.item.id).map(item=>withBossLinkDefenses(item,items.find(entry=>entry.id===item.metadata?.[`${ID}/meta`]?.sharedHpSourceId),round));
-    return {item:scope.item,action,targets,turnState:scope.turnState,sceneIdentity:scope.scene.sceneIdentity};
+    return {item:scope.item,action,actionId:action.id,...(chosen?.spellId?{spellId:chosen.spellId}:{}),picker,
+      targets,turnState:scope.turnState,sceneIdentity:scope.scene.sceneIdentity};
   }
   async function executePcAttack(request={}) {
     const {sourceId,actionId,targetId}=request;

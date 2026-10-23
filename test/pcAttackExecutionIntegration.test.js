@@ -124,6 +124,21 @@ test("presentation lists the attack and the tracked creatures, never the attacke
   assert.equal(presentation.action.label, "Spada sacra");
   assert.deepEqual(presentation.action.components.map((c) => c.id), ["c1", "c2"]);
   assert.deepEqual(presentation.targets.map((item) => item.id), ["ghoul"]);
+  assert.equal(presentation.actionId, "holy-sword");
+  assert.deepEqual(presentation.picker.map((entry) => entry.key), ["holy-sword"]);
+});
+
+test("presentation without an action opens on the last attack, else the first weapon", async () => {
+  const cantrip = { id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["fire-bolt", "ray-of-frost"] } };
+  meta("aria").initiativeCard = { quickActions: [sword, cantrip] };
+  const first = await runtime.getPcAttackPresentation("aria", "");
+  assert.equal(first.actionId, "holy-sword");
+  assert.equal(first.spellId, undefined);
+  meta("aria").pcAttackState = { lastAttack: { quickActionId: "cantrip", spellId: "ray-of-frost" } };
+  const last = await runtime.getPcAttackPresentation("aria", "");
+  assert.deepEqual([last.actionId, last.spellId, last.action.label], ["cantrip", "ray-of-frost", "Trucchetto"]);
+  const asked = await runtime.getPcAttackPresentation("aria", "holy-sword");
+  assert.equal(asked.actionId, "holy-sword", "an action asked for wins over the last attack");
 });
 
 test("a hit is one History entry with attack provenance in the Combat Log, and Undo restores everything", async () => {

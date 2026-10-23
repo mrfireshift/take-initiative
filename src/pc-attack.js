@@ -16,6 +16,7 @@ import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel } from "./bossActionsViewCore.js";
 import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
 import { PC_ATTACK_POPOVER_ID } from "./pcAttackLauncher.js";
+import { pcAttackPickerDefault, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
 import "./popoverDrag.js";
 
 const META_KEY=`${ID}/meta`;
@@ -132,9 +133,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const schedule=overrides.schedule || ((callback,delay)=>setTimeout(callback,delay));
   const params=new URLSearchParams(globalThis.location?.search || "");
   const sourceId=overrides.sourceId ?? params.get("source");
-  const actionId=overrides.actionId ?? params.get("action");
+  // The picker switches the action (and the spell) in place: both change with it.
+  let actionId=overrides.actionId ?? params.get("action") ?? "";
   // The spell the console opens with (the spellbook's or the 🪄 menu's), when the action offers it.
-  const requestedSpellId=overrides.spellId ?? params.get("spell") ?? "";
+  let requestedSpellId=overrides.spellId ?? params.get("spell") ?? "";
+  const confirmSwitch=overrides.confirm || (message=>typeof globalThis.confirm==="function"?globalThis.confirm(message):true);
   const $=id=>documentRef.getElementById(id);
   const form=$("pc-attack-form"),status=$("pc-attack-status"),targetSelect=$("pc-attack-target"),hint=$("pc-attack-target-hint");
   const outcomes=$("pc-attack-outcomes"),damage=$("pc-attack-damage"),defensesBox=$("pc-attack-defenses");
@@ -148,6 +151,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const applyRow=$("pc-attack-apply-row");
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
   const spellControls=$("pc-attack-spell-controls");
+  const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select");
   const extrasCaption=$("pc-attack-extras-caption");
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
   const areaBox=$("pc-attack-area"),areaNote=$("pc-attack-area-note"),areaList=$("pc-attack-area-list");
@@ -255,7 +259,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     cantripSelect.replaceChildren(...offered.map(spellId=>{
       const spell=getPcAttackSpell(spellId);
       const option=node("option",spell?`${spell.name} · ${spell.level}°`:spellId);option.value=spellId;return option;}));
-    cantripSelect.value=draft.spellId;cantripSelect.disabled=busy;
+    cantripSelect.value=draft.spellId;cantripSelect.disabled=busy;cantripSelect.hidden=pickerShown();
     const spell=getPcAttackSpell(draft.spellId);
     syncSpellDraft();
     const open=draft.spell.fresh?null:openSpellCast();
@@ -309,7 +313,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const cantrip=getPcAttackCantrip(spellId);
       const option=node("option",cantrip?.save?`${cantrip.name} · ${cantrip.area?"area, ":""}TS ${PC_ATTACK_SAVE_LABELS[cantrip.save]}`:cantrip?.name || spellId);
       option.value=spellId;return option;}));
-    cantripSelect.value=draft.spellId;cantripSelect.disabled=busy;
+    cantripSelect.value=draft.spellId;cantripSelect.disabled=busy;cantripSelect.hidden=pickerShown();
     const cantrip=getPcAttackCantrip(draft.spellId);
     const pills=cantrip?pcAttackCantripPillLabels(cantrip.spellId):[];
     const beams=pcAttackCantripBeams(cantrip,characterLevel());
@@ -773,9 +777,61 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }));
     addExtra.disabled=busy || draft.extras.length>=MAX_PC_ATTACK_EXTRAS;
   }
+  // The picker (pcAttackPickerCore.js): the actor's weapon attacks, cantrips and attack spells. With one entry it
+  // hides; when it shows, the cantrip or spell select below gives way to it (its notes and slot controls stay).
+  const pickerShown=()=>!!picker && !picker.hidden;
+  let pickerSignature="";
+  function renderPicker() {
+    if(!picker) return;
+    const entries=presentation?.picker || [];
+    const current=draft?pcAttackPickerEntryFor(entries,actionId,draft.spellId):null;
+    picker.hidden=entries.length<2 || !current;
+    if(picker.hidden){pickerSignature="";return;}
+    const tabs=pcAttackPickerTabs(entries),inTab=entries.filter(entry=>entry.tab===current.tab);
+    // A leveled spell cast left open (rays or darts still to register) says so in its entry.
+    const label=entry=>entry.tab==="spells" && pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState})
+      ?`${entry.label} · in corso`:entry.label;
+    // Rebuilt only when the list changes: a live update never closes the select the GM has open.
+    const signature=JSON.stringify([tabs.map(tab=>tab.id),current.tab,inTab.map(entry=>[entry.key,label(entry)])]);
+    if(signature!==pickerSignature) {
+      pickerSignature=signature;
+      pickerTabs.replaceChildren(...tabs.map(tab=>{
+        const button=node("button",tab.label);button.type="button";button.dataset.pickerTab=tab.id;
+        button.addEventListener("click",()=>{
+          if(tab.id===pcAttackPickerEntryFor(presentation?.picker,actionId,draft?.spellId)?.tab) return;
+          chooseEntry(pcAttackPickerDefault(presentation?.picker,{tab:tab.id,lastAttack:presentation?.item?.metadata?.[META_KEY]?.pcAttackState?.lastAttack}));
+        });
+        return button;
+      }));
+      pickerSelect.replaceChildren(...inTab.map(entry=>{const option=node("option",label(entry));option.value=entry.key;return option;}));
+    }
+    pickerTabs.hidden=tabs.length<2;
+    for(const button of pickerTabs.querySelectorAll("button")){button.setAttribute("aria-pressed",String(button.dataset.pickerTab===current.tab));button.disabled=busy;}
+    pickerSelect.hidden=inTab.length<2;
+    pickerSelect.value=current.key;pickerSelect.disabled=busy;
+  }
+  // Another cantrip or spell of the same action changes in place; another action loads it with a fresh draft
+  // (the target stays), after a confirmation when this attack already holds decisions.
+  function chooseEntry(entry) {
+    if(!entry || busy || invalidated || !presentation || !draft) return;
+    if(entry.actionId===actionId) {
+      if(entry.spellId && entry.spellId!==draft.spellId) selectSpell(entry.spellId);else renderPicker();
+      return;
+    }
+    if(draftLocked(draft) && !confirmSwitch("Passare a un altro attacco? Le scelte di questo attacco andranno perse.")){renderPicker();return;}
+    const previous=actionId;
+    actionId=entry.actionId;requestedSpellId=entry.spellId;
+    beamTally={spellId:"",count:0};palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
+    void perform(async operation=>{
+      try {await refresh(operation);}
+      catch(error) {if(lifecycle.isCurrent(operation)){actionId=previous;requestedSpellId="";}throw error;}
+    });
+  }
   function renderHeader() {
     const action=presentation?.action,attack=resolved();
-    $("pc-attack-title").textContent=action?.label || "Attacco";
+    // With the picker the title names the cantrip or spell chosen, not the action that records it.
+    const named=pickerShown()?attack?.cantrip?.name || attack?.spell?.name:"";
+    $("pc-attack-title").textContent=named || action?.label || "Attacco";
     // A saving throw cantrip names its save (and the actor's DC) instead of a range.
     const saveLabel=pcAttackSaveLabel(attack,presentation?.item?.metadata?.[META_KEY]?.initiativeCard);
     const parts=[presentation?.item?.name || presentation?.item?.id,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[]),
@@ -898,14 +954,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   function render() {
     if(!presentation || !draft){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
-    form.hidden=false;if(applyRow)applyRow.hidden=false;renderHeader();renderTarget();renderPalm();renderOutcomes();renderCantrip();renderDamage();renderWoven();renderRiders();renderActivations();renderExtras();renderState();
+    form.hidden=false;if(applyRow)applyRow.hidden=false;renderPicker();renderHeader();renderTarget();renderPalm();renderOutcomes();renderCantrip();renderDamage();renderWoven();renderRiders();renderActivations();renderExtras();renderState();
     if(palmBox && isArea()) palmBox.hidden=true;
   }
   // Selection and scene updates never rebuild the outcome buttons or the amount fields: a click in
   // flight or the caret in a field survives them.
   function renderLive() {
     if(!presentation || !draft){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
-    renderTarget();renderPalm();updateDamageMeta();updateWoven();updateRiders();updateActivations();renderState();
+    renderPicker();renderTarget();renderPalm();updateDamageMeta();updateWoven();updateRiders();updateActivations();renderState();
   }
 
   async function perform(work) {
@@ -923,14 +979,22 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     finally {busy=false;render();}
   }
   async function refresh(operation) {
-    const loaded=await runtime.getPcAttackPresentation(sourceId,actionId);
-    if(!lifecycle.isCurrent(operation)) return;
+    const asked=actionId;
+    const loaded=await runtime.getPcAttackPresentation(sourceId,asked);
+    // A load for an action the picker has already left is stale.
+    if(!lifecycle.isCurrent(operation) || asked!==actionId) return;
+    // Without an action asked for, the runtime picked one (the last attack, else the first weapon).
+    const switched=!!presentation && loaded.actionId!==undefined && loaded.actionId!==presentation.actionId;
+    if(loaded.actionId) actionId=loaded.actionId;
     // A changed definition (components edited in the card) starts a new attack.
     const sameAction=JSON.stringify(loaded.action)===JSON.stringify(presentation?.action);
     presentation=loaded;
-    const fresh=!draft || !sameAction;
-    const requested=!draft && [...pcAttackCantripIds(loaded.action),...pcAttackSpellIds(loaded.action)].includes(requestedSpellId)?requestedSpellId:"";
-    if(fresh) draft=emptyDraft(loaded.action,draft?.targetId || null,requested || defaultCantripId(loaded.action,loaded.item),draft?.attackMode || "");
+    const fresh=!draft || !sameAction || switched;
+    const wanted=requestedSpellId || loaded.spellId || "";
+    const requested=fresh && [...pcAttackCantripIds(loaded.action),...pcAttackSpellIds(loaded.action)].includes(wanted)?wanted:"";
+    requestedSpellId="";
+    // Another action (the picker) starts without the previous one's arrow.
+    if(fresh) draft=emptyDraft(loaded.action,draft?.targetId || null,requested || defaultCantripId(loaded.action,loaded.item),switched?"":draft?.attackMode || "");
     if(draft.targetId && !targetById(draft.targetId)) draft.targetId=null;
     if(fresh || form.hidden) render();else renderLive();
   }
@@ -987,8 +1051,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
 
   targetSelect.addEventListener("change",()=>{draft.targetId=targetSelect.value || null;draft.ignored=[];renderLive();});
   // Another cantrip: other damage (fresh amount), range and notes; the target, outcome and extras stay.
-  cantripSelect.addEventListener("change",()=>{
-    draft.spellId=cantripSelect.value;
+  function selectSpell(spellId) {
+    draft.spellId=spellId;
     beamTally={spellId:"",count:0};
     draft.spell={castId:newCastId(),slotLevel:null,pact:false,damageType:"",doubles:false,fresh:false};
     // Another area (or none): the creatures are proposed again.
@@ -996,8 +1060,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     draft.amounts=Object.fromEntries((resolved()?.components || []).map(component=>[component.id,""]));
     // From an attack roll to a saving throw (or back): the outcome chosen before no longer exists.
     if(!pcAttackOutcomesFor(resolved()).includes(draft.outcome)) draft.outcome="";
-    renderHeader();renderTarget();renderCantrip();renderOutcomes();renderDamage();updateRiders();updateActivations();renderState();
-  });
+    renderPicker();renderHeader();renderTarget();renderCantrip();renderOutcomes();renderDamage();updateRiders();updateActivations();renderState();
+  }
+  cantripSelect.addEventListener("change",()=>selectSpell(cantripSelect.value));
+  pickerSelect?.addEventListener("change",()=>chooseEntry((presentation?.picker || []).find(entry=>entry.key===pickerSelect.value)));
   // The arrow that replaces the attack roll: the outcome kind changes (saves), and Piercing turns the target into an area.
   modeSelect?.addEventListener("change",()=>{
     draft.attackMode=modeSelect.value;draft.modeAmount="";draft.outcome="";draft.area={members:{},proposalKey:""};

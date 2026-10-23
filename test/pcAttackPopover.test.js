@@ -7,6 +7,7 @@ const sdk = { onReady() {}, broadcast: { onMessage: () => () => {}, sendMessage:
 mock.module("@owlbear-rodeo/sdk", { exports: { default: sdk, buildLabel() {}, buildImage() {}, buildPath() {}, buildShape() {}, buildText() {}, Command: class {} } });
 const { bootPcAttack, resultSummary, areaSummary } = await import("../src/pc-attack.js");
 const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
+const { pcAttackPickerEntries } = await import("../src/pcAttackPickerCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
 const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
@@ -15,7 +16,7 @@ const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-att
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
   "pc-attack-palm", "pc-attack-palm-note", "pc-attack-palm-outcomes", "pc-attack-palm-amount", "pc-attack-palm-apply",
   "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-note", "pc-attack-area-list",
-  "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"];
+  "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed", "pc-attack-picker", "pc-attack-picker-tabs", "pc-attack-picker-select"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
@@ -27,7 +28,7 @@ function createDocument() {
   };
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   for (const id of IDS) {
-    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode"].includes(id) ? "select" : BUTTONS.has(id) ? "button" : "div");
+    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select"].includes(id) ? "select" : BUTTONS.has(id) ? "button" : "div");
     node.id = id; doc.root.appendChild(node);
   }
   return doc;
@@ -36,14 +37,15 @@ function createDocument() {
 const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind: "attack", range: "melee",
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
-function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [] } = {}) {
+// actions: the actor's quick actions, for the picker (the runtime then loads the one asked for, like pcAttackExecution).
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, actionId = "holy-sword", confirm } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
   const items = [creature("aria", "Aria", 40, attacker), creature("ghoul", "Ghoul", 30, defenses ? { initiativeCard: { damageDefenses: defenses } } : {}), creature("imp", "Imp", 10)];
   const listeners = { player: new Set(), items: new Set() };
   const subscribe = (set, listener) => { set.add(listener); return () => set.delete(listener); };
   let selection = [];
-  const calls = [], undoCalls = [], nearbyCalls = [];
+  const calls = [], undoCalls = [], nearbyCalls = [], loads = [];
   const api = {
     player: { getRole: async () => "GM", getSelection: async () => selection, onChange: (listener) => subscribe(listeners.player, listener) },
     scene: { isReady: async () => true, onReadyChange: () => () => {},
@@ -51,7 +53,12 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
     popover: { close: async () => {} },
   };
   const runtime = {
-    getPcAttackPresentation: async () => ({ item: items[0], action, targets: items.slice(1), turnState, sceneIdentity: "scene-A" }),
+    getPcAttackPresentation: async (sourceId, asked) => {
+      loads.push(asked);
+      if (!actions) return { item: items[0], action, targets: items.slice(1), turnState, sceneIdentity: "scene-A" };
+      const chosen = actions.find((entry) => entry.id === asked) || actions[0];
+      return { item: items[0], action: chosen, actionId: chosen.id, picker: pcAttackPickerEntries(actions), targets: items.slice(1), turnState, sceneIdentity: "scene-A" };
+    },
     endQuiveringPalm: async (request) => {
       calls.push({ palm: request });
       return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], outcome: request.outcome, quiveringPalm: true,
@@ -70,10 +77,10 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
         damageComponents: [{ amount: 17 }], hpChange: { before: 30, after: 13, hpMax: 30 } };
     },
   };
-  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId: "holy-sword", schedule: (callback) => setTimeout(callback, 0),
+  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, schedule: (callback) => setTimeout(callback, 0),
     undo: async (entryId) => { undoCalls.push(entryId); return { ok: true }; } });
   const $ = (id) => documentRef.getElementById(id);
-  return { $, controller, calls, undoCalls, nearbyCalls, runtime, items,
+  return { $, controller, calls, undoCalls, nearbyCalls, loads, runtime, items,
     select: async (ids) => { selection = ids; for (const listener of listeners.player) listener({ selection: ids }); await tick(); },
     outcome: (value) => $("pc-attack-outcomes").querySelector(`[data-outcome="${value}"]`),
     inputs: () => $("pc-attack-damage").querySelectorAll("input"),
@@ -640,4 +647,77 @@ test("Create Bonfire is pointed to the spell panel from the cantrip console", as
   const f = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "mago", level: 5 }] } } }); await f.controller.ready;
   assert.deepEqual(f.$("pc-attack-cantrip").children.map((option) => option.value), ["fire-bolt"]);
   assert.match(f.$("pc-attack-cantrip-note").textContent, /Creare Falò: lancialo dal pannello incantesimi/);
+});
+
+const axe = sanitizeQuickAction({ id: "axe", label: "Ascia", kind: "attack", range: "melee", components: [{ type: "slashing", formula: "1d12+3" }] });
+const knownCantrips = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["fire-bolt", "ray-of-frost"] } });
+const attackSpells = sanitizeQuickAction({ id: "spells", label: "Incantesimi", kind: "attack", source: { kind: "spell", spellIds: ["guiding-bolt"] } });
+const pickerTabs = (f) => f.$("pc-attack-picker-tabs").querySelectorAll("button");
+const pickerOptions = (f) => f.$("pc-attack-picker-select").children.map((option) => option.value);
+async function pick(f, value) { const select = f.$("pc-attack-picker-select"); select.value = value; await select.emit("change"); await tick(); }
+
+test("the picker: one tab per kind, the entries of the current tab, the cantrip select gives way to it", async () => {
+  const f = fixture({ actions: [sword, axe, knownCantrips, attackSpells] }); await f.controller.ready; await tick();
+  assert.equal(f.$("pc-attack-picker").hidden, false);
+  assert.deepEqual(pickerTabs(f).map((button) => [button.textContent, button.getAttribute("aria-pressed")]),
+    [["Attacchi", "true"], ["Trucchetti", "false"], ["Incantesimi", "false"]]);
+  assert.deepEqual(pickerOptions(f), ["holy-sword", "axe"]);
+  assert.equal(f.$("pc-attack-picker-select").value, "holy-sword");
+  await pickerTabs(f)[1].click(); await tick();
+  assert.equal(f.$("pc-attack-title").textContent, "Dardo di fuoco", "the title names the cantrip chosen");
+  assert.deepEqual(pickerOptions(f), ["cantrip::fire-bolt", "cantrip::ray-of-frost"]);
+  assert.equal(f.controller.getDraft().spellId, "fire-bolt");
+  assert.equal(f.$("pc-attack-cantrip").hidden, true, "the picker replaces the cantrip select");
+  assert.equal(f.$("pc-attack-cantrip-row").hidden, false, "the cantrip notes stay");
+});
+
+test("another weapon loads its action with a fresh draft; the target stays and the attack registers on it", async () => {
+  const f = fixture({ actions: [sword, axe] }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  assert.equal(f.$("pc-attack-picker-tabs").hidden, true, "a single tab shows no tabs");
+  await pick(f, "axe");
+  assert.equal(f.$("pc-attack-title").textContent, "Ascia");
+  assert.deepEqual(f.loads, ["holy-sword", "axe"]);
+  assert.equal(f.controller.getDraft().targetId, "ghoul");
+  await f.outcome("hit").click();
+  await typeAmounts(f, ["9"]);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual([f.calls[0].actionId, f.calls[0].targetId], ["axe", "ghoul"]);
+  assert.deepEqual(f.calls[0].expectedAction, axe);
+});
+
+test("another cantrip of the same action changes in place, without loading the action again", async () => {
+  const f = fixture({ actions: [knownCantrips, sword], actionId: "cantrip" }); await f.controller.ready; await tick();
+  const loads = f.loads.length;
+  await pick(f, "cantrip::ray-of-frost");
+  assert.equal(f.controller.getDraft().spellId, "ray-of-frost");
+  assert.equal(f.loads.length, loads);
+  assert.equal(f.$("pc-attack-picker-select").value, "cantrip::ray-of-frost");
+});
+
+test("an attack with decisions asks before switching, and stays when the GM declines", async () => {
+  let answer = false;
+  const asked = [];
+  const f = fixture({ actions: [sword, axe], confirm: (message) => { asked.push(message); return answer; } }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  await pick(f, "axe");
+  assert.equal(asked.length, 1);
+  assert.equal(f.$("pc-attack-title").textContent, "Spada sacra");
+  assert.equal(f.$("pc-attack-picker-select").value, "holy-sword", "the select goes back to the attack in use");
+  assert.equal(f.controller.getDraft().outcome, "hit");
+  answer = true;
+  await pick(f, "axe");
+  assert.equal(f.$("pc-attack-title").textContent, "Ascia");
+  assert.equal(f.controller.getDraft().outcome, "");
+});
+
+test("the attack spells tab and a single entry", async () => {
+  const f = fixture({ actions: [sword, attackSpells] }); await f.controller.ready; await tick();
+  await pickerTabs(f)[1].click(); await tick();
+  assert.equal(pickerTabs(f)[1].textContent, "Incantesimi");
+  assert.equal(f.controller.getDraft().spellId, "guiding-bolt");
+  assert.equal(f.$("pc-attack-picker-select").hidden, true, "one entry in the tab: no select");
+  const single = fixture({ actions: [sword] }); await single.controller.ready;
+  assert.equal(single.$("pc-attack-picker").hidden, true);
 });
