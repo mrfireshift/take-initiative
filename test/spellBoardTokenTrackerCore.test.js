@@ -15,6 +15,7 @@ import {
   spellBoardTokenCompanionRenderPlan,
   spellBoardTokenCompanionsByCasterId,
   spellBoardTokenCompanionsForEntry,
+  spellBoardTokenPortraitUrl,
   updateSpellBoardTokenSnapshot,
 } from "../src/spellBoardTokenTrackerCore.js";
 
@@ -371,4 +372,15 @@ test("a companion card selects its token on click and shows the scene selection"
   assert.equal(calls.length, 1, "clicking the HP badge edits HP instead of selecting");
   const passive = buildSpellBoardTokenCompanionCard(companion, { documentRef: testDocument() });
   assert.equal(passive.style.pointerEvents, "none");
+});
+
+test("a summon's portrait reads the plugin's own asset from the page showing it, whatever origin made the token", () => {
+  // Made on a dev server: the stored absolute URL breaks on the production host.
+  const devToken = { ...boardToken({ id: "weapon-1", instanceId: "cast-1", casterId: "caster-a" }),
+    image: { url: "http://localhost:5173/spell-token-spiritual-weapon.webp" } };
+  const [companion] = spellBoardTokenCompanionsByCasterId([devToken]).get("caster-a");
+  assert.equal(companion.iconUrl, "/spell-token-spiritual-weapon.webp");
+  assert.equal(spellBoardTokenPortraitUrl({ image: { url: "https://cdn.example.com/art/my-sword.png" } }, "/x.webp"),
+    "https://cdn.example.com/art/my-sword.png", "an image the GM set stays");
+  assert.equal(spellBoardTokenPortraitUrl({}, "/spell-token-arcane-hand.webp"), "/spell-token-arcane-hand.webp");
 });

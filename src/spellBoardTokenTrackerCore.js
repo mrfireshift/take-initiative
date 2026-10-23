@@ -13,6 +13,22 @@ function rawItem(value) {
   return value?.item || value || null;
 }
 
+// A summon's portrait. The token stores its image as an absolute URL, with the origin of the page that created it
+// (spellBoardToken.js): a token made on a dev server or on an older host shows a broken image elsewhere. When the
+// image is one of the plugin's own assets (spell-token-*), the portrait reads the same file from the page showing
+// it; an image the GM set stays as it is.
+export function spellBoardTokenPortraitUrl(item, fallbackPath = "") {
+  const url = normalizedId(item?.image?.url);
+  if (!url) return fallbackPath;
+  let file = "";
+  try {
+    file = new URL(url, "http://plugin.invalid").pathname.split("/").pop() || "";
+  } catch {
+    return url;
+  }
+  return /^spell-token-[a-z0-9-]+\.(?:webp|svg|png)$/u.test(file) ? `/${file}` : url;
+}
+
 export function isSpellBoardTokenItem(item) {
   const value = rawItem(item);
   const metadata = value?.metadata?.[SPELL_BOARD_TOKEN_META_KEY];
@@ -110,7 +126,7 @@ export function spellBoardTokenCompanionsByCasterId(items = []) {
       baseLabel: rule.label,
       number: view?.number || null,
       objectSizeLabel: view?.objectSizeLabel || "",
-      iconUrl: item.image?.url || rule.assetPath,
+      iconUrl: spellBoardTokenPortraitUrl(item, rule.assetPath),
       actionLabel: [view?.objectSizeLabel, actionLabel].filter(Boolean).join(" · "),
       state: view?.state || {},
       hp: view?.state?.hp,
