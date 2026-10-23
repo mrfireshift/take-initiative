@@ -57,9 +57,12 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
       record.phase = "SIDE_EFFECTS_PENDING";
       record.completedSideEffects = record.sideEffects.map((_, index) => `${record.commandId}:side:${index}`);
     }
-    if (Object.keys(next.records).length > EFFECTS_RECOVERY_LIMITS.records
+    const recordCount = Object.keys(next.records).length;
+    if (recordCount > EFFECTS_RECOVERY_LIMITS.records
       || Math.max(...[next, reserved].map((value) => new TextEncoder().encode(JSON.stringify({ [EFFECTS_RECOVERY_KEY]: value })).length)) > EFFECTS_RECOVERY_LIMITS.bytes) {
-      throw new Error("effects-recovery-budget-exceeded");
+      // A lone record that does not fit is too large by itself (many effects on several targets); with other
+      // pending records the journal is full.
+      throw new Error(recordCount === 1 ? "effects-recovery-record-too-large" : "effects-recovery-budget-exceeded");
     }
     try { await writeSceneMetadataKey(obr.scene, METADATA_OWNERSHIP.EFFECTS_RECOVERY, durable(next), { runtime: "effectsRecovery" }); }
     catch (error) {

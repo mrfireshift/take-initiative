@@ -910,14 +910,18 @@ test("manual completion — already applied physical result is accepted without 
   assert.equal(fault.updateCalls, writes); assert.equal(historyEntries().length, 1); assert.equal(pendingRecovery().length, 0);
 });
 
-test("budget — oversized immutable before/after is rejected without truncation or commit", async () => {
+test("budget — an oversized immutable before/after commits without a recovery record, never truncated", async () => {
+  // A record too large by itself (a boss action on targets with many effects) must not block the game:
+  // the command commits like one without durable recovery and records its full History.
   const first = await bootRuntime("budget");
   item("target").metadata[META_KEY].large = "x".repeat(140000);
   const result = await first.client.runEffectsMutation(addConditionOperation(), {
     commandId: "budget", metadataPatches: [{ id: "target", fields: { large: { value: "after" } } }],
   });
-  assert.equal(result.status, "failed"); assert.equal(result.committed, false); assert.equal(fault.updateCalls, 0);
-  assert.equal(item("target").metadata[META_KEY].large.length, 140000); assert.equal(pendingRecovery().length, 0);
+  assert.equal(result.status, "applied"); assert.equal(result.committed, true);
+  assert.equal(item("target").metadata[META_KEY].large, "after"); assert.equal(pendingRecovery().length, 0);
+  assert.equal(await eventually(() => historyEntries().length === 1), true);
+  assert.equal(historyEntries()[0].changes[0].beforeMetadata.large.value.length, 140000);
 });
 
 test("budget — sixteen pending records are retained and the seventeenth cannot commit", async () => {

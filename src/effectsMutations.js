@@ -3873,9 +3873,17 @@ async function commitCoordinatedEffectsPlan(plan, { isCurrent, command = {} }) {
     return commitHistoryUndoPlan(plan, { isCurrent });
   }
   const recovery = effectsRecovery;
-  const recoveryRecord = recovery && supportsEffectsRecovery(command, plan)
-    ? await recovery.prepare(command, plan, recoverySideEffectHistory(plan.preparedSideEffects || []), isCurrent)
-    : null;
+  let recoveryRecord = null;
+  if (recovery && supportsEffectsRecovery(command, plan)) {
+    try {
+      recoveryRecord = await recovery.prepare(command, plan, recoverySideEffectHistory(plan.preparedSideEffects || []), isCurrent);
+    } catch (error) {
+      // A record too large for the scene budget by itself (many effects on several targets) wrote nothing: the
+      // command commits without durable recovery, like an unsupported one, and the coordinator records its History.
+      // A journal full of pending records still refuses the command.
+      if (String(error?.message || error) !== "effects-recovery-record-too-large") throw error;
+    }
+  }
   // Scene metadata and items are separate SDK writes: recheck immediately before item commit.
   const preconditionFailure=await checkEffectsSceneMetadataPreconditions(command,isCurrent);
   if(preconditionFailure) {

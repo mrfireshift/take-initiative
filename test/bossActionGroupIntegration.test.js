@@ -353,3 +353,24 @@ test("a target profile changed during the commit rejects the whole group", async
     assert.equal((await history.getHistoryEntries()).length, baselineCount);
   } finally { sdk.scene.items.updateItems = original; }
 });
+
+test("targets with many effects overflow the recovery journal: the group still applies once, with one History and Undo", async () => {
+  // Round 10 of a boss fight: two heroes carry 30 effects each, a recovery record past its 128 KB scene budget.
+  for (const id of ["dars", "mira"]) {
+    meta(id).conditions = { version: 2, instances: Array.from({ length: 30 }, (_, index) => ({ id: `long-fight-${id}-${index}-${"x".repeat(30)}`,
+      condition: "Benedetto", active: true, targetId: id, sourceId: "sera", sourceName: "Sera", type: "spell",
+      expiry: { mode: "turn-end", remaining: 10, actor: "source", actorId: "sera", anchor: "next-turn" },
+      appliedAt: { round: 1, actorId: "sera", phase: "turn", turnKey: "1:5:sera" } })) };
+  }
+  const before = Object.fromEntries(["dars", "mira", "sera"].map((id) => [id, clone(meta(id))]));
+  const result = await resolveBreath();
+  assert.equal(meta("dars").hp, 14); assert.equal(meta("mira").hp, 0); assert.equal(meta("sera").hp, 16);
+  assert.equal(blinded("dars").length, 1); assert.equal(blinded("mira").length, 1);
+  assert.equal(instances("dars").filter((entry) => entry.condition === "Benedetto").length, 30);
+  assert.equal(sceneMetadata["com.thebigpicture.initiative/effects-recovery-v1"]?.records?.[result.historyEntryId] ?? null, null);
+  const entries = await monsterEntries();
+  assert.equal(entries.length, 1);
+  assert.equal(result.undoAvailable, true);
+  await history.undoHistoryThrough(entries[0].id, { sceneEpoch: currentSceneEpoch() });
+  for (const id of ["dars", "mira", "sera"]) assert.deepEqual(meta(id), before[id], id);
+});
