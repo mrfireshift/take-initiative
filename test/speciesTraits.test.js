@@ -3,7 +3,8 @@ import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 
 mock.module("@owlbear-rodeo/sdk", { exports: { default: { onReady() {} }, buildLabel() {}, buildImage() {}, buildText() {}, buildPath() {}, buildShape() {}, Command: class {} } });
-const { SPECIES, sanitizeSpecies, speciesDamageDefenses, speciesDisplayName, speciesOptionMissing, speciesFeaturesForProfile, SPECIES_FEATURES } = await import("../src/speciesTraitCore.js");
+const { SPECIES, sanitizeSpecies, speciesDamageDefenses, speciesDisplayName, speciesOptionMissing, speciesFeaturesForProfile, SPECIES_FEATURES,
+  sanitizeSupernaturalGift, supernaturalGiftDisplayName } = await import("../src/speciesTraitCore.js");
 const { CLASS_FEATURE_BY_ID, CLASS_FEATURE_RESOURCE_POOL_BY_ID, CLASS_FEATURES, getEnabledClassFeatures, getAvailableClassFeatures } = await import("../src/classFeatureCatalog.js");
 const { planClassFeatureActivation, classFeatureConditionInstancesForActivation, classFeatureRuntimeSupport, resolveClassFeatureResourceMaximum } = await import("../src/classFeatureCore.js");
 const { damageDefensesForItem, profileDamageDefenses } = await import("../src/damageDefensesCore.js");
@@ -252,4 +253,24 @@ test("Wildemount and Van Richten: dragonborn variants without breath, lineages w
   assert.equal(resolveClassFeatureResourceMaximum(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-dhampir-morso-vampirico-usi"), [{ classId: "ladro", level: 5 }]).maximum, 3);
   assert.equal(traits({ id: "elfo-pallido" }, 2).includes("specie-elfo-pallido-benedizione-sonno"), false, "Sleep from 3rd level");
   assert.ok(SPECIES.find((entry) => entry.id === "elfo-marino").sourceAliases.includes("wildemount"));
+});
+
+test("a supernatural gift is an optional profile field next to the species, with traits of its own", () => {
+  assert.deepEqual(sanitizeSupernaturalGift({ id: "hollow-one", extra: true }), { id: "hollow-one" });
+  assert.equal(sanitizeSupernaturalGift({ id: "nyxborn" }), null, "not in the catalog");
+  assert.equal(Object.hasOwn(sanitizeInitiativeCard({ species: { id: "elfo", ancestryId: "alto" } }), "supernaturalGift"), false,
+    "profiles without a gift keep their shape");
+  assert.deepEqual(sanitizeInitiativeCard({ supernaturalGift: { id: "hollow-one" } }).supernaturalGift, { id: "hollow-one" });
+  assert.equal(sanitizeInitiativeCard({ supernaturalGift: null }).supernaturalGift, null, "null clears it, like the species");
+  assert.equal(hasInitiativeCardValues(sanitizeInitiativeCard({ supernaturalGift: { id: "hollow-one" } })), true);
+  assert.equal(supernaturalGiftDisplayName({ id: "hollow-one" }), "Hollow one");
+  const ids = traits({ id: "elfo", ancestryId: "alto" });
+  const withGift = speciesFeaturesForProfile({ species: { id: "elfo", ancestryId: "alto" }, supernaturalGift: { id: "hollow-one" } }).map((feature) => feature.id);
+  assert.deepEqual(withGift.slice(0, ids.length), ids, "the species traits first");
+  assert.deepEqual(withGift.slice(ids.length), ["dono-hollow-one-senza-eta", "dono-hollow-one-aggrapparsi-alla-vita", "dono-hollow-one-ritorno", "dono-hollow-one-presenza-inquietante"]);
+  assert.equal(speciesFeaturesForProfile({ supernaturalGift: { id: "hollow-one" } }).length, 4, "a gift works without a species too");
+  const unsettling = CLASS_FEATURE_BY_ID.get("dono-hollow-one-presenza-inquietante");
+  assert.equal(unsettling.sourceLabel, "Explorer's Guide to Wildemount");
+  assert.ok(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get(unsettling.resourceCosts[0].poolId));
+  assert.equal(CLASS_FEATURES.some((feature) => feature.giftId), false, "gift traits stay out of the class catalog");
 });

@@ -63,6 +63,7 @@ testo (`"+7"`, `"15"`).
 | --- | --- |
 | `classes` | Fino a quattro classi con livello della singola classe e sottoclasse. Classi in italiano o in inglese (`Wizard`, `Fighter`…); sottoclassi con il nome italiano del catalogo, anche parziale (`Divinazione`). Per una sola classe valgono anche `class`, `level` e `subclass` al primo livello. |
 | `species` | Testo o `{ "name", "ancestry" }`: `ancestry` è l'ascendenza draconica, la sottorazza o la variante (accettati anche `subrace` e `variant`). Il nome può essere già la sottorazza ("Elfo oscuro (drow)", "Hill Dwarf"). Per una specie presente in più manuali, `source` sceglie la versione ("Volo", "Mostri del Multiverso", "Tomo dei Nemici", "Costa della Spada", "Elemental Evil", "Eberron", "Ravnica", "Theros", "Witchlight", "Strixhaven", "Tortle Package", "Wildemount", "Van Richten"); senza, vale la prima e l'import lo segnala. Le specie fuori dal [catalogo](SPECIE.md) vengono segnalate. |
+| `supernaturalGift` | Testo o `{ "name" }` (accettati anche `gift` e `dono`): il dono soprannaturale che si aggiunge alla specie, per ora "Hollow One". Un dono sconosciuto viene segnalato. |
 | `armorClass`, `passivePerception`, `spellSaveDC`, `spellAttackBonus` | Numeri. |
 | `speed` | Metri (`9`, `"9 m"`) oppure piedi con l'unità (`"30 ft"`, `"30 piedi"`: 1,5 m ogni 5 piedi). |
 | `abilities` | Punteggi (`"int": 18`) oppure `{ "score": 18, "modifier": 4 }`. In alternativa `abilityScores` (punteggi) o `abilityModifiers` (modificatori). Chiavi `str dex con int wis cha` oppure `for des cos int sag car`, anche per esteso. |
@@ -86,7 +87,8 @@ la scheda non riporta):
 
 name; classes: [{ class, level, subclass }] con il livello della singola
 classe; species: { name, ancestry, source } con ancestry = ascendenza
-draconica, sottorazza o variante e source = manuale della specie; armorClass; speed in metri ("9 m") o in
+draconica, sottorazza o variante e source = manuale della specie;
+supernaturalGift: il dono soprannaturale, se c'è (es. "Hollow One"); armorClass; speed in metri ("9 m") o in
 piedi con l'unità ("30 ft"); passivePerception; spellSaveDC;
 spellAttackBonus; abilities: punteggi di caratteristica con chiavi
 str dex con int wis cha; savingThrows: bonus totali con le stesse chiavi;

@@ -5,6 +5,12 @@ La specie si sceglie nella scheda personaggio (scheda **Capacità**, sezione
 dragonidi, la sottorazza o la variante per le altre. I tratti compaiono tra le
 capacità della card, con manuale e pagina.
 
+Accanto alla specie c'è il campo facoltativo **Dono soprannaturale**: un dono
+che si aggiunge alla specie senza sostituirla (per ora hollow one, di
+Wildemount). I suoi tratti si sommano a quelli della specie e funzionano anche
+senza specie. Nel profilo del token è il campo `supernaturalGift`, assente se
+non scelto; **Nessuno** lo cancella.
+
 Il catalogo segue le regole 2014 (mai le 2024). I testi sono sintesi in
 italiano scritte per il plugin: vanno verificati sul manuale indicato.
 Il codice è in `src/speciesTraitCore.js`; le specie dalla tranche 2 in poi
@@ -586,8 +592,8 @@ specie ha una ristampa in Mostri del Multiverso.
   specie: Retaggio ancestrale, che conserva competenze e velocità della specie
   d'origine, va riportato nel profilo. L'hexblood è di tipo folletto; il
   reborn ha la resistenza al veleno applicata alle difese.
-- **Hollow one** non è nel catalogo: è un dono soprannaturale che si aggiunge
-  alla specie, e la scheda ha un solo campo specie.
+- **Hollow one** è un dono soprannaturale, non una specie: si sceglie nel
+  campo **Dono soprannaturale**, accanto alla specie (vedi sotto).
 
 Restano fuori la scurovisione e le competenze del Retaggio ancestrale.
 
@@ -632,6 +638,20 @@ Da controllare con più attenzione:
 | Hexblood | — | Magia del sortilegio: Sortilegio | 11 | Azione bonus · 1/riposo lungo | 1 |
 | Reborn | — | Natura senza morte | 12 | Passiva | 1 |
 | Reborn | — | Conoscenza da una vita passata | 12 | Innesco · competenza/riposo lungo | 1 |
+
+### Dono soprannaturale: hollow one
+
+Dichiarato in `src/speciesCatalogWildemountRavenloft.js` (`GIFT_CATALOG_WILDEMOUNT`).
+È il dono di cui il ricordo è meno sicuro: **va verificato per primo**, in
+particolare Aggrapparsi alla vita, Ritorno e la portata e la durata di
+Presenza inquietante. Pagina 201 stimata.
+
+| Dono | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|
+| Hollow one | Senza età | 201 | Passiva | 1 |
+| Hollow one | Aggrapparsi alla vita | 201 | Passiva | 1 |
+| Hollow one | Ritorno | 201 | Passiva | 1 |
+| Hollow one | Presenza inquietante | 201 | Azione bonus · 1/riposo lungo | 1 |
 
 ## Mordenkainen presenta: Mostri del Multiverso
 
@@ -764,5 +784,6 @@ voci di fata e harengon sono quelle di Witchlight, con lo stesso testo.
 ## Tranche successive
 
 Ancora da scrivere: Spelljammer, Dragonlance e il lignaggio personalizzato di
-Tasha; da decidere hollow one (dono soprannaturale di Wildemount). Una specie
+Tasha; eventuali altri doni soprannaturali (Theros) e doni oscuri (Van
+Richten) nel campo del dono. Una specie
 fuori catalogo, importata da una scheda, viene segnalata e non applicata.

@@ -17,9 +17,11 @@ import { SPECIES_CATALOG_EBERRON, SPECIES_CATALOG_MULTIVERSO_EBERRON } from "./s
 import { SPECIES_CATALOG_MULTIVERSO_RAVNICA_THEROS, SPECIES_CATALOG_RAVNICA, SPECIES_CATALOG_THEROS } from "./speciesCatalogRavnicaTheros.js";
 import { SPECIES_CATALOG_STRIXHAVEN, SPECIES_CATALOG_WITCHLIGHT } from "./speciesCatalogWitchlightStrixhaven.js";
 import { SPECIES_CATALOG_ACQUISITIONS, SPECIES_CATALOG_GRUNG, SPECIES_CATALOG_LOCATHAH, SPECIES_CATALOG_MULTIVERSO_TORTLE, SPECIES_CATALOG_TORTLE } from "./speciesCatalogMinori.js";
-import { SPECIES_CATALOG_RAVENLOFT, SPECIES_CATALOG_WILDEMOUNT } from "./speciesCatalogWildemountRavenloft.js";
+import { GIFT_CATALOG_WILDEMOUNT, SPECIES_CATALOG_RAVENLOFT, SPECIES_CATALOG_WILDEMOUNT } from "./speciesCatalogWildemountRavenloft.js";
 
 export const SPECIES_FIELD = "species";
+// A supernatural gift (the Wildemount hollow one) is added to the species: { id }, optional like it.
+export const SUPERNATURAL_GIFT_FIELD = "supernaturalGift";
 
 // english: the colour or gem as English sheets name it, for the import.
 const ancestry = (id, label, damageType, damageLabel, english) => Object.freeze({ id, label, damageType, damageLabel, aliases: Object.freeze([english]) });
@@ -184,6 +186,26 @@ export const SPECIES = Object.freeze([
 ]);
 const SPECIES_BY_ID = new Map(SPECIES.map((entry) => [entry.id, entry]));
 
+const GIFT_CATALOG = [...GIFT_CATALOG_WILDEMOUNT];
+export const SUPERNATURAL_GIFTS = Object.freeze(GIFT_CATALOG.map((spec) => Object.freeze({
+  id: spec.id, label: spec.label, ...catalogBook(spec), aliases: Object.freeze(spec.aliases || []), theme: theme(...spec.look),
+})));
+const SUPERNATURAL_GIFT_BY_ID = new Map(SUPERNATURAL_GIFTS.map((entry) => [entry.id, entry]));
+
+export function getSupernaturalGift(id) {
+  return SUPERNATURAL_GIFT_BY_ID.get(String(id || "").trim()) || null;
+}
+
+export function sanitizeSupernaturalGift(value) {
+  const gift = getSupernaturalGift(value?.id);
+  return gift ? { id: gift.id } : null;
+}
+
+export function supernaturalGiftDisplayName(value) {
+  const clean = sanitizeSupernaturalGift(value);
+  return clean ? getSupernaturalGift(clean.id).label : "";
+}
+
 export function getSpecies(id) {
   return SPECIES_BY_ID.get(String(id || "").trim()) || null;
 }
@@ -259,8 +281,8 @@ export const SPECIES_RESOURCE_POOLS = Object.freeze([
   pool("specie-mezzorco-tenacia-implacabile-usi", "Tenacia implacabile", { type: "fixed", value: 1 }, ["riposo_lungo"]),
   pool("specie-tiefling-intimorire-infernale-usi", "Eredità infernale: Intimorire infernale", { type: "fixed", value: 1 }, ["riposo_lungo"]),
   pool("specie-tiefling-oscurita-usi", "Eredità infernale: Oscurità", { type: "fixed", value: 1 }, ["riposo_lungo"]),
-  ...CATALOG.flatMap((spec) => (spec.pools || []).map((entry) => pool(
-    `specie-${spec.id}-${entry.key}-usi`, entry.name,
+  ...[...CATALOG.map((spec) => [spec, "specie"]), ...GIFT_CATALOG.map((spec) => [spec, "dono"])].flatMap(([spec, prefix]) => (spec.pools || []).map((entry) => pool(
+    `${prefix}-${spec.id}-${entry.key}-usi`, entry.name,
     // count: 1, "pb" or a pool formula ("max(1, modificatore_costituzione)").
     entry.count === "pb" ? { type: "formula", expression: "bonus_competenza" }
       : typeof entry.count === "string" ? { type: "formula", expression: entry.count } : { type: "fixed", value: entry.count },
@@ -364,18 +386,20 @@ const DRAGONBORN_FEATURES = SPECIES.filter((entry) => DRAGONBORN_IDS.has(entry.i
 // reference card; the others spend their own use with a button and are resolved at the table. Proficiencies,
 // languages, ability scores and plain darkvision stay out: they are part of the sheet, not of play.
 // optionId may be a list: the trait then belongs to each of those options (an ibrido Simic's pairs).
-function speciesTrait({ speciesId, optionId = "", key, name, page, description, activation = "passiva", minimumLevel = 1, poolId = "", effectPlan = null, rounds = null }) {
-  const species = getSpecies(speciesId);
+// A supernatural gift's trait has the same shape, with giftId in place of the species.
+function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, page, description, activation = "passiva", minimumLevel = 1, poolId = "", effectPlan = null, rounds = null }) {
+  const species = giftId ? getSupernaturalGift(giftId) : getSpecies(speciesId);
   const passive = activation === "passiva";
   // A trait with an effect plan (an aasimar's transformation) puts a pill on the character.
   const runtimeSupport = effectPlan ? CONDITION_ADAPTER : passive ? NOT_AUTOMATED : RESOURCE_ONLY;
   return Object.freeze({
-    id: `specie-${speciesId}-${key}`,
+    id: giftId ? `dono-${giftId}-${key}` : `specie-${speciesId}-${key}`,
     name,
     description,
     classId: "",
     subclassId: "",
     speciesId,
+    ...(giftId ? { giftId } : {}),
     ancestryId: Array.isArray(optionId) ? "" : optionId,
     ...(Array.isArray(optionId) ? { ancestryIds: Object.freeze([...optionId]) } : {}),
     minimumLevel,
@@ -473,24 +497,31 @@ const PHB_FEATURES = [
 ];
 
 // Tranche 2: the catalog's traits, ids "specie-<species>-<key>" like those of the PHB.
-const CATALOG_FEATURES = CATALOG.flatMap((spec) => spec.traits.map((entry) => speciesTrait({
-  speciesId: spec.id, optionId: entry.option || "", key: entry.key, name: entry.name, page: entry.page ?? spec.page,
+const catalogTraits = (spec, gift = false) => spec.traits.map((entry) => speciesTrait({
+  ...(gift ? { giftId: spec.id } : { speciesId: spec.id }), optionId: entry.option || "", key: entry.key, name: entry.name, page: entry.page ?? spec.page,
   description: entry.text, activation: entry.act || "passiva", minimumLevel: entry.level || 1,
-  poolId: entry.uses ? `specie-${spec.id}-${entry.uses}-usi` : "",
+  poolId: entry.uses ? `${gift ? "dono" : "specie"}-${spec.id}-${entry.uses}-usi` : "",
   effectPlan: entry.effect ? Object.freeze({ kind: "condition", conditionName: entry.name, effectKind: "buff", detail: entry.effect.detail }) : null,
   rounds: entry.effect?.rounds ?? null,
-})));
+}));
+const CATALOG_FEATURES = CATALOG.flatMap((spec) => catalogTraits(spec));
+const GIFT_FEATURES = GIFT_CATALOG.flatMap((spec) => catalogTraits(spec, true));
 
-export const SPECIES_FEATURES = Object.freeze([...DRAGONBORN_FEATURES, ...PHB_FEATURES, ...CATALOG_FEATURES]);
+// Gift traits ride with the species ones: same lookup by id, same runtime, same profile filter.
+export const SPECIES_FEATURES = Object.freeze([...DRAGONBORN_FEATURES, ...PHB_FEATURES, ...CATALOG_FEATURES, ...GIFT_FEATURES]);
 
 // A species trait is available for the profile's species, and for its chosen option when the
 // trait belongs to one, once the total character level reaches it. A species with options and none
 // chosen has no traits. Without a class build the level is unknown, so every trait stays available.
+// The supernatural gift's traits follow, with or without a species.
 export function speciesFeaturesForProfile(profile, totalCharacterLevel = 0) {
   const clean = sanitizeSpecies(profile?.[SPECIES_FIELD]);
-  if (!clean || speciesOptionMissing(clean)) return [];
+  const gift = sanitizeSupernaturalGift(profile?.[SUPERNATURAL_GIFT_FIELD]);
   const level = Number(totalCharacterLevel) || 0;
-  return SPECIES_FEATURES.filter((feature) => feature.speciesId === clean.id
+  const reached = (feature) => !level || level >= feature.minimumLevel;
+  const speciesFeatures = !clean || speciesOptionMissing(clean) ? [] : SPECIES_FEATURES.filter((feature) => feature.speciesId === clean.id
     && (feature.ancestryIds ? feature.ancestryIds.includes(clean.ancestryId) : !feature.ancestryId || feature.ancestryId === clean.ancestryId)
-    && (!level || level >= feature.minimumLevel));
+    && reached(feature));
+  const giftFeatures = gift ? SPECIES_FEATURES.filter((feature) => feature.giftId === gift.id && reached(feature)) : [];
+  return [...speciesFeatures, ...giftFeatures];
 }

@@ -3,7 +3,7 @@
 // The Wildemount sea elf is the Tomo dei Nemici one: that entry names Wildemount in alsoIn. Wildemount's
 // pallid elf and lotusden halfling are species of their own with the play traits of the elf and the
 // halfling, like the Tomo dei Nemici subraces. The hollow one is a supernatural gift added to a species,
-// not a species: it is not in this catalog.
+// not a species: it is declared apart, in GIFT_CATALOG_WILDEMOUNT.
 
 import { FEY_ANCESTRY, MM_ABILITY, ONCE_LONG, PB_LONG, once, opt, passive, perPb, spell, use } from "./speciesCatalogVoloMordenkainen.js";
 
@@ -73,6 +73,21 @@ export const SPECIES_CATALOG_RAVENLOFT = [
     traits: [
       passive("natura-senza-morte", "Natura senza morte", "Vantaggio ai tiri salvezza contro le malattie e la condizione avvelenato; resistenza ai danni da veleno, già applicata alle difese. Vantaggio ai tiri salvezza contro la morte. Non mangi, non bevi, non respiri e non dormi; la magia non può farti addormentare. Il riposo lungo è di 4 ore di inattività, cosciente."),
       use("conoscenza-da-una-vita-passata", "Conoscenza da una vita passata", "innesco", "conoscenza-da-una-vita-passata", `Quando fai una prova di caratteristica che usa un'abilità, puoi tirare un d6 e aggiungerlo al risultato. ${PB_LONG}`),
+    ],
+  },
+];
+
+// Supernatural gifts: added to the character's species, in their own profile field (supernaturalGift).
+// Same declarative shape as a species, without options.
+export const GIFT_CATALOG_WILDEMOUNT = [
+  {
+    id: "hollow-one", label: "Hollow one", book: "wildemount", page: 201, aliases: ["hollow one", "hollowone"], look: ["💀", "#cbd5e1", "#0f172a", "#f8fafc"],
+    pools: [once("presenza-inquietante", "Presenza inquietante")],
+    traits: [
+      passive("senza-eta", "Senza età", "Non invecchi: il tuo corpo resta come al momento della morte da cui sei tornato."),
+      passive("aggrapparsi-alla-vita", "Aggrapparsi alla vita", "Quando fai un tiro salvezza contro la morte e il d20 dà un risultato diverso da 1, puoi considerarlo un 10."),
+      passive("ritorno", "Ritorno", "Gli incantesimi e gli effetti che individuano i non morti, come Individuazione del bene e del male, ti rilevano come non morto, oltre che come la tua specie."),
+      use("presenza-inquietante", "Presenza inquietante", "azione_bonus", "presenza-inquietante", `Con un'azione bonus scegli una creatura ostile che puoi vedere entro 4,5 m: ha svantaggio al prossimo tiro salvezza che fa entro 1 minuto. ${ONCE_LONG}`),
     ],
   },
 ];

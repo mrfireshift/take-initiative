@@ -6,7 +6,7 @@
 import { getSpellDefinition } from "./spells-srd.js";
 import { CLASS_FEATURE_CLASSES, getClassFeatureSubclasses } from "./classFeatureCatalog.js";
 import { MAX_CHARACTER_CLASSES, sanitizeCharacterBuild } from "./classFeatureCore.js";
-import { SPECIES, speciesDisplayName } from "./speciesTraitCore.js";
+import { SPECIES, SUPERNATURAL_GIFTS, speciesDisplayName, supernaturalGiftDisplayName } from "./speciesTraitCore.js";
 import { DAMAGE_TYPES, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
 import { ABILITY_KEYS, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import { MAX_QUICK_ACTION_ATTACKS, sanitizeQuickAction } from "./quickActionsCore.js";
@@ -17,6 +17,7 @@ import { normalizeSpeedMeters } from "./speedCheckCore.js";
 export const SHEET_IMPORT_SECTIONS = Object.freeze([
   Object.freeze({ id: "classes", label: "Classi e livelli" }),
   Object.freeze({ id: "species", label: "Specie" }),
+  Object.freeze({ id: "supernaturalGift", label: "Dono soprannaturale" }),
   Object.freeze({ id: "stats", label: "Statistiche" }),
   Object.freeze({ id: "abilities", label: "Modificatori di caratteristica" }),
   Object.freeze({ id: "saves", label: "Tiri salvezza" }),
@@ -239,6 +240,20 @@ function importedSpecies(data, unresolved) {
   return { id: species.id, ancestryId: ancestry?.id || "" };
 }
 
+// supernaturalGift: "Hollow One" or { name }, added to the species.
+function importedSupernaturalGift(data, unresolved) {
+  const raw = data.supernaturalGift ?? data.gift ?? data.dono ?? data.donoSoprannaturale;
+  if (raw === undefined || raw === null || raw === "") return null;
+  const name = text(typeof raw === "object" ? raw.name ?? raw.id : raw);
+  const key = lookupKey(name);
+  const gift = SUPERNATURAL_GIFTS.find((entry) => speciesNameMatches(entry, key));
+  if (!gift) {
+    if (name) unresolved.push(`dono soprannaturale "${name}"`);
+    return null;
+  }
+  return { id: gift.id };
+}
+
 const DAMAGE_TYPE_BY_KEY = new Map(DAMAGE_TYPES.flatMap((entry) => [
   [lookupKey(entry.id), entry.id],
   [lookupKey(entry.label), entry.id],
@@ -354,6 +369,7 @@ export function parseCharacterSheetImport(value) {
   const candidates = {
     classes: importedClasses(data, unresolved),
     species: importedSpecies(data, unresolved),
+    supernaturalGift: importedSupernaturalGift(data, unresolved),
     stats: importedStats(data),
     abilities: importedAbilityModifiers(data),
     saves: importedSaves(data),
@@ -382,6 +398,7 @@ export function sheetImportSectionSummary(id, section, { classNameOf = (classId)
       return `${classNameOf(entry.classId)} ${entry.level}${subclass ? ` (${subclass})` : ""}`;
     }).join(" / ");
   }
+  if (id === "supernaturalGift") return supernaturalGiftDisplayName(section);
   if (id === "species") {
     const species = SPECIES.find((entry) => entry.id === section.id);
     const ancestry = species?.ancestries.find((entry) => entry.id === section.ancestryId);

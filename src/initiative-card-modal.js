@@ -20,7 +20,10 @@ import {
 } from "./spells-srd.js";
 import { getSpellsFromItem } from "./spells.js";
 import { DAMAGE_TYPES, DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, damageDefenseFor, damageDefenseTag, hasDamageDefenses, profileDamageDefenses } from "./damageDefensesCore.js";
-import { SPECIES, SPECIES_FIELD, getSpecies, sanitizeSpecies, speciesDisplayName, speciesOptionMissing } from "./speciesTraitCore.js";
+import {
+  SPECIES, SPECIES_FIELD, SUPERNATURAL_GIFTS, SUPERNATURAL_GIFT_FIELD, getSpecies, sanitizeSpecies, sanitizeSupernaturalGift,
+  speciesDisplayName, speciesOptionMissing, supernaturalGiftDisplayName,
+} from "./speciesTraitCore.js";
 import { ABILITY_KEYS, ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import {
   MAX_QUICK_ACTIONS,
@@ -1406,8 +1409,8 @@ function classFeatureMetaText(feature) {
   const parts = [
     classFeatureActivationLabel(feature),
     `liv. ${feature.minimumLevel}`,
-    // A species trait shows its page, to check it on the manual.
-    feature.speciesId && feature.page ? `${feature.sourceLabel} p. ${feature.page}` : feature.sourceLabel,
+    // A species or gift trait shows its page, to check it on the manual.
+    (feature.speciesId || feature.giftId) && feature.page ? `${feature.sourceLabel} p. ${feature.page}` : feature.sourceLabel,
     currentDie ? `dado corrente ${currentDie}` : "",
     targeting.rangeMeters
       ? `${targeting.mode === "aura" ? "area" : "portata"} ${targeting.rangeMeters} m`
@@ -2367,7 +2370,8 @@ function renderClassFeatures() {
 
   const buildSummary = $("classBuildSummary");
   const speciesLabel = speciesDisplayName(profile?.[SPECIES_FIELD]);
-  const buildLabels = [...(speciesLabel ? [speciesLabel] : []), ...classFeatureBuildLabel(profile.characterBuild)];
+  const giftLabel = supernaturalGiftDisplayName(profile?.[SUPERNATURAL_GIFT_FIELD]);
+  const buildLabels = [...(speciesLabel ? [speciesLabel] : []), ...(giftLabel ? [giftLabel] : []), ...classFeatureBuildLabel(profile.characterBuild)];
   buildSummary.replaceChildren(...(
     buildLabels.length
       ? buildLabels.map((text) => {
@@ -3423,6 +3427,8 @@ function applySheetImport() {
     } else if (id === "species") {
       $("speciesInput").value = section.id;
       buildSpeciesAncestryOptions(section.id, section.ancestryId);
+    } else if (id === "supernaturalGift") {
+      $("supernaturalGiftInput").value = section.id;
     } else if (id === "stats") {
       const inputs = {
         armorClass: "armorClassInput",
@@ -3944,10 +3950,17 @@ function buildSpeciesEditor() {
   select.replaceChildren(new Option("Nessuna", ""), ...groups.values());
   select.value = current?.id || "";
   buildSpeciesAncestryOptions(current?.id, current?.ancestryId);
+  const gift = $("supernaturalGiftInput");
+  gift.replaceChildren(new Option("Nessuno", ""), ...SUPERNATURAL_GIFTS.map((entry) => new Option(`${entry.label} · ${entry.sourceLabel}`, entry.id)));
+  gift.value = sanitizeSupernaturalGift(profile?.[SUPERNATURAL_GIFT_FIELD])?.id || "";
 }
 
 function collectSpecies() {
   return sanitizeSpecies({ id: $("speciesInput").value, ancestryId: $("speciesAncestryInput").value });
+}
+
+function collectSupernaturalGift() {
+  return sanitizeSupernaturalGift({ id: $("supernaturalGiftInput").value });
 }
 
 function collectDamageDefenses() {
@@ -4209,6 +4222,9 @@ $("form").addEventListener("submit", async (event) => {
     // The option label varies (Marchio, Stirpe, Retaggio...): a message without an article fits every one.
     if (speciesOptionMissing(species)) throw new Error(`Specie: scegli un'opzione in «${getSpecies(species.id).optionLabel}».`);
     const speciesPatch = species || Object.hasOwn(profile || {}, SPECIES_FIELD) ? { [SPECIES_FIELD]: species } : {};
+    // Come la specie: il dono si scrive solo se scelto o già presente.
+    const gift = collectSupernaturalGift();
+    const giftPatch = gift || Object.hasOwn(profile || {}, SUPERNATURAL_GIFT_FIELD) ? { [SUPERNATURAL_GIFT_FIELD]: gift } : {};
     // Come la specie: il libro si scrive solo se usato o già presente.
     const spellbook = sanitizeSpellbook(draftSpellbook);
     const spellbookPatch = hasSpellbook(spellbook) || Object.hasOwn(profile || {}, SPELLBOOK_FIELD)
@@ -4229,6 +4245,7 @@ $("form").addEventListener("submit", async (event) => {
       ...defensePatch,
       ...abilityPatch,
       ...speciesPatch,
+      ...giftPatch,
       ...spellbookPatch,
     }, {
       isCurrent: () => sceneLifecycle.isCurrent(operation),

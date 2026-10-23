@@ -76,6 +76,8 @@ test("species in more than one manual: source picks the version, else the first 
   assert.equal(dragonborn.unresolved.some((line) => /più manuali/.test(line)), false, "the Wildemount variant does not make Dragonborn ambiguous");
   assert.deepEqual(read({ species: "Ravenite" }).sections.species, { id: "dragonide-wildemount", ancestryId: "ravenite" });
   assert.deepEqual(read({ species: { name: "Sea Elf", source: "Wildemount" } }).sections.species, { id: "elfo-marino", ancestryId: "" });
+  assert.deepEqual(read({ species: "Elf", gift: { name: "Hollow One" } }).sections.supernaturalGift, { id: "hollow-one" });
+  assert.match(read({ supernaturalGift: "Nyxborn" }).unresolved[0], /dono soprannaturale "Nyxborn"/);
   assert.deepEqual(read({ species: { name: "Goblin", source: "Eberron" } }).sections.species, { id: "goblin", ancestryId: "" }, "same traits as Volo");
   assert.deepEqual(read({ species: "Mark of Shadow" }).sections.species, { id: "marchio-del-drago", ancestryId: "ombra" });
   assert.deepEqual(read({ species: { name: "Shifter", subrace: "Wildhunt", source: "MotM" } }).sections.species, { id: "shifter-multiverso", ancestryId: "caccia-selvaggia" });
@@ -148,6 +150,7 @@ test("each section has a one-line summary for the panel", () => {
   const { sections } = read({
     classes: [{ class: "Mago", level: 5, subclass: "Divinazione" }],
     species: { name: "Dragonide", ancestry: "Rosso" },
+    supernaturalGift: "Hollow One",
     armorClass: 15, speed: 9, spellAttackBonus: 7,
     abilities: { int: 18 }, damageDefenses: { resistances: ["fire"] },
     spells: ["Shield", "Fireball"], attacks: [{ label: "Pugnale", components: [{ type: "piercing" }] }],
@@ -161,6 +164,7 @@ test("each section has a one-line summary for the panel", () => {
   const summary = (id) => sheetImportSectionSummary(id, sections[id], names);
   assert.equal(summary("classes"), "Mago 5 (Scuola di Divinazione)");
   assert.equal(summary("species"), "Dragonide (rosso)");
+  assert.equal(summary("supernaturalGift"), "Hollow one");
   assert.equal(summary("stats"), "CA 15 · Velocità 9 m · Attacco incantesimi +7");
   assert.equal(summary("abilities"), "INT +4");
   assert.equal(summary("defenses"), "Res. fuoco");

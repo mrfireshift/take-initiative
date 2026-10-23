@@ -233,7 +233,7 @@ evidenziato, finché non lo apre.
 
 In **Modifica**, **Importa** compila la scheda da un blocco JSON ricavato da
 una scheda personaggio (anche da un PDF, con l'aiuto di un assistente).
-Scegli quali sezioni applicare: classi, specie, statistiche, caratteristiche,
+Scegli quali sezioni applicare: classi, specie, dono soprannaturale, statistiche, caratteristiche,
 tiri salvezza, difese, incantesimi, attacchi e note. Nulla è salvato finché
 non premi **Salva**. Formato e prompt sono in
 [Importare una scheda](IMPORT_SCHEDA.md).

@@ -40,7 +40,7 @@ import { sanitizeQuickActions } from "./quickActionsCore.js";
 import { sanitizeBossActionBinding } from "./bossActionProfileCore.js";
 import { DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
 import { ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
-import { SPECIES_FIELD, sanitizeSpecies } from "./speciesTraitCore.js";
+import { SPECIES_FIELD, SUPERNATURAL_GIFT_FIELD, sanitizeSpecies, sanitizeSupernaturalGift } from "./speciesTraitCore.js";
 import { SPELLBOOK_FIELD, hasSpellbook, sanitizeSpellbook } from "./spellbookCore.js";
 import {
   sanitizeCharacterBuild,
@@ -110,6 +110,8 @@ export function sanitizeInitiativeCard(value) {
   if (Object.hasOwn(source, ABILITY_MODIFIERS_FIELD)) normalized[ABILITY_MODIFIERS_FIELD] = sanitizeAbilityModifiers(source[ABILITY_MODIFIERS_FIELD]);
   // Opzionale come le difese: null cancella la specie, i profili senza specie restano invariati.
   if (Object.hasOwn(source, SPECIES_FIELD)) normalized[SPECIES_FIELD] = sanitizeSpecies(source[SPECIES_FIELD]);
+  // Come la specie: null cancella il dono soprannaturale, i profili senza dono restano invariati.
+  if (Object.hasOwn(source, SUPERNATURAL_GIFT_FIELD)) normalized[SUPERNATURAL_GIFT_FIELD] = sanitizeSupernaturalGift(source[SUPERNATURAL_GIFT_FIELD]);
   // Opzionale come la specie: i profili senza incantesimi mantengono la forma precedente.
   if (Object.hasOwn(source, SPELLBOOK_FIELD)) normalized[SPELLBOOK_FIELD] = sanitizeSpellbook(source[SPELLBOOK_FIELD]);
   const actorProfileId = actorProfileIdFromProfile(source);
@@ -172,6 +174,9 @@ function mergeProfile(base, value) {
   }
   if (Object.hasOwn(value, SPECIES_FIELD) || Object.hasOwn(base || {}, SPECIES_FIELD)) {
     merged[SPECIES_FIELD] = value[SPECIES_FIELD] !== undefined ? cleanValue[SPECIES_FIELD] : cleanBase[SPECIES_FIELD];
+  }
+  if (Object.hasOwn(value, SUPERNATURAL_GIFT_FIELD) || Object.hasOwn(base || {}, SUPERNATURAL_GIFT_FIELD)) {
+    merged[SUPERNATURAL_GIFT_FIELD] = value[SUPERNATURAL_GIFT_FIELD] !== undefined ? cleanValue[SUPERNATURAL_GIFT_FIELD] : cleanBase[SUPERNATURAL_GIFT_FIELD];
   }
   if (Object.hasOwn(value, SPELLBOOK_FIELD) || Object.hasOwn(base || {}, SPELLBOOK_FIELD)) {
     merged[SPELLBOOK_FIELD] = value[SPELLBOOK_FIELD] !== undefined ? cleanValue[SPELLBOOK_FIELD] : cleanBase[SPELLBOOK_FIELD];
@@ -241,6 +246,7 @@ const INITIATIVE_CARD_KNOWN_FIELDS = new Set([
   DAMAGE_DEFENSES_FIELD,
   ABILITY_MODIFIERS_FIELD,
   SPECIES_FIELD,
+  SUPERNATURAL_GIFT_FIELD,
   SPELLBOOK_FIELD,
   "characterBuild",
   "enabledClassFeatureIds",
@@ -722,6 +728,7 @@ export function hasInitiativeCardValues(profile) {
     hasDamageDefenses(profile?.[DAMAGE_DEFENSES_FIELD]) ||
     hasAbilityModifiers(profile?.[ABILITY_MODIFIERS_FIELD]) ||
     Boolean(sanitizeSpecies(profile?.[SPECIES_FIELD])) ||
+    Boolean(sanitizeSupernaturalGift(profile?.[SUPERNATURAL_GIFT_FIELD])) ||
     hasSpellbook(profile?.[SPELLBOOK_FIELD]) ||
     Number(profile?.exhaustion) > 0 ||
     Array.isArray(profile?.quickActions) && profile.quickActions.length > 0 ||
