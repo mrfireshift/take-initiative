@@ -58,12 +58,21 @@
     .picker > :not(.picker-list) { flex: 0 0 auto; }
     .picker-tabs button[aria-pressed="true"] { color: #fff; background: rgba(37, 99, 235, .38); }
     /* The spells tab: a list by level instead of a select (every spell in view, one click each). */
-    .picker-list { flex: 0 1 auto; min-height: 132px; display: grid; align-content: start; gap: 2px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    .picker-list { flex: 0 1 auto; min-height: 132px; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 2px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
     .picker-level { padding: 4px 6px 2px; color: var(--dim); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
     .picker-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 26px; padding: 3px 8px; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; text-align: left; cursor: pointer; }
     .picker-row:hover { background: var(--obrt-hover); }
     .picker-row[aria-pressed="true"] { border-color: rgba(96, 165, 250, .55); background: rgba(37, 99, 235, .28); }
     .picker-row:disabled { cursor: default; opacity: .6; }
+    /* No use or slot left: the row fades, its uses turn red (Boss Actions' exhausted badge). */
+    .picker-row[data-exhausted="true"] { opacity: .62; }
+    .picker-row-tags .tag-sep { margin: 0 4px; color: var(--dim); }
+    .uses-badge { padding: 0 6px; border: 1px solid var(--line); border-radius: var(--obrt-radius-pill); color: #bfdbfe; font-weight: var(--obrt-weight-semibold); font-variant-numeric: tabular-nums; }
+    .uses-badge[data-zero="true"] { border-color: rgba(239, 68, 68, .45); color: #fecaca; }
+    /* A spell level's slots, on the right of its header (data-slots, red when none is left). */
+    .picker-level[data-slots] { display: flex; justify-content: space-between; gap: 8px; }
+    .picker-level[data-slots]::after { content: attr(data-slots); letter-spacing: 0; text-transform: none; font-weight: var(--obrt-weight-semibold); font-variant-numeric: tabular-nums; color: var(--muted); }
+    .picker-level[data-slots-zero="true"]::after { color: #fca5a5; }
     .picker-row-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .picker-row-tags { flex: 0 0 auto; color: var(--muted); font-size: var(--obrt-type-caption); }
     /* Action costs, as in Baldur's Gate 3: Azione green (circle), Azione bonus orange (triangle), Reazione purple
@@ -87,6 +96,11 @@
     .feature-field-hint { color: var(--dim); font-size: var(--obrt-type-caption); }
     .feature-field .inline-select { height: 26px; }
     .feature-field .field { height: 26px; }
+    /* Who a feature acting on the map selection reaches ("Su:"), in yellow when a creature must be selected first. */
+    .feature-target { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 5px 8px; border: 1px solid rgba(96, 165, 250, .35); border-radius: var(--obrt-radius-md); background: rgba(30, 64, 175, .18); }
+    .feature-target-text { min-width: 0; font-weight: var(--obrt-weight-semibold); overflow-wrap: anywhere; }
+    .feature-target[data-warning="true"] { border-color: rgba(253, 230, 138, .45); background: rgba(161, 98, 7, .18); }
+    .feature-target[data-warning="true"] .feature-target-text { color: #fde68a; font-weight: var(--obrt-weight-regular); }
     .feature-check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
     .feature-check input { width: 14px; height: 14px; margin: 0; accent-color: #2563eb; }
     /* The spell's details: an accordion with its facts and its text; Lancia stays in the fixed row below. */
@@ -203,12 +217,21 @@
     /* At most two lines beside the button, so the fixed row keeps its height. */
     .total { flex: 1 1 auto; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
     .total strong { color: #fff; font-size: var(--obrt-type-card-title); }
+    .total[data-kind="warning"] { color: #fde68a; }
     .apply { min-width: 112px; min-height: var(--obrt-h-control-lg); padding: 7px 14px; border: 1px solid rgba(255, 255, 255, .18); border-radius: var(--obrt-radius-md); background: #dc2626; font-weight: var(--obrt-weight-bold); cursor: pointer; }
     .apply:disabled, .small:disabled { opacity: .48; cursor: default; background: var(--disabled); color: rgba(255, 255, 255, .62); }
     .small { min-height: 27px; padding: 4px 9px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); cursor: pointer; }
     .status-bar { flex: 0 0 auto; display: flex; align-items: center; gap: var(--obrt-space-md); min-height: 40px; padding: 6px var(--obrt-space-xl); border-top: 1px solid var(--line); background: rgba(15, 23, 42, .24); }
     .status { flex: 1 1 auto; min-width: 0; max-height: 52px; overflow-y: auto; margin: 0; color: #bfdbfe; font-size: var(--obrt-type-secondary); white-space: pre-wrap; }
     .status:empty::before { content: "Pronto."; color: var(--dim); }
+    /* The message's kind (setStatus): done, nothing done, failed; an icon before the same text. */
+    .status[data-kind="ok"] { color: #bbf7d0; }
+    .status[data-kind="warn"] { color: #fde68a; }
+    .status[data-kind="error"] { color: #fecaca; }
+    .status[data-kind="ok"]::before, .status[data-kind="warn"]::before, .status[data-kind="error"]::before { display: inline-grid; place-items: center; width: 14px; height: 14px; margin-right: 6px; border-radius: 50%; color: #fff; font-size: 9px; font-weight: var(--obrt-weight-heavy); vertical-align: 1px; }
+    .status[data-kind="ok"]::before { content: "✓"; background: rgba(21, 128, 61, .6); }
+    .status[data-kind="warn"]::before { content: "!"; background: rgba(161, 98, 7, .7); }
+    .status[data-kind="error"]::before { content: "✕"; background: rgba(185, 28, 28, .7); }
   </style>
 </head>
 <body>

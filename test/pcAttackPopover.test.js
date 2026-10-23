@@ -598,6 +598,8 @@ test("an area cantrip: the creatures near the caster proposed, a save for each, 
     [{ targetId: "ghoul", outcome: "failed" }, { targetId: "imp", outcome: "passed" }], { c1: 6 }]);
   assert.deepEqual(Object.keys(request.expectedDefenses), ["ghoul", "imp"]);
   assert.equal(f.$("pc-attack-status").textContent, "Registrato: Turbine di Spade su 2 creature. Ghoul TS fallito, PF 30 → 24; Imp TS superato, PF 30 → 30.");
+  assert.equal(f.$("pc-attack-status").dataset.kind, "ok", "a registration reads as done");
+  assert.equal(f.$("pc-attack-apply").textContent, "Registra", "and Registra is back once saved");
   assert.equal(areaSummary({ rows: [] }, "Rombo di Tuono"), "Registrato: Rombo di Tuono su 0 creature.");
 });
 
@@ -807,8 +809,9 @@ test("a spell the console does not resolve shows its card instead of the form; t
   assert.match(textOf(accordion), /Concentrazione/, "the tags sit in the accordion");
   assert.ok(accordion.querySelectorAll(".spell-text").length > 0, "with the text of the spell");
   accordion.open = true; await accordion.emit("toggle");
-  assert.match(textOf(f.$("pc-attack-caster")), /Slot 1° 1\/4 · 2° 2\/2.*Concentrazione: Benedizione/);
+  assert.equal(textOf(f.$("pc-attack-caster")).trim(), "Concentrazione: Benedizione", "only the concentration in progress");
   const list = f.$("pc-attack-picker-list");
+  assert.deepEqual(list.querySelectorAll(".picker-level").map((header) => header.dataset.slots), ["slot 1/4", "slot 2/2"], "the slots by level");
   assert.equal(list.hidden, false);
   assert.equal(f.$("pc-attack-picker-select").hidden, true, "the spells tab is a list, not a select");
   assert.deepEqual(list.querySelectorAll(".picker-level").map((header) => header.textContent), ["1° livello", "2° livello"], "the spells by level");
@@ -968,7 +971,8 @@ test("the Capacità tab lists the features by group with their activation and us
   assert.match(textOf(list.querySelectorAll("button")[0]), /Ira.*Azione bonus · 2\/3/);
   assert.match(f.$("pc-attack-title").textContent, /Ira$/);
   assert.match(f.$("pc-attack-subtitle").textContent, /Capacità di classe/);
-  assert.match(textOf(f.$("pc-attack-launch")), /Azione bonus.*su di sé.*Ire 2\/3/);
+  assert.match(textOf(f.$("pc-attack-launch")), /Azione bonus.*su di sé/);
+  assert.match(textOf(f.$("pc-attack-total")), /Ire 2\/3/, "the uses left beside the button");
   assert.ok(f.$("pc-attack-launch").querySelector("details"), "its text in the accordion");
   assert.equal(f.$("pc-attack-launch-button").textContent, "Attiva");
   await f.$("pc-attack-launch-button").click(); await tick();
@@ -1041,6 +1045,30 @@ test("Lay on Hands takes its points in the card and heals the creature selected;
   await f.$("pc-attack-launch-button").click(); await tick();
   assert.deepEqual(runtime.calls.at(-1), ["purifyClassFeatureSpell",
     { sourceId: "aria", featureId: "paladino-tocco-purificatore", targetIds: ["ghoul"], spellInstanceId: "hold-1", spellName: "Blocca persone" }]);
+});
+
+test("a feature on the map selection says who it reaches; a spent one fades and says why beside its button", async () => {
+  const runtime = fakeFeatureRuntime();
+  const f = fixture({ card: paladinCard, attacker: { initiativeCard: paladinCard }, featureState: paladinState(), featureRuntime: runtime.runtime });
+  await f.controller.ready; await tick(); await openFeatures(f);
+  await featureRow(f, /Imposizione delle Mani/).click(); await tick();
+  const target = () => textOf(f.$("pc-attack-launch").querySelector("[data-feature-target]")).trim();
+  assert.equal(target(), "Su Nessuna selezione: su Aria", "the runtime falls back on the actor");
+  await f.select(["ghoul"]);
+  assert.equal(target(), "Su Ghoul · 30/30 PF", "the selection, followed in place");
+  assert.match(textOf(f.$("pc-attack-total")), /Riserva 100\/100/, "the uses left beside the button, once");
+  assert.doesNotMatch(textOf(f.$("pc-attack-launch")), /Riserva/);
+  const spentState = { ...paladinState(), resources: { "paladino-imposizione-delle-mani": [{ poolId: "paladino-imposizione-mani-punti", name: "Riserva", current: 0, maximum: 100, unlimited: false }] } };
+  const spent = fixture({ card: paladinCard, attacker: { initiativeCard: paladinCard }, featureState: spentState, featureRuntime: runtime.runtime });
+  await spent.controller.ready; await tick(); await openFeatures(spent);
+  const row = featureRow(spent, /Imposizione delle Mani/);
+  assert.equal(row.dataset.exhausted, "true", "the row fades");
+  assert.equal(row.querySelector(".uses-badge").dataset.zero, "true", "its uses in red");
+  await row.click(); await tick();
+  assert.equal(spent.$("pc-attack-launch-button").disabled, true);
+  assert.match(textOf(spent.$("pc-attack-total")), /Nessun punto rimasto/);
+  assert.equal(spent.$("pc-attack-total").dataset.kind, "warning");
+  assert.ok(spent.$("pc-attack-launch").querySelectorAll("input").every((input) => input.disabled), "and its fields are off");
 });
 
 test("a feature with controls of its own opens the character sheet: Wild Magic Surge", async () => {
@@ -1270,6 +1298,7 @@ test("Usa reazione on Uncanny Dodge marks the reaction; out of combat or with th
   const out = fixture({ card: rogue, featureState: state, featureRuntime, attacker: { initiativeCard: rogue } });
   await out.controller.ready; await tick(); await openFeatures(out);
   await featureRow(out, /Schivata Prodigiosa/).click(); await tick();
-  assert.match(textOf(out.$("pc-attack-launch")), /Fuori dal combattimento/);
+  assert.match(textOf(out.$("pc-attack-total")), /Fuori dal combattimento/, "why the button is off, beside it");
+  assert.equal(out.$("pc-attack-total").dataset.kind, "warning");
   assert.equal(out.$("pc-attack-launch-button").disabled, true);
 });
