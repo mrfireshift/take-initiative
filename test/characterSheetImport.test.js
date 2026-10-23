@@ -53,6 +53,7 @@ test("species: by name, alias or option; one outside the catalog is reported", (
   assert.match(invented.unresolved[0], /specie "Specie inventata"/);
   assert.deepEqual(read({ species: "Autognome" }).sections.species, { id: "autognomo", ancestryId: "" });
   assert.deepEqual(read({ race: "Astral Elf" }).sections.species, { id: "elfo-astrale", ancestryId: "" });
+  assert.deepEqual(read({ species: "Custom Lineage" }).sections.species, { id: "lignaggio-personalizzato", ancestryId: "" });
   assert.match(read({ species: { name: "Elfo", subrace: "Elfo marino" } }).unresolved[0], /sottorazza "Elfo marino"/);
 });
 

@@ -135,7 +135,7 @@ test("Volo, Tomo dei Nemici and Mostri del Multiverso: two versions side by side
   assert.deepEqual(groups, ["Manuale del Giocatore 2014", "Elemental Evil Player's Companion", "Guida del Giocatore alla Costa della Spada",
     "Guida di Volo ai Mostri", "The Tortle Package", "One Grung Above", "Il Tomo dei Nemici di Mordenkainen", "Guildmasters' Guide to Ravnica",
     "Acquisitions Incorporated", "Locathah Rising", "Eberron: Rising from the Last War", "Explorer's Guide to Wildemount",
-    "Mythic Odysseys of Theros", "Van Richten's Guide to Ravenloft", "The Wild Beyond the Witchlight", "Il Tesoro dei Draghi di Fizban", "Strixhaven: A Curriculum of Chaos",
+    "Mythic Odysseys of Theros", "Calderone Omnicomprensivo di Tasha", "Van Richten's Guide to Ravenloft", "The Wild Beyond the Witchlight", "Il Tesoro dei Draghi di Fizban", "Strixhaven: A Curriculum of Chaos",
     "Mordenkainen presenta: Mostri del Multiverso", "Spelljammer: Astral Adventurer's Guide", "Dragonlance: Shadow of the Dragon Queen"]);
 });
 
@@ -284,4 +284,11 @@ test("Spelljammer and Dragonlance: proficiency bonus uses, creature types and re
   }
   assert.equal(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-kender-impavido-usi").capacity.value, 1);
   assert.ok(traits({ id: "thri-kreen" }).includes("specie-thri-kreen-tipo-di-creatura"));
+});
+
+test("Tasha's custom lineage: a feat and a variable trait as reminders, no option to choose", () => {
+  assert.equal(speciesOptionMissing({ id: "lignaggio-personalizzato" }), false);
+  assert.deepEqual(traits({ id: "lignaggio-personalizzato" }), ["specie-lignaggio-personalizzato-talento", "specie-lignaggio-personalizzato-tratto-variabile"]);
+  assert.equal(SPECIES.find((entry) => entry.id === "lignaggio-personalizzato").sourceLabel, "Calderone Omnicomprensivo di Tasha",
+    "the same label as Tasha's class features");
 });

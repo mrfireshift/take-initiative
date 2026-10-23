@@ -844,9 +844,40 @@ Da controllare con più attenzione:
 | Kender | — | Impavido: successo | 20 | Innesco · 1/riposo lungo | 1 |
 | Kender | — | Provocazione | 20 | Azione bonus · competenza/riposo lungo | 1 |
 
-## Tranche successive
+## Tranche 10 — Calderone Omnicomprensivo di Tasha
 
-Ancora da scrivere: il lignaggio personalizzato e la personalizzazione
-dell'origine del Calderone di Tasha; eventuali altri doni soprannaturali
-(Theros) e doni oscuri (Van Richten) nel campo del dono. Una specie fuori
-catalogo, importata da una scheda, viene segnalata e non applicata.
+Il **lignaggio personalizzato** (p. 8) è una specie senza seconda scelta: il
+talento e il tratto variabile (scurovisione o competenza in un'abilità) sono
+promemoria, perché il talento si configura a parte e scurovisione e
+competenze stanno nella scheda. L'etichetta del manuale è la stessa delle
+capacità di classe di Tasha.
+
+La **personalizzazione dell'origine** (pp. 7–8) è una regola, non una specie:
+sposta aumenti di caratteristica, competenze e linguaggi, che il plugin non
+tiene. Non cambia nessun tratto del catalogo.
+
+| Specie | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|
+| Lignaggio personalizzato | Talento | 8 | Passiva | 1 |
+| Lignaggio personalizzato | Tratto variabile | 8 | Passiva | 1 |
+
+## Copertura e cosa resta fuori
+
+Il catalogo copre le specie dei manuali e supplementi ufficiali della 5E 2014:
+Manuale del Giocatore, Elemental Evil, Costa della Spada, Volo, Tortle Package,
+One Grung Above, Tomo dei Nemici, Ravnica, Acquisitions Incorporated, Locathah
+Rising, Eberron, Wildemount, Theros, Tasha, Van Richten, Witchlight, Fizban,
+Strixhaven, Mostri del Multiverso, Spelljammer e Dragonlance; più hollow one
+nel campo del dono soprannaturale.
+
+Restano fuori, per scelta:
+
+- i doni soprannaturali di Theros e i doni oscuri di Van Richten: il campo del
+  dono è pronto, ma servono i testi dei manuali per scriverli senza inventare
+  le regole;
+- le varianti di aasimar ed eladrin della Guida del Dungeon Master, le specie
+  dei PDF Plane Shift (ambientazioni di Magic) e quelle di Unearthed Arcana,
+  che sono materiale di prova.
+
+Una specie fuori catalogo, importata da una scheda, viene segnalata e non
+applicata.
