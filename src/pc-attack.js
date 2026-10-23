@@ -68,7 +68,7 @@ export function defaultCantripId(action,sourceItem) {
 }
 // The map selection drives the target until the GM has decided something for this attack.
 const draftLocked=draft=>!!draft.outcome || Object.values(draft.amounts).some(value=>value!=="")
-  || Object.values(draft.riders).some(rider=>rider.on) || Object.values(draft.activations || {}).some(activation=>activation.on) || draft.extras.length>0;
+  || Object.values(draft.riders).some(rider=>rider.on && !rider.auto) || Object.values(draft.activations || {}).some(activation=>activation.on) || draft.extras.length>0;
 // The outcomes that deal damage: a hit, a critical, a failed save (a miss and a passed save deal none).
 const hits=outcome=>outcome==="hit" || outcome==="critical" || outcome==="failed";
 // Riders and extra components only exist on a hit; a miss sends neither.
@@ -436,7 +436,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const state=draft.riders[option.id] ||= {on:false,type:option.types[0] || "",amount:"",
         ...(option.slotLevels?{slotLevel:option.slotLevels[0],bonus:false}:{}),...(option.onHit?{onHit:false}:{})};
       const toggle=node("input");toggle.type="checkbox";toggle.dataset.riderField="on";toggle.setAttribute("aria-label",option.label);
-      toggle.addEventListener("change",()=>{state.on=toggle.checked;updateRiders();renderState();if(state.on)focusAmount(ridersBox,"rider",option.id);});
+      toggle.addEventListener("change",()=>{state.on=toggle.checked;state.auto=false;state.touched=true;updateRiders();renderState();if(state.on)focusAmount(ridersBox,"rider",option.id);});
       const body=node("div","","component-body");
       const title=node("span",option.label,"component-title");
       const meta=node("div","","component-meta");
@@ -489,6 +489,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const state=draft.riders[option.id];
       // A rider that stops applying (another target, a new turn) is unticked; its amount stays.
       if(!option.available) state.on=false;
+      // One that applies to every hit (Improved Divine Smite) ticks itself, until the GM unticks it for this attack.
+      else if(option.auto && !state.touched && !state.on){state.on=true;state.auto=true;}
       const field=name=>row.querySelector(`[data-rider-field="${name}"]`);
       field("on").checked=state.on;field("on").disabled=busy || !option.available;
       field("amount").hidden=!state.on;field("amount").disabled=busy;
@@ -1108,6 +1110,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const featureValues=new Map();
   const featureForm=entry=>pcAttackFeatureForm(getClassFeatureDefinition(entry.featureId),presentation?.featureState || {},
     {characterBuild:presentation?.item?.metadata?.[META_KEY]?.initiativeCard?.characterBuild || [],
+      spellSlots:spellSlotStatus(presentation?.item?.metadata?.[META_KEY]?.initiativeCard?.characterBuild,presentation?.item?.metadata?.[META_KEY]?.classFeatureState?.resources),
       reaction:{inCombat:Array.isArray(presentation?.turnState?.order) && presentation.turnState.order.some(Boolean),
         used:hasReactionUsed(presentation?.item?.metadata?.[META_KEY]?.conditions)}});
   // Purifying Touch: the creature the GM selected on the map (else the actor) and its active spells.
@@ -2045,7 +2048,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const field=event.target;
     if(event.key!=="Enter" || event.isComposing || busy || launchBusy || field?.tagName!=="INPUT" || ["checkbox","radio"].includes(field.type) || field.getAttribute?.("list")) return;
     const button=launching()?launchButton:apply;
-    if(!button || button.hidden || button.disabled) return;
+    if(!button || button.hidden) return;
+    if(button.disabled) {
+      const boxes=launching()?[launchBox]:[damage,wovenBox,ridersBox,activationsBox,extrasBox];
+      const amounts=boxes.filter(Boolean).flatMap(box=>[...box.querySelectorAll(".amount")]).filter(input=>!input.hidden && !input.disabled && input.offsetParent!==null);
+      const next=amounts.slice(amounts.indexOf(field)+1).find(input=>input.value==="") || amounts.find(input=>input!==field && input.value==="");
+      if(next){event.preventDefault?.();next.focus?.();}
+      return;
+    }
     event.preventDefault?.();
     button.click();
   });

@@ -35,8 +35,10 @@ export const PC_ATTACK_RIDERS = Object.freeze([
   divineStrike("dominio-della-forgia", "fire"),
   divineStrike("dominio-del-crepuscolo", "radiant"),
   divineStrike("dominio-dell-ordine", "psychic"),
+  // auto: the rider applies to every hit it is available for (PHB 2014), so the console ticks it by itself; the GM may
+  // untick it. Improved Divine Smite: every melee weapon hit.
   Object.freeze({ id: "paladino-punizione-divina-migliorata", label: "Punizione Divina Migliorata", dice: Object.freeze({ fixed: "1d8" }),
-    type: "radiant", limit: null, requires: Object.freeze({ range: "melee" }) }),
+    type: "radiant", limit: null, auto: true, requires: Object.freeze({ range: "melee" }) }),
   colossusSlayer("ranger-cacciatore-preda-del-cacciatore-sterminatore-di-colossi"),
   colossusSlayer("ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-sterminatore-di-colossi"),
   Object.freeze({ id: "ranger-viandante-fatato-colpi-terribili", label: "Colpi Terribili", dice: Object.freeze({ table: Object.freeze({ 3: "1d4", 11: "1d6" }) }),
@@ -48,8 +50,9 @@ export const PC_ATTACK_RIDERS = Object.freeze([
     type: "weapon", limit: null, requires: Object.freeze({ activeFeatureId: "barbaro-ira", range: "melee" }) }),
   Object.freeze({ id: "ranger-uccisore-di-mostri-preda-dell-uccisore", label: "Preda dell'Uccisore", dice: Object.freeze({ fixed: "1d6" }),
     type: "weapon", limit: ONCE_PER_TURN_PER_TARGET, requires: Object.freeze({ targetCondition: "Preda dell'Uccisore" }) }),
+  // Hexblade's Curse: every damage roll against the cursed target (auto, like Improved Divine Smite).
   Object.freeze({ id: "warlock-la-lama-del-sortilegio-maledizione-della-lama-del-sortilegio", label: "Maledizione della Lama del Sortilegio",
-    dice: Object.freeze({ proficiency: true }), type: "weapon", limit: null, anyAttack: true,
+    dice: Object.freeze({ proficiency: true }), type: "weapon", limit: null, anyAttack: true, auto: true,
     requires: Object.freeze({ targetCondition: "Maledizione della Lama del Sortilegio" }) }),
   Object.freeze({ id: "warlock-suppliche-occulte-succhiavita", label: "Succhiavita", dice: Object.freeze({ ability: "cha", minimum: 1 }),
     type: "necrotic", limit: null }),

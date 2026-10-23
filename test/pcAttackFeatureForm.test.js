@@ -22,6 +22,19 @@ test("the auras are usable: an aura is a toggle with its radius at the paladin's
   assert.equal(form("paladino-aura-di-protezione", { characterBuild: [{ classId: "paladino", level: 10 }] }).auraMeters, 3, "3 m before the 18th level");
 });
 
+test("Font of Magic offers only what the sorcerer can do: the slots its level allows and its points pay for, the slots it has left", () => {
+  const sorcerer = { characterBuild: [{ classId: "stregone", level: 6 }], abilityModifiers: { cha: 4 } };
+  const fontState = (points) => ({ ...stateOf(sorcerer), resources: { "stregone-fonte-di-magia": [{ poolId: "stregone-punti-stregoneria", name: "Punti Stregoneria", current: points, maximum: 6, unlimited: false }] } });
+  const values = (points, spellSlots) => pcAttackFeatureForm(feature("stregone-fonte-di-magia"), fontState(points), { characterBuild: sorcerer.characterBuild, spellSlots })
+    .fields[0]?.options.map((option) => option.value) || [];
+  const slots = [{ level: 1, current: 2, maximum: 4 }, { level: 2, current: 0, maximum: 3 }, { level: 3, current: 3, maximum: 3 }];
+  assert.deepEqual(values(6, slots), ["create:1", "create:2", "create:3", "convert:1", "convert:3"],
+    "no 4th level slot before the 7th sorcerer level; no slot of a level spent or not owned to convert");
+  assert.deepEqual(values(3, slots), ["create:1", "create:2", "convert:1", "convert:3"], "three points: no 3rd level slot (5)");
+  const none = pcAttackFeatureForm(feature("stregone-fonte-di-magia"), fontState(1), { characterBuild: sorcerer.characterBuild, spellSlots: [] });
+  assert.deepEqual([none.fields.length, none.disabledReason], [0, "Nessuna operazione possibile: punti e slot esauriti."]);
+});
+
 test("Lay on Hands asks the points (or the diseases) and heals the creature selected", () => {
   const layOnHands = form("paladino-imposizione-delle-mani");
   assert.equal(layOnHands.call, "applyLayOnHands");

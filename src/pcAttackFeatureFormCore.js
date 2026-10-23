@@ -1,6 +1,7 @@
 import { CLASS_FEATURE_BY_ID, CLASS_FEATURE_RESOURCE_POOL_BY_ID } from "./classFeatureCatalog.js";
 import {
   activeClassFeatureInstances,
+  characterClassLevel,
   classFeatureAutoActivateParentFeatureId,
   classFeatureChoiceOptions,
   classFeatureDurationParentFeatureId,
@@ -125,7 +126,12 @@ const choiceField = (feature, enabledIds, { id = "choice", label = "" } = {}) =>
 };
 
 // The form of one feature. state: pcAttackFeatureState's. characterBuild: for the targeting (the aura's radius).
-export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], reaction = {} } = {}) {
+// Creating Spell Slots (PHB 2014): the minimum sorcerer level for each slot level.
+const SORCERY_SLOT_MIN_LEVEL = Object.freeze({ 1: 2, 2: 3, 3: 5, 4: 7, 5: 9 });
+
+// spellSlots: the actor's slots (spellSlotStatus's rows), for Font of Magic's conversions; without them every level is
+// offered, as before.
+export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], reaction = {}, spellSlots } = {}) {
   if (!feature) return { kind: "reference", fields: [], label: "" };
   const runtime = classFeatureRuntimeSupport(feature);
   if (pcAttackFeatureSpendable(feature)) return spendForm(feature, state);
@@ -161,15 +167,19 @@ export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], 
       disabledReason: remaining === 0 ? "Nessun uso rimasto." : "" };
   }
   // Font of Magic: create a spell slot with points, or turn a slot into points.
+  // Only what the sorcerer can do now: a slot its level allows and its points pay for; a slot it has left to convert.
   if (adapter === "sorcery-source") {
+    const sorcererLevel = Array.isArray(characterBuild) && characterBuild.length ? characterClassLevel(characterBuild, "stregone") : Infinity;
     const options = [
       ...[1, 2, 3, 4, 5].map((level) => ({ level, cost: classFeatureSpellSlotCreationCost(feature, level) }))
-        .filter((entry) => entry.cost !== null)
+        .filter((entry) => entry.cost !== null && sorcererLevel >= SORCERY_SLOT_MIN_LEVEL[entry.level] && (remaining === null || entry.cost <= remaining))
         .map(({ level, cost }) => ({ value: `create:${level}`, label: `Crea uno slot di ${level}° · ${cost} punti` })),
-      ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => ({ value: `convert:${level}`, label: `Converti uno slot di ${level}° → +${level} punti` })),
+      ...[1, 2, 3, 4, 5, 6, 7, 8, 9].filter((level) => !Array.isArray(spellSlots) || spellSlots.some((row) => row.level === level && row.current > 0))
+        .map((level) => ({ value: `convert:${level}`, label: `Converti uno slot di ${level}° → +${level} punti` })),
     ];
-    return { kind: "activate", label: "Conferma", call: "sorcerySource", fields: [{ id: "operation", type: "select", label: "Operazione", options }],
-      note: "Gli slot creati restano finché li spendi o fino al riposo lungo." };
+    return { kind: "activate", label: "Conferma", call: "sorcerySource", fields: options.length ? [{ id: "operation", type: "select", label: "Operazione", options }] : [],
+      note: "Gli slot creati restano finché li spendi o fino al riposo lungo.",
+      disabledReason: options.length ? "" : "Nessuna operazione possibile: punti e slot esauriti." };
   }
   // Sorcerous Restoration: 4 points back, never above the maximum.
   if (adapter === "sorcerous-restoration") {

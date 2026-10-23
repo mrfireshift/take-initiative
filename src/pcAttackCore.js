@@ -449,6 +449,7 @@ function riderOptionsFor(attack, { sourceItem, targetItem = null, turnState = nu
       ...(slotLevels.length ? { slotLevels, diceBySlot: diceBySlot(false) } : {}),
       ...(rider.bonus && slotLevels.length ? { bonus: { label: rider.bonus.label, diceBySlot: diceBySlot(true) } } : {}),
       ...(rider.onHit ? { onHit: { ...rider.onHit } } : {}),
+      ...(rider.auto ? { auto: true } : {}),
       ...(rider.limit && !turn ? { warning: "Fuori dal combattimento: il limite per turno non viene contato." } : {}),
     };
   });

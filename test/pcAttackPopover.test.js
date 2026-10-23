@@ -247,6 +247,28 @@ test("a rider already used this turn is disabled with its reason; a miss sends n
   assert.deepEqual([f.calls[0].riders, f.calls[0].extras], [[], []]);
 });
 
+test("Improved Divine Smite ticks itself on a melee hit, leaves the target free to follow the map, and stays off once unticked", async () => {
+  const f = fixture({ attacker: { initiativeCard: { characterBuild: [{ classId: "paladino", level: 11 }] } }, turnState: ownTurn }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  const row = () => riderRow(f, "paladino-punizione-divina-migliorata");
+  assert.equal(riderField(row(), "on").checked, true, "ticked by itself");
+  await f.select(["imp"]);
+  assert.equal(f.controller.getDraft().targetId, "imp", "not a decision: the map still drives the target");
+  await f.outcome("hit").click();
+  assert.equal(riderField(row(), "amount").hidden, false, "its amount to type");
+  assert.equal(riderField(row(), "amount").placeholder, "1d8");
+  const [first, second] = f.inputs(); first.value = "6"; await first.emit("input"); second.value = "7"; await second.emit("input");
+  assert.match(textOf(f.$("pc-attack-total")), /Inserisci il danno di ogni extra/, "its damage is asked");
+  await f.keydown("Enter", second);
+  assert.ok(f.documentRef.activeElement === riderField(row(), "amount"), "Enter goes on to the amount still empty");
+  const toggle = riderField(row(), "on"); toggle.checked = false; await toggle.emit("change");
+  await f.select(["ghoul"]);
+  assert.equal(riderField(row(), "on").checked, false, "unticked by the GM, it stays off");
+  await f.keydown("Enter", second);
+  assert.equal(f.calls.length, 1, "and the attack registers without it");
+  assert.deepEqual(f.calls[0].riders, []);
+});
+
 test("Divine Smite in the console: slot level and undead/fiend bonus drive the dice; the slot note follows the commit", async () => {
   const f = fixture({ attacker: { initiativeCard: { characterBuild: [{ classId: "paladino", level: 9 }] } }, turnState: ownTurn }); await f.controller.ready;
   f.runtime.executePcAttack = async (request) => { f.calls.push(request); return { historyEntryId: "entry-1", undoAvailable: true, warnings: [], outcome: request.outcome,
