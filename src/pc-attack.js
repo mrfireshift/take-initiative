@@ -15,9 +15,11 @@ import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel } from "./bossActionsViewCore.js";
 import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
-import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL } from "./pcAttackLauncher.js";
+import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL, PC_ATTACK_WIDTH } from "./pcAttackLauncher.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
-import { getClassFeatureDefinition, getClassFeatureResourcePool } from "./classFeatureCatalog.js";
+import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
+import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFormCore.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
 import { classFeatureDescription, classFeatureDescriptionsLoaded, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { pcAttackPickerDefault, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
@@ -169,7 +171,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const launchButton=$("pc-attack-launch-button"),spellDetailsBox=$("pc-attack-spell-details"),spellDetailsBody=$("pc-attack-spell-details-body");
   let detailsOpen=false,spellDetailsSignature="";
   spellDetailsBox?.addEventListener("toggle",()=>{detailsOpen=!!spellDetailsBox.open;});
-  launchButton?.addEventListener("click",()=>{const entry=currentEntry();if(launching() && entry)void launchSpell(entry);});
+  launchButton?.addEventListener("click",()=>{
+    const entry=currentEntry();
+    if(!launching() || !entry) return;
+    if(entry.mode==="activate") void runFeature(entry);else void launchSpell(entry);
+  });
   // The turn moved on while this attack holds decisions: the actor it waits to move to ({sourceId, name}).
   const followBar=$("pc-attack-follow");
   let pendingFollow=null;
@@ -838,9 +844,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // In the cantrips and spells tabs ⚔ marks what the console resolves, ★ the favourites (as the 🪄 menu).
     const label=entry=>[entry.pinned?"★ ":"",entry.label,entry.tab!=="attacks" && entry.mode==="attack"?" ⚔":"",inProgress(entry)?" · in corso":""].join("");
     const featureTags=entry=>{
-      const feature=(presentation.features || []).find(item=>item.featureId===entry.featureId);
-      const uses=(feature?.resources || []).filter(row=>!row.unlimited && Number.isFinite(row.current) && Number.isFinite(row.maximum)).map(row=>`${row.current}/${row.maximum}`);
-      return [entry.activation,...uses,feature?.active?"Attiva":""];
+      const state=presentation.featureState || {};
+      const uses=(state.resources?.[entry.featureId] || []).filter(row=>!row.unlimited && Number.isFinite(row.current) && Number.isFinite(row.maximum))
+        .map(row=>`${row.current}/${row.maximum}`);
+      return [entry.activation,...uses,state.active?.[entry.featureId]?.length?"attiva":""];
     };
     const rowTags=entry=>(entry.tab==="features"?featureTags(entry)
       :[entry.mode==="attack"?"⚔":"",entry.concentration?"Conc.":"",entry.ritual?"Rit.":"",inProgress(entry)?"in corso":""]).filter(Boolean).join(" · ");
@@ -916,28 +923,117 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ...(slots.length?[node("span",`Slot ${slots.map(row=>`${row.pact?"Patto ":""}${row.level}° ${row.current}/${row.maximum}`).join(" · ")}`)]:[]),
       names.length?node("span",`Concentrazione: ${names.join(", ")}`,"concentrating"):node("span","Nessuna concentrazione"));
   }
-  // A feature of the Capacità tab: its activation, target, uses left and whether it is active, as the tracker card reads
-  // them (presentation.features). One active on its owner or as an aura cannot be activated again, as in the card's
-  // context menu; a reference feature is only read.
+  // A feature of the Capacità tab: the form the character sheet shows for it (pcAttackFeatureFormCore.js), run by the
+  // console itself; its activation, target, uses left and whether it is active (presentation.featureState).
   const capitalized=text=>text?text.charAt(0).toUpperCase()+text.slice(1):"";
+  // The values the GM entered, by feature: they survive a re-render (a live update, another entry and back).
+  const featureValues=new Map();
+  const featureForm=entry=>pcAttackFeatureForm(getClassFeatureDefinition(entry.featureId),presentation?.featureState || {},
+    {characterBuild:presentation?.item?.metadata?.[META_KEY]?.initiativeCard?.characterBuild || []});
+  // Purifying Touch: the creature the GM selected on the map (else the actor) and its active spells.
+  function purifyTarget() {
+    const item=selection.target || presentation?.item || null;
+    const spells=(Array.isArray(item?.metadata?.[META_KEY]?.[`${ID}/spells`])?item.metadata[META_KEY][`${ID}/spells`]:[])
+      .filter(spell=>spell?.castContext?.staticZoneOwner!==true && (spell?.instanceId || spell?.name));
+    return {item,spells};
+  }
   function featureCard(entry) {
-    const feature=(presentation?.features || []).find(item=>item.featureId===entry.featureId) || null;
-    const activating=entry.mode==="activate";
-    const resources=(feature?.resources || []).map(row=>{
-      const name=getClassFeatureResourcePool(row.poolId)?.name || row.poolId;
-      return row.unlimited?`${name}: illimitati`:Number.isFinite(row.current) && Number.isFinite(row.maximum)?`${name} ${row.current}/${row.maximum}`:name;
-    });
-    const active=activating && !!feature?.active && ["self","aura"].includes(feature.targetMode);
-    const manual=activating && feature?.runtimeReady===false;
+    const form=featureForm(entry);
+    const state=presentation?.featureState || {};
+    const resources=(state.resources?.[entry.featureId] || []).map(row=>row.unlimited?`${row.name}: illimitati`
+      :Number.isFinite(row.current) && Number.isFinite(row.maximum)?`${row.name} ${row.current}/${row.maximum}`:row.name);
+    const active=state.active?.[entry.featureId] || [];
+    const definition=getClassFeatureDefinition(entry.featureId);
+    const targeting=definition?.targeting?.mode;
+    const target=form.auraMeters?`aura ${form.auraMeters} m`:targeting==="aura"?"aura":targeting==="single-target"?"bersaglio":entry.mode==="activate"?"su di sé":"";
+    const remaining=active[0]?.remainingRounds;
+    const firstPool=(state.resources?.[entry.featureId] || [])[0];
+    const spent=["activate","toggle"].includes(form.kind) && !active.length && firstPool && !firstPool.unlimited && firstPool.current===0;
     return {
-      tags:[...(entry.activation?[[capitalized(entry.activation),""]]:[]),...(feature?.targetLabel?[[feature.targetLabel,""]]:[]),
-        ...(feature?.active?[["Attiva","warning"]]:[]),...(entry.species?[["Specie",""]]:[])],
+      form,
+      tags:[...(entry.activation?[[capitalized(entry.activation),""]]:[]),...(target?[[target,""]]:[]),
+        ...(active.length?[[Number.isFinite(remaining)?`Attiva · ${remaining} r`:"Attiva","warning"]]:[]),...(entry.species?[["Specie",""]]:[])],
       detailText:resources.join(" · "),
-      notes:[...(active?[["Già attiva.","warning"]]:[]),
-        ...(activating && feature && !feature.resourceReady && !active?[["Nessun uso rimasto.","warning"]]:[]),
-        ...(manual?[["Non automatizzata: risolvila al tavolo.",""]]:[])],
-      blocked:active || manual || (activating && !feature),
+      notes:[...(form.note?[[form.note,""]]:[]),...(form.disabledReason?[[form.disabledReason,"warning"]]:[]),
+        ...(spent && !form.disabledReason?[["Nessun uso rimasto.","warning"]]:[])],
+      blocked:!!form.disabledReason || spent,
     };
+  }
+  // The form's fields, in the card: a select, a number, the target's spell (Purifying Touch).
+  function featureFields(entry,form) {
+    const values=featureValues.get(entry.featureId) || {};
+    featureValues.set(entry.featureId,values);
+    return (form.fields || []).map(field=>{
+      const row=node("label","","feature-field");
+      row.append(node("span",field.label,"feature-field-label"));
+      let control;
+      if(field.type==="number") {
+        control=node("input","","amount");control.type="number";control.step="1";
+        if(Number.isFinite(field.min)) control.min=String(field.min);
+        if(Number.isFinite(field.max)) control.max=String(field.max);
+        if(values[field.id]===undefined) values[field.id]=field.value ?? "";
+        control.value=values[field.id];
+        control.addEventListener("input",()=>{values[field.id]=control.value.trim();});
+      } else if(field.type==="target-spell") {
+        const {item,spells}=purifyTarget();
+        control=node("select","","inline-select");
+        control.replaceChildren(...(spells.length?spells.map(spell=>{const option=node("option",spell.name || spell.instanceId);option.value=spell.instanceId || spell.name;return option;})
+          :[node("option",`${item?.name || "Il bersaglio"}: nessun incantesimo attivo`)]));
+        control.disabled=!spells.length;
+        const chosen=spells.find(spell=>(spell.instanceId || spell.name)===values.spellKey) || spells[0];
+        values.spellKey=chosen?(chosen.instanceId || chosen.name):"";
+        control.value=values.spellKey;
+        control.addEventListener("change",()=>{values.spellKey=control.value;});
+        row.append(node("span",`Bersaglio: ${item?.name || "—"} (selezionalo sulla mappa)`,"feature-field-hint"));
+      } else {
+        control=node("select","","inline-select");
+        control.replaceChildren(...(field.options || []).map(option=>{const element=node("option",option.label);element.value=option.value;return element;}));
+        if(!(field.options || []).some(option=>option.value===values[field.id])) values[field.id]=field.options?.[0]?.value ?? "";
+        control.value=values[field.id];
+        control.addEventListener("change",()=>{values[field.id]=control.value;});
+      }
+      control.disabled=control.disabled || busy || launchBusy || invalidated;
+      row.append(control);
+      return row;
+    });
+  }
+  // The character sheet, for the features whose controls only it hosts.
+  function openCharacterSheet() {
+    void openTrackedPopover({id:`${ID}/initiative-card-modal`,url:`/initiative-card-modal.html?source=${encodeURIComponent(sourceId)}`,
+      width:440,height:560,anchorReference:"POSITION",anchorPosition:{left:80+PC_ATTACK_WIDTH+12,top:60},
+      anchorOrigin:{horizontal:"LEFT",vertical:"TOP"},transformOrigin:{horizontal:"LEFT",vertical:"TOP"},disableClickAway:true,
+      marginThreshold:12,hidePaper:true}).catch(error=>setStatus(String(error?.message || error)));
+  }
+  // Usa / Attiva / Disattiva / Termina: the runtime call the sheet makes, with the targets selected on the map.
+  async function runFeature(entry) {
+    if(launchBusy || busy || invalidated || entry?.mode!=="activate") return;
+    const definition=getClassFeatureDefinition(entry.featureId);
+    const card=featureCard(entry),form=card.form;
+    if(form.kind==="sheet"){openCharacterSheet();setStatus(`${entry.label}: usala dalla scheda personaggio.`);return;}
+    if(card.blocked) return;
+    const values={...(featureValues.get(entry.featureId) || {})};
+    let targetIds;
+    if(form.call==="purifyClassFeatureSpell") {
+      const {item,spells}=purifyTarget();
+      const spell=spells.find(entry2=>(entry2.instanceId || entry2.name)===values.spellKey) || spells[0];
+      values.spell=spell?{instanceId:spell.instanceId || "",name:spell.name || ""}:null;
+      targetIds=item?.id?[item.id]:undefined;
+    } else if(form.selectionTargets) {
+      targetIds=await Promise.resolve(api.player?.getSelection?.()).then(ids=>(Array.isArray(ids)?ids:[]).filter(id=>id!==sourceId)).catch(()=>[]);
+    }
+    const request=pcAttackFeatureRequest(definition,form,values,{sourceId,targetIds});
+    if(request.error){setStatus(request.error);return;}
+    launchBusy=true;launchSignature="";renderLaunch();
+    try {
+      const runtime=overrides.featureRuntime || await import("./classFeatureRuntime.js");
+      await (request.args?runtime[request.fn](...request.args):runtime[request.fn](request.params));
+      const name=definition?.name || entry.label;
+      // "Capacità" agrees with every verb, whatever the feature's gender (il Tocco, l'Aura).
+      setStatus(request.fn==="deactivateClassFeature"?`Capacità ${form.kind==="toggle"?"disattivata":"terminata"}: ${name}.`
+        :definition?.trackingMode==="instant" || form.label==="Usa"?`Capacità usata: ${name}.`:`Capacità attivata: ${name}.`);
+    } catch(error) {
+      if(!error?.cancelled) setStatus(String(error?.message || error || "Capacità non applicata."));
+    } finally {launchBusy=false;launchSignature="";renderLaunch();}
   }
   // The feature's text (the character sheet's), loaded once on the first feature shown; a species trait carries its own.
   function featureDetailsNodes(entry) {
@@ -1007,27 +1103,31 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       :[...(entry.concentration && others.length?[[`Lanciandolo termina la concentrazione su ${others.join(", ")}.`,"warning"]]:[]),
         ...(!freeSlot?[[`Nessuno slot libero dal ${level}° livello in su.`,"warning"]]:[]),
         ...(entry.recordOnly?[["Il plugin registra il lancio e lo slot: gli effetti si risolvono al tavolo.",""]]:[])];
-    const canLaunch=entry?.mode==="launch" || entry?.mode==="activate";
+    const canLaunch=entry?.mode==="launch" || (entry?.mode==="activate" && feature?.form.kind!=="manual");
     // The fixed row: what it costs at a glance, and the button.
     const details=entry?.spellId?spellbookSpellDetails(entry.spellId):null;
     if(applyRow) applyRow.hidden=!canLaunch;
     apply.hidden=true;
     if(launchButton) {
       launchButton.hidden=!canLaunch;
-      launchButton.textContent=isFeature?(launchBusy?"Uso…":"Usa"):(launchBusy?"Lancio…":"Lancia");
+      launchButton.textContent=isFeature?(launchBusy?"…":feature.form.label || "Usa"):(launchBusy?"Lancio…":"Lancia");
       launchButton.disabled=launchBusy || busy || invalidated || !!feature?.blocked;
     }
     if(canLaunch) total.textContent=isFeature?feature.detailText:details?[details.castingTime,details.range].filter(Boolean).join(" · "):"";
     const tags=isFeature?feature.tags:entry?[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])]:[];
     // A feature keeps its tags and uses in view, its text in the accordion; a spell's details all go in the accordion.
     const body=isFeature?featureDetailsNodes(entry):entry?.spellId?spellDetailsNodes(entry.spellId,tags):[];
-    const signature=JSON.stringify([entry?.key,notes,isFeature?[tags,feature.detailText]:null,body.length,
+    // A feature's form follows its state and, for Purifying Touch, the creature selected and its spells.
+    const formSignature=isFeature?[feature.form.kind,feature.form.label,(feature.form.fields || []).map(field=>[field.id,field.max,field.options?.length]),
+      (feature.form.fields || []).some(field=>field.type==="target-spell")?(()=>{const {item,spells}=purifyTarget();return [item?.id,spells.map(spell=>spell.instanceId || spell.name)];})():null]:null;
+    const signature=JSON.stringify([entry?.key,notes,isFeature?[tags,feature.detailText]:null,formSignature,body.length,launchBusy,busy,
       spellbookSpellReferenceLoaded(),classFeatureDescriptionsLoaded()]);
     if(signature===launchSignature) return;
     launchSignature=signature;
     const children=[];
     if(isFeature && tags.length){const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>node("span",text,`launch-tag${kind?" "+kind:""}`)));children.push(row);}
     if(isFeature && feature.detailText) children.push(node("p",feature.detailText,"launch-details"));
+    if(isFeature && feature.form.fields?.length) children.push(...featureFields(entry,feature.form));
     children.push(...notes.map(([text,kind])=>node("p",text,`launch-note${kind?" "+kind:""}`)));
     if(body.length) children.push(detailsAccordion(body));
     // Never an empty card.
@@ -1050,21 +1150,19 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       }) || (()=>{});
       wait();
       Promise.resolve().then(()=>api.broadcast.sendMessage(PC_ATTACK_SPELL_LAUNCH_CHANNEL,
-        {type:"launch",requestId,sourceId,...(entry.featureId?{featureId:entry.featureId}:{actionId:entry.actionId})},{destination:"LOCAL"})).catch(()=>finish(null));
+        {type:"launch",requestId,sourceId,actionId:entry.actionId},{destination:"LOCAL"})).catch(()=>finish(null));
     });
   }
-  // What the tracker did, in the status bar: a feature activated, a spell by its route.
+  // What the tracker did with the spell, in the status bar.
   function launchSummary(entry,result) {
-    const isFeature=entry.mode==="activate";
-    if(!result) return `Il tracker non risponde: aprilo per ${isFeature?"usare":"lanciare"} ${entry.label}${isFeature?"":" dal grimorio"}.`;
-    if(!result.ok) return String(result.message || `${entry.label}: ${isFeature?"uso":"lancio"} non riuscito.`);
-    if(isFeature) return `${entry.label}: attivata.`;
+    if(!result) return `Il tracker non risponde: aprilo per lanciare ${entry.label} dal grimorio.`;
+    if(!result.ok) return String(result.message || `${entry.label}: lancio non riuscito.`);
     return result.mode==="review"?`${entry.label}: pannello incantesimi aperto.`
       :result.mode==="executed"?`${entry.label}: lancio registrato.`
       :String(result.message || `${entry.label}: lancio non valido.`);
   }
   async function launchSpell(entry) {
-    if(launchBusy || busy || invalidated || !["launch","activate"].includes(entry?.mode)) return;
+    if(launchBusy || busy || invalidated || entry?.mode!=="launch") return;
     if(typeof api.broadcast?.onMessage!=="function"){setStatus("Lancio non disponibile.");return;}
     launchBusy=true;renderLaunch();
     try {
@@ -1284,7 +1382,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         const next=reconcileBossDraftTarget({targetId:draft.targetId,locked:draftLocked(draft)},selection);
         if(next.targetId && targetById(next.targetId)) draft.targetId=next.targetId;
         renderLive();
-      }
+      } else if(launching()) renderLaunch();
     } catch {}
   }
   function mountLiveUpdates() {

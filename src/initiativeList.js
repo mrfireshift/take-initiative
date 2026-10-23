@@ -8768,9 +8768,8 @@ function __disabledTrackerQuickActionIds(sourceEntry, actions) {
     .map((action) => action.id);
 }
 
-// The attack console (pc-attack.js) launches a spell of the actor's book as the 🪄 menu does (actionId), or activates
-// one of its class features or species traits as the card's context menu does (featureId). Never an attack, never a
-// feature already active on its owner or as an aura.
+// The attack console (pc-attack.js) launches a spell of the actor's book as the 🪄 menu does: the same routing,
+// for the book's spell actions only (never an attack, a feature or a condition: the console runs its features itself).
 function mountPcAttackSpellLaunchListener() {
   OBR.broadcast.onMessage(PC_ATTACK_SPELL_LAUNCH_CHANNEL, (event) => {
     const data = event?.data;
@@ -8783,17 +8782,6 @@ function mountPcAttackSpellLaunchListener() {
       const entries = await readEntries();
       if (!__isCurrentSceneOperation(sceneEpoch, "pc-attack-spell-launch")) return { ok: false, message: "Scena cambiata." };
       const sourceEntry = entries.find((entry) => entry.id === String(data.sourceId || ""));
-      const featureId = String(data.featureId || "").trim();
-      if (featureId) {
-        const feature = (Array.isArray(sourceEntry?.classFeatures) ? sourceEntry.classFeatures : [])
-          .find((entry) => entry.featureId === featureId);
-        if (!sourceEntry || !feature) return { ok: false, message: "Capacità non più disponibile." };
-        if (feature.active && (feature.targetMode === "self" || feature.targetMode === "aura")) {
-          return { ok: false, message: `${feature.plainName || feature.label}: già attiva.` };
-        }
-        await __activateClassFeatureFromContext(sourceEntry, featureId);
-        return { ok: true, mode: "activated" };
-      }
       const action = sanitizeQuickActions(sourceEntry?.quickActions, { limit: 64, attackLimit: 64 })
         .find((entry) => entry.id === String(data.actionId || "") && isSpellbookQuickAction(entry));
       if (!sourceEntry || !action) return { ok: false, message: "Incantesimo non più nel grimorio." };

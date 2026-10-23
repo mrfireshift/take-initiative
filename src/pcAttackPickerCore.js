@@ -3,7 +3,8 @@ import { pcAttackAction, pcAttackBreathActionsForCard, pcAttackCantripIds, pcAtt
 import { getPcAttackCantrip } from "./pcAttackCantripCatalog.js";
 import { getPcAttackSpell } from "./pcAttackSpellCatalog.js";
 import { spellbookCantripAttackAction, spellbookGroupsForProfile, spellbookSpellAttackAction } from "./spellbookCatalog.js";
-import { classFeatureDisplayNameWithParent, classFeatureIsReferenceOnly, getEnabledClassFeatures } from "./classFeatureCatalog.js";
+import { classFeatureDisplayNameWithParent, getEnabledClassFeatures } from "./classFeatureCatalog.js";
+import { pcAttackFeatureUsable } from "./pcAttackFeatureFormCore.js";
 import { spellbookQuickActionId } from "./spellbookCore.js";
 
 // The attack console's picker: everything the actor can do with an attack or a spell on its turn, one entry each.
@@ -14,8 +15,8 @@ import { spellbookQuickActionId } from "./spellbookCore.js";
 // mode: "attack" resolves in the console (actionId: the attack action that records it, the first one offering it);
 // "launch" goes to the spell panel through the tracker, as the 🪄 menu does (actionId: the book's spell action);
 // "weapon" is woven into a melee weapon attack (Booming Blade); "manual" is not automated, the table resolves it;
-// "activate" is a feature the tracker activates as the card's context menu does (featureId); "reference" is a feature
-// to read (passive, triggered, reference only).
+// "activate" is a feature the console runs itself, as the character sheet does (pcAttackFeatureFormCore.js); "reference"
+// is a feature to read (passive, triggered, reference only, not automated yet).
 export const PC_ATTACK_PICKER_TABS = Object.freeze([
   Object.freeze({ id: "attacks", label: "Attacchi" }),
   Object.freeze({ id: "cantrips", label: "Trucchetti" }),
@@ -78,8 +79,8 @@ export function pcAttackPickerEntries(card) {
   return PC_ATTACK_PICKER_TABS.flatMap((tab) => entries[tab.id]);
 }
 
-// Capacità: the features the card's context menu activates first ("Utilizzabili", the same rule as
-// buildClassFeatureContextEntries), then the others ("Altre capacità"), each in catalog order. group: "usable" or
+// Capacità: the features the character sheet activates first ("Utilizzabili": not reference only, automated, auras
+// included), then the others ("Altre capacità"), each in catalog order. group: "usable" or
 // "other"; activation: the catalog's (azione, azione bonus, reazione, passiva, innesco…); species: a species trait.
 const ACTIVATION_LABELS = Object.freeze({
   azione: "azione", azione_bonus: "azione bonus", reazione: "reazione", passiva: "passiva", innesco: "innesco",
@@ -92,7 +93,7 @@ const activationLabel = (value) => {
 
 export function pcAttackFeatureEntries(profile) {
   const entries = getEnabledClassFeatures(profile).filter((feature) => !feature.breath).map((feature) => {
-    const usable = !classFeatureIsReferenceOnly(feature) && feature.quickActionEligible !== false;
+    const usable = pcAttackFeatureUsable(feature);
     return { key: `feature::${feature.id}`, tab: "features", actionId: "", spellId: "", featureId: feature.id,
       label: classFeatureDisplayNameWithParent(feature), mode: usable ? "activate" : "reference", group: usable ? "usable" : "other",
       activation: activationLabel(feature.activation?.primary), species: !!(feature.speciesId || feature.giftId),

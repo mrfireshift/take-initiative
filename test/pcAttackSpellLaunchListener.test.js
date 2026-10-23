@@ -65,26 +65,11 @@ test("only the book's spells by actionId: an attack, a ⚡ quick action or an un
   assert.match(h.results()[1].message, /non più nel grimorio/);
 });
 
-test("Usa activates a feature of the context menu by its id, as the card's context menu does", async () => {
+test("a featureId is no longer served: the console runs its features itself", async () => {
   const h = harness();
   await h.send({ type: "launch", requestId: "f1", sourceId: "mira", featureId: "barbaro-ira" });
-  assert.deepEqual(h.activations, [["mira", "barbaro-ira"]]);
-  assert.deepEqual(h.runs, [], "never through the quick actions");
-  assert.deepEqual(h.results(), [{ requestId: "f1", type: "launch-result", ok: true, mode: "activated" }]);
-  // Active on a target (single-target), it can be activated again.
-  await h.send({ type: "launch", requestId: "f2", sourceId: "mira", featureId: "paladino-imposizione-delle-mani" });
-  assert.equal(h.activations.length, 2);
-});
-
-test("a feature already active on its owner, or not in the context menu, is refused", async () => {
-  const active = harness({ rageActive: true });
-  await active.send({ type: "launch", requestId: "f3", sourceId: "mira", featureId: "barbaro-ira" });
-  assert.deepEqual(active.activations, []);
-  assert.deepEqual(active.results().at(-1), { requestId: "f3", type: "launch-result", ok: false, message: "Ira: già attiva." });
-  const h = harness();
-  await h.send({ type: "launch", requestId: "f4", sourceId: "mira", featureId: "paladino-attacco-extra" });
-  assert.deepEqual(h.activations, []);
-  assert.equal(h.results().at(-1).message, "Capacità non più disponibile.");
+  assert.deepEqual([h.activations, h.runs], [[], []]);
+  assert.deepEqual(h.results(), [{ requestId: "f1", type: "launch-result", ok: false, message: "Incantesimo non più nel grimorio." }]);
 });
 
 test("a player's tracker, a request without id or another message type stays silent", async () => {
@@ -99,10 +84,10 @@ test("a player's tracker, a request without id or another message type stays sil
 
 test("a scene change or a failed cast answers with the reason", async () => {
   const stale = harness({ current: false });
-  await stale.send({ type: "launch", requestId: "r8", sourceId: "mira", featureId: "barbaro-ira" });
+  await stale.send({ type: "launch", requestId: "r8", sourceId: "mira", actionId: "book:bless" });
   assert.deepEqual([stale.runs, stale.activations], [[], []]);
   assert.deepEqual(stale.results().at(-1), { requestId: "r8", type: "launch-result", ok: false, message: "Scena cambiata." });
-  const failing = harness({ activate: async () => { throw new Error("Nessuna Ira rimasta."); } });
-  await failing.send({ type: "launch", requestId: "r9", sourceId: "mira", featureId: "barbaro-ira" });
-  assert.deepEqual(failing.results().at(-1), { requestId: "r9", type: "launch-result", ok: false, message: "Nessuna Ira rimasta." });
+  const failing = harness({ run: async () => { throw new Error("Slot esauriti."); } });
+  await failing.send({ type: "launch", requestId: "r9", sourceId: "mira", actionId: "book:bless" });
+  assert.deepEqual(failing.results().at(-1), { requestId: "r9", type: "launch-result", ok: false, message: "Slot esauriti." });
 });

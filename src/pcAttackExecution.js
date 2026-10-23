@@ -16,7 +16,8 @@ import { withBossLinkDefenses } from "./bossLinkResistanceCore.js";
 import { getPcAttackRider } from "./pcAttackRiderCatalog.js";
 import { planSpellSlotSpend, spellSlotSpendOperation } from "./spellSlotSpendCore.js";
 import { CLASS_FEATURE_STATE_FIELD, planClassFeatureResourceAdjustment } from "./classFeatureCore.js";
-import { buildClassFeatureContextEntries } from "./classFeatureCatalog.js";
+import { getEnabledClassFeatures } from "./classFeatureCatalog.js";
+import { pcAttackFeatureState } from "./pcAttackFeatureFormCore.js";
 
 // The slot each smite of the attack spends (Divine Smite at its level, Eldritch Smite from Pact Magic), in order:
 // [{rider,name,plan}]. riders are the console's ({id}) or the plan's causality ({featureId,name}).
@@ -160,10 +161,11 @@ export function createPcAttackRuntime({
     if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri l'attacco.");
     const round=Number(scope.turnState?.round);
     const targets=bossActionTargets(items,scope.item.id).map(item=>withBossLinkDefenses(item,items.find(entry=>entry.id===item.metadata?.[`${ID}/meta`]?.sharedHpSourceId),round));
-    // The Capacità tab: each class feature's uses left and whether it is active, as the tracker card reads them.
-    const features=picker.some(entry=>entry.featureId)
-      ?buildClassFeatureContextEntries(card,scope.item?.metadata?.[`${ID}/meta`]?.[CLASS_FEATURE_STATE_FIELD],Number.isFinite(round)?round:null):[];
-    return {item:scope.item,action,actionId:action?.id || "",...(chosen?.spellId?{spellId:chosen.spellId}:{}),picker,features,
+    // The Capacità tab: each feature's active instances and resources, as the character sheet reads them.
+    const featureState=picker.some(entry=>entry.featureId)
+      ?pcAttackFeatureState(card,scope.item?.metadata?.[`${ID}/meta`]?.[CLASS_FEATURE_STATE_FIELD],getEnabledClassFeatures(card),Number.isFinite(round)?round:null)
+      :null;
+    return {item:scope.item,action,actionId:action?.id || "",...(chosen?.spellId?{spellId:chosen.spellId}:{}),picker,featureState,
       targets,turnState:scope.turnState,sceneIdentity:scope.scene.sceneIdentity};
   }
   async function executePcAttack(request={}) {

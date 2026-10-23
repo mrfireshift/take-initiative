@@ -133,9 +133,9 @@ test("presentation carries the Capacità tab's features: uses left and active st
   const presentation = await runtime.getPcAttackPresentation("aria", "holy-sword");
   const features = presentation.picker.filter((entry) => entry.tab === "features");
   assert.deepEqual([features[0].featureId, features[0].mode], ["barbaro-ira", "activate"], "the build's features, no quick action needed");
-  const feature = presentation.features.find((entry) => entry.featureId === "barbaro-ira");
-  assert.equal(feature.active, false);
-  assert.deepEqual(feature.resources.map((row) => [row.poolId, row.current, row.maximum]), [["barbaro-ira-usi", 3, 3]]);
+  assert.deepEqual(presentation.featureState.active, {}, "nothing active");
+  assert.deepEqual(presentation.featureState.resources["barbaro-ira"].map((row) => [row.poolId, row.current, row.maximum]), [["barbaro-ira-usi", 3, 3]]);
+  assert.ok(presentation.featureState.enabledIds.includes("barbaro-ira"));
 });
 
 test("presentation without an action opens on the last attack, else the first weapon", async () => {

@@ -3,7 +3,9 @@ import test, { mock } from "node:test";
 import { FakeNode, textOf } from "../test-support/fakeBossActionsDom.js";
 
 const META = "com.thebigpicture.initiative/meta";
-const sdk = { onReady() {}, broadcast: { onMessage: () => () => {}, sendMessage: async () => {} }, scene: { items: { getItems: async () => [] } }, popover: { close: async () => {} } };
+const sheetOpened = [];
+const sdk = { onReady() {}, broadcast: { onMessage: () => () => {}, sendMessage: async () => {} }, scene: { items: { getItems: async () => [] } },
+  popover: { close: async () => {}, open: async (options) => { sheetOpened.push(options); } } };
 mock.module("@owlbear-rodeo/sdk", { exports: { default: sdk, buildLabel() {}, buildImage() {}, buildPath() {}, buildShape() {}, buildText() {}, Command: class {} } });
 const { bootPcAttack, resultSummary, areaSummary } = await import("../src/pc-attack.js");
 const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
@@ -41,7 +43,7 @@ const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
 // actions: the actor's quick actions, for the picker (the runtime then loads the one asked for, like pcAttackExecution).
-function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, features = [], actionId = "holy-sword", confirm, broadcast, autoOpenOption } = {}) {
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, featureState = null, featureRuntime, actionId = "holy-sword", confirm, broadcast, autoOpenOption } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
   const items = [creature("aria", "Aria", 40, attacker), creature("ghoul", "Ghoul", 30, defenses ? { initiativeCard: { damageDefenses: defenses } } : {}), creature("imp", "Imp", 10)];
@@ -66,7 +68,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
       // Without an action asked for, like the runtime: an attack of the picker, else none (an actor with spells only).
       const chosen = list.find((entry) => entry.id === asked)
         || (asked ? null : list.find((entry) => picker.some((item) => item.mode === "attack" && item.actionId === entry.id))) || null;
-      return { item: items[0], action: chosen, actionId: chosen?.id || "", picker, features, targets: items.slice(1), turnState, sceneIdentity: "scene-A" };
+      return { item: items[0], action: chosen, actionId: chosen?.id || "", picker, featureState, targets: items.slice(1), turnState, sceneIdentity: "scene-A" };
     },
     endQuiveringPalm: async (request) => {
       calls.push({ palm: request });
@@ -86,7 +88,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
         damageComponents: [{ amount: 17 }], hpChange: { before: 30, after: 13, hpMax: 30 } };
     },
   };
-  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, schedule: (callback) => setTimeout(callback, 0),
+  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, featureRuntime, schedule: (callback) => setTimeout(callback, 0),
     undo: async (entryId) => { undoCalls.push(entryId); return { ok: true }; } });
   const $ = (id) => documentRef.getElementById(id);
   return { $, controller, calls, undoCalls, nearbyCalls, loads, sources, closed, runtime, items,
@@ -923,12 +925,20 @@ test("a turn back to the console's actor clears the bar; a clean console closes 
 
 // A 3rd level barbarian, 2 rages left of 3: its features fill the Capacità tab (Rage first, the usable ones first).
 const barbarianCard = { characterBuild: [{ classId: "barbaro", level: 3 }], quickActions: [sword, { id: "rage", label: "Ira", kind: "feature", featureId: "barbaro-ira" }] };
-const rageStatus = (active = false) => [{ featureId: "barbaro-ira", label: "Ira", targetMode: "self", targetLabel: "su di sé", active,
-  resourceReady: true, resources: [{ poolId: "barbaro-ira-usi", amount: 1, current: 2, maximum: 3, unlimited: false, ready: true }] }];
+const rageStatus = (active = false) => ({ enabledIds: ["barbaro-ira"], activeFeatureIds: active ? ["barbaro-ira"] : [],
+  active: active ? { "barbaro-ira": [{ instanceId: "rage-1", remainingRounds: 9 }] } : {},
+  resources: { "barbaro-ira": [{ poolId: "barbaro-ira-usi", name: "Ire", current: 2, maximum: 3, unlimited: false }] } });
+// The runtime the console calls for a feature, as the character sheet does (classFeatureRuntime.js).
+function fakeFeatureRuntime() {
+  const calls = [];
+  const record = (fn) => async (...args) => { calls.push([fn, ...args]); return {}; };
+  return { calls, runtime: { activateClassFeature: record("activateClassFeature"), deactivateClassFeature: record("deactivateClassFeature"),
+    applyLayOnHands: record("applyLayOnHands"), purifyClassFeatureSpell: record("purifyClassFeatureSpell") } };
+}
 
-test("the Capacità tab lists the features by group with their activation and uses; Usa activates by the feature's id", async () => {
-  const bus = launchBroadcast({ result: { ok: true, mode: "activated" } });
-  const f = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, features: rageStatus(), broadcast: bus.broadcast });
+test("the Capacità tab lists the features by group with their activation and uses; Attiva runs the feature in the console", async () => {
+  const runtime = fakeFeatureRuntime();
+  const f = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, featureState: rageStatus(), featureRuntime: runtime.runtime });
   await f.controller.ready; await tick();
   assert.deepEqual(pickerTabs(f).map((button) => button.textContent), ["Attacchi", "Capacità"]);
   await pickerTabs(f)[1].click(); await tick();
@@ -938,28 +948,93 @@ test("the Capacità tab lists the features by group with their activation and us
   assert.match(textOf(list.querySelectorAll("button")[0]), /Ira.*azione bonus · 2\/3/);
   assert.match(f.$("pc-attack-title").textContent, /Ira$/);
   assert.match(f.$("pc-attack-subtitle").textContent, /Capacità di classe/);
-  const card = textOf(f.$("pc-attack-launch"));
-  assert.match(card, /Azione bonus.*su di sé/);
-  assert.match(card, /Ire 2\/3/);
+  assert.match(textOf(f.$("pc-attack-launch")), /Azione bonus.*su di sé.*Ire 2\/3/);
   assert.ok(f.$("pc-attack-launch").querySelector("details"), "its text in the accordion");
-  assert.equal(f.$("pc-attack-launch-button").textContent, "Usa");
-  await f.$("pc-attack-launch-button").click(); await tick(); await tick();
-  const request = bus.sent.find((message) => message.data.type === "launch").data;
-  assert.deepEqual([request.featureId, request.actionId], ["barbaro-ira", undefined], "by the feature, never as a quick action");
-  assert.match(f.$("pc-attack-status").textContent, /Ira: attivata\./);
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Attiva");
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.deepEqual(runtime.calls, [["activateClassFeature", { sourceId: "aria", featureId: "barbaro-ira" }]], "the sheet's call, never through the tracker");
+  assert.match(f.$("pc-attack-status").textContent, /Capacità attivata: Ira\./);
 });
 
-test("a feature already active on its owner cannot be used again; a passive one is only read", async () => {
-  const f = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, features: rageStatus(true) });
+test("an active feature offers Termina; a passive one is only read", async () => {
+  const runtime = fakeFeatureRuntime();
+  const f = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, featureState: rageStatus(true), featureRuntime: runtime.runtime });
   await f.controller.ready; await tick();
   await pickerTabs(f)[1].click(); await tick();
-  assert.match(textOf(f.$("pc-attack-launch")), /Attiva.*Già attiva\./);
-  assert.equal(f.$("pc-attack-launch-button").disabled, true);
+  assert.match(textOf(f.$("pc-attack-launch")), /Attiva · 9 r/);
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Termina");
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.deepEqual(runtime.calls, [["deactivateClassFeature", "aria", "rage-1"]]);
+  assert.match(f.$("pc-attack-status").textContent, /Capacità terminata: Ira\./);
   await f.$("pc-attack-picker-list").querySelectorAll("button")[2].click(); await tick();
   assert.match(f.$("pc-attack-title").textContent, /Difesa Senza Armatura/);
   assert.match(textOf(f.$("pc-attack-launch")), /Passiva/);
-  assert.equal(f.$("pc-attack-launch-button").hidden, true, "a passive feature has no Usa");
-  assert.ok(f.$("pc-attack-launch").querySelector("details"), "its text in the accordion");
+  assert.equal(f.$("pc-attack-launch-button").hidden, true, "a passive feature has no button");
+});
+
+// A 20th level paladin of Devotion: its auras toggle, Lay on Hands asks its points, Purifying Touch the spell to end.
+const paladinCard = { characterBuild: [{ classId: "paladino", level: 20, subclassId: "paladino-giuramento-di-devozione" }], abilityModifiers: { cha: 4 },
+  quickActions: [sword] };
+const paladinState = (active = {}) => ({ enabledIds: [], activeFeatureIds: Object.keys(active), active,
+  resources: { "paladino-imposizione-delle-mani": [{ poolId: "paladino-imposizione-mani-punti", name: "Riserva", current: 100, maximum: 100, unlimited: false }] } });
+const featureRow = (f, pattern) => f.$("pc-attack-picker-list").querySelectorAll("button").find((row) => pattern.test(textOf(row)));
+async function openFeatures(f) { await pickerTabs(f).find((button) => button.textContent === "Capacità").click(); await tick(); }
+
+test("a paladin's aura is usable and toggles: Attiva with its radius, then Disattiva", async () => {
+  const runtime = fakeFeatureRuntime();
+  const off = fixture({ card: paladinCard, attacker: { initiativeCard: paladinCard }, featureState: paladinState(), featureRuntime: runtime.runtime });
+  await off.controller.ready; await tick(); await openFeatures(off);
+  await featureRow(off, /Aura di Protezione/).click(); await tick();
+  assert.match(textOf(off.$("pc-attack-launch")), /aura 9 m/);
+  assert.equal(off.$("pc-attack-launch-button").textContent, "Attiva");
+  await off.$("pc-attack-launch-button").click(); await tick();
+  assert.deepEqual(runtime.calls.at(-1), ["activateClassFeature", { sourceId: "aria", featureId: "paladino-aura-di-protezione" }]);
+  const on = fixture({ card: paladinCard, attacker: { initiativeCard: paladinCard }, featureRuntime: runtime.runtime,
+    featureState: paladinState({ "paladino-aura-di-protezione": [{ instanceId: "aura-1", remainingRounds: null }] }) });
+  await on.controller.ready; await tick(); await openFeatures(on);
+  await featureRow(on, /Aura di Protezione/).click(); await tick();
+  assert.equal(on.$("pc-attack-launch-button").textContent, "Disattiva");
+  await on.$("pc-attack-launch-button").click(); await tick();
+  assert.deepEqual(runtime.calls.at(-1), ["deactivateClassFeature", "aria", "aura-1"]);
+  assert.match(on.$("pc-attack-status").textContent, /Capacità disattivata: Aura di Protezione\./);
+});
+
+test("Lay on Hands takes its points in the card and heals the creature selected; Purifying Touch ends the target's spell", async () => {
+  const runtime = fakeFeatureRuntime();
+  const f = fixture({ card: paladinCard, attacker: { initiativeCard: paladinCard }, featureState: paladinState(), featureRuntime: runtime.runtime });
+  await f.controller.ready; await tick();
+  f.items[1].metadata[META]["com.thebigpicture.initiative/spells"] = [{ instanceId: "hold-1", name: "Blocca persone" }];
+  await f.select(["ghoul"]);
+  await openFeatures(f);
+  await featureRow(f, /Imposizione delle Mani/).click(); await tick();
+  const inputs = f.$("pc-attack-launch").querySelectorAll("input");
+  assert.equal(inputs.length, 1, "the points");
+  assert.equal(inputs[0].max, "100");
+  inputs[0].value = "7"; await inputs[0].emit("input");
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Usa");
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.deepEqual(runtime.calls.at(-1), ["applyLayOnHands",
+    { sourceId: "aria", featureId: "paladino-imposizione-delle-mani", targetIds: ["ghoul"], mode: "heal", value: "7" }]);
+  await featureRow(f, /Tocco Purificatore/).click(); await tick();
+  assert.match(textOf(f.$("pc-attack-launch")), /Bersaglio: Ghoul/);
+  assert.match(textOf(f.$("pc-attack-launch")), /Blocca persone/);
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.deepEqual(runtime.calls.at(-1), ["purifyClassFeatureSpell",
+    { sourceId: "aria", featureId: "paladino-tocco-purificatore", targetIds: ["ghoul"], spellInstanceId: "hold-1", spellName: "Blocca persone" }]);
+});
+
+test("a feature with controls of its own opens the character sheet", async () => {
+  const sorcerer = { characterBuild: [{ classId: "stregone", level: 2 }], quickActions: [sword] };
+  const runtime = fakeFeatureRuntime();
+  const f = fixture({ card: sorcerer, attacker: { initiativeCard: sorcerer }, featureState: { enabledIds: [], active: {}, activeFeatureIds: [], resources: {} }, featureRuntime: runtime.runtime });
+  await f.controller.ready; await tick(); await openFeatures(f);
+  await featureRow(f, /Fonte di Magia/).click(); await tick();
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Apri nella scheda");
+  const before = sheetOpened.length;
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.equal(sheetOpened.length, before + 1);
+  assert.match(sheetOpened.at(-1).url, /^\/initiative-card-modal\.html\?source=aria$/);
+  assert.deepEqual(runtime.calls, [], "the sheet runs it");
 });
 
 test("the details accordion: its open state follows the GM from spell to spell; an attack cantrip has it in the form", async () => {
