@@ -319,3 +319,27 @@ test("Spendi for a reaction feature marks the reaction with the resource; withou
   assert.equal(plain.reaction, undefined);
   assert.equal(reactionNames().length, 0);
 });
+
+const UNCANNY_DODGE_ID = "ladro-schivata-prodigiosa";
+const rogueReactions = () => (currentRogueToken().metadata[META_KEY].conditions?.instances || [])
+  .filter((instance) => instance.condition === "Reazione usata");
+function uncannyRogue() {
+  scene.items = scene.items.map((item) => item.id !== "rogue" ? item : produce(item, (draft) => {
+    draft.metadata[META_KEY].initiativeCard.enabledClassFeatureIds = [STROKE_OF_LUCK_ID, UNCANNY_DODGE_ID];
+  }));
+}
+
+test("Usa reazione: a reaction feature with nothing to spend marks only the reaction, undoable; never twice, never out of combat", async () => {
+  uncannyRogue();
+  const result = await classFeatureRuntime.useClassFeatureReaction({ sourceId: "rogue", featureId: UNCANNY_DODGE_ID });
+  assert.deepEqual(result.reaction, { spent: true, alreadyUsed: false });
+  assert.equal(rogueReactions().length, 1);
+  const [entry] = await waitForHistoryCount(1);
+  assert.match(entry.label, /Reazione: Schivata Prodigiosa/);
+  await assert.rejects(classFeatureRuntime.useClassFeatureReaction({ sourceId: "rogue", featureId: UNCANNY_DODGE_ID }), /già usato la reazione/);
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(rogueReactions().length, 0);
+  await assert.rejects(classFeatureRuntime.useClassFeatureReaction({ sourceId: "rogue", featureId: STROKE_OF_LUCK_ID }), /non usa la reazione/);
+  scene.metadata = { [STATE_KEY]: { order: [], current: 0, round: 1 } };
+  await assert.rejects(classFeatureRuntime.useClassFeatureReaction({ sourceId: "rogue", featureId: UNCANNY_DODGE_ID }), /Fuori dal combattimento/);
+});

@@ -145,3 +145,24 @@ test("Spell Thief names a catalog spell; stealing asks the level confirmation", 
   assert.equal(pcAttackFeatureRequest(feature("ladro-mistificatore-arcano-ladro-di-incantesimi"), thief,
     { spell: "Palla di fuoco", spellMode: "deny", spellLevelConfirmed: true }, { sourceId: "rog" }).params.spellLevelConfirmed, false);
 });
+
+test("a reaction feature with nothing to spend: Usa reazione marks only the reaction, in combat and once", async () => {
+  const { pcAttackFeatureReactable } = await import("../src/pcAttackFeatureFormCore.js");
+  const rogue = { characterBuild: [{ classId: "ladro", level: 5 }], abilityModifiers: { dex: 4 } };
+  const dodge = feature("ladro-schivata-prodigiosa");
+  assert.equal(pcAttackFeatureReactable(dodge), true);
+  assert.equal(pcAttackFeatureReactable(feature("ladro-colpo-di-fortuna")), false, "a feature the console runs");
+  assert.equal(pcAttackFeatureReactable(feature("bardo-collegio-della-sapienza-parole-taglienti")), false, "Spendi marks it already");
+  const state = { enabledIds: [], active: {}, activeFeatureIds: [], resources: {} };
+  const ready = pcAttackFeatureForm(dodge, state, { characterBuild: rogue.characterBuild, reaction: { inCombat: true, used: false } });
+  assert.deepEqual([ready.kind, ready.label, ready.disabledReason], ["reaction", "Usa reazione", ""]);
+  assert.match(ready.note, /segna solo la reazione/);
+  assert.match(pcAttackFeatureForm(dodge, state, { reaction: { inCombat: false } }).disabledReason, /Fuori dal combattimento/);
+  assert.match(pcAttackFeatureForm(dodge, state, { reaction: { inCombat: true, used: true } }).disabledReason, /già usata/);
+  const request = pcAttackFeatureRequest(dodge, ready, {}, { sourceId: "rog" });
+  assert.deepEqual([request.fn, request.params], ["useClassFeatureReaction", { sourceId: "rog", featureId: "ladro-schivata-prodigiosa" }]);
+  assert.equal(request.done, "Reazione segnata: Schivata Prodigiosa.");
+  const { pcAttackFeatureEntries } = await import("../src/pcAttackPickerCore.js");
+  const row = pcAttackFeatureEntries(rogue).find((entry) => entry.featureId === "ladro-schivata-prodigiosa");
+  assert.deepEqual([row.mode, row.group, row.activation], ["activate", "usable", "reazione"]);
+});

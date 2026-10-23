@@ -8,6 +8,8 @@ import {
   conditionInstancesNamed,
   hasReactionUsed,
   hasReadiedAction,
+  initiativeTurnCreatureId,
+  isOffTurn,
   isReactionClassFeature,
   planReactionSpend,
   reactionAppliedAt,
@@ -113,4 +115,16 @@ test("an action taken with a reaction marks it in combat, once, and never out of
   assert.equal(isReactionClassFeature({ activation: { primary: "reazione" } }), true);
   assert.equal(isReactionClassFeature({ activation: { primary: "azione_bonus" } }), false);
   assert.equal(isReactionClassFeature(null), false);
+});
+
+test("off turn: another creature's turn, a Paragon's extra turn of someone else, the Lair, an Epic Action; never out of combat", () => {
+  const at = (current) => ({ order: ["mira", "auril::p1", "__LAIR__", "__EPIC__::auril::after::mira", "goblin"], current, round: 2 });
+  assert.equal(initiativeTurnCreatureId(at(0)), "mira");
+  assert.equal(initiativeTurnCreatureId(at(1)), "auril", "a Paragon's extra turn is its creature's");
+  assert.equal(initiativeTurnCreatureId(at(2)), "");
+  assert.equal(initiativeTurnCreatureId(at(3)), "");
+  assert.deepEqual([0, 1, 2, 3, 4].map((current) => isOffTurn(at(current), "mira")), [false, true, true, true, true]);
+  assert.equal(isOffTurn(at(1), "auril"), false);
+  assert.equal(isOffTurn({ order: [], current: 0 }, "mira"), false, "no initiative: no turn to be off");
+  assert.equal(isOffTurn(at(4), ""), false);
 });

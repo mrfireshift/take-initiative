@@ -15,13 +15,15 @@ import {
   resolveClassFeatureResourceDie,
 } from "./classFeatureCore.js";
 import { getSpellDefinition } from "./spells-srd.js";
+import { isReactionClassFeature } from "./reactionTrackerCore.js";
 
 // A class feature or species trait in the attack console's Capacità tab: what the GM fills in and which runtime call it
 // makes, the same inputs the character sheet asks (initiative-card-modal.js, renderClassFeatures). The console runs the
 // call itself (classFeatureRuntime.js), as the sheet does.
 // kind: "activate" (Attiva / Usa), "toggle" (an aura: Attiva / Disattiva), "end" (active: Termina), "spend" (a cost the
 // console does not automate: Spendi, the effect resolved at the table), "sheet" (its own controls live only in the
-// sheet: Apri nella scheda), "reference" (to read), "manual" (not automated yet, nothing to spend).
+// sheet: Apri nella scheda), "reaction" (used with a reaction and nothing to spend: Usa reazione marks only the
+// reaction), "reference" (to read), "manual" (not automated yet, nothing to spend).
 // Field types: "select", "number", "checkbox", "spell-text" (a catalog spell), "target-spell" (the target's active
 // spell); showWhen: { field, value } shows a field only for that value of another one.
 
@@ -61,6 +63,22 @@ function spendForm(feature, state) {
     fields: variable ? [{ id: "amount", type: "number", label: `${name} da spendere`, min: 1, ...(remaining !== null ? { max: remaining } : {}), value: "1" }] : [],
     note: "Effetto da risolvere al tavolo: la console scala solo la risorsa.",
     disabledReason: remaining !== null && remaining < amount ? `Non basta: ${name} ${remaining}.` : "",
+  };
+}
+
+// A feature used with a reaction that the console neither runs nor spends for (Uncanny Dodge, Deflect Missiles, a
+// Fighting Style's Protection): Usa reazione marks the actor's reaction, the effect is the table's.
+export function pcAttackFeatureReactable(feature) {
+  return !!feature && isReactionClassFeature(feature) && !pcAttackFeatureUsable(feature) && !pcAttackFeatureSpendable(feature);
+}
+
+// reaction: { inCombat, used } of the actor (the console reads them from the turn and the actor's conditions).
+function reactionForm(reaction = {}) {
+  return {
+    kind: "reaction", label: "Usa reazione", call: "reaction", fields: [],
+    note: "Effetto da risolvere al tavolo: la console segna solo la reazione.",
+    disabledReason: reaction.inCombat !== true ? "Fuori dal combattimento: nessuna reazione da segnare."
+      : reaction.used === true ? "Reazione già usata in questo round." : "",
   };
 }
 
@@ -107,10 +125,11 @@ const choiceField = (feature, enabledIds, { id = "choice", label = "" } = {}) =>
 };
 
 // The form of one feature. state: pcAttackFeatureState's. characterBuild: for the targeting (the aura's radius).
-export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [] } = {}) {
+export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], reaction = {} } = {}) {
   if (!feature) return { kind: "reference", fields: [], label: "" };
   const runtime = classFeatureRuntimeSupport(feature);
   if (pcAttackFeatureSpendable(feature)) return spendForm(feature, state);
+  if (pcAttackFeatureReactable(feature)) return reactionForm(reaction);
   if (classFeatureIsReferenceOnly(feature)) return { kind: "reference", fields: [], label: "" };
   if (!runtime.ready) return { kind: "manual", fields: [], label: "", note: "Non automatizzata: risolvila al tavolo." };
   const adapter = adapterOf(feature);
@@ -223,6 +242,9 @@ export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [] }
 // message. targetIds: the map selection (when the feature takes one); spell: the target's spell chosen.
 export function pcAttackFeatureRequest(feature, form, values = {}, { sourceId = "", targetIds } = {}) {
   if (!feature || !form) return { error: "Capacità non disponibile." };
+  if (form.call === "reaction") {
+    return { fn: "useClassFeatureReaction", params: { sourceId, featureId: feature.id }, done: `Reazione segnata: ${feature.name}.` };
+  }
   if (form.call === "spend") {
     const amount = form.variable ? Number(values.amount) : form.amount;
     if (!Number.isInteger(amount) || amount < 1) return { error: `Inserisci quanti ${form.poolName} spendere.` };

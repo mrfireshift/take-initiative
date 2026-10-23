@@ -2,6 +2,7 @@
 // next turn (the condition engine's turn-start expiry), so nothing new runs on the turn change. The tracker card shows
 // the reaction as a clickable indicator; the readied action lives in the card's context menu.
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
+import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 
 export const REACTION_USED_CONDITION = "Reazione usata";
 export const READIED_ACTION_CONDITION = "Azione preparata";
@@ -51,6 +52,23 @@ export function reactionAppliedAt(state) {
 
 export function reactionConditionOptions(state) {
   return { appliedAt: reactionAppliedAt(state), expiry: { ...NEXT_OWN_TURN_START_EXPIRY } };
+}
+
+// The creature whose turn it is: a Paragon's extra turn is its creature's; none in the Lair or an Epic Action slot.
+export function initiativeTurnCreatureId(state) {
+  const order = Array.isArray(state?.order) ? state.order : [];
+  if (!order.length) return "";
+  const id = order[Math.max(0, Math.min(order.length - 1, Math.floor(Number(state?.current) || 0)))];
+  if (typeof id !== "string" || !id || isLairId(id) || isEpicActionId(id)) return "";
+  return splitParagonId(id).baseId || "";
+}
+
+// In combat and not on its own turn (another creature's, the Lair's, an Epic Action's): an attack now is taken with
+// the reaction (an opportunity attack, a readied attack).
+export function isOffTurn(state, itemId) {
+  const id = String(itemId || "").trim();
+  const order = Array.isArray(state?.order) ? state.order.filter(Boolean) : [];
+  return !!id && order.length > 0 && initiativeTurnCreatureId(state) !== id;
 }
 
 // A class feature or species trait used with a reaction (the catalog's activation "reazione").

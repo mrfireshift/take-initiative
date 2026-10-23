@@ -20,7 +20,7 @@ import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellRefer
 import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
 import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFormCore.js";
 import { getSpellCatalog } from "./spells-srd.js";
-import { hasReactionUsed, isReactionClassFeature } from "./reactionTrackerCore.js";
+import { hasReactionUsed, isOffTurn, isReactionClassFeature } from "./reactionTrackerCore.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { classFeatureDescription, classFeatureDescriptionsLoaded, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
@@ -173,6 +173,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Quivering Palm: the decision to end the vibrations of the selected target (its own command, its own identity).
   let palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
   const applyRow=$("pc-attack-apply-row");
+  const reactionRow=$("pc-attack-reaction");
+  let useReaction=true,reactionSignature="";
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
   const spellControls=$("pc-attack-spell-controls");
   const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select"),pickerList=$("pc-attack-picker-list");
@@ -969,7 +971,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // The values the GM entered, by feature: they survive a re-render (a live update, another entry and back).
   const featureValues=new Map();
   const featureForm=entry=>pcAttackFeatureForm(getClassFeatureDefinition(entry.featureId),presentation?.featureState || {},
-    {characterBuild:presentation?.item?.metadata?.[META_KEY]?.initiativeCard?.characterBuild || []});
+    {characterBuild:presentation?.item?.metadata?.[META_KEY]?.initiativeCard?.characterBuild || [],
+      reaction:{inCombat:Array.isArray(presentation?.turnState?.order) && presentation.turnState.order.some(Boolean),
+        used:hasReactionUsed(presentation?.item?.metadata?.[META_KEY]?.conditions)}});
   // Purifying Touch: the creature the GM selected on the map (else the actor) and its active spells.
   function purifyTarget() {
     const item=selection.target || presentation?.item || null;
@@ -1001,7 +1005,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       detailText:resources.join(" · "),
       notes:[...(form.note?[[form.note,""]]:[]),...(form.disabledReason?[[form.disabledReason,"warning"]]:[]),
         ...(spent && !form.disabledReason?[["Nessun uso rimasto.","warning"]]:[]),
-        ...(form.kind!=="reference" && reactionAlreadyUsed(definition)?[["Reazione già usata in questo round.","warning"]]:[])],
+        ...(!["reference","reaction"].includes(form.kind) && reactionAlreadyUsed(definition)?[["Reazione già usata in questo round.","warning"]]:[])],
       blocked:!!form.disabledReason || spent,
     };
   }
@@ -1111,7 +1115,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       // "Capacità" agrees with every verb, whatever the feature's gender (il Tocco, l'Aura).
       const done=request.done?request.done:request.fn==="deactivateClassFeature"?`Capacità ${form.kind==="toggle"?"disattivata":"terminata"}: ${name}.`
         :definition?.trackingMode==="instant" || form.label==="Usa"?`Capacità usata: ${name}.`:`Capacità attivata: ${name}.`;
-      setStatus(result?.reaction?.spent?`${done} Reazione segnata.`:done);
+      setStatus(result?.reaction?.spent && form.kind!=="reaction"?`${done} Reazione segnata.`:done);
     } catch(error) {
       if(!error?.cancelled) setStatus(String(error?.message || error || "Capacità non applicata."));
     } finally {launchBusy=false;launchSignature="";renderLaunch();}
@@ -1338,7 +1342,29 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       meta.hidden=!formula;
     }
   }
+  // Off turn (another creature's turn, the Lair's, an Epic Action's) an attack is taken with the reaction: a checkbox
+  // above Registra, on by default; with the reaction already used, a warning instead (the attack marks nothing).
+  function attackReaction() {
+    if(!presentation || !draft || launching() || isArea() || !isOffTurn(presentation.turnState,sourceId)) return null;
+    return {used:hasReactionUsed(presentation.item?.metadata?.[META_KEY]?.conditions)};
+  }
+  function renderReaction() {
+    if(!reactionRow) return;
+    const reaction=attackReaction();
+    reactionRow.hidden=!reaction;
+    if(!reaction){reactionSignature="";return;}
+    const signature=JSON.stringify([reaction.used,useReaction,busy]);
+    if(signature===reactionSignature) return;
+    reactionSignature=signature;
+    if(reaction.used){reactionRow.replaceChildren(node("span","Reazione già usata in questo round: l'attacco non la segna.","reaction-warning"));return;}
+    const label=node("label","","reaction-toggle");
+    const box=node("input");box.type="checkbox";box.checked=useReaction;box.disabled=busy || invalidated;
+    box.addEventListener("change",()=>{useReaction=box.checked;reactionSignature="";});
+    label.append(box,node("span","Usa la reazione (attacco di opportunità)"));
+    reactionRow.replaceChildren(label);
+  }
   function renderState() {
+    renderReaction();
     if(isArea()) return renderAreaState();
     // On a miss the section stays only for the activations used on the roll (a bonus to hit); the extras need a hit,
     // or a passed save that still halves an arrow's damage.
@@ -1387,14 +1413,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     apply.disabled=busy || invalidated || !view.ready;
   }
   function render() {
-    renderFollow();renderUseSelected();
+    renderFollow();renderUseSelected();renderReaction();
     if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
     form.hidden=false;
     // A spell that left the book (or a launch view on an entry gone) falls back to the attack, or the first spell.
     if(launchKey && !(presentation.picker || []).some(entry=>entry.key===launchKey)) launchKey="";
     if(!draft && !launchKey) launchKey=pcAttackPickerDefault(presentation.picker,{})?.key || "";
     renderPicker();renderCaster();
-    if(launching()){renderLaunch();return;}
+    if(launching()){renderReaction();renderLaunch();return;}
     if(attackView) attackView.hidden=false;
     if(launchBox){launchBox.hidden=true;launchSignature="";}
     if(launchButton) launchButton.hidden=true;
@@ -1405,7 +1431,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Selection and scene updates never rebuild the outcome buttons or the amount fields: a click in
   // flight or the caret in a field survives them.
   function renderLive() {
-    renderFollow();renderUseSelected();
+    renderFollow();renderUseSelected();renderReaction();
     if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
     renderPicker();renderCaster();
     if(launching()){renderLaunch();return;}
@@ -1618,6 +1644,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ...(draft.attackMode?{attackMode:draft.attackMode,...(draft.modeAmount!==""?{modeAmount:Number(draft.modeAmount)}:{})}:{}),
       ...(chosenActivations(draft).some(activation=>activation.burstTargetIds?.length)?{expectedBurstDefenses:Object.fromEntries(
         chosenActivations(draft).flatMap(activation=>activation.burstTargetIds || []).map(id=>[id,damageDefensesForItem(creatureById(id),META_KEY)]))}:{}),
+      ...(useReaction && attackReaction()?.used===false?{useReaction:true}:{}),
       attackInstanceId:draft.attackInstanceId,sceneIdentity:presentation.sceneIdentity};
     // A smite without a slot left: the GM decides before the commit.
     const exhausted=pcAttackSmiteSlotPlans(presentation.item,request.riders).filter(entry=>entry.plan.exhausted);
@@ -1636,7 +1663,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const result=await runtime.executePcAttack(request);
     if(!lifecycle.isCurrent(operation)) return;
     showUndo(result);
-    setStatus([resultSummary(result),...(result.spell?[spellResultSummary(result.spell)]:[]),...(result.followUps || []),...(result.warnings || [])].join("\n"));
+    setStatus([resultSummary(result),...(result.spell?[spellResultSummary(result.spell)]:[]),...(result.reaction?.spent?["Reazione segnata."]:[]),
+      ...(result.followUps || []),...(result.warnings || [])].join("\n"));
     markPendingReady();
     if(getPcAttackCantrip(draft.spellId)?.scaling==="beams")
       beamTally=beamTally.spellId===draft.spellId?{...beamTally,count:beamTally.count+1}:{spellId:draft.spellId,count:1};
@@ -1679,7 +1707,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function switchActor(next,name="",{offTurn=false}={}) {
     pendingFollow=null;pendingReady=false;renderFollow();
     sourceId=next;actionId="";requestedSpellId="";launchKey="";launchSignature="";
-    presentation=null;draft=null;liveSignature="";
+    presentation=null;draft=null;liveSignature="";useReaction=true;reactionSignature="";
     beamTally={spellId:"",count:0};palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
     selection={status:"none",target:null,candidates:[]};
     showUndo(null);setStatus(name?offTurn?`Fuori turno: ${name}.`:`Turno di ${name}.`:"");

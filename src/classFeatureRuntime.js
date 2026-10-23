@@ -1775,6 +1775,30 @@ export async function reconcileClassFeatureActivationsAfterConditionRemoval(
   return returnDetails ? { changed: ids, details } : ids;
 }
 
+// The attack console's "Usa reazione": a feature used with a reaction and nothing to spend (Uncanny Dodge, Deflect
+// Missiles) marks only "Reazione usata", undoable; in combat only, and never twice.
+export async function useClassFeatureReaction({ sourceId, featureId } = {}) {
+  const feature = getClassFeatureDefinition(featureId);
+  if (!isReactionClassFeature(feature)) throw new Error("Questa capacità non usa la reazione.");
+  // Not automated by definition: only enabled for the character (loadEnabledClassFeatureSource refuses the rest).
+  const [sourceItem] = await OBR.scene.items.getItems([sourceId]);
+  if (!sourceItem) throw classFeatureError("source-not-found");
+  if (!getEnabledClassFeatures(getInitiativeCard(sourceItem)).some((entry) => entry.id === feature.id)) {
+    throw classFeatureError("feature-not-enabled");
+  }
+  const reaction = classFeatureReactionSpend(feature, sourceItem, (await currentTurnState()).state);
+  if (!reaction.applies) throw new Error("Fuori dal combattimento: nessuna reazione da segnare.");
+  if (reaction.alreadyUsed) throw new Error(reaction.message);
+  const mutation = await runEffectsMutation(reaction.operations, {
+    kind: "class-feature",
+    label: `Reazione: ${feature.name}`,
+    targetIds: [sourceItem.id],
+  });
+  requireAppliedEffectsMutation(mutation);
+  await refreshConditionLabels([sourceItem.id]);
+  return { feature, ...reactionResult(reaction) };
+}
+
 // featureId: the feature the resource is spent for (the attack console's Spendi): one used with a reaction spends the
 // reaction too, in the same command.
 export async function adjustClassFeatureResource(

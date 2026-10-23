@@ -628,3 +628,32 @@ test("a critical hit on a PC at 0 HP: no HP change, two death save failures, one
   await history.undoHistoryThrough((await attackEntry()).id, { sceneEpoch: currentSceneEpoch() });
   assert.equal(meta("ghoul").deathSaves, undefined);
 });
+
+const reactionsOf = (id) => (meta(id).conditions?.instances || []).filter((instance) => instance.condition === "Reazione usata");
+
+test("an attack off turn with the reaction: the attack and \"Reazione usata\" in one History entry; one Undo restores both", async () => {
+  sceneMetadata["com.thebigpicture.initiative/state"] = { round: 2, order: ["aria", "ghoul"], current: 1 };
+  const result = await attack({ attackInstanceId: "opportunity", useReaction: true });
+  assert.deepEqual(result.reaction, { spent: true, alreadyUsed: false });
+  assert.equal(meta("ghoul").hp, 13);
+  assert.equal(reactionsOf("aria").length, 1);
+  assert.equal(reactionsOf("aria")[0].expiry?.mode, "turn-start");
+  assert.equal((await history.getHistoryEntries()).length, baselineCount + 1);
+  const second = await attack({ attackInstanceId: "second", useReaction: true });
+  assert.deepEqual(second.reaction, { spent: false, alreadyUsed: true });
+  assert.equal(reactionsOf("aria").length, 1, "never marked twice");
+  const entry = await attackEntry();
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(meta("ghoul").hp, 30);
+  assert.equal(reactionsOf("aria").length, 0);
+});
+
+test("an attack on the actor's own turn, or off turn without the reaction asked for, marks nothing", async () => {
+  const own = await attack({ attackInstanceId: "own-turn", useReaction: true });
+  assert.equal(own.reaction, undefined, "Aria's own turn");
+  assert.equal(reactionsOf("aria").length, 0);
+  sceneMetadata["com.thebigpicture.initiative/state"] = { round: 2, order: ["aria", "ghoul"], current: 1 };
+  const plain = await attack({ attackInstanceId: "held" });
+  assert.equal(plain.reaction, undefined);
+  assert.equal(reactionsOf("aria").length, 0);
+});

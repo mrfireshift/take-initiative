@@ -164,6 +164,12 @@
     /* Total and Registra stay in view whatever the number of extras: outside the scrolling panel. */
     .apply-row { flex: 0 0 auto; display: flex; align-items: center; gap: var(--obrt-space-md); padding: 8px var(--obrt-space-xl); border-top: 1px solid var(--line); background: rgba(15, 23, 42, .32); }
     .apply-row[hidden] { display: none; }
+    .reaction-row { flex: 0 0 auto; display: flex; align-items: center; padding: 6px var(--obrt-space-xl) 0; border-top: 1px solid var(--line); background: rgba(15, 23, 42, .32); color: var(--muted); font-size: var(--obrt-type-secondary); }
+    .reaction-row[hidden] { display: none; }
+    .reaction-row:not([hidden]) + .apply-row { border-top: 0; }
+    .reaction-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .reaction-toggle input { width: 14px; height: 14px; margin: 0; accent-color: #2563eb; cursor: pointer; }
+    .reaction-warning { color: #fde68a; }
     .total { flex: 1 1 auto; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
     .total strong { color: #fff; font-size: var(--obrt-type-card-title); }
     .apply { min-width: 112px; min-height: var(--obrt-h-control-lg); padding: 7px 14px; border: 1px solid rgba(255, 255, 255, .18); border-radius: var(--obrt-radius-md); background: #dc2626; font-weight: var(--obrt-weight-bold); cursor: pointer; }
@@ -246,6 +252,7 @@
         </div>
       </section>
     </main>
+    <div class="reaction-row" id="pc-attack-reaction" hidden></div>
     <div class="apply-row" id="pc-attack-apply-row" hidden><span class="total" id="pc-attack-total"></span><button class="apply" id="pc-attack-apply" type="button">Registra</button><button class="apply" id="pc-attack-launch-button" type="button" hidden>Lancia</button></div>
     <footer class="status-bar"><p class="status" id="pc-attack-status" role="status" aria-live="polite"></p><button class="small" id="pc-attack-undo" type="button" hidden>Annulla</button></footer>
   </div>

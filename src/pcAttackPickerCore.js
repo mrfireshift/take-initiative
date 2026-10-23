@@ -4,7 +4,7 @@ import { getPcAttackCantrip } from "./pcAttackCantripCatalog.js";
 import { getPcAttackSpell } from "./pcAttackSpellCatalog.js";
 import { spellbookCantripAttackAction, spellbookGroupsForProfile, spellbookSpellAttackAction } from "./spellbookCatalog.js";
 import { classFeatureDisplayNameWithParent, getEnabledClassFeatures } from "./classFeatureCatalog.js";
-import { pcAttackFeatureSpendable, pcAttackFeatureUsable } from "./pcAttackFeatureFormCore.js";
+import { pcAttackFeatureReactable, pcAttackFeatureSpendable, pcAttackFeatureUsable } from "./pcAttackFeatureFormCore.js";
 import { spellbookQuickActionId } from "./spellbookCore.js";
 
 // The attack console's picker: everything the actor can do with an attack or a spell on its turn, one entry each.
@@ -93,8 +93,8 @@ const activationLabel = (value) => {
 
 export function pcAttackFeatureEntries(profile) {
   const entries = getEnabledClassFeatures(profile).filter((feature) => !feature.breath).map((feature) => {
-    // A cost the console spends by hand (Spendi) counts as usable too.
-    const usable = pcAttackFeatureUsable(feature) || pcAttackFeatureSpendable(feature);
+    // A cost the console spends by hand (Spendi), or a reaction it marks (Usa reazione), counts as usable too.
+    const usable = pcAttackFeatureUsable(feature) || pcAttackFeatureSpendable(feature) || pcAttackFeatureReactable(feature);
     return { key: `feature::${feature.id}`, tab: "features", actionId: "", spellId: "", featureId: feature.id,
       label: classFeatureDisplayNameWithParent(feature), mode: usable ? "activate" : "reference", group: usable ? "usable" : "other",
       activation: activationLabel(feature.activation?.primary), species: !!(feature.speciesId || feature.giftId),

@@ -12,7 +12,7 @@ const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const { pcAttackPickerEntries } = await import("../src/pcAttackPickerCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
-const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
+const IDS = ["pc-attack-reaction", "pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
@@ -1221,4 +1221,55 @@ test("a feature used with a reaction, the reaction free: Usa runs at once and th
   await f.$("pc-attack-launch-button").click(); await tick();
   assert.deepEqual(asked, []);
   assert.match(f.$("pc-attack-status").textContent, /Capacità usata: Piegare la Fortuna\. Reazione segnata\./);
+});
+
+test("off turn the attack offers the reaction, on by default: Registra sends it; unticked, it does not; on its own turn, nothing", async () => {
+  const f = fixture({ turnState: { order: ["aria", "ghoul"], current: 1, round: 2 } });
+  await f.controller.ready; await tick();
+  const row = f.$("pc-attack-reaction");
+  assert.equal(row.hidden, false);
+  assert.match(textOf(row), /Usa la reazione \(attacco di opportunità\)/);
+  assert.equal(row.querySelector("input").checked, true);
+  await f.select(["ghoul"]); await f.outcome("miss").click();
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.equal(f.calls.at(-1).useReaction, true);
+  const box = f.$("pc-attack-reaction").querySelector("input");
+  box.checked = false; await box.emit("change"); await tick();
+  await f.outcome("miss").click();
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.equal(f.calls.at(-1).useReaction, undefined);
+  const own = fixture({ turnState: { order: ["aria", "ghoul"], current: 0, round: 2 } });
+  await own.controller.ready; await tick();
+  assert.equal(own.$("pc-attack-reaction").hidden, true);
+});
+
+test("off turn with the reaction already used: a warning instead of the checkbox, and the attack asks for nothing", async () => {
+  const f = fixture({ turnState: { order: ["aria", "ghoul"], current: 1, round: 2 },
+    attacker: { conditions: { version: 2, instances: [{ id: "r1", condition: "Reazione usata" }] } } });
+  await f.controller.ready; await tick();
+  assert.match(textOf(f.$("pc-attack-reaction")), /Reazione già usata in questo round: l'attacco non la segna\./);
+  assert.equal(f.$("pc-attack-reaction").querySelector("input"), null);
+  await f.select(["ghoul"]); await f.outcome("miss").click();
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.equal(f.calls.at(-1).useReaction, undefined);
+});
+
+test("Usa reazione on Uncanny Dodge marks the reaction; out of combat or with the reaction used the button waits", async () => {
+  const rogue = { characterBuild: [{ classId: "ladro", level: 5 }], abilityModifiers: { dex: 4 }, quickActions: [sword] };
+  const state = { enabledIds: [], active: {}, activeFeatureIds: [], resources: {} };
+  const calls = [];
+  const featureRuntime = { useClassFeatureReaction: async (params) => { calls.push(params); return { reaction: { spent: true, alreadyUsed: false } }; } };
+  const f = fixture({ card: rogue, featureState: state, featureRuntime, attacker: { initiativeCard: rogue }, turnState: { order: ["aria", "ghoul"], current: 1, round: 2 } });
+  await f.controller.ready; await tick(); await openFeatures(f);
+  await featureRow(f, /Schivata Prodigiosa/).click(); await tick();
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Usa reazione");
+  assert.match(textOf(f.$("pc-attack-launch")), /segna solo la reazione/);
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.deepEqual(calls, [{ sourceId: "aria", featureId: "ladro-schivata-prodigiosa" }]);
+  assert.equal(f.$("pc-attack-status").textContent, "Reazione segnata: Schivata Prodigiosa.");
+  const out = fixture({ card: rogue, featureState: state, featureRuntime, attacker: { initiativeCard: rogue } });
+  await out.controller.ready; await tick(); await openFeatures(out);
+  await featureRow(out, /Schivata Prodigiosa/).click(); await tick();
+  assert.match(textOf(out.$("pc-attack-launch")), /Fuori dal combattimento/);
+  assert.equal(out.$("pc-attack-launch-button").disabled, true);
 });

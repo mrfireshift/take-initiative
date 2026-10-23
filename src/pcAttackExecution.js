@@ -18,6 +18,7 @@ import { planSpellSlotSpend, spellSlotSpendOperation } from "./spellSlotSpendCor
 import { CLASS_FEATURE_STATE_FIELD, planClassFeatureResourceAdjustment } from "./classFeatureCore.js";
 import { getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { pcAttackFeatureState } from "./pcAttackFeatureFormCore.js";
+import { isOffTurn, planReactionSpend } from "./reactionTrackerCore.js";
 
 // The slot each smite of the attack spends (Divine Smite at its level, Eldritch Smite from Pact Magic), in order:
 // [{rider,name,plan}]. riders are the console's ({id}) or the plan's causality ({featureId,name}).
@@ -63,6 +64,17 @@ export function pcAttackSpellSlotPlan(item,spell) {
   const card=meta.initiativeCard || {};
   return planSpellSlotSpend({characterBuild:card.characterBuild,resources:meta.classFeatureState?.resources || {},
     spellLevel:spell.level,slotLevel:spell.slotLevel,source:spell.pact?"pact":""});
+}
+
+// An attack off turn with the reaction (an opportunity attack, a readied attack): "Reazione usata" in the attack's own
+// command, so its Undo gives it back. Read again at the commit: in combat, still off turn, the reaction still free.
+function spendAttackReaction(item,plan,turnState,useReaction=false) {
+  if(!useReaction || !isOffTurn(turnState,item?.id)) return null;
+  const reaction=planReactionSpend({casterId:item.id,casterName:item.name,conditions:item.metadata?.[`${ID}/meta`]?.conditions,initiativeState:turnState});
+  if(!reaction.applies) return null;
+  plan.operations.push(...reaction.operations);
+  if(reaction.operations.length) plan.labelTargetIds=[...new Set([...(plan.labelTargetIds || []),item.id])];
+  return {spent:!reaction.alreadyUsed,alreadyUsed:reaction.alreadyUsed};
 }
 
 function spendSpellCastSlot(item,plan,castWithoutSlot=false) {
@@ -208,6 +220,7 @@ export function createPcAttackRuntime({
         weaponCantrip:request.weaponCantrip ?? null,expectedSecondaryDefenses:request.expectedSecondaryDefenses ?? null,sharedHp:request.sharedHp || null,
         activations:request.activations ?? null,attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,
         expectedBurstDefenses:request.expectedBurstDefenses ?? null,castWithoutSlot:request.castWithoutSlot===true,
+        useReaction:request.useReaction===true,
         spellCast:request.spellCast ?? null});
       let draft=drafts.get(attackInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
@@ -223,7 +236,8 @@ export function createPcAttackRuntime({
           spellCast:request.spellCast || null,linkItems});
         spendSmiteSlots(scope.item,plan,request.castWithoutSlot===true);
         spendSpellCastSlot(scope.item,plan,request.castWithoutSlot===true);
-        draft={decisionKey,plan,options:{...plan.options,...(bossLinkResisted.length?{bossLinkResisted}:{}),
+        const reaction=spendAttackReaction(scope.item,plan,scope.turnState,request.useReaction===true);
+        draft={decisionKey,plan,reaction,options:{...plan.options,...(bossLinkResisted.length?{bossLinkResisted}:{}),
           sharedHp:request.sharedHp || {},sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
         drafts.set(attackInstanceId,draft);
       }
@@ -274,6 +288,7 @@ export function createPcAttackRuntime({
         followUps:[...(plan.followUps || [])],cantrip:plan.causality.cantrip ? structuredClone(plan.causality.cantrip) : null,
         spell:plan.causality.spell ? structuredClone(plan.causality.spell) : null,
         manualRemainder:plan.options?.history?.payload?.manualRemainder || "",conditions:(plan.causality.conditionsApplied || []).map(entry=>entry.condition),
+        ...(draft.reaction?{reaction:{...draft.reaction}}:{}),
         target:{id:targetItem.id,name:targetItem.name || targetItem.id},
         ...(plan.causality.weaponCantrip?{weaponCantrip:structuredClone(plan.causality.weaponCantrip)}:{}),
         ...(plan.secondaryChange?{secondary:{id:plan.secondaryItem.id,name:plan.secondaryItem.name || plan.secondaryItem.id,
