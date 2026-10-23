@@ -1226,7 +1226,31 @@ test("Boss Actions answers the turn controller's ping while it is open, and stop
   const f=fixture({broadcast});await f.controller.ready;
   for(const entry of [...listeners]) if(entry.channel==="com.thebigpicture.initiative/boss-actions-console") entry.listener({data:{type:"ping"}});
   await tick();
-  assert.deepEqual(sent,[{channel:"com.thebigpicture.initiative/boss-actions-console",data:{type:"pong",sourceId:"auril"},options:{destination:"LOCAL"}}]);
+  assert.deepEqual(sent,[{channel:"com.thebigpicture.initiative/boss-actions-console",data:{type:"pong",sourceId:"auril",idle:false},options:{destination:"LOCAL"}}],
+    "managing its profile (none bound yet): not idle");
   await f.$("boss-close").click();
   assert.equal([...listeners].some(entry=>entry.channel==="com.thebigpicture.initiative/boss-actions-console"),false);
+});
+
+test("asked to close at the end of the boss's turn, Boss Actions closes only when idle",async()=>{
+  const consoleWith=async(options={})=>{
+    const listeners=new Set(),closed=[];
+    const broadcast={onMessage:(channel,listener)=>{const entry={channel,listener};listeners.add(entry);return()=>listeners.delete(entry);},sendMessage:async()=>{}};
+    const f=fixture({...options,broadcast});await f.controller.ready;
+    f.api.popover.close=async id=>{closed.push(id);};
+    const ask=async()=>{for(const entry of [...listeners]) if(entry.channel==="com.thebigpicture.initiative/boss-actions-console") entry.listener({data:{type:"close-if-idle"}});await tick();};
+    return {f,closed,ask};
+  };
+  const managing=await consoleWith();
+  await managing.ask();
+  assert.deepEqual(managing.closed,[],"managing its profile (none bound yet): stays");
+  const resolving=await consoleWith({selection:["dars"]});
+  await importAndBind(resolving.f,"auril-phase-2.html");
+  await open(resolving.f,"Icekiss +2");
+  await resolving.ask();
+  assert.deepEqual(resolving.closed,[],"an action being resolved: stays");
+  const idle=await consoleWith();
+  await importAndBind(idle.f,"auril-phase-2.html");
+  await idle.ask();
+  assert.deepEqual(idle.closed,["com.thebigpicture.initiative/boss-actions"],"the list of actions, nothing pending: closes");
 });

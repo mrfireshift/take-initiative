@@ -1928,10 +1928,17 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}
     lifecycle.dispose();
   }
-  // The turn controller asks whether Boss Actions is open (on a boss's turn): an open console is never reloaded.
+  // The turn controller asks whether Boss Actions is open (on a boss's turn): an open console is never reloaded. When
+  // the boss's turn or Epic Action is over it asks an idle console to close: never one resolving an action, busy, or
+  // managing its profile.
+  const idle=()=>!busy && !draft && view==="list";
   if(typeof api.broadcast?.onMessage==="function") offPing=api.broadcast.onMessage(BOSS_ACTIONS_CONSOLE_CHANNEL,event=>{
+    if(event?.data?.type==="close-if-idle"){
+      if(idle() && !invalidated){destroy();void api.popover.close(POPOVER_ID);}
+      return;
+    }
     if(event?.data?.type!=="ping") return;
-    void Promise.resolve().then(()=>api.broadcast.sendMessage(BOSS_ACTIONS_CONSOLE_CHANNEL,{type:"pong",sourceId},{destination:"LOCAL"})).catch(()=>{});
+    void Promise.resolve().then(()=>api.broadcast.sendMessage(BOSS_ACTIONS_CONSOLE_CHANNEL,{type:"pong",sourceId,idle:idle()},{destination:"LOCAL"})).catch(()=>{});
   }) || null;
   $("boss-close").addEventListener("click",()=>{writeSession(draftStorageKey(),null);writeSession(MINIMIZED_STORAGE_KEY,null);destroy();void api.popover.close(POPOVER_ID);});
   const unsubscribe=lifecycle.subscribe(event=>{

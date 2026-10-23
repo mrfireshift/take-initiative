@@ -4,8 +4,8 @@ import { openTrackedPopover } from "./popoverDragHost.js";
 import { BOSS_ACTIONS_WIDTH, BOSS_ACTIONS_HEIGHT } from "./bossActionsViewCore.js";
 
 // Compact floating console; drag and stored position come from openTrackedPopover / popoverDrag.
-// Boss Actions answers a ping on this channel while it is open: the turn controller (pcAttackTurnController.js) never
-// reloads an open one.
+// Boss Actions answers a ping on this channel while it is open (with its boss and whether it is idle): the turn
+// controller (pcAttackTurnController.js) never reloads an open one, and closes an idle one when the boss's turn ends.
 export const BOSS_ACTIONS_CONSOLE_CHANNEL = `${ID}/boss-actions-console`;
 
 export async function openBossActionsPopover(sourceId) {

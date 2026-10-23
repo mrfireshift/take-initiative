@@ -11,7 +11,7 @@ import { runtimeOptionsService } from "./options/optionsRuntime.js";
 import { selectPcAttackAutoOpen } from "./options/optionsSelectors.js";
 
 // The attack console opens by itself on the turn of an actor with attacks (GM only, local option off by default); on a
-// boss's turn, and on its Epic Action slots, Boss Actions opens instead.
+// boss's turn, and on its Epic Action slots, Boss Actions opens instead, and closes (idle) when that turn is over.
 // It only reads the initiative state: never writes it, never moves the turn.
 const STATE_KEY = `${ID}/state`;
 const META_KEY = `${ID}/meta`;
@@ -64,10 +64,11 @@ function pingConsole(api, channel = PC_ATTACK_CONSOLE_CHANNEL, timeoutMs = CONSO
   if (typeof api.broadcast?.onMessage !== "function") return Promise.resolve(false);
   return new Promise((resolve) => {
     let unsubscribe = () => {};
+    // The pong itself (its console's sourceId, Boss Actions' idle), or false: a closed console answers nothing.
     const finish = (open) => { clearTimeout(timer); unsubscribe(); resolve(open); };
     const timer = setTimeout(() => finish(false), timeoutMs);
     unsubscribe = api.broadcast.onMessage(channel, (event) => {
-      if (event?.data?.type === "pong") finish(true);
+      if (event?.data?.type === "pong") finish(event.data);
     }) || (() => {});
     Promise.resolve()
       .then(() => api.broadcast.sendMessage(channel, { type: "ping" }, { destination: "LOCAL" }))
@@ -84,6 +85,14 @@ function tellConsole(api, sourceId, name) {
     .catch(() => {});
 }
 
+function tellBossConsole(api, message) {
+  if (typeof api.broadcast?.sendMessage !== "function") return Promise.resolve();
+  return Promise.resolve()
+    .then(() => api.broadcast.sendMessage(BOSS_ACTIONS_CONSOLE_CHANNEL, message, { destination: "LOCAL" }))
+    .catch(() => {});
+}
+const settle = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export function createPcAttackTurnController({
   api = OBR,
   isEnabled = () => runtimeOptionsService.get(selectPcAttackAutoOpen) === true,
@@ -91,6 +100,8 @@ export function createPcAttackTurnController({
   isConsoleOpen = () => pingConsole(api),
   openBossConsole = openBossActionsPopover,
   isBossConsoleOpen = () => pingConsole(api, BOSS_ACTIONS_CONSOLE_CHANNEL),
+  closeBossConsole = () => tellBossConsole(api, { type: "close-if-idle" }),
+  closeSettleMs = 150,
   followConsole = (sourceId, name) => tellConsole(api, sourceId, name),
   getCard = getInitiativeCard,
 } = {}) {
@@ -119,17 +130,29 @@ export function createPcAttackTurnController({
       const lookupId = sourceId || epicBossId;
       const [item] = lookupId ? await api.scene.items.getItems([lookupId]) : [];
       if (taskRevision !== revision) return;
-      // A boss's turn, or one of its Epic Action slots: Boss Actions, never reloaded when open, never closed by itself.
-      // A clean attack console left open closes (the boss has no attack of its own there).
+      // Both consoles are asked at once: a closed one answers nothing within the ping's time.
+      const [attackOpen, bossOpen] = await Promise.all([isConsoleOpen(), isBossConsoleOpen()]);
+      if (taskRevision !== revision) return;
+      // A boss's turn, or one of its Epic Action slots: Boss Actions, never reloaded when open on this boss; open on
+      // another boss and idle, it gives way. A clean attack console left open closes (no attack of its own there).
       if (pcAttackTurnBoss(item, getCard)) {
-        if (await isConsoleOpen() && taskRevision === revision) await followConsole("", String(item?.name || ""));
-        if (taskRevision !== revision || await isBossConsoleOpen()) return;
+        if (attackOpen) await followConsole("", String(item?.name || ""));
+        if (bossOpen && (bossOpen.sourceId === undefined || bossOpen.sourceId === item.id)) return;
+        if (bossOpen) {
+          if (bossOpen.idle === false) return;
+          await closeBossConsole();
+          await settle(closeSettleMs);
+          if (taskRevision !== revision || await isBossConsoleOpen()) return;
+        }
         if (taskRevision === revision) await openBossConsole(item.id);
         return;
       }
+      // The boss's turn or Epic Action is over: an idle Boss Actions closes by itself.
+      if (bossOpen) await closeBossConsole();
+      if (taskRevision !== revision) return;
       const ready = !!sourceId && pcAttackTurnReady(item, getCard);
       // An open console is never reloaded: it moves to the new actor by itself (or closes), unless a draft holds it.
-      if (await isConsoleOpen()) {
+      if (attackOpen) {
         if (taskRevision === revision) await followConsole(ready ? sourceId : "", String(item?.name || ""));
         return;
       }
