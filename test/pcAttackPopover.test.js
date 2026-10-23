@@ -43,7 +43,7 @@ const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
 // actions: the actor's quick actions, for the picker (the runtime then loads the one asked for, like pcAttackExecution).
-function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, featureState = null, featureRuntime, actionId = "holy-sword", confirm, broadcast, autoOpenOption, metas = {} } = {}) {
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, featureState = null, featureRuntime, actionId = "holy-sword", confirm, broadcast, autoOpenOption, metas = {}, openTracker } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
   // metas: more metadata for the ghoul and the imp (their cards, for the off-turn actions).
@@ -90,7 +90,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
         damageComponents: [{ amount: 17 }], hpChange: { before: 30, after: 13, hpMax: 30 } };
     },
   };
-  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, featureRuntime, schedule: (callback) => setTimeout(callback, 0),
+  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, featureRuntime, openTracker, launchAckTimeoutMs: 40, schedule: (callback) => setTimeout(callback, 0),
     undo: async (entryId) => { undoCalls.push(entryId); return { ok: true }; } });
   const $ = (id) => documentRef.getElementById(id);
   return { $, controller, calls, undoCalls, nearbyCalls, loads, sources, closed, runtime, items,
@@ -771,13 +771,14 @@ const clericCard = { characterBuild: [{ classId: "chierico", level: 3 }], quickA
   source: { kind: "cantrip" } })], spellbook: { spellIds: ["sacred-flame", "light", "bless", "shield-of-faith", "spiritual-weapon"] } };
 const clericMeta = { initiativeCard: clericCard, classFeatureState: { resources: { "spell-slot-1": { current: 1 } } },
   "com.thebigpicture.initiative/concentration": { bless: { spellId: "bless", name: "Benedizione" } } };
-function launchBroadcast({ ack = true, result = { ok: true, mode: "review" } } = {}) {
+// online(): whether the tracker answers now (a closed tracker answers nothing; open it with goOnline).
+function launchBroadcast({ ack = true, result = { ok: true, mode: "review" }, online = () => true } = {}) {
   const listeners = new Set(), sent = [];
   return { sent, broadcast: {
     onMessage: (channel, listener) => { const entry = { channel, listener }; listeners.add(entry); return () => listeners.delete(entry); },
     sendMessage: async (channel, data) => {
       sent.push({ channel, data });
-      if (data.type !== "launch") return;
+      if (data.type !== "launch" || !online()) return;
       const reply = (message) => { for (const entry of [...listeners]) if (entry.channel === channel) entry.listener({ data: message }); };
       setTimeout(() => {
         if (ack) reply({ type: "launch-accepted", requestId: data.requestId });
@@ -812,7 +813,8 @@ test("a spell the console does not resolve shows its card instead of the form; t
   assert.equal(f.$("pc-attack-picker-select").hidden, true, "the spells tab is a list, not a select");
   assert.deepEqual(list.querySelectorAll(".picker-level").map((header) => header.textContent), ["1° livello", "2° livello"], "the spells by level");
   const rows = list.querySelectorAll("button");
-  assert.deepEqual(rows.map((row) => textOf(row).trim()), ["Benedizione Conc.", "Scudo della fede Conc.", "Arma spirituale"]);
+  assert.deepEqual(rows.map((row) => textOf(row).trim()), ["Benedizione azione · Conc.", "Scudo della fede azione bonus · Conc.", "Arma spirituale azione bonus"],
+    "the casting time at a glance");
   assert.equal(rows[0].getAttribute("aria-pressed"), "true");
   await rows[1].click(); await tick();
   assert.equal(f.$("pc-attack-title").textContent, "Scudo della fede");
@@ -833,12 +835,26 @@ test("Lancia asks the tracker; its answer, or its silence, is the status", async
   assert.equal(launch.channel, "com.thebigpicture.initiative/pc-attack-spell-launch");
   assert.deepEqual([launch.data.sourceId, launch.data.actionId], ["aria", "book:bless"]);
   assert.equal(f.$("pc-attack-status").textContent, "Benedizione: pannello incantesimi aperto.");
-  const silent = launchBroadcast({ ack: false, result: null });
-  const g = fixture({ card: clericCard, attacker: clericMeta, broadcast: silent.broadcast }); await g.controller.ready; await tick();
+  // The tracker closed: the console opens it and asks again while it loads.
+  let open = false, opened = 0;
+  const closed = launchBroadcast({ online: () => open });
+  const g = fixture({ card: clericCard, attacker: clericMeta, broadcast: closed.broadcast,
+    openTracker: async () => { opened += 1; setTimeout(() => { open = true; }, 60); } });
+  await g.controller.ready; await tick();
   await pickerTabs(g)[2].click(); await tick();
   await g.$("pc-attack-launch-button").click();
-  await new Promise((resolve) => setTimeout(resolve, 1600));
-  assert.match(g.$("pc-attack-status").textContent, /Il tracker non risponde: aprilo per lanciare Benedizione/);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(opened, 1, "the tracker opened once");
+  assert.equal(g.$("pc-attack-status").textContent, "Benedizione: pannello incantesimi aperto.");
+  assert.equal(closed.sent.filter((message) => message.data.type === "launch").length >= 2, true, "asked again once open");
+  // A tracker that cannot open: the 🪄 menu, by hand.
+  const dead = launchBroadcast({ online: () => false });
+  const h = fixture({ card: clericCard, attacker: clericMeta, broadcast: dead.broadcast, openTracker: async () => { throw new Error("no"); } });
+  await h.controller.ready; await tick();
+  await pickerTabs(h)[2].click(); await tick();
+  await h.$("pc-attack-launch-button").click();
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.match(h.$("pc-attack-status").textContent, /Il tracker non risponde: lancia Benedizione dal suo menu 🪄\./);
 });
 
 test("an actor with spells and no attack opens on its spells", async () => {
@@ -1110,4 +1126,19 @@ test("⇄ moves the console to the creature selected on the map, after a confirm
   await swap.click(); await tick(); await tick();
   assert.equal(f.sources.at(-1), "imp");
   assert.equal(f.$("pc-attack-status").textContent, "Fuori turno: Imp.");
+});
+
+test("an attack registered while a turn change waits: the bar offers the move in evidence", async () => {
+  const bus = followBroadcast();
+  const f = fixture({ broadcast: bus.broadcast }); await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  await bus.follow("imp", "Imp");
+  const bar = f.$("pc-attack-follow");
+  assert.equal(bar.querySelector("button").className, "small");
+  await typeAmounts(f, ["8", "9"]);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.match(textOf(bar), /Registrato\. È il turno di Imp\./);
+  assert.equal(bar.querySelector("button").className, "apply follow-ready");
+  assert.equal(f.sources.includes("imp"), false, "another attack can still be made: the move waits for the GM");
 });

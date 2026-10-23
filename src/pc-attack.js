@@ -34,6 +34,8 @@ const newAttackId=()=>`pc-attack:${globalThis.crypto?.randomUUID?.() || Date.now
 const newLaunchId=()=>`pc-launch:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
 // The tracker acknowledges a launch at once; without it the tracker is closed (it hosts the 🪄 routing).
 const LAUNCH_ACK_TIMEOUT_MS=1500;
+// Once opened for a cast, the tracker gets this many tries (each LAUNCH_ACK_TIMEOUT_MS) to load and answer.
+const TRACKER_OPEN_ATTEMPTS=5;
 const newCastId=()=>`pc-cast:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
 
 // Undo goes through the existing History, only for the latest confirmed entry (same rule as Boss Actions).
@@ -150,6 +152,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // The spell the console opens with (the spellbook's or the 🪄 menu's), when the action offers it.
   let requestedSpellId=overrides.spellId ?? params.get("spell") ?? "";
   const confirmSwitch=overrides.confirm || (message=>typeof globalThis.confirm==="function"?globalThis.confirm(message):true);
+  // The GM's tracker, opened for a cast (trackerPopover.js, loaded only then): the players' tracker is left as it is.
+  const openTracker=overrides.openTracker || (async()=>{
+    const module=await import("./trackerPopover.js");
+    module.markTrackerPopoverClosed();
+    await module.setTrackerPopoverOpen(true);
+  });
   const $=id=>documentRef.getElementById(id);
   const form=$("pc-attack-form"),status=$("pc-attack-status"),targetSelect=$("pc-attack-target"),hint=$("pc-attack-target-hint");
   const outcomes=$("pc-attack-outcomes"),damage=$("pc-attack-damage"),defensesBox=$("pc-attack-defenses");
@@ -179,7 +187,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   });
   // The turn moved on while this attack holds decisions: the actor it waits to move to ({sourceId, name}).
   const followBar=$("pc-attack-follow");
-  let pendingFollow=null,followSignature="";
+  // pendingReady: the attack that held the console is registered, the move is ready.
+  let pendingFollow=null,pendingReady=false,followSignature="";
   // Off-turn actions (a reaction, an opportunity attack): the selected creature in the console, then back to the turn's.
   const useSelectedButton=$("pc-attack-use-selected");
   let offPing=null,offAutoOpen=null;
@@ -823,6 +832,16 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // The picker (pcAttackPickerCore.js): the actor's weapon attacks, cantrips and attack spells. With one entry it
   // hides; when it shows, the cantrip or spell select below gives way to it (its notes and slot controls stay).
   const pickerShown=()=>!!picker && !picker.hidden;
+  // The casting time at a glance: azione, azione bonus, reazione, or the time itself (1 minuto, 10 minuti…); "" until
+  // the reference is loaded.
+  function castingTimeLabel(spellId) {
+    const text=String(spellId?spellbookSpellDetails(spellId)?.castingTime || "":"").trim().toLocaleLowerCase("it");
+    if(!text) return "";
+    if(text.includes("reazione")) return "reazione";
+    if(text.includes("azione bonus")) return "azione bonus";
+    if(/^1 azione\b/u.test(text)) return "azione";
+    return text.split(",")[0];
+  }
   // The entry on screen: the spell card shown, else the attack in the form.
   function currentEntry() {
     const entries=presentation?.picker || [];
@@ -844,8 +863,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // A leveled spell cast left open (rays or darts still to register) says so in its entry.
     const inProgress=entry=>entry.mode==="attack" && entry.tab==="spells"
       && !!pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState});
-    // In the cantrips and spells tabs ⚔ marks what the console resolves, ★ the favourites (as the 🪄 menu).
-    const label=entry=>[entry.pinned?"★ ":"",entry.label,entry.tab!=="attacks" && entry.mode==="attack"?" ⚔":"",inProgress(entry)?" · in corso":""].join("");
+    // In the cantrips and spells tabs ⚔ marks what the console resolves, ★ the favourites (as the 🪄 menu); the select
+    // names the casting time too.
+    const label=entry=>[entry.pinned?"★ ":"",entry.label,entry.tab!=="attacks" && entry.mode==="attack"?" ⚔":"",
+      entry.spellId && castingTimeLabel(entry.spellId)?` · ${castingTimeLabel(entry.spellId)}`:"",inProgress(entry)?" · in corso":""].join("");
+    if(["cantrips","spells"].includes(current.tab) && !spellbookSpellReferenceLoaded()) {
+      void loadSpellbookSpellReference().then(()=>{pickerSignature="";renderPicker();}).catch(()=>{});
+    }
     const featureTags=entry=>{
       const state=presentation.featureState || {};
       const uses=(state.resources?.[entry.featureId] || []).filter(row=>!row.unlimited && Number.isFinite(row.current) && Number.isFinite(row.maximum))
@@ -853,7 +877,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       return [entry.activation,...uses,state.active?.[entry.featureId]?.length?"attiva":""];
     };
     const rowTags=entry=>(entry.tab==="features"?featureTags(entry)
-      :[entry.mode==="attack"?"⚔":"",entry.concentration?"Conc.":"",entry.ritual?"Rit.":"",inProgress(entry)?"in corso":""]).filter(Boolean).join(" · ");
+      :[castingTimeLabel(entry.spellId),entry.mode==="attack"?"⚔":"",entry.concentration?"Conc.":"",entry.ritual?"Rit.":"",inProgress(entry)?"in corso":""])
+      .filter(Boolean).join(" · ");
     const groupOf=entry=>entry.tab==="features"?entry.group:entry.level;
     const groupTitle=group=>group==="usable"?"Utilizzabili":group==="other"?"Altre capacità":Number.isInteger(group)?`${group}° livello`:"Altri";
     // Rebuilt only when the list changes: a live update never closes the select the GM has open, nor scrolls the list.
@@ -1138,12 +1163,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     launchBox.replaceChildren(...children);
   }
   // Lancia: the tracker casts the spell as the 🪄 menu does (the spell panel, or the cast at once when nothing is asked).
-  function askTrackerToLaunch(entry) {
+  function askTrackerToLaunch(entry,{ackTimeoutMs=overrides.launchAckTimeoutMs ?? LAUNCH_ACK_TIMEOUT_MS}={}) {
     return new Promise(resolve=>{
       const requestId=newLaunchId();
       let off=()=>{},timer=null;
       const finish=value=>{clearTimeout(timer);off();resolve(value);};
-      const wait=()=>{clearTimeout(timer);timer=setTimeout(()=>finish(null),LAUNCH_ACK_TIMEOUT_MS);};
+      const wait=()=>{clearTimeout(timer);timer=setTimeout(()=>finish(null),ackTimeoutMs);};
       off=api.broadcast.onMessage(PC_ATTACK_SPELL_LAUNCH_CHANNEL,event=>{
         const data=event?.data;
         if(data?.requestId!==requestId) return;
@@ -1158,7 +1183,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   // What the tracker did with the spell, in the status bar.
   function launchSummary(entry,result) {
-    if(!result) return `Il tracker non risponde: aprilo per lanciare ${entry.label} dal grimorio.`;
+    if(!result) return `Il tracker non risponde: lancia ${entry.label} dal suo menu 🪄.`;
     if(!result.ok) return String(result.message || `${entry.label}: lancio non riuscito.`);
     return result.mode==="review"?`${entry.label}: pannello incantesimi aperto.`
       :result.mode==="executed"?`${entry.label}: lancio registrato.`
@@ -1169,7 +1194,16 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(typeof api.broadcast?.onMessage!=="function"){setStatus("Lancio non disponibile.");return;}
     launchBusy=true;renderLaunch();
     try {
-      setStatus(launchSummary(entry,await askTrackerToLaunch(entry)));
+      let result=await askTrackerToLaunch(entry);
+      if(!result) {
+        // No answer: the tracker is closed (it hosts the 🪄 routing). Open it and ask again while it loads; a request it
+        // never received is lost, never run twice.
+        setStatus(`Apro il tracker per lanciare ${entry.label}…`);
+        if(await openTracker().then(()=>true,()=>false)) {
+          for(let attempt=0;attempt<TRACKER_OPEN_ATTEMPTS && !result && !invalidated;attempt+=1) result=await askTrackerToLaunch(entry);
+        }
+      }
+      setStatus(launchSummary(entry,result));
     } finally {launchBusy=false;renderLaunch();}
   }
   function renderHeader() {
@@ -1506,6 +1540,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(!lifecycle.isCurrent(operation)) return;
       showUndo(result);
       setStatus([areaSummary(result,attack.cantrip?.name || attack.breath?.name || attack.mode?.label),...(result.warnings || [])].join("\n"));
+      markPendingReady();
       draft=emptyDraft(presentation.action,null,draft.spellId,draft.attackMode);
       await refresh(operation);
       render();
@@ -1547,6 +1582,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!lifecycle.isCurrent(operation)) return;
     showUndo(result);
     setStatus([resultSummary(result),...(result.spell?[spellResultSummary(result.spell)]:[]),...(result.followUps || []),...(result.warnings || [])].join("\n"));
+    markPendingReady();
     if(getPcAttackCantrip(draft.spellId)?.scaling==="beams")
       beamTally=beamTally.spellId===draft.spellId?{...beamTally,count:beamTally.count+1}:{spellId:draft.spellId,count:1};
     // Ready for the next attack (Extra Attack, two weapons, another beam): same target, a new identity.
@@ -1564,6 +1600,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!lifecycle.isCurrent(operation)) return;
     showUndo(result);
     setStatus([quiveringPalmSummary(result),...(result.warnings || [])].join("\n"));
+    markPendingReady();
     palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
     await refresh(operation);
   }));
@@ -1578,9 +1615,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     });
   });
   function closeConsole() {destroy();void api.popover.close(PC_ATTACK_POPOVER_ID);}
+  // A registration while a turn change waits: the bar offers the move in evidence (another attack still can be made).
+  function markPendingReady() {
+    if(!pendingFollow) return;
+    pendingReady=true;renderFollow();
+  }
   // A new actor in place: a fresh attack (no target, no undo of the previous actor's entry: History keeps it).
   function switchActor(next,name="",{offTurn=false}={}) {
-    pendingFollow=null;renderFollow();
+    pendingFollow=null;pendingReady=false;renderFollow();
     sourceId=next;actionId="";requestedSpellId="";launchKey="";launchSignature="";
     presentation=null;draft=null;liveSignature="";
     beamTally={spellId:"",count:0};palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
@@ -1593,8 +1635,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // decisions (an outcome, an amount, an extra, a cast in flight) waits for the GM.
   function followTurn(next,name="") {
     if(invalidated) return;
-    if(next===sourceId){pendingFollow=null;renderFollow();return;}
-    if(busy || launchBusy || palmDraft.outcome || (draft && draftLocked(draft))){pendingFollow={sourceId:next,name};renderFollow();return;}
+    if(next===sourceId){pendingFollow=null;pendingReady=false;renderFollow();return;}
+    if(busy || launchBusy || palmDraft.outcome || (draft && draftLocked(draft))){pendingFollow={sourceId:next,name};pendingReady=false;renderFollow();return;}
     if(!next){closeConsole();return;}
     switchActor(next,name);
   }
@@ -1631,10 +1673,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       return;
     }
     const {sourceId:next,name}=pendingFollow;
-    const pendingSignature=JSON.stringify(["pending",next,name]);
+    const pendingSignature=JSON.stringify(["pending",next,name,pendingReady]);
     if(pendingSignature===followSignature) return;
     followSignature=pendingSignature;
-    const button=node("button",next?(name?`Passa a ${name}`:"Passa al nuovo turno"):"Chiudi","small");button.type="button";
+    const button=node("button",next?(name?`Passa a ${name}`:"Passa al nuovo turno"):"Chiudi",pendingReady?"apply follow-ready":"small");button.type="button";
     button.addEventListener("click",()=>{
       const target=pendingFollow;
       if(!target || busy || launchBusy) return;
@@ -1642,7 +1684,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(!target.sourceId){closeConsole();return;}
       switchActor(target.sourceId,target.name);
     });
-    followBar.replaceChildren(node("span",name?`È il turno di ${name}.`:"È cambiato il turno."),button);
+    followBar.classList?.toggle?.("ready",pendingReady);
+    followBar.replaceChildren(node("span",pendingReady?`Registrato. ${name?`È il turno di ${name}.`:"È cambiato il turno."}`:name?`È il turno di ${name}.`:"È cambiato il turno."),button);
   }
   function renderUseSelected() {
     if(!useSelectedButton) return;
