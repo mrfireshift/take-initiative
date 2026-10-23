@@ -429,6 +429,11 @@ Stato dei lotti:
 - **7.3 — fatto il 2026-10-23.** 16 catture in `docs/ui-audit/after/finale/`, con l'indice nel `README.md` della cartella: barra compatta GM e giocatore, menu `…`, cassetto degli effetti, linguetta dei compagni, modifica HP, Compila iniziativa, condizioni rapide dalla card e dal token, toast "Annulla", KO con lanciatori, vista classica GM e giocatore, maniglia a pari merito, console effetti manuali.
   - **Verificato durante il giro:** "Annulla" del toast ripristina la lista dopo Svuota iniziativa; l'Azione epica resta dopo il suo PG a pari merito; il sottomenu del token mostra la griglia delle condizioni.
   - **Comportamento atteso, non un difetto:** dopo Svuota + Annulla gli attori rientrano in iniziativa e parte Compila iniziativa, ma solo per chi non ha mai avuto l'iniziativa inserita (`initTouched` falso). Nell'anteprima succede perché i dati di prova sono quasi tutti "non toccati"; finché l'editor è aperto, la guardia di `renderAll()` sospende i render, come previsto.
+- **7.4 — checklist pronta il 2026-10-23, giro in OBR a cura dell'utente.** [docs/audits/GIRO-OBR-1.5.0.md](audits/GIRO-OBR-1.5.0.md) in tre parti:
+  - **A:** i flussi nuovi o cambiati nelle fasi 3–6 (barra compatta, cassetti, modifica in linea, Annulla, condizioni rapide, tasti e maniglia, vista estesa, lingua);
+  - **B:** i punti aperti (compatto del giocatore al 150%, avvisi compatti di zona e TS, controlli della fase 0b, tempo del segnale "pronto");
+  - **C:** le voci della smoke checklist che toccano le parti cambiate, con l'esito atteso aggiornato (Focus token, Console effetti manuali, Annulla al posto della conferma, riordino con la maniglia).
+  - Si prova con `npm run dev` e il manifest locale, perché le ultime correzioni non sono ancora in `dist/`. Le anomalie annotate in fondo decidono se il rilascio (7.5) parte o se serve prima una correzione.
 
 ---
 
