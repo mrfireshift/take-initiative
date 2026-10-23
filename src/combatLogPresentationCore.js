@@ -641,11 +641,25 @@ function causalityDetailLines(event) {
     const dc = finiteNumber(rawAttack.save?.dc);
     lines.push(`Tiro: ${modeName}${ability ? ` · TS ${ability}${dc !== null ? ` CD ${numberText(dc)}` : ""}` : ""} al posto del tiro per colpire`);
   }
+  // A dragonborn's breath weapon: its dice and type, its save that halves, the use spent.
+  const breathName = stringValue(rawAttack?.breath?.name);
+  if (breathName) {
+    const ability = PC_ATTACK_LOG_SAVE_LABELS[stringValue(rawAttack.save?.ability)];
+    const dc = finiteNumber(rawAttack.save?.dc);
+    const dice = [stringValue(rawAttack.breath.dice), stringValue(rawAttack.breath.typeLabel)].filter(Boolean).join(" ");
+    const spent = (Array.isArray(rawAttack.breath.spent) ? rawAttack.breath.spent : []).map((entry) => (
+      finiteNumber(entry?.before) !== null && finiteNumber(entry?.after) !== null
+        ? `${stringValue(entry.name)} ${numberText(entry.before)} → ${numberText(entry.after)}`
+        : `${stringValue(entry?.name)} −${numberText(entry?.amount ?? 1)}`
+    )).filter(Boolean);
+    lines.push(`Soffio: ${breathName}${dice ? ` (${dice})` : ""}${ability ? ` · TS ${ability}${dc !== null ? ` CD ${numberText(dc)}` : ""}, metà se superato` : ""}`
+      + `${spent.length ? ` · ${spent.join(", ")}` : ""}`);
+  }
   if (rawAttack?.area && typeof rawAttack.area === "object") {
     const count = finiteNumber(rawAttack.area.count);
     const creatures = count !== null ? `${numberText(count)} ${count === 1 ? "creatura" : "creature"}` : "creature";
     const radius = finiteNumber(rawAttack.area.radiusFeet);
-    lines.push(rawAttack.area.manual ? `Area: ${creatures} sulla linea`
+    lines.push(rawAttack.area.manual ? `Area: ${creatures} ${stringValue(rawAttack.area.shape) === "cone" ? "nel cono" : "sulla linea"}`
       : `Area: ${creatures} entro ${radius !== null ? `${numberText((radius / 10) * 3).replace(".", ",")} m` : "l'area"}${stringValue(rawAttack.actor?.name) ? ` da ${rawAttack.actor.name}` : ""}`);
   }
   // A weapon cantrip woven into the attack (Booming Blade, Green-Flame Blade).

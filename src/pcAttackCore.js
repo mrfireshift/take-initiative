@@ -9,7 +9,8 @@ import { ID } from "./constants.js";
 import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
 import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
-import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES } from "./quickActionsCore.js";
+import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES, QUICK_ACTION_VERSION } from "./quickActionsCore.js";
+import { pcAttackBreathActionId, pcAttackBreathFeatureId } from "./pcAttackBreathId.js";
 import {
   isBossActionCreature, bossMetadataSnapshot, bossConditionAppliedAt,
   damageAmount, defendedComponents, targetProfileAssert, bossGroupConditionInstanceId,
@@ -81,8 +82,47 @@ const STATE_KEY = `${ID}/state`;
 const damageTypeSet = new Set(QUICK_ACTION_ATTACK_DAMAGE_TYPES);
 
 export function pcAttackAction(action) {
+  if (action?.source?.kind === "breath") return breathActionShape(action);
   const normalized = sanitizeQuickAction(action);
   return normalized?.kind === "attack" ? normalized : null;
+}
+
+// A dragonborn's breath weapon (a species trait with a breath spec): an area of creatures picked by hand, a save that
+// halves the damage, one damage roll of the ancestry's type. Built from the trait, never stored: its id is
+// "breath:<trait id>" (pcAttackBreathId.js) and its use is the trait's own, spent with the damage.
+function breathActionShape(action) {
+  const featureId = pcAttackBreathFeatureId(action?.id);
+  const breath = featureId === action?.source?.featureId ? getClassFeatureDefinition(featureId)?.breath : null;
+  const component = Array.isArray(action?.components) ? action.components[0] : null;
+  if (!breath || component?.type !== breath.damageType) return null;
+  return {
+    version: QUICK_ACTION_VERSION, id: pcAttackBreathActionId(featureId), label: String(action.label || ""), kind: "attack",
+    targetMode: "selection", range: "ranged", source: { kind: "breath", featureId },
+    components: [{ id: "c1", type: breath.damageType, ...(component.formula ? { formula: String(component.formula) } : {}) }],
+  };
+}
+
+// The breath's dice at the character's total level ("3d6" at 6th level for the PHB breath).
+export function pcAttackBreathDice(breath, card = {}) {
+  const level = totalCharacterLevel(card?.characterBuild) || 1;
+  const steps = Object.entries(breath?.dice || {}).map(([from, dice]) => [Number(from), dice]).sort((left, right) => left[0] - right[0]);
+  return steps.filter(([from]) => level >= from).at(-1)?.[1] || steps[0]?.[1] || "";
+}
+
+// The breath action of this card for that id, or null when the card has no such enabled trait (another species,
+// another ancestry, a level too low).
+export function pcAttackBreathAction(card = {}, actionId = "") {
+  const featureId = pcAttackBreathFeatureId(actionId);
+  const feature = featureId ? getEnabledClassFeatures(card).find((entry) => entry.id === featureId && entry.breath) : null;
+  if (!feature) return null;
+  return breathActionShape({ id: actionId, label: feature.name, source: { kind: "breath", featureId },
+    components: [{ type: feature.breath.damageType, formula: pcAttackBreathDice(feature.breath, card) }] });
+}
+
+// The breath weapons a card offers: one per enabled breath trait.
+export function pcAttackBreathActionsForCard(card = {}) {
+  return getEnabledClassFeatures(card).filter((feature) => feature.breath)
+    .map((feature) => pcAttackBreathAction(card, pcAttackBreathActionId(feature.id))).filter(Boolean);
 }
 
 // The cantrips a cantrip quick action offers: the ones the actor knows, or every attack cantrip.
@@ -148,6 +188,14 @@ export function pcAttackWeaponCantripOptions(action, card = {}) {
 export function pcAttackResolvedAction(action, spellId = "", attackMode = "") {
   const attack = pcAttackAction(action);
   if (!attack) return null;
+  if (attack.source?.kind === "breath") {
+    const feature = getClassFeatureDefinition(attack.source.featureId);
+    const breath = feature?.breath;
+    if (!breath) return null;
+    return { ...attack, save: breath.save, saveHalf: true,
+      area: { manual: true, shape: breath.shape, lengthFeet: breath.lengthFeet, ...(breath.widthFeet ? { widthFeet: breath.widthFeet } : {}) },
+      breath: { featureId: feature.id, name: feature.name, damageType: breath.damageType } };
+  }
   // A leveled attack spell (lotto L4): its range and one damage component, of the first of its types until the
   // console picks one (pcAttackWithSpellType).
   if (attack.source?.kind === "spell") {
@@ -270,6 +318,7 @@ export function pcAttackSaveLabel(attack, card = {}) {
 
 function pcAttackSaveDC(attack, card = {}) {
   if (attack?.mode) return pcAttackActivationSaveDC(getPcAttackActivation(attack.mode.id), card) || null;
+  if (attack?.breath) return abilitySaveDC(card, "con");
   const dc = Number(card?.spellSaveDC);
   return Number.isFinite(dc) && dc > 0 ? dc : null;
 }
@@ -360,6 +409,7 @@ export function pcAttackRiderOptions({ action, spellId = "", attackMode = "", so
 }
 
 function riderOptionsFor(attack, { sourceItem, targetItem = null, turnState = null }) {
+  if (attack?.breath) return [];
   const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
   const card = sourceMeta.initiativeCard || {};
   const turn = attackTurn(turnState);
@@ -544,7 +594,7 @@ export function pcAttackFollowUps(card = {}, riders = [], activationIds = []) {
 // Shot left, one per turn), the arrow's extra die and the save DC. Offered for a ranged weapon attack only.
 export function pcAttackModeOptions({ action, sourceItem, turnState = null } = {}) {
   const attack = pcAttackAction(action);
-  if (!attack || ["cantrip", "spell"].includes(attack.source?.kind) || !sourceItem) return [];
+  if (!attack || ["cantrip", "spell", "breath"].includes(attack.source?.kind) || !sourceItem) return [];
   const card = sourceItem.metadata?.[META_KEY]?.initiativeCard || {};
   return pcAttackModesForCard(card).filter((mode) => !mode.requires?.range || mode.requires.range === attack.range)
     .map((mode) => modeOptionFor(mode, { sourceItem, turnState }));
@@ -588,6 +638,42 @@ function planModeSpend({ attack, sourceItem, turnState, turn, state }) {
       ...(after?.current !== null && after?.current !== undefined ? { after: after.current } : {}) };
   });
   return { option, state: next, spent, uses: option.limit && turn ? [{ riderId: pcAttackActivationLimitKey(mode), turnKey: turn.turnKey }] : [] };
+}
+
+// The breath's own use (its trait's pool), read on the attacker's class feature state.
+function breathOptionFor(attack, card, state) {
+  const feature = getEnabledClassFeatures(card).find((entry) => entry.id === attack.breath.featureId) || null;
+  const resources = feature
+    ? classFeatureResourceEntries(state, [feature], CLASS_FEATURE_RESOURCE_POOL_BY_ID, card.characterBuild, card.abilityModifiers)
+      .map((entry) => ({ poolId: entry.pool.id, name: entry.pool.name, current: entry.current, unlimited: entry.unlimited, amount: 1 }))
+    : [];
+  const empty = resources.find((entry) => !entry.unlimited && entry.current !== null && entry.current < entry.amount);
+  const reason = !feature ? "tratto non disponibile per questo personaggio." : empty ? "nessun uso rimasto." : "";
+  return { feature, resources, available: !reason, reason };
+}
+
+function planBreathSpend({ attack, card, state }) {
+  const option = breathOptionFor(attack, card, state);
+  if (!option.available) throw new Error(`${attack.breath.name}: ${option.reason} Riapri l'attacco.`);
+  let next = state;
+  for (const entry of option.resources) {
+    next = planClassFeatureResourceAdjustment(next, getClassFeatureResourcePool(entry.poolId), card.characterBuild, { delta: -1 }, card.abilityModifiers).state;
+  }
+  const after = breathOptionFor(attack, card, next).resources;
+  const spent = option.resources.map((entry) => {
+    const left = after.find((row) => row.poolId === entry.poolId)?.current;
+    return { poolId: entry.poolId, name: entry.name, amount: 1, ...(entry.current !== null ? { before: entry.current } : {}),
+      ...(left !== null && left !== undefined ? { after: left } : {}) };
+  });
+  return { state: next, spent };
+}
+
+// What the console shows of a breath: its dice at this level, its DC and the shape of its area.
+export function pcAttackBreathInfo(attack, card = {}) {
+  if (!attack?.breath) return null;
+  const feature = getClassFeatureDefinition(attack.breath.featureId);
+  return { name: attack.breath.name, dice: pcAttackBreathDice(feature?.breath, card), damageType: attack.breath.damageType,
+    shape: attack.area?.shape || "", dc: pcAttackSaveDC(attack, card), save: pcAttackSave(attack) };
 }
 
 // Creatures near a token (3C): the edge-to-edge grid distance of the area tool, within radiusFeet. The caster's
@@ -1404,6 +1490,8 @@ export function pcAttackAreaPreview({
   const card = sourceItem?.metadata?.[META_KEY]?.initiativeCard || {};
   const chosen = (Array.isArray(members) ? members : []).filter((member) => member?.item);
   const modeOption = attack.mode && sourceItem ? modeOptionFor(getPcAttackActivation(attack.mode.id), { sourceItem, turnState }) : null;
+  const breathOption = attack.breath && sourceItem
+    ? breathOptionFor(attack, card, normalizeClassFeatureState(sourceItem.metadata?.[META_KEY]?.[CLASS_FEATURE_STATE_FIELD])) : null;
   const chosenExtras = extras.map((extra) => ({ ...extra, label: extraLabel(extra.label) }));
   const components = areaComponents(attack, riders, chosenExtras, modeOption);
   const inputs = areaInputs(attack, { amounts, riders, extras: chosenExtras, modeOption, modeAmount });
@@ -1427,6 +1515,7 @@ export function pcAttackAreaPreview({
   }).find(Boolean) || "";
   const blocker = !chosen.length ? "Scegli le creature dell'area."
     : modeOption && !modeOption.available ? `${modeOption.label}: ${modeOption.reason}`
+    : breathOption && !breathOption.available ? `${attack.breath.name}: ${breathOption.reason}`
     : rows.some((row) => !PC_ATTACK_SAVE_OUTCOMES.includes(row.outcome)) ? "Scegli l'esito del tiro salvezza di ogni creatura."
     : attack.components.some((component) => !validAmount(amounts?.[component.id])) ? "Inserisci il danno."
     : riderBlock ? riderBlock
@@ -1477,6 +1566,7 @@ export function buildPcAttackAreaMutation({
   // Piercing Arrow: a use of Arcane Shot (one per turn) and its extra die.
   const originalState = normalizeClassFeatureState(sourceMeta[CLASS_FEATURE_STATE_FIELD]);
   const spend = attack.mode ? planModeSpend({ attack, sourceItem, turnState, turn, state: originalState }) : null;
+  const breathSpend = attack.breath ? planBreathSpend({ attack, card, state: originalState }) : null;
   const modeOption = spend ? { ...spend.option } : null;
   const components = areaComponents(attack, chosenRiders, chosenExtras, modeOption);
   const amounts = componentAmounts && typeof componentAmounts === "object" ? componentAmounts : {};
@@ -1507,7 +1597,8 @@ export function buildPcAttackAreaMutation({
     ...([...currentRiderUses(sourceMeta, turn?.turnKey), ...newUses].length ? { riderUses: [...currentRiderUses(sourceMeta, turn?.turnKey), ...newUses] } : {}),
   };
   const sourceName = sourceItem.name || sourceItem.id;
-  const actionName = attack.cantrip ? attack.cantrip.name : `${attack.label} · ${attack.mode.label}`;
+  const actionName = attack.cantrip ? attack.cantrip.name : attack.breath ? attack.breath.name : `${attack.label} · ${attack.mode.label}`;
+  const breathInfo = attack.breath ? pcAttackBreathInfo(attack, card) : null;
   const cantripDice = attack.cantrip ? pcAttackCantripDiceFor(attack, card, null) : null;
   const dc = pcAttackSaveDC(attack, card);
   const label = `${sourceName}: ${actionName} → ${rows.length === 1 ? rows[0].item.name || rows[0].item.id : `${rows.length} creature`}`;
@@ -1516,11 +1607,14 @@ export function buildPcAttackAreaMutation({
     cause: { kind: PC_ATTACK_HISTORY_KIND, quickActionId: attack.id, actionName, attackInstanceId, range: attack.range,
       ...(attack.cantrip ? { spellId: attack.cantrip.spellId, spellName: attack.cantrip.name } : {}) },
     action: { id: attack.id, label: actionName },
-    attack: { range: attack.range, outcome: "area", source: attack.cantrip ? "cantrip" : "weapon" },
+    attack: { range: attack.range, outcome: "area", source: attack.cantrip ? "cantrip" : attack.breath ? "breath" : "weapon" },
+    ...(breathInfo ? { breath: { featureId: attack.breath.featureId, name: breathInfo.name, dice: breathInfo.dice, shape: breathInfo.shape,
+      type: breathInfo.damageType, typeLabel: damageTypeLabel(breathInfo.damageType), spent: breathSpend.spent } } : {}),
     ...(attack.cantrip ? { cantrip: { ...attack.cantrip, ...(cantripDice ? { dice: cantripDice } : {}), saveLabel: pcAttackSaveLabel(attack, card) } } : {}),
     ...(attack.mode ? { mode: { id: attack.mode.id, label: attack.mode.label, kind: attack.mode.kind } } : {}),
     save: { ability: pcAttackSave(attack), ...(dc ? { dc } : {}) },
-    area: attack.area.manual ? { manual: true, count: rows.length } : { radiusFeet: attack.area.radiusFeet, origin: "caster", count: rows.length },
+    area: attack.area.manual ? { manual: true, count: rows.length, ...(attack.area.shape ? { shape: attack.area.shape, lengthFeet: attack.area.lengthFeet } : {}) }
+      : { radiusFeet: attack.area.radiusFeet, origin: "caster", count: rows.length },
     ...(turn ? { turn } : {}),
     ...(chosenRiders.length ? { riders: chosenRiders.map((rider) => ({ featureId: rider.id, name: rider.option.label, ...(rider.dice ? { dice: rider.dice } : {}),
       type: rider.type, typeLabel: damageTypeLabel(rider.type), inputAmount: rider.amount })) } : {}),
@@ -1533,7 +1627,8 @@ export function buildPcAttackAreaMutation({
       requestedDamage: row.change.requested, appliedHpDelta: row.change.delta, damageComponents: structuredClone(row.damageComponents) })),
   };
   const changed = rows.filter((row) => row.change.changed);
-  const stateChanged = spend && JSON.stringify(spend.state) !== JSON.stringify(originalState);
+  const nextFeatureState = spend?.state || breathSpend?.state || null;
+  const stateChanged = !!nextFeatureState && JSON.stringify(nextFeatureState) !== JSON.stringify(originalState);
   return {
     causality, rows, changes: changed.map((row) => ({ item: row.item, change: row.change })),
     operations: changed.length ? [{ type: "hp:set", updates: changed.map((row) => ({
@@ -1548,7 +1643,7 @@ export function buildPcAttackAreaMutation({
         { id: sourceItem.id, fields: {
           initiativeCard: { mode: "assert", expected: bossMetadataSnapshot(sourceMeta, "initiativeCard") },
           [PC_ATTACK_STATE_FIELD]: { value: state, expected: bossMetadataSnapshot(sourceMeta, PC_ATTACK_STATE_FIELD) },
-          ...(stateChanged ? { [CLASS_FEATURE_STATE_FIELD]: { value: spend.state, expected: bossMetadataSnapshot(sourceMeta, CLASS_FEATURE_STATE_FIELD) } } : {}),
+          ...(stateChanged ? { [CLASS_FEATURE_STATE_FIELD]: { value: nextFeatureState, expected: bossMetadataSnapshot(sourceMeta, CLASS_FEATURE_STATE_FIELD) } } : {}),
         } },
         ...changed.map((row) => targetProfileAssert(row.item)),
       ],

@@ -624,8 +624,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     areaBox.hidden=!area;
     if(!area) return;
     const name=presentation.item?.name || "l'attaccante";
-    areaNote.textContent=area.manual?"Sulla linea di 9 m: spunta le creature colpite."
-      :`Entro 1,5 m da ${name}${area.chosen?", solo quelle che scegli":", alleati compresi"}.`;
+    // A breath weapon: its cone or line, its dice at this level (the damage's hint), its save and DC.
+    const breathNote=attack.breath?`${area.shape==="line"?"Sulla linea di 9 m":"Nel cono di 4,5 m"}: spunta le creature colpite. `
+      +`${attack.components[0]?.formula || ""} ${damageTypeLabel(attack.breath.damageType)} · ${pcAttackSaveLabel(attack,attackerCard())}, metà se superato.`:"";
+    areaNote.textContent=breathNote || (area.manual?"Sulla linea di 9 m: spunta le creature colpite."
+      :`Entro 1,5 m da ${name}${area.chosen?", solo quelle che scegli":", alleati compresi"}.`);
     areaPropose.hidden=!!area.manual;
     const key=`${draft.spellId}|${draft.attackMode}`;
     if(!area.manual && draft.area.proposalKey!==key && typeof runtime.getPcAttackNearby==="function") {
@@ -1097,7 +1100,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         attackInstanceId:draft.attackInstanceId,sceneIdentity:presentation.sceneIdentity});
       if(!lifecycle.isCurrent(operation)) return;
       showUndo(result);
-      setStatus([areaSummary(result,attack.cantrip?.name || attack.mode?.label),...(result.warnings || [])].join("\n"));
+      setStatus([areaSummary(result,attack.cantrip?.name || attack.breath?.name || attack.mode?.label),...(result.warnings || [])].join("\n"));
       draft=emptyDraft(presentation.action,null,draft.spellId,draft.attackMode);
       await refresh(operation);
       render();

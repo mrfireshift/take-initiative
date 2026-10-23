@@ -1,5 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { pcAttackBreathAction } from "./pcAttackCore.js";
+import { PC_ATTACK_BREATH_PREFIX } from "./pcAttackBreathId.js";
 import { getInitiativeCard } from "./initiativeCards.js";
 import { findQuickAction } from "./quickActionsCore.js";
 import { isBossActionCreature } from "./bossActionExecutionCore.js";
@@ -131,7 +133,10 @@ export function createPcAttackRuntime({
     return {item,epoch,scene,turnState:metadata?.[ID+"/state"] || null,isCurrent:()=>isCurrentEpoch(epoch)};
   }
   function attackOf(item,actionId) {
-    const action=pcAttackAction(findQuickAction(getCard(item),actionId));
+    // A dragonborn's breath weapon: built from the species trait, not stored among the quick actions.
+    const action=String(actionId || "").startsWith(PC_ATTACK_BREATH_PREFIX)
+      ? pcAttackBreathAction(getCard(item),actionId)
+      : pcAttackAction(findQuickAction(getCard(item),actionId));
     if(!action) throw new Error("Azione di attacco non trovata nel profilo: riapri l'attacco.");
     return action;
   }

@@ -77,7 +77,15 @@ Correzioni fatte dopo il confronto:
   difese del profilo (Azioni boss incluse). Non vanno ripetute in Difese.
 - **Tratti passivi**: promemoria descrittivo sulla card. Vantaggi ai tiri
   salvezza, Fortunato e Attacchi selvaggi si applicano al tavolo.
-- **Tratti con usi** (incantesimi innati, Tenacia implacabile, armi a soffio):
+- **Armi a soffio dei dragonidi** (Manuale del Giocatore, Fizban, Wildemount):
+  **Soffia** sulla card, o la stessa capacità come Azione rapida, apre la
+  console dell'attacco. Il GM spunta le creature nel cono o sulla linea, segna
+  il tiro salvezza di ognuna e inserisce il danno tirato (la console suggerisce
+  i dadi al livello del personaggio e la CD, 8 + Costituzione + competenza):
+  pieno se fallito, metà se superato, con le resistenze di ogni bersaglio. La
+  conferma scrive i PF e spende l'uso in un solo comando, annullabile. Il soffio
+  metallico del 5° livello, che non fa danni, resta un semplice consumo.
+- **Altri tratti con usi** (incantesimi innati, Tenacia implacabile…):
   **Conferma consumo** scala l'uso, che torna con il riposo indicato. L'effetto
   si risolve al tavolo: il plugin non tocca PF, tiri o bersagli.
 - **Trasformazioni da 1 minuto** (Anima radiosa, Consunzione radiosa, Sudario

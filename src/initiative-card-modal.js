@@ -69,6 +69,7 @@ import {
   sheetImportSectionSummary,
 } from "./characterSheetImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
+import { pcAttackBreathActionId } from "./pcAttackBreathId.js";
 import { PC_ATTACK_CANTRIPS } from "./pcAttackCantripCatalog.js";
 import { PC_ATTACK_SPELLS } from "./pcAttackSpellCatalog.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
@@ -684,6 +685,13 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
     if (action.kind === "attack") {
       if (!isGM) throw new Error("Solo il GM può registrare un attacco.");
       await openPcAttackPopover(item.id, action.id, action.launchSpellId || "");
+      if (!sceneStillCurrent()) return;
+      closeInitiativeCardPopover();
+      return;
+    }
+    if (action.kind === "feature" && CLASS_FEATURE_BY_ID.get(action.featureId)?.breath) {
+      if (!isGM) throw new Error("Solo il GM può registrare un attacco.");
+      await openPcAttackPopover(item.id, pcAttackBreathActionId(action.featureId));
       if (!sceneStillCurrent()) return;
       closeInitiativeCardPopover();
       return;
@@ -1923,6 +1931,22 @@ function buildTwinnedSpellControls(feature) {
   return controls;
 }
 
+// A breath weapon opens the PC attack console: the creatures of its area, their saves and the damage; its use is
+// spent when the attack is confirmed there.
+function buildBreathControls(feature) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Soffia";
+  button.title = "Apre l'attacco ad area del soffio: creature, tiri salvezza e danni. L'uso si spende alla conferma.";
+  button.disabled = classFeatureMutating;
+  button.addEventListener("click", async () => {
+    if (!item) return;
+    await openPcAttackPopover(item.id, pcAttackBreathActionId(feature.id));
+    closeInitiativeCardPopover();
+  });
+  return button;
+}
+
 function buildResourceOnlyControls(feature) {
   return classFeatureButton(
     "Conferma consumo",
@@ -2551,6 +2575,8 @@ function renderClassFeatures() {
             appendFeatureControl(buildWildMagicTidesControls());
           } else if (adapter === "spell-thief") {
             appendFeatureControl(buildSpellThiefControls(feature));
+          } else if (feature.breath) {
+            appendFeatureControl(buildBreathControls(feature));
           } else if (adapter === "resource-only" && feature.id === TWINNED_SPELL_FEATURE_ID) {
             appendFeatureControl(buildTwinnedSpellControls(feature));
           } else if (adapter === "resource-only") {

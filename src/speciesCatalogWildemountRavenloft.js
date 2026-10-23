@@ -14,11 +14,18 @@ const ONCE_SHORT = "Una volta per riposo breve o lungo.";
 const LINE = "linea larga 1,5 m e lunga 9 m, TS su Destrezza";
 const CONE_DEX = "cono di 4,5 m, TS su Destrezza";
 const CONE_CON = "cono di 4,5 m, TS su Costituzione";
+// [ancestry, label, damage label, breath text, English name, breath for the PC attack console]
 const WILDEMOUNT_ANCESTRIES = [
-  ["nero", "nero", "acido", LINE, "black"], ["blu", "blu", "fulmine", LINE, "blue"], ["ottone", "ottone", "fuoco", LINE, "brass"],
-  ["bronzo", "bronzo", "fulmine", LINE, "bronze"], ["rame", "rame", "acido", LINE, "copper"], ["oro", "oro", "fuoco", CONE_DEX, "gold"],
-  ["verde", "verde", "veleno", CONE_CON, "green"], ["rosso", "rosso", "fuoco", CONE_DEX, "red"], ["argento", "argento", "freddo", CONE_CON, "silver"],
-  ["bianco", "bianco", "freddo", CONE_CON, "white"],
+  ["nero", "nero", "acido", LINE, "black", { shape: "line", save: "dex", damageType: "acid" }],
+  ["blu", "blu", "fulmine", LINE, "blue", { shape: "line", save: "dex", damageType: "lightning" }],
+  ["ottone", "ottone", "fuoco", LINE, "brass", { shape: "line", save: "dex", damageType: "fire" }],
+  ["bronzo", "bronzo", "fulmine", LINE, "bronze", { shape: "line", save: "dex", damageType: "lightning" }],
+  ["rame", "rame", "acido", LINE, "copper", { shape: "line", save: "dex", damageType: "acid" }],
+  ["oro", "oro", "fuoco", CONE_DEX, "gold", { shape: "cone", save: "dex", damageType: "fire" }],
+  ["verde", "verde", "veleno", CONE_CON, "green", { shape: "cone", save: "con", damageType: "poison" }],
+  ["rosso", "rosso", "fuoco", CONE_DEX, "red", { shape: "cone", save: "dex", damageType: "fire" }],
+  ["argento", "argento", "freddo", CONE_CON, "silver", { shape: "cone", save: "con", damageType: "cold" }],
+  ["bianco", "bianco", "freddo", CONE_CON, "white", { shape: "cone", save: "con", damageType: "cold" }],
 ];
 const WILDEMOUNT_VARIANTS = [["draconblood", "Draconblood"], ["ravenite", "Ravenite"]];
 const WILDEMOUNT_DRAGONBORN_OPTIONS = WILDEMOUNT_VARIANTS.flatMap(([variant, variantLabel]) => WILDEMOUNT_ANCESTRIES.map(([ancestry, label, damage, , english]) => ({
@@ -57,9 +64,9 @@ export const SPECIES_CATALOG_WILDEMOUNT = [
     options: WILDEMOUNT_DRAGONBORN_OPTIONS,
     pools: [once("arma-a-soffio", "Arma a soffio", "breve"), once("presenza-energica", "Presenza energica", "breve"), once("assalto-vendicativo", "Assalto vendicativo", "breve")],
     traits: [
-      ...WILDEMOUNT_ANCESTRIES.map(([ancestry, , damage, breath]) => use(`arma-a-soffio-${ancestry}`, `Arma a soffio (${damage})`, "azione", "arma-a-soffio",
+      ...WILDEMOUNT_ANCESTRIES.map(([ancestry, , damage, breath, , spec]) => use(`arma-a-soffio-${ancestry}`, `Arma a soffio (${damage})`, "azione", "arma-a-soffio",
         `Con un'azione esali energia distruttiva: ${breath} con CD 8 + Costituzione + competenza; 2d6 danni da ${damage} (3d6 al 6°, 4d6 all'11°, 5d6 al 16° livello), metà se superato. ${ONCE_SHORT}`,
-        { option: WILDEMOUNT_VARIANTS.map(([variant]) => `${variant}-${ancestry}`) })),
+        { option: WILDEMOUNT_VARIANTS.map(([variant]) => `${variant}-${ancestry}`), breath: spec })),
       use("presenza-energica", "Presenza energica", "innesco", "presenza-energica", `Al posto di Resistenza ai danni: quando fai una prova di Carisma (Intimidire o Persuasione), puoi farla con vantaggio. ${ONCE_SHORT}`,
         { option: WILDEMOUNT_ANCESTRIES.map(([ancestry]) => `draconblood-${ancestry}`) }),
       use("assalto-vendicativo", "Assalto vendicativo", "reazione", "assalto-vendicativo", `Al posto di Resistenza ai danni: quando subisci danni da una creatura entro la portata di un'arma che impugni, con una reazione fai un attacco con quell'arma contro di lei. ${ONCE_SHORT}`,

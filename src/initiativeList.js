@@ -1,6 +1,7 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { openBossActionsPopover } from "./bossActionsLauncher.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
+import { pcAttackBreathActionId } from "./pcAttackBreathId.js";
 import {
   ID,
   ACTIVE_TURN_LABEL_META,
@@ -8428,6 +8429,11 @@ async function __runTrackerQuickAction(sourceEntry, action) {
     if (feature?.runtimeSupport?.adapter === "purifying-touch") {
       await openInitiativeCardPopup(sourceEntry, { quickActionId: action.id });
       return { mode: "review", route: "initiative-card" };
+    }
+    // A breath weapon is resolved in the PC attack console (area, saves, damage); its use is spent there.
+    if (feature?.breath) {
+      await openPcAttackPopover(sourceId, pcAttackBreathActionId(feature.id));
+      return { mode: "review", route: "pc-attack" };
     }
     const { activateClassFeature } = await __loadClassFeatureRuntime();
     return activateClassFeature({

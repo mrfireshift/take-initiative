@@ -27,8 +27,14 @@ export const SPECIES_FIELD = "species";
 export const SUPERNATURAL_GIFT_FIELD = "supernaturalGift";
 
 // english: the colour or gem as English sheets name it, for the import.
-// breath: shape and save of the PHB breath weapon (Draconic Ancestry table); the Fizban breath depends on the variant.
-const ancestry = (id, label, damageType, damageLabel, english, breath = "") => Object.freeze({ id, label, damageType, damageLabel, aliases: Object.freeze([english]), breath });
+// shape and save of the PHB breath weapon (Draconic Ancestry table: a 5 by 30 ft line or a 15 ft cone); the Fizban
+// breath depends on the variant. breath is the same as text.
+export const BREATH_SHAPE_TEXT = Object.freeze({ line: "linea larga 1,5 m e lunga 9 m", cone: "cono di 4,5 m" });
+const SAVE_TEXT = Object.freeze({ dex: "Destrezza", con: "Costituzione" });
+const ancestry = (id, label, damageType, damageLabel, english, shape = "", save = "") => Object.freeze({
+  id, label, damageType, damageLabel, aliases: Object.freeze([english]),
+  ...(shape ? { breathShape: shape, breathSave: save, breath: `${BREATH_SHAPE_TEXT[shape]}, TS su ${SAVE_TEXT[save]}` } : {}),
+});
 // fullName: the option's label names the character by itself ("Marchio dell'ombra (elfo)").
 const option = (id, label, { aliases = [], resistances = [], fullName = false } = {}) =>
   Object.freeze({ id, label, aliases: Object.freeze(aliases), resistances: Object.freeze(resistances), immunities: Object.freeze([]), fullName });
@@ -60,16 +66,16 @@ const BOOKS = Object.freeze({
 });
 
 const DRAGON_ANCESTRIES = Object.freeze({
-  nero: ancestry("nero", "Nero", "acid", "acido", "black", "linea larga 1,5 m e lunga 9 m, TS su Destrezza"),
-  blu: ancestry("blu", "Blu", "lightning", "fulmine", "blue", "linea larga 1,5 m e lunga 9 m, TS su Destrezza"),
-  verde: ancestry("verde", "Verde", "poison", "veleno", "green", "cono di 4,5 m, TS su Costituzione"),
-  rosso: ancestry("rosso", "Rosso", "fire", "fuoco", "red", "cono di 4,5 m, TS su Destrezza"),
-  bianco: ancestry("bianco", "Bianco", "cold", "freddo", "white", "cono di 4,5 m, TS su Costituzione"),
-  ottone: ancestry("ottone", "Ottone", "fire", "fuoco", "brass", "linea larga 1,5 m e lunga 9 m, TS su Destrezza"),
-  bronzo: ancestry("bronzo", "Bronzo", "lightning", "fulmine", "bronze", "linea larga 1,5 m e lunga 9 m, TS su Destrezza"),
-  rame: ancestry("rame", "Rame", "acid", "acido", "copper", "linea larga 1,5 m e lunga 9 m, TS su Destrezza"),
-  oro: ancestry("oro", "Oro", "fire", "fuoco", "gold", "cono di 4,5 m, TS su Destrezza"),
-  argento: ancestry("argento", "Argento", "cold", "freddo", "silver", "cono di 4,5 m, TS su Costituzione"),
+  nero: ancestry("nero", "Nero", "acid", "acido", "black", "line", "dex"),
+  blu: ancestry("blu", "Blu", "lightning", "fulmine", "blue", "line", "dex"),
+  verde: ancestry("verde", "Verde", "poison", "veleno", "green", "cone", "con"),
+  rosso: ancestry("rosso", "Rosso", "fire", "fuoco", "red", "cone", "dex"),
+  bianco: ancestry("bianco", "Bianco", "cold", "freddo", "white", "cone", "con"),
+  ottone: ancestry("ottone", "Ottone", "fire", "fuoco", "brass", "line", "dex"),
+  bronzo: ancestry("bronzo", "Bronzo", "lightning", "fulmine", "bronze", "line", "dex"),
+  rame: ancestry("rame", "Rame", "acid", "acido", "copper", "line", "dex"),
+  oro: ancestry("oro", "Oro", "fire", "fuoco", "gold", "cone", "dex"),
+  argento: ancestry("argento", "Argento", "cold", "freddo", "silver", "cone", "con"),
   ametista: ancestry("ametista", "Ametista", "force", "forza", "amethyst"),
   cristallo: ancestry("cristallo", "Cristallo", "radiant", "radiosi", "crystal"),
   smeraldo: ancestry("smeraldo", "Smeraldo", "psychic", "psichici", "emerald"),
@@ -299,7 +305,7 @@ export const SPECIES_RESOURCE_POOLS = Object.freeze([
   ))),
 ]);
 
-function trait({ key, speciesId, ancestryValue, name, description, minimumLevel = 1, activation, poolId, effectPlan = null, rounds = null, page }) {
+function trait({ key, speciesId, ancestryValue, name, description, minimumLevel = 1, activation, poolId, effectPlan = null, rounds = null, page, breath = null }) {
   const species = getSpecies(speciesId);
   return Object.freeze({
     id: `specie-${speciesId}-${key}-${ancestryValue.id}`,
@@ -330,8 +336,18 @@ function trait({ key, speciesId, ancestryValue, name, description, minimumLevel 
     duration: Object.freeze({ rounds }),
     trackingMode: effectPlan ? "active" : "instant",
     resourceCosts: Object.freeze([Object.freeze({ poolId, amount: 1 })]),
+    ...(breath ? { breath } : {}),
   });
 }
+
+// The breath weapon as the PC attack console resolves it: an area (manual pick of the creatures), a save that halves,
+// one damage type, dice by total character level, DC 8 + Constitution + proficiency.
+export const PHB_BREATH_DICE = Object.freeze({ 1: "2d6", 6: "3d6", 11: "4d6", 16: "5d6" });
+export const FIZBAN_BREATH_DICE = Object.freeze({ 1: "1d10", 5: "2d10", 11: "3d10", 17: "4d10" });
+export const breathSpec = (shape, save, damageType, dice) => Object.freeze({
+  shape, lengthFeet: shape === "line" ? 30 : 15, ...(shape === "line" ? { widthFeet: 5 } : {}), save, damageType, dice, dc: "con",
+});
+const FIZBAN_BREATH = Object.freeze({ "dragonide-cromatico": "line", "dragonide-gemma": "cone", "dragonide-metallico": "cone" });
 
 // The Fizban breath: a 9 m line for the chromatic dragonborn, a 4.5 m cone for the gem and metallic ones.
 const FIZBAN_BREATH_SHAPE = Object.freeze({
@@ -345,6 +361,9 @@ function breathWeapon(speciesId, ancestryValue) {
   return trait({
     key: "arma-a-soffio", speciesId, ancestryValue, name: `Arma a soffio (${ancestryValue.damageLabel})`, activation: phb ? "azione" : "azione_attacco",
     poolId: phb ? "specie-dragonide-arma-a-soffio-usi" : "specie-dragonide-fizban-arma-a-soffio-usi", page: phb ? 34 : 20,
+    breath: phb
+      ? breathSpec(ancestryValue.breathShape, ancestryValue.breathSave, ancestryValue.damageType, PHB_BREATH_DICE)
+      : breathSpec(FIZBAN_BREATH[speciesId], "dex", ancestryValue.damageType, FIZBAN_BREATH_DICE),
     description: phb
       ? `Con un'azione esali energia distruttiva: ${ancestryValue.breath} con CD 8 + Costituzione + competenza; 2d6 danni da ${ancestryValue.damageLabel} (3d6 al 6°, 4d6 all'11°, 5d6 al 16° livello), metà se superato. Una volta per riposo breve o lungo.`
       : `Durante l'azione di Attacco sostituisci un attacco: ${FIZBAN_BREATH_SHAPE[speciesId]}, TS su Destrezza con CD 8 + Costituzione + competenza; 1d10 danni da ${ancestryValue.damageLabel} (2d10 al 5°, 3d10 all'11°, 4d10 al 17° livello), metà se superato. Usi pari al bonus di competenza per riposo lungo.`,
@@ -404,7 +423,7 @@ const DRAGONBORN_FEATURES = SPECIES.filter((entry) => DRAGONBORN_IDS.has(entry.i
 // languages, ability scores and plain darkvision stay out: they are part of the sheet, not of play.
 // optionId may be a list: the trait then belongs to each of those options (an ibrido Simic's pairs).
 // A supernatural gift's trait has the same shape, with giftId in place of the species.
-function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, page, description, activation = "passiva", minimumLevel = 1, poolId = "", effectPlan = null, rounds = null }) {
+function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, page, description, activation = "passiva", minimumLevel = 1, poolId = "", effectPlan = null, rounds = null, breath = null }) {
   const species = giftId ? getSupernaturalGift(giftId) : getSpecies(speciesId);
   const passive = activation === "passiva";
   // A trait with an effect plan (an aasimar's transformation) puts a pill on the character.
@@ -440,6 +459,7 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
     duration: Object.freeze({ rounds }),
     trackingMode: effectPlan ? "active" : "instant",
     resourceCosts: Object.freeze(poolId ? [Object.freeze({ poolId, amount: 1 })] : []),
+    ...(breath ? { breath } : {}),
   });
 }
 
@@ -520,6 +540,7 @@ const catalogTraits = (spec, gift = false) => spec.traits.map((entry) => species
   poolId: entry.uses ? `${gift ? "dono" : "specie"}-${spec.id}-${entry.uses}-usi` : "",
   effectPlan: entry.effect ? Object.freeze({ kind: "condition", conditionName: entry.name, effectKind: "buff", detail: entry.effect.detail }) : null,
   rounds: entry.effect?.rounds ?? null,
+  breath: entry.breath ? breathSpec(entry.breath.shape, entry.breath.save, entry.breath.damageType, PHB_BREATH_DICE) : null,
 }));
 const CATALOG_FEATURES = CATALOG.flatMap((spec) => catalogTraits(spec));
 const GIFT_FEATURES = GIFT_CATALOG.flatMap((spec) => catalogTraits(spec, true));
