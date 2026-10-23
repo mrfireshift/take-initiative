@@ -1,10 +1,10 @@
 # Guida utente
 
-Questa guida descrive l'uso di Take Initiative! nel suo scenario principale: un DM usa la vista GM come regia e proietta una seconda vista player sul tavolo.
+Questa guida descrive l'uso di Take Initiative! nel suo scenario principale: un DM usa la vista GM come regia e proietta una seconda vista giocatori sul tavolo.
 
 Le impostazioni locali e condivise sono raccolte nel pannello **Opzioni**; per
 scope, precedenza e limiti consulta [Architettura Options](OPTIONS-ARCHITECTURE.md).
-Le animazioni visuali delle spell sono opzionali e descritte in
+Le animazioni visuali degli incantesimi sono opzionali e descritte in
 [Embers/JB2A](EMBERS.md).
 
 ## 1. Preparare la scena
@@ -14,6 +14,7 @@ Inserisci sulla mappa tutti i token che devono partecipare al combattimento. Dal
 - **Aggiungi all'iniziativa** o **Rimuovi dall'iniziativa**;
 - **Segna come…** per assegnare la fazione;
 - **Imposta quota…** per indicare l'altezza rispetto al piano della mappa;
+- **Condizioni…** (solo GM) per applicare o togliere le condizioni rapide ai token selezionati (vedi [Condizioni](#6-condizioni));
 - attivare una modalità boss compatibile.
 
 Le fazioni disponibili sono:
@@ -23,13 +24,13 @@ Le fazioni disponibili sono:
 - **Neutrali**: creature non schierate;
 - **Nemici**: avversari.
 
-La fazione determina colore delle card, filtri nei popup e visibilità di alcune informazioni nella vista player.
+La fazione determina colore delle card, filtri nei popup e visibilità di alcune informazioni nella vista giocatori.
 
 ### Configurare le fazioni in modo persistente
 
 Dal tracker il GM può aprire **Configura fazioni** per assegnare una fazione a
 più token della scena in una sola volta. Il configuratore registra
-l'associazione nella room usando prima l'immagine del token e poi il nome
+l'associazione nella stanza usando prima l'immagine del token e poi il nome
 normalizzato.
 
 Quando in seguito scegli **Aggiungi attori** o aggiungi nuovi token
@@ -38,13 +39,13 @@ visto viene trattato come **Nemico** finché il GM non lo assegna manualmente.
 Se lo stesso nome è stato usato per fazioni diverse, il plugin non sceglie in
 modo automatico: usa la fazione del token o chiede una correzione al GM.
 
-Il configuratore è condiviso nella room e dispone di un fallback locale per il
+Il configuratore è condiviso nella stanza e dispone di un fallback locale per il
 browser. **Azzera registry** rimuove le associazioni salvate, non cambia le
 fazioni già scritte sui token.
 
-## 2. Aprire e configurare il lister
+## 2. Aprire e configurare il tracker
 
-Premi l'icona di Take Initiative! nella barra delle estensioni. Il lister può essere chiuso e riaperto senza perdere lo stato del combattimento.
+Premi l'icona di Take Initiative! nella barra delle estensioni. Il tracker può essere chiuso e riaperto senza perdere lo stato del combattimento.
 
 Sono disponibili due layout:
 
@@ -53,11 +54,20 @@ Sono disponibili due layout:
 
 Il pulsante di modalità passa da un layout all'altro. La posizione della barra compatta può essere trascinata e viene ricordata localmente.
 
-### Vista GM e vista player
+### La barra compatta
 
-Il GM vede i controlli di incontro, tracker, modifica e strumenti. Il player vede il round e l'ordine di iniziativa, ma non le toolbar di regia.
+La barra resta alta sempre uguale: quello che non sta nella card si apre di lato, non verso il basso.
 
-Nella vista player gli HP dei PG restano visibili. La modalità estesa può mostrare anche gli HP degli alleati, mentre quella compatta privilegia i soli PG; neutrali e nemici non espongono i propri HP al player. Quando un valore non è visibile non viene lasciato un testo o una barra vuota. Gli strumenti di amministrazione non sono interattivi per il player.
+- **Colonna sinistra**: maniglia per trascinare la barra, il **Round** corrente (visibile anche ai giocatori), il cambio di vista e, per il GM, il menu `…` con Reset round, Cronologia, Aggiungi attori, Compila iniziativa, Opzioni, Etichette mappa e Svuota iniziativa.
+- **Card**: in alto a sinistra il badge dell'iniziativa e, sotto, l'icona blu della scheda personaggio (PG e alleati); a destra del ritratto la colonna dei pulsanti ⚡ 🪄 🗡️ (solo GM); il badge **KO** compare sul ritratto quando una creatura va a 0 PF.
+- **Effetti**: la card mostra la prima etichetta; un clic sull'etichetta o sul pulsante `+N` apre accanto alla card un cassetto con tutte le altre, in colonne. Un nuovo clic sull'etichetta lo chiude. È aperto un cassetto alla volta e scorrendo la barra resta aperto.
+- **Token collegati ed evocazioni**: una linguetta stretta accanto alla card mostra i ritratti e il numero; un clic la apre e mostra le righe dei compagni, con i loro PF (modificabili dal GM) e il clic per selezionare la pedina. Le card successive scorrono a destra.
+
+### Vista GM e vista giocatori
+
+Il GM vede i controlli di incontro, tracker, modifica e strumenti. I giocatori vedono il round e l'ordine di iniziativa, ma non le toolbar di regia.
+
+Nella vista giocatori gli HP dei PG restano visibili. La modalità estesa può mostrare anche gli HP degli alleati, mentre quella compatta privilegia i soli PG; neutrali e nemici non espongono i propri HP ai giocatori. Quando un valore non è visibile non viene lasciato un testo o una barra vuota. Gli strumenti di amministrazione non sono interattivi per i giocatori.
 
 ## 3. Impostare le card
 
@@ -128,24 +138,24 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   concentrazione, e il caster recupera metà del danno necrotico.
 - Gli incantesimi che il plugin non automatizza (Controincantesimo, Dardo
   incantato, Desiderio, Identificare…) mostrano **Registra il lancio**: il lancio
-  spende lo slot e finisce nel registro di combattimento, senza pill; gli
+  spende lo slot e finisce nel registro di combattimento, senza etichette; gli
   effetti si risolvono al tavolo. I bersagli selezionati compaiono nel
   registro, ma non servono. Nel pannello il pulsante si chiama **Registra
   lancio**; dal menu 🪄 un avviso dice quale slot è stato speso.
 - Protezione dai veleni, Protezione dall'energia e Invulnerabilità danno
   difese vere finché durano: la console attacchi e la console boss dimezzano
   o azzerano il danno di quel tipo, e il GM può ignorare il chip della difesa
-  per un singolo attacco. Le altre pill dei benefici (Armatura magica, Pelle
+  per un singolo attacco. Le altre etichette dei benefici (Armatura magica, Pelle
   coriacea, Pelle di pietra…) sono promemoria per il tavolo.
 - Cura ferite, Parola guaritrice, Preghiera di guarigione e Parola
   guaritrice di massa si risolvono nel pannello come Cura ferite di massa: si
   scelgono le creature (una, o fino a sei), si scrive la cura e gli HP salgono,
-  mai oltre il massimo, con Undo. Catapulta, Intimorire infernale, Sussurri
+  mai oltre il massimo, annullabile dalla cronologia. Catapulta, Intimorire infernale, Sussurri
   dissonanti e Inaridire chiedono l'esito del TS e il danno, con i dadi dello
   slot.
-- Sonno e Trama ipnotica finiscono quando la creatura subisce danno: la pill
+- Sonno e Trama ipnotica finiscono quando la creatura subisce danno: l'etichetta
   sparisce da sola solo su quella creatura. Per svegliarla senza danno si
-  rimuove la pill a mano.
+  rimuove l'etichetta a mano.
 - Cerchio magico, Santificare, Proibizione e Pirotecnica chiedono la variante
   nel pannello prima di piazzare la zona. Con il Fumo di Pirotecnica non c'è
   TS: si segna ogni esito come superato. Bagliore solare e Drago illusorio
@@ -156,11 +166,11 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   marchio: seleziona la nuova creatura e conferma. Sortilegio mantiene la
   caratteristica scelta. Dardo stregato propone a ogni turno l'azione da 1d12
   fulmine; Corona di follia chiede se il caster mantiene il controllo con
-  l'azione, Duello obbligato se resta entro 9 m. Togliere la pill di
+  l'azione, Duello obbligato se resta entro 9 m. Togliere l'etichetta di
   Invisibilità a una creatura (quando attacca o lancia) la termina solo per lei.
 - Dalla console attacchi alcune fini sono automatiche, nello stesso comando
   dell'attacco (un Annulla le rende): una creatura invisibile per Invisibilità
-  che attacca perde la pill; Duello obbligato finisce quando il caster attacca
+  che attacca perde l'etichetta; Duello obbligato finisce quando il caster attacca
   un'altra creatura o un suo alleato ferisce il bersaglio del duello. Dopo un
   colpo con Lama roboante, se il bersaglio si muove nel suo turno compare
   l'avviso con i danni da tuono: conferma per applicarli, o chiudi l'avviso se
@@ -176,10 +186,10 @@ mezzi incantatori (paladino, ranger), Cavaliere Mistico e Mistificatore
 Arcano, con la regola del multiclasse; la Magia del Patto del warlock resta a
 parte. La scheda Incantesimi li mostra come pallini, uno per slot
 disponibile: il GM clicca un pallino per segnare uno slot speso o
-ripristinarlo, con Undo.
+ripristinarlo; si annulla dalla cronologia.
 
 Un lancio dalla scheda, dai pulsanti ⚡ e 🪄 o dal pannello incantesimi spende lo
-slot nello stesso comando dell'incantesimo: un solo Undo li annulla entrambi.
+slot nello stesso comando dell'incantesimo: un solo annullamento li toglie entrambi.
 Vale per **ogni** incantesimo del catalogo, anche per quelli di cui il plugin
 registra soltanto il lancio. Il registro di combattimento mostra il livello
 dello slot e **Speso: …** per ogni lancio.
@@ -194,9 +204,9 @@ dello slot e **Speso: …** per ogni lancio.
 - Trucchetti, risoluzioni successive, azioni attive, trigger di zona e
   creature senza classi non spendono slot. Il loro lancio registrato, come
   quello **Senza slot**, va soltanto nel registro di combattimento: non
-  cambiando nulla, non ha una voce da annullare in History.
+  cambiando nulla, non ha una voce da annullare nella cronologia.
 
-Anche queste azioni scalano gli slot nel loro comando, con un solo Undo:
+Anche queste azioni scalano gli slot nel loro comando, annullabili in un solo passo:
 
 - **Punizione Divina** e **Punizione Occulta**, nella console attacchi: il
   menu del livello mostra quanti slot restano e, senza slot, la console chiede
@@ -232,7 +242,7 @@ La scheda della card include anche la sezione **Azioni rapide**. Puoi
 configurare fino a 12 scorciatoie per:
 
 - lanciare o precompilare un incantesimo;
-- aprire una spell nella Console effetti ad area;
+- aprire un incantesimo nella Console effetti ad area;
 - applicare una condizione al caster o ai token selezionati;
 - conservare slot, durata, scadenza e automazioni più usati;
 - per un incantesimo, scegliere il **Costo**: uno slot (predefinito), **Usi
@@ -245,11 +255,15 @@ campi già compilati.
 
 Fai doppio clic sul nome per rinominare rapidamente il token. Il nuovo nome viene sincronizzato anche sotto il token sulla battlemap.
 
-Il controllo accanto agli HP apre la modifica rapida o la scheda personaggio, a seconda del tipo di attore. La dimensione dell'editor HP corrisponde al testo mostrato nella card.
+Il GM modifica gli HP con un clic sul valore, nella card estesa come in quella compatta: si aprono due campi, HP attuali e massimi, dove puoi scrivere il nuovo valore, un delta (`-7`, `+5`) o un piccolo calcolo. **Invio** conferma, **Esc** annulla, **Tab** passa al massimo e poi alla card successiva. Nella card compatta il testo resta al suo posto: diventa tutto bianco e i numeri modificabili sono sottolineati. Ogni modifica è una voce annullabile della Cronologia.
+
+L'icona blu della scheda (accanto agli HP nella card estesa, sotto l'iniziativa in quella compatta) apre in un clic la scheda personaggio di PG e alleati, anche per i giocatori. Il pulsante **±** della card estesa ricalibra insieme HP attuali e massimi.
+
+Allo stesso modo un clic sul badge dell'iniziativa lo rende modificabile (solo GM, in entrambe le viste); **Invio** salva, riordina le card e passa alla card successiva. **Compila iniziativa** apre in fila le creature ancora da compilare e le evidenzia con un bordo tratteggiato: **Invio** o **Tab** passa alla successiva, **Ctrl+Invio** chiude, e le card si riordinano alla fine.
 
 Le card di creature con lo stesso nome vengono raggruppate. Una card collassata mostra **(Gruppo)** e il numero di membri. Il gruppo si espande automaticamente quando il turno entra nello stack e si richiude quando lo lascia; può anche essere aperto manualmente. L'animazione mantiene la prima card come ancora.
 
-In caso di iniziative uguali, le card possono essere riordinate tramite trascinamento.
+In caso di iniziative uguali il GM può riordinare le card trascinandole: passando con il mouse su una card che ha un pari merito compare la maniglia **⠿** (fuori dal bordo destro nella vista estesa, in basso a sinistra in quella compatta). Le Azioni epiche si spostano insieme al PG che seguono; all'iniziativa 20 i Boss Epici restano in testa e non si scavalcano.
 
 ### Capacità di classe
 
@@ -261,7 +275,7 @@ ancora automatizzate, ma queste restano un riferimento da gestire manualmente.
 Le capacità pronte possono consumare una risorsa, applicare un effetto a sé,
 chiedere un bersaglio o mantenere un'aura. Il GM deve confermare tiri, scelte,
 esiti e conseguenze che il plugin non può risolvere. Le istanze attive mostrano
-durata, bersagli e reminder; le condizioni create dalla capacità compaiono
+durata, bersagli e promemoria; le condizioni create dalla capacità compaiono
 nella finestra **Condizioni** e vengono rimosse insieme all'istanza corretta.
 
 Per conteggi, adapter, limiti e persistenza consulta
@@ -274,16 +288,22 @@ La testata mostra il round corrente e i comandi principali. Puoi:
 - avviare o azzerare un incontro;
 - avanzare o tornare indietro nell'ordine;
 - aggiungere o rimuovere attori;
-- aprire la cronologia/Undo;
+- aprire il registro combattimento e la cronologia;
 - passare tra layout compatto ed esteso.
 
-Il turno attivo è evidenziato con colore e glow di fazione e con un alone che pulsa lentamente (fermo se il sistema chiede di ridurre il movimento). Nella vista giocatori il ritratto della card attiva porta anche il badge ⚔️; nella vista GM quel lato del ritratto è occupato dai pulsanti ⚡ 🪄 🗡️. Sulla mappa compare un'etichetta **Turno di…** sopra il token attivo.
+Il turno attivo è evidenziato con colore e glow di fazione e con un alone che pulsa lentamente (fermo se il sistema chiede di ridurre il movimento). Nella vista giocatori il ritratto della card attiva porta anche il badge ⚔️; nella vista GM estesa quel lato del ritratto è occupato dai pulsanti ⚡ 🪄 🗡️, che nella card compatta stanno in colonna a destra del ritratto. Sulla mappa compare un'etichetta **Turno di…** sopra il token attivo.
 
 I gruppi omonimi, le azioni di tana, i turni Paragon e le azioni epiche possono introdurre voci virtuali nell'ordine. Queste voci non corrispondono necessariamente a un elemento reale della scena.
 
-### Follow e tana
+**Svuota iniziativa** e **Reset round** agiscono subito, senza conferma: in basso nel tracker compare per 8 secondi un avviso con **Annulla**, che rimette ordine, turno attivo, round e token in iniziativa (per Svuota) o il round precedente (per Reset round). Se nel frattempo è iniziato un altro combattimento, o il round è già cambiato, l'annullamento non sovrascrive niente e lo segnala.
 
-- **Follow** centra o segue il token attivo, utile quando il DM controlla la regia da un altro schermo.
+### Tasti per il turno
+
+Quando il tracker ha il focus della tastiera (dopo un clic nel tracker, per esempio su una card), il GM può usare **Spazio** o **→** per il turno successivo e **←** per il precedente. Sono gli stessi comandi dei pulsanti. Non funzionano mentre scrivi in un campo, con un editor aperto o durante Compila iniziativa. Owlbear Rodeo non offre scorciatoie globali alle estensioni: dopo un clic sulla mappa i tasti tornano a Owlbear.
+
+### Focus token e tana
+
+- **Focus token** centra o segue il token attivo, utile quando il DM controlla la regia da un altro schermo.
 - **Tana** abilita la gestione delle azioni di tana nell'incontro.
 
 ### Reazione e azione preparata
@@ -299,21 +319,21 @@ all'inizio del prossimo turno della creatura; quando è attiva compaiono
 **Innesca azione preparata** (toglie l'azione preparata e segna la reazione
 come usata, in un solo passo annullabile) e **Annulla azione preparata**.
 
-Entrambe sono condizioni normali: compaiono come pill sulla card e sulla
+Entrambe sono condizioni normali: compaiono come etichette sulla card e sulla
 mappa, si annullano dalla Cronologia e seguono le opzioni di visibilità degli
 effetti per i giocatori.
 
 ## 5. HP e modifiche rapide
 
-Gli HP canonici sono quelli della card/token. Le barre sulla mappa sono una rappresentazione derivata e si aggiornano insieme al lister.
+Gli HP canonici sono quelli della card/token. Le barre sulla mappa sono una rappresentazione derivata e si aggiornano insieme al tracker.
 
-Puoi modificare un singolo attore dalla sua card oppure usare **Console HP rapida** per un'operazione su più bersagli.
+Puoi modificare un singolo attore dalla sua card (clic sugli HP) oppure usare la **Console effetti manuali** per un'operazione su più bersagli.
 
-### Console HP rapida
+### Console effetti manuali
 
-1. Apri **Danno** dalla toolbar del tracker.
+1. Apri **Effetti** dalla toolbar del tracker: la console parte dalla scheda **Effetti** (tiri salvezza e condizioni). Dal menu di un modello d'area, **Seleziona e apri Console effetti ad area** la apre già su **Danno**.
 2. Scegli **Danno**, **Cura** o **HP temp.**.
-3. Inserisci il valore.
+3. Inserisci il valore nel campo accanto al pulsante di applicazione.
 4. Filtra i bersagli per nome e/o fazione.
 5. Seleziona i bersagli dalla lista o direttamente sulla mappa.
 6. Per ogni bersaglio scegli `×2`, `1`, `½` o `¼`.
@@ -325,11 +345,11 @@ I bersagli selezionati salgono in cima alla lista. L'applicazione è atomica: un
 
 Un PG a 0 PF, né stabile né morto, riceve a inizio turno il promemoria **TS contro la morte**, con i successi e i fallimenti accumulati (●●○ / ✕○○). Il popup compare anche sullo schermo del tavolo, ma i pulsanti li ha solo il GM: dopo il tiro del d20 segna **Successo**, **Fallimento**, **1 naturale** (due fallimenti) o **20 naturale** (torna a 1 PF). Ogni tiro è una voce annullabile della Cronologia.
 
-- Tre successi: la pill **Stabile**; i tiri si fermano e il conteggio si azzera.
-- Tre fallimenti: la pill **Morto** prende il posto di Privo di sensi. La toglie il GM.
+- Tre successi: l'etichetta **Stabile**; i tiri si fermano e il conteggio si azzera.
+- Tre fallimenti: l'etichetta **Morto** prende il posto di Privo di sensi. La toglie il GM.
 - Una cura sopra 0 PF azzera il conteggio e toglie Stabile.
 - Un danno che porta a 0 PF e avanza almeno quanto i PF massimi è morte istantanea.
-- Un danno subito mentre il PG è già a 0 PF conta un fallimento, due se critico; un danno pari ai PF massimi lo uccide; un PG stabile torna a tirare. Vale per la Console HP rapida, la console attacchi (l'esito **Critico** conta due fallimenti), le azioni boss e le console degli incantesimi. Nella Console HP rapida, sulla riga di un PG a 0 PF, il pulsante **Crit** segna il colpo critico; l'anteprima mostra «TS morte +1 fallimento».
+- Un danno subito mentre il PG è già a 0 PF conta un fallimento, due se critico; un danno pari ai PF massimi lo uccide; un PG stabile torna a tirare. Vale per la Console effetti manuali, la console attacchi (l'esito **Critico** conta due fallimenti), le azioni boss e le console degli incantesimi. Nella Console effetti manuali, sulla riga di un PG a 0 PF, il pulsante **Crit** segna il colpo critico; l'anteprima mostra «TS morte +1 fallimento».
 
 ## 6. Condizioni
 
@@ -344,7 +364,18 @@ Apri **Condizioni** dalla toolbar. La finestra permette di:
 
 Le condizioni supportano scadenza manuale, dopo un numero di round, all'inizio del turno, alla fine del turno o insieme alla concentrazione. Sono consentite fino a tre condizioni personalizzate per token.
 
-Nella card vengono mostrate le prime due pill; il pulsante `…` espande le altre verso il basso. Sulla mappa le condizioni compaiono come pill bloccate e ancorate al token.
+Nella card estesa compaiono le prime etichette e il pulsante `…` mostra le altre; nella card compatta compare la prima, e le altre si aprono nel cassetto laterale (vedi [La barra compatta](#la-barra-compatta)). Sulla mappa le condizioni compaiono come etichette bloccate e ancorate al token.
+
+### Condizioni rapide
+
+Le condizioni più usate al tavolo si applicano senza aprire la finestra: tutte quelle predefinite tranne Pietrificato (Accecato, Affascinato, Afferrato, Assordato, Avvelenato, Incapacitato, Invisibile, Paralizzato, Privo di sensi, Prono, Spaventato, Stordito, Trattenuto). Solo per il GM.
+
+- **Dalla card**: clic destro sulla card → **Condizioni** › e scegli la condizione. Un clic la applica o la toglie e chiude il menu. In fondo, **Tutte le condizioni…** apre la finestra completa.
+- **Dalla mappa**: clic destro sui token → **Condizioni…**. Il sottomenu resta aperto dopo ogni clic, così puoi mettere più condizioni di fila; anche qui **Tutte le condizioni…** apre la finestra.
+
+Ogni pulsante mostra lo stato della condizione: evidenziato se ce l'hanno tutte le creature scelte, con un bordo leggero se ce l'hanno solo alcune. In quel caso un clic la aggiunge a chi non ce l'ha; se ce l'hanno tutte, la toglie a tutte. Ogni clic è una voce della Cronologia. La rimozione toglie la condizione intera, anche quella messa da un incantesimo con una durata: per durate e fonti usa la finestra completa.
+
+**Ira** non è una condizione ma la capacità del Barbaro: si attiva dalle capacità di classe e non compare più tra le condizioni da applicare.
 
 ### Indebolimento
 
@@ -358,9 +389,9 @@ pannello unificato espone 393 voci, di cui 358 provengono dal catalogo
 trackable. Gli istantanei senza stato persistente restano soprattutto nel
 riferimento o nei workflow ad area.
 
-Per le spell con visuale abbinata il GM può lasciare attive le animazioni
-Embers/JB2A dalla policy Room. La visuale è un effetto decorativo best-effort e
-non cambia la risoluzione o la persistenza della spell.
+Per gli incantesimi con visuale abbinata il GM può lasciare attive le animazioni
+Embers/JB2A dalla policy della stanza. La visuale è un effetto decorativo best-effort e
+non cambia la risoluzione o la persistenza dell'incantesimo.
 
 Dal pannello puoi:
 
@@ -374,8 +405,8 @@ Dal pannello puoi:
 ### Registro degli incantesimi attivi
 
 Il registro raccoglie le istanze attive indipendentemente dal punto in cui sono
-state create. Una spell lanciata dalla **Console effetti ad area** compare
-quindi nello stesso registro di una lanciata dal pannello Incantesimi.
+state create. Un incantesimo lanciato dalla **Console effetti ad area** compare
+quindi nello stesso registro di uno lanciato dal pannello Incantesimi.
 
 La card dell'istanza mostra durata, incantatore, concentrazione, bersagli ed
 eventuali azioni disponibili. Alcuni incantesimi consentono di applicare
@@ -389,24 +420,24 @@ plugin chiede bersagli e variante senza creare una seconda concentrazione.
 
 Un incantatore in concentrazione mostra una `C` sulla card e sul token.
 Interrompere la concentrazione termina l'istanza collegata e rimuove le zone,
-le aure, le pill e le condizioni figlie che dipendono da essa. La stessa
+le aure, le etichette e le condizioni figlie che dipendono da essa. La stessa
 pulizia avviene quando termina la durata naturale. Lanciare un altro
 incantesimo a concentrazione, da un'azione rapida o dal pannello, chiede prima
 conferma: annullando, la concentrazione in corso resta e non si spende nulla.
 
 Per **Palla di Fuoco Ritardata**, l'interruzione volontaria, un TS di
-concentrazione fallito, la sostituzione con un'altra spell concentrata e la
+concentrazione fallito, la sostituzione con un altro incantesimo a concentrazione e la
 scadenza naturale aprono prima la detonazione terminale: il GM risolve il
 raggio corrente di 6 m, i TS Destrezza e un unico totale di danno da fuoco,
 poi la concentrazione e la perla vengono rimosse nella stessa transazione.
 
-Le pill conservano il colore assegnato e vengono renderizzate sulla mappa
+Le etichette conservano il colore assegnato e vengono renderizzate sulla mappa
 insieme alle condizioni, senza diventare oggetti trascinabili accidentalmente.
 
-### Reminder e tiri fisici
+### Promemoria e tiri fisici
 
 Il plugin non tira i dadi. Quando un effetto richiede un tiro salvezza a inizio
-o fine turno, compare un reminder compatto con:
+o fine turno, compare un promemoria compatto con:
 
 - token e condizione coinvolti;
 - caratteristica del tiro;
@@ -414,8 +445,8 @@ o fine turno, compare un reminder compatto con:
 - nome del caster;
 - conseguenza informativa.
 
-I reminder concorrenti vengono aggregati. Avanzando l'iniziativa, il nuovo
-reminder sostituisce il precedente; se l'attore successivo non è coinvolto,
+I promemoria concorrenti vengono aggregati. Avanzando l'iniziativa, il nuovo
+promemoria sostituisce il precedente; se l'attore successivo non è coinvolto,
 l'avviso scompare.
 
 Il GM effettua il tiro al tavolo e dichiara l'esito. Nella Console effetti ad
@@ -424,26 +455,26 @@ quando esiste un effetto immediato da risolvere. Le condizioni dipendenti dal
 fallimento, come Prono per Tempesta di Nevischio o Trattenuto per Tentacoli
 Neri, devono essere applicate dopo il risultato reale.
 
-Quando il reminder è compatibile, il GM può anche inserire una sola volta il
+Quando il promemoria è compatibile, il GM può anche inserire una sola volta il
 risultato dei dadi fisici. Il plugin applica danno pieno al fallimento, metà
 danno al successo quando previsto dalla regola (arrotondata per difetto) e
 nessun danno per un esito nullo o immune. Il successo può rimuovere una
-condizione o terminare un effetto/istanza spell modellata; il fallimento può
+condizione o terminare un effetto/istanza di incantesimo modellata; il fallimento può
 mantenere l'effetto oppure applicare la condizione dichiarata dal catalogo.
 
-I controlli sono esclusivi della vista GM. La vista Player riceve lo stesso
-reminder informativo, ma non mostra pulsanti o input. Ogni conferma passa dal
-coordinatore di effetti: HP, pill, tracker e barre mappa restano derivati dai
-metadata canonici, mentre una sola voce di History/Undo alimenta anche il
-Combat Log. Un reminder già risolto, duplicato o diventato obsoleto non viene
+I controlli sono esclusivi della vista GM. La vista giocatori riceve lo stesso
+promemoria informativo, ma non mostra pulsanti o input. Ogni conferma passa dal
+coordinatore di effetti: HP, etichette, tracker e barre mappa restano derivati dai
+metadata canonici, mentre una sola voce della cronologia alimenta anche il
+registro combattimento. Un promemoria già risolto, duplicato o diventato obsoleto non viene
 riapplicato; il GM può chiudere l'avviso e continuare senza conseguenze.
 
-Restano informativi i reminder privi di una descrizione strutturata. L'MVP non
+Restano informativi i promemoria privi di una descrizione strutturata. L'MVP non
 esegue tiri virtuali, bonus automatici, resistenze/vulnerabilità, testo libero,
 risoluzioni aggregate multi-bersaglio o scripting personalizzato.
 
 Per geometrie, trigger supportati, azioni attive e copertura residua consulta
-[Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md).
+[Incantesimi, zone e promemoria](INCANTESIMI_E_ZONE.md).
 
 ## 8. Movimento e condizioni di D&D 2014
 
@@ -495,24 +526,24 @@ Un boss Paragon riceve più turni nell'ordine. Le voci aggiuntive sono virtuali 
 
 Un Epic Boss opera a iniziativa 20 e genera voci **Azione Epica** nell'ordine. La card usa una cornice boss dedicata; le voci epiche non sono token duplicati.
 
-## 10. Cronologia e log di combattimento
+## 10. Cronologia e registro combattimento
 
 Il pannello separa due funzioni:
 
-- **Cronologia e Undo**: azioni annullabili, con possibilità di annullare una o più operazioni;
-- **Log di combattimento**: registro leggibile degli eventi.
+- **Cronologia**: azioni annullabili, con possibilità di annullare una o più operazioni;
+- **Registro combattimento**: resoconto leggibile degli eventi.
 
-Il log raggruppa gli eventi per round, accumula il movimento totale degli attori e registra gli Undo come annullamenti, senza riscrivere il passato. Puoi:
+Il registro raggruppa gli eventi per round, accumula il movimento totale degli attori e registra gli annullamenti come nuovi eventi, senza riscrivere il passato. Puoi:
 
 - cercare per attore, bersaglio o evento;
 - filtrare il tipo di evento;
 - aggiungere note manuali;
-- iniziare un nuovo log;
-- cancellare il log con conferma;
+- iniziare un nuovo registro;
+- cancellare il registro con conferma;
 - esportare in TXT o JSON.
 
 Il registro è locale al browser GM e separato dalla Cronologia: per il contratto
-di storage, compatibilità ed export consulta [Combat Log](COMBAT-LOG.md).
+di storage, compatibilità ed export consulta [Registro combattimento](COMBAT-LOG.md).
 
 ## 11. Clock
 
@@ -521,7 +552,7 @@ Lo strumento **Clock** si trova nella toolbar destra di Owlbear Rodeo. I clock s
 - Segmenti disponibili: 4, 6, 8 e 12.
 - Colori disponibili: rosso, ambra, verde, azzurro, viola e rosa.
 - Ogni clock può essere incrementato, decrementato, azzerato, rinominato, riordinato o eliminato.
-- Il GM può nascondere un clock ai player.
+- Il GM può nascondere un clock ai giocatori.
 - La finestra dispone di modalità estesa e compatta, è trascinabile e si adatta al numero di clock visibili.
 
 ## 12. Quota e distanza 3D
@@ -545,7 +576,7 @@ Lo strumento **Targeting area** è disponibile al GM nella toolbar destra e incl
 - quadrato;
 - cono;
 - linea;
-- rettangolo per le spell che lo richiedono.
+- rettangolo per gli incantesimi che lo richiedono.
 
 Durante il trascinamento compare la misura in metri. Origine e dimensioni possono agganciarsi al centro o ai vertici delle caselle. Le forme restano sulla scena dopo la creazione e continuano a selezionare i token intersecati quando vengono spostate.
 
@@ -556,7 +587,7 @@ di copertura prossima alla metà della casella. Folata di Vento produce così un
 rettangolo da 18 × 3 metri senza estensioni oltre i suoi bordi.
 
 Le zone persistenti degli incantesimi aggiungono al disegno una logica di
-appartenenza e attraversamento. Possono generare reminder all'ingresso, durante
+appartenenza e attraversamento. Possono generare promemoria all'ingresso, durante
 il movimento, all'uscita, a inizio turno o a fine turno e possono dichiarare
 terreno difficile. Una zona mobile o un'aura mantiene il collegamento con la
 propria sorgente.
@@ -571,11 +602,11 @@ Il plugin crea elementi derivati e bloccati per evitare trascinamenti accidental
 - nome sincronizzato;
 - indicatore di turno;
 - `C` di concentrazione;
-- pill di condizioni e incantesimi;
+- etichette di condizioni e incantesimi;
 - quota;
 - indicatori di movimento.
 
-Dimensione, spaziatura e allineamento delle pill si adattano allo zoom. Questi elementi non sono la fonte dei dati: possono essere rigenerati a partire dai metadata del token.
+Dimensione, spaziatura e allineamento delle etichette si adattano allo zoom. Questi elementi non sono la fonte dei dati: possono essere rigenerati a partire dai metadata del token.
 
 ## 15. Flusso consigliato al tavolo
 
@@ -583,24 +614,25 @@ Prima della sessione:
 
 1. prepara i token e assegna le fazioni;
 2. completa HP, iniziativa, velocità e risorse boss;
-3. verifica la vista player sul display del tavolo;
+3. verifica la vista giocatori sul display del tavolo;
 4. crea eventuali clock iniziali, nascondendo quelli solo GM.
 
 Durante il combattimento:
 
-1. usa le frecce del lister per avanzare;
+1. usa le frecce del tracker (o Spazio, → e ←) per avanzare;
 2. usa le azioni rapide oppure applica incantesimi e condizioni dai pannelli
-   dedicati;
-3. per le spell ad area, posiziona la zona dalla Console effetti ad area e
+   dedicati; per le condizioni comuni basta il clic destro sulla card o sul
+   token (**Condizioni rapide**), per i danni a una creatura il clic sui suoi HP;
+3. per gli incantesimi ad area, posiziona la zona dalla Console effetti ad area e
    verifica che l'istanza compaia nel registro;
-4. avanza l'iniziativa e usa i reminder per sapere quali tiri effettuare al
+4. avanza l'iniziativa e usa i promemoria per sapere quali tiri effettuare al
    tavolo;
 5. dichiara gli esiti e applica danni o condizioni con le console appropriate;
-6. aggiungi note al log solo per eventi narrativi non rilevati automaticamente.
+6. aggiungi note al registro solo per eventi narrativi non rilevati automaticamente.
 
 Dopo il combattimento:
 
-1. esporta il log in TXT per una lettura rapida o JSON per analisi successive;
+1. esporta il registro in TXT per una lettura rapida o JSON per analisi successive;
 2. conserva o azzera i clock secondo la scena;
 3. termina gli effetti non più validi e verifica che zone, aure e condizioni
    collegate siano state ripulite.

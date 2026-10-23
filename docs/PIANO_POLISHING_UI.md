@@ -421,6 +421,11 @@ Stato dei lotti:
   - **Caratteri corrotti** corretti nei testi visibili ("puÃ²", "Ã¨", "capacitÃ ") in `combatLog.js`, `classFeatureRuntime.js`, `initiative-card-modal.js`, `concentration-warning.ts`.
   - **Lasciati di proposito:** i messaggi tecnici di validazione dei profili boss (interamente in inglese, verificati dai test con regex); i messaggi "Room" della diagnostica dei metadata, che le Opzioni riconoscono con `.includes("Room")`.
   - **Test** aggiornati dove fissavano i vecchi testi (8 file). Tutti i 4097 test passano, `check:spells` e build a posto. Nell'anteprima il pannello Cronologia non mostra più termini inglesi (schede "Registro" e "Cronologia").
+- **7.2 — fatto il 2026-10-23.** `docs/GUIDA_UTENTE.md` allineata alle fasi 3–6 e al glossario.
+  - **Nuove parti:** "La barra compatta" (round nella colonna, menu `…`, iniziativa e scheda, lanciatori in colonna, KO sul ritratto, cassetto degli effetti, linguetta dei compagni); modifica in linea di HP e iniziativa in entrambe le viste e Compila iniziativa; scheda in un clic; riordino a pari merito con la maniglia e le Azioni epiche che seguono il PG; toast "Annulla" di Svuota e Reset round; "Tasti per il turno" con il limite del focus; "Condizioni rapide" dalla card e dal menu del token, con la regola dei gruppi misti e Ira come capacità.
+  - **Aggiornate:** "Focus token" al posto di "Follow"; "Console effetti manuali" al posto di "Console HP rapida", aperta da **Effetti** (o su **Danno** dal modello d'area); etichette nella card estesa e compatta; flusso consigliato al tavolo.
+  - **Glossario:** 66 sostituzioni (incantesimo, promemoria, etichetta, giocatori, stanza, cronologia, registro combattimento; "tracker" al posto di "lister"). Nessun termine inglese del glossario rimasto nella guida.
+  - **Fuori dal lotto:** `docs/RIFERIMENTO_FUNZIONI.md` chiama ancora la console "Console HP rapida".
 
 ---
 
