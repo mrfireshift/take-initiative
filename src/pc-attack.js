@@ -1198,7 +1198,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       launchButton.textContent=isFeature?(launchBusy?"…":feature.form.label || "Usa"):(launchBusy?"Lancio…":"Lancia");
       launchButton.disabled=launchBusy || busy || invalidated || !!feature?.blocked;
     }
-    if(canLaunch) total.textContent=isFeature?feature.detailText:details?[details.castingTime,details.range].filter(Boolean).join(" · "):"";
+    // The casting time in short (Azione, Reazione, 1 minuto…) on one line; the full text in its tooltip.
+    if(canLaunch) {
+      total.textContent=isFeature?feature.detailText:details?[capitalized(castingTimeLabel(entry.spellId)),details.range].filter(Boolean).join(" · "):"";
+      total.title=isFeature?feature.detailText:details?[details.castingTime,details.range].filter(Boolean).join(" · "):"";
+    }
     const tags=isFeature?feature.tags:entry?[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])]:[];
     // A feature keeps its tags and uses in view, its text in the accordion; a spell's details all go in the accordion.
     const body=isFeature?featureDetailsNodes(entry):entry?.spellId?spellDetailsNodes(entry.spellId,tags):[];
@@ -1386,7 +1390,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       });
       return chip;
     }));
-    total.replaceChildren();
+    total.replaceChildren();total.title=view.ready?"":view.blocker;
     if(view.ready) {
       const strong=node("strong",String(draft.outcome==="miss"?0:view.total));
       total.append(strong,node("span",draft.outcome==="miss"?" danni":` danni · PF ${view.hp.before} → ${view.hp.after}`));
@@ -1405,7 +1409,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(extrasCaption) extrasCaption.textContent="Extra al danno";
     defensesBox.replaceChildren();
     const view=areaPreview();
-    total.replaceChildren();
+    total.replaceChildren();total.title=view.ready?"":view.blocker;
     // An area without damage (the metallic breath): the creatures it reaches.
     if(view.ready && !resolved()?.components?.length) total.append(node("strong",String(view.rows.length)),node("span",` ${view.rows.length===1?"creatura":"creature"} · nessun danno`));
     else if(view.ready) total.append(node("strong",String(view.total)),node("span",` danni · ${view.rows.length} ${view.rows.length===1?"creatura":"creature"}`));

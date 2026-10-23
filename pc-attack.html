@@ -32,8 +32,10 @@
     .auto-toggle { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--obrt-type-caption); cursor: pointer; }
     .auto-toggle input { width: 13px; height: 13px; margin: 0; accent-color: #2563eb; cursor: pointer; }
     button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid rgba(96, 165, 250, .75); outline-offset: 1px; }
-    .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--obrt-space-lg) var(--obrt-space-xl); }
+    /* One scroll: the console's view fills the panel, and in the spells and features tabs the list takes the height left. */
+    .panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; padding: var(--obrt-space-lg) var(--obrt-space-xl); }
     .view { display: flex; flex-direction: column; gap: var(--obrt-space-md); }
+    .panel > .view { flex: 1 1 auto; min-height: 0; }
     .caption { color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
     .muted { margin: 0; color: var(--muted); font-size: var(--obrt-type-secondary); }
     /* Sections: a card for the target and one for the damage (weapon, then the extras below a rule). */
@@ -41,13 +43,19 @@
     .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
     .card-note { color: var(--dim); font-size: var(--obrt-type-caption); }
     .block { display: grid; gap: 6px; }
+    /* The target card: its caption beside the select, on one line; the area, hint and Quivering Palm below, full width. */
+    .target-card { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--obrt-space-md); }
+    .target-card > :not(.caption):not(.target-select) { grid-column: 1 / -1; }
     .target-select { width: 100%; min-height: var(--obrt-h-control-md); padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); }
     .hint { margin: 0; color: #fde68a; font-size: var(--obrt-type-secondary); }
     /* The picker: weapon attacks, cantrips and attack spells of the actor, one tab each, then the entry. */
-    .picker { display: grid; gap: 6px; }
+    .picker { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; }
+    .picker:has(> .picker-list:not([hidden])) { flex: 0 1 auto; min-height: 0; }
+    /* Only the list gives way: the tabs (overflow hidden) would otherwise shrink to nothing. */
+    .picker > :not(.picker-list) { flex: 0 0 auto; }
     .picker-tabs button[aria-pressed="true"] { color: #fff; background: rgba(37, 99, 235, .38); }
     /* The spells tab: a list by level instead of a select (every spell in view, one click each). */
-    .picker-list { display: grid; gap: 2px; max-height: 204px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    .picker-list { flex: 0 1 auto; min-height: 132px; display: grid; align-content: start; gap: 2px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
     .picker-level { padding: 4px 6px 2px; color: var(--dim); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: var(--obrt-tracking-wide); text-transform: uppercase; }
     .picker-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 26px; padding: 3px 8px; border: 1px solid transparent; border-radius: var(--obrt-radius-md); background: transparent; text-align: left; cursor: pointer; }
     .picker-row:hover { background: var(--obrt-hover); }
@@ -85,7 +93,14 @@
     .launch-note { margin: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
     .launch-note.warning { color: #fde68a; }
     .launch .apply { justify-self: end; }
-    .cantrip-row { display: grid; gap: 4px; }
+    /* The damage card: the cantrip or spell controls, the damage rows and extras, then the notes and Dettagli at the bottom
+       (the cantrip row's children join the card's grid to be ordered). */
+    .cantrip-row { display: contents; }
+    #pc-attack-damage { order: 1; }
+    #pc-attack-extras-section { order: 2; }
+    #pc-attack-defenses { order: 3; }
+    .cantrip-note { order: 4; }
+    #pc-attack-spell-details { order: 5; }
     .cantrip-note { margin: 0; color: var(--muted); font-size: var(--obrt-type-caption); line-height: 1.3; }
     .spell-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     .segmented { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); overflow: hidden; }
@@ -131,9 +146,10 @@
     .temp-hp-add:disabled { opacity: .45; cursor: default; }
     /* Area attacks: the creatures hit, each with its save (one row each: tick, name and HP, outcome). */
     .area { display: grid; gap: 4px; }
-    .area-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .area-note { min-width: 0; color: var(--muted); font-size: var(--obrt-type-secondary); }
-    .area-tools { flex: 0 0 auto; display: flex; gap: 4px; }
+    /* The note on its own line, the tools below it. */
+    .area-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+    .area-note { flex: 1 1 100%; min-width: 0; color: var(--muted); font-size: var(--obrt-type-secondary); line-height: var(--obrt-leading-normal); }
+    .area-tools { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 4px; }
     .mini-button { height: 22px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); font-size: var(--obrt-type-secondary); cursor: pointer; }
     .mini-button:disabled { opacity: .45; cursor: default; }
     .area-list { display: grid; gap: 2px; }
@@ -141,7 +157,7 @@
     .area-row .component-lead input { width: 15px; height: 15px; margin: 0; accent-color: #2563eb; cursor: pointer; }
     .area-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .area-hp { color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
-    .area-row[data-on="false"] .area-name, .area-row[data-on="false"] .area-hp { opacity: .5; }
+    .area-row[data-on="false"] .area-name, .area-row[data-on="false"] .area-hp { opacity: .7; }
     .burst-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; width: 100%; }
     .burst-list .option-check { min-width: 0; }
     .burst-list .option-check span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -170,12 +186,13 @@
     .reaction-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
     .reaction-toggle input { width: 14px; height: 14px; margin: 0; accent-color: #2563eb; cursor: pointer; }
     .reaction-warning { color: #fde68a; }
-    .total { flex: 1 1 auto; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
+    /* At most two lines beside the button, so the fixed row keeps its height. */
+    .total { flex: 1 1 auto; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; color: var(--muted); font-size: var(--obrt-type-secondary); font-variant-numeric: tabular-nums; }
     .total strong { color: #fff; font-size: var(--obrt-type-card-title); }
     .apply { min-width: 112px; min-height: var(--obrt-h-control-lg); padding: 7px 14px; border: 1px solid rgba(255, 255, 255, .18); border-radius: var(--obrt-radius-md); background: #dc2626; font-weight: var(--obrt-weight-bold); cursor: pointer; }
     .apply:disabled, .small:disabled { opacity: .48; cursor: default; background: var(--disabled); color: rgba(255, 255, 255, .62); }
     .small { min-height: 27px; padding: 4px 9px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); cursor: pointer; }
-    .status-bar { flex: 0 0 auto; display: flex; align-items: center; gap: var(--obrt-space-md); min-height: 34px; padding: 6px var(--obrt-space-xl); border-top: 1px solid var(--line); background: rgba(15, 23, 42, .24); }
+    .status-bar { flex: 0 0 auto; display: flex; align-items: center; gap: var(--obrt-space-md); min-height: 40px; padding: 6px var(--obrt-space-xl); border-top: 1px solid var(--line); background: rgba(15, 23, 42, .24); }
     .status { flex: 1 1 auto; min-width: 0; max-height: 52px; overflow-y: auto; margin: 0; color: #bfdbfe; font-size: var(--obrt-type-secondary); white-space: pre-wrap; }
     .status:empty::before { content: "Pronto."; color: var(--dim); }
   </style>
@@ -199,7 +216,7 @@
         <p class="caster-state" id="pc-attack-caster" hidden></p>
         <section class="card launch" id="pc-attack-launch" aria-label="Incantesimo" hidden></section>
         <div class="view" id="pc-attack-attack-view">
-        <section class="card" aria-label="Bersaglio">
+        <section class="card target-card" aria-label="Bersaglio">
           <span class="caption" id="pc-attack-target-caption">Bersaglio</span>
           <select class="target-select" id="pc-attack-target" aria-label="Bersaglio"></select>
           <div class="area" id="pc-attack-area" hidden>
