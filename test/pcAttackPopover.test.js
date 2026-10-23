@@ -813,7 +813,7 @@ test("a spell the console does not resolve shows its card instead of the form; t
   assert.equal(f.$("pc-attack-picker-select").hidden, true, "the spells tab is a list, not a select");
   assert.deepEqual(list.querySelectorAll(".picker-level").map((header) => header.textContent), ["1° livello", "2° livello"], "the spells by level");
   const rows = list.querySelectorAll("button");
-  assert.deepEqual(rows.map((row) => textOf(row).trim()), ["Benedizione azione · Conc.", "Scudo della fede azione bonus · Conc.", "Arma spirituale azione bonus"],
+  assert.deepEqual(rows.map((row) => textOf(row).trim()), ["Benedizione Azione · Conc.", "Scudo della fede Azione bonus · Conc.", "Arma spirituale Azione bonus"],
     "the casting time at a glance");
   assert.equal(rows[0].getAttribute("aria-pressed"), "true");
   await rows[1].click(); await tick();
@@ -965,7 +965,7 @@ test("the Capacità tab lists the features by group with their activation and us
   const list = f.$("pc-attack-picker-list");
   assert.equal(list.hidden, false, "the features tab is a list");
   assert.deepEqual(list.querySelectorAll(".picker-level").map((header) => header.textContent), ["Utilizzabili", "Altre capacità"]);
-  assert.match(textOf(list.querySelectorAll("button")[0]), /Ira.*azione bonus · 2\/3/);
+  assert.match(textOf(list.querySelectorAll("button")[0]), /Ira.*Azione bonus · 2\/3/);
   assert.match(f.$("pc-attack-title").textContent, /Ira$/);
   assert.match(f.$("pc-attack-subtitle").textContent, /Capacità di classe/);
   assert.match(textOf(f.$("pc-attack-launch")), /Azione bonus.*su di sé.*Ire 2\/3/);

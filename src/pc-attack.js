@@ -856,6 +856,16 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(/^1 azione\b/u.test(text)) return "azione";
     return text.split(",")[0];
   }
+  // The cost of an action, capitalised and colour-coded as in Baldur's Gate 3 (pc-attack.html: action green, bonus action
+  // orange, reaction purple); any other activation or casting time keeps the neutral colour.
+  const COST_KINDS=Object.freeze({"azione":"action","azione bonus":"bonus","reazione":"reaction"});
+  const costKind=label=>COST_KINDS[String(label || "").trim().toLocaleLowerCase("it")] || "";
+  function costTag(label,className="cost-tag") {
+    const tag=node("span",capitalized(String(label || "")),className);
+    const kind=costKind(label);
+    if(kind) tag.dataset.cost=kind;
+    return tag;
+  }
   // The entry on screen: the spell card shown, else the attack in the form.
   function currentEntry() {
     const entries=presentation?.picker || [];
@@ -880,7 +890,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // In the cantrips and spells tabs ⚔ marks what the console resolves, ★ the favourites (as the 🪄 menu); the select
     // names the casting time too.
     const label=entry=>[entry.pinned?"★ ":"",entry.label,entry.tab!=="attacks" && entry.mode==="attack"?" ⚔":"",
-      entry.spellId && castingTimeLabel(entry.spellId)?` · ${castingTimeLabel(entry.spellId)}`:"",inProgress(entry)?" · in corso":""].join("");
+      entry.spellId && castingTimeLabel(entry.spellId)?` · ${capitalized(castingTimeLabel(entry.spellId))}`:"",inProgress(entry)?" · in corso":""].join("");
     if(["cantrips","spells"].includes(current.tab) && !spellbookSpellReferenceLoaded()) {
       void loadSpellbookSpellReference().then(()=>{pickerSignature="";renderPicker();}).catch(()=>{});
     }
@@ -890,9 +900,17 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         .map(row=>`${row.current}/${row.maximum}`);
       return [entry.activation,...uses,state.active?.[entry.featureId]?.length?"attiva":""];
     };
-    const rowTags=entry=>(entry.tab==="features"?featureTags(entry)
-      :[castingTimeLabel(entry.spellId),entry.mode==="attack"?"⚔":"",entry.concentration?"Conc.":"",entry.ritual?"Rit.":"",inProgress(entry)?"in corso":""])
-      .filter(Boolean).join(" · ");
+    // A row's marks: its cost first (the activation, or the casting time), coloured, then the rest.
+    const rowCost=entry=>entry.tab==="features"?entry.activation:castingTimeLabel(entry.spellId);
+    const rowRest=entry=>(entry.tab==="features"?featureTags(entry).slice(1)
+      :[entry.mode==="attack"?"⚔":"",entry.concentration?"Conc.":"",entry.ritual?"Rit.":"",inProgress(entry)?"in corso":""]).filter(Boolean);
+    const rowTags=entry=>[capitalized(rowCost(entry)),...rowRest(entry)].filter(Boolean).join(" · ");
+    const rowTagsNode=entry=>{
+      const box=node("span","","picker-row-tags"),cost=rowCost(entry),rest=rowRest(entry).join(" · ");
+      if(cost) box.append(costTag(cost));
+      if(rest) box.append(node("span",`${cost?" · ":""}${rest}`));
+      return box;
+    };
     const groupOf=entry=>entry.tab==="features"?entry.group:entry.level;
     const groupTitle=group=>group==="usable"?"Utilizzabili":group==="other"?"Altre capacità":Number.isInteger(group)?`${group}° livello`:"Altri";
     // Rebuilt only when the list changes: a live update never closes the select the GM has open, nor scrolls the list.
@@ -913,7 +931,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         node("div",groupTitle(group),"picker-level"),
         ...inTab.filter(entry=>groupOf(entry)===group).map(entry=>{
           const row=node("button","","picker-row");row.type="button";row.dataset.pickerKey=entry.key;row.setAttribute("role","listitem");
-          row.append(node("span",`${entry.pinned?"★ ":""}${entry.label}`,"picker-row-name"),node("span",rowTags(entry),"picker-row-tags"));
+          row.append(node("span",`${entry.pinned?"★ ":""}${entry.label}`,"picker-row-name"),rowTagsNode(entry));
           row.addEventListener("click",()=>chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key)));
           return row;
         })])));
@@ -1200,7 +1218,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     }
     // The casting time in short (Azione, Reazione, 1 minuto…) on one line; the full text in its tooltip.
     if(canLaunch) {
-      total.textContent=isFeature?feature.detailText:details?[capitalized(castingTimeLabel(entry.spellId)),details.range].filter(Boolean).join(" · "):"";
+      const cost=!isFeature && details?castingTimeLabel(entry.spellId):"";
+      total.replaceChildren();
+      if(isFeature || !details) total.textContent=isFeature?feature.detailText:"";
+      else {
+        if(cost) total.append(costTag(cost));
+        if(details.range) total.append(node("span",`${cost?" · ":""}${details.range}`));
+      }
       total.title=isFeature?feature.detailText:details?[details.castingTime,details.range].filter(Boolean).join(" · "):"";
     }
     const tags=isFeature?feature.tags:entry?[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])]:[];
@@ -1214,7 +1238,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(signature===launchSignature) return;
     launchSignature=signature;
     const children=[];
-    if(isFeature && tags.length){const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>node("span",text,`launch-tag${kind?" "+kind:""}`)));children.push(row);}
+    // The feature's activation pill takes its cost colour (Azione, Azione bonus, Reazione).
+    if(isFeature && tags.length){const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>{
+      const cost=costKind(text),pill=node("span",text,`launch-tag${kind?" "+kind:""}${cost?" cost-tag":""}`);
+      if(cost) pill.dataset.cost=cost;
+      return pill;}));children.push(row);}
     if(isFeature && feature.detailText) children.push(node("p",feature.detailText,"launch-details"));
     if(isFeature && feature.form.fields?.length) children.push(...featureFields(entry,feature.form));
     children.push(...notes.map(([text,kind])=>node("p",text,`launch-note${kind?" "+kind:""}`)));
