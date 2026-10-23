@@ -304,6 +304,8 @@ import {
 } from "./initiativeUndoCore.js";
 import { showUndoToast } from "./undoToast.js";
 import { appendCompactCompanionDrawer } from "./compactCompanionDrawer.js";
+import { turnShortcutDirection } from "./turnShortcutCore.js";
+import { buildTieReorderHandle, realTieInitiatives, showsTieReorderHandle } from "./tieReorderCore.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -1834,6 +1836,39 @@ function __historyUndoShortcutTargetIsEditable(target) {
   return !!target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
 }
 
+// Lair turns and Epic Actions: virtual cards, never part of an initiative tie.
+function __isVirtualTrackerId(id) {
+  return isLairId(id) || isEpicActionId(id);
+}
+
+// Turn keys (turnShortcutCore.js): Space or → presses "Turno successivo", ← presses "Turno precedente", so the keys
+// go through the buttons' queues and revision checks. GM only, while the tracker has the keyboard focus.
+let __turnShortcutMounted = false;
+function __mountTurnShortcut() {
+  if (__turnShortcutMounted) return;
+  __turnShortcutMounted = true;
+  window.addEventListener("keydown", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const direction = turnShortcutDirection({
+      key: event.key,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      altKey: event.altKey,
+      shiftKey: event.shiftKey,
+      repeat: event.repeat,
+      isComposing: event.isComposing,
+      editableTarget: __historyUndoShortcutTargetIsEditable(target),
+      buttonTarget: !!target?.closest?.('button, [role="button"], select, a[href], summary'),
+      editing: !!(__editingInitForId || __editingHPForId || __initiativeFillMode
+        || document.querySelector('[data-init-editing="1"], [data-hp-editing="1"]')),
+      enabled: IS_GM,
+    });
+    if (!direction) return;
+    event.preventDefault();
+    (direction > 0 ? btnNext : btnPrev).click();
+  });
+}
+
 function __mountHistoryUndoShortcut() {
   if (__historyUndoShortcutMounted) return;
   __historyUndoShortcutMounted = true;
@@ -2624,7 +2659,11 @@ track.addEventListener("dragstart", (ev) => {
   if (card.dataset.isEpic === "1") { ev.preventDefault(); return; }
 
   const init = card.dataset.initiative || "";
-  const peers = track.querySelectorAll(`[data-initiative="${init}"]`);
+  // Only real ties: Lair turns and Epic Actions share the initiative of the creature they follow (tieReorderCore.js).
+  // At the Lair's initiative an Epic Boss is pinned at the head of the tie: no partner to swap with.
+  const peers = Array.from(track.querySelectorAll(`[data-tracker-card="1"][data-initiative="${init}"]`))
+    .filter((peer) => !__isVirtualTrackerId(peer.dataset.itemId))
+    .filter((peer) => !(peer.dataset.isEpic === "1" && Number(init) === LAIR_INITIATIVE));
   if (peers.length < 2) { ev.preventDefault(); return; } // drag solo se ci sono pari
 
   __draggingId   = card.dataset.itemId;
@@ -9753,6 +9792,8 @@ function renderCompactTrack(
   const activeId = order[activeIndex] || null;
   const activeChanged = !!activeId && activeId !== __lastRenderedActiveId;
   const visibleEntries = compactEntriesForRender(entries, state);
+  // Ties over every visible card, also when only some cards are rebuilt.
+  const tieInitiatives = realTieInitiatives(visibleEntries, __isVirtualTrackerId, { lairInitiative: LAIR_INITIATIVE });
   const incrementalItemIds = Array.isArray(itemIds) && itemIds.length
     ? new Set(itemIds)
     : null;
@@ -9960,6 +10001,10 @@ function renderCompactTrack(
 
     card.append(portrait, name, ...(virtualTurnLabel ? [virtualTurnLabel] : []), hpText, hpTrack, status);
     __mountTrackerQuickActions(card, entry, { compact: true });
+    // Reorder at equal initiative (lot 6.8): a grip shown on hover, on the cards of a real tie.
+    if (showsTieReorderHandle(entry, tieInitiatives, { isGM: IS_GM, isVirtualId: __isVirtualTrackerId })) {
+      card.appendChild(buildTieReorderHandle({ compact: true }));
+    }
     // The other effects, when opened, in a drawer on the card's right (before the companions' tab).
     if (hasExpandableEffects && effectsPopoverOpen) {
       const effectsDrawer = appendCompactEffectsDrawer(card, compactEffects.slice(1), {
@@ -10171,8 +10216,13 @@ for (const e of entries) {
       ? entriesForRender.filter((entry) => __entryMatchesTrackerItemIds(entry, incrementalItemIds))
       : entriesForRender;
     const boardTokenCompanionMap = spellBoardTokenCompanionsByCasterId(__spellBoardTokenItems);
+    // Ties over every card of the list, also when only some cards are rebuilt (lot 6.8).
+    const tieInitiatives = realTieInitiatives(entriesForRender, __isVirtualTrackerId, { lairInitiative: LAIR_INITIATIVE });
     const nodes = renderEntries.map((entry) => {
       const card = buildClassicTrackerCardForRender(entry, state, nextId);
+      if (showsTieReorderHandle(entry, tieInitiatives, { isGM: IS_GM, isVirtualId: __isVirtualTrackerId })) {
+        card.appendChild(buildTieReorderHandle({ compact: false }));
+      }
       appendSpellBoardTokenCompanions(
         card,
         __trackerCompanionsForEntry(entry, boardTokenCompanionMap),
@@ -10810,6 +10860,7 @@ try {
         "PLAYER";
       IS_GM = String(role).toUpperCase() === "GM";
       __mountHistoryUndoShortcut();
+      __mountTurnShortcut();
       await mountSpeedCheckEnabledSync({ authority: IS_GM });
       OBR.broadcast.onMessage(`${ID}/compact-speed-readout`, (event) => {
         if (!IS_GM || event?.data?.type !== "set-movement-limit") return;
