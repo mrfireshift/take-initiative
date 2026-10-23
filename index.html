@@ -92,9 +92,12 @@
         font-size: 12px !important;
       }
 
-      /* The compact card's HP text while its inline editor is open looks as it did before the click: "HP 78 / 100" in
-         the same weights and colour, only the numbers become editable. The shared editor (initiativeEditors.js) drops
-         the caption and writes two 22px white fields: these rules put the text back. */
+      /* The compact card's HP text while its inline editor is open: still "HP 78 / 100" in place, no field around it,
+         but all white at the maximum's weight, with a faint line under the two numbers that can be typed. The shared
+         editor (initiativeEditors.js) drops the caption and writes two 22px fields: these rules shape the text. */
+      [data-card-hp-text="1"][data-hp-editing="1"] {
+        color: #fff !important;
+      }
       [data-card-hp-text="1"][data-hp-editing="1"] > div {
         justify-content: center;
         gap: 0 !important;
@@ -102,26 +105,25 @@
       [data-card-hp-text="1"][data-hp-editing="1"] > div::before {
         content: "HP\00a0";
         font-weight: 600;
-        opacity: .65;
       }
       [data-card-hp-text="1"][data-hp-editing="1"] input {
         width: 3ch !important;
         color: inherit !important;
+        font-weight: 600 !important;
         font-variant-numeric: tabular-nums;
+        box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .5);
       }
       [data-card-hp-text="1"][data-hp-editing="1"] input:first-child {
-        font-weight: var(--obrt-weight-heavy, 800) !important;
         text-align: right !important;
       }
       [data-card-hp-text="1"][data-hp-editing="1"] input:last-child {
-        font-weight: 600 !important;
-        opacity: .65;
+        opacity: 1 !important;
         text-align: left !important;
       }
       [data-card-hp-text="1"][data-hp-editing="1"] span {
         padding: 0 .28em;
         font-weight: 600;
-        opacity: .65 !important;
+        opacity: 1 !important;
       }
       /* Each field as wide as its number, where the browser can size fields to their content. */
       @supports (field-sizing: content) {
