@@ -924,6 +924,21 @@ test("budget — an oversized immutable before/after commits without a recovery 
   assert.equal(historyEntries()[0].changes[0].beforeMetadata.large.value.length, 140000);
 });
 
+test("budget — an oversized record still commits while a small record is pending", async () => {
+  // A deferred or failed History leaves a small record in the journal: a record too large by itself is not blocked by it.
+  const runtime = await bootRuntime("budget-with-pending"); fault.failHistoryWrites = true;
+  const small = await runtime.background.runEffectsMutation(addConditionOperation("pending-small"), { commandId: "pending-small", transport: "background" });
+  assert.equal(small.committed, true);
+  assert.equal(pendingRecovery().length, 1);
+  item("target").metadata[META_KEY].large = "x".repeat(140000);
+  const result = await runtime.background.runEffectsMutation(addConditionOperation("oversized"), {
+    commandId: "oversized", transport: "background", metadataPatches: [{ id: "target", fields: { large: { value: "after" } } }],
+  });
+  assert.equal(result.status, "applied"); assert.equal(result.committed, true);
+  assert.equal(item("target").metadata[META_KEY].large, "after");
+  assert.equal(pendingRecovery().length, 1, "the small record stays journaled, the oversized one never was");
+});
+
 test("budget — sixteen pending records are retained and the seventeenth cannot commit", async () => {
   const runtime = await bootRuntime("record-cap"); fault.failHistoryWrites = true;
   for (let index = 0; index < 16; index++) {

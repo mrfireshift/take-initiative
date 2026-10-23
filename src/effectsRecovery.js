@@ -47,22 +47,30 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
     scope = store?.scopeId || null;
   }
 
-  async function write(next, isCurrent) {
-    check(isCurrent);
-    // Reserve the largest progress representation before allowing a commit.
-    // A record that fits PREPARED must also fit all subsequent progress marks.
-    const reserved = clone(next);
+  // Reserve the largest progress representation before allowing a commit.
+  // A record that fits PREPARED must also fit all subsequent progress marks.
+  function budgetBytes(value) {
+    const reserved = clone(value);
     for (const record of Object.values(reserved.records)) {
       if (!Array.isArray(record.sideEffects)) continue;
       record.phase = "SIDE_EFFECTS_PENDING";
       record.completedSideEffects = record.sideEffects.map((_, index) => `${record.commandId}:side:${index}`);
     }
+    return Math.max(...[value, reserved].map((entry) => new TextEncoder().encode(JSON.stringify({ [EFFECTS_RECOVERY_KEY]: entry })).length));
+  }
+
+  async function write(next, isCurrent, savedCommandId = "") {
+    check(isCurrent);
     const recordCount = Object.keys(next.records).length;
-    if (recordCount > EFFECTS_RECOVERY_LIMITS.records
-      || Math.max(...[next, reserved].map((value) => new TextEncoder().encode(JSON.stringify({ [EFFECTS_RECOVERY_KEY]: value })).length)) > EFFECTS_RECOVERY_LIMITS.bytes) {
-      // A lone record that does not fit is too large by itself (many effects on several targets); with other
-      // pending records the journal is full.
-      throw new Error(recordCount === 1 ? "effects-recovery-record-too-large" : "effects-recovery-budget-exceeded");
+    if (recordCount > EFFECTS_RECOVERY_LIMITS.records || budgetBytes(next) > EFFECTS_RECOVERY_LIMITS.bytes) {
+      // The record being saved does not fit even without the other pending records: it is too large by itself (many
+      // effects on several targets). Otherwise the journal is full.
+      const lone = savedCommandId && next.records[savedCommandId]
+        ? { ...next, records: { [savedCommandId]: next.records[savedCommandId] } }
+        : null;
+      throw new Error(recordCount <= EFFECTS_RECOVERY_LIMITS.records && lone && budgetBytes(lone) > EFFECTS_RECOVERY_LIMITS.bytes
+        ? "effects-recovery-record-too-large"
+        : "effects-recovery-budget-exceeded");
     }
     try { await writeSceneMetadataKey(obr.scene, METADATA_OWNERSHIP.EFFECTS_RECOVERY, durable(next), { runtime: "effectsRecovery" }); }
     catch (error) {
@@ -84,7 +92,7 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
     if (next.records[record.commandId].historyEntry?.effectsMutation) {
       next.records[record.commandId].historyEntry.effectsMutation.recoveryScope = { roomId: next.records[record.commandId].roomId, scopeId: base.scopeId };
     }
-    await write(next, isCurrent);
+    await write(next, isCurrent, record.commandId);
     return clone(next.records[record.commandId]);
   }
 
