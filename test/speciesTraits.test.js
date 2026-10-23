@@ -16,7 +16,7 @@ const whiteDragonborn = (level = 5) => ({ species: { id: "dragonide-cromatico", 
 test("the species field is sanitized and optional", () => {
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "bianco" }), { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "oro" }), { id: "dragonide-cromatico", ancestryId: "" }, "gold is metallic, not chromatic");
-  assert.equal(sanitizeSpecies({ id: "dhampir" }), null, "not in the catalog yet");
+  assert.equal(sanitizeSpecies({ id: "autognome" }), null, "not in the catalog yet");
   assert.equal(Object.hasOwn(sanitizeInitiativeCard({}), "species"), false, "profiles without a species keep their shape");
   assert.deepEqual(sanitizeInitiativeCard({ species: { id: "dragonide-cromatico", ancestryId: "bianco" } }).species, { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.equal(hasInitiativeCardValues(sanitizeInitiativeCard({ species: { id: "dragonide", ancestryId: "rosso" } })), true);
@@ -133,8 +133,8 @@ test("Volo, Tomo dei Nemici and Mostri del Multiverso: two versions side by side
   const groups = [...new Set(SPECIES.map((entry) => entry.sourceLabel))];
   assert.deepEqual(groups, ["Manuale del Giocatore 2014", "Elemental Evil Player's Companion", "Guida del Giocatore alla Costa della Spada",
     "Guida di Volo ai Mostri", "The Tortle Package", "One Grung Above", "Il Tomo dei Nemici di Mordenkainen", "Guildmasters' Guide to Ravnica",
-    "Acquisitions Incorporated", "Locathah Rising", "Eberron: Rising from the Last War",
-    "Mythic Odysseys of Theros", "The Wild Beyond the Witchlight", "Il Tesoro dei Draghi di Fizban", "Strixhaven: A Curriculum of Chaos",
+    "Acquisitions Incorporated", "Locathah Rising", "Eberron: Rising from the Last War", "Explorer's Guide to Wildemount",
+    "Mythic Odysseys of Theros", "Van Richten's Guide to Ravenloft", "The Wild Beyond the Witchlight", "Il Tesoro dei Draghi di Fizban", "Strixhaven: A Curriculum of Chaos",
     "Mordenkainen presenta: Mostri del Multiverso"]);
 });
 
@@ -242,4 +242,14 @@ test("the tortle's Shell Defense is an untimed label with no uses, removed by ha
   assert.equal(instance.manualRemoval, true);
   assert.deepEqual(speciesDamageDefenses({ id: "grung" }), { immunities: ["poison"] });
   assert.deepEqual(traits({ id: "verdan" }), ["specie-verdan-guarigione-del-sangue-nero", "specie-verdan-telepatia-limitata", "specie-verdan-intuito-telepatico"]);
+});
+
+test("Wildemount and Van Richten: dragonborn variants without breath, lineages with their own uses", () => {
+  assert.deepEqual(traits({ id: "dragonide-wildemount", ancestryId: "ravenite" }), ["specie-dragonide-wildemount-assalto-vendicativo"]);
+  assert.deepEqual(speciesDamageDefenses({ id: "dragonide-wildemount", ancestryId: "draconblood" }), {}, "no ancestry resistance");
+  assert.equal(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-dragonide-wildemount-assalto-vendicativo-usi").refresh.length, 2);
+  assert.deepEqual(speciesDamageDefenses({ id: "reborn" }), { resistances: ["poison"] });
+  assert.equal(resolveClassFeatureResourceMaximum(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-dhampir-morso-vampirico-usi"), [{ classId: "ladro", level: 5 }]).maximum, 3);
+  assert.equal(traits({ id: "elfo-pallido" }, 2).includes("specie-elfo-pallido-benedizione-sonno"), false, "Sleep from 3rd level");
+  assert.ok(SPECIES.find((entry) => entry.id === "elfo-marino").sourceAliases.includes("wildemount"));
 });

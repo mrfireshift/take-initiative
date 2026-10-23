@@ -571,6 +571,68 @@ Da controllare con più attenzione:
 | Locathah | — | Volontà del leviatano | 4 | Passiva | 1 |
 | Locathah | — | Anfibio limitato | 4 | Passiva | 1 |
 
+## Tranche 8 — Wildemount, Van Richten
+
+Titoli indicati in inglese, come per le tranche precedenti. Nessuna di queste
+specie ha una ristampa in Mostri del Multiverso.
+
+- **Elfo pallido** e **halfling lotusden** sono specie a sé, con i tratti di
+  gioco dell'elfo e dell'halfling, come le sottorazze del Tomo dei Nemici.
+  L'elfo marino di Wildemount è quello del Tomo dei Nemici.
+- **Dragonide di Wildemount**: le varianti draconblood e ravenite sostituiscono
+  Arma a soffio e Resistenza ai danni, quindi non hanno ascendenza né
+  resistenza. Il dragonide del Manuale del Giocatore resta com'era.
+- **Dhampir, hexblood e reborn** (lignaggi di Van Richten) sostituiscono la
+  specie: Retaggio ancestrale, che conserva competenze e velocità della specie
+  d'origine, va riportato nel profilo. L'hexblood è di tipo folletto; il
+  reborn ha la resistenza al veleno applicata alle difese.
+- **Hollow one** non è nel catalogo: è un dono soprannaturale che si aggiunge
+  alla specie, e la scheda ha un solo campo specie.
+
+Restano fuori la scurovisione e le competenze del Retaggio ancestrale.
+
+Da controllare con più attenzione:
+
+- le pagine di Wildemount (elfi 163, halfling 164, dragonidi 168) e di Van
+  Richten (lignaggi 10–12, stimate);
+- il nome Presenza energica (Forceful Presence) e gli altri nomi italiani;
+- la portata del Gettone inquietante dell'hexblood (qui 15 km).
+
+### Explorer's Guide to Wildemount
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Elfo pallido | — | Ascendenza fatata | 163 | Passiva | 1 |
+| Elfo pallido | — | Senso incisivo | 163 | Passiva | 1 |
+| Elfo pallido | — | Benedizione della Tessitrice Lunare | 163 | Passiva | 1 |
+| Elfo pallido | — | Benedizione della Tessitrice Lunare: Sonno | 163 | Azione · 1/riposo lungo | 3 |
+| Elfo pallido | — | Benedizione della Tessitrice Lunare: Invisibilità | 163 | Azione · 1/riposo lungo | 5 |
+| Halfling lotusden | — | Fortunato | 164 | Passiva | 1 |
+| Halfling lotusden | — | Coraggioso | 164 | Passiva | 1 |
+| Halfling lotusden | — | Agilità halfling | 164 | Passiva | 1 |
+| Halfling lotusden | — | Figlio del bosco | 164 | Passiva | 1 |
+| Halfling lotusden | — | Figlio del bosco: Intralciare | 164 | Azione · 1/riposo lungo | 3 |
+| Halfling lotusden | — | Figlio del bosco: Crescita di spine | 164 | Azione · 1/riposo lungo | 5 |
+| Halfling lotusden | — | Passo tra gli alberi | 164 | Passiva | 1 |
+| Dragonide di Wildemount | Draconblood | Presenza energica | 168 | Innesco · 1/riposo breve | 1 |
+| Dragonide di Wildemount | Ravenite | Assalto vendicativo | 168 | Reazione · 1/riposo breve | 1 |
+
+### Van Richten's Guide to Ravenloft
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Dhampir | — | Natura senza morte | 10 | Passiva | 1 |
+| Dhampir | — | Scalata del ragno | 10 | Passiva | 1 |
+| Dhampir | — | Morso vampirico | 10 | Passiva | 1 |
+| Dhampir | — | Morso vampirico: potenziamento | 10 | Innesco · competenza/riposo lungo | 1 |
+| Hexblood | — | Fatato | 11 | Passiva | 1 |
+| Hexblood | — | Gettone inquietante | 11 | Azione bonus · 1/riposo lungo | 1 |
+| Hexblood | — | Magia del sortilegio | 11 | Passiva | 1 |
+| Hexblood | — | Magia del sortilegio: Camuffare se stesso | 11 | Azione · 1/riposo lungo | 1 |
+| Hexblood | — | Magia del sortilegio: Sortilegio | 11 | Azione bonus · 1/riposo lungo | 1 |
+| Reborn | — | Natura senza morte | 12 | Passiva | 1 |
+| Reborn | — | Conoscenza da una vita passata | 12 | Innesco · competenza/riposo lungo | 1 |
+
 ## Mordenkainen presenta: Mostri del Multiverso
 
 Le ristampe delle specie delle tranche precedenti, in ordine alfabetico. Le
@@ -701,6 +763,6 @@ voci di fata e harengon sono quelle di Witchlight, con lo stesso testo.
 
 ## Tranche successive
 
-Ancora da scrivere: Wildemount, Van Richten, Spelljammer, Dragonlance e il
-lignaggio personalizzato di Tasha. Una specie fuori catalogo, importata da una
-scheda, viene segnalata e non applicata.
+Ancora da scrivere: Spelljammer, Dragonlance e il lignaggio personalizzato di
+Tasha; da decidere hollow one (dono soprannaturale di Wildemount). Una specie
+fuori catalogo, importata da una scheda, viene segnalata e non applicata.

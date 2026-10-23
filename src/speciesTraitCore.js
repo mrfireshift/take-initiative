@@ -8,7 +8,8 @@
 // speciesCatalogCostaElementalEvil.js: Elemental Evil and Costa della Spada; tranche 4, in
 // speciesCatalogEberron.js: Eberron; tranche 5, in speciesCatalogRavnicaTheros.js: Ravnica and Theros;
 // tranche 6, in speciesCatalogWitchlightStrixhaven.js: Witchlight and Strixhaven; tranche 7, in
-// speciesCatalogMinori.js: the tortle and the minor species (see docs/SPECIE.md).
+// speciesCatalogMinori.js: the tortle and the minor species; tranche 8, in speciesCatalogWildemountRavenloft.js:
+// Wildemount and Van Richten (see docs/SPECIE.md).
 
 import { SPECIES_CATALOG_MULTIVERSO, SPECIES_CATALOG_TOMO, SPECIES_CATALOG_VOLO } from "./speciesCatalogVoloMordenkainen.js";
 import { SPECIES_CATALOG_COSTA, SPECIES_CATALOG_ELEMENTAL, SPECIES_CATALOG_MULTIVERSO_ELEMENTAL } from "./speciesCatalogCostaElementalEvil.js";
@@ -16,10 +17,12 @@ import { SPECIES_CATALOG_EBERRON, SPECIES_CATALOG_MULTIVERSO_EBERRON } from "./s
 import { SPECIES_CATALOG_MULTIVERSO_RAVNICA_THEROS, SPECIES_CATALOG_RAVNICA, SPECIES_CATALOG_THEROS } from "./speciesCatalogRavnicaTheros.js";
 import { SPECIES_CATALOG_STRIXHAVEN, SPECIES_CATALOG_WITCHLIGHT } from "./speciesCatalogWitchlightStrixhaven.js";
 import { SPECIES_CATALOG_ACQUISITIONS, SPECIES_CATALOG_GRUNG, SPECIES_CATALOG_LOCATHAH, SPECIES_CATALOG_MULTIVERSO_TORTLE, SPECIES_CATALOG_TORTLE } from "./speciesCatalogMinori.js";
+import { SPECIES_CATALOG_RAVENLOFT, SPECIES_CATALOG_WILDEMOUNT } from "./speciesCatalogWildemountRavenloft.js";
 
 export const SPECIES_FIELD = "species";
 
-const ancestry = (id, label, damageType, damageLabel) => Object.freeze({ id, label, damageType, damageLabel });
+// english: the colour or gem as English sheets name it, for the import.
+const ancestry = (id, label, damageType, damageLabel, english) => Object.freeze({ id, label, damageType, damageLabel, aliases: Object.freeze([english]) });
 // fullName: the option's label names the character by itself ("Marchio dell'ombra (elfo)").
 const option = (id, label, { aliases = [], resistances = [], fullName = false } = {}) =>
   Object.freeze({ id, label, aliases: Object.freeze(aliases), resistances: Object.freeze(resistances), immunities: Object.freeze([]), fullName });
@@ -36,6 +39,8 @@ const BOOKS = Object.freeze({
   grung: book("one-grung-above", "One Grung Above", ["one grung above", "oga"]),
   acquisitions: book("acquisitions-incorporated", "Acquisitions Incorporated", ["acquisitions incorporated", "acquisitions inc", "ai"]),
   locathah: book("locathah-rising", "Locathah Rising", ["locathah rising", "lr"]),
+  wildemount: book("wildemount", "Explorer's Guide to Wildemount", ["egtw", "wildemount", "explorer s guide to wildemount", "guida dell esploratore a wildemount"]),
+  ravenloft: book("ravenloft", "Van Richten's Guide to Ravenloft", ["vrgr", "ravenloft", "van richten", "van richten s guide to ravenloft", "guida di van richten a ravenloft"]),
   witchlight: book("witchlight", "The Wild Beyond the Witchlight", ["wbtw", "witchlight", "the wild beyond the witchlight", "wild beyond the witchlight"]),
   strixhaven: book("strixhaven", "Strixhaven: A Curriculum of Chaos", ["scc", "strixhaven", "strixhaven a curriculum of chaos", "strixhaven un curriculum del caos"]),
   eberron: book("eberron", "Eberron: Rising from the Last War", ["erlw", "eberron", "rising from the last war", "eberron rising from the last war"]),
@@ -46,21 +51,21 @@ const BOOKS = Object.freeze({
 });
 
 const DRAGON_ANCESTRIES = Object.freeze({
-  nero: ancestry("nero", "Nero", "acid", "acido"),
-  blu: ancestry("blu", "Blu", "lightning", "fulmine"),
-  verde: ancestry("verde", "Verde", "poison", "veleno"),
-  rosso: ancestry("rosso", "Rosso", "fire", "fuoco"),
-  bianco: ancestry("bianco", "Bianco", "cold", "freddo"),
-  ottone: ancestry("ottone", "Ottone", "fire", "fuoco"),
-  bronzo: ancestry("bronzo", "Bronzo", "lightning", "fulmine"),
-  rame: ancestry("rame", "Rame", "acid", "acido"),
-  oro: ancestry("oro", "Oro", "fire", "fuoco"),
-  argento: ancestry("argento", "Argento", "cold", "freddo"),
-  ametista: ancestry("ametista", "Ametista", "force", "forza"),
-  cristallo: ancestry("cristallo", "Cristallo", "radiant", "radiosi"),
-  smeraldo: ancestry("smeraldo", "Smeraldo", "psychic", "psichici"),
-  zaffiro: ancestry("zaffiro", "Zaffiro", "thunder", "tuono"),
-  topazio: ancestry("topazio", "Topazio", "necrotic", "necrotici"),
+  nero: ancestry("nero", "Nero", "acid", "acido", "black"),
+  blu: ancestry("blu", "Blu", "lightning", "fulmine", "blue"),
+  verde: ancestry("verde", "Verde", "poison", "veleno", "green"),
+  rosso: ancestry("rosso", "Rosso", "fire", "fuoco", "red"),
+  bianco: ancestry("bianco", "Bianco", "cold", "freddo", "white"),
+  ottone: ancestry("ottone", "Ottone", "fire", "fuoco", "brass"),
+  bronzo: ancestry("bronzo", "Bronzo", "lightning", "fulmine", "bronze"),
+  rame: ancestry("rame", "Rame", "acid", "acido", "copper"),
+  oro: ancestry("oro", "Oro", "fire", "fuoco", "gold"),
+  argento: ancestry("argento", "Argento", "cold", "freddo", "silver"),
+  ametista: ancestry("ametista", "Ametista", "force", "forza", "amethyst"),
+  cristallo: ancestry("cristallo", "Cristallo", "radiant", "radiosi", "crystal"),
+  smeraldo: ancestry("smeraldo", "Smeraldo", "psychic", "psichici", "emerald"),
+  zaffiro: ancestry("zaffiro", "Zaffiro", "thunder", "tuono", "sapphire"),
+  topazio: ancestry("topazio", "Topazio", "necrotic", "necrotici", "topaz"),
 });
 const pick = (...ids) => Object.freeze(ids.map((id) => DRAGON_ANCESTRIES[id]));
 
@@ -165,7 +170,7 @@ const MULTIVERSO = [...SPECIES_CATALOG_MULTIVERSO, ...SPECIES_CATALOG_MULTIVERSO
   .sort((left, right) => left.label.localeCompare(right.label, "it"));
 const BEFORE_FIZBAN = [...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, ...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TORTLE,
   ...SPECIES_CATALOG_GRUNG, ...SPECIES_CATALOG_TOMO, ...SPECIES_CATALOG_RAVNICA, ...SPECIES_CATALOG_ACQUISITIONS, ...SPECIES_CATALOG_LOCATHAH,
-  ...SPECIES_CATALOG_EBERRON, ...SPECIES_CATALOG_THEROS, ...SPECIES_CATALOG_WITCHLIGHT];
+  ...SPECIES_CATALOG_EBERRON, ...SPECIES_CATALOG_WILDEMOUNT, ...SPECIES_CATALOG_THEROS, ...SPECIES_CATALOG_RAVENLOFT, ...SPECIES_CATALOG_WITCHLIGHT];
 const AFTER_FIZBAN = [...SPECIES_CATALOG_STRIXHAVEN];
 const CATALOG = [...BEFORE_FIZBAN, ...AFTER_FIZBAN, ...MULTIVERSO];
 

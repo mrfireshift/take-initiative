@@ -48,9 +48,9 @@ test("species: by name, alias or option; one outside the catalog is reported", (
   assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "drow" }), "Elfo oscuro (drow)");
   assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "" }), "Elfo · sottorazza da scegliere");
   assert.equal(sheetImportSectionSummary("species", { id: "tiefling", ancestryId: "" }), "Tiefling");
-  const dhampir = read({ species: "Dhampir", armorClass: 12 });
-  assert.equal(dhampir.sections.species, undefined);
-  assert.match(dhampir.unresolved[0], /specie "Dhampir"/);
+  const autognome = read({ species: "Autognome", armorClass: 12 });
+  assert.equal(autognome.sections.species, undefined);
+  assert.match(autognome.unresolved[0], /specie "Autognome"/);
   assert.match(read({ species: { name: "Elfo", subrace: "Elfo marino" } }).unresolved[0], /sottorazza "Elfo marino"/);
 });
 
@@ -71,6 +71,11 @@ test("species in more than one manual: source picks the version, else the first 
   assert.equal(read({ species: "Harengon" }).unresolved.length, 0, "one entry, no ambiguity");
   assert.deepEqual(read({ species: { name: "Tortle", source: "MotM" } }).sections.species, { id: "tortle-multiverso", ancestryId: "" });
   assert.deepEqual(read({ species: { name: "Tortle", source: "The Tortle Package" } }).sections.species, { id: "tortle", ancestryId: "" });
+  const dragonborn = read({ species: { name: "Dragonborn", ancestry: "Red" } });
+  assert.deepEqual(dragonborn.sections.species, { id: "dragonide", ancestryId: "rosso" }, "English ancestry names too");
+  assert.equal(dragonborn.unresolved.some((line) => /più manuali/.test(line)), false, "the Wildemount variant does not make Dragonborn ambiguous");
+  assert.deepEqual(read({ species: "Ravenite" }).sections.species, { id: "dragonide-wildemount", ancestryId: "ravenite" });
+  assert.deepEqual(read({ species: { name: "Sea Elf", source: "Wildemount" } }).sections.species, { id: "elfo-marino", ancestryId: "" });
   assert.deepEqual(read({ species: { name: "Goblin", source: "Eberron" } }).sections.species, { id: "goblin", ancestryId: "" }, "same traits as Volo");
   assert.deepEqual(read({ species: "Mark of Shadow" }).sections.species, { id: "marchio-del-drago", ancestryId: "ombra" });
   assert.deepEqual(read({ species: { name: "Shifter", subrace: "Wildhunt", source: "MotM" } }).sections.species, { id: "shifter-multiverso", ancestryId: "caccia-selvaggia" });

@@ -193,7 +193,7 @@ export const SPECIES_CATALOG_TOMO = [
     ],
   },
   {
-    id: "elfo-marino", label: "Elfo marino", book: "tomo", page: 62, aliases: ["sea elf"], look: ["🌊", "#22d3ee", "#083344", "#ecfeff"],
+    id: "elfo-marino", label: "Elfo marino", book: "tomo", page: 62, alsoIn: ["wildemount"], aliases: ["sea elf"], look: ["🌊", "#22d3ee", "#083344", "#ecfeff"],
     traits: [
       passive("ascendenza-fatata", "Ascendenza fatata", FEY_ANCESTRY),
       passive("figlio-del-mare", "Figlio del mare", "Velocità di nuotare 9 m; respiri aria e acqua."),
