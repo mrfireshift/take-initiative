@@ -157,7 +157,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const applyRow=$("pc-attack-apply-row");
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
   const spellControls=$("pc-attack-spell-controls");
-  const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select");
+  const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select"),pickerList=$("pc-attack-picker-list");
   const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open");
   const attackView=$("pc-attack-attack-view"),launchBox=$("pc-attack-launch"),casterLine=$("pc-attack-caster");
   // A spell the console does not resolve (launched, woven into a weapon, or by hand): its card replaces the attack form.
@@ -813,12 +813,16 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     picker.hidden=entries.length<2 || !current;
     if(picker.hidden){pickerSignature="";return;}
     const tabs=pcAttackPickerTabs(entries),inTab=entries.filter(entry=>entry.tab===current.tab);
+    // The spells tab is a list by level; the other tabs keep the select.
+    const asList=current.tab==="spells" && !!pickerList;
     // A leveled spell cast left open (rays or darts still to register) says so in its entry.
+    const inProgress=entry=>entry.mode==="attack" && entry.tab==="spells"
+      && !!pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState});
     // In the cantrips and spells tabs ⚔ marks what the console resolves, ★ the favourites (as the 🪄 menu).
-    const label=entry=>[entry.pinned?"★ ":"",entry.label,entry.tab!=="attacks" && entry.mode==="attack"?" ⚔":"",
-      entry.mode==="attack" && entry.tab==="spells" && pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState})?" · in corso":""].join("");
-    // Rebuilt only when the list changes: a live update never closes the select the GM has open.
-    const signature=JSON.stringify([tabs.map(tab=>tab.id),current.tab,inTab.map(entry=>[entry.key,label(entry)])]);
+    const label=entry=>[entry.pinned?"★ ":"",entry.label,entry.tab!=="attacks" && entry.mode==="attack"?" ⚔":"",inProgress(entry)?" · in corso":""].join("");
+    const rowTags=entry=>[entry.mode==="attack"?"⚔":"",entry.concentration?"Conc.":"",entry.ritual?"Rit.":"",inProgress(entry)?"in corso":""].filter(Boolean).join(" · ");
+    // Rebuilt only when the list changes: a live update never closes the select the GM has open, nor scrolls the list.
+    const signature=JSON.stringify([tabs.map(tab=>tab.id),current.tab,asList,inTab.map(entry=>[entry.key,label(entry),rowTags(entry)])]);
     if(signature!==pickerSignature) {
       pickerSignature=signature;
       pickerTabs.replaceChildren(...tabs.map(tab=>{
@@ -829,18 +833,25 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         });
         return button;
       }));
-      const option=entry=>{const element=node("option",label(entry));element.value=entry.key;return element;};
-      // The spells by level, as in the 🪄 menu.
-      const levels=current.tab==="spells"?[...new Set(inTab.map(entry=>entry.level))]:[];
-      pickerSelect.replaceChildren(...(levels.length>1?levels.map(level=>{
-        const group=node("optgroup");group.label=Number.isInteger(level)?`${level}° livello`:"Altri";
-        group.append(...inTab.filter(entry=>entry.level===level).map(option));return group;
-      }):inTab.map(option)));
+      pickerSelect.replaceChildren(...(asList?[]:inTab.map(entry=>{const option=node("option",label(entry));option.value=entry.key;return option;})));
+      // The spells by level, as in the 🪄 menu: one row each, its marks on the right.
+      if(pickerList) pickerList.replaceChildren(...(!asList?[]:[...new Set(inTab.map(entry=>entry.level))].flatMap(level=>[
+        node("div",Number.isInteger(level)?`${level}° livello`:"Altri","picker-level"),
+        ...inTab.filter(entry=>entry.level===level).map(entry=>{
+          const row=node("button","","picker-row");row.type="button";row.dataset.pickerKey=entry.key;row.setAttribute("role","listitem");
+          row.append(node("span",`${entry.pinned?"★ ":""}${entry.label}`,"picker-row-name"),node("span",rowTags(entry),"picker-row-tags"));
+          row.addEventListener("click",()=>chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key)));
+          return row;
+        })])));
     }
     pickerTabs.hidden=tabs.length<2;
     for(const button of pickerTabs.querySelectorAll("button")){button.setAttribute("aria-pressed",String(button.dataset.pickerTab===current.tab));button.disabled=busy;}
-    pickerSelect.hidden=inTab.length<2;
-    pickerSelect.value=current.key;pickerSelect.disabled=busy;
+    pickerSelect.hidden=asList || inTab.length<2;
+    if(!asList){pickerSelect.value=current.key;pickerSelect.disabled=busy;}
+    if(pickerList) {
+      pickerList.hidden=!asList;
+      for(const row of pickerList.querySelectorAll("button")){row.setAttribute("aria-pressed",String(row.dataset.pickerKey===current.key));row.disabled=busy;}
+    }
   }
   // Another cantrip or spell of the same action changes in place; another action loads it with a fresh draft
   // (the target stays), after a confirmation when this attack already holds decisions.

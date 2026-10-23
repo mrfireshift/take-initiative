@@ -17,7 +17,7 @@ const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-att
   "pc-attack-palm", "pc-attack-palm-note", "pc-attack-palm-outcomes", "pc-attack-palm-amount", "pc-attack-palm-apply",
   "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-note", "pc-attack-area-list",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed", "pc-attack-picker", "pc-attack-picker-tabs", "pc-attack-picker-select",
-  "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow"];
+  "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow", "pc-attack-picker-list"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
@@ -795,9 +795,16 @@ test("a spell the console does not resolve shows its card instead of the form; t
   assert.match(textOf(f.$("pc-attack-launch")), /Concentrazione/);
   assert.equal(f.$("pc-attack-launch").querySelector("#pc-attack-launch-button").textContent, "Lancia");
   assert.match(textOf(f.$("pc-attack-caster")), /Slot 1° 1\/4 · 2° 2\/2.*Concentrazione: Benedizione/);
-  const groups = f.$("pc-attack-picker-select").children.map((group) => group.label);
-  assert.deepEqual(groups, ["1° livello", "2° livello"], "the spells by level");
-  await pick(f, "book:shield-of-faith::shield-of-faith");
+  const list = f.$("pc-attack-picker-list");
+  assert.equal(list.hidden, false);
+  assert.equal(f.$("pc-attack-picker-select").hidden, true, "the spells tab is a list, not a select");
+  assert.deepEqual(list.querySelectorAll(".picker-level").map((header) => header.textContent), ["1° livello", "2° livello"], "the spells by level");
+  const rows = list.querySelectorAll("button");
+  assert.deepEqual(rows.map((row) => textOf(row).trim()), ["Benedizione Conc.", "Scudo della fede Conc.", "Arma spirituale"]);
+  assert.equal(rows[0].getAttribute("aria-pressed"), "true");
+  await rows[1].click(); await tick();
+  assert.equal(f.$("pc-attack-title").textContent, "Scudo della fede");
+  assert.equal(list.querySelectorAll("button")[1].getAttribute("aria-pressed"), "true");
   assert.match(textOf(f.$("pc-attack-launch")), /Lanciandolo termina la concentrazione su Benedizione/);
   await pickerTabs(f)[0].click(); await tick();
   assert.equal(f.$("pc-attack-attack-view").hidden, false);
