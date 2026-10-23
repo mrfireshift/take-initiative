@@ -151,6 +151,49 @@ function makeAction(parent, label, icon, action, options = {}) {
   return button;
 }
 
+// Quick conditions (quickConditionsCore.js): one click adds the condition or takes it off, and the menu closes.
+// "on": every creature of the card has it; "mixed": some of a group do (a click then adds it to the others).
+function addQuickConditions(parent, conditions) {
+  const caption = document.createElement("div");
+  caption.className = "section-label";
+  caption.textContent = "Condizioni rapide";
+  parent.appendChild(caption);
+  const grid = document.createElement("div");
+  grid.className = "quick-conditions";
+  grid.setAttribute("role", "group");
+  grid.setAttribute("aria-label", "Condizioni rapide");
+  for (const condition of conditions) {
+    const name = String(condition?.name || "");
+    if (!isAllowedInitiativeCardMenuAction("toggle-condition", name)) continue;
+    const state = ["on", "mixed"].includes(condition.state) ? condition.state : "off";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("role", "menuitemcheckbox");
+    button.setAttribute("aria-checked", state === "on" ? "true" : state === "mixed" ? "mixed" : "false");
+    button.dataset.state = state;
+    button.title = state === "on"
+      ? `Togli ${name}`
+      : state === "mixed"
+      ? `${name} solo su alcuni: applica a tutti`
+      : `Applica ${name}`;
+    const emoji = document.createElement("span");
+    emoji.className = "emoji";
+    emoji.setAttribute("aria-hidden", "true");
+    emoji.textContent = String(condition.emoji || "");
+    const label = document.createElement("span");
+    label.className = "name";
+    label.textContent = name;
+    button.append(emoji, label);
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      sendAfterExit("action", "toggle-condition", name);
+    });
+    grid.appendChild(button);
+  }
+  parent.appendChild(grid);
+}
+
 function addSubmenu(parent, label, icon, entries) {
   const wrap = document.createElement("div");
   const content = document.createElement("div");
@@ -250,7 +293,10 @@ function render(payload) {
   title.textContent = payload.title || "Azioni";
   root.appendChild(title);
 
-  makeAction(root, "Condizioni", "conditions-panel.svg", "conditions");
+  const quickConditions = Array.isArray(payload.quickConditions) ? payload.quickConditions : [];
+  if (quickConditions.length) addQuickConditions(root, quickConditions);
+  // The full panel: the other conditions, durations and sources.
+  makeAction(root, quickConditions.length ? "Tutte le condizioni…" : "Condizioni", "conditions-panel.svg", "conditions");
   if (payload.expandedTokenMenu) {
     makeAction(root, "Rimuovi condizioni", "conditions-panel.svg", "clear-conditions", { danger: true });
     divider(root);

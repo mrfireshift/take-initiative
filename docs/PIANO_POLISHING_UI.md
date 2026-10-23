@@ -369,6 +369,13 @@ Stato dei lotti:
     - "Compila iniziativa": Omar, Lavera e Klos compilati in fila, evidenziazione che si toglie a ogni Invio, Ctrl+Invio chiude, ordine finale corretto;
     - durante la compilazione l'ordine nello stato si aggiorna mentre le card restano ferme, esattamente come nel classico.
   - **Nota aperta:** nel classico anche i giocatori aprono l'editor dell'iniziativa e il valore finisce sul token; da chiarire se è voluto.
+- **6.6 — fatto il 2026-10-23.**
+  - **Cosa:** in cima al menu del clic destro della card (compatta e classica, solo GM) ci sono le condizioni rapide: 13 pulsanti su due colonne con la loro emoji, tutte le applicabili tranne Pietrificato (scelta dell'utente). Un clic applica o toglie la condizione e chiude il menu: da 5 clic a 2. Sotto, "Tutte le condizioni…" apre il pannello per le altre, la durata e la fonte.
+  - **Stato:** attiva (evidenziata), assente o mista (con più token selezionati o un gruppo, solo alcuni ce l'hanno), calcolato all'apertura dallo stato dei token.
+  - **Scrittura:** azione `toggle-condition` nel protocollo del menu (ammessa solo con una condizione rapida), eseguita dal tracker con l'operazione del pannello (`conditionMutationOperations`, poi `condition:automate`), voce in cronologia ("Applicata: Prono", "Rimossa: Prono", "(selezione)") ed etichette sulla mappa. Nessun campo nuovo nei metadata. Con un gruppo misto la condizione va solo a chi non ce l'ha; se tutti ce l'hanno, si toglie a tutti.
+  - **Ira:** non è più una condizione ma la capacità del Barbaro. Esce dalle condizioni proposte (pannello, console, scheda), come Indebolimento; resta nel catalogo per le istanze salvate e per colore ed emoji dell'etichetta della capacità.
+  - **Non fatto:** la "×" su ogni pillola (facile da toccare per sbaglio al tavolo, e senza spazio nel compatto); il menu nativo del token è il lotto 6.7.
+  - **Verifica nell'anteprima:** Prono su Lavera applicata e tolta dal menu (stato "attiva" alla riapertura, due voci in cronologia, pillola sulla card); Goblin e capobanda selezionati insieme: Prono mista, il clic la aggiunge solo al Goblin; menu del capobanda con le sue quattro condizioni evidenziate.
 
 #### Revisione della barra compatta (dopo un test in OBR, 2026-10-23)
 

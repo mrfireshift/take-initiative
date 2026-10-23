@@ -1,3 +1,5 @@
+import { isQuickCondition } from "./quickConditionsCore.js";
+
 export const COMPACT_ADMIN_MENU_ACTIONS = Object.freeze([
   "reset-round",
   "history",
@@ -11,6 +13,7 @@ export const COMPACT_ADMIN_MENU_ACTIONS = Object.freeze([
 export const INITIATIVE_CARD_MENU_ACTIONS = Object.freeze([
   "conditions",
   "clear-conditions",
+  "toggle-condition",
   "spells",
   "clear-spells",
   "clear-concentration",
@@ -57,6 +60,7 @@ const INITIATIVE_CARD_SIMPLE_ACTION_SET = new Set(
       && action !== "table-side"
       && action !== "class-feature-activate"
       && action !== "class-feature-deactivate"
+      && action !== "toggle-condition"
   )
 );
 const INITIATIVE_CARD_ATTITUDE_SET = new Set(INITIATIVE_CARD_ATTITUDES);
@@ -156,6 +160,10 @@ export function isAllowedInitiativeCardMenuAction(action, value = "") {
   }
   if (normalizedAction === "table-side") {
     return INITIATIVE_CARD_TABLE_SIDE_SET.has(normalizedValue);
+  }
+  // Quick conditions (quickConditionsCore.js): only the names the menu offers.
+  if (normalizedAction === "toggle-condition") {
+    return isQuickCondition(normalizedValue);
   }
   if (
     normalizedAction === "class-feature-activate"

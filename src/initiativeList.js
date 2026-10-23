@@ -21,7 +21,8 @@ import {
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill, syncHPBatchToMemory } from "./hpMemory.js";
 import { isSharedHpInitiativeExcluded, sharedHpScopeIds, planSharedHpMutation } from "./sharedHpCore.js";
 import { sharedHpTrackerChildren, refreshSharedHpTrackerChildren } from "./sharedHpTrackerCore.js";
-import { refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
+import { refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, CONDITION_EMOJI, formatConditionName, formatConditionInstance, getConditionInstances, getEffectiveConditionInstances } from "./conditions";
+import { isQuickCondition, quickConditionMenuEntries, quickConditionToggleTargets } from "./quickConditionsCore.js";
 import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 import {
   CHIP_GAP_PX,
@@ -7939,6 +7940,39 @@ async function __clearCardConditions(ids, sceneEpoch = currentSceneEpoch()) {
   await refreshConditionLabels(scopeIds);
 }
 
+// Quick condition from the card's menu (lot 6.6): the effects panel's operation (add, or the toggle that removes every
+// instance of the condition), then its automation, with History and the map labels. Over a group the condition goes on
+// the creatures that lack it, or comes off all of them when every one has it (quickConditionToggleTargets).
+async function __toggleCardQuickCondition(ids, conditionName, sceneEpoch = currentSceneEpoch()) {
+  const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
+  if (!scopeIds.length || !isQuickCondition(conditionName)) return;
+  if (!__isCurrentSceneOperation(sceneEpoch, "toggle-card-quick-condition")) return;
+  await __selectContextScope(scopeIds, sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "toggle-card-quick-condition")) return;
+  const items = await OBR.scene.items.getItems(scopeIds);
+  if (!__isCurrentSceneOperation(sceneEpoch, "toggle-card-quick-condition")) return;
+  const plan = quickConditionToggleTargets(items.map((item) => ({
+    id: item.id,
+    conditions: getConditionInstances(item.metadata?.[META_KEY]?.conditions || {}).map((instance) => instance.condition),
+  })), conditionName);
+  if (!plan.targetIds.length) return;
+  const label = `${plan.mode === "remove" ? "Rimossa" : "Applicata"}: ${conditionName}${scopeIds.length > 1 ? " (selezione)" : ""}`;
+  const mutation = await runEffectsMutation(conditionMutationOperations({
+    targetIds: plan.targetIds,
+    conditionName,
+    mode: plan.mode === "remove" ? "toggle" : "add",
+  }), {
+    kind: "condition",
+    label,
+    targetIds: plan.targetIds,
+    history: { kind: "condition", label },
+    sceneEpoch,
+  });
+  if (!__isCurrentSceneOperation(sceneEpoch, "toggle-card-quick-condition")) return;
+  requireAppliedEffectsMutation(mutation);
+  await refreshConditionLabels(plan.targetIds);
+}
+
 async function __clearCardSpells(ids, sceneEpoch = currentSceneEpoch()) {
   const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
   if (!scopeIds.length || !__isCurrentSceneOperation(sceneEpoch, "clear-card-spells")) return;
@@ -8537,6 +8571,7 @@ async function __handleInitiativeCardContextMenuAction(context, data, sceneEpoch
     selectScope: (ids) => __selectContextScope(ids, sceneEpoch),
     openConditions: openCardEffectsPopup,
     clearConditions: (ids) => __clearCardConditions(ids, sceneEpoch),
+    toggleQuickCondition: (ids, conditionName) => __toggleCardQuickCondition(ids, conditionName, sceneEpoch),
     openSpells: openCardSpellsPopup,
     clearSpells: (ids) => __clearCardSpells(ids, sceneEpoch),
     clearConcentrations: (ids, sourceEntry) => __clearCardConcentrations(ids, sourceEntry, sceneEpoch),
@@ -8764,11 +8799,20 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
   const sourceItem = sceneSnapshot.complete
     ? sceneSnapshot.items.find((item) => item?.id === sourceEntry.id)
     : null;
+  // Quick conditions (lot 6.6): their state over the scope, from the scene snapshot, or the cards' own data when the
+  // snapshot is not complete. A click reads the live tokens again before it writes.
+  const conditionScope = scopeIds.map((id) => {
+    const raw = sceneSnapshot.complete
+      ? sceneSnapshot.items.find((item) => item?.id === id)?.metadata?.[META_KEY]?.conditions
+      : (__activeLabelEntriesById.get(id)?.conditions ?? (id === sourceEntry.id ? sourceEntry.conditions : null));
+    return { id, conditions: getConditionInstances(raw || {}).map((instance) => instance.condition) };
+  });
   const payload = buildInitiativeCardContextMenuPayload({
     sourceEntry,
     scopeIds,
     hasActiveConcentration,
     tableSide: sourceItem ? tableSideOfItem(sourceItem) : undefined,
+    quickConditions: quickConditionMenuEntries(conditionScope, CONDITION_EMOJI),
   });
   if (!writeStoredMenuPayload(
     localStorage,

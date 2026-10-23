@@ -35,6 +35,8 @@ export function buildInitiativeCardContextMenuPayload({
   hasActiveConcentration = false,
   // Current side of the table (south/west/north/east), null when none, undefined when unknown.
   tableSide = undefined,
+  // Quick conditions with their state over the scope (quickConditionMenuEntries).
+  quickConditions = null,
 } = {}) {
   const normalizedScopeIds = Array.isArray(scopeIds) ? scopeIds : [];
   const isBulkScope = normalizedScopeIds.length > 1;
@@ -70,6 +72,7 @@ export function buildInitiativeCardContextMenuPayload({
     ...(showTableSideMenu
       ? { showTableSideMenu: true, ...(tableSide !== undefined ? { tableSide: tableSide || "none" } : {}) }
       : {}),
+    ...(Array.isArray(quickConditions) && quickConditions.length ? { quickConditions } : {}),
     // Readied action (reactionTrackerCore.js), one creature at a time.
     ...(!isBulkScope && !sourceEntry?.__groupCollapsed
       ? { showReadiedActionMenu: true, hasReadiedAction: hasReadiedAction(sourceEntry?.conditions) }
@@ -100,6 +103,9 @@ export async function routeInitiativeCardContextMenuAction(
   }
   if (action === "clear-conditions") {
     return invoke("clearConditions", scopeIds);
+  }
+  if (action === "toggle-condition") {
+    return invoke("toggleQuickCondition", scopeIds, value);
   }
   if (action === "spells") {
     if (!await invoke("selectScope", scopeIds)) return false;

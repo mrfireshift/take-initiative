@@ -52,8 +52,12 @@ export const CONDITION_LIST = [
 
 // Indebolimento si gestisce dalla scheda personaggio: resta nel catalogo per
 // ordinamento e riconoscimento, ma non viene proposto come condizione generica.
+// Ira non è una condizione ma la capacità del Barbaro (classFeatureCore.js, "barbaro-ira"): come
+// Indebolimento resta nel catalogo, per le istanze salvate e per colore ed emoji dell'etichetta della
+// capacità, ma non si propone più tra le condizioni da applicare.
+const NON_APPLICABLE_CONDITIONS = new Set([EXHAUSTION_CONDITION, "Ira"]);
 export const APPLICABLE_CONDITION_LIST = CONDITION_LIST.filter(
-  (name) => name !== EXHAUSTION_CONDITION
+  (name) => !NON_APPLICABLE_CONDITIONS.has(name)
 );
 
 
