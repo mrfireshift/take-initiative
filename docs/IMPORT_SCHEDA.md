@@ -62,7 +62,7 @@ testo (`"+7"`, `"15"`).
 | Chiave | Contenuto |
 | --- | --- |
 | `classes` | Fino a quattro classi con livello della singola classe e sottoclasse. Classi in italiano o in inglese (`Wizard`, `Fighter`…); sottoclassi con il nome italiano del catalogo, anche parziale (`Divinazione`). Per una sola classe valgono anche `class`, `level` e `subclass` al primo livello. |
-| `species` | Testo o `{ "name", "ancestry" }`. Il plugin gestisce per ora solo i dragonidi; le altre specie vengono segnalate. |
+| `species` | Testo o `{ "name", "ancestry" }`: `ancestry` è l'ascendenza draconica, la sottorazza o la variante (accettati anche `subrace` e `variant`). Il nome può essere già la sottorazza ("Elfo oscuro (drow)", "Hill Dwarf"). Le specie fuori dal [catalogo](SPECIE.md) vengono segnalate. |
 | `armorClass`, `passivePerception`, `spellSaveDC`, `spellAttackBonus` | Numeri. |
 | `speed` | Metri (`9`, `"9 m"`) oppure piedi con l'unità (`"30 ft"`, `"30 piedi"`: 1,5 m ogni 5 piedi). |
 | `abilities` | Punteggi (`"int": 18`) oppure `{ "score": 18, "modifier": 4 }`. In alternativa `abilityScores` (punteggi) o `abilityModifiers` (modificatori). Chiavi `str dex con int wis cha` oppure `for des cos int sag car`, anche per esteso. |
@@ -85,7 +85,8 @@ JSON, senza commenti né testo intorno, con queste chiavi (ometti quelle che
 la scheda non riporta):
 
 name; classes: [{ class, level, subclass }] con il livello della singola
-classe; species: { name, ancestry }; armorClass; speed in metri ("9 m") o in
+classe; species: { name, ancestry } con ancestry = ascendenza draconica,
+sottorazza o variante; armorClass; speed in metri ("9 m") o in
 piedi con l'unità ("30 ft"); passivePerception; spellSaveDC;
 spellAttackBonus; abilities: punteggi di caratteristica con chiavi
 str dex con int wis cha; savingThrows: bonus totali con le stesse chiavi;

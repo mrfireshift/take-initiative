@@ -38,12 +38,20 @@ test("classes in Italian or English, with subclasses by full or partial name", (
   assert.deepEqual(read({ class: "Bardo", level: 3 }).sections.classes, [{ classId: "bardo", level: 3, subclassId: "" }]);
 });
 
-test("species: the dragonborn the plugin knows; any other is reported", () => {
+test("species: by name, alias or option; one outside the catalog is reported", () => {
   assert.deepEqual(read({ species: { name: "Dragonide cromatico", ancestry: "Bianco" } }).sections.species,
     { id: "dragonide-cromatico", ancestryId: "bianco" });
-  const elf = read({ species: "Elfo", armorClass: 12 });
-  assert.equal(elf.sections.species, undefined);
-  assert.match(elf.unresolved[0], /specie "Elfo"/);
+  assert.deepEqual(read({ species: "Elfo oscuro (drow)" }).sections.species, { id: "elfo", ancestryId: "drow" });
+  assert.deepEqual(read({ race: "Hill Dwarf" }).sections.species, { id: "nano", ancestryId: "colline" });
+  assert.deepEqual(read({ species: { name: "Elf", subrace: "Wood Elf" } }).sections.species, { id: "elfo", ancestryId: "boschi" });
+  assert.deepEqual(read({ species: "Tiefling" }).sections.species, { id: "tiefling", ancestryId: "" });
+  assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "drow" }), "Elfo oscuro (drow)");
+  assert.equal(sheetImportSectionSummary("species", { id: "elfo", ancestryId: "" }), "Elfo · sottorazza da scegliere");
+  assert.equal(sheetImportSectionSummary("species", { id: "tiefling", ancestryId: "" }), "Tiefling");
+  const goblin = read({ species: "Goblin", armorClass: 12 });
+  assert.equal(goblin.sections.species, undefined);
+  assert.match(goblin.unresolved[0], /specie "Goblin"/);
+  assert.match(read({ species: { name: "Elfo", subrace: "Elfo marino" } }).unresolved[0], /sottorazza "Elfo marino"/);
 });
 
 test("statistics: numbers or text, speed in metres or feet", () => {

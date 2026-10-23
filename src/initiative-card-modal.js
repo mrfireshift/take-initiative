@@ -20,7 +20,7 @@ import {
 } from "./spells-srd.js";
 import { getSpellsFromItem } from "./spells.js";
 import { DAMAGE_TYPES, DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, damageDefenseFor, damageDefenseTag, hasDamageDefenses, profileDamageDefenses } from "./damageDefensesCore.js";
-import { SPECIES, SPECIES_FIELD, getSpecies, sanitizeSpecies, speciesDisplayName } from "./speciesTraitCore.js";
+import { SPECIES, SPECIES_FIELD, getSpecies, sanitizeSpecies, speciesDisplayName, speciesOptionMissing } from "./speciesTraitCore.js";
 import { ABILITY_KEYS, ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import {
   MAX_QUICK_ACTIONS,
@@ -1406,7 +1406,8 @@ function classFeatureMetaText(feature) {
   const parts = [
     classFeatureActivationLabel(feature),
     `liv. ${feature.minimumLevel}`,
-    feature.sourceLabel,
+    // A species trait shows its page, to check it on the manual.
+    feature.speciesId && feature.page ? `${feature.sourceLabel} p. ${feature.page}` : feature.sourceLabel,
     currentDie ? `dado corrente ${currentDie}` : "",
     targeting.rangeMeters
       ? `${targeting.mode === "aura" ? "area" : "portata"} ${targeting.rangeMeters} m`
@@ -3923,16 +3924,24 @@ function buildDefenseInputs() {
 function buildSpeciesAncestryOptions(speciesId, ancestryId = "") {
   const select = $("speciesAncestryInput");
   const species = getSpecies(speciesId);
-  select.replaceChildren(new Option(species ? "Scegli…" : "—", ""), ...(species?.ancestries || [])
-    .map((entry) => new Option(`${entry.label} · ${entry.damageLabel}`, entry.id)));
-  select.disabled = !species;
+  const options = species?.ancestries || [];
+  $("speciesAncestryLabel").textContent = species?.optionLabel || "Ascendenza";
+  select.replaceChildren(new Option(options.length ? "Scegli…" : "—", ""), ...options
+    .map((entry) => new Option(entry.damageLabel ? `${entry.label} · ${entry.damageLabel}` : entry.label, entry.id)));
+  select.disabled = !options.length;
   select.value = species?.ancestries.some((entry) => entry.id === ancestryId) ? ancestryId : "";
 }
 
 function buildSpeciesEditor() {
   const current = sanitizeSpecies(profile?.[SPECIES_FIELD]);
   const select = $("speciesInput");
-  select.replaceChildren(new Option("Nessuna", ""), ...SPECIES.map((entry) => new Option(entry.label, entry.id)));
+  // Grouped by manual, in the book's order.
+  const groups = new Map();
+  for (const entry of SPECIES) {
+    if (!groups.has(entry.sourceLabel)) groups.set(entry.sourceLabel, Object.assign(document.createElement("optgroup"), { label: entry.sourceLabel }));
+    groups.get(entry.sourceLabel).append(new Option(entry.label, entry.id));
+  }
+  select.replaceChildren(new Option("Nessuna", ""), ...groups.values());
   select.value = current?.id || "";
   buildSpeciesAncestryOptions(current?.id, current?.ancestryId);
 }
@@ -4197,7 +4206,10 @@ $("form").addEventListener("submit", async (event) => {
     const abilityPatch = hasAbilityModifiers(abilityModifiers) || Object.hasOwn(profile || {}, ABILITY_MODIFIERS_FIELD)
       ? { [ABILITY_MODIFIERS_FIELD]: abilityModifiers } : {};
     const species = collectSpecies();
-    if (species && !species.ancestryId) throw new Error("Scegli l'ascendenza della specie.");
+    if (speciesOptionMissing(species)) {
+      const choice = getSpecies(species.id).optionLabel.toLocaleLowerCase("it");
+      throw new Error(`Scegli ${/^[aeiou]/.test(choice) ? "l'" : "la "}${choice} della specie.`);
+    }
     const speciesPatch = species || Object.hasOwn(profile || {}, SPECIES_FIELD) ? { [SPECIES_FIELD]: species } : {};
     // Come la specie: il libro si scrive solo se usato o già presente.
     const spellbook = sanitizeSpellbook(draftSpellbook);

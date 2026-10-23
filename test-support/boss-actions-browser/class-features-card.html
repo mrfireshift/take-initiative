@@ -67,11 +67,14 @@
     },
     orizzonte: { name: "Corin", build: [{ classId: "ranger", level: 7, subclassId: "ranger-viandante-dell-orizzonte" }] },
     ranger: { name: "Tamsin", build: [{ classId: "ranger", level: 7, subclassId: "ranger-cacciatore" }] },
+    // I tratti di specie: senza sottorazza (tiefling) e con sottorazza (drow).
+    tiefling: { name: "Zar", build: [{ classId: "warlock", level: 5, subclassId: "warlock-l-immondo" }], species: { id: "tiefling", ancestryId: "" } },
+    drow: { name: "Ilvara", build: [{ classId: "ladro", level: 3, subclassId: "ladro-lama-spirituale" }], species: { id: "elfo", ancestryId: "drow" } },
   };
   const selected = characters[params.get("pc")] ? params.get("pc") : "warlock";
   fakeHost.state.role = params.get("role") === "PLAYER" ? "PLAYER" : "GM";
   // options: opzioni a scelta da abilitare oltre alle capacità di default.
-  const cardFor = (pc) => ({ ...cardBuildFor(pc), ...(pc.spellbook ? { spellbook: pc.spellbook } : {}) });
+  const cardFor = (pc) => ({ ...cardBuildFor(pc), ...(pc.spellbook ? { spellbook: pc.spellbook } : {}), ...(pc.species ? { species: pc.species } : {}) });
   const cardBuildFor = (pc) => (pc.options
     ? {
       characterBuild: pc.build,

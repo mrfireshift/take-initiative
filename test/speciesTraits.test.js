@@ -1,9 +1,9 @@
-// Species traits (first tranche: dragonborn): profile field, passive resistance, Chromatic Warding.
+// Species traits (dragonborn and the PHB 2014 species): profile field, passive resistance, Chromatic Warding.
 import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 
 mock.module("@owlbear-rodeo/sdk", { exports: { default: { onReady() {} }, buildLabel() {}, buildImage() {}, buildText() {}, buildPath() {}, buildShape() {}, Command: class {} } });
-const { sanitizeSpecies, speciesDamageDefenses, speciesDisplayName, SPECIES_FEATURES } = await import("../src/speciesTraitCore.js");
+const { SPECIES, sanitizeSpecies, speciesDamageDefenses, speciesDisplayName, speciesOptionMissing, speciesFeaturesForProfile, SPECIES_FEATURES } = await import("../src/speciesTraitCore.js");
 const { CLASS_FEATURE_BY_ID, CLASS_FEATURE_RESOURCE_POOL_BY_ID, CLASS_FEATURES, getEnabledClassFeatures, getAvailableClassFeatures } = await import("../src/classFeatureCatalog.js");
 const { planClassFeatureActivation, classFeatureConditionInstancesForActivation, classFeatureRuntimeSupport, resolveClassFeatureResourceMaximum } = await import("../src/classFeatureCore.js");
 const { damageDefensesForItem, profileDamageDefenses } = await import("../src/damageDefensesCore.js");
@@ -16,7 +16,7 @@ const whiteDragonborn = (level = 5) => ({ species: { id: "dragonide-cromatico", 
 test("the species field is sanitized and optional", () => {
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "bianco" }), { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "oro" }), { id: "dragonide-cromatico", ancestryId: "" }, "gold is metallic, not chromatic");
-  assert.equal(sanitizeSpecies({ id: "elfo" }), null);
+  assert.equal(sanitizeSpecies({ id: "goblin" }), null, "not in the catalog yet");
   assert.equal(Object.hasOwn(sanitizeInitiativeCard({}), "species"), false, "profiles without a species keep their shape");
   assert.deepEqual(sanitizeInitiativeCard({ species: { id: "dragonide-cromatico", ancestryId: "bianco" } }).species, { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.equal(hasInitiativeCardValues(sanitizeInitiativeCard({ species: { id: "dragonide", ancestryId: "rosso" } })), true);
@@ -74,4 +74,48 @@ test("activating Chromatic Warding spends its long-rest use and grants cold immu
 test("the Fizban breath weapon uses equal the proficiency bonus", () => {
   const pool = CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-dragonide-fizban-arma-a-soffio-usi");
   assert.equal(resolveClassFeatureResourceMaximum(pool, [{ classId: "stregone", level: 5 }]).maximum, 3);
+});
+
+const traits = (species, level = 0) => speciesFeaturesForProfile({ species }, level).map((feature) => feature.id);
+
+test("a PHB species has its own traits and those of the chosen subrace only", () => {
+  assert.deepEqual(traits({ id: "elfo", ancestryId: "drow" }, 3), [
+    "specie-elfo-ascendenza-fatata", "specie-elfo-sensibilita-alla-luce-del-sole", "specie-elfo-magia-drow", "specie-elfo-magia-drow-luminescenza",
+  ]);
+  assert.equal(traits({ id: "elfo", ancestryId: "drow" }, 5).includes("specie-elfo-magia-drow-oscurita"), true);
+  assert.deepEqual(traits({ id: "elfo", ancestryId: "" }), [], "a species with subraces needs one");
+  assert.equal(speciesOptionMissing({ id: "elfo" }), true);
+  assert.equal(speciesOptionMissing({ id: "tiefling" }), false, "a species without options is complete");
+  assert.deepEqual(traits({ id: "mezzorco" }), ["specie-mezzorco-tenacia-implacabile", "specie-mezzorco-attacchi-selvaggi"]);
+  assert.deepEqual(traits({ id: "umano", ancestryId: "standard" }), []);
+  assert.equal(speciesDisplayName({ id: "nano", ancestryId: "colline" }), "Nano delle colline");
+  assert.equal(speciesDisplayName({ id: "mezzelfo" }), "Mezzelfo");
+});
+
+test("species and subrace resistances are passive profile defenses", () => {
+  assert.deepEqual(speciesDamageDefenses({ id: "nano", ancestryId: "montagne" }), { resistances: ["poison"] });
+  assert.deepEqual(speciesDamageDefenses({ id: "halfling", ancestryId: "tozzo" }), { resistances: ["poison"] });
+  assert.deepEqual(speciesDamageDefenses({ id: "halfling", ancestryId: "piedelesto" }), {});
+  assert.deepEqual(speciesDamageDefenses({ id: "tiefling" }), { resistances: ["fire"] });
+});
+
+test("every species trait names its manual and page, and no option id collides", () => {
+  for (const feature of SPECIES_FEATURES) {
+    assert.ok(feature.sourceLabel && Number.isInteger(feature.page), feature.id);
+    if (feature.ancestryId) assert.ok(SPECIES.find((entry) => entry.id === feature.speciesId).ancestries.some((entry) => entry.id === feature.ancestryId), feature.id);
+  }
+  assert.equal(new Set(SPECIES_FEATURES.map((feature) => feature.id)).size, SPECIES_FEATURES.length);
+});
+
+test("an innate spell spends its own long-rest use", () => {
+  const feature = CLASS_FEATURE_BY_ID.get("specie-tiefling-eredita-infernale-intimorire-infernale");
+  const build = [{ classId: "warlock", level: 3 }];
+  const activation = planClassFeatureActivation({ state: null, feature, poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID, characterBuild: build,
+    sourceId: "zar", targetIds: ["zar"], currentRound: 1, currentTurnKey: "1:zar", instanceId: "rebuke-1" });
+  assert.equal(activation.ok, true, activation.reason);
+  const again = planClassFeatureActivation({ state: activation.state, feature, poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID, characterBuild: build,
+    sourceId: "zar", targetIds: ["zar"], currentRound: 2, currentTurnKey: "2:zar", instanceId: "rebuke-2" });
+  assert.equal(again.ok, false);
+  assert.equal(classFeatureRuntimeSupport(CLASS_FEATURE_BY_ID.get("specie-dragonide-arma-a-soffio-rosso")).ready, true, "the breath weapon spends its use too");
+  assert.equal(classFeatureRuntimeSupport(CLASS_FEATURE_BY_ID.get("specie-halfling-fortunato")).ready, false, "a passive trait is a reminder");
 });

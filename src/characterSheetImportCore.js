@@ -197,20 +197,36 @@ function importedClasses(data, unresolved) {
   return clean.length ? clean : null;
 }
 
-// species: "Dragonide cromatico" or { name, ancestry }. The plugin knows only the dragonborn species so far.
+// species: "Elfo oscuro (drow)", "Hill Dwarf" or { name, ancestry | subrace | variant }. A name may be the
+// species, one of its aliases or directly one of its options (ancestry, subrace, variant).
+function speciesNameMatches(entry, key) {
+  return [entry.id, entry.label, ...(entry.aliases || [])].some((name) => lookupKey(name) === key);
+}
+
 function importedSpecies(data, unresolved) {
   const raw = data.species ?? data.specie ?? data.race ?? data.razza;
   if (raw === undefined || raw === null || raw === "") return null;
   const source = typeof raw === "object" ? raw : { name: raw };
   const name = text(source.name ?? source.id);
-  const species = SPECIES.find((entry) => lookupKey(entry.id) === lookupKey(name) || lookupKey(entry.label) === lookupKey(name));
+  const key = lookupKey(name);
+  const optionName = source.ancestry ?? source.ascendenza ?? source.subrace ?? source.sottorazza ?? source.variant ?? source.variante;
+  let species = SPECIES.find((entry) => speciesNameMatches(entry, key));
+  let ancestry = null;
+  if (!species && key) {
+    for (const entry of SPECIES) {
+      ancestry = entry.ancestries.find((choice) => speciesNameMatches(choice, key));
+      if (ancestry) { species = entry; break; }
+    }
+  }
   if (!species) {
-    if (name) unresolved.push(`specie "${name}" (il plugin gestisce per ora i dragonidi)`);
+    if (name) unresolved.push(`specie "${name}" (non ancora nel catalogo del plugin)`);
     return null;
   }
-  const ancestryName = lookupKey(source.ancestry ?? source.ascendenza);
-  const ancestry = species.ancestries.find((entry) => lookupKey(entry.id) === ancestryName || lookupKey(entry.label) === ancestryName);
-  if (ancestryName && !ancestry) unresolved.push(`ascendenza "${text(source.ancestry ?? source.ascendenza)}"`);
+  const ancestryName = lookupKey(optionName);
+  if (ancestryName) {
+    ancestry = species.ancestries.find((entry) => speciesNameMatches(entry, ancestryName)) || null;
+    if (!ancestry) unresolved.push(`${(species.optionLabel || "opzione").toLocaleLowerCase("it")} "${text(optionName)}"`);
+  }
   return { id: species.id, ancestryId: ancestry?.id || "" };
 }
 
@@ -360,7 +376,8 @@ export function sheetImportSectionSummary(id, section, { classNameOf = (classId)
   if (id === "species") {
     const species = SPECIES.find((entry) => entry.id === section.id);
     const ancestry = species?.ancestries.find((entry) => entry.id === section.ancestryId);
-    return `${species?.label || section.id}${ancestry ? ` (${ancestry.label.toLocaleLowerCase("it")})` : " · ascendenza da scegliere"}`;
+    if (ancestry) return ancestry.damageLabel ? `${species.label} (${ancestry.label.toLocaleLowerCase("it")})` : ancestry.label;
+    return `${species?.label || section.id}${species?.ancestries.length ? ` · ${species.optionLabel.toLocaleLowerCase("it")} da scegliere` : ""}`;
   }
   if (id === "stats") {
     return STAT_KEYS.filter((key) => section[key] !== undefined).map((key) => {
