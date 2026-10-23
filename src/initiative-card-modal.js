@@ -4206,10 +4206,8 @@ $("form").addEventListener("submit", async (event) => {
     const abilityPatch = hasAbilityModifiers(abilityModifiers) || Object.hasOwn(profile || {}, ABILITY_MODIFIERS_FIELD)
       ? { [ABILITY_MODIFIERS_FIELD]: abilityModifiers } : {};
     const species = collectSpecies();
-    if (speciesOptionMissing(species)) {
-      const choice = getSpecies(species.id).optionLabel.toLocaleLowerCase("it");
-      throw new Error(`Scegli ${/^[aeiou]/.test(choice) ? "l'" : "la "}${choice} della specie.`);
-    }
+    // The option label varies (Marchio, Stirpe, Retaggio...): a message without an article fits every one.
+    if (speciesOptionMissing(species)) throw new Error(`Specie: scegli un'opzione in «${getSpecies(species.id).optionLabel}».`);
     const speciesPatch = species || Object.hasOwn(profile || {}, SPECIES_FIELD) ? { [SPECIES_FIELD]: species } : {};
     // Come la specie: il libro si scrive solo se usato o già presente.
     const spellbook = sanitizeSpellbook(draftSpellbook);

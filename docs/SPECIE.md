@@ -25,8 +25,8 @@ Multiverso).
   **Conferma consumo** scala l'uso, che torna con il riposo indicato. L'effetto
   si risolve al tavolo: il plugin non tocca PF, tiri o bersagli.
 - **Trasformazioni da 1 minuto** (Anima radiosa, Consunzione radiosa, Sudario
-  necrotico, Rivelazione celestiale): **Attiva** scala l'uso e mette una pill
-  di 10 round sul personaggio, con il promemoria dei danni extra.
+  necrotico, Rivelazione celestiale): **Attiva** scala l'uso e mette
+  un'etichetta di 10 round sul personaggio, con il promemoria dei danni extra.
 - Gli usi "pari al bonus di competenza" di Mostri del Multiverso seguono il
   livello totale del personaggio.
 - Un tratto compare dal livello indicato, contando il livello totale del
@@ -111,9 +111,9 @@ Da controllare con più attenzione, perché il ricordo è meno sicuro:
 | Aasimar | — | Resistenza celestiale | 105 | Passiva | 1 |
 | Aasimar | — | Mani guaritrici | 105 | Azione · 1/riposo lungo | 1 |
 | Aasimar | — | Portatore di luce | 105 | Passiva | 1 |
-| Aasimar | Aasimar protettore | Anima radiosa | 105 | Azione · 1/riposo lungo · pill 1 min | 3 |
-| Aasimar | Aasimar flagello | Consunzione radiosa | 105 | Azione · 1/riposo lungo · pill 1 min | 3 |
-| Aasimar | Aasimar caduto | Sudario necrotico | 105 | Azione · 1/riposo lungo · pill 1 min | 3 |
+| Aasimar | Aasimar protettore | Anima radiosa | 105 | Azione · 1/riposo lungo · etichetta 1 min | 3 |
+| Aasimar | Aasimar flagello | Consunzione radiosa | 105 | Azione · 1/riposo lungo · etichetta 1 min | 3 |
+| Aasimar | Aasimar caduto | Sudario necrotico | 105 | Azione · 1/riposo lungo · etichetta 1 min | 3 |
 | Firbolg | — | Magia firbolg | 107 | Passiva | 1 |
 | Firbolg | — | Magia firbolg: Individuazione del magico | 107 | Azione · 1/riposo breve | 1 |
 | Firbolg | — | Magia firbolg: Camuffare se stesso | 107 | Azione · 1/riposo breve | 1 |
@@ -298,7 +298,7 @@ delle voci di Volo (l'orco di Eberron cambia solo punteggi e competenze): non
 sono doppioni, e l'import li trova anche con `source: "Eberron"`.
 
 - **Shifter**: la seconda scelta è la forma (pelle bestiale, zanna lunga, passo
-  rapido, caccia selvaggia); **Mutazione** mette una pill di 1 minuto. I punti
+  rapido, caccia selvaggia); **Mutazione** mette un'etichetta di 1 minuto. I punti
   ferita temporanei si aggiungono a mano: il plugin non tocca i PF.
 - **Marchio del drago**: una specie con il **Marchio** come seconda scelta (i
   dodici marchi di Eberron, con la specie d'origine tra parentesi). Ogni marchio
@@ -328,10 +328,10 @@ Da controllare con più attenzione:
 | Kalashtar | — | Disciplina mentale | 23 | Passiva | 1 |
 | Kalashtar | — | Legame mentale | 23 | Passiva | 1 |
 | Kalashtar | — | Separato dai sogni | 23 | Passiva | 1 |
-| Shifter | Shifter pelle bestiale | Mutazione: Pelle bestiale | 27 | Azione bonus · 1/riposo breve · pill 1 min | 1 |
-| Shifter | Shifter zanna lunga | Mutazione: Zanna lunga | 27 | Azione bonus · 1/riposo breve · pill 1 min | 1 |
-| Shifter | Shifter passo rapido | Mutazione: Passo rapido | 27 | Azione bonus · 1/riposo breve · pill 1 min | 1 |
-| Shifter | Shifter caccia selvaggia | Mutazione: Caccia selvaggia | 27 | Azione bonus · 1/riposo breve · pill 1 min | 1 |
+| Shifter | Shifter pelle bestiale | Mutazione: Pelle bestiale | 27 | Azione bonus · 1/riposo breve · etichetta 1 min | 1 |
+| Shifter | Shifter zanna lunga | Mutazione: Zanna lunga | 27 | Azione bonus · 1/riposo breve · etichetta 1 min | 1 |
+| Shifter | Shifter passo rapido | Mutazione: Passo rapido | 27 | Azione bonus · 1/riposo breve · etichetta 1 min | 1 |
+| Shifter | Shifter caccia selvaggia | Mutazione: Caccia selvaggia | 27 | Azione bonus · 1/riposo breve · etichetta 1 min | 1 |
 | Warforged | — | Resilienza costruita | 36 | Passiva | 1 |
 | Warforged | — | Riposo della sentinella | 36 | Passiva | 1 |
 | Warforged | — | Protezione integrata | 36 | Passiva | 1 |
@@ -395,11 +395,81 @@ Da controllare con più attenzione:
 | Marchio del drago | Marchio della protezione (nano) | Protezioni e sigilli: Armatura magica | 40 | Azione · 1/riposo lungo | 1 |
 | Marchio del drago | Marchio della protezione (nano) | Protezioni e sigilli: Serratura arcana | 40 | Azione · 1/riposo lungo | 3 |
 
+## Tranche 5 — Ravnica, Theros
+
+Titoli indicati in inglese, come per Elemental Evil ed Eberron: da correggere se
+c'è un'edizione italiana. Loxodon, ibrido Simic, vedalken e leonin non hanno
+ristampa in Mostri del Multiverso; centauro, minotauro e satiro sì.
+
+Il goblin di Ravnica è quello di Volo; centauro e minotauro di Theros sono
+quelli di Ravnica, il tritone di Theros quello di Volo. Non sono doppioni:
+l'import li trova anche con `source: "Ravnica"` o `"Theros"`.
+
+L'**ibrido Simic** sceglie un potenziamento animale al 1° livello (planata della
+manta, scalatore agile, adattamento subacqueo) e un altro al 5° (uno dei due
+restanti, appendici prensili, carapace o sputo acido). La seconda tendina offre
+le 15 combinazioni; il secondo potenziamento compare dal 5° livello. Lo sputo
+acido ha usi pari al modificatore di Costituzione (minimo 1), letto dai
+modificatori del profilo.
+
+Centauro e satiro sono di tipo folletto: è un promemoria, il plugin non usa il
+tipo di creatura dei PG.
+
+Restano fuori le competenze (Sopravvissuto, Istinti del cacciatore, Festaiolo,
+Presenza imponente) e la Costituzione possente.
+
+Da controllare con più attenzione:
+
+- **tutte le pagine di Ravnica e Theros**, e quelle di centauro, minotauro e
+  satiro in Mostri del Multiverso;
+- la spinta di Corna martellanti: 1,5 m in Ravnica, 3 m in Mostri del
+  Multiverso;
+- i nomi italiani dei tratti, e "folletto" come tipo di creatura.
+
+### Guildmasters' Guide to Ravnica
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Centauro | — | Fatato | 15 | Passiva | 1 |
+| Centauro | — | Carica | 15 | Passiva | 1 |
+| Centauro | — | Zoccoli | 15 | Passiva | 1 |
+| Centauro | — | Struttura equina | 15 | Passiva | 1 |
+| Loxodon | — | Serenità loxodon | 18 | Passiva | 1 |
+| Loxodon | — | Armatura naturale | 18 | Passiva | 1 |
+| Loxodon | — | Proboscide | 18 | Passiva | 1 |
+| Loxodon | — | Olfatto acuto | 18 | Passiva | 1 |
+| Minotauro | — | Corna | 19 | Passiva | 1 |
+| Minotauro | — | Carica incornante | 19 | Passiva | 1 |
+| Minotauro | — | Corna martellanti | 19 | Passiva | 1 |
+| Ibrido Simic | 5 combinazioni | Planata della manta | 20 | Passiva | 1 |
+| Ibrido Simic | 2 combinazioni | Planata della manta | 20 | Passiva | 5 |
+| Ibrido Simic | 5 combinazioni | Scalatore agile | 20 | Passiva | 1 |
+| Ibrido Simic | 2 combinazioni | Scalatore agile | 20 | Passiva | 5 |
+| Ibrido Simic | 5 combinazioni | Adattamento subacqueo | 20 | Passiva | 1 |
+| Ibrido Simic | 2 combinazioni | Adattamento subacqueo | 20 | Passiva | 5 |
+| Ibrido Simic | 3 combinazioni | Appendici prensili | 20 | Passiva | 5 |
+| Ibrido Simic | 3 combinazioni | Carapace | 20 | Passiva | 5 |
+| Ibrido Simic | 3 combinazioni | Sputo acido | 20 | Azione · competenza/riposo lungo | 5 |
+| Vedalken | — | Distacco vedalken | 21 | Passiva | 1 |
+| Vedalken | — | Precisione instancabile | 21 | Passiva | 1 |
+| Vedalken | — | Parzialmente anfibio | 21 | Passiva | 1 |
+
+### Mythic Odysseys of Theros
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Leonin | — | Artigli | 21 | Passiva | 1 |
+| Leonin | — | Ruggito intimidatorio | 21 | Azione bonus · 1/riposo breve | 1 |
+| Satiro | — | Fatato | 25 | Passiva | 1 |
+| Satiro | — | Ariete | 25 | Passiva | 1 |
+| Satiro | — | Resistenza alla magia | 25 | Passiva | 1 |
+| Satiro | — | Balzi gioiosi | 25 | Passiva | 1 |
+
 ## Mordenkainen presenta: Mostri del Multiverso
 
 Le ristampe delle specie delle tranche precedenti, in ordine alfabetico. Le
-altre specie del manuale (centauro, fata, harengon, minotauro, satiro, tortle)
-arrivano con il loro manuale d'origine.
+altre specie del manuale (fata, harengon, tortle) arrivano con il loro manuale
+d'origine.
 
 | Specie | Opzione | Tratto | Pag. | Uso | Liv. |
 |---|---|---|---|---|---|
@@ -409,12 +479,16 @@ arrivano con il loro manuale d'origine.
 | Aasimar | — | Resistenza celestiale | 7 | Passiva | 1 |
 | Aasimar | — | Mani guaritrici | 7 | Azione · 1/riposo lungo | 1 |
 | Aasimar | — | Portatore di luce | 7 | Passiva | 1 |
-| Aasimar | — | Rivelazione celestiale: Ali celestiali | 7 | Azione bonus · 1/riposo lungo · pill 1 min | 3 |
-| Aasimar | — | Rivelazione celestiale: Radiosità interiore | 7 | Azione bonus · 1/riposo lungo · pill 1 min | 3 |
-| Aasimar | — | Rivelazione celestiale: Sudario necrotico | 7 | Azione bonus · 1/riposo lungo · pill 1 min | 3 |
+| Aasimar | — | Rivelazione celestiale: Ali celestiali | 7 | Azione bonus · 1/riposo lungo · etichetta 1 min | 3 |
+| Aasimar | — | Rivelazione celestiale: Radiosità interiore | 7 | Azione bonus · 1/riposo lungo · etichetta 1 min | 3 |
+| Aasimar | — | Rivelazione celestiale: Sudario necrotico | 7 | Azione bonus · 1/riposo lungo · etichetta 1 min | 3 |
 | Bugbear | — | Ascendenza fatata | 8 | Passiva | 1 |
 | Bugbear | — | Arti lunghi | 8 | Passiva | 1 |
 | Bugbear | — | Attacco a sorpresa | 8 | Passiva | 1 |
+| Centauro | — | Fatato | 9 | Passiva | 1 |
+| Centauro | — | Carica | 9 | Passiva | 1 |
+| Centauro | — | Zoccoli | 9 | Passiva | 1 |
+| Centauro | — | Struttura equina | 9 | Passiva | 1 |
 | Changeling | — | Mutaforma | 10 | Passiva | 1 |
 | Coboldo | — | Grido draconico | 25 | Azione bonus · competenza/riposo lungo | 1 |
 | Coboldo | Retaggio della sfida | Retaggio coboldo: Sfida | 25 | Passiva | 1 |
@@ -485,15 +559,23 @@ arrivano con il loro manuale d'origine.
 | Lucertoloide | — | Trattenere il respiro | 26 | Passiva | 1 |
 | Lucertoloide | — | Armatura naturale | 26 | Passiva | 1 |
 | Lucertoloide | — | Fauci fameliche | 26 | Azione bonus · competenza/riposo lungo | 1 |
+| Minotauro | — | Corna | 27 | Passiva | 1 |
+| Minotauro | — | Carica incornante | 27 | Passiva | 1 |
+| Minotauro | — | Corna martellanti | 27 | Passiva | 1 |
+| Minotauro | — | Memoria del labirinto | 27 | Passiva | 1 |
 | Orco | — | Scarica di adrenalina | 28 | Azione bonus · competenza/riposo breve | 1 |
 | Orco | — | Tenacia implacabile | 28 | Innesco · 1/riposo lungo | 1 |
+| Satiro | — | Fatato | 29 | Passiva | 1 |
+| Satiro | — | Ariete | 29 | Passiva | 1 |
+| Satiro | — | Resistenza alla magia | 29 | Passiva | 1 |
+| Satiro | — | Balzi gioiosi | 29 | Passiva | 1 |
 | Shadar-kai | — | Ascendenza fatata | 31 | Passiva | 1 |
 | Shadar-kai | — | Resistenza necrotica | 31 | Passiva | 1 |
 | Shadar-kai | — | Benedizione della Regina Corvo | 31 | Azione bonus · competenza/riposo lungo | 1 |
-| Shifter | Shifter pelle bestiale | Mutazione: Pelle bestiale | 32 | Azione bonus · competenza/riposo lungo · pill 1 min | 1 |
-| Shifter | Shifter zanna lunga | Mutazione: Zanna lunga | 32 | Azione bonus · competenza/riposo lungo · pill 1 min | 1 |
-| Shifter | Shifter passo rapido | Mutazione: Passo rapido | 32 | Azione bonus · competenza/riposo lungo · pill 1 min | 1 |
-| Shifter | Shifter caccia selvaggia | Mutazione: Caccia selvaggia | 32 | Azione bonus · competenza/riposo lungo · pill 1 min | 1 |
+| Shifter | Shifter pelle bestiale | Mutazione: Pelle bestiale | 32 | Azione bonus · competenza/riposo lungo · etichetta 1 min | 1 |
+| Shifter | Shifter zanna lunga | Mutazione: Zanna lunga | 32 | Azione bonus · competenza/riposo lungo · etichetta 1 min | 1 |
+| Shifter | Shifter passo rapido | Mutazione: Passo rapido | 32 | Azione bonus · competenza/riposo lungo · etichetta 1 min | 1 |
+| Shifter | Shifter caccia selvaggia | Mutazione: Caccia selvaggia | 32 | Azione bonus · competenza/riposo lungo · etichetta 1 min | 1 |
 | Tabaxi | — | Artigli felini | 33 | Passiva | 1 |
 | Tabaxi | — | Agilità felina | 33 | Passiva | 1 |
 | Tritone | — | Anfibio | 35 | Passiva | 1 |
@@ -510,7 +592,7 @@ arrivano con il loro manuale d'origine.
 
 ## Tranche successive
 
-Ancora da scrivere: Ravnica, Theros, Wildemount, Strixhaven,
+Ancora da scrivere: Wildemount, Strixhaven,
 Witchlight, Van Richten, Spelljammer, Dragonlance, il lignaggio personalizzato
 di Tasha e le specie minori (Locathah, Grung, Verdan), ciascuna con la propria
 ristampa in Mostri del Multiverso dove c'è. Una specie fuori catalogo,

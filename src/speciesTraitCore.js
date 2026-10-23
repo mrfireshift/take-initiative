@@ -6,11 +6,13 @@
 // Tranche 1: the PHB 2014 species and the Fizban's dragonborn variants; tranche 2, declared in
 // speciesCatalogVoloMordenkainen.js: Volo, Tomo dei Nemici and Mostri del Multiverso; tranche 3, in
 // speciesCatalogCostaElementalEvil.js: Elemental Evil and Costa della Spada; tranche 4, in
-// speciesCatalogEberron.js: Eberron (see docs/SPECIE.md).
+// speciesCatalogEberron.js: Eberron; tranche 5, in speciesCatalogRavnicaTheros.js: Ravnica and Theros
+// (see docs/SPECIE.md).
 
 import { SPECIES_CATALOG_MULTIVERSO, SPECIES_CATALOG_TOMO, SPECIES_CATALOG_VOLO } from "./speciesCatalogVoloMordenkainen.js";
 import { SPECIES_CATALOG_COSTA, SPECIES_CATALOG_ELEMENTAL, SPECIES_CATALOG_MULTIVERSO_ELEMENTAL } from "./speciesCatalogCostaElementalEvil.js";
 import { SPECIES_CATALOG_EBERRON, SPECIES_CATALOG_MULTIVERSO_EBERRON } from "./speciesCatalogEberron.js";
+import { SPECIES_CATALOG_MULTIVERSO_RAVNICA_THEROS, SPECIES_CATALOG_RAVNICA, SPECIES_CATALOG_THEROS } from "./speciesCatalogRavnicaTheros.js";
 
 export const SPECIES_FIELD = "species";
 
@@ -25,6 +27,8 @@ const PHB = book("phb2014", "Manuale del Giocatore 2014", ["phb", "manuale del g
 const FIZBAN = book("fizban", "Il Tesoro dei Draghi di Fizban", ["fizban", "ftod", "fizban s treasury of dragons"]);
 const BOOKS = Object.freeze({
   elemental: book("elemental-evil", "Elemental Evil Player's Companion", ["eepc", "elemental evil", "elemental evil player s companion"]),
+  ravnica: book("ravnica", "Guildmasters' Guide to Ravnica", ["ggr", "ravnica", "guildmasters guide to ravnica", "guildmaster s guide to ravnica"]),
+  theros: book("theros", "Mythic Odysseys of Theros", ["moot", "theros", "mythic odysseys of theros", "mitiche odissee di theros"]),
   eberron: book("eberron", "Eberron: Rising from the Last War", ["erlw", "eberron", "rising from the last war", "eberron rising from the last war"]),
   costa: book("costa-della-spada", "Guida del Giocatore alla Costa della Spada", ["scag", "costa della spada", "sword coast", "sword coast adventurer s guide"]),
   volo: book("volo", "Guida di Volo ai Mostri", ["volo", "vgm", "guida di volo", "volo s guide to monsters"]),
@@ -147,9 +151,10 @@ const catalogSpecies = (spec) => speciesEntry({
   resistances: spec.resistances || [], immunities: spec.immunities || [], aliases: spec.aliases || [], look: theme(...spec.look),
 });
 // Mostri del Multiverso gathers the reprints of several tranches, in its own alphabetical order.
-const MULTIVERSO = [...SPECIES_CATALOG_MULTIVERSO, ...SPECIES_CATALOG_MULTIVERSO_ELEMENTAL, ...SPECIES_CATALOG_MULTIVERSO_EBERRON]
+const MULTIVERSO = [...SPECIES_CATALOG_MULTIVERSO, ...SPECIES_CATALOG_MULTIVERSO_ELEMENTAL, ...SPECIES_CATALOG_MULTIVERSO_EBERRON, ...SPECIES_CATALOG_MULTIVERSO_RAVNICA_THEROS]
   .sort((left, right) => left.label.localeCompare(right.label, "it"));
-const BEFORE_FIZBAN = [...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, ...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO, ...SPECIES_CATALOG_EBERRON];
+const BEFORE_FIZBAN = [...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, ...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO,
+  ...SPECIES_CATALOG_RAVNICA, ...SPECIES_CATALOG_EBERRON, ...SPECIES_CATALOG_THEROS];
 const CATALOG = [...BEFORE_FIZBAN, ...MULTIVERSO];
 
 // In order of publication: the select groups them by manual.
@@ -238,7 +243,9 @@ export const SPECIES_RESOURCE_POOLS = Object.freeze([
   pool("specie-tiefling-oscurita-usi", "Eredità infernale: Oscurità", { type: "fixed", value: 1 }, ["riposo_lungo"]),
   ...CATALOG.flatMap((spec) => (spec.pools || []).map((entry) => pool(
     `specie-${spec.id}-${entry.key}-usi`, entry.name,
-    entry.count === "pb" ? { type: "formula", expression: "bonus_competenza" } : { type: "fixed", value: entry.count },
+    // count: 1, "pb" or a pool formula ("max(1, modificatore_costituzione)").
+    entry.count === "pb" ? { type: "formula", expression: "bonus_competenza" }
+      : typeof entry.count === "string" ? { type: "formula", expression: entry.count } : { type: "fixed", value: entry.count },
     entry.rest === "breve" ? ["riposo_breve", "riposo_lungo"] : ["riposo_lungo"],
   ))),
 ]);
@@ -338,6 +345,7 @@ const DRAGONBORN_FEATURES = SPECIES.filter((entry) => DRAGONBORN_IDS.has(entry.i
 // A trait of the whole species (optionId empty) or of one subrace/variant. Passive traits are a
 // reference card; the others spend their own use with a button and are resolved at the table. Proficiencies,
 // languages, ability scores and plain darkvision stay out: they are part of the sheet, not of play.
+// optionId may be a list: the trait then belongs to each of those options (an ibrido Simic's pairs).
 function speciesTrait({ speciesId, optionId = "", key, name, page, description, activation = "passiva", minimumLevel = 1, poolId = "", effectPlan = null, rounds = null }) {
   const species = getSpecies(speciesId);
   const passive = activation === "passiva";
@@ -350,7 +358,8 @@ function speciesTrait({ speciesId, optionId = "", key, name, page, description, 
     classId: "",
     subclassId: "",
     speciesId,
-    ancestryId: optionId,
+    ancestryId: Array.isArray(optionId) ? "" : optionId,
+    ...(Array.isArray(optionId) ? { ancestryIds: Object.freeze([...optionId]) } : {}),
     minimumLevel,
     source: species.source,
     sourceLabel: species.sourceLabel,
@@ -464,6 +473,6 @@ export function speciesFeaturesForProfile(profile, totalCharacterLevel = 0) {
   if (!clean || speciesOptionMissing(clean)) return [];
   const level = Number(totalCharacterLevel) || 0;
   return SPECIES_FEATURES.filter((feature) => feature.speciesId === clean.id
-    && (!feature.ancestryId || feature.ancestryId === clean.ancestryId)
+    && (feature.ancestryIds ? feature.ancestryIds.includes(clean.ancestryId) : !feature.ancestryId || feature.ancestryId === clean.ancestryId)
     && (!level || level >= feature.minimumLevel));
 }

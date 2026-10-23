@@ -73,11 +73,13 @@
     aasimar: { name: "Aela", build: [{ classId: "paladino", level: 5, subclassId: "paladino-giuramento-di-conquista" }], species: { id: "aasimar-multiverso", ancestryId: "" } },
     genasi: { name: "Pyra", build: [{ classId: "mago", level: 5, subclassId: "mago-scuola-di-divinazione" }], species: { id: "genasi-multiverso", ancestryId: "terra" } },
     shifter: { name: "Geth", build: [{ classId: "ranger", level: 5, subclassId: "ranger-cacciatore" }], species: { id: "shifter-multiverso", ancestryId: "pelle-bestiale" } },
+    simic: { name: "Vorel", build: [{ classId: "guerriero", level: 5, subclassId: "guerriero-campione" }], species: { id: "ibrido-simic", ancestryId: "planata-sputo" }, abilityModifiers: { con: 2 } },
   };
   const selected = characters[params.get("pc")] ? params.get("pc") : "warlock";
   fakeHost.state.role = params.get("role") === "PLAYER" ? "PLAYER" : "GM";
   // options: opzioni a scelta da abilitare oltre alle capacità di default.
-  const cardFor = (pc) => ({ ...cardBuildFor(pc), ...(pc.spellbook ? { spellbook: pc.spellbook } : {}), ...(pc.species ? { species: pc.species } : {}) });
+  const cardFor = (pc) => ({ ...cardBuildFor(pc), ...(pc.spellbook ? { spellbook: pc.spellbook } : {}), ...(pc.species ? { species: pc.species } : {}),
+    ...(pc.abilityModifiers ? { abilityModifiers: pc.abilityModifiers } : {}) });
   const cardBuildFor = (pc) => (pc.options
     ? {
       characterBuild: pc.build,

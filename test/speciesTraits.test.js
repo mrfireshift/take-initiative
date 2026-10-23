@@ -16,7 +16,7 @@ const whiteDragonborn = (level = 5) => ({ species: { id: "dragonide-cromatico", 
 test("the species field is sanitized and optional", () => {
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "bianco" }), { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "oro" }), { id: "dragonide-cromatico", ancestryId: "" }, "gold is metallic, not chromatic");
-  assert.equal(sanitizeSpecies({ id: "loxodon" }), null, "not in the catalog yet");
+  assert.equal(sanitizeSpecies({ id: "owlin" }), null, "not in the catalog yet");
   assert.equal(Object.hasOwn(sanitizeInitiativeCard({}), "species"), false, "profiles without a species keep their shape");
   assert.deepEqual(sanitizeInitiativeCard({ species: { id: "dragonide-cromatico", ancestryId: "bianco" } }).species, { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.equal(hasInitiativeCardValues(sanitizeInitiativeCard({ species: { id: "dragonide", ancestryId: "rosso" } })), true);
@@ -102,7 +102,9 @@ test("species and subrace resistances are passive profile defenses", () => {
 test("every species trait names its manual and page, and no option id collides", () => {
   for (const feature of SPECIES_FEATURES) {
     assert.ok(feature.sourceLabel && Number.isInteger(feature.page), feature.id);
-    if (feature.ancestryId) assert.ok(SPECIES.find((entry) => entry.id === feature.speciesId).ancestries.some((entry) => entry.id === feature.ancestryId), feature.id);
+    for (const optionId of feature.ancestryIds || [feature.ancestryId].filter(Boolean)) {
+      assert.ok(SPECIES.find((entry) => entry.id === feature.speciesId).ancestries.some((entry) => entry.id === optionId), feature.id);
+    }
   }
   assert.equal(new Set(SPECIES_FEATURES.map((feature) => feature.id)).size, SPECIES_FEATURES.length);
 });
@@ -130,7 +132,8 @@ test("Volo, Tomo dei Nemici and Mostri del Multiverso: two versions side by side
     "Mostri del Multiverso: proficiency bonus uses");
   const groups = [...new Set(SPECIES.map((entry) => entry.sourceLabel))];
   assert.deepEqual(groups, ["Manuale del Giocatore 2014", "Elemental Evil Player's Companion", "Guida del Giocatore alla Costa della Spada",
-    "Guida di Volo ai Mostri", "Il Tomo dei Nemici di Mordenkainen", "Eberron: Rising from the Last War", "Il Tesoro dei Draghi di Fizban",
+    "Guida di Volo ai Mostri", "Il Tomo dei Nemici di Mordenkainen", "Guildmasters' Guide to Ravnica", "Eberron: Rising from the Last War",
+    "Mythic Odysseys of Theros", "Il Tesoro dei Draghi di Fizban",
     "Mordenkainen presenta: Mostri del Multiverso"]);
 });
 
@@ -200,4 +203,20 @@ test("shifting is a 1-minute pill: once per short rest in Eberron, proficiency b
   const [instance] = classFeatureConditionInstancesForActivation(feature, activation.instance, "Geth", build);
   assert.equal(instance.expiry.remaining, 10);
   assert.deepEqual(traits({ id: "shifter", ancestryId: "zanna-lunga" }), ["specie-shifter-mutazione-zanna-lunga"]);
+});
+
+test("Ravnica: a Simic hybrid's pair of enhancements, the first at 1st level and the second at 5th", () => {
+  assert.equal(SPECIES.find((entry) => entry.id === "ibrido-simic").ancestries.length, 15);
+  assert.deepEqual(traits({ id: "ibrido-simic", ancestryId: "planata-sputo" }, 4), ["specie-ibrido-simic-potenziamento-planata"]);
+  assert.deepEqual(traits({ id: "ibrido-simic", ancestryId: "planata-sputo" }, 5), ["specie-ibrido-simic-potenziamento-planata", "specie-ibrido-simic-potenziamento-sputo-acido"]);
+  assert.deepEqual(traits({ id: "ibrido-simic", ancestryId: "scalatore-planata" }, 5), ["specie-ibrido-simic-potenziamento-planata-5", "specie-ibrido-simic-potenziamento-scalatore"]);
+  const pool = CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-ibrido-simic-sputo-acido-usi");
+  assert.equal(resolveClassFeatureResourceMaximum(pool, [{ classId: "guerriero", level: 5 }], { con: 3 }).maximum, 3);
+  assert.equal(resolveClassFeatureResourceMaximum(pool, [{ classId: "guerriero", level: 5 }], { con: -1 }).maximum, 1, "minimum once");
+});
+
+test("Theros: the leonin roar spends a short-rest use; a satyr is a fey with magic resistance", () => {
+  assert.equal(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-leonin-ruggito-intimidatorio-usi").refresh.length, 2);
+  assert.deepEqual(traits({ id: "satiro" }), ["specie-satiro-fatato", "specie-satiro-ariete", "specie-satiro-resistenza-alla-magia", "specie-satiro-balzi-gioiosi"]);
+  assert.ok(SPECIES.find((entry) => entry.id === "centauro").sourceAliases.includes("theros"), "the Theros centaur is the Ravnica one");
 });

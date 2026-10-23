@@ -112,7 +112,7 @@ export const SPECIES_CATALOG_VOLO = [
     ],
   },
   {
-    id: "tritone", label: "Tritone", book: "volo", page: 118, aliases: ["triton"], resistances: ["cold"], look: ["🔱", "#38bdf8", "#082f49", "#f0f9ff"],
+    id: "tritone", label: "Tritone", book: "volo", page: 118, alsoIn: ["theros"], aliases: ["triton"], resistances: ["cold"], look: ["🔱", "#38bdf8", "#082f49", "#f0f9ff"],
     pools: [once("nube-di-nebbia", "Nube di nebbia"), once("folata-di-vento", "Folata di vento"), once("muro-d-acqua", "Muro d'acqua")],
     traits: [
       passive("anfibio", "Anfibio", "Respiri aria e acqua."),
@@ -132,7 +132,7 @@ export const SPECIES_CATALOG_VOLO = [
     ],
   },
   {
-    id: "goblin", label: "Goblin", book: "volo", page: 119, alsoIn: ["eberron"], look: ["👺", "#a3e635", "#1a2e05", "#f7fee7"],
+    id: "goblin", label: "Goblin", book: "volo", page: 119, alsoIn: ["eberron", "ravnica"], look: ["👺", "#a3e635", "#1a2e05", "#f7fee7"],
     pools: [once("furia-dei-piccoli", "Furia dei piccoli", "breve")],
     traits: [
       use("furia-dei-piccoli", "Furia dei piccoli", "innesco", "furia-dei-piccoli", `Quando danneggi con un attacco o un incantesimo una creatura di taglia più grande della tua, infliggi danni extra pari al tuo livello. ${ONCE_SHORT}`),
