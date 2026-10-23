@@ -453,6 +453,26 @@ function backgroundResultDiagnostics({ requestId, kind, command, result }) {
   };
 }
 
+// Owlbear refuses broadcasts sent too fast ("Too many requests"): a chunked answer waits and sends the same chunk
+// again, within the caller's 8 s wait, instead of leaving the console to time out on a committed action.
+const BACKGROUND_RESPONSE_RATE_LIMIT_DELAYS_MS = Object.freeze([250, 500, 1000, 2000]);
+
+function isBroadcastRateLimitError(error) {
+  const nested = error?.error && typeof error.error === "object" ? error.error : null;
+  return /too many requests/iu.test(String(nested?.message || error?.message || ""));
+}
+
+async function sendBackgroundResponseMessage(channel, payload, delays = BACKGROUND_RESPONSE_RATE_LIMIT_DELAYS_MS) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await OBR.broadcast.sendMessage(channel, payload, { destination: "LOCAL" });
+    } catch (error) {
+      if (!isBroadcastRateLimitError(error) || attempt >= delays.length) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+    }
+  }
+}
+
 function backgroundResponseErrorDetails(error) {
   const nested = error?.error && typeof error.error === "object" ? error.error : null;
   return {
@@ -4412,10 +4432,9 @@ export async function mountEffectsMutationCoordinatorService() {
           result: transportResult,
         }));
         for (const responsePayload of responsePayloads) {
-          const sent = await OBR.broadcast.sendMessage(
+          const sent = await sendBackgroundResponseMessage(
             EFFECTS_MUTATION_RESULT_CHANNEL,
             responsePayload,
-            { destination: "LOCAL" },
           ).then(() => true).catch((error) => {
             console.warn("[effects-coordinator] response", {
               ...backgroundResponseErrorDetails(error),

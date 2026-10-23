@@ -19,6 +19,7 @@ const transport = {
   responseDrops: 0,
   itemWrites: 0,
   failItemWrites: false,
+  rateLimitedResults: 0,
 };
 
 function tracePoint(point, fields = {}) {
@@ -82,6 +83,13 @@ const sdkStub = {
       if (channel === COMMAND_CHANNEL) {
         tracePoint("T0 send", { requestId: data.requestId, kind: data.kind });
         tracePoint("T1 background-receive", { requestId: data.requestId, kind: data.kind });
+      }
+      if (channel === RESULT_CHANNEL && transport.rateLimitedResults > 0) {
+        // Owlbear's answer to broadcasts sent too fast: an Error whose nested error says so.
+        transport.rateLimitedResults -= 1;
+        const error = new Error("[object Object]");
+        error.error = { message: "Too many requests" };
+        throw error;
       }
       if (channel === RESULT_CHANNEL) {
         if (bytes > transport.maxBroadcastBytes) {
@@ -187,6 +195,7 @@ function reset() {
     responseDrops: 0,
     itemWrites: 0,
     failItemWrites: false,
+    rateLimitedResults: 0,
   });
 }
 
@@ -568,6 +577,25 @@ test("apertura GM senza deferWrites: chi carica la scheda aspetta ancora la migr
     assert.equal(storedProfile().armorClass, 16);
   } finally {
     room.restore();
+    await stopRuntime(runtime);
+  }
+});
+
+test("Owlbear rate limit on the answer's chunks: the background waits and resends, the caller gets it without a retry", async () => {
+  reset();
+  scene.items[0].metadata[META_KEY][SPELLS_META_KEY] = oversizedSpellList();
+  transport.rateLimitedResults = 2;
+  const runtime = await startRuntime();
+  try {
+    const result = await runtime.client.runEffectsMutation([{
+      type: "spell:upsert", targetIds: ["hero"], name: "Scudo", turns: 1, source: "hero",
+      instanceId: "shield-rate-limited", spellId: "shield",
+    }], { kind: "spell", label: "Incantesimo: Scudo", targetIds: ["hero"], commandId: "shield-rate-limited" });
+    assert.equal(result.status, "applied");
+    assert.equal(transport.rateLimitedResults, 0, "both refusals were met");
+    assert.equal(transport.itemWrites, 1);
+    assert.equal(trace.filter((entry) => entry.point === "T0 send" && entry.kind === "apply").length, 1, "no client retry");
+  } finally {
     await stopRuntime(runtime);
   }
 });
