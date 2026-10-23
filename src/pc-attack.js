@@ -19,6 +19,7 @@ import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_A
 import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
 import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
 import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFormCore.js";
+import { getSpellCatalog } from "./spells-srd.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { classFeatureDescription, classFeatureDescriptionsLoaded, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
@@ -998,14 +999,39 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     };
   }
   // The form's fields, in the card: a select, a number, the target's spell (Purifying Touch).
+  // The catalog's spells, suggested in a spell field (Spell Thief), as the sheet's list: built once, on first use.
+  let spellOptionsList=null;
+  function spellOptions() {
+    if(spellOptionsList || !documentRef.body) return spellOptionsList;
+    spellOptionsList=node("datalist");spellOptionsList.id="pc-attack-spell-options";
+    spellOptionsList.append(...getSpellCatalog().map(spell=>{const option=node("option");option.value=spell.catalogLabel || spell.displayName || spell.name || spell.id;return option;}));
+    documentRef.body.append(spellOptionsList);
+    return spellOptionsList;
+  }
   function featureFields(entry,form) {
     const values=featureValues.get(entry.featureId) || {};
     featureValues.set(entry.featureId,values);
-    return (form.fields || []).map(field=>{
-      const row=node("label","","feature-field");
-      row.append(node("span",field.label,"feature-field-label"));
+    const rows=[];
+    // A field shown only for one value of another (a confirmation for a slot spent, for a stolen spell).
+    const syncShown=()=>{for(const row of rows) if(row.__showWhen) row.hidden=values[row.__showWhen.field]!==row.__showWhen.value;};
+    const fields=(form.fields || []).map(field=>{
+      const row=node("label","",field.type==="checkbox"?"feature-field feature-check":"feature-field");
+      if(field.type!=="checkbox") row.append(node("span",field.label,"feature-field-label"));
       let control;
-      if(field.type==="number") {
+      if(field.type==="checkbox") {
+        control=node("input");control.type="checkbox";
+        if(values[field.id]===undefined) values[field.id]=false;
+        control.checked=values[field.id]===true;
+        control.addEventListener("change",()=>{values[field.id]=control.checked;});
+        row.append(control,node("span",field.label,"feature-field-label"));
+      } else if(field.type==="spell-text") {
+        control=node("input","","field");control.type="text";control.autocomplete="off";control.spellcheck=false;
+        control.placeholder="Nome dal catalogo";
+        if(spellOptions()) control.setAttribute("list",spellOptionsList.id);
+        if(values[field.id]===undefined) values[field.id]="";
+        control.value=values[field.id];
+        control.addEventListener("input",()=>{values[field.id]=control.value;});
+      } else if(field.type==="number") {
         control=node("input","","amount");control.type="number";control.step="1";
         if(Number.isFinite(field.min)) control.min=String(field.min);
         if(Number.isFinite(field.max)) control.max=String(field.max);
@@ -1028,12 +1054,16 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         control.replaceChildren(...(field.options || []).map(option=>{const element=node("option",option.label);element.value=option.value;return element;}));
         if(!(field.options || []).some(option=>option.value===values[field.id])) values[field.id]=field.options?.[0]?.value ?? "";
         control.value=values[field.id];
-        control.addEventListener("change",()=>{values[field.id]=control.value;});
+        control.addEventListener("change",()=>{values[field.id]=control.value;syncShown();});
       }
       control.disabled=control.disabled || busy || launchBusy || invalidated;
-      row.append(control);
+      if(field.type!=="checkbox") row.append(control);
+      if(field.showWhen) row.__showWhen=field.showWhen;
+      rows.push(row);
       return row;
     });
+    syncShown();
+    return fields;
   }
   // The character sheet, for the features whose controls only it hosts.
   function openCharacterSheet() {
@@ -1057,7 +1087,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       values.spell=spell?{instanceId:spell.instanceId || "",name:spell.name || ""}:null;
       targetIds=item?.id?[item.id]:undefined;
     } else if(form.selectionTargets) {
-      targetIds=await Promise.resolve(api.player?.getSelection?.()).then(ids=>(Array.isArray(ids)?ids:[]).filter(id=>id!==sourceId)).catch(()=>[]);
+      targetIds=await Promise.resolve(api.player?.getSelection?.())
+        .then(ids=>(Array.isArray(ids)?ids:[]).filter(id=>form.includeSource || id!==sourceId)).catch(()=>[]);
     }
     const request=pcAttackFeatureRequest(definition,form,values,{sourceId,targetIds});
     if(request.error){setStatus(request.error);return;}
@@ -1067,7 +1098,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       await (request.args?runtime[request.fn](...request.args):runtime[request.fn](request.params));
       const name=definition?.name || entry.label;
       // "Capacità" agrees with every verb, whatever the feature's gender (il Tocco, l'Aura).
-      setStatus(request.fn==="deactivateClassFeature"?`Capacità ${form.kind==="toggle"?"disattivata":"terminata"}: ${name}.`
+      setStatus(request.done?request.done:request.fn==="deactivateClassFeature"?`Capacità ${form.kind==="toggle"?"disattivata":"terminata"}: ${name}.`
         :definition?.trackingMode==="instant" || form.label==="Usa"?`Capacità usata: ${name}.`:`Capacità attivata: ${name}.`);
     } catch(error) {
       if(!error?.cancelled) setStatus(String(error?.message || error || "Capacità non applicata."));

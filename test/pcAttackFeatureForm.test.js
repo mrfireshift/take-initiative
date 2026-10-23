@@ -74,8 +74,74 @@ test("Bardic Inspiration can be granted again while one is active; Twinned Spell
   assert.match(pcAttackFeatureRequest(feature("stregone-metamagia-incantesimo-raddoppiato"), twinned, { spellLevel: "12" }, { sourceId: "sor" }).error, /tra 0 e 9/);
 });
 
-test("the adapters with controls of their own open the character sheet; a reference feature is only read", () => {
-  const sorcerer = { characterBuild: [{ classId: "stregone", level: 2 }] };
-  assert.equal(form("stregone-fonte-di-magia", sorcerer).kind, "sheet");
+test("Wild Magic Surge's d100 table stays in the character sheet; a reference feature with nothing to spend is only read", () => {
+  const wild = { characterBuild: [{ classId: "stregone", level: 1, subclassId: "stregone-magia-selvaggia" }] };
+  assert.equal(form("stregone-magia-selvaggia-impulso-di-magia-selvaggia", wild).kind, "sheet");
   assert.equal(form("paladino-attacco-extra").kind, "reference");
+});
+
+// Spendi: a cost the console does not automate, spent by hand as the sheet's − button.
+test("a reference feature with a fixed cost spends it by hand: Spendi 1, blocked when the pool is empty", () => {
+  const bard = { characterBuild: [{ classId: "bardo", level: 3, subclassId: "bardo-collegio-dei-sussurri" }], abilityModifiers: { cha: 3 } };
+  const blades = form("bardo-collegio-dei-sussurri-lame-psichiche", bard);
+  assert.deepEqual([blades.kind, blades.label, blades.fields.length], ["spend", "Spendi 1", 0]);
+  assert.match(blades.note, /al tavolo/);
+  const request = pcAttackFeatureRequest(feature("bardo-collegio-dei-sussurri-lame-psichiche"), blades, {}, { sourceId: "bar" });
+  assert.deepEqual([request.fn, request.args], ["adjustClassFeatureResource", ["bar", "bardo-ispirazione-bardica-usi", { delta: -1 }]]);
+  assert.match(request.done, /Risorsa spesa: .* −1 \(Lame Psichiche\)/);
+  const empty = form("bardo-collegio-dei-sussurri-lame-psichiche", bard, { version: 1, instances: [], resources: { "bardo-ispirazione-bardica-usi": { current: 0 } } });
+  assert.match(empty.disabledReason, /Non basta/);
+});
+
+test("a variable cost asks the amount, never more than the pool holds", () => {
+  const clockwork = { characterBuild: [{ classId: "stregone", level: 6, subclassId: "stregone-anima-meccanica" }] };
+  const bastion = form("stregone-anima-meccanica-bastione-della-legge", clockwork);
+  assert.deepEqual([bastion.kind, bastion.label, bastion.fields[0].id, bastion.fields[0].max], ["spend", "Spendi", "amount", 6]);
+  assert.deepEqual(pcAttackFeatureRequest(feature("stregone-anima-meccanica-bastione-della-legge"), bastion, { amount: "3" }, { sourceId: "sor" }).args,
+    ["sor", "stregone-punti-stregoneria", { delta: -3 }]);
+  assert.match(pcAttackFeatureRequest(feature("stregone-anima-meccanica-bastione-della-legge"), bastion, { amount: "9" }, { sourceId: "sor" }).error, /Non basta/);
+});
+
+test("Font of Magic creates or converts a slot; Sorcerous Restoration takes its 4 points back", () => {
+  const sorcerer = { characterBuild: [{ classId: "stregone", level: 20 }] };
+  const font = form("stregone-fonte-di-magia", sorcerer);
+  assert.equal(font.kind, "activate");
+  const values = font.fields[0].options.map((option) => option.value);
+  assert.ok(values.includes("create:1") && values.includes("create:5") && values.includes("convert:9"));
+  assert.deepEqual(pcAttackFeatureRequest(feature("stregone-fonte-di-magia"), font, { operation: "create:2" }, { sourceId: "sor" }),
+    { fn: "createClassFeatureSpellSlot", params: { sourceId: "sor", featureId: "stregone-fonte-di-magia", slotLevel: 2 }, done: "Slot di 2° creato." });
+  assert.equal(pcAttackFeatureRequest(feature("stregone-fonte-di-magia"), font, { operation: "convert:3" }, { sourceId: "sor" }).fn, "convertClassFeatureSpellSlot");
+  const restoration = form("stregone-ripristino-stregonesco", sorcerer);
+  assert.deepEqual([restoration.kind, restoration.label], ["activate", "Recupera 4"]);
+  assert.equal(pcAttackFeatureRequest(feature("stregone-ripristino-stregonesco"), restoration, {}, { sourceId: "sor" }).fn, "applySorcerousRestoration");
+});
+
+test("the bard's Eloquence: Unsettling Words takes the die rolled, Universal Speech its payment, Contagious Inspiration the generic path", () => {
+  const bard = { characterBuild: [{ classId: "bardo", level: 14, subclassId: "bardo-collegio-dell-eloquenza" }], abilityModifiers: { cha: 4 } };
+  const words = form("bardo-collegio-dell-eloquenza-parole-inquietanti", bard);
+  assert.deepEqual([words.fields[0].id, words.fields[0].max], ["value", 10], "a d10 at the 14th level");
+  assert.match(pcAttackFeatureRequest(feature("bardo-collegio-dell-eloquenza-parole-inquietanti"), words, {}, { sourceId: "bar" }).error, /risultato/);
+  assert.deepEqual(pcAttackFeatureRequest(feature("bardo-collegio-dell-eloquenza-parole-inquietanti"), words, { value: "7" }, { sourceId: "bar", targetIds: ["gob"] }).params,
+    { sourceId: "bar", featureId: "bardo-collegio-dell-eloquenza-parole-inquietanti", targetIds: ["gob"], value: "7" });
+  const speech = form("bardo-collegio-dell-eloquenza-linguaggio-universale", bard);
+  assert.equal(speech.includeSource, true, "the bard may be one of the creatures");
+  assert.deepEqual(speech.fields[1].showWhen, { field: "mode", value: "slot" });
+  assert.deepEqual(pcAttackFeatureRequest(feature("bardo-collegio-dell-eloquenza-linguaggio-universale"), speech, { mode: "slot", slotConfirmed: true }, { sourceId: "bar" }).params,
+    { sourceId: "bar", featureId: "bardo-collegio-dell-eloquenza-linguaggio-universale", mode: "slot", slotConfirmed: true });
+  assert.equal(form("bardo-collegio-dell-eloquenza-ispirazione-contagiosa", bard).kind, "activate");
+  const wild = { characterBuild: [{ classId: "stregone", level: 1, subclassId: "stregone-magia-selvaggia" }] };
+  assert.equal(form("stregone-magia-selvaggia-onde-di-caos", wild).kind, "activate", "Tides of Chaos: its use from the console");
+});
+
+test("Spell Thief names a catalog spell; stealing asks the level confirmation", () => {
+  const rogue = { characterBuild: [{ classId: "ladro", level: 17, subclassId: "ladro-mistificatore-arcano" }] };
+  const thief = form("ladro-mistificatore-arcano-ladro-di-incantesimi", rogue);
+  assert.deepEqual(thief.fields.map((field) => field.type), ["spell-text", "select", "checkbox"]);
+  assert.match(pcAttackFeatureRequest(feature("ladro-mistificatore-arcano-ladro-di-incantesimi"), thief, { spell: "nonexistent" }, { sourceId: "rog" }).error, /catalogo/);
+  const steal = pcAttackFeatureRequest(feature("ladro-mistificatore-arcano-ladro-di-incantesimi"), thief,
+    { spell: "Palla di fuoco", spellMode: "steal", spellLevelConfirmed: true }, { sourceId: "rog", targetIds: ["mage"] });
+  assert.deepEqual(steal.params, { sourceId: "rog", featureId: "ladro-mistificatore-arcano-ladro-di-incantesimi", targetIds: ["mage"],
+    spellId: "fireball", spellMode: "steal", spellLevelConfirmed: true });
+  assert.equal(pcAttackFeatureRequest(feature("ladro-mistificatore-arcano-ladro-di-incantesimi"), thief,
+    { spell: "Palla di fuoco", spellMode: "deny", spellLevelConfirmed: true }, { sourceId: "rog" }).params.spellLevelConfirmed, false);
 });

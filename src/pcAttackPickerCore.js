@@ -4,7 +4,7 @@ import { getPcAttackCantrip } from "./pcAttackCantripCatalog.js";
 import { getPcAttackSpell } from "./pcAttackSpellCatalog.js";
 import { spellbookCantripAttackAction, spellbookGroupsForProfile, spellbookSpellAttackAction } from "./spellbookCatalog.js";
 import { classFeatureDisplayNameWithParent, getEnabledClassFeatures } from "./classFeatureCatalog.js";
-import { pcAttackFeatureUsable } from "./pcAttackFeatureFormCore.js";
+import { pcAttackFeatureSpendable, pcAttackFeatureUsable } from "./pcAttackFeatureFormCore.js";
 import { spellbookQuickActionId } from "./spellbookCore.js";
 
 // The attack console's picker: everything the actor can do with an attack or a spell on its turn, one entry each.
@@ -80,7 +80,7 @@ export function pcAttackPickerEntries(card) {
 }
 
 // Capacità: the features the character sheet activates first ("Utilizzabili": not reference only, automated, auras
-// included), then the others ("Altre capacità"), each in catalog order. group: "usable" or
+// included, and those with a cost the console spends by hand), then the others ("Altre capacità"), in catalog order. group: "usable" or
 // "other"; activation: the catalog's (azione, azione bonus, reazione, passiva, innesco…); species: a species trait.
 const ACTIVATION_LABELS = Object.freeze({
   azione: "azione", azione_bonus: "azione bonus", reazione: "reazione", passiva: "passiva", innesco: "innesco",
@@ -93,7 +93,8 @@ const activationLabel = (value) => {
 
 export function pcAttackFeatureEntries(profile) {
   const entries = getEnabledClassFeatures(profile).filter((feature) => !feature.breath).map((feature) => {
-    const usable = pcAttackFeatureUsable(feature);
+    // A cost the console spends by hand (Spendi) counts as usable too.
+    const usable = pcAttackFeatureUsable(feature) || pcAttackFeatureSpendable(feature);
     return { key: `feature::${feature.id}`, tab: "features", actionId: "", spellId: "", featureId: feature.id,
       label: classFeatureDisplayNameWithParent(feature), mode: usable ? "activate" : "reference", group: usable ? "usable" : "other",
       activation: activationLabel(feature.activation?.primary), species: !!(feature.speciesId || feature.giftId),

@@ -951,7 +951,9 @@ function fakeFeatureRuntime() {
   const calls = [];
   const record = (fn) => async (...args) => { calls.push([fn, ...args]); return {}; };
   return { calls, runtime: { activateClassFeature: record("activateClassFeature"), deactivateClassFeature: record("deactivateClassFeature"),
-    applyLayOnHands: record("applyLayOnHands"), purifyClassFeatureSpell: record("purifyClassFeatureSpell") } };
+    applyLayOnHands: record("applyLayOnHands"), purifyClassFeatureSpell: record("purifyClassFeatureSpell"),
+    adjustClassFeatureResource: record("adjustClassFeatureResource"), createClassFeatureSpellSlot: record("createClassFeatureSpellSlot"),
+    convertClassFeatureSpellSlot: record("convertClassFeatureSpellSlot"), applySorcerousRestoration: record("applySorcerousRestoration") } };
 }
 
 test("the Capacità tab lists the features by group with their activation and uses; Attiva runs the feature in the console", async () => {
@@ -1041,12 +1043,12 @@ test("Lay on Hands takes its points in the card and heals the creature selected;
     { sourceId: "aria", featureId: "paladino-tocco-purificatore", targetIds: ["ghoul"], spellInstanceId: "hold-1", spellName: "Blocca persone" }]);
 });
 
-test("a feature with controls of its own opens the character sheet", async () => {
-  const sorcerer = { characterBuild: [{ classId: "stregone", level: 2 }], quickActions: [sword] };
+test("a feature with controls of its own opens the character sheet: Wild Magic Surge", async () => {
+  const sorcerer = { characterBuild: [{ classId: "stregone", level: 1, subclassId: "stregone-magia-selvaggia" }], quickActions: [sword] };
   const runtime = fakeFeatureRuntime();
   const f = fixture({ card: sorcerer, attacker: { initiativeCard: sorcerer }, featureState: { enabledIds: [], active: {}, activeFeatureIds: [], resources: {} }, featureRuntime: runtime.runtime });
   await f.controller.ready; await tick(); await openFeatures(f);
-  await featureRow(f, /Fonte di Magia/).click(); await tick();
+  await featureRow(f, /Impulso di Magia Selvaggia/).click(); await tick();
   assert.equal(f.$("pc-attack-launch-button").textContent, "Apri nella scheda");
   const before = sheetOpened.length;
   await f.$("pc-attack-launch-button").click(); await tick();
@@ -1141,4 +1143,43 @@ test("an attack registered while a turn change waits: the bar offers the move in
   assert.match(textOf(bar), /Registrato\. È il turno di Imp\./);
   assert.equal(bar.querySelector("button").className, "apply follow-ready");
   assert.equal(f.sources.includes("imp"), false, "another attack can still be made: the move waits for the GM");
+});
+
+test("Spendi: a bard's Psychic Blades spends one Bardic Inspiration by hand", async () => {
+  const bard = { characterBuild: [{ classId: "bardo", level: 3, subclassId: "bardo-collegio-dei-sussurri" }], abilityModifiers: { cha: 3 }, quickActions: [sword] };
+  const runtime = fakeFeatureRuntime();
+  const state = { enabledIds: [], active: {}, activeFeatureIds: [],
+    resources: { "bardo-collegio-dei-sussurri-lame-psichiche": [{ poolId: "bardo-ispirazione-bardica-usi", name: "Ispirazione Bardica", current: 3, maximum: 3, unlimited: false }] } };
+  const f = fixture({ card: bard, attacker: { initiativeCard: bard }, featureState: state, featureRuntime: runtime.runtime });
+  await f.controller.ready; await tick(); await openFeatures(f);
+  const groups = f.$("pc-attack-picker-list").querySelectorAll(".picker-level").map((header) => header.textContent);
+  assert.equal(groups[0], "Utilizzabili");
+  await featureRow(f, /Lame Psichiche/).click(); await tick();
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Spendi 1");
+  assert.match(textOf(f.$("pc-attack-launch")), /Effetto da risolvere al tavolo/);
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.deepEqual(runtime.calls, [["adjustClassFeatureResource", "aria", "bardo-ispirazione-bardica-usi", { delta: -1 }]]);
+  assert.match(f.$("pc-attack-status").textContent, /Risorsa spesa: Ispirazione Bardica −1 \(Lame Psichiche\)\./);
+});
+
+test("Font of Magic creates a slot from the console; Universal Speech shows the slot confirmation only for a slot", async () => {
+  const sorcerer = { characterBuild: [{ classId: "stregone", level: 5 }], quickActions: [sword] };
+  const runtime = fakeFeatureRuntime();
+  const f = fixture({ card: sorcerer, attacker: { initiativeCard: sorcerer }, featureState: { enabledIds: [], active: {}, activeFeatureIds: [], resources: {} }, featureRuntime: runtime.runtime });
+  await f.controller.ready; await tick(); await openFeatures(f);
+  await featureRow(f, /Fonte di Magia/).click(); await tick();
+  const operation = f.$("pc-attack-launch").querySelector("select");
+  operation.value = "create:2"; await operation.emit("change");
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.deepEqual(runtime.calls.at(-1), ["createClassFeatureSpellSlot", { sourceId: "aria", featureId: "stregone-fonte-di-magia", slotLevel: 2 }]);
+  assert.equal(f.$("pc-attack-status").textContent, "Slot di 2° creato.");
+  const bard = { characterBuild: [{ classId: "bardo", level: 6, subclassId: "bardo-collegio-dell-eloquenza" }], abilityModifiers: { cha: 3 }, quickActions: [sword] };
+  const g = fixture({ card: bard, attacker: { initiativeCard: bard }, featureState: { enabledIds: [], active: {}, activeFeatureIds: [], resources: {} }, featureRuntime: runtime.runtime });
+  await g.controller.ready; await tick(); await openFeatures(g);
+  await featureRow(g, /Linguaggio Universale/).click(); await tick();
+  const confirmation = g.$("pc-attack-launch").querySelectorAll(".feature-check")[0];
+  assert.equal(confirmation.hidden, true, "the free use: no confirmation");
+  const mode = g.$("pc-attack-launch").querySelector("select");
+  mode.value = "slot"; await mode.emit("change");
+  assert.equal(confirmation.hidden, false);
 });
