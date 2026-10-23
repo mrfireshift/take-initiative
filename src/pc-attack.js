@@ -164,6 +164,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const attackView=$("pc-attack-attack-view"),launchBox=$("pc-attack-launch"),casterLine=$("pc-attack-caster");
   // A spell the console does not resolve (launched, woven into a weapon, or by hand): its card replaces the attack form.
   let launchKey="",launchBusy=false,launchSignature="";
+  // Lancia / Usa in the fixed row; the spell's accordion in the attack form; one open state for both.
+  const launchButton=$("pc-attack-launch-button"),spellDetailsBox=$("pc-attack-spell-details"),spellDetailsBody=$("pc-attack-spell-details-body");
+  let detailsOpen=false,spellDetailsSignature="";
+  spellDetailsBox?.addEventListener("toggle",()=>{detailsOpen=!!spellDetailsBox.open;});
+  launchButton?.addEventListener("click",()=>{const entry=currentEntry();if(launching() && entry)void launchSpell(entry);});
   // The turn moved on while this attack holds decisions: the actor it waits to move to ({sourceId, name}).
   const followBar=$("pc-attack-follow");
   let pendingFollow=null;
@@ -323,13 +328,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ...(pills.length?[`Al colpo: etichetta ${pills.map(label=>`«${label}»`).join(", ")}.`]:[]),
       ...(spell?.casterHealRatio?["Il caster recupera metà dei danni necrotici inflitti."]:[])];
     cantripNote.textContent=notes.join(" ");cantripNote.hidden=!notes.length;
+    renderSpellDetails();
   }
   function renderCantrip() {
     if(isSpellAction()) return renderSpell();
     if(spellControls) spellControls.hidden=true;
     const offered=pcAttackCantripIds(presentation.action);
     cantripRow.hidden=!offered.length;
-    if(!offered.length){cantripNote.hidden=true;return;}
+    if(!offered.length){cantripNote.hidden=true;renderSpellDetails();return;}
     cantripSelect.replaceChildren(...offered.map(spellId=>{
       const cantrip=getPcAttackCantrip(spellId);
       const option=node("option",cantrip?.save?`${cantrip.name} · ${cantrip.area?"area, ":""}TS ${PC_ATTACK_SAVE_LABELS[cantrip.save]}`:cantrip?.name || spellId);
@@ -348,6 +354,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ...(cantrip?.effectNote?[`${cantrip.save?"Se fallisce":"Al colpo"}, da applicare a mano: ${cantrip.effectNote}`]:[]),
       ...(weaponCantripHint()?[weaponCantripHint()]:[]),...(panelCantripHint()?[panelCantripHint()]:[])];
     cantripNote.textContent=notes.join(" ");cantripNote.hidden=!notes.length;
+    renderSpellDetails();
   }
   const typeSelect=(types,value,{placeholder="",format=typeLabel,className="field"}={})=>{
     const select=node("select","",className);
@@ -918,10 +925,47 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   // The card of an entry the console does not resolve: what it is, what it costs, and Lancia (a spell) or Usa (a ⚡
   // quick action) when the tracker runs it.
+  // The spell's details under an accordion ("Dettagli"): tags, casting time, range, components, duration, then the
+  // text of the spell and its higher levels. One open state for every accordion of the console: open stays open.
+  function spellDetailsNodes(spellId,tags=[]) {
+    if(spellId && !spellbookSpellReferenceLoaded()) {
+      // The Italian reference loads once, on the first spell shown.
+      void loadSpellbookSpellReference().then(()=>{launchSignature="";if(launching())renderLaunch();else renderSpellDetails();}).catch(()=>{});
+    }
+    const details=spellId?spellbookSpellDetails(spellId):null;
+    const nodes=[];
+    if(tags.length){const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>node("span",text,`launch-tag${kind?" "+kind:""}`)));nodes.push(row);}
+    const line=details?[details.castingTime,details.range,details.components,details.duration].filter(Boolean).join(" · "):"";
+    if(line) nodes.push(node("p",line,"launch-details"));
+    if(details?.description) nodes.push(node("p",details.description,"spell-text"));
+    if(details?.higherLevels) nodes.push(node("p",`Ai livelli superiori. ${details.higherLevels}`,"spell-text"));
+    if(spellId && !details) nodes.push(node("p",spellbookSpellReferenceLoaded()?"Testo non disponibile.":"Caricamento del testo…","launch-details"));
+    return nodes;
+  }
+  function detailsAccordion(children) {
+    const box=node("details","","spell-details");box.open=detailsOpen;
+    box.addEventListener("toggle",()=>{detailsOpen=!!box.open;});
+    box.append(node("summary","Dettagli"),...children);
+    return box;
+  }
+  // The attack form's own accordion: the cantrip or spell the attack records.
+  function renderSpellDetails() {
+    if(!spellDetailsBox || !spellDetailsBody) return;
+    const spellId=!launching() && draft?.spellId && (getPcAttackCantrip(draft.spellId) || getPcAttackSpell(draft.spellId))?draft.spellId:"";
+    spellDetailsBox.hidden=!spellId;
+    if(!spellId){spellDetailsSignature="";return;}
+    const nodes=spellDetailsNodes(spellId);
+    const signature=JSON.stringify([spellId,nodes.length,spellbookSpellReferenceLoaded()]);
+    if(signature===spellDetailsSignature) return;
+    spellDetailsSignature=signature;
+    spellDetailsBox.open=detailsOpen;
+    spellDetailsBody.replaceChildren(...nodes);
+  }
+  // The card of an entry the console does not resolve. The warnings stay in view, the details sit in the accordion,
+  // and Lancia (a spell) or Usa (a ⚡ quick action) waits in the fixed row at the bottom, always visible.
   function renderLaunch() {
     if(!launchBox) return;
     if(attackView) attackView.hidden=true;
-    if(applyRow) applyRow.hidden=true;
     launchBox.hidden=false;
     const entry=currentEntry();
     const level=entry?.level;
@@ -929,11 +973,6 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const using=entry?.mode==="use";
     $("pc-attack-subtitle").textContent=[presentation?.item?.name || presentation?.item?.id,
       ...(!entry?[]:using?[USE_KIND_LABELS[entry.kind] || "Azione rapida"]:[level===0?"Trucchetto":`Incantesimo di ${level}° livello`])].filter(Boolean).join(" · ");
-    if(entry?.spellId && !spellbookSpellReferenceLoaded()) {
-      // The Italian reference (casting time, range, duration) loads once, on the first spell shown.
-      void loadSpellbookSpellReference().then(()=>{launchSignature="";if(launching())renderLaunch();}).catch(()=>{});
-    }
-    const details=entry?.spellId?spellbookSpellDetails(entry.spellId):null;
     const others=concentrationNames().filter(name=>name.toLocaleLowerCase("it")!==String(entry?.label || "").toLocaleLowerCase("it"));
     const meta=presentation?.item?.metadata?.[META_KEY] || {};
     const freeSlot=!level || spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources)
@@ -946,22 +985,28 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       :[...(entry.concentration && others.length?[[`Lanciandolo termina la concentrazione su ${others.join(", ")}.`,"warning"]]:[]),
         ...(!freeSlot?[[`Nessuno slot libero dal ${level}° livello in su.`,"warning"]]:[]),
         ...(entry.recordOnly?[["Il plugin registra il lancio e lo slot: gli effetti si risolvono al tavolo.",""]]:[])];
-    const tags=using?use.tags:entry?[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])]:[];
-    const detailText=using?use.detailText:details?[details.castingTime,details.range,details.duration].filter(Boolean).join(" · "):"";
     const canLaunch=entry?.mode==="launch" || using;
-    const signature=JSON.stringify([entry?.key,notes,tags,detailText,canLaunch,use?.blocked,launchBusy,busy]);
+    // The fixed row: what it costs at a glance, and the button.
+    const details=entry?.spellId?spellbookSpellDetails(entry.spellId):null;
+    if(applyRow) applyRow.hidden=!canLaunch;
+    apply.hidden=true;
+    if(launchButton) {
+      launchButton.hidden=!canLaunch;
+      launchButton.textContent=using?(launchBusy?"Uso…":"Usa"):(launchBusy?"Lancio…":"Lancia");
+      launchButton.disabled=launchBusy || busy || invalidated || !!use?.blocked;
+    }
+    if(canLaunch) total.textContent=using?use.detailText:details?[details.castingTime,details.range].filter(Boolean).join(" · "):"";
+    const tags=using?use.tags:entry?[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])]:[];
+    const body=using || !entry?.spellId?[]:spellDetailsNodes(entry.spellId,tags);
+    const signature=JSON.stringify([entry?.key,notes,using?[tags,use.detailText]:null,body.length,spellbookSpellReferenceLoaded()]);
     if(signature===launchSignature) return;
     launchSignature=signature;
     const children=[];
-    if(tags.length) {const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>node("span",text,`launch-tag${kind?" "+kind:""}`)));children.push(row);}
-    if(detailText) children.push(node("p",detailText,"launch-details"));
+    // A ⚡ quick action keeps its few facts in view; a spell's details go in the accordion.
+    if(using && tags.length){const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>node("span",text,`launch-tag${kind?" "+kind:""}`)));children.push(row);}
+    if(using && use.detailText) children.push(node("p",use.detailText,"launch-details"));
     children.push(...notes.map(([text,kind])=>node("p",text,`launch-note${kind?" "+kind:""}`)));
-    if(canLaunch) {
-      const button=node("button",using?(launchBusy?"Uso…":"Usa"):(launchBusy?"Lancio…":"Lancia"),"apply");button.type="button";button.id="pc-attack-launch-button";
-      button.disabled=launchBusy || busy || invalidated || !!use?.blocked;
-      button.addEventListener("click",()=>{void launchSpell(entry);});
-      children.push(button);
-    }
+    if(body.length) children.push(detailsAccordion(body));
     launchBox.replaceChildren(...children);
   }
   // Lancia: the tracker casts the spell as the 🪄 menu does (the spell panel, or the cast at once when nothing is asked).
@@ -1138,6 +1183,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(launching()){renderLaunch();return;}
     if(attackView) attackView.hidden=false;
     if(launchBox){launchBox.hidden=true;launchSignature="";}
+    if(launchButton) launchButton.hidden=true;
+    apply.hidden=false;
     if(applyRow)applyRow.hidden=false;renderHeader();renderTarget();renderPalm();renderOutcomes();renderCantrip();renderDamage();renderWoven();renderRiders();renderActivations();renderExtras();renderState();
     if(palmBox && isArea()) palmBox.hidden=true;
   }

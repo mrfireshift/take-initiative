@@ -17,8 +17,9 @@ const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-att
   "pc-attack-palm", "pc-attack-palm-note", "pc-attack-palm-outcomes", "pc-attack-palm-amount", "pc-attack-palm-apply",
   "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-note", "pc-attack-area-list",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed", "pc-attack-picker", "pc-attack-picker-tabs", "pc-attack-picker-select",
-  "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow", "pc-attack-picker-list"];
-const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
+  "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow", "pc-attack-picker-list",
+  "pc-attack-launch-button", "pc-attack-spell-details", "pc-attack-spell-details-body"];
+const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
   const doc = {
@@ -30,7 +31,7 @@ function createDocument() {
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   for (const id of IDS) {
     const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select"].includes(id) ? "select" : BUTTONS.has(id) ? "button"
-      : id === "pc-attack-auto-open" ? "input" : "div");
+      : id === "pc-attack-auto-open" ? "input" : id === "pc-attack-spell-details" ? "details" : "div");
     node.id = id; doc.root.appendChild(node);
   }
   return doc;
@@ -793,7 +794,14 @@ test("a spell the console does not resolve shows its card instead of the form; t
   assert.equal(f.$("pc-attack-title").textContent, "Benedizione");
   assert.match(f.$("pc-attack-subtitle").textContent, /Incantesimo di 1° livello/);
   assert.match(textOf(f.$("pc-attack-launch")), /Concentrazione/);
-  assert.equal(f.$("pc-attack-launch").querySelector("#pc-attack-launch-button").textContent, "Lancia");
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Lancia");
+  assert.equal(f.$("pc-attack-launch-button").hidden, false, "Lancia waits in the fixed row");
+  assert.equal(f.$("pc-attack-apply").hidden, true, "Registra gives way to it");
+  const accordion = f.$("pc-attack-launch").querySelector("details");
+  assert.equal(accordion.querySelector("summary").textContent, "Dettagli");
+  assert.match(textOf(accordion), /Concentrazione/, "the tags sit in the accordion");
+  assert.ok(accordion.querySelectorAll(".spell-text").length > 0, "with the text of the spell");
+  accordion.open = true; await accordion.emit("toggle");
   assert.match(textOf(f.$("pc-attack-caster")), /Slot 1° 1\/4 · 2° 2\/2.*Concentrazione: Benedizione/);
   const list = f.$("pc-attack-picker-list");
   assert.equal(list.hidden, false);
@@ -816,7 +824,7 @@ test("Lancia asks the tracker; its answer, or its silence, is the status", async
   const ok = launchBroadcast();
   const f = fixture({ card: clericCard, attacker: clericMeta, broadcast: ok.broadcast }); await f.controller.ready; await tick();
   await pickerTabs(f)[2].click(); await tick();
-  await f.$("pc-attack-launch").querySelector("#pc-attack-launch-button").click(); await tick(); await tick();
+  await f.$("pc-attack-launch-button").click(); await tick(); await tick();
   const launch = ok.sent.find((message) => message.data.type === "launch");
   assert.equal(launch.channel, "com.thebigpicture.initiative/pc-attack-spell-launch");
   assert.deepEqual([launch.data.sourceId, launch.data.actionId], ["aria", "book:bless"]);
@@ -824,7 +832,7 @@ test("Lancia asks the tracker; its answer, or its silence, is the status", async
   const silent = launchBroadcast({ ack: false, result: null });
   const g = fixture({ card: clericCard, attacker: clericMeta, broadcast: silent.broadcast }); await g.controller.ready; await tick();
   await pickerTabs(g)[2].click(); await tick();
-  await g.$("pc-attack-launch").querySelector("#pc-attack-launch-button").click();
+  await g.$("pc-attack-launch-button").click();
   await new Promise((resolve) => setTimeout(resolve, 1600));
   assert.match(g.$("pc-attack-status").textContent, /Il tracker non risponde: aprilo per lanciare Benedizione/);
 });
@@ -844,7 +852,7 @@ test("a blade cantrip points to the weapon attack", async () => {
   await pickerTabs(f)[1].click(); await tick();
   assert.equal(f.$("pc-attack-title").textContent, "Lama Roboante");
   assert.match(textOf(f.$("pc-attack-launch")), /Si lancia con un attacco con arma da mischia/);
-  assert.equal(f.$("pc-attack-launch").querySelector("#pc-attack-launch-button"), null);
+  assert.equal(f.$("pc-attack-launch-button").hidden, true, "no Lancia for a blade cantrip");
 });
 
 function followBroadcast() {
@@ -930,7 +938,7 @@ test("the Capacità tab shows a ⚡ feature with its uses left; Usa runs it thro
   assert.match(textOf(f.$("pc-attack-launch")), /su di sé/);
   assert.match(textOf(f.$("pc-attack-launch")), /Ire 2\/3/);
   assert.equal(f.$("pc-attack-caster").hidden, true, "no slots line for the features");
-  const button = f.$("pc-attack-launch").querySelector("#pc-attack-launch-button");
+  const button = f.$("pc-attack-launch-button");
   assert.equal(button.textContent, "Usa");
   await button.click(); await tick(); await tick();
   assert.deepEqual(bus.sent.find((message) => message.data.type === "launch").data.actionId, "rage");
@@ -942,5 +950,24 @@ test("a feature already active on its owner cannot be used again, as in the ⚡ 
   await f.controller.ready; await tick();
   await pickerTabs(f)[1].click(); await tick();
   assert.match(textOf(f.$("pc-attack-launch")), /Attiva.*Già attiva\./);
-  assert.equal(f.$("pc-attack-launch").querySelector("#pc-attack-launch-button").disabled, true);
+  assert.equal(f.$("pc-attack-launch-button").disabled, true);
+});
+
+test("the details accordion: its open state follows the GM from spell to spell; an attack cantrip has it in the form", async () => {
+  const f = fixture({ card: clericCard, attacker: clericMeta }); await f.controller.ready; await tick();
+  await pickerTabs(f)[2].click(); await tick();
+  const first = f.$("pc-attack-launch").querySelector("details");
+  assert.equal(first.open, false, "closed at first");
+  first.open = true; await first.emit("toggle");
+  await f.$("pc-attack-picker-list").querySelectorAll("button")[1].click(); await tick();
+  assert.equal(f.$("pc-attack-launch").querySelector("details").open, true, "open stays open on another spell");
+  await pickerTabs(f)[1].click(); await tick();
+  const cantrip = f.controller.getDraft().spellId;
+  assert.equal(cantrip, "sacred-flame");
+  assert.equal(f.$("pc-attack-spell-details").hidden, false, "the attack form shows the cantrip's details");
+  assert.equal(f.$("pc-attack-spell-details").open, true);
+  assert.ok(f.$("pc-attack-spell-details-body").querySelectorAll(".spell-text").length > 0);
+  assert.equal(f.$("pc-attack-launch-button").hidden, true, "the form keeps Registra");
+  await pickerTabs(f)[0].click(); await tick();
+  assert.equal(f.$("pc-attack-spell-details").hidden, true, "a weapon attack has no spell details");
 });
