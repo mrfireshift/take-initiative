@@ -2,6 +2,7 @@ import { CATALOG_SPELL_AREA_SPECS } from "./spellAreaCatalog.js";
 import { AREA_SAVE_SPELL_ID_SET } from "./areaSaveSpellRules.js";
 import { getSpellBoardTokenPlacementRuleById } from "./spellBoardTokenCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
+import { pcBreathAreaRuleId } from "./pcAttackBreathId.js";
 import {
   DELAYED_BLAST_FIREBALL_ID,
   DELAYED_BLAST_FIREBALL_RANGE_METERS,
@@ -3652,7 +3653,41 @@ export function getSpellAreaRuleById(ruleId) {
   return RULES_BY_ID.get(normalizedRuleId)
     || getSpellBoardTokenPlacementRuleById(normalizedRuleId)
     || getBossActionAreaRuleById(normalizedRuleId)
+    || getPcBreathAreaRuleById(normalizedRuleId)
     || null;
+}
+
+// A dragonborn's breath weapon drawn from the PC attack console: the cone (4.5 m) or the line (9 m by 1.5 m) leaves
+// the character's token like Burning Hands and Lightning Bolt, the pointer gives the direction, the dragonborn is never
+// hit. The shape is a preview, gone once the GM confirms. The spell id carries the damage type, for the colour
+// (spellAreaStyleCore.js). The console builds the id with pcBreathAreaRuleId (pcAttackBreathId.js).
+export { pcBreathAreaRuleId };
+export const PC_BREATH_AREA_SPELL_PREFIX = "pc-breath-";
+const PC_BREATH_AREA_RULE_PATTERN = /^pc-breath-area:(cone|line):([a-z]+)$/;
+const PC_BREATH_AREA_RULES = new Map();
+const PC_BREATH_AREA_GEOMETRY = Object.freeze({
+  cone: Object.freeze({ shape: "cone", size: meters(4.5, "length") }),
+  line: Object.freeze({ shape: "line", size: meters(9, "length"), width: meters(1.5, "width") }),
+});
+
+export function getPcBreathAreaRuleById(ruleId) {
+  const match = String(ruleId || "").trim().match(PC_BREATH_AREA_RULE_PATTERN);
+  if (!match) return null;
+  const id = match[0];
+  if (!PC_BREATH_AREA_RULES.has(id)) {
+    PC_BREATH_AREA_RULES.set(id, defineRule({
+      id,
+      spellId: `${PC_BREATH_AREA_SPELL_PREFIX}${match[2]}`,
+      trigger: CAST_TRIGGER,
+      kind: "instant",
+      geometry: PC_BREATH_AREA_GEOMETRY[match[1]],
+      placement: { origin: "caster-adjacent", direction: "pointer", anchor: "caster" },
+      lifecycle: PREVIEW_LIFECYCLE,
+      targeting: COMMON_TARGETING,
+      effectPolicy: ON_CONFIRM,
+    }));
+  }
+  return PC_BREATH_AREA_RULES.get(id);
 }
 
 // Boss Action areas reuse the shared placement tool with a free origin: the GM picks the

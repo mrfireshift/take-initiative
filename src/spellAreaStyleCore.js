@@ -49,6 +49,17 @@ const EXPLICIT_THEMES = new Map([
   ["xanathar-parola-radiosa", "radiant"],
   ["xanathar-sfera-al-vetriolo", "acid"],
   ["xanathar-spirito-guaritore", "nature"],
+  // A dragonborn's breath weapon (spellAreaRules.js): the colour of its damage type.
+  ["pc-breath-acid", "acid"],
+  ["pc-breath-cold", "cold"],
+  ["pc-breath-fire", "fire"],
+  ["pc-breath-force", "arcane"],
+  ["pc-breath-lightning", "storm"],
+  ["pc-breath-necrotic", "darkness"],
+  ["pc-breath-poison", "poison"],
+  ["pc-breath-psychic", "psychic"],
+  ["pc-breath-radiant", "radiant"],
+  ["pc-breath-thunder", "storm"],
 ]);
 
 const PATTERNS = Object.freeze([

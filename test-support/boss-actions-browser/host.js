@@ -518,6 +518,17 @@ const scenarios = {
   },
   async "corpo-final"() { await scenarios["corpo-ready"](); await press("#boss-apply"); await sleep(2200); },
   async "meteor-final"() { await scenarios["meteor-drawn"](); await press('[data-group-all="failed"]'); await press("#boss-apply"); await sleep(800); },
+  // A dragonborn's breath weapon from the PC attack console: Mira is a red dragonborn (fire, 4.5 m cone), the cone is
+  // drawn on this map with the shared area tool (Disegna).
+  async "pc-breath"() {
+    const mira = fakeHost.state.items.find((item) => item.id === "mira");
+    mira.metadata[META].initiativeCard = { characterBuild: [{ classId: "paladino", level: 6 }], abilityModifiers: { str: 3, dex: 0, con: 2, int: 0, wis: 1, cha: 2 },
+      species: { id: "dragonide", ancestryId: "rosso" }, quickActions: [] };
+    fakeHost.setItems([...fakeHost.state.items]);
+    const { openPcAttackPopover } = await import("/src/pcAttackLauncher.js");
+    const { pcAttackBreathActionId } = await import("/src/pcAttackBreathId.js");
+    await openPcAttackPopover("mira", pcAttackBreathActionId("specie-dragonide-arma-a-soffio-rosso"));
+  },
   async compare() { document.getElementById("open-hp").click(); await sleep(600); fakeHost.setSelection(["dars"]); await openBossActionsPopover("auril"); await sleep(400);
     const frame = bossFrame(); fakeHost.state.popovers.get("com.thebigpicture.initiative/boss-actions").anchorPosition = { left: 600, top: 60 }; frame.style.left = "600px"; frame.style.top = "60px";
     (await row("Icekiss +2")).click(); await sleep(200); await press('[data-outcome="hit"]'); },

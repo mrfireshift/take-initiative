@@ -15,10 +15,12 @@ import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel } from "./bossActionsViewCore.js";
 import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
-import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL } from "./pcAttackLauncher.js";
+import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL } from "./pcAttackLauncher.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
 import { getClassFeatureResourcePool } from "./classFeatureCatalog.js";
 import { pcAttackPickerDefault, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
+import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
+import { pcBreathAreaRuleId } from "./pcAttackBreathId.js";
 import "./popoverDrag.js";
 
 const META_KEY=`${ID}/meta`;
@@ -170,6 +172,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
   const areaBox=$("pc-attack-area"),areaNote=$("pc-attack-area-note"),areaList=$("pc-attack-area-list");
   const areaPropose=$("pc-attack-area-propose"),areaAllFailed=$("pc-attack-area-all-failed"),areaAllPassed=$("pc-attack-area-all-passed");
+  // A breath weapon's cone or line drawn on the map with the shared area tool (spellAreaRules.js): its creatures are ticked.
+  const areaDraw=$("pc-attack-area-draw");
+  const placeArea=overrides.placeArea || (request=>requestSpellAreaPlacement(request,{broadcast:api.broadcast,windowRef:globalThis.window}));
+  const cancelArea=overrides.cancelArea || (requestId=>cancelSpellAreaPlacementRequest(requestId,{broadcast:api.broadcast}));
+  let drawing="";
   let presentation=null,draft=null,busy=false,invalidated=false,lastUndo=null;
   // Eldritch Blast: the beams registered in this console for the cantrip in use (one registration per beam).
   let beamTally={spellId:"",count:0};
@@ -639,11 +646,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!area) return;
     const name=presentation.item?.name || "l'attaccante";
     // A breath weapon: its cone or line, its dice at this level (the damage's hint), its save and DC.
-    const breathNote=attack.breath?`${area.shape==="line"?"Sulla linea di 9 m":"Nel cono di 4,5 m"}: spunta le creature colpite. `
+    const breathNote=attack.breath?`${area.shape==="line"?"Linea di 9 m":"Cono di 4,5 m"}: disegnalo sulla mappa o spunta le creature colpite. `
       +`${attack.components[0]?.formula || ""} ${damageTypeLabel(attack.breath.damageType)} · ${pcAttackSaveLabel(attack,attackerCard())}, metà se superato.`:"";
     areaNote.textContent=breathNote || (area.manual?"Sulla linea di 9 m: spunta le creature colpite."
       :`Entro 1,5 m da ${name}${area.chosen?", solo quelle che scegli":", alleati compresi"}.`);
     areaPropose.hidden=!!area.manual;
+    if(areaDraw){areaDraw.hidden=!attack.breath;areaDraw.textContent=drawing?"Disegno…":"Disegna";}
     const key=`${draft.spellId}|${draft.attackMode}`;
     if(!area.manual && draft.area.proposalKey!==key && typeof runtime.getPcAttackNearby==="function") {
       draft.area.proposalKey=key;
@@ -687,6 +695,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       }
     }
     for(const button of [areaPropose,areaAllFailed,areaAllPassed]) button.disabled=busy;
+    if(areaDraw) areaDraw.disabled=busy || !!drawing;
   }
   // Quivering Palm: the target carries this monk's vibrations; ending them is an action of its own (save outcome, the
   // 10d10 on a success), committed apart from the attack.
@@ -1258,6 +1267,49 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   areaAllFailed?.addEventListener("click",()=>setAllOutcomes("failed"));
   areaAllPassed?.addEventListener("click",()=>setAllOutcomes("passed"));
   areaPropose?.addEventListener("click",()=>{draft.area.proposalKey="";renderArea();});
+  areaDraw?.addEventListener("click",()=>void drawBreathArea());
+  // The console folds to its header while the GM draws on the map, then gets its height back.
+  async function foldConsole(fold,restore=0) {
+    try {
+      if(fold) {
+        const height=Number(await api.popover?.getHeight?.(PC_ATTACK_POPOVER_ID)) || PC_ATTACK_HEIGHT;
+        const header=documentRef.querySelector?.(".header");
+        await api.popover?.setHeight?.(PC_ATTACK_POPOVER_ID,Math.ceil((header?.offsetHeight || 44)+2));
+        return height;
+      }
+      if(restore) await api.popover?.setHeight?.(PC_ATTACK_POPOVER_ID,restore);
+    } catch {}
+    return 0;
+  }
+  // The breath's cone or line on the map, from the attacker's token: the creatures inside are ticked (never the
+  // attacker); the GM still marks each save and may tick or untick by hand. Esc in the tool cancels.
+  async function drawBreathArea() {
+    const attack=resolved();
+    const ruleId=pcBreathAreaRuleId(attack?.area?.shape,attack?.breath?.damageType);
+    if(!ruleId || drawing || busy || !draft) return;
+    const requestId=createSpellAreaPlacementRequestId(),active=draft,shape=attack.area.shape==="line"?"la linea":"il cono";
+    drawing=requestId;renderArea();
+    setStatus(`Disegna ${shape} dal token di ${presentation.item?.name || "l'attaccante"}, poi conferma la sagoma. Esc annulla.`);
+    const height=await foldConsole(true);
+    let result;
+    try {result=await placeArea({ruleId,casterId:sourceId,requestId,context:{phase:"pc-attack",actionId}});}
+    catch(error) {result={status:"error",error:String(error?.message || error)};}
+    await foldConsole(false,height);
+    if(drawing!==requestId) return;
+    drawing="";
+    if(draft!==active){void cancelArea(requestId).catch(()=>{});renderArea();return;}
+    if(result?.status==="confirmed" && result.preview) {
+      const ids=new Set((Array.isArray(result.preview.targetIds)?result.preview.targetIds:[]).map(id=>String(id || "")).filter(id=>id && id!==sourceId));
+      for(const item of presentation.targets) {
+        const member=draft.area.members[item.id] ||= {on:false,outcome:""};
+        member.on=ids.has(item.id);
+      }
+      const listed=presentation.targets.filter(item=>ids.has(item.id)).length,untracked=ids.size-listed;
+      setStatus(`${attack.area.shape==="line"?"Sulla linea":"Nel cono"}: ${listed} ${listed===1?"creatura":"creature"}`
+        +`${untracked>0?` (${untracked} senza PF tracciati, escluse)`:""}. Segna i tiri salvezza.`);
+    } else setStatus(result?.status==="cancelled"?"Disegno annullato.":`Disegno non riuscito${result?.error?`: ${result.error}`:""}.`);
+    renderArea();renderState();
+  }
   addExtra.addEventListener("click",()=>{
     if(!draft || draft.extras.length>=MAX_PC_ATTACK_EXTRAS) return;
     draft.extras.push({type:"",amount:"",label:""});

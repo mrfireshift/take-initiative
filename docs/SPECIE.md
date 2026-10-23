@@ -79,8 +79,11 @@ Correzioni fatte dopo il confronto:
   salvezza, Fortunato e Attacchi selvaggi si applicano al tavolo.
 - **Armi a soffio dei dragonidi** (Manuale del Giocatore, Fizban, Wildemount):
   **Soffia** sulla card, o la stessa capacità come Azione rapida, apre la
-  console dell'attacco. Il GM spunta le creature nel cono o sulla linea, segna
-  il tiro salvezza di ognuna e inserisce il danno tirato (la console suggerisce
+  console dell'attacco. **Disegna** traccia sulla mappa il cono o la linea dal
+  token del dragonide, nel colore del tipo di danno: alla conferma della sagoma
+  le creature al suo interno vengono spuntate (mai il dragonide); la sagoma
+  sparisce e la console torna aperta. Le creature si possono anche spuntare a
+  mano. Il GM segna il tiro salvezza di ognuna e inserisce il danno tirato (la console suggerisce
   i dadi al livello del personaggio e la CD, 8 + Costituzione + competenza):
   pieno se fallito, metà se superato, con le resistenze di ogni bersaglio. La
   conferma scrive i PF e spende l'uso in un solo comando, annullabile. Il soffio
