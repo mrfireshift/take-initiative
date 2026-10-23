@@ -1,6 +1,6 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { openBossActionsPopover } from "./bossActionsLauncher.js";
-import { openPcAttackPopover } from "./pcAttackLauncher.js";
+import { openPcAttackPopover, PC_ATTACK_SPELL_LAUNCH_CHANNEL } from "./pcAttackLauncher.js";
 import { pcAttackBreathActionId } from "./pcAttackBreathId.js";
 import {
   ID,
@@ -8733,6 +8733,31 @@ function __disabledTrackerQuickActionIds(sourceEntry, actions) {
     .map((action) => action.id);
 }
 
+// The attack console (pc-attack.js) launches a spell of the actor's book as the 🪄 menu does: the same routing,
+// for the book's spell actions only (never an attack, a feature or a condition).
+function mountPcAttackSpellLaunchListener() {
+  OBR.broadcast.onMessage(PC_ATTACK_SPELL_LAUNCH_CHANNEL, (event) => {
+    const data = event?.data;
+    if (!IS_GM || data?.type !== "launch" || !data.requestId) return;
+    const reply = (message) => OBR.broadcast.sendMessage(PC_ATTACK_SPELL_LAUNCH_CHANNEL,
+      { requestId: data.requestId, ...message }, { destination: "LOCAL" }).catch(() => {});
+    void reply({ type: "launch-accepted" });
+    const sceneEpoch = currentSceneEpoch();
+    void (async () => {
+      const entries = await readEntries();
+      if (!__isCurrentSceneOperation(sceneEpoch, "pc-attack-spell-launch")) return { ok: false, message: "Scena cambiata." };
+      const sourceEntry = entries.find((entry) => entry.id === String(data.sourceId || ""));
+      const action = sanitizeQuickActions(sourceEntry?.quickActions, { limit: 64, attackLimit: 64 })
+        .find((entry) => entry.id === String(data.actionId || "") && isSpellbookQuickAction(entry));
+      if (!sourceEntry || !action) return { ok: false, message: "Incantesimo non più nel grimorio." };
+      const result = await __runTrackerQuickAction(sourceEntry, action);
+      return { ok: true, mode: result?.mode || "", ...(result?.message ? { message: String(result.message) } : {}) };
+    })()
+      .catch((error) => ({ ok: false, message: String(error?.message || error) }))
+      .then((outcome) => reply({ type: "launch-result", ...outcome }));
+  });
+}
+
 function __toggleTrackerQuickActionsPopover(sourceEntry, button, event, group = "quick") {
   const sceneEpoch = currentSceneEpoch();
   if (!__isCurrentSceneOperation(sceneEpoch, "tracker-quick-actions-open")) return;
@@ -10854,6 +10879,7 @@ try {
       mountTrackerPopoverToggleListener();
       mountInitiativeCardContextMenuListener();
       mountTrackerQuickActionsPopoverListener();
+      mountPcAttackSpellLaunchListener();
       mountCompactAdminMenuListener();
       mountSpeedCheckStateBroadcast();
     mountConcentrationWarningBroadcast();

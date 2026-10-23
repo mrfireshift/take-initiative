@@ -33,12 +33,12 @@ export function pcAttackTurnSourceId(actorId) {
   return baseId && !String(baseId).startsWith("__") ? baseId : "";
 }
 
-// A creature on the map, standing (HP above 0: a character at 0 HP rolls death saves), with at least one attack.
+// A creature on the map, standing (HP above 0: a character at 0 HP rolls death saves), with an attack or a spell.
 export function pcAttackTurnReady(item, getCard = getInitiativeCard) {
   if (!isBossActionCreature(item)) return false;
   const hp = item.metadata?.[META_KEY]?.hp;
   if (hp !== undefined && hp !== null && hp !== "" && Number.isFinite(Number(hp)) && Number(hp) <= 0) return false;
-  return pcAttackPickerEntries(getCard(item)?.quickActions).length > 0;
+  return pcAttackPickerEntries(getCard(item)).length > 0;
 }
 
 function pingConsole(api, timeoutMs = CONSOLE_PING_TIMEOUT_MS) {

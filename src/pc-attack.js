@@ -15,7 +15,8 @@ import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel } from "./bossActionsViewCore.js";
 import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
-import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_POPOVER_ID } from "./pcAttackLauncher.js";
+import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL } from "./pcAttackLauncher.js";
+import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
 import { pcAttackPickerDefault, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
 import "./popoverDrag.js";
 
@@ -23,6 +24,9 @@ const META_KEY=`${ID}/meta`;
 const STATE_KEY=`${ID}/state`;
 const RANGE_LABELS=Object.freeze({melee:"Mischia",ranged:"Distanza"});
 const newAttackId=()=>`pc-attack:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
+const newLaunchId=()=>`pc-launch:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
+// The tracker acknowledges a launch at once; without it the tracker is closed (it hosts the 🪄 routing).
+const LAUNCH_ACK_TIMEOUT_MS=1500;
 const newCastId=()=>`pc-cast:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+":"+Math.random().toString(36).slice(2)}`;
 
 // Undo goes through the existing History, only for the latest confirmed entry (same rule as Boss Actions).
@@ -153,6 +157,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const spellControls=$("pc-attack-spell-controls");
   const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select");
   const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open");
+  const attackView=$("pc-attack-attack-view"),launchBox=$("pc-attack-launch"),casterLine=$("pc-attack-caster");
+  // A spell the console does not resolve (launched, woven into a weapon, or by hand): its card replaces the attack form.
+  let launchKey="",launchBusy=false,launchSignature="";
   let offPing=null,offAutoOpen=null;
   const extrasCaption=$("pc-attack-extras-caption");
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
@@ -785,17 +792,26 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // The picker (pcAttackPickerCore.js): the actor's weapon attacks, cantrips and attack spells. With one entry it
   // hides; when it shows, the cantrip or spell select below gives way to it (its notes and slot controls stay).
   const pickerShown=()=>!!picker && !picker.hidden;
+  // The entry on screen: the spell card shown, else the attack in the form.
+  function currentEntry() {
+    const entries=presentation?.picker || [];
+    if(launchKey) return entries.find(entry=>entry.key===launchKey) || null;
+    return draft?pcAttackPickerEntryFor(entries,actionId,draft.spellId):null;
+  }
+  // The spell card replaces the form: a spell chosen in the picker, or an actor without attacks (spells only).
+  const launching=()=>!!launchKey || !draft;
   let pickerSignature="";
   function renderPicker() {
     if(!picker) return;
     const entries=presentation?.picker || [];
-    const current=draft?pcAttackPickerEntryFor(entries,actionId,draft.spellId):null;
+    const current=currentEntry();
     picker.hidden=entries.length<2 || !current;
     if(picker.hidden){pickerSignature="";return;}
     const tabs=pcAttackPickerTabs(entries),inTab=entries.filter(entry=>entry.tab===current.tab);
     // A leveled spell cast left open (rays or darts still to register) says so in its entry.
-    const label=entry=>entry.tab==="spells" && pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState})
-      ?`${entry.label} · in corso`:entry.label;
+    // In the cantrips and spells tabs ⚔ marks what the console resolves, ★ the favourites (as the 🪄 menu).
+    const label=entry=>[entry.pinned?"★ ":"",entry.label,entry.tab!=="attacks" && entry.mode==="attack"?" ⚔":"",
+      entry.mode==="attack" && entry.tab==="spells" && pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState})?" · in corso":""].join("");
     // Rebuilt only when the list changes: a live update never closes the select the GM has open.
     const signature=JSON.stringify([tabs.map(tab=>tab.id),current.tab,inTab.map(entry=>[entry.key,label(entry)])]);
     if(signature!==pickerSignature) {
@@ -803,12 +819,18 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       pickerTabs.replaceChildren(...tabs.map(tab=>{
         const button=node("button",tab.label);button.type="button";button.dataset.pickerTab=tab.id;
         button.addEventListener("click",()=>{
-          if(tab.id===pcAttackPickerEntryFor(presentation?.picker,actionId,draft?.spellId)?.tab) return;
+          if(tab.id===currentEntry()?.tab) return;
           chooseEntry(pcAttackPickerDefault(presentation?.picker,{tab:tab.id,lastAttack:presentation?.item?.metadata?.[META_KEY]?.pcAttackState?.lastAttack}));
         });
         return button;
       }));
-      pickerSelect.replaceChildren(...inTab.map(entry=>{const option=node("option",label(entry));option.value=entry.key;return option;}));
+      const option=entry=>{const element=node("option",label(entry));element.value=entry.key;return element;};
+      // The spells by level, as in the 🪄 menu.
+      const levels=current.tab==="spells"?[...new Set(inTab.map(entry=>entry.level))]:[];
+      pickerSelect.replaceChildren(...(levels.length>1?levels.map(level=>{
+        const group=node("optgroup");group.label=Number.isInteger(level)?`${level}° livello`:"Altri";
+        group.append(...inTab.filter(entry=>entry.level===level).map(option));return group;
+      }):inTab.map(option)));
     }
     pickerTabs.hidden=tabs.length<2;
     for(const button of pickerTabs.querySelectorAll("button")){button.setAttribute("aria-pressed",String(button.dataset.pickerTab===current.tab));button.disabled=busy;}
@@ -817,13 +839,18 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   // Another cantrip or spell of the same action changes in place; another action loads it with a fresh draft
   // (the target stays), after a confirmation when this attack already holds decisions.
+  // A spell the console does not resolve only shows its card: the attack in progress stays, untouched, behind it.
   function chooseEntry(entry) {
-    if(!entry || busy || invalidated || !presentation || !draft) return;
-    if(entry.actionId===actionId) {
+    if(!entry || busy || invalidated || !presentation) return;
+    if(entry.mode!=="attack"){launchKey=entry.key;render();return;}
+    const previousLaunch=launchKey,fromLaunch=!!launchKey;
+    launchKey="";
+    if(draft && entry.actionId===actionId) {
       if(entry.spellId && entry.spellId!==draft.spellId) selectSpell(entry.spellId);else renderPicker();
+      if(fromLaunch) render();
       return;
     }
-    if(draftLocked(draft) && !confirmSwitch("Passare a un altro attacco? Le scelte di questo attacco andranno perse.")){renderPicker();return;}
+    if(draft && draftLocked(draft) && !confirmSwitch("Passare a un altro attacco? Le scelte di questo attacco andranno perse.")){launchKey=previousLaunch;render();return;}
     const previous=actionId;
     actionId=entry.actionId;requestedSpellId=entry.spellId;
     beamTally={spellId:"",count:0};palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
@@ -831,6 +858,97 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       try {await refresh(operation);}
       catch(error) {if(lifecycle.isCurrent(operation)){actionId=previous;requestedSpellId="";}throw error;}
     });
+  }
+  // The caster at a glance in the cantrips and spells tabs: the slots left (spells) and the concentration in progress.
+  const concentrationNames=()=>Object.entries(presentation?.item?.metadata?.[META_KEY]?.[`${ID}/concentration`] || {})
+    .map(([key,entry])=>String(entry?.name || entry?.spellId || key).trim()).filter(Boolean);
+  function renderCaster() {
+    if(!casterLine) return;
+    const tab=currentEntry()?.tab;
+    casterLine.hidden=!tab || tab==="attacks";
+    if(casterLine.hidden) return;
+    const meta=presentation.item?.metadata?.[META_KEY] || {};
+    const slots=tab==="spells"?spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources).filter(row=>row.maximum>0):[];
+    const names=concentrationNames();
+    casterLine.replaceChildren(
+      ...(slots.length?[node("span",`Slot ${slots.map(row=>`${row.pact?"Patto ":""}${row.level}° ${row.current}/${row.maximum}`).join(" · ")}`)]:[]),
+      names.length?node("span",`Concentrazione: ${names.join(", ")}`,"concentrating"):node("span","Nessuna concentrazione"));
+  }
+  // The card of a spell the console does not resolve: what it is, what it costs, and Lancia when the tracker casts it.
+  function renderLaunch() {
+    if(!launchBox) return;
+    if(attackView) attackView.hidden=true;
+    if(applyRow) applyRow.hidden=true;
+    launchBox.hidden=false;
+    const entry=currentEntry();
+    const level=entry?.level;
+    $("pc-attack-title").textContent=entry?.label || presentation?.item?.name || "Attacco";
+    $("pc-attack-subtitle").textContent=[presentation?.item?.name || presentation?.item?.id,
+      ...(entry?[level===0?"Trucchetto":`Incantesimo di ${level}° livello`]:[])].filter(Boolean).join(" · ");
+    if(entry?.spellId && !spellbookSpellReferenceLoaded()) {
+      // The Italian reference (casting time, range, duration) loads once, on the first spell shown.
+      void loadSpellbookSpellReference().then(()=>{launchSignature="";if(launching())renderLaunch();}).catch(()=>{});
+    }
+    const details=entry?.spellId?spellbookSpellDetails(entry.spellId):null;
+    const others=concentrationNames().filter(name=>name.toLocaleLowerCase("it")!==String(entry?.label || "").toLocaleLowerCase("it"));
+    const meta=presentation?.item?.metadata?.[META_KEY] || {};
+    const freeSlot=!level || spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources)
+      .some(row=>row.level>=level && row.current>0);
+    const notes=!entry?[["Nessun attacco o incantesimo da mostrare per questo attore.",""]]
+      :entry.mode==="weapon"?[["Si lancia con un attacco con arma da mischia: scegli l'arma nella scheda Attacchi e attivalo fra gli extra al colpo.",""]]
+      :entry.mode==="manual"?[["Non automatizzato: risolvilo al tavolo.",""]]
+      :[...(entry.concentration && others.length?[[`Lanciandolo termina la concentrazione su ${others.join(", ")}.`,"warning"]]:[]),
+        ...(!freeSlot?[[`Nessuno slot libero dal ${level}° livello in su.`,"warning"]]:[]),
+        ...(entry.recordOnly?[["Il plugin registra il lancio e lo slot: gli effetti si risolvono al tavolo.",""]]:[])];
+    const tags=entry?[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])]:[];
+    const detailText=details?[details.castingTime,details.range,details.duration].filter(Boolean).join(" · "):"";
+    const canLaunch=entry?.mode==="launch";
+    const signature=JSON.stringify([entry?.key,notes,tags,detailText,canLaunch,launchBusy,busy]);
+    if(signature===launchSignature) return;
+    launchSignature=signature;
+    const children=[];
+    if(tags.length) {const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>node("span",text,`launch-tag${kind?" "+kind:""}`)));children.push(row);}
+    if(detailText) children.push(node("p",detailText,"launch-details"));
+    children.push(...notes.map(([text,kind])=>node("p",text,`launch-note${kind?" "+kind:""}`)));
+    if(canLaunch) {
+      const button=node("button",launchBusy?"Lancio…":"Lancia","apply");button.type="button";button.id="pc-attack-launch-button";
+      button.disabled=launchBusy || busy || invalidated;
+      button.addEventListener("click",()=>{void launchSpell(entry);});
+      children.push(button);
+    }
+    launchBox.replaceChildren(...children);
+  }
+  // Lancia: the tracker casts the spell as the 🪄 menu does (the spell panel, or the cast at once when nothing is asked).
+  function askTrackerToLaunch(entry) {
+    return new Promise(resolve=>{
+      const requestId=newLaunchId();
+      let off=()=>{},timer=null;
+      const finish=value=>{clearTimeout(timer);off();resolve(value);};
+      const wait=()=>{clearTimeout(timer);timer=setTimeout(()=>finish(null),LAUNCH_ACK_TIMEOUT_MS);};
+      off=api.broadcast.onMessage(PC_ATTACK_SPELL_LAUNCH_CHANNEL,event=>{
+        const data=event?.data;
+        if(data?.requestId!==requestId) return;
+        // Accepted: the cast may take its time (a panel to open, a command to commit).
+        if(data.type==="launch-accepted") clearTimeout(timer);
+        else if(data.type==="launch-result") finish(data);
+      }) || (()=>{});
+      wait();
+      Promise.resolve().then(()=>api.broadcast.sendMessage(PC_ATTACK_SPELL_LAUNCH_CHANNEL,
+        {type:"launch",requestId,sourceId,actionId:entry.actionId},{destination:"LOCAL"})).catch(()=>finish(null));
+    });
+  }
+  async function launchSpell(entry) {
+    if(launchBusy || busy || invalidated || entry?.mode!=="launch") return;
+    if(typeof api.broadcast?.onMessage!=="function"){setStatus("Lancio non disponibile.");return;}
+    launchBusy=true;renderLaunch();
+    try {
+      const result=await askTrackerToLaunch(entry);
+      setStatus(!result?`Il tracker non risponde: aprilo per lanciare ${entry.label} dal grimorio.`
+        :!result.ok?String(result.message || `${entry.label}: lancio non riuscito.`)
+        :result.mode==="review"?`${entry.label}: pannello incantesimi aperto.`
+        :result.mode==="executed"?`${entry.label}: lancio registrato.`
+        :String(result.message || `${entry.label}: lancio non valido.`));
+    } finally {launchBusy=false;renderLaunch();}
   }
   function renderHeader() {
     const action=presentation?.action,attack=resolved();
@@ -958,15 +1076,25 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     apply.disabled=busy || invalidated || !view.ready;
   }
   function render() {
-    if(!presentation || !draft){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
-    form.hidden=false;if(applyRow)applyRow.hidden=false;renderPicker();renderHeader();renderTarget();renderPalm();renderOutcomes();renderCantrip();renderDamage();renderWoven();renderRiders();renderActivations();renderExtras();renderState();
+    if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
+    form.hidden=false;
+    // A spell that left the book (or a launch view on an entry gone) falls back to the attack, or the first spell.
+    if(launchKey && !(presentation.picker || []).some(entry=>entry.key===launchKey)) launchKey="";
+    if(!draft && !launchKey) launchKey=pcAttackPickerDefault(presentation.picker,{})?.key || "";
+    renderPicker();renderCaster();
+    if(launching()){renderLaunch();return;}
+    if(attackView) attackView.hidden=false;
+    if(launchBox){launchBox.hidden=true;launchSignature="";}
+    if(applyRow)applyRow.hidden=false;renderHeader();renderTarget();renderPalm();renderOutcomes();renderCantrip();renderDamage();renderWoven();renderRiders();renderActivations();renderExtras();renderState();
     if(palmBox && isArea()) palmBox.hidden=true;
   }
   // Selection and scene updates never rebuild the outcome buttons or the amount fields: a click in
   // flight or the caret in a field survives them.
   function renderLive() {
-    if(!presentation || !draft){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
-    renderPicker();renderTarget();renderPalm();updateDamageMeta();updateWoven();updateRiders();updateActivations();renderState();
+    if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
+    renderPicker();renderCaster();
+    if(launching()){renderLaunch();return;}
+    renderTarget();renderPalm();updateDamageMeta();updateWoven();updateRiders();updateActivations();renderState();
   }
 
   async function perform(work) {
@@ -991,6 +1119,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // Without an action asked for, the runtime picked one (the last attack, else the first weapon).
     const switched=!!presentation && loaded.actionId!==undefined && loaded.actionId!==presentation.actionId;
     if(loaded.actionId) actionId=loaded.actionId;
+    // An actor without attacks: only its spells, no attack form.
+    if(!loaded.action){presentation=loaded;draft=null;requestedSpellId="";render();return;}
     // A changed definition (components edited in the card) starts a new attack.
     const sameAction=JSON.stringify(loaded.action)===JSON.stringify(presentation?.action);
     presentation=loaded;

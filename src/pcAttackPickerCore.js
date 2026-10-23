@@ -1,10 +1,16 @@
 import { sanitizeQuickActions } from "./quickActionsCore.js";
-import { pcAttackAction, pcAttackCantripIds, pcAttackSpellIds } from "./pcAttackCore.js";
+import { pcAttackAction, pcAttackBreathActionsForCard, pcAttackCantripIds, pcAttackSpellIds } from "./pcAttackCore.js";
 import { getPcAttackCantrip } from "./pcAttackCantripCatalog.js";
 import { getPcAttackSpell } from "./pcAttackSpellCatalog.js";
+import { spellbookCantripAttackAction, spellbookGroupsForProfile, spellbookSpellAttackAction } from "./spellbookCatalog.js";
+import { spellbookQuickActionId } from "./spellbookCore.js";
 
-// The attack console's picker: the actor's weapon attacks, its cantrips and its leveled attack spells, one entry each.
-// A cantrip or spell entry points at the quick action that records it (the first one offering it, as the spellbook does).
+// The attack console's picker: everything the actor can do with an attack or a spell on its turn, one entry each.
+// Attacchi: the weapon attacks and the breath weapons. Trucchetti and Incantesimi: the spells of the book the actor
+// can cast now (as the 🪄 menu lists them), or, without a book, the ones its attack actions offer.
+// mode: "attack" resolves in the console (actionId: the attack action that records it, the first one offering it);
+// "launch" goes to the spell panel through the tracker, as the 🪄 menu does (actionId: the book's spell action);
+// "weapon" is woven into a melee weapon attack (Booming Blade); "manual" is not automated, the table resolves it.
 export const PC_ATTACK_PICKER_TABS = Object.freeze([
   Object.freeze({ id: "attacks", label: "Attacchi" }),
   Object.freeze({ id: "cantrips", label: "Trucchetti" }),
@@ -15,31 +21,53 @@ export function pcAttackPickerKey(actionId, spellId = "") {
   return spellId ? `${actionId}::${spellId}` : String(actionId || "");
 }
 
-// [{ key, tab, actionId, spellId, label }] in the order of the card, grouped by tab.
-export function pcAttackPickerEntries(quickActions) {
+const attackLabel = (spellId) => getPcAttackCantrip(spellId)?.name || getPcAttackSpell(spellId)?.name || spellId;
+
+// [{ key, tab, actionId, spellId, label, mode, level, concentration, ritual, recordOnly, pinned }], grouped by tab.
+// card: the actor's card (its quick actions, book, build and traits); a plain list of quick actions is read as one.
+export function pcAttackPickerEntries(card) {
+  const profile = Array.isArray(card) ? { quickActions: card } : (card && typeof card === "object" ? card : {});
+  const quickActions = sanitizeQuickActions(profile.quickActions, { limit: 64, attackLimit: 64 });
   const entries = { attacks: [], cantrips: [], spells: [] };
   const seen = new Set();
-  const add = (tab, actionId, spellId, label) => {
-    const key = pcAttackPickerKey(actionId, spellId);
-    const unique = spellId ? `${tab}::${spellId}` : key;
+  const add = (tab, actionId, spellId, label, extra = {}) => {
+    const unique = spellId ? `${tab}::${spellId}` : pcAttackPickerKey(actionId);
     if (seen.has(unique)) return;
     seen.add(unique);
-    entries[tab].push({ key, tab, actionId, spellId, label });
+    entries[tab].push({ key: pcAttackPickerKey(actionId || "book", spellId), tab, actionId, spellId, label, mode: "attack", level: null,
+      concentration: false, ritual: false, recordOnly: false, pinned: false, ...extra });
   };
-  for (const value of sanitizeQuickActions(quickActions, { limit: 64, attackLimit: 64 })) {
-    const action = pcAttackAction(value);
-    if (!action) continue;
-    if (action.source?.kind === "cantrip") {
-      for (const spellId of pcAttackCantripIds(action)) add("cantrips", action.id, spellId, getPcAttackCantrip(spellId)?.name || spellId);
-    } else if (action.source?.kind === "spell") {
-      for (const spellId of pcAttackSpellIds(action)) {
-        const spell = getPcAttackSpell(spellId);
-        add("spells", action.id, spellId, spell ? `${spell.name} · ${spell.level}°` : spellId);
-      }
-    } else {
-      add("attacks", action.id, "", action.label || action.id);
+  const attackActions = quickActions.map(pcAttackAction).filter(Boolean);
+  const addOffered = (action, explicitOnly) => {
+    if (explicitOnly && !action.source?.spellIds?.length) return;
+    const cantrip = action.source?.kind === "cantrip";
+    for (const spellId of cantrip ? pcAttackCantripIds(action) : pcAttackSpellIds(action)) {
+      add(cantrip ? "cantrips" : "spells", action.id, spellId, attackLabel(spellId), { level: cantrip ? 0 : getPcAttackSpell(spellId)?.level ?? null });
     }
+  };
+  for (const action of attackActions) {
+    if (!["cantrip", "spell"].includes(action.source?.kind)) add("attacks", action.id, "", action.label || action.id);
   }
+  for (const action of pcAttackBreathActionsForCard(profile)) add("attacks", action.id, "", action.label || action.id);
+  const book = spellbookGroupsForProfile(profile)
+    .filter((group) => group.level !== null)
+    .flatMap((group) => group.spells.filter((spell) => spell.prepared).sort((left, right) => Number(right.pinned) - Number(left.pinned)));
+  if (!book.length) {
+    for (const action of attackActions) if (["cantrip", "spell"].includes(action.source?.kind)) addOffered(action, false);
+    return PC_ATTACK_PICKER_TABS.flatMap((tab) => entries[tab.id]);
+  }
+  for (const spell of book) {
+    const tab = spell.level === 0 ? "cantrips" : "spells";
+    const details = { level: spell.level, concentration: spell.concentration, ritual: spell.ritual, recordOnly: spell.recordOnly, pinned: spell.pinned };
+    const attack = spell.level === 0 ? spellbookCantripAttackAction(quickActions, spell.id) : spellbookSpellAttackAction(quickActions, spell.id);
+    const offered = attack && (spell.level === 0 ? pcAttackCantripIds(attack) : pcAttackSpellIds(attack)).includes(spell.id);
+    if (offered) add(tab, attack.id, spell.id, attackLabel(spell.id), details);
+    else if (getPcAttackCantrip(spell.id)?.delivery === "weapon") add(tab, "", spell.id, spell.label, { ...details, mode: "weapon" });
+    else if (spell.launchable) add(tab, spellbookQuickActionId(spell.id), spell.id, spell.label, { ...details, mode: "launch" });
+    else add(tab, "", spell.id, spell.label, { ...details, mode: "manual" });
+  }
+  // A list the attack action names itself (a species or feat cantrip) stays, even when the book does not hold it.
+  for (const action of attackActions) if (["cantrip", "spell"].includes(action.source?.kind)) addOffered(action, true);
   return PC_ATTACK_PICKER_TABS.flatMap((tab) => entries[tab.id]);
 }
 
@@ -52,9 +80,11 @@ export function pcAttackPickerEntryFor(entries, actionId, spellId = "") {
 }
 
 // The entry the console opens with: the one asked for (the ⚔ or 🪄 menu), else the attacker's last attack, else the
-// first weapon attack, else the first entry. tab: only within that tab (the GM switched tab).
-export function pcAttackPickerDefault(entries, { actionId = "", spellId = "", lastAttack = null, tab = "" } = {}) {
-  const list = (Array.isArray(entries) ? entries : []).filter((entry) => !tab || entry.tab === tab);
+// first weapon attack, else the first entry. tab: only within that tab (the GM switched tab). attackOnly: only the
+// entries the console resolves (the runtime loads an attack action).
+export function pcAttackPickerDefault(entries, { actionId = "", spellId = "", lastAttack = null, tab = "", attackOnly = false } = {}) {
+  const list = (Array.isArray(entries) ? entries : [])
+    .filter((entry) => (!tab || entry.tab === tab) && (!attackOnly || entry.mode === "attack"));
   if (actionId) {
     const requested = pcAttackPickerEntryFor(list, actionId, spellId);
     if (requested) return requested;

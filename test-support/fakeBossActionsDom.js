@@ -65,7 +65,8 @@ export class FakeNode {
   querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
   set value(value) { this._value = String(value); }
   get value() {
-    if (this.tagName === "SELECT" && !this.children.some((option) => option.value === this._value)) return "";
+    // Options may sit in an optgroup.
+    if (this.tagName === "SELECT" && !this.querySelectorAll("option").some((option) => option.value === this._value)) return "";
     return this._value ?? "";
   }
   get childElementCount() { return this.children.filter((child) => child instanceof FakeNode).length; }

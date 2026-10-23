@@ -7,6 +7,8 @@ export const PC_ATTACK_WIDTH = 380;
 export const PC_ATTACK_HEIGHT = 560;
 // The console answers a ping on this channel while it is open (pcAttackTurnController.js never reloads an open one).
 export const PC_ATTACK_CONSOLE_CHANNEL = `${ID}/pc-attack-console`;
+// The console asks the tracker to launch a spell of the book, as the 🪄 menu does (initiativeList.js answers).
+export const PC_ATTACK_SPELL_LAUNCH_CHANNEL = `${ID}/pc-attack-spell-launch`;
 
 // Compact floating console for one attack quick action; drag and stored position come from openTrackedPopover.
 // spellId: the cantrip or leveled spell the console opens with (from the spellbook or the 🪄 menu).

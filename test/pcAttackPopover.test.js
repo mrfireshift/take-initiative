@@ -17,7 +17,7 @@ const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-att
   "pc-attack-palm", "pc-attack-palm-note", "pc-attack-palm-outcomes", "pc-attack-palm-amount", "pc-attack-palm-apply",
   "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-note", "pc-attack-area-list",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed", "pc-attack-picker", "pc-attack-picker-tabs", "pc-attack-picker-select",
-  "pc-attack-auto-open-row", "pc-attack-auto-open"];
+  "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
@@ -40,7 +40,7 @@ const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
 // actions: the actor's quick actions, for the picker (the runtime then loads the one asked for, like pcAttackExecution).
-function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, actionId = "holy-sword", confirm, broadcast, autoOpenOption } = {}) {
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, actionId = "holy-sword", confirm, broadcast, autoOpenOption } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
   const items = [creature("aria", "Aria", 40, attacker), creature("ghoul", "Ghoul", 30, defenses ? { initiativeCard: { damageDefenses: defenses } } : {}), creature("imp", "Imp", 10)];
@@ -58,9 +58,13 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
   const runtime = {
     getPcAttackPresentation: async (sourceId, asked) => {
       loads.push(asked);
-      if (!actions) return { item: items[0], action, targets: items.slice(1), turnState, sceneIdentity: "scene-A" };
-      const chosen = actions.find((entry) => entry.id === asked) || actions[0];
-      return { item: items[0], action: chosen, actionId: chosen.id, picker: pcAttackPickerEntries(actions), targets: items.slice(1), turnState, sceneIdentity: "scene-A" };
+      if (!actions && !card) return { item: items[0], action, targets: items.slice(1), turnState, sceneIdentity: "scene-A" };
+      const picker = pcAttackPickerEntries(card || actions);
+      const list = card ? card.quickActions || [] : actions;
+      // Without an action asked for, like the runtime: an attack of the picker, else none (an actor with spells only).
+      const chosen = list.find((entry) => entry.id === asked)
+        || (asked ? null : list.find((entry) => picker.some((item) => item.mode === "attack" && item.actionId === entry.id))) || null;
+      return { item: items[0], action: chosen, actionId: chosen?.id || "", picker, targets: items.slice(1), turnState, sceneIdentity: "scene-A" };
     },
     endQuiveringPalm: async (request) => {
       calls.push({ palm: request });
@@ -754,4 +758,83 @@ test("the header switch shows and changes the turn auto-open option", async () =
   assert.equal(box.checked, false, "a change made in the options panel shows here");
   await f.$("pc-attack-close").click();
   assert.equal(notify, null);
+});
+
+// A cleric with a cantrip attack, a book and a slot spent; concentrating on Bless.
+const clericCard = { characterBuild: [{ classId: "chierico", level: 3 }], quickActions: [sword, sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack",
+  source: { kind: "cantrip" } })], spellbook: { spellIds: ["sacred-flame", "light", "bless", "shield-of-faith", "spiritual-weapon"] } };
+const clericMeta = { initiativeCard: clericCard, classFeatureState: { resources: { "spell-slot-1": { current: 1 } } },
+  "com.thebigpicture.initiative/concentration": { bless: { spellId: "bless", name: "Benedizione" } } };
+function launchBroadcast({ ack = true, result = { ok: true, mode: "review" } } = {}) {
+  const listeners = new Set(), sent = [];
+  return { sent, broadcast: {
+    onMessage: (channel, listener) => { const entry = { channel, listener }; listeners.add(entry); return () => listeners.delete(entry); },
+    sendMessage: async (channel, data) => {
+      sent.push({ channel, data });
+      if (data.type !== "launch") return;
+      const reply = (message) => { for (const entry of [...listeners]) if (entry.channel === channel) entry.listener({ data: message }); };
+      setTimeout(() => {
+        if (ack) reply({ type: "launch-accepted", requestId: data.requestId });
+        if (result) reply({ type: "launch-result", requestId: data.requestId, ...result });
+      }, 0);
+    } } };
+}
+
+test("a spell the console does not resolve shows its card instead of the form; the attack waits behind it", async () => {
+  const f = fixture({ card: clericCard, attacker: clericMeta }); await f.controller.ready; await tick();
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click();
+  const tabs = pickerTabs(f).map((button) => button.textContent);
+  assert.deepEqual(tabs, ["Attacchi", "Trucchetti", "Incantesimi"]);
+  await pickerTabs(f)[2].click(); await tick();
+  assert.equal(f.$("pc-attack-attack-view").hidden, true);
+  assert.equal(f.$("pc-attack-launch").hidden, false);
+  assert.equal(f.$("pc-attack-title").textContent, "Benedizione");
+  assert.match(f.$("pc-attack-subtitle").textContent, /Incantesimo di 1° livello/);
+  assert.match(textOf(f.$("pc-attack-launch")), /Concentrazione/);
+  assert.equal(f.$("pc-attack-launch").querySelector("#pc-attack-launch-button").textContent, "Lancia");
+  assert.match(textOf(f.$("pc-attack-caster")), /Slot 1° 1\/4 · 2° 2\/2.*Concentrazione: Benedizione/);
+  const groups = f.$("pc-attack-picker-select").children.map((group) => group.label);
+  assert.deepEqual(groups, ["1° livello", "2° livello"], "the spells by level");
+  await pick(f, "book:shield-of-faith::shield-of-faith");
+  assert.match(textOf(f.$("pc-attack-launch")), /Lanciandolo termina la concentrazione su Benedizione/);
+  await pickerTabs(f)[0].click(); await tick();
+  assert.equal(f.$("pc-attack-attack-view").hidden, false);
+  assert.equal(f.controller.getDraft().outcome, "hit", "the attack in progress is still there");
+  assert.equal(f.$("pc-attack-caster").hidden, true, "the attacks tab shows no slots");
+});
+
+test("Lancia asks the tracker; its answer, or its silence, is the status", async () => {
+  const ok = launchBroadcast();
+  const f = fixture({ card: clericCard, attacker: clericMeta, broadcast: ok.broadcast }); await f.controller.ready; await tick();
+  await pickerTabs(f)[2].click(); await tick();
+  await f.$("pc-attack-launch").querySelector("#pc-attack-launch-button").click(); await tick(); await tick();
+  const launch = ok.sent.find((message) => message.data.type === "launch");
+  assert.equal(launch.channel, "com.thebigpicture.initiative/pc-attack-spell-launch");
+  assert.deepEqual([launch.data.sourceId, launch.data.actionId], ["aria", "book:bless"]);
+  assert.equal(f.$("pc-attack-status").textContent, "Benedizione: pannello incantesimi aperto.");
+  const silent = launchBroadcast({ ack: false, result: null });
+  const g = fixture({ card: clericCard, attacker: clericMeta, broadcast: silent.broadcast }); await g.controller.ready; await tick();
+  await pickerTabs(g)[2].click(); await tick();
+  await g.$("pc-attack-launch").querySelector("#pc-attack-launch-button").click();
+  await new Promise((resolve) => setTimeout(resolve, 1600));
+  assert.match(g.$("pc-attack-status").textContent, /Il tracker non risponde: aprilo per lanciare Benedizione/);
+});
+
+test("an actor with spells and no attack opens on its spells", async () => {
+  const card = { characterBuild: [{ classId: "chierico", level: 1 }], quickActions: [], spellbook: { spellIds: ["light", "bless"] } };
+  const f = fixture({ card, attacker: { initiativeCard: card }, actionId: "" }); await f.controller.ready; await tick();
+  assert.equal(f.controller.getDraft(), null);
+  assert.equal(f.$("pc-attack-form").hidden, false);
+  assert.equal(f.$("pc-attack-attack-view").hidden, true);
+  assert.equal(f.$("pc-attack-title").textContent, "Luce");
+});
+
+test("a blade cantrip points to the weapon attack", async () => {
+  const card = { quickActions: [sword], spellbook: { spellIds: ["tasha-lama-roboante", "light"] } };
+  const f = fixture({ card, attacker: { initiativeCard: card } }); await f.controller.ready; await tick();
+  await pickerTabs(f)[1].click(); await tick();
+  assert.equal(f.$("pc-attack-title").textContent, "Lama Roboante");
+  assert.match(textOf(f.$("pc-attack-launch")), /Si lancia con un attacco con arma da mischia/);
+  assert.equal(f.$("pc-attack-launch").querySelector("#pc-attack-launch-button"), null);
 });
