@@ -12,7 +12,7 @@ li aggiorna con il lavoro di ottobre e risponde a due domande:
 
 La seconda è risolta (sezione 2). La prima è un piano a lotti: i lotti L1–L4
 sono fatti (sezioni 5.1 e 5.2), L5+ procede una capacità per volta (sezione 5.3,
-CAP-LINK fatta). Chi lavora a
+CAP-LINK e CAP-HP-BRANCH fatte). Chi lavora a
 un lotto parte dalle note pratiche della sezione 8.
 
 Il perimetro è quello di sempre: un **tracker assistito**. Dadi, linea di
@@ -24,19 +24,19 @@ conferma.
 
 | Categoria | Incantesimi | Che cosa fa oggi il plugin |
 | --- | ---: | --- |
-| Automatizzati | 255 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
+| Automatizzati | 260 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
 | Tracciati, nessuna automazione utile | 112 | Pill con durata e concentrazione; informazioni, evocazioni e ambiente al tavolo. |
 | Solo registrazione, nessuna automazione utile | 32 | Istantanei di utilità: lo slot e il registro di combattimento. |
 | **Pronti: bastano i dati** | **0** | Si lanciano e registrano; l'automazione richiede soltanto dati e test. |
-| **Dopo una capacità condivisa** | **65** | Si lanciano e registrano; serve prima una capacità del motore. |
+| **Dopo una capacità condivisa** | **60** | Si lanciano e registrano; serve prima una capacità del motore. |
 | Su misura | 11 | Si lanciano e registrano; lo stato è troppo specifico per un'automazione generica. |
 | Da verificare | 2 | Testo o perimetro delle regole mancanti. |
 | **Totale** | **477** | **Tutti lanciabili dal libro, dalle azioni rapide e dal pannello, con il loro slot.** |
 
-Il lavoro di automazione residuo è di **76 incantesimi** (65 + 11) più i 2 da
+Il lavoro di automazione residuo è di **71 incantesimi** (60 + 11) più i 2 da
 verificare, contro i 152 di settembre: nel frattempo la console attacchi ha
 chiuso 17 trucchetti, Prigione Mentale è stata completata, i lotti L1–L4
-hanno chiuso altri 50 incantesimi e CAP-LINK altri 8.
+hanno chiuso altri 50 incantesimi, CAP-LINK altri 8 e CAP-HP-BRANCH altri 5.
 
 Ordine consigliato, dal più sicuro al più costoso:
 
@@ -46,7 +46,7 @@ Ordine consigliato, dal più sicuro al più costoso:
 | L2 ✓ | 14 | Cure, TS con danno, condizioni che finiscono al danno, TS ripetuti (fatto il 22 ottobre) | Sì, dal comando ad area esistente |
 | L3 ✓ | 12 | Zone e aree persistenti, due azioni ad area ripetibili (fatto il 22 ottobre) | Sì, dai percorsi di zona e azioni attive esistenti |
 | L4 ✓ | 7 | Incantesimi d'attacco nella console attacchi, con il loro slot (fatto il 22 ottobre) | Sì, dalla console attacchi; Tocco del vampiro cura il caster |
-| L5+ | 65 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre | Spesso |
+| L5+ | 60 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre, CAP-HP-BRANCH il 23 | Spesso |
 
 ## 2. Registrare il lancio di qualunque incantesimo (fatto)
 
@@ -297,7 +297,7 @@ Una capacità per volta, con i suoi test di contratto, poi la famiglia.
 | Capacità | Incantesimi (da sola) | Che cosa serve | Rischio |
 | --- | --- | --- | --- |
 | CAP-LINK ✓ | 9 (8) | Legame mantenuto o spostato e fine su evento: Marchio del cacciatore, Sortilegio, Dardo stregato, Duello obbligato, Corona di follia, Debilitazione, Invisibilità, Lama roboante, tutti fatti | Medio |
-| CAP-HP-BRANCH | 5 (5) | Soglie di PF prima e dopo il danno: Disintegrazione, Dito della morte, Parola del potere uccidere, Regressione mentale, Parola divina | Alto: HP |
+| CAP-HP-BRANCH ✓ | 5 (5) | Soglie di PF prima e dopo il danno: Disintegrazione, Dito della morte, Parola del potere uccidere, Regressione mentale, Parola divina, tutti fatti | Alto: HP |
 | CAP-CLEANSE | 6 (4) | Scegliere e terminare effetti attivi: Ristorare inferiore, Dissolvi magie, Guarigione, Parola del potere guarire | Medio |
 | CAP-RESOURCE | 5 (4) | Contatore consumato: Bacche benefiche, Guardiano della fede, Immagine speculare, Cordone di frecce | Medio |
 | CAP-REACTION | 6 (6) | Reazione assistita al danno o all'attacco: Interdizione alla morte, Scudo di fuoco, Santuario, Vincolo di interdizione, Interdizione primordiale, Ombra di Moil | Alto: HP |
@@ -358,6 +358,32 @@ movimento del token nel suo turno.
 Test: `test/spellLinks.test.js` (avvisi di Lama roboante, le fini di
 Invisibilità e del Duello) e l'attaccante invisibile con il coordinatore vero
 e un Annulla in `test/pcAttackExecutionIntegration.test.js`.
+
+**CAP-HP-BRANCH, fatta il 23 ottobre.** Le regole sono in
+`src/hpBranchSpellRules.js`; l'esecutore ad area le applica con i PF letti
+dagli item vivi al momento della conferma, i temporanei esclusi. Prima del
+danno: Parola del potere uccidere (nessun TS, si muore con 100 PF o meno) e
+Parola divina (al TS Carisma fallito: ≤50 assordato 1 minuto, ≤40 anche
+accecato 10 minuti, ≤30 anche stordito 1 ora, ≤20 morto; celestiali,
+elementali, folletti e immondi respinti sul loro piano per 24 ore). Dopo il
+danno: Disintegrazione (portato a 0 PF dal TS Destrezza fallito: polvere) e
+Dito della morte (un umanoide ucciso si rianima come zombi all'inizio del
+prossimo turno del caster, con un promemoria). Un campo «Tipo» per bersaglio
+nella console, o il tipo di creatura del token, dice umanoide o immondo.
+
+La morte istantanea è una scrittura dei PF a 0 con `instantDeath`: la pill
+«Morto» per qualsiasi creatura, per un PG anche i tre fallimenti ai TS
+contro la morte, mai Privo di sensi. Regressione mentale non ha soglie: 4d6
+psichici comunque e, al TS Intelligenza fallito, la pill da togliere a mano.
+
+Correzione dei TS contro la morte: la console ad area scrive i PF da sé
+(`updateHP`), fuori dal blocco PF del coordinatore, quindi le sue cure, i
+suoi danni a 0 PF e le sue morti istantanee non toccavano il conteggio.
+`planAreaDeathSaves` applica ora le stesse regole nel piano del comando, con
+il conteggio scritto insieme ai PF e nella Cronologia. Test:
+`test/hpBranchSpells.test.js` (le regole sul piano vero) e
+`test/hpBranchSpellsIntegration.test.js` (esecutore e coordinatore veri, con
+Annulla).
 
 L'ordine consigliato resta quello dell'audit (LINK, HP-BRANCH, CLEANSE,
 RESOURCE), con CAP-ATTACK sostituita dalla console attacchi (L4). Le capacità
@@ -552,7 +578,7 @@ lotto. Gli incantesimi senza lavoro residuo sono elencati per livello.
 
 Nessuno: i lotti L1–L3 li hanno chiusi tutti il 22 ottobre.
 
-### Dopo una capacità condivisa (65)
+### Dopo una capacità condivisa (60)
 
 Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi la famiglia si completa con i dati.
 
@@ -600,7 +626,6 @@ Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi l
 | Trasmutare Roccia (`xanathar-trasmutare-roccia`) | 5° | CAP-TERRAIN: modalità e sottozone di terreno. | L5+ |
 | Banchetto degli eroi (`heroes-feast`) | 6° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
 | Boschetto Druidico (`xanathar-boschetto-druidico`) | 6° | CAP-TERRAIN: modalità e sottozone di terreno. | L5+ |
-| Disintegrazione (`disintegrate`) | 6° | CAP-HP-BRANCH: soglie di PF prima/dopo il danno. | L5+ |
 | Ferire (`harm`) | 6° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
 | Guarigione (`heal`) | 6° | CAP-CLEANSE: cura e rimozione di condizioni nello stesso comando. | L5+ |
 | Interdizione Primordiale (`xanathar-interdizione-primordiale`) | 6° | CAP-REACTION: reazione assistita a danno o attacco. | L5+ |
@@ -609,17 +634,13 @@ Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi l
 | Portale Arcano (`phb2014-portale-arcano`) | 6° | CAP-TELEPORT: coppia di portali con attraversamento. | L5+ |
 | Sfera congelante (`freezing-sphere`) | 6° | CAP-ORIGIN: globo conservato e detonazione differita. | L5+ |
 | Trasformazione di Tenser (`xanathar-trasformazione-di-tenser`) | 6° | CAP-TEMP: PF temporanei consumati dal danno. | L5+ |
-| Dito della morte (`finger-of-death`) | 7° | CAP-HP-BRANCH: soglie di PF prima/dopo il danno. | L5+ |
-| Parola divina (`divine-word`) | 7° | CAP-HP-BRANCH: soglie di PF prima/dopo il danno. | L5+ |
 | Resurrezione (`resurrection`) | 7° | CAP-STABILIZE + CAP-CALENDAR: ritorno in vita e penalità ai riposi. | L5+ |
 | Rigenerazione (`regenerate`) | 7° | CAP-REPEAT-HEAL: cura ripetuta a ogni turno. | L5+ |
 | Simbolo (`symbol`) | 7° | CAP-TERRAIN: modalità e sottozone di terreno. | L5+ |
 | Tempesta di fuoco (`fire-storm`) | 7° | CAP-MULTIAREA: più aree in un lancio, bersagli senza duplicati. | L5+ |
-| Regressione mentale (`feeblemind`) | 8° | CAP-HP-BRANCH: soglie di PF prima/dopo il danno. | L5+ |
 | Tsunami (`phb2014-tsunami`) | 8° | CAP-SEQUENCE: effetto che cambia a ogni round. | L5+ |
 | Guarigione di massa (`mass-heal`) | 9° | CAP-ALLOCATION + CAP-CLEANSE: 700 PF da ripartire. | L5+ |
 | Parola del Potere Guarire (`phb2014-parola-del-potere-guarire`) | 9° | CAP-CLEANSE: cura e rimozione di condizioni nello stesso comando. | L5+ |
-| Parola del potere uccidere (`power-word-kill`) | 9° | CAP-HP-BRANCH: soglie di PF prima/dopo il danno. | L5+ |
 | Resurrezione pura (`true-resurrection`) | 9° | CAP-STABILIZE + CAP-CALENDAR: ritorno in vita e penalità ai riposi. | L5+ |
 | Sciame di meteore (`meteor-swarm`) | 9° | CAP-MULTIAREA: più aree in un lancio, bersagli senza duplicati. | L5+ |
 | Tempesta di vendetta (`storm-of-vengeance`) | 9° | CAP-SEQUENCE: effetto che cambia a ogni round. | L5+ |
@@ -651,7 +672,7 @@ Mancano testo o perimetro delle regole.
 | Manto del Crociato (`legacy-crusaders-mantle`) | 3° | Regole da verificare prima di decidere. | — |
 | Imprigionare (`imprisonment`) | 9° | Regole da verificare prima di decidere. | — |
 
-### Automatizzati (255)
+### Automatizzati (260)
 
 Lancio e risoluzione assistiti dal pannello, dalla console ad area o dalla console attacchi.
 
@@ -661,10 +682,10 @@ Lancio e risoluzione assistiti dal pannello, dalla console ad area o dalla conso
 - **3° livello**: Arma Elementale, Aura di Vitalità, Cerchio magico, Eruzione Terrestre, Evoca Raffica, Fame di Hadar, Faro di speranza, Forma gassosa, Fortezza della Mente, Frecce Infuocate, Freccia Folgorante, Fulmine, Guardiani spirituali, Intermittenza, Invocare il fulmine, Lentezza, Luce diurna, Morte Apparente (R), Muro di Sabbia, Muro di vento, Nemici in Abbondanza, Nube maleodorante, Onda di Marea, Palla di fuoco, Parola guaritrice di massa, Paura, Protezione dall'energia, Punizione Accecante, Sonnellino, Sudario Spirituale, Tempesta di nevischio, Tocco del vampiro, Trama ipnotica, Velocità, Volare.
 - **4° livello**: Allucinazione mortale, Anatema Elementale, Aura di Purezza, Aura di Vita, Charme sui Mostri, Compulsione, Confusione, Controllare acqua, Dominare bestie, Esilio, Fulgore Nauseante, Guardiano della Natura, Inaridire, Invisibilità superiore, Libertà di movimento, Muro di fuoco, Pelle di pietra, Porta dimensionale, Punizione Demoralizzante, Sfera al Vetriolo, Sfera della Tempesta, Sfera elastica, Tempesta di ghiaccio, Tentacoli neri.
 - **5° livello**: Abilità Potenziata, Alba, Animare oggetti, Arma Sacra, Blocca mostri, Cerchio di Potere, Collera della Natura, Colpo infuocato, Cono di freddo, Contagio, Controllare Venti, Cura ferite di massa, Debilitazione, Dominare persona, Evoca Pioggia di Armi, Guscio anti-vita, Immolazione, Maelstrom, Mano arcana, Muro di forza, Muro di Luce, Nube mortale, Onda Distruttiva, Piaga degli insetti, Punizione Esiliante, Risveglio, Santificare, Scossa Sinaptica, Telecinesi.
-- **6° livello**: Abito Ultraterreno di Tasha, Bagliore solare, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Globo di invulnerabilità, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di spine, Prigione Mentale, Proibizione (R), Sguardo penetrante, Suggestione di massa.
-- **7° livello**: Corona di Stelle, Gabbia di forza, Palla di fuoco ritardata, Parola del Potere Dolore, Spada arcana, Spruzzo prismatico, Turbine.
-- **8° livello**: Antipatia/simpatia, Aura sacra, Dominare mostri, Drago Illusorio, Esplosione solare, Labirinto, Nube incendiaria, Orrido Avvizzimento di Abi-Dalzim, Oscurità della Follia, Parola del potere stordire, Terremoto.
-- **9° livello**: Fatale, Invulnerabilità, Lama del Disastro, Muro prismatico, Previsione, Urlo Psichico.
+- **6° livello**: Abito Ultraterreno di Tasha, Bagliore solare, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Disintegrazione, Globo di invulnerabilità, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di spine, Prigione Mentale, Proibizione (R), Sguardo penetrante, Suggestione di massa.
+- **7° livello**: Corona di Stelle, Dito della morte, Gabbia di forza, Palla di fuoco ritardata, Parola del Potere Dolore, Parola divina, Spada arcana, Spruzzo prismatico, Turbine.
+- **8° livello**: Antipatia/simpatia, Aura sacra, Dominare mostri, Drago Illusorio, Esplosione solare, Labirinto, Nube incendiaria, Orrido Avvizzimento di Abi-Dalzim, Oscurità della Follia, Parola del potere stordire, Regressione mentale, Terremoto.
+- **9° livello**: Fatale, Invulnerabilità, Lama del Disastro, Muro prismatico, Parola del potere uccidere, Previsione, Urlo Psichico.
 
 ### Tracciati: nessuna automazione utile (112)
 

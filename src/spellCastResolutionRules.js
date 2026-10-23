@@ -129,6 +129,33 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
       failed: Object.freeze({ formula: "3d6", baseSlot: 1, additionalPerSlotAbove: 1, type: "psichici" }),
     }),
   }),
+  // CAP-HP-BRANCH (2014 texts): the damage of the cast; what the hit points decide is in hpBranchSpellRules.js.
+  "disintegrate": Object.freeze({
+    initialHP: true,
+    successfulSaveDamage: "none",
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "10d6+40", baseSlot: 6, additionalPerSlotAbove: 3, type: "forza" }),
+      failed: Object.freeze({ formula: "10d6+40", baseSlot: 6, additionalPerSlotAbove: 3, type: "forza" }),
+    }),
+  }),
+  "finger-of-death": Object.freeze({
+    initialHP: true,
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "7d8+30", type: "necrotici" }),
+      failed: Object.freeze({ formula: "7d8+30", type: "necrotici" }),
+    }),
+  }),
+  // The 4d6 come before the save, whatever its result.
+  "feeblemind": Object.freeze({
+    initialHP: true,
+    successfulSaveDamage: "full",
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "4d6", type: "psichici" }),
+      failed: Object.freeze({ formula: "4d6", type: "psichici" }),
+    }),
+  }),
+  "power-word-kill": Object.freeze({ initialHP: false }),
+  "divine-word": Object.freeze({ initialHP: false }),
   // Plant creatures: disadvantage and maximum damage, at the table.
   "blight": Object.freeze({
     initialHP: true,
@@ -257,7 +284,8 @@ export function spellSaveDamageFormula(spellOrId, outcome, slotLevel = null) {
   const definition = rule?.damageByOutcome?.[String(outcome || "").trim().toLocaleLowerCase("it")];
   const formula = String(definition?.formula || "").trim();
   if (!formula) return "";
-  const match = formula.match(/^(\d+)d(\d+)$/iu);
+  // A fixed bonus (Disintegrate's 10d6 + 40) stays as it is; only the dice grow with the slot.
+  const match = formula.match(/^(\d+)d(\d+)(\s*\+\s*\d+)?$/iu);
   if (!match) return formula;
   const baseSlot = Math.max(0, Math.floor(Number(definition?.baseSlot) || 0));
   const additionalPerSlotAbove = Math.max(0, Math.floor(Number(definition?.additionalPerSlotAbove) || 0));
@@ -265,5 +293,5 @@ export function spellSaveDamageFormula(spellOrId, outcome, slotLevel = null) {
     ? Math.max(baseSlot, Math.floor(Number(slotLevel)))
     : baseSlot;
   const additionalDice = Math.max(0, resolvedSlot - baseSlot) * additionalPerSlotAbove;
-  return `${Number(match[1]) + additionalDice}d${match[2]}`;
+  return `${Number(match[1]) + additionalDice}d${match[2]}${match[3] ? `+${match[3].replace(/\D/gu, "")}` : ""}`;
 }

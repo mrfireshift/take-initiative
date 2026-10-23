@@ -53,7 +53,8 @@ test("il catalogo espone gli incantesimi ad area per la Console HP", () => {
   assert.equal(ids.has("holy-aura"), true);
   assert.equal(ids.has("mass-cure-wounds"), true);
   assert.equal(ids.has("sleep"), true);
-  assert.equal(ids.has("disintegrate"), false);
+  // A single creature in the area command since CAP-HP-BRANCH.
+  assert.equal(ids.has("disintegrate"), true);
   assert.equal(ids.has("xanathar-immolazione"), false);
   assert.equal(ids.has("tasha-lenza-elettrizzante"), false);
   assert.equal(options.find((option) => option.id === "hypnotic-pattern")?.automated, true);

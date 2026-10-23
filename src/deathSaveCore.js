@@ -98,12 +98,16 @@ export function applyDeathSaveRoll(tally = {}, outcome = "") {
   return null;
 }
 
-export function deathSaveConditionOperation(itemId, name) {
+export function deathSaveConditionOperation(itemId, name, detail = "") {
   return {
     type: "condition:add",
     targetIds: [itemId],
     conditionName: name,
-    options: { type: DEATH_SAVE_CONDITION_TYPE, expiry: { mode: "manual" } },
+    options: {
+      type: DEATH_SAVE_CONDITION_TYPE,
+      expiry: { mode: "manual" },
+      ...(String(detail || "").trim() ? { effectDetail: String(detail).trim().slice(0, 240) } : {}),
+    },
   };
 }
 
@@ -112,8 +116,28 @@ export function deathSaveConditionOperation(itemId, name) {
 // - down to 0 HP with damage left over equal to or above its HP maximum: instant death;
 // - damage while already at 0 HP: one failure, two from a critical hit, death from damage of its HP maximum;
 //   a stable creature stops being stable. Morto takes the place of the automatic Privo di sensi.
-export function planDeathSaveHpChange({ meta = {}, instances = [], hpAfter, hpMax, damage = 0, critical = false } = {}) {
-  if (String(meta?.attitude || "").trim().toLocaleLowerCase("it") !== "pc") return null;
+// - instantDeath (Power Word Kill, Divine Word, Disintegrate: hpBranchSpellRules.js): any creature down to 0 HP is
+//   dead, Morto with the spell's detail; a PC also gets its three failures.
+export function planDeathSaveHpChange({
+  meta = {}, instances = [], hpAfter, hpMax, damage = 0, critical = false, instantDeath = false, deathDetail = "",
+} = {}) {
+  const pc = String(meta?.attitude || "").trim().toLocaleLowerCase("it") === "pc";
+  if (instantDeath === true && Number(hpAfter) <= 0 && Number(hpMax ?? meta?.hpMax) > 0 && !isDeadByDeathSaves(instances)) {
+    return {
+      ...(pc ? { deathSaves: { value: { successes: 0, failures: LIMIT } } } : {}),
+      removeInstanceIds: pc
+        ? [
+          ...deathSaveConditionIds(instances, DEATH_SAVE_STABLE_CONDITION),
+          ...resolveZeroHPUnconsciousAction({ ...meta, hp: 0 }, [...instances, { condition: DEATH_SAVE_DEAD_CONDITION }])
+            .removeInstanceIds,
+        ]
+        : [],
+      addCondition: DEATH_SAVE_DEAD_CONDITION,
+      ...(String(deathDetail || "").trim() ? { deathDetail: String(deathDetail).trim() } : {}),
+      instantDeath: true,
+    };
+  }
+  if (!pc) return null;
   const before = Number(meta?.hp);
   const after = Number(hpAfter);
   const max = Number(hpMax ?? meta?.hpMax);

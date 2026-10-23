@@ -713,6 +713,12 @@ function hpWriteCritical(update) {
   return intents.some((intent) => intent?.mode === "damage" && intent?.critical === true);
 }
 
+// An instant death declared by the HP write (hpBranchSpellRules.js): the creature dies, whatever its HP.
+function hpWriteInstantDeath(update) {
+  const intents = update?.hpIntents?.length ? update.hpIntents : [update?.hpIntent].filter(Boolean);
+  return intents.find((intent) => intent?.instantDeath === true) || null;
+}
+
 // The damage of an HP write: its damage intents, or the HP it takes away when it has none.
 function hpWriteDamage(update, meta) {
   const intents = update?.hpIntents?.length ? update.hpIntents : [update?.hpIntent].filter(Boolean);
@@ -733,6 +739,8 @@ function planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds) {
     hpMax: update.hpMax,
     damage: hpWriteDamage(update, meta),
     critical: hpWriteCritical(update),
+    instantDeath: !!hpWriteInstantDeath(update),
+    deathDetail: hpWriteInstantDeath(update)?.deathDetail || "",
   });
   if (!consequence) return {};
   if (consequence.removeInstanceIds.length) {
@@ -741,7 +749,9 @@ function planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds) {
       removals: consequence.removeInstanceIds.map((instanceId) => ({ itemId: item.id, instanceId })),
     });
   }
-  if (consequence.addCondition) hpOperations.push(deathSaveConditionOperation(item.id, consequence.addCondition));
+  if (consequence.addCondition) {
+    hpOperations.push(deathSaveConditionOperation(item.id, consequence.addCondition, consequence.deathDetail || ""));
+  }
   if (consequence.instantDeath) instantDeathIds.add(item.id);
   return consequence.deathSaves
     ? { [DEATH_SAVES_FIELD]: { ...consequence.deathSaves, expected: metadataFieldSnapshot(meta, DEATH_SAVES_FIELD) } }

@@ -35,7 +35,7 @@ function outcomeFor(outcomes, targetId) {
   return OUTCOME_SET.has(outcome) ? outcome : "";
 }
 
-function normalizeConditionRule(value) {
+export function normalizeConditionRule(value) {
   const rule = typeof value === "string"
     ? { condition: value }
     : value && typeof value === "object"

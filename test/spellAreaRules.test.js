@@ -911,9 +911,10 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
   // 37 with Pass without Trace's aura (lotto L1); 40 with Wall of Sand, Wall of Force and Forbiddance (lotto L3).
   assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 40);
   assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 135);
-  // 17 with the saves with damage of lotto L2; 152 in the popover with the zones of lotto L3.
-  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 17);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 152);
+  // 17 with the saves with damage of lotto L2; 152 in the popover with the zones of lotto L3; 21 and 156 with
+  // Disintegrate, Finger of Death, Power Word Kill and Feeblemind (CAP-HP-BRANCH).
+  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 21);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 156);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),
@@ -936,8 +937,8 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
 test("l'audit classifica ogni campo area dell'intero catalogo", () => {
   const excludedIds = Object.keys(AREA_FIELD_NON_POPOVER_REASONS);
   const popoverIds = new Set(AREA_POPOVER_SPELL_IDS);
-  // 28 since Forbiddance became a zone (lotto L3).
-  assert.equal(excludedIds.length, 28);
+  // 28 since Forbiddance became a zone (lotto L3); 27 since Disintegrate resolves in the area command (CAP-HP-BRANCH).
+  assert.equal(excludedIds.length, 27);
   for (const spellId of excludedIds) {
     assert.ok(getSpellDefinition(spellId)?.area, spellId);
     assert.equal(popoverIds.has(spellId), false, spellId);

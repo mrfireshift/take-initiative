@@ -149,6 +149,14 @@ della condizione. Lama roboante salva sulla pill i danni di movimento
 apre un promemoria con i danni da confermare
 (`planBoomingBladeMovementNotices` in `src/compulsionMovementReminderCore.js`).
 
+CAP-HP-BRANCH legge i PF della creatura (`src/hpBranchSpellRules.js`, applicato
+da `planAreaHpBranch` nell'esecutore ad area): prima del danno per Parola del
+potere uccidere e Parola divina, dopo il danno per Disintegrazione e Dito della
+morte. Una morte decisa dall'incantesimo è una scrittura dei PF a 0 con
+`instantDeath`, che diventa la pill «Morto» (`deathSaveCore.js`). La console ad
+area scrive i PF da sé, quindi applica anche i TS contro la morte nel suo
+piano (`planAreaDeathSaves`), con il conteggio salvato insieme ai PF.
+
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la
 **Console effetti ad area**. Dal registro il GM può:

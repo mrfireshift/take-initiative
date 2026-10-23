@@ -644,9 +644,9 @@ da questo audit.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
 - Opzioni trackable del runtime: **361**; definizioni con tracking persistente verificate dall'audit: **358**; definizioni con regole d'area: **139** (144 regole).
-- Workflow che richiedono smoke test runtime: **397**.
+- Workflow che richiedono smoke test runtime: **401**.
 - Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `33e93f74f4cecab7`.
+- Impronta deterministica: `05c98e53a6dc1fa4`.
 
 ## Decisioni di prodotto chiuse
 
@@ -659,8 +659,8 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 76 |
-| PARTIAL | 211 |
+| MANUAL | 72 |
+| PARTIAL | 215 |
 | TRACK_ONLY | 124 |
 
 ### Stato di copertura (coverageStatus)
@@ -702,7 +702,7 @@ da questo audit.
 | --- | ---: |
 | ACTIVE_ACTION | 46 |
 | AREA_GEOMETRY | 139 |
-| CAST | 249 |
+| CAST | 253 |
 | CLEANUP | 116 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 358 |
@@ -876,11 +876,11 @@ Nessuna voce.
 | Destriero fantomatico | `phantom-steed` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Diavoletto di Polvere | `xanathar-diavoletto-di-polvere` | Xanathar / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Disco fluttuante | `floating-disk` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Disintegrazione | `disintegrate` | SRD 5.1 / 6 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Disintegrazione | `disintegrate` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Disperdere | `xanathar-disperdere` | Xanathar / 6 | MANUAL | ACCEPTED | MANUAL | UNIFIED | reachable | — | — |
 | Dissolvi il bene e il male | `dispel-evil-and-good` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Dissolvi magie | `dispel-magic` | SRD 5.1 / 3 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Dito della morte | `finger-of-death` | SRD 5.1 / 7 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Dito della morte | `finger-of-death` | SRD 5.1 / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Divinazione | `divination` | SRD 5.1 / 4 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Dominare bestie | `dominate-beast` | SRD 5.1 / 4 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Dominare mostri | `dominate-monster` | SRD 5.1 / 8 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
@@ -1064,7 +1064,7 @@ Nessuna voce.
 | Parola del Potere Dolore | `xanathar-parola-del-potere-dolore` | Xanathar / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parola del Potere Guarire | `phb2014-parola-del-potere-guarire` | PHB 2014 / 9 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parola del potere stordire | `power-word-stun` | SRD 5.1 / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Parola del potere uccidere | `power-word-kill` | SRD 5.1 / 9 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Parola del potere uccidere | `power-word-kill` | SRD 5.1 / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parola del ritiro | `word-of-recall` | SRD 5.1 / 6 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parola divina | `divine-word` | SRD 5.1 / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parola guaritrice | `healing-word` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1114,7 +1114,7 @@ Nessuna voce.
 | Rampicante Afferrante | `phb2014-rampicante-afferrante` | PHB 2014 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Randello incantato | `shillelagh` | SRD 5.1 / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Reggia meravigliosa | `magnificent-mansion` | SRD 5.1 / 7 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Regressione mentale | `feeblemind` | SRD 5.1 / 8 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Regressione mentale | `feeblemind` | SRD 5.1 / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Reincarnazione | `reincarnate` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Resistenza | `resistance` | SRD 5.1 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Respirare sott'acqua | `water-breathing` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

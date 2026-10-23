@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 242,
-      "PARTIAL": 51,
+      "COMPLETE / CURRENT": 247,
+      "PARTIAL": 50,
       "NO AUTOMATION REQUIRED": 144,
-      "MISSING": 25,
+      "MISSING": 21,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 76,
+    "implementableBacklog": 71,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 65,
-        "percent": 85.52631578947368
+        "count": 60,
+        "percent": 84.50704225352112
       },
       "RED": {
         "count": 11,
-        "percent": 14.473684210526317
+        "percent": 15.492957746478872
       }
     },
     "scenarios": [
@@ -13136,10 +13136,15 @@
       "id": "disintegrate",
       "spell": "Disintegrazione",
       "level": 6,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/hpBranchSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/spellCastResolutionRules.js",
+        "src/deathSaveCore.js",
+        "src/areaSaveSpellRules.js"
       ],
       "mechanicsRequired": [
         "Danno e condizioni riusabili, ma soglie HP e conseguenze prima/dopo danno necessitano branch dati coerente; death/summon e statblock al tavolo, non cancellazione token.",
@@ -13155,9 +13160,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-HP-BRANCH"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -13194,8 +13197,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HP-BRANCH",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-HP-BRANCH",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "disintegrate",
@@ -13204,6 +13207,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/hpBranchSpells.test.js",
+          "test/hpBranchSpellsIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -13225,7 +13230,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Danno e condizioni riusabili, ma soglie HP e conseguenze prima/dopo danno necessitano branch dati coerente; death/summon e statblock al tavolo, non cancellazione token.",
+        "reason": "CAP-HP-BRANCH (2026-10-23): TS Destrezza, 10d6+40 forza (+3d6 per slot sopra il 6°), niente col successo; se porta a 0 PF: Morto con la nota della disintegrazione. Oggetti e creazioni di forza: al GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -13682,14 +13687,15 @@
       "id": "divine-word",
       "spell": "Parola divina",
       "level": 7,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
-        "src/spellAreaResolutionExecutor.js"
+        "src/hpBranchSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/spellCastResolutionRules.js",
+        "src/deathSaveCore.js",
+        "src/areaSaveSpellRules.js"
       ],
       "mechanicsRequired": [
         "Danno e condizioni riusabili, ma soglie HP e conseguenze prima/dopo danno necessitano branch dati coerente; death/summon e statblock al tavolo, non cancellazione token."
@@ -13709,9 +13715,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-HP-BRANCH"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -13765,8 +13769,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HP-BRANCH",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-HP-BRANCH",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "divine-word",
@@ -13775,6 +13779,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/hpBranchSpells.test.js",
+          "test/hpBranchSpellsIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -13805,7 +13811,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Danno e condizioni riusabili, ma soglie HP e conseguenze prima/dopo danno necessitano branch dati coerente; death/summon e statblock al tavolo, non cancellazione token.",
+        "reason": "CAP-HP-BRANCH (2026-10-23): TS Carisma; al fallimento l'effetto dipende dai PF attuali: ≤50 assordato 1 min, ≤40 anche accecato 10 min, ≤30 anche stordito 1 ora, ≤20 morto. Celestiali, elementali, folletti e immondi: pill Respinto sul piano d'origine (24 ore); il tipo dal campo della console o dal token.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -16389,10 +16395,12 @@
       "id": "feeblemind",
       "spell": "Regressione mentale",
       "level": 8,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/areaSaveSpellRules.js",
+        "src/spellCastResolutionRules.js",
+        "src/spellSaveWorkflowRules.js"
       ],
       "mechanicsRequired": [
         "Danno e condizioni riusabili, ma soglie HP e conseguenze prima/dopo danno necessitano branch dati coerente; death/summon e statblock al tavolo, non cancellazione token.",
@@ -16408,9 +16416,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-HP-BRANCH"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -16447,8 +16453,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HP-BRANCH",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-HP-BRANCH",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "feeblemind",
@@ -16457,6 +16463,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/hpBranchSpells.test.js",
+          "test/hpBranchSpellsIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -16476,7 +16484,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Danno e condizioni riusabili, ma soglie HP e conseguenze prima/dopo danno necessitano branch dati coerente; death/summon e statblock al tavolo, non cancellazione token.",
+        "reason": "CAP-HP-BRANCH (2026-10-23): 4d6 psichici comunque, TS Intelligenza; al fallimento la pill Regressione mentale (Int e Car a 1), da togliere a mano; il TS ogni 30 giorni al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -16915,10 +16923,14 @@
       "id": "finger-of-death",
       "spell": "Dito della morte",
       "level": 7,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/hpBranchSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/spellCastResolutionRules.js",
+        "src/areaSaveSpellRules.js"
       ],
       "mechanicsRequired": [
         "Danno e condizioni riusabili, ma soglie HP e conseguenze prima/dopo danno necessitano branch dati coerente; death/summon e statblock al tavolo, non cancellazione token.",
@@ -16934,9 +16946,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-HP-BRANCH"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -16973,8 +16983,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HP-BRANCH",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-HP-BRANCH",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "finger-of-death",
@@ -16983,6 +16993,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/hpBranchSpells.test.js",
+          "test/hpBranchSpellsIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -17002,7 +17014,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Danno e condizioni riusabili, ma soglie HP e conseguenze prima/dopo danno necessitano branch dati coerente; death/summon e statblock al tavolo, non cancellazione token.",
+        "reason": "CAP-HP-BRANCH (2026-10-23): TS Costituzione, 7d8+30 necrotici, metà col successo; un umanoide ucciso riceve la pill Si rianima come zombi con il promemoria a inizio del prossimo turno del caster. Il token dello zombi: al GM.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -29816,10 +29828,14 @@
       "id": "power-word-kill",
       "spell": "Parola del potere uccidere",
       "level": 9,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/hpBranchSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/spellCastResolutionRules.js",
+        "src/deathSaveCore.js"
       ],
       "mechanicsRequired": [
         "Danno e condizioni riusabili, ma soglie HP e conseguenze prima/dopo danno necessitano branch dati coerente; death/summon e statblock al tavolo, non cancellazione token."
@@ -29834,9 +29850,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-HP-BRANCH"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -29873,8 +29887,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HP-BRANCH",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-HP-BRANCH",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "power-word-kill",
@@ -29883,6 +29897,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/hpBranchSpells.test.js",
+          "test/hpBranchSpellsIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -29902,7 +29918,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Danno e condizioni riusabili, ma soglie HP e conseguenze prima/dopo danno necessitano branch dati coerente; death/summon e statblock al tavolo, non cancellazione token.",
+        "reason": "CAP-HP-BRANCH (2026-10-23): nessun TS; con 100 PF o meno (temporanei esclusi) la creatura muore: PF a 0 e pill Morto, per un PG anche i 3 fallimenti.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62754,6 +62770,10 @@
     {
       "date": "2026-10-22",
       "note": "CAP-LINK, secondo lotto: Lama roboante completa (avviso di movimento con i danni da tuono). Fine automatica di Invisibilità quando il portatore attacca dalla console attacchi; Duello obbligato finisce quando il caster attacca un'altra creatura o un suo alleato danneggia il bersaglio. CAP-LINK chiusa."
+    },
+    {
+      "date": "2026-10-23",
+      "note": "CAP-HP-BRANCH: 5 incantesimi completi. Soglie di PF prima del danno (Parola del potere uccidere, Parola divina) e dopo (Disintegrazione, Dito della morte) in hpBranchSpellRules.js; la morte istantanea è una scrittura dei PF a 0 che mette Morto. Regressione mentale: danno e pill al fallimento."
     }
   ]
 }

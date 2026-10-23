@@ -14,7 +14,11 @@ export function sharedHpTargetItems(items, orderedIds = []) {
 }
 
 export function sharedHpIntent(entry, eventId = "shared-hp-preview") {
-  return { mode: entry.change.mode, amount: Number(entry.change.requested) || 0, eventId: entry.eventId || eventId };
+  return { mode: entry.change.mode, amount: Number(entry.change.requested) || 0, eventId: entry.eventId || eventId,
+    // CAP-HP-BRANCH: a death the spell decides (hpBranchSpellRules.js), Morto from the coordinator.
+    ...(entry.change.instantDeath === true
+      ? { instantDeath: true, ...(entry.change.deathDetail ? { deathDetail: String(entry.change.deathDetail) } : {}) }
+      : {}) };
 }
 
 export function sharedHpIntents(entry, eventId = "shared-hp-preview") {

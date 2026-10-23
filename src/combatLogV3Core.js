@@ -748,10 +748,10 @@ function enrichNativeConditionLineage(facet, entry) {
 // read from the History entry's metadata changes (a roll, a hit at 0 HP, a healing that resets it).
 function deathSavesFacet(entry) {
   const rows = (Array.isArray(entry?.changes) ? entry.changes : []).map((change) => {
-    const before = isObject(change?.beforeMetadata) && hasOwn(change.beforeMetadata, "deathSaves")
-      ? change.beforeMetadata.deathSaves : undefined;
-    const after = isObject(change?.afterMetadata) && hasOwn(change.afterMetadata, "deathSaves")
-      ? change.afterMetadata.deathSaves : undefined;
+    // The coordinator's changes (beforeMetadata) or a field snapshot of the History (before, the area command).
+    const snapshot = (...sources) => sources.find((source) => isObject(source) && hasOwn(source, "deathSaves"))?.deathSaves;
+    const before = snapshot(change?.beforeMetadata, change?.before);
+    const after = snapshot(change?.afterMetadata, change?.after);
     if (before === undefined && after === undefined) return null;
     const value = (snapshot) => (isObject(snapshot) && snapshot.present === true && isObject(snapshot.value)
       ? { successes: Number(snapshot.value.successes) || 0, failures: Number(snapshot.value.failures) || 0 }

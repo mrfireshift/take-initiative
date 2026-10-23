@@ -2,7 +2,12 @@ import OBR from "@owlbear-rodeo/sdk";
 import { buildSharedHpPreview, sharedHpIntents, sharedHpCommittedUpdates, sharedHpDamageEntries } from "./sharedHpViewCore.js";
 import { resolveSharedHpGroup, sharedHpScopeIds } from "./sharedHpCore.js";
 import { ID } from "./constants.js";
-import { takesDeathSaveDamage } from "./deathSaveCore.js";
+import {
+  DEATH_SAVES_FIELD,
+  deathSaveConditionOperation,
+  planDeathSaveHpChange,
+  takesDeathSaveDamage,
+} from "./deathSaveCore.js";
 import {
   QUICK_HP_FACTORS,
   QUICK_HP_MODES,
@@ -31,9 +36,15 @@ import {
   AREA_HEALING_SPELL_ID_SET,
 } from "./areaSaveSpellRules.js";
 import {
+  normalizeConditionRule,
   resolveSaveSpellResolution,
   SAVE_SPELL_OUTCOMES,
 } from "./saveSpellCore.js";
+import {
+  HP_BRANCH_SPELL_ID_SET,
+  planHpBranchAfterDamage,
+  planHpBranchBeforeDamage,
+} from "./hpBranchSpellRules.js";
 import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import {
   getSpellSaveWorkflowRule,
@@ -414,6 +425,96 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
       };
     })
     .filter((entry) => entry.change.changed || resolveSharedHpGroup(allItems, entry.item.id).memberIds?.length > 1);
+}
+
+// CAP-HP-BRANCH (hpBranchSpellRules.js): for each creature, the pills and the death its hit points decide, read
+// from the live items: before the damage (Power Word Kill, Divine Word) and after it (Disintegrate, Finger of Death).
+function planAreaHpBranch({ spell, command, resolution, liveItems, allItems, caster, targetContexts = {} }) {
+  const outcomeOf = (id) => (resolution.failedIds || []).includes(id) ? SAVE_SPELL_OUTCOMES.FAILED
+    : (resolution.passedIds || []).includes(id) ? SAVE_SPELL_OUTCOMES.PASSED
+      : (resolution.immuneIds || []).includes(id) ? SAVE_SPELL_OUTCOMES.IMMUNE : "";
+  const changes = new Map(hpEntries({ command, allItems, items: liveItems, spell })
+    .map((entry) => [entry.item.id, entry.change]));
+  const conditionApplications = [];
+  const deaths = new Map();
+  for (const item of liveItems) {
+    const outcome = outcomeOf(item.id);
+    const context = targetContexts?.[item.id] || {};
+    const before = planHpBranchBeforeDamage({ spellId: spell.id, outcome, item, context });
+    const after = planHpBranchAfterDamage({
+      spellId: spell.id, outcome, item, change: changes.get(item.id), context,
+      casterId: text(caster?.id), casterName: itemName(caster),
+    });
+    for (const pill of [...before.pills, ...after.pills]) {
+      const rule = normalizeConditionRule(pill);
+      if (rule) {
+        conditionApplications.push({
+          outcome: outcome || SAVE_SPELL_OUTCOMES.FAILED,
+          targetIds: [item.id],
+          conditionName: rule.conditionName,
+          options: rule.options,
+        });
+      }
+    }
+    const death = before.death || after.death;
+    if (death) deaths.set(item.id, death);
+  }
+  return { conditionApplications, deaths };
+}
+
+// A death the spell decides: the creature's HP write goes to 0 with instantDeath, which the coordinator turns into
+// Morto (deathSaveCore.js); a creature the spell deals no damage to gets its own write.
+function applyHpBranchDeaths(entries, deaths, items = []) {
+  for (const [itemId, death] of deaths) {
+    const entry = entries.find((candidate) => candidate.item?.id === itemId);
+    const item = entry?.item || items.find((candidate) => candidate?.id === itemId);
+    if (!item || !trackedHP(item)) continue;
+    const meta = itemMeta(item);
+    const hp = Math.max(0, Math.floor(Number(entry?.change?.hp ?? meta.hp) || 0));
+    const hpMax = Math.max(0, Math.floor(Number(entry?.change?.hpMax ?? meta.hpMax) || 0));
+    const change = {
+      ...(entry?.change || { mode: QUICK_HP_MODES.DAMAGE, factor: QUICK_HP_FACTORS.FULL, hp, hpMax, requested: hp }),
+      afterHP: 0,
+      delta: -hp,
+      changed: true,
+      instantDeath: true,
+      deathDetail: death.detail,
+    };
+    if (entry) entry.change = change;
+    else entries.push({ item, change, outcome: SAVE_SPELL_OUTCOMES.FAILED });
+  }
+}
+
+// Death saves (deathSaveCore.js) of the HP this command writes itself (updateHP), which the coordinator's HP block
+// never sees: the tally goes with the HP, Morto and the end of Stabile or Privo di sensi with the effects.
+function planAreaDeathSaves(entries) {
+  const operations = [];
+  const instantDeathIds = new Set();
+  for (const entry of entries) {
+    const meta = itemMeta(entry.item);
+    const consequence = planDeathSaveHpChange({
+      meta,
+      instances: getConditionInstances(meta.conditions || {}),
+      hpAfter: entry.change.afterHP,
+      hpMax: entry.change.hpMax,
+      damage: entry.change.mode === QUICK_HP_MODES.DAMAGE ? entry.change.requested : 0,
+      instantDeath: entry.change.instantDeath === true,
+      deathDetail: entry.change.deathDetail || "",
+    });
+    if (!consequence) continue;
+    if (consequence.deathSaves) entry.change = { ...entry.change, deathSaves: consequence.deathSaves };
+    if (consequence.removeInstanceIds.length) {
+      operations.push({
+        type: "condition:remove-instances",
+        removals: consequence.removeInstanceIds.map((instanceId) => ({ itemId: entry.item.id, instanceId })),
+      });
+    }
+    if (consequence.addCondition) {
+      operations.push(deathSaveConditionOperation(entry.item.id, consequence.addCondition, consequence.deathDetail || ""));
+    }
+    if (consequence.instantDeath) instantDeathIds.add(entry.item.id);
+  }
+  return { operations, instantDeathIds };
 }
 
 function castContextFor({ spell, resolution, command, mobileAura, boardToken, placement, caster }) {
@@ -1137,6 +1238,12 @@ async function buildPlan(command, runtime) {
     ...resolution,
     spellTargetIds: [...(resolution.spellTargetIds || [])],
   };
+  const hpBranch = !trigger && HP_BRANCH_SPELL_ID_SET.has(spell.id)
+    ? planAreaHpBranch({ spell, command, resolution: resolved, liveItems, allItems, caster, targetContexts })
+    : null;
+  if (hpBranch?.conditionApplications.length) {
+    resolved.conditionApplications = [...(resolved.conditionApplications || []), ...hpBranch.conditionApplications];
+  }
   if ((mobileAura || boardToken) && casterId) {
     resolved.spellTargetIds = boardToken && placementRule?.boardToken?.spellOwner === "caster"
       ? [casterId]
@@ -1648,6 +1755,7 @@ async function buildPlan(command, runtime) {
     spell,
     prismaticSprayPlan: resolution.prismaticSpray,
   });
+  if (hpBranch?.deaths.size) applyHpBranchDeaths(entries, hpBranch.deaths, liveItems);
   const casterHealingRatio = Number(getSpellCastResolutionRule(spell.id)?.casterHealingFromAppliedDamage) || 0;
   const damagePreview = casterHealingRatio > 0 ? buildSharedHpPreview(allItems, entries, command.sharedHp || {}) : null;
   if (damagePreview?.conflicts.length) return { valid: false,
@@ -1665,6 +1773,11 @@ async function buildPlan(command, runtime) {
     code: conflict.reason, message: conflict.reason === "shared-hp-selection-required"
       ? "Scegli l'importo da applicare alla riserva HP condivisa." : "Verifica il collegamento HP del bersaglio.",
   })) };
+  // With shared HP or a teleport the HP go through the coordinator, which applies the death saves itself.
+  const areaDeathSaves = !sharedHpPreview.groups.length && !isTeleportSpell(spell.id)
+    ? planAreaDeathSaves(entries)
+    : { operations: [], instantDeathIds: new Set() };
+  effectOperations.push(...areaDeathSaves.operations);
   const zeroHPBoardTokenIds = uniqueIds(entries
     .filter((entry) => (
       entry.change.afterHP === 0
@@ -1684,7 +1797,8 @@ async function buildPlan(command, runtime) {
       }));
     });
   const zeroHPReconcileIds = quickHPZeroReconcileTargetIds(
-    entries.filter((entry) => !zeroHPBoardTokenIds.includes(entry.item.id)),
+    // Morto, never Privo di sensi, for a creature the command kills.
+    entries.filter((entry) => !zeroHPBoardTokenIds.includes(entry.item.id) && !areaDeathSaves.instantDeathIds.has(entry.item.id)),
     (entry) => {
       const meta = itemMeta(entry.item);
       return resolveZeroHPUnconsciousAction({
@@ -1917,13 +2031,13 @@ async function updateHP(runtime, entries) {
       const update = updates.get(item.id);
       if (!update) continue;
       const previous = item.metadata?.[META_KEY] || {};
+      const next = { ...previous, hp: update.afterHP, hpMax: update.hpMax };
+      // The death saves tally (planAreaDeathSaves), with the HP it follows.
+      if (update.deathSaves?.mode === "delete") delete next[DEATH_SAVES_FIELD];
+      else if (update.deathSaves?.value) next[DEATH_SAVES_FIELD] = clone(update.deathSaves.value);
       item.metadata = {
         ...(item.metadata || {}),
-        [META_KEY]: {
-          ...previous,
-          hp: update.afterHP,
-          hpMax: update.hpMax,
-        },
+        [META_KEY]: next,
       };
     }
   });
@@ -1942,13 +2056,17 @@ async function restoreHPIfUnchanged(runtime, entries) {
       const meta = itemMeta(item);
       if (Number(meta.hp) !== Number(entry.change.afterHP)
         || Number(meta.hpMax) !== Number(entry.change.hpMax)) continue;
+      const restored = { ...meta, hp: entry.change.hp, hpMax: entry.change.hpMax };
+      // The death saves tally written with these HP goes back to its value before the command.
+      if (entry.change.deathSaves) {
+        const original = itemMeta(entry.item);
+        if (Object.prototype.hasOwnProperty.call(original, DEATH_SAVES_FIELD)) {
+          restored[DEATH_SAVES_FIELD] = clone(original[DEATH_SAVES_FIELD]);
+        } else delete restored[DEATH_SAVES_FIELD];
+      }
       item.metadata = {
         ...(item.metadata || {}),
-        [META_KEY]: {
-          ...meta,
-          hp: entry.change.hp,
-          hpMax: entry.change.hpMax,
-        },
+        [META_KEY]: restored,
       };
     }
   });
@@ -2220,7 +2338,7 @@ export async function executeSpellAreaResolution(
         label: `Effetti ad area · ${plan.spell.displayName || plan.spell.name || plan.spell.id}`,
       itemIds: plan.historyIds,
       sceneItemIds: plan.staticZoneSceneItemIds,
-      fields: ["hp", "hpMax", "conditions", SPELLS_KEY, CONCENTRATION_KEY,
+      fields: ["hp", "hpMax", DEATH_SAVES_FIELD, "conditions", SPELLS_KEY, CONCENTRATION_KEY,
         ...(plan.bossActionUse ? [BOSS_ACTION_STATE_FIELD] : [])],
       onRecorded: (entry) => { recordedEntry = entry; },
       decorateEntry: (entry) => {

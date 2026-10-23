@@ -505,6 +505,70 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       maxMeters: 18,
     },
   }),
+  // CAP-HP-BRANCH (2014 texts): hpBranchSpellRules.js reads the hit points of the creature.
+  "disintegrate": workflowRule({
+    spellId: "disintegrate",
+    ability: "dex",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 6,
+    spatial: { mode: "caster-range", maxMeters: 18 },
+  }),
+  "finger-of-death": workflowRule({
+    spellId: "finger-of-death",
+    ability: "con",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 7,
+    spatial: { mode: "caster-range", maxMeters: 18 },
+    // A humanoid it kills rises as a zombie; left empty, the creature type on the token decides.
+    context: targetContext({
+      fields: [targetContextField({
+        id: "creatureKind",
+        label: "Tipo",
+        options: [
+          { value: "humanoid", label: "Umanoide" },
+          { value: "other", label: "Non umanoide" },
+        ],
+        placeholder: "Dal token",
+      })],
+    }),
+  }),
+  "feeblemind": workflowRule({
+    spellId: "feeblemind",
+    ability: "int",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 8,
+    spatial: { mode: "caster-range", maxMeters: 45 },
+  }),
+  // No save: the creature with 100 hit points or fewer dies.
+  "power-word-kill": workflowRule({
+    spellId: "power-word-kill",
+    ability: "con",
+    maximum: 1,
+    baseSlot: 9,
+    spatial: { mode: "caster-range", maxMeters: 18 },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+  }),
+  // Any number of creatures within 9 m that can hear; celestials, elementals, fey and fiends are sent home.
+  "divine-word": workflowRule({
+    spellId: "divine-word",
+    ability: "cha",
+    unlimitedTargets: true,
+    context: targetContext({
+      fields: [targetContextField({
+        id: "creatureKind",
+        label: "Tipo",
+        options: [
+          { value: "outsider", label: "Celestiale, elementale, folletto o immondo" },
+          { value: "other", label: "Altro" },
+        ],
+        placeholder: "Dal token",
+      })],
+    }),
+  }),
   "blight": workflowRule({
     spellId: "blight",
     ability: "con",

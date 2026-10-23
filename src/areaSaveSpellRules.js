@@ -119,6 +119,11 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "hellish-rebuke",
   "phb2014-sussurri-dissonanti",
   "blight",
+  // CAP-HP-BRANCH (2014 texts): one creature, the effect read from its hit points (hpBranchSpellRules.js).
+  "disintegrate",
+  "finger-of-death",
+  "power-word-kill",
+  "feeblemind",
 ]);
 
 export const MULTI_TARGET_SAVE_SPELL_ID_SET = new Set(
@@ -226,7 +231,6 @@ export const AREA_FIELD_NON_POPOVER_REASONS = Object.freeze({
   "detect-evil-and-good": "sensory-radius",
   "detect-magic": "sensory-radius",
   "detect-poison-and-disease": "sensory-radius",
-  "disintegrate": "single-object-size",
   "fire-shield": "light-radius",
   "guards-and-wards": "complex-footprint",
   "xanathar-arma-sacra": "active-dismissal-area",
@@ -369,6 +373,24 @@ const noPersistentEffect = Object.freeze({
 // track=false mantiene condizioni istantanee (es. Prono) indipendenti da una
 // pill spell di un round, che altrimenti le rimuoverebbe troppo presto.
 export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
+  // CAP-HP-BRANCH: the 4d6 come with the cast whatever the save; a failure leaves the mind shattered until a
+  // save at the end of every 30 days (at the table), Greater Restoration, Heal or Wish.
+  "feeblemind": failedAutomation([
+    debuffRule(
+      "Regressione mentale",
+      "feeblemind-shattered",
+      "Intelligenza e Carisma a 1: non può lanciare incantesimi, attivare oggetti magici, comprendere linguaggi né comunicare in modo intelligibile; riconosce, segue e protegge gli amici. TS Intelligenza ogni 30 giorni; terminano anche ristorare superiore, guarigione e desiderio: rimuovere la pill.",
+      {
+        expiry: manual,
+        independent: true,
+        manualRemoval: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "feeblemind-int-cha-1", label: "Int e Car 1" }),
+          Object.freeze({ id: "feeblemind-no-spells", label: "Niente incantesimi né linguaggi" }),
+        ]),
+      },
+    ),
+  ], { track: false }),
   "banishment": failedAutomation([
     conditionRule("Incapacitato", {
       expiry: concentration,

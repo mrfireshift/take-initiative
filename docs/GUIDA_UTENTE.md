@@ -175,6 +175,18 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   colpo con Lama roboante, se il bersaglio si muove nel suo turno compare
   l'avviso con i danni da tuono: conferma per applicarli, o chiudi l'avviso se
   lo spostamento era forzato.
+- Alcuni incantesimi leggono i PF del bersaglio alla conferma (i PF temporanei
+  non contano). Parola del potere uccidere non ha TS: con 100 PF o meno la
+  creatura muore. Parola divina, al TS Carisma fallito, assorda, acceca o
+  stordisce secondo i PF rimasti e uccide chi ha 20 PF o meno. Disintegrazione
+  riduce in polvere chi porta a 0 PF; Dito della morte, se uccide un umanoide,
+  ricorda a inizio del prossimo turno del caster che si rianima come zombi.
+  Il campo **Tipo** della console dice se il bersaglio è umanoide (Dito della
+  morte) o celestiale, elementale, folletto o immondo (Parola divina, che lo
+  respinge sul suo piano); vuoto, decide il tipo scritto sul token. Chi muore
+  così va a 0 PF con l'etichetta **Morto**, anche un mostro; un PG non tira i
+  TS contro la morte. Regressione mentale infligge 4d6 psichici e, al TS
+  Intelligenza fallito, l'etichetta **Regressione mentale**, da togliere a mano.
 
 Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni
 rapide.
