@@ -25,6 +25,15 @@ import { SPECIES_CATALOG_TASHA } from "./speciesCatalogTasha.js";
 export const SPECIES_FIELD = "species";
 // A supernatural gift (the Wildemount hollow one) is added to the species: { id }, optional like it.
 export const SUPERNATURAL_GIFT_FIELD = "supernaturalGift";
+// The casting ability of the species' innate spells when the book leaves it to the player (Intelligence, Wisdom or
+// Charisma, chosen with the species: Mostri del Multiverso, fata, hexblood). Optional: without it the highest counts.
+export const SPECIES_SPELL_ABILITY_FIELD = "speciesSpellAbility";
+export const SPECIES_SPELL_ABILITIES = Object.freeze(["int", "wis", "cha"]);
+
+export function sanitizeSpeciesSpellAbility(value) {
+  const ability = String(value || "").trim();
+  return SPECIES_SPELL_ABILITIES.includes(ability) ? ability : null;
+}
 
 // english: the colour or gem as English sheets name it, for the import.
 // shape and save of the PHB breath weapon (Draconic Ancestry table: a 5 by 30 ft line or a 15 ft cone); the Fizban
@@ -278,6 +287,76 @@ const SELF_TARGETING = Object.freeze({ mode: "self", rangeMeters: null, maxTarge
 // Healing Hands: one creature touched, the character itself included (the token selected on the map, or itself).
 const TOUCH_TARGETING = Object.freeze({ mode: "single-target", rangeMeters: 1.5, maxTargets: 1, excludeSource: false });
 
+// The spells a species casts without a slot (speciesInnateSpellCore.js): the trait's text names the spell, the level
+// it is cast at and the casting ability; this table gives the spell catalog's id for each name (spells-srd.js).
+const INNATE_SPELL_IDS = Object.freeze({
+  "Allarme": "alarm",
+  "Amicizia con gli animali": "animal-friendship",
+  "Anti-individuazione": "nondetection",
+  "Arma magica": "magic-weapon",
+  "Armatura di Agathys": "phb2014-armatura-di-agathys",
+  "Armatura magica": "mage-armor",
+  "Bocca magica": "magic-mouth",
+  "Caduta morbida": "feather-fall",
+  "Camminare sull'acqua": "water-walk",
+  "Camuffare se stesso": "disguise-self",
+  "Charme su persone": "charm-person",
+  "Comprensione dei linguaggi": "comprehend-languages",
+  "Corona di follia": "phb2014-corona-di-follia",
+  "Creare o distruggere acqua": "create-or-destroy-water",
+  "Crescita di spine": "spike-growth",
+  "Cura ferite": "cure-wounds",
+  "Disco fluttuante di Tenser": "floating-disk",
+  "Estasiare": "enthrall",
+  "Folata di vento": "gust-of-wind",
+  "Individuazione dei pensieri": "detect-thoughts",
+  "Individuazione del magico": "detect-magic",
+  "Individuazione delle malattie e dei veleni": "detect-poison-and-disease",
+  "Ingrandire/ridurre": "enlarge-reduce",
+  "Interdizione alle lame": "phb2014-interdizione-alle-lame",
+  "Intimorire infernale": "hellish-rebuke",
+  "Intralciare": "entangle",
+  "Invisibilità": "invisibility",
+  "Lama infuocata": "flame-blade",
+  "Levitazione": "levitate",
+  "Localizza oggetto": "locate-object",
+  "Luce diurna": "daylight",
+  "Luminescenza": "faerie-fire",
+  "Mani brucianti": "burning-hands",
+  "Marchio del cacciatore": "hunters-mark",
+  "Muro d'acqua": "xanathar-muro-dacqua",
+  "Nube di nebbia": "fog-cloud",
+  "Oscurità": "darkness",
+  "Parlare con gli animali": "speak-with-animals",
+  "Passare senza tracce": "pass-without-trace",
+  "Passo velato": "misty-step",
+  "Punizione incandescente": "phb2014-punizione-incandescente",
+  "Punizione marchiante": "branding-smite",
+  "Purificare cibo e bevande": "purify-food-and-drink",
+  "Raggio di infermità": "phb2014-raggio-di-infermita",
+  "Ristorare inferiore": "lesser-restoration",
+  "Saltare": "jump",
+  "Scudo": "shield",
+  "Serratura arcana": "arcane-lock",
+  "Servitore inosservato": "unseen-servant",
+  "Sonno": "sleep",
+  "Sortilegio": "phb2014-sortilegio",
+  "Suggestione": "suggestion",
+  "Vedere invisibilità": "see-invisibility",
+});
+const INNATE_SPELL_ABILITIES = Object.freeze({ Carisma: "cha", Costituzione: "con", Saggezza: "wis", Intelligenza: "int", Destrezza: "dex" });
+
+// The innate spell of a trait that spends its own use: { spellId, slotLevel, ability, self }, or null. ability
+// "choice": Intelligence, Wisdom or Charisma, chosen with the species (the card's speciesSpellAbility).
+function innateSpellFromText(description) {
+  const match = String(description || "").match(/^(?:Dal \d° livello )?[Ll]anci (.+?)(?= come incantesimo di| come azione bonus| su te stesso| senza (?:spendere|slot|componenti)|,)/u);
+  const spellId = match ? INNATE_SPELL_IDS[match[1]] : "";
+  if (!spellId) return null;
+  const level = Number(description.match(/come incantesimo di (\d)° livello/u)?.[1]) || null;
+  const ability = INNATE_SPELL_ABILITIES[description.match(/con (Carisma|Costituzione|Saggezza|Intelligenza|Destrezza)/u)?.[1]] || "choice";
+  return Object.freeze({ spellId, slotLevel: level, ability, self: /su te stesso/u.test(description) });
+}
+
 // The traits that change hit points (speciesHpTraitCore.js): the kind of write and where its amount comes from.
 // amount: "level", "pb", "2pb", "con-min1", "level-con-min1"; dice "pb-d4" (rolled at the table); onHit: Hungry Jaws'
 // bite; bonusDie: Beasthide's extra d6; die and bonus: the reduction's roll.
@@ -452,6 +531,7 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
   const runtimeSupport = effectPlan ? CONDITION_ADAPTER : passive ? NOT_AUTOMATED : RESOURCE_ONLY;
   const id = giftId ? `dono-${giftId}-${key}` : `specie-${speciesId}-${key}`;
   const hpTrait = SPECIES_HP_TRAITS[id] || null;
+  const innateSpell = poolId && !passive ? innateSpellFromText(description) : null;
   return Object.freeze({
     id,
     name,
@@ -485,6 +565,7 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
     resourceCosts: Object.freeze(poolId ? [Object.freeze({ poolId, amount: 1 })] : []),
     ...(breath ? { breath } : {}),
     ...(hpTrait ? { hpTrait } : {}),
+    ...(innateSpell ? { innateSpell } : {}),
   });
 }
 
@@ -575,6 +656,12 @@ const GEM_PSIONIC_MIND = speciesTrait({ speciesId: "dragonide-gemma", key: "ment
   description: "Mandi messaggi telepatici a qualsiasi creatura che puoi vedere entro 9 m; non serve una lingua comune, ma deve capirne almeno una." });
 
 export const SPECIES_FEATURES = Object.freeze([...DRAGONBORN_FEATURES, GEM_PSIONIC_MIND, ...PHB_FEATURES, ...CATALOG_FEATURES, ...GIFT_FEATURES]);
+
+// Whether a species casts innate spells with the ability chosen by the player (the card shows the field then).
+export function speciesHasSpellAbilityChoice(speciesId) {
+  const id = String(speciesId || "").trim();
+  return !!id && SPECIES_FEATURES.some((feature) => feature.speciesId === id && feature.innateSpell?.ability === "choice");
+}
 
 // A species trait is available for the profile's species, and for its chosen option when the
 // trait belongs to one, once the total character level reaches it. A species with options and none

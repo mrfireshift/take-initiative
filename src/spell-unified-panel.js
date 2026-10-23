@@ -45,6 +45,7 @@ import {
   getSpellDefinition,
 } from "./spells-srd.js";
 import { planSpellCastCost, spellSlotChoices } from "./spellSlotSpendCore.js";
+import { planSpeciesSpellCost, speciesSpellCast } from "./speciesInnateSpellCore.js";
 import { planSpellReactionSpend } from "./spellReactionCore.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
 import {
@@ -450,6 +451,18 @@ export function bootSpellUnifiedPanel(
     && !String(state.session?.activeActionId || "").trim()
     && !state.session?.monsterActionContext;
 
+  // An innate spell of the caster's species (speciesInnateSpellCore.js): the trait named by the quick action that
+  // opened the panel ("species-spell:<trait id>"), for this spell. Its use is the cast's cost, its DC the cast's.
+  const speciesCastFor = (caster, spellId) => {
+    const meta = caster?.metadata?.[`${ID}/meta`] || {};
+    return speciesSpellCast({
+      actionId: route?.quickActionId,
+      card: meta.initiativeCard,
+      resources: meta.classFeatureState?.resources,
+      spellId,
+    });
+  };
+
   // The Slot menu shows what the caster has left at each level; "Spendi" picks Pact Magic or no slot (a
   // ritual, a free cast). Hidden for a caster without slots.
   const decorateSpellSlotControls = (model) => {
@@ -457,6 +470,20 @@ export function bootSpellUnifiedPanel(
     if (!slot) return;
     const caster = state.casters.find((item) => item.id === state.session?.casterId);
     const meta = caster?.metadata?.[`${ID}/meta`] || {};
+    // An innate spell spends the species trait's use, never a slot: "Spendi" says so, with the trait's DC.
+    const speciesCast = slotSpendApplies() ? speciesCastFor(caster, state.contract?.spell?.id) : null;
+    if (speciesCast) {
+      const uses = speciesCast.uses && !speciesCast.uses.unlimited && speciesCast.uses.current !== null
+        ? ` · usi ${speciesCast.uses.current}/${speciesCast.uses.maximum}` : "";
+      const dc = speciesCast.dc !== null ? ` · CD ${speciesCast.dc} (${speciesCast.abilityLabel})` : "";
+      model.context.slotSpend = {
+        visible: true,
+        label: "Spendi",
+        value: "species",
+        options: [{ value: "species", label: `Uso di specie${dc}${uses}` }],
+      };
+      return;
+    }
     const choices = slotSpendApplies()
       ? spellSlotChoices({
         characterBuild: meta.initiativeCard?.characterBuild,
@@ -499,17 +526,20 @@ export function bootSpellUnifiedPanel(
       ? sanitizeQuickActions(meta.initiativeCard?.quickActions, { limit: 64, attackLimit: 64 })
         .find((action) => action.id === quickActionId && action.spellId === spell?.id) || null
       : null;
-    const cost = planSpellCastCost({
-      action: quickAction,
-      sourceId: caster?.id,
-      characterBuild: meta.initiativeCard?.characterBuild,
-      abilityModifiers: meta.initiativeCard?.abilityModifiers || null,
-      resources: meta.classFeatureState?.resources,
-      spellLevel: spell?.level,
-      slotLevel: state.session.slotLevel,
-      source: state.slotSource,
-      phase: state.session.phase,
-    });
+    const speciesCast = speciesCastFor(caster, spell?.id);
+    const cost = speciesCast
+      ? planSpeciesSpellCost({ cast: speciesCast, sourceId: caster?.id, card: meta.initiativeCard, phase: state.session.phase })
+      : planSpellCastCost({
+        action: quickAction,
+        sourceId: caster?.id,
+        characterBuild: meta.initiativeCard?.characterBuild,
+        abilityModifiers: meta.initiativeCard?.abilityModifiers || null,
+        resources: meta.classFeatureState?.resources,
+        spellLevel: spell?.level,
+        slotLevel: state.session.slotLevel,
+        source: state.slotSource,
+        phase: state.session.phase,
+      });
     if (cost.exhausted && !window.confirm(`${cost.message}\n\nLanciare comunque senza spenderlo?`)) {
       patchSession({ feedback: { state: "info", message: "Lancio annullato: niente da spendere." } }, { clearFeedback: false });
       return null;
@@ -526,6 +556,7 @@ export function bootSpellUnifiedPanel(
       extraOperations: [...(cost.operation ? [cost.operation] : []), ...reaction.operations],
       spellCost: cost.spent,
       slotLevel: cost.slotLevel,
+      ...(Number.isInteger(speciesCast?.dc) ? { spellSaveDC: speciesCast.dc } : {}),
     };
   };
 
@@ -554,16 +585,20 @@ export function bootSpellUnifiedPanel(
     return false;
   };
 
-  // The session the cast runs with: a Pact Magic slot casts the spell at its own level, as the quick actions do.
-  const sessionAtSpentSlot = (slotSpend) => (
-    Number.isInteger(slotSpend?.slotLevel) && slotSpend.slotLevel !== state.session.slotLevel
+  // The session the cast runs with: a Pact Magic slot casts the spell at its own level, as the quick actions do;
+  // an innate spell casts with the species trait's DC.
+  const sessionAtSpentSlot = (slotSpend) => {
+    const session = Number.isInteger(slotSpend?.slotLevel) && slotSpend.slotLevel !== state.session.slotLevel
       ? {
         ...state.session,
         slotLevel: slotSpend.slotLevel,
         castContext: { ...(state.session.castContext || {}), slotLevel: slotSpend.slotLevel },
       }
-      : state.session
-  );
+      : state.session;
+    return Number.isInteger(slotSpend?.spellSaveDC)
+      ? { ...session, castContext: { ...(session.castContext || {}), spellSaveDC: slotSpend.spellSaveDC } }
+      : session;
+  };
 
   const spentText = (slotSpend) => (slotSpend?.spellCost ? ` · speso: ${slotSpend.spellCost}` : "");
 
@@ -2777,7 +2812,7 @@ export function bootSpellUnifiedPanel(
     state.revision += 1;
     render();
     const caster = state.casters.find((item) => item.id === state.session.casterId);
-    const spellSaveDC = numeric(
+    const spellSaveDC = Number.isInteger(slotSpend.spellSaveDC) ? slotSpend.spellSaveDC : numeric(
       caster?.metadata?.[`${ID}/meta`]?.initiativeCard?.spellSaveDC,
     );
     const result = await executeSpellUnifiedLifecycle({

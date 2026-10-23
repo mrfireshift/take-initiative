@@ -307,6 +307,28 @@ test("lifecycle cast: the slot is spent with the spell and the Undo gives it bac
   assert.equal((await casterSlots())["spell-slot-1"]?.current ?? 4, 4);
 });
 
+// An innate spell of the species (speciesInnateSpellCore.js): the trait's use is the cast's cost, in the same command.
+test("an innate spell of the species spends the trait's use with the cast, and one Undo gives it back", async () => {
+  await resetScene();
+  const { planSpeciesSpellCost, speciesSpellActionId, speciesSpellCast } = await import("../src/speciesInnateSpellCore.js");
+  const card = { characterBuild: BUILD, abilityModifiers: { cha: 3 }, species: { id: "yuan-ti", ancestryId: "" } };
+  const cast = speciesSpellCast({ actionId: speciesSpellActionId("specie-yuan-ti-incantesimi-innati-suggestione"), card, spellId: "suggestion" });
+  const { operation } = planSpeciesSpellCost({ cast, sourceId: CASTER_ID, card });
+  await executeSpellApplication({
+    spell: getSpellDefinition("suggestion"),
+    casterId: CASTER_ID,
+    targetIds: [TARGET_ID],
+    turns: 4800,
+    castContext: { slotLevel: 2, phase: "cast", spellSaveDC: cast.dc },
+    extraOperations: [operation],
+  });
+  assert.equal((await casterSlots())["specie-yuan-ti-suggestione-usi"].current, 0);
+  assert.equal((await casterSlots())["spell-slot-2"], undefined, "no slot spent");
+  const { entries } = await undoLast();
+  assert.equal(entries.length, 1, "spell and use share one History entry");
+  assert.equal((await casterSlots())["specie-yuan-ti-suggestione-usi"]?.current ?? 1, 1);
+});
+
 test("a cast without extra operations leaves the resources alone", async () => {
   await resetScene();
   await executeSpellApplication({

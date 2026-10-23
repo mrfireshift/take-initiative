@@ -2,6 +2,8 @@ import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { openBossActionsPopover } from "./bossActionsLauncher.js";
 import { openPcAttackPopover, PC_ATTACK_SPELL_LAUNCH_CHANNEL } from "./pcAttackLauncher.js";
 import { pcAttackBreathActionId } from "./pcAttackBreathId.js";
+import { speciesSpellOpenRequest } from "./speciesInnateSpellCore.js";
+import { speciesHpTraitNeedsRoll } from "./speciesHpTraitCore.js";
 import {
   ID,
   ACTIVE_TURN_LABEL_META,
@@ -8388,6 +8390,21 @@ async function __activateClassFeatureFromContext(entry, featureId, scopeIds = []
   const sourceId = splitParagonId(entry.id).baseId;
   const feature = getClassFeatureDefinition(featureId);
   if (!sourceId || !feature) return;
+  // The species traits resolved elsewhere, from the context menu as from a quick action: the breath in the attack
+  // console, the innate spell in the spell panel, and the HP traits that need a roll in the card.
+  if (feature.breath) {
+    await openPcAttackPopover(sourceId, pcAttackBreathActionId(feature.id));
+    return { mode: "review", route: "pc-attack" };
+  }
+  if (feature.innateSpell) {
+    const request = speciesSpellOpenRequest(feature, sourceId);
+    await openCardSpellsPopup(entry, { quickActionId: request.quickActionId, routeRequest: request });
+    return { mode: "review", route: "spell-unified-panel" };
+  }
+  if (feature.hpTrait && speciesHpTraitNeedsRoll(feature.hpTrait)) {
+    await openInitiativeCardPopup(entry);
+    return { mode: "review", route: "initiative-card" };
+  }
 
   const targeting = classFeatureTargeting(feature);
   const selectedIds = await OBR.player.getSelection().catch(() => []);
@@ -8441,6 +8458,12 @@ async function __runTrackerQuickAction(sourceEntry, action) {
     if (feature?.breath) {
       await openPcAttackPopover(sourceId, pcAttackBreathActionId(feature.id));
       return { mode: "review", route: "pc-attack" };
+    }
+    // An innate spell of the species opens the spell panel on it, without a slot (speciesInnateSpellCore.js).
+    if (feature?.innateSpell) {
+      const request = speciesSpellOpenRequest(feature, sourceId);
+      await openCardSpellsPopup(sourceEntry, { quickActionId: request.quickActionId, routeRequest: request });
+      return { mode: "review", route: "spell-unified-panel" };
     }
     // A species trait that changes hit points asks its roll in the card, which writes the HP (speciesHpTraitCore.js).
     if (feature?.hpTrait) {

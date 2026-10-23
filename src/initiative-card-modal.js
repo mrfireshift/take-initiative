@@ -22,6 +22,7 @@ import { getSpellsFromItem } from "./spells.js";
 import { DAMAGE_TYPES, DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, damageDefenseFor, damageDefenseTag, hasDamageDefenses, profileDamageDefenses } from "./damageDefensesCore.js";
 import {
   SPECIES, SPECIES_FIELD, SUPERNATURAL_GIFTS, SUPERNATURAL_GIFT_FIELD, getSpecies, sanitizeSpecies, sanitizeSupernaturalGift,
+  SPECIES_SPELL_ABILITY_FIELD, sanitizeSpeciesSpellAbility, speciesHasSpellAbilityChoice,
   speciesDisplayName, speciesOptionMissing, supernaturalGiftDisplayName,
 } from "./speciesTraitCore.js";
 import { ABILITY_KEYS, ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
@@ -134,6 +135,7 @@ import {
   shortRestClassFeatureResources,
 } from "./classFeatureRuntime.js";
 import { speciesHealDice, speciesHpTraitAmount, speciesHpTraitAmountLabel, speciesReductionHint } from "./speciesHpTraitCore.js";
+import { speciesSpellCast, speciesSpellActionId, speciesSpellOpenRequest } from "./speciesInnateSpellCore.js";
 
 const META_KEY = `${ID}/meta`;
 const MODAL_ID = `${ID}/initiative-card-modal`;
@@ -718,6 +720,13 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
     if (action.kind === "attack") {
       if (!isGM) throw new Error("Solo il GM può registrare un attacco.");
       await openPcAttackPopover(item.id, action.id, action.launchSpellId || "");
+      if (!sceneStillCurrent()) return;
+      closeInitiativeCardPopover();
+      return;
+    }
+    if (action.kind === "feature" && CLASS_FEATURE_BY_ID.get(action.featureId)?.innateSpell) {
+      if (!isGM) throw new Error("Solo il GM può lanciare un incantesimo.");
+      await openSpeciesSpell(CLASS_FEATURE_BY_ID.get(action.featureId));
       if (!sceneStillCurrent()) return;
       closeInitiativeCardPopover();
       return;
@@ -1966,6 +1975,36 @@ function buildTwinnedSpellControls(feature) {
   return controls;
 }
 
+// An innate spell of the species (speciesInnateSpellCore.js): the spell panel opens on the spell, without a slot, at
+// the trait's level; the cast spends the trait's use and takes its DC.
+async function openSpeciesSpell(feature) {
+  const request = speciesSpellOpenRequest(feature, item?.id);
+  if (!request) return;
+  await OBR.broadcast.sendMessage(TRACKER_PANEL_REQUEST_CHANNEL, { type: "open", ...request }, { destination: "LOCAL" });
+}
+
+function buildSpeciesSpellControls(feature, state) {
+  const controls = document.createElement("div");
+  controls.className = "class-feature-special-controls";
+  const cast = speciesSpellCast({ actionId: speciesSpellActionId(feature.id), card: profile, resources: state?.resources });
+  const note = document.createElement("small");
+  note.textContent = cast?.dc !== null && cast?.dc !== undefined
+    ? `Senza slot · CD ${cast.dc} (${cast.abilityLabel}); l'uso si spende al lancio.`
+    : "Senza slot; l'uso si spende al lancio.";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Lancia";
+  button.title = "Apre il pannello incantesimi su questo incantesimo, senza slot";
+  button.disabled = classFeatureMutating;
+  button.addEventListener("click", async () => {
+    if (!item) return;
+    await openSpeciesSpell(feature);
+    closeInitiativeCardPopover();
+  });
+  controls.append(note, button);
+  return controls;
+}
+
 // A breath weapon opens the PC attack console: the creatures of its area, their saves and the damage; its use is
 // spent when the attack is confirmed there.
 function buildBreathControls(feature) {
@@ -2696,6 +2735,8 @@ function renderClassFeatures() {
             appendFeatureControl(buildWildMagicTidesControls());
           } else if (adapter === "spell-thief") {
             appendFeatureControl(buildSpellThiefControls(feature));
+          } else if (feature.innateSpell) {
+            appendFeatureControl(buildSpeciesSpellControls(feature, state));
           } else if (feature.hpTrait) {
             appendFeatureControl(buildSpeciesHpTraitControls(feature, state, active));
           } else if (feature.breath) {
@@ -4064,6 +4105,16 @@ function buildSpeciesEditor() {
   const gift = $("supernaturalGiftInput");
   gift.replaceChildren(new Option("Nessuno", ""), ...SUPERNATURAL_GIFTS.map((entry) => new Option(`${entry.label} · ${entry.sourceLabel}`, entry.id)));
   gift.value = sanitizeSupernaturalGift(profile?.[SUPERNATURAL_GIFT_FIELD])?.id || "";
+  const ability = $("speciesSpellAbilityInput");
+  ability.replaceChildren(new Option("La più alta tra Int, Sag e Car", ""), new Option("Intelligenza", "int"),
+    new Option("Saggezza", "wis"), new Option("Carisma", "cha"));
+  ability.value = sanitizeSpeciesSpellAbility(profile?.[SPECIES_SPELL_ABILITY_FIELD]) || "";
+  syncSpeciesSpellAbilityRow();
+}
+
+// The innate spells' ability, only for the species whose book leaves it to the player.
+function syncSpeciesSpellAbilityRow() {
+  $("speciesSpellAbilityRow").hidden = !speciesHasSpellAbilityChoice($("speciesInput").value);
 }
 
 function collectSpecies() {
@@ -4292,6 +4343,7 @@ $("attackAdd").addEventListener("click", () => {
 });
 $("speciesInput").addEventListener("change", () => {
   buildSpeciesAncestryOptions($("speciesInput").value);
+  syncSpeciesSpellAbilityRow();
 });
 $("classBuildAdd").addEventListener("click", () => {
   const list = $("classBuildEditorList");
@@ -4333,6 +4385,10 @@ $("form").addEventListener("submit", async (event) => {
     // Come la specie: il dono si scrive solo se scelto o già presente.
     const gift = collectSupernaturalGift();
     const giftPatch = gift || Object.hasOwn(profile || {}, SUPERNATURAL_GIFT_FIELD) ? { [SUPERNATURAL_GIFT_FIELD]: gift } : {};
+    // Come il dono: la caratteristica degli incantesimi di specie si scrive solo se scelta o già presente.
+    const spellAbility = speciesHasSpellAbilityChoice(species?.id) ? sanitizeSpeciesSpellAbility($("speciesSpellAbilityInput").value) : null;
+    const spellAbilityPatch = spellAbility || Object.hasOwn(profile || {}, SPECIES_SPELL_ABILITY_FIELD)
+      ? { [SPECIES_SPELL_ABILITY_FIELD]: spellAbility } : {};
     // Come la specie: il libro si scrive solo se usato o già presente.
     const spellbook = sanitizeSpellbook(draftSpellbook);
     const spellbookPatch = hasSpellbook(spellbook) || Object.hasOwn(profile || {}, SPELLBOOK_FIELD)
@@ -4354,6 +4410,7 @@ $("form").addEventListener("submit", async (event) => {
       ...abilityPatch,
       ...speciesPatch,
       ...giftPatch,
+      ...spellAbilityPatch,
       ...spellbookPatch,
     }, {
       isCurrent: () => sceneLifecycle.isCurrent(operation),

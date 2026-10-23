@@ -40,7 +40,7 @@ import { sanitizeQuickActions } from "./quickActionsCore.js";
 import { sanitizeBossActionBinding } from "./bossActionProfileCore.js";
 import { DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
 import { ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
-import { SPECIES_FIELD, SUPERNATURAL_GIFT_FIELD, sanitizeSpecies, sanitizeSupernaturalGift } from "./speciesTraitCore.js";
+import { SPECIES_FIELD, SPECIES_SPELL_ABILITY_FIELD, SUPERNATURAL_GIFT_FIELD, sanitizeSpecies, sanitizeSpeciesSpellAbility, sanitizeSupernaturalGift } from "./speciesTraitCore.js";
 import { SPELLBOOK_FIELD, hasSpellbook, sanitizeSpellbook } from "./spellbookCore.js";
 import {
   sanitizeCharacterBuild,
@@ -112,6 +112,8 @@ export function sanitizeInitiativeCard(value) {
   if (Object.hasOwn(source, SPECIES_FIELD)) normalized[SPECIES_FIELD] = sanitizeSpecies(source[SPECIES_FIELD]);
   // Come la specie: null cancella il dono soprannaturale, i profili senza dono restano invariati.
   if (Object.hasOwn(source, SUPERNATURAL_GIFT_FIELD)) normalized[SUPERNATURAL_GIFT_FIELD] = sanitizeSupernaturalGift(source[SUPERNATURAL_GIFT_FIELD]);
+  // Come il dono: la caratteristica degli incantesimi di specie, solo se scelta o già presente.
+  if (Object.hasOwn(source, SPECIES_SPELL_ABILITY_FIELD)) normalized[SPECIES_SPELL_ABILITY_FIELD] = sanitizeSpeciesSpellAbility(source[SPECIES_SPELL_ABILITY_FIELD]);
   // Opzionale come la specie: i profili senza incantesimi mantengono la forma precedente.
   if (Object.hasOwn(source, SPELLBOOK_FIELD)) normalized[SPELLBOOK_FIELD] = sanitizeSpellbook(source[SPELLBOOK_FIELD]);
   const actorProfileId = actorProfileIdFromProfile(source);
@@ -177,6 +179,9 @@ function mergeProfile(base, value) {
   }
   if (Object.hasOwn(value, SUPERNATURAL_GIFT_FIELD) || Object.hasOwn(base || {}, SUPERNATURAL_GIFT_FIELD)) {
     merged[SUPERNATURAL_GIFT_FIELD] = value[SUPERNATURAL_GIFT_FIELD] !== undefined ? cleanValue[SUPERNATURAL_GIFT_FIELD] : cleanBase[SUPERNATURAL_GIFT_FIELD];
+  }
+  if (Object.hasOwn(value, SPECIES_SPELL_ABILITY_FIELD) || Object.hasOwn(base || {}, SPECIES_SPELL_ABILITY_FIELD)) {
+    merged[SPECIES_SPELL_ABILITY_FIELD] = value[SPECIES_SPELL_ABILITY_FIELD] !== undefined ? cleanValue[SPECIES_SPELL_ABILITY_FIELD] : cleanBase[SPECIES_SPELL_ABILITY_FIELD];
   }
   if (Object.hasOwn(value, SPELLBOOK_FIELD) || Object.hasOwn(base || {}, SPELLBOOK_FIELD)) {
     merged[SPELLBOOK_FIELD] = value[SPELLBOOK_FIELD] !== undefined ? cleanValue[SPELLBOOK_FIELD] : cleanBase[SPELLBOOK_FIELD];
@@ -247,6 +252,7 @@ const INITIATIVE_CARD_KNOWN_FIELDS = new Set([
   ABILITY_MODIFIERS_FIELD,
   SPECIES_FIELD,
   SUPERNATURAL_GIFT_FIELD,
+  SPECIES_SPELL_ABILITY_FIELD,
   SPELLBOOK_FIELD,
   "characterBuild",
   "enabledClassFeatureIds",

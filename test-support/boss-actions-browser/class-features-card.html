@@ -68,7 +68,7 @@
     orizzonte: { name: "Corin", build: [{ classId: "ranger", level: 7, subclassId: "ranger-viandante-dell-orizzonte" }] },
     ranger: { name: "Tamsin", build: [{ classId: "ranger", level: 7, subclassId: "ranger-cacciatore" }] },
     // I tratti di specie: senza sottorazza (tiefling) e con sottorazza (drow).
-    tiefling: { name: "Zar", build: [{ classId: "warlock", level: 5, subclassId: "warlock-l-immondo" }], species: { id: "tiefling", ancestryId: "" } },
+    tiefling: { name: "Zar", build: [{ classId: "warlock", level: 5, subclassId: "warlock-l-immondo" }], species: { id: "tiefling", ancestryId: "" }, abilityModifiers: { cha: 3 } },
     drow: { name: "Ilvara", build: [{ classId: "ladro", level: 3, subclassId: "ladro-lama-spirituale" }], species: { id: "elfo", ancestryId: "drow" } },
     aasimar: { name: "Aela", build: [{ classId: "paladino", level: 5, subclassId: "paladino-giuramento-di-conquista" }], species: { id: "aasimar-multiverso", ancestryId: "anima-radiosa" }, hp: 30 },
     genasi: { name: "Pyra", build: [{ classId: "mago", level: 5, subclassId: "mago-scuola-di-divinazione" }], species: { id: "genasi-multiverso", ancestryId: "terra" } },
@@ -83,6 +83,8 @@
     mezzorco: { name: "Grom", build: [{ classId: "guerriero", level: 5, subclassId: "guerriero-campione" }], species: { id: "mezzorco", ancestryId: "" }, hp: 0 },
     goliath: { name: "Kael", build: [{ classId: "guerriero", level: 5, subclassId: "guerriero-campione" }], species: { id: "goliath", ancestryId: "" }, abilityModifiers: { con: 2 }, hp: 22 },
     orco: { name: "Urza", build: [{ classId: "guerriero", level: 5, subclassId: "guerriero-campione" }], species: { id: "orco-multiverso", ancestryId: "" } },
+    // Incantesimi innati con la caratteristica a scelta (Mostri del Multiverso).
+    githyanki: { name: "Vlaakith", build: [{ classId: "mago", level: 5, subclassId: "mago-scuola-di-divinazione" }], species: { id: "githyanki-multiverso", ancestryId: "" }, abilityModifiers: { int: 4, wis: 1, cha: 2 } },
     lucertoloide: { name: "Ssa", build: [{ classId: "ranger", level: 5, subclassId: "ranger-cacciatore" }], species: { id: "lucertoloide", ancestryId: "" }, abilityModifiers: { con: 3 } },
   };
   const selected = characters[params.get("pc")] ? params.get("pc") : "warlock";

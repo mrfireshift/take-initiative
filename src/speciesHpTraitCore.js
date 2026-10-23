@@ -49,6 +49,12 @@ export function speciesHpTraitAmountLabel(amount) {
   return AMOUNT_LABELS[amount] || "";
 }
 
+// Whether a trait needs something from the table before its write: a roll (Healing Hands' d4s, a reduction,
+// Beasthide's d6) or the bite's outcome. The others resolve from the sheet alone.
+export function speciesHpTraitNeedsRoll(spec) {
+  return spec?.dice === "pb-d4" || spec?.kind === SPECIES_HP_TRAIT_KINDS.REDUCE || !!spec?.bonusDie || spec?.onHit === true;
+}
+
 // Healing Hands of Mostri del Multiverso: a number of d4s equal to the proficiency bonus, rolled at the table.
 export function speciesHealDice(spec, card = {}) {
   if (spec?.dice !== "pb-d4") return null;

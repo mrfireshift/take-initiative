@@ -108,9 +108,21 @@ Correzioni fatte dopo il confronto:
     chiesto non cambia: il GM ne abbassa la CD a mano.
   - Limite noto: i PF temporanei sono la parte di PF oltre il massimo, quindi su
     un personaggio ferito si sommano ai PF come una cura.
-- **Altri tratti con usi** (incantesimi innati…):
-  **Conferma consumo** scala l'uso, che torna con il riposo indicato. L'effetto
-  si risolve al tavolo: il plugin non tocca PF, tiri o bersagli.
+- **Incantesimi innati** (99 tratti: Eredità infernale, Magia drow, psionica
+  dei gith, marchi del drago…): **Lancia**, o la stessa capacità come Azione
+  rapida o dal menu del tracker, apre il pannello incantesimi sull'incantesimo,
+  senza slot e al livello del tratto (Intimorire infernale al 2°). «Spendi»
+  mostra l'uso di specie con la sua CD, 8 + competenza + la caratteristica del
+  tratto, non quella della classe. Il lancio spende l'uso nello stesso comando:
+  un Annulla restituisce entrambi; senza usi il pannello chiede conferma. Gli
+  incantesimi «su te stesso» hanno il personaggio come bersaglio. Per le specie
+  in cui la caratteristica è a scelta (Mostri del Multiverso, fata, hexblood) la
+  scheda ha il campo **Caratteristica degli incantesimi di specie**; vuoto, vale
+  la più alta tra Intelligenza, Saggezza e Carisma. Il tiro per colpire degli
+  incantesimi d'attacco resta al tavolo con il bonus della scheda.
+- **Altri tratti con usi**: **Conferma consumo** scala l'uso, che torna con il
+  riposo indicato. L'effetto si risolve al tavolo: il plugin non tocca PF, tiri
+  o bersagli.
 - **Trasformazioni da 1 minuto** (Anima radiosa, Consunzione radiosa, Sudario
   necrotico, Rivelazione celestiale): **Attiva** scala l'uso e mette
   un'etichetta di 10 round sul personaggio, con il promemoria dei danni extra.
