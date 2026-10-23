@@ -384,7 +384,7 @@ test("il movimento annullato conserva la correzione nella stessa card semantica"
   })]);
   const text = model.events[0].details.flatMap((section) => section.lines).join(" ");
   assert.match(model.events[0].summary, /-2 caselle/u);
-  assert.match(text, /Correzione da Undo OBR/u);
+  assert.match(text, /Correzione da annullamento OBR/u);
 });
 
 test("distingue nella card Undo Cronologia e Undo nativo OBR", () => {
@@ -404,11 +404,11 @@ test("distingue nella card Undo Cronologia e Undo nativo OBR", () => {
 
   assert.match(
     historyModel.events[0].details.flatMap((section) => section.lines).join(" "),
-    /Undo della Cronologia/u,
+    /annullamento della cronologia/u,
   );
   assert.match(
     nativeModel.events[0].details.flatMap((section) => section.lines).join(" "),
-    /Undo OBR/u,
+    /annullamento OBR/u,
   );
 });
 

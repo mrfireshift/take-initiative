@@ -250,7 +250,7 @@ const AREA_FEEDBACK_MESSAGES = Object.freeze({
   "target-limit-exceeded": "Il numero di bersagli supera il limite dichiarato.",
   "teleport-destination-required": "Scegli un punto di arrivo valido.",
   "teleport-destination-out-of-range": "La destinazione supera la portata di Porta Dimensionale.",
-  "passenger-not-allowed": "Questa spell non consente un passeggero.",
+  "passenger-not-allowed": "Questo incantesimo non consente un passeggero.",
   "passenger-limit-exceeded": "È consentito un solo passeggero.",
   "passenger-is-caster": "Il caster non può essere selezionato come passeggero.",
   "passenger-not-creature": "Il passeggero deve essere una creatura.",
@@ -278,10 +278,10 @@ const AREA_FEEDBACK_MESSAGES = Object.freeze({
   "secondary-out-of-range": "Un bersaglio secondario supera il raggio dal primario.",
   "pairwise-distance-exceeded": "La distanza tra alcuni bersagli non è valida.",
   "caster-range-exceeded": "Un bersaglio supera la portata del caster.",
-  "undo-unavailable": "L'ultima applicazione non è più disponibile per Undo.",
-  "undo-api-unavailable": "L'API condivisa di Undo non è disponibile.",
-  "undo-failed": "Undo non è riuscito.",
-  "command-invalid": "La configurazione dello spell non è completa.",
+  "undo-unavailable": "L'ultima applicazione non è più disponibile per l'annullamento.",
+  "undo-api-unavailable": "L'API condivisa di annullamento non è disponibile.",
+  "undo-failed": "Annullamento non riuscito.",
+  "command-invalid": "La configurazione dell'incantesimo non è completa.",
   "executor-failed": "Applicazione non riuscita.",
 });
 
@@ -1847,7 +1847,7 @@ export function bootSpellUnifiedPanel(
     if (!sceneLifecycle.isCurrent(operation)) return;
     state.session = updateSpellPanelSession(state.session, {
       undoState: { ...state.session.undoState, state: "undoing" },
-      feedback: { state: "loading", message: "Undo in corso…" },
+      feedback: { state: "loading", message: "Annullamento in corso…" },
     });
     state.revision += 1;
     render();
@@ -3441,7 +3441,7 @@ export function bootSpellUnifiedPanel(
       state.session = updateSpellPanelSession(state.session, {
         feedback: {
           state: "error",
-          message: "Scena non disponibile. Riprova dal pannello Spells.",
+          message: "Scena non disponibile. Riprova dal pannello Incantesimi.",
         },
       });
       render();

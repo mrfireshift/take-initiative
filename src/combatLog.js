@@ -118,9 +118,9 @@ function storageFailure(error, fallbackMessage) {
   const code = classifyCombatLogStorageError(error);
   const messages = {
     [COMBAT_LOG_STORAGE_ERROR_CODES.QUOTA]: "Spazio IndexedDB esaurito: esporta il registro o libera spazio e riprova.",
-    [COMBAT_LOG_STORAGE_ERROR_CODES.BLOCKED]: "Aggiornamento Combat Log bloccato da un'altra scheda: chiudila e riprova.",
-    [COMBAT_LOG_STORAGE_ERROR_CODES.UPGRADE]: "Aggiornamento del database Combat Log non riuscito.",
-    [COMBAT_LOG_STORAGE_ERROR_CODES.ABORTED]: "Operazione Combat Log annullata senza modifiche parziali.",
+    [COMBAT_LOG_STORAGE_ERROR_CODES.BLOCKED]: "Aggiornamento del registro combattimento bloccato da un'altra scheda: chiudila e riprova.",
+    [COMBAT_LOG_STORAGE_ERROR_CODES.UPGRADE]: "Aggiornamento del database del registro combattimento non riuscito.",
+    [COMBAT_LOG_STORAGE_ERROR_CODES.ABORTED]: "Operazione sul registro combattimento annullata senza modifiche parziali.",
   };
   return new CombatLogStorageError(code, messages[code] || fallbackMessage, error);
 }
@@ -134,7 +134,7 @@ function openDatabase() {
       if (settled) return;
       settled = true;
       if (dbPromise === databasePromise) dbPromise = null;
-      reject(storageFailure(error, "Impossibile aprire il Combat Log."));
+      reject(storageFailure(error, "Impossibile aprire il registro combattimento."));
     };
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
@@ -158,7 +158,7 @@ function openDatabase() {
     };
     request.onblocked = () => fail(new CombatLogStorageError(
       COMBAT_LOG_STORAGE_ERROR_CODES.BLOCKED,
-      "Aggiornamento Combat Log bloccato da un'altra scheda: chiudila e riprova.",
+      "Aggiornamento del registro combattimento bloccato da un'altra scheda: chiudila e riprova.",
     ));
     request.onsuccess = () => {
       const db = request.result;
@@ -172,7 +172,7 @@ function openDatabase() {
       settled = true;
       resolve(db);
     };
-    request.onerror = () => fail(request.error || new Error("Impossibile aprire il Combat Log."));
+    request.onerror = () => fail(request.error || new Error("Impossibile aprire il registro combattimento."));
   });
   dbPromise = databasePromise;
   return databasePromise;
@@ -232,7 +232,7 @@ async function setSessionState(session, { sceneEpoch = currentSceneEpoch() } = {
 }
 
 export async function startCombatLogSession(name = "", { sceneEpoch = currentSceneEpoch() } = {}) {
-  if (!eventSinkEnabled) throw new Error("Combat Log disattivato nelle opzioni.");
+  if (!eventSinkEnabled) throw new Error("Registro combattimento disattivato nelle opzioni.");
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
   if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM può creare un registro.");
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
@@ -366,7 +366,7 @@ async function appendEventsNow(
     const fail = (error) => {
       if (settled) return;
       settled = true;
-      reject(storageFailure(error, "Scrittura Combat Log fallita."));
+      reject(storageFailure(error, "Scrittura del registro combattimento fallita."));
     };
     const abortAsStale = () => {
       stale = true;
@@ -379,7 +379,7 @@ async function appendEventsNow(
       }
       const session = request.result;
       if (!session) {
-        fail(new Error("Sessione Combat Log non trovata."));
+        fail(new Error("Sessione del registro combattimento non trovata."));
         return;
       }
       const deletedEventIds = new Set(Array.isArray(session.deletedEventIds) ? session.deletedEventIds : []);
@@ -477,10 +477,10 @@ async function appendEventsNow(
               processNext();
               return;
             }
-            fail(addRequest.error || new Error("Scrittura evento Combat Log fallita."));
+            fail(addRequest.error || new Error("Scrittura dell'evento nel registro combattimento fallita."));
           };
         };
-        existingRequest.onerror = () => fail(existingRequest.error || new Error("Lettura evento Combat Log fallita."));
+        existingRequest.onerror = () => fail(existingRequest.error || new Error("Lettura dell'evento dal registro combattimento fallita."));
       };
       processNext();
     };
@@ -492,13 +492,13 @@ async function appendEventsNow(
       }
     };
     tx.onerror = () => {
-      if (!stale) fail(tx.error || new Error("Scrittura Combat Log fallita."));
+      if (!stale) fail(tx.error || new Error("Scrittura del registro combattimento fallita."));
     };
     tx.onabort = () => {
       if (settled) return;
       settled = true;
       if (stale) resolve();
-      else reject(storageFailure(tx.error, "Scrittura Combat Log annullata."));
+      else reject(storageFailure(tx.error, "Scrittura del registro combattimento annullata."));
     };
   });
   if (!isSceneEpochCurrent(sceneEpoch)) return appendDiagnostics([], { duplicates, conflicts });
@@ -901,7 +901,7 @@ function readEventCursorPage(index, range, direction, limit, sceneEpoch) {
     try {
       request = index.openCursor(range, direction === "backward" ? "prev" : "next");
     } catch (error) {
-      reject(storageFailure(error, "Lettura pagina Combat Log fallita."));
+      reject(storageFailure(error, "Lettura della pagina del registro combattimento fallita."));
       return;
     }
     request.onsuccess = () => {
@@ -918,7 +918,7 @@ function readEventCursorPage(index, range, direction, limit, sceneEpoch) {
       if (events.length >= limit) resolve(events);
       else cursor.continue();
     };
-    request.onerror = () => reject(storageFailure(request.error, "Lettura pagina Combat Log fallita."));
+    request.onerror = () => reject(storageFailure(request.error, "Lettura della pagina del registro combattimento fallita."));
   });
 }
 
@@ -1232,7 +1232,7 @@ export async function deleteCombatLogSession(
 ) {
   if (!eventSinkEnabled) return false;
   if (!isSceneEpochCurrent(sceneEpoch)) return false;
-  if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM puÃ² eliminare un registro.");
+  if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM può eliminare un registro.");
   if (!isSceneEpochCurrent(sceneEpoch)) return false;
   if (!sessionId) throw new Error("Registro non valido.");
   return queueWrite(async () => {
@@ -1458,7 +1458,7 @@ export async function importCombatLogBundle(
   { sceneEpoch = currentSceneEpoch() } = {},
 ) {
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
-  if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM puÃ² importare un registro.");
+  if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM può importare un registro.");
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
   const plan = planCombatLogImport(input, COMBAT_LOG_STORAGE_LIMITS);
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
@@ -1477,13 +1477,13 @@ export async function importCombatLogBundle(
     const eventRequest = eventsStore.getAll();
     const fail = (error) => {
       if (settled || failure) return;
-      failure = storageFailure(error, "Importazione Combat Log fallita.");
+      failure = storageFailure(error, "Importazione del registro combattimento fallita.");
       try { tx.abort(); } catch {}
     };
     const maybeImport = () => {
       if (settled || !readySessions || !readyEvents) return;
       if (!isSceneEpochCurrent(sceneEpoch)) {
-        fail(new CombatLogStorageError(COMBAT_LOG_STORAGE_ERROR_CODES.ABORTED, "Importazione annullata: la scena Ã¨ cambiata."));
+        fail(new CombatLogStorageError(COMBAT_LOG_STORAGE_ERROR_CODES.ABORTED, "Importazione annullata: la scena è cambiata."));
         return;
       }
       try {
@@ -1573,12 +1573,12 @@ export async function importCombatLogBundle(
       resolve(resultValue);
     };
     tx.onerror = () => {
-      if (!failure && !settled) failure = storageFailure(tx.error, "Importazione Combat Log fallita.");
+      if (!failure && !settled) failure = storageFailure(tx.error, "Importazione del registro combattimento fallita.");
     };
     tx.onabort = () => {
       if (settled) return;
       settled = true;
-      reject(failure || storageFailure(tx.error, "Importazione Combat Log annullata."));
+      reject(failure || storageFailure(tx.error, "Importazione del registro combattimento annullata."));
     };
   });
   if (!result || !isSceneEpochCurrent(sceneEpoch)) return null;
@@ -1616,7 +1616,7 @@ export async function previewCombatLogRetention({
   keepLastN,
 } = {}) {
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
-  if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM puÃ² gestire la conservazione del Combat Log.");
+  if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM può gestire la conservazione del registro combattimento.");
   const sessions = await listCombatLogSessions({ sceneEpoch, includeStats: true });
   const state = await getSessionState({ sceneEpoch });
   if (!isSceneEpochCurrent(sceneEpoch)) return null;

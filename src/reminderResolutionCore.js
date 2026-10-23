@@ -1271,7 +1271,7 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
   const resolvedTargetId = actionTargetId(action, targetId);
   const targetItem = itemsById.get(resolvedTargetId);
   if (!resolvedTargetId || !targetItem) {
-    return { error: "Il bersaglio del reminder non esiste più." };
+    return { error: "Il bersaglio del promemoria non esiste più." };
   }
   const kind = text(action?.kind, "", 32).toLowerCase();
   const type = text(action?.action, "", 40).toLowerCase();
@@ -1279,7 +1279,7 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
   if (kind === "movement" && type === "spend") {
     const meters = Number(action?.options?.meters ?? action?.meters);
     if (!Number.isFinite(meters) || meters <= 0) {
-      return { error: "Il reminder non indica un costo di movimento valido." };
+      return { error: "Il promemoria non indica un costo di movimento valido." };
     }
     const meta = targetItem?.metadata?.[META_KEY] || {};
     const payload = meta.speedCheckMovement && typeof meta.speedCheckMovement === "object"
@@ -1315,7 +1315,7 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
   if (kind === "condition" && type === "remove-instance") {
     const instanceId = text(action?.instanceId, "", 200);
     if (!findCondition(targetItem, instanceId)) {
-      return { error: "La condizione del reminder non è più attiva." };
+      return { error: "La condizione del promemoria non è più attiva." };
     }
     return {
       operations: [{
@@ -1326,7 +1326,7 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
   }
   if (kind === "condition" && type === "apply") {
     const name = text(action?.name || action?.conditionName, "", 160);
-    if (!name) return { error: "Il reminder non descrive la condizione da applicare." };
+    if (!name) return { error: "Il promemoria non descrive la condizione da applicare." };
     const options = action?.options && typeof action.options === "object"
       ? clone(action.options)
       : {};
@@ -1375,7 +1375,7 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
   if (kind === "condition" && type === "remove-name") {
     const name = text(action?.name || action?.conditionName, "", 160);
     if (!name || !conditionInstances(targetItem).some((entry) => conditionNameKey(entry) === name.toLocaleLowerCase("it"))) {
-      return { error: "La condizione del reminder non è più attiva." };
+      return { error: "La condizione del promemoria non è più attiva." };
     }
     return {
       operations: [{ type: "condition:remove-name", targetIds: [resolvedTargetId], conditionName: name }],
@@ -1383,11 +1383,11 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
   }
   if (kind === "condition" && type === "remove-parent") {
     const parentEffectId = text(action?.parentEffectId, "", 200);
-    if (!parentEffectId) return { error: "Il reminder non indica l'effetto da terminare." };
+    if (!parentEffectId) return { error: "Il promemoria non indica l'effetto da terminare." };
     const hasParent = conditionInstances(targetItem).some((entry) =>
       String(entry?.parentEffectId || "") === parentEffectId,
     );
-    if (!hasParent) return { error: "L'effetto del reminder non è più attivo." };
+    if (!hasParent) return { error: "L'effetto del promemoria non è più attivo." };
     return {
       operations: [{
         type: "condition:remove-parent-effects",
@@ -1399,7 +1399,7 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
   if (kind === "spell" && type === "remove-instance") {
     const instanceId = text(action?.instanceId, "", 200);
     const spell = spellByInstance(targetItem, instanceId);
-    if (!spell) return { error: "L'istanza spell del reminder non è più attiva." };
+    if (!spell) return { error: "L'incantesimo legato al promemoria non è più attivo." };
     const operations = [];
     const casterId = text(action?.casterId || spell?.casterId, "", 200);
     if (spell?.conc === true && casterId) {
@@ -1428,7 +1428,7 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
       ).slice(0, 1)
       : Object.entries(entries);
     if (!sourceId || !matchedEntries.length) {
-      return { error: "La concentrazione del reminder non è più attiva." };
+      return { error: "La concentrazione del promemoria non è più attiva." };
     }
     const instanceIds = matchedEntries
       .map(([, entry]) => text(entry?.instanceId, "", 200))
@@ -1452,7 +1452,7 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
   if (kind === "concentration" && type === "break-targets") {
     const sourceId = text(action?.casterId, "", 200);
     const reference = text(action?.reference || action?.instanceId || action?.name, "", 200);
-    if (!sourceId || !reference) return { error: "Il reminder non indica la concentrazione da terminare." };
+    if (!sourceId || !reference) return { error: "Il promemoria non indica la concentrazione da terminare." };
     return {
       operations: [{
         type: "concentration:break-targets",
@@ -1462,7 +1462,7 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
       }],
     };
   }
-  return { error: "Il reminder contiene un'azione non supportata." };
+  return { error: "Il promemoria contiene un'azione non supportata." };
 }
 
 function activationMetadata(root, metadataKey, activationId, targetId) {
@@ -1587,7 +1587,7 @@ export function buildReminderResolutionPlan({
     if (blinkResolution) {
       return { status: "invalid", message: "Esito di Intermittenza non valido." };
     }
-    return { status: "informational", message: "Questo reminder è solo informativo." };
+    return { status: "informational", message: "Questo promemoria è solo informativo." };
   }
   const noticeTargetIds = uniqueIds((notice?.targets || []).map((target) => target?.id));
   if (noticeTargetIds.length > 1) {
@@ -1602,7 +1602,7 @@ export function buildReminderResolutionPlan({
     return { status: "unsupported", message: "La risoluzione aggregata di più bersagli non è disponibile." };
   }
   if (noticeTargetIds.length === 1 && noticeTargetIds[0] !== targetIds[0]) {
-    return { status: "stale", message: "Il bersaglio del reminder è cambiato." };
+    return { status: "stale", message: "Il bersaglio del promemoria è cambiato." };
   }
   const targetId = targetIds[0];
   const activationId = text(
@@ -1610,7 +1610,7 @@ export function buildReminderResolutionPlan({
     "",
     300,
   );
-  if (!activationId) return { status: "unsupported", message: "Il reminder non ha un identificativo risolvibile." };
+  if (!activationId) return { status: "unsupported", message: "Il promemoria non ha un identificativo risolvibile." };
   const sourceActivationId = text(
     resolution.activation?.sourceActivationId
       || resolution.activation?.rootActivationId,
@@ -1620,11 +1620,11 @@ export function buildReminderResolutionPlan({
   const pendingActivationId = sourceActivationId || activationId;
   const itemsById = new Map((Array.isArray(items) ? items : []).map((item) => [String(item?.id || ""), item]));
   const target = itemsById.get(targetId);
-  if (!target) return { status: "stale", message: "Il bersaglio del reminder non esiste più." };
+  if (!target) return { status: "stale", message: "Il bersaglio del promemoria non esiste più." };
   const meta = target?.metadata?.[META_KEY] || {};
   const markerMap = normalizedMarkerMap(meta[REMINDER_RESOLUTIONS_FIELD]);
   if (Object.prototype.hasOwnProperty.call(markerMap, activationId)) {
-    return { status: "already-resolved", message: "Questo reminder è già stato risolto." };
+    return { status: "already-resolved", message: "Questo promemoria è già stato risolto." };
   }
 
   if (deathSave) {
@@ -1680,7 +1680,7 @@ export function buildReminderResolutionPlan({
   const effectInstanceId = text(resolution.effect?.instanceId, "", 200);
   if ((activationKind === "effect-save" || activationKind === "deferred-effect") && effectInstanceId) {
     const instance = findCondition(target, effectInstanceId);
-    if (!instance) return { status: "stale", message: "L'effetto del reminder non è più attivo." };
+    if (!instance) return { status: "stale", message: "L'effetto del promemoria non è più attivo." };
     if (sourceId && String(instance.sourceId || "") !== sourceId) {
       return { status: "stale", message: "La sorgente dell'effetto è cambiata." };
     }
@@ -1954,7 +1954,7 @@ export function buildReminderResolutionPlan({
     sceneMetadataPreconditions: sceneMetadata && Object.prototype.hasOwnProperty.call(sceneMetadata, `${ID}/state`)
       ? [{ key: `${ID}/state`, value: clone(sceneMetadata[`${ID}/state`]) }]
       : [],
-    message: "Reminder risolto.",
+    message: "Promemoria risolto.",
   };
 }
 

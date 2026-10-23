@@ -30,7 +30,7 @@ const CATEGORY_META = Object.freeze({
   movement: Object.freeze({ label: "Movimento", tone: "#22c55e" }),
   turn: Object.freeze({ label: "Turno", tone: "#3b82f6" }),
   roster: Object.freeze({ label: "Incontro", tone: "#06b6d4" }),
-  undo: Object.freeze({ label: "Undo", tone: "#f59e0b" }),
+  undo: Object.freeze({ label: "Annullamento", tone: "#f59e0b" }),
   note: Object.freeze({ label: "Nota", tone: "#eab308" }),
   other: Object.freeze({ label: "Altro", tone: "#94a3b8" }),
 });
@@ -839,11 +839,11 @@ function detailSections(event, targets, outcomes, turnName) {
   )) {
     const correctionSource = String(event?.payload?.undoSource || "").trim();
     const correctionLabel = correctionSource === "history"
-      ? "Correzione da Undo della Cronologia"
+      ? "Correzione da annullamento della cronologia"
       : correctionSource === "obr-native"
-        ? "Correzione da Undo OBR"
+        ? "Correzione da annullamento OBR"
         : "Correzione movimento registrata";
-    sections.push({ label: "Undo", lines: [correctionLabel] });
+    sections.push({ label: "Annullamento", lines: [correctionLabel] });
   }
   if (event?.source) {
     sections.push({

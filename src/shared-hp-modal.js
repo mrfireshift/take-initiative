@@ -99,7 +99,7 @@ async function act(kind, ids) {
     const result = kind === "link" ? await controller.link(source.id, view.tokens.filter(item => item.id !== source.id).map(item => item.id), context)
       : kind === "visibility" ? await controller.setVisibility(source.id, ids[0], context) : await controller.unlink(ids, context);
     if (result.status !== "applied") throw new Error(result.conflicts?.[0]?.reason || result.reason || "Collegamento non applicato");
-    setStatus(result.historyPending ? "Modifica applicata; registrazione Undo in corso." : "Modifica applicata.", "success");
+    setStatus(result.historyPending ? "Modifica applicata; registrazione nella cronologia in corso." : "Modifica applicata.", "success");
     await load();
   } catch { setStatus("Modifica non applicata. Aggiorna il pannello e verifica il principale e i token selezionati.", "error"); }
   finally { busy = false; renderPreview(); }

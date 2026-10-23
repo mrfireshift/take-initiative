@@ -31,7 +31,7 @@ async function defaultPcAttackUndo(entryId,{epoch}) {
   const entries=await getHistoryEntries();
   if(entries[entries.length-1]?.id!==entryId) return {ok:false,message:"Sono presenti modifiche successive: usa la Cronologia."};
   const outcome=normalizeHistoryUndoResult(await undoHistoryThrough(entryId,{sceneEpoch:epoch}));
-  return outcome.outcome===HISTORY_UNDO_OUTCOME.COMMITTED ? {ok:true} : {ok:false,message:"Undo non applicato: verifica la Cronologia."};
+  return outcome.outcome===HISTORY_UNDO_OUTCOME.COMMITTED ? {ok:true} : {ok:false,message:"Annullamento non applicato: verifica la Cronologia."};
 }
 
 // attackMode: an arrow that replaces the attack roll (Seeking, Piercing); area: the creatures of an area attack.
@@ -295,7 +295,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const progress=open?`${open.leapPending?"Balzo del dardo":`Lancio in corso: ${open.index}/${open.total} registrati`} · slot di ${open.slotLevel}° già speso. ${open.leapPending?"Scegli un'altra creatura entro 9 metri.":""}`
       :spell?.count?`${spell.spellId==="magic-missile"?"Dardi":"Raggi"}: ${spell.count.base+spell.count.perSlot*Math.max(0,(slotLevel || spell.level)-spell.level)} con questo slot; il primo spende lo slot.`:"";
     const notes=[...(progress?[progress.trim()]:[]),...(spell?.ruleNote?[spell.ruleNote]:[]),
-      ...(pills.length?[`Al colpo: pill ${pills.map(label=>`«${label}»`).join(", ")}.`]:[]),
+      ...(pills.length?[`Al colpo: etichetta ${pills.map(label=>`«${label}»`).join(", ")}.`]:[]),
       ...(spell?.casterHealRatio?["Il caster recupera metà dei danni necrotici inflitti."]:[])];
     cantripNote.textContent=notes.join(" ");cantripNote.hidden=!notes.length;
   }
@@ -319,7 +319,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const notes=[...(cantrip?.scaling==="beams"?[beamNote]:[]),
       ...(cantrip?.save && pcAttackHasPotentCantrip(attackerCard())?["Trucchetto Potente: con il TS superato subisce metà danni."]:[]),
       ...(cantrip?.ruleNote?[cantrip.ruleNote]:[]),
-      ...(pills.length?[`${cantrip.save?"Se fallisce":"Al colpo"}: pill ${pills.map(label=>`«${label}»`).join(", ")}.`]:[]),
+      ...(pills.length?[`${cantrip.save?"Se fallisce":"Al colpo"}: etichetta ${pills.map(label=>`«${label}»`).join(", ")}.`]:[]),
       ...(cantrip?.effectNote?[`${cantrip.save?"Se fallisce":"Al colpo"}, da applicare a mano: ${cantrip.effectNote}`]:[]),
       ...(weaponCantripHint()?[weaponCantripHint()]:[]),...(panelCantripHint()?[panelCantripHint()]:[])];
     cantripNote.textContent=notes.join(" ");cantripNote.hidden=!notes.length;
@@ -365,7 +365,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         const extra=node("div","","component-options");extra.dataset.riderField="options";
         if(option.slotLevels) {
           const slot=node("select","","inline-select");slot.dataset.riderField="slot";slot.setAttribute("aria-label",`Livello dello slot di ${option.label}`);
-          slot.title="Lo slot si scala con l'attacco; l'Undo lo restituisce.";
+          slot.title="Lo slot si scala con l'attacco; l'annullamento lo restituisce.";
           const meta=presentation?.item?.metadata?.[META_KEY] || {};
           const rows=spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources);
           const slotLabel=level=>{
@@ -741,7 +741,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const meta=field("meta");
     if(meta) meta.textContent=!option?"Lama Roboante o Lama Verdefiamma, se l'attacco colpisce."
       :[option.dice.hit?`${critical(option.dice.hit)} ${damageTypeLabel(option.type)}`:"",
-        option.trigger?`pill «Movimento: danni tuono» (${option.dice.trigger}) fino all'inizio del tuo prossimo turno`:""].filter(Boolean).join(" · ")
+        option.trigger?`etichetta «Movimento: danni tuono» (${option.dice.trigger}) fino all'inizio del tuo prossimo turno`:""].filter(Boolean).join(" · ")
         || "Nessun danno extra al colpo prima del 5° livello.";
     const target=field("secondary");
     if(target) {
@@ -1099,7 +1099,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     return perform(async operation=>{
       const outcome=await undoEntry(entry.historyEntryId,{epoch:operation.epoch});
       if(!lifecycle.isCurrent(operation)) return;
-      showUndo(null);setStatus(outcome?.ok?"Ultimo attacco annullato.":outcome?.message || "Undo non applicato.");
+      showUndo(null);setStatus(outcome?.ok?"Ultimo attacco annullato.":outcome?.message || "Annullamento non applicato.");
       await refresh(operation);
     });
   });

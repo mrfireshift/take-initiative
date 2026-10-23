@@ -546,7 +546,7 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
     debuffRule(
       "Conati: azione persa",
       "stinking-cloud-lost-action",
-      "Spende l'azione del turno a vomitare; rimuovere la pill a fine turno.",
+      "Spende l'azione del turno a vomitare; rimuovere l'etichetta a fine turno.",
       {
         expiry: Object.freeze({ mode: "turn-end", actor: "target", remaining: 1 }),
         manualRemoval: true,
@@ -593,7 +593,7 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
           type: "psichici",
           onSave: "none",
         }),
-        label: "4d10 psichici se fallisce; se supera, termina la spell.",
+        label: "4d10 psichici se fallisce; se supera, termina l'incantesimo.",
       }),
     }),
   ]),
@@ -691,7 +691,7 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       manualRemoval: true,
       endsParentOnRemoval: true,
       effectId: "snare-trapped",
-      effectDetail: "La creatura trattenuta può usare un'azione per effettuare una prova di Intelligenza (Arcano) contro la CD della spell e liberarsi.",
+      effectDetail: "La creatura trattenuta può usare un'azione per effettuare una prova di Intelligenza (Arcano) contro la CD dell'incantesimo e liberarsi.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "snare-escape-action", label: "Azione: prova Arcano" }),
       ]),

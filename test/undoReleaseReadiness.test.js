@@ -378,7 +378,7 @@ test("normalizzazione Undo e contratti UI separano commit, no-op, stale, conflic
   assert.match(historyModalSource, /HISTORY_UNDO_OUTCOME\.CONFLICT/);
   assert.match(historyModalSource, /HISTORY_UNDO_OUTCOME\.FAILED/);
   assert.match(historyModalSource, /button\("Pulisci entry incomplete"\)/);
-  assert.match(historyModalSource, /button\("Azzera Undo", "danger"\)/);
+  assert.match(historyModalSource, /button\("Azzera la cronologia", "danger"\)/);
   assert.match(historyModalSource, /requestHistoryOwnerClear/);
   assert.match(historyModalSource, /ownerAttempts: 3/);
   assert.match(historyModalSource, /pruneNonUndoableHistoryEntries/);

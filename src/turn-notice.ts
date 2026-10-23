@@ -879,14 +879,14 @@ function buildResolutionControls(line: HTMLElement, row: any) {
           zone: row?.resolution?.activation?.kind === "zone",
         });
       } else {
-        resolutionStatusNode(line, result.message || "Reminder non più corrente; puoi chiuderlo.");
+        resolutionStatusNode(line, result.message || "Promemoria non più corrente; puoi chiuderlo.");
         for (const button of Array.from(controls.querySelectorAll("button, input"))) {
           (button as HTMLButtonElement | HTMLInputElement).disabled = false;
         }
         refreshSelection();
       }
     } catch (error) {
-      resolutionStatusNode(line, String((error as any)?.message || "Risoluzione non riuscita; puoi chiudere il reminder."));
+      resolutionStatusNode(line, String((error as any)?.message || "Risoluzione non riuscita; puoi chiudere il promemoria."));
       for (const button of Array.from(controls.querySelectorAll("button, input"))) {
         (button as HTMLButtonElement | HTMLInputElement).disabled = false;
       }

@@ -112,8 +112,8 @@ function formatAuraSummary(aura) {
   const parts = [`${aura.radiusMeters} m`];
   const pillsCount = aura.pills?.length || 0;
   const remsCount = aura.reminders?.length || 0;
-  if (pillsCount > 0) parts.push(`${pillsCount} pill`);
-  if (remsCount > 0) parts.push(`${remsCount} reminder`);
+  if (pillsCount > 0) parts.push(`${pillsCount} ${pillsCount === 1 ? "etichetta" : "etichette"}`);
+  if (remsCount > 0) parts.push(`${remsCount} promemoria`);
   if (aura.presetRef?.presetId) {
     const preset = presetStore.getPreset(aura.presetRef.presetId);
     const name = preset?.name || "Preset collegato";
@@ -124,14 +124,14 @@ function formatAuraSummary(aura) {
 
 function pillTemplate(pill, pillIndex, readOnly = false) {
   const isExpanded = expandedPills.has(pillIndex);
-  const title = pill.label || "Nuova pill";
+  const title = pill.label || "Nuova etichetta";
   const kindLabel = pill.kind === "debuff" ? "Penalità" : "Beneficio";
   const kindClass = pill.kind === "debuff" ? "badge-debuff" : "badge-buff";
 
   return `
     <div class="sub-card${isExpanded ? " is-open" : ""}" data-pill-index="${pillIndex}">
       <div class="sub-card-head" data-toggle-pill="${pillIndex}">
-        <label class="toggle toggle-sm" title="Attiva/disattiva pill" onclick="event.stopPropagation()">
+        <label class="toggle toggle-sm" title="Attiva/disattiva etichetta" onclick="event.stopPropagation()">
           <input type="checkbox" data-field="pills.${pillIndex}.enabled"${checked(pill.enabled)}${disabled(readOnly)}>
           Attiva
         </label>
@@ -203,7 +203,7 @@ function reminderTemplate(rem, remIndex, readOnly = false) {
   return `
     <div class="sub-card${isExpanded ? " is-open" : ""}" data-rem-index="${remIndex}">
       <div class="sub-card-head" data-toggle-rem="${remIndex}">
-        <label class="toggle toggle-sm" title="Attiva/disattiva reminder" onclick="event.stopPropagation()">
+        <label class="toggle toggle-sm" title="Attiva/disattiva promemoria" onclick="event.stopPropagation()">
           <input type="checkbox" data-field="reminders.${remIndex}.enabled"${checked(rem.enabled)}${disabled(readOnly)}>
           Attivo
         </label>
@@ -416,21 +416,21 @@ function auraTemplate(aura, index, { isNew = false } = {}) {
 
       <div class="section">
         <div class="section-header">
-          <div class="section-title">Pill (${pills.length})</div>
-          <button type="button" class="button-sm" data-action="add-pill"${disabled(readOnly)}>+ Aggiungi pill</button>
+          <div class="section-title">Etichette (${pills.length})</div>
+          <button type="button" class="button-sm" data-action="add-pill"${disabled(readOnly)}>+ Aggiungi etichetta</button>
         </div>
         ${!pills.length
-          ? '<div class="sub-empty">Nessuna pill configurata.</div>'
+          ? '<div class="sub-empty">Nessuna etichetta configurata.</div>'
           : `<div class="sub-list">${pills.map((pill, pIdx) => pillTemplate(pill, pIdx, readOnly)).join("")}</div>`}
       </div>
 
       <div class="section">
         <div class="section-header">
-          <div class="section-title">Reminder (${reminders.length})</div>
-          <button type="button" class="button-sm" data-action="add-reminder"${disabled(readOnly)}>+ Aggiungi reminder</button>
+          <div class="section-title">Promemoria (${reminders.length})</div>
+          <button type="button" class="button-sm" data-action="add-reminder"${disabled(readOnly)}>+ Aggiungi promemoria</button>
         </div>
         ${!reminders.length
-          ? '<div class="sub-empty">Nessun reminder configurato.</div>'
+          ? '<div class="sub-empty">Nessun promemoria configurato.</div>'
           : `<div class="sub-list">${reminders.map((rem, rIdx) => reminderTemplate(rem, rIdx, readOnly)).join("")}</div>`}
       </div>
     </section>
@@ -442,8 +442,8 @@ function formatPresetSummary(preset) {
   const parts = [`${def.radiusMeters || 3} m`];
   const pillsCount = def.pills?.length || 0;
   const remsCount = def.reminders?.length || 0;
-  if (pillsCount > 0) parts.push(`${pillsCount} pill`);
-  if (remsCount > 0) parts.push(`${remsCount} reminder`);
+  if (pillsCount > 0) parts.push(`${pillsCount} ${pillsCount === 1 ? "etichetta" : "etichette"}`);
+  if (remsCount > 0) parts.push(`${remsCount} promemoria`);
   return parts.join(" · ");
 }
 
@@ -1047,7 +1047,7 @@ list.addEventListener("click", (event) => {
     auras[index].pills.push({
       id: createCustomAuraChildId("pill"),
       enabled: true,
-      label: auras[index].name || "Pill",
+      label: auras[index].name || "Etichetta",
       detail: "",
       kind: "buff",
     });

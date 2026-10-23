@@ -284,7 +284,7 @@ export function saveReminderNoticeBatchPresentation(batch = null) {
     : kinds.size === 1 && kinds.has("effect-reminder")
       ? "Promemoria"
       : kinds.has("zone-effect") || kinds.has("effect-reminder")
-        ? "Reminder"
+        ? "Promemoria"
         : "Tiri salvezza";
   const countLabel = `${targets.length} bersagli`;
   const aggregateTitle = sharedTarget ? targets[0].name : countLabel;

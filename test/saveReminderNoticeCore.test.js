@@ -346,7 +346,7 @@ test("un batch misto usa un'etichetta neutra", () => {
   ]);
   const presentation = saveReminderNoticeBatchPresentation(batch);
 
-  assert.equal(presentation.eyebrow, "Reminder · Inizio turno");
+  assert.equal(presentation.eyebrow, "Promemoria · Inizio turno");
 });
 
 test("un'aggregazione con timing diversi etichetta le singole righe", () => {

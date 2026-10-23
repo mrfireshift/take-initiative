@@ -959,21 +959,21 @@ async function undoLastOperation() {
       sceneEpoch: operation.epoch,
     });
     if (!sceneLifecycle.isCurrent(operation)) {
-      status.textContent = "Undo della scena precedente completato o sospeso; riapri la console HP.";
+      status.textContent = "Annullamento della scena precedente completato o sospeso; riapri la console HP.";
       return;
     }
     const outcome = normalizeHistoryUndoResult(undone);
     if (outcome.outcome !== HISTORY_UNDO_OUTCOME.COMMITTED) {
       if (outcome.outcome === HISTORY_UNDO_OUTCOME.CONFLICT) {
-        status.textContent = "Undo non applicato: la scena è cambiata; usa la Cronologia.";
+        status.textContent = "Annullamento non applicato: la scena è cambiata; usa la Cronologia.";
       } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.RECOVERY_REQUIRED) {
-        status.textContent = "Undo sospeso: verifica la scena prima di ritentare.";
+        status.textContent = "Annullamento sospeso: verifica la scena prima di ritentare.";
       } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.REJECTED) {
-        status.textContent = "Undo rifiutato o non più valido; l’operazione resta disponibile per un nuovo tentativo.";
+        status.textContent = "Annullamento rifiutato o non più valido; l’operazione resta disponibile per un nuovo tentativo.";
       } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.NOOP) {
         status.textContent = "Nessuna modifica annullata; l’operazione resta disponibile.";
       } else {
-        status.textContent = "Undo non riuscito; l’operazione resta disponibile per un nuovo tentativo.";
+        status.textContent = "Annullamento non riuscito; l’operazione resta disponibile per un nuovo tentativo.";
       }
       return;
     }
@@ -984,10 +984,10 @@ async function undoLastOperation() {
   } catch (error) {
     console.error("[quick-hp] undo:", error);
     if (!sceneLifecycle.isCurrent(operation)) {
-      status.textContent = "Undo della scena precedente completato o sospeso; riapri la console HP.";
+      status.textContent = "Annullamento della scena precedente completato o sospeso; riapri la console HP.";
       return;
     }
-    status.textContent = "Undo non riuscito.";
+    status.textContent = "Annullamento non riuscito.";
   } finally {
     busy = false;
     renderTargets();

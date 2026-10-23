@@ -306,7 +306,7 @@ async function save() {
           .slice(0, 3)
           .map((entry) => `${entry.key} ${entry.bytes} B`)
           .join(", ");
-        details = ` Room ${diagnostics.totalBytes}/${diagnostics.limitBytes} B; `
+        details = ` Metadata della stanza: ${diagnostics.totalBytes}/${diagnostics.limitBytes} B; `
           + `liberi ${diagnostics.availableBytes} B`
           + (largest ? `; chiavi maggiori: ${largest}.` : ".");
       }

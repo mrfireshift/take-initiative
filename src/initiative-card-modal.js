@@ -196,53 +196,53 @@ const WILD_MAGIC_GUIDANCE = Object.freeze({
   "01-02": { where: "Sullo Stregone", duration: "1 minuto; nuovo tiro all'inizio di ogni suo turno", resolve: "Tiro sulla tabella manuale; ignora 01-02 nei tiri successivi." },
   "03-04": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Linea di vista e applicazione del senso speciale al tavolo." },
   "05-06": { where: "Spazio libero entro 1,5 m dallo Stregone", duration: "Scompare dopo 1 minuto", resolve: "Il DM sceglie il modron; nessun token o stat block creato." },
-  "07-08": { where: "Centrato sullo Stregone", duration: "Istantanea", resolve: "Risolvi danni e TS con il tavolo; il link spell è consultivo." },
+  "07-08": { where: "Centrato sullo Stregone", duration: "Istantanea", resolve: "Risolvi danni e TS con il tavolo; il link all'incantesimo è consultivo." },
   "09-10": { where: "Bersagli scelti al tavolo", duration: "Istantanea", resolve: "Risolvi il lancio di 5° livello manualmente; nessun danno automatico." },
   "11-12": { where: "Sullo Stregone", duration: "Finché il tavolo non ripristina l'altezza", resolve: "Tira d10 e misura manualmente; nessun token scalato." },
-  "13-14": { where: "Centrato sullo Stregone", duration: "1 minuto completo, senza concentrazione", resolve: "TS e area al tavolo; il link spell non crea concentrazione." },
+  "13-14": { where: "Centrato sullo Stregone", duration: "1 minuto completo, senza concentrazione", resolve: "TS e area al tavolo; il link all'incantesimo non crea concentrazione." },
   "15-16": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Ricorda 5 PF all'inizio del turno; non mutare HP automaticamente." },
-  "17-18": { where: "Sullo Stregone", duration: "Fino allo starnuto", resolve: "Reminder cosmetico; fine manuale." },
-  "19-20": { where: "Centrato sullo Stregone", duration: "1 minuto", resolve: "Link spell consultivo; nessuna zona o TS automatici." },
-  "21-22": { where: "Creature contro la prossima spell idonea", duration: "Prima spell con TS entro 1 minuto", resolve: "Ricorda il prossimo TS; fine manuale." },
-  "23-24": { where: "Sullo Stregone", duration: "Fino a Rimuovi Maledizione", resolve: "Reminder cosmetico; terminazione manuale." },
+  "17-18": { where: "Sullo Stregone", duration: "Fino allo starnuto", resolve: "Promemoria cosmetico; fine manuale." },
+  "19-20": { where: "Centrato sullo Stregone", duration: "1 minuto", resolve: "Link all'incantesimo consultivo; nessuna zona o TS automatici." },
+  "21-22": { where: "Creature contro il prossimo incantesimo idoneo", duration: "Primo incantesimo con TS entro 1 minuto", resolve: "Ricorda il prossimo TS; fine manuale." },
+  "23-24": { where: "Sullo Stregone", duration: "Fino a Rimuovi Maledizione", resolve: "Promemoria cosmetico; terminazione manuale." },
   "25-26": { where: "Sulla fronte dello Stregone", duration: "1 minuto", resolve: "Vantaggio alla Percezione visiva resta un promemoria." },
   "27-28": { where: "Incantesimi dello Stregone", duration: "1 minuto", resolve: "Ricorda il nuovo tempo di lancio; non modificare il cast." },
   "29-30": { where: "Spazio libero visibile entro 18 m", duration: "Istantanea", resolve: "Destinazione e movimento restano manuali." },
   "31-32": { where: "Stregone sul Piano Astrale", duration: "Fino alla fine del suo turno successivo", resolve: "Ricorda il ritorno; nessun token rimosso." },
-  "33-34": { where: "Prossima spell dannosa dello Stregone", duration: "Prima spell idonea o 1 minuto", resolve: "Massimizzazione dei danni al tavolo; nessun calcolo automatico." },
+  "33-34": { where: "Prossimo incantesimo dannoso dello Stregone", duration: "Primo incantesimo idoneo o 1 minuto", resolve: "Massimizzazione dei danni al tavolo; nessun calcolo automatico." },
   "35-36": { where: "Sullo Stregone", duration: "Indefinita", resolve: "Tira d10 e aggiorna età manualmente." },
   "37-38": { where: "Spazi liberi entro 18 m", duration: "Scompaiono dopo 1 minuto", resolve: "Numero, token e stat block dei flumph restano manuali." },
   "39-40": { where: "Sullo Stregone", duration: "Istantanea", resolve: "Tiro 2d10 e modifica HP manualmente." },
   "41-42": { where: "Sullo Stregone", duration: "Fino all'inizio del turno successivo", resolve: "Ricorda incapacità e vulnerabilità; nessun watcher HP." },
   "43-44": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Riuso come azione bonus e distanza restano manuali." },
-  "45-46": { where: "Sullo Stregone", duration: "10 minuti completi, senza concentrazione", resolve: "Link spell consultivo; TS e movimento restano al tavolo." },
+  "45-46": { where: "Sullo Stregone", duration: "10 minuti completi, senza concentrazione", resolve: "Link all'incantesimo consultivo; TS e movimento restano al tavolo." },
   "47-48": { where: "Spazio entro 1,5 m dallo Stregone", duration: "Scompare dopo 1 minuto", resolve: "Nessun token o stat block creato." },
-  "49-50": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Reminder sulla voce; fine manuale." },
+  "49-50": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Promemoria sulla voce; fine manuale." },
   "51-52": { where: "Accanto allo Stregone", duration: "1 minuto", resolve: "Non mutare CA e non applicare immunità automaticamente." },
   "53-54": { where: "Sullo Stregone", duration: "5d6 giorni", resolve: "Tiro della durata e fine manuali." },
-  "55-56": { where: "Sullo Stregone", duration: "Ricrescono in 24 ore", resolve: "Reminder cosmetico; fine manuale." },
+  "55-56": { where: "Sullo Stregone", duration: "Ricrescono in 24 ore", resolve: "Promemoria cosmetico; fine manuale." },
   "57-58": { where: "Oggetti infiammabili toccati", duration: "1 minuto", resolve: "Nessun oggetto modificato automaticamente." },
   "59-60": { where: "Slot incantesimo dello Stregone", duration: "Istantanea", resolve: "Ripristina lo slot speso di livello più basso dai pallini della scheda Incantesimi." },
-  "61-62": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Reminder sul modo di parlare." },
-  "63-64": { where: "Centrata sullo Stregone", duration: "1 ora completa, senza concentrazione", resolve: "Link spell consultivo; nessuna zona automatica." },
+  "61-62": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Promemoria sul modo di parlare." },
+  "63-64": { where: "Centrata sullo Stregone", duration: "1 ora completa, senza concentrazione", resolve: "Link all'incantesimo consultivo; nessuna zona automatica." },
   "65-66": { where: "Fino a tre creature scelte entro 9 m", duration: "Istantanea", resolve: "Scelta, tiro 4d10 e danni al tavolo." },
   "67-68": { where: "Sullo Stregone e creatura più vicina", duration: "Fino alla fine del suo turno successivo", resolve: "Scegli la creatura e gestisci eventuali parità al tavolo." },
-  "69-70": { where: "Fotografia iniziale delle creature entro 9 m", duration: "1 minuto; fine individuale ad attacco o spell", resolve: "Non è un'aura dinamica; nessuna pill automatica." },
-  "71-72": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Resistenza a tutti i danni resta un reminder." },
+  "69-70": { where: "Fotografia iniziale delle creature entro 9 m", duration: "1 minuto; fine individuale ad attacco o incantesimo", resolve: "Non è un'aura dinamica; nessuna etichetta automatica." },
+  "71-72": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Resistenza a tutti i danni resta un promemoria." },
   "73-74": { where: "Una creatura casuale entro 18 m", duration: "1d4 ore", resolve: "Bersaglio e durata sono tirati al tavolo." },
   "75-76": { where: "Luce intensa entro 9 m dallo Stregone", duration: "1 minuto; Accecato fino al turno successivo", resolve: "Innesco di fine turno; non applicare Accecato automaticamente." },
   "77-78": { where: "Sullo Stregone", duration: "1 ora completa, senza concentrazione", resolve: "TS e forma di pecora al tavolo; nessuno stat block copiato." },
-  "79-80": { where: "Entro 3 m dallo Stregone", duration: "1 minuto", resolve: "Effetto cosmetico; nessuna aura con pill." },
+  "79-80": { where: "Entro 3 m dallo Stregone", duration: "1 minuto", resolve: "Effetto cosmetico; nessuna aura con etichette." },
   "81-82": { where: "Sullo Stregone", duration: "Istantanea", resolve: "Azione aggiuntiva da gestire manualmente." },
   "83-84": { where: "Ogni creatura entro 9 m", duration: "Istantanea", resolve: "Bersagli, 1d10, danni e cura restano manuali; non mutare HP." },
-  "85-86": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Link spell consultivo; risoluzione manuale." },
+  "85-86": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Link all'incantesimo consultivo; risoluzione manuale." },
   "87-88": { where: "Una creatura casuale entro 18 m", duration: "10 minuti completi, senza concentrazione", resolve: "Bersaglio casuale e durata completa al tavolo." },
-  "89-90": { where: "Sullo Stregone", duration: "1 minuto; fine ad attacco o spell", resolve: "Reminder con fine anticipata manuale." },
-  "91-92": { where: "Sullo Stregone", duration: "Finestra di 1 minuto o innesco", resolve: "Nessun watcher morte/HP e nessuna spell automatica." },
-  "93-94": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Reminder; non scalare il token." },
+  "89-90": { where: "Sullo Stregone", duration: "1 minuto; fine ad attacco o incantesimo", resolve: "Promemoria con fine anticipata manuale." },
+  "91-92": { where: "Sullo Stregone", duration: "Finestra di 1 minuto o innesco", resolve: "Nessun watcher morte/HP e nessun incantesimo automatico." },
+  "93-94": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Promemoria; non scalare il token." },
   "95-96": { where: "Fotografia iniziale dello Stregone e creature entro 9 m", duration: "1 minuto", resolve: "Non è un'aura dinamica; vulnerabilità resta manuale." },
-  "97-98": { where: "Attorno allo Stregone", duration: "1 minuto", resolve: "Reminder cosmetico." },
-  "99-00": { where: "Pool Punti Stregoneria dello Stregone", duration: "Istantanea", resolve: "Dopo conferma può ripristinare il pool con history/Undo." },
+  "97-98": { where: "Attorno allo Stregone", duration: "1 minuto", resolve: "Promemoria cosmetico." },
+  "99-00": { where: "Pool Punti Stregoneria dello Stregone", duration: "Istantanea", resolve: "Dopo conferma può ripristinare il pool; annullabile dalla cronologia." },
 });
 
 function requestPopoverHeight(height) {
@@ -718,10 +718,10 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
       } else {
         let resourceValues = {};
         if (feature?.id === TWINNED_SPELL_FEATURE_ID) {
-          const rawLevel = window.prompt("Livello della spell (0-9):", "0");
+          const rawLevel = window.prompt("Livello dell'incantesimo (0-9):", "0");
           if (rawLevel === null) throw { cancelled: true };
           const cost = classFeatureTwinnedSpellCost(rawLevel);
-          if (cost === null) throw new Error("Inserisci un livello spell tra 0 e 9.");
+          if (cost === null) throw new Error("Inserisci un livello di incantesimo tra 0 e 9.");
           resourceValues = { [SORCERY_POINTS_POOL_ID]: cost };
         }
         await activateClassFeature({
@@ -847,7 +847,7 @@ function renderQuickActionList(list, actions, emptyText) {
     if (featureSupport && !featureSupport.ready) {
       button.disabled = true;
       button.dataset.unsupportedFeature = "1";
-      button.title = "Questa capacitÃ  non Ã¨ ancora automatizzata";
+      button.title = "Questa capacità non è ancora automatizzata";
     }
     icon.textContent = action.kind === "condition"
       ? "C"
@@ -1713,7 +1713,7 @@ function wildMagicOutcomeView(row, { onRestorePoints = null } = {}) {
     const restore = document.createElement("button");
     restore.type = "button";
     restore.textContent = "Conferma recupero punti stregoneria";
-    restore.title = "Ripristina il pool punti con history/Undo";
+    restore.title = "Ripristina il pool punti (annullabile dalla cronologia)";
     restore.disabled = classFeatureMutating;
     restore.addEventListener("click", () => void onRestorePoints());
     outcome.appendChild(restore);
@@ -1921,7 +1921,7 @@ function buildTwinnedSpellControls(feature) {
   const controls = document.createElement("div");
   controls.className = "class-feature-special-controls";
   const label = document.createElement("label");
-  label.textContent = "Livello spell (0–9)";
+  label.textContent = "Livello dell'incantesimo (0–9)";
   const input = document.createElement("input");
   input.type = "number";
   input.min = "0";
@@ -1931,10 +1931,10 @@ function buildTwinnedSpellControls(feature) {
   label.appendChild(input);
   const button = classFeatureButton(
     "Conferma consumo",
-    "Costo: 1 per trucchetto, altrimenti pari al livello della spell",
+    "Costo: 1 per trucchetto, altrimenti pari al livello dell'incantesimo",
     () => {
       const cost = classFeatureTwinnedSpellCost(input.value);
-      if (cost === null) throw new Error("Inserisci un livello spell tra 0 e 9.");
+      if (cost === null) throw new Error("Inserisci un livello di incantesimo tra 0 e 9.");
       return activateClassFeature({
         sourceId: item.id,
         featureId: feature.id,
@@ -1950,7 +1950,7 @@ function buildTwinnedSpellControls(feature) {
 function buildResourceOnlyControls(feature) {
   return classFeatureButton(
     "Conferma consumo",
-    "Consuma soltanto la risorsa; non crea pill o effetti automatici",
+    "Consuma soltanto la risorsa; non crea etichette o effetti automatici",
     () => activateClassFeature({ sourceId: item.id, featureId: feature.id }),
     `${feature.name} confermata.`,
   );
@@ -1984,7 +1984,7 @@ function buildUnsettlingWordsControls(feature) {
 
   const button = classFeatureButton(
     "Conferma risultato",
-    "Consuma un uso di Ispirazione Bardica e crea il reminder sul bersaglio",
+    "Consuma un uso di Ispirazione Bardica e crea il promemoria sul bersaglio",
     async () => {
       const targetIds = await classFeatureSelectionTargetIds(feature);
       return activateClassFeature({
@@ -2028,13 +2028,13 @@ function buildTurnCreaturesControls(feature, { legacyTurnUndead = false } = {}) 
   );
   const noTargets = classFeatureButton(
     legacyTurnUndead ? "Nessun bersaglio da marcare" : "Nessun fallimento",
-    `Consuma l'uso di ${feature.name} senza creare pill`,
+    `Consuma l'uso di ${feature.name} senza creare etichette`,
     () => activateClassFeature({
       sourceId: item.id,
       featureId: feature.id,
       mode: "no-targets",
     }),
-    `Uso di ${feature.name} consumato senza pill.`,
+    `Uso di ${feature.name} consumato senza etichette.`,
     remaining === 0,
   );
   controls.append(note, failedTargets, noTargets);
@@ -2079,7 +2079,7 @@ function buildUniversalSpeechControls(feature) {
 
   const button = classFeatureButton(
     "Attiva Linguaggio Universale",
-    "Crea un reminder di comprensione unidirezionale per 1 ora",
+    "Crea un promemoria di comprensione unidirezionale per 1 ora",
     async () => {
       const targetIds = await classFeatureSelectionTargetIds(feature);
       return activateClassFeature({
@@ -2130,7 +2130,7 @@ function buildNightEyesControls(feature) {
 
   const button = classFeatureButton(
     "Condividi Occhi della Notte",
-    "Crea reminder di scurovisione condivisa per 1 ora",
+    "Crea un promemoria di scurovisione condivisa per 1 ora",
     async () => {
       const targetIds = await classFeatureSelectionTargetIds(feature);
       return activateClassFeature({

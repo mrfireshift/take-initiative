@@ -297,7 +297,7 @@ function metadataForSpec(spec) {
 
 function nameForSpec(spec) {
   if (isConditionLikeSpec(spec)) {
-    return `${spec.kind === "spell-effect" ? "Effetto spell" : "Condizione"}: ${spec.text} (bg)`;
+    return `${spec.kind === "spell-effect" ? "Effetto incantesimo" : "Condizione"}: ${spec.text} (bg)`;
   }
   if (spec.kind === "dot") return DOT_TEXT_NAME;
   return LABEL_BG_NAME;

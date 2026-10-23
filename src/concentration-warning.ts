@@ -247,7 +247,7 @@ function render(role: string, warnings: Warning[] = warningsFromURL()) {
             return;
           }
           status.hidden = false;
-          status.textContent = result.message || "Il tiro non Ã¨ piÃ¹ corrente.";
+          status.textContent = result.message || "Il tiro non è più corrente.";
         } catch (error) {
           status.hidden = false;
           status.textContent = String((error as any)?.message || "Risoluzione non riuscita.");

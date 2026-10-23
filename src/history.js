@@ -2363,7 +2363,7 @@ function enqueueHistoryUndoAtEpoch(entryId, sceneEpoch, through = true) {
     )).catch((error) => decorateUndoResult([], undoResult("failed", "undo-request-failed", {
       error: {
         name: String(error?.name || "Error"),
-        message: String(error?.message || error || "Undo fallito."),
+        message: String(error?.message || error || "Annullamento fallito."),
       },
     })));
   __historyActionQueue = task.catch(() => {});

@@ -475,11 +475,11 @@ function eventTechnicalText(event: any) {
     `v${technical.version || 1}`,
     `sequence: ${event?.sequence ?? "—"}`,
   ];
-  if (technical.historyEntryId) values.push(`History: ${technical.historyEntryId}`);
+  if (technical.historyEntryId) values.push(`Cronologia: ${technical.historyEntryId}`);
   if (technical.commandId) values.push(`command: ${technical.commandId}`);
   if (technical.correlationId) values.push(`correlation: ${technical.correlationId}`);
-  if (technical.causality?.instanceId) values.push(`spell instance: ${technical.causality.instanceId}`);
-  if (technical.causality?.actionId) values.push(`spell action: ${technical.causality.actionId}`);
+  if (technical.causality?.instanceId) values.push(`istanza incantesimo: ${technical.causality.instanceId}`);
+  if (technical.causality?.actionId) values.push(`azione incantesimo: ${technical.causality.actionId}`);
   if (technical.causality?.reminderActivationId) {
     values.push(`activation: ${technical.causality.reminderActivationId}`);
   }
@@ -776,11 +776,11 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
 
     let selectedDepth = newest[0]?.undoable === true ? 1 : 0;
     const rows: Array<{ checkbox: HTMLInputElement; row: HTMLLabelElement }> = [];
-    const undo = button("Undo ultima", "primary", "history.svg");
+    const undo = button("Annulla l'ultima", "primary", "history.svg");
     const cleanup = button("Pulisci entry incomplete");
     cleanup.title = "Rimuove solo le entry incomplete; i conflitti restano visibili nella cronologia";
-    const resetHistory = button("Azzera Undo", "danger");
-    resetHistory.title = "Cancella l'intera cronologia Undo senza modificare la scena o il Combat Log";
+    const resetHistory = button("Azzera la cronologia", "danger");
+    resetHistory.title = "Cancella l'intera cronologia senza modificare la scena o il registro combattimento";
     const refresh = () => {
       rows.forEach(({ checkbox, row }, index) => {
         const readiness = newest[index];
@@ -797,7 +797,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
         row.style.cursor = readiness?.undoable === true ? "pointer" : "not-allowed";
         row.style.opacity = readiness?.undoable === true ? "1" : ".68";
       });
-      setButtonLabel(undo, selectedDepth === 1 ? "Undo ultima" : `Undo ${selectedDepth} azioni`);
+      setButtonLabel(undo, selectedDepth === 1 ? "Annulla l'ultima" : `Annulla ${selectedDepth} azioni`);
       // The handlers keep the controls guarded while an async operation is
       // running. Do not derive the disabled state from those flags here:
       // onDone() can render a fresh panel before the finally block clears it.
@@ -902,7 +902,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
             currentStatus: currentState?.status || null,
             currentReason: currentState?.reason || null,
           });
-          await onDone("La History è cambiata: aggiorna il pannello prima di riprovare.");
+          await onDone("La cronologia è cambiata: aggiorna il pannello prima di riprovare.");
           return;
         }
         const undone = await undoHistoryThrough(target.id, {
@@ -924,7 +924,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
           postCommitErrors: outcome.result?.postCommitErrors || outcome.result?.commitResult?.postCommitErrors || [],
         });
         if (outcome.outcome === HISTORY_UNDO_OUTCOME.COMMITTED && outcome.historyRemovalPending) {
-          await onDone("Undo applicato. La rimozione delle entry History verrà ritentata.");
+          await onDone("Annullamento applicato. La rimozione delle voci della cronologia verrà ritentata.");
         } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.COMMITTED) {
           await waitForHistoryEntriesRemoved(
             outcome.entries.map((entry) => entry?.id).filter(Boolean),
@@ -934,19 +934,19 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
             ? `Annullato: ${outcome.entries[0].label}`
             : outcome.entries.length > 1
               ? `Annullate ${outcome.entries.length} azioni.`
-              : "Undo applicato.");
+              : "Annullamento applicato.");
         } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.CONFLICT) {
-          await onDone("Undo non applicato: lo stato della scena è cambiato; nessuna modifica è stata scritta.");
+          await onDone("Annullamento non applicato: lo stato della scena è cambiato; nessuna modifica è stata scritta.");
         } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.RECOVERY_REQUIRED) {
-          await onDone("Undo sospeso: è richiesta una verifica o una compensazione manuale; History conservata.");
+          await onDone("Annullamento sospeso: è richiesta una verifica o una compensazione manuale; cronologia conservata.");
         } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.REJECTED) {
-          await onDone("Undo rifiutato o non più valido: nessuna modifica è stata scritta; History conservata.");
+          await onDone("Annullamento rifiutato o non più valido: nessuna modifica è stata scritta; cronologia conservata.");
         } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.NOOP) {
-          await onDone("Nessuna azione annullata: la History è invariata.");
+          await onDone("Nessuna azione annullata: la cronologia è invariata.");
         } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.FAILED) {
-          await onDone("Undo non applicato: la scena è rimasta nello stato precedente.");
+          await onDone("Annullamento non applicato: la scena è rimasta nello stato precedente.");
         } else {
-          await onDone("Undo non applicato: nessuna mutazione committata; History conservata.");
+          await onDone("Annullamento non applicato: nessuna mutazione committata; cronologia conservata.");
         }
       } catch (error: any) {
         if (!sceneLifecycle.isCurrent(operation)) return;
@@ -955,7 +955,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
           message: error?.message || String(error),
           stack: error?.stack || "",
         });
-        await onDone(`Undo fallito: ${error?.message || error}`);
+        await onDone(`Annullamento fallito: ${error?.message || error}`);
       } finally {
         preferredPanel = null;
         undoInProgress = false;
@@ -990,15 +990,15 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
           if (!sceneLifecycle.isCurrent(operation)) return;
           await onDone(removed
             ? `Pulizia completata: rimosse ${result.removedIds.length} entry incomplete.`
-            : "Pulizia inviata: la History non si è ancora aggiornata; riprova tra poco.");
+            : "Pulizia inviata: la cronologia non si è ancora aggiornata; riprova tra poco.");
         } else if (result?.pendingIds?.length) {
-          await onDone("Pulizia non completata: History owner non disponibile; riprova tra poco.");
+          await onDone("Pulizia non completata: gestore della cronologia non disponibile; riprova tra poco.");
         } else {
           await onDone("Nessuna entry incompleta da rimuovere.");
         }
       } catch (error: any) {
         if (!sceneLifecycle.isCurrent(operation)) return;
-        await onDone(`Pulizia Undo fallita: ${error?.message || error}`);
+        await onDone(`Pulizia della cronologia fallita: ${error?.message || error}`);
       } finally {
         preferredPanel = null;
         undoCleanupInProgress = false;
@@ -1011,7 +1011,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
     resetHistory.addEventListener("click", async () => {
       if (undoInProgress || undoCleanupInProgress || undoResetInProgress || !sceneLifecycle.isReady()) return;
       const confirmed = window.confirm(
-        "Azzerare tutta la cronologia Undo? Questa operazione non modifica la scena né il Combat Log e non può essere annullata.",
+        "Azzerare tutta la cronologia? Questa operazione non modifica la scena né il registro combattimento e non può essere annullata.",
       );
       if (!confirmed) return;
       const operation = sceneLifecycle.capture({ operationId: sceneOperationId("undo-reset") });
@@ -1030,10 +1030,10 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
         });
         if (!sceneLifecycle.isCurrent(operation)) return;
         showNonUndoableHistory = false;
-        await onDone("Cronologia Undo azzerata. La scena e il Combat Log non sono stati modificati.");
+        await onDone("Cronologia azzerata. La scena e il registro combattimento non sono stati modificati.");
       } catch (error: any) {
         if (!sceneLifecycle.isCurrent(operation)) return;
-        await onDone(`Azzeramento Undo fallito: ${error?.message || error}`);
+        await onDone(`Azzeramento della cronologia fallito: ${error?.message || error}`);
       } finally {
         preferredPanel = null;
         undoResetInProgress = false;
@@ -1156,7 +1156,7 @@ async function render(
   tabUndoBtn.setAttribute("role", "tab");
   tabUndoBtn.setAttribute("aria-selected", String(activeTab === "undo"));
   const tabUndoText = document.createElement("span");
-  tabUndoText.textContent = "Cronologia Undo";
+  tabUndoText.textContent = "Cronologia";
   const tabUndoBadge = document.createElement("span");
   tabUndoBadge.className = "history-tab-badge";
   tabUndoBadge.textContent = String(undoableCount);
@@ -1226,7 +1226,7 @@ async function render(
   newSession.title = "Crea un nuovo registro e archivia quello corrente";
   if (!combatLogEnabled || !sceneLifecycle.isReady()) {
     newSession.disabled = true;
-    newSession.title = "Riattiva il Combat Log dalle Opzioni per creare un nuovo registro";
+    newSession.title = "Riattiva il registro combattimento dalle Opzioni per crearne uno nuovo";
   }
   clearLog.title = "Rimuove gli eventi ma mantiene il registro nella lista";
   deleteLog.title = "Elimina definitivamente il registro selezionato";
@@ -1293,7 +1293,7 @@ async function render(
         download(combatSnapshotFileName(snapshot, "json"), JSON.stringify(snapshot, null, 2), "application/json;charset=utf-8");
         await renderAfterStorageAction(recorded?.length
           ? `Snapshot del round ${snapshot.round} salvato nel registro e scaricato.`
-          : `Snapshot del round ${snapshot.round} scaricato (Combat Log non attivo: nessuna voce aggiunta).`);
+          : `Snapshot del round ${snapshot.round} scaricato (registro combattimento non attivo: nessuna voce aggiunta).`);
         return;
       }
       const svg = buildCombatSnapshotSvg(snapshot);
@@ -1395,7 +1395,7 @@ async function render(
   newSession.addEventListener("click", async () => {
     if (!sceneLifecycle.isReady()) return;
     if (!isCombatLogEventSinkEnabled()) {
-      await scheduleRender("Combat Log disattivato: nessun nuovo registro creato.");
+      await scheduleRender("Registro combattimento disattivato: nessun nuovo registro creato.");
       return;
     }
     if (events.length && !window.confirm("Creare un nuovo registro? Quello corrente resterà archiviato nel browser.")) return;
@@ -1454,7 +1454,7 @@ async function render(
     try {
       await clearCombatLogSession(session?.id, { sceneEpoch: operation.epoch });
       if (!sceneLifecycle.isCurrent(operation)) return;
-      await scheduleRender("Registro cancellato. Il journal Undo non è stato modificato.", { pageRequest: null });
+      await scheduleRender("Registro cancellato. La cronologia non è stata modificata.", { pageRequest: null });
     } catch (error: any) {
       await scheduleRender(`Cancellazione fallita: ${error?.message || error}`, { pageRequest: null });
     }
@@ -1577,7 +1577,7 @@ async function render(
     if (!note.value.trim()) return;
     if (!sceneLifecycle.isReady()) return;
     if (!isCombatLogEventSinkEnabled()) {
-      await scheduleRender("Combat Log disattivato: nota non registrata.");
+      await scheduleRender("Registro combattimento disattivato: nota non registrata.");
       return;
     }
     addNote.disabled = true;
@@ -1585,22 +1585,22 @@ async function render(
     if (!sceneLifecycle.isCurrent(operation)) return;
     const created = await addCombatLogNote(note.value, { sceneEpoch: operation.epoch });
     if (!sceneLifecycle.isCurrent(operation)) return;
-    await scheduleRender(created.length ? "Nota aggiunta." : "Combat Log disattivato: nota non registrata.");
+    await scheduleRender(created.length ? "Nota aggiunta." : "Registro combattimento disattivato: nota non registrata.");
   });
 
   const status = document.createElement("div");
   status.className = "history-status-bar";
   status.setAttribute("aria-live", "polite");
   status.textContent = combatLogEnabled
-    ? (message || "Il registro non viene modificato dagli Undo: viene aggiunta una voce di annullamento.")
+    ? (message || "Il registro non viene modificato dagli annullamenti: viene aggiunta una voce di annullamento.")
     : (message
-      ? `${message} Combat Log disattivato: History/Undo e sessioni esistenti restano disponibili.`
-      : "Combat Log disattivato: History/Undo e sessioni esistenti restano disponibili.");
+      ? `${message} Registro combattimento disattivato: cronologia e sessioni esistenti restano disponibili.`
+      : "Registro combattimento disattivato: cronologia e sessioni esistenti restano disponibili.");
 
   const timeline = document.createElement("section");
   timeline.className = "history-timeline-scroll";
   timeline.dataset.combatLogTimeline = "true";
-  timeline.setAttribute("aria-label", "Timeline del Combat Log");
+  timeline.setAttribute("aria-label", "Timeline del registro combattimento");
 
   const projectionSummary = document.createElement("div");
   projectionSummary.setAttribute("aria-live", "polite");
@@ -1793,7 +1793,7 @@ async function render(
       combatLogUiState.confirmDeleteEventId = "";
       if (deleted) combatLogUiState.expandedEvents.delete(String(event?.id || ""));
       resultMessage = deleted
-        ? "Evento eliminato dal log. La scena e il journal Undo non sono stati modificati."
+        ? "Evento eliminato dal registro. La scena e la cronologia non sono state modificate."
         : "L'evento non è più presente nel registro.";
     } catch (error: any) {
       resultMessage = `Eliminazione evento fallita: ${error?.message || error}`;
@@ -1819,7 +1819,7 @@ async function render(
       }
       if (deletedIds.length) combatLogUiState.selecting = false;
       resultMessage = deletedIds.length
-        ? `${deletedIds.length === 1 ? "1 evento eliminato" : `${deletedIds.length} eventi eliminati`} dal log. La scena e il journal Undo non sono stati modificati.`
+        ? `${deletedIds.length === 1 ? "1 evento eliminato" : `${deletedIds.length} eventi eliminati`} dal registro. La scena e la cronologia non sono state modificate.`
         : "Gli eventi selezionati non sono più presenti nel registro.";
     } catch (error: any) {
       resultMessage = `Eliminazione eventi fallita: ${error?.message || error}`;
@@ -2099,21 +2099,21 @@ async function undoLatestHistoryFromShortcut() {
     if (outcome.outcome === HISTORY_UNDO_OUTCOME.COMMITTED) {
       message = outcome.entries.length === 1
         ? `Annullato: ${outcome.entries[0]?.label || "ultima azione"}`
-        : "Undo applicato.";
+        : "Annullamento applicato.";
     } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.CONFLICT) {
-      message = "Undo non applicato: lo stato della scena è cambiato.";
+      message = "Annullamento non applicato: lo stato della scena è cambiato.";
     } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.NOOP) {
       message = "Nessuna operazione annullabile.";
     } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.REJECTED) {
-      message = "Undo rifiutato o non più valido.";
+      message = "Annullamento rifiutato o non più valido.";
     } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.RECOVERY_REQUIRED) {
-      message = "Undo sospeso: è richiesta una verifica manuale.";
+      message = "Annullamento sospeso: è richiesta una verifica manuale.";
     } else {
-      message = "Undo non applicato.";
+      message = "Annullamento non applicato.";
     }
   } catch (error: any) {
     if (!sceneLifecycle.isCurrent(operation)) return;
-    message = `Undo fallito: ${error?.message || error}`;
+    message = `Annullamento fallito: ${error?.message || error}`;
   } finally {
     undoInProgress = false;
   }
@@ -2143,10 +2143,10 @@ OBR.onReady(async () => {
     if (event.phase === "unavailable") {
       combatLogPageOperationToken += 1;
       combatLogPageLoading = false;
-      statusMessage = "Scena cambiata: Undo e registrazioni sono sospesi finché non viene montata una nuova baseline.";
+      statusMessage = "Scena cambiata: annullamenti e registrazioni sono sospesi finché non viene montata una nuova baseline.";
       void scheduleRender(statusMessage).catch(() => {});
     } else if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
-      statusMessage = "Nuova scena pronta: verifica il registro prima di usare Undo.";
+      statusMessage = "Nuova scena pronta: verifica il registro prima di usare la cronologia.";
       void scheduleRender(statusMessage).catch(() => {});
     }
   });

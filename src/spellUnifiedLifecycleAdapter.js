@@ -101,7 +101,7 @@ export function getSpellUnifiedLifecycleEligibility(contract = null) {
     return reject("active-resolution-not-supported", "La risoluzione attiva resta separata.");
   }
   if (execution.requiresCompositeUndo === true || execution.undo?.scope === "composite") {
-    return reject("composite-undo-not-supported", "Questa applicazione richiede undo composito.");
+    return reject("composite-undo-not-supported", "Questa applicazione richiede un annullamento composito.");
   }
   if (placement.policy === "required" || inputs.placement?.required === true) {
     return reject("placement-not-supported", "Il placement richiesto resta nella lane area.");

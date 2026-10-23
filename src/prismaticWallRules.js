@@ -93,7 +93,7 @@ export const PRISMATIC_WALL_LAYERS = freeze([
     label: "Verde",
     saveAbility: "dex",
     damage: { dice: "10d6", type: "veleno", onSave: "half" },
-    destructionRequirement: "Passwall o una spell simile di livello almeno pari al muro, che apra un portale in una superficie solida, distrugge lo strato.",
+    destructionRequirement: "Passwall o un incantesimo simile di livello almeno pari al muro, che apra un portale in una superficie solida, distrugge lo strato.",
     passive: "Nessuna proprietà passiva aggiuntiva nel testo RAW locale.",
   },
   {
@@ -108,14 +108,14 @@ export const PRISMATIC_WALL_LAYERS = freeze([
     id: "indigo",
     label: "Indaco",
     saveAbility: "dex",
-    destructionRequirement: "Una luce intensa generata da Daylight o da una spell simile di livello almeno pari al muro distrugge lo strato.",
-    passive: "Nessuna spell può essere lanciata attraverso lo strato.",
+    destructionRequirement: "Una luce intensa generata da Daylight o da un incantesimo simile di livello almeno pari al muro distrugge lo strato.",
+    passive: "Nessun incantesimo può essere lanciato attraverso lo strato.",
   },
   {
     id: "violet",
     label: "Viola",
     saveAbility: "dex",
-    destructionRequirement: "Dispel Magic o una spell simile di livello almeno pari al muro, capace di terminare magie o effetti, distrugge lo strato.",
+    destructionRequirement: "Dispel Magic o un incantesimo simile di livello almeno pari al muro, capace di terminare magie o effetti, distrugge lo strato.",
     passive: "Nessuna proprietà passiva aggiuntiva nel testo RAW locale.",
   },
 ]);

@@ -112,13 +112,13 @@ function classFeatureMutationPools(feature) {
 function classFeatureError(reason, poolId = "") {
   if (reason === "feature-not-found") return new Error("Capacità non trovata.");
   if (reason === "feature-not-automated") {
-    return new Error("Questa capacitÃ  Ã¨ nel catalogo, ma non Ã¨ ancora automatizzata.");
+    return new Error("Questa capacità è nel catalogo, ma non è ancora automatizzata.");
   }
   if (reason === "feature-not-enabled") {
     return new Error("Questa capacità non è abilitata per il personaggio.");
   }
   if (reason === "parent-feature-required") {
-    return new Error("Questa capacitÃ  richiede prima l'attivazione della capacitÃ  collegata.");
+    return new Error("Questa capacità richiede prima l'attivazione della capacità collegata.");
   }
   if (reason === "choice-required") {
     return new Error("Scegli una variante della capacità prima di attivarla.");
@@ -686,7 +686,7 @@ function featureWithEloquenceInfallibleReminder(feature, profile) {
   const basePlan = feature?.effectPlan && typeof feature.effectPlan === "object"
     ? feature.effectPlan
     : {};
-  const reminder = "Se il tiro fallisce, conserva il dado; rimuovi la pill soltanto quando il dado è consumato con successo o scade.";
+  const reminder = "Se il tiro fallisce, conserva il dado; rimuovi l'etichetta soltanto quando il dado è consumato con successo o scade.";
   const baseDetail = String(basePlan.detail || feature?.name || "").trim();
   if (baseDetail.includes(reminder)) return feature;
   return {
@@ -990,7 +990,7 @@ export function prepareSpellThiefFeatureActivation({
         ? {
           kind: "condition",
           conditionName: `Incantesimo rubato: ${spellLabel}`,
-          detail: `Il Ladro ha rubato ${spellLabel} per 8 ore. Il marker è un reminder: non blocca il lancio del bersaglio e non aggiunge lo spell all'inventario del Ladro.`,
+          detail: `Il Ladro ha rubato ${spellLabel} per 8 ore. Il marker è un promemoria: non blocca il lancio del bersaglio e non aggiunge l'incantesimo all'inventario del Ladro.`,
         }
         : { kind: "none" },
     },

@@ -1055,8 +1055,8 @@ export function effectSaveReminderNoticeFromHistoryReplay({
       : {}),
     saveLabel: String(noticeDescriptor?.saveLabel || "Promemoria effetto")
       .trim().slice(0, 160) || "Promemoria effetto",
-    instruction: String(noticeDescriptor?.instruction || noticeDescriptor?.saveLabel || "Risolvi il reminder.")
-      .trim().slice(0, 320) || "Risolvi il reminder.",
+    instruction: String(noticeDescriptor?.instruction || noticeDescriptor?.saveLabel || "Risolvi il promemoria.")
+      .trim().slice(0, 320) || "Risolvi il promemoria.",
     ...(String(noticeDescriptor?.ability || "").trim()
       ? { ability: String(noticeDescriptor.ability).trim().slice(0, 20) }
       : {}),

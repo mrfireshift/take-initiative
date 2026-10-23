@@ -35,7 +35,7 @@ export function createCustomAuraChildId(prefix = "item") {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function normalizeCustomAuraPill(value = {}, fallbackLabel = "Pill", fallbackId = "") {
+export function normalizeCustomAuraPill(value = {}, fallbackLabel = "Etichetta", fallbackId = "") {
   const id = normalizedText(value?.id, fallbackId || createCustomAuraChildId("pill"), 120);
   const enabled = value?.enabled !== false;
   const label = normalizedText(value?.label, fallbackLabel, 100);

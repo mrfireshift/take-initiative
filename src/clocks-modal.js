@@ -85,7 +85,7 @@ function settingsMarkup(clock, index) {
       <select class="clock-select" data-field="segments" data-id="${escapeHtml(clock.id)}" aria-label="Segmenti">${CLOCK_SEGMENT_OPTIONS.map((value) => `<option value="${value}"${value === clock.segments ? " selected" : ""}>${value}</option>`).join("")}</select>
       <div class="clock-card-colors">${colorsMarkup(clock.color, clock.id)}</div>
       <div class="clock-settings-actions">
-        <button type="button" class="quiet-button" data-action="visibility" data-id="${escapeHtml(clock.id)}">${clock.visible ? "Nascondi ai player" : "Mostra ai player"}</button>
+        <button type="button" class="quiet-button" data-action="visibility" data-id="${escapeHtml(clock.id)}">${clock.visible ? "Nascondi ai giocatori" : "Mostra ai giocatori"}</button>
         <button type="button" class="quiet-button" data-action="reset" data-id="${escapeHtml(clock.id)}">Azzera</button>
         <button type="button" class="quiet-button" data-action="move-up" data-id="${escapeHtml(clock.id)}" ${index === 0 ? "disabled" : ""}>↑</button>
         <button type="button" class="quiet-button" data-action="move-down" data-id="${escapeHtml(clock.id)}" ${index === state.clocks.length - 1 ? "disabled" : ""}>↓</button>

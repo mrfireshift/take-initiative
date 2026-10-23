@@ -140,7 +140,7 @@ export async function evaluateHistoryUndoReadiness(entries, validateSuffix) {
         reason: "validation-failed",
         error: {
           name: String(error?.name || "Error"),
-          message: String(error?.message || error || "Undo validation failed."),
+          message: String(error?.message || error || "Verifica dell'annullamento non riuscita."),
         },
       });
       continue;

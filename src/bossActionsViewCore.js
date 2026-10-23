@@ -208,44 +208,44 @@ export function bossActionAutomationSummary(action, availability = {}) {
   const kind = bossActionExecutionKind(action);
   if (kind === "group-save" && action.execution.onFailed?.mark) {
     return {
-      automatic: `Automatico al commit: etichetta ${action.name} sul bersaglio che fallisce, fino a rimozione; la prima volta in ogni round in cui subisce danni da freddo da un'azione del boss, la Resistenza al freddo è ignorata e l'Immunità vale come Resistenza. Una sola voce History annullabile.`,
+      automatic: `Automatico al commit: etichetta ${action.name} sul bersaglio che fallisce, fino a rimozione; la prima volta in ogni round in cui subisce danni da freddo da un'azione del boss, la Resistenza al freddo è ignorata e l'Immunità vale come Resistenza. Una sola voce della cronologia annullabile.`,
       manual: "Resta manuale: scelta e visibilità del bersaglio, TS, rimozione del marchio se il boss viene sconfitto, danni da freddo inflitti fuori dalla console.",
     };
   }
   if (kind === "throw" && action.execution.collision) {
     return {
-      automatic: `Automatico al commit: danni al bersaglio (con le sue difese), fine della presa (Afferrato e Trattenuto del boss), Prono. Se lo scagli contro un'altra creatura: TS DES CD ${action.execution.collision.save.dc}, sul fallimento gli stessi danni (con le sue difese) e Prono. Una voce History annullabile.`,
+      automatic: `Automatico al commit: danni al bersaglio (con le sue difese), fine della presa (Afferrato e Trattenuto del boss), Prono. Se lo scagli contro un'altra creatura: TS DES CD ${action.execution.collision.save.dc}, sul fallimento gli stessi danni (con le sue difese) e Prono. Una voce della cronologia annullabile.`,
       manual: "Resta manuale: direzione sulla mappa, tiro dei danni, se e contro chi va a sbattere.",
     };
   }
   if (kind === "throw") {
     return {
-      automatic: `Automatico al commit: danni contundenti al bersaglio (con le sue difese), fine della presa (Afferrato e Trattenuto del boss), Prono se atterra sulla piattaforma oppure l'etichetta «Appeso al bordo» e il promemoria del TS DES CD ${action.execution.edge.save.dc} se finisce oltre il bordo. Una voce History annullabile.`,
+      automatic: `Automatico al commit: danni contundenti al bersaglio (con le sue difese), fine della presa (Afferrato e Trattenuto del boss), Prono se atterra sulla piattaforma oppure l'etichetta «Appeso al bordo» e il promemoria del TS DES CD ${action.execution.edge.save.dc} se finisce oltre il bordo. Una voce della cronologia annullabile.`,
       manual: "Resta manuale: direzione e punto d'arrivo sulla mappa, tiro dei danni, la caduta di chi fallisce il TS.",
     };
   }
   if (kind === "seam") {
     return {
-      automatic: action.execution.seam.points ? `Automatico al commit: le ${action.execution.seam.points - 1} cuciture fra ${action.execution.seam.points} punti (larghe ${action.execution.seam.width} ft, fino a ${action.execution.seam.maxLength} ft ciascuna) restano registrate sul boss fino alla fine del round e bloccano le azioni indicate; i disegni e i portali restano sulla mappa; il loro spazio è Terreno Difficile nel controllo della velocità (costo doppio). Sequenza e soglia dei PF verificate. Una voce History annullabile.` : `Automatico al commit: la cucitura (larga ${action.execution.seam.width} ft, fino a ${action.execution.seam.maxLength} ft) resta registrata sul boss fino alla fine del round e blocca le azioni indicate; il disegno resta sulla mappa; il suo spazio è Terreno Difficile nel controllo della velocità (costo doppio). Sequenza verificata: solo come prima Azione Epica del round. Una voce History annullabile.`,
+      automatic: action.execution.seam.points ? `Automatico al commit: le ${action.execution.seam.points - 1} cuciture fra ${action.execution.seam.points} punti (larghe ${action.execution.seam.width} ft, fino a ${action.execution.seam.maxLength} ft ciascuna) restano registrate sul boss fino alla fine del round e bloccano le azioni indicate; i disegni e i portali restano sulla mappa; il loro spazio è Terreno Difficile nel controllo della velocità (costo doppio). Sequenza e soglia dei PF verificate. Una voce della cronologia annullabile.` : `Automatico al commit: la cucitura (larga ${action.execution.seam.width} ft, fino a ${action.execution.seam.maxLength} ft) resta registrata sul boss fino alla fine del round e blocca le azioni indicate; il disegno resta sulla mappa; il suo spazio è Terreno Difficile nel controllo della velocità (costo doppio). Sequenza verificata: solo come prima Azione Epica del round. Una voce della cronologia annullabile.`,
       manual: `Resta manuale: ${action.execution.seam.points ? `i ${action.execution.seam.points} punti` : "i due punti"} (superfici percepite entro ${action.execution.seam.range} ft.), la rimozione del disegno se la cucitura collassa a fine round.`,
     };
   }
   if (kind === "effect-end") {
     return {
-      automatic: `Automatico al commit: con ${action.execution.roll.threshold}+ sul d${action.execution.roll.die} l'effetto scelto termina (un incantesimo con le sue condizioni e la concentrazione del lanciatore su Auril). Riuscita o fallita, una voce History e Combat Log.`,
+      automatic: `Automatico al commit: con ${action.execution.roll.threshold}+ sul d${action.execution.roll.die} l'effetto scelto termina (un incantesimo con le sue condizioni e la concentrazione del lanciatore su Auril). Riuscita o fallita, una voce in cronologia e nel registro combattimento.`,
       manual: "Resta manuale: il tiro del d20 (senza bonus, Vantaggio o Svantaggio).",
     };
   }
   if (kind === "group-save" && action.execution.kind === "attack-damage") {
     const execution = action.execution;
     return {
-      automatic: `Automatico al commit: danni per tipo a ogni bersaglio colpito (un tiro di danni per bersaglio), difese e marchio per creatura, uso 1/fase registrato, una sola voce History annullabile.`,
+      automatic: `Automatico al commit: danni per tipo a ogni bersaglio colpito (un tiro di danni per bersaglio), difese e marchio per creatura, uso 1/fase registrato, una sola voce della cronologia annullabile.`,
       manual: `Resta manuale: innesco (${presentationName(execution)} sotto ${execution.trigger?.hpBelow} PF, verificato anche al commit) e Reazione disponibile, creature che il boss può vedere, tiro per colpire e danni di ogni bersaglio (critici inclusi).`,
     };
   }
   if (kind === "group-save" && action.execution.kind === "save-effect") {
     return {
-      automatic: `Automatico al commit: etichetta ${action.name} sui falliti fino alla fine del loro turno successivo (${bossEffectSummaryParts(action.execution.onFailed.effect).map((part) => part.label).join(", ")}), una sola voce History annullabile.`,
+      automatic: `Automatico al commit: etichetta ${action.name} sui falliti fino alla fine del loro turno successivo (${bossEffectSummaryParts(action.execution.onFailed.effect).map((part) => part.label).join(", ")}), una sola voce della cronologia annullabile.`,
       manual: `Resta manuale: scelta dei bersagli (massimo ${action.execution.target.maxTargets}), TS di ogni bersaglio, applicazione di velocità, cure e PF temporanei.`,
     };
   }
@@ -261,7 +261,7 @@ export function bossActionAutomationSummary(action, availability = {}) {
       ...conditions,
       ...(action.execution.onPassed?.immunity ? ["Immune sui superati"] : []),
       ...(area?.shape === "seam" ? [area.segments ? "tutte le cuciture scompaiono dal boss e dalla mappa" : "la cucitura scompare dal boss e dalla mappa"] : []),
-      "una sola voce History annullabile",
+      "una sola voce della cronologia annullabile",
     ];
     return {
       automatic: `Automatico al commit: ${parts.join(", ")}.`,
@@ -280,7 +280,7 @@ export function bossActionAutomationSummary(action, availability = {}) {
   if (action.sequence) automatic.push("requisito di sequenza verificato dal registro del round");
   if (action.execution?.teleport) automatic.push(`teletrasporto del boss sulla casella scelta (entro ${action.execution.teleport.range} ft), annullabile insieme al resto`);
   if (availability?.tracked) automatic.push(`uso ${availability.limit}/${availability.period === "round" ? "round" : "fase"} registrato`);
-  automatic.push("una voce History annullabile");
+  automatic.push("una voce della cronologia annullabile");
   const manual = [kind === "save-damage" ? "tiro salvezza del bersaglio" : "tiro per colpire", "danni tirati (o medie)", "distanza e visibilità"];
   if (kind === "attack-damage" && action.automation === "PARTIAL" && String(action.manualText || "").trim() && !action.sequence) manual.push("prerequisito da confermare");
   if (kind === "save-damage" && String(action.manualText || "").trim()) manual.push("effetti testuali su TS fallito");

@@ -54,7 +54,7 @@ function normalizeOwnerHistory(value) {
 function errorDetails(error) {
   return {
     name: String(error?.name || "Error"),
-    message: String(error?.message || error || "History owner command failed."),
+    message: String(error?.message || error || "Comando del gestore della cronologia non riuscito."),
   };
 }
 
@@ -279,7 +279,7 @@ function ensureClientTransport() {
         rejectPendingRequest(
           data.requestId,
           pending,
-          "La risposta History appartiene a una scena obsoleta.",
+          "La risposta della cronologia appartiene a una scena obsoleta.",
           "stale-scene",
           data?.result || null,
         );
@@ -289,7 +289,7 @@ function ensureClientTransport() {
         rejectPendingRequest(
           data.requestId,
           pending,
-          "La risposta History appartiene a un owner scene identity obsoleto.",
+          "La risposta della cronologia appartiene a un'identità di scena del gestore obsoleta.",
           "stale-scene-identity",
           data?.result || null,
         );
@@ -312,7 +312,7 @@ function ensureClientTransport() {
       clientPendingRequests.delete(requestId);
       clearTimeout(pending.timer);
       pending.reject(new HistoryOwnerCommandError(
-        "La scena è cambiata durante la richiesta History.",
+        "La scena è cambiata durante la richiesta alla cronologia.",
         null,
         { code: "stale-scene", requestId, commandId: pending.commandId },
       ));
@@ -324,7 +324,7 @@ function sendOwnerRequest(payload, { sceneEpoch = currentSceneEpoch() } = {}) {
   ensureClientTransport();
   if (!isCurrentSceneEpoch(sceneEpoch)) {
     return Promise.reject(new HistoryOwnerCommandError(
-      "La richiesta History appartiene a una scena obsoleta.",
+      "La richiesta alla cronologia appartiene a una scena obsoleta.",
       null,
       { code: "stale-scene", commandId: payload.commandId },
     ));
@@ -337,7 +337,7 @@ function sendOwnerRequest(payload, { sceneEpoch = currentSceneEpoch() } = {}) {
       if (!pending) return;
       clientPendingRequests.delete(requestId);
       reject(new HistoryOwnerCommandError(
-        "Timeout del History owner in background.",
+        "Timeout del gestore della cronologia in background.",
         null,
         {
           code: "history-owner-timeout",
@@ -369,7 +369,7 @@ function sendOwnerRequest(payload, { sceneEpoch = currentSceneEpoch() } = {}) {
       clientPendingRequests.delete(requestId);
       clearTimeout(pending.timer);
       pending.reject(new HistoryOwnerCommandError(
-        String(error?.message || error || "Invio al History owner fallito."),
+        String(error?.message || error || "Invio al gestore della cronologia fallito."),
         null,
         {
           code: "history-owner-transport",
@@ -393,7 +393,7 @@ async function requestOwnerContext(sceneEpoch) {
   }, { sceneEpoch });
   if (result?.status !== HISTORY_OWNER_STATUS.APPLIED || !result.sceneIdentity) {
     throw new HistoryOwnerCommandError(
-      result?.error?.message || `History owner non pronto: ${result?.reason || "unknown"}.`,
+      result?.error?.message || `Gestore della cronologia non pronto: ${result?.reason || "unknown"}.`,
       result,
       { code: result?.reason || "history-owner-not-ready", commandId },
     );
@@ -413,14 +413,14 @@ async function requestOwnerCommand(
 ) {
   if (!isCurrentSceneEpoch(sceneEpoch)) {
     throw new HistoryOwnerCommandError(
-      "La richiesta History appartiene a una scena obsoleta.",
+      "La richiesta alla cronologia appartiene a una scena obsoleta.",
       null,
       { code: "stale-scene", commandId, correlationId },
     );
   }
   const identity = String(sceneIdentity || await requestOwnerContext(sceneEpoch) || "").trim();
   if (!identity) {
-    throw new HistoryOwnerCommandError("Identità scena History mancante.", null, {
+    throw new HistoryOwnerCommandError("Identità di scena della cronologia mancante.", null, {
       code: "history-owner-scene-identity",
       commandId,
       correlationId,
@@ -439,7 +439,7 @@ async function requestOwnerCommand(
 function throwForOwnerResult(result, details = {}) {
   if (result?.status === HISTORY_OWNER_STATUS.CONFLICT) {
     throw new HistoryOwnerCommandError(
-      "Entry History già presente con un payload differente.",
+      "Voce della cronologia già presente con un payload differente.",
       result,
       { code: "history-entry-conflict", ...details },
     );
@@ -452,7 +452,7 @@ function throwForOwnerResult(result, details = {}) {
     HISTORY_OWNER_STATUS.CLEARED,
   ].includes(result?.status)) return result;
   throw new HistoryOwnerCommandError(
-    result?.error?.message || `History owner rifiutato: ${result?.reason || result?.status || "unknown"}.`,
+    result?.error?.message || `Richiesta rifiutata dal gestore della cronologia: ${result?.reason || result?.status || "unknown"}.`,
     result,
     { code: result?.reason || "history-owner-failed", ...details },
   );

@@ -93,7 +93,7 @@ export function createEffectsMutationCoordinator({
   if (typeof prepareUndo !== "function") {
     prepareUndo = async () => ({
       status: EFFECTS_MUTATION_STATUS.FAILED,
-      error: { name: "UnsupportedOperation", message: "Undo effects non configurato." },
+      error: { name: "UnsupportedOperation", message: "Annullamento degli effetti non configurato." },
     });
   }
 

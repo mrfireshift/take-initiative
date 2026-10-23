@@ -214,7 +214,7 @@ const eyebiteNauseaReminder = Object.freeze({
 const eyebiteResistedRule = Object.freeze({
   condition: "Immune a Sguardo penetrante",
   effectId: "eyebite-resisted",
-  effectDetail: "Ha superato un TS contro questo lancio e non può più essere bersagliato da Sguardo penetrante finché la spell resta attiva.",
+  effectDetail: "Ha superato un TS contro questo lancio e non può più essere bersagliato da Sguardo penetrante finché l'incantesimo resta attivo.",
   expiry: Object.freeze({ mode: "concentration" }),
 });
 

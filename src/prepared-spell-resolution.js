@@ -348,7 +348,7 @@ async function resolvePreparedSpell() {
       status.textContent = "Seleziona un bersaglio valido.";
     } else {
       await notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.FAILED, code);
-      status.textContent = "Attivazione non riuscita. Riprova dal pannello Spells.";
+      status.textContent = "Attivazione non riuscita. Riprova dal pannello Incantesimi.";
       console.warn("[prepared-spell-resolution] resolve:", code);
     }
   } finally {
@@ -365,7 +365,7 @@ OBR.onReady(async () => {
       currentTargetIds = [];
       resolving = false;
       renderGroup(null);
-      status.textContent = "Scena cambiata: riapri la risoluzione dal pannello Spells.";
+      status.textContent = "Scena cambiata: riapri la risoluzione dal pannello Incantesimi.";
       return;
     }
     if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
@@ -379,7 +379,7 @@ OBR.onReady(async () => {
   await sceneLifecycle.mount();
   if (!sceneLifecycle.isReady()) {
     renderGroup(null);
-    status.textContent = "Scena non disponibile: riapri la risoluzione dal pannello Spells.";
+    status.textContent = "Scena non disponibile: riapri la risoluzione dal pannello Incantesimi.";
     return;
   }
   const role = await OBR.player.getRole().catch(() => "PLAYER");

@@ -443,7 +443,7 @@ export function createBossActionRuntime({
     expectedProfile(request,presentation);
     const action=presentation.profile.abilities.find(a=>a.id===request.actionId);
     if(!["SUPPORTED","PARTIAL"].includes(action?.automation) || action?.execution?.kind!=="spell-reference")
-      throw new Error("Questa capacità non ha uno spell reference supportato.");
+      throw new Error("Questa capacità non ha un riferimento a incantesimi supportato.");
     const availability=presentation.availability[action.id];
     if(!availability.available) throw new Error(availability.reason || "Risorsa esaurita.");
     // The GM picks one of the printed spells; the first one when the request names none (v1-v7: Slow).
@@ -455,7 +455,7 @@ export function createBossActionRuntime({
     const monsterActionContext=createMonsterActionContext({profile:presentation.profile,
       bossInstanceId:presentation.bossInstanceId,tokenId:presentation.item.id,actorName:presentation.item.name,
       action,actionInstanceId:request.actionInstanceId || newId(),spellId});
-    if (!monsterActionContext) throw new Error("Provenance Spellcasting non valida.");
+    if (!monsterActionContext) throw new Error("Provenienza degli incantesimi non valida.");
     const query=buildSpellUnifiedPanelRouteQuery({sourceId:presentation.item.id,casterId:presentation.item.id,
       spellId:spell.id,slotLevel:spell.level,origin:"monster-action",monsterActionContext});
     await api.popover.open({id:`${ID}/spells-modal`,url:`/spell-unified-panel.html?${query}`,

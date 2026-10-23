@@ -345,7 +345,7 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
     debuffRule(
       "Nel muro / Atletica per muoversi",
       "tsunami-wall",
-      "È immerso nel muro d'acqua e deve superare una prova di Forza (Atletica) contro la CD dello spell per muoversi.",
+      "È immerso nel muro d'acqua e deve superare una prova di Forza (Atletica) contro la CD dell'incantesimo per muoversi.",
       {
         expiry: concentration,
         manualRemoval: true,
@@ -359,7 +359,7 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
     passed: [debuffRule(
       "Nel muro / Atletica per muoversi",
       "tsunami-wall",
-      "È immerso nel muro d'acqua e deve superare una prova di Forza (Atletica) contro la CD dello spell per muoversi.",
+      "È immerso nel muro d'acqua e deve superare una prova di Forza (Atletica) contro la CD dell'incantesimo per muoversi.",
       {
         expiry: concentration,
         manualRemoval: true,
@@ -441,7 +441,7 @@ export const PHB2014_EFFECTS = Object.freeze({
     id: "searing-smite-burning",
     kind: "debuff",
     label: "1d6 fuoco a inizio turno",
-    detail: "All'inizio del turno effettua un TS Costituzione: 1d6 fuoco se fallisce, fine dello spell se supera. Un'azione può estinguere le fiamme.",
+    detail: "All'inizio del turno effettua un TS Costituzione: 1d6 fuoco se fallisce, fine dell'incantesimo se supera. Un'azione può estinguere le fiamme.",
     summaryParts: Object.freeze([
       Object.freeze({ id: "searing-smite-save", label: "TS Cos inizio turno" }),
       Object.freeze({ id: "searing-smite-fire-damage", label: "1d6 fuoco" }),
@@ -456,7 +456,7 @@ export const PHB2014_EFFECTS = Object.freeze({
         type: "fuoco",
         onSave: "none",
       }),
-      label: "1d6 fuoco se fallisce; se supera, termina la spell.",
+      label: "1d6 fuoco se fallisce; se supera, termina l'incantesimo.",
     }),
     manualRemoval: true,
     endsParentOnRemoval: true,
@@ -465,7 +465,7 @@ export const PHB2014_EFFECTS = Object.freeze({
     id: "branding-smite-radiance",
     kind: "debuff",
     label: "Bagliore astrale / no invisibilità",
-    detail: "Il bersaglio diventa visibile, proietta luce fioca entro 1,5 metri e non può diventare invisibile finché dura la spell.",
+    detail: "Il bersaglio diventa visibile, proietta luce fioca entro 1,5 metri e non può diventare invisibile finché dura l'incantesimo.",
     summaryParts: Object.freeze([
       Object.freeze({ id: "branding-smite-visible", label: "Visibile" }),
       Object.freeze({ id: "branding-smite-no-invisibility", label: "No invis." }),
@@ -620,7 +620,7 @@ export const PHB2014_EFFECTS = Object.freeze({
     id: "circle-of-power",
     kind: "buff",
     label: "Vant. TS magia / 0 danni su TS riuscito",
-    detail: "Vantaggio ai TS contro spell ed effetti magici; un TS riuscito che dimezzerebbe i danni li annulla.",
+    detail: "Vantaggio ai TS contro incantesimi ed effetti magici; un TS riuscito che dimezzerebbe i danni li annulla.",
     summaryParts: Object.freeze([
       Object.freeze({ id: "circle-of-power-magic-save-advantage", label: "Vant. TS magia" }),
       Object.freeze({ id: "circle-of-power-zero-save-damage", label: "TS riuscito: 0 danni" }),

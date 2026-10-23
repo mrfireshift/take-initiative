@@ -160,7 +160,7 @@ const AUTOMATION = Object.freeze({
     conditionOptions: {
       Trattenuto: {
         effectId: "entangle-restrained",
-        effectDetail: "I vegetali trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+        effectDetail: "I vegetali trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD dell'incantesimo e liberarsi.",
         summaryParts: [
           { id: "entangle-escape-action", label: "Azione: prova For" },
         ],
@@ -306,7 +306,7 @@ const AUTOMATION = Object.freeze({
             baseSlot: 4,
             additionalPerSlotAbove: 1,
           },
-          label: "4d10 psichici se fallisce; se supera, termina la spell.",
+          label: "4d10 psichici se fallisce; se supera, termina l'incantesimo.",
         },
       },
     },
@@ -359,7 +359,7 @@ const AUTOMATION = Object.freeze({
     conditionOptions: {
       Trattenuto: {
         effectId: "web-restrained",
-        effectDetail: "Le ragnatele trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+        effectDetail: "Le ragnatele trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD dell'incantesimo e liberarsi.",
         summaryParts: [
           { id: "web-escape-action", label: "Azione: prova For" },
         ],
@@ -585,7 +585,7 @@ const SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
       effectId: "entangle-restrained",
-      effectDetail: "I vegetali trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+      effectDetail: "I vegetali trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD dell'incantesimo e liberarsi.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "entangle-escape-action", label: "Azione: prova For" }),
       ]),
@@ -638,7 +638,7 @@ const SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
       effectId: "web-restrained",
-      effectDetail: "Le ragnatele trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+      effectDetail: "Le ragnatele trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD dell'incantesimo e liberarsi.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "web-escape-action", label: "Azione: prova For" }),
       ]),
@@ -704,7 +704,7 @@ const SPELL_END_CONSEQUENCES = Object.freeze({
     id: "tensers-transformation-end-save",
     target: "self",
     condition: "TS Costituzione CD 15",
-    effectDetail: "Alla fine di Trasformazione di Tenser effettua il TS prima di rimuovere il reminder.",
+    effectDetail: "Alla fine di Trasformazione di Tenser effettua il TS prima di rimuovere il promemoria.",
     options: Object.freeze({
       expiry: Object.freeze({ mode: "manual" }),
       deferredEffect: Object.freeze({
@@ -847,7 +847,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "wind-walk-form",
       kind: "buff",
       label: "Forma del vento · solo volo 90 m",
-      detail: "In forma gassosa, volare 90 metri è l'unico metodo di movimento. Rimuovere questa pill quando si torna alla forma normale.",
+      detail: "In forma gassosa, volare 90 metri è l'unico metodo di movimento. Rimuovere questa etichetta quando si torna alla forma normale.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "wind-walk-exclusive-flight", label: "Solo volo 90 m" }),
       ]),
@@ -958,7 +958,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "next-attack-disadvantage",
       kind: "debuff",
       label: "Prossimo attacco: svant.",
-      detail: "Svantaggio al prossimo tiro per colpire prima della fine del suo prossimo turno; rimuovere la pill dopo l'attacco.",
+      detail: "Svantaggio al prossimo tiro per colpire prima della fine del suo prossimo turno; rimuovere l'etichetta dopo l'attacco.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "vicious-mockery-next-attack", label: "Pross. attacco: svant." }),
       ]),
@@ -998,7 +998,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "ability-check-bonus",
       kind: "buff",
       label: "+1d4 prova",
-      detail: "Aggiunge 1d4 a una prova di caratteristica; rimuovere la pill dopo l'uso.",
+      detail: "Aggiunge 1d4 a una prova di caratteristica; rimuovere l'etichetta dopo l'uso.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "guidance-ability-check-bonus", label: "Prova +1d4" }),
       ]),
@@ -1014,7 +1014,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "next-attack-advantage",
       kind: "debuff",
       label: "Prossimo attacco: vant.",
-      detail: "Il prossimo attacco contro il bersaglio dispone di vantaggio; rimuovere la pill dopo l'attacco.",
+      detail: "Il prossimo attacco contro il bersaglio dispone di vantaggio; rimuovere l'etichetta dopo l'attacco.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "guiding-bolt-next-attack-advantage", label: "Pross. attacco: vant." }),
       ]),
@@ -1096,7 +1096,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "saving-throw-bonus",
       kind: "buff",
       label: "+1d4 TS",
-      detail: "Aggiunge 1d4 a un tiro salvezza; rimuovere la pill dopo l'uso.",
+      detail: "Aggiunge 1d4 a un tiro salvezza; rimuovere l'etichetta dopo l'uso.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "resistance-saving-throw-bonus", label: "TS +1d4" }),
       ]),
@@ -1144,7 +1144,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "first-attack-advantage",
       kind: "debuff",
       label: "Primo attacco: vant.",
-      detail: "Il primo attacco del caster contro il bersaglio dispone di vantaggio; rimuovere la pill dopo l'attacco.",
+      detail: "Il primo attacco del caster contro il bersaglio dispone di vantaggio; rimuovere l'etichetta dopo l'attacco.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "true-strike-first-attack-advantage", label: "Primo attacco: vant." }),
       ]),
@@ -1157,7 +1157,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "movement-triggered-thunder-damage",
       kind: "debuff",
       label: "Movimento: danni tuono",
-      detail: "Se il bersaglio si muove di almeno 1,5 metri, subisce i danni da tuono; rimuovere la pill dopo l'attivazione.",
+      detail: "Se il bersaglio si muove di almeno 1,5 metri, subisce i danni da tuono; rimuovere l'etichetta dopo l'attivazione.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "booming-blade-movement-trigger", label: "Movimento: danni tuono" }),
       ]),
@@ -1171,7 +1171,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "next-saving-throw-penalty",
       kind: "debuff",
       label: "-1d4 prossimo TS",
-      detail: "Sottrae 1d4 al prossimo tiro salvezza; rimuovere la pill dopo il tiro.",
+      detail: "Sottrae 1d4 al prossimo tiro salvezza; rimuovere l'etichetta dopo il tiro.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "mind-shard-next-saving-throw-penalty", label: "Pross. TS −1d4" }),
       ]),
@@ -1236,7 +1236,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "enthrall-perception-disadvantage",
       kind: "debuff",
       label: "Svant. Percezione verso altri",
-      detail: "Svantaggio alle prove di Saggezza (Percezione) per notare creature diverse dal caster, finché la spell dura o finché non può più sentirlo.",
+      detail: "Svantaggio alle prove di Saggezza (Percezione) per notare creature diverse dal caster, finché l'incantesimo dura o finché non può più sentirlo.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "enthrall-perception-disadvantage", label: "Svant. Percezione" }),
       ]),
@@ -1283,7 +1283,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "levitate-lifted",
       kind: "debuff",
       label: "Levita: ±6 m in verticale",
-      detail: "Fluttua in verticale: il caster può alzarlo o abbassarlo fino a 6 metri per turno. Si sposta in orizzontale solo spingendo o tirando un oggetto o una superficie a portata, come se scalasse; a fine spell scende dolcemente a terra.",
+      detail: "Fluttua in verticale: il caster può alzarlo o abbassarlo fino a 6 metri per turno. Si sposta in orizzontale solo spingendo o tirando un oggetto o una superficie a portata, come se scalasse; alla fine dell'incantesimo scende dolcemente a terra.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "levitate-vertical", label: "±6 m in verticale" }),
         Object.freeze({ id: "levitate-horizontal-by-pushing", label: "Orizzontale solo spingendo" }),
@@ -1297,7 +1297,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "suggestion-compelled",
       kind: "debuff",
       label: "Segue la suggestione",
-      detail: "Segue il corso d'azione suggerito dal caster finché la spell dura o finché non lo ha completato. Termina se il caster o un suo compagno lo danneggia: rimuovere la pill.",
+      detail: "Segue il corso d'azione suggerito dal caster finché l'incantesimo dura o finché non lo ha completato. Termina se il caster o un suo compagno lo danneggia: rimuovere l'etichetta.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "suggestion-follows", label: "Segue il suggerimento" }),
         Object.freeze({ id: "suggestion-ends-on-ally-damage", label: "Danno dal caster o alleati: fine" }),
@@ -1312,7 +1312,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "mass-suggestion-compelled",
       kind: "debuff",
       label: "Segue la suggestione",
-      detail: "Segue il corso d'azione suggerito dal caster per 24 ore o finché non lo ha completato. Per questa creatura termina se il caster o un suo compagno la danneggia: rimuovere la pill.",
+      detail: "Segue il corso d'azione suggerito dal caster per 24 ore o finché non lo ha completato. Per questa creatura termina se il caster o un suo compagno la danneggia: rimuovere l'etichetta.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "mass-suggestion-follows", label: "Segue il suggerimento" }),
         Object.freeze({ id: "mass-suggestion-ends-on-ally-damage", label: "Danno dal caster o alleati: fine" }),
@@ -1380,7 +1380,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "awaken-charmed",
       kind: "debuff",
       label: "Affascinato dal caster",
-      detail: "La bestia o il vegetale risvegliato ha Intelligenza 10 ed è affascinato dal caster per 30 giorni. Termina prima se il caster o un suo compagno gli fanno qualcosa di dannoso: rimuovere la pill. Dopo, sceglie da sé se restare amichevole.",
+      detail: "La bestia o il vegetale risvegliato ha Intelligenza 10 ed è affascinato dal caster per 30 giorni. Termina prima se il caster o un suo compagno gli fanno qualcosa di dannoso: rimuovere l'etichetta. Dopo, sceglie da sé se restare amichevole.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "awaken-charmed-by-caster", label: "Affascinato dal caster" }),
         Object.freeze({ id: "awaken-ends-on-harm", label: "Danno dal caster o alleati: fine" }),
@@ -1395,7 +1395,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "maze-banished",
       kind: "debuff",
       label: "Nel labirinto",
-      detail: "Esiliato in un semipiano labirintico finché dura la spell. Con un'azione può tentare di uscire con una prova di Intelligenza CD 20: se riesce, la spell termina e ricompare dove era (o nello spazio libero più vicino). Minotauri e demoni goristro riescono automaticamente.",
+      detail: "Esiliato in un semipiano labirintico finché dura l'incantesimo. Con un'azione può tentare di uscire con una prova di Intelligenza CD 20: se riesce, l'incantesimo termina e ricompare dove era (o nello spazio libero più vicino). Minotauri e demoni goristro riescono automaticamente.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "maze-banished-state", label: "Esiliato" }),
         Object.freeze({ id: "maze-escape-check", label: "Azione: prova Int CD 20" }),
@@ -1533,7 +1533,7 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
           id: `next-melee-hit-${type}`,
           kind: "buff",
           label: `+1d6 ${type} in mischia`,
-          detail: `Il prossimo colpo in mischia nel turno successivo infligge 1d6 danni da ${type}; rimuovere la pill dopo il colpo.`,
+          detail: `Il prossimo colpo in mischia nel turno successivo infligge 1d6 danni da ${type}; rimuovere l'etichetta dopo il colpo.`,
           summaryParts: Object.freeze([
             Object.freeze({
               id: `absorb-elements-melee-damage-${type}`,

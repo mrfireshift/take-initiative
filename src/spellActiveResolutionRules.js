@@ -208,7 +208,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
         {
           id: "eyebite-resisted",
           label: "Immune a Sguardo penetrante",
-          detail: "Ha superato un TS contro questo lancio e non può più essere bersagliato finché la spell resta attiva.",
+          detail: "Ha superato un TS contro questo lancio e non può più essere bersagliato finché l'incantesimo resta attivo.",
           expiry: { mode: "concentration" },
         },
       ],
@@ -1040,7 +1040,7 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
         {
           id: "maximilian-earth-grasp-restrained",
           label: "Trattenuto",
-          detail: "La mano di terra trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+          detail: "La mano di terra trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD dell'incantesimo e liberarsi.",
           summaryParts: [
             { id: "maximilian-escape-action", label: "Azione: prova For" },
           ],

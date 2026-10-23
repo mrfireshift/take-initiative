@@ -1915,7 +1915,7 @@ function makeHistoryBtn() {
   const b = document.createElement("button");
   b.type = "button";
   b.dataset.history = "1";
-  b.title = "Registro combattimento e Undo (solo GM)";
+  b.title = "Registro combattimento e cronologia (solo GM)";
   Object.assign(b.style, {
     width: "24px",
     height: "24px",
@@ -6350,7 +6350,7 @@ async function applyGroupHPMaxDelta(itemId, delta) {
     fields: ["hp", "hpMax", "conditions", SPELLS_META_KEY, CONC_META_KEY],
   }, async () => { hpMutation = await updateMultipleHP(updates); });
   if (historyResult?.partial) {
-    try { await OBR.notification.show("HP applicati parzialmente; usa History/Undo prima di ripetere.", "WARNING"); }
+    try { await OBR.notification.show("HP applicati parzialmente; usa la cronologia per annullare prima di ripetere.", "WARNING"); }
     catch (error) { console.warn("[hp] partial commit notification:", error); }
   }
 
@@ -6835,7 +6835,7 @@ function bindHPEditorForEntry(
         }
       });
       if (historyResult?.partial) {
-        try { await OBR.notification.show("HP applicati parzialmente; usa History/Undo prima di ripetere.", "WARNING"); }
+        try { await OBR.notification.show("HP applicati parzialmente; usa la cronologia per annullare prima di ripetere.", "WARNING"); }
         catch (error) { console.warn("[hp] partial commit notification:", error); }
       }
     }),

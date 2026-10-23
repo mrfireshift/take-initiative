@@ -265,7 +265,7 @@ export function clearHistoryEntries(historyValue, options = {}) {
 function serializedError(error) {
   return {
     name: String(error?.name || "Error"),
-    message: String(error?.message || error || "History owner command failed."),
+    message: String(error?.message || error || "Comando del gestore della cronologia non riuscito."),
   };
 }
 

@@ -151,7 +151,7 @@ function validateVersion(version, format) {
   }
   throw new CombatLogStorageError(
     COMBAT_LOG_STORAGE_ERROR_CODES.INVALID_FILE,
-    "Formato Combat Log non riconosciuto.",
+    "Formato del registro combattimento non riconosciuto.",
   );
 }
 
@@ -161,7 +161,7 @@ export function normalizeCombatLogStorageBundle(input, options = {}) {
   if (!isObject(parsed)) {
     throw new CombatLogStorageError(
       COMBAT_LOG_STORAGE_ERROR_CODES.INVALID_FILE,
-      "Il bundle Combat Log deve essere un oggetto JSON.",
+      "Il bundle del registro combattimento deve essere un oggetto JSON.",
     );
   }
   const version = finiteNumber(parsed.version);

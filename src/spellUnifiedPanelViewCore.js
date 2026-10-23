@@ -349,7 +349,7 @@ function spatialRuleLabel(spatial = null) {
         : "";
     return primary
       ? `Destinazione entro ${primary} m${passenger ? ` · ${passenger}` : ""}`
-      : "Destinazione entro la portata della spell";
+      : "Destinazione entro la portata dell'incantesimo";
   }
   return "";
 }

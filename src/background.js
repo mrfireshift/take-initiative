@@ -166,7 +166,7 @@ async function mountHistoryUndoTool() {
     shortcut: HISTORY_UNDO_TOOL_SHORTCUT,
     icons: [{
       icon: "/history.svg",
-      label: "Undo Take Initiative",
+      label: "Annulla (Take Initiative)",
       filter: { roles: ["GM"] },
     }],
     onClick: () => {

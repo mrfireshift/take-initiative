@@ -435,7 +435,7 @@ test("Ragnatela e Raggio Lunare dichiarano i trigger periodici pilota", () => {
   assert.equal(moonbeam.zonePolicy.triggers[0].damage.onSave, "half");
   assert.equal(
     moonbeam.zonePolicy.triggers[0].failureEffect,
-    "Danni radiosi della spell (metà se superato).",
+    "Danni radiosi dell'incantesimo (metà se superato).",
   );
   assert.equal(SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED, true);
 });

@@ -746,7 +746,7 @@ function triggerFrom(command, runtime) {
 async function buildPlan(command, runtime) {
   const spellId = text(command?.spell?.spellId);
   const spell = getSpellDefinition(spellId);
-  if (!spell) return { valid: false, errors: [{ code: "spell-not-found", message: "Spell non trovato." }] };
+  if (!spell) return { valid: false, errors: [{ code: "spell-not-found", message: "Incantesimo non trovato." }] };
   const teleportRule = getSpellTeleportRule(spell.id);
   const commandTargetIds = uniqueIds(command?.targeting?.targetIds);
   const passengerId = text(
@@ -2012,7 +2012,7 @@ export async function buildSpellAreaResolutionExecutionPlan(
   if (command?.type !== SPELL_AREA_RESOLUTION_COMMAND_TYPE) {
     return {
       valid: false,
-      errors: [{ code: "command-type-invalid", message: "Comando spell ad area non valido." }],
+      errors: [{ code: "command-type-invalid", message: "Comando di incantesimo ad area non valido." }],
     };
   }
   const runtime = defaultRuntime(runtimeDependencies);
@@ -2312,7 +2312,7 @@ export async function executeSpellAreaResolution(
             kind: isTeleport ? "spell" : "save-resolution",
             label: isTeleport
               ? `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Passo Velato"}`
-              : "Effetti collegati alla risoluzione spell",
+              : "Effetti collegati alla risoluzione dell'incantesimo",
             targetIds: uniqueIds([
               ...plan.ids,
               ...plan.effectSubjectIds,

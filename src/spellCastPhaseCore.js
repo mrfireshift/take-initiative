@@ -95,7 +95,7 @@ const PHASED_SPELLS = Object.freeze({
     prepared: (slot) => freezeEffect({
       id: "branding-smite-ready",
       label: `Prossimo colpo / +${slot}d6 radiosi / bagliore astrale`,
-      detail: `Il prossimo colpo con arma infligge ${slot}d6 radiosi extra e rende il bersaglio visibile, impedendogli di diventare invisibile finché dura la spell.`,
+      detail: `Il prossimo colpo con arma infligge ${slot}d6 radiosi extra e rende il bersaglio visibile, impedendogli di diventare invisibile finché dura l'incantesimo.`,
       summaryParts: Object.freeze([
         Object.freeze({ id: "branding-smite-trigger", label: "Pross. colpo" }),
         Object.freeze({ id: "branding-smite-trigger-damage", label: `+${slot}d6 radiosi` }),

@@ -2799,7 +2799,7 @@ if (!payload) {
         selectedTelekinesisTarget = "";
         telekinesisOutcome = "";
         busy = false;
-        setStatus("Scena cambiata: riapri la risoluzione dal pannello Spells.", true);
+        setStatus("Scena cambiata: riapri la risoluzione dal pannello Incantesimi.", true);
         render();
       } else if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
         placement = null;

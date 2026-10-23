@@ -757,7 +757,7 @@ test("Raggio Lunare conserva il suggerimento danno nel trigger", () => {
   assert.equal(turnStart.newActivations[0].damage.onSave, "half");
   assert.equal(
     turnStart.newActivations[0].failureEffect,
-    "Danni radiosi della spell (metà se superato).",
+    "Danni radiosi dell'incantesimo (metà se superato).",
   );
   assert.equal(turnStart.newActivations[0].ruleChoice, "damage");
 });

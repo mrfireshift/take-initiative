@@ -42,11 +42,11 @@ test("Alt+Z host-level vive come Tool stateless nella barra principale", () => {
 
 test("pannello Undo espone un reset completo GM-only tramite History Owner", () => {
   assert.match(modalSource, /import \{ requestHistoryOwnerClear \} from "\.\/historyOwner\.js";/u);
-  assert.match(modalSource, /button\("Azzera Undo", "danger"\)/u);
-  assert.match(modalSource, /Azzerare tutta la cronologia Undo\?/u);
-  assert.match(modalSource, /non modifica la scena né il Combat Log/u);
+  assert.match(modalSource, /button\("Azzera la cronologia", "danger"\)/u);
+  assert.match(modalSource, /Azzerare tutta la cronologia\?/u);
+  assert.match(modalSource, /non modifica la scena né il registro combattimento/u);
   assert.match(modalSource, /requestHistoryOwnerClear\(\{[\s\S]*?sceneEpoch: operation\.epoch,[\s\S]*?\}\)/u);
-  assert.match(modalSource, /Cronologia Undo azzerata\. La scena e il Combat Log non sono stati modificati\./u);
+  assert.match(modalSource, /Cronologia azzerata\. La scena e il registro combattimento non sono stati modificati\./u);
 });
 
 test("History pending si rivaluta live senza richiedere reload del modal", () => {

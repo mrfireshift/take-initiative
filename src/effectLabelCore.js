@@ -26,7 +26,7 @@ const COMPACT_EFFECT_LABELS = Object.freeze({
   "Localizzato · invis. inefficace": "Localizzato / no invis.",
   "Oscurato · Res. radiosi · ritorsione": "Oscurato / Res. radiosi / ritorsione",
   "Prossimo attacco con arma: svant.": "Prossimo attacco: svant.",
-  "Vel. max 3m · svantaggi · rischio spell": "Vel. 3m / svantaggi / TS per spell",
+  "Vel. max 3m · svantaggi · rischio incantesimi": "Vel. 3m / svantaggi / TS per incantesimi",
   "-1d6 Att/prove/TS concentrazione": "-1d6 Att/prove/TS",
   "1 attacco: vant. · +1d8 forza": "1 attacco: vant. / +1d8 forza",
   "Tenser: 50 PFt · vant. · +2d12 forza": "50 PFt / vant. / +2d12 forza",

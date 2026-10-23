@@ -163,7 +163,7 @@ export function getSpellUnifiedAreaEligibility(contract = null, session = {}) {
   if (phase === "prepare") {
     return reject(
       SPELL_UNIFIED_AREA_ERROR_CODES.PREPARED_NOT_SUPPORTED,
-      "La risoluzione delle spell preparate resta separata.",
+      "La risoluzione degli incantesimi preparati resta separata.",
     );
   }
   if (phase === "resolve") {
@@ -530,7 +530,7 @@ export async function undoSpellUnifiedArea({ session = {}, runtime = {} } = {}) 
       status: SPELL_UNIFIED_AREA_STATUS.REJECTED,
       errors: [{
         code: SPELL_UNIFIED_AREA_ERROR_CODES.UNDO_UNAVAILABLE,
-        message: "L'ultima applicazione non è più disponibile per Undo.",
+        message: "L'ultima applicazione non è più disponibile per l'annullamento.",
       }],
     };
   }
@@ -546,7 +546,7 @@ export async function undoSpellUnifiedArea({ session = {}, runtime = {} } = {}) 
       status: SPELL_UNIFIED_AREA_STATUS.REJECTED,
       errors: [{
         code: SPELL_UNIFIED_AREA_ERROR_CODES.UNDO_API_UNAVAILABLE,
-        message: "L'API condivisa di Undo non è disponibile.",
+        message: "L'API condivisa di annullamento non è disponibile.",
       }],
     };
   }
@@ -565,7 +565,7 @@ export async function undoSpellUnifiedArea({ session = {}, runtime = {} } = {}) 
           historyEntryId,
           errors: [{
             code: SPELL_UNIFIED_AREA_ERROR_CODES.UNDO_FAILED,
-            message: "Undo non ha ripristinato l'ultima applicazione.",
+            message: "L'annullamento non ha ripristinato l'ultima applicazione.",
           }],
         }),
         status: SPELL_UNIFIED_AREA_STATUS.FAILED,

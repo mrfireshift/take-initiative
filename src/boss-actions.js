@@ -51,7 +51,7 @@ export async function defaultBossActionUndo(entryId,{epoch}) {
   const entries=await getHistoryEntries();
   if(entries[entries.length-1]?.id!==entryId) return {ok:false,message:"Sono presenti modifiche successive: usa la Cronologia."};
   const outcome=normalizeHistoryUndoResult(await undoHistoryThrough(entryId,{sceneEpoch:epoch}));
-  return outcome.outcome===HISTORY_UNDO_OUTCOME.COMMITTED ? {ok:true} : {ok:false,message:"Undo non applicato: verifica la Cronologia."};
+  return outcome.outcome===HISTORY_UNDO_OUTCOME.COMMITTED ? {ok:true} : {ok:false,message:"Annullamento non applicato: verifica la Cronologia."};
 }
 
 export function bootBossActions(documentRef=document, overrides={}) {
@@ -649,7 +649,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({sourceId,actionId:active.action.id,seam,...active.binding});
       if(!lifecycle.isCurrent(operation))return;
-      setStatus(`${active.action.name}: ${bossActionResultSummary(result) || "registrata"}.${result.undoAvailable?"":result.historyPending?" History in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.manualText?"\nManuale: "+result.manualText:""}`);
+      setStatus(`${active.action.name}: ${bossActionResultSummary(result) || "registrata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.manualText?"\nManuale: "+result.manualText:""}`);
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
@@ -966,7 +966,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         const input=node("input");input.type="checkbox";input.id="boss-manual-confirmed";
         input.addEventListener("change",()=>{draft.manualConfirmed=input.checked;renderDraftState();});
         label.append(input,node("span","Ho risolto manualmente l’abilità e verificato le restrizioni."));step.appendChild(label);resolution.appendChild(step);
-        const row=node("div","","apply-row");row.appendChild(node("span",counted?"Registra solo l’uso: nessun effetto automatico.":"Registra l’uso in Cronologia e Combat Log: nessun effetto automatico, nessun contatore.","total"));
+        const row=node("div","","apply-row");row.appendChild(node("span",counted?"Registra solo l’uso: nessun effetto automatico.":"Registra l’uso in cronologia e nel registro combattimento: nessun effetto automatico, nessun contatore.","total"));
         const register=button("Registra uso","apply secondary");register.id="boss-register";register.dataset.resourceCommit="true";register.disabled=busy || !available(action);
         register.addEventListener("click",()=>{
           if(!available(action) || busy)return;
@@ -1201,7 +1201,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   function renderEffectEndResolution() {
     const action=draft.action,execution=action.execution;
     const form=node("form");form.id="boss-action-form";form.className="view";
-    form.appendChild(node("p",`d${execution.roll.die} · con ${execution.roll.threshold}+ l’effetto scelto termina · riuscita o fallita, il tentativo finisce nel Combat Log`,"stat-line"));
+    form.appendChild(node("p",`d${execution.roll.die} · con ${execution.roll.threshold}+ l’effetto scelto termina · riuscita o fallita, il tentativo finisce nel registro combattimento`,"stat-line"));
     const effects=effectsOnBoss();
     const list=node("div","","effect-choices");list.id="boss-effect-choices";list.setAttribute("role","group");list.setAttribute("aria-label",`Effetti attivi su ${presentation?.item?.name || "boss"}`);
     if(!effects.length)list.appendChild(node("p",`Nessun effetto attivo su ${presentation?.item?.name || "boss"}.`,"muted"));
@@ -1237,7 +1237,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const result=await runtime.executeBossAction({...validation.value,ignoredDefenses:ignoredFor(frozen.targetId),expectedDefenses:frozen.defenses,
         ...(frozen.collisionTargetId?{collisionIgnoredDefenses:ignoredFor(frozen.collisionTargetId),collisionExpectedDefenses:frozen.collisionDefenses}:{}),...active.binding});
       if(!lifecycle.isCurrent(operation))return;
-      setStatus(`${active.action.name}: ${bossActionResultSummary(result) || "applicata"}.${result.undoAvailable?"":result.historyPending?" History in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`);
+      setStatus(`${active.action.name}: ${bossActionResultSummary(result) || "applicata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`);
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
@@ -1252,7 +1252,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({...validation.value,...active.binding});
       if(!lifecycle.isCurrent(operation))return;
-      setStatus(`${active.action.name} ${bossActionResultSummary(result) || "registrata"}.${result.undoAvailable?"":result.historyPending?" History in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}`);
+      setStatus(`${active.action.name} ${bossActionResultSummary(result) || "registrata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}`);
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
@@ -1726,7 +1726,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         expectedMarkedIds:frozen.expectedMarkedIds,...(evasionAppliesTo(active.action.execution)?{expectedEvasionIds:frozen.expectedEvasionIds}:{}),
         ...(sequenceWarning(active.action)?{sequenceConfirmed:active.sequenceConfirmed===true}:{}),...active.binding});
       if(!lifecycle.isCurrent(operation))return;
-      setStatus(`${active.action.name}:\n${bossActionResultSummary(result) || "applicata"}${result.undoAvailable?"":result.historyPending?"\nHistory in attesa di conferma: non ripetere l’azione.":"\nVerifica la Cronologia per annullare."}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`);
+      setStatus(`${active.action.name}:\n${bossActionResultSummary(result) || "applicata"}${result.undoAvailable?"":result.historyPending?"\nCronologia in attesa di conferma: non ripetere l’azione.":"\nVerifica la Cronologia per annullare."}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`);
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
@@ -1750,7 +1750,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         ...(evasionAppliesTo(active.action.execution)?{expectedEvasion:frozen.evasion}:{}),...active.binding});
       if(!lifecycle.isCurrent(operation))return;
       const summary=bossActionResultSummary(result);
-      setStatus(`${active.action.name}: ${summary || "applicata"}.${result.undoAvailable?"":result.historyPending?" History in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.manualText?"\nManuale: "+result.manualText:""}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`);
+      setStatus(`${active.action.name}: ${summary || "applicata"}.${result.undoAvailable?"":result.historyPending?" Cronologia in attesa di conferma: non ripetere l’azione.":" Verifica la Cronologia per annullare."}${result.manualText?"\nManuale: "+result.manualText:""}${result.warnings?.length?"\n"+result.warnings.join("\n"):""}`);
       showUndo(result);
       if(draft===active)closeDraft({persist:false});
       await refresh(operation);
@@ -1862,7 +1862,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const bound=await runtime.bindBossActionProfile(sourceId,profile);
     const added=bound?.auraChange?.added || [],updated=bound?.auraChange?.updated || [],removed=bound?.auraChange?.removed || [];
     if(lifecycle.isCurrent(operation)){await refresh(operation);setView("list");
-      setStatus(`Profilo collegato. HP del token preservati.${added.length?` Aure attivate sul token: ${added.join(", ")}.`:""}${updated.length?` Aure allineate al profilo (bersagli, pill, promemoria; raggio e colori restano i tuoi): ${updated.join(", ")}.`:""}${removed.length?` Aure rimosse: ${removed.join(", ")}.`:""}`);}
+      setStatus(`Profilo collegato. HP del token preservati.${added.length?` Aure attivate sul token: ${added.join(", ")}.`:""}${updated.length?` Aure allineate al profilo (bersagli, etichette, promemoria; raggio e colori restano i tuoi): ${updated.join(", ")}.`:""}${removed.length?` Aure rimosse: ${removed.join(", ")}.`:""}`);}
   }));
   $("boss-unbind").addEventListener("click",()=>perform(async operation=>{
     const unbound=await runtime.unbindBossActionProfile(sourceId);
@@ -1909,7 +1909,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     return perform(async operation=>{
       const outcome=await undoEntry(entry.historyEntryId,{epoch:operation.epoch});
       if(!lifecycle.isCurrent(operation))return;
-      showUndo(null);setStatus(outcome?.ok?"Ultima azione annullata.":outcome?.message || "Undo non applicato.");
+      showUndo(null);setStatus(outcome?.ok?"Ultima azione annullata.":outcome?.message || "Annullamento non applicato.");
       await refresh(operation,{preserveResolution:true});
     });
   });

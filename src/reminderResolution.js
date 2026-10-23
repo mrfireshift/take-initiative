@@ -42,7 +42,7 @@ function resolutionIsCurrent(sceneEpoch, generation) {
 function staleResolutionResult() {
   return {
     status: "stale",
-    message: "La scena è cambiata: il reminder non è più corrente. Puoi chiuderlo.",
+    message: "La scena è cambiata: il promemoria non è più corrente. Puoi chiuderlo.",
   };
 }
 
@@ -208,9 +208,9 @@ function createResolutionAttemptId() {
 function staleMessage(result) {
   const reason = String(result?.reason || result?.conflicts?.[0]?.reason || "");
   if (reason.includes("scene") || reason.includes("epoch")) {
-    return "La scena o il turno sono cambiati: il reminder non è più corrente. Puoi chiuderlo.";
+    return "La scena o il turno sono cambiati: il promemoria non è più corrente. Puoi chiuderlo.";
   }
-  return "Il reminder non è più corrente. Nessuna conseguenza è stata applicata; puoi chiuderlo.";
+  return "Il promemoria non è più corrente. Nessuna conseguenza è stata applicata; puoi chiuderlo.";
 }
 
 function reminderDamageFactor(value) {
@@ -470,7 +470,7 @@ async function completeReminderResolution({
   if (mutation?.commitResult?.sideEffectsPending?.length) {
     return {
       status: "applied",
-      message: "Reminder risolto; la chiusura visuale dell'attivazione sarà completata dal coordinatore.",
+      message: "Promemoria risolto; la chiusura visuale dell'attivazione sarà completata dal coordinatore.",
       mutation,
       plan,
     };
@@ -478,7 +478,7 @@ async function completeReminderResolution({
   return {
     status: "applied",
     message: plan.resolutionMode === "consume"
-      ? "Reminder chiuso."
+      ? "Promemoria chiuso."
       : plan.turbineChain?.capture === true
         ? "Risolto: Fallito · Trattenuto."
       : `Risolto: ${outcomeLabel}.`,
@@ -499,7 +499,7 @@ async function executeReminderResolution({
   const resolutionAttemptId = createResolutionAttemptId();
   const generation = reminderResolutionGeneration;
   if (await OBR.player.getRole().catch(() => "PLAYER") !== "GM") {
-    return { status: "forbidden", message: "Solo il GM può risolvere un reminder." };
+    return { status: "forbidden", message: "Solo il GM può risolvere un promemoria." };
   }
   if (!resolutionIsCurrent(sceneEpoch, generation)) return staleResolutionResult();
   if (!await OBR.scene.isReady().catch(() => false)) {

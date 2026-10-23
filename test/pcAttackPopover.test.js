@@ -264,7 +264,7 @@ test("a cantrip action: pick the cantrip, its dice follow the character level, n
   assert.equal(f.$("pc-attack-subtitle").textContent, "Aria · Trucchetto · Mischia");
   assert.match(textOf(f.$("pc-attack-damage")), /Fulmine 2d8/);
   assert.equal(f.$("pc-attack-cantrip-note").textContent,
-    "Vantaggio al tiro per colpire contro un bersaglio con armatura di metallo. Al colpo: pill «Niente reazioni».");
+    "Vantaggio al tiro per colpire contro un bersaglio con armatura di metallo. Al colpo: etichetta «Niente reazioni».");
   await f.select(["ghoul"]);
   await f.outcome("hit").click();
   await typeAmounts(f, ["9"]);
@@ -340,7 +340,7 @@ test("weapon cantrips in a melee weapon attack: Booming Blade's pill note, Green
   assert.equal(woven.hidden, false);
   assert.deepEqual(field("spell").children.map((option) => option.textContent), ["Nessuno", "Lama Roboante", "Lama Verdefiamma"]);
   field("spell").value = "tasha-lama-roboante"; await field("spell").emit("change");
-  assert.match(field("meta").textContent, /1d8 tuono · pill «Movimento: danni tuono» \(2d8\)/);
+  assert.match(field("meta").textContent, /1d8 tuono · etichetta «Movimento: danni tuono» \(2d8\)/);
   assert.equal(field("amount").hidden, false);
   field("spell").value = "tasha-lama-verdefiamma"; await field("spell").emit("change");
   assert.deepEqual(field("secondary").children.map((option) => option.value), ["", "imp"], "the target is never its own second creature");

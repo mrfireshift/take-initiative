@@ -266,7 +266,7 @@ test("Ispirazione Contagiosa riusa identità, dado, stacking e lifecycle dell'Is
   assert.equal(pill.parentEffectId, "contagious-1");
   assert.deepEqual(pill.expiry, { mode: "rounds", remaining: 100 });
 
-  const infallibleDetail = "Ispirazione Bardica d6/d8/d10/d12: usa dopo il d20 e prima dell'esito su prova, attacco o TS. Se il tiro fallisce, conserva il dado; rimuovi la pill soltanto quando il dado è consumato con successo o scade.";
+  const infallibleDetail = "Ispirazione Bardica d6/d8/d10/d12: usa dopo il d20 e prima dell'esito su prova, attacco o TS. Se il tiro fallisce, conserva il dado; rimuovi l'etichetta soltanto quando il dado è consumato con successo o scade.";
   const [infalliblePill] = classFeatureConditionInstancesForActivation(
     {
       ...feature(BASE_INSPIRATION),

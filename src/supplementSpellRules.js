@@ -94,7 +94,7 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
     conditionOptions: Object.freeze({
       Trattenuto: Object.freeze({
         effectId: "watery-sphere-restrained",
-        effectDetail: "La sfera trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+        effectDetail: "La sfera trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD dell'incantesimo e liberarsi.",
         summaryParts: Object.freeze([
           Object.freeze({ id: "watery-sphere-escape-action", label: "Azione: prova For" }),
         ]),
@@ -181,7 +181,7 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
       effectId: "watery-sphere-restrained",
-      effectDetail: "La sfera trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+      effectDetail: "La sfera trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD dell'incantesimo e liberarsi.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "watery-sphere-escape-action", label: "Azione: prova For" }),
       ]),
@@ -223,7 +223,7 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
       effectId: "maximilian-earth-grasp-restrained",
-      effectDetail: "La mano di terra trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+      effectDetail: "La mano di terra trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD dell'incantesimo e liberarsi.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "maximilian-escape-action", label: "Azione: prova For" }),
       ]),
@@ -240,7 +240,7 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
       condition: "In fiamme · 4d6 a fine turno",
       effectId: "immolation-burning",
       effectKind: "debuff",
-      effectDetail: "A fine turno ripete il TS Destrezza: 4d6 fuoco se fallisce, fine della spell se supera.",
+      effectDetail: "A fine turno ripete il TS Destrezza: 4d6 fuoco se fallisce, fine dell'incantesimo se supera.",
       summaryParts: Object.freeze([
         Object.freeze({ id: "immolation-fire-damage", label: "4d6 fuoco/fine turno" }),
       ]),
@@ -255,7 +255,7 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
           type: "fuoco",
           onSave: "none",
         }),
-        label: "4d6 fuoco se fallisce; se supera, termina la spell.",
+        label: "4d6 fuoco se fallisce; se supera, termina l'incantesimo.",
       }),
       manualRemoval: true,
       endsParentOnRemoval: true,
@@ -321,7 +321,7 @@ export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({
         id: "wrath-of-nature-vines-restrained",
         kind: "debuff",
         label: "Trattenuto",
-        detail: "Può usare un'azione per effettuare una prova di Forza (Atletica) contro la CD della spell e liberarsi.",
+        detail: "Può usare un'azione per effettuare una prova di Forza (Atletica) contro la CD dell'incantesimo e liberarsi.",
         summaryParts: Object.freeze([
           Object.freeze({ id: "wrath-of-nature-escape-action", label: "Azione: prova For" }),
         ]),
@@ -491,7 +491,7 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     id: "invulnerability-immunity",
     kind: "buff",
     label: "Immune a tutti i danni",
-    detail: "Immunità a tutti i danni finché la spell dura.",
+    detail: "Immunità a tutti i danni finché l'incantesimo dura.",
     summaryParts: Object.freeze([
       Object.freeze({ id: "damage-defense-immunity-all", label: "Imm. tutti i danni" }),
     ]),
@@ -503,7 +503,7 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     id: "mental-prison-link",
     kind: "debuff",
     label: "Isolamento illusorio",
-    detail: "Il bersaglio non può vedere né sentire nulla oltre l'illusione. Se viene mosso fuori, attacca in mischia attraverso l'illusione o vi protende una parte del corpo, subisce 10d10 psichici e la spell termina.",
+    detail: "Il bersaglio non può vedere né sentire nulla oltre l'illusione. Se viene mosso fuori, attacca in mischia attraverso l'illusione o vi protende una parte del corpo, subisce 10d10 psichici e l'incantesimo termina.",
     summaryParts: Object.freeze([
       Object.freeze({ id: "mental-prison-senses", label: "Non vede/sente oltre l'illusione" }),
       Object.freeze({ id: "mental-prison-break", label: "Attraversamento: 10d10 e fine" }),
@@ -572,7 +572,7 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     id: "immolation-burning",
     kind: "debuff",
     label: "In fiamme · 4d6 a fine turno",
-    detail: "A fine turno ripete il TS Destrezza: 4d6 fuoco se fallisce, fine della spell se supera.",
+    detail: "A fine turno ripete il TS Destrezza: 4d6 fuoco se fallisce, fine dell'incantesimo se supera.",
     summaryParts: Object.freeze([
       Object.freeze({ id: "immolation-end-turn-save", label: "TS Des fine turno" }),
       Object.freeze({ id: "immolation-fire-damage", label: "4d6 fuoco" }),
@@ -587,7 +587,7 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
         type: "fuoco",
         onSave: "none",
       }),
-      label: "4d6 fuoco se fallisce; se supera, termina la spell.",
+      label: "4d6 fuoco se fallisce; se supera, termina l'incantesimo.",
     }),
     manualRemoval: true,
     endsParentOnRemoval: true,
@@ -704,7 +704,7 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
   "xanathar-parola-del-potere-dolore": Object.freeze([Object.freeze({
     id: "power-word-pain",
     kind: "debuff",
-    label: "Vel. max 3m · svantaggi · rischio spell",
+    label: "Vel. max 3m · svantaggi · rischio incantesimi",
     detail: "Velocità massima 3 metri, svantaggio ad attacchi, prove e TS non-Cos; TS Cos per lanciare incantesimi. TS Cos a fine turno per terminare.",
     summaryParts: Object.freeze([
       Object.freeze({ id: "power-word-pain-speed-limit", label: "Vel max 3m" }),

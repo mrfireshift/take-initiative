@@ -4502,7 +4502,7 @@ export async function undoEffectsMutation(entryOrEntries, options = {}) {
   }
   if (!effectsMutationCoordinator) return compatibilityPlan(backgroundResultError(
     commandId,
-    "Coordinatore Undo background non inizializzato.",
+    "Coordinatore degli annullamenti in background non inizializzato.",
   ));
   const result = await effectsMutationCoordinator.enqueueUndo(serializableEntries, {
     ...serializableOptions,

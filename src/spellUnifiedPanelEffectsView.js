@@ -589,7 +589,7 @@ export function renderReviewFooter(documentRef, model, callbacks = {}) {
   });
   if (model.workflow.undo.capable && model.workflow.undo.available) {
     const undo = createButton(documentRef, {
-      label: "Undo",
+      label: "Annulla",
       className: "unified-secondary-button",
       disabled: model.workflow.undo.disabled,
       attributes: {

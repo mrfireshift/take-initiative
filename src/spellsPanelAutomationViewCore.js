@@ -75,7 +75,7 @@ export function buildSpellAutomationViewModel({
   );
   const effectLabels = previewPlan.effects.map((effect) => effect.label);
   const effectsLabel = effectLabels.length
-    ? " Pill effetto: " + effectLabels.join(", ") + "."
+    ? " Etichette effetto: " + effectLabels.join(", ") + "."
     : "";
   const durationLabel = spell.duration
     ? " Durata da catalogo: " + spell.duration + "."
@@ -85,7 +85,7 @@ export function buildSpellAutomationViewModel({
   const attackLabel = attackResolution
     ? ` Risoluzione assistita: ${attackResolution.outcomeLabel}. Danno iniziale manuale ${attackResolution.initialDamage.dice} (${attackResolution.initialDamage.factor === "half" ? "metà" : "pieno"}).`
       + (attackResolution.deferredEffect
-        ? ` Reminder successivo: ${attackResolution.deferredEffect.reminder}.`
+        ? ` Promemoria successivo: ${attackResolution.deferredEffect.reminder}.`
         : "")
     : "";
   const hasChoices = phasePlan.useCatalogAutomation && (
