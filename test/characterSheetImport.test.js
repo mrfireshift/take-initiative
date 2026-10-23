@@ -77,7 +77,10 @@ test("species in more than one manual: source picks the version, else the first 
   const dragonborn = read({ species: { name: "Dragonborn", ancestry: "Red" } });
   assert.deepEqual(dragonborn.sections.species, { id: "dragonide", ancestryId: "rosso" }, "English ancestry names too");
   assert.equal(dragonborn.unresolved.some((line) => /più manuali/.test(line)), false, "the Wildemount variant does not make Dragonborn ambiguous");
-  assert.deepEqual(read({ species: "Ravenite" }).sections.species, { id: "dragonide-wildemount", ancestryId: "ravenite" });
+  assert.deepEqual(read({ species: "Ravenite" }).sections.species, { id: "dragonide-wildemount", ancestryId: "" }, "the ancestry is still to choose");
+  assert.deepEqual(read({ species: "Ravenite Green" }).sections.species, { id: "dragonide-wildemount", ancestryId: "ravenite-verde" });
+  const fallen = read({ species: { name: "Aasimar", subrace: "Fallen" } });
+  assert.equal(fallen.unresolved.length, 0, "only the Volo aasimar has the Fallen subrace: no ambiguity");
   assert.deepEqual(read({ species: { name: "Sea Elf", source: "Wildemount" } }).sections.species, { id: "elfo-marino", ancestryId: "" });
   assert.deepEqual(read({ species: "Elf", gift: { name: "Hollow One" } }).sections.supernaturalGift, { id: "hollow-one" });
   assert.match(read({ supernaturalGift: "Nyxborn" }).unresolved[0], /dono soprannaturale "Nyxborn"/);

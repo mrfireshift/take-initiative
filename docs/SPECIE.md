@@ -12,7 +12,8 @@ senza specie. Nel profilo del token è il campo `supernaturalGift`, assente se
 non scelto; **Nessuno** lo cancella.
 
 Il catalogo segue le regole 2014 (mai le 2024). I testi sono sintesi in
-italiano scritte per il plugin: vanno verificati sul manuale indicato.
+italiano scritte per il plugin. Quali sono stati controllati sul testo dei
+manuali è nella sezione **Verifica sui manuali**.
 Il codice è in `src/speciesTraitCore.js`; le specie dalla tranche 2 in poi
 sono dichiarate in `src/speciesCatalogVoloMordenkainen.js`.
 
@@ -20,6 +21,55 @@ Una specie ristampata in un manuale successivo resta in entrambe le versioni,
 come i dragonidi del Manuale del Giocatore e di Fizban: nella tendina compare
 sotto ciascun manuale (per esempio Aasimar in Volo e in Mostri del
 Multiverso).
+
+## Verifica sui manuali
+
+Il 23 ottobre 2026 il catalogo è stato confrontato con il testo inglese di nove
+manuali, in Markdown. Regole, usi, riposi e difese sono verificati; **le pagine
+no**, perché i file non hanno la numerazione: restano quelle stimate.
+
+| Manuale | Stato |
+|---|---|
+| Manuale del Giocatore 2014 | Razze base verificate; sottorazze (colline e montagne, alto elfo, boschi, drow, piedelesto, tozzo, umano variante, foreste, rocce) assenti dal file |
+| Guida di Volo ai Mostri | Verificato (testo con le errata) |
+| Il Tomo dei Nemici di Mordenkainen | Verificato |
+| Guida del Giocatore alla Costa della Spada | Verificato |
+| Il Tesoro dei Draghi di Fizban | Verificato |
+| Calderone Omnicomprensivo di Tasha | Lignaggio personalizzato assente dal file |
+| Explorer's Guide to Wildemount | Verificato, tranne l'halfling lotusden (assente dal file); i genasi di Elemental Evil verificati sulla ristampa qui contenuta |
+| Eberron: Rising from the Last War | Verificati shifter, warforged e marchi; changeling e kalashtar compaiono solo come PNG |
+| Mordenkainen presenta: Mostri del Multiverso | Verificato; fata e harengon (voci di Witchlight) verificati su questo testo |
+
+Non forniti, quindi da verificare: Elemental Evil (aarakocra), Tortle Package,
+One Grung Above, Locathah Rising, Acquisitions Incorporated, Ravnica, Theros,
+Van Richten, Strixhaven, Spelljammer, Dragonlance.
+
+Correzioni fatte dopo il confronto:
+
+- **Dragonidi**: forma e tiro salvezza del soffio del Manuale del Giocatore
+  per ascendenza; soffio di Fizban a linea per i cromatici e a cono per gemma
+  e metallici; il soffio metallico sostituisce un attacco; aggiunta Mente
+  psionica ai dragonidi di gemma.
+- **Volo**: il goliath ha la resistenza al freddo (errata); testi di
+  Aggressivo, Strisciare piagnucolare e implorare, Guardiano degli abissi.
+- **Tomo dei Nemici**: l'eladrin ha le stagioni (CD e danno d'estate su
+  Carisma); le eredità dei tiefling prendono il nome dello strato degli Inferi;
+  il disco di Tenser di Mammon torna con il riposo breve; la Resilienza
+  duergar sostituisce la resilienza nanica.
+- **Costa della Spada**: aggiunto l'aasimar (Eredità celestiale).
+- **Wildemount**: draconblood e ravenite tengono ascendenza e arma a soffio e
+  perdono solo la resistenza (la seconda scelta è variante e ascendenza);
+  hollow one: Aggrapparsi alla vita (16 o più: 1 punto ferita), Presenza
+  inquietante con un'azione, su qualsiasi creatura non immune.
+- **Eberron**: marchio della scoperta con Saggezza; legame primordiale e
+  Comprensione dei linguaggi della scrittura tornano con il riposo breve;
+  strumenti da navigatore per il marchio della tempesta.
+- **Mostri del Multiverso**: la Rivelazione celestiale dell'aasimar si sceglie
+  al 3° livello (Anima radiosa, Consunzione radiosa, Sudario necrotico); tolta
+  la Memoria kenku, che sono due competenze; Scarica di adrenalina dell'orco con
+  il riposo lungo; elfo marino con resistenza al freddo; genasi della terra
+  senza Passare senza tracce; Caccia selvaggia dello shifter a 9 m; firbolg
+  anche più alto.
 
 ## Come funzionano i tratti
 
@@ -82,7 +132,7 @@ aumenti dei punteggi, competenze, linguaggi e scurovisione normale.
 |---|---|---|---|
 | Dragonide cromatico | nero, blu, verde, rosso, bianco | Resistenza (automatica), Arma a soffio (bonus di competenza/riposo lungo), Interdizione cromatica dal 5° | 20–21 |
 | Dragonide metallico | ottone, bronzo, rame, oro, argento | Resistenza (automatica), Arma a soffio, Arma a soffio metallica dal 5° | 20, 22 |
-| Dragonide di gemma | ametista, cristallo, smeraldo, zaffiro, topazio | Resistenza (automatica), Arma a soffio, Volo della gemma dal 5° | 20–21 |
+| Dragonide di gemma | ametista, cristallo, smeraldo, zaffiro, topazio | Resistenza (automatica), Arma a soffio, Mente psionica, Volo della gemma dal 5° | 20–21 |
 
 ## Tranche 2 — Volo, Tomo dei Nemici, Mostri del Multiverso
 
@@ -92,7 +142,7 @@ sono raccolte nella sezione dedicata in fondo.
 Nel Tomo dei Nemici eladrin, elfo marino e shadar-kai sono sottorazze
 dell'elfo, il duergar del nano e lo gnomo delle profondità dello gnomo: qui
 sono specie a sé, con il tratto della specie madre che conta in combattimento
-(Ascendenza fatata, Resilienza nanica, Astuzia gnomesca). Il tiefling del Tomo
+(Ascendenza fatata, Astuzia gnomesca; il duergar ha la sua Resilienza duergar). Il tiefling del Tomo
 è una specie con la **stirpe** come seconda scelta; il tiefling del Manuale del
 Giocatore resta com'era (equivale alla stirpe di Asmodeus).
 
@@ -100,15 +150,9 @@ Restano fuori, oltre a competenze e linguaggi: Costituzione possente (capacità
 di carico), Trance e Sensi acuti, Conoscenza astrale dei githyanki di Mostri
 del Multiverso (una competenza a scelta dopo il riposo lungo).
 
-Da controllare con più attenzione, perché il ricordo è meno sicuro:
-
-- **tutte le pagine di Mostri del Multiverso**, e le pagine delle singole
-  stirpi tiefling (21–23);
-- il danno del Morso del lucertoloide in Mostri del Multiverso (qui tagliente;
-  in Volo è perforante);
-- l'opzione Dispetto del Dono fatato dell'hobgoblin di Mostri del Multiverso;
-- l'Elfo marino di Mostri del Multiverso: qui senza resistenza al freddo;
-- i nomi italiani dei tratti, scritti senza il manuale italiano davanti.
+Da controllare: **tutte le pagine di Mostri del Multiverso** e quelle delle
+singole stirpi tiefling (21–23), e i nomi italiani dei tratti. Regole e testi
+sono verificati sui manuali (vedi **Verifica sui manuali**).
 
 ### Guida di Volo ai Mostri
 
@@ -162,42 +206,45 @@ Da controllare con più attenzione, perché il ricordo è meno sicuro:
 | Specie | Opzione | Tratto | Pag. | Uso | Liv. |
 |---|---|---|---|---|---|
 | Tiefling | — | Resistenza infernale | 21 | Passiva | 1 |
-| Tiefling | Tiefling di Asmodeus | Eredità di Asmodeus | 21 | Passiva | 1 |
-| Tiefling | Tiefling di Asmodeus | Eredità di Asmodeus: Intimorire infernale | 21 | Reazione · 1/riposo lungo | 3 |
-| Tiefling | Tiefling di Asmodeus | Eredità di Asmodeus: Oscurità | 21 | Azione · 1/riposo lungo | 5 |
-| Tiefling | Tiefling di Baalzebul | Eredità di Baalzebul | 21 | Passiva | 1 |
-| Tiefling | Tiefling di Baalzebul | Eredità di Baalzebul: Raggio di infermità | 21 | Azione · 1/riposo lungo | 3 |
-| Tiefling | Tiefling di Baalzebul | Eredità di Baalzebul: Corona di follia | 21 | Azione · 1/riposo lungo | 5 |
-| Tiefling | Tiefling di Dispater | Eredità di Dispater | 21 | Passiva | 1 |
-| Tiefling | Tiefling di Dispater | Eredità di Dispater: Camuffare se stesso | 21 | Azione · 1/riposo lungo | 3 |
-| Tiefling | Tiefling di Dispater | Eredità di Dispater: Individuazione dei pensieri | 21 | Azione · 1/riposo lungo | 5 |
-| Tiefling | Tiefling di Fierna | Eredità di Fierna | 22 | Passiva | 1 |
-| Tiefling | Tiefling di Fierna | Eredità di Fierna: Charme su persone | 22 | Azione · 1/riposo lungo | 3 |
-| Tiefling | Tiefling di Fierna | Eredità di Fierna: Suggestione | 22 | Azione · 1/riposo lungo | 5 |
-| Tiefling | Tiefling di Glasya | Eredità di Glasya | 22 | Passiva | 1 |
-| Tiefling | Tiefling di Glasya | Eredità di Glasya: Camuffare se stesso | 22 | Azione · 1/riposo lungo | 3 |
-| Tiefling | Tiefling di Glasya | Eredità di Glasya: Invisibilità | 22 | Azione · 1/riposo lungo | 5 |
-| Tiefling | Tiefling di Levistus | Eredità di Levistus | 22 | Passiva | 1 |
-| Tiefling | Tiefling di Levistus | Eredità di Levistus: Armatura di Agathys | 22 | Azione · 1/riposo lungo | 3 |
-| Tiefling | Tiefling di Levistus | Eredità di Levistus: Oscurità | 22 | Azione · 1/riposo lungo | 5 |
-| Tiefling | Tiefling di Mammon | Eredità di Mammon | 22 | Passiva | 1 |
-| Tiefling | Tiefling di Mammon | Eredità di Mammon: Disco fluttuante di Tenser | 22 | Azione · 1/riposo lungo | 3 |
-| Tiefling | Tiefling di Mammon | Eredità di Mammon: Serratura arcana | 22 | Azione · 1/riposo lungo | 5 |
-| Tiefling | Tiefling di Mefistofele | Eredità di Mefistofele | 23 | Passiva | 1 |
-| Tiefling | Tiefling di Mefistofele | Eredità di Mefistofele: Mani brucianti | 23 | Azione · 1/riposo lungo | 3 |
-| Tiefling | Tiefling di Mefistofele | Eredità di Mefistofele: Lama infuocata | 23 | Azione bonus · 1/riposo lungo | 5 |
-| Tiefling | Tiefling di Zariel | Eredità di Zariel | 23 | Passiva | 1 |
-| Tiefling | Tiefling di Zariel | Eredità di Zariel: Punizione incandescente | 23 | Azione bonus · 1/riposo lungo | 3 |
-| Tiefling | Tiefling di Zariel | Eredità di Zariel: Punizione marchiante | 23 | Azione bonus · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Asmodeus | Eredità infernale | 21 | Passiva | 1 |
+| Tiefling | Tiefling di Asmodeus | Eredità infernale: Intimorire infernale | 21 | Reazione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Asmodeus | Eredità infernale: Oscurità | 21 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Baalzebul | Eredità di Maladomini | 21 | Passiva | 1 |
+| Tiefling | Tiefling di Baalzebul | Eredità di Maladomini: Raggio di infermità | 21 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Baalzebul | Eredità di Maladomini: Corona di follia | 21 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Dispater | Eredità di Dis | 21 | Passiva | 1 |
+| Tiefling | Tiefling di Dispater | Eredità di Dis: Camuffare se stesso | 21 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Dispater | Eredità di Dis: Individuazione dei pensieri | 21 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Fierna | Eredità di Phlegethos | 22 | Passiva | 1 |
+| Tiefling | Tiefling di Fierna | Eredità di Phlegethos: Charme su persone | 22 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Fierna | Eredità di Phlegethos: Suggestione | 22 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Glasya | Eredità di Malbolge | 22 | Passiva | 1 |
+| Tiefling | Tiefling di Glasya | Eredità di Malbolge: Camuffare se stesso | 22 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Glasya | Eredità di Malbolge: Invisibilità | 22 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Levistus | Eredità di Stygia | 22 | Passiva | 1 |
+| Tiefling | Tiefling di Levistus | Eredità di Stygia: Armatura di Agathys | 22 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Levistus | Eredità di Stygia: Oscurità | 22 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Mammon | Eredità di Minauros | 22 | Passiva | 1 |
+| Tiefling | Tiefling di Mammon | Eredità di Minauros: Disco fluttuante di Tenser | 22 | Azione · 1/riposo breve | 3 |
+| Tiefling | Tiefling di Mammon | Eredità di Minauros: Serratura arcana | 22 | Azione · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Mefistofele | Eredità di Cania | 23 | Passiva | 1 |
+| Tiefling | Tiefling di Mefistofele | Eredità di Cania: Mani brucianti | 23 | Azione · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Mefistofele | Eredità di Cania: Lama infuocata | 23 | Azione bonus · 1/riposo lungo | 5 |
+| Tiefling | Tiefling di Zariel | Eredità di Avernus | 23 | Passiva | 1 |
+| Tiefling | Tiefling di Zariel | Eredità di Avernus: Punizione incandescente | 23 | Azione bonus · 1/riposo lungo | 3 |
+| Tiefling | Tiefling di Zariel | Eredità di Avernus: Punizione marchiante | 23 | Azione bonus · 1/riposo lungo | 5 |
 | Eladrin | — | Ascendenza fatata | 61 | Passiva | 1 |
 | Eladrin | — | Passo fatato | 61 | Azione bonus · 1/riposo breve | 1 |
+| Eladrin | Eladrin d'autunno | Passo fatato d'autunno | 61 | Passiva | 3 |
+| Eladrin | Eladrin d'inverno | Passo fatato d'inverno | 61 | Passiva | 3 |
+| Eladrin | Eladrin di primavera | Passo fatato di primavera | 61 | Passiva | 3 |
+| Eladrin | Eladrin d'estate | Passo fatato d'estate | 61 | Passiva | 3 |
 | Elfo marino | — | Ascendenza fatata | 62 | Passiva | 1 |
 | Elfo marino | — | Figlio del mare | 62 | Passiva | 1 |
 | Elfo marino | — | Amico del mare | 62 | Passiva | 1 |
 | Shadar-kai | — | Ascendenza fatata | 62 | Passiva | 1 |
 | Shadar-kai | — | Resistenza necrotica | 62 | Passiva | 1 |
 | Shadar-kai | — | Benedizione della Regina Corvo | 62 | Azione bonus · 1/riposo lungo | 1 |
-| Duergar | — | Resilienza nanica | 81 | Passiva | 1 |
 | Duergar | — | Resilienza duergar | 81 | Passiva | 1 |
 | Duergar | — | Magia duergar | 81 | Passiva | 1 |
 | Duergar | — | Magia duergar: Ingrandire | 81 | Azione · 1/riposo lungo | 3 |
@@ -231,6 +278,8 @@ Nella Costa della Spada:
   diavolo, fuoco infernale, alato); il tiefling ferino o dall'aspetto diverso
   cambia solo i punteggi e usa "Eredità infernale";
 - l'**halfling spettrale** è una specie a sé con i tratti dell'halfling;
+- l'**aasimar** della Costa della Spada ha Eredità celestiale (Luce, poi
+  Ristorare inferiore e Luce diurna), diversa dagli aasimar di Volo;
 - elfi del sole e della luna, nani dorati e dello scudo, halfling cuorforte:
   sono i nomi del Faerûn per alto elfo, nano delle colline e delle montagne,
   halfling tozzo; l'import li riconosce.
@@ -269,6 +318,10 @@ Da controllare con più attenzione:
 
 | Specie | Opzione | Tratto | Pag. | Uso | Liv. |
 |---|---|---|---|---|---|
+| Aasimar | — | Resistenza celestiale | 118 | Passiva | 1 |
+| Aasimar | — | Eredità celestiale | 118 | Passiva | 1 |
+| Aasimar | — | Eredità celestiale: Ristorare inferiore | 118 | Azione · 1/riposo lungo | 3 |
+| Aasimar | — | Eredità celestiale: Luce diurna | 118 | Azione · 1/riposo lungo | 5 |
 | Halfling spettrale | — | Fortunato | 110 | Passiva | 1 |
 | Halfling spettrale | — | Coraggioso | 110 | Passiva | 1 |
 | Halfling spettrale | — | Agilità halfling | 110 | Passiva | 1 |
@@ -320,8 +373,6 @@ Da controllare con più attenzione:
 
 - **tutte le pagine di Eberron**, in particolare quelle dei dodici marchi (qui
   tutti a p. 40), e quelle di changeling e shifter in Mostri del Multiverso;
-- il raggio di Caccia selvaggia: qui 9 m in Eberron e 3 m in Mostri del
-  Multiverso;
 - i nomi italiani dei marchi e dei loro tratti, scritti senza un manuale
   italiano di riferimento.
 
@@ -354,8 +405,8 @@ Da controllare con più attenzione:
 | Marchio del drago | Marchio del ritrovamento (mezzorco o umano) | Magia del cercatore: Localizza oggetto | 40 | Azione · 1/riposo lungo | 3 |
 | Marchio del drago | Marchio dell'addestramento (umano) | Intuizione selvaggia | 40 | Passiva | 1 |
 | Marchio del drago | Marchio dell'addestramento (umano) | Legame primordiale | 40 | Passiva | 1 |
-| Marchio del drago | Marchio dell'addestramento (umano) | Legame primordiale: Amicizia con gli animali | 40 | Azione · 1/riposo lungo | 1 |
-| Marchio del drago | Marchio dell'addestramento (umano) | Legame primordiale: Parlare con gli animali | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio dell'addestramento (umano) | Legame primordiale: Amicizia con gli animali | 40 | Azione · 1/riposo breve | 1 |
+| Marchio del drago | Marchio dell'addestramento (umano) | Legame primordiale: Parlare con gli animali | 40 | Azione · 1/riposo breve | 1 |
 | Marchio del drago | Marchio dell'addestramento (umano) | Più sono grossi | 40 | Passiva | 3 |
 | Marchio del drago | Marchio della guarigione (halfling) | Fortunato | 40 | Passiva | 1 |
 | Marchio del drago | Marchio della guarigione (halfling) | Coraggioso | 40 | Passiva | 1 |
@@ -380,7 +431,7 @@ Da controllare con più attenzione:
 | Marchio del drago | Marchio della scrittura (gnomo) | Astuzia gnomesca | 40 | Passiva | 1 |
 | Marchio del drago | Marchio della scrittura (gnomo) | Scrittore dotato | 40 | Passiva | 1 |
 | Marchio del drago | Marchio della scrittura (gnomo) | Intuizione dello scriba | 40 | Passiva | 1 |
-| Marchio del drago | Marchio della scrittura (gnomo) | Intuizione dello scriba: Comprensione dei linguaggi | 40 | Azione · 1/riposo lungo | 1 |
+| Marchio del drago | Marchio della scrittura (gnomo) | Intuizione dello scriba: Comprensione dei linguaggi | 40 | Azione · 1/riposo breve | 1 |
 | Marchio del drago | Marchio della scrittura (gnomo) | Intuizione dello scriba: Bocca magica | 40 | Azione · 1/riposo lungo | 3 |
 | Marchio del drago | Marchio della sentinella (umano) | Intuizione della sentinella | 40 | Passiva | 1 |
 | Marchio del drago | Marchio della sentinella (umano) | Scudo del guardiano: Scudo | 40 | Reazione · 1/riposo lungo | 1 |
@@ -494,8 +545,8 @@ scurovisione.
 Da controllare con più attenzione:
 
 - le pagine di Witchlight e Strixhaven;
-- che fata e harengon di Mostri del Multiverso abbiano davvero lo stesso testo
-  di Witchlight;
+- che fata e harengon di Witchlight abbiano lo stesso testo di Mostri del
+  Multiverso, su cui sono stati verificati;
 - i nomi italiani dei tratti.
 
 ### The Wild Beyond the Witchlight
@@ -585,9 +636,10 @@ specie ha una ristampa in Mostri del Multiverso.
 - **Elfo pallido** e **halfling lotusden** sono specie a sé, con i tratti di
   gioco dell'elfo e dell'halfling, come le sottorazze del Tomo dei Nemici.
   L'elfo marino di Wildemount è quello del Tomo dei Nemici.
-- **Dragonide di Wildemount**: le varianti draconblood e ravenite sostituiscono
-  Arma a soffio e Resistenza ai danni, quindi non hanno ascendenza né
-  resistenza. Il dragonide del Manuale del Giocatore resta com'era.
+- **Dragonide di Wildemount**: draconblood e ravenite tengono ascendenza
+  draconica e arma a soffio del Manuale del Giocatore e sostituiscono solo la
+  Resistenza ai danni (con scurovisione e il loro tratto). La seconda scelta è
+  la coppia variante e ascendenza (20 opzioni).
 - **Dhampir, hexblood e reborn** (lignaggi di Van Richten) sostituiscono la
   specie: Retaggio ancestrale, che conserva competenze e velocità della specie
   d'origine, va riportato nel profilo. L'hexblood è di tipo folletto; il
@@ -601,6 +653,7 @@ Da controllare con più attenzione:
 
 - le pagine di Wildemount (elfi 163, halfling 164, dragonidi 168) e di Van
   Richten (lignaggi 10–12, stimate);
+- l'halfling lotusden, assente dal file di Wildemount;
 - il nome Presenza energica (Forceful Presence) e gli altri nomi italiani;
 - la portata del Gettone inquietante dell'hexblood (qui 15 km).
 
@@ -620,8 +673,18 @@ Da controllare con più attenzione:
 | Halfling lotusden | — | Figlio del bosco: Intralciare | 164 | Azione · 1/riposo lungo | 3 |
 | Halfling lotusden | — | Figlio del bosco: Crescita di spine | 164 | Azione · 1/riposo lungo | 5 |
 | Halfling lotusden | — | Passo tra gli alberi | 164 | Passiva | 1 |
-| Dragonide di Wildemount | Draconblood | Presenza energica | 168 | Innesco · 1/riposo breve | 1 |
-| Dragonide di Wildemount | Ravenite | Assalto vendicativo | 168 | Reazione · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 2 combinazioni | Arma a soffio (acido) | 168 | Azione · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 2 combinazioni | Arma a soffio (fulmine) | 168 | Azione · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 2 combinazioni | Arma a soffio (fuoco) | 168 | Azione · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 2 combinazioni | Arma a soffio (fulmine) | 168 | Azione · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 2 combinazioni | Arma a soffio (acido) | 168 | Azione · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 2 combinazioni | Arma a soffio (fuoco) | 168 | Azione · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 2 combinazioni | Arma a soffio (veleno) | 168 | Azione · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 2 combinazioni | Arma a soffio (fuoco) | 168 | Azione · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 2 combinazioni | Arma a soffio (freddo) | 168 | Azione · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 2 combinazioni | Arma a soffio (freddo) | 168 | Azione · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 10 combinazioni | Presenza energica | 168 | Innesco · 1/riposo breve | 1 |
+| Dragonide di Wildemount | 10 combinazioni | Assalto vendicativo | 168 | Reazione · 1/riposo breve | 1 |
 
 ### Van Richten's Guide to Ravenloft
 
@@ -642,16 +705,14 @@ Da controllare con più attenzione:
 ### Dono soprannaturale: hollow one
 
 Dichiarato in `src/speciesCatalogWildemountRavenloft.js` (`GIFT_CATALOG_WILDEMOUNT`).
-È il dono di cui il ricordo è meno sicuro: **va verificato per primo**, in
-particolare Aggrapparsi alla vita, Ritorno e la portata e la durata di
-Presenza inquietante. Pagina 201 stimata.
+Verificato sul testo di Wildemount; pagina 201 stimata.
 
 | Dono | Tratto | Pag. | Uso | Liv. |
 |---|---|---|---|---|
 | Hollow one | Senza età | 201 | Passiva | 1 |
 | Hollow one | Aggrapparsi alla vita | 201 | Passiva | 1 |
 | Hollow one | Ritorno | 201 | Passiva | 1 |
-| Hollow one | Presenza inquietante | 201 | Azione bonus · 1/riposo lungo | 1 |
+| Hollow one | Presenza inquietante | 201 | Azione · 1/riposo lungo | 1 |
 
 ## Mordenkainen presenta: Mostri del Multiverso
 
@@ -666,9 +727,9 @@ voci di fata e harengon sono quelle di Witchlight, con lo stesso testo.
 | Aasimar | — | Resistenza celestiale | 7 | Passiva | 1 |
 | Aasimar | — | Mani guaritrici | 7 | Azione · 1/riposo lungo | 1 |
 | Aasimar | — | Portatore di luce | 7 | Passiva | 1 |
-| Aasimar | — | Rivelazione celestiale: Ali celestiali | 7 | Azione bonus · 1/riposo lungo · etichetta 1 min | 3 |
-| Aasimar | — | Rivelazione celestiale: Radiosità interiore | 7 | Azione bonus · 1/riposo lungo · etichetta 1 min | 3 |
-| Aasimar | — | Rivelazione celestiale: Sudario necrotico | 7 | Azione bonus · 1/riposo lungo · etichetta 1 min | 3 |
+| Aasimar | Anima radiosa | Rivelazione celestiale: Anima radiosa | 7 | Azione bonus · 1/riposo lungo · etichetta 1 min | 3 |
+| Aasimar | Consunzione radiosa | Rivelazione celestiale: Consunzione radiosa | 7 | Azione bonus · 1/riposo lungo · etichetta 1 min | 3 |
+| Aasimar | Sudario necrotico | Rivelazione celestiale: Sudario necrotico | 7 | Azione bonus · 1/riposo lungo · etichetta 1 min | 3 |
 | Bugbear | — | Ascendenza fatata | 8 | Passiva | 1 |
 | Bugbear | — | Arti lunghi | 8 | Passiva | 1 |
 | Bugbear | — | Attacco a sorpresa | 8 | Passiva | 1 |
@@ -707,7 +768,6 @@ voci di fata e harengon sono quelle di Witchlight, con lo stesso testo.
 | Genasi | Genasi della terra | Camminare sulla terra | 16 | Passiva | 1 |
 | Genasi | Genasi della terra | Fondersi con la pietra | 16 | Passiva | 1 |
 | Genasi | Genasi della terra | Fondersi con la pietra: Interdizione alle lame | 16 | Azione bonus · competenza/riposo lungo | 1 |
-| Genasi | Genasi della terra | Fondersi con la pietra: Passare senza tracce | 16 | Azione · 1/riposo lungo | 5 |
 | Genasi | Genasi del fuoco | Resistenza al fuoco | 16 | Passiva | 1 |
 | Genasi | Genasi del fuoco | Raggiungere la fiamma | 16 | Passiva | 1 |
 | Genasi | Genasi del fuoco | Raggiungere la fiamma: Mani brucianti | 16 | Azione · 1/riposo lungo | 3 |
@@ -740,7 +800,6 @@ voci di fata e harengon sono quelle di Witchlight, con lo stesso testo.
 | Hobgoblin | — | Dono fatato | 23 | Azione bonus · competenza/riposo lungo | 1 |
 | Hobgoblin | — | Fortuna dei molti | 23 | Innesco · competenza/riposo lungo | 1 |
 | Kenku | — | Duplicazione esperta | 24 | Passiva | 1 |
-| Kenku | — | Memoria kenku | 24 | Innesco · competenza/riposo lungo | 1 |
 | Kenku | — | Mimica | 24 | Passiva | 1 |
 | Lucertoloide | — | Morso | 26 | Passiva | 1 |
 | Lucertoloide | — | Trattenere il respiro | 26 | Passiva | 1 |
@@ -750,7 +809,7 @@ voci di fata e harengon sono quelle di Witchlight, con lo stesso testo.
 | Minotauro | — | Carica incornante | 27 | Passiva | 1 |
 | Minotauro | — | Corna martellanti | 27 | Passiva | 1 |
 | Minotauro | — | Memoria del labirinto | 27 | Passiva | 1 |
-| Orco | — | Scarica di adrenalina | 28 | Azione bonus · competenza/riposo breve | 1 |
+| Orco | — | Scarica di adrenalina | 28 | Azione bonus · competenza/riposo lungo | 1 |
 | Orco | — | Tenacia implacabile | 28 | Innesco · 1/riposo lungo | 1 |
 | Satiro | — | Fatato | 29 | Passiva | 1 |
 | Satiro | — | Ariete | 29 | Passiva | 1 |

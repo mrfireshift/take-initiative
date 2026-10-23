@@ -14,9 +14,9 @@ export const SPECIES_CATALOG_WITCHLIGHT = [
     traits: [
       passive("fatato", "Fatato", "Il tuo tipo di creatura è folletto, non umanoide."),
       passive("volo", "Volo", FLIGHT),
-      passive("magia-fatata", "Magia fatata", `Conosci il trucchetto Artificio druidico. Dal 3° livello lanci Luminescenza e dal 5° Ingrandire/ridurre, una volta per riposo lungo ciascuno senza componenti materiali (puoi lanciarli anche con gli slot); ${MM_ABILITY}.`),
-      spell("magia-fatata-luminescenza", "Magia fatata: Luminescenza", "azione", "luminescenza", 3, `Lanci Luminescenza senza spendere slot né componenti materiali. ${ONCE_LONG}`),
-      spell("magia-fatata-ingrandire-ridurre", "Magia fatata: Ingrandire/ridurre", "azione", "ingrandire-ridurre", 5, `Lanci Ingrandire/ridurre senza spendere slot né componenti materiali. ${ONCE_LONG}`),
+      passive("magia-fatata", "Magia fatata", `Conosci il trucchetto Artificio druidico. Dal 3° livello lanci Luminescenza e dal 5° Ingrandire/ridurre, una volta per riposo lungo ciascuno (puoi lanciarli anche con gli slot); ${MM_ABILITY}.`),
+      spell("magia-fatata-luminescenza", "Magia fatata: Luminescenza", "azione", "luminescenza", 3, `Lanci Luminescenza senza spendere slot. ${ONCE_LONG}`),
+      spell("magia-fatata-ingrandire-ridurre", "Magia fatata: Ingrandire/ridurre", "azione", "ingrandire-ridurre", 5, `Lanci Ingrandire/ridurre senza spendere slot. ${ONCE_LONG}`),
     ],
   },
   {

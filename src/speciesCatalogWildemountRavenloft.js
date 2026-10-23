@@ -9,6 +9,23 @@ import { FEY_ANCESTRY, MM_ABILITY, ONCE_LONG, PB_LONG, once, opt, passive, perPb
 
 const ONCE_SHORT = "Una volta per riposo breve o lungo.";
 
+// Draconblood and ravenite keep the PHB Draconic Ancestry and Breath Weapon (shape and save from its table) and
+// lose only Damage Resistance: the option is the pair of variant and ancestry.
+const LINE = "linea larga 1,5 m e lunga 9 m, TS su Destrezza";
+const CONE_DEX = "cono di 4,5 m, TS su Destrezza";
+const CONE_CON = "cono di 4,5 m, TS su Costituzione";
+const WILDEMOUNT_ANCESTRIES = [
+  ["nero", "nero", "acido", LINE, "black"], ["blu", "blu", "fulmine", LINE, "blue"], ["ottone", "ottone", "fuoco", LINE, "brass"],
+  ["bronzo", "bronzo", "fulmine", LINE, "bronze"], ["rame", "rame", "acido", LINE, "copper"], ["oro", "oro", "fuoco", CONE_DEX, "gold"],
+  ["verde", "verde", "veleno", CONE_CON, "green"], ["rosso", "rosso", "fuoco", CONE_DEX, "red"], ["argento", "argento", "freddo", CONE_CON, "silver"],
+  ["bianco", "bianco", "freddo", CONE_CON, "white"],
+];
+const WILDEMOUNT_VARIANTS = [["draconblood", "Draconblood"], ["ravenite", "Ravenite"]];
+const WILDEMOUNT_DRAGONBORN_OPTIONS = WILDEMOUNT_VARIANTS.flatMap(([variant, variantLabel]) => WILDEMOUNT_ANCESTRIES.map(([ancestry, label, damage, , english]) => ({
+  ...opt(`${variant}-${ancestry}`, `Dragonide ${variantLabel.toLocaleLowerCase("it")} ${label} (${damage})`, [`${variant} ${english}`, `${english} ${variant}`]),
+  fullName: true,
+})));
+
 export const SPECIES_CATALOG_WILDEMOUNT = [
   {
     id: "elfo-pallido", label: "Elfo pallido", book: "wildemount", page: 163, aliases: ["pallid elf"], look: ["🌙", "#e2e8f0", "#1e293b", "#f8fafc"],
@@ -35,12 +52,18 @@ export const SPECIES_CATALOG_WILDEMOUNT = [
     ],
   },
   {
-    id: "dragonide-wildemount", label: "Dragonide di Wildemount", book: "wildemount", page: 168, optionLabel: "Variante", aliases: ["wildemount dragonborn"], look: ["🐉", "#a78bfa", "#3b0764", "#f5f3ff"],
-    options: [opt("draconblood", "Draconblood", ["draconblood dragonborn"]), opt("ravenite", "Ravenite", ["ravenite dragonborn"])],
-    pools: [once("presenza-energica", "Presenza energica", "breve"), once("assalto-vendicativo", "Assalto vendicativo", "breve")],
+    id: "dragonide-wildemount", label: "Dragonide di Wildemount", book: "wildemount", page: 168, optionLabel: "Variante e ascendenza",
+    aliases: ["wildemount dragonborn", "draconblood", "ravenite"], look: ["🐉", "#a78bfa", "#3b0764", "#f5f3ff"],
+    options: WILDEMOUNT_DRAGONBORN_OPTIONS,
+    pools: [once("arma-a-soffio", "Arma a soffio", "breve"), once("presenza-energica", "Presenza energica", "breve"), once("assalto-vendicativo", "Assalto vendicativo", "breve")],
     traits: [
-      use("presenza-energica", "Presenza energica", "innesco", "presenza-energica", `Al posto di Arma a soffio e Resistenza ai danni: quando fai una prova di Carisma (Intimidire o Persuasione), puoi farla con vantaggio. ${ONCE_SHORT}`, { option: "draconblood" }),
-      use("assalto-vendicativo", "Assalto vendicativo", "reazione", "assalto-vendicativo", `Al posto di Arma a soffio e Resistenza ai danni: quando subisci danni da una creatura entro la portata di un'arma che impugni, con una reazione fai un attacco con quell'arma contro di lei. ${ONCE_SHORT}`, { option: "ravenite" }),
+      ...WILDEMOUNT_ANCESTRIES.map(([ancestry, , damage, breath]) => use(`arma-a-soffio-${ancestry}`, `Arma a soffio (${damage})`, "azione", "arma-a-soffio",
+        `Con un'azione esali energia distruttiva: ${breath} con CD 8 + Costituzione + competenza; 2d6 danni da ${damage} (3d6 al 6°, 4d6 all'11°, 5d6 al 16° livello), metà se superato. ${ONCE_SHORT}`,
+        { option: WILDEMOUNT_VARIANTS.map(([variant]) => `${variant}-${ancestry}`) })),
+      use("presenza-energica", "Presenza energica", "innesco", "presenza-energica", `Al posto di Resistenza ai danni: quando fai una prova di Carisma (Intimidire o Persuasione), puoi farla con vantaggio. ${ONCE_SHORT}`,
+        { option: WILDEMOUNT_ANCESTRIES.map(([ancestry]) => `draconblood-${ancestry}`) }),
+      use("assalto-vendicativo", "Assalto vendicativo", "reazione", "assalto-vendicativo", `Al posto di Resistenza ai danni: quando subisci danni da una creatura entro la portata di un'arma che impugni, con una reazione fai un attacco con quell'arma contro di lei. ${ONCE_SHORT}`,
+        { option: WILDEMOUNT_ANCESTRIES.map(([ancestry]) => `ravenite-${ancestry}`) }),
     ],
   },
 ];
@@ -84,10 +107,10 @@ export const GIFT_CATALOG_WILDEMOUNT = [
     id: "hollow-one", label: "Hollow one", book: "wildemount", page: 201, aliases: ["hollow one", "hollowone"], look: ["💀", "#cbd5e1", "#0f172a", "#f8fafc"],
     pools: [once("presenza-inquietante", "Presenza inquietante")],
     traits: [
-      passive("senza-eta", "Senza età", "Non invecchi: il tuo corpo resta come al momento della morte da cui sei tornato."),
-      passive("aggrapparsi-alla-vita", "Aggrapparsi alla vita", "Quando fai un tiro salvezza contro la morte e il d20 dà un risultato diverso da 1, puoi considerarlo un 10."),
-      passive("ritorno", "Ritorno", "Gli incantesimi e gli effetti che individuano i non morti, come Individuazione del bene e del male, ti rilevano come non morto, oltre che come la tua specie."),
-      use("presenza-inquietante", "Presenza inquietante", "azione_bonus", "presenza-inquietante", `Con un'azione bonus scegli una creatura ostile che puoi vedere entro 4,5 m: ha svantaggio al prossimo tiro salvezza che fa entro 1 minuto. ${ONCE_LONG}`),
+      passive("senza-eta", "Senza età", "Non invecchi, e gli effetti che ti farebbero invecchiare non funzionano su di te."),
+      passive("aggrapparsi-alla-vita", "Aggrapparsi alla vita", "Quando fai un tiro salvezza contro la morte e ottieni 16 o più, recuperi 1 punto ferita: aggiornalo a mano."),
+      passive("ritorno", "Ritorno", "Conservi il tuo tipo di creatura, ma gli incantesimi e gli effetti che individuano i non morti ti rilevano come non morto."),
+      use("presenza-inquietante", "Presenza inquietante", "azione", "presenza-inquietante", `Con un'azione turbi una creatura che puoi vedere entro 4,5 m: ha svantaggio al prossimo tiro salvezza che fa entro 1 minuto. Costrutti, non morti e creature che non possono essere spaventate sono immuni. ${ONCE_LONG}`),
     ],
   },
 ];

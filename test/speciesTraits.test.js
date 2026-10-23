@@ -156,7 +156,7 @@ test("an aasimar transformation is a 1-minute pill that spends its long-rest use
     sourceId: "aela", targetIds: ["aela"], currentRound: 1, currentTurnKey: "1:aela", instanceId: "wings-1" });
   assert.equal(activation.ok, true, activation.reason);
   const [instance] = classFeatureConditionInstancesForActivation(feature, activation.instance, "Aela", build);
-  assert.equal(instance.condition, "Rivelazione celestiale: Ali celestiali");
+  assert.equal(instance.condition, "Rivelazione celestiale: Anima radiosa");
   assert.equal(instance.expiry.remaining, 10);
   const shroud = CLASS_FEATURE_BY_ID.get("specie-aasimar-multiverso-rivelazione-celestiale-sudario");
   const again = planClassFeatureActivation({ state: activation.state, feature: shroud, poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID, characterBuild: build,
@@ -245,9 +245,12 @@ test("the tortle's Shell Defense is an untimed label with no uses, removed by ha
   assert.deepEqual(traits({ id: "verdan" }), ["specie-verdan-guarigione-del-sangue-nero", "specie-verdan-telepatia-limitata", "specie-verdan-intuito-telepatico"]);
 });
 
-test("Wildemount and Van Richten: dragonborn variants without breath, lineages with their own uses", () => {
-  assert.deepEqual(traits({ id: "dragonide-wildemount", ancestryId: "ravenite" }), ["specie-dragonide-wildemount-assalto-vendicativo"]);
-  assert.deepEqual(speciesDamageDefenses({ id: "dragonide-wildemount", ancestryId: "draconblood" }), {}, "no ancestry resistance");
+test("Wildemount and Van Richten: dragonborn variants keep the breath and lose the resistance, lineages with their own uses", () => {
+  assert.deepEqual(traits({ id: "dragonide-wildemount", ancestryId: "ravenite-verde" }),
+    ["specie-dragonide-wildemount-arma-a-soffio-verde", "specie-dragonide-wildemount-assalto-vendicativo"]);
+  assert.match(CLASS_FEATURE_BY_ID.get("specie-dragonide-wildemount-arma-a-soffio-verde").description, /cono di 4,5 m, TS su Costituzione/);
+  assert.deepEqual(speciesDamageDefenses({ id: "dragonide-wildemount", ancestryId: "draconblood-rosso" }), {}, "no ancestry resistance");
+  assert.equal(speciesDisplayName({ id: "dragonide-wildemount", ancestryId: "draconblood-rosso" }), "Dragonide draconblood rosso (fuoco)");
   assert.equal(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-dragonide-wildemount-assalto-vendicativo-usi").refresh.length, 2);
   assert.deepEqual(speciesDamageDefenses({ id: "reborn" }), { resistances: ["poison"] });
   assert.equal(resolveClassFeatureResourceMaximum(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-dhampir-morso-vampirico-usi"), [{ classId: "ladro", level: 5 }]).maximum, 3);
@@ -291,4 +294,26 @@ test("Tasha's custom lineage: a feat and a variable trait as reminders, no optio
   assert.deepEqual(traits({ id: "lignaggio-personalizzato" }), ["specie-lignaggio-personalizzato-talento", "specie-lignaggio-personalizzato-tratto-variabile"]);
   assert.equal(SPECIES.find((entry) => entry.id === "lignaggio-personalizzato").sourceLabel, "Calderone Omnicomprensivo di Tasha",
     "the same label as Tasha's class features");
+});
+
+test("checked on the manuals: Tome of Foes legacies, eladrin seasons, Monsters of the Multiverse revelation and fixes", () => {
+  const mammon = speciesFeaturesForProfile({ species: { id: "tiefling-stirpe", ancestryId: "mammon" } }, 5);
+  assert.deepEqual(mammon.map((feature) => feature.name).slice(1, 2), ["Eredità di Minauros"]);
+  assert.equal(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-tiefling-stirpe-eredita-mammon-3-usi").refresh.length, 2, "Tenser's disk: short or long rest");
+  assert.deepEqual(traits({ id: "eladrin", ancestryId: "estate" }, 3), ["specie-eladrin-ascendenza-fatata", "specie-eladrin-passo-fatato", "specie-eladrin-passo-fatato-estate"]);
+  assert.match(CLASS_FEATURE_BY_ID.get("specie-eladrin-passo-fatato-estate").description, /modificatore di Carisma/);
+  assert.deepEqual(traits({ id: "aasimar-multiverso", ancestryId: "sudario-necrotico" }, 3).filter((id) => id.includes("rivelazione")),
+    ["specie-aasimar-multiverso-rivelazione-celestiale-sudario"], "one revelation, chosen at 3rd level");
+  assert.equal(CLASS_FEATURE_BY_ID.get("specie-kenku-multiverso-memoria-kenku"), undefined, "Kenku Recall is two proficiencies");
+  assert.equal(CLASS_FEATURE_RESOURCE_POOL_BY_ID.get("specie-orco-multiverso-scarica-di-adrenalina-usi").refresh.length, 1, "Adrenaline Rush: long rest");
+  assert.deepEqual(speciesDamageDefenses({ id: "elfo-marino-multiverso" }), { resistances: ["cold"] });
+  assert.deepEqual(speciesDamageDefenses({ id: "goliath" }), { resistances: ["cold"] }, "Volo goliath with its errata");
+  assert.equal(traits({ id: "genasi-multiverso", ancestryId: "terra" }, 5).some((id) => id.includes("passare-senza-tracce")), false);
+  assert.equal(CLASS_FEATURE_BY_ID.get("specie-dragonide-metallico-arma-a-soffio-metallica-oro").activation.primary, "azione_attacco");
+  assert.ok(traits({ id: "dragonide-gemma", ancestryId: "zaffiro" }).includes("specie-dragonide-gemma-mente-psionica"));
+  assert.deepEqual(traits({ id: "aasimar-costa" }, 5), ["specie-aasimar-costa-resistenza-celestiale", "specie-aasimar-costa-eredita-celestiale",
+    "specie-aasimar-costa-eredita-celestiale-ristorare-inferiore", "specie-aasimar-costa-eredita-celestiale-luce-diurna"]);
+  const hollow = CLASS_FEATURE_BY_ID.get("dono-hollow-one-presenza-inquietante");
+  assert.equal(hollow.activation.primary, "azione");
+  assert.match(CLASS_FEATURE_BY_ID.get("dono-hollow-one-aggrapparsi-alla-vita").description, /16 o più/);
 });

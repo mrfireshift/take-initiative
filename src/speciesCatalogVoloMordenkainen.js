@@ -27,27 +27,29 @@ const MINUTE = 10;
 export const spell = (key, name, act, uses, level, text, extra = {}) => use(key, name, act, uses, text, { level, ...extra });
 
 const TIEFLING_BLOODLINES = [
-  // [option, label, page, cantrip, 3rd-level spell, cast as 2nd level, act, 5th-level spell, act]
-  ["asmodeus", "Asmodeus", 21, "Taumaturgia", "Intimorire infernale", true, "reazione", "Oscurità", "azione"],
-  ["baalzebul", "Baalzebul", 21, "Taumaturgia", "Raggio di infermità", true, "azione", "Corona di follia", "azione"],
-  ["dispater", "Dispater", 21, "Taumaturgia", "Camuffare se stesso", false, "azione", "Individuazione dei pensieri", "azione"],
-  ["fierna", "Fierna", 22, "Amicizia", "Charme su persone", true, "azione", "Suggestione", "azione"],
-  ["glasya", "Glasya", 22, "Illusione minore", "Camuffare se stesso", false, "azione", "Invisibilità", "azione"],
-  ["levistus", "Levistus", 22, "Raggio di gelo", "Armatura di Agathys", true, "azione", "Oscurità", "azione"],
-  ["mammon", "Mammon", 22, "Mano magica", "Disco fluttuante di Tenser", false, "azione", "Serratura arcana", "azione"],
-  ["mefistofele", "Mefistofele", 23, "Mano magica", "Mani brucianti", true, "azione", "Lama infuocata", "azione_bonus"],
-  ["zariel", "Zariel", 23, "Taumaturgia", "Punizione incandescente", true, "azione_bonus", "Punizione marchiante", "azione_bonus"],
+  // [option, label, legacy (named after the layer of the Nine Hells), page, cantrip, 3rd-level spell, cast as 2nd level, act,
+  //  rest of the 3rd-level spell, 5th-level spell, act, note on the 5th-level spell]
+  ["asmodeus", "Asmodeus", "Eredità infernale", 21, "Taumaturgia", "Intimorire infernale", true, "reazione", "lungo", "Oscurità", "azione", ""],
+  ["baalzebul", "Baalzebul", "Eredità di Maladomini", 21, "Taumaturgia", "Raggio di infermità", true, "azione", "lungo", "Corona di follia", "azione", ""],
+  ["dispater", "Dispater", "Eredità di Dis", 21, "Taumaturgia", "Camuffare se stesso", false, "azione", "lungo", "Individuazione dei pensieri", "azione", ""],
+  ["fierna", "Fierna", "Eredità di Phlegethos", 22, "Amicizia", "Charme su persone", true, "azione", "lungo", "Suggestione", "azione", ""],
+  ["glasya", "Glasya", "Eredità di Malbolge", 22, "Illusione minore", "Camuffare se stesso", false, "azione", "lungo", "Invisibilità", "azione", ""],
+  ["levistus", "Levistus", "Eredità di Stygia", 22, "Raggio di gelo", "Armatura di Agathys", true, "azione", "lungo", "Oscurità", "azione", ""],
+  ["mammon", "Mammon", "Eredità di Minauros", 22, "Mano magica", "Disco fluttuante di Tenser", false, "azione", "breve", "Serratura arcana", "azione", " senza componenti materiali"],
+  ["mefistofele", "Mefistofele", "Eredità di Cania", 23, "Mano magica", "Mani brucianti", true, "azione", "lungo", "Lama infuocata", "azione_bonus", ""],
+  ["zariel", "Zariel", "Eredità di Avernus", 23, "Taumaturgia", "Punizione incandescente", true, "azione_bonus", "lungo", "Punizione marchiante", "azione_bonus", ""],
 ];
+const restText = (rest) => (rest === "breve" ? ONCE_SHORT : ONCE_LONG);
 
-const tieflingBloodlineTraits = TIEFLING_BLOODLINES.flatMap(([id, label, page, cantrip, third, asSecond, thirdAct, fifth, fifthAct]) => [
-  passive(`eredita-${id}`, `Eredità di ${label}`, `Conosci il trucchetto ${cantrip}. Dal 3° livello lanci ${third}${asSecond ? " come incantesimo di 2° livello" : ""} e dal 5° ${fifth}, una volta per riposo lungo ciascuno, con Carisma come caratteristica da incantatore.`, { option: id, page }),
-  spell(`eredita-${id}-3`, `Eredità di ${label}: ${third}`, thirdAct, `eredita-${id}-3`, 3, `Lanci ${third}${asSecond ? " come incantesimo di 2° livello" : ""} senza spendere slot, con Carisma. ${ONCE_LONG}`),
-  spell(`eredita-${id}-5`, `Eredità di ${label}: ${fifth}`, fifthAct, `eredita-${id}-5`, 5, `Lanci ${fifth} senza spendere slot, con Carisma. ${ONCE_LONG}`),
+const tieflingBloodlineTraits = TIEFLING_BLOODLINES.flatMap(([id, , legacy, page, cantrip, third, asSecond, thirdAct, thirdRest, fifth, fifthAct, fifthNote]) => [
+  passive(`eredita-${id}`, legacy, `Conosci il trucchetto ${cantrip}. Dal 3° livello lanci ${third}${asSecond ? " come incantesimo di 2° livello" : ""} (una volta per riposo ${thirdRest === "breve" ? "breve o lungo" : "lungo"}) e dal 5° ${fifth}${fifthNote} (una volta per riposo lungo), con Carisma come caratteristica da incantatore.`, { option: id, page }),
+  spell(`eredita-${id}-3`, `${legacy}: ${third}`, thirdAct, `eredita-${id}-3`, 3, `Lanci ${third}${asSecond ? " come incantesimo di 2° livello" : ""} senza spendere slot, con Carisma. ${restText(thirdRest)}`),
+  spell(`eredita-${id}-5`, `${legacy}: ${fifth}`, fifthAct, `eredita-${id}-5`, 5, `Lanci ${fifth} senza spendere slot${fifthNote ? " né componenti materiali" : ""}, con Carisma. ${ONCE_LONG}`),
 ].map((trait) => ({ ...trait, option: id, page })));
 
 export const SPECIES_CATALOG_VOLO = [
   {
-    id: "aasimar", label: "Aasimar", book: "volo", page: 105, look: ["😇", "#fde68a", "#422006", "#fffbeb"],
+    id: "aasimar", label: "Aasimar", book: "volo", page: 105, alsoIn: ["wildemount"], look: ["😇", "#fde68a", "#422006", "#fffbeb"],
     optionLabel: "Sottorazza", resistances: ["necrotic", "radiant"],
     options: [
       opt("protettore", "Aasimar protettore", ["protector", "protector aasimar"]),
@@ -79,11 +81,11 @@ export const SPECIES_CATALOG_VOLO = [
     ],
   },
   {
-    id: "goliath", label: "Goliath", book: "volo", page: 109, alsoIn: ["elemental"], look: ["⛰️", "#cbd5e1", "#1e293b", "#f8fafc"],
+    id: "goliath", label: "Goliath", book: "volo", page: 109, alsoIn: ["elemental"], resistances: ["cold"], look: ["⛰️", "#cbd5e1", "#1e293b", "#f8fafc"],
     pools: [once("resistenza-della-pietra", "Resistenza della pietra", "breve")],
     traits: [
       use("resistenza-della-pietra", "Resistenza della pietra", "reazione", "resistenza-della-pietra", `Quando subisci danni, con una reazione tiri 1d12 + Costituzione e riduci i danni di quel totale. ${ONCE_SHORT}`),
-      passive("nato-sulle-montagne", "Nato sulle montagne", "Sei acclimatato all'alta quota, anche oltre i 6.000 m, e ai climi freddi."),
+      passive("nato-sulle-montagne", "Nato sulle montagne", "Resistenza ai danni da freddo, già applicata alle difese; sei acclimatato all'alta quota, anche oltre i 6.000 m."),
     ],
   },
   {
@@ -121,18 +123,18 @@ export const SPECIES_CATALOG_VOLO = [
       spell("controllo-folata-di-vento", "Controllo di aria e acqua: Folata di vento", "azione", "folata-di-vento", 3, `Lanci Folata di vento senza spendere slot, con Carisma. ${ONCE_LONG}`),
       spell("controllo-muro-d-acqua", "Controllo di aria e acqua: Muro d'acqua", "azione", "muro-d-acqua", 5, `Lanci Muro d'acqua senza spendere slot, con Carisma. ${ONCE_LONG}`),
       passive("emissario-del-mare", "Emissario del mare", "Comunichi idee semplici alle bestie che respirano acqua: capiscono le tue parole, tu non le loro."),
-      passive("guardiano-degli-abissi", "Guardiano degli abissi", "Resistenza ai danni da freddo, già applicata alle difese. Ignori gli svantaggi degli ambienti sottomarini profondi."),
+      passive("guardiano-degli-abissi", "Guardiano degli abissi", "Resistenza ai danni da freddo, già applicata alle difese."),
     ],
   },
   {
-    id: "bugbear", label: "Bugbear", book: "volo", page: 119, alsoIn: ["eberron"], look: ["🐻", "#d6a35c", "#3b2307", "#fff7ed"],
+    id: "bugbear", label: "Bugbear", book: "volo", page: 119, alsoIn: ["eberron", "wildemount"], look: ["🐻", "#d6a35c", "#3b2307", "#fff7ed"],
     traits: [
       passive("arti-lunghi", "Arti lunghi", "Quando attacchi in mischia nel tuo turno, la tua portata aumenta di 1,5 m."),
       passive("attacco-a-sorpresa", "Attacco a sorpresa", "Se sorprendi una creatura e la colpisci con un attacco nel tuo primo turno di combattimento, l'attacco infligge 2d6 danni extra. Una volta per combattimento."),
     ],
   },
   {
-    id: "goblin", label: "Goblin", book: "volo", page: 119, alsoIn: ["eberron", "ravnica"], look: ["👺", "#a3e635", "#1a2e05", "#f7fee7"],
+    id: "goblin", label: "Goblin", book: "volo", page: 119, alsoIn: ["eberron", "ravnica", "wildemount"], look: ["👺", "#a3e635", "#1a2e05", "#f7fee7"],
     pools: [once("furia-dei-piccoli", "Furia dei piccoli", "breve")],
     traits: [
       use("furia-dei-piccoli", "Furia dei piccoli", "innesco", "furia-dei-piccoli", `Quando danneggi con un attacco o un incantesimo una creatura di taglia più grande della tua, infliggi danni extra pari al tuo livello. ${ONCE_SHORT}`),
@@ -140,7 +142,7 @@ export const SPECIES_CATALOG_VOLO = [
     ],
   },
   {
-    id: "hobgoblin", label: "Hobgoblin", book: "volo", page: 119, alsoIn: ["eberron"], look: ["🛡️", "#f97316", "#431407", "#fff7ed"],
+    id: "hobgoblin", label: "Hobgoblin", book: "volo", page: 119, alsoIn: ["eberron", "wildemount"], look: ["🛡️", "#f97316", "#431407", "#fff7ed"],
     pools: [once("salvare-la-faccia", "Salvare la faccia", "breve")],
     traits: [
       use("salvare-la-faccia", "Salvare la faccia", "innesco", "salvare-la-faccia", `Quando manchi un tiro per colpire o fallisci una prova di caratteristica o un tiro salvezza, aggiungi al tiro un bonus pari al numero di alleati entro 9 m che puoi vedere (massimo +5). ${ONCE_SHORT}`),
@@ -150,7 +152,7 @@ export const SPECIES_CATALOG_VOLO = [
     id: "coboldo", label: "Coboldo", book: "volo", page: 119, aliases: ["kobold"], look: ["🦴", "#f87171", "#450a0a", "#fef2f2"],
     pools: [once("strisciare-piagnucolare-implorare", "Strisciare, piagnucolare e implorare", "breve")],
     traits: [
-      use("strisciare-piagnucolare-implorare", "Strisciare, piagnucolare e implorare", "azione", "strisciare-piagnucolare-implorare", `Con un'azione ti umili: fino alla fine del tuo prossimo turno gli alleati hanno vantaggio ai tiri per colpire contro i nemici entro 3 m da te che possono vederti. ${ONCE_SHORT}`),
+      use("strisciare-piagnucolare-implorare", "Strisciare, piagnucolare e implorare", "azione", "strisciare-piagnucolare-implorare", `Con un'azione ti umili: fino alla fine del tuo prossimo turno gli alleati hanno vantaggio ai tiri per colpire contro i nemici entro 3 m da te che puoi vedere. ${ONCE_SHORT}`),
       passive("tattiche-del-branco", "Tattiche del branco", "Vantaggio al tiro per colpire contro una creatura se almeno un tuo alleato non incapacitato si trova entro 1,5 m da essa."),
       passive("sensibilita-alla-luce-del-sole", "Sensibilità alla luce del sole", SUNLIGHT),
     ],
@@ -158,7 +160,7 @@ export const SPECIES_CATALOG_VOLO = [
   {
     id: "orco", label: "Orco", book: "volo", page: 120, alsoIn: ["eberron"], aliases: ["orc"], look: ["👹", "#84cc16", "#1a2e05", "#f7fee7"],
     traits: [
-      passive("aggressivo", "Aggressivo", "Con un'azione bonus ti muovi fino alla tua velocità verso una creatura ostile che puoi vedere."),
+      passive("aggressivo", "Aggressivo", "Con un'azione bonus ti muovi fino alla tua velocità verso una creatura ostile che puoi vedere o sentire; devi finire il movimento più vicino a lei di quando hai iniziato."),
     ],
   },
   {
@@ -178,7 +180,7 @@ export const SPECIES_CATALOG_TOMO = [
     id: "tiefling-stirpe", label: "Tiefling", book: "tomo", page: 21, look: ["😈", "#fb7185", "#4c0519", "#fff1f2"],
     optionLabel: "Stirpe", resistances: ["fire"], aliases: ["tiefling stirpe"],
     options: TIEFLING_BLOODLINES.map(([id, label]) => opt(id, `Tiefling di ${label}`, [label, `${label} tiefling`])),
-    pools: TIEFLING_BLOODLINES.flatMap(([id, label, , , third, , , fifth]) => [once(`eredita-${id}-3`, `Eredità di ${label}: ${third}`), once(`eredita-${id}-5`, `Eredità di ${label}: ${fifth}`)]),
+    pools: TIEFLING_BLOODLINES.flatMap(([id, , legacy, , , third, , , thirdRest, fifth]) => [once(`eredita-${id}-3`, `${legacy}: ${third}`, thirdRest), once(`eredita-${id}-5`, `${legacy}: ${fifth}`)]),
     traits: [
       passive("resistenza-infernale", "Resistenza infernale", "Resistenza ai danni da fuoco, già applicata alle difese."),
       ...tieflingBloodlineTraits,
@@ -186,10 +188,16 @@ export const SPECIES_CATALOG_TOMO = [
   },
   {
     id: "eladrin", label: "Eladrin", book: "tomo", page: 61, look: ["🍂", "#f59e0b", "#422006", "#fffbeb"],
+    optionLabel: "Stagione",
+    options: [opt("autunno", "Eladrin d'autunno", ["autumn"]), opt("inverno", "Eladrin d'inverno", ["winter"]), opt("primavera", "Eladrin di primavera", ["spring"]), opt("estate", "Eladrin d'estate", ["summer"])],
     pools: [once("passo-fatato", "Passo fatato", "breve")],
     traits: [
       passive("ascendenza-fatata", "Ascendenza fatata", FEY_ANCESTRY),
-      use("passo-fatato", "Passo fatato", "azione_bonus", "passo-fatato", `Con un'azione bonus ti teletrasporti fino a 9 m in uno spazio libero che puoi vedere. ${ONCE_SHORT}`),
+      use("passo-fatato", "Passo fatato", "azione_bonus", "passo-fatato", `Con un'azione bonus ti teletrasporti fino a 9 m in uno spazio libero che puoi vedere. ${ONCE_SHORT} Dal 3° livello aggiunge l'effetto della stagione, con CD 8 + competenza + Carisma. La stagione può cambiare alla fine di un riposo lungo: aggiornala nel profilo.`),
+      passive("passo-fatato-autunno", "Passo fatato d'autunno", "Dal 3° livello, subito dopo il Passo fatato, fino a due creature che puoi vedere entro 3 m superano un TS su Saggezza o sono affascinate da te per 1 minuto, o finché tu o i tuoi compagni non le danneggiate.", { option: "autunno", level: 3 }),
+      passive("passo-fatato-inverno", "Passo fatato d'inverno", "Dal 3° livello, prima del Passo fatato, una creatura che puoi vedere entro 1,5 m supera un TS su Saggezza o è spaventata da te fino alla fine del tuo prossimo turno.", { option: "inverno", level: 3 }),
+      passive("passo-fatato-primavera", "Passo fatato di primavera", "Dal 3° livello, quando usi il Passo fatato, puoi toccare una creatura consenziente entro 1,5 m: si teletrasporta lei al posto tuo, in uno spazio libero entro 9 m da te che puoi vedere.", { option: "primavera", level: 3 }),
+      passive("passo-fatato-estate", "Passo fatato d'estate", "Dal 3° livello, subito dopo il Passo fatato, ogni creatura a tua scelta che puoi vedere entro 1,5 m subisce danni da fuoco pari al modificatore di Carisma (minimo 1).", { option: "estate", level: 3 }),
     ],
   },
   {
@@ -213,8 +221,7 @@ export const SPECIES_CATALOG_TOMO = [
     id: "duergar", label: "Duergar", book: "tomo", page: 81, alsoIn: ["costa"], resistances: ["poison"], aliases: ["grey dwarf", "gray dwarf", "nano grigio"], look: ["⚒️", "#a8a29e", "#1c1917", "#fafaf9"],
     pools: [once("ingrandire", "Magia duergar: Ingrandire/ridurre"), once("invisibilita", "Magia duergar: Invisibilità")],
     traits: [
-      passive("resilienza-nanica", "Resilienza nanica", "Tratto del nano (Manuale del Giocatore p. 20): vantaggio ai tiri salvezza contro il veleno; la resistenza ai danni da veleno è già applicata alle difese."),
-      passive("resilienza-duergar", "Resilienza duergar", "Vantaggio ai tiri salvezza contro le illusioni e per non essere affascinato o paralizzato."),
+      passive("resilienza-duergar", "Resilienza duergar", "Vantaggio ai tiri salvezza contro il veleno, contro le illusioni e per non essere affascinato o paralizzato; la resistenza ai danni da veleno è già applicata alle difese."),
       passive("magia-duergar", "Magia duergar", "Dal 3° livello lanci su te stesso Ingrandire/ridurre (solo ingrandire) e dal 5° Invisibilità, una volta per riposo lungo ciascuno, senza componenti materiali e con Intelligenza. Non puoi lanciarli alla luce diretta del sole."),
       spell("magia-duergar-ingrandire", "Magia duergar: Ingrandire", "azione", "ingrandire", 3, `Lanci Ingrandire/ridurre su te stesso, solo per ingrandirti, senza spendere slot né componenti materiali, con Intelligenza. Non alla luce diretta del sole. ${ONCE_LONG}`),
       spell("magia-duergar-invisibilita", "Magia duergar: Invisibilità", "azione", "invisibilita", 5, `Lanci Invisibilità su te stesso senza spendere slot né componenti materiali, con Intelligenza. Non alla luce diretta del sole. ${ONCE_LONG}`),
@@ -252,17 +259,19 @@ export const SPECIES_CATALOG_TOMO = [
 export const SPECIES_CATALOG_MULTIVERSO = [
   {
     id: "aasimar-multiverso", label: "Aasimar", book: "multiverso", page: 7, resistances: ["necrotic", "radiant"], look: ["😇", "#fde68a", "#422006", "#fffbeb"],
+    optionLabel: "Rivelazione",
+    options: [opt("anima-radiosa", "Anima radiosa", ["radiant soul"]), opt("consunzione-radiosa", "Consunzione radiosa", ["radiant consumption"]), opt("sudario-necrotico", "Sudario necrotico", ["necrotic shroud"])],
     pools: [once("mani-guaritrici", "Mani guaritrici"), once("rivelazione-celestiale", "Rivelazione celestiale")],
     traits: [
       passive("resistenza-celestiale", "Resistenza celestiale", "Resistenza ai danni necrotici e radiosi, già applicata alle difese."),
       use("mani-guaritrici", "Mani guaritrici", "azione", "mani-guaritrici", `Con un'azione tocchi una creatura, che recupera tanti d4 punti ferita quanto il tuo bonus di competenza. ${ONCE_LONG}`),
       passive("portatore-di-luce", "Portatore di luce", "Conosci il trucchetto Luce, con Carisma come caratteristica da incantatore."),
-      use("rivelazione-celestiale-ali", "Rivelazione celestiale: Ali celestiali", "azione_bonus", "rivelazione-celestiale", `Dal 3° livello, con un'azione bonus, ti trasformi per 1 minuto: ali spettrali ti danno una velocità di volare pari alla velocità camminando. Una volta in ciascun tuo turno, un bersaglio che danneggi con un attacco o un incantesimo subisce danni radiosi extra pari al bonus di competenza. Una Rivelazione celestiale per riposo lungo.`,
-        { level: 3, effect: { detail: "Volare pari alla velocità camminando; una volta per turno danni radiosi extra pari al bonus di competenza.", rounds: MINUTE } }),
-      use("rivelazione-celestiale-radiosita", "Rivelazione celestiale: Radiosità interiore", "azione_bonus", "rivelazione-celestiale", `Dal 3° livello, con un'azione bonus, ti trasformi per 1 minuto: emani luce intensa entro 3 m e fioca per altri 3 m, e alla fine di ogni tuo turno ogni creatura entro 3 m subisce danni radiosi pari al bonus di competenza. Una volta in ciascun tuo turno, un bersaglio che danneggi con un attacco o un incantesimo subisce danni radiosi extra pari al bonus di competenza. Una Rivelazione celestiale per riposo lungo.`,
-        { level: 3, effect: { detail: "Fine turno: danni radiosi a chi è entro 3 m; una volta per turno danni radiosi extra pari al bonus di competenza.", rounds: MINUTE } }),
-      use("rivelazione-celestiale-sudario", "Rivelazione celestiale: Sudario necrotico", "azione_bonus", "rivelazione-celestiale", `Dal 3° livello, con un'azione bonus, ti trasformi per 1 minuto: le altre creature entro 3 m che possono vederti superano un TS su Carisma (CD 8 + competenza + Carisma) o sono spaventate da te fino alla fine del tuo prossimo turno. Una volta in ciascun tuo turno, un bersaglio che danneggi con un attacco o un incantesimo subisce danni necrotici extra pari al bonus di competenza. Una Rivelazione celestiale per riposo lungo.`,
-        { level: 3, effect: { detail: "Una volta per turno danni necrotici extra pari al bonus di competenza.", rounds: MINUTE } }),
+      use("rivelazione-celestiale-ali", "Rivelazione celestiale: Anima radiosa", "azione_bonus", "rivelazione-celestiale", `Rivelazione scelta al 3° livello. Con un'azione bonus ti trasformi per 1 minuto (puoi terminare prima con un'azione bonus): ali spettrali ti danno una velocità di volare pari alla velocità camminando. Una volta in ciascun tuo turno, un bersaglio che danneggi con un attacco o un incantesimo subisce danni radiosi extra pari al bonus di competenza. Una Rivelazione celestiale per riposo lungo.`,
+        { option: "anima-radiosa", level: 3, effect: { detail: "Volare pari alla velocità camminando; una volta per turno danni radiosi extra pari al bonus di competenza.", rounds: MINUTE } }),
+      use("rivelazione-celestiale-radiosita", "Rivelazione celestiale: Consunzione radiosa", "azione_bonus", "rivelazione-celestiale", `Rivelazione scelta al 3° livello. Con un'azione bonus ti trasformi per 1 minuto (puoi terminare prima con un'azione bonus): emani luce intensa entro 3 m e fioca per altri 3 m, e alla fine di ogni tuo turno ogni creatura entro 3 m subisce danni radiosi pari al bonus di competenza. Una volta in ciascun tuo turno, un bersaglio che danneggi con un attacco o un incantesimo subisce danni radiosi extra pari al bonus di competenza. Una Rivelazione celestiale per riposo lungo.`,
+        { option: "consunzione-radiosa", level: 3, effect: { detail: "Fine turno: danni radiosi a chi è entro 3 m; una volta per turno danni radiosi extra pari al bonus di competenza.", rounds: MINUTE } }),
+      use("rivelazione-celestiale-sudario", "Rivelazione celestiale: Sudario necrotico", "azione_bonus", "rivelazione-celestiale", `Rivelazione scelta al 3° livello. Con un'azione bonus ti trasformi per 1 minuto (puoi terminare prima con un'azione bonus): le creature entro 3 m che possono vederti, tranne i tuoi alleati, superano un TS su Carisma (CD 8 + competenza + Carisma) o sono spaventate da te fino alla fine del tuo prossimo turno. Una volta in ciascun tuo turno, un bersaglio che danneggi con un attacco o un incantesimo subisce danni necrotici extra pari al bonus di competenza. Una Rivelazione celestiale per riposo lungo.`,
+        { option: "sudario-necrotico", level: 3, effect: { detail: "Una volta per turno danni necrotici extra pari al bonus di competenza.", rounds: MINUTE } }),
     ],
   },
   {
@@ -299,10 +308,10 @@ export const SPECIES_CATALOG_MULTIVERSO = [
     ],
   },
   {
-    id: "elfo-marino-multiverso", label: "Elfo marino", book: "multiverso", page: 30, aliases: ["sea elf"], look: ["🌊", "#22d3ee", "#083344", "#ecfeff"],
+    id: "elfo-marino-multiverso", label: "Elfo marino", book: "multiverso", page: 30, resistances: ["cold"], aliases: ["sea elf"], look: ["🌊", "#22d3ee", "#083344", "#ecfeff"],
     traits: [
       passive("ascendenza-fatata", "Ascendenza fatata", FEY_ANCESTRY_MM),
-      passive("figlio-del-mare", "Figlio del mare", "Velocità di nuotare pari alla velocità camminando; respiri aria e acqua."),
+      passive("figlio-del-mare", "Figlio del mare", "Velocità di nuotare pari alla velocità camminando; respiri aria e acqua; resistenza ai danni da freddo, già applicata alle difese."),
       passive("amico-del-mare", "Amico del mare", "Comunichi idee semplici con qualsiasi bestia che abbia una velocità di nuotare."),
     ],
   },
@@ -310,9 +319,9 @@ export const SPECIES_CATALOG_MULTIVERSO = [
     id: "firbolg-multiverso", label: "Firbolg", book: "multiverso", page: 15, look: ["🌲", "#86efac", "#14532d", "#f0fdf4"],
     pools: [once("individuazione", "Magia firbolg: Individuazione del magico"), once("camuffare", "Magia firbolg: Camuffare se stesso"), perPb("passo-nascosto", "Passo nascosto")],
     traits: [
-      passive("magia-firbolg", "Magia firbolg", `Lanci Individuazione del magico e Camuffare se stesso, una volta per riposo lungo ciascuno (puoi lanciarli anche con gli slot); ${MM_ABILITY}. Con Camuffare se stesso puoi sembrare fino a 90 cm più basso.`),
+      passive("magia-firbolg", "Magia firbolg", `Lanci Individuazione del magico e Camuffare se stesso, una volta per riposo lungo ciascuno (puoi lanciarli anche con gli slot); ${MM_ABILITY}. Con Camuffare se stesso puoi sembrare fino a 90 cm più basso o più alto.`),
       spell("magia-firbolg-individuazione", "Magia firbolg: Individuazione del magico", "azione", "individuazione", 1, `Lanci Individuazione del magico senza spendere slot. ${ONCE_LONG}`),
-      spell("magia-firbolg-camuffare", "Magia firbolg: Camuffare se stesso", "azione", "camuffare", 1, `Lanci Camuffare se stesso senza spendere slot; puoi sembrare fino a 90 cm più basso. ${ONCE_LONG}`),
+      spell("magia-firbolg-camuffare", "Magia firbolg: Camuffare se stesso", "azione", "camuffare", 1, `Lanci Camuffare se stesso senza spendere slot; puoi sembrare fino a 90 cm più basso o più alto. ${ONCE_LONG}`),
       use("passo-nascosto", "Passo nascosto", "azione_bonus", "passo-nascosto", `Con un'azione bonus diventi invisibile fino all'inizio del tuo prossimo turno, o finché non attacchi, tiri danni o costringi una creatura a un tiro salvezza. ${PB_LONG}`),
       passive("linguaggio-delle-bestie-e-delle-foglie", "Linguaggio delle bestie e delle foglie", "Bestie e piante capiscono il senso delle tue parole, ma tu non capisci le loro. Vantaggio alle prove di Carisma per influenzarle."),
     ],
@@ -377,11 +386,9 @@ export const SPECIES_CATALOG_MULTIVERSO = [
   },
   {
     id: "kenku-multiverso", label: "Kenku", book: "multiverso", page: 24, look: ["🐦‍⬛", "#a5b4fc", "#1e1b4b", "#eef2ff"],
-    pools: [perPb("memoria-kenku", "Memoria kenku")],
     traits: [
       passive("duplicazione-esperta", "Duplicazione esperta", "Quando copi una scrittura o un manufatto, tuo o altrui, hai vantaggio alle prove per produrne un duplicato esatto."),
-      use("memoria-kenku", "Memoria kenku", "innesco", "memoria-kenku", `Prima di tirare, ti dai vantaggio a una prova di caratteristica che usa un'abilità in cui hai competenza. ${PB_LONG}`),
-      passive("mimica", "Mimica", "Imiti suoni e voci che hai sentito. Chi ascolta capisce che è un'imitazione superando una prova di Saggezza (Intuizione) contrapposta alla tua prova di Carisma (Inganno)."),
+      passive("mimica", "Mimica", "Imiti con precisione suoni e voci che hai sentito. Chi ascolta capisce che è un'imitazione solo superando una prova di Saggezza (Intuizione) con CD 8 + competenza + Carisma."),
     ],
   },
   {
@@ -407,9 +414,9 @@ export const SPECIES_CATALOG_MULTIVERSO = [
   },
   {
     id: "orco-multiverso", label: "Orco", book: "multiverso", page: 28, aliases: ["orc"], look: ["👹", "#84cc16", "#1a2e05", "#f7fee7"],
-    pools: [perPb("scarica-di-adrenalina", "Scarica di adrenalina", "breve"), once("tenacia-implacabile", "Tenacia implacabile")],
+    pools: [perPb("scarica-di-adrenalina", "Scarica di adrenalina"), once("tenacia-implacabile", "Tenacia implacabile")],
     traits: [
-      use("scarica-di-adrenalina", "Scarica di adrenalina", "azione_bonus", "scarica-di-adrenalina", "Con un'azione bonus compi l'azione Scattare e ottieni punti ferita temporanei pari al bonus di competenza. Usi pari al bonus di competenza per riposo breve o lungo."),
+      use("scarica-di-adrenalina", "Scarica di adrenalina", "azione_bonus", "scarica-di-adrenalina", `Con un'azione bonus compi l'azione Scattare e ottieni punti ferita temporanei pari al bonus di competenza. ${PB_LONG}`),
       use("tenacia-implacabile", "Tenacia implacabile", "innesco", "tenacia-implacabile", `Quando scendi a 0 punti ferita ma non vieni ucciso sul colpo, puoi scendere invece a 1 punto ferita. ${ONCE_LONG} Riporta i PF a 1 e spendi l'uso.`),
     ],
   },

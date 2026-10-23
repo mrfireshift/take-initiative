@@ -24,12 +24,12 @@ const HALFLING = (option) => [
 
 const mark = (id, label, base, aliases) => ({ ...opt(id, `Marchio ${label} (${base})`, aliases), fullName: true });
 
-// Shifting: the same four forms in both books; the numbers change.
-const shifting = (speciesUses, tempHp, wildhuntRange) => [
+// Shifting: the same four forms in both books; the temporary hit points, the uses and the Longtooth bite change.
+const shifting = (speciesUses, tempHp, longtoothBite) => [
   ["pelle-bestiale", "Pelle bestiale", "ottieni 1d6 punti ferita temporanei in più e +1 alla CA."],
-  ["zanna-lunga", "Zanna lunga", "con un'azione bonus fai un colpo senz'armi con le zanne: 1d6 + Forza danni perforanti."],
+  ["zanna-lunga", "Zanna lunga", `${longtoothBite}: 1d6 + Forza danni perforanti.`],
   ["passo-rapido", "Passo rapido", "+3 m alla velocità camminando; quando una creatura termina il turno entro 1,5 m da te, con una reazione ti muovi fino a 3 m senza provocare attacchi di opportunità."],
-  ["caccia-selvaggia", "Caccia selvaggia", `vantaggio alle prove di Saggezza, e nessuna creatura entro ${wildhuntRange} può avere vantaggio ai tiri per colpire contro di te, a meno che tu non sia incapacitato.`],
+  ["caccia-selvaggia", "Caccia selvaggia", "vantaggio alle prove di Saggezza, e nessuna creatura entro 9 m può avere vantaggio ai tiri per colpire contro di te, a meno che tu non sia incapacitato."],
 ].map(([option, name, effect]) => use(`mutazione-${option}`, `Mutazione: ${name}`, "azione_bonus", "mutazione",
   `Con un'azione bonus assumi un aspetto ferino per 1 minuto (puoi terminarlo prima con un'azione bonus) e ottieni ${tempHp}, da aggiungere a mano. Finché sei mutato, ${effect} ${speciesUses}`,
   { option, effect: { detail: `${name}: ${effect}`, rounds: MINUTE } }));
@@ -60,7 +60,7 @@ export const SPECIES_CATALOG_EBERRON = [
   {
     id: "shifter", label: "Shifter", book: "eberron", page: 27, aliases: ["mutante"], look: SHIFTER, optionLabel: "Sottorazza", options: SHIFTER_OPTIONS,
     pools: [once("mutazione", "Mutazione", "breve")],
-    traits: shifting(ONCE_SHORT, "punti ferita temporanei pari al tuo livello + Costituzione (minimo 1)", "9 m"),
+    traits: shifting(ONCE_SHORT, "punti ferita temporanei pari al tuo livello + Costituzione (minimo 1)", "con un'azione bonus puoi fare un colpo senz'armi con le zanne"),
   },
   {
     id: "warforged", label: "Warforged", book: "eberron", page: 36, resistances: ["poison"], aliases: ["forgiato"], look: ["🤖", "#94a3b8", "#0f172a", "#f8fafc"],
@@ -89,12 +89,12 @@ export const SPECIES_CATALOG_EBERRON = [
     pools: [
       once("individuazione-del-magico", "Marchio della scoperta: Individuazione del magico"), once("individuazione-malattie-veleni", "Marchio della scoperta: Individuazione delle malattie e dei veleni"), once("vedere-invisibilita", "Marchio della scoperta: Vedere invisibilità"),
       once("marchio-del-cacciatore", "Marchio del ritrovamento: Marchio del cacciatore"), once("localizza-oggetto", "Marchio del ritrovamento: Localizza oggetto"),
-      once("amicizia-con-gli-animali", "Marchio dell'addestramento: Amicizia con gli animali"), once("parlare-con-gli-animali", "Marchio dell'addestramento: Parlare con gli animali"),
+      once("amicizia-con-gli-animali", "Marchio dell'addestramento: Amicizia con gli animali", "breve"), once("parlare-con-gli-animali", "Marchio dell'addestramento: Parlare con gli animali", "breve"),
       once("cura-ferite", "Marchio della guarigione: Cura ferite"), once("ristorare-inferiore", "Marchio della guarigione: Ristorare inferiore"),
       once("purificare-cibo-e-bevande", "Marchio dell'ospitalità: Purificare cibo e bevande"), once("servitore-inosservato", "Marchio dell'ospitalità: Servitore inosservato"),
       once("arma-magica", "Marchio della creazione: Arma magica"),
       once("passo-velato", "Marchio del passaggio: Passo velato"),
-      once("comprensione-dei-linguaggi", "Marchio della scrittura: Comprensione dei linguaggi"), once("bocca-magica", "Marchio della scrittura: Bocca magica"),
+      once("comprensione-dei-linguaggi", "Marchio della scrittura: Comprensione dei linguaggi", "breve"), once("bocca-magica", "Marchio della scrittura: Bocca magica"),
       once("scudo", "Marchio della sentinella: Scudo"), once("guardiano-vigile", "Guardiano vigile"),
       once("invisibilita", "Marchio dell'ombra: Invisibilità"),
       once("folata-di-vento", "Marchio della tempesta: Folata di vento"),
@@ -105,10 +105,10 @@ export const SPECIES_CATALOG_EBERRON = [
 
       FEY("scoperta"),
       intuition("intuizione-deduttiva", "Intuizione deduttiva", "Intelligenza (Indagare) o Saggezza (Intuizione)", "scoperta"),
-      passive("individuazione-magica", "Individuazione magica", "Lanci Individuazione del magico e Individuazione delle malattie e dei veleni, e dal 3° livello Vedere invisibilità, una volta per riposo lungo ciascuno, con Intelligenza come caratteristica da incantatore.", { option: "scoperta" }),
-      spell("individuazione-magica-magico", "Individuazione magica: Individuazione del magico", "azione", "individuazione-del-magico", 1, `Lanci Individuazione del magico senza spendere slot, con Intelligenza. ${ONCE_LONG}`, { option: "scoperta" }),
-      spell("individuazione-magica-malattie-veleni", "Individuazione magica: Individuazione delle malattie e dei veleni", "azione", "individuazione-malattie-veleni", 1, `Lanci Individuazione delle malattie e dei veleni senza spendere slot, con Intelligenza. ${ONCE_LONG}`, { option: "scoperta" }),
-      spell("individuazione-magica-vedere-invisibilita", "Individuazione magica: Vedere invisibilità", "azione", "vedere-invisibilita", 3, `Lanci Vedere invisibilità senza spendere slot, con Intelligenza. ${ONCE_LONG}`, { option: "scoperta" }),
+      passive("individuazione-magica", "Individuazione magica", "Lanci Individuazione del magico e Individuazione delle malattie e dei veleni, e dal 3° livello Vedere invisibilità, una volta per riposo lungo ciascuno, senza componenti materiali e con Saggezza come caratteristica da incantatore.", { option: "scoperta" }),
+      spell("individuazione-magica-magico", "Individuazione magica: Individuazione del magico", "azione", "individuazione-del-magico", 1, `Lanci Individuazione del magico senza spendere slot né componenti materiali, con Saggezza. ${ONCE_LONG}`, { option: "scoperta" }),
+      spell("individuazione-magica-malattie-veleni", "Individuazione magica: Individuazione delle malattie e dei veleni", "azione", "individuazione-malattie-veleni", 1, `Lanci Individuazione delle malattie e dei veleni senza spendere slot né componenti materiali, con Saggezza. ${ONCE_LONG}`, { option: "scoperta" }),
+      spell("individuazione-magica-vedere-invisibilita", "Individuazione magica: Vedere invisibilità", "azione", "vedere-invisibilita", 3, `Lanci Vedere invisibilità senza spendere slot né componenti materiali, con Saggezza. ${ONCE_LONG}`, { option: "scoperta" }),
 
       intuition("intuizione-del-cacciatore", "Intuizione del cacciatore", "Saggezza (Percezione) o Saggezza (Sopravvivenza)", "ritrovamento"),
       passive("magia-del-cercatore", "Magia del cercatore", "Al posto dei tratti del mezzorco o dell'umano: lanci Marchio del cacciatore e dal 3° livello Localizza oggetto, una volta per riposo lungo ciascuno, con Saggezza come caratteristica da incantatore.", { option: "ritrovamento" }),
@@ -116,9 +116,9 @@ export const SPECIES_CATALOG_EBERRON = [
       spell("magia-del-cercatore-localizza-oggetto", "Magia del cercatore: Localizza oggetto", "azione", "localizza-oggetto", 3, `Lanci Localizza oggetto senza spendere slot, con Saggezza. ${ONCE_LONG}`, { option: "ritrovamento" }),
 
       intuition("intuizione-selvaggia", "Intuizione selvaggia", "Saggezza (Addestrare Animali) o Intelligenza (Natura)", "addestramento"),
-      passive("legame-primordiale", "Legame primordiale", "Lanci Amicizia con gli animali e Parlare con gli animali, una volta per riposo lungo ciascuno, con Saggezza come caratteristica da incantatore.", { option: "addestramento" }),
-      spell("legame-primordiale-amicizia-con-gli-animali", "Legame primordiale: Amicizia con gli animali", "azione", "amicizia-con-gli-animali", 1, `Lanci Amicizia con gli animali senza spendere slot, con Saggezza. ${ONCE_LONG}`, { option: "addestramento" }),
-      spell("legame-primordiale-parlare-con-gli-animali", "Legame primordiale: Parlare con gli animali", "azione", "parlare-con-gli-animali", 1, `Lanci Parlare con gli animali senza spendere slot, con Saggezza. ${ONCE_LONG}`, { option: "addestramento" }),
+      passive("legame-primordiale", "Legame primordiale", "Lanci Amicizia con gli animali e Parlare con gli animali, una volta per riposo breve o lungo ciascuno, senza componenti materiali e con Saggezza come caratteristica da incantatore.", { option: "addestramento" }),
+      spell("legame-primordiale-amicizia-con-gli-animali", "Legame primordiale: Amicizia con gli animali", "azione", "amicizia-con-gli-animali", 1, `Lanci Amicizia con gli animali senza spendere slot né componenti materiali, con Saggezza. ${ONCE_SHORT}`, { option: "addestramento" }),
+      spell("legame-primordiale-parlare-con-gli-animali", "Legame primordiale: Parlare con gli animali", "azione", "parlare-con-gli-animali", 1, `Lanci Parlare con gli animali senza spendere slot né componenti materiali, con Saggezza. ${ONCE_SHORT}`, { option: "addestramento" }),
       passive("piu-sono-grossi", "Più sono grossi", "Dal 3° livello, gli incantesimi di Legame primordiale funzionano anche sulle mostruosità con Intelligenza 3 o inferiore.", { option: "addestramento", level: 3 }),
 
       ...HALFLING("guarigione"),
@@ -137,14 +137,14 @@ export const SPECIES_CATALOG_EBERRON = [
       passive("forgiatore-di-incantesimi", "Forgiatore di incantesimi", "Conosci il trucchetto Riparare. Lanci Arma magica una volta per riposo lungo: dura 1 ora e non richiede concentrazione. Caratteristica da incantatore: Intelligenza.", { option: "creazione" }),
       spell("forgiatore-di-incantesimi-arma-magica", "Forgiatore di incantesimi: Arma magica", "azione_bonus", "arma-magica", 1, `Lanci Arma magica senza spendere slot, con Intelligenza: dura 1 ora senza concentrazione. ${ONCE_LONG}`, { option: "creazione" }),
 
-      passive("velocita-del-corriere", "Velocità del corriere", "+1,5 m alla velocità base camminando: va compresa nella velocità del profilo.", { option: "passaggio" }),
+      passive("velocita-del-corriere", "Velocità del corriere", "La velocità base camminando sale a 10,5 m: va compresa nella velocità del profilo.", { option: "passaggio" }),
       intuition("movimento-intuitivo", "Movimento intuitivo", "Destrezza (Acrobazia) o con i veicoli terrestri", "passaggio"),
       spell("passaggio-magico", "Passaggio magico: Passo velato", "azione_bonus", "passo-velato", 1, `Lanci Passo velato senza spendere slot, con Destrezza come caratteristica da incantatore. ${ONCE_LONG}`, { option: "passaggio" }),
 
       passive("scrittura-astuzia-gnomesca", "Astuzia gnomesca", "Tratto dello gnomo: vantaggio a tutti i tiri salvezza di Intelligenza, Saggezza e Carisma contro la magia.", { option: "scrittura" }),
       intuition("scrittore-dotato", "Scrittore dotato", "Intelligenza (Storia) o con gli strumenti da calligrafo", "scrittura"),
-      passive("intuizione-dello-scriba", "Intuizione dello scriba", "Conosci il trucchetto Messaggio; lanci Comprensione dei linguaggi e dal 3° livello Bocca magica, una volta per riposo lungo ciascuno, con Intelligenza come caratteristica da incantatore.", { option: "scrittura" }),
-      spell("intuizione-dello-scriba-comprensione-dei-linguaggi", "Intuizione dello scriba: Comprensione dei linguaggi", "azione", "comprensione-dei-linguaggi", 1, `Lanci Comprensione dei linguaggi senza spendere slot, con Intelligenza. ${ONCE_LONG}`, { option: "scrittura" }),
+      passive("intuizione-dello-scriba", "Intuizione dello scriba", "Conosci il trucchetto Messaggio; lanci Comprensione dei linguaggi (una volta per riposo breve o lungo) e dal 3° livello Bocca magica (una volta per riposo lungo), con Intelligenza come caratteristica da incantatore.", { option: "scrittura" }),
+      spell("intuizione-dello-scriba-comprensione-dei-linguaggi", "Intuizione dello scriba: Comprensione dei linguaggi", "azione", "comprensione-dei-linguaggi", 1, `Lanci Comprensione dei linguaggi senza spendere slot, con Intelligenza. ${ONCE_SHORT}`, { option: "scrittura" }),
       spell("intuizione-dello-scriba-bocca-magica", "Intuizione dello scriba: Bocca magica", "azione", "bocca-magica", 3, `Lanci Bocca magica senza spendere slot, con Intelligenza. ${ONCE_LONG}`, { option: "scrittura" }),
 
       intuition("intuizione-della-sentinella", "Intuizione della sentinella", "Saggezza (Intuizione) o Saggezza (Percezione)", "sentinella"),
@@ -157,7 +157,7 @@ export const SPECIES_CATALOG_EBERRON = [
       spell("plasmare-le-ombre-invisibilita", "Plasmare le ombre: Invisibilità", "azione", "invisibilita", 3, `Lanci Invisibilità senza spendere slot, con Carisma. ${ONCE_LONG}`, { option: "ombra" }),
 
       FEY("tempesta"),
-      intuition("intuizione-del-maestro-dei-venti", "Intuizione del maestro dei venti", "Destrezza (Acrobazia) o con i veicoli acquatici", "tempesta"),
+      intuition("intuizione-del-maestro-dei-venti", "Intuizione del maestro dei venti", "Destrezza (Acrobazia) o con gli strumenti da navigatore", "tempesta"),
       passive("dono-della-tempesta", "Dono della tempesta", "Resistenza ai danni da fulmine, già applicata alle difese.", { option: "tempesta" }),
       passive("venti-contrari", "Venti contrari", "Conosci il trucchetto Folata; dal 3° livello lanci Folata di vento una volta per riposo lungo. Caratteristica da incantatore: Carisma.", { option: "tempesta" }),
       spell("venti-contrari-folata-di-vento", "Venti contrari: Folata di vento", "azione", "folata-di-vento", 3, `Lanci Folata di vento senza spendere slot, con Carisma. ${ONCE_LONG}`, { option: "tempesta" }),
@@ -182,6 +182,6 @@ export const SPECIES_CATALOG_MULTIVERSO_EBERRON = [
   {
     id: "shifter-multiverso", label: "Shifter", book: "multiverso", page: 32, aliases: ["mutante"], look: SHIFTER, optionLabel: "Mutazione", options: SHIFTER_OPTIONS,
     pools: [perPb("mutazione", "Mutazione")],
-    traits: shifting(PB_LONG, "punti ferita temporanei pari al doppio del bonus di competenza", "3 m"),
+    traits: shifting(PB_LONG, "punti ferita temporanei pari al doppio del bonus di competenza", "puoi fare un colpo senz'armi con le zanne quando ti trasformi e, nei turni successivi, con un'azione bonus"),
   },
 ];

@@ -27,7 +27,8 @@ export const SPECIES_FIELD = "species";
 export const SUPERNATURAL_GIFT_FIELD = "supernaturalGift";
 
 // english: the colour or gem as English sheets name it, for the import.
-const ancestry = (id, label, damageType, damageLabel, english) => Object.freeze({ id, label, damageType, damageLabel, aliases: Object.freeze([english]) });
+// breath: shape and save of the PHB breath weapon (Draconic Ancestry table); the Fizban breath depends on the variant.
+const ancestry = (id, label, damageType, damageLabel, english, breath = "") => Object.freeze({ id, label, damageType, damageLabel, aliases: Object.freeze([english]), breath });
 // fullName: the option's label names the character by itself ("Marchio dell'ombra (elfo)").
 const option = (id, label, { aliases = [], resistances = [], fullName = false } = {}) =>
   Object.freeze({ id, label, aliases: Object.freeze(aliases), resistances: Object.freeze(resistances), immunities: Object.freeze([]), fullName });
@@ -59,16 +60,16 @@ const BOOKS = Object.freeze({
 });
 
 const DRAGON_ANCESTRIES = Object.freeze({
-  nero: ancestry("nero", "Nero", "acid", "acido", "black"),
-  blu: ancestry("blu", "Blu", "lightning", "fulmine", "blue"),
-  verde: ancestry("verde", "Verde", "poison", "veleno", "green"),
-  rosso: ancestry("rosso", "Rosso", "fire", "fuoco", "red"),
-  bianco: ancestry("bianco", "Bianco", "cold", "freddo", "white"),
-  ottone: ancestry("ottone", "Ottone", "fire", "fuoco", "brass"),
-  bronzo: ancestry("bronzo", "Bronzo", "lightning", "fulmine", "bronze"),
-  rame: ancestry("rame", "Rame", "acid", "acido", "copper"),
-  oro: ancestry("oro", "Oro", "fire", "fuoco", "gold"),
-  argento: ancestry("argento", "Argento", "cold", "freddo", "silver"),
+  nero: ancestry("nero", "Nero", "acid", "acido", "black", "linea larga 1,5 m e lunga 9 m, TS su Destrezza"),
+  blu: ancestry("blu", "Blu", "lightning", "fulmine", "blue", "linea larga 1,5 m e lunga 9 m, TS su Destrezza"),
+  verde: ancestry("verde", "Verde", "poison", "veleno", "green", "cono di 4,5 m, TS su Costituzione"),
+  rosso: ancestry("rosso", "Rosso", "fire", "fuoco", "red", "cono di 4,5 m, TS su Destrezza"),
+  bianco: ancestry("bianco", "Bianco", "cold", "freddo", "white", "cono di 4,5 m, TS su Costituzione"),
+  ottone: ancestry("ottone", "Ottone", "fire", "fuoco", "brass", "linea larga 1,5 m e lunga 9 m, TS su Destrezza"),
+  bronzo: ancestry("bronzo", "Bronzo", "lightning", "fulmine", "bronze", "linea larga 1,5 m e lunga 9 m, TS su Destrezza"),
+  rame: ancestry("rame", "Rame", "acid", "acido", "copper", "linea larga 1,5 m e lunga 9 m, TS su Destrezza"),
+  oro: ancestry("oro", "Oro", "fire", "fuoco", "gold", "cono di 4,5 m, TS su Destrezza"),
+  argento: ancestry("argento", "Argento", "cold", "freddo", "silver", "cono di 4,5 m, TS su Costituzione"),
   ametista: ancestry("ametista", "Ametista", "force", "forza", "amethyst"),
   cristallo: ancestry("cristallo", "Cristallo", "radiant", "radiosi", "crystal"),
   smeraldo: ancestry("smeraldo", "Smeraldo", "psychic", "psichici", "emerald"),
@@ -332,14 +333,21 @@ function trait({ key, speciesId, ancestryValue, name, description, minimumLevel 
   });
 }
 
+// The Fizban breath: a 9 m line for the chromatic dragonborn, a 4.5 m cone for the gem and metallic ones.
+const FIZBAN_BREATH_SHAPE = Object.freeze({
+  "dragonide-cromatico": "linea larga 1,5 m e lunga 9 m",
+  "dragonide-gemma": "cono di 4,5 m",
+  "dragonide-metallico": "cono di 4,5 m",
+});
+
 function breathWeapon(speciesId, ancestryValue) {
   const phb = speciesId === "dragonide";
   return trait({
     key: "arma-a-soffio", speciesId, ancestryValue, name: `Arma a soffio (${ancestryValue.damageLabel})`, activation: phb ? "azione" : "azione_attacco",
     poolId: phb ? "specie-dragonide-arma-a-soffio-usi" : "specie-dragonide-fizban-arma-a-soffio-usi", page: phb ? 34 : 20,
     description: phb
-      ? `Esala energia distruttiva: danni da ${ancestryValue.damageLabel} 2d6 (3d6 al 6°, 4d6 all'11°, 5d6 al 16° livello), TS con CD 8 + Costituzione + competenza, metà se superato. Una volta per riposo breve o lungo.`
-      : `Sostituisce un attacco: cono di 4,5 m o linea di 9 m, TS Destrezza con CD 8 + Costituzione + competenza, 1d10 danni da ${ancestryValue.damageLabel} (2d10 al 5°, 3d10 all'11°, 4d10 al 17° livello), metà se superato. Usi pari al bonus di competenza per riposo lungo.`,
+      ? `Con un'azione esali energia distruttiva: ${ancestryValue.breath} con CD 8 + Costituzione + competenza; 2d6 danni da ${ancestryValue.damageLabel} (3d6 al 6°, 4d6 all'11°, 5d6 al 16° livello), metà se superato. Una volta per riposo breve o lungo.`
+      : `Durante l'azione di Attacco sostituisci un attacco: ${FIZBAN_BREATH_SHAPE[speciesId]}, TS su Destrezza con CD 8 + Costituzione + competenza; 1d10 danni da ${ancestryValue.damageLabel} (2d10 al 5°, 3d10 all'11°, 4d10 al 17° livello), metà se superato. Usi pari al bonus di competenza per riposo lungo.`,
   });
 }
 
@@ -361,8 +369,8 @@ function chromaticWarding(ancestryValue) {
 function metallicBreath(ancestryValue) {
   return trait({
     key: "arma-a-soffio-metallica", speciesId: "dragonide-metallico", ancestryValue, name: "Arma a soffio metallica", minimumLevel: 5,
-    activation: "azione", poolId: "specie-dragonide-metallico-arma-a-soffio-metallica-usi", page: 22,
-    description: "Dal 5° livello, con un'azione, cono di 4,5 m: TS Costituzione (soffio debilitante, Incapacitato fino all'inizio del tuo prossimo turno) o TS Forza (soffio repulsivo, spinto di 6 m e Prono). Una volta per riposo lungo.",
+    activation: "azione_attacco", poolId: "specie-dragonide-metallico-arma-a-soffio-metallica-usi", page: 22,
+    description: "Dal 5° livello, durante l'azione di Attacco sostituisci un attacco con un cono di 4,5 m (CD 8 + Costituzione + competenza): soffio debilitante (TS su Costituzione o incapacitato fino all'inizio del tuo prossimo turno) o soffio repulsivo (TS su Forza o spinto di 6 m e prono). Una volta per riposo lungo.",
   });
 }
 
@@ -382,6 +390,7 @@ function gemFlight(ancestryValue) {
 }
 
 const DRAGONBORN_IDS = new Set(["dragonide", "dragonide-cromatico", "dragonide-metallico", "dragonide-gemma"]);
+// Psionic Mind belongs to every gem dragonborn, whatever the ancestry.
 
 const DRAGONBORN_FEATURES = SPECIES.filter((entry) => DRAGONBORN_IDS.has(entry.id)).flatMap((species) => species.ancestries.flatMap((ancestryValue) => [
   breathWeapon(species.id, ancestryValue),
@@ -516,7 +525,10 @@ const CATALOG_FEATURES = CATALOG.flatMap((spec) => catalogTraits(spec));
 const GIFT_FEATURES = GIFT_CATALOG.flatMap((spec) => catalogTraits(spec, true));
 
 // Gift traits ride with the species ones: same lookup by id, same runtime, same profile filter.
-export const SPECIES_FEATURES = Object.freeze([...DRAGONBORN_FEATURES, ...PHB_FEATURES, ...CATALOG_FEATURES, ...GIFT_FEATURES]);
+const GEM_PSIONIC_MIND = speciesTrait({ speciesId: "dragonide-gemma", key: "mente-psionica", name: "Mente psionica", page: 21,
+  description: "Mandi messaggi telepatici a qualsiasi creatura che puoi vedere entro 9 m; non serve una lingua comune, ma deve capirne almeno una." });
+
+export const SPECIES_FEATURES = Object.freeze([...DRAGONBORN_FEATURES, GEM_PSIONIC_MIND, ...PHB_FEATURES, ...CATALOG_FEATURES, ...GIFT_FEATURES]);
 
 // A species trait is available for the profile's species, and for its chosen option when the
 // trait belongs to one, once the total character level reaches it. A species with options and none

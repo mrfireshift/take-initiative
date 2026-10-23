@@ -20,7 +20,7 @@ export const SPECIES_CATALOG_ELEMENTAL = [
     ],
   },
   {
-    id: "genasi", label: "Genasi", book: "elemental", page: 9, look: GENASI, optionLabel: "Elemento",
+    id: "genasi", label: "Genasi", book: "elemental", page: 9, alsoIn: ["wildemount"], look: GENASI, optionLabel: "Elemento",
     options: [
       opt("aria", "Genasi dell'aria", ["air", "air genasi", "aria"]),
       opt("terra", "Genasi della terra", ["earth", "earth genasi", "terra"]),
@@ -57,6 +57,16 @@ const HALF_ELF_VARIANTS = [
 ];
 
 export const SPECIES_CATALOG_COSTA = [
+  {
+    id: "aasimar-costa", label: "Aasimar", book: "costa", page: 118, resistances: ["necrotic", "radiant"], look: ["😇", "#fde68a", "#422006", "#fffbeb"],
+    pools: [once("ristorare-inferiore", "Eredità celestiale: Ristorare inferiore"), once("luce-diurna", "Eredità celestiale: Luce diurna")],
+    traits: [
+      passive("resistenza-celestiale", "Resistenza celestiale", "Resistenza ai danni necrotici e radiosi, già applicata alle difese."),
+      passive("eredita-celestiale", "Eredità celestiale", "Conosci il trucchetto Luce. Dal 3° livello lanci Ristorare inferiore e dal 5° Luce diurna, una volta per riposo lungo ciascuno, con Carisma come caratteristica da incantatore."),
+      spell("eredita-celestiale-ristorare-inferiore", "Eredità celestiale: Ristorare inferiore", "azione", "ristorare-inferiore", 3, `Lanci Ristorare inferiore senza spendere slot, con Carisma. ${ONCE_LONG}`),
+      spell("eredita-celestiale-luce-diurna", "Eredità celestiale: Luce diurna", "azione", "luce-diurna", 5, `Lanci Luce diurna senza spendere slot, con Carisma. ${ONCE_LONG}`),
+    ],
+  },
   {
     id: "halfling-spettrale", label: "Halfling spettrale", book: "costa", page: 110, aliases: ["ghostwise", "ghostwise halfling"], look: ["🍀", "#a3e635", "#1a2e05", "#f7fee7"],
     traits: [
@@ -127,7 +137,7 @@ export const SPECIES_CATALOG_MULTIVERSO_ELEMENTAL = [
       opt("acqua", "Genasi dell'acqua", ["water", "water genasi", "acqua"], ["acid"]),
     ],
     pools: [once("caduta-morbida", "Mescolarsi al vento: Caduta morbida"), once("levitazione", "Mescolarsi al vento: Levitazione"),
-      perPb("interdizione-alle-lame", "Fondersi con la pietra: Interdizione alle lame"), once("passare-senza-tracce", "Fondersi con la pietra: Passare senza tracce"),
+      perPb("interdizione-alle-lame", "Fondersi con la pietra: Interdizione alle lame"),
       once("mani-brucianti", "Raggiungere la fiamma: Mani brucianti"), once("lama-infuocata", "Raggiungere la fiamma: Lama infuocata"),
       once("creare-o-distruggere-acqua", "Richiamo dell'onda: Creare o distruggere acqua"), once("camminare-sull-acqua", "Richiamo dell'onda: Camminare sull'acqua")],
     traits: [
@@ -136,13 +146,12 @@ export const SPECIES_CATALOG_MULTIVERSO_ELEMENTAL = [
       passive("mescolarsi-al-vento", "Mescolarsi al vento", `Conosci il trucchetto Stretta folgorante. Dal 3° livello lanci Caduta morbida e dal 5° Levitazione, una volta per riposo lungo ciascuno senza componenti materiali (puoi lanciarli anche con gli slot); ${MM_ABILITY}.`, { option: "aria" }),
       spell("mescolarsi-al-vento-caduta-morbida", "Mescolarsi al vento: Caduta morbida", "reazione", "caduta-morbida", 3, `Lanci Caduta morbida senza spendere slot né componenti materiali. ${ONCE_LONG}`, { option: "aria" }),
       spell("mescolarsi-al-vento-levitazione", "Mescolarsi al vento: Levitazione", "azione", "levitazione", 5, `Lanci Levitazione senza spendere slot né componenti materiali. ${ONCE_LONG}`, { option: "aria" }),
-      passive("camminare-sulla-terra", "Camminare sulla terra", "Attraversi il terreno difficile di terra o pietra senza spendere movimento extra.", { option: "terra" }),
-      passive("fondersi-con-la-pietra", "Fondersi con la pietra", `Conosci il trucchetto Interdizione alle lame e puoi lanciarlo come azione bonus. Dal 5° livello lanci Passare senza tracce una volta per riposo lungo senza componenti materiali (puoi lanciarlo anche con gli slot); ${MM_ABILITY}.`, { option: "terra" }),
+      passive("camminare-sulla-terra", "Camminare sulla terra", "Quando usi la velocità camminando sul terreno o su un pavimento, il terreno difficile non ti costa movimento extra.", { option: "terra" }),
+      passive("fondersi-con-la-pietra", "Fondersi con la pietra", `Conosci il trucchetto Interdizione alle lame; ${MM_ABILITY}. Oltre che normalmente, puoi lanciarlo come azione bonus.`, { option: "terra" }),
       use("fondersi-con-la-pietra-interdizione-alle-lame", "Fondersi con la pietra: Interdizione alle lame", "azione_bonus", "interdizione-alle-lame", `Lanci Interdizione alle lame come azione bonus. ${PB_LONG}`, { option: "terra" }),
-      spell("fondersi-con-la-pietra-passare-senza-tracce", "Fondersi con la pietra: Passare senza tracce", "azione", "passare-senza-tracce", 5, `Lanci Passare senza tracce senza spendere slot né componenti materiali. ${ONCE_LONG}`, { option: "terra" }),
       passive("resistenza-al-fuoco", "Resistenza al fuoco", "Resistenza ai danni da fuoco, già applicata alle difese.", { option: "fuoco" }),
-      passive("raggiungere-la-fiamma", "Raggiungere la fiamma", `Conosci il trucchetto Produrre fiamma. Dal 3° livello lanci Mani brucianti e dal 5° Lama infuocata, una volta per riposo lungo ciascuno senza componenti materiali (puoi lanciarli anche con gli slot); ${MM_ABILITY}.`, { option: "fuoco" }),
-      spell("raggiungere-la-fiamma-mani-brucianti", "Raggiungere la fiamma: Mani brucianti", "azione", "mani-brucianti", 3, `Lanci Mani brucianti senza spendere slot né componenti materiali. ${ONCE_LONG}`, { option: "fuoco" }),
+      passive("raggiungere-la-fiamma", "Raggiungere la fiamma", `Conosci il trucchetto Produrre fiamma. Dal 3° livello lanci Mani brucianti e dal 5° Lama infuocata (senza componenti materiali), una volta per riposo lungo ciascuno (puoi lanciarli anche con gli slot); ${MM_ABILITY}.`, { option: "fuoco" }),
+      spell("raggiungere-la-fiamma-mani-brucianti", "Raggiungere la fiamma: Mani brucianti", "azione", "mani-brucianti", 3, `Lanci Mani brucianti senza spendere slot. ${ONCE_LONG}`, { option: "fuoco" }),
       spell("raggiungere-la-fiamma-lama-infuocata", "Raggiungere la fiamma: Lama infuocata", "azione_bonus", "lama-infuocata", 5, `Lanci Lama infuocata senza spendere slot né componenti materiali. ${ONCE_LONG}`, { option: "fuoco" }),
       passive("resistenza-all-acido", "Resistenza all'acido", "Resistenza ai danni da acido, già applicata alle difese.", { option: "acqua" }),
       passive("anfibio", "Anfibio", "Respiri aria e acqua; velocità di nuotare pari alla velocità camminando.", { option: "acqua" }),

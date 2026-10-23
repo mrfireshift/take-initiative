@@ -225,14 +225,19 @@ function importedSpecies(data, unresolved) {
     candidates = SPECIES.filter((entry) => entry.ancestries.some((choice) => speciesNameMatches(choice, key)));
   }
   if (bookKey && candidates.length && !fromBook(candidates).length) unresolved.push(`manuale "${bookName}" per la specie "${name}"`);
-  const species = fromBook(candidates)[0] || candidates[0];
+  // A subrace or variant narrows the versions to those that have it (the Volo aasimar, not the Sword Coast one).
+  const ancestryName = lookupKey(optionName);
+  const withOption = (entries) => (ancestryName ? entries.filter((entry) => entry.ancestries.some((choice) => speciesNameMatches(choice, ancestryName))) : []);
+  const pool = fromBook(candidates).length ? fromBook(candidates) : candidates;
+  const species = withOption(pool)[0] || pool[0];
   if (!species) {
     if (name) unresolved.push(`specie "${name}" (non ancora nel catalogo del plugin)`);
     return null;
   }
-  if (!bookKey && candidates.length > 1) unresolved.push(`specie "${name}" presente in più manuali: usata ${species.sourceLabel} (indica source per cambiarla)`);
+  if (!bookKey && candidates.length > 1 && withOption(candidates).length !== 1) {
+    unresolved.push(`specie "${name}" presente in più manuali: usata ${species.sourceLabel} (indica source per cambiarla)`);
+  }
   ancestry = species.ancestries.find((choice) => speciesNameMatches(choice, key)) || null;
-  const ancestryName = lookupKey(optionName);
   if (ancestryName) {
     ancestry = species.ancestries.find((entry) => speciesNameMatches(entry, ancestryName)) || null;
     if (!ancestry) unresolved.push(`${(species.optionLabel || "opzione").toLocaleLowerCase("it")} "${text(optionName)}"`);
