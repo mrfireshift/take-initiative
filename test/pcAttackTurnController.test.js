@@ -4,7 +4,7 @@ import test, { mock } from "node:test";
 const sdk = { onReady() {}, broadcast: { onMessage: () => () => {}, sendMessage: async () => {} }, player: { getRole: async () => "GM" },
   scene: { items: { getItems: async () => [] } }, room: {}, popover: {} };
 mock.module("@owlbear-rodeo/sdk", { exports: { default: sdk, buildLabel() {}, buildImage() {}, buildPath() {}, buildShape() {}, buildText() {}, Command: class {} } });
-const { createPcAttackTurnController, pcAttackTurnOf, pcAttackTurnSourceId, pcAttackTurnReady, PC_ATTACK_CONSOLE_CHANNEL } =
+const { createPcAttackTurnController, pcAttackTurnOf, pcAttackTurnSourceId, pcAttackTurnReady, pcAttackEpicBossId, pcAttackTurnBoss, PC_ATTACK_CONSOLE_CHANNEL } =
   await import("../src/pcAttackTurnController.js");
 
 const META = "com.thebigpicture.initiative/meta";
@@ -13,17 +13,22 @@ const creature = (id, meta = {}) => ({ id, name: id, type: "IMAGE", layer: "CHAR
 const archer = creature("mira", { initiativeCard: { quickActions: [bow] } });
 const state = (current, round = 1, order = ["mira", "goblin", "__LAIR__", "mira::p1"]) => ({ order, current, round });
 
-function fixture({ items = [archer, creature("goblin")], enabled = true, open = false } = {}) {
-  const opened = [], followed = [];
-  let consoleOpen = open, isEnabled = enabled;
+// getCard: the raw card (a bound boss's binding is a strict profile identity, out of scope here).
+function fixture({ items = [archer, creature("goblin")], enabled = true, open = false, bossOpen = false } = {}) {
+  const opened = [], followed = [], bossOpened = [];
+  let consoleOpen = open, isEnabled = enabled, bossConsoleOpen = bossOpen;
   const controller = createPcAttackTurnController({
     api: { scene: { items: { getItems: async (ids) => items.filter((item) => ids.includes(item.id)) } } },
     isEnabled: () => isEnabled,
     openConsole: async (sourceId) => { opened.push(sourceId); },
     isConsoleOpen: async () => consoleOpen,
     followConsole: async (sourceId, name) => { followed.push([sourceId, name]); },
+    openBossConsole: async (sourceId) => { bossOpened.push(sourceId); },
+    isBossConsoleOpen: async () => bossConsoleOpen,
+    getCard: (item) => item?.metadata?.[META]?.initiativeCard || {},
   });
-  return { controller, opened, followed, setOpen: (value) => { consoleOpen = value; }, setEnabled: (value) => { isEnabled = value; } };
+  return { controller, opened, followed, bossOpened, setOpen: (value) => { consoleOpen = value; }, setEnabled: (value) => { isEnabled = value; },
+    setBossOpen: (value) => { bossConsoleOpen = value; } };
 }
 
 test("the turn key changes with the round or the actor, not with the order", () => {
@@ -115,4 +120,45 @@ test("an open console follows every turn: the actor, or nothing for a turn witho
   f.setEnabled(false);
   await f.controller.onState(state(0, 2));
   assert.equal(f.followed.length, 3, "the option off: the console stays where the GM left it");
+});
+
+// Bosses: an Epic Boss and a creature bound to a boss profile.
+const auril = creature("auril", { epic: true });
+const bound = creature("frost", { initiativeCard: { bossActionBinding: { profileId: "frost" }, quickActions: [bow] } });
+const bossOrder = ["auril", "mira", "__EPIC__::auril::after::mira", "frost", "goblin"];
+
+test("the boss an Epic Action slot belongs to; a boss is an Epic Boss or a bound creature, standing", () => {
+  assert.equal(pcAttackEpicBossId("__EPIC__::auril::after::mira"), "auril");
+  assert.equal(pcAttackEpicBossId("mira"), "");
+  const raw = (item) => item?.metadata?.[META]?.initiativeCard || {};
+  assert.equal(pcAttackTurnBoss(auril, raw), true);
+  assert.equal(pcAttackTurnBoss(bound, raw), true);
+  assert.equal(pcAttackTurnBoss(archer, raw), false);
+  assert.equal(pcAttackTurnBoss(creature("down", { epic: true, hp: 0 }), raw), false, "a boss at 0 HP");
+});
+
+test("a boss's turn and its Epic Action slots open Boss Actions, never the attack console", async () => {
+  const f = fixture({ items: [auril, archer, bound, creature("goblin")] });
+  await f.controller.onState({ order: bossOrder, current: 4, round: 1 });
+  await f.controller.onState({ order: bossOrder, current: 0, round: 2 });
+  assert.deepEqual([f.bossOpened, f.opened], [["auril"], []]);
+  await f.controller.onState({ order: bossOrder, current: 1, round: 2 });
+  assert.deepEqual(f.opened, ["mira"]);
+  await f.controller.onState({ order: bossOrder, current: 2, round: 2 });
+  assert.deepEqual(f.bossOpened, ["auril", "auril"], "the Epic Action slot after Mira's turn");
+  await f.controller.onState({ order: bossOrder, current: 3, round: 2 });
+  assert.deepEqual(f.bossOpened, ["auril", "auril", "frost"], "a bound boss, attacks or not");
+  assert.deepEqual(f.opened, ["mira"]);
+});
+
+test("an open Boss Actions is never reloaded; a clean attack console left open closes on the boss's turn", async () => {
+  const f = fixture({ items: [auril, archer], open: true, bossOpen: true });
+  await f.controller.onState({ order: ["mira", "auril"], current: 0, round: 1 });
+  await f.controller.onState({ order: ["mira", "auril"], current: 1, round: 1 });
+  assert.deepEqual(f.bossOpened, [], "already open");
+  assert.deepEqual(f.followed, [["", "auril"]], "the attack console is told the turn has nothing for it");
+  f.setEnabled(false);
+  f.setBossOpen(false);
+  await f.controller.onState({ order: ["mira", "auril"], current: 1, round: 2 });
+  assert.deepEqual(f.bossOpened, [], "the option off");
 });

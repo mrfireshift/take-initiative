@@ -30,6 +30,7 @@ function fixture(options={}){
       items:{getItems:async ids=>Array.isArray(ids)?items.filter(item=>ids.includes(item.id)):items,onChange:listener=>subscribe(listeners.items,listener),
         addItems:async values=>{added.push(...values);}}},
     popover:{close:async()=>{},getHeight:async()=>500,setHeight:async(id,height)=>{heights.push([id,height]);}},
+    ...(options.broadcast?{broadcast:options.broadcast}:{}),
   };
   const runtime={
     getBossActionPresentation:async()=>({item:items[0],profile:bound,binding:bound?{profileId:bound.profileId,profileRevision:bound.profileRevision}:null,
@@ -1216,4 +1217,16 @@ test("Il Corpo Non Era Qui: the destination is picked on the map like Misty Step
   await submit(f);
   assert.deepEqual([f.calls[0].targetId,f.calls[0].outcome,f.calls[0].teleport],["mira","failed",{x:750,y:300}]);
   f.controller.destroy();
+});
+
+test("Boss Actions answers the turn controller's ping while it is open, and stops once closed",async()=>{
+  const listeners=new Set(),sent=[];
+  const broadcast={onMessage:(channel,listener)=>{const entry={channel,listener};listeners.add(entry);return()=>listeners.delete(entry);},
+    sendMessage:async(channel,data,options)=>{sent.push({channel,data,options});}};
+  const f=fixture({broadcast});await f.controller.ready;
+  for(const entry of [...listeners]) if(entry.channel==="com.thebigpicture.initiative/boss-actions-console") entry.listener({data:{type:"ping"}});
+  await tick();
+  assert.deepEqual(sent,[{channel:"com.thebigpicture.initiative/boss-actions-console",data:{type:"pong",sourceId:"auril"},options:{destination:"LOCAL"}}]);
+  await f.$("boss-close").click();
+  assert.equal([...listeners].some(entry=>entry.channel==="com.thebigpicture.initiative/boss-actions-console"),false);
 });

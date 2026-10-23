@@ -5,10 +5,13 @@ import { isBossActionCreature } from "./bossActionExecutionCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { pcAttackPickerEntries } from "./pcAttackPickerCore.js";
 import { openPcAttackConsoleForActor, PC_ATTACK_CONSOLE_CHANNEL } from "./pcAttackLauncher.js";
+import { BOSS_ACTIONS_CONSOLE_CHANNEL, openBossActionsPopover } from "./bossActionsLauncher.js";
+import { INITIATIVE_EPIC_ACTION_PREFIX } from "./initiativeSelectionProjectionCore.js";
 import { runtimeOptionsService } from "./options/optionsRuntime.js";
 import { selectPcAttackAutoOpen } from "./options/optionsSelectors.js";
 
-// The attack console opens by itself on the turn of an actor with attacks (GM only, local option off by default).
+// The attack console opens by itself on the turn of an actor with attacks (GM only, local option off by default); on a
+// boss's turn, and on its Epic Action slots, Boss Actions opens instead.
 // It only reads the initiative state: never writes it, never moves the turn.
 const STATE_KEY = `${ID}/state`;
 const META_KEY = `${ID}/meta`;
@@ -33,25 +36,41 @@ export function pcAttackTurnSourceId(actorId) {
   return baseId && !String(baseId).startsWith("__") ? baseId : "";
 }
 
+// The boss an Epic Action slot belongs to ("__EPIC__::<boss>::after::<character>"), or "".
+export function pcAttackEpicBossId(actorId) {
+  const prefix = `${INITIATIVE_EPIC_ACTION_PREFIX}::`;
+  if (typeof actorId !== "string" || !actorId.startsWith(prefix)) return "";
+  return actorId.slice(prefix.length).split("::after::")[0] || "";
+}
+
+const standing = (item) => {
+  const hp = item?.metadata?.[META_KEY]?.hp;
+  return !(hp !== undefined && hp !== null && hp !== "" && Number.isFinite(Number(hp)) && Number(hp) <= 0);
+};
+
+// A boss with Boss Actions: an Epic Boss, or a creature bound to a boss profile; standing.
+export function pcAttackTurnBoss(item, getCard = getInitiativeCard) {
+  if (!isBossActionCreature(item) || !standing(item)) return false;
+  return item.metadata?.[META_KEY]?.epic === true || !!getCard(item)?.bossActionBinding;
+}
+
 // A creature on the map, standing (HP above 0: a character at 0 HP rolls death saves), with an attack or a spell.
 export function pcAttackTurnReady(item, getCard = getInitiativeCard) {
-  if (!isBossActionCreature(item)) return false;
-  const hp = item.metadata?.[META_KEY]?.hp;
-  if (hp !== undefined && hp !== null && hp !== "" && Number.isFinite(Number(hp)) && Number(hp) <= 0) return false;
+  if (!isBossActionCreature(item) || !standing(item)) return false;
   return pcAttackPickerEntries(getCard(item)).length > 0;
 }
 
-function pingConsole(api, timeoutMs = CONSOLE_PING_TIMEOUT_MS) {
+function pingConsole(api, channel = PC_ATTACK_CONSOLE_CHANNEL, timeoutMs = CONSOLE_PING_TIMEOUT_MS) {
   if (typeof api.broadcast?.onMessage !== "function") return Promise.resolve(false);
   return new Promise((resolve) => {
     let unsubscribe = () => {};
     const finish = (open) => { clearTimeout(timer); unsubscribe(); resolve(open); };
     const timer = setTimeout(() => finish(false), timeoutMs);
-    unsubscribe = api.broadcast.onMessage(PC_ATTACK_CONSOLE_CHANNEL, (event) => {
+    unsubscribe = api.broadcast.onMessage(channel, (event) => {
       if (event?.data?.type === "pong") finish(true);
     }) || (() => {});
     Promise.resolve()
-      .then(() => api.broadcast.sendMessage(PC_ATTACK_CONSOLE_CHANNEL, { type: "ping" }, { destination: "LOCAL" }))
+      .then(() => api.broadcast.sendMessage(channel, { type: "ping" }, { destination: "LOCAL" }))
       .catch(() => finish(false));
   });
 }
@@ -70,6 +89,8 @@ export function createPcAttackTurnController({
   isEnabled = () => runtimeOptionsService.get(selectPcAttackAutoOpen) === true,
   openConsole = openPcAttackConsoleForActor,
   isConsoleOpen = () => pingConsole(api),
+  openBossConsole = openBossActionsPopover,
+  isBossConsoleOpen = () => pingConsole(api, BOSS_ACTIONS_CONSOLE_CHANNEL),
   followConsole = (sourceId, name) => tellConsole(api, sourceId, name),
   getCard = getInitiativeCard,
 } = {}) {
@@ -94,8 +115,18 @@ export function createPcAttackTurnController({
       // A later turn (the GM skipped several) wins: only the latest one opens or moves the console.
       if (taskRevision !== revision || !isEnabled()) return;
       const sourceId = pcAttackTurnSourceId(turn.actorId);
-      const [item] = sourceId ? await api.scene.items.getItems([sourceId]) : [];
+      const epicBossId = pcAttackEpicBossId(turn.actorId);
+      const lookupId = sourceId || epicBossId;
+      const [item] = lookupId ? await api.scene.items.getItems([lookupId]) : [];
       if (taskRevision !== revision) return;
+      // A boss's turn, or one of its Epic Action slots: Boss Actions, never reloaded when open, never closed by itself.
+      // A clean attack console left open closes (the boss has no attack of its own there).
+      if (pcAttackTurnBoss(item, getCard)) {
+        if (await isConsoleOpen() && taskRevision === revision) await followConsole("", String(item?.name || ""));
+        if (taskRevision !== revision || await isBossConsoleOpen()) return;
+        if (taskRevision === revision) await openBossConsole(item.id);
+        return;
+      }
       const ready = !!sourceId && pcAttackTurnReady(item, getCard);
       // An open console is never reloaded: it moves to the new actor by itself (or closes), unless a draft holds it.
       if (await isConsoleOpen()) {

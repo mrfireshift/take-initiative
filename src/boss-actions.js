@@ -24,6 +24,7 @@ import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpell
 import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
 import { bossSeamDrawingIds,bossSeamPortalSpecs,bossSeamChainPortalSpecs,BOSS_SEAM_PORTAL_ASSET,BOSS_SEAM_PORTAL_PIXELS,BOSS_SEAM_PORTAL_CELLS } from "./bossSeamPortalCore.js";
 import "./popoverDrag.js";
+import { BOSS_ACTIONS_CONSOLE_CHANNEL } from "./bossActionsLauncher.js";
 
 const POPOVER_ID=`${ID}/boss-actions`;
 const META_KEY=`${ID}/meta`;
@@ -73,6 +74,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   const toolbar=["boss-import","boss-bind","boss-unbind","boss-export","boss-refresh"].map($).filter(Boolean);
   let presentation=null,targets=[],busy=false,invalidated=false,view="list",draft=null,lastUndo=null;
   let selection={status:"none",target:null,candidates:[]},searchQuery="",minimized=false,restoreHeight=DEFAULT_HEIGHT;
+  let offPing=null;
   // Remembered per viewer for this popover session: the combat list or the passive summary.
   let listTab=readSession(LIST_TAB_STORAGE_KEY)==="passives"?"passives":"actions";
   let refreshing=false,refreshPending=false,refreshTimer=null,liveSignature="",selectionSequence=0;
@@ -1921,9 +1923,16 @@ export function bootBossActions(documentRef=document, overrides={}) {
   });
   function destroy() {
     unmountLiveUpdates();
+    try{offPing?.();}catch{}
+    offPing=null;
     if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}
     lifecycle.dispose();
   }
+  // The turn controller asks whether Boss Actions is open (on a boss's turn): an open console is never reloaded.
+  if(typeof api.broadcast?.onMessage==="function") offPing=api.broadcast.onMessage(BOSS_ACTIONS_CONSOLE_CHANNEL,event=>{
+    if(event?.data?.type!=="ping") return;
+    void Promise.resolve().then(()=>api.broadcast.sendMessage(BOSS_ACTIONS_CONSOLE_CHANNEL,{type:"pong",sourceId},{destination:"LOCAL"})).catch(()=>{});
+  }) || null;
   $("boss-close").addEventListener("click",()=>{writeSession(draftStorageKey(),null);writeSession(MINIMIZED_STORAGE_KEY,null);destroy();void api.popover.close(POPOVER_ID);});
   const unsubscribe=lifecycle.subscribe(event=>{
     if(event.phase==="unavailable"){
