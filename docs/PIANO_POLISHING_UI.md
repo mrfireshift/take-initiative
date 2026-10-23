@@ -446,6 +446,7 @@ Stato dei lotti:
   - **Gate di rilascio** in un worktree pulito di `255a2b2`: `verify:version`, `npm test` (4108 test, tutti passati), `check:spells`, `build`, `artifact:checksums` (261 file), `verify:dist`, tutti a posto. `build-info.json`: commit `255a2b2`, `dirty: false`.
   - **`dist/` pubblicata** nel commit `26ac9d8` "build: publish production bundle from 255a2b2", identica al bundle del worktree.
   - **Resta:** il giro in OBR (7.4) ora si può fare anche con la build di produzione; tag annotato `v1.5.0` e push (7.6) solo con il via libera dell'utente.
+- **7.6 — fatto il 2026-10-23**, con il via libera dell'utente. Tag annotato `v1.5.0` ("Take Initiative! v1.5.0") su `26ac9d8`, il commit con versione e bundle; push di `main` (fast-forward `ff096f0..86f8b5f`) e del tag su `origin`. Il deploy di `dist/` è a cura dell'utente.
 
 ---
 
