@@ -552,6 +552,69 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
     manualSaveAtTable: true,
     assumedOutcome: "failed",
   }),
+  // CAP-CLEANSE (2014 texts): no save; cleanseSpellRules.js ends the pills and spells.
+  "heal": workflowRule({
+    spellId: "heal",
+    ability: "con",
+    maximum: 1,
+    baseSlot: 6,
+    spatial: { mode: "caster-range", maxMeters: 18 },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+  }),
+  "phb2014-parola-del-potere-guarire": workflowRule({
+    spellId: "phb2014-parola-del-potere-guarire",
+    ability: "con",
+    maximum: 1,
+    baseSlot: 9,
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+  }),
+  // The GM chooses the condition (or the disease) it ends.
+  "lesser-restoration": workflowRule({
+    spellId: "lesser-restoration",
+    ability: "con",
+    maximum: 1,
+    baseSlot: 2,
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    context: targetContext({
+      fields: [targetContextField({
+        id: "cleanseCondition",
+        label: "Termina",
+        required: true,
+        options: [
+          { value: "Accecato", label: "Accecato" },
+          { value: "Assordato", label: "Assordato" },
+          { value: "Avvelenato", label: "Avvelenato" },
+          { value: "Paralizzato", label: "Paralizzato" },
+          { value: "disease", label: "Una malattia" },
+        ],
+        placeholder: "Scegli la condizione",
+      })],
+    }),
+  }),
+  // Spells above the limit need the caster's check (DC 10 + their level): one result for the creature.
+  "dispel-magic": workflowRule({
+    spellId: "dispel-magic",
+    ability: "con",
+    maximum: 1,
+    baseSlot: 3,
+    spatial: { mode: "caster-range", maxMeters: 36 },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    context: targetContext({
+      fields: [targetContextField({
+        id: "dispelCheck",
+        label: "Prova",
+        options: [
+          { value: "passed", label: "Superata" },
+          { value: "failed", label: "Fallita" },
+        ],
+        placeholder: "Per gli incantesimi sopra il limite",
+      })],
+    }),
+  }),
   // Any number of creatures within 9 m that can hear; celestials, elementals, fey and fiends are sent home.
   "divine-word": workflowRule({
     spellId: "divine-word",

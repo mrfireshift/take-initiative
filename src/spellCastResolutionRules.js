@@ -155,6 +155,11 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
     }),
   }),
   "power-word-kill": Object.freeze({ initialHP: false }),
+  // CAP-CLEANSE: the healing of Heal and Power Word Heal is computed by cleanseSpellRules.js, never entered.
+  "heal": Object.freeze({ initialHP: false }),
+  "phb2014-parola-del-potere-guarire": Object.freeze({ initialHP: false }),
+  "lesser-restoration": Object.freeze({ initialHP: false }),
+  "dispel-magic": Object.freeze({ initialHP: false }),
   "divine-word": Object.freeze({ initialHP: false }),
   // Plant creatures: disadvantage and maximum damage, at the table.
   "blight": Object.freeze({

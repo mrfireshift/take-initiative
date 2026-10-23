@@ -40,6 +40,7 @@ import {
   resolveSaveSpellResolution,
   SAVE_SPELL_OUTCOMES,
 } from "./saveSpellCore.js";
+import { CLEANSE_SPELL_ID_SET, planCleanseTarget } from "./cleanseSpellRules.js";
 import {
   HP_BRANCH_SPELL_ID_SET,
   planHpBranchAfterDamage,
@@ -215,6 +216,7 @@ function resultBase(command, status, extra = {}) {
     visualEvents: Array.isArray(extra.visualEvents) ? extra.visualEvents : [],
     warnings: Array.isArray(extra.warnings) ? extra.warnings : [],
     errors: Array.isArray(extra.errors) ? extra.errors : [],
+    ...(Array.isArray(extra.notes) && extra.notes.length ? { notes: extra.notes.map(text).filter(Boolean) } : {}),
     ...(extra.committed === true ? { committed: true } : {}),
     ...(extra.partial === true ? { partial: true } : {}),
     ...(extra.postCommitPending === true ? { postCommitPending: true } : {}),
@@ -460,6 +462,66 @@ function planAreaHpBranch({ spell, command, resolution, liveItems, allItems, cas
     if (death) deaths.set(item.id, death);
   }
   return { conditionApplications, deaths };
+}
+
+// CAP-CLEANSE (cleanseSpellRules.js): what ends on each creature, read from the live items: its pills, its spells
+// (with the concentration of their caster) and the healing of Heal and Power Word Heal.
+function planAreaCleanse({ spell, command, liveItems, targetContexts = {} }) {
+  const removals = [];
+  const spellRemovals = [];
+  const heals = [];
+  const subjectIds = [];
+  const notes = [];
+  for (const item of liveItems) {
+    const plan = planCleanseTarget({
+      spellId: spell.id,
+      item,
+      slotLevel: command?.spell?.slotLevel,
+      context: targetContexts?.[item.id] || {},
+      levelOf: (spellId) => getSpellDefinition(spellId)?.level,
+    });
+    if (plan.removeInstanceIds.length) {
+      removals.push(...plan.removeInstanceIds.map((instanceId) => ({ itemId: item.id, instanceId })));
+      subjectIds.push(item.id);
+    }
+    for (const ended of plan.endSpells) {
+      spellRemovals.push({ type: "spell:remove-requested", targetIds: [item.id], instanceId: ended.instanceId });
+      subjectIds.push(item.id);
+      const entry = itemMeta(item)[SPELLS_KEY]?.find?.((candidate) => candidate?.instanceId === ended.instanceId);
+      const casterId = text(entry?.casterId || entry?.source);
+      if (casterId) subjectIds.push(casterId);
+    }
+    if (plan.healing > 0) heals.push({ item, amount: plan.healing });
+    if (plan.note) notes.push(plan.note);
+  }
+  return {
+    operations: [
+      ...(removals.length ? [
+        { type: "condition:remove-instances", removals },
+        { type: "condition:automate", subjectIds: uniqueIds(removals.map((removal) => removal.itemId)) },
+      ] : []),
+      ...spellRemovals,
+    ],
+    heals,
+    subjectIds: uniqueIds(subjectIds),
+    notes,
+  };
+}
+
+// The healing of Heal and Power Word Heal: an HP write of the area command, temporary hit points untouched.
+function applyCleanseHeals(entries, heals = []) {
+  for (const { item, amount } of heals) {
+    if (!trackedHP(item) || entries.some((entry) => entry.item?.id === item.id)) continue;
+    const meta = itemMeta(item);
+    const change = calculateQuickHPChange({
+      mode: QUICK_HP_MODES.HEAL,
+      value: amount,
+      factor: QUICK_HP_FACTORS.FULL,
+      hp: meta.hp,
+      hpMax: meta.hpMax,
+    });
+    if (change.changed) entries.push({ item, change, outcome: SAVE_SPELL_OUTCOMES.FAILED });
+  }
 }
 
 // A death the spell decides: the creature's HP write goes to 0 with instantDeath, which the coordinator turns into
@@ -1244,6 +1306,9 @@ async function buildPlan(command, runtime) {
   if (hpBranch?.conditionApplications.length) {
     resolved.conditionApplications = [...(resolved.conditionApplications || []), ...hpBranch.conditionApplications];
   }
+  const cleanse = !trigger && CLEANSE_SPELL_ID_SET.has(spell.id)
+    ? planAreaCleanse({ spell, command, liveItems, targetContexts })
+    : null;
   if ((mobileAura || boardToken) && casterId) {
     resolved.spellTargetIds = boardToken && placementRule?.boardToken?.spellOwner === "caster"
       ? [casterId]
@@ -1756,6 +1821,11 @@ async function buildPlan(command, runtime) {
     prismaticSprayPlan: resolution.prismaticSpray,
   });
   if (hpBranch?.deaths.size) applyHpBranchDeaths(entries, hpBranch.deaths, liveItems);
+  if (cleanse) {
+    applyCleanseHeals(entries, cleanse.heals);
+    effectOperations.push(...cleanse.operations);
+    effectSubjectIds.push(...cleanse.subjectIds);
+  }
   const casterHealingRatio = Number(getSpellCastResolutionRule(spell.id)?.casterHealingFromAppliedDamage) || 0;
   const damagePreview = casterHealingRatio > 0 ? buildSharedHpPreview(allItems, entries, command.sharedHp || {}) : null;
   if (damagePreview?.conflicts.length) return { valid: false,
@@ -1881,6 +1951,8 @@ async function buildPlan(command, runtime) {
     fireballVisualContext,
     matchedVisualContext,
     prismaticSprayPlan: resolution.prismaticSpray || null,
+    // CAP-CLEANSE: what the GM still has to do (Dispel Magic's spells above its limit, a construct Heal leaves).
+    notes: cleanse?.notes || [],
     ...(turbineChains ? { turbineChains } : {}),
     appliedAt,
     hpMode: command?.hp?.mode,
@@ -2216,6 +2288,7 @@ export async function executeSpellAreaResolution(
     return resultBase(command, RESULT_STATUSES.NOOP, {
       instanceId: plan.spellInstanceId,
       warnings: [],
+      notes: plan.notes,
     });
   }
 
@@ -2620,6 +2693,7 @@ export async function executeSpellAreaResolution(
       : {}),
     visualEvents,
     warnings,
+    notes: plan.notes,
   });
 }
 

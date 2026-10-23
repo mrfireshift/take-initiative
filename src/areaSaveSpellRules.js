@@ -124,6 +124,11 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "finger-of-death",
   "power-word-kill",
   "feeblemind",
+  // CAP-CLEANSE (2014 texts): one creature, the pills and spells that end on it (cleanseSpellRules.js).
+  "heal",
+  "phb2014-parola-del-potere-guarire",
+  "lesser-restoration",
+  "dispel-magic",
 ]);
 
 export const MULTI_TARGET_SAVE_SPELL_ID_SET = new Set(

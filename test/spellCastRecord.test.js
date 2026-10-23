@@ -50,8 +50,9 @@ function bookAction(spellId, overrides = {}) {
 }
 
 // 75 since lotto L2: the discrete heals, four saves with damage and Awaken left the recording; 71 since
-// Disintegrate, Finger of Death, Power Word Kill and Feeblemind resolve in the area command (CAP-HP-BRANCH).
-test("the plugin only records the instantaneous spells it neither tracks nor places: 71 of the catalog", () => {
+// Disintegrate, Finger of Death, Power Word Kill and Feeblemind resolve in the area command (CAP-HP-BRANCH); 67 with
+// Heal, Power Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE).
+test("the plugin only records the instantaneous spells it neither tracks nor places: 67 of the catalog", () => {
   const catalog = getSpellCatalog();
   const tracked = new Set(getTrackableSpellOptions().map((option) => option.id));
   const expected = catalog
@@ -60,11 +61,11 @@ test("the plugin only records the instantaneous spells it neither tracks nor pla
     .map((spell) => spell.id);
   const recorded = getRecordOnlySpellOptions().map((option) => option.id);
   assert.deepEqual(recorded, expected);
-  assert.equal(recorded.length, 71);
-  for (const id of ["counterspell", "heal", "wish", "magic-missile", "mending", "identify"]) {
+  assert.equal(recorded.length, 67);
+  for (const id of ["counterspell", "remove-curse", "wish", "magic-missile", "mending", "identify"]) {
     assert.equal(isSpellCastRecordOnly(id), true, id);
   }
-  for (const id of ["bless", "fireball", "shield", "hold-person", "mass-cure-wounds", "cure-wounds", "blight", "awaken"]) {
+  for (const id of ["bless", "fireball", "shield", "hold-person", "mass-cure-wounds", "cure-wounds", "blight", "awaken", "heal"]) {
     assert.equal(isSpellCastRecordOnly(id), false, id);
   }
   assert.equal(isSpellCastRecordOnly("Controincantesimo"), true, "by name too");
@@ -76,7 +77,7 @@ test("the plugin only records the instantaneous spells it neither tracks nor pla
 test("every spell of the catalog is a quick action option, the recorded ones flagged", () => {
   const options = getQuickActionSpellOptions();
   assert.equal(options.length, getSpellCatalog().length);
-  assert.equal(options.filter((option) => option.recordOnly).length, 71);
+  assert.equal(options.filter((option) => option.recordOnly).length, 67);
   assert.equal(options.find((option) => option.id === "counterspell").recordOnly, true);
   assert.equal(options.find((option) => option.id === "fireball").recordOnly, false);
 });
@@ -135,8 +136,9 @@ test("a quick action records the spell at once, with no creature, one or several
 });
 
 test("the lifecycle hands the executor a recorded request and what the cast spends", async () => {
-  const contract = buildSpellUnifiedPanelContract({ spellId: "lesser-restoration", castContext: { slotLevel: 2 } });
-  const session = { ...createSpellPanelSession({ contract, casterId: "cleric" }), slotLevel: 2, targetIds: ["fighter"] };
+  // Remove Curse, recorded (Lesser Restoration resolves in the area command since CAP-CLEANSE).
+  const contract = buildSpellUnifiedPanelContract({ spellId: "remove-curse", castContext: { slotLevel: 3 } });
+  const session = { ...createSpellPanelSession({ contract, casterId: "cleric" }), slotLevel: 3, targetIds: ["fighter"] };
   const request = buildSpellUnifiedLifecycleRequest({ contract, session });
   assert.equal(request.recordOnly, true);
   assert.deepEqual(request.targetIds, ["fighter"]);
@@ -147,13 +149,13 @@ test("the lifecycle hands the executor a recorded request and what the cast spen
     runtime: {
       executor: async (input) => { received = input; return []; },
       extraOperations: [{ type: "class-feature:adjust-resource" }],
-      castCost: "slot di 2° livello",
+      castCost: "slot di 3° livello",
     },
   });
   assert.equal(result.status, "committed");
   assert.equal(received.recordOnly, true);
-  assert.equal(received.castCost, "slot di 2° livello");
-  assert.equal(received.castContext.slotLevel, 2);
+  assert.equal(received.castCost, "slot di 3° livello");
+  assert.equal(received.castContext.slotLevel, 3);
   assert.equal(received.extraOperations.length, 1);
 });
 

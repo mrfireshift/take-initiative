@@ -33,8 +33,8 @@ test("il catalogo unificato coincide con l'unione deduplicata delle due fonti le
     union: expectedIds.size,
   });
   // The spells the plugin only records are neither tracked nor placed: a source of their own, never duplicated.
-  // 75 since lotto L2; 71 since CAP-HP-BRANCH.
-  assert.equal(recordIds.size, 71);
+  // 75 since lotto L2; 71 since CAP-HP-BRANCH; 67 since CAP-CLEANSE.
+  assert.equal(recordIds.size, 67);
   assert.equal([...recordIds].some((id) => spellsPanelIds.has(id) || areaConsoleIds.has(id)), false);
   assert.equal(entries.length, getSpellCatalog().length);
   assert.equal(entries.length, 477);
@@ -51,8 +51,8 @@ test("i record recuperati dalla Console area mantengono lane e contratto", () =>
       && entry.sources[0] === SPELL_UNIFIED_CATALOG_SOURCES.AREA_CONSOLE
   ));
   // 43 with the discrete heals and the saves with damage of lotto L2; 41 since Ice Storm and Earth Tremor are
-  // tracked too (lotto L3); 45 with the four instantaneous spells of CAP-HP-BRANCH.
-  assert.equal(recovered.length, 45);
+  // tracked too (lotto L3); 45 with the four instantaneous spells of CAP-HP-BRANCH, 49 with the four of CAP-CLEANSE.
+  assert.equal(recovered.length, 49);
   for (const id of ["fireball", "chain-lightning", "mass-cure-wounds", "misty-step", "cure-wounds", "blight"]) {
     const entry = entries.find((candidate) => candidate.key === id);
     assert.ok(entry, id);
@@ -73,15 +73,15 @@ test("ogni voce esposta ha un ID stabile, contratto e executor dichiarato", () =
   }
 });
 
-test("i 71 record non automatizzati sono esposti come registrazione del lancio, nessuno resta escluso", () => {
+test("i 67 record non automatizzati sono esposti come registrazione del lancio, nessuno resta escluso", () => {
   const entries = buildSpellUnifiedCatalogEntries();
   const exclusions = buildSpellUnifiedCatalogExclusions({ currentEntries: entries });
   const audit = buildSpellUnifiedCatalogAudit({ currentEntries: entries });
   assert.equal(exclusions.length, getSpellCatalog().length - entries.length);
   assert.deepEqual(exclusions, []);
   const recorded = entries.filter((entry) => entry.status === "registrazione");
-  assert.equal(recorded.length, 71);
-  for (const id of ["counterspell", "heal", "wish", "acid-splash"]) {
+  assert.equal(recorded.length, 67);
+  for (const id of ["counterspell", "remove-curse", "wish", "acid-splash"]) {
     const entry = entries.find((candidate) => candidate.key === id);
     assert.ok(entry, id);
     assert.deepEqual(entry.sources, [SPELL_UNIFIED_CATALOG_SOURCES.CAST_RECORD], id);

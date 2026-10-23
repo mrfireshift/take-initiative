@@ -157,6 +157,14 @@ morte. Una morte decisa dall'incantesimo è una scrittura dei PF a 0 con
 area scrive i PF da sé, quindi applica anche i TS contro la morte nel suo
 piano (`planAreaDeathSaves`), con il conteggio salvato insieme ai PF.
 
+CAP-CLEANSE (`src/cleanseSpellRules.js`, applicato da `planAreaCleanse`) toglie
+pill e incantesimi da una creatura: Guarigione e Parola del potere guarire con
+la loro cura, Ristorare inferiore con la condizione scelta nel campo «Termina»,
+Dissolvi magie con `spell:remove-requested` per ogni incantesimo entro il
+limite e il campo «Prova» per quelli sopra. Le note (incantesimi rimasti, nessun
+effetto su un costrutto) tornano nel risultato come `notes` e compaiono nel
+messaggio del pannello.
+
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la
 **Console effetti ad area**. Dal registro il GM può:

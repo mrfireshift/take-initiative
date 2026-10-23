@@ -87,7 +87,8 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
 });
 
 // Dissonant Whispers joins them as a discrete save with damage (lotto L2).
-test("HP rapidi riceve le 16 spell PHB con area, trigger spaziale o TS discreto con danno", () => {
+// 17 with Power Word Heal, resolved on one creature in the area command (CAP-CLEANSE).
+test("HP rapidi riceve le 17 spell PHB con area, trigger spaziale, TS discreto con danno o cura con pulizia", () => {
   const ids = getAreaSaveSpellOptions()
     .filter((option) => spell(option.id).source === "phb2014")
     .map((option) => option.id);
@@ -109,6 +110,7 @@ test("HP rapidi riceve le 16 spell PHB con area, trigger spaziale o TS discreto 
     "phb2014-evoca-pioggia-di-armi",
     "phb2014-onda-distruttiva",
     "phb2014-tsunami",
+    "phb2014-parola-del-potere-guarire",
   ]);
   for (const excluded of [
     "Punizione Accecante",

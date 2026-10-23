@@ -1783,9 +1783,11 @@ export function bootSpellUnifiedPanel(
             : {}),
           feedback: {
             state: result.status === SPELL_UNIFIED_AREA_STATUS.NOOP ? "info" : "success",
-            message: result.status === SPELL_UNIFIED_AREA_STATUS.NOOP
+            message: [result.status === SPELL_UNIFIED_AREA_STATUS.NOOP
               ? areaMessageForResult(result)
               : `Applicazione completata su ${result.changedIds.length} elementi${spentText(slotSpend)}.`,
+            // What the GM still has to do at the table (CAP-CLEANSE: the spells Dispel Magic leaves).
+            ...(Array.isArray(result.notes) ? result.notes : [])].join(" "),
           },
         });
         state.revision += 1;

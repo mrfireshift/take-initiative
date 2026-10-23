@@ -187,6 +187,15 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   così va a 0 PF con l'etichetta **Morto**, anche un mostro; un PG non tira i
   TS contro la morte. Regressione mentale infligge 4d6 psichici e, al TS
   Intelligenza fallito, l'etichetta **Regressione mentale**, da togliere a mano.
+- Le cure e le pulizie su una creatura non chiedono TS né valori. Guarigione
+  cura 70 PF (+10 per slot sopra il 6°) e toglie Accecato, Assordato e le
+  malattie; Parola del potere guarire riporta ai PF massimi e toglie
+  Affascinato, Paralizzato, Spaventato e Stordito; nessuna delle due agisce su
+  costrutti e non morti. Ristorare inferiore toglie la condizione scelta nel
+  campo **Termina** (o la malattia). Dissolvi magie termina gli incantesimi
+  sulla creatura fino al 3° livello (o fino al livello dello slot); per quelli
+  più alti segna nel campo **Prova** l'esito della prova del caster: se lo
+  lasci vuoto restano, e il messaggio del pannello li elenca con la CD.
 
 Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni
 rapide.

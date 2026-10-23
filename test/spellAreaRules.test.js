@@ -912,9 +912,10 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
   assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 40);
   assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 135);
   // 17 with the saves with damage of lotto L2; 152 in the popover with the zones of lotto L3; 21 and 156 with
-  // Disintegrate, Finger of Death, Power Word Kill and Feeblemind (CAP-HP-BRANCH).
-  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 21);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 156);
+  // Disintegrate, Finger of Death, Power Word Kill and Feeblemind (CAP-HP-BRANCH); 25 and 160 with Heal, Power
+  // Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE).
+  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 25);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 160);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),

@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 247,
+      "COMPLETE / CURRENT": 251,
       "PARTIAL": 50,
       "NO AUTOMATION REQUIRED": 144,
-      "MISSING": 21,
+      "MISSING": 17,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 71,
+    "implementableBacklog": 67,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 60,
-        "percent": 84.50704225352112
+        "count": 56,
+        "percent": 83.5820895522388
       },
       "RED": {
         "count": 11,
-        "percent": 15.492957746478872
+        "percent": 16.417910447761194
       }
     },
     "scenarios": [
@@ -13360,10 +13360,13 @@
       "id": "dispel-magic",
       "spell": "Dissolvi magie",
       "level": 3,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/cleanseSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/areaSaveSpellRules.js"
       ],
       "mechanicsRequired": [
         "Terminazione gateway esiste; mancano selezione verificata di istanze altrui e policy livello/prova; il semplice bottone fine spell non costituisce un cast completo."
@@ -13378,9 +13381,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-CLEANSE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -13417,8 +13418,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "END-EFFECT-PICKER",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-CLEANSE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "dispel-magic",
@@ -13427,6 +13428,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/cleanseSpells.test.js",
+          "test/cleanseSpellsIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -13446,7 +13449,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Terminazione gateway esiste; mancano selezione verificata di istanze altrui e policy livello/prova; il semplice bottone fine spell non costituisce un cast completo.",
+        "reason": "CAP-CLEANSE (2026-10-23): su una creatura termina gli incantesimi di 3° livello o inferiore (o fino al livello dello slot), con la concentrazione del caster; sopra il limite decide il campo Prova, altrimenti restano e il messaggio li elenca con la CD. Oggetti e zone: il Termina del registro.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -21639,10 +21642,13 @@
       "id": "heal",
       "spell": "Guarigione",
       "level": 6,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/cleanseSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/areaSaveSpellRules.js"
       ],
       "mechanicsRequired": [
         "HP healing già riusabile; cura e rimozione selettiva di condizioni/effetti nello stesso cast richiedono mapping di cleanse. Reazione alzarsi al tavolo."
@@ -21657,9 +21663,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-CLEANSE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -21696,8 +21700,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HEAL-CLEANSE",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-CLEANSE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "heal",
@@ -21706,6 +21710,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/cleanseSpells.test.js",
+          "test/cleanseSpellsIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -21730,7 +21736,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "HP healing già riusabile; cura e rimozione selettiva di condizioni/effetti nello stesso cast richiedono mapping di cleanse. Reazione alzarsi al tavolo.",
+        "reason": "CAP-CLEANSE (2026-10-23): cura 70 PF, +10 per slot sopra il 6°, calcolati dal plugin; toglie Accecato, Assordato e le malattie (Contagio); nessun effetto su costrutti e non morti.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -24741,10 +24747,13 @@
       "id": "lesser-restoration",
       "spell": "Ristorare inferiore",
       "level": 2,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/cleanseSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/areaSaveSpellRules.js"
       ],
       "mechanicsRequired": [
         "Dry-run: condition:remove esiste, ma non un cast dichiarativo di scelta tra condizioni attive arbitrarie. Richiede capability di selezione/terminazione condivisa."
@@ -24759,9 +24768,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-CLEANSE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -24798,8 +24805,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "END-EFFECT-PICKER",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-CLEANSE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "lesser-restoration",
@@ -24808,6 +24815,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/cleanseSpells.test.js",
+          "test/cleanseSpellsIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -24827,7 +24836,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Dry-run: condition:remove esiste, ma non un cast dichiarativo di scelta tra condizioni attive arbitrarie. Richiede capability di selezione/terminazione condivisa.",
+        "reason": "CAP-CLEANSE (2026-10-23): il GM sceglie nella console la condizione da terminare (Accecato, Assordato, Avvelenato, Paralizzato) o la malattia.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62621,10 +62630,13 @@
       "id": "phb2014-parola-del-potere-guarire",
       "spell": "Parola del Potere Guarire",
       "level": 9,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/cleanseSpellRules.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellSaveWorkflowRules.js",
+        "src/areaSaveSpellRules.js"
       ],
       "mechanicsRequired": [
         "HP healing già riusabile; cura e rimozione selettiva di condizioni/effetti nello stesso cast richiedono mapping di cleanse. Reazione alzarsi al tavolo."
@@ -62639,9 +62651,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-CLEANSE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -62678,8 +62688,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "HEAL-CLEANSE",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-CLEANSE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-phb2014-extra.json",
         "spellId": "phb2014-parola-del-potere-guarire",
@@ -62688,6 +62698,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/cleanseSpells.test.js",
+          "test/cleanseSpellsIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -62707,7 +62719,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "HP healing già riusabile; cura e rimozione selettiva di condizioni/effetti nello stesso cast richiedono mapping di cleanse. Reazione alzarsi al tavolo.",
+        "reason": "CAP-CLEANSE (2026-10-23): riporta ai PF massimi (temporanei esclusi) e toglie Affascinato, Paralizzato, Spaventato e Stordito; nessun effetto su costrutti e non morti; rialzarsi da prono con la reazione al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62774,6 +62786,10 @@
     {
       "date": "2026-10-23",
       "note": "CAP-HP-BRANCH: 5 incantesimi completi. Soglie di PF prima del danno (Parola del potere uccidere, Parola divina) e dopo (Disintegrazione, Dito della morte) in hpBranchSpellRules.js; la morte istantanea è una scrittura dei PF a 0 che mette Morto. Regressione mentale: danno e pill al fallimento."
+    },
+    {
+      "date": "2026-10-23",
+      "note": "CAP-CLEANSE: 4 incantesimi completi (Guarigione, Parola del potere guarire, Ristorare inferiore, Dissolvi magie) in cleanseSpellRules.js. Dissolvi il bene e il male resta a un lotto a parte, Guarigione di massa a CAP-ALLOCATION."
     }
   ]
 }

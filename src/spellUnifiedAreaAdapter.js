@@ -405,6 +405,7 @@ function normalizeExecutionResult(contract, command, result = {}) {
     sceneItemChanges: Array.isArray(result.sceneItemChanges) ? result.sceneItemChanges : [],
     triggerChanges: Array.isArray(result.triggerChanges) ? result.triggerChanges : [],
     visualEvents: Array.isArray(result.visualEvents) ? result.visualEvents : [],
+    ...(Array.isArray(result.notes) && result.notes.length ? { notes: [...result.notes] } : {}),
     ...(result.committed === true ? { committed: true } : {}),
     ...(result.postCommitPending === true ? { postCommitPending: true } : {}),
     ...(result.stale === true ? { stale: true } : {}),
