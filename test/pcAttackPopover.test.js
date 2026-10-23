@@ -12,7 +12,7 @@ const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const { pcAttackPickerEntries } = await import("../src/pcAttackPickerCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
-const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
+const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-chips", "pc-attack-picker-search", "pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-attack-form", "pc-attack-target", "pc-attack-target-hint",
   "pc-attack-outcomes", "pc-attack-damage", "pc-attack-defenses", "pc-attack-total", "pc-attack-apply", "pc-attack-status", "pc-attack-undo",
   "pc-attack-extras-section", "pc-attack-riders", "pc-attack-extras", "pc-attack-add-extra", "pc-attack-cantrip-row", "pc-attack-cantrip",
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
@@ -33,7 +33,7 @@ function createDocument() {
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   for (const id of IDS) {
     const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select"].includes(id) ? "select" : BUTTONS.has(id) ? "button"
-      : id === "pc-attack-auto-open" ? "input" : id === "pc-attack-spell-details" ? "details" : "div");
+      : ["pc-attack-auto-open", "pc-attack-picker-search"].includes(id) ? "input" : id === "pc-attack-spell-details" ? "details" : "div");
     node.id = id; doc.root.appendChild(node);
   }
   return doc;
@@ -1082,6 +1082,37 @@ test("the keyboard: the focus goes to the damage to type, Enter registers when r
   await f.keydown("Escape");
   assert.equal(asked.length, 1, "a fresh attack closes without asking");
   assert.equal(f.closed.length, 1);
+});
+
+test("the lists: chips for a few attacks, the favourites first, a search in long lists, the features to read folded", async () => {
+  const f = fixture({ card: clericCard, attacker: clericMeta }); await f.controller.ready; await tick();
+  const chips = () => f.$("pc-attack-picker-chips").querySelectorAll("button");
+  await pickerTabs(f).find((button) => button.textContent === "Trucchetti").click(); await tick();
+  assert.equal(f.$("pc-attack-picker-chips").hidden, false, "two cantrips: chips");
+  assert.deepEqual(chips().map((button) => textOf(button).trim()), ["Fiamma sacra ⚔ Azione", "Luce Azione"], "with their cost");
+  assert.equal(f.$("pc-attack-picker-select").hidden, true, "the select gives way to them");
+  assert.equal(chips().find((button) => button.getAttribute("aria-pressed") === "true").dataset.pickerKey, f.$("pc-attack-picker-select").value);
+  const book = Array.from({ length: 14 }, (_, index) => ["bless", "shield-of-faith", "cure-wounds", "command", "sanctuary", "guiding-bolt", "healing-word",
+    "inflict-wounds", "detection-of-evil-and-good", "create-or-destroy-water", "purify-food-and-drink", "aid", "lesser-restoration", "spiritual-weapon"][index]);
+  const longCard = { ...clericCard, spellbook: { spellIds: book, pinnedIds: ["aid"] } };
+  const g = fixture({ card: longCard, attacker: { ...clericMeta, initiativeCard: longCard } }); await g.controller.ready; await tick();
+  await pickerTabs(g).find((button) => button.textContent === "Incantesimi").click(); await tick();
+  const list = g.$("pc-attack-picker-list");
+  assert.equal(list.querySelectorAll(".picker-level")[0].textContent, "★ Preferiti", "the favourites first");
+  assert.match(textOf(list.querySelectorAll("button")[0]), /^ ?Aiuto .*2°/, "a favourite names its level");
+  const search = g.$("pc-attack-picker-search");
+  assert.equal(search.hidden, false, "more than twelve: a search");
+  search.value = "cura"; await search.emit("input");
+  assert.deepEqual(list.querySelectorAll("button").filter((row) => !row.hidden).map((row) => row.dataset.name), ["Cura ferite"]);
+  search.value = ""; await search.emit("input");
+  assert.ok(list.querySelectorAll("button").every((row) => !row.hidden), "cleared: every spell again");
+  await openFeatures(f);
+  const other = f.$("pc-attack-picker-list").querySelectorAll(".picker-level").find((header) => header.dataset.group === "other");
+  const others = () => f.$("pc-attack-picker-list").querySelectorAll("button").filter((row) => row.dataset.group === "other");
+  assert.ok(others().length > 0 && others().every((row) => row.hidden), "the features to read are folded");
+  assert.equal(other.dataset.count, String(others().length));
+  await other.click(); await tick();
+  assert.ok(others().every((row) => !row.hidden), "open on a click");
 });
 
 test("the title names who acts, its badge whose turn it is", async () => {

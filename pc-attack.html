@@ -73,6 +73,22 @@
     .picker-row:hover { background: var(--obrt-hover); }
     .picker-row[aria-pressed="true"] { border-color: rgba(96, 165, 250, .55); background: rgba(37, 99, 235, .28); }
     .picker-row:disabled { cursor: default; opacity: .6; }
+    /* Up to six attacks or cantrips as chips, the one in use highlighted like the list's row. */
+    .picker-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .picker-chip { max-width: 100%; display: inline-flex; align-items: center; gap: 6px; min-height: var(--obrt-h-control-sm); padding: 0 10px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--obrt-surface-row); font-weight: var(--obrt-weight-semibold); cursor: pointer; }
+    .picker-chip:hover { border-color: var(--obrt-line-strong); }
+    .picker-chip[aria-pressed="true"] { border-color: rgba(96, 165, 250, .55); background: rgba(37, 99, 235, .28); }
+    .picker-chip:disabled { cursor: default; opacity: .6; }
+    .picker-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .picker-chip .cost-tag { font-size: var(--obrt-type-caption); }
+    .picker-search { width: 100%; min-height: var(--obrt-h-control-sm); padding: 4px var(--obrt-space-md); border: 1px solid var(--line); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-size: var(--obrt-type-secondary); }
+    .picker-search:focus { border-color: rgba(96, 165, 250, .7); }
+    /* The features to read, folded under their header (the number of entries, an arrow that turns when open). */
+    .picker-level[data-count] { display: flex; justify-content: space-between; gap: 8px; cursor: pointer; border-radius: var(--obrt-radius-sm); }
+    .picker-level[data-count]:hover { color: var(--text); }
+    .picker-level[data-count]::after { content: attr(data-count) " ▸"; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+    .picker-level[data-count][data-open="true"]::after { content: attr(data-count) " ▾"; }
+    .picker-level[data-count]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     /* No use or slot left: the row fades, its uses turn red (Boss Actions' exhausted badge). */
     .picker-row[data-exhausted="true"] { opacity: .62; }
     .picker-row-tags .tag-sep { margin: 0 4px; color: var(--dim); }
@@ -259,8 +275,10 @@
       <section class="view" id="pc-attack-form" aria-label="Attacco" hidden>
         <section class="picker" id="pc-attack-picker" aria-label="Scelta dell'attacco" hidden>
           <div class="segmented picker-tabs" id="pc-attack-picker-tabs" role="group" aria-label="Tipo di attacco"></div>
+          <div class="picker-chips" id="pc-attack-picker-chips" role="group" aria-label="Attacco" hidden></div>
           <select class="target-select" id="pc-attack-picker-select" aria-label="Attacco"></select>
-          <div class="picker-list" id="pc-attack-picker-list" role="list" aria-label="Incantesimi" hidden></div>
+          <input class="picker-search" id="pc-attack-picker-search" type="search" autocomplete="off" spellcheck="false" aria-label="Cerca nell'elenco" hidden />
+          <div class="picker-list" id="pc-attack-picker-list" role="group" aria-label="Incantesimi" hidden></div>
         </section>
         <p class="caster-state" id="pc-attack-caster" hidden></p>
         <section class="card launch" id="pc-attack-launch" aria-label="Incantesimo" hidden></section>

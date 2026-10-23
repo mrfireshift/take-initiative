@@ -179,6 +179,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
   const spellControls=$("pc-attack-spell-controls");
   const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select"),pickerList=$("pc-attack-picker-list");
+  // The attacks and cantrips as chips (a select beyond six); the long lists' search.
+  const pickerChips=$("pc-attack-picker-chips"),pickerSearch=$("pc-attack-picker-search");
   const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open");
   const attackView=$("pc-attack-attack-view"),launchBox=$("pc-attack-launch"),casterLine=$("pc-attack-caster");
   // A spell the console does not resolve (launched, woven into a weapon, or by hand): its card replaces the attack form.
@@ -914,31 +916,53 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         && !slots.some(row=>row.level>=entry.level && row.current>0);
     };
     // A row's marks: its cost first (the activation, or the casting time), coloured, then the uses left (a badge, red at
-    // zero) or the spell's marks.
+    // zero) or the spell's marks, each explained in its tooltip. A favourite spell, listed apart, names its level.
+    const favourite=entry=>entry.tab==="spells" && entry.pinned;
     const rowCost=entry=>entry.tab==="features"?entry.activation:castingTimeLabel(entry.spellId);
     const rowParts=entry=>(entry.tab==="features"
-      ?[...featureUses(entry).map(row=>({text:`${row.current}/${row.maximum}`,uses:true,zero:row.current===0})),featureActive(entry)?{text:"attiva"}:null]
-      :[entry.mode==="attack"?{text:"⚔"}:null,entry.concentration?{text:"Conc."}:null,entry.ritual?{text:"Rit."}:null,inProgress(entry)?{text:"in corso"}:null]).filter(Boolean);
+      ?[...featureUses(entry).map(row=>({text:`${row.current}/${row.maximum}`,title:row.name,uses:true,zero:row.current===0})),
+        featureActive(entry)?{text:"attiva",title:"Capacità attiva"}:null]
+      :[favourite(entry)?{text:`${entry.level}°`,title:`Incantesimo di ${entry.level}° livello`}:null,
+        entry.mode==="attack"?{text:"⚔",title:"Si risolve nella console"}:null,entry.concentration?{text:"Conc.",title:"Concentrazione"}:null,
+        entry.ritual?{text:"Rit.",title:"Rituale"}:null,inProgress(entry)?{text:"in corso",title:"Lancio in corso: raggi o dardi ancora da registrare"}:null]).filter(Boolean);
     const rowTags=entry=>[capitalized(rowCost(entry)),...rowParts(entry).map(part=>part.text),exhausted(entry)?"esaurita":""].filter(Boolean).join(" · ");
     const rowTagsNode=entry=>{
       const box=node("span","","picker-row-tags"),cost=rowCost(entry);
       const parts=[...(cost?[costTag(cost)]:[]),...rowParts(entry).map(part=>{
         const span=node("span",part.text,part.uses?"uses-badge":"");
+        if(part.title) span.title=part.title;
         if(part.zero) span.dataset.zero="true";
         return span;
       })];
       parts.forEach((part,index)=>{if(index)box.append(node("span","·","tag-sep"));box.append(part);});
       return box;
     };
-    const groupOf=entry=>entry.tab==="features"?entry.group:entry.level;
-    const groupTitle=group=>group==="usable"?"Utilizzabili":group==="other"?"Altre capacità":Number.isInteger(group)?`${group}° livello`:"Altri";
+    const groupOf=entry=>entry.tab==="features"?entry.group:favourite(entry)?"pinned":entry.level;
+    const groupTitle=group=>group==="pinned"?"★ Preferiti":group==="usable"?"Utilizzabili":group==="other"?"Altre capacità":Number.isInteger(group)?`${group}° livello`:"Altri";
+    // The favourites first, then the levels (or the features' groups) in their order.
+    const groups=[...new Set(inTab.map(groupOf))].sort((left,right)=>Number(right==="pinned")-Number(left==="pinned"));
     // A level header carries its slots (shown by the CSS from data-slots): "slot 2/3", the pact's "patto 1/2".
     const levelSlots=group=>{
       const rows=Number.isInteger(group) && group>0?slots.filter(row=>row.level===group):[];
       return rows.length?{text:rows.map(row=>`${row.pact?"patto":"slot"} ${row.current}/${row.maximum}`).join(" · "),zero:rows.every(row=>row.current===0)}:null;
     };
+    // The features to read (passive, triggered, reference) fold under their header: open when the GM opens it, or when
+    // the entry on screen is one of them.
+    const otherShown=otherOpen || (current.tab==="features" && current.group==="other");
+    // Up to six attacks or cantrips are chips (one click each); more keep the select.
+    const asChips=!asList && !!pickerChips && inTab.length>=2 && inTab.length<=6;
+    const chip=entry=>{
+      const button=node("button","","picker-chip");button.type="button";button.dataset.pickerKey=entry.key;button.title=label(entry);
+      button.append(node("span",`${entry.pinned?"★ ":""}${entry.label}${entry.tab!=="attacks" && entry.mode==="attack"?" ⚔":""}`,"picker-chip-name"));
+      const cost=entry.spellId?castingTimeLabel(entry.spellId):"";
+      if(cost) button.append(costTag(cost));
+      button.addEventListener("click",()=>chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key)));
+      return button;
+    };
+    // Another tab starts its search afresh.
+    if(pickerQueryTab!==current.tab){pickerQueryTab=current.tab;pickerQuery="";if(pickerSearch)pickerSearch.value="";}
     // Rebuilt only when the list changes: a live update never closes the select the GM has open, nor scrolls the list.
-    const signature=JSON.stringify([tabs.map(tab=>tab.id),current.tab,asList,inTab.map(entry=>[entry.key,label(entry),rowTags(entry)]),
+    const signature=JSON.stringify([tabs.map(tab=>tab.id),current.tab,asList,asChips,otherShown,inTab.map(entry=>[entry.key,label(entry),rowTags(entry)]),
       slots.map(row=>[row.level,row.pact,row.current,row.maximum])]);
     if(signature!==pickerSignature) {
       pickerSignature=signature;
@@ -951,31 +975,66 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         return button;
       }));
       pickerSelect.replaceChildren(...(asList?[]:inTab.map(entry=>{const option=node("option",label(entry));option.value=entry.key;return option;})));
+      if(pickerChips) pickerChips.replaceChildren(...(asChips?inTab.map(chip):[]));
       // The spells by level (as in the 🪄 menu), the features by group: one row each, its marks on the right.
-      if(pickerList) pickerList.replaceChildren(...(!asList?[]:[...new Set(inTab.map(groupOf))].flatMap(group=>[
+      if(pickerList) pickerList.replaceChildren(...(!asList?[]:groups.flatMap(group=>[
         (()=>{
-          const header=node("div",groupTitle(group),"picker-level"),count=levelSlots(group);
+          const header=node("div",groupTitle(group),"picker-level"),count=levelSlots(group);header.dataset.group=String(group);
           if(count){header.dataset.slots=count.text;if(count.zero)header.dataset.slotsZero="true";}
+          if(group==="other") {
+            // A header that opens and closes its group, with the number of entries it holds.
+            header.dataset.count=String(inTab.filter(entry=>groupOf(entry)==="other").length);header.dataset.open=String(otherShown);
+            header.setAttribute("role","button");header.setAttribute("tabindex","0");header.setAttribute("aria-expanded",String(otherShown));
+            const toggle=()=>{otherOpen=!otherShown;pickerSignature="";renderPicker();};
+            header.addEventListener("click",toggle);
+            header.addEventListener("keydown",event=>{if(event.key==="Enter" || event.key===" "){event.preventDefault?.();toggle();}});
+          }
           return header;
         })(),
         ...inTab.filter(entry=>groupOf(entry)===group).map(entry=>{
-          const row=node("button","","picker-row");row.type="button";row.dataset.pickerKey=entry.key;row.setAttribute("role","listitem");
+          const row=node("button","","picker-row");row.type="button";row.dataset.pickerKey=entry.key;row.dataset.group=String(group);
+          row.dataset.name=entry.label;row.title=entry.label;
           if(exhausted(entry)) row.dataset.exhausted="true";
-          row.append(node("span",`${entry.pinned?"★ ":""}${entry.label}`,"picker-row-name"),rowTagsNode(entry));
+          row.append(node("span",`${entry.pinned && !favourite(entry)?"★ ":""}${entry.label}`,"picker-row-name"),rowTagsNode(entry));
           row.addEventListener("click",()=>chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key)));
           return row;
         })])));
+      if(pickerList) pickerList.dataset.otherOpen=String(otherShown);
     }
     pickerTabs.hidden=tabs.length<2;
     for(const button of pickerTabs.querySelectorAll("button")){button.setAttribute("aria-pressed",String(button.dataset.pickerTab===current.tab));button.disabled=busy;}
-    pickerSelect.hidden=asList || inTab.length<2;
+    pickerSelect.hidden=asList || asChips || inTab.length<2;
     if(!asList){pickerSelect.value=current.key;pickerSelect.disabled=busy;}
+    if(pickerChips) {
+      pickerChips.hidden=!asChips;
+      for(const button of pickerChips.querySelectorAll("button")){button.setAttribute("aria-pressed",String(button.dataset.pickerKey===current.key));button.disabled=busy;}
+    }
+    if(pickerSearch) {
+      pickerSearch.hidden=!(asList && inTab.length>12);
+      pickerSearch.placeholder=current.tab==="features"?"Cerca capacità…":"Cerca incantesimo…";
+    }
     if(pickerList) {
       pickerList.hidden=!asList;
       pickerList.setAttribute("aria-label",current.tab==="features"?"Capacità":"Incantesimi");
       for(const row of pickerList.querySelectorAll("button")){row.setAttribute("aria-pressed",String(row.dataset.pickerKey===current.key));row.disabled=busy;}
+      filterPicker();
     }
   }
+  // The list's rows that match the search (by name, accents and case aside); without a search, the folded group's rows
+  // stay hidden. A header whose rows are all filtered out hides too.
+  let pickerQuery="",pickerQueryTab="",otherOpen=false;
+  const searchKey=text=>String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/gu,"").toLocaleLowerCase("it").trim();
+  function filterPicker() {
+    if(!pickerList) return;
+    const query=pickerSearch && !pickerSearch.hidden?searchKey(pickerQuery):"";
+    const shown=new Set();
+    for(const row of pickerList.querySelectorAll("button")) {
+      row.hidden=query?!searchKey(row.dataset.name).includes(query):row.dataset.group==="other" && pickerList.dataset.otherOpen!=="true";
+      if(!row.hidden) shown.add(row.dataset.group);
+    }
+    for(const header of pickerList.querySelectorAll(".picker-level")) header.hidden=!!query && !shown.has(header.dataset.group);
+  }
+  pickerSearch?.addEventListener("input",()=>{pickerQuery=pickerSearch.value;filterPicker();});
   // Another cantrip or spell of the same action changes in place; another action loads it with a fresh draft
   // (the target stays), after a confirmation when this attack already holds decisions.
   // A spell the console does not resolve only shows its card: the attack in progress stays, untouched, behind it.
