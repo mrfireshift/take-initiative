@@ -93,7 +93,12 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
   const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, featureRuntime, openTracker, launchAckTimeoutMs: 40, schedule: (callback) => setTimeout(callback, 0),
     undo: async (entryId) => { undoCalls.push(entryId); return { ok: true }; } });
   const $ = (id) => documentRef.getElementById(id);
-  return { $, controller, calls, undoCalls, nearbyCalls, loads, sources, closed, runtime, items,
+  // keydown: a key pressed in the console, its target the element focused (or the one given).
+  const keydown = async (key, target = documentRef.activeElement) => {
+    for (const callback of documentRef.listeners.keydown || []) await callback({ key, target, preventDefault() {} });
+    await tick();
+  };
+  return { $, controller, calls, undoCalls, nearbyCalls, loads, sources, closed, runtime, items, documentRef, keydown,
     select: async (ids) => { selection = ids; for (const listener of listeners.player) listener({ selection: ids }); await tick(); },
     outcome: (value) => $("pc-attack-outcomes").querySelector(`[data-outcome="${value}"]`),
     inputs: () => $("pc-attack-damage").querySelectorAll("input"),
@@ -1055,6 +1060,28 @@ test("Lay on Hands takes its points in the card and heals the creature selected;
   await f.$("pc-attack-launch-button").click(); await tick();
   assert.deepEqual(runtime.calls.at(-1), ["purifyClassFeatureSpell",
     { sourceId: "aria", featureId: "paladino-tocco-purificatore", targetIds: ["ghoul"], spellInstanceId: "hold-1", spellName: "Blocca persone" }]);
+});
+
+test("the keyboard: the focus goes to the damage to type, Enter registers when ready, Esc asks before dropping the attack", async () => {
+  const asked = [];
+  const f = fixture({ confirm: (message) => { asked.push(message); return false; } }); await f.controller.ready; await tick();
+  await f.select(["ghoul"]);
+  await f.outcome("hit").click(); await tick();
+  const [first, second] = f.inputs();
+  assert.equal(f.documentRef.activeElement, first, "Colpito: the first damage field");
+  first.value = "9"; await first.emit("input");
+  await f.keydown("Enter");
+  assert.equal(f.calls.length, 0, "not ready: Enter does nothing");
+  second.focus(); second.value = "4"; await second.emit("input");
+  await f.keydown("Escape");
+  assert.match(asked.at(-1) || "", /Chiudere la console\? Le scelte non registrate andranno perse\./);
+  assert.deepEqual(f.closed, [], "the GM kept the attack");
+  await f.keydown("Enter");
+  assert.equal(f.calls.length, 1, "ready: Enter registers");
+  assert.deepEqual(f.calls[0].componentAmounts, { c1: 9, c2: 4 });
+  await f.keydown("Escape");
+  assert.equal(asked.length, 1, "a fresh attack closes without asking");
+  assert.equal(f.closed.length, 1);
 });
 
 test("the title names who acts, its badge whose turn it is", async () => {

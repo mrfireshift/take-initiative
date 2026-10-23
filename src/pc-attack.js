@@ -412,7 +412,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const state=draft.riders[option.id] ||= {on:false,type:option.types[0] || "",amount:"",
         ...(option.slotLevels?{slotLevel:option.slotLevels[0],bonus:false}:{}),...(option.onHit?{onHit:false}:{})};
       const toggle=node("input");toggle.type="checkbox";toggle.dataset.riderField="on";toggle.setAttribute("aria-label",option.label);
-      toggle.addEventListener("change",()=>{state.on=toggle.checked;updateRiders();renderState();});
+      toggle.addEventListener("change",()=>{state.on=toggle.checked;updateRiders();renderState();if(state.on)focusAmount(ridersBox,"rider",option.id);});
       const body=node("div","","component-body");
       const title=node("span",option.label,"component-title");
       const meta=node("div","","component-meta");
@@ -492,6 +492,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         // One maneuver (one Arcane Shot, one flourish) per attack: ticking one unticks the others of its group.
         if(state.on && option.group) for(const other of activationOptions()) if(other.group===option.group && other.id!==option.id && draft.activations[other.id]) draft.activations[other.id].on=false;
         updateActivations();renderState();
+        if(state.on) focusAmount(activationsBox,"activation",option.id);
       });
       const body=node("div","","component-body");
       const title=node("span",option.label,"component-title");
@@ -1392,6 +1393,17 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const message=draft.targetId?"":pcAttackSelectionHint(selection.status);
     hint.textContent=message;hint.hidden=!message;
   }
+  // The focus follows the GM's own click to what is typed next, never a live update: after an outcome that deals
+  // damage, the first damage field still empty; after ticking an extra, its amount.
+  function focusDamage() {
+    if(!draft || !["hit","critical","failed","passed"].includes(draft.outcome)) return;
+    [...damage.querySelectorAll("input")].find(input=>!input.disabled && !input.hidden && input.value==="")?.focus?.();
+  }
+  // box: the riders' or activations' list; kind: "rider" or "activation" (their data-*-id and data-*-field).
+  function focusAmount(box,kind,id) {
+    const amount=box.querySelector(`[data-${kind}-id="${id}"]`)?.querySelector(`[data-${kind}-field="amount"]`);
+    if(amount && !amount.hidden && !amount.disabled) amount.focus?.();
+  }
   function renderOutcomes() {
     renderMode();
     // An area attack has a save for each creature: no single outcome (the block stays for the arrow picker).
@@ -1400,7 +1412,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     outcomes.replaceChildren(...pcAttackOutcomesFor(resolved()).map(outcome=>{
       const button=node("button",PC_ATTACK_OUTCOME_LABELS[outcome]);button.type="button";button.dataset.outcome=outcome;
       button.setAttribute("aria-pressed",String(draft.outcome===outcome));button.disabled=busy;
-      button.addEventListener("click",()=>{draft.outcome=outcome;renderOutcomes();renderDamage();updateWoven();updateRiders();updateActivations();renderState();});
+      button.addEventListener("click",()=>{draft.outcome=outcome;renderOutcomes();renderDamage();updateWoven();updateRiders();updateActivations();renderState();focusDamage();});
       return button;
     }));
   }
@@ -1898,7 +1910,22 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     switchActor(target.id,String(target.name || ""),{offTurn:true});
   });
   $("pc-attack-close").addEventListener("click",()=>closeConsole());
-  documentRef.addEventListener?.("keydown",event=>{if(event.key==="Escape" && !busy)closeConsole();});
+  documentRef.addEventListener?.("keydown",event=>{
+    // Esc closes the console, after asking when an attack holds decisions not registered yet.
+    if(event.key==="Escape"){
+      if(busy) return;
+      if(((draft && draftLocked(draft)) || palmDraft.outcome) && !confirmSwitch("Chiudere la console? Le scelte non registrate andranno perse.")) return;
+      closeConsole();return;
+    }
+    // Enter in a typed field (an amount, a feature's number) registers the attack, or runs the spell or feature, once
+    // its summary is ready: the button it would press is enabled. Not in a field with suggestions (Spell Thief).
+    const field=event.target;
+    if(event.key!=="Enter" || event.isComposing || busy || launchBusy || field?.tagName!=="INPUT" || ["checkbox","radio"].includes(field.type) || field.getAttribute?.("list")) return;
+    const button=launching()?launchButton:apply;
+    if(!button || button.hidden || button.disabled) return;
+    event.preventDefault?.();
+    button.click();
+  });
   // The turn controller (pcAttackTurnController.js) asks whether a console is open: an open one is never reloaded.
   if(typeof api.broadcast?.onMessage==="function") offPing=api.broadcast.onMessage(PC_ATTACK_CONSOLE_CHANNEL,event=>{
     if(event?.data?.type==="follow"){followTurn(String(event.data.sourceId || ""),String(event.data.name || ""));return;}
