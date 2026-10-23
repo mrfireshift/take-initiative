@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Scheda evocazione</title>
+  <link rel="stylesheet" href="/ui-typography.css" />
+  <link rel="stylesheet" href="/popover-glass.css" />
+  <style>
+    :root { --faction-rgb:34,197,94; --accent:#4ade80; --accent-bright:#86efac; --accent-soft:rgba(var(--faction-rgb),.38); background:transparent !important; }
+    :root[data-faction="pc"] { --faction-rgb:96,165,250; --accent:#60a5fa; --accent-bright:#93c5fd; }
+    :root[data-faction="neutral"] { --faction-rgb:234,179,8; --accent:#facc15; --accent-bright:#fde047; }
+    :root[data-faction="enemy"] { --faction-rgb:239,68,68; --accent:#f87171; --accent-bright:#fca5a5; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; width:100%; height:100%; overflow:hidden; color:#fff; background:transparent !important; }
+    body { font-size:var(--obrt-type-body); line-height:1.25; }
+    .glass-shell { width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden; }
+    .panel-surface {
+      position:relative; flex:1 1 auto; margin:8px; padding:6px 8px 10px 6px; overflow:hidden;
+      border:1px solid rgba(var(--faction-rgb),.42); border-radius:8px;
+      background:linear-gradient(135deg,rgba(var(--faction-rgb),.045),transparent 35%);
+    }
+    .header { display:flex; align-items:center; gap:12px; margin-bottom:10px; padding:4px; }
+    .portrait { flex:0 0 56px; width:56px; height:56px; overflow:hidden; border:2px solid #080b10; border-radius:50%;
+      background:rgba(4,7,11,.92); box-shadow:0 0 0 2px var(--accent),0 0 18px var(--accent-soft); }
+    .portrait img { width:100%; height:100%; display:block; object-fit:cover; }
+    .heading { flex:1; min-width:0; }
+    .eyebrow { color:var(--accent-bright); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
+    .title { margin:2px 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--obrt-type-display); font-weight:var(--obrt-weight-bold); }
+    .subtitle { margin-top:3px; color:rgba(255,255,255,.68); font-size:10px; }
+    .close { align-self:flex-start; width:28px; height:28px; padding:0; border:0; border-radius:8px; color:#fff; background:transparent; font-size:18px; cursor:pointer; }
+    .close:hover { background:rgba(255,255,255,.08); }
+    .overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+    .hp { grid-column:span 2; display:flex; flex-direction:column; justify-content:center; min-height:64px; padding:10px 13px; border-radius:7px;
+      background:linear-gradient(100deg,rgba(var(--faction-rgb),.16),rgba(255,255,255,.035)); border:1px solid rgba(var(--faction-rgb),.38); box-shadow:inset 3px 0 0 var(--accent); }
+    .hp span, .stat span { color:rgba(255,255,255,.7); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
+    .hp strong { margin-top:3px; font-size:22px; font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; }
+    .stat { min-height:64px; padding:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; border-radius:7px; text-align:center;
+      background:linear-gradient(160deg,rgba(var(--faction-rgb),.075),rgba(7,12,19,.28)); border:1px solid rgba(var(--faction-rgb),.24); }
+    .stat strong { font-size:18px; font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; }
+    .stat small { color:rgba(255,255,255,.62); font-size:10px; }
+    .notes { margin-top:10px; padding:9px 11px; border-radius:7px; color:rgba(255,255,255,.84); font-size:var(--obrt-type-secondary); line-height:1.35;
+      background:rgba(7,12,19,.28); border:1px solid rgba(var(--faction-rgb),.2); }
+    .notes p { margin:0 0 4px; }
+    .notes p:last-child { margin:0; }
+  </style>
+  <script type="module" crossorigin src="/assets/spellBoardTokenCard-Cf2XqhD2.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
+  <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-Be9A1fCO.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-GWUB9e3I.js">
+</head>
+<body>
+  <div class="glass-shell">
+    <div class="panel-surface">
+      <div class="header">
+        <div class="portrait"><img id="portrait" alt="" /></div>
+        <div class="heading">
+          <div class="eyebrow" id="eyebrow">Evocazione</div>
+          <div class="title" id="title">Scheda</div>
+          <div class="subtitle" id="subtitle"></div>
+        </div>
+        <button id="close" class="close" type="button" aria-label="Chiudi" title="Chiudi">×</button>
+      </div>
+      <div class="overview">
+        <div class="hp"><span>Punti ferita</span><strong id="hp">—</strong></div>
+        <div class="stat"><span>CA</span><strong id="armorClass">—</strong></div>
+        <div class="stat"><span>Portata</span><strong id="reach">—</strong></div>
+        <div class="stat"><span>FOR</span><strong id="strength">—</strong><small id="strengthModifier"></small></div>
+        <div class="stat"><span>DES</span><strong id="dexterity">—</strong><small id="dexterityModifier"></small></div>
+        <div class="stat"><span>Velocità</span><strong id="speed">—</strong></div>
+        <div class="stat"><span>Volo</span><strong id="fly">—</strong></div>
+      </div>
+      <div class="notes" id="notes"></div>
+    </div>
+  </div>
+</body>
+</html>
