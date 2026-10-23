@@ -6,8 +6,8 @@ import { createDevManifest, devManifestPlugin } from "../scripts/dev-manifest.mj
 
 const manifest = JSON.parse(await readFile(new URL("../public/manifest.json", import.meta.url), "utf8"));
 
-test("the online manifest: version 1.4.0 and the plugin icon", async () => {
-  assert.equal(manifest.version, "1.4.0");
+test("the online manifest: version 1.5.0 and the plugin icon", async () => {
+  assert.equal(manifest.version, "1.5.0");
   assert.equal(manifest.icon, "/plugin-icon.svg");
   assert.equal(manifest.action.icon, "/icon.svg");
   for (const file of ["plugin-icon.svg", "plugin-icon-dev.svg", "icon-dev.svg"]) {
