@@ -31,6 +31,9 @@ export function normalizeOptionsPanelDraft(value = {}) {
       followActiveTurn: localInput.followActiveTurn,
       scale: localInput.trackerScale,
     },
+    windows: {
+      pcAttackAutoOpen: localInput.pcAttackAutoOpen,
+    },
     runtime: {
       combatLog: localInput.combatLog,
     },
@@ -76,6 +79,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
       followActiveTurn: local.tracker.followActiveTurn,
       trackerScale: local.tracker.scale,
       combatLog: local.runtime.combatLog,
+      pcAttackAutoOpen: local.windows.pcAttackAutoOpen,
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,
@@ -123,6 +127,9 @@ export function buildOptionsPanelPatches(draft) {
         layout: normalized.local.layout,
         followActiveTurn: normalized.local.followActiveTurn,
         scale: normalized.local.trackerScale,
+      },
+      windows: {
+        pcAttackAutoOpen: normalized.local.pcAttackAutoOpen,
       },
       runtime: {
         combatLog: normalized.local.combatLog,

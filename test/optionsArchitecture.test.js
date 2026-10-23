@@ -41,7 +41,7 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
       effectsDisplayMode: "selected",
       scale: 1,
     },
-    windows: { clocksCompact: false },
+    windows: { clocksCompact: false, pcAttackAutoOpen: false },
     tools: { distance3d: true, reference: true },
     runtime: { combatLog: true },
   });

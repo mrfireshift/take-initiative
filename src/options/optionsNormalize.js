@@ -146,6 +146,12 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
         "clocksCompact",
         defaults.windows.clocksCompact,
       ),
+      pcAttackAutoOpen: layeredBoolean(
+        windows,
+        legacyWindows,
+        "pcAttackAutoOpen",
+        defaults.windows.pcAttackAutoOpen,
+      ),
     },
     tools: {
       ...tools,

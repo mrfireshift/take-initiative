@@ -50,6 +50,8 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
   },
   windows: {
     clocksCompact: false,
+    // The attack console opens by itself on the turn of an actor with attacks (pcAttackTurnController.js).
+    pcAttackAutoOpen: false,
   },
   tools: {
     distance3d: true,

@@ -32,6 +32,7 @@ test("OPTIONS-003: il selector del pannello espone i gruppi senza metadata grezz
     followActiveTurn: false,
     trackerScale: 1,
     combatLog: true,
+    pcAttackAutoOpen: false,
   });
   assert.equal(model.room.trackerOpen, false);
   assert.equal(model.room.knownFactionAssignment, true);
@@ -64,6 +65,7 @@ test("OPTIONS-003: il draft normalizza dati parziali e produce sole patch approv
     followActiveTurn: true,
     trackerScale: 1,
     combatLog: true,
+    pcAttackAutoOpen: false,
   });
   assert.equal(patches.room.turn.popup, false);
   assert.equal(patches.room.automation.knownFactionAssignment, true);
@@ -92,6 +94,18 @@ test("OPTIONS-004: il Combat Log locale può essere disattivato senza cambiare g
   assert.deepEqual(patches.local.runtime, { combatLog: false });
   assert.equal(Object.hasOwn(patches, "room"), true);
   assert.equal(Object.hasOwn(patches, "scene"), true);
+});
+
+test("the attack console's auto-open is a local option, off by default, saved under windows", () => {
+  const draft = normalizeOptionsPanelDraft({ local: { pcAttackAutoOpen: true } });
+  const patches = buildOptionsPanelPatches(draft);
+  assert.equal(draft.local.pcAttackAutoOpen, true);
+  assert.deepEqual(patches.local.windows, { pcAttackAutoOpen: true });
+  assert.equal(normalizeOptionsPanelDraft({}).local.pcAttackAutoOpen, false);
+  const model = selectOptionsPanelModel(resolveOptions({ local: { windows: { pcAttackAutoOpen: true } }, room: {}, scene: {} }));
+  assert.equal(model.local.pcAttackAutoOpen, true);
+  const html = readFileSync(new URL("../options-modal.html", import.meta.url), "utf8");
+  assert.match(html, /data-local="pcAttackAutoOpen"/);
 });
 
 test("OPTIONS-003: automatic faction assignment is saved in Room", () => {

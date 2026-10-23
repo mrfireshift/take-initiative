@@ -44,6 +44,10 @@ export function selectClocksCompact(options) {
   return resolved(options).local.windows.clocksCompact;
 }
 
+export function selectPcAttackAutoOpen(options) {
+  return resolved(options).local.windows.pcAttackAutoOpen;
+}
+
 export function selectDistance3dToolEnabled(options) {
   return resolved(options).local.tools.distance3d;
 }
@@ -180,6 +184,7 @@ export function selectOptionsPanelModel(options) {
       followActiveTurn: value.local.tracker.followActiveTurn,
       trackerScale: value.local.tracker.scale,
       combatLog: value.local.runtime.combatLog,
+      pcAttackAutoOpen: value.local.windows.pcAttackAutoOpen,
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,

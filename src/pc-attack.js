@@ -15,7 +15,7 @@ import { totalCharacterLevel } from "./abilityModifiersCore.js";
 import { pcAttackCriticalDice } from "./pcAttackRiderCatalog.js";
 import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossTargetLabel } from "./bossActionsViewCore.js";
 import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
-import { PC_ATTACK_POPOVER_ID } from "./pcAttackLauncher.js";
+import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_POPOVER_ID } from "./pcAttackLauncher.js";
 import { pcAttackPickerDefault, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
 import "./popoverDrag.js";
 
@@ -152,6 +152,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
   const spellControls=$("pc-attack-spell-controls");
   const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select");
+  const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open");
+  let offPing=null,offAutoOpen=null;
   const extrasCaption=$("pc-attack-extras-caption");
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
   const areaBox=$("pc-attack-area"),areaNote=$("pc-attack-area-note"),areaList=$("pc-attack-area-list");
@@ -1048,6 +1050,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function unmountLiveUpdates() {unsubscribers.splice(0).forEach(unsubscribe=>{try{unsubscribe();}catch{}});}
   function destroy() {
     unmountLiveUpdates();
+    try{offPing?.();}catch{}
+    try{offAutoOpen?.();}catch{}
+    offPing=null;offAutoOpen=null;
     if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}
     lifecycle.dispose();
   }
@@ -1174,6 +1179,26 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   });
   $("pc-attack-close").addEventListener("click",()=>{destroy();void api.popover.close(PC_ATTACK_POPOVER_ID);});
   documentRef.addEventListener?.("keydown",event=>{if(event.key==="Escape" && !busy){destroy();void api.popover.close(PC_ATTACK_POPOVER_ID);}});
+  // The turn controller (pcAttackTurnController.js) asks whether a console is open: an open one is never reloaded.
+  if(typeof api.broadcast?.onMessage==="function") offPing=api.broadcast.onMessage(PC_ATTACK_CONSOLE_CHANNEL,event=>{
+    if(event?.data?.type!=="ping") return;
+    void Promise.resolve().then(()=>api.broadcast.sendMessage(PC_ATTACK_CONSOLE_CHANNEL,{type:"pong",sourceId,actionId},{destination:"LOCAL"})).catch(()=>{});
+  });
+  // The turn auto-open: a local option of this browser, switched here or in the options panel (pcAttackAutoOpenOption.js).
+  if(autoOpenBox) {
+    const option=overrides.autoOpenOption?Promise.resolve(overrides.autoOpenOption)
+      :import("./pcAttackAutoOpenOption.js").then(module=>module.createPcAttackAutoOpenOption());
+    void option.then(async value=>{
+      const off=await value.subscribe(on=>{autoOpenBox.checked=on;if(autoOpenRow)autoOpenRow.hidden=false;});
+      offAutoOpen=()=>{off?.();value.stop?.();};
+      autoOpenBox.addEventListener("change",()=>{
+        const on=autoOpenBox.checked;
+        void Promise.resolve().then(()=>value.set(on)).then(()=>setStatus(on
+          ?"La console si aprirà da sola a ogni turno di un attore con attacchi."
+          :"La console non si aprirà più da sola a inizio turno.")).catch(error=>setStatus(String(error?.message || error)));
+      });
+    }).catch(error=>console.warn("[pc-attack] auto-open option:",error?.message || error));
+  }
   const unsubscribe=lifecycle.subscribe(event=>{
     if(event.phase==="unavailable"){
       invalidated=true;presentation=null;draft=null;unmountLiveUpdates();render();showUndo(null);

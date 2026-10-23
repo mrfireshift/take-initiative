@@ -16,7 +16,8 @@ const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-att
   "pc-attack-cantrip-note", "pc-attack-extras-caption", "pc-attack-woven", "pc-attack-activations", "pc-attack-activations-caption",
   "pc-attack-palm", "pc-attack-palm-note", "pc-attack-palm-outcomes", "pc-attack-palm-amount", "pc-attack-palm-apply",
   "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-note", "pc-attack-area-list",
-  "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed", "pc-attack-picker", "pc-attack-picker-tabs", "pc-attack-picker-select"];
+  "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed", "pc-attack-picker", "pc-attack-picker-tabs", "pc-attack-picker-select",
+  "pc-attack-auto-open-row", "pc-attack-auto-open"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
@@ -28,7 +29,8 @@ function createDocument() {
   };
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   for (const id of IDS) {
-    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select"].includes(id) ? "select" : BUTTONS.has(id) ? "button" : "div");
+    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select"].includes(id) ? "select" : BUTTONS.has(id) ? "button"
+      : id === "pc-attack-auto-open" ? "input" : "div");
     node.id = id; doc.root.appendChild(node);
   }
   return doc;
@@ -38,7 +40,7 @@ const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
 // actions: the actor's quick actions, for the picker (the runtime then loads the one asked for, like pcAttackExecution).
-function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, actionId = "holy-sword", confirm } = {}) {
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, actionId = "holy-sword", confirm, broadcast, autoOpenOption } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
   const items = [creature("aria", "Aria", 40, attacker), creature("ghoul", "Ghoul", 30, defenses ? { initiativeCard: { damageDefenses: defenses } } : {}), creature("imp", "Imp", 10)];
@@ -51,6 +53,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
     scene: { isReady: async () => true, onReadyChange: () => () => {},
       items: { getItems: async (ids) => Array.isArray(ids) ? items.filter((item) => ids.includes(item.id)) : items, onChange: (listener) => subscribe(listeners.items, listener) } },
     popover: { close: async () => {} },
+    ...(broadcast ? { broadcast } : {}),
   };
   const runtime = {
     getPcAttackPresentation: async (sourceId, asked) => {
@@ -77,7 +80,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
         damageComponents: [{ amount: 17 }], hpChange: { before: 30, after: 13, hpMax: 30 } };
     },
   };
-  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, schedule: (callback) => setTimeout(callback, 0),
+  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, schedule: (callback) => setTimeout(callback, 0),
     undo: async (entryId) => { undoCalls.push(entryId); return { ok: true }; } });
   const $ = (id) => documentRef.getElementById(id);
   return { $, controller, calls, undoCalls, nearbyCalls, loads, runtime, items,
@@ -720,4 +723,35 @@ test("the attack spells tab and a single entry", async () => {
   assert.equal(f.$("pc-attack-picker-select").hidden, true, "one entry in the tab: no select");
   const single = fixture({ actions: [sword] }); await single.controller.ready;
   assert.equal(single.$("pc-attack-picker").hidden, true);
+});
+
+test("the console answers the turn controller's ping while it is open, and stops once closed", async () => {
+  const listeners = new Set(), sent = [];
+  const broadcast = { onMessage: (channel, listener) => { listeners.add(listener); return () => listeners.delete(listener); },
+    sendMessage: async (channel, data, options) => { sent.push({ channel, data, options }); } };
+  const f = fixture({ broadcast }); await f.controller.ready;
+  for (const listener of listeners) listener({ data: { type: "ping" } });
+  await tick();
+  assert.deepEqual(sent, [{ channel: "com.thebigpicture.initiative/pc-attack-console", data: { type: "pong", sourceId: "aria", actionId: "holy-sword" },
+    options: { destination: "LOCAL" } }]);
+  await f.$("pc-attack-close").click();
+  assert.equal(listeners.size, 0);
+});
+
+test("the header switch shows and changes the turn auto-open option", async () => {
+  const values = [];
+  let notify = null;
+  const autoOpenOption = { subscribe: async (listener) => { notify = listener; listener(false); return () => { notify = null; }; },
+    set: async (value) => { values.push(value); }, stop() {} };
+  const f = fixture({ autoOpenOption }); await f.controller.ready; await tick();
+  const box = f.$("pc-attack-auto-open");
+  assert.equal(f.$("pc-attack-auto-open-row").hidden, false);
+  assert.equal(box.checked, false);
+  box.checked = true; await box.emit("change"); await tick();
+  assert.deepEqual(values, [true]);
+  assert.match(f.$("pc-attack-status").textContent, /si aprirà da sola a ogni turno/);
+  notify(false);
+  assert.equal(box.checked, false, "a change made in the options panel shows here");
+  await f.$("pc-attack-close").click();
+  assert.equal(notify, null);
 });

@@ -4,6 +4,8 @@ import { POPOVER_DRAG_CHANNEL } from "./popoverDrag.js";
 
 const POSITION_PREFIX = `${ID}/popover-position/`;
 const trackedPopovers = new Map();
+// This iframe, among the ones that open tracked popovers (the tracker, the background, …).
+const HOST_ID = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
 function positionKey(id) {
   return `${POSITION_PREFIX}${String(id || "").replaceAll("/", "_")}`;
@@ -34,7 +36,13 @@ function withStoredPosition(options) {
 
 export async function openTrackedPopover(options) {
   const next = withStoredPosition({ ...options });
-  if (isTopLeftPopover(next)) trackedPopovers.set(next.id, next);
+  if (isTopLeftPopover(next)) {
+    trackedPopovers.set(next.id, next);
+    // Only the last iframe that opened a popover moves it: the others forget it (no drag applied twice).
+    void Promise.resolve()
+      .then(() => OBR.broadcast.sendMessage(POPOVER_DRAG_CHANNEL, { type: "claim", id: next.id, hostId: HOST_ID }, { destination: "LOCAL" }))
+      .catch(() => {});
+  }
   await OBR.popover.open(next);
 }
 
@@ -65,6 +73,10 @@ async function moveTrackedPopover(id, deltaX, deltaY) {
 OBR.onReady(() => {
   OBR.broadcast.onMessage(POPOVER_DRAG_CHANNEL, (event) => {
     const data = event?.data;
+    if (data?.type === "claim" && data.id) {
+      if (data.hostId !== HOST_ID) trackedPopovers.delete(data.id);
+      return;
+    }
     if (data?.type !== "drag-end" || !data.id) return;
     void moveTrackedPopover(data.id, data.deltaX, data.deltaY);
   });
