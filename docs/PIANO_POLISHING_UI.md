@@ -426,6 +426,9 @@ Stato dei lotti:
   - **Aggiornate:** "Focus token" al posto di "Follow"; "Console effetti manuali" al posto di "Console HP rapida", aperta da **Effetti** (o su **Danno** dal modello d'area); etichette nella card estesa e compatta; flusso consigliato al tavolo.
   - **Glossario:** 66 sostituzioni (incantesimo, promemoria, etichetta, giocatori, stanza, cronologia, registro combattimento; "tracker" al posto di "lister"). Nessun termine inglese del glossario rimasto nella guida.
   - **Fuori dal lotto:** `docs/RIFERIMENTO_FUNZIONI.md` chiama ancora la console "Console HP rapida".
+- **7.3 — fatto il 2026-10-23.** 16 catture in `docs/ui-audit/after/finale/`, con l'indice nel `README.md` della cartella: barra compatta GM e giocatore, menu `…`, cassetto degli effetti, linguetta dei compagni, modifica HP, Compila iniziativa, condizioni rapide dalla card e dal token, toast "Annulla", KO con lanciatori, vista classica GM e giocatore, maniglia a pari merito, console effetti manuali.
+  - **Verificato durante il giro:** "Annulla" del toast ripristina la lista dopo Svuota iniziativa; l'Azione epica resta dopo il suo PG a pari merito; il sottomenu del token mostra la griglia delle condizioni.
+  - **Comportamento atteso, non un difetto:** dopo Svuota + Annulla gli attori rientrano in iniziativa e parte Compila iniziativa, ma solo per chi non ha mai avuto l'iniziativa inserita (`initTouched` falso). Nell'anteprima succede perché i dati di prova sono quasi tutti "non toccati"; finché l'editor è aperto, la guardia di `renderAll()` sospende i render, come previsto.
 
 ---
 
