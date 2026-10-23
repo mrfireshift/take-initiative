@@ -87,3 +87,12 @@ test("il tracker applica le condizioni rapide con l'operazione del pannello, la 
   assert.ok(trackerSource.includes("toggleQuickCondition: (ids, conditionName) => __toggleCardQuickCondition(ids, conditionName, sceneEpoch),"));
   assert.ok(trackerSource.includes("quickConditions: quickConditionMenuEntries(conditionScope, CONDITION_EMOJI),"));
 });
+
+test("le condizioni rapide stanno nel sottomenu Condizioni, con il pannello completo in fondo", () => {
+  const menuSource = readFileSync(new URL("../src/initiative-card-context-menu.js", import.meta.url), "utf8");
+  const render = menuSource.slice(menuSource.indexOf("function render(payload)"));
+  assert.ok(render.includes('addSubmenu(root, "Condizioni", "conditions-panel.svg", [], {'));
+  const submenu = render.slice(render.indexOf("buildContent: (content) => {"), render.indexOf("} else {"));
+  assert.ok(submenu.indexOf("addQuickConditions(content, quickConditions);") < submenu.indexOf('makeAction(content, "Tutte le condizioni…"'));
+  assert.ok(!render.includes("addQuickConditions(root"), "not inline at the top of the menu");
+});

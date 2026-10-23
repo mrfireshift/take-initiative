@@ -151,13 +151,10 @@ function makeAction(parent, label, icon, action, options = {}) {
   return button;
 }
 
-// Quick conditions (quickConditionsCore.js): one click adds the condition or takes it off, and the menu closes.
-// "on": every creature of the card has it; "mixed": some of a group do (a click then adds it to the others).
+// Quick conditions (quickConditionsCore.js), in the "Condizioni" submenu: one click adds the condition or takes it
+// off, and the menu closes. "on": every creature of the card has it; "mixed": only some of the selected creatures do
+// (a click then adds it to the others).
 function addQuickConditions(parent, conditions) {
-  const caption = document.createElement("div");
-  caption.className = "section-label";
-  caption.textContent = "Condizioni rapide";
-  parent.appendChild(caption);
   const grid = document.createElement("div");
   grid.className = "quick-conditions";
   grid.setAttribute("role", "group");
@@ -194,7 +191,8 @@ function addQuickConditions(parent, conditions) {
   parent.appendChild(grid);
 }
 
-function addSubmenu(parent, label, icon, entries) {
+// buildContent: fills the submenu with something other than plain entries (the quick conditions' grid).
+function addSubmenu(parent, label, icon, entries, { buildContent = null } = {}) {
   const wrap = document.createElement("div");
   const content = document.createElement("div");
   content.className = "submenu";
@@ -217,6 +215,7 @@ function addSubmenu(parent, label, icon, entries) {
   for (const entry of entries) {
     makeAction(content, entry.label, entry.icon, entry.action, entry.options);
   }
+  if (typeof buildContent === "function") buildContent(content);
   wrap.appendChild(content);
   parent.appendChild(wrap);
 }
@@ -294,9 +293,18 @@ function render(payload) {
   root.appendChild(title);
 
   const quickConditions = Array.isArray(payload.quickConditions) ? payload.quickConditions : [];
-  if (quickConditions.length) addQuickConditions(root, quickConditions);
-  // The full panel: the other conditions, durations and sources.
-  makeAction(root, quickConditions.length ? "Tutte le condizioni…" : "Condizioni", "conditions-panel.svg", "conditions");
+  if (quickConditions.length) {
+    // The quick toggles, then the full panel (the other conditions, durations and sources).
+    addSubmenu(root, "Condizioni", "conditions-panel.svg", [], {
+      buildContent: (content) => {
+        content.classList.add("submenu--grid");
+        addQuickConditions(content, quickConditions);
+        makeAction(content, "Tutte le condizioni…", "conditions-panel.svg", "conditions");
+      },
+    });
+  } else {
+    makeAction(root, "Condizioni", "conditions-panel.svg", "conditions");
+  }
   if (payload.expandedTokenMenu) {
     makeAction(root, "Rimuovi condizioni", "conditions-panel.svg", "clear-conditions", { danger: true });
     divider(root);

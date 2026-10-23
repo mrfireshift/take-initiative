@@ -127,26 +127,22 @@
         border: 1px solid rgba(255,255,255,.55);
         border-radius: 999px;
       }
-      .section-label {
-        padding: 2px 7px 3px;
-        color: rgba(255,255,255,.62);
-        font-size: var(--obrt-type-micro, 10px);
-        font-weight: 600;
-      }
       .quick-conditions {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 2px;
         padding-bottom: 3px;
       }
+      /* The conditions' submenu indents less than the others: two columns of names need the room. */
+      .submenu.submenu--grid { margin-left: 10px; }
       .quick-conditions button {
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 4px;
         min-height: 28px;
-        padding: 4px 6px;
+        padding: 4px 5px;
       }
-      .quick-conditions .emoji { flex: 0 0 16px; width: 16px; text-align: center; }
+      .quick-conditions .emoji { flex: 0 0 15px; width: 15px; text-align: center; }
       .quick-conditions .name { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       /* Active on every creature of the card, or on some of a group. */
       .quick-conditions button[data-state="on"] {
