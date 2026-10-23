@@ -20,8 +20,8 @@ const IDS = ["pc-attack-title", "pc-attack-subtitle", "pc-attack-close", "pc-att
   "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-note", "pc-attack-area-list",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed", "pc-attack-picker", "pc-attack-picker-tabs", "pc-attack-picker-select",
   "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow", "pc-attack-picker-list",
-  "pc-attack-launch-button", "pc-attack-spell-details", "pc-attack-spell-details-body"];
-const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
+  "pc-attack-launch-button", "pc-attack-spell-details", "pc-attack-spell-details-body", "pc-attack-use-selected"];
+const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-use-selected", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
   const doc = {
@@ -43,10 +43,12 @@ const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
 // actions: the actor's quick actions, for the picker (the runtime then loads the one asked for, like pcAttackExecution).
-function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, featureState = null, featureRuntime, actionId = "holy-sword", confirm, broadcast, autoOpenOption } = {}) {
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, featureState = null, featureRuntime, actionId = "holy-sword", confirm, broadcast, autoOpenOption, metas = {} } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
-  const items = [creature("aria", "Aria", 40, attacker), creature("ghoul", "Ghoul", 30, defenses ? { initiativeCard: { damageDefenses: defenses } } : {}), creature("imp", "Imp", 10)];
+  // metas: more metadata for the ghoul and the imp (their cards, for the off-turn actions).
+  const items = [creature("aria", "Aria", 40, attacker), creature("ghoul", "Ghoul", 30, { ...(defenses ? { initiativeCard: { damageDefenses: defenses } } : {}), ...metas.ghoul }),
+    creature("imp", "Imp", 10, metas.imp || {})];
   const listeners = { player: new Set(), items: new Set() };
   const subscribe = (set, listener) => { set.add(listener); return () => set.delete(listener); };
   let selection = [];
@@ -1065,4 +1067,47 @@ test("the ⚡ quick actions stay out of the console: a card of quick actions onl
   const f = fixture({ card: ownCard, attacker: { initiativeCard: { quickActions: ownCard.quickActions } }, actionId: "" }); await f.controller.ready; await tick();
   assert.equal(f.$("pc-attack-picker").hidden, true);
   assert.match(textOf(f.$("pc-attack-launch")), /Nessun attacco, incantesimo o capacità/);
+});
+
+// Off-turn actions: the console on another actor than the turn's (a reaction, an opportunity attack).
+const armed = { initiativeCard: { quickActions: [sword] } };
+
+test("off turn, the bar offers the way back to the turn's actor; on its actor, no bar", async () => {
+  const f = fixture({ turnState: { order: ["ghoul", "aria", "imp"], current: 0, round: 2 }, metas: { ghoul: armed } });
+  await f.controller.ready; await tick();
+  const bar = f.$("pc-attack-follow");
+  assert.equal(bar.hidden, false);
+  assert.match(textOf(bar), /Fuori turno: è il turno di Ghoul\./);
+  const back = bar.querySelector("button");
+  assert.equal(back.textContent, "Torna a Ghoul");
+  await back.click(); await tick(); await tick();
+  assert.equal(f.sources.at(-1), "ghoul");
+  assert.equal(f.$("pc-attack-status").textContent, "Turno di Ghoul.");
+  assert.equal(bar.hidden, true, "back on the turn's actor");
+  const unarmed = fixture({ turnState: { order: ["ghoul", "aria"], current: 0, round: 2 } });
+  await unarmed.controller.ready; await tick();
+  assert.equal(unarmed.$("pc-attack-follow").hidden, true, "a turn's actor with nothing to show offers no way back");
+  const own = fixture({ turnState: { order: ["aria", "ghoul"], current: 0, round: 2 }, metas: { ghoul: armed } });
+  await own.controller.ready; await tick();
+  assert.equal(own.$("pc-attack-follow").hidden, true, "on its own turn");
+});
+
+test("⇄ moves the console to the creature selected on the map, after a confirmation when an attack holds decisions", async () => {
+  let answer = false;
+  const f = fixture({ metas: { imp: armed }, confirm: () => answer });
+  await f.controller.ready; await tick();
+  const swap = f.$("pc-attack-use-selected");
+  assert.equal(swap.hidden, true, "nothing selected");
+  await f.select(["ghoul"]);
+  assert.equal(swap.hidden, true, "a creature with nothing to show");
+  await f.select(["imp"]);
+  assert.equal(swap.hidden, false);
+  assert.match(swap.title, /Passa a Imp/);
+  await f.outcome("hit").click();
+  await swap.click(); await tick();
+  assert.equal(f.sources.includes("imp"), false, "the GM declined: the attack stays");
+  answer = true;
+  await swap.click(); await tick(); await tick();
+  assert.equal(f.sources.at(-1), "imp");
+  assert.equal(f.$("pc-attack-status").textContent, "Fuori turno: Imp.");
 });

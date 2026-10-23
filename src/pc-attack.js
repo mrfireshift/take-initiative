@@ -21,7 +21,8 @@ import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
 import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFormCore.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { classFeatureDescription, classFeatureDescriptionsLoaded, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
-import { pcAttackPickerDefault, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
+import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
+import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { pcBreathAreaRuleId } from "./pcAttackBreathId.js";
 import "./popoverDrag.js";
@@ -178,7 +179,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   });
   // The turn moved on while this attack holds decisions: the actor it waits to move to ({sourceId, name}).
   const followBar=$("pc-attack-follow");
-  let pendingFollow=null;
+  let pendingFollow=null,followSignature="";
+  // Off-turn actions (a reaction, an opportunity attack): the selected creature in the console, then back to the turn's.
+  const useSelectedButton=$("pc-attack-use-selected");
   let offPing=null,offAutoOpen=null;
   const extrasCaption=$("pc-attack-extras-caption");
   const modeSelect=$("pc-attack-mode"),outcomeBlock=$("pc-attack-outcome-block"),targetCaption=$("pc-attack-target-caption");
@@ -1295,6 +1298,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     apply.disabled=busy || invalidated || !view.ready;
   }
   function render() {
+    renderFollow();renderUseSelected();
     if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
     form.hidden=false;
     // A spell that left the book (or a launch view on an entry gone) falls back to the attack, or the first spell.
@@ -1312,6 +1316,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // Selection and scene updates never rebuild the outcome buttons or the amount fields: a click in
   // flight or the caret in a field survives them.
   function renderLive() {
+    renderFollow();renderUseSelected();
     if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
     renderPicker();renderCaster();
     if(launching()){renderLaunch();return;}
@@ -1383,6 +1388,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         if(next.targetId && targetById(next.targetId)) draft.targetId=next.targetId;
         renderLive();
       } else if(launching()) renderLaunch();
+      renderUseSelected();
     } catch {}
   }
   function mountLiveUpdates() {
@@ -1573,13 +1579,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   });
   function closeConsole() {destroy();void api.popover.close(PC_ATTACK_POPOVER_ID);}
   // A new actor in place: a fresh attack (no target, no undo of the previous actor's entry: History keeps it).
-  function switchActor(next,name="") {
+  function switchActor(next,name="",{offTurn=false}={}) {
     pendingFollow=null;renderFollow();
     sourceId=next;actionId="";requestedSpellId="";launchKey="";launchSignature="";
     presentation=null;draft=null;liveSignature="";
     beamTally={spellId:"",count:0};palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
     selection={status:"none",target:null,candidates:[]};
-    showUndo(null);setStatus(name?`Turno di ${name}.`:"");
+    showUndo(null);setStatus(name?offTurn?`Fuori turno: ${name}.`:`Turno di ${name}.`:"");
     render();
     void perform(async operation=>{await refresh(operation);}).then(()=>readSelection());
   }
@@ -1592,11 +1598,42 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!next){closeConsole();return;}
     switchActor(next,name);
   }
+  // A creature the console can show: something in its picker (an attack, a spell, a feature).
+  const hasEntries=item=>!!item && pcAttackPickerEntries(item.metadata?.[META_KEY]?.initiativeCard || {}).length>0;
+  const leaveDraft=()=>!((draft && draftLocked(draft)) || palmDraft.outcome)
+    || confirmSwitch("Lasciare questo attacco? Le scelte non registrate andranno perse.");
+  // The actor in the turn (presentation.turnState): never the Lair or an Epic Action slot; a Paragon's extra turn is its
+  // creature's. Only a creature the console can show.
+  function turnActor() {
+    const state=presentation?.turnState;
+    const order=Array.isArray(state?.order)?state.order.filter(id=>typeof id==="string" && id):[];
+    if(!order.length) return null;
+    const actorId=order[Math.max(0,Math.min(order.length-1,Math.floor(Number(state.current) || 0)))];
+    if(isLairId(actorId) || isEpicActionId(actorId)) return null;
+    const id=splitParagonId(actorId).baseId;
+    const item=id===presentation.item?.id?presentation.item:(presentation.targets || []).find(target=>target.id===id);
+    return item && hasEntries(item)?{id,name:String(item.name || "")}:null;
+  }
   function renderFollow() {
     if(!followBar) return;
-    followBar.hidden=!pendingFollow;
-    if(!pendingFollow){followBar.replaceChildren();return;}
+    const away=!pendingFollow && presentation?(()=>{const actor=turnActor();return actor && actor.id!==sourceId?actor:null;})():null;
+    followBar.hidden=!pendingFollow && !away;
+    if(followBar.hidden){followBar.replaceChildren();followSignature="";return;}
+    // Off turn: one click back to the turn's actor (rebuilt only when it changes: a live update keeps the button).
+    if(!pendingFollow) {
+      const signature=JSON.stringify(["away",away.id,away.name,busy,launchBusy]);
+      if(signature===followSignature) return;
+      followSignature=signature;
+      const back=node("button",away.name?`Torna a ${away.name}`:"Torna al turno","small");back.type="button";
+      back.disabled=busy || launchBusy;
+      back.addEventListener("click",()=>{if(!busy && !launchBusy && leaveDraft())switchActor(away.id,away.name);});
+      followBar.replaceChildren(node("span",`Fuori turno${away.name?`: è il turno di ${away.name}`:""}.`),back);
+      return;
+    }
     const {sourceId:next,name}=pendingFollow;
+    const pendingSignature=JSON.stringify(["pending",next,name]);
+    if(pendingSignature===followSignature) return;
+    followSignature=pendingSignature;
     const button=node("button",next?(name?`Passa a ${name}`:"Passa al nuovo turno"):"Chiudi","small");button.type="button";
     button.addEventListener("click",()=>{
       const target=pendingFollow;
@@ -1607,6 +1644,22 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     });
     followBar.replaceChildren(node("span",name?`È il turno di ${name}.`:"È cambiato il turno."),button);
   }
+  function renderUseSelected() {
+    if(!useSelectedButton) return;
+    const target=selection.status==="single"?selection.target:null;
+    const show=!!presentation && !!target && target.id!==sourceId && hasEntries(target);
+    useSelectedButton.hidden=!show;
+    if(!show) return;
+    const name=String(target.name || "il token selezionato");
+    useSelectedButton.title=`Passa a ${name} (selezionato sulla mappa): un'azione fuori turno`;
+    useSelectedButton.setAttribute("aria-label",useSelectedButton.title);
+    useSelectedButton.disabled=busy || launchBusy;
+  }
+  useSelectedButton?.addEventListener("click",()=>{
+    const target=selection.status==="single"?selection.target:null;
+    if(!target || target.id===sourceId || busy || launchBusy || !leaveDraft()) return;
+    switchActor(target.id,String(target.name || ""),{offTurn:true});
+  });
   $("pc-attack-close").addEventListener("click",()=>closeConsole());
   documentRef.addEventListener?.("keydown",event=>{if(event.key==="Escape" && !busy)closeConsole();});
   // The turn controller (pcAttackTurnController.js) asks whether a console is open: an open one is never reloaded.
