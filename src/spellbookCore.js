@@ -37,7 +37,17 @@ export function sanitizeSpellbook(value) {
     .slice(0, MAX_SPELLBOOK_PINNED);
   const unpreparedIds = uniqueSpellIds(source.unpreparedIds, MAX_SPELLBOOK_SPELLS)
     .filter((id) => known.has(id));
-  return { spellIds, pinnedIds, ...(unpreparedIds.length ? { unpreparedIds } : {}) };
+  // manualIds, a subset of spellIds: the spells the GM marked "Aggiunto manualmente" (outside the class list, from a
+  // feat, an item, a house rule). Only a label: they are prepared and counted like the others. Stored only when it
+  // lists something, as unpreparedIds.
+  const manualIds = uniqueSpellIds(source.manualIds, MAX_SPELLBOOK_SPELLS)
+    .filter((id) => known.has(id));
+  return {
+    spellIds,
+    pinnedIds,
+    ...(unpreparedIds.length ? { unpreparedIds } : {}),
+    ...(manualIds.length ? { manualIds } : {}),
+  };
 }
 
 export function hasSpellbook(value) {

@@ -140,8 +140,9 @@ export function spellbookSpellAttackAction(quickActions, spellId) {
 // cantrip always is. For the other casters every spell they know is ready. granted: the spells its subclasses give
 // ([{ spellId, source }], subclassSpellsCatalog.js), listed with their source and always prepared.
 export function spellbookGroups(value, { preparing = false, granted = [] } = {}) {
-  const { spellIds, pinnedIds, unpreparedIds = [] } = sanitizeSpellbook(value);
+  const { spellIds, pinnedIds, unpreparedIds = [], manualIds = [] } = sanitizeSpellbook(value);
   const pinned = new Set(pinnedIds);
+  const manual = new Set(manualIds);
   const unprepared = new Set(preparing ? unpreparedIds : []);
   const grantedBy = new Map((Array.isArray(granted) ? granted : []).map((entry) => [entry.spellId, entry.source || "Sottoclasse"]));
   const groups = new Map();
@@ -150,6 +151,7 @@ export function spellbookGroups(value, { preparing = false, granted = [] } = {})
     const spell = {
       ...entry,
       pinned: pinned.has(spellId),
+      ...(manual.has(spellId) ? { manual: true } : {}),
       prepared: entry.level === 0 || grantedBy.has(spellId) || !unprepared.has(spellId),
       ...(grantedBy.has(spellId) ? { granted: grantedBy.get(spellId) } : {}),
     };

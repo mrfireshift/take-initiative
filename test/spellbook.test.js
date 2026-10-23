@@ -166,3 +166,19 @@ test("a preparing caster's book keeps the unprepared spells apart; other books k
   assert.equal(spellbookPreparation(sorcerer).preparing, false);
   assert.equal(spellbookTrackerQuickActions(sorcerer).some((action) => action.id === "book:hold-person"), true);
 });
+
+test("a spell marked Aggiunto manualmente keeps the label only: saved with the card, prepared and counted as the others", () => {
+  const book = sanitizeSpellbook({
+    spellIds: ["gentle-repose", "bless", "cure-wounds"],
+    manualIds: ["gentle-repose", "fireball", "gentle-repose"],
+    unpreparedIds: ["gentle-repose"],
+  });
+  assert.deepEqual(book.manualIds, ["gentle-repose"], "only spells of the book, once");
+  assert.deepEqual(sanitizeSpellbook({ spellIds: ["bless"] }), { spellIds: ["bless"], pinnedIds: [] }, "no field when nobody is marked");
+  assert.equal(sanitizeSpellbook({ ...book, spellIds: ["bless", "cure-wounds"] }).manualIds, undefined, "a spell taken out of the book loses the mark");
+  assert.deepEqual(sanitizeInitiativeCard({ spellbook: book }).spellbook.manualIds, ["gentle-repose"]);
+  const repose = spellbookGroups(book, { preparing: true }).flatMap((group) => group.spells).find((spell) => spell.id === "gentle-repose");
+  assert.equal(repose.manual, true);
+  assert.equal(repose.prepared, false, "it follows the preparation as any spell");
+  assert.equal(repose.granted, undefined);
+});

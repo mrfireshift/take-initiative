@@ -88,6 +88,10 @@ La scheda **Incantesimi** della scheda personaggio raccoglie gli incantesimi
 che il personaggio conosce o ha preparato, raggruppati per livello, con CD e
 bonus di attacco in testa. In **Modifica** si cercano nel catalogo, si
 aggiungono (anche con Invio) e si tolgono; la ★ li mette tra i preferiti.
+Il catalogo non conosce le liste delle classi: puoi aggiungere qualsiasi
+incantesimo, e il pulsante ✎ lo segna **Aggiunto manualmente** (da un talento,
+un oggetto, una lista ampliata o una regola della casa). È solo un'etichetta:
+l'incantesimo si prepara e conta come gli altri.
 
 Chierici, druidi, maghi e paladini **preparano** gli incantesimi: sotto gli
 slot compare "Preparati N/M", con il limite delle regole (modificatore di

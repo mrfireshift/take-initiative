@@ -183,11 +183,12 @@
     .spellbook-panel { width:28px; min-height:28px; padding:0; align-self:center; border-radius:8px; font-size:13px; line-height:1; }
     .spellbook-add { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; margin-top:9px; align-items:center; }
     .spellbook-editor-list { display:grid; gap:5px; margin-top:6px; }
-    .spellbook-editor-row { min-width:0; display:grid; grid-template-columns:30px minmax(0,1fr) auto auto; gap:6px; align-items:center; padding:5px 6px 5px 8px; border:1px solid rgba(var(--faction-rgb),.20); border-radius:8px; background:rgba(0,0,0,.18); }
+    .spellbook-editor-row { min-width:0; display:grid; grid-template-columns:30px minmax(0,1fr) auto auto auto; gap:6px; align-items:center; padding:5px 6px 5px 8px; border:1px solid rgba(var(--faction-rgb),.20); border-radius:8px; background:rgba(0,0,0,.18); }
     .spellbook-editor-row > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .spellbook-level { color:var(--accent-bright); font-size:10px; font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; }
     .spellbook-editor-row button { width:28px; min-height:28px; padding:0; border-radius:8px; line-height:1; }
     .spellbook-pin[aria-pressed="true"] { border-color:#fde047; background:rgba(234,179,8,.20); color:#fde047; }
+    .spellbook-manual[aria-pressed="true"] { border-color:#7dd3fc; background:rgba(56,189,248,.18); color:#7dd3fc; }
     .spellbook-pin:disabled { opacity:.32; cursor:default; }
     .spellbook-suggestions { display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin-top:9px; }
     .spellbook-suggestions[hidden] { display:none; }

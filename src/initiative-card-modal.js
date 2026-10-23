@@ -1257,7 +1257,8 @@ function buildSpellbookEntry(spell) {
     const label = document.createElement("strong");
     label.textContent = spell.label;
     const summary = document.createElement("small");
-    summary.textContent = spell.prepared ? "Preparato" : "Non preparato";
+    summary.textContent = [spell.prepared ? "Preparato" : "Non preparato", spell.manual ? "✎ Aggiunto manualmente" : ""]
+      .filter(Boolean).join(" · ");
     copy.append(label, summary);
     row.append(box, copy);
     entry.appendChild(row);
@@ -1292,7 +1293,9 @@ function buildSpellbookEntry(spell) {
     label.appendChild(ritual);
   }
   const summary = document.createElement("small");
-  summary.textContent = spellbookSpellSummary(spell, cantripAttack);
+  // "Aggiunto manualmente": only a label, the spell is prepared and counted like the others.
+  summary.textContent = [spellbookSpellSummary(spell, cantripAttack), spell.manual ? "✎ Aggiunto manualmente" : ""]
+    .filter(Boolean).join(" · ");
   copy.append(label, summary);
   main.append(icon, copy);
   entry.appendChild(main);
@@ -2920,6 +2923,26 @@ function renderSpellbookEditor() {
       draftSpellbook = sanitizeSpellbook({ ...draftSpellbook, pinnedIds });
       renderSpellbookEditor();
     });
+    // ✎ marks a spell "Aggiunto manualmente" (outside the class list): a label only, nothing else changes.
+    const manualIds = draftSpellbook.manualIds || [];
+    const manual = document.createElement("button");
+    manual.type = "button";
+    manual.className = "spellbook-pin spellbook-manual";
+    manual.textContent = "✎";
+    manual.setAttribute("aria-pressed", manualIds.includes(spell.id) ? "true" : "false");
+    manual.title = manualIds.includes(spell.id)
+      ? "Togli il segno «Aggiunto manualmente»"
+      : "Segna come aggiunto manualmente (fuori dalla lista della classe)";
+    manual.setAttribute("aria-label", `${manual.title}: ${spell.label}`);
+    manual.addEventListener("click", () => {
+      draftSpellbook = sanitizeSpellbook({
+        ...draftSpellbook,
+        manualIds: manualIds.includes(spell.id)
+          ? manualIds.filter((id) => id !== spell.id)
+          : [...manualIds, spell.id],
+      });
+      renderSpellbookEditor();
+    });
     const remove = document.createElement("button");
     remove.type = "button";
     remove.textContent = "✕";
@@ -2933,7 +2956,7 @@ function renderSpellbookEditor() {
       setSpellbookEditStatus();
       renderSpellbookEditor();
     });
-    row.append(level, name, pin, remove);
+    row.append(level, name, pin, manual, remove);
     return row;
   }));
   renderSpellbookSubclassHelp();
