@@ -765,6 +765,23 @@ export function markCompactHPTextEditable(hpText, entryId) {
   return hpText;
 }
 
+// GM: the initiative badge opens the classic card's inline editor (bindInitiativeEditorForEntry), with the same save
+// path. Tagged like the classic badge, so "Compila iniziativa" finds it, marks the pending ones and moves from one to
+// the next; the resting border and shadow are what the fill mode puts back.
+export function markCompactInitiativeBadgeEditable(badge, entry) {
+  if (!badge?.dataset || !entry?.id) return badge;
+  badge.dataset.badge = "init";
+  badge.dataset.itemId = String(entry.id);
+  badge.dataset.initTouched = entry.initTouched === true ? "1" : "0";
+  badge.title = entry.__groupCollapsed
+    ? "Clic: modifica l'iniziativa del gruppo"
+    : "Clic: modifica l'iniziativa";
+  badge.style.cursor = "text";
+  badge.__initNormalBorder = badge.style.border;
+  badge.__initNormalShadow = badge.style.boxShadow;
+  return badge;
+}
+
 // Drawers on a compact card's right (effects, companions): placed past the card's edge, with the card's right margin
 // grown by as much, so the strip makes room and the bar never grows downwards. Docks stand in the order they are
 // added; only the last one may change width afterwards (resize), since the ones before it do not move.

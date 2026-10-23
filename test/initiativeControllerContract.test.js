@@ -730,3 +730,12 @@ test("barra compatta: gli effetti si aprono in un cassetto accanto alla card, no
   const scrollHandler = source.slice(source.indexOf('trackWrap.addEventListener("scroll"'), source.indexOf('trackWrap.addEventListener("scroll"') + 240);
   assert.ok(!scrollHandler.includes("__closeCompactEffectsPopover"));
 });
+
+test("lotto 6.5: il GM modifica l'iniziativa dal compatto con l'editor del classico", () => {
+  const compactSection = source.slice(source.indexOf("function renderCompactTrack("));
+  assert.ok(compactSection.includes("if (IS_GM && !virtual && !entry.isEpic && !isLairId(entry.id) && !isEpicActionId(entry.id)) {"));
+  assert.ok(compactSection.includes("markCompactInitiativeBadgeEditable(initiativeBadge, entry);"));
+  assert.ok(compactSection.includes("bindInitiativeEditorForEntry(initiativeBadge, entry);"));
+  const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  assert.ok(indexHtml.includes('[data-compact-card="1"] [data-badge="init"][data-init-editing="1"]'));
+});

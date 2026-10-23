@@ -359,7 +359,16 @@ Stato dei lotti:
     - Lavera `-7` e Invio: da 98 a 91, testo "HP 91 / 98", barra al 92,9%, voce "Modifica HP" in cronologia, avviso di concentrazione;
     - Tab dal massimo di Auril apre l'editor di Lavera, saltando l'azione epica in mezzo;
     - HP di Lavera portati a 40 da fuori con l'editor aperto: campi intatti, barra al 40,8%; alla chiusura resta 40, nessuna scrittura del valore vecchio.
-- **6.5 — in pausa (2026-10-23).** Piano presentato: il badge compatto riceve le etichette e l'editor del classico, e così "Compila iniziativa" funziona anche nel compatto (oggi non trova badge e risponde "Non ci sono iniziative da compilare"). Da riprendere dopo la revisione qui sotto. Nota aperta: nel classico anche i giocatori aprono l'editor dell'iniziativa e il valore finisce sul token; da chiarire se è voluto.
+- **6.5 — fatto il 2026-10-23** (in pausa durante la revisione qui sotto).
+  - **Cosa:** il GM clicca sul badge di iniziativa della card compatta e si apre l'editor del classico (`bindInitiativeEditorForEntry`): stesso salvataggio (`updateInitiative`, gruppo, riconciliazione e riordino), Invio salva e passa alla card successiva, Esc annulla.
+  - **"Compila iniziativa" nel compatto:** prima non trovava badge e rispondeva "Non ci sono iniziative da compilare". Ora apre la prima creatura da compilare, evidenzia col bordo tratteggiato le altre, passa avanti con Invio o Tab, chiude con Ctrl+Invio e riordina alla fine. Il suo codice non cambia.
+  - **Dove:** solo GM; card normali e gruppi collassati (l'iniziativa di tutto il gruppo, come nel classico); non turni di Tana, azioni epiche e Boss Epico.
+  - **Aspetto:** in modifica il badge è largo 30px, il campo scrive a 12px (l'editor condiviso scrive 15px per il badge più grande del classico) e ha il bordo azzurro (regole in `index.html`).
+  - **Verifica nell'anteprima:**
+    - Lupo da 7 a 22 con Invio: valore e `initTouched` sul token, il Lupo passa dopo Omar, l'editor si apre sulla card successiva; Esc annulla senza scrivere;
+    - "Compila iniziativa": Omar, Lavera e Klos compilati in fila, evidenziazione che si toglie a ogni Invio, Ctrl+Invio chiude, ordine finale corretto;
+    - durante la compilazione l'ordine nello stato si aggiorna mentre le card restano ferme, esattamente come nel classico.
+  - **Nota aperta:** nel classico anche i giocatori aprono l'editor dell'iniziativa e il valore finisce sul token; da chiarire se è voluto.
 
 #### Revisione della barra compatta (dopo un test in OBR, 2026-10-23)
 

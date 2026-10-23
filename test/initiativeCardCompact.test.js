@@ -25,6 +25,7 @@ import {
   compactEffectsDrawerColumns,
   compactEffectsDrawerWidth,
   compactHPTextHTML,
+  markCompactInitiativeBadgeEditable,
   compactKnockedOutBadgeStyle,
   markCompactHPTextEditable,
 } from "../src/initiativeCardCompact.js";
@@ -1269,4 +1270,28 @@ test("gli altri effetti si aprono in un cassetto a destra della card, in colonne
     assert.equal(firstColumn.children[0].style[key], cardPill.style[key], key);
   }
   assert.equal(appendCompactEffectsDrawer(documentRef.createElement("article"), [], { documentRef }), null);
+});
+
+test("lotto 6.5: il badge di iniziativa compatto ha le etichette del classico per l'editor e Compila iniziativa", () => {
+  const documentRef = createTestDocument();
+  const { initiativeBadge } = buildCompactCardIndicators({ id: "wolf", initiative: 7 }, {
+    active: false, isLair: false, faction: { border: "#ffffff", base: "#000000" }, rgba: () => "rgba(0,0,0,1)", documentRef,
+  });
+  assert.equal(markCompactInitiativeBadgeEditable(initiativeBadge, { id: "wolf", initTouched: true }), initiativeBadge);
+  assert.equal(initiativeBadge.dataset.badge, "init");
+  assert.equal(initiativeBadge.dataset.itemId, "wolf");
+  assert.equal(initiativeBadge.dataset.initTouched, "1");
+  assert.equal(initiativeBadge.style.cursor, "text");
+  assert.equal(initiativeBadge.title, "Clic: modifica l'iniziativa");
+  // The fill mode restores the resting look from these.
+  assert.equal(initiativeBadge.__initNormalBorder, initiativeBadge.style.border);
+  assert.equal(initiativeBadge.__initNormalShadow, initiativeBadge.style.boxShadow);
+
+  const group = documentRef.createElement("span");
+  markCompactInitiativeBadgeEditable(group, { id: "goblin", __groupCollapsed: true });
+  assert.equal(group.dataset.initTouched, "0");
+  assert.match(group.title, /gruppo/);
+  const untouched = documentRef.createElement("span");
+  markCompactInitiativeBadgeEditable(untouched, {});
+  assert.equal(untouched.dataset.badge, undefined);
 });

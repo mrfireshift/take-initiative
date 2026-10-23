@@ -257,6 +257,7 @@ import {
   compactHPTextHTML,
   compactKnockedOutBadgeStyle,
   markCompactHPTextEditable,
+  markCompactInitiativeBadgeEditable,
   writeCompactHPText,
 } from "./initiativeCardCompact.js";
 import { compactScrollFadeEdges } from "./compactScrollFadeCore.js";
@@ -9799,6 +9800,12 @@ function renderCompactTrack(
       rgba,
     });
     card.appendChild(initiativeBadge);
+    // Initiative in one click (lot 6.5): the classic card's editor and save path, for the GM, on the cards whose
+    // initiative can change (not Lair turns, Epic Actions or an Epic Boss, whose editor refuses them anyway).
+    if (IS_GM && !virtual && !entry.isEpic && !isLairId(entry.id) && !isEpicActionId(entry.id)) {
+      markCompactInitiativeBadgeEditable(initiativeBadge, entry);
+      bindInitiativeEditorForEntry(initiativeBadge, entry);
+    }
     if (statusBadge) card.appendChild(statusBadge);
     if (activeMarker) card.appendChild(activeMarker);
     const sheetButton = buildCompactSheetButton(entry, {

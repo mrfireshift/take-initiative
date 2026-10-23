@@ -78,6 +78,20 @@
         font-variant-numeric: tabular-nums;
       }
 
+      /* The compact card's initiative badge while its inline editor is open: a field the size of the badge (the shared
+         editor writes 15px, made for the extended card's larger badge). */
+      [data-compact-card="1"] [data-badge="init"][data-init-editing="1"] {
+        /* A fixed width: the field is 100% wide and would otherwise take a text input's natural width. */
+        width: 30px !important;
+        min-width: 30px !important;
+        padding: 0 !important;
+        outline: 1px solid rgba(147, 197, 253, .72);
+        outline-offset: 1px;
+      }
+      [data-compact-card="1"] [data-badge="init"] input {
+        font-size: 12px !important;
+      }
+
       /* The compact card's HP text while its inline editor is open: it reads as a field. */
       [data-card-hp-text="1"][data-hp-editing="1"] {
         background: rgba(2, 6, 12, .85);
