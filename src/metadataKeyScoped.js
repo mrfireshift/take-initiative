@@ -119,7 +119,7 @@ function errorText(error) {
   return String(error?.message || error || "Errore sconosciuto");
 }
 
-function reportDiagnostic({ scope, runtime, domain, key, durationMs, ok, error }) {
+function reportDiagnostic({ scope, runtime, domain, key, durationMs, ok, error, skipped }) {
   if (!isDiagnosticsEnabled() || typeof console?.debug !== "function") return;
   const details = {
     scope,
@@ -130,6 +130,7 @@ function reportDiagnostic({ scope, runtime, domain, key, durationMs, ok, error }
     ok,
   };
   if (error) details.error = errorText(error);
+  if (skipped) details.skipped = skipped;
   console.debug("[metadata-key]", details);
 }
 
@@ -190,6 +191,15 @@ function roomBudgetError(plan, contract) {
   return error;
 }
 
+// JSON with the object keys sorted: two values that differ only in key order compare equal.
+function stableJson(value) {
+  return JSON.stringify(value, (key, candidate) => (
+    candidate && typeof candidate === "object" && !Array.isArray(candidate)
+      ? Object.fromEntries(Object.keys(candidate).sort().map((name) => [name, candidate[name]]))
+      : candidate
+  ));
+}
+
 async function writeMetadataKey(
   api,
   contract,
@@ -199,6 +209,8 @@ async function writeMetadataKey(
     runtime = "unknown",
     roomBudget = {},
     logger = console,
+    // Room only: no write when the value to persist equals the stored one (a read-through that changes nothing).
+    skipUnchanged = false,
   } = {},
 ) {
   const domain = String(contract?.domain || "unknown-domain");
@@ -242,6 +254,18 @@ async function writeMetadataKey(
         reportRoomBudget(metadataSnapshot, contract, roomPlan, { logger });
       }
       valueToWrite = roomPlan.persistedValue;
+      if (skipUnchanged && stableJson(valueToWrite) === stableJson(metadataSnapshot?.[key])) {
+        reportDiagnostic({
+          scope,
+          runtime,
+          domain,
+          key,
+          durationMs: timestamp() - startedAt,
+          ok: true,
+          skipped: "unchanged",
+        });
+        return;
+      }
     }
     await api.setMetadata({ [key]: valueToWrite });
     reportDiagnostic({

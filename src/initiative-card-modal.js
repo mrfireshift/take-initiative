@@ -4117,7 +4117,8 @@ OBR.onReady(async () => {
     );
     if (!item) throw new Error("Token non trovato");
     applyFactionTheme();
-    profile = await loadInitiativeCard(item, { hydrate: isGM });
+    // The realignment of the Room registry and of the token runs after the first render (deferWrites).
+    profile = await loadInitiativeCard(item, { hydrate: isGM, deferWrites: true });
     populateQuickActionDatalists();
     populateSpellbookDatalist();
     buildAbilityModifierInputs();

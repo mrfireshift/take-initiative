@@ -394,6 +394,8 @@ async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
           roomBudget: {
             retain: retainInitiativeCardRegistryWithinByteBudget,
           },
+          // A read-through that finds the Room already aligned writes nothing (every GM sheet opening).
+          skipUnchanged: true,
         },
       );
     } catch (error) {
@@ -489,7 +491,17 @@ export function getInitiativeCard(item) {
   return profile;
 }
 
-export async function loadInitiativeCard(item, { hydrate = false, registry } = {}) {
+// The writes of a GM hydration: awaited, or with deferWrites left running after the profile is returned, so the
+// character sheet draws first. A deferred failure is a warning: the next opening tries again.
+async function runInitiativeCardHydrationWrites(writes, deferWrites) {
+  if (!deferWrites) return writes();
+  void Promise.resolve()
+    .then(writes)
+    .catch((error) => console.warn("[initiative-card] hydration:", error?.message || error));
+  return undefined;
+}
+
+export async function loadInitiativeCard(item, { hydrate = false, registry, deferWrites = false } = {}) {
   const resolvedRegistry = registry === undefined
     ? (await readInitiativeCardRegistry()).registry
     : registry;
@@ -551,7 +563,7 @@ export async function loadInitiativeCard(item, { hydrate = false, registry } = {
       ? (roomUpdatedAt || Date.now())
       : (tokenUpdatedAt || Date.now());
     if (roomWins && roomDeleted) {
-      if (hasTokenProfile) await removeTokenProfile(item.id);
+      if (hasTokenProfile) await runInitiativeCardHydrationWrites(() => removeTokenProfile(item.id), deferWrites);
       return profile;
     }
     const cleanWinner = sanitizeInitiativeCard(
@@ -592,22 +604,24 @@ export async function loadInitiativeCard(item, { hydrate = false, registry } = {
 
     // Read-through migration: ogni apertura GM riallinea chiave asset, fallback
     // nome, metadata stanza e backup locale, anche per schede legacy.
-    await updateRoomCards((next) => {
-      const previousEntry = roomEntry && typeof roomEntry === "object" ? roomEntry : {};
-      const entry = {
-        ...previousEntry,
-        name: String(item?.name || ""),
-        profile: storedProfileWithoutTimestamp,
-        updatedAt,
-      };
-      if (actorProfileId) entry[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
-      delete entry.deleted;
-      for (const key of keys) next[key] = entry;
-      return next;
-    });
-    if (needsTokenSync || needsConditionSync || !!actorProfileId && actorProfileIdFromItem(item) !== actorProfileId) {
-      await writeTokenProfile(item.id, storedProfile, actorProfileId);
-    }
+    await runInitiativeCardHydrationWrites(async () => {
+      await updateRoomCards((next) => {
+        const previousEntry = roomEntry && typeof roomEntry === "object" ? roomEntry : {};
+        const entry = {
+          ...previousEntry,
+          name: String(item?.name || ""),
+          profile: storedProfileWithoutTimestamp,
+          updatedAt,
+        };
+        if (actorProfileId) entry[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
+        delete entry.deleted;
+        for (const key of keys) next[key] = entry;
+        return next;
+      });
+      if (needsTokenSync || needsConditionSync || !!actorProfileId && actorProfileIdFromItem(item) !== actorProfileId) {
+        await writeTokenProfile(item.id, storedProfile, actorProfileId);
+      }
+    }, deferWrites);
   }
 
   return profile;

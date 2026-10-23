@@ -477,3 +477,97 @@ test("registry Room: la chiave nome diventa un alias, localStorage e token resta
     await stopRuntime(runtime);
   }
 });
+
+// Opening the character sheet (GM): the read-through realignment of the Room registry and of the token.
+// Counts the Room writes; gate holds the token writes until released.
+function countRoomWrites() {
+  const originalRoom = sdkStub.room.setMetadata;
+  const originalItems = sdkStub.scene.items.updateItems;
+  const counter = { writes: 0, gate: null };
+  sdkStub.room.setMetadata = async (update) => {
+    counter.writes += 1;
+    return originalRoom(update);
+  };
+  sdkStub.scene.items.updateItems = async (...args) => {
+    if (counter.gate) await counter.gate;
+    return originalItems(...args);
+  };
+  counter.restore = () => {
+    sdkStub.room.setMetadata = originalRoom;
+    sdkStub.scene.items.updateItems = originalItems;
+  };
+  return counter;
+}
+
+async function settled(promise, ms = 80) {
+  return Promise.race([promise.then(() => "resolved"), new Promise((resolve) => setTimeout(() => resolve("pending"), ms))]);
+}
+
+test("apertura GM: con registro Room già allineato non scrive né la Room né il token", async () => {
+  reset();
+  storedProfile().quickActions = [];
+  const runtime = await startRuntime();
+  const room = countRoomWrites();
+  try {
+    await runtime.cards.loadInitiativeCard(clone(scene.items[0]), { hydrate: true });
+    const firstWrites = room.writes;
+    const itemWrites = transport.itemWrites;
+    assert.ok(firstWrites >= 1, "the first opening aligns the Room");
+    await runtime.cards.loadInitiativeCard(clone(scene.items[0]), { hydrate: true });
+    await runtime.cards.loadInitiativeCard(clone(scene.items[0]), { hydrate: true });
+    assert.equal(room.writes, firstWrites, "an aligned Room is not written again");
+    assert.equal(transport.itemWrites, itemWrites, "nor the token");
+  } finally {
+    room.restore();
+    await stopRuntime(runtime);
+  }
+});
+
+test("apertura GM con deferWrites: il profilo arriva subito, la migrazione scrive lo stesso profilo dopo", async () => {
+  reset();
+  storedProfile().quickActions = [];
+  const runtime = await startRuntime();
+  const room = countRoomWrites();
+  try {
+    // The Room holds a newer card (AC 16) than the token (AC 12): the opening realigns the token.
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 16 }, { commandId: "newer-room", transportTimeoutMs: 100 });
+    Object.assign(storedProfile(), { armorClass: 12, updatedAt: 1 });
+    let release;
+    room.gate = new Promise((resolve) => { release = resolve; });
+    const loading = runtime.cards.loadInitiativeCard(clone(scene.items[0]), { hydrate: true, deferWrites: true });
+    assert.equal(await settled(loading), "resolved", "the sheet does not wait for the token write");
+    const profile = await loading;
+    assert.equal(profile.armorClass, 16);
+    assert.equal(storedProfile().armorClass, 12, "the token is written after the profile is returned");
+    release();
+    room.gate = null;
+    const deadline = Date.now() + 2000;
+    while (storedProfile().armorClass !== 16 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(storedProfile().armorClass, 16, "the deferred realignment writes the profile the sheet drew");
+  } finally {
+    room.restore();
+    await stopRuntime(runtime);
+  }
+});
+
+test("apertura GM senza deferWrites: chi carica la scheda aspetta ancora la migrazione", async () => {
+  reset();
+  storedProfile().quickActions = [];
+  const runtime = await startRuntime();
+  const room = countRoomWrites();
+  try {
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 16 }, { commandId: "newer-room-awaited", transportTimeoutMs: 100 });
+    Object.assign(storedProfile(), { armorClass: 12, updatedAt: 1 });
+    let release;
+    room.gate = new Promise((resolve) => { release = resolve; });
+    const loading = runtime.cards.loadInitiativeCard(clone(scene.items[0]), { hydrate: true });
+    assert.equal(await settled(loading), "pending", "the default keeps awaiting the writes");
+    release();
+    room.gate = null;
+    await loading;
+    assert.equal(storedProfile().armorClass, 16);
+  } finally {
+    room.restore();
+    await stopRuntime(runtime);
+  }
+});
