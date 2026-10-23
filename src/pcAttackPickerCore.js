@@ -2,17 +2,20 @@ import { sanitizeQuickActions } from "./quickActionsCore.js";
 import { pcAttackAction, pcAttackBreathActionsForCard, pcAttackCantripIds, pcAttackSpellIds } from "./pcAttackCore.js";
 import { getPcAttackCantrip } from "./pcAttackCantripCatalog.js";
 import { getPcAttackSpell } from "./pcAttackSpellCatalog.js";
-import { spellbookCantripAttackAction, spellbookGroupsForProfile, spellbookSpell, spellbookSpellAttackAction } from "./spellbookCatalog.js";
-import { isSpellbookQuickAction, spellbookQuickActionId } from "./spellbookCore.js";
+import { spellbookCantripAttackAction, spellbookGroupsForProfile, spellbookSpellAttackAction } from "./spellbookCatalog.js";
+import { classFeatureDisplayNameWithParent, classFeatureIsReferenceOnly, getEnabledClassFeatures } from "./classFeatureCatalog.js";
+import { spellbookQuickActionId } from "./spellbookCore.js";
 
 // The attack console's picker: everything the actor can do with an attack or a spell on its turn, one entry each.
 // Attacchi: the weapon attacks and the breath weapons. Trucchetti and Incantesimi: the spells of the book the actor
-// can cast now (as the 🪄 menu lists them), or, without a book, the ones its attack actions offer. Capacità: the card's
-// other quick actions, as the ⚡ menu lists them (class features, conditions, spell actions of its own).
+// can cast now (as the 🪄 menu lists them), or, without a book, the ones its attack actions offer. Capacità: the actor's
+// class and subclass features at its level and its species traits (the breath weapons stay in Attacchi). The ⚡ quick
+// actions stay on the ⚡ button and the character sheet, never in the console.
 // mode: "attack" resolves in the console (actionId: the attack action that records it, the first one offering it);
 // "launch" goes to the spell panel through the tracker, as the 🪄 menu does (actionId: the book's spell action);
 // "weapon" is woven into a melee weapon attack (Booming Blade); "manual" is not automated, the table resolves it;
-// "use" is a ⚡ quick action, run by the tracker like the ⚡ menu (actionId: the quick action; kind and featureId).
+// "activate" is a feature the tracker activates as the card's context menu does (featureId); "reference" is a feature
+// to read (passive, triggered, reference only).
 export const PC_ATTACK_PICKER_TABS = Object.freeze([
   Object.freeze({ id: "attacks", label: "Attacchi" }),
   Object.freeze({ id: "cantrips", label: "Trucchetti" }),
@@ -52,16 +55,7 @@ export function pcAttackPickerEntries(card) {
     if (!["cantrip", "spell"].includes(action.source?.kind)) add("attacks", action.id, "", action.label || action.id);
   }
   for (const action of pcAttackBreathActionsForCard(profile)) add("attacks", action.id, "", action.label || action.id);
-  // quickAction: the action itself, for its card (a spell action's cost and uses, a condition's target and duration).
-  for (const action of quickActions) {
-    if (action.kind === "attack" || isSpellbookQuickAction(action)) continue;
-    const spell = action.kind === "spell" ? spellbookSpell(action.spellId) : null;
-    add("features", action.id, "", action.label || action.id, {
-      mode: "use", kind: action.kind, quickAction: action,
-      ...(action.featureId ? { featureId: action.featureId } : {}),
-      ...(spell ? { spellId: action.spellId, level: spell.level, concentration: spell.concentration, ritual: spell.ritual } : {}),
-    });
-  }
+  entries.features = pcAttackFeatureEntries(profile);
   const book = spellbookGroupsForProfile(profile)
     .filter((group) => group.level !== null)
     .flatMap((group) => group.spells.filter((spell) => spell.prepared).sort((left, right) => Number(right.pinned) - Number(left.pinned)));
@@ -82,6 +76,29 @@ export function pcAttackPickerEntries(card) {
   // A list the attack action names itself (a species or feat cantrip) stays, even when the book does not hold it.
   for (const action of attackActions) if (["cantrip", "spell"].includes(action.source?.kind)) addOffered(action, true);
   return PC_ATTACK_PICKER_TABS.flatMap((tab) => entries[tab.id]);
+}
+
+// Capacità: the features the card's context menu activates first ("Utilizzabili", the same rule as
+// buildClassFeatureContextEntries), then the others ("Altre capacità"), each in catalog order. group: "usable" or
+// "other"; activation: the catalog's (azione, azione bonus, reazione, passiva, innesco…); species: a species trait.
+const ACTIVATION_LABELS = Object.freeze({
+  azione: "azione", azione_bonus: "azione bonus", reazione: "reazione", passiva: "passiva", innesco: "innesco",
+  azione_attacco: "con l'attacco", contenitore_opzioni: "",
+});
+const activationLabel = (value) => {
+  const raw = String(value || "").trim();
+  return Object.hasOwn(ACTIVATION_LABELS, raw) ? ACTIVATION_LABELS[raw] : raw.replaceAll("_", " ");
+};
+
+export function pcAttackFeatureEntries(profile) {
+  const entries = getEnabledClassFeatures(profile).filter((feature) => !feature.breath).map((feature) => {
+    const usable = !classFeatureIsReferenceOnly(feature) && feature.quickActionEligible !== false;
+    return { key: `feature::${feature.id}`, tab: "features", actionId: "", spellId: "", featureId: feature.id,
+      label: classFeatureDisplayNameWithParent(feature), mode: usable ? "activate" : "reference", group: usable ? "usable" : "other",
+      activation: activationLabel(feature.activation?.primary), species: !!(feature.speciesId || feature.giftId),
+      level: null, concentration: false, ritual: false, recordOnly: false, pinned: false };
+  });
+  return [...entries.filter((entry) => entry.group === "usable"), ...entries.filter((entry) => entry.group === "other")];
 }
 
 // The entry the console shows for this action and spell: the exact one, else the action's first entry.

@@ -17,8 +17,8 @@ import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossT
 import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
 import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL } from "./pcAttackLauncher.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
-import { getClassFeatureResourcePool } from "./classFeatureCatalog.js";
-import { quickActionUsesLeft } from "./quickActionsCore.js";
+import { getClassFeatureDefinition, getClassFeatureResourcePool } from "./classFeatureCatalog.js";
+import { classFeatureDescription, classFeatureDescriptionsLoaded, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { pcAttackPickerDefault, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { pcBreathAreaRuleId } from "./pcAttackBreathId.js";
@@ -830,14 +830,22 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     picker.hidden=entries.length<2 || !current;
     if(picker.hidden){pickerSignature="";return;}
     const tabs=pcAttackPickerTabs(entries),inTab=entries.filter(entry=>entry.tab===current.tab);
-    // The spells tab is a list by level; the other tabs keep the select.
-    const asList=current.tab==="spells" && !!pickerList;
+    // The spells and features tabs are lists (by level, by group); the other tabs keep the select.
+    const asList=["spells","features"].includes(current.tab) && !!pickerList;
     // A leveled spell cast left open (rays or darts still to register) says so in its entry.
     const inProgress=entry=>entry.mode==="attack" && entry.tab==="spells"
       && !!pcAttackOpenSpellCast({sourceItem:presentation.item,spellId:entry.spellId,turnState:presentation.turnState});
     // In the cantrips and spells tabs ⚔ marks what the console resolves, ★ the favourites (as the 🪄 menu).
     const label=entry=>[entry.pinned?"★ ":"",entry.label,entry.tab!=="attacks" && entry.mode==="attack"?" ⚔":"",inProgress(entry)?" · in corso":""].join("");
-    const rowTags=entry=>[entry.mode==="attack"?"⚔":"",entry.concentration?"Conc.":"",entry.ritual?"Rit.":"",inProgress(entry)?"in corso":""].filter(Boolean).join(" · ");
+    const featureTags=entry=>{
+      const feature=(presentation.features || []).find(item=>item.featureId===entry.featureId);
+      const uses=(feature?.resources || []).filter(row=>!row.unlimited && Number.isFinite(row.current) && Number.isFinite(row.maximum)).map(row=>`${row.current}/${row.maximum}`);
+      return [entry.activation,...uses,feature?.active?"Attiva":""];
+    };
+    const rowTags=entry=>(entry.tab==="features"?featureTags(entry)
+      :[entry.mode==="attack"?"⚔":"",entry.concentration?"Conc.":"",entry.ritual?"Rit.":"",inProgress(entry)?"in corso":""]).filter(Boolean).join(" · ");
+    const groupOf=entry=>entry.tab==="features"?entry.group:entry.level;
+    const groupTitle=group=>group==="usable"?"Utilizzabili":group==="other"?"Altre capacità":Number.isInteger(group)?`${group}° livello`:"Altri";
     // Rebuilt only when the list changes: a live update never closes the select the GM has open, nor scrolls the list.
     const signature=JSON.stringify([tabs.map(tab=>tab.id),current.tab,asList,inTab.map(entry=>[entry.key,label(entry),rowTags(entry)])]);
     if(signature!==pickerSignature) {
@@ -851,10 +859,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         return button;
       }));
       pickerSelect.replaceChildren(...(asList?[]:inTab.map(entry=>{const option=node("option",label(entry));option.value=entry.key;return option;})));
-      // The spells by level, as in the 🪄 menu: one row each, its marks on the right.
-      if(pickerList) pickerList.replaceChildren(...(!asList?[]:[...new Set(inTab.map(entry=>entry.level))].flatMap(level=>[
-        node("div",Number.isInteger(level)?`${level}° livello`:"Altri","picker-level"),
-        ...inTab.filter(entry=>entry.level===level).map(entry=>{
+      // The spells by level (as in the 🪄 menu), the features by group: one row each, its marks on the right.
+      if(pickerList) pickerList.replaceChildren(...(!asList?[]:[...new Set(inTab.map(groupOf))].flatMap(group=>[
+        node("div",groupTitle(group),"picker-level"),
+        ...inTab.filter(entry=>groupOf(entry)===group).map(entry=>{
           const row=node("button","","picker-row");row.type="button";row.dataset.pickerKey=entry.key;row.setAttribute("role","listitem");
           row.append(node("span",`${entry.pinned?"★ ":""}${entry.label}`,"picker-row-name"),node("span",rowTags(entry),"picker-row-tags"));
           row.addEventListener("click",()=>chooseEntry((presentation?.picker || []).find(item=>item.key===entry.key)));
@@ -867,6 +875,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!asList){pickerSelect.value=current.key;pickerSelect.disabled=busy;}
     if(pickerList) {
       pickerList.hidden=!asList;
+      pickerList.setAttribute("aria-label",current.tab==="features"?"Capacità":"Incantesimi");
       for(const row of pickerList.querySelectorAll("button")){row.setAttribute("aria-pressed",String(row.dataset.pickerKey===current.key));row.disabled=busy;}
     }
   }
@@ -907,59 +916,37 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ...(slots.length?[node("span",`Slot ${slots.map(row=>`${row.pact?"Patto ":""}${row.level}° ${row.current}/${row.maximum}`).join(" · ")}`)]:[]),
       names.length?node("span",`Concentrazione: ${names.join(", ")}`,"concentrating"):node("span","Nessuna concentrazione"));
   }
-  const USE_KIND_LABELS=Object.freeze({feature:"Capacità",condition:"Condizione",spell:"Azione rapida"});
-  const USE_TARGET_LABELS=Object.freeze({self:"su di sé",selection:"sui bersagli selezionati"});
-  const conditionDuration=action=>action?.expiryMode==="rounds"?`${action.duration} round`
-    :action?.expiryMode==="turn-start"?`${action.duration} round · scade a inizio turno`
-    :action?.expiryMode==="turn-end"?`${action.duration} round · scade a fine turno`:"fino alla rimozione";
-  // A spell action of its own (a feat, a species, an item): what it costs (a slot, its own uses, nothing) and the same
-  // warnings as a spell of the book.
-  function useSpellCard(entry) {
-    const action=entry.quickAction || {};
-    const meta=presentation?.item?.metadata?.[META_KEY] || {};
-    const cost=action.cost || "slot";
-    const uses=quickActionUsesLeft(action,meta.classFeatureState?.resources);
-    const slotLevel=action.slotLevel || entry.level;
-    const freeSlot=cost!=="slot" || !slotLevel || spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources)
-      .some(row=>row.level>=slotLevel && row.current>0);
-    const others=concentrationNames().filter(name=>name.toLocaleLowerCase("it")!==String(entry.label || "").toLocaleLowerCase("it"));
-    return {
-      tags:[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])],
-      detailText:cost==="uses" && uses?`Usi ${uses.current}/${uses.maximum}`:cost==="free"?"Senza slot":slotLevel?`Slot di ${slotLevel}°`:"Trucchetto",
-      notes:[...(entry.concentration && others.length?[[`Lanciandolo termina la concentrazione su ${others.join(", ")}.`,"warning"]]:[]),
-        ...(uses && uses.current<=0?[["Nessun uso rimasto.","warning"]]:[]),
-        ...(!freeSlot?[[`Nessuno slot libero dal ${slotLevel}° livello in su.`,"warning"]]:[])],
-      blocked:false,
-    };
-  }
-  // A ⚡ quick action (Capacità): its uses left and whether it is active, as the tracker card shows them. A feature
-  // active on its owner or as an aura cannot be used again, as in the ⚡ menu. A condition: what it applies, to whom,
-  // for how long.
-  function useCard(entry) {
-    if(entry.kind==="spell") return useSpellCard(entry);
-    const action=entry.quickAction || {};
-    if(entry.kind==="condition") return {
-      tags:[[USE_TARGET_LABELS[action.targetMode] || USE_TARGET_LABELS.selection,""]],
-      detailText:[action.conditionName?`Applica «${action.conditionName}»`:"",conditionDuration(action)].filter(Boolean).join(" · "),
-      notes:[],blocked:false,
-    };
-    const feature=entry.featureId?(presentation?.features || []).find(item=>item.featureId===entry.featureId):null;
+  // A feature of the Capacità tab: its activation, target, uses left and whether it is active, as the tracker card reads
+  // them (presentation.features). One active on its owner or as an aura cannot be activated again, as in the card's
+  // context menu; a reference feature is only read.
+  const capitalized=text=>text?text.charAt(0).toUpperCase()+text.slice(1):"";
+  function featureCard(entry) {
+    const feature=(presentation?.features || []).find(item=>item.featureId===entry.featureId) || null;
+    const activating=entry.mode==="activate";
     const resources=(feature?.resources || []).map(row=>{
       const name=getClassFeatureResourcePool(row.poolId)?.name || row.poolId;
       return row.unlimited?`${name}: illimitati`:Number.isFinite(row.current) && Number.isFinite(row.maximum)?`${name} ${row.current}/${row.maximum}`:name;
     });
-    const blocked=!!feature?.active && ["self","aura"].includes(feature.targetMode);
-    // Without the tracker's reading (a feature outside the build), the action's own target.
-    const target=feature?.targetLabel || USE_TARGET_LABELS[action.targetMode] || "";
+    const active=activating && !!feature?.active && ["self","aura"].includes(feature.targetMode);
+    const manual=activating && feature?.runtimeReady===false;
     return {
-      tags:[...(target?[[target,""]]:[]),...(feature?.active?[["Attiva","warning"]]:[])],
+      tags:[...(entry.activation?[[capitalized(entry.activation),""]]:[]),...(feature?.targetLabel?[[feature.targetLabel,""]]:[]),
+        ...(feature?.active?[["Attiva","warning"]]:[]),...(entry.species?[["Specie",""]]:[])],
       detailText:resources.join(" · "),
-      notes:[...(blocked?[["Già attiva.","warning"]]:[]),...(feature && !feature.resourceReady && !blocked?[["Nessun uso rimasto.","warning"]]:[])],
-      blocked,
+      notes:[...(active?[["Già attiva.","warning"]]:[]),
+        ...(activating && feature && !feature.resourceReady && !active?[["Nessun uso rimasto.","warning"]]:[]),
+        ...(manual?[["Non automatizzata: risolvila al tavolo.",""]]:[])],
+      blocked:active || manual || (activating && !feature),
     };
   }
-  // The card of an entry the console does not resolve: what it is, what it costs, and Lancia (a spell) or Usa (a ⚡
-  // quick action) when the tracker runs it.
+  // The feature's text (the character sheet's), loaded once on the first feature shown; a species trait carries its own.
+  function featureDetailsNodes(entry) {
+    if(!classFeatureDescriptionsLoaded()) {
+      void loadClassFeatureDescriptions().then(()=>{launchSignature="";if(launching())renderLaunch();}).catch(()=>{});
+    }
+    const text=classFeatureDescription(getClassFeatureDefinition(entry.featureId));
+    return [text?node("p",text,"spell-text"):node("p",classFeatureDescriptionsLoaded()?"Testo non disponibile.":"Caricamento del testo…","launch-details")];
+  }
   // The spell's details under an accordion ("Dettagli"): tags, casting time, range, components, duration, then the
   // text of the spell and its higher levels. One open state for every accordion of the console: open stays open.
   function spellDetailsNodes(spellId,tags=[]) {
@@ -1004,49 +991,47 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     launchBox.hidden=false;
     const entry=currentEntry();
     const level=entry?.level;
+    const isFeature=entry?.mode==="activate" || entry?.mode==="reference";
     $("pc-attack-title").textContent=entry?.label || presentation?.item?.name || "Attacco";
-    const using=entry?.mode==="use";
-    // A spell action of the Capacità tab reads like a spell: its level, Lancia, its details in the accordion.
-    const usesSpell=using && entry.kind==="spell" && !!entry.spellId;
-    const spellLevelLabel=level===0?"Trucchetto":Number.isInteger(level)?`Incantesimo di ${level}° livello`:"";
     $("pc-attack-subtitle").textContent=[presentation?.item?.name || presentation?.item?.id,
-      ...(!entry?[]:using && !usesSpell?[USE_KIND_LABELS[entry.kind] || "Azione rapida"]:[spellLevelLabel || "Azione rapida"])].filter(Boolean).join(" · ");
+      ...(!entry?[]:isFeature?[entry.species?"Tratto di specie":"Capacità di classe"]:[level===0?"Trucchetto":`Incantesimo di ${level}° livello`])].filter(Boolean).join(" · ");
     const others=concentrationNames().filter(name=>name.toLocaleLowerCase("it")!==String(entry?.label || "").toLocaleLowerCase("it"));
     const meta=presentation?.item?.metadata?.[META_KEY] || {};
     const freeSlot=!level || spellSlotStatus(meta.initiativeCard?.characterBuild,meta.classFeatureState?.resources)
       .some(row=>row.level>=level && row.current>0);
-    const use=using?useCard(entry):null;
-    const notes=!entry?[["Nessun attacco o incantesimo da mostrare per questo attore.",""]]
-      :using?use.notes
+    const feature=isFeature?featureCard(entry):null;
+    const notes=!entry?[["Nessun attacco, incantesimo o capacità da mostrare per questo attore.",""]]
+      :isFeature?feature.notes
       :entry.mode==="weapon"?[["Si lancia con un attacco con arma da mischia: scegli l'arma nella scheda Attacchi e attivalo fra gli extra al colpo.",""]]
       :entry.mode==="manual"?[["Non automatizzato: risolvilo al tavolo.",""]]
       :[...(entry.concentration && others.length?[[`Lanciandolo termina la concentrazione su ${others.join(", ")}.`,"warning"]]:[]),
         ...(!freeSlot?[[`Nessuno slot libero dal ${level}° livello in su.`,"warning"]]:[]),
         ...(entry.recordOnly?[["Il plugin registra il lancio e lo slot: gli effetti si risolvono al tavolo.",""]]:[])];
-    const canLaunch=entry?.mode==="launch" || using;
+    const canLaunch=entry?.mode==="launch" || entry?.mode==="activate";
     // The fixed row: what it costs at a glance, and the button.
     const details=entry?.spellId?spellbookSpellDetails(entry.spellId):null;
     if(applyRow) applyRow.hidden=!canLaunch;
     apply.hidden=true;
     if(launchButton) {
       launchButton.hidden=!canLaunch;
-      launchButton.textContent=using && !usesSpell?(launchBusy?"Uso…":"Usa"):(launchBusy?"Lancio…":"Lancia");
-      launchButton.disabled=launchBusy || busy || invalidated || !!use?.blocked;
+      launchButton.textContent=isFeature?(launchBusy?"Uso…":"Usa"):(launchBusy?"Lancio…":"Lancia");
+      launchButton.disabled=launchBusy || busy || invalidated || !!feature?.blocked;
     }
-    if(canLaunch) total.textContent=using && !usesSpell?use.detailText:details?[details.castingTime,details.range].filter(Boolean).join(" · "):"";
-    const tags=using?use.tags:entry?[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])]:[];
-    const body=(using && !usesSpell) || !entry?.spellId?[]:spellDetailsNodes(entry.spellId,tags);
-    const signature=JSON.stringify([entry?.key,notes,using?[tags,use.detailText]:null,body.length,spellbookSpellReferenceLoaded()]);
+    if(canLaunch) total.textContent=isFeature?feature.detailText:details?[details.castingTime,details.range].filter(Boolean).join(" · "):"";
+    const tags=isFeature?feature.tags:entry?[...(entry.concentration?[["Concentrazione",""]]:[]),...(entry.ritual?[["Rituale",""]]:[])]:[];
+    // A feature keeps its tags and uses in view, its text in the accordion; a spell's details all go in the accordion.
+    const body=isFeature?featureDetailsNodes(entry):entry?.spellId?spellDetailsNodes(entry.spellId,tags):[];
+    const signature=JSON.stringify([entry?.key,notes,isFeature?[tags,feature.detailText]:null,body.length,
+      spellbookSpellReferenceLoaded(),classFeatureDescriptionsLoaded()]);
     if(signature===launchSignature) return;
     launchSignature=signature;
     const children=[];
-    // A ⚡ quick action keeps its few facts in view; a spell's details go in the accordion.
-    if(using && !usesSpell && tags.length){const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>node("span",text,`launch-tag${kind?" "+kind:""}`)));children.push(row);}
-    if(using && use.detailText) children.push(node("p",use.detailText,"launch-details"));
+    if(isFeature && tags.length){const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>node("span",text,`launch-tag${kind?" "+kind:""}`)));children.push(row);}
+    if(isFeature && feature.detailText) children.push(node("p",feature.detailText,"launch-details"));
     children.push(...notes.map(([text,kind])=>node("p",text,`launch-note${kind?" "+kind:""}`)));
     if(body.length) children.push(detailsAccordion(body));
     // Never an empty card.
-    if(!children.length) children.push(node("p","Nessun dettaglio da mostrare per questa azione.","launch-details"));
+    if(!children.length) children.push(node("p","Nessun dettaglio da mostrare.","launch-details"));
     launchBox.replaceChildren(...children);
   }
   // Lancia: the tracker casts the spell as the 🪄 menu does (the spell panel, or the cast at once when nothing is asked).
@@ -1065,23 +1050,21 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       }) || (()=>{});
       wait();
       Promise.resolve().then(()=>api.broadcast.sendMessage(PC_ATTACK_SPELL_LAUNCH_CHANNEL,
-        {type:"launch",requestId,sourceId,actionId:entry.actionId},{destination:"LOCAL"})).catch(()=>finish(null));
+        {type:"launch",requestId,sourceId,...(entry.featureId?{featureId:entry.featureId}:{actionId:entry.actionId})},{destination:"LOCAL"})).catch(()=>finish(null));
     });
   }
-  // What the tracker did, in the status bar: a ⚡ quick action by its kind, a spell by its route.
+  // What the tracker did, in the status bar: a feature activated, a spell by its route.
   function launchSummary(entry,result) {
-    const using=entry.mode==="use";
-    if(!result) return `Il tracker non risponde: aprilo per ${using?"usare":"lanciare"} ${entry.label}${using?"":" dal grimorio"}.`;
-    if(!result.ok) return String(result.message || `${entry.label}: ${using?"uso":"lancio"} non riuscito.`);
-    if(using && entry.kind==="feature") return result.mode==="review"?`${entry.label}: scheda personaggio aperta.`:`${entry.label}: attivata.`;
-    if(using && entry.kind==="condition") return result.mode==="review"?`${entry.label}: pannello effetti aperto.`
-      :result.mode==="executed"?`${entry.label}: applicata.`:String(result.message || `${entry.label}: non applicata.`);
+    const isFeature=entry.mode==="activate";
+    if(!result) return `Il tracker non risponde: aprilo per ${isFeature?"usare":"lanciare"} ${entry.label}${isFeature?"":" dal grimorio"}.`;
+    if(!result.ok) return String(result.message || `${entry.label}: ${isFeature?"uso":"lancio"} non riuscito.`);
+    if(isFeature) return `${entry.label}: attivata.`;
     return result.mode==="review"?`${entry.label}: pannello incantesimi aperto.`
       :result.mode==="executed"?`${entry.label}: lancio registrato.`
       :String(result.message || `${entry.label}: lancio non valido.`);
   }
   async function launchSpell(entry) {
-    if(launchBusy || busy || invalidated || !["launch","use"].includes(entry?.mode)) return;
+    if(launchBusy || busy || invalidated || !["launch","activate"].includes(entry?.mode)) return;
     if(typeof api.broadcast?.onMessage!=="function"){setStatus("Lancio non disponibile.");return;}
     launchBusy=true;renderLaunch();
     try {

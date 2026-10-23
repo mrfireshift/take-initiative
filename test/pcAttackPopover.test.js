@@ -787,7 +787,7 @@ test("a spell the console does not resolve shows its card instead of the form; t
   await f.select(["ghoul"]);
   await f.outcome("hit").click();
   const tabs = pickerTabs(f).map((button) => button.textContent);
-  assert.deepEqual(tabs, ["Attacchi", "Trucchetti", "Incantesimi"]);
+  assert.deepEqual(tabs, ["Attacchi", "Trucchetti", "Incantesimi", "Capacità"], "a cleric has its features too");
   await pickerTabs(f)[2].click(); await tick();
   assert.equal(f.$("pc-attack-attack-view").hidden, true);
   assert.equal(f.$("pc-attack-launch").hidden, false);
@@ -921,36 +921,45 @@ test("a turn back to the console's actor clears the bar; a clean console closes 
   assert.deepEqual(h.closed, ["com.thebigpicture.initiative/pc-attack"]);
 });
 
-// A barbarian with Rage as a ⚡ quick action, 2 rages left of 3.
-const rageAction = { id: "rage", label: "Ira", kind: "feature", featureId: "barbaro-ira" };
-const barbarianCard = { quickActions: [sword, rageAction] };
+// A 3rd level barbarian, 2 rages left of 3: its features fill the Capacità tab (Rage first, the usable ones first).
+const barbarianCard = { characterBuild: [{ classId: "barbaro", level: 3 }], quickActions: [sword, { id: "rage", label: "Ira", kind: "feature", featureId: "barbaro-ira" }] };
 const rageStatus = (active = false) => [{ featureId: "barbaro-ira", label: "Ira", targetMode: "self", targetLabel: "su di sé", active,
   resourceReady: true, resources: [{ poolId: "barbaro-ira-usi", amount: 1, current: 2, maximum: 3, unlimited: false, ready: true }] }];
 
-test("the Capacità tab shows a ⚡ feature with its uses left; Usa runs it through the tracker", async () => {
-  const bus = launchBroadcast({ result: { ok: true, mode: "" } });
+test("the Capacità tab lists the features by group with their activation and uses; Usa activates by the feature's id", async () => {
+  const bus = launchBroadcast({ result: { ok: true, mode: "activated" } });
   const f = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, features: rageStatus(), broadcast: bus.broadcast });
   await f.controller.ready; await tick();
   assert.deepEqual(pickerTabs(f).map((button) => button.textContent), ["Attacchi", "Capacità"]);
   await pickerTabs(f)[1].click(); await tick();
-  assert.equal(f.$("pc-attack-title").textContent, "Ira");
-  assert.match(f.$("pc-attack-subtitle").textContent, /Capacità/);
-  assert.match(textOf(f.$("pc-attack-launch")), /su di sé/);
-  assert.match(textOf(f.$("pc-attack-launch")), /Ire 2\/3/);
-  assert.equal(f.$("pc-attack-caster").hidden, true, "no slots line for the features");
-  const button = f.$("pc-attack-launch-button");
-  assert.equal(button.textContent, "Usa");
-  await button.click(); await tick(); await tick();
-  assert.deepEqual(bus.sent.find((message) => message.data.type === "launch").data.actionId, "rage");
-  assert.equal(f.$("pc-attack-status").textContent, "Ira: attivata.");
+  const list = f.$("pc-attack-picker-list");
+  assert.equal(list.hidden, false, "the features tab is a list");
+  assert.deepEqual(list.querySelectorAll(".picker-level").map((header) => header.textContent), ["Utilizzabili", "Altre capacità"]);
+  assert.match(textOf(list.querySelectorAll("button")[0]), /Ira.*azione bonus · 2\/3/);
+  assert.match(f.$("pc-attack-title").textContent, /Ira$/);
+  assert.match(f.$("pc-attack-subtitle").textContent, /Capacità di classe/);
+  const card = textOf(f.$("pc-attack-launch"));
+  assert.match(card, /Azione bonus.*su di sé/);
+  assert.match(card, /Ire 2\/3/);
+  assert.ok(f.$("pc-attack-launch").querySelector("details"), "its text in the accordion");
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Usa");
+  await f.$("pc-attack-launch-button").click(); await tick(); await tick();
+  const request = bus.sent.find((message) => message.data.type === "launch").data;
+  assert.deepEqual([request.featureId, request.actionId], ["barbaro-ira", undefined], "by the feature, never as a quick action");
+  assert.match(f.$("pc-attack-status").textContent, /Ira: attivata\./);
 });
 
-test("a feature already active on its owner cannot be used again, as in the ⚡ menu", async () => {
+test("a feature already active on its owner cannot be used again; a passive one is only read", async () => {
   const f = fixture({ card: barbarianCard, attacker: { initiativeCard: barbarianCard }, features: rageStatus(true) });
   await f.controller.ready; await tick();
   await pickerTabs(f)[1].click(); await tick();
   assert.match(textOf(f.$("pc-attack-launch")), /Attiva.*Già attiva\./);
   assert.equal(f.$("pc-attack-launch-button").disabled, true);
+  await f.$("pc-attack-picker-list").querySelectorAll("button")[2].click(); await tick();
+  assert.match(f.$("pc-attack-title").textContent, /Difesa Senza Armatura/);
+  assert.match(textOf(f.$("pc-attack-launch")), /Passiva/);
+  assert.equal(f.$("pc-attack-launch-button").hidden, true, "a passive feature has no Usa");
+  assert.ok(f.$("pc-attack-launch").querySelector("details"), "its text in the accordion");
 });
 
 test("the details accordion: its open state follows the GM from spell to spell; an attack cantrip has it in the form", async () => {
@@ -975,27 +984,10 @@ test("the details accordion: its open state follows the GM from spell to spell; 
 // A spell action of the card's own (a species trait with 1 use, spent), and a condition action.
 const gazeAction = { id: "gaze", label: "Sguardo penetrante", kind: "spell", spellId: "detect-magic", cost: "uses", uses: 1 };
 const blessedAction = { id: "blessed", label: "Benedetto", kind: "condition", conditionName: "Benedetto", targetMode: "self", expiryMode: "rounds", duration: 10 };
-const ownCard = { characterBuild: [{ classId: "chierico", level: 3 }], quickActions: [gazeAction, blessedAction] };
+const ownCard = { quickActions: [gazeAction, blessedAction] };
 
-test("a spell action of the Capacità tab reads like a spell: its cost, its uses, its details, Lancia", async () => {
-  const meta = { initiativeCard: ownCard, classFeatureState: { resources: { "quick-action-uses:gaze": { current: 0 } } } };
-  const f = fixture({ card: ownCard, attacker: meta, actionId: "" }); await f.controller.ready; await tick();
-  assert.equal(f.$("pc-attack-title").textContent, "Sguardo penetrante");
-  assert.match(f.$("pc-attack-subtitle").textContent, /Incantesimo di 1° livello/);
-  const card = textOf(f.$("pc-attack-launch"));
-  assert.doesNotMatch(card, /Nessun dettaglio/, "never an empty card");
-  assert.match(card, /Usi 0\/1/);
-  assert.match(card, /Nessun uso rimasto\./);
-  assert.equal(f.$("pc-attack-launch").querySelector("details").querySelector("summary").textContent, "Dettagli");
-  assert.match(textOf(f.$("pc-attack-launch").querySelector("details")), /Concentrazione.*Rituale/);
-  assert.equal(f.$("pc-attack-launch-button").textContent, "Lancia");
-});
-
-test("a condition action shows what it applies, to whom and for how long", async () => {
-  const f = fixture({ card: ownCard, attacker: { initiativeCard: ownCard }, actionId: "" }); await f.controller.ready; await tick();
-  await pick(f, "blessed");
-  assert.equal(f.$("pc-attack-title").textContent, "Benedetto");
-  assert.match(f.$("pc-attack-subtitle").textContent, /Condizione/);
-  assert.match(textOf(f.$("pc-attack-launch")), /su di sé.*Applica «Benedetto» · 10 round/);
-  assert.equal(f.$("pc-attack-launch-button").textContent, "Usa");
+test("the ⚡ quick actions stay out of the console: a card of quick actions only shows no Capacità tab", async () => {
+  const f = fixture({ card: ownCard, attacker: { initiativeCard: { quickActions: ownCard.quickActions } }, actionId: "" }); await f.controller.ready; await tick();
+  assert.equal(f.$("pc-attack-picker").hidden, true);
+  assert.match(textOf(f.$("pc-attack-launch")), /Nessun attacco, incantesimo o capacità/);
 });

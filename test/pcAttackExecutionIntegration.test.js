@@ -129,10 +129,10 @@ test("presentation lists the attack and the tracked creatures, never the attacke
 });
 
 test("presentation carries the Capacità tab's features: uses left and active state, as the tracker card reads them", async () => {
-  const rage = { id: "rage", label: "Ira", kind: "feature", featureId: "barbaro-ira" };
-  meta("aria").initiativeCard = { characterBuild: [{ classId: "barbaro", level: 3 }], quickActions: [sword, rage] };
+  meta("aria").initiativeCard = { characterBuild: [{ classId: "barbaro", level: 3 }], quickActions: [sword] };
   const presentation = await runtime.getPcAttackPresentation("aria", "holy-sword");
-  assert.deepEqual(presentation.picker.filter((entry) => entry.tab === "features").map((entry) => entry.featureId), ["barbaro-ira"]);
+  const features = presentation.picker.filter((entry) => entry.tab === "features");
+  assert.deepEqual([features[0].featureId, features[0].mode], ["barbaro-ira", "activate"], "the build's features, no quick action needed");
   const feature = presentation.features.find((entry) => entry.featureId === "barbaro-ira");
   assert.equal(feature.active, false);
   assert.deepEqual(feature.resources.map((row) => [row.poolId, row.current, row.maximum]), [["barbaro-ira-usi", 3, 3]]);
