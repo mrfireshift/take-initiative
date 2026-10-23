@@ -97,7 +97,9 @@ export function chosenExtras(draft) {
 }
 // An area attack: every creature hit and its save outcome.
 export function areaSummary(result,name="Attacco") {
-  const rows=(result?.rows || []).map(row=>`${row.name} ${PC_ATTACK_OUTCOME_LABELS[row.outcome] || ""}, PF ${row.before} → ${row.after}`);
+  // An area without damage (the metallic breath) names only the outcomes: the HP did not move.
+  const damaged=(result?.rows || []).some(row=>row.before!==row.after);
+  const rows=(result?.rows || []).map(row=>`${row.name} ${PC_ATTACK_OUTCOME_LABELS[row.outcome] || ""}${damaged || row.before!==row.after?`, PF ${row.before} → ${row.after}`:""}`);
   return `Registrato: ${name} su ${rows.length} ${rows.length===1?"creatura":"creature"}.${rows.length?` ${rows.join("; ")}.`:""}`;
 }
 const typeLabel=type=>{const label=damageTypeLabel(type);return label.charAt(0).toUpperCase()+label.slice(1);};
@@ -201,6 +203,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const placeArea=overrides.placeArea || (request=>requestSpellAreaPlacement(request,{broadcast:api.broadcast,windowRef:globalThis.window}));
   const cancelArea=overrides.cancelArea || (requestId=>cancelSpellAreaPlacementRequest(requestId,{broadcast:api.broadcast}));
   let drawing="";
+  // The colour of the drawn shape: the breath's damage type (the metallic breath has none: the arcane colour).
+  const breathAreaType=attack=>attack?.breath?(attack.breath.damageType || "force"):"";
   let presentation=null,draft=null,busy=false,invalidated=false,lastUndo=null;
   // Eldritch Blast: the beams registered in this console for the cantrip in use (one registration per beam).
   let beamTally={spellId:"",count:0};
@@ -672,12 +676,18 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!area) return;
     const name=presentation.item?.name || "l'attaccante";
     // A breath weapon: its cone or line, its dice at this level (the damage's hint), its save and DC.
-    const breathNote=attack.breath?`${area.shape==="line"?"Linea di 9 m":"Cono di 4,5 m"}: disegnalo sulla mappa o spunta le creature colpite. `
-      +`${attack.components[0]?.formula || ""} ${damageTypeLabel(attack.breath.damageType)} · ${pcAttackSaveLabel(attack,attackerCard())}, metà se superato.`:"";
+    // Acid Spit: its one creature, nothing on a success. The metallic breath: its condition on a failure, no damage.
+    const breathWhere=area.shape==="target"?"Un bersaglio entro 9 m: spuntalo. "
+      :`${area.shape==="line"?"Linea di 9 m":"Cono di 4,5 m"}: disegnalo sulla mappa o spunta le creature colpite. `;
+    const onFail=attack.breath?.onFail;
+    const breathEffect=onFail
+      ?`${pcAttackSaveLabel(attack,attackerCard())}: chi fallisce è ${onFail.condition.toLowerCase()}${onFail.when?` ${onFail.when}`:""}.${onFail.note?` ${onFail.note}`:""}`
+      :`${attack.components[0]?.formula || ""} ${damageTypeLabel(attack.breath?.damageType)} · ${pcAttackSaveLabel(attack,attackerCard())}, ${attack.breath?.half===false?"niente se superato":"metà se superato"}.`;
+    const breathNote=attack.breath?breathWhere+breathEffect:"";
     areaNote.textContent=breathNote || (area.manual?"Sulla linea di 9 m: spunta le creature colpite."
       :`Entro 1,5 m da ${name}${area.chosen?", solo quelle che scegli":", alleati compresi"}.`);
     areaPropose.hidden=!!area.manual;
-    if(areaDraw){areaDraw.hidden=!attack.breath;areaDraw.textContent=drawing?"Disegno…":"Disegna";}
+    if(areaDraw){areaDraw.hidden=!pcBreathAreaRuleId(area.shape,breathAreaType(attack));areaDraw.textContent=drawing?"Disegno…":"Disegna";}
     const key=`${draft.spellId}|${draft.attackMode}`;
     if(!area.manual && draft.area.proposalKey!==key && typeof runtime.getPcAttackNearby==="function") {
       draft.area.proposalKey=key;
@@ -1327,7 +1337,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     defensesBox.replaceChildren();
     const view=areaPreview();
     total.replaceChildren();
-    if(view.ready) total.append(node("strong",String(view.total)),node("span",` danni · ${view.rows.length} ${view.rows.length===1?"creatura":"creature"}`));
+    // An area without damage (the metallic breath): the creatures it reaches.
+    if(view.ready && !resolved()?.components?.length) total.append(node("strong",String(view.rows.length)),node("span",` ${view.rows.length===1?"creatura":"creature"} · nessun danno`));
+    else if(view.ready) total.append(node("strong",String(view.total)),node("span",` danni · ${view.rows.length} ${view.rows.length===1?"creatura":"creature"}`));
     else total.textContent=view.blocker;
     apply.disabled=busy || invalidated || !view.ready;
   }
@@ -1493,7 +1505,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // attacker); the GM still marks each save and may tick or untick by hand. Esc in the tool cancels.
   async function drawBreathArea() {
     const attack=resolved();
-    const ruleId=pcBreathAreaRuleId(attack?.area?.shape,attack?.breath?.damageType);
+    const ruleId=pcBreathAreaRuleId(attack?.area?.shape,breathAreaType(attack));
     if(!ruleId || drawing || busy || !draft) return;
     const requestId=createSpellAreaPlacementRequestId(),active=draft,shape=attack.area.shape==="line"?"la linea":"il cono";
     drawing=requestId;renderArea();
