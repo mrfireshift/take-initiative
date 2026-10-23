@@ -5025,6 +5025,13 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
       const keys = Object.keys(conc);
       return keys.length ? keys[0] : null;
     })(),
+    // The spell's name as cast: the key above is its lowercase lookup form.
+    concSpellName: (() => {
+      const conc = meta[CONC_META_KEY];
+      if (!conc || typeof conc !== "object") return null;
+      const [key] = Object.keys(conc);
+      return key ? String(conc[key]?.name || "").trim() || key : null;
+    })(),
   };
 }
 

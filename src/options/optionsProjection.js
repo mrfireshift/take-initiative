@@ -101,8 +101,10 @@ function projectEntryEffects(entry, policy = {}) {
   if (policy.concentration === "hidden") {
     next.isConcentrating = false;
     next.concSpellKey = null;
+    next.concSpellName = null;
   } else if (policy.concentration === "summary") {
     next.concSpellKey = null;
+    next.concSpellName = null;
   }
   return next;
 }

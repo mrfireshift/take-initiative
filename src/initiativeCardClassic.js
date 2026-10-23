@@ -15,7 +15,9 @@ export function classicCardSpells(entry) {
       && (!spell?.casterId || spell.casterId === entry.id),
   }));
   if (entry?.isConcentrating && !spells.some(spell => spell.trackerConcentration)) {
-    spells.push({ name: entry.concSpellKey || "Concentrazione", trackerConcentration: true, trackerConcentrationOnly: true });
+    // The name as cast (concSpellName), not the lowercase key the concentration is stored under.
+    spells.push({ name: entry.concSpellName || entry.concSpellKey || "Concentrazione", trackerConcentration: true,
+      trackerConcentrationOnly: true });
   }
   return spells;
 }

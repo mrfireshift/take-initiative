@@ -23,6 +23,7 @@ const baseEntry = {
   spells: [{ name: "Bane", casterId: "caster", targets: ["enemy-1"] }],
   isConcentrating: true,
   concSpellKey: "Bane",
+  concSpellName: "Bane",
   legendary: { max: 3, current: 2 },
   legendaryResistances: { max: 3, current: 1 },
   paragonActions: 2,
@@ -95,6 +96,7 @@ test("OPTIONS-002: effects summary e hidden redigono i dettagli senza mutare la 
   assert.equal(summary.conditions.instances[0].sourceId, undefined);
   assert.equal(summary.spells[0].name, "Incantesimo");
   assert.equal(summary.concSpellKey, null);
+  assert.equal(summary.concSpellName, null, "the name as cast is hidden with the key");
   assert.equal(summary.isConcentrating, true);
 
   const hidden = player(source, {

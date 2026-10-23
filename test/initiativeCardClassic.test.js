@@ -14,11 +14,15 @@ test("concentration belongs to its spell rather than the first effect on the car
   assert.equal(spells[1].trackerConcentration, undefined, "presentation does not change canonical spells");
 });
 
-test("concentration without a visible owner spell keeps a named reference pill", () => {
-  const result = classicCardSpells({ id: "lavera", spells: [{ name: "Benedizione" }], isConcentrating: true, concSpellKey: "turbine" });
+test("concentration without a visible owner spell keeps a named reference pill, with the name as cast", () => {
+  const result = classicCardSpells({ id: "lavera", spells: [{ name: "Benedizione" }], isConcentrating: true,
+    concSpellKey: "blocca persone", concSpellName: "Blocca persone" });
   assert.equal(result.length, 2);
-  assert.deepEqual(result[1], { name: "turbine", trackerConcentration: true, trackerConcentrationOnly: true });
+  assert.deepEqual(result[1], { name: "Blocca persone", trackerConcentration: true, trackerConcentrationOnly: true });
   assert.deepEqual(classicCardSpells({ spells: result, __groupCollapsed: true }), []);
+  // An older entry without the name falls back to the key.
+  const legacy = classicCardSpells({ id: "lavera", spells: [], isConcentrating: true, concSpellKey: "turbine" });
+  assert.equal(legacy[0].name, "turbine");
 });
 
 test("another caster's copy of the same spell does not get the local concentration marker", () => {
