@@ -16,7 +16,7 @@ const whiteDragonborn = (level = 5) => ({ species: { id: "dragonide-cromatico", 
 test("the species field is sanitized and optional", () => {
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "bianco" }), { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.deepEqual(sanitizeSpecies({ id: "dragonide-cromatico", ancestryId: "oro" }), { id: "dragonide-cromatico", ancestryId: "" }, "gold is metallic, not chromatic");
-  assert.equal(sanitizeSpecies({ id: "tortle" }), null, "not in the catalog yet");
+  assert.equal(sanitizeSpecies({ id: "dhampir" }), null, "not in the catalog yet");
   assert.equal(Object.hasOwn(sanitizeInitiativeCard({}), "species"), false, "profiles without a species keep their shape");
   assert.deepEqual(sanitizeInitiativeCard({ species: { id: "dragonide-cromatico", ancestryId: "bianco" } }).species, { id: "dragonide-cromatico", ancestryId: "bianco" });
   assert.equal(hasInitiativeCardValues(sanitizeInitiativeCard({ species: { id: "dragonide", ancestryId: "rosso" } })), true);
@@ -132,7 +132,8 @@ test("Volo, Tomo dei Nemici and Mostri del Multiverso: two versions side by side
     "Mostri del Multiverso: proficiency bonus uses");
   const groups = [...new Set(SPECIES.map((entry) => entry.sourceLabel))];
   assert.deepEqual(groups, ["Manuale del Giocatore 2014", "Elemental Evil Player's Companion", "Guida del Giocatore alla Costa della Spada",
-    "Guida di Volo ai Mostri", "Il Tomo dei Nemici di Mordenkainen", "Guildmasters' Guide to Ravnica", "Eberron: Rising from the Last War",
+    "Guida di Volo ai Mostri", "The Tortle Package", "One Grung Above", "Il Tomo dei Nemici di Mordenkainen", "Guildmasters' Guide to Ravnica",
+    "Acquisitions Incorporated", "Locathah Rising", "Eberron: Rising from the Last War",
     "Mythic Odysseys of Theros", "The Wild Beyond the Witchlight", "Il Tesoro dei Draghi di Fizban", "Strixhaven: A Curriculum of Chaos",
     "Mordenkainen presenta: Mostri del Multiverso"]);
 });
@@ -227,4 +228,18 @@ test("Witchlight and Strixhaven: the fairy's spells from 3rd and 5th level, the 
   assert.deepEqual(traits({ id: "owlin" }), ["specie-owlin-volo"]);
   assert.ok(SPECIES.find((entry) => entry.id === "harengon").sourceAliases.includes("motm"), "the Mostri del Multiverso reprint has the same text");
   assert.equal(SPECIES.some((entry) => entry.id === "fata-multiverso"), false);
+});
+
+test("the tortle's Shell Defense is an untimed label with no uses, removed by hand", () => {
+  const feature = CLASS_FEATURE_BY_ID.get("specie-tortle-difesa-del-guscio");
+  const build = [{ classId: "monaco", level: 3 }];
+  assert.equal(classFeatureRuntimeSupport(feature).ready, true);
+  const activation = planClassFeatureActivation({ state: null, feature, poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID, characterBuild: build,
+    sourceId: "shell", targetIds: ["shell"], currentRound: 1, currentTurnKey: "1:shell", instanceId: "shell-1" });
+  assert.equal(activation.ok, true, activation.reason);
+  const [instance] = classFeatureConditionInstancesForActivation(feature, activation.instance, "Shell", build);
+  assert.equal(instance.expiry.mode, "manual");
+  assert.equal(instance.manualRemoval, true);
+  assert.deepEqual(speciesDamageDefenses({ id: "grung" }), { immunities: ["poison"] });
+  assert.deepEqual(traits({ id: "verdan" }), ["specie-verdan-guarigione-del-sangue-nero", "specie-verdan-telepatia-limitata", "specie-verdan-intuito-telepatico"]);
 });

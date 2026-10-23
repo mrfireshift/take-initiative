@@ -7,13 +7,15 @@
 // speciesCatalogVoloMordenkainen.js: Volo, Tomo dei Nemici and Mostri del Multiverso; tranche 3, in
 // speciesCatalogCostaElementalEvil.js: Elemental Evil and Costa della Spada; tranche 4, in
 // speciesCatalogEberron.js: Eberron; tranche 5, in speciesCatalogRavnicaTheros.js: Ravnica and Theros;
-// tranche 6, in speciesCatalogWitchlightStrixhaven.js: Witchlight and Strixhaven (see docs/SPECIE.md).
+// tranche 6, in speciesCatalogWitchlightStrixhaven.js: Witchlight and Strixhaven; tranche 7, in
+// speciesCatalogMinori.js: the tortle and the minor species (see docs/SPECIE.md).
 
 import { SPECIES_CATALOG_MULTIVERSO, SPECIES_CATALOG_TOMO, SPECIES_CATALOG_VOLO } from "./speciesCatalogVoloMordenkainen.js";
 import { SPECIES_CATALOG_COSTA, SPECIES_CATALOG_ELEMENTAL, SPECIES_CATALOG_MULTIVERSO_ELEMENTAL } from "./speciesCatalogCostaElementalEvil.js";
 import { SPECIES_CATALOG_EBERRON, SPECIES_CATALOG_MULTIVERSO_EBERRON } from "./speciesCatalogEberron.js";
 import { SPECIES_CATALOG_MULTIVERSO_RAVNICA_THEROS, SPECIES_CATALOG_RAVNICA, SPECIES_CATALOG_THEROS } from "./speciesCatalogRavnicaTheros.js";
 import { SPECIES_CATALOG_STRIXHAVEN, SPECIES_CATALOG_WITCHLIGHT } from "./speciesCatalogWitchlightStrixhaven.js";
+import { SPECIES_CATALOG_ACQUISITIONS, SPECIES_CATALOG_GRUNG, SPECIES_CATALOG_LOCATHAH, SPECIES_CATALOG_MULTIVERSO_TORTLE, SPECIES_CATALOG_TORTLE } from "./speciesCatalogMinori.js";
 
 export const SPECIES_FIELD = "species";
 
@@ -30,6 +32,10 @@ const BOOKS = Object.freeze({
   elemental: book("elemental-evil", "Elemental Evil Player's Companion", ["eepc", "elemental evil", "elemental evil player s companion"]),
   ravnica: book("ravnica", "Guildmasters' Guide to Ravnica", ["ggr", "ravnica", "guildmasters guide to ravnica", "guildmaster s guide to ravnica"]),
   theros: book("theros", "Mythic Odysseys of Theros", ["moot", "theros", "mythic odysseys of theros", "mitiche odissee di theros"]),
+  tortle: book("tortle-package", "The Tortle Package", ["tortle package", "the tortle package", "ttp"]),
+  grung: book("one-grung-above", "One Grung Above", ["one grung above", "oga"]),
+  acquisitions: book("acquisitions-incorporated", "Acquisitions Incorporated", ["acquisitions incorporated", "acquisitions inc", "ai"]),
+  locathah: book("locathah-rising", "Locathah Rising", ["locathah rising", "lr"]),
   witchlight: book("witchlight", "The Wild Beyond the Witchlight", ["wbtw", "witchlight", "the wild beyond the witchlight", "wild beyond the witchlight"]),
   strixhaven: book("strixhaven", "Strixhaven: A Curriculum of Chaos", ["scc", "strixhaven", "strixhaven a curriculum of chaos", "strixhaven un curriculum del caos"]),
   eberron: book("eberron", "Eberron: Rising from the Last War", ["erlw", "eberron", "rising from the last war", "eberron rising from the last war"]),
@@ -154,10 +160,12 @@ const catalogSpecies = (spec) => speciesEntry({
   resistances: spec.resistances || [], immunities: spec.immunities || [], aliases: spec.aliases || [], look: theme(...spec.look),
 });
 // Mostri del Multiverso gathers the reprints of several tranches, in its own alphabetical order.
-const MULTIVERSO = [...SPECIES_CATALOG_MULTIVERSO, ...SPECIES_CATALOG_MULTIVERSO_ELEMENTAL, ...SPECIES_CATALOG_MULTIVERSO_EBERRON, ...SPECIES_CATALOG_MULTIVERSO_RAVNICA_THEROS]
+const MULTIVERSO = [...SPECIES_CATALOG_MULTIVERSO, ...SPECIES_CATALOG_MULTIVERSO_ELEMENTAL, ...SPECIES_CATALOG_MULTIVERSO_EBERRON, ...SPECIES_CATALOG_MULTIVERSO_RAVNICA_THEROS,
+  ...SPECIES_CATALOG_MULTIVERSO_TORTLE]
   .sort((left, right) => left.label.localeCompare(right.label, "it"));
-const BEFORE_FIZBAN = [...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, ...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TOMO,
-  ...SPECIES_CATALOG_RAVNICA, ...SPECIES_CATALOG_EBERRON, ...SPECIES_CATALOG_THEROS, ...SPECIES_CATALOG_WITCHLIGHT];
+const BEFORE_FIZBAN = [...SPECIES_CATALOG_ELEMENTAL, ...SPECIES_CATALOG_COSTA, ...SPECIES_CATALOG_VOLO, ...SPECIES_CATALOG_TORTLE,
+  ...SPECIES_CATALOG_GRUNG, ...SPECIES_CATALOG_TOMO, ...SPECIES_CATALOG_RAVNICA, ...SPECIES_CATALOG_ACQUISITIONS, ...SPECIES_CATALOG_LOCATHAH,
+  ...SPECIES_CATALOG_EBERRON, ...SPECIES_CATALOG_THEROS, ...SPECIES_CATALOG_WITCHLIGHT];
 const AFTER_FIZBAN = [...SPECIES_CATALOG_STRIXHAVEN];
 const CATALOG = [...BEFORE_FIZBAN, ...AFTER_FIZBAN, ...MULTIVERSO];
 

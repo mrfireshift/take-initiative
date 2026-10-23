@@ -511,11 +511,70 @@ Da controllare con più attenzione:
 |---|---|---|---|---|---|
 | Owlin | — | Volo | 29 | Passiva | 1 |
 
+## Tranche 7 — Tortle e specie minori
+
+Quattro supplementi brevi, con i titoli in inglese: The Tortle Package, One
+Grung Above, Acquisitions Incorporated (verdan) e Locathah Rising. Solo il
+tortle ha una ristampa in Mostri del Multiverso (artigli 1d6 invece di 1d4).
+
+- **Difesa del guscio** del tortle non ha usi né durata: **Attiva** mette
+  un'etichetta che resta finché non la rimuovi, quando il tortle esce dal
+  guscio. +4 alla CA e gli altri effetti sono un promemoria sull'etichetta.
+- **Grung**: immunità al veleno applicata alle difese; Dipendenza dall'acqua
+  (livello di indebolimento) è un promemoria.
+- **Verdan**: la taglia (Piccola, Media dal 5° livello) non è un tratto della
+  card; va considerata nel profilo.
+
+Restano fuori le competenze (Istinto di sopravvivenza, Attento e atletico,
+Vigilanza arboricola, Persuasivo, Intuizione della natura) e le velocità di
+nuotare e scalare che non sono tratti a sé.
+
+Da controllare con più attenzione:
+
+- **le pagine dei quattro supplementi sono segnaposto**: non ricordo la
+  numerazione di questi PDF, vanno corrette tutte;
+- l'elenco delle condizioni di Volontà del leviatano del locathah;
+- la pagina del tortle in Mostri del Multiverso.
+
+### The Tortle Package
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Tortle | — | Artigli | 4 | Passiva | 1 |
+| Tortle | — | Trattenere il respiro | 4 | Passiva | 1 |
+| Tortle | — | Armatura naturale | 4 | Passiva | 1 |
+| Tortle | — | Difesa del guscio | 4 | Azione · etichetta senza durata | 1 |
+
+### One Grung Above
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Grung | — | Anfibio | 2 | Passiva | 1 |
+| Grung | — | Immunità al veleno | 2 | Passiva | 1 |
+| Grung | — | Pelle velenosa | 2 | Passiva | 1 |
+| Grung | — | Salto da fermo | 2 | Passiva | 1 |
+| Grung | — | Dipendenza dall'acqua | 2 | Passiva | 1 |
+
+### Acquisitions Incorporated
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Verdan | — | Guarigione del sangue nero | 14 | Passiva | 1 |
+| Verdan | — | Telepatia limitata | 14 | Passiva | 1 |
+| Verdan | — | Intuito telepatico | 14 | Passiva | 1 |
+
+### Locathah Rising
+
+| Specie | Opzione | Tratto | Pag. | Uso | Liv. |
+|---|---|---|---|---|---|
+| Locathah | — | Armatura naturale | 4 | Passiva | 1 |
+| Locathah | — | Volontà del leviatano | 4 | Passiva | 1 |
+| Locathah | — | Anfibio limitato | 4 | Passiva | 1 |
+
 ## Mordenkainen presenta: Mostri del Multiverso
 
 Le ristampe delle specie delle tranche precedenti, in ordine alfabetico. Le
-altre specie del manuale arrivano con il loro manuale d'origine (il tortle);
-fata e harengon sono le voci di Witchlight, con lo stesso testo.
+voci di fata e harengon sono quelle di Witchlight, con lo stesso testo.
 
 | Specie | Opzione | Tratto | Pag. | Uso | Liv. |
 |---|---|---|---|---|---|
@@ -624,6 +683,10 @@ fata e harengon sono le voci di Witchlight, con lo stesso testo.
 | Shifter | Shifter caccia selvaggia | Mutazione: Caccia selvaggia | 32 | Azione bonus · competenza/riposo lungo · etichetta 1 min | 1 |
 | Tabaxi | — | Artigli felini | 33 | Passiva | 1 |
 | Tabaxi | — | Agilità felina | 33 | Passiva | 1 |
+| Tortle | — | Artigli | 34 | Passiva | 1 |
+| Tortle | — | Trattenere il respiro | 34 | Passiva | 1 |
+| Tortle | — | Armatura naturale | 34 | Passiva | 1 |
+| Tortle | — | Difesa del guscio | 34 | Azione · etichetta senza durata | 1 |
 | Tritone | — | Anfibio | 35 | Passiva | 1 |
 | Tritone | — | Controllo di aria e acqua | 35 | Passiva | 1 |
 | Tritone | — | Controllo di aria e acqua: Nube di nebbia | 35 | Azione · 1/riposo lungo | 1 |
@@ -638,8 +701,6 @@ fata e harengon sono le voci di Witchlight, con lo stesso testo.
 
 ## Tranche successive
 
-Ancora da scrivere: il tortle (Tortle Package, con la ristampa in Mostri del
-Multiverso), Wildemount, Van Richten, Spelljammer, Dragonlance, il lignaggio
-personalizzato di Tasha e le specie minori (Locathah, Grung, Verdan). Una
-specie fuori catalogo, importata da una scheda, viene segnalata e non
-applicata.
+Ancora da scrivere: Wildemount, Van Richten, Spelljammer, Dragonlance e il
+lignaggio personalizzato di Tasha. Una specie fuori catalogo, importata da una
+scheda, viene segnalata e non applicata.
