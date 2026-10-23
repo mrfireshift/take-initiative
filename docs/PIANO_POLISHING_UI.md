@@ -434,6 +434,12 @@ Stato dei lotti:
   - **B:** i punti aperti (compatto del giocatore al 150%, avvisi compatti di zona e TS, controlli della fase 0b, tempo del segnale "pronto");
   - **C:** le voci della smoke checklist che toccano le parti cambiate, con l'esito atteso aggiornato (Focus token, Console effetti manuali, Annulla al posto della conferma, riordino con la maniglia).
   - Si prova con `npm run dev` e il manifest locale, perché le ultime correzioni non sono ancora in `dist/`. Le anomalie annotate in fondo decidono se il rilascio (7.5) parte o se serve prima una correzione.
+- **Ritocco segnalato dall'utente (2026-10-23): schede della scheda personaggio.**
+  - **Problema:** con cinque schede e i conteggi a due cifre, i nomi finivano con "…". Il riquadro è largo 397px e le pill dei conteggi ne prendevano circa 100.
+  - **Correzione** (scelta dell'utente: bollino nell'angolo), solo CSS in `initiative-card-modal.html`:
+    - il conteggio diventa un bollino da 15px in alto a destra della scheda, con fondo scuro pieno, bordo del colore di fazione e testo a 10px;
+    - il riquadro ha 3px in più di margine sopra, per il bollino.
+  - **Verifica nell'anteprima** (12 incantesimi, 7 azioni, 5 attacchi, 12 capacità): tutti e cinque i nomi sono interi e restano circa 23px liberi.
 
 ---
 
