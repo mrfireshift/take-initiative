@@ -1300,6 +1300,31 @@ export function bootSpellUnifiedPanel(
     preview: null,
   });
 
+  // An area-subset placement selects first the creatures of its preselection (spellAreaRules.js): the caster's side
+  // for a heal or a blessing, the other side for a harm; the neutrals only on their own side. The GM then adds or
+  // removes from the list, within the targets' limit.
+  const sideOfFaction = (value) => {
+    const faction = String(value || "").trim().toLocaleLowerCase("it");
+    if (["pc", "ally", "friendly"].includes(faction)) return "party";
+    if (["enemy", "hostile"].includes(faction)) return "enemy";
+    return "neutral";
+  };
+  const preselectedAreaTargetIds = (ids) => {
+    const preselect = String(state.contract?.presentation?.targeting?.preselect || "").trim();
+    if (!preselect) return ids;
+    const candidatesById = new Map((state.targetCandidates || []).map((candidate) => [candidate.key, candidate]));
+    const casterId = String(state.session.casterId || "").trim();
+    const caster = state.casters.find((item) => item.id === casterId);
+    const casterSide = sideOfFaction(candidatesById.get(casterId)?.faction || caster?.metadata?.[`${ID}/meta`]?.attitude);
+    const otherSide = casterSide === "party" ? "enemy" : casterSide === "enemy" ? "party" : "";
+    const chosen = ids.filter((id) => {
+      const side = sideOfFaction(candidatesById.get(id)?.faction);
+      return preselect === "friendly" ? side === casterSide : !!otherSide && side === otherSide;
+    });
+    const maximum = Number(state.contract?.presentation?.targeting?.limit?.maximum);
+    return Number.isInteger(maximum) && maximum > 0 ? chosen.slice(0, maximum) : chosen;
+  };
+
   const updateTargetsFromPlacement = (targetIds) => {
     if (isTeleportSpell(state.contract?.spell?.id)) {
       const casterId = String(state.session.casterId || "").trim();
@@ -1336,7 +1361,9 @@ export function bootSpellUnifiedPanel(
     const candidateSet = new Set(nextCandidateIds);
     const nextIds = isAreaSubset && state.session.targetIds?.length
       ? state.session.targetIds.filter((id) => candidateSet.has(id))
-      : nextCandidateIds;
+      : isAreaSubset
+        ? preselectedAreaTargetIds(nextCandidateIds)
+        : nextCandidateIds;
     const targetSet = new Set(nextIds);
     state.session = updateSpellPanelSession(state.session, {
       targetIds: nextIds,
@@ -3022,7 +3049,7 @@ export function bootSpellUnifiedPanel(
       const isAreaSubset = selectionMode === "area-subset";
       const isPostPlacement = selectionMode === "post-placement";
       if (state.session.placement?.targetLocked === true && !isAreaSubset && !isPostPlacement) return;
-      if (isAreaSubset && state.session.placement?.confirmed === true) {
+      if (isAreaSubset && state.session.placement?.confirmed === true && state.session.placement?.targetsEdited !== true) {
         const candidates = new Set(
           Array.isArray(state.session.placement?.targetIds)
             ? state.session.placement.targetIds
@@ -3218,6 +3245,19 @@ export function bootSpellUnifiedPanel(
     },
     onPlacementUnlock: () => {
       if (state.committing || !usesPersistentCastAdapter()) return;
+      // A confirmed area stays: the GM edits the targets by hand from the list (in or out of the area), and the
+      // command takes the ones chosen. "Riposiziona area" draws it again.
+      if (state.session.placement?.confirmed === true) {
+        patchSession({
+          placement: { ...state.session.placement, targetLocked: false, targetsEdited: true },
+          commitState: { state: "idle" },
+          feedback: {
+            state: "info",
+            message: "Scegli i bersagli dalla lista; «Riposiziona area» per rifare la sagoma.",
+          },
+        }, { clearFeedback: false });
+        return;
+      }
       patchSession({
         placement: null,
         targetIds: [],

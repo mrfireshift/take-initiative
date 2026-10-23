@@ -1492,3 +1492,80 @@ test("un incantesimo a concentrazione chiede conferma se il caster ne mantiene g
   assert.equal(requests.length, 1, "confirmed: Bless replaces it");
   await panel.destroy();
 });
+
+// Mass Cure Wounds: up to six creatures of the caster's choice in the sphere (area-subset, the caster's side first).
+function healItems() {
+  return [
+    { id: "caster-a", name: "Chierica", layer: "CHARACTER", metadata: { [META_KEY]: { hp: 30, hpMax: 30, attitude: "pc" } } },
+    { id: "ally-a", name: "Guerriero", layer: "CHARACTER", metadata: { [META_KEY]: { hp: 10, hpMax: 40, attitude: "pc" } } },
+    { id: "enemy-a", name: "Orco", layer: "CHARACTER", metadata: { [META_KEY]: { hp: 12, hpMax: 15, attitude: "enemy" } } },
+  ];
+}
+
+function healProvider() {
+  const provider = createProvider();
+  const items = healItems();
+  provider.getCasters = async () => items;
+  provider.targetCandidate = (item) => ({
+    key: item.id, label: item.name, subtitle: "Creatura",
+    faction: item.metadata?.[META_KEY]?.attitude === "enemy" ? "enemy" : "pc",
+    hp: item.metadata?.[META_KEY]?.hp, hpMax: item.metadata?.[META_KEY]?.hpMax,
+  });
+  provider.itemById = new Map(items.map((item) => [item.id, item]));
+  return provider;
+}
+
+class HealBroadcast extends FakeBroadcast {
+  async sendMessage(channel, data) {
+    this.calls.push({ channel, data });
+    if (channel === SPELL_AREA_PLACEMENT_CHANNEL) {
+      if (data.type === "start") this.pendingPlacement = data;
+      if (data.type === "confirm") {
+        this.pendingPlacement = null;
+        this.emit(channel, { type: "result", requestId: data.requestId, status: "confirmed",
+          preview: { label: "Area confermata", targetIds: ["ally-a", "enemy-a"] } });
+      }
+    }
+  }
+}
+
+test("Cura ferite di massa: the area selects the caster's side, the GM edits the list and casts on the targets chosen", async () => {
+  const areaCommands = [];
+  const { root, panel } = boot({
+    provider: healProvider(),
+    broadcast: new HealBroadcast(),
+    route: { status: "ready", spellId: "mass-cure-wounds", session: { casterId: "caster-a", slotLevel: 5 } },
+    areaExecutor: async (command) => {
+      areaCommands.push(command);
+      return { status: "applied", changedIds: command.targeting.targetIds, historyEntryId: "h", undoAvailable: true };
+    },
+  });
+  await settle();
+  assert.equal(panel.state.contract.presentation.targeting.selectionMode, "area-subset");
+  await requiredNode(root, '[data-placement-action="required"]').click();
+  await settle(3);
+  await requiredNode(root, "[data-placement-confirm]").click();
+  await settle(8);
+  assert.deepEqual(panel.state.session.targetIds, ["ally-a"], "the enemy in the sphere is not selected");
+  const healing = requiredNode(root, '[data-field="healing"]');
+  healing.value = "15";
+  await healing.emit("change");
+
+  // Modifica bersagli: the area stays, the list opens to any creature (the caster, out of the sphere here).
+  await requiredNode(root, "[data-placement-unlock]").click();
+  await settle(4);
+  assert.equal(panel.state.session.placement.state, "confirmed");
+  assert.equal(panel.state.model.placement.actionLabel, "Riposiziona area");
+  const caster = targetInput(root, "caster-a");
+  caster.checked = true;
+  await caster.emit("change");
+  await settle(4);
+  assert.deepEqual(panel.state.session.targetIds, ["ally-a", "caster-a"]);
+  const primary = requiredNode(root, '[data-primary-action="apply"]');
+  assert.equal(primary.disabled, false);
+  await primary.click();
+  await settle(10);
+  assert.equal(areaCommands.length, 1);
+  assert.equal(areaCommands[0].valid, true, JSON.stringify(areaCommands[0].errors));
+  assert.deepEqual(areaCommands[0].targeting.targetIds, ["ally-a", "caster-a"]);
+});

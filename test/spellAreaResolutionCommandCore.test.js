@@ -314,8 +314,10 @@ test("Cura ferite di massa produce HP in modalità heal", () => {
     placement: placement({
       spellId: "mass-cure-wounds",
       ruleId: "mass-cure-wounds:cast",
-      targetIds: ["ally-a", "ally-b"],
+      targetIds: ["ally-a", "ally-b", "enemy-a"],
     }),
+    // Up to six creatures of the caster's choice in the sphere (area-subset): the ones chosen in the panel.
+    targetIds: ["ally-a", "ally-b"],
     hpAmount: 12,
   });
 

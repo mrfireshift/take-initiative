@@ -574,6 +574,7 @@ function ruleTargeting(rule) {
     confirmTargets: targeting.confirmTargets === true,
     selectionMode: text(targeting.selectionMode) || "area",
     ...(selectionPolarity ? { selectionPolarity } : {}),
+    ...(text(targeting.preselect) ? { preselect: text(targeting.preselect) } : {}),
     maximum: integerOrNull(
       targeting.maximum !== undefined ? targeting.maximum : targeting.maxTargets,
     ),
@@ -2266,6 +2267,8 @@ function placementView(contract, session) {
     confirmed,
     requestId: text(runtime?.requestId) || null,
     targetLocked: runtime?.targetLocked === true,
+    // Modifica bersagli: the confirmed area stays, its targets chosen by hand.
+    ...(runtime?.targetsEdited === true ? { targetsEdited: true } : {}),
     required: policy === SPELL_PANEL_PLACEMENT_POLICIES.REQUIRED,
     choice,
     choices,

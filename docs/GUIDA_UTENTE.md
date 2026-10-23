@@ -620,6 +620,16 @@ il movimento, all'uscita, a inizio turno o a fine turno e possono dichiarare
 terreno difficile. Una zona mobile o un'aura mantiene il collegamento con la
 propria sorgente.
 
+Nel pannello incantesimi, dopo la sagoma, gli incantesimi che colpiscono o
+curano «le creature a scelta» nell'area (Cura ferite di massa, Aura sacra,
+Parola divina, Parola radiosa, Lentezza, Onda distruttiva) spuntano per primi i
+bersagli giusti: la parte del caster per una cura o una benedizione, la parte
+avversaria per un danno. Togli o aggiungi le spunte dalla lista, entro il limite
+di bersagli. **Modifica bersagli** lascia l'area dov'è e apre la lista a
+qualsiasi creatura; **Riposiziona area** la ridisegna. Nel registro e nella
+Cronologia un lancio senza TS (una cura, Parola del potere uccidere, Dissolvi
+magie) compare come incantesimo, non come tiro salvezza.
+
 **Aspetto area** permette di scegliere colore del riempimento, colore del contorno, opacità e spessore. Lo stile è una preferenza locale usata per le nuove aree. Dal menu contestuale di un'area puoi scegliere **Riseleziona bersagli**.
 
 ## 14. Etichette sulla mappa

@@ -35,6 +35,9 @@ const SPELL_AREA_PERSISTENCE = Object.freeze(["preview", "spell"]);
 const SPELL_AREA_TARGET_FILTERS = Object.freeze(["all", "hostile", "friendly", "non-hostile"]);
 export const SPELL_AREA_SELECTION_MODES = Object.freeze(["area", "manual", "area-subset"]);
 const SPELL_AREA_SELECTION_POLARITIES = Object.freeze(["include", "exclude"]);
+// The creatures an area-subset placement selects first: the caster's side (a heal) or the others (a harm); the
+// GM then adds or removes from the list.
+const SPELL_AREA_PRESELECTIONS = Object.freeze(["friendly", "hostile"]);
 const SPELL_AREA_EFFECT_MODES = Object.freeze([
   "on-confirm",
   "while-inside",
@@ -623,6 +626,13 @@ export function validateSpellAreaRule(rule) {
   ) {
     errors.push("target-selection-polarity-invalid");
   }
+  if (
+    rule?.targeting?.preselect !== undefined
+    && (!allowed(SPELL_AREA_PRESELECTIONS, rule.targeting.preselect)
+      || rule.targeting.selectionMode !== "area-subset")
+  ) {
+    errors.push("target-preselect-invalid");
+  }
   if (!allowed(SPELL_AREA_EFFECT_MODES, rule?.effectPolicy?.mode)) {
     errors.push("effect-mode-invalid");
   }
@@ -693,8 +703,16 @@ const CASTER_INCLUDED_TARGETING = Object.freeze({
   ...COMMON_TARGETING,
   includeCaster: true,
 });
+// "The creatures you choose in the area": the GM keeps or removes each one; the caster's side first (2014 texts).
+const FRIENDLY_SUBSET_TARGETING = Object.freeze({
+  ...CASTER_INCLUDED_TARGETING,
+  selectionMode: "area-subset",
+  preselect: "friendly",
+});
 const PLACEMENT_ONLY_TARGETING_BY_SPELL = Object.freeze({
-  "holy-aura": CASTER_INCLUDED_TARGETING,
+  "holy-aura": FRIENDLY_SUBSET_TARGETING,
+  // Up to six creatures of the caster's choice in the sphere, the caster too.
+  "mass-cure-wounds": FRIENDLY_SUBSET_TARGETING,
 });
 const SELF_CAST_AURA_TARGETING = Object.freeze({
   ...COMMON_TARGETING,
@@ -747,15 +765,19 @@ const CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS = new Set([
   "xanathar-rombo-di-tuono",
   "xanathar-scossa-tellurica",
 ]);
+// Saves on the creatures the caster chooses in the area, the others first.
 const AREA_SUBSET_SAVE_SPELL_IDS = new Set([
   "phb2014-onda-distruttiva",
   "slow",
+  "divine-word",
+  "xanathar-parola-radiosa",
 ]);
 const AREA_SUBSET_TARGETING = Object.freeze({
   filter: "all",
   includeCaster: true,
   confirmTargets: true,
   selectionMode: "area-subset",
+  preselect: "hostile",
 });
 const CASTER_EXCLUDED_AREA_SUBSET_TARGETING = Object.freeze({
   ...AREA_SUBSET_TARGETING,

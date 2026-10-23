@@ -2406,9 +2406,11 @@ export async function executeSpellAreaResolution(
         changes: mutation.changes || mutation.commitResult?.changes || [],
       };
     } else {
+      // A cast that asks the GM for no save (a heal, Power Word Kill, Dispel Magic): a spell, not a saving throw.
+      const castWithoutSave = plan.command?.outcomes?.required !== true;
       historyResult = await runtime.withItemMetaHistory({
         kind: "save-resolution",
-        label: `Effetti ad area · ${plan.spell.displayName || plan.spell.name || plan.spell.id}`,
+        label: `${castWithoutSave ? "Incantesimo" : "Effetti ad area"} · ${plan.spell.displayName || plan.spell.name || plan.spell.id}`,
       itemIds: plan.historyIds,
       sceneItemIds: plan.staticZoneSceneItemIds,
       fields: ["hp", "hpMax", DEATH_SAVES_FIELD, "conditions", SPELLS_KEY, CONCENTRATION_KEY,
@@ -2448,6 +2450,7 @@ export async function executeSpellAreaResolution(
           payload: {
             ...(decorated?.payload || {}),
             causality: withSpellCastCost(spellAreaCausality(plan), runtime.castCost),
+            ...(castWithoutSave ? { castWithoutSave: true } : {}),
           },
         };
       },

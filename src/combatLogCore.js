@@ -378,6 +378,13 @@ function originalPayload(entry) {
   return hasOwn(entry, "payload") ? clone(entry.payload) : {};
 }
 
+// The category of a History entry: an area command that asked for no save (castWithoutSave: a heal, Power Word
+// Kill, Dispel Magic) is a spell, not a saving throw.
+function historyEntryCategory(entry, kind) {
+  if (kind === "save-resolution" && entry?.payload?.castWithoutSave === true) return EVENT_CATEGORY_BY_KIND.spell;
+  return combatEventCategory(kind);
+}
+
 export function combatEventFromHistoryEntry(entry, context = {}) {
   const changes = mergeHistoryChanges(entry);
   const names = historyNameMap(entry, changes);
@@ -393,7 +400,7 @@ export function combatEventFromHistoryEntry(entry, context = {}) {
     version: 2,
     at: Number.isFinite(Number(entry?.at)) ? Number(entry.at) : Date.now(),
     kind,
-    category: combatEventCategory(kind),
+    category: historyEntryCategory(entry, kind),
     action: "change",
     label: String(entry?.label || "Modifica"),
     source: entry?.source === "manual" ? "manual" : "automatic",

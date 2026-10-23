@@ -242,9 +242,11 @@ function hpInput(contract, session) {
 function placementFor(contract, session) {
   const descriptor = contract?.presentation?.placement || {};
   if (descriptor.policy === SPELL_PANEL_PLACEMENT_POLICIES.UNAVAILABLE) return null;
-  return session?.placement && typeof session.placement === "object"
-    ? session.placement
-    : null;
+  if (!session?.placement || typeof session.placement !== "object") return null;
+  // "Modifica bersagli" on a confirmed area: the command takes the targets the GM chose, the area still locked.
+  return session.placement.targetsEdited === true && session.placement.confirmed === true
+    ? { ...session.placement, targetLocked: true, targetIds: uniqueIds(session.targetIds) }
+    : session.placement;
 }
 
 export function buildSpellUnifiedAreaCommand({

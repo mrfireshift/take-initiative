@@ -219,10 +219,13 @@ function placementLabels(placement, contract = null) {
     error: asText(placement?.error),
     confirmVisible: pendingStates.has(state) && !!asText(placement?.requestId),
     cancelVisible: pendingStates.has(state) && !!asText(placement?.requestId),
+    // With the targets edited by hand (Modifica bersagli) the area can be drawn again.
     visibleAction: policy !== "automatic"
-      && !placement?.confirmed
+      && (!placement?.confirmed || placement?.targetsEdited === true)
       && !pendingStates.has(state),
-    actionLabel: ["error", "failed"].includes(state)
+    actionLabel: placement?.confirmed && placement?.targetsEdited === true
+      ? "Riposiziona area"
+      : ["error", "failed"].includes(state)
       ? (isTeleport ? "Riprova destinazione" : "Riprova area")
       : policy === "optional"
         ? "Aggiungi area"

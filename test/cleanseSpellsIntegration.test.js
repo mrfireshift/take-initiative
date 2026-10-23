@@ -335,3 +335,12 @@ test("Dispel Magic ends a concentration spell on its target only, the caster's c
   assert.equal(meta("hero")[SPELLS_KEY].length, 1);
   assert.deepEqual(meta(CASTER)[CONCENTRATION_KEY].Benedizione.targets, ["hero", "ally"]);
 });
+
+test("a heal of the area command goes in the Combat Log as a spell, not as a saving throw", async () => {
+  const { combatEventFromHistoryEntryV3 } = await import("../src/combatLogV3Core.js");
+  await resetScene([token(CASTER, 60, 60), token("hero", 10, 90)]);
+  await castOn("heal", 6, "hero");
+  const entry = (await history.getHistoryEntries()).at(-1);
+  assert.equal(entry.label, "Incantesimo · Guarigione");
+  assert.equal(combatEventFromHistoryEntryV3(entry, {}).category, "spell");
+});
