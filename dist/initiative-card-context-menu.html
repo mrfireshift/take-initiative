@@ -127,14 +127,41 @@
         border: 1px solid rgba(255,255,255,.55);
         border-radius: 999px;
       }
+      .quick-conditions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 2px;
+        padding-bottom: 3px;
+      }
+      /* The conditions' submenu indents less than the others: two columns of names need the room. */
+      .submenu.submenu--grid { margin-left: 10px; }
+      .quick-conditions button {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 28px;
+        padding: 4px 5px;
+      }
+      .quick-conditions .emoji { flex: 0 0 15px; width: 15px; text-align: center; }
+      .quick-conditions .name { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      /* Active on every creature of the card, or on some of a group. */
+      .quick-conditions button[data-state="on"] {
+        background: rgba(59,130,246,.34);
+        box-shadow: inset 0 0 0 1px rgba(147,197,253,.6);
+      }
+      .quick-conditions button[data-state="mixed"] {
+        background: rgba(59,130,246,.12);
+        box-shadow: inset 0 0 0 1px rgba(147,197,253,.38);
+      }
       @media (prefers-reduced-motion: reduce) {
         .glass-shell, button { transition: none !important; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/initiativeCardContextMenu-Bld7_nql.js"></script>
+    <script type="module" crossorigin src="/assets/initiativeCardContextMenu-BFE5eo1R.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
-    <link rel="modulepreload" crossorigin href="/assets/menuPopoverProtocolCore-CbACca7P.js">
+    <link rel="modulepreload" crossorigin href="/assets/quickConditionsCore-bGmUWaV4.js">
+    <link rel="modulepreload" crossorigin href="/assets/menuPopoverProtocolCore-C_Gjw-v_.js">
     <link rel="modulepreload" crossorigin href="/assets/tableOrientationCore-BXuI0M2L.js">
   </head>
   <body>

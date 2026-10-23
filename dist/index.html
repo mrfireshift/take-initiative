@@ -54,11 +54,104 @@
         to { opacity: 1; }
       }
 
+      /* The round in the compact bar's left column: a small caption over a number large enough for the table. */
+      [data-tracker-layout="compact"] #tbp-round-label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+        margin: 6px 0 0;
+        line-height: 1;
+        text-align: center;
+      }
+      [data-tracker-layout="compact"] #tbp-round-label [data-round-caption] {
+        color: rgba(226, 232, 240, .7);
+        font-size: var(--obrt-type-micro, 10px);
+        font-weight: 600;
+        letter-spacing: .02em;
+      }
+      [data-tracker-layout="compact"] #tbp-round-label [data-round-number] {
+        color: #fff;
+        /* The UI font, not Georgia: Georgia's old-style figures make a lone 1 look small. */
+        font-size: 22px;
+        font-weight: var(--obrt-weight-heavy, 800);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* The reorder grip of the cards in a real initiative tie (tieReorderCore.js): shown on hover. */
+      [data-tie-reorder-handle="1"] {
+        opacity: 0;
+        transition: opacity 120ms ease;
+      }
+      [data-tracker-card="1"]:hover [data-tie-reorder-handle="1"],
+      [data-tie-reorder-handle="1"]:active {
+        opacity: .8;
+      }
+      @media (hover: none) {
+        [data-tie-reorder-handle="1"] { opacity: .55; }
+      }
+
+      /* The compact card's initiative badge while its inline editor is open: a field the size of the badge (the shared
+         editor writes 15px, made for the extended card's larger badge). */
+      [data-compact-card="1"] [data-badge="init"][data-init-editing="1"] {
+        /* A fixed width: the field is 100% wide and would otherwise take a text input's natural width. */
+        width: 30px !important;
+        min-width: 30px !important;
+        padding: 0 !important;
+        outline: 1px solid rgba(147, 197, 253, .72);
+        outline-offset: 1px;
+      }
+      [data-compact-card="1"] [data-badge="init"] input {
+        font-size: 12px !important;
+      }
+
+      /* The compact card's HP text while its inline editor is open: still "HP 78 / 100" in place, no field around it,
+         but all white at the maximum's weight, with a faint line under the two numbers that can be typed. The shared
+         editor (initiativeEditors.js) drops the caption and writes two 22px fields: these rules shape the text. */
+      [data-card-hp-text="1"][data-hp-editing="1"] {
+        color: #fff !important;
+      }
+      [data-card-hp-text="1"][data-hp-editing="1"] > div {
+        justify-content: center;
+        gap: 0 !important;
+      }
+      [data-card-hp-text="1"][data-hp-editing="1"] > div::before {
+        content: "HP\00a0";
+        font-weight: 600;
+      }
+      [data-card-hp-text="1"][data-hp-editing="1"] input {
+        width: 3ch !important;
+        color: inherit !important;
+        font-weight: 600 !important;
+        font-variant-numeric: tabular-nums;
+        box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .5);
+      }
+      [data-card-hp-text="1"][data-hp-editing="1"] input:first-child {
+        text-align: right !important;
+      }
+      [data-card-hp-text="1"][data-hp-editing="1"] input:last-child {
+        opacity: 1 !important;
+        text-align: left !important;
+      }
+      [data-card-hp-text="1"][data-hp-editing="1"] span {
+        padding: 0 .28em;
+        font-weight: 600;
+        opacity: 1 !important;
+      }
+      /* Each field as wide as its number, where the browser can size fields to their content. */
+      @supports (field-sizing: content) {
+        [data-card-hp-text="1"][data-hp-editing="1"] input {
+          field-sizing: content;
+          width: auto !important;
+          min-width: 1ch;
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         [data-active-turn-halo] { animation: none !important; opacity: 0.8; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/main-Duvf8jIu.js"></script>
+    <script type="module" crossorigin src="/assets/main-BB0V9NU8.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
     <link rel="modulepreload" crossorigin href="/assets/distance3dCore-DjQKSEJL.js">
@@ -67,76 +160,77 @@
     <link rel="modulepreload" crossorigin href="/assets/sharedHpCore--G4cn45h.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-28TsGb8f.js">
     <link rel="modulepreload" crossorigin href="/assets/deathSaveCore-Bm-6wQ3Z.js">
-    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BiYU2Jbj.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-hLLJ2f7Z.js">
-    <link rel="modulepreload" crossorigin href="/assets/history-Cik0kmdw.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BTTQphJo.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-CW04rH-Q.js">
+    <link rel="modulepreload" crossorigin href="/assets/history-DilNz00J.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-CbH9Xf-k.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeStyle-CUzjg6Rv.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-Ci4uQNGU.js">
-    <link rel="modulepreload" crossorigin href="/assets/customAuraCore-DmeqJ36W.js">
+    <link rel="modulepreload" crossorigin href="/assets/customAuraCore-DL674Egq.js">
     <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BEeUqVid.js">
-    <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-D3Xi8I_j.js">
-    <link rel="modulepreload" crossorigin href="/assets/blinkRules-D0eEQH_b.js">
-    <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-BoqHdn73.js">
-    <link rel="modulepreload" crossorigin href="/assets/conditions-BoDx6c7C.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-CM2pHA0o.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-BSymOU8U.js">
+    <link rel="modulepreload" crossorigin href="/assets/blinkRules-IeQdXxSj.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-DeLmAHwz.js">
+    <link rel="modulepreload" crossorigin href="/assets/conditions-vg-DJIVB.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-CkHFzJiz.js">
     <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-BrtQzeT5.js">
     <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-DYfqXO8y.js">
-    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-CHqeezTf.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-BsN9AGZZ.js">
     <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-mOkcZX8z.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-DZ_ZEXTI.js">
-    <link rel="modulepreload" crossorigin href="/assets/effectsMutations-CIf9ou3k.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-oANL9CXT.js">
+    <link rel="modulepreload" crossorigin href="/assets/effectsMutations-VKEaRHRp.js">
     <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-CJ-dHtGF.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-Bc--_DL6.js">
-    <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-PltgbF9j.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-C7pg-15d.js">
+    <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-C6NKwhYu.js">
     <link rel="modulepreload" crossorigin href="/assets/spellbookCore-DF9lL3tV.js">
-    <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-EIlt4P7I.js">
-    <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-Ch1faZpy.js">
-    <link rel="modulepreload" crossorigin href="/assets/initiativeCards-BTB8zBwq.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionRules-CUpvBL_4.js">
-    <link rel="modulepreload" crossorigin href="/assets/spells-srd-DpyLhgU0.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-DqEMWSsn.js">
-    <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-DzzxNK1t.js">
-    <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-DlnYwigm.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsProjection-CgWy5yEC.js">
-    <link rel="modulepreload" crossorigin href="/assets/reminderProjectionBroadcast-BV7KLhQi.js">
-    <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-CGQgovId.js">
-    <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-BcisCt5H.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionCore-C1RM-vCk.js">
+    <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-CcbrdViD.js">
+    <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-Cyu8AJny.js">
+    <link rel="modulepreload" crossorigin href="/assets/initiativeCards-T7t-Owzy.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionRules-DNDeapHN.js">
+    <link rel="modulepreload" crossorigin href="/assets/spells-srd-BCoUaCDu.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-CIScFyZN.js">
+    <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-YfPiCjK3.js">
+    <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-CG0ipLd5.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsProjection-Bie3wara.js">
+    <link rel="modulepreload" crossorigin href="/assets/reminderProjectionBroadcast-BJos6mm5.js">
+    <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-BHh_mjh3.js">
+    <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-BSpAAoNd.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionCore-C3WKfEC_.js">
     <link rel="modulepreload" crossorigin href="/assets/spellExpiryCore-DbSfb06C.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-BOMrlpRx.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-lUNp6q5y.js">
-    <link rel="modulepreload" crossorigin href="/assets/initiativeSelectionProjectionCore-DM-P6Bbo.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-AmMZFVJ4.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-DmtN-C1x.js">
+    <link rel="modulepreload" crossorigin href="/assets/initiativeSelectionProjectionCore-CyYtDcb7.js">
     <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-etIAOfqN.js">
-    <link rel="modulepreload" crossorigin href="/assets/hpbar-items-DbUMI7eA.js">
-    <link rel="modulepreload" crossorigin href="/assets/hpConditionAutomation-CDSUortQ.js">
-    <link rel="modulepreload" crossorigin href="/assets/hpMemory-Cj0CKGZJ.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpbar-items-Db0kV1qA.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpConditionAutomation-EC09ZyY-.js">
+    <link rel="modulepreload" crossorigin href="/assets/hpMemory-DXVaSrGq.js">
+    <link rel="modulepreload" crossorigin href="/assets/quickConditionsCore-bGmUWaV4.js">
     <link rel="modulepreload" crossorigin href="/assets/combatLogCausalityCore-CMBZlm78.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellCastRecordCore-BjjyMcV_.js">
-    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-BzCScMKR.js">
-    <link rel="modulepreload" crossorigin href="/assets/referencePopover-DY5KKuab.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-C3HIQi06.js">
-    <link rel="modulepreload" crossorigin href="/assets/concentrationSaveReminder-DdYMT6tZ.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellCastRecordCore-CCKMIqg5.js">
+    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-C85neDaJ.js">
+    <link rel="modulepreload" crossorigin href="/assets/referencePopover-BA_PRePV.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-CgOOTA8w.js">
+    <link rel="modulepreload" crossorigin href="/assets/concentrationSaveReminder-DBGFF4GF.js">
     <link rel="modulepreload" crossorigin href="/assets/effectsMutationCompositeHistoryCore-BrdvhJ_t.js">
     <link rel="modulepreload" crossorigin href="/assets/historyUndoUiCore-DYi7rwCj.js">
     <link rel="modulepreload" crossorigin href="/assets/turnNotice-DXhVTBiS.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-CyQXS2P6.js">
-    <link rel="modulepreload" crossorigin href="/assets/menuPopoverProtocolCore-CbACca7P.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-DhKLV5em.js">
+    <link rel="modulepreload" crossorigin href="/assets/menuPopoverProtocolCore-C_Gjw-v_.js">
     <link rel="modulepreload" crossorigin href="/assets/tableOrientationCore-BXuI0M2L.js">
     <link rel="modulepreload" crossorigin href="/assets/effectSummaryViewCore-Dfle9ZKJ.js">
-    <link rel="modulepreload" crossorigin href="/assets/trackerQuickActions-i6i07ZAo.js">
+    <link rel="modulepreload" crossorigin href="/assets/trackerQuickActions-CU73gO0s.js">
     <link rel="modulepreload" crossorigin href="/assets/spellCastContextCore-B5Jfmsjh.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellAreaResolutionCommandCore-EYbLl8ro.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelSceneProvider-DcAVcpU7.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-JNCA0ONj.js">
-    <link rel="modulepreload" crossorigin href="/assets/conditionApplicationExecutor-CYH8A6Gp.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-C-wq-cDh.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellAreaResolutionCommandCore-CVeR_AzH.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelSceneProvider-BoCxdctB.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-D9n0E4sG.js">
+    <link rel="modulepreload" crossorigin href="/assets/conditionApplicationExecutor-BKtCTGDf.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-Do40Sre0.js">
     <link rel="modulepreload" crossorigin href="/assets/spellDamageHealingCore-DXl9pkXe.js">
     <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-5hUM_IHG.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-DpDjNZlM.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-BV1ctW6y.js">
-    <link rel="modulepreload" crossorigin href="/assets/quickActionExecution-BytRx1HE.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-sg3ZfbwK.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-gUnyxh2U.js">
+    <link rel="modulepreload" crossorigin href="/assets/quickActionExecution-DGF9nPiv.js">
   </head>
   <body>
     <div id="app">
