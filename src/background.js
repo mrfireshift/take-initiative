@@ -91,6 +91,9 @@ import { retainHPMapWithinByteBudget } from "./hpMemoryRetention.js";
 import { retainFactionRegistryWithinByteBudget } from "./factionRegistryCore.js";
 import { retainInitiativeCardRegistryWithinByteBudget } from "./initiativeCardRegistryCore.js";
 import { retainActorVitalsRegistryWithinByteBudget } from "./actorVitalsCore.js";
+import { perfBootPage } from "./perfProbe.js";
+
+perfBootPage(OBR, { observeTraffic: true });
 
 const HISTORY_UNDO_TOOL_ID = `${ID}/history-undo`;
 const HISTORY_UNDO_TOOL_SHORTCUT = "Alt+Z";

@@ -1,4 +1,5 @@
 import { ID } from "./constants.js";
+import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSince } from "./perfProbe.js";
 import {
   ROOM_METADATA_DOMAIN_MAX_BYTES,
   ROOM_METADATA_HARD_LIMIT_BYTES,
@@ -231,6 +232,7 @@ async function writeMetadataKey(
   const startedAt = timestamp();
   let metadataSnapshot = null;
   let roomPlan = null;
+  let probeWriteStartedAt = 0;
   try {
     let valueToWrite = value;
     if (scope === "room" && typeof api.getMetadata === "function") {
@@ -267,7 +269,16 @@ async function writeMetadataKey(
         return;
       }
     }
+    if (perfProbeEnabled()) probeWriteStartedAt = perfNow();
     await api.setMetadata({ [key]: valueToWrite });
+    if (perfProbeEnabled()) {
+      perfRecord("metadata-write", {
+        scope, domain, key, runtime, ok: true,
+        bytes: perfJsonBytes(valueToWrite),
+        setMetadataMs: perfSince(probeWriteStartedAt),
+        totalMs: perfSince(startedAt),
+      });
+    }
     reportDiagnostic({
       scope,
       runtime,
@@ -281,6 +292,15 @@ async function writeMetadataKey(
       reportRoomBudget(metadataSnapshot || {}, contract, roomPlan, { logger }, { failure: true });
     }
     const contextual = contextualWriteError(error, { scope, runtime, domain, key });
+    if (perfProbeEnabled()) {
+      perfRecord("metadata-write", {
+        scope, domain, key, runtime, ok: false,
+        bytes: perfJsonBytes(value),
+        setMetadataMs: probeWriteStartedAt ? perfSince(probeWriteStartedAt) : null,
+        totalMs: perfSince(startedAt),
+        error: String(error?.message || error).slice(0, 200),
+      });
+    }
     reportDiagnostic({
       scope,
       runtime,

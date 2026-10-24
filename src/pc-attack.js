@@ -29,6 +29,9 @@ import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionP
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { pcBreathAreaRuleId } from "./pcAttackBreathId.js";
 import "./popoverDrag.js";
+import { perfBootPage } from "./perfProbe.js";
+
+perfBootPage(OBR);
 
 const META_KEY=`${ID}/meta`;
 const STATE_KEY=`${ID}/state`;

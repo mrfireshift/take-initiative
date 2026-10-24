@@ -25,6 +25,9 @@ import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
 import { bossSeamDrawingIds,bossSeamPortalSpecs,bossSeamChainPortalSpecs,BOSS_SEAM_PORTAL_ASSET,BOSS_SEAM_PORTAL_PIXELS,BOSS_SEAM_PORTAL_CELLS } from "./bossSeamPortalCore.js";
 import "./popoverDrag.js";
 import { BOSS_ACTIONS_CONSOLE_CHANNEL } from "./bossActionsLauncher.js";
+import { perfBootPage } from "./perfProbe.js";
+
+perfBootPage(OBR);
 
 const POPOVER_ID=`${ID}/boss-actions`;
 const META_KEY=`${ID}/meta`;

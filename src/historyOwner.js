@@ -11,6 +11,7 @@ import {
   subscribeSceneEpoch,
 } from "./sceneEpoch.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
+import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSince } from "./perfProbe.js";
 import {
   METADATA_OWNERSHIP,
   writeSceneMetadataKey,
@@ -115,7 +116,16 @@ function createOwnerBroker() {
   ownerBroker = createHistoryOwnerBroker({
     maxEntries: HISTORY_OWNER_MAX_ENTRIES,
     readHistory: async () => {
+      const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
       const metadata = await OBR.scene.getMetadata();
+      if (perfProbeEnabled()) {
+        perfRecord("history-read", {
+          durationMs: perfSince(probeStartedAt),
+          sceneMetadataBytes: perfJsonBytes(metadata),
+          historyBytes: perfJsonBytes(metadata?.[HISTORY_KEY]),
+          historyEntries: Array.isArray(metadata?.[HISTORY_KEY]?.entries) ? metadata[HISTORY_KEY].entries.length : 0,
+        });
+      }
       return metadata?.[HISTORY_KEY];
     },
     writeHistory: (history) => writeSceneMetadataKey(

@@ -38,6 +38,9 @@ import { effectSaveReminderNoticesForDamage } from "./effectSaveReminderCore.js"
 import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 import { mountCombatLogEventSink } from "./combatLog.js";
 import "./popoverDrag.js";
+import { perfBootPage } from "./perfProbe.js";
+
+perfBootPage(OBR);
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;

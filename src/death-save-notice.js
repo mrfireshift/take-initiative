@@ -11,6 +11,9 @@ import {
 import { resolveReminder } from "./reminderResolution.js";
 import { normalizeReminderResolution } from "./reminderResolutionCore.js";
 import { currentSceneEpoch } from "./sceneEpoch.js";
+import { perfBootPage } from "./perfProbe.js";
+
+perfBootPage(OBR);
 
 // The death save of the PC at 0 HP whose turn starts (deathSaveNoticeHost.js): its tally read live from the token,
 // the GM's four outcomes through the same reminder resolution as the other reminders, the same card without buttons

@@ -41,6 +41,9 @@ import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRun
 import { selectReminderProjectionPolicy } from "./options/optionsSelectors.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import { CUSTOM_AURA_META_KEY } from "./customAuraCore.js";
+import { perfBootPage } from "./perfProbe.js";
+
+perfBootPage(OBR);
 
 const CHANNEL = ID + "/turn-notice";
 const READY_CHANNEL = CHANNEL + "/ready";

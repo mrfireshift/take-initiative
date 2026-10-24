@@ -1,5 +1,6 @@
 import { METADATA_OWNERSHIP, writeSceneMetadataKey } from "./metadataKeyScoped.js";
 import { compactHistoryEntryForStorage } from "./historyOwnerCore.js";
+import { perfProbeEnabled, perfRecord } from "./perfProbe.js";
 
 export const EFFECTS_RECOVERY_KEY = METADATA_OWNERSHIP.EFFECTS_RECOVERY.key;
 export const EFFECTS_RECOVERY_LIMITS = Object.freeze({ records: 16, bytes: 131072, receipts: 128 });
@@ -78,7 +79,11 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
   async function write(next, isCurrent, savedCommandId = "") {
     check(isCurrent);
     const recordCount = Object.keys(next.records).length;
+    const probePhase = perfProbeEnabled()
+      ? (savedCommandId ? String(next.records[savedCommandId]?.phase || "-") : "cleanup")
+      : null;
     if (recordCount > EFFECTS_RECOVERY_LIMITS.records || budgetBytes(next) > EFFECTS_RECOVERY_LIMITS.bytes) {
+      if (probePhase) perfRecord("recovery-write", { phase: probePhase, records: recordCount, skipped: "over-budget" });
       // The record being saved does not fit even without the other pending records: it is too large by itself (many
       // effects on several targets). Otherwise the journal is full.
       const lone = savedCommandId && next.records[savedCommandId]
@@ -88,6 +93,7 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
         ? "effects-recovery-record-too-large"
         : "effects-recovery-budget-exceeded");
     }
+    if (probePhase) perfRecord("recovery-write", { phase: probePhase, records: recordCount, receipts: next.receipts?.length || 0 });
     try { await writeSceneMetadataKey(obr.scene, METADATA_OWNERSHIP.EFFECTS_RECOVERY, durable(next), { runtime: "effectsRecovery" }); }
     catch (error) {
       // A lost response may still have persisted the phase or receipt.

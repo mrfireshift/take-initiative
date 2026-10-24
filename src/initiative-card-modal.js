@@ -138,6 +138,9 @@ import {
 } from "./classFeatureRuntime.js";
 import { speciesHealDice, speciesHpTraitAmount, speciesHpTraitAmountLabel, speciesReductionHint } from "./speciesHpTraitCore.js";
 import { speciesSpellCast, speciesSpellActionId, speciesSpellOpenRequest, speciesTraitSave } from "./speciesInnateSpellCore.js";
+import { perfBootPage } from "./perfProbe.js";
+
+perfBootPage(OBR);
 
 const META_KEY = `${ID}/meta`;
 const MODAL_ID = `${ID}/initiative-card-modal`;

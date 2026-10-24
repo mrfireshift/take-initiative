@@ -78,6 +78,7 @@ import { emitMatchedVisualEndsFromMutation } from "./embersMatchedVisualRenderer
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { suppressElevationHistory, suppressMovementHistory } from "./history.js";
 import { compactBackgroundReminderTransportResult } from "./effectsReminderTransportCore.js";
+import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSince } from "./perfProbe.js";
 import {
   buildEffectsMutationResultMessages,
   createEffectsMutationResultAssembler,
@@ -468,6 +469,7 @@ async function sendBackgroundResponseMessage(channel, payload, delays = BACKGROU
       return await OBR.broadcast.sendMessage(channel, payload, { destination: "LOCAL" });
     } catch (error) {
       if (!isBroadcastRateLimitError(error) || attempt >= delays.length) throw error;
+      if (perfProbeEnabled()) perfRecord("broadcast-rate-limited", { channel, attempt: attempt + 1 });
       await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
     }
   }
@@ -615,7 +617,18 @@ function requestBackgroundMutation(
 
   return (async () => {
     for (let attempt = 1; attempt <= attemptsLimit; attempt += 1) {
+      const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
       const result = await requestAttempt();
+      if (perfProbeEnabled()) {
+        perfRecord("effects-transport", {
+          kind,
+          commandKind: payload?.command?.kind || null,
+          attempt,
+          status: result?.status || null,
+          durationMs: perfSince(probeStartedAt),
+          ...(isBackgroundTransportFailure(result) ? { error: String(result?.error?.message || "") } : {}),
+        });
+      }
       if (!isBackgroundTransportFailure(result) || attempt >= attemptsLimit) {
         return result;
       }
@@ -4351,6 +4364,8 @@ export async function mountEffectsMutationCoordinatorService() {
       const data = event?.data;
       if (!data?.requestId || !["context", "apply", "undo"].includes(data.kind)) return;
       void (async () => {
+        const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
+        let probeHandleMs = null;
         let result;
         let handledCommand = null;
         try {
@@ -4412,6 +4427,7 @@ export async function mountEffectsMutationCoordinatorService() {
             String(error?.message || error || "Coordinatore effetti fallito."),
           );
         }
+        if (perfProbeEnabled()) probeHandleMs = perfSince(probeStartedAt);
         const transportResult = data.kind === "undo"
           ? compactBackgroundUndoTransportResult(result)
           : data.kind === "apply"
@@ -4447,6 +4463,17 @@ export async function mountEffectsMutationCoordinatorService() {
             return false;
           });
           if (!sent) break;
+        }
+        if (perfProbeEnabled()) {
+          perfRecord("effects-command", {
+            kind: data.kind,
+            commandKind: handledCommand?.kind || null,
+            status: result?.status || null,
+            handleMs: probeHandleMs,
+            totalMs: perfSince(probeStartedAt),
+            chunks: responsePayloads.length,
+            responseBytes: responsePayloads.reduce((total, payload) => total + perfJsonBytes(payload), 0),
+          });
         }
       })();
     },

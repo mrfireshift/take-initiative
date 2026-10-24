@@ -5,6 +5,9 @@ import { mountInitiativeList } from "./initiativeList";
 import { initHPMemory } from "./hpMemory.js";
 import { startRuntimeOptions } from "./options/optionsRuntime.js";
 import { mountCombatLogEventSink } from "./combatLog.js";
+import { perfBootPage } from "./perfProbe.js";
+
+perfBootPage(OBR);
 
 
 const app = document.querySelector("#app");

@@ -26,3 +26,6 @@ dist-ssr
 # JB2A Patreon clips for the local galleries (personal download, never committed)
 test-support/embers-gallery/jb2a-patreon/
 test-support/embers-gallery/_probe/
+
+# Performance probe exports from real rooms (docs/PERFORMANCE-PROBE.md), kept local
+perf-runs/

@@ -26,6 +26,7 @@ plugin.
 | [Installazione](INSTALLAZIONE.md) | Installazione pubblicata, sviluppo locale e aggiornamenti. |
 | [Risoluzione dei problemi](RISOLUZIONE_PROBLEMI.md) | Diagnostica per l'uso al tavolo e per lo sviluppo. |
 | [Performance harness](PERFORMANCE-HARNESS.md) | Baseline deterministica, profili e limiti della misura produttiva. |
+| [Probe prestazioni](PERFORMANCE-PROBE.md) | Misura opt-in nel browser reale: byte, latenze, avvio delle pagine. |
 | [Sviluppo e release](SVILUPPO.md) | Script, test, generatori e gate di rilascio. |
 
 Il [Backlog](../BACKLOG.md) descrive il lavoro ancora incompleto e non è una

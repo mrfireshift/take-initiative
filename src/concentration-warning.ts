@@ -1,6 +1,9 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { resolveReminder } from "./reminderResolution.js";
+import { perfBootPage } from "./perfProbe.js";
+
+perfBootPage(OBR);
 
 const POPOVER_ID = ID + "/concentration-warning-modal";
 const UI_CHANNEL = ID + "/concentration-warning/ui";

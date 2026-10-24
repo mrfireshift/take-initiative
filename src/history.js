@@ -22,6 +22,7 @@ import {
 } from "./historyUndoCleanupCore.js";
 import { historyEntryMatchesUndoBefore } from "./historyUndoCore.js";
 import { normalizeElevation } from "./distance3dCore.js";
+import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSince } from "./perfProbe.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
@@ -846,6 +847,21 @@ export async function recordEffectsMutationHistory({
   return entry;
 }
 
+function recordHistoryActionProbe(probe, options, targets) {
+  const span = (from, to) => (Number.isFinite(from) && Number.isFinite(to) ? Math.round((to - from) * 10) / 10 : null);
+  perfRecord("history-action", {
+    kind: String(options?.kind || "change"),
+    targets,
+    queueWaitMs: span(probe.enqueuedAt, probe.startedAt),
+    captureBeforeMs: span(probe.startedAt, probe.actionStartedAt),
+    actionMs: span(probe.actionStartedAt, probe.actionEndedAt),
+    captureAfterMs: span(probe.actionEndedAt, probe.appendStartedAt),
+    appendMs: span(probe.appendStartedAt, probe.appendEndedAt),
+    entryBytes: probe.entryBytes ?? null,
+    totalMs: perfSince(probe.enqueuedAt),
+  });
+}
+
 export async function withItemMetaHistory(options, action) {
   const itemIds = Array.from(new Set((options?.itemIds || []).filter(Boolean)));
   const fields = Array.from(new Set((options?.fields || []).filter(Boolean)));
@@ -870,7 +886,9 @@ export async function withItemMetaHistory(options, action) {
       : undefined;
   }
 
+  const probe = perfProbeEnabled() ? { enqueuedAt: perfNow() } : null;
   const run = async () => {
+    if (probe) probe.startedAt = perfNow();
     if (!isOperationCurrent()) return undefined;
     let before = [];
     let sceneBefore = [];
@@ -890,11 +908,13 @@ export async function withItemMetaHistory(options, action) {
     if (!isOperationCurrent()) return undefined;
     let result;
     let actionError = null;
+    if (probe) probe.actionStartedAt = perfNow();
     try {
       result = await action();
     } catch (error) {
       actionError = error;
     }
+    if (probe) probe.actionEndedAt = perfNow();
     if (!isOperationCurrent()) return result;
     let recordedEntry = null;
     let historyPending = false;
@@ -999,6 +1019,10 @@ export async function withItemMetaHistory(options, action) {
         recordedEntry = entry;
         const historyCommandId = `history-command:${createEntryId()}`;
         try {
+          if (probe) {
+            probe.entryBytes = perfJsonBytes(entry);
+            probe.appendStartedAt = perfNow();
+          }
           const ownerResult = await appendEntry(entry, {
             sceneEpoch,
             ownerSceneEpoch,
@@ -1006,6 +1030,7 @@ export async function withItemMetaHistory(options, action) {
             commandId: historyCommandId,
             correlationId: options?.correlationId || historyCommandId,
           });
+          if (probe) probe.appendEndedAt = perfNow();
           if (!isOperationCurrent()) return result;
           if (typeof options?.onHistoryStatus === "function") {
             try {
@@ -1067,8 +1092,11 @@ export async function withItemMetaHistory(options, action) {
   // Snapshot, azione e snapshot finale devono essere atomici rispetto alle
   // altre operazioni del plugin: serializzare solo appendEntry consentiva a
   // due azioni ravvicinate di catturare lo stesso stato iniziale.
-  if (options?.inline === true) return run();
-  const task = __historyActionQueue.then(run, run);
+  const measuredRun = probe
+    ? () => run().finally(() => recordHistoryActionProbe(probe, options, itemIds.length + sceneItemIds.length))
+    : run;
+  if (options?.inline === true) return measuredRun();
+  const task = __historyActionQueue.then(measuredRun, measuredRun);
   __historyActionQueue = task.catch(() => {});
   return task;
 }
