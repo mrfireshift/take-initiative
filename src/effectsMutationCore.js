@@ -105,6 +105,19 @@ function sameValue(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+// Equal whatever the order of the object keys: a value two writers build in different orders is the same value.
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
+function sameValueAnyOrder(left, right) {
+  return stableJson(left) === stableJson(right);
+}
+
 function normalizeState(item) {
   return {
     id: String(item?.id || "").trim(),
@@ -267,6 +280,9 @@ function syncConcentrationCastContext(state) {
     ));
     if (!key) continue;
     const entry = state.concentrations[key] || {};
+    // The same context in another key order is no change: rewriting it made every turn boundary a History entry
+    // ("Scadenza effetti di turno") for a concentration that did not change (Mano arcana).
+    if (sameValueAnyOrder(entry.castContext, spell.castContext)) continue;
     state.concentrations[key] = {
       ...entry,
       castContext: clone(spell.castContext),

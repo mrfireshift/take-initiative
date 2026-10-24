@@ -1399,3 +1399,31 @@ test("multi-caster isolation: interrompere la concentrazione di un caster lascia
 
   assert.deepEqual(new Set(plan.changedIds), new Set(["caster-A", "target-1"]));
 });
+
+test("a turn boundary does not rewrite a concentration whose cast context only differs in key order (Mano arcana)", () => {
+  const items = [token("alane", {
+    spells: [{
+      id: "hand-spell", name: "Mano arcana", spellId: "arcane-hand", conc: true, casterId: "alane", instanceId: "hand-1",
+      castContext: { phase: "cast", slotLevel: 5, boardToken: true }, expiry: { mode: "concentration" },
+    }],
+    concentrations: {
+      "mano arcana": {
+        targets: ["alane"], name: "Mano arcana", instanceId: "hand-1", spellId: "arcane-hand",
+        castContext: { slotLevel: 5, phase: "cast", boardToken: true },
+      },
+    },
+  })];
+  const tick = buildEffectsMutationPlan(items, [{
+    type: "effects:tick-boundaries",
+    targetIds: ["alane"],
+    boundaries: [{ phase: "start", actorId: "edelbrand" }],
+  }]);
+  assert.deepEqual(tick.changes.filter((change) => change.id === "alane" && Object.values(change.fields || {}).some(Boolean)), [],
+    "the same context is no change: no History entry at every turn");
+  assert.deepEqual(Object.keys(state(tick, "alane").concentrations["mano arcana"].castContext), ["slotLevel", "phase", "boardToken"]);
+
+  const changed = buildEffectsMutationPlan([{ ...items[0], concentrations: { "mano arcana": {
+    ...items[0].concentrations["mano arcana"], castContext: { slotLevel: 4, phase: "cast", boardToken: true },
+  } } }], [{ type: "effects:tick-boundaries", targetIds: ["alane"], boundaries: [{ phase: "start", actorId: "edelbrand" }] }]);
+  assert.equal(state(changed, "alane").concentrations["mano arcana"].castContext.slotLevel, 5, "a real difference is still synced");
+});
