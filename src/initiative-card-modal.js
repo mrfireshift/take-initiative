@@ -817,8 +817,17 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
     if (result.mode === "invalid") {
       throw new Error(result.reason || "quick-action-invalid");
     }
+    // A spell is reviewed in the spell panel, never in the Conditions one: its own route, or the spell on this caster.
     const routeRequest = action.kind === "spell"
-      ? result.route?.request
+      ? result.route?.request || {
+        intent: "spell-cast",
+        sourceId: item.id,
+        casterId: item.id,
+        spellId: action.spellId,
+        origin: "quick-action",
+        quickActionId: action.id,
+        ...(action.cost === "free" ? { slotSource: "none" } : {}),
+      }
       : null;
     await OBR.broadcast.sendMessage(TRACKER_PANEL_REQUEST_CHANNEL, {
       type: "open",

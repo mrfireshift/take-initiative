@@ -920,3 +920,12 @@ test("SP-B04A — Unto richiede il TS iniziale ma non un input danno", () => {
   assert.equal(model.presentation.inputs.hp.visible, false);
   assert.equal(model.execution.castHasHP, false);
 });
+
+test("the caster menu is always shown: it spends the slot and the reaction, even for a spell that does not need it", async () => {
+  const { buildSpellUnifiedPanelContract: build } = await import("../src/spellUnifiedPanelCore.js");
+  for (const spellId of ["goodberry", "counterspell", "cure-wounds", "aid", "fireball", "bless"]) {
+    const contract = build({ spellId });
+    assert.equal(contract.presentation.inputs.caster.visible, true, spellId);
+  }
+  assert.equal(build({ spellId: "goodberry" }).presentation.inputs.caster.required, false, "still optional where the spell does not need it");
+});

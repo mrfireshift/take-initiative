@@ -80,10 +80,12 @@ export async function executeDirectQuickAction({
         || target.metadata?.[META_KEY]?.inInitiative !== true;
     })
   ) {
+    // The panel reviews it: the route goes with the decision, as for every other review.
     return {
       ...decision,
       mode: "review",
       reason: "target-invalid",
+      ...(decision.fallbackRoute ? { route: decision.fallbackRoute } : {}),
     };
   }
 

@@ -200,6 +200,7 @@ test("Guardiani Spirituali usa la transazione area diretta quando non richiede s
   assert.equal(decision.replacesConcentration, true);
   assert.equal(decision.session.casterId, "cleric");
   assert.deepEqual(decision.session.targetIds, []);
+  assert.equal(decision.fallbackRoute?.request?.spellId, "spirit-guardians", "the panel to review it in, if the area command rejects it");
 });
 
 test("un attacco single-target e un trucchetto area restano in review nel pannello canonico", () => {

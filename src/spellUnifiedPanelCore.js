@@ -1145,7 +1145,9 @@ function inputDescriptor({
   const compositionRequired = !!composition;
   return {
     phase: { required: phasePlan?.phase === "prepare", visible: false },
-    caster: { required: caster.required, visible: caster.required },
+    // Always shown: the caster spends the slot and the reaction and is named in the combat log, even when the
+    // spell itself does not need it (a recorded cast, a spell without range or save).
+    caster: { required: caster.required, visible: true },
     slot: { required: slot.required, visible: slot.visible },
     duration: {
       required: duration.policy === "manual",

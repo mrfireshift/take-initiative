@@ -417,6 +417,8 @@ export function buildQuickActionSpellLaunchPlan({
       session,
       areaExecution: true,
       initialTargetIds,
+      // The panel the GM reviews it in when the area command rejects it (quickActionExecution.js).
+      fallbackRoute: spellReviewRoute({ normalized, spell, session: reviewSession, initialTargetIds }),
       replacesConcentration: resolveSpellConcentration(spell, false) === true
         && session.phasePlan?.concentrationAction === "replace",
     };

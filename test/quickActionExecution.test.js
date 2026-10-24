@@ -242,3 +242,19 @@ test("a spell quick action with uses of its own spends one, and a free one spend
   assert.equal(free.spellCost, "");
   assert.deepEqual(areaCalls[1].runtime.extraOperations, []);
 });
+
+test("a selection out of the initiative sends the spell to the panel, with its route (never to the Conditions)", async () => {
+  resetScene();
+  sceneItems.set("bystander", { id: "bystander", name: "Passante", layer: "CHARACTER", metadata: { [META_KEY]: { inInitiative: false } } });
+  const result = await executeDirectQuickAction({
+    action: { id: "spellbook:goodberry", label: "Bacche benefiche", kind: "spell", spellId: "goodberry", targetMode: "selection", launchMode: "auto" },
+    sourceItem: sceneItems.get("caster"),
+    selectedTargetIds: ["bystander"],
+  });
+  assert.equal(result.mode, "review");
+  assert.equal(result.reason, "target-invalid");
+  assert.equal(result.route?.destination, "spell-unified-panel");
+  assert.equal(result.route.request.spellId, "goodberry");
+  assert.equal(result.route.request.casterId, "caster");
+  assert.equal(result.route.request.quickActionId, "spellbook:goodberry");
+});
