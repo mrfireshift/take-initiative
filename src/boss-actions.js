@@ -1818,27 +1818,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(typeof api.scene?.items?.onChange==="function")add(api.scene.items.onChange(items=>{
       const signature=computeLiveSignature(Array.isArray(items)?items:[]);
       if(signature!==liveSignature){liveSignature=signature;scheduleRefresh();}}));
-    // Re-read the selection when the pointer comes back from the map; local to this popover document. Added once: live
-    // updates resume after a wait (enterWaiting), the listener must not pile up.
-    if(!pointerListening){pointerListening=true;documentRef.body?.addEventListener?.("pointerenter",()=>{if(!waiting)void readSelection();});}
-  }
-  let pointerListening=false;
-  // The boss's turn or Epic Action is over: an idle console folds to its header and waits, its live updates paused,
-  // instead of closing; the boss's next turn wakes it (no reload). Unfolding it by hand wakes it too.
-  let waiting=false;
-  function enterWaiting() {
-    if(waiting) return;
-    waiting=true;unmountLiveUpdates();
-    if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}
-    setStatus("In attesa del prossimo turno del boss.");
-    void setMinimized(true);
-  }
-  function wakeFromWaiting() {
-    if(!waiting) return;
-    waiting=false;liveSignature="";mountLiveUpdates();
-    void setMinimized(false);
-    setStatus("");
-    void liveRefresh();
+    // Re-read the selection when the pointer comes back from the map; local to this popover document.
+    documentRef.body?.addEventListener?.("pointerenter",()=>{void readSelection();});
   }
   function unmountLiveUpdates() {unsubscribers.splice(0).forEach(unsubscribe=>{try{unsubscribe();}catch{}});}
 
@@ -1937,7 +1918,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       await refresh(operation,{preserveResolution:true});
     });
   });
-  $("boss-minimize")?.addEventListener("click",()=>{if(minimized && waiting){wakeFromWaiting();return;}void setMinimized(!minimized);});
+  $("boss-minimize")?.addEventListener("click",()=>{void setMinimized(!minimized);});
   documentRef.addEventListener?.("keydown",event=>{
     if(event.key!=="Escape" || busy) return;
     if(view==="resolve"){event.preventDefault?.();closeDraft({persist:false});}
@@ -1950,21 +1931,13 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}
     lifecycle.dispose();
   }
-  // The turn controller asks whether Boss Actions is open (on a boss's turn): an open console is never reloaded, it wakes.
-  // When the boss's turn or Epic Action is over it asks an idle console to wait (fold, live updates paused); for another
-  // boss's turn, to close. Never one resolving an action, busy, or managing its profile.
+  // The turn controller asks whether Boss Actions is open (on a boss's turn): an open console is never reloaded. When
+  // the boss's turn or Epic Action is over it asks an idle console to close: never one resolving an action, busy, or
+  // managing its profile.
   const idle=()=>!busy && !draft && view==="list";
   if(typeof api.broadcast?.onMessage==="function") offPing=api.broadcast.onMessage(BOSS_ACTIONS_CONSOLE_CHANNEL,event=>{
     if(event?.data?.type==="close-if-idle"){
       if(idle() && !invalidated){destroy();void api.popover.close(POPOVER_ID);}
-      return;
-    }
-    if(event?.data?.type==="wait-if-idle"){
-      if(idle() && !invalidated)enterWaiting();
-      return;
-    }
-    if(event?.data?.type==="wake"){
-      if(!invalidated)wakeFromWaiting();
       return;
     }
     if(event?.data?.type!=="ping") return;

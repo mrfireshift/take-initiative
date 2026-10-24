@@ -2,11 +2,8 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { BOSS_ACTIONS_WIDTH, BOSS_ACTIONS_HEIGHT } from "./bossActionsViewCore.js";
-import { PC_ATTACK_WIDTH } from "./pcAttackLauncher.js";
 
-// Compact floating console; drag and stored position come from openTrackedPopover / popoverDrag. By default it opens to
-// the right of the attack console (same top): with the turn auto-open the two stay open, one of them folded and waiting.
-const BOSS_ACTIONS_DEFAULT_LEFT = 80 + PC_ATTACK_WIDTH + 12;
+// Compact floating console; drag and stored position come from openTrackedPopover / popoverDrag.
 // Boss Actions answers a ping on this channel while it is open (with its boss and whether it is idle): the turn
 // controller (pcAttackTurnController.js) never reloads an open one, and closes an idle one when the boss's turn ends.
 export const BOSS_ACTIONS_CONSOLE_CHANNEL = `${ID}/boss-actions-console`;
@@ -15,7 +12,7 @@ export async function openBossActionsPopover(sourceId) {
   if(!sourceId || String(sourceId).startsWith("__") || String(sourceId).includes("::")) return;
   if(await OBR.player.getRole()!=="GM") return;
   await openTrackedPopover({id:`${ID}/boss-actions`,url:`/boss-actions.html?source=${encodeURIComponent(sourceId)}`,
-    width:BOSS_ACTIONS_WIDTH,height:BOSS_ACTIONS_HEIGHT,anchorReference:"POSITION",anchorPosition:{left:BOSS_ACTIONS_DEFAULT_LEFT,top:60},
+    width:BOSS_ACTIONS_WIDTH,height:BOSS_ACTIONS_HEIGHT,anchorReference:"POSITION",anchorPosition:{left:80,top:60},
     anchorOrigin:{horizontal:"LEFT",vertical:"TOP"},transformOrigin:{horizontal:"LEFT",vertical:"TOP"},disableClickAway:true,
     marginThreshold:12,hidePaper:true});
 }

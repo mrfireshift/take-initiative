@@ -15,7 +15,7 @@ const state = (current, round = 1, order = ["mira", "goblin", "__LAIR__", "mira:
 
 // getCard: the raw card (a bound boss's binding is a strict profile identity, out of scope here).
 function fixture({ items = [archer, creature("goblin")], enabled = true, open = false, bossOpen = false } = {}) {
-  const opened = [], followed = [], bossOpened = [], bossClosed = [], bossWaited = [], bossWoken = [];
+  const opened = [], followed = [], bossOpened = [], bossClosed = [];
   let consoleOpen = open, isEnabled = enabled, bossConsoleOpen = bossOpen;
   const controller = createPcAttackTurnController({
     api: { scene: { items: { getItems: async (ids) => items.filter((item) => ids.includes(item.id)) } } },
@@ -27,13 +27,10 @@ function fixture({ items = [archer, creature("goblin")], enabled = true, open = 
     isBossConsoleOpen: async () => bossConsoleOpen,
     // An idle Boss Actions closes when asked; a busy one stays.
     closeBossConsole: async () => { bossClosed.push(bossConsoleOpen?.sourceId ?? true); if (bossConsoleOpen?.idle !== false) bossConsoleOpen = false; },
-    // A waiting console stays open (folded): the controller only asks; the console decides whether it is idle.
-    waitBossConsole: async () => { bossWaited.push(bossConsoleOpen?.sourceId ?? true); },
-    wakeBossConsole: async () => { bossWoken.push(bossConsoleOpen?.sourceId ?? true); },
     closeSettleMs: 0,
     getCard: (item) => item?.metadata?.[META]?.initiativeCard || {},
   });
-  return { controller, opened, followed, bossOpened, bossClosed, bossWaited, bossWoken, setOpen: (value) => { consoleOpen = value; }, setEnabled: (value) => { isEnabled = value; },
+  return { controller, opened, followed, bossOpened, bossClosed, setOpen: (value) => { consoleOpen = value; }, setEnabled: (value) => { isEnabled = value; },
     setBossOpen: (value) => { bossConsoleOpen = value; } };
 }
 
@@ -143,20 +140,17 @@ test("the boss an Epic Action slot belongs to; a boss is an Epic Boss or a bound
   assert.equal(pcAttackTurnBoss(creature("down", { epic: true, hp: 0 }), raw), false, "a boss at 0 HP");
 });
 
-test("a boss's turn and its Epic Action slots open Boss Actions once, then wake it; never the attack console", async () => {
+test("a boss's turn and its Epic Action slots open Boss Actions, never the attack console", async () => {
   const f = fixture({ items: [auril, archer, bound, creature("goblin")] });
   await f.controller.onState({ order: bossOrder, current: 4, round: 1 });
   await f.controller.onState({ order: bossOrder, current: 0, round: 2 });
   assert.deepEqual([f.bossOpened, f.opened], [["auril"], []]);
   await f.controller.onState({ order: bossOrder, current: 1, round: 2 });
   assert.deepEqual(f.opened, ["mira"]);
-  assert.deepEqual(f.bossWaited, ["auril"], "Mira's turn: Auril's console waits, it does not close");
   await f.controller.onState({ order: bossOrder, current: 2, round: 2 });
-  assert.deepEqual(f.bossOpened, ["auril"], "the Epic Action slot after Mira's turn: no reload");
-  assert.deepEqual(f.bossWoken, ["auril"], "the waiting console wakes");
+  assert.deepEqual(f.bossOpened, ["auril", "auril"], "the Epic Action slot after Mira's turn");
   await f.controller.onState({ order: bossOrder, current: 3, round: 2 });
-  assert.deepEqual(f.bossClosed, ["auril"], "another boss: an idle Auril console gives way");
-  assert.deepEqual(f.bossOpened, ["auril", "frost"], "a bound boss, attacks or not");
+  assert.deepEqual(f.bossOpened, ["auril", "auril", "frost"], "a bound boss, attacks or not");
   assert.deepEqual(f.opened, ["mira"]);
 });
 
@@ -172,19 +166,16 @@ test("an open Boss Actions is never reloaded; a clean attack console left open c
   assert.deepEqual(f.bossOpened, [], "the option off");
 });
 
-test("Boss Actions waits when the boss's turn or Epic Action is over; the console decides whether it is idle", async () => {
+test("Boss Actions closes when the boss's turn or Epic Action is over, as long as it is idle", async () => {
   const f = fixture({ items: [auril, archer, bound, creature("goblin")] });
   await f.controller.onState({ order: bossOrder, current: 1, round: 2 });
   await f.controller.onState({ order: bossOrder, current: 2, round: 2 });
   assert.deepEqual(f.bossOpened, ["auril"], "the Epic Action slot after Mira's turn");
   await f.controller.onState({ order: bossOrder, current: 4, round: 2 });
-  assert.deepEqual([f.bossWaited, f.bossClosed], [["auril"], []], "the slot is over: Boss Actions waits, it does not close");
+  assert.deepEqual(f.bossClosed, ["auril"], "the slot is over: Boss Actions closes");
   f.setBossOpen({ sourceId: "auril", idle: false });
   await f.controller.onState({ order: bossOrder, current: 1, round: 3 });
-  assert.deepEqual(f.bossWaited, ["auril", "auril"], "asked again; a busy console decides to stay as it is");
-  f.setEnabled(false);
-  await f.controller.onState({ order: bossOrder, current: 2, round: 3 });
-  assert.deepEqual([f.bossWaited.length, f.bossWoken.length], [2, 0], "the option off: nothing is asked");
+  assert.deepEqual(f.bossClosed, ["auril", "auril"], "asked again; a busy console decides to stay");
 });
 
 test("from one boss to another: an idle Boss Actions gives way, a busy one stays", async () => {

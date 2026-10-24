@@ -1757,33 +1757,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(typeof api.scene?.onMetadataChange==="function")add(api.scene.onMetadataChange(metadata=>{
       const state=metadata?.[STATE_KEY],next=JSON.stringify([state?.round ?? null,state?.current ?? null,state?.order ?? null]);
       if(next!==turn){turn=next;scheduleRefresh();}}));
-    // Added once: live updates resume after a wait (enterWaiting), the listener must not pile up.
-    if(!pointerListening){pointerListening=true;documentRef.body?.addEventListener?.("pointerenter",()=>{if(!waiting)void readSelection();});}
+    documentRef.body?.addEventListener?.("pointerenter",()=>{void readSelection();});
   }
-  let pointerListening=false;
   function unmountLiveUpdates() {unsubscribers.splice(0).forEach(unsubscribe=>{try{unsubscribe();}catch{}});}
-  // A turn with nothing to show here (a boss, an Epic Action slot, the Lair, a creature without attacks): a clean console
-  // folds to its header and waits, its live updates paused, instead of closing; the next turn costs no reload. It wakes
-  // with the next actor (switchActor), with the same actor again (followTurn) or when the GM unfolds it.
-  let waiting=false;
-  function enterWaiting(name="") {
-    if(waiting) return;
-    waiting=true;unmountLiveUpdates();
-    if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}
-    setStatus(name?`In attesa: turno di ${name}.`:"In attesa del prossimo turno.");
-    void setMinimized(true);
-  }
-  function leaveWaiting() {
-    if(!waiting) return false;
-    waiting=false;liveSignature="";mountLiveUpdates();
-    return true;
-  }
-  function wakeInPlace(name="") {
-    if(!leaveWaiting()) return;
-    void setMinimized(false);
-    setStatus(name?`Turno di ${name}.`:"");
-    void perform(async operation=>{await refresh(operation);}).then(()=>readSelection());
-  }
   function destroy() {
     unmountLiveUpdates();
     try{offPing?.();}catch{}
@@ -1841,7 +1817,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     else {const height=minimizedHeight;minimizedHeight=0;await foldConsole(false,height);}
     renderMinimized();
   }
-  minimizeButton?.addEventListener("click",()=>{if(minimizedHeight && waiting){wakeInPlace();return;}void setMinimized(!minimizedHeight);});
+  minimizeButton?.addEventListener("click",()=>{void setMinimized(!minimizedHeight);});
   renderMinimized();
   async function foldConsole(fold,restore=0) {
     try {
@@ -1998,7 +1974,6 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   // A new actor in place: a fresh attack (no target, no undo of the previous actor's entry: History keeps it).
   function switchActor(next,name="",{offTurn=false}={}) {
-    leaveWaiting();
     void setMinimized(false);
     pendingFollow=null;pendingReady=false;renderFollow();
     sourceId=next;actionId="";requestedSpellId="";launchKey="";launchSignature="";
@@ -2010,13 +1985,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     restoreLastAsked=true;
     void perform(async operation=>{await refresh(operation);}).then(()=>readSelection()).then(()=>restoreLastEntry());
   }
-  // The turn moved on (next: "" for a turn with nothing to show). A clean console moves, or folds and waits, by itself;
-  // one holding decisions (an outcome, an amount, an extra, a cast in flight) waits for the GM.
+  // The turn moved on (next: "" for a turn with nothing to show). A clean console moves or closes by itself; one holding
+  // decisions (an outcome, an amount, an extra, a cast in flight) waits for the GM.
   function followTurn(next,name="") {
     if(invalidated) return;
-    if(next===sourceId){pendingFollow=null;pendingReady=false;renderFollow();if(next)wakeInPlace(name);return;}
+    if(next===sourceId){pendingFollow=null;pendingReady=false;renderFollow();return;}
     if(busy || launchBusy || palmDraft.outcome || (draft && draftLocked(draft))){pendingFollow={sourceId:next,name};pendingReady=false;renderFollow();return;}
-    if(!next){enterWaiting(name);return;}
+    if(!next){closeConsole();return;}
     switchActor(next,name);
   }
   // A creature the console can show: something in its picker (an attack, a spell, a feature).
