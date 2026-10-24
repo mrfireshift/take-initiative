@@ -17,6 +17,7 @@ import {
   buildSpellCastRecordLogEntry,
   spellCastRecordLabel,
 } from "./spellCastRecordCore.js";
+import { counterspellLabel } from "./counterspellCore.js";
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
@@ -59,7 +60,10 @@ export async function executeSpellCastRecord({
   const items = await OBR.scene.items.getItems(uniqueIds([caster, ...targets])).catch(() => []);
   if (stale()) throw new Error("scene-epoch-stale-before-spell-record");
   const names = new Map((Array.isArray(items) ? items : []).map((item) => [item?.id, String(item?.name || "")]));
-  const label = spellCastRecordLabel(spellName);
+  // Counterspell names what it countered (counterspellCore.js): in its label and in the entry's payload.
+  const counterspell = castContext?.counterspell && typeof castContext.counterspell === "object" ? castContext.counterspell : null;
+  const label = counterspell ? counterspellLabel(counterspell) : spellCastRecordLabel(spellName);
+  const extraPayload = counterspell ? { counterspell } : null;
   const causality = buildSpellCastRecordCausality({
     spellId: spell?.id,
     spellName,
@@ -76,14 +80,14 @@ export async function executeSpellCastRecord({
       kind: "spell",
       label,
       targetIds: uniqueIds([caster, ...targets]),
-      history: { kind: "spell", label, payload: { causality } },
+      history: { kind: "spell", label, payload: { ...(extraPayload || {}), causality } },
       ...(sceneIdentity ? { sceneIdentity } : {}),
       ...(commandId ? { commandId } : {}),
     });
     requireAppliedEffectsMutation(mutation);
     result = attachSpellExecutionHistory([...mutation.changedIds], mutation);
   } else {
-    await recordInCombatLog(buildSpellCastRecordLogEntry({ label, causality }), sceneEpoch ?? currentSceneEpoch())
+    await recordInCombatLog(buildSpellCastRecordLogEntry({ label, causality, extraPayload }), sceneEpoch ?? currentSceneEpoch())
       .catch((error) => {
         console.warn("[spell] cast record log:", error?.message || error);
       });

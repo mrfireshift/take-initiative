@@ -47,6 +47,8 @@ import {
 import { planSpellCastCost, spellSlotChoices } from "./spellSlotSpendCore.js";
 import { planSpeciesSpellCost, speciesSpellCast } from "./speciesInnateSpellCore.js";
 import { planSpellReactionSpend } from "./spellReactionCore.js";
+import { isCounterspell } from "./counterspellCore.js";
+import { openCounterspellPopover } from "./counterspellLauncher.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
 import {
   buildSpellCatalogEntries,
@@ -2782,6 +2784,20 @@ export function bootSpellUnifiedPanel(
     }
     const actionId = model?.workflow?.primaryAction?.id;
     if (!["apply", "prepare"].includes(actionId)) return;
+    // Counterspell names what it counters in its own popup (counterspell.html), which casts it with the slot and
+    // the reaction: the panel hands it the caster and the slot chosen here.
+    if (actionId === "apply" && isCounterspell(state.contract?.spell?.id) && slotSpendApplies()) {
+      await openCounterspellPopover({
+        sourceId: state.session.casterId,
+        quickActionId: route?.quickActionId || "",
+        slotLevel: state.session.slotLevel,
+        slotSource: state.slotSource,
+      }).catch(() => {});
+      patchSession({
+        feedback: { state: "info", message: "Controincantesimo: scegli nel popup cosa viene annullato." },
+      }, { clearFeedback: false });
+      return;
+    }
     if (usesPersistentCastAdapter()) {
       await commitArea();
       return;

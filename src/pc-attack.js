@@ -1446,7 +1446,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function launchSummary(entry,result) {
     if(!result) return `Il tracker non risponde: lancia ${entry.label} dal suo menu 🪄.`;
     if(!result.ok) return String(result.message || `${entry.label}: lancio non riuscito.`);
-    return result.mode==="review"?`${entry.label}: pannello incantesimi aperto.`
+    return result.mode==="review"?(result.message?String(result.message):`${entry.label}: pannello incantesimi aperto.`)
       :result.mode==="executed"?`${entry.label}: lancio registrato.`
       :String(result.message || `${entry.label}: lancio non valido.`);
   }

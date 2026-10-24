@@ -74,6 +74,8 @@ import { pcAttackBreathActionId } from "./pcAttackBreathId.js";
 import { PC_ATTACK_CANTRIPS } from "./pcAttackCantripCatalog.js";
 import { PC_ATTACK_SPELLS } from "./pcAttackSpellCatalog.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
+import { isCounterspell } from "./counterspellCore.js";
+import { openCounterspellPopover } from "./counterspellLauncher.js";
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import {
@@ -769,6 +771,14 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
       await refreshClassFeatureItem();
       if (!sceneStillCurrent()) return;
       setStatus(`Applicata: ${action.label}.`, "success");
+      quickActionLaunching = false;
+      setButtonsDisabled(false);
+      return;
+    }
+    // Counterspell names what it counters in its own popup, which casts it with the slot and the reaction.
+    if (action?.kind === "spell" && isCounterspell(action.spellId)) {
+      await openCounterspellPopover({ sourceId: item.id, quickActionId: action.id });
+      setStatus("Controincantesimo: scegli nel popup cosa viene annullato.");
       quickActionLaunching = false;
       setButtonsDisabled(false);
       return;

@@ -1432,7 +1432,7 @@ test("un incantesimo non automatizzato si registra dal pannello, anche senza ber
   const { root, panel } = boot({
     provider,
     broadcast: new FakeBroadcast(),
-    route: { status: "ready", spellId: "counterspell", session: { casterId: "caster-a" } },
+    route: { status: "ready", spellId: "remove-curse", session: { casterId: "caster-a" } },
     lifecycleExecutor: async (request) => {
       requests.push(request);
       return [];
@@ -1446,11 +1446,36 @@ test("un incantesimo non automatizzato si registra dal pannello, anche senza ber
   await settle(10);
   assert.equal(requests.length, 1);
   assert.equal(requests[0].recordOnly, true);
-  assert.equal(requests[0].spell.id, "counterspell");
+  assert.equal(requests[0].spell.id, "remove-curse");
   assert.deepEqual(requests[0].targetIds, []);
   assert.equal(requests[0].castContext.slotLevel, 3);
   assert.equal(panel.state.session.feedback.state, "success");
   assert.match(panel.state.session.feedback.message, /^Lancio registrato: effetti al tavolo/u);
+  await panel.destroy();
+});
+
+test("Controincantesimo non si registra dal pannello: apre il suo popup con il caster e lo slot", async () => {
+  const opened = [];
+  sdkStub.popover.open = async (options) => { opened.push(options); };
+  const provider = createProvider();
+  const requests = [];
+  const { root, panel } = boot({
+    provider,
+    broadcast: new FakeBroadcast(),
+    route: { status: "ready", spellId: "counterspell", session: { casterId: "caster-a" } },
+    lifecycleExecutor: async (request) => {
+      requests.push(request);
+      return [];
+    },
+  });
+  await settle();
+  await requiredNode(root, '[data-primary-action="apply"]').click();
+  await settle(10);
+  delete sdkStub.popover.open;
+  assert.deepEqual(requests, [], "nothing is cast from the panel");
+  assert.equal(opened.length, 1);
+  assert.match(opened[0].url, /^\/counterspell\.html\?source=caster-a&slotLevel=3/u);
+  assert.match(panel.state.session.feedback.message, /^Controincantesimo: scegli nel popup/u);
   await panel.destroy();
 });
 

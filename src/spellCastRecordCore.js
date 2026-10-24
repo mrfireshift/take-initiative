@@ -64,14 +64,18 @@ export function withSpellCastCost(causality, cost = "") {
 
 // The entry the combat log receives for a cast that spent nothing: shaped like a History entry, so the log presents it
 // as any other cast, but with no id, since no History entry (and so no Undo) exists for it.
-export function buildSpellCastRecordLogEntry({ label = "", causality = null, at = Date.now() } = {}) {
+// extraPayload: what the cast names besides its causality (Counterspell's context, counterspellCore.js).
+export function buildSpellCastRecordLogEntry({ label = "", causality = null, at = Date.now(), extraPayload = null } = {}) {
   return {
     id: "",
     kind: "spell",
     label: text(label) || spellCastRecordLabel(causality?.cause?.spellName),
     at: Number.isFinite(Number(at)) ? Number(at) : Date.now(),
     changes: [],
-    payload: { causality: causality && typeof causality === "object" ? causality : {} },
+    payload: {
+      ...(extraPayload && typeof extraPayload === "object" ? extraPayload : {}),
+      causality: causality && typeof causality === "object" ? causality : {},
+    },
     provenance: { recordingSource: SPELL_CAST_RECORD_SOURCE },
   };
 }

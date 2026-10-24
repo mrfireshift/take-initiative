@@ -204,6 +204,8 @@ import {
   resolveGlobalSpellSourceEntryCore,
 } from "./spellUnifiedPanelRoutingCore.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
+import { isCounterspell } from "./counterspellCore.js";
+import { openCounterspellPopover } from "./counterspellLauncher.js";
 import { executeSpellBoardTokenStateUpdate } from "./spellApplicationExecutor.js";
 import { DELAYED_BLAST_FIREBALL_ID } from "./delayedBlastFireballRules.js";
 import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
@@ -8526,6 +8528,12 @@ async function __runTrackerQuickAction(sourceEntry, action) {
     if (!IS_GM) throw new Error("Solo il GM può registrare un attacco.");
     await openPcAttackPopover(sourceId, cantripAttack.id, action.spellId);
     return { mode: "review", route: "pc-attack" };
+  }
+  // Counterspell names what it counters in its own popup, which casts it with the slot and the reaction.
+  if (action?.kind === "spell" && isCounterspell(action.spellId)) {
+    if (!IS_GM) throw new Error("Solo il GM può lanciare Controincantesimo.");
+    await openCounterspellPopover({ sourceId, quickActionId: action.id });
+    return { mode: "review", route: "counterspell", message: "Controincantesimo: scegli nel popup cosa viene annullato." };
   }
   const result = await executeDirectQuickAction({
     action,

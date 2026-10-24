@@ -4,6 +4,7 @@ import {
 import { normalizeCombatLogCausality } from "./combatLogCausalityCore.js";
 import { normalizeCombatLogEventV3 } from "./combatLogV3Core.js";
 import { DEATH_SAVE_OUTCOME_LABELS, deathSaveTallyText } from "./deathSaveCore.js";
+import { counterspellLogLines } from "./counterspellCore.js";
 
 export const COMBAT_LOG_CATEGORY_ORDER = Object.freeze([
   "hp",
@@ -804,6 +805,9 @@ function sharedHpSummaryLines(event) {
 }
 
 function eventSummary(event, targets, outcomes) {
+  // Counterspell: the spell countered and the outcome (counterspellCore.js).
+  const counterspell = counterspellLogLines(event?.payload?.counterspell);
+  if (counterspell.length) return counterspell.slice(0, 2).join(" · ");
   const category = event.category;
   const hpLines = hpTargets(event).map(hpTargetLine);
   const facetLines = [
@@ -866,6 +870,8 @@ function detailSections(event, targets, outcomes, turnName) {
   }
   const deathLines = deathSaveLines(event, targets);
   if (deathLines.length) sections.push({ label: "TS contro la morte", lines: deathLines });
+  const counterspellLines = counterspellLogLines(event?.payload?.counterspell);
+  if (counterspellLines.length) sections.push({ label: "Controincantesimo", lines: counterspellLines });
   if (outcomes.length) sections.push({ label: "Esito", lines: outcomes });
   const causalityLines = causalityDetailLines(event);
   if (causalityLines.length) sections.push({ label: "Causalità", lines: causalityLines });
