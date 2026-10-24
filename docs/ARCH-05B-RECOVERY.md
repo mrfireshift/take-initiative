@@ -22,7 +22,7 @@ Il fix conserva planner, commit con controllo delle precondizioni e History owne
 
 **Idempotenza:** `effects-history:<commandId>` e payload History immutabile riutilizzano la deduplica esistente. Le receipt gestiscono l'ACK perso dopo cleanup. L'identità del side effect è `<commandId>:side:<index>`, ma il recovery non si affida al solo indice: teleport confronta posizione reale con before/after; consume confronta la specifica activationId e conserva le altre activation. Risultato già applicato senza marker viene riconosciuto; risultato incompatibile non viene sovrascritto.
 
-**Cleanup:** rimozione solo dopo canonical riconosciuto, side effect richiesti completati e append History confermato. Una risposta di persistenza persa attiva read-back dello store; un errore di cleanup lascia COMPLETE o la receipt effettivamente persistita. Cambio scena/unload elimina soltanto RAM: tornando alla scena originale si ricaricano i pending.
+**Cleanup:** rimozione solo dopo canonical riconosciuto, side effect richiesti completati e append History confermato. Una risposta di persistenza persa attiva read-back dello store; un errore di cleanup lascia il record in HISTORY_PENDING (un recovery successivo riappende la stessa entry, che l'owner deduplica per id, e lo rimuove) o la receipt effettivamente persistita. Cambio scena/unload elimina soltanto RAM: tornando alla scena originale si ricaricano i pending.
 
 ## 3. State machine ed error handling
 
@@ -30,17 +30,18 @@ Il fix conserva planner, commit con controllo delle precondizioni e History owne
 PREPARE + History immutabile
   → PREPARED durevole
   → commit canonico nella lane esistente
-  → CANONICAL_COMMITTED
+  → CANONICAL_COMMITTED [solo con side effect]
   → SIDE_EFFECTS_PENDING [progress individuale, se presenti]
   → HISTORY_PENDING
-  → append History idempotente
-  → COMPLETE
+  → append History idempotente (deduplicata per entryId dall'owner)
   → rimozione record + receipt bounded
 ```
 
+Senza side effect il primo marker dopo il commit è HISTORY_PENDING, e dopo l'append la rimozione stessa è il marker di completamento: tre scritture di scena per comando invece di cinque. La History entry è salvata nel record come la salva l'owner (senza `effectsMutation.changes`, copia di `changes`) e ricostruita alla rilettura. Un record COMPLETE di versioni precedenti viene ancora rimosso senza riappendere.
+
 PREPARED al bootstrap: stato before → abbandono sicuro; stato after → continua senza reapplicare; stato misto/incompatibile → conserva record e segnala conflitto. Un nuovo comando non può cancellare le prove di un PREPARED ambiguo: recovery/precondition gate precede il planner.
 
-Precondition/canonical failure senza commit mantiene le semantics esistenti. Errori post-commit ritornano `committed: true`, `historyPending`/`recoveryPending` e dettagli bounded di errore: non vengono nascosti come successo completo e non invitano a ripetere una mutation già applicata. Non viene introdotto rollback automatico di canonical valido. COMPLETE con cleanup fallito ha History durevole e solo recovery ancora pending.
+Precondition/canonical failure senza commit mantiene le semantics esistenti. Errori post-commit ritornano `committed: true`, `historyPending`/`recoveryPending` e dettagli bounded di errore: non vengono nascosti come successo completo e non invitano a ripetere una mutation già applicata. Non viene introdotto rollback automatico di canonical valido. Un cleanup fallito dopo l'append ha History durevole e solo recovery ancora pending; il chiamante riceve `historyPending: false`.
 
 ## 4. Files changed
 
@@ -83,14 +84,14 @@ Failure injection aggiuntive: envelope pre-commit rifiutato, phase write fallita
 | --- | --- | --- |
 | PREPARED, canonical ancora before | Verifica e rimozione record non committato | Nessun canonical/History inventato; retry consentito. |
 | Canonical persistito, phase ancora PREPARED | Read-back after, nessun secondo commit | Una History, Undo disponibile. |
-| CANONICAL_COMMITTED prima di History | Completa lavoro mancante e append | Una entry e cleanup. |
+| CANONICAL_COMMITTED o HISTORY_PENDING prima di History | Completa lavoro mancante e append | Una entry e cleanup. |
 | Side effect A applicato, B mancante | A riconosciuto/completato, B applicato | A non duplicato, B durevole. |
 | Side effect applicato, progress write fallita | Confronto con stato reale | Idempotente anche attraverso tre cold restart. |
 | Marker reminder persistito, activation pending | Consume activationId + append | Marker/consume/History convergono. |
 | Consume completato, History assente | Nessun secondo consume, append | Risoluzione unica. |
 | History write fallita o owner assente | Payload precommittato riutilizzato | Converge al ritorno dell'owner. |
 | History persistita, risposta o phase persa | Deduplica stesso payload/entryId | Nessuna seconda entry. |
-| COMPLETE, cleanup fallito | Rimozione record e receipt | History non riappesa. |
+| History appesa, cleanup fallito (HISTORY_PENDING) | Append deduplicato, rimozione record e receipt | Nessuna seconda entry. |
 | Scena A pending, corrente B | Nessun lavoro A su B | Record A intatto, ripreso al ritorno. |
 | Posizione/stato necessario incompatibile | Record trattenuto, conflitto | Nessun overwrite di stato più recente. |
 

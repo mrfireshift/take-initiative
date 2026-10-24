@@ -797,7 +797,8 @@ test("persistence — envelope write failure prevents canonical commit", async (
 
 test("persistence — failed phase update after commit recovers by read-back", async () => {
   const first = await bootRuntime("phase-fail");
-  fault.failRecoveryPhase = "CANONICAL_COMMITTED";
+  // Without side effects the first mark after the commit is HISTORY_PENDING.
+  fault.failRecoveryPhase = "HISTORY_PENDING";
   const result = await first.client.runEffectsMutation(addConditionOperation(), { commandId: "phase-fail" });
   assert.equal(result.committed, true); assert.equal(result.historyPending, true);
   assert.equal(pendingRecovery()[0].phase, "PREPARED");
@@ -828,14 +829,17 @@ test("R3/R4 — side effect applied without progress marker survives three cold 
   }
 });
 
-test("R10 — cleanup failure leaves COMPLETE until a later bootstrap deletes only recovery", async () => {
+test("R10 — cleanup failure leaves the record until a later bootstrap clears it, without a second History entry", async () => {
+  // No COMPLETE mark: the cleanup is the progress mark, and the History owner keeps one entry per id.
   const first = await bootRuntime("cleanup-old"); fault.failRecoveryCleanup = true;
-  await first.client.runEffectsMutation(addConditionOperation(), { commandId: "cleanup-fail" });
-  assert.equal(historyEntries().length, 1); assert.equal(pendingRecovery()[0].phase, "COMPLETE");
-  const attempts = fault.historyWriteAttempts;
+  const result = await first.client.runEffectsMutation(addConditionOperation(), { commandId: "cleanup-fail" });
+  assert.equal(result.historyPending, false, "the caller knows its History is written");
+  assert.equal(historyEntries().length, 1); assert.equal(pendingRecovery()[0].phase, "HISTORY_PENDING");
+  const [entry] = historyEntries();
   stopRuntime(first); await bootRuntime("cleanup-new");
-  assert.equal(pendingRecovery().length, 0); assert.equal(historyEntries().length, 1);
-  assert.equal(fault.historyWriteAttempts, attempts);
+  assert.equal(await eventually(() => pendingRecovery().length === 0), true);
+  assert.equal(historyEntries().length, 1, "appending the same entry again is a duplicate");
+  assert.equal(historyEntries()[0].id, entry.id);
 });
 
 test("R4 — restart again while History is unavailable, then converge", async () => {
@@ -962,7 +966,7 @@ test("serialization — durable envelope contains no runtime-local epoch or warn
 });
 
 test("concurrency — newer command cannot erase an ambiguous canonical commit baseline", async () => {
-  const runtime = await bootRuntime("ambiguous-newer"); fault.failRecoveryPhase = "CANONICAL_COMMITTED";
+  const runtime = await bootRuntime("ambiguous-newer"); fault.failRecoveryPhase = "HISTORY_PENDING";
   await runtime.background.runEffectsMutation(addConditionOperation("old"), { commandId: "old", transport: "background" });
   assert.equal(pendingRecovery()[0].phase, "PREPARED");
   await runtime.background.runEffectsMutation(addConditionOperation("new"), { commandId: "new", transport: "background" });
@@ -1191,7 +1195,7 @@ test("deferred History — answered at HISTORY_PENDING, then History and cleanup
     assert.equal(await runtime.client.hasPendingEffectsHistoryAuthoritative(), true);
     writes.releaseHistory();
     assert.equal(await eventually(() => historyEntries().length === 1 && pendingRecovery().length === 0), true);
-    assert.deepEqual(writes.phases, ["PREPARED", "HISTORY_PENDING", "COMPLETE", "cleared"]);
+    assert.deepEqual(writes.phases, ["PREPARED", "HISTORY_PENDING", "cleared"]);
     assert.equal(historyEntries()[0].effectsMutation.commandId, "deferred-one");
     assert.equal(await runtime.client.hasPendingEffectsHistoryAuthoritative(), false);
   } finally {
@@ -1199,14 +1203,14 @@ test("deferred History — answered at HISTORY_PENDING, then History and cleanup
   }
 });
 
-test("deferred History — a command without the option keeps today's journal sequence", async () => {
+test("journal — a command without side effects writes PREPARED, HISTORY_PENDING and the cleanup only", async () => {
   const runtime = await bootRuntime("immediate-history");
   const writes = recordRecoveryWrites();
   try {
     const result = await runtime.client.runEffectsMutation(addConditionOperation(), { commandId: "immediate-one" });
     assert.equal(result.historyPending, false);
     assert.equal(historyEntries().length, 1, "History written before the answer");
-    assert.deepEqual(writes.phases, ["PREPARED", "CANONICAL_COMMITTED", "HISTORY_PENDING", "COMPLETE", "cleared"]);
+    assert.deepEqual(writes.phases, ["PREPARED", "HISTORY_PENDING", "cleared"]);
   } finally {
     writes.restore();
   }
@@ -1263,4 +1267,18 @@ test("deferred History — Undo does not cross a deferred append, then undoes th
   } finally {
     writes.restore();
   }
+});
+
+test("journal — the History entry is journaled without its copy of the changes and recovered whole", async () => {
+  const first = await bootRuntime("compact-journal"); fault.failHistoryWrites = true;
+  await first.client.runEffectsMutation(addConditionOperation(), { commandId: "compact-journal" });
+  const [record] = pendingRecovery();
+  assert.equal(record.phase, "HISTORY_PENDING");
+  assert.ok(record.historyEntry.changes.length > 0);
+  assert.equal(record.historyEntry.effectsMutation.changes, undefined, "the copy is left out of the journal");
+  fault.failHistoryWrites = false;
+  stopRuntime(first); const second = await bootRuntime("compact-journal-new");
+  assert.equal(await eventually(() => historyEntries().length === 1 && pendingRecovery().length === 0), true);
+  const undone = await second.background.undoEffectsMutation(historyEntries()[0], { transport: "background" });
+  assert.equal(undone.status, "applied"); assert.deepEqual(conditionIds(), []);
 });

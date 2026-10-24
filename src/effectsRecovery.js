@@ -1,4 +1,5 @@
 import { METADATA_OWNERSHIP, writeSceneMetadataKey } from "./metadataKeyScoped.js";
+import { compactHistoryEntryForStorage } from "./historyOwnerCore.js";
 
 export const EFFECTS_RECOVERY_KEY = METADATA_OWNERSHIP.EFFECTS_RECOVERY.key;
 export const EFFECTS_RECOVERY_LIMITS = Object.freeze({ records: 16, bytes: 131072, receipts: 128 });
@@ -8,6 +9,21 @@ const durable = (value) => JSON.parse(JSON.stringify(value, (key, next) => (
 )));
 const supported = new Set(["token:teleport", "reminder:consume-zone-activation", "spell-active-resolution:validate"]);
 const phases = new Set(["PREPARED", "CANONICAL_COMMITTED", "SIDE_EFFECTS_PENDING", "HISTORY_PENDING", "COMPLETE"]);
+// The History entry is journaled as the History stores it: its effectsMutation.changes, a copy of its changes, is
+// left out and rebuilt when the record is read (with characters full of effects, a third of every journal write).
+const storedHistoryEntry = (entry) => compactHistoryEntryForStorage(entry);
+const usableHistoryEntry = (entry) => {
+  const mutation = entry?.effectsMutation;
+  if (!mutation || typeof mutation !== "object" || !Array.isArray(entry.changes)) return entry;
+  return {
+    ...entry,
+    effectsMutation: {
+      ...mutation,
+      ...(Array.isArray(mutation.changes) ? {} : { changes: clone(entry.changes) }),
+      ...(Array.isArray(mutation.sideEffects) ? {} : { sideEffects: [] }),
+    },
+  };
+};
 const validStore = (value) => value?.schemaVersion === 1 && typeof value.scopeId === "string"
   && value.scopeId.length > 0 && value.records && typeof value.records === "object"
   && !Array.isArray(value.records) && Array.isArray(value.receipts);
@@ -92,8 +108,10 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
     if (next.records[record.commandId].historyEntry?.effectsMutation) {
       next.records[record.commandId].historyEntry.effectsMutation.recoveryScope = { roomId: next.records[record.commandId].roomId, scopeId: base.scopeId };
     }
+    next.records[record.commandId].historyEntry = storedHistoryEntry(next.records[record.commandId].historyEntry);
     await write(next, isCurrent, record.commandId);
-    return clone(next.records[record.commandId]);
+    const saved = clone(next.records[record.commandId]);
+    return { ...saved, historyEntry: usableHistoryEntry(saved.historyEntry) };
   }
 
   async function remove(record, isCurrent, completed = false) {
@@ -139,6 +157,7 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
   async function resume(input, isCurrent, { canonicalCommitted = false, deferHistory = false } = {}) {
     let record = clone(input);
     if (!compatible(record)) return null;
+    record.historyEntry = usableHistoryEntry(record.historyEntry);
     try {
       check(isCurrent);
       if (record.phase === "PREPARED") {
@@ -146,9 +165,9 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
         check(isCurrent);
         if (state === "before") { await remove(record, isCurrent); return null; }
         if (state !== "after") throw new Error("recovery-canonical-conflict");
-        // Without side effects HISTORY_PENDING always follows CANONICAL_COMMITTED: a deferred command writes it
-        // at once, one scene write less, with the same crash window after the canonical commit.
-        const skipToHistory = deferHistory && !record.sideEffects.length;
+        // Without side effects HISTORY_PENDING always follows CANONICAL_COMMITTED: every command writes it at once,
+        // one scene write less, with the same crash window after the canonical commit.
+        const skipToHistory = !record.sideEffects.length;
         record = await save({ ...record, phase: skipToHistory ? "HISTORY_PENDING" : "CANONICAL_COMMITTED" }, isCurrent);
       }
       if (record.phase !== "HISTORY_PENDING" && record.phase !== "COMPLETE") {
@@ -169,7 +188,10 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
         check(isCurrent);
         await appendHistory(record.historyEntry, record.commandId);
         check(isCurrent);
-        record = await save({ ...record, phase: "COMPLETE" }, isCurrent);
+        // The History owner keeps one entry per id (appending it again is a duplicate, a no-op): the cleanup below
+        // is the progress mark, one scene write less. If it fails, a later recovery appends the same entry again
+        // harmlessly and clears the record; the caller already knows its History is written.
+        record = { ...record, phase: "COMPLETE" };
       }
       await remove(record, isCurrent, true);
       return result(record, true);
