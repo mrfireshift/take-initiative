@@ -1,5 +1,6 @@
 import OBR, { buildImage } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { describeError } from "./errorText.js";
 import { buildSharedHpPreview } from "./sharedHpViewCore.js";
 import { calculateQuickHPChange } from "./quickHpCore.js";
 import { renderSharedHpControls } from "./sharedHpControls.js";
@@ -106,7 +107,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         if(["conflict","rejected"].includes(error?.status) && error.result?.committed!==true && draft) {
           closeDraft({persist:false});
         }
-        setStatus(String(error?.message || error));
+        setStatus(describeError(error));
       }
     }
     finally {

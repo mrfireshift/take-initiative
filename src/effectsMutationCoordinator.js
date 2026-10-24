@@ -1,3 +1,5 @@
+import { describeError } from "./errorText.js";
+
 export const EFFECTS_MUTATION_STATUS = Object.freeze({
   APPLIED: "applied",
   REJECTED: "rejected",
@@ -22,7 +24,8 @@ function clone(value) {
 function serializeError(error) {
   return {
     name: String(error?.name || "Error"),
-    message: String(error?.message || error || "Operazione effetti fallita."),
+    // A plain object thrown below (an Owlbear rejection, a store error) keeps its content, not "[object Object]".
+    message: describeError(error, "Operazione effetti fallita."),
   };
 }
 

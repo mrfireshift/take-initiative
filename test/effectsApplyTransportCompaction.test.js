@@ -14,15 +14,15 @@ const { buildEffectsMutationResultMessages } = await import("../src/effectsMutat
 const { sharedHpCommittedUpdates } = await import("../src/sharedHpViewCore.js");
 
 const bytes = (value) => new TextEncoder().encode(JSON.stringify(value)).length;
-const heavy = (id) => Array.from({ length: 25 }, (_, index) => ({ id: `${id}-effect-${index}`, condition: "Benedetto", detail: "x".repeat(300) }));
+const heavy = (id, count = 25) => Array.from({ length: count }, (_, index) => ({ id: `${id}-effect-${index}`, condition: "Benedetto", detail: "x".repeat(300) }));
 
 // The coordinator result as the background broker sends it: the plan's keys spread at the top level (same objects).
-function appliedResult({ kind = "monster-action", historyPending = false } = {}) {
+function appliedResult({ kind = "monster-action", historyPending = false, effects = 25 } = {}) {
   const changes = ["dars", "mira"].map((id) => ({
     id,
     fields: { conditions: true, spells: false },
-    before: { conditions: heavy(id), spells: [], concentrations: {} },
-    after: { conditions: [...heavy(id), { id: `${id}-blinded`, condition: "Accecato" }], spells: [], concentrations: {} },
+    before: { conditions: heavy(id, effects), spells: [], concentrations: {} },
+    after: { conditions: [...heavy(id, effects), { id: `${id}-blinded`, condition: "Accecato" }], spells: [], concentrations: {} },
     metadataFields: { hp: true, hpMax: true },
     beforeMetadata: { hp: { present: true, value: 40 }, hpMax: { present: true, value: 60 } },
     afterMetadata: { hp: { present: true, value: 13 }, hpMax: { present: true, value: 60 } },
@@ -68,9 +68,16 @@ test("other commands keep their full changes; a pending History keeps its full e
   assert.equal(spell.plan.changes[0].after.conditions.length, 26, "a spell's callers read the conditions after");
   assert.equal(spell.historyEntry.changes, undefined);
   assert.equal(spell.plan.metadataAssertions, undefined);
-  const pending = compactBackgroundApplyTransportResult(appliedResult({ historyPending: true }));
-  assert.equal(pending.historyEntry.changes.length, 2, "the client keeps the pending History until it is appended");
-  assert.equal(pending.plan.changes[0].before.conditions.length, 25, "and the plan it can rebuild it from");
+  const pending = compactBackgroundApplyTransportResult(appliedResult({ historyPending: true, effects: 2 }));
+  assert.equal(pending.historyEntry.changes.length, 2, "the client keeps a small pending History until it is appended");
+  assert.equal(pending.plan.changes[0].before.conditions.length, 2, "and the plan it can rebuild it from");
+  assert.equal(pending.historyBackgroundOnly, undefined);
+  // An entry too large for the client's own 16 kB broadcast to the owner: only the background delivers it.
+  const large = compactBackgroundApplyTransportResult(appliedResult({ historyPending: true }));
+  assert.equal(large.historyBackgroundOnly, true);
+  assert.equal(large.historyEntry.changes, undefined, "the entry stays in the background");
+  assert.equal(large.historyEntry.id, "effects-history:slam-1");
+  assert.equal(buildEffectsMutationResultMessages("request-2", large).length, 1, "the answer fits one message");
   const failed = { status: "conflict", committed: false, conflicts: [{ reason: "stale" }] };
   assert.deepEqual(compactBackgroundApplyTransportResult(failed), failed);
 });

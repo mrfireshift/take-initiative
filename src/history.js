@@ -372,6 +372,26 @@ function sameValues(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+// Only the fields an action changed go in its entry: a heal on six characters full of effects used to carry every
+// effect of every one of them twice (before and after), over 16 kB, and the entry could not reach the History owner.
+// Undo reads the fields an entry holds, so an unchanged field it no longer holds is one it leaves alone. HP and max HP
+// stay together, as the combat log shows them ("40/60 → 33/60").
+const HISTORY_FIELDS_KEPT_TOGETHER = Object.freeze([["hp", "hpMax"]]);
+
+export function changedHistoryFields(beforeValues = {}, afterValues = {}) {
+  const fields = Object.keys({ ...beforeValues, ...afterValues });
+  const changed = new Set(fields.filter((field) => !sameValues(beforeValues[field], afterValues[field])));
+  for (const group of HISTORY_FIELDS_KEPT_TOGETHER) {
+    if (group.some((field) => changed.has(field))) {
+      for (const field of group) if (fields.includes(field)) changed.add(field);
+    }
+  }
+  const pick = (values) => Object.fromEntries(fields
+    .filter((field) => changed.has(field) && Object.prototype.hasOwnProperty.call(values, field))
+    .map((field) => [field, values[field]]));
+  return { before: pick(beforeValues), after: pick(afterValues) };
+}
+
 function itemPosition(item) {
   const x = Number(item?.position?.x);
   const y = Number(item?.position?.y);
@@ -949,11 +969,12 @@ export async function withItemMetaHistory(options, action) {
       const changes = before.map((item) => {
         const next = afterById.get(item.id);
         if (!next || sameValues(item.values, next.values)) return null;
+        const { before: changedBefore, after: changedAfter } = changedHistoryFields(item.values, next.values);
         return {
           id: item.id,
           name: next.name || item.name,
-          before: item.values,
-          after: next.values,
+          before: changedBefore,
+          after: changedAfter,
         };
       }).filter(Boolean);
       const sceneAfterById = new Map(sceneAfter.map((entry) => [entry.id, entry.item]));

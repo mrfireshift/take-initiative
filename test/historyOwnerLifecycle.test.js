@@ -75,6 +75,7 @@ mock.module("@owlbear-rodeo/sdk", { exports: { default: sdkStub } });
 const {
   getHistoryOwnerState,
   mountHistoryOwner,
+  readHistoryValue,
   requestHistoryOwnerAppend,
   unmountHistoryOwner,
 } = await import("../src/historyOwner.js");
@@ -267,4 +268,39 @@ test("dispose durante bootstrap impedisce qualunque aggiornamento tardivo", asyn
   assert.equal(await mounting, false);
   assert.equal(getHistoryOwnerState().scene.ready, false);
   assert.equal(listeners.size, 0);
+});
+
+test("an entry over Owlbear's 16 kB broadcast limit reaches the owner of the same page (Blinding Gleam on four characters)", async () => {
+  const first = await mountReadyOwner();
+  const originalSendMessage = sdkStub.broadcast.sendMessage;
+  const refused = [];
+  // Owlbear refuses a broadcast over 16 kB, with an object and no message.
+  sdkStub.broadcast.sendMessage = async (channel, data, options) => {
+    if (new TextEncoder().encode(JSON.stringify(data)).length > 16 * 1024) {
+      refused.push(channel);
+      throw { error: "message too large" };
+    }
+    return originalSendMessage(channel, data, options);
+  };
+  try {
+    const large = entry("blinding-gleam");
+    large.changes = Array.from({ length: 4 }, (_, index) => ({
+      id: `token-${index}`, before: { conditions: "x".repeat(12000) }, after: { conditions: "y".repeat(12000) },
+    }));
+    const result = await requestHistoryOwnerAppend(large, {
+      sceneEpoch: currentSceneEpoch(),
+      sceneIdentity: first.identity,
+      commandId: "history-owner-large-entry",
+    });
+    assert.equal(result.status, "appended");
+    assert.deepEqual(refused, [], "no broadcast was even tried");
+    const stored = await readHistoryValue();
+    assert.ok(stored.entries.some((value) => value.id === "blinding-gleam"));
+    // A small entry still travels by broadcast, with its checks.
+    assert.equal((await requestHistoryOwnerAppend(entry("small"), {
+      sceneEpoch: currentSceneEpoch(), sceneIdentity: first.identity, commandId: "history-owner-small-entry",
+    })).status, "appended");
+  } finally {
+    sdkStub.broadcast.sendMessage = originalSendMessage;
+  }
 });

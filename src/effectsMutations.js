@@ -83,6 +83,7 @@ import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSetContext, p
 import {
   buildEffectsMutationResultMessages,
   createEffectsMutationResultAssembler,
+  effectsMutationTransportJsonBytes,
 } from "./effectsMutationTransportCore.js";
 import {
   elevationInputToCanonical,
@@ -396,7 +397,13 @@ export function compactBackgroundApplyTransportResult(result) {
       ...(!Array.isArray(plan.changes) && commitChanges ? { changes: commitChanges } : {}),
     };
   }
-  const historyKept = result.historyPending && result.historySkipped !== true;
+  // A pending History entry goes back for the client to retry, unless it is too large for the client's broadcast to
+  // the owner: then only the background, which keeps its own copy, can deliver it (historyBackgroundOnly).
+  const historyPendingHere = result.historyPending && result.historySkipped !== true;
+  const historyBackgroundOnly = historyPendingHere
+    && jsonUtf8Bytes(result.historyEntry || null) > CLIENT_HISTORY_RETRY_MAX_BYTES;
+  const historyKept = historyPendingHere && !historyBackgroundOnly;
+  if (historyBackgroundOnly) compact.historyBackgroundOnly = true;
   // The Boss and attack consoles read only each change's id and HP after the hit (sharedHpCommittedUpdates): once
   // the History is written their changes go back as that, whatever the targets' effects weigh.
   if (!historyKept && COMPACT_CHANGES_TRANSPORT_KINDS.has(String(result.kind || "")) && Array.isArray(plan.changes)) {
@@ -485,6 +492,9 @@ function backgroundResponseErrorDetails(error) {
     nestedErrorMessage: nested?.message ?? null,
   };
 }
+
+// The largest History entry a client page retries itself: the owner's broadcast must still fit 16 kB.
+const CLIENT_HISTORY_RETRY_MAX_BYTES = 14 * 1024;
 
 function isBackgroundRuntime(options = {}) {
   const pathname = String(globalThis.location?.pathname || "");
@@ -4651,6 +4661,10 @@ export async function runEffectsMutation(operations = [], options = {}) {
       && !(compatible?.commitResult?.sideEffectsPending?.length)
       // The background recovery journal owns that History: a local copy would never be released here.
       && compatible?.commitResult?.recoveryManaged !== true
+      // An entry over Owlbear's 16 kB broadcast limit (many effects on several targets) can only reach the History
+      // owner from the background, which keeps its own copy: a retry from here would fail forever.
+      && compatible?.historyBackgroundOnly !== true
+      && effectsMutationTransportJsonBytes(compatible.historyEntry || null) <= CLIENT_HISTORY_RETRY_MAX_BYTES
     ) {
       // Mantieni anche nel realm chiamante la History deferred finché l'owner
       // non conferma l'append; stessa commandId = append idempotente.

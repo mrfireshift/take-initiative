@@ -59,6 +59,13 @@ function normalizeOwnerHistory(value) {
   });
 }
 
+// Owlbear's broadcast limit (effectsMutationTransportCore.js), with room for the transport's own fields.
+const HISTORY_OWNER_BROADCAST_MAX_BYTES = 15 * 1024;
+
+function jsonBytes(value) {
+  try { return new TextEncoder().encode(JSON.stringify(value)).length; } catch { return Infinity; }
+}
+
 function errorDetails(error) {
   return {
     name: String(error?.name || "Error"),
@@ -413,43 +420,45 @@ function rejectPendingRequest(requestId, pending, message, code, result = null) 
   ));
 }
 
+// One owner answer, from the broadcast or from the owner of this page: the same scene and identity checks.
+function receiveOwnerResult(data) {
+  const pending = clientPendingRequests.get(data?.requestId);
+  if (!pending) return;
+  if (pending.generation !== clientGeneration || !isCurrentSceneEpoch(pending.sceneEpoch)) {
+    rejectPendingRequest(
+      data.requestId,
+      pending,
+      "La risposta della cronologia appartiene a una scena obsoleta.",
+      "stale-scene",
+      data?.result || null,
+    );
+    return;
+  }
+  if (pending.sceneIdentity && data?.result?.sceneIdentity !== pending.sceneIdentity) {
+    rejectPendingRequest(
+      data.requestId,
+      pending,
+      "La risposta della cronologia appartiene a un'identità di scena del gestore obsoleta.",
+      "stale-scene-identity",
+      data?.result || null,
+    );
+    return;
+  }
+  clientPendingRequests.delete(data.requestId);
+  clearTimeout(pending.timer);
+  pending.resolve(data.result || {
+    requestId: data.requestId,
+    status: HISTORY_OWNER_STATUS.FAILED,
+    changed: false,
+    error: { name: "HistoryOwnerTransportError", message: "Risposta owner mancante." },
+  });
+}
+
 function ensureClientTransport() {
   if (clientResultUnsubscribe || typeof OBR?.broadcast?.onMessage !== "function") return;
   clientResultUnsubscribe = OBR.broadcast.onMessage(
     HISTORY_OWNER_RESULT_CHANNEL,
-    (event) => {
-      const data = event?.data;
-      const pending = clientPendingRequests.get(data?.requestId);
-      if (!pending) return;
-      if (pending.generation !== clientGeneration || !isCurrentSceneEpoch(pending.sceneEpoch)) {
-        rejectPendingRequest(
-          data.requestId,
-          pending,
-          "La risposta della cronologia appartiene a una scena obsoleta.",
-          "stale-scene",
-          data?.result || null,
-        );
-        return;
-      }
-      if (pending.sceneIdentity && data?.result?.sceneIdentity !== pending.sceneIdentity) {
-        rejectPendingRequest(
-          data.requestId,
-          pending,
-          "La risposta della cronologia appartiene a un'identità di scena del gestore obsoleta.",
-          "stale-scene-identity",
-          data?.result || null,
-        );
-        return;
-      }
-      clientPendingRequests.delete(data.requestId);
-      clearTimeout(pending.timer);
-      pending.resolve(data.result || {
-        requestId: data.requestId,
-        status: HISTORY_OWNER_STATUS.FAILED,
-        changed: false,
-        error: { name: "HistoryOwnerTransportError", message: "Risposta owner mancante." },
-      });
-    },
+    (event) => receiveOwnerResult(event?.data),
   );
   clientSceneEpochUnsubscribe = subscribeSceneEpoch(({ phase }) => {
     if (phase !== "unload") return;
@@ -505,9 +514,28 @@ function sendOwnerRequest(payload, { sceneEpoch = currentSceneEpoch() } = {}) {
       correlationId: payload.correlationId,
       entryId: payload.entry?.id || null,
     });
+    const command = { ...payload, requestId };
+    // An Owlbear broadcast refuses messages over 16 kB: an entry with many effects on several targets (Blinding
+    // Gleam on four characters, about 90 kB) could never reach the owner, and its answer, which repeats the entry,
+    // could never come back. The owner of this very page (the GM background, where the Effects coordinator appends
+    // its History) takes it directly; its answer goes through the same checks as a broadcast one.
+    if (ownerBroker && ownerCommandUnsubscribe && jsonBytes(command) > HISTORY_OWNER_BROADCAST_MAX_BYTES) {
+      const broker = ownerBroker;
+      void broker.handle(clone(command))
+        .catch((error) => ({
+          requestId,
+          commandId: command.commandId || requestId,
+          correlationId: command.correlationId || command.commandId || requestId,
+          status: HISTORY_OWNER_STATUS.FAILED,
+          changed: false,
+          error: errorDetails(error),
+        }))
+        .then((result) => receiveOwnerResult({ requestId, result }));
+      return;
+    }
     void OBR.broadcast.sendMessage(
       HISTORY_OWNER_COMMAND_CHANNEL,
-      { ...payload, requestId },
+      command,
       { destination: "LOCAL" },
     ).catch((error) => {
       const pending = clientPendingRequests.get(requestId);
