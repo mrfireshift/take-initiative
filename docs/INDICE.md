@@ -77,6 +77,7 @@ generati possono quindi cambiare senza rendere obsolete le guide operative.
 - [ARCH-005 — Reconciler idempotenti](ARCH-005-IDEMPOTENT-RECONCILERS.md)
 - [ARCH-006 — Gateway dello stato iniziativa](ARCH-006-INITIATIVE-STATE-GATEWAY.md)
 - [ARCH-008 — Snapshot fanout](ARCH-008-SNAPSHOT-FANOUT.md)
+- [ARCH-009 — History e journal fuori dalla scena (progetto)](ARCH-009-HISTORY-LOCAL-STORE.md)
 - [Effetti local items](EFFETTI_LOCAL_ITEMS.md) — nota di implementazione completata.
 
 Questi documenti spiegano vincoli che devono essere rispettati durante lo
