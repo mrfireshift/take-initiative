@@ -581,6 +581,10 @@ const __initiativeTemporalLane = createInitiativeTemporalLane({
 
 function __ensureInitiativeTemporalSceneIdentity(sceneEpoch = currentSceneEpoch()) {
   if (typeof getEffectsMutationSceneContext !== "function") return Promise.resolve("");
+  // The Effects coordinator runs only in the GM's background and a Player never applies temporal
+  // mutations: asking it from a Player tracker only waited for two 8 s timeouts. The role is known
+  // before both callers (bootstrap and scene ready after bootstrap).
+  if (!IS_GM) return Promise.resolve("");
   if (__temporalSceneIdentity) return Promise.resolve(__temporalSceneIdentity);
   if (__temporalSceneIdentityPromise) return __temporalSceneIdentityPromise;
 
@@ -5729,6 +5733,19 @@ function concentrationWarningUsesCrossRealmScope() {
   return typeof getEffectsMutationSceneContext === "function";
 }
 
+// The listener mounts before the role is known. Only an explicit Player skips the handshake with the
+// GM-only Effects coordinator (it timed out twice, then the warning was dropped anyway); an unknown or
+// unreadable role keeps the handshake.
+async function concentrationWarningSkipsHandshake() {
+  const getRole = OBR?.player?.getRole;
+  if (typeof getRole !== "function") return false;
+  try {
+    return String(await getRole.call(OBR.player) || "").toUpperCase() === "PLAYER";
+  } catch {
+    return false;
+  }
+}
+
 function ensureConcentrationWarningRuntimeScope() {
   if (!concentrationWarningUsesCrossRealmScope()) return Promise.resolve("");
   if (__concentrationWarningRuntimeScope) {
@@ -5739,9 +5756,11 @@ function ensureConcentrationWarningRuntimeScope() {
   }
   const generation = __concentrationWarningRuntimeGeneration;
   const promise = Promise.resolve()
-    .then(() => getEffectsMutationSceneContext({
-      commandId: `concentration-warning-host:${generation}`,
-    }))
+    .then(async () => (await concentrationWarningSkipsHandshake()
+      ? null
+      : getEffectsMutationSceneContext({
+        commandId: `concentration-warning-host:${generation}`,
+      })))
     .then((context) => {
       const scope = String(context?.sceneIdentity || "").trim();
       if (generation === __concentrationWarningRuntimeGeneration && scope) {
@@ -6083,9 +6102,11 @@ async function reacquireConcentrationWarningRuntimeScope(
     return __concentrationWarningScopeRefreshPromise;
   }
   const refresh = Promise.resolve()
-    .then(() => getEffectsMutationSceneContext({
-      commandId: `concentration-warning-scope-refresh:${generation}`,
-    }))
+    .then(async () => (await concentrationWarningSkipsHandshake()
+      ? null
+      : getEffectsMutationSceneContext({
+        commandId: `concentration-warning-scope-refresh:${generation}`,
+      })))
     .then((context) => {
       const freshScope = String(context?.sceneIdentity || "").trim();
       if (

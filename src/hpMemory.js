@@ -300,6 +300,8 @@ async function rescanAndPersistAttitudes(sceneEpoch = currentSceneEpoch(), provi
 
 // ——— API: chiamala una volta in onReady (facoltativa ma pulita)
 export async function initHPMemory() {
+  // Only the GM reads this memory; a Player tracker rewriting it raced the GM's own writes.
+  if (!await isGMAuthorized()) return;
   const sceneEpoch = currentSceneEpoch();
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   // best-effort: assicura che la struttura esista
