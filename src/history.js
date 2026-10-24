@@ -13,6 +13,7 @@ import {
   subscribeSceneEpoch,
 } from "./sceneEpoch.js";
 import {
+  readHistoryValue,
   requestHistoryOwnerAppend,
   requestHistoryOwnerRemove,
 } from "./historyOwner.js";
@@ -1102,8 +1103,7 @@ export async function withItemMetaHistory(options, action) {
 }
 
 export async function getHistoryEntries() {
-  const md = await OBR.scene.getMetadata();
-  return normalizeHistory(md?.[HISTORY_KEY]).entries.slice();
+  return normalizeHistory(await readHistoryValue()).entries.slice();
 }
 
 function historyChainToken(entries) {
@@ -2251,11 +2251,11 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
     return pendingHistoryRemovalUndoResult(removalBarrier.pendingIds);
   }
 
-  const md = await OBR.scene.getMetadata();
+  const historyValue = await readHistoryValue();
   if (!isCurrentSceneEpoch(sceneEpoch)) {
     return decorateUndoResult([], undoResult("rejected", "stale-after-history-read"));
   }
-  const history = normalizeHistory(md?.[HISTORY_KEY]);
+  const history = normalizeHistory(historyValue);
   if (!history.entries.length) {
     return decorateUndoResult([], undoResult("noop", "history-empty"));
   }

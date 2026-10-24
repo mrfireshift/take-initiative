@@ -124,29 +124,47 @@ function probeOwnerPhase(phase, command, run) {
   return Promise.resolve(run()).finally(finish);
 }
 
-function createOwnerBroker() {
-  ownerBroker = createHistoryOwnerBroker({
-    maxEntries: HISTORY_OWNER_MAX_ENTRIES,
-    readHistory: async ({ command } = {}) => {
-      const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
-      const metadata = await OBR.scene.getMetadata();
-      if (perfProbeEnabled()) {
-        perfRecord("history-read", {
-          commandId: String(command?.requestId || command?.commandId || ""),
-          durationMs: perfSince(probeStartedAt),
-          sceneMetadataBytes: perfJsonBytes(metadata),
-          historyBytes: perfJsonBytes(metadata?.[HISTORY_KEY]),
-          historyEntries: Array.isArray(metadata?.[HISTORY_KEY]?.entries) ? metadata[HISTORY_KEY].entries.length : 0,
-        });
-      }
-      return metadata?.[HISTORY_KEY];
-    },
-    writeHistory: (history, { command } = {}) => probeOwnerPhase("write", command, () => writeSceneMetadataKey(
+// Where the History value lives (ARCH-009). Every reader and the owner go through this storage; this file stays
+// the only writer of the History key. Step 1: the scene metadata, exactly as before.
+const sceneHistoryStorage = Object.freeze({
+  async read({ commandId = "" } = {}) {
+    const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
+    const metadata = await OBR.scene.getMetadata();
+    if (perfProbeEnabled() && commandId) {
+      perfRecord("history-read", {
+        commandId,
+        durationMs: perfSince(probeStartedAt),
+        sceneMetadataBytes: perfJsonBytes(metadata),
+        historyBytes: perfJsonBytes(metadata?.[HISTORY_KEY]),
+        historyEntries: Array.isArray(metadata?.[HISTORY_KEY]?.entries) ? metadata[HISTORY_KEY].entries.length : 0,
+      });
+    }
+    return metadata?.[HISTORY_KEY];
+  },
+  write(history) {
+    return writeSceneMetadataKey(
       OBR.scene,
       METADATA_OWNERSHIP.HISTORY,
       history,
       { runtime: "historyOwner" },
-    )),
+    );
+  },
+});
+
+const historyStorage = sceneHistoryStorage;
+
+// The raw stored History value, for the readers in any GM iframe (getHistoryEntries, Undo).
+export function readHistoryValue() {
+  return historyStorage.read();
+}
+
+function createOwnerBroker() {
+  ownerBroker = createHistoryOwnerBroker({
+    maxEntries: HISTORY_OWNER_MAX_ENTRIES,
+    readHistory: ({ command } = {}) => historyStorage.read({
+      commandId: String(command?.requestId || command?.commandId || ""),
+    }),
+    writeHistory: (history, { command } = {}) => probeOwnerPhase("write", command, () => historyStorage.write(history)),
     notify: (result, { command } = {}) => probeOwnerPhase("notify", command, async () => {
       await OBR.broadcast.sendMessage(
         HISTORY_CHANGE_CHANNEL,

@@ -36,9 +36,20 @@ export function supportsEffectsRecovery(command, plan = null) {
     && (plan?.preparedSideEffects || command.sideEffects || []).every((effect) => supported.has(effect.type));
 }
 
+// Where the journal lives (ARCH-009). Step 1: the scene metadata key, exactly as before.
+export function createSceneEffectsRecoveryStorage(obr) {
+  return Object.freeze({
+    read: async () => (await obr.scene.getMetadata())[EFFECTS_RECOVERY_KEY],
+    write: (value) => writeSceneMetadataKey(obr.scene, METADATA_OWNERSHIP.EFFECTS_RECOVERY, value, { runtime: "effectsRecovery" }),
+  });
+}
+
 // One instance belongs to the GM background. Every method is invoked on the
 // existing Effects coordinator lane; this module owns no queue or subscription.
-export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspectCanonical, applySideEffect }) {
+export function createEffectsRecovery({
+  obr, buildHistory, appendHistory, inspectCanonical, applySideEffect,
+  storage = createSceneEffectsRecoveryStorage(obr),
+}) {
   let store = null;
   let scope = null;
   let uncertain = false;
@@ -52,10 +63,9 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
   const check = (isCurrent) => { if (!isCurrent()) throw new Error("recovery-scene-changed"); };
 
   async function load(isCurrent) {
-    const metadata = await obr.scene.getMetadata();
+    const saved = await storage.read();
     check(isCurrent);
     uncertain = false;
-    const saved = metadata[EFFECTS_RECOVERY_KEY];
     if (saved && !validStore(saved)) {
       store = saved; scope = null;
       return;
@@ -94,7 +104,7 @@ export function createEffectsRecovery({ obr, buildHistory, appendHistory, inspec
         : "effects-recovery-budget-exceeded");
     }
     if (probePhase) perfRecord("recovery-write", { phase: probePhase, records: recordCount, receipts: next.receipts?.length || 0 });
-    try { await writeSceneMetadataKey(obr.scene, METADATA_OWNERSHIP.EFFECTS_RECOVERY, durable(next), { runtime: "effectsRecovery" }); }
+    try { await storage.write(durable(next)); }
     catch (error) {
       // A lost response may still have persisted the phase or receipt.
       // Refresh the cache before a later command can overwrite that progress.
