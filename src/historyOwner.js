@@ -17,6 +17,7 @@ import {
   createLocalHistoryDatabase,
   localStoreFlagEnabled,
   migrateLegacyHistory,
+  pruneLocalStores,
 } from "./historyLocalStore.js";
 import {
   METADATA_OWNERSHIP,
@@ -111,7 +112,35 @@ function setOwnerSceneContext(ready) {
     sceneIdentity: ownerSceneIdentity,
     sceneEpoch: ownerSceneEpoch,
   });
-  if (ownerSceneReady) scheduleLegacyHistoryMigration(ownerBroker, ownerSceneIdentity);
+  if (ownerSceneReady) {
+    scheduleLegacyHistoryMigration(ownerBroker, ownerSceneIdentity);
+    scheduleLocalStorePrune();
+  }
+}
+
+// ARCH-009 step 7: once per page, with the local store on, a while after the first scene is ready (not competing with
+// the start), delete the local stores not written for 30 days, keeping the current scene's History and journal.
+const LOCAL_STORE_PRUNE_DELAY_MS = 15000;
+let localStorePruneScheduled = false;
+function scheduleLocalStorePrune() {
+  if (localStorePruneScheduled || !localHistoryStoreEnabled()) return;
+  localStorePruneScheduled = true;
+  setTimeout(() => {
+    void (async () => {
+      const metadata = await OBR.scene.getMetadata();
+      const head = metadata?.[HISTORY_KEY];
+      const anchor = metadata?.[METADATA_OWNERSHIP.EFFECTS_RECOVERY.key];
+      const removed = await pruneLocalStores({
+        keepHistoryStoreIds: [typeof head?.storeId === "string" ? head.storeId : ""],
+        keepRecoveryScopeIds: [typeof anchor?.scopeId === "string" ? anchor.scopeId : ""],
+      });
+      if (removed.historyRemoved.length || removed.recoveryRemoved.length) {
+        console.info("[history-local-store] old local stores removed:", removed);
+      }
+    })().catch((error) => {
+      console.warn("[history-local-store] prune:", error?.message || error);
+    });
+  }, LOCAL_STORE_PRUNE_DELAY_MS);
 }
 
 // ARCH-009 step 3, flag on only: move a History still whole in the scene to IndexedDB at owner start.

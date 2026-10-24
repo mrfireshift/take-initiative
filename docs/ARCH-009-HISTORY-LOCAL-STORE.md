@@ -1,6 +1,6 @@
 # ARCH-009 — History e journal di recovery fuori dai metadata di scena
 
-Stato: **progetto, non implementato**. Base: `17adacd`. Contratti toccati:
+Stato: **implementato** (passi 1–7, da `f228c44`; flag acceso per default da `dd881a7`). Base del progetto: `17adacd`. Contratti aggiornati:
 [ARCH-005 — History owner](ARCH-005-HISTORY-OWNER.md),
 [ARCH-05B — recovery persistente](ARCH-05B-RECOVERY.md).
 
@@ -134,7 +134,7 @@ Nuovo database separato dal Combat Log, così le versioni non si legano: `com.th
 | GM in finestra in incognito | IndexedDB effimero | la History vive finché la finestra è aperta. Al tavolo il GM usa la finestra normale |
 | Cambio stanza | `roomId` diverso | ignorato, come oggi `normalizeHistory` scarta le voci di altre room |
 
-Pulizia: gli store non toccati da più di N giorni vengono eliminati al mount dell'owner (decisione D5).
+Pulizia (D5, passo 7): una volta per apertura, 15 s dopo la prima scena pronta e solo a flag acceso, `pruneLocalStores` elimina gli store di History e journal non scritti da 30 giorni (`touchedAt`). Restano sempre gli store della scena attuale (testa e ancora lette dalla scena), i journal con record pendenti e i record senza data valida. Un ritorno a una scena non giocata da più di 30 giorni la mostra quindi con una Cronologia vuota (caso «store mancante», con avviso).
 
 ### 4.5 Migrazione
 
@@ -174,7 +174,7 @@ Ogni passo ha build, test completi e, dove indicato, una misura con il probe.
 | **4** ✅ | Adattatore IndexedDB del journal (`createLocalEffectsRecoveryStorage` in `effectsRecovery.js`, database versione 2 con `recoveryStores`) con ancora v2 e durabilità `strict`, a flag acceso. A flag spento lettura e scrittura hanno i passaggi asincroni di prima | cambia solo a flag acceso | medio-alto: tocca il recovery |
 | **5** | Prova in room del DM, flag acceso solo nel browser GM: sessione completa e misura con il probe | — | — |
 | **6** ✅ | Flag acceso per default nel browser del GM: `localStorage["com.thebigpicture.initiative/history-local-store"] = "0"` lo spegne (History e journal tornano interi in scena alla scrittura successiva); senza un `localStorage` utilizzabile (non un browser, o storage del sito bloccato) resta la scena. Test: `test/localHistoryStorageIntegration.test.js` rifà in `npm test` 16 suite di History, Undo e recovery con lo storage locale; `npm run test:local-store` rifà l'intera suite, esclusi i file elencati in `test-support/localHistoryStorageSuites.js` con il motivo (leggono la scena direttamente o condividono il `localStorage`). La prova in suite ha trovato e corretto un difetto del passo 4: l'ancora del journal ora viene ricontrollata a ogni nuovo comando | cambia per tutti | medio |
-| **7** | Pulizia degli store vecchi; aggiornamento di ARCH-005 (History per browser) e ARCH-05B (journal locale) | — | basso |
+| **7** ✅ | Pulizia degli store vecchi (`pruneLocalStores` in `historyLocalStore.js`, avviata da `historyOwner.js`); aggiornamento di ARCH-005 (History per browser) e ARCH-05B (journal locale) | elimina solo dati locali vecchi | basso |
 
 Il passo 1 si può committare da solo. I passi 2–4 lasciano il comportamento di produzione invariato
 finché il flag è spento.

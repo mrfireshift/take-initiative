@@ -15,6 +15,8 @@ import {
   createLocalHistoryDatabase,
   localStoreFlagEnabled,
   migrateLegacyHistory,
+  pruneLocalStores,
+  LOCAL_STORE_MAX_AGE_MS,
 } from "../src/historyLocalStore.js";
 import { HISTORY_OWNER_STATUS, createHistoryOwnerBroker, rewriteHistoryForStorage } from "../src/historyOwnerCore.js";
 
@@ -440,4 +442,48 @@ test("flag di ARCH-009: acceso per default nel browser, \"0\" lo spegne, senza l
     if (previous) Object.defineProperty(globalThis, "localStorage", previous);
     else delete globalThis.localStorage;
   }
+});
+
+test("pulizia (D5): via gli archivi non scritti da 30 giorni; restano quelli della scena attuale e i journal pendenti", async () => {
+  const indexedDB = createVersionedIndexedDB();
+  const now = Date.UTC(2026, 9, 24);
+  const day = 24 * 60 * 60 * 1000;
+  indexedDB.seed(HISTORY_LOCAL_DB_NAME, {
+    version: 2,
+    stores: {
+      historyStores: { keyPath: "storeId", records: [
+        { storeId: "recent", rev: 1, history: history([]), touchedAt: now - 2 * day },
+        { storeId: "old", rev: 4, history: history([entry("a", 1)]), touchedAt: now - 31 * day },
+        { storeId: "old-current", rev: 9, history: history([entry("b", 1)]), touchedAt: now - 90 * day },
+        { storeId: "no-date", rev: 1, history: history([]) },
+      ] },
+      recoveryStores: { keyPath: "scopeId", records: [
+        { scopeId: "recent-journal", store: { schemaVersion: 1, scopeId: "recent-journal", records: {}, receipts: [] }, touchedAt: now - day },
+        { scopeId: "old-journal", store: { schemaVersion: 1, scopeId: "old-journal", records: {}, receipts: [{ commandId: "c" }] }, touchedAt: now - 40 * day },
+        { scopeId: "old-pending", store: { schemaVersion: 1, scopeId: "old-pending", records: { c1: { phase: "PREPARED" } }, receipts: [] }, touchedAt: now - 40 * day },
+        { scopeId: "old-current-journal", store: { schemaVersion: 1, scopeId: "old-current-journal", records: {}, receipts: [] }, touchedAt: now - 40 * day },
+      ] },
+    },
+  });
+
+  const removed = await pruneLocalStores({
+    indexedDB,
+    now,
+    keepHistoryStoreIds: ["old-current", ""],
+    keepRecoveryScopeIds: ["old-current-journal"],
+  });
+  assert.deepEqual(removed, { historyRemoved: ["old"], recoveryRemoved: ["old-journal"] });
+  const stores = indexedDB.inspect(HISTORY_LOCAL_DB_NAME).stores;
+  assert.deepEqual(stores.historyStores.records.map((record) => record.storeId).sort(), ["no-date", "old-current", "recent"]);
+  assert.deepEqual(stores.recoveryStores.records.map((record) => record.scopeId).sort(), ["old-current-journal", "old-pending", "recent-journal"]);
+
+  assert.equal(LOCAL_STORE_MAX_AGE_MS, 30 * day);
+  const again = await pruneLocalStores({ indexedDB, now, keepHistoryStoreIds: ["old-current"], keepRecoveryScopeIds: ["old-current-journal"] });
+  assert.deepEqual(again, { historyRemoved: [], recoveryRemoved: [] }, "a second pass removes nothing more");
+});
+
+test("pulizia su un database appena creato o senza IndexedDB: nessun errore inatteso", async () => {
+  const empty = await pruneLocalStores({ indexedDB: createVersionedIndexedDB(), now: Date.now() });
+  assert.deepEqual(empty, { historyRemoved: [], recoveryRemoved: [] });
+  await assert.rejects(pruneLocalStores({ indexedDB: null }), /history-local-store-unavailable/u);
 });

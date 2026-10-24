@@ -35,3 +35,26 @@ distribuita o un lock Room senza CAS. Il contratto di prodotto assume un solo
 GM autorevole per room/sessione: writer GM indipendenti e contemporanei sono
 fuori dal runtime supportato. Questo limite è accettato, non un follow-up di
 ARCH-005, e non richiede CAS, leader election o coordinamento distribuito.
+
+## Storage per browser (ARCH-009)
+
+Da `dd881a7` la History di una scena vive per default in IndexedDB del browser del GM (database
+`com.thebigpicture.initiative.history-store`, store `historyStores`), non più nei metadata di scena. Il contratto
+dell'owner non cambia: resta l'unico writer, applica la stessa retention di 30 entry, la stessa idempotenza per entry ID
+e la stessa coda; il broker (`historyOwnerCore.js`) riceve `readHistory`/`writeHistory` per iniezione e non sa dove
+sta la History.
+
+- La chiave `com.thebigpicture.initiative/history` resta, ma contiene una testa di poche centinaia di byte
+  (`version: 2`, `storeId`, `rev`, `seq`, `count`, `lastEntryId`, `entries: []`). I lettori di ogni iframe GM
+  (`getHistoryEntries`, Undo) leggono la testa dalla scena e le entry da IndexedDB, nello stesso browser.
+- Una History ancora intera in scena (versione 1) viene migrata all'avvio dell'owner con un comando `migrate` nella sua
+  coda, accettato solo dall'owner stesso, oppure alla prima scrittura.
+- Il flag `localStorage["com.thebigpicture.initiative/history-local-store"] = "0"` riporta la History intera in scena
+  alla scrittura successiva; senza `localStorage` o IndexedDB utilizzabili la History resta in scena.
+- La garanzia per-client diventa anche per-browser: un altro PC, o la pulizia dei dati del sito, mostrano una History
+  vuota per quella scena (con un avviso) senza toccare la scena. Le scene duplicate si separano al primo scritto grazie
+  a `rev` nella testa.
+- Gli store non scritti da 30 giorni vengono eliminati una volta per apertura (`pruneLocalStores`), tenendo sempre
+  quelli della scena attuale.
+
+Dettagli, rischi e decisioni: [ARCH-009](ARCH-009-HISTORY-LOCAL-STORE.md).

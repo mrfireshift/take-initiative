@@ -95,7 +95,57 @@ function createLocalStoreConnection(indexedDB) {
       tx.objectStore(storeName).put(record);
       await done;
     },
+    // Deletes, in one transaction, the records shouldDelete picks; returns their keys.
+    async prune(storeName, keyOf, shouldDelete) {
+      const db = await open();
+      const tx = db.transaction([storeName], "readwrite");
+      const done = transactionDone(tx);
+      const store = tx.objectStore(storeName);
+      const removed = [];
+      const request = store.getAll();
+      request.onsuccess = () => {
+        for (const record of request.result || []) {
+          if (!shouldDelete(record)) continue;
+          removed.push(keyOf(record));
+          store.delete(keyOf(record));
+        }
+      };
+      await done;
+      return removed;
+    },
   });
+}
+
+// ARCH-009 step 7 (D5): a scene's local store not written for 30 days is deleted, History and journal alike: scenes no
+// longer played, stores a duplicated scene left behind, orphans of an interrupted migration. Never the stores of the
+// current scene, nor a journal with pending records (a command that never finished keeps its evidence), nor a record
+// without a valid touchedAt.
+export const LOCAL_STORE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+export async function pruneLocalStores({
+  indexedDB = globalThis.indexedDB,
+  now = Date.now(),
+  maxAgeMs = LOCAL_STORE_MAX_AGE_MS,
+  keepHistoryStoreIds = [],
+  keepRecoveryScopeIds = [],
+} = {}) {
+  const connection = createLocalStoreConnection(indexedDB);
+  const cutoff = now - maxAgeMs;
+  const stale = (record) => Number.isFinite(Number(record?.touchedAt)) && Number(record.touchedAt) < cutoff;
+  const keepHistory = new Set(keepHistoryStoreIds.filter(Boolean));
+  const keepRecovery = new Set(keepRecoveryScopeIds.filter(Boolean));
+  const historyRemoved = await connection.prune(
+    HISTORY_STORES,
+    (record) => record.storeId,
+    (record) => !keepHistory.has(record?.storeId) && stale(record),
+  );
+  const recoveryRemoved = await connection.prune(
+    RECOVERY_STORES,
+    (record) => record.scopeId,
+    (record) => !keepRecovery.has(record?.scopeId) && stale(record)
+      && !Object.keys(record?.store?.records || {}).length,
+  );
+  return { historyRemoved, recoveryRemoved };
 }
 
 export function createLocalHistoryDatabase({ indexedDB = globalThis.indexedDB } = {}) {
