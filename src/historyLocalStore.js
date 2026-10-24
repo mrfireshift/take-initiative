@@ -1,0 +1,158 @@
+import { ID } from "./constants.js";
+import {
+  buildLocalHistoryHead,
+  buildLocalHistoryRecord,
+  chooseHistoryWriteMode,
+  isLocalHistoryHead,
+  resolveLocalHistory,
+} from "./historyLocalStoreCore.js";
+
+// ARCH-009 step 2: the IndexedDB side of the History and the storage that picks scene or local.
+// Separate database from the Combat Log, so their versions never depend on each other.
+export const HISTORY_LOCAL_DB_NAME = `${ID}.history-store`;
+const HISTORY_LOCAL_DB_VERSION = 1;
+const HISTORY_STORES = "historyStores";
+
+function requestResult(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("history-local-store-request-failed"));
+  });
+}
+
+function transactionDone(tx) {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error("history-local-store-transaction-failed"));
+    tx.onabort = () => reject(tx.error || new Error("history-local-store-transaction-aborted"));
+  });
+}
+
+export function createLocalHistoryDatabase({ indexedDB = globalThis.indexedDB } = {}) {
+  let dbPromise = null;
+
+  function open() {
+    if (dbPromise) return dbPromise;
+    if (typeof indexedDB?.open !== "function") {
+      return Promise.reject(new Error("history-local-store-unavailable"));
+    }
+    const promise = new Promise((resolve, reject) => {
+      const request = indexedDB.open(HISTORY_LOCAL_DB_NAME, HISTORY_LOCAL_DB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(HISTORY_STORES)) {
+          db.createObjectStore(HISTORY_STORES, { keyPath: "storeId" });
+        }
+      };
+      request.onsuccess = () => {
+        const db = request.result;
+        db.onversionchange = () => {
+          try { db.close(); } catch {}
+          if (dbPromise === promise) dbPromise = null;
+        };
+        resolve(db);
+      };
+      request.onerror = () => reject(request.error || new Error("history-local-store-open-failed"));
+      request.onblocked = () => reject(new Error("history-local-store-blocked"));
+    });
+    dbPromise = promise;
+    promise.catch(() => {
+      if (dbPromise === promise) dbPromise = null;
+    });
+    return promise;
+  }
+
+  return Object.freeze({
+    async get(storeId) {
+      const db = await open();
+      const tx = db.transaction([HISTORY_STORES], "readonly");
+      return requestResult(tx.objectStore(HISTORY_STORES).get(storeId));
+    },
+    async put(record) {
+      const db = await open();
+      const tx = db.transaction([HISTORY_STORES], "readwrite");
+      const done = transactionDone(tx);
+      tx.objectStore(HISTORY_STORES).put(record);
+      await done;
+    },
+  });
+}
+
+// The History storage used by the owner and the readers, around the scene read and write of historyOwner.js.
+// Without a local head and with the flag off both steps stay synchronous, so the owner keeps exactly the timing
+// it had before ARCH-009; only a local head or a local write adds the IndexedDB round trip.
+// - resolveRead(sceneValue): a local head is read from IndexedDB; any other value is returned as it is. Readers
+//   need no flag.
+// - prepareWrite(history): the value the owner then writes to the scene key, the History itself or a local head.
+//   The owner's broker always reads before it writes, one command at a time: the write reuses what that read saw.
+export function createHistoryStorage({
+  database,
+  readSceneValue,
+  isEnabled = () => false,
+  currentRoomId = () => "",
+  createId = () => globalThis.crypto.randomUUID(),
+  now = () => Date.now(),
+  onLocalHistoryUnavailable = () => {},
+  onLocalStoreFailed = () => {},
+}) {
+  let ownerView = null;
+
+  async function resolveLocal(sceneValue) {
+    const record = await database.get(sceneValue.storeId);
+    const resolved = resolveLocalHistory(sceneValue, record, { roomId: currentRoomId() });
+    return { sceneValue, history: resolved.history, local: { head: sceneValue, status: resolved.status } };
+  }
+
+  function resolveRead(sceneValue, { owner = false } = {}) {
+    if (!isLocalHistoryHead(sceneValue)) {
+      if (owner) ownerView = { sceneValue, history: sceneValue, local: null };
+      return sceneValue;
+    }
+    return resolveLocal(sceneValue).then((view) => {
+      if (owner) ownerView = view;
+      return view.history;
+    });
+  }
+
+  async function writeLocal(history, view) {
+    const status = view.local?.status || null;
+    if (status === "missing" || status === "behind") {
+      onLocalHistoryUnavailable({ status, storeId: view.local.head.storeId });
+    }
+    // A duplicated scene (ahead) or a lost store continues in a store of its own.
+    const keepStore = status === "current";
+    const storeId = keepStore ? view.local.head.storeId : createId();
+    const rev = keepStore ? (Number(view.local.head.rev) || 0) + 1 : 1;
+    const roomId = currentRoomId();
+    // IndexedDB first, then the head: a reader between the two sees the record one write ahead and keeps the
+    // History its head had seen.
+    try {
+      await database.put(buildLocalHistoryRecord({ storeId, rev, history, roomId, now: now() }));
+    } catch (error) {
+      // D3: no usable IndexedDB while the History is still in the scene: keep it there. Once the scene holds a
+      // local head, the error stands and the command stays pending, as any failed History write today.
+      if (view.local) throw error;
+      onLocalStoreFailed(error);
+      return history;
+    }
+    return buildLocalHistoryHead({ storeId, rev, history, roomId });
+  }
+
+  function prepareWithView(history, view) {
+    if (chooseHistoryWriteMode({ enabled: isEnabled(), sceneValue: view.sceneValue }) === "scene") return history;
+    return writeLocal(history, view);
+  }
+
+  function prepareWrite(history) {
+    const view = ownerView;
+    ownerView = null;
+    if (view) return prepareWithView(history, view);
+    return Promise.resolve(readSceneValue())
+      .then((sceneValue) => (isLocalHistoryHead(sceneValue)
+        ? resolveLocal(sceneValue)
+        : { sceneValue, history: sceneValue, local: null }))
+      .then((resolved) => prepareWithView(history, resolved));
+  }
+
+  return Object.freeze({ resolveRead, prepareWrite });
+}

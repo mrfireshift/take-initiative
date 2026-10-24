@@ -71,11 +71,13 @@ salvato nella scena. Lo stesso schema vale qui.
 **History** — la chiave resta, il valore diventa una testa di versione 2:
 
 ```js
-{ version: 2, storage: "local", roomId, storeId, seq, count, lastEntryId, entries: [] }
+{ version: 2, storage: "local", roomId, storeId, rev, seq, count, lastEntryId, entries: [] }
 ```
 
 - `storeId`: UUID dello store locale di questa scena.
-- `seq`: numero progressivo dell'ultima operazione (append, remove, clear) applicata dall'owner.
+- `rev`: contatore delle scritture (append, remove, clear) dell'owner su questo store. `seq` è la sequenza
+  degli append della History (`storeSeq` delle voci) e non cresce con remove e clear, quindi da solo non basta
+  a riconoscere una scena duplicata.
 - `entries: []` resta apposta: il codice precedente, in caso di rollback, legge una History vuota senza
   errori invece di rompersi.
 - Dimensione ~200 byte. Viene riscritta a ogni operazione della History: una scrittura di scena resta, ma
@@ -96,13 +98,14 @@ Nuovo database separato dal Combat Log, così le versioni non si legano: `com.th
 
 | Object store | Chiave | Contenuto |
 | --- | --- | --- |
-| `historyStores` | `storeId` | `{ storeId, roomId, seq, createdAt, touchedAt }` |
-| `historyEntries` | `[storeId, storeSeq]`, indice su `storeId` e su `[storeId, id]` | la voce History così come la salva oggi l'owner (`compactHistoryEntryForStorage`) |
-| `recoveryStores` | `scopeId` | `{ scopeId, roomId, schemaVersion, records, receipts, touchedAt }` |
+| `historyStores` | `storeId` | `{ storeId, rev, roomId, history, touchedAt }`: `history` è il valore che l'owner scriveva in scena (`{ version: 1, roomId, seq, entries }`, voci compattate come oggi) |
+| `recoveryStores` | `scopeId` | `{ scopeId, roomId, schemaVersion, records, receipts, touchedAt }` (passo 4) |
 
-- **Append:** una transazione `readwrite` che legge la testa dello store, aggiunge una voce, elimina le più
-  vecchie oltre 30 e aggiorna `seq`. Costo O(1) voci, non riscrive le altre 29.
-- **Remove e clear:** stessa transazione, poi nuova testa in scena.
+- **Ogni scrittura dell'owner** (append, remove, clear): un `put` del record intero, poi la nuova testa in
+  scena. Il broker resta quello di oggi e calcola sempre la History intera; un record per scena rende la
+  scrittura atomica senza gestire l'ordine delle voci. È locale: ~150 KB clonati in pochi ms, nessun
+  invio ad altri client. (Prima versione del progetto: una riga per voce; scartata al passo 2 perché più
+  complessa senza un guadagno misurabile.)
 - **Journal:** `put` dell'intero oggetto del recovery, che diventa piccolo e locale. Transazioni con
   `durability: "strict"`, perché il journal serve proprio dopo un crash.
 
@@ -156,7 +159,7 @@ Ogni passo ha build, test completi e, dove indicato, una misura con il probe.
 | Passo | Contenuto | Comportamento | Rischio |
 | --- | --- | --- | --- |
 | **1** ✅ | Estrarre gli adattatori di storage *senza cambiare comportamento*. History: `historyStorage` dentro `historyOwner.js`, che resta l'unico writer della chiave come vuole `historyOwnerInventory.test.js`; l'owner e i due lettori di `history.js` passano da `readHistoryValue()`. Journal: `createEffectsRecovery({ …, storage })` con default `createSceneEffectsRecoveryStorage(obr)` | identico | basso: i 39 file di test che leggono la chiave in scena restano verdi senza modifiche |
-| **2** | Adattatore IndexedDB della History, testa v2 e riconoscimento delle scene duplicate, **dietro un flag spento** (`localStorage` del GM, decisione D4) | identico a flag spento | basso |
+| **2** ✅ | Adattatore IndexedDB della History (`historyLocalStore.js`, regole pure in `historyLocalStoreCore.js`), testa v2 e riconoscimento delle scene duplicate, **dietro un flag spento**: `localStorage["com.thebigpicture.initiative/history-local-store"] = "1"` nel browser GM (D4). A flag acceso, una scena che ha ancora voci v1 resta in scena fino al passo 3; a flag spento la scrittura successiva riporta la History intera in scena | identico a flag spento | basso |
 | **3** | Migrazione v1 → v2 all'avvio dell'owner, solo a flag acceso | cambia solo a flag acceso | medio |
 | **4** | Adattatore IndexedDB del journal con ancora v2 e durabilità `strict`, a flag acceso | cambia solo a flag acceso | medio-alto: tocca il recovery |
 | **5** | Prova in room del DM, flag acceso solo nel browser GM: sessione completa e misura con il probe | — | — |

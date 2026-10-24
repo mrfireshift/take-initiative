@@ -12,6 +12,8 @@ import {
 } from "./sceneEpoch.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSince } from "./perfProbe.js";
+import { createHistoryStorage, createLocalHistoryDatabase } from "./historyLocalStore.js";
+import { HISTORY_LOCAL_STORE_FLAG_KEY } from "./historyLocalStoreCore.js";
 import {
   METADATA_OWNERSHIP,
   writeSceneMetadataKey,
@@ -124,10 +126,51 @@ function probeOwnerPhase(phase, command, run) {
   return Promise.resolve(run()).finally(finish);
 }
 
+function localHistoryStoreEnabled() {
+  try { return globalThis.localStorage?.getItem(HISTORY_LOCAL_STORE_FLAG_KEY) === "1"; }
+  catch { return false; }
+}
+
+const localHistoryWarnings = new Set();
+
+function warnLocalHistory(key, message) {
+  if (localHistoryWarnings.has(key)) return;
+  localHistoryWarnings.add(key);
+  console.warn("[history-local-store]", message);
+  try { void OBR.notification?.show?.(message, "WARNING")?.catch?.(() => {}); }
+  catch {}
+}
+
+// Step 2 of ARCH-009: the scene, unless the GM-local flag moves the History to IndexedDB (off by default).
+const localHistoryStorage = createHistoryStorage({
+  database: createLocalHistoryDatabase(),
+  readSceneValue: async () => (await OBR.scene.getMetadata())?.[HISTORY_KEY],
+  isEnabled: localHistoryStoreEnabled,
+  currentRoomId,
+  onLocalHistoryUnavailable: ({ storeId }) => warnLocalHistory(
+    `unavailable:${storeId}`,
+    "Cronologia di questa scena non disponibile in questo browser: riparte vuota. La scena non è stata modificata.",
+  ),
+  onLocalStoreFailed: (error) => warnLocalHistory(
+    "store-failed",
+    `Archivio locale della cronologia non disponibile (${error?.message || error}): la cronologia resta nella scena.`,
+  ),
+});
+
+function writeSceneHistoryValue(value) {
+  return writeSceneMetadataKey(
+    OBR.scene,
+    METADATA_OWNERSHIP.HISTORY,
+    value,
+    { runtime: "historyOwner" },
+  );
+}
+
 // Where the History value lives (ARCH-009). Every reader and the owner go through this storage; this file stays
-// the only writer of the History key. Step 1: the scene metadata, exactly as before.
-const sceneHistoryStorage = Object.freeze({
-  async read({ commandId = "" } = {}) {
+// the only writer of the History key. Without a local head and with the flag off, read and write are the scene
+// calls of before, with the same timing.
+const historyStorage = Object.freeze({
+  async read({ commandId = "", owner = false } = {}) {
     const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
     const metadata = await OBR.scene.getMetadata();
     if (perfProbeEnabled() && commandId) {
@@ -139,19 +182,15 @@ const sceneHistoryStorage = Object.freeze({
         historyEntries: Array.isArray(metadata?.[HISTORY_KEY]?.entries) ? metadata[HISTORY_KEY].entries.length : 0,
       });
     }
-    return metadata?.[HISTORY_KEY];
+    return localHistoryStorage.resolveRead(metadata?.[HISTORY_KEY], { owner });
   },
   write(history) {
-    return writeSceneMetadataKey(
-      OBR.scene,
-      METADATA_OWNERSHIP.HISTORY,
-      history,
-      { runtime: "historyOwner" },
-    );
+    const value = localHistoryStorage.prepareWrite(history);
+    return typeof value?.then === "function"
+      ? value.then(writeSceneHistoryValue)
+      : writeSceneHistoryValue(value);
   },
 });
-
-const historyStorage = sceneHistoryStorage;
 
 // The raw stored History value, for the readers in any GM iframe (getHistoryEntries, Undo).
 export function readHistoryValue() {
@@ -162,6 +201,7 @@ function createOwnerBroker() {
   ownerBroker = createHistoryOwnerBroker({
     maxEntries: HISTORY_OWNER_MAX_ENTRIES,
     readHistory: ({ command } = {}) => historyStorage.read({
+      owner: true,
       commandId: String(command?.requestId || command?.commandId || ""),
     }),
     writeHistory: (history, { command } = {}) => probeOwnerPhase("write", command, () => historyStorage.write(history)),
