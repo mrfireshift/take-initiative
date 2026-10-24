@@ -293,3 +293,34 @@ test("metadata-only updates preserve the first movement origin after scene reloa
   assert.ok(movement);
   assert.deepEqual(movement.changes[0].beforePosition, { x: 0, y: 0 });
 });
+
+test("a change of elevation is recorded as a move and its Undo gives the height back", async () => {
+  invalidateSceneEpoch("elevation-movement-reload");
+  sceneState.metadata = {};
+  sceneState.items[0].position = { x: 0, y: 0 };
+  delete sceneState.items[0].metadata[META_KEY].elevation;
+  markSceneEpochReady("elevation-movement-ready");
+  await wait(30);
+  await sdkStub.scene.items.updateItems(["token-movement"], (drafts) => {
+    drafts[0].metadata[META_KEY].elevation = 9;
+  });
+  await wait(450);
+  const [movement] = (await history.getHistoryEntries()).filter((entry) => entry.kind === "move");
+  assert.ok(movement, "the climb is a move");
+  assert.deepEqual(
+    [movement.changes[0].movement.cells, movement.changes[0].movement.beforeElevation, movement.changes[0].movement.afterElevation, movement.changes[0].movement.verticalMeters],
+    [0, 0, 9, 9],
+  );
+
+  const undone = await history.undoHistoryThrough(movement.id, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(undone.status, "applied");
+  assert.equal(Object.hasOwn(sceneState.items[0].metadata[META_KEY], "elevation"), false);
+  await wait(450);
+  assert.deepEqual((await history.getHistoryEntries()).filter((entry) => entry.kind === "move"), [], "giving the height back is not a new move");
+
+  const data = await combatLog.getActiveCombatLogData({ sceneEpoch: currentSceneEpoch() });
+  const correction = [...data.events].reverse().find((event) => event?.action === "move-undo"
+    && event?.targets?.some((target) => target?.undoOfHistoryEntryId === movement.id));
+  assert.ok(correction);
+  assert.deepEqual([correction.targets[0].fromElevation, correction.targets[0].toElevation, correction.targets[0].verticalMeters], [9, 0, -9]);
+});

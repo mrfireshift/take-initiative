@@ -360,3 +360,13 @@ test("le azioni descrittive restano riferimenti e non richiedono bersagli", () =
   assert.equal(action.subjectMode, "none");
   assert.equal(action.requiresTargets, false);
 });
+
+test("only the spell tokens that are creatures on the map (Mano arcana) take an elevation", async () => {
+  const { isSpellBoardTokenActor, SPELL_BOARD_TOKEN_ACTOR_SPELL_IDS, SPELL_BOARD_TOKEN_META_KEY } = await import("../src/spellBoardTokenCore.js");
+  assert.deepEqual(SPELL_BOARD_TOKEN_ACTOR_SPELL_IDS, ["arcane-hand"]);
+  const token = (spellId, extra = {}) => ({ id: spellId, type: "IMAGE", layer: "PROP", metadata: { [SPELL_BOARD_TOKEN_META_KEY]: { kind: "spell-board-token", spellId } }, ...extra });
+  assert.equal(isSpellBoardTokenActor(token("arcane-hand")), true);
+  assert.equal(isSpellBoardTokenActor(token("arcane-hand", { attachedTo: "x" })), false);
+  assert.equal(isSpellBoardTokenActor(token("arcane-hand", { layer: "CHARACTER" })), false);
+  assert.equal(isSpellBoardTokenActor({ id: "crate", layer: "PROP", metadata: {} }), false);
+});

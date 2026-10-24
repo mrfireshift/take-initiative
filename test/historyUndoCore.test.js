@@ -1575,3 +1575,26 @@ test("Undo di un reminder zona ripristina solo la propria activation e preserva 
   assert.equal(restored.metadata[ZONE_KEY].triggerRuntime.sequence, 12);
   assert.equal(restored.metadata[ZONE_KEY].triggerRuntime.evaluatedTurnKey, "2:1:third");
 });
+
+test("Undo of a move that changed the elevation gives the old height back", () => {
+  const entry = {
+    id: "move-up",
+    kind: "move",
+    changes: [{
+      id: "a",
+      beforePosition: { x: 1, y: 1 },
+      afterPosition: { x: 1, y: 1 },
+      movement: { cells: 0, beforeElevation: 0, afterElevation: 9, verticalMeters: 9 },
+    }],
+  };
+  const restored = plan([item("a", { hp: 5, elevation: 9 })], [entry]);
+  assert.notEqual(restored.status, "conflict");
+  assert.equal(Object.hasOwn(restored.finalItems[0].item.metadata[META], "elevation"), false, "back on the ground");
+  assert.equal(restored.finalItems[0].item.metadata[META].hp, 5);
+
+  const lower = { ...entry, changes: [{ ...entry.changes[0], movement: { cells: 2, beforeElevation: 9, afterElevation: 3, verticalMeters: -6 } }] };
+  assert.equal(plan([item("a", { elevation: 3 })], [lower]).finalItems[0].item.metadata[META].elevation, 9);
+
+  const moved = plan([item("a", { elevation: 12 })], [entry]);
+  assert.equal(moved.conflicts[0].field, "elevation", "a height changed again since is not overwritten");
+});

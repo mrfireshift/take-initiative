@@ -1846,6 +1846,26 @@ function buildWildMagicViewer({ recoverTides = false } = {}) {
 function buildWildMagicSurgeControls() {
   const controls = document.createElement("div");
   controls.className = "class-feature-special-controls class-feature-wild-magic-controls-wrap";
+  // The d100 engine (wild-magic-surge.html) applies the outcome; the viewer below only reads the table.
+  if (isGM) {
+    const engine = document.createElement("button");
+    engine.type = "button";
+    engine.textContent = "Tira l'Impulso";
+    engine.title = "Scrivi il d100: il motore applica l'esito dove può";
+    engine.addEventListener("click", () => void OBR.popover.open({
+      id: `${ID}/wild-magic-surge`,
+      url: `/wild-magic-surge.html?source=${encodeURIComponent(item.id)}`,
+      width: 420,
+      height: 600,
+      anchorReference: "POSITION",
+      anchorPosition: { left: 120, top: 80 },
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      hidePaper: true,
+    }).catch(() => {}));
+    controls.appendChild(engine);
+  }
   const viewer = buildWildMagicViewer();
   controls.appendChild(viewer);
   return controls;

@@ -1236,18 +1236,18 @@ test("a feature on the map selection says who it reaches; a spent one fades and 
   assert.ok(spent.$("pc-attack-launch").querySelectorAll("input").every((input) => input.disabled), "and its fields are off");
 });
 
-test("a feature with controls of its own opens the character sheet: Wild Magic Surge", async () => {
+test("Wild Magic Surge opens its d100 engine beside the console", async () => {
   const sorcerer = { characterBuild: [{ classId: "stregone", level: 1, subclassId: "stregone-magia-selvaggia" }], quickActions: [sword] };
   const runtime = fakeFeatureRuntime();
   const f = fixture({ card: sorcerer, attacker: { initiativeCard: sorcerer }, featureState: { enabledIds: [], active: {}, activeFeatureIds: [], resources: {} }, featureRuntime: runtime.runtime });
   await f.controller.ready; await tick(); await openFeatures(f);
   await featureRow(f, /Impulso di Magia Selvaggia/).click(); await tick();
-  assert.equal(f.$("pc-attack-launch-button").textContent, "Apri nella scheda");
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Tira l'Impulso");
   const before = sheetOpened.length;
   await f.$("pc-attack-launch-button").click(); await tick();
   assert.equal(sheetOpened.length, before + 1);
-  assert.match(sheetOpened.at(-1).url, /^\/initiative-card-modal\.html\?source=aria$/);
-  assert.deepEqual(runtime.calls, [], "the sheet runs it");
+  assert.match(sheetOpened.at(-1).url, /^\/wild-magic-surge\.html\?source=aria$/);
+  assert.deepEqual(runtime.calls, [], "the popup runs it");
 });
 
 test("the details accordion: its open state follows the GM from spell to spell; an attack cantrip has it in the form", async () => {

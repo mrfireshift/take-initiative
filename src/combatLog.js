@@ -780,10 +780,15 @@ export async function recordNativeMovementUndo(
         cells: -Math.abs(Math.round((Number(change?.cells) || 0) * 100) / 100),
         from: change?.beforePosition,
         to: change?.afterPosition,
+        ...(Number(change?.verticalMeters) ? {
+          fromElevation: Number(change.fromElevation) || 0,
+          toElevation: Number(change.toElevation) || 0,
+          verticalMeters: Number(change.verticalMeters),
+        } : {}),
         ...(undoOfHistoryEntryId ? { undoOfHistoryEntryId } : {}),
       };
     })
-    .filter((target) => target.id && Math.abs(Number(target.cells) || 0) >= 0.01);
+    .filter((target) => target.id && (Math.abs(Number(target.cells) || 0) >= 0.01 || Number(target.verticalMeters)));
   if (!targets.length) return [];
   const historyEntryIds = Array.from(new Set(
     targets.map((target) => target.undoOfHistoryEntryId).filter(Boolean),

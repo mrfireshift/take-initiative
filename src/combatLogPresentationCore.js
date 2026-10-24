@@ -344,6 +344,15 @@ function positionText(position) {
   return x === null || y === null ? "posizione sconosciuta" : `(${numberText(x)}, ${numberText(y)})`;
 }
 
+// A change of elevation recorded with the move: "quota 0 → 9 m (+9 m)".
+function elevationText(target) {
+  const vertical = finiteNumber(target?.verticalMeters);
+  if (vertical === null || vertical === 0) return "";
+  const from = finiteNumber(target?.fromElevation) ?? 0;
+  const to = finiteNumber(target?.toElevation) ?? 0;
+  return `quota ${numberText(from)} → ${numberText(to)} m (${signedNumber(vertical)} m)`;
+}
+
 function movementFacetLines(event) {
   const movement = event?.facets?.movement;
   if (!movement || !Array.isArray(movement.targets)) return [];
@@ -352,8 +361,9 @@ function movementFacetLines(event) {
     const from = positionText(target?.from);
     const to = positionText(target?.to);
     const cells = finiteNumber(target?.cells);
-    const distance = cells === null ? "" : ` · ${numberText(cells)} caselle`;
-    return `${name}: ${from} → ${to}${distance}`;
+    const vertical = elevationText(target);
+    const distance = cells === null || (cells === 0 && vertical) ? "" : ` · ${numberText(cells)} caselle`;
+    return `${name}: ${from} → ${to}${distance}${vertical ? ` · ${vertical}` : ""}`;
   });
 }
 
@@ -811,7 +821,12 @@ function eventSummary(event, targets, outcomes) {
     return lines.join(" · ") || "Variazione HP registrata";
   }
   if (category === "movement") {
-    const movement = targets.map((target) => `${target.name}: ${numberText(target.cells)} caselle`);
+    const facetTargets = Array.isArray(event?.facets?.movement?.targets) ? event.facets.movement.targets : [];
+    const movement = targets.map((target) => {
+      const vertical = elevationText(facetTargets.find((entry) => entry?.id && entry.id === target.id) || target);
+      if (vertical && !finiteNumber(target.cells)) return `${target.name}: ${vertical}`;
+      return `${target.name}: ${numberText(target.cells)} caselle${vertical ? ` · ${vertical}` : ""}`;
+    });
     return movement.join(" · ") || "Movimento registrato";
   }
   // A death saving throw: the tally (and Stabile or Morto) says it all.

@@ -8,6 +8,7 @@
   import OBR from "@owlbear-rodeo/sdk";
   import { openBossActionsPopover } from "./bossActionsLauncher.js";
   import { ID } from "./constants.js";
+  import { SPELL_BOARD_TOKEN_ACTOR_SPELL_IDS, SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
   import { openTrackedPopover } from "./popoverDragHost.js";
   import {
     enqueueInitiativeStateReducer,
@@ -414,6 +415,29 @@ async function toggleEpicBossOn(ids) {
         height: 72,
       },
     });
+
+    // The same entry for a spell's token that is a creature on the map (Mano arcana): it lives on the PROP layer.
+    for (const spellId of SPELL_BOARD_TOKEN_ACTOR_SPELL_IDS) {
+      OBR.contextMenu.create({
+        id: `${ID}/spell-token-elevation:${spellId}`,
+        group: MENU_GROUP,
+        icons: [{
+          icon: ICON_ELEVATION,
+          label: "Imposta quota…",
+          filter: {
+            roles: ["GM"],
+            every: [
+              { key: "layer", value: "PROP" },
+              { key: ["metadata", SPELL_BOARD_TOKEN_META_KEY, "spellId"], value: spellId },
+            ],
+          },
+        }],
+        embed: {
+          url: "/ctx-elevation.html",
+          height: 72,
+        },
+      });
+    }
 
     OBR.contextMenu.create({
       id: `${ID}/custom-aura-manage`,

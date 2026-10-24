@@ -149,9 +149,12 @@ function renderPreview() {
   const reminderDetails = reminderHasDetails
     ? `; CD ${shared.reminders.showDc ? "visibile" : "nascosta"}, caster ${shared.reminders.showCaster ? "visibile" : "nascosto"}`
     : "";
+  const deathSaveDetail = shared.reminders.visibility !== "hidden" && shared.reminders.showDeathSaves === false
+    ? "; TS contro la morte nascosti"
+    : "";
   const cards = [
     ["Tracker", `HP nemici: ${hpModeLabels[hp.trackerClassic.enemy]}. Effetti: ${effectLabels[shared.effects.conditions]}.`],
-    ["Promemoria", `${reminderLabels[shared.reminders.visibility]}${reminderDetails}.`],
+    ["Promemoria", `${reminderLabels[shared.reminders.visibility]}${reminderDetails}${deathSaveDetail}.`],
     ["Turno e mappa", `Avviso di turno ${shared.popup ? "attivo" : "disattivo"}; risoluzione ${shared.directResolution === "assisted" ? "assistita" : "informativa"}; promemoria di movimento ${shared.movementReminder ? "attivo" : "disattivo"}; nome sulla mappa ${shared.activeTurnLabel ? "attivo" : "disattivo"}; dettagli sotto le etichette ${shared.summaryParts ? "attivi" : "disattivati"}.`],
   ];
   previewNode.replaceChildren(...cards.map(([title, copy]) => {
@@ -204,13 +207,15 @@ function render() {
     setControlValue(control, value);
     const sceneInherited = editScope === "scene" && draft.scene[family].mode === "inherit";
     const inactiveReminderDetail = family === "reminders"
-      && ["showDc", "showCaster"].includes(control.dataset.path)
-      && activeFamilyValue("reminders").visibility !== "full";
+      && (["showDc", "showCaster"].includes(control.dataset.path)
+        ? activeFamilyValue("reminders").visibility !== "full"
+        : control.dataset.path === "showDeathSaves" && activeFamilyValue("reminders").visibility === "hidden");
     control.disabled = sceneInherited || inactiveReminderDetail;
     const toggle = control.closest(".option-toggle");
     if (toggle) {
       toggle.classList.toggle("is-disabled", control.disabled);
-      toggle.title = inactiveReminderDetail ? "Disponibile solo con Contenuto: Completo" : "";
+      toggle.title = !inactiveReminderDetail ? ""
+        : control.dataset.path === "showDeathSaves" ? "I promemoria sono nascosti ai giocatori" : "Disponibile solo con Contenuto: Completo";
     }
   }
   renderPreview();

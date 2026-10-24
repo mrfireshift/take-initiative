@@ -106,8 +106,10 @@ test.beforeEach(async () => {
 test.after(() => { effects.unmountEffectsMutationCoordinatorService(); historyOwner.unmountHistoryOwner(); });
 
 async function roll(outcome) {
+  // The Ghoul's turn passes to Aria's: the death save comes at the real start of her turn.
   const [notice] = planEffectSaveReminderNotices({
     items: sceneItems, initiativeState: sceneMetadata["com.thebigpicture.initiative/state"], includeCurrentTurnStart: true,
+    previousInitiativeState: { round: 2, order: ["aria", "ghoul"], current: 1 },
   }).filter((entry) => entry.resolution?.mode === "death-save");
   assert.ok(notice, "the dying PC has its reminder");
   return resolveReminder({ notice, outcome, sceneEpoch: currentSceneEpoch() });

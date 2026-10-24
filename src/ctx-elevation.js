@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import {
+  isElevationToken,
   readClimbing,
   readElevation,
   writeElevationForItems,
@@ -48,7 +49,7 @@ OBR.onReady(async () => {
   ]);
   if (!sceneLifecycle.isReady()) return;
   const selected = new Set(selection || []);
-  const items = await OBR.scene.items.getItems((item) => selected.has(item.id) && item.layer === "CHARACTER" && !item.attachedTo);
+  const items = await OBR.scene.items.getItems((item) => selected.has(item.id) && isElevationToken(item));
   if (!sceneLifecycle.isReady()) return;
   ids = items.map((item) => item.id);
   step = Math.max(0.01, Number(scale?.parsed?.multiplier) || 1);

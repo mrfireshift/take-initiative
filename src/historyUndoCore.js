@@ -1405,6 +1405,25 @@ function processChange({
       item.position = clone(movement.before);
     }
   }
+
+  // A move that also changed the elevation (meta.elevation) gives the old height back.
+  const verticalMove = rawChange?.movement;
+  if (hasOwn(verticalMove, "beforeElevation") && hasOwn(verticalMove, "afterElevation")) {
+    const expected = normalizeElevation(verticalMove.afterElevation);
+    const actual = normalizeElevation(metadata(item, keys.meta)?.[CANONICAL_ELEVATION_FIELD]);
+    if (expected !== normalizeElevation(verticalMove.beforeElevation)) {
+      if (actual !== expected) {
+        conflict(conflicts, entry, id, "current-value-mismatch", CANONICAL_ELEVATION_FIELD, { expected, actual });
+      } else {
+        touch.metadata.add(CANONICAL_ELEVATION_FIELD);
+        const next = { ...metadata(item, keys.meta) };
+        const before = normalizeElevation(verticalMove.beforeElevation);
+        if (before) next[CANONICAL_ELEVATION_FIELD] = before;
+        else delete next[CANONICAL_ELEVATION_FIELD];
+        writeMetadata(item, keys.meta, next);
+      }
+    }
+  }
 }
 
 function processExternalMetadata({

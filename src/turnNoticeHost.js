@@ -10,6 +10,7 @@ import {
   shouldCloseTurnNoticeFromHiddenLayout,
   shouldHonorTurnNoticeCloseRequest,
 } from "./turnNoticeHostCore.js";
+import { receiveDeathSaveNotices, splitDeathSaveNotices } from "./deathSaveNoticeHost.js";
 
 const TURN_NOTICE_CHANNEL = `${ID}/turn-notice`;
 const TURN_NOTICE_READY_CHANNEL = `${TURN_NOTICE_CHANNEL}/ready`;
@@ -320,7 +321,11 @@ export function mountTurnNoticeHost() {
     if (event?.data?.type === "show-turn-notice") receiveNoticePayload(event.data);
   });
   OBR.broadcast.onMessage(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, (event) => {
-    if (event?.data?.type === "show-effect-save-notices") receiveNoticePayload(event.data);
+    if (event?.data?.type !== "show-effect-save-notices") return;
+    // The death saves have a popup of their own (deathSaveNoticeHost.js).
+    const { deathSaves, rest } = splitDeathSaveNotices(event.data);
+    if (deathSaves.length) void receiveDeathSaveNotices(deathSaves, event.data.rearmActivationIds);
+    if (!deathSaves.length || rest.notices.length) receiveNoticePayload(rest);
   });
   OBR.broadcast.onMessage(SPELL_ZONE_TRIGGER_NOTICE_CHANNEL, (event) => {
     if (event?.data?.type === "show-zone-trigger-notices") receiveNoticePayload(event.data);

@@ -2,6 +2,7 @@ import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { formatDistance } from "./distance3dCore.js";
 import { readElevation } from "./distance3d.js";
+import { isSpellBoardTokenActor } from "./spellBoardTokenCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 const LABEL_OWNER_META = `${ID}/elevationLabelOf`;
@@ -79,6 +80,7 @@ function differs(label, spec, tokenId) {
 
 export function elevationLabelTokens(items = []) {
   return items.filter((item) => {
+    if (isSpellBoardTokenActor(item)) return true;
     if (item?.layer !== "CHARACTER") return false;
     if (!item?.attachedTo) return true;
     // A carried CHARACTER may still own the canonical elevation field. Keep

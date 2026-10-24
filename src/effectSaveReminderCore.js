@@ -851,6 +851,13 @@ export function planEffectSaveReminderNotices({
     initiativeState,
   );
   const currentStart = currentTurnStartBoundary(initiativeState);
+  // A death save comes only when the turn of the PC at 0 HP really starts: the turn reached by advancing, never a
+  // PC that drops to 0 during its own turn (the current-turn boundary below), a turn skipped in a batch, or a
+  // second paragon pass.
+  const deathSaveTurnKey = currentStart && !/::p(?:[2-9]|\d{2,})$/u.test(String(currentStart.turnKey || ""))
+    && boundaries.some((boundary) => boundary.timing === "turn-start" && boundary.turnKey === currentStart.turnKey)
+    ? currentStart.turnKey
+    : "";
   if (includeCurrentTurnStart) {
     if (currentStart) boundaries.push(currentStart);
   }
@@ -883,13 +890,13 @@ export function planEffectSaveReminderNotices({
       boundary.turnKey,
       boundary.noticeTurnKey,
     ),
-    ...deathSaveNoticesForTiming(
+    ...(boundary.turnKey === deathSaveTurnKey ? deathSaveNoticesForTiming(
       list,
       boundary.timing,
       boundary.actorId,
       boundary.turnKey,
       boundary.noticeTurnKey,
-    ),
+    ) : []),
     ]),
     ...(!includeCurrentTurnStart && currentStart
       ? spellTurnBoundaryNoticesForTiming({

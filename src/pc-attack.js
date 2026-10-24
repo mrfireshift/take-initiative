@@ -1245,12 +1245,20 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       anchorOrigin:{horizontal:"LEFT",vertical:"TOP"},transformOrigin:{horizontal:"LEFT",vertical:"TOP"},disableClickAway:true,
       marginThreshold:12,hidePaper:true}).catch(error=>setStatus(String(error?.message || error),"error"));
   }
+  // Wild Magic Surge's d100 engine, beside the console.
+  function openWildMagicSurge() {
+    void openTrackedPopover({id:`${ID}/wild-magic-surge`,url:`/wild-magic-surge.html?source=${encodeURIComponent(sourceId)}`,
+      width:420,height:600,anchorReference:"POSITION",anchorPosition:{left:80+PC_ATTACK_WIDTH+12,top:60},
+      anchorOrigin:{horizontal:"LEFT",vertical:"TOP"},transformOrigin:{horizontal:"LEFT",vertical:"TOP"},disableClickAway:true,
+      marginThreshold:12,hidePaper:true}).catch(error=>setStatus(String(error?.message || error),"error"));
+  }
   // Usa / Attiva / Disattiva / Termina: the runtime call the sheet makes, with the targets selected on the map.
   async function runFeature(entry) {
     if(launchBusy || busy || invalidated || entry?.mode!=="activate") return;
     const definition=getClassFeatureDefinition(entry.featureId);
     const card=featureCard(entry),form=card.form;
     if(form.kind==="sheet"){openCharacterSheet();setStatus(`${entry.label}: usala dalla scheda personaggio.`);return;}
+    if(form.kind==="wild-magic"){openWildMagicSurge();setStatus(`${entry.label}: scrivi il d100 nel popup.`);return;}
     if(card.blocked) return;
     const values={...(featureValues.get(entry.featureId) || {})};
     let targetIds;

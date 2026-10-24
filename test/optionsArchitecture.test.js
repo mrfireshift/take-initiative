@@ -58,7 +58,7 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
     conditions: "all", spells: "all", concentration: "all",
   });
   assert.deepEqual(room.playerView.reminders, {
-    visibility: "full", showDc: true, showCaster: true,
+    visibility: "full", showDc: true, showCaster: true, showDeathSaves: true,
   });
   assert.equal(room.playerView.bossDetails, "full");
   assert.deepEqual(room.turn, {

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Impulso di Magia Selvaggia</title>
+  <link rel="stylesheet" href="/ui-typography.css" />
+  <link rel="stylesheet" href="/popover-glass.css" />
+  <link rel="stylesheet" href="/console-shell.css" />
+  <style>
+    /* The surge's colours: a violet that drifts to magenta, as the d100 decides. */
+    :root { --chaos: #c084fc; --chaos-hot: #f472b6; --chaos-deep: rgba(88, 28, 135, .55); }
+    .header { padding-left: var(--obrt-space-lg); background: linear-gradient(110deg, rgba(88, 28, 135, .42), rgba(157, 23, 77, .28)); }
+    .drag-grip { flex: 0 0 auto; order: -1; width: 8px; height: 16px; margin-right: 2px; opacity: .45; background-image: radial-gradient(circle, #fff 1px, transparent 1.4px); background-size: 4px 4px; }
+    .roll-card { position: relative; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 14px; padding: 14px; border: 1px solid rgba(192, 132, 252, .45); border-radius: var(--obrt-radius-lg, 12px); overflow: hidden;
+      background: radial-gradient(circle at 12% 30%, rgba(244, 114, 182, .28), transparent 55%), linear-gradient(150deg, rgba(59, 7, 100, .78), rgba(15, 23, 42, .78)); }
+    .roll-card::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: conic-gradient(from 0deg, transparent, rgba(192, 132, 252, .14), transparent 30%); animation: swirl 9s linear infinite; }
+    @keyframes swirl { to { transform: rotate(1turn); } }
+    .d100 { position: relative; z-index: 1; width: 86px; height: 86px; display: grid; place-items: center; clip-path: polygon(50% 0, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
+      background: linear-gradient(160deg, #a855f7, #831843); box-shadow: inset 0 0 18px rgba(0, 0, 0, .45); }
+    .d100 input { width: 64px; padding: 0; border: 0; background: transparent; color: #fff; font-family: var(--obrt-font-display, inherit); font-size: 30px; font-weight: 800; text-align: center; text-shadow: 0 2px 4px rgba(0, 0, 0, .6); -moz-appearance: textfield; }
+    .d100 input::-webkit-outer-spin-button, .d100 input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .d100 input::placeholder { color: rgba(255, 255, 255, .45); }
+    .d100.flash { animation: flash .5s ease; }
+    @keyframes flash { 40% { filter: brightness(1.6) saturate(1.4); transform: rotate(-6deg) scale(1.06); } }
+    .roll-side { position: relative; z-index: 1; display: grid; gap: 8px; }
+    .roll-side .caption { color: #f5d0fe; }
+    .roll-hint { margin: 0; color: rgba(255, 255, 255, .72); font-size: var(--obrt-type-secondary); }
+    .roll-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .small.chaos { border-color: rgba(192, 132, 252, .55); background: rgba(126, 34, 206, .35); color: #f5f3ff; }
+    .outcome { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-left: 3px solid var(--chaos); border-radius: var(--obrt-radius-md); background: var(--surface-row); }
+    .outcome-head { display: flex; align-items: center; gap: 8px; }
+    .range { padding: 2px 8px; border-radius: var(--obrt-radius-pill); background: linear-gradient(90deg, #7e22ce, #be185d); color: #fff; font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); letter-spacing: .06em; }
+    .auto-tag { margin-left: auto; padding: 1px 7px; border-radius: var(--obrt-radius-pill); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); }
+    .auto-tag[data-auto="true"] { border: 1px solid rgba(134, 239, 172, .4); background: rgba(21, 128, 61, .3); color: #bbf7d0; }
+    .auto-tag[data-auto="false"] { border: 1px solid rgba(253, 230, 138, .42); background: rgba(161, 98, 7, .3); color: var(--warn-text); }
+    .effect { margin: 0; line-height: 1.45; }
+    .action-line { display: flex; align-items: center; gap: 6px; color: #f5d0fe; font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-semibold); }
+    .note { margin: 0; color: var(--warn-text); font-size: var(--obrt-type-secondary); }
+    .extra { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .extra input[type=number] { width: 72px; min-height: 27px; padding: 2px 6px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); }
+    details.builder { border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface-soft); }
+    details.builder summary { padding: 8px 10px; cursor: pointer; color: var(--muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-semibold); }
+    .builder-grid { display: grid; grid-template-columns: 1fr 64px 92px; gap: 6px; padding: 0 10px 10px; }
+    .builder-grid input, .builder-grid select { min-height: 27px; padding: 2px 6px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); }
+    .builder-grid .wide { grid-column: 1 / -1; }
+    .builder-row { display: flex; gap: 6px; }
+    .builder-row select { width: 64px; }
+    .tides { display: flex; align-items: center; gap: 8px; color: var(--info-text); font-size: var(--obrt-type-secondary); }
+    .tides input { accent-color: var(--chaos); }
+    .apply-row { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 10px var(--obrt-space-xl); border-top: 1px solid var(--line); }
+    .apply { background: linear-gradient(90deg, #7e22ce, #be185d); }
+    .apply:not(:disabled):hover { filter: brightness(1.12); }
+  </style>
+</head>
+<body>
+  <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/wild-magic-surge">
+    <header class="header" data-drag-handle draggable="true" title="Trascina per spostare">
+      <div class="header-text"><h1 class="title">Impulso di Magia Selvaggia</h1><div class="subtitle" id="subtitle">—</div></div>
+      <span class="drag-grip" aria-hidden="true"></span>
+      <button class="icon-button" id="close" type="button" title="Chiudi" aria-label="Chiudi">&times;</button>
+    </header>
+    <main class="panel">
+      <section class="view">
+        <div class="roll-card">
+          <label class="d100" id="d100" title="Il d100 tirato al tavolo (00 = 100)">
+            <input id="roll" type="number" min="0" max="100" inputmode="numeric" placeholder="d100" aria-label="Risultato del d100" />
+          </label>
+          <div class="roll-side">
+            <span class="caption">Risultato del d100</span>
+            <p class="roll-hint">Scrivi il numero tirato al tavolo: il motore trova la riga e applica l'esito dove può.</p>
+            <div class="roll-actions"><button class="small chaos" id="random" type="button" title="Tira il d100 qui">🎲 Tira qui</button></div>
+          </div>
+        </div>
+        <section class="outcome" id="outcome" hidden>
+          <div class="outcome-head"><span class="range" id="range"></span><span class="auto-tag" id="auto-tag"></span></div>
+          <p class="effect" id="effect"></p>
+          <div class="action-line" id="action-line"></div>
+          <p class="note" id="note" hidden></p>
+          <div class="extra" id="heal-row" hidden>
+            <span>Totale</span><input id="heal-total" type="number" min="1" inputmode="numeric" aria-label="Totale dei PF recuperati" />
+            <button class="small chaos" id="heal-roll" type="button"></button>
+          </div>
+        </section>
+        <details class="builder" id="builder" hidden>
+          <summary>Pillola personalizzata sullo Stregone</summary>
+          <div class="builder-grid">
+            <div class="builder-row wide"><select id="pill-icon" aria-label="Icona"></select><input id="pill-name" maxlength="80" placeholder="Nome della pillola" aria-label="Nome della pillola" style="flex:1" /></div>
+            <input class="wide" id="pill-notes" maxlength="160" placeholder="Promemoria, separati da virgola" aria-label="Promemoria" />
+            <span class="caption" style="align-self:center">Durata</span>
+            <input id="pill-duration" type="number" min="1" placeholder="—" aria-label="Durata" title="Vuota: fino a rimozione" />
+            <select id="pill-unit" aria-label="Unità"></select>
+            <button class="small chaos wide" id="pill-apply" type="button">Metti la pillola</button>
+          </div>
+        </details>
+        <label class="tides" id="tides-row" hidden><input type="checkbox" id="tides" checked /><span>Impulso richiesto dal DM: recupera Onde di Caos</span></label>
+      </section>
+    </main>
+    <div class="apply-row"><button class="apply" id="apply" type="button" disabled>Applica</button><span class="total" id="summary"></span></div>
+    <footer class="status-bar"><p class="status" id="status" role="status"></p></footer>
+  </div>
+  <script type="module" src="/src/wild-magic-surge.js"></script>
+</body>
+</html>

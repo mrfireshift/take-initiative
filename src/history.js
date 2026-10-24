@@ -21,6 +21,7 @@ import {
   malformedHistoryEntryIds,
 } from "./historyUndoCleanupCore.js";
 import { historyEntryMatchesUndoBefore } from "./historyUndoCore.js";
+import { normalizeElevation } from "./distance3dCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
@@ -50,6 +51,9 @@ let __historyRestoreSuppressedUntil = 0;
 const __movementPositions = new Map();
 const __pendingMovements = new Map();
 const __suppressedMovements = new Map();
+// Elevation (the elevation menu, a raw write): recorded with the move of the same token, in meters.
+const __movementElevations = new Map();
+const __suppressedElevations = new Map();
 const __sceneHistorySnapshot = new Map();
 const __historyRestoreSuppressedIds = new Map();
 const __pendingHistoryAppends = new Map();
@@ -248,8 +252,10 @@ function resetSceneHistoryRuntime(epoch) {
   __movementFlushEpoch = null;
   __historyActionQueue = Promise.resolve();
   __movementPositions.clear();
+  __movementElevations.clear();
   __pendingMovements.clear();
   __suppressedMovements.clear();
+  __suppressedElevations.clear();
   __sceneHistorySnapshot.clear();
   __historyRestoreSuppressedIds.clear();
   __pendingHistoryAppends.clear();
@@ -268,6 +274,9 @@ async function acquireSceneHistoryBaseline(epoch) {
     const position = itemPosition(item);
     if (item.metadata?.[META_KEY] && position && !__movementPositions.has(item.id)) {
       __movementPositions.set(item.id, position);
+    }
+    if (item.metadata?.[META_KEY] && !__movementElevations.has(item.id)) {
+      __movementElevations.set(item.id, itemElevation(item));
     }
   }
   __sceneHistoryBaselineEpoch = null;
@@ -1294,6 +1303,23 @@ export function suppressMovementHistory(itemId, expectedPosition, durationMs = 5
   }, { destination: "LOCAL" }).catch(() => {});
 }
 
+function itemElevation(item) {
+  return normalizeElevation(item?.metadata?.[META_KEY]?.elevation);
+}
+
+// An elevation written by an effect that has its own History entry (Elevation adjust): not a move of its own.
+export function suppressElevationHistory(itemIds, durationMs = 3000) {
+  const ids = (Array.isArray(itemIds) ? itemIds : [itemIds]).map((id) => String(id || "")).filter(Boolean);
+  if (!ids.length) return;
+  const until = Date.now() + Math.max(500, Number(durationMs) || 0);
+  for (const id of ids) __suppressedElevations.set(id, until);
+  void OBR.broadcast.sendMessage(HISTORY_CONTROL_CHANNEL, {
+    type: "suppress-elevation",
+    ids,
+    until,
+  }, { destination: "LOCAL" }).catch(() => {});
+}
+
 function notifyMovementSegments(changes) {
   for (const handler of __movementSegmentListeners) {
     try {
@@ -1333,6 +1359,7 @@ async function buildMovementUndoCorrections(entries, sceneEpoch) {
       const afterPosition = itemPosition({ position: change?.afterPosition });
       const recordedCells = Number(change?.movement?.cells);
       const hasRecordedMovement = Number.isFinite(recordedCells);
+      const vertical = Number(change?.movement?.verticalMeters) || 0;
       if (!change?.id || (!hasRecordedMovement && (!beforePosition || !afterPosition))) continue;
       candidates.push({
         entryId: String(entry?.id || "").trim(),
@@ -1341,6 +1368,10 @@ async function buildMovementUndoCorrections(entries, sceneEpoch) {
         beforePosition,
         afterPosition,
         recordedCells,
+        ...(vertical ? {
+          beforeElevation: Number(change.movement.beforeElevation) || 0,
+          afterElevation: Number(change.movement.afterElevation) || 0,
+        } : {}),
       });
     }
   }
@@ -1369,11 +1400,15 @@ async function buildMovementUndoCorrections(entries, sceneEpoch) {
       }, dpi);
     }
     if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-    if (cells < 0.01) continue;
+    const vertical = Object.hasOwn(candidate, "beforeElevation")
+      ? Math.round((candidate.beforeElevation - candidate.afterElevation) * 100) / 100 : 0;
+    if (cells < 0.01 && !vertical) continue;
     corrections.push({
       id: candidate.id,
       name: candidate.name,
       cells,
+      // The height goes back too: from the recorded elevation to the old one.
+      ...(vertical ? { fromElevation: candidate.afterElevation, toElevation: candidate.beforeElevation, verticalMeters: vertical } : {}),
       // The correction travels from the recorded destination back to its origin.
       beforePosition: candidate.afterPosition,
       afterPosition: candidate.beforePosition,
@@ -1403,12 +1438,14 @@ async function flushPendingMovements(sceneEpoch = __movementFlushEpoch ?? curren
 
   const changes = [];
   for (const move of pending) {
+    const elevationChanged = Object.prototype.hasOwnProperty.call(move, "beforeElevation")
+      && move.beforeElevation !== move.afterElevation;
     const hasSegments = Array.isArray(move.segments) && move.segments.length > 0;
-    if (!hasSegments && samePosition(move.beforePosition, move.afterPosition)) continue;
+    if (!elevationChanged && !hasSegments && samePosition(move.beforePosition, move.afterPosition)) continue;
 
     const cells = await measuredMovementCells(move, dpi);
     if (!isCurrentSceneEpoch(sceneEpoch)) return;
-    if (cells < 0.01) continue;
+    if (cells < 0.01 && !elevationChanged) continue;
 
     changes.push({
       id: move.id,
@@ -1416,9 +1453,14 @@ async function flushPendingMovements(sceneEpoch = __movementFlushEpoch ?? curren
       beforePosition: move.beforePosition,
       afterPosition: move.afterPosition,
       movement: {
-        cells: Math.round(cells * 100) / 100,
+        cells: cells < 0.01 ? 0 : Math.round(cells * 100) / 100,
         dxCells: Math.round(((move.afterPosition.x - move.beforePosition.x) / dpi) * 100) / 100,
         dyCells: Math.round(((move.afterPosition.y - move.beforePosition.y) / dpi) * 100) / 100,
+        ...(elevationChanged ? {
+          beforeElevation: move.beforeElevation,
+          afterElevation: move.afterElevation,
+          verticalMeters: Math.round((move.afterElevation - move.beforeElevation) * 100) / 100,
+        } : {}),
       },
     });
   }
@@ -1460,6 +1502,9 @@ export async function mountMovementHistoryWatcher() {
     if (data.type === "suppress-history-undo") {
       markHistoryRestoreSuppressed(data.ids, data.until);
       installMovementSuppressions(data.ids, data.positions, data.until);
+      // An Undo that gives a height back is not a new move either.
+      const elevationUntil = Math.max(Date.now() + 500, Number(data.until) || 0);
+      for (const id of data.ids) if (id) __suppressedElevations.set(String(id), elevationUntil);
       if (data.requestId) {
         void OBR.broadcast.sendMessage(HISTORY_CONTROL_ACK_CHANNEL, {
           type: "suppress-history-undo-ack",
@@ -1474,6 +1519,11 @@ export async function mountMovementHistoryWatcher() {
       markHistoryRestoreSuppressed(data.ids, data.until);
       return;
     }
+    if (data.type === "suppress-elevation") {
+      const until = Math.max(Date.now() + 500, Number(data.until) || 0);
+      for (const id of data.ids) if (id) __suppressedElevations.set(String(id), until);
+      return;
+    }
     if (data.type !== "suppress-movement") return;
     installMovementSuppressions(data.ids, data.positions, data.until);
   });
@@ -1483,8 +1533,50 @@ export async function mountMovementHistoryWatcher() {
     !!item.metadata?.[META_KEY] && !!itemPosition(item)
   );
   if (isCurrentSceneEpoch(initialEpoch)) {
-    for (const item of initial) __movementPositions.set(item.id, itemPosition(item));
+    for (const item of initial) {
+      __movementPositions.set(item.id, itemPosition(item));
+      __movementElevations.set(item.id, itemElevation(item));
+    }
   }
+
+  // A change of elevation joins the pending move of its token: one event for a move up and across. A token whose
+  // position is being restored (an Undo, a speed check reset) or whose elevation an effect wrote is left out.
+  subscribeSceneItemChanges(({ items: changes, changedRecords = [], sceneEpoch }) => {
+    const eventEpoch = sceneEpoch ?? currentSceneEpoch();
+    if (!isCurrentSceneEpoch(eventEpoch)) return;
+    const now = Date.now();
+    let elevationChanged = false;
+    for (const item of changes) {
+      if (!item?.metadata?.[META_KEY]) continue;
+      const next = itemElevation(item);
+      const record = changedRecords.find((entry) => entry?.before?.id === item.id);
+      // A token that just appeared with its elevation did not move.
+      if (!__movementElevations.has(item.id) && !record?.before?.item) {
+        __movementElevations.set(item.id, next);
+        continue;
+      }
+      const previous = __movementElevations.has(item.id)
+        ? __movementElevations.get(item.id)
+        : itemElevation(record?.before?.item);
+      __movementElevations.set(item.id, next);
+      if (previous === next) continue;
+      if ((__suppressedElevations.get(item.id) || 0) > now || (__suppressedMovements.get(item.id)?.until || 0) > now) continue;
+      const position = itemPosition(item);
+      if (!position) continue;
+      const pending = __pendingMovements.get(item.id) || {
+        id: item.id,
+        name: String(item.name || "").trim() || "Token",
+        beforePosition: position,
+        afterPosition: position,
+        segments: [],
+      };
+      if (!Object.prototype.hasOwnProperty.call(pending, "beforeElevation")) pending.beforeElevation = previous;
+      pending.afterElevation = next;
+      __pendingMovements.set(item.id, pending);
+      elevationChanged = true;
+    }
+    if (elevationChanged) scheduleMovementFlush(eventEpoch);
+  }, { immediate: true, filter: (event) => event.flags.elevation });
 
   subscribeSceneItemChanges(async ({ items: changes, changedRecords = [], sceneEpoch }) => {
     const eventEpoch = sceneEpoch ?? currentSceneEpoch();

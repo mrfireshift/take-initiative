@@ -217,6 +217,11 @@ function redactDcText(value) {
     : value;
 }
 
+export function isDeathSaveReminderNotice(value) {
+  return value?.resolution?.mode === "death-save"
+    || String(value?.activationId || "").includes(":death-save:");
+}
+
 export function projectReminderNotice(value, {
   role = "PLAYER",
   policy = {},
@@ -228,6 +233,8 @@ export function projectReminderNotice(value, {
   }
   const visibility = policy.visibility || "hidden";
   if (visibility === "hidden") return null;
+  // The death saves have an option of their own: the GM may keep them off the table screen.
+  if (policy.showDeathSaves === false && isDeathSaveReminderNotice(value)) return null;
   let next = stripResolution(clone(value));
   if (!policy.showDc) {
     delete next.dc;

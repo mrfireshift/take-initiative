@@ -428,6 +428,12 @@ export function combatEventFromHistoryEntry(entry, context = {}) {
       cells: Math.round((Number(change?.movement?.cells) || 0) * 100) / 100,
       from: clone(change?.beforePosition),
       to: clone(change?.afterPosition),
+      // A change of elevation recorded with the move (meters).
+      ...(Number.isFinite(Number(change?.movement?.verticalMeters)) ? {
+        fromElevation: Number(change.movement.beforeElevation) || 0,
+        toElevation: Number(change.movement.afterElevation) || 0,
+        verticalMeters: Number(change.movement.verticalMeters),
+      } : {}),
     }));
     return { ...base, action: "move", targets };
   }
@@ -468,7 +474,11 @@ export function combatEventDetail(event) {
     }).join(" | ");
   }
   if (combatEventCategory(event?.kind) === "movement") {
-    return targets.map((target) => `${target.name}: ${numberText(target.cells)} caselle`).join(" | ");
+    return targets.map((target) => {
+      const vertical = Number(target?.verticalMeters) || 0;
+      const height = vertical ? ` · quota ${numberText(target.fromElevation)} → ${numberText(target.toElevation)} m` : "";
+      return `${target.name}: ${numberText(target.cells)} caselle${height}`;
+    }).join(" | ");
   }
   if (event?.kind === "turn") return String(event?.payload?.actorName || event?.turn?.name || "");
   if (event?.kind === "note") return String(event?.payload?.text || "");
@@ -530,6 +540,8 @@ export function aggregateCombatLogEvents(events) {
           from: clone(target?.from),
           to: clone(target?.to),
         };
+        delete aggregateTarget.verticalMeters;
+        delete aggregateTarget.toElevation;
         const aggregateContext = origin
           ? { ...event, round: origin.round, turn: clone(origin.turn) }
           : event;
@@ -548,6 +560,12 @@ export function aggregateCombatLogEvents(events) {
       aggregateTarget.cells = Math.round((Number(aggregateTarget.cells) + (Number(target?.cells) || 0)) * 100) / 100;
       if (!aggregateTarget.from && target?.from) aggregateTarget.from = clone(target.from);
       if (target?.to) aggregateTarget.to = clone(target.to);
+      // The height of the turn's moves: from the first recorded one to the last.
+      if (Number.isFinite(Number(target?.verticalMeters))) {
+        if (!Number.isFinite(Number(aggregateTarget.fromElevation))) aggregateTarget.fromElevation = Number(target.fromElevation) || 0;
+        aggregateTarget.toElevation = Number(target.toElevation) || 0;
+        aggregateTarget.verticalMeters = Math.round((aggregateTarget.toElevation - aggregateTarget.fromElevation) * 100) / 100;
+      }
       if (
         event?.action === "move-undo"
         || event?.payload?.movementCorrection
@@ -573,6 +591,7 @@ export function aggregateCombatLogEvents(events) {
   }
   output.push(...Array.from(movementGroups.values()).filter((event) =>
     Math.abs(Number(event?.targets?.[0]?.cells) || 0) >= 0.01
+    || Math.abs(Number(event?.targets?.[0]?.verticalMeters) || 0) >= 0.01
   ));
   return output.sort((a, b) => {
     const aOrder = Number(a?.sequence) || Number(a?.at) || 0;

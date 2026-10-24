@@ -7,12 +7,18 @@ import {
   gridPlanarDistance,
   spatialDistance,
 } from "./distance3dCore.js";
+import { isSpellBoardTokenActor } from "./spellBoardTokenCore.js";
 
 export const DISTANCE_3D_POPOVER_ID = `${ID}/distance-3d-popover`;
 export const DISTANCE_3D_CHANNEL = `${ID}/distance-3d-events`;
 export const TOKEN_META_KEY = `${ID}/meta`;
 export const ELEVATION_FIELD = "elevation";
 export const CLIMBING_FIELD = "climbing";
+
+// A token with an elevation: a free CHARACTER, or a spell's token that is a creature on the map (Mano arcana).
+export function isElevationToken(item) {
+  return (item?.layer === "CHARACTER" && !item.attachedTo) || isSpellBoardTokenActor(item);
+}
 
 export function readElevation(item) {
   return normalizeElevation(item?.metadata?.[TOKEN_META_KEY]?.[ELEVATION_FIELD]);
@@ -77,7 +83,7 @@ export async function loadDistanceContext({ isCurrent = () => true } = {}) {
   const byId = new Map(items.map((item) => [item.id, item]));
   const orderedItems = selectedIds
     .map((id) => byId.get(id))
-    .filter((item) => item?.layer === "CHARACTER" && !item.attachedTo);
+    .filter(isElevationToken);
   const boundsEntries = await Promise.all(orderedItems.map(async (item) => {
     try {
       return [item.id, await OBR.scene.items.getItemBounds([item.id])];

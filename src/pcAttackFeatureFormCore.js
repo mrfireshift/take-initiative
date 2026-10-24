@@ -34,8 +34,8 @@ const BARDIC_INSPIRATION_POOL_ID = "bardo-ispirazione-bardica-usi";
 const TWINNED_SPELL_FEATURE_ID = "stregone-metamagia-incantesimo-raddoppiato";
 const SORCERY_POINTS_POOL_ID = "stregone-punti-stregoneria";
 
-// The adapters whose controls the console does not repeat: the character sheet hosts them (Wild Magic Surge's d100
-// table, the Channel Divinity turns, Night Eyes).
+// The adapters whose controls the console does not repeat: the character sheet hosts them (the Channel Divinity
+// turns, Night Eyes). Wild Magic Surge has its own d100 popup (wild-magic-surge.html), opened by Tira l'Impulso.
 export const PC_ATTACK_SHEET_ADAPTERS = Object.freeze(new Set([
   "turn-undead", "turn-creatures", "night-eyes", "wild-magic-surge",
 ]));
@@ -147,6 +147,9 @@ export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], 
   const targeting = classFeatureTargeting(feature, characterBuild);
   const selectionTargets = targeting.mode === "single-target";
 
+  if (adapter === "wild-magic-surge") {
+    return { kind: "wild-magic", fields: [], label: "Tira l'Impulso", note: "Scrivi il d100: il motore applica l'esito dove può." };
+  }
   // Controls of their own, in the sheet only.
   if (PC_ATTACK_SHEET_ADAPTERS.has(adapter) || feature.innateSpell || feature.hpTrait) {
     return { kind: "sheet", fields: [], label: "Apri nella scheda", note: "Si usa dalla scheda personaggio, con i suoi controlli." };

@@ -76,7 +76,7 @@ import {
 } from "./sceneEpoch.js";
 import { emitMatchedVisualEndsFromMutation } from "./embersMatchedVisualRenderer.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
-import { suppressMovementHistory } from "./history.js";
+import { suppressElevationHistory, suppressMovementHistory } from "./history.js";
 import { compactBackgroundReminderTransportResult } from "./effectsReminderTransportCore.js";
 import {
   buildEffectsMutationResultMessages,
@@ -3206,6 +3206,8 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     }
     if (!isCurrent()) throw new Error("stale-before-elevation-adjust");
     if (expectedElevation === afterElevation) return [];
+    // This entry records the elevation itself: not a move of the token as well.
+    suppressElevationHistory(targetId, 5000);
     await OBR.scene.items.updateItems([targetId], (drafts) => {
       const draft = drafts.find((item) => item?.id === targetId);
       if (!draft) throw new Error("elevation-adjust-target-missing");

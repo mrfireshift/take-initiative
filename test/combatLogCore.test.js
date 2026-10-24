@@ -443,3 +443,39 @@ test("esporta il registro testuale raggruppato per round", () => {
   assert.match(output, /ROUND 2/);
   assert.match(output, /La porta crolla/);
 });
+
+test("a change of elevation is recorded as a move, with the height of the turn", () => {
+  const event = combatEventFromHistoryEntry({
+    id: "move-up",
+    kind: "move",
+    at: 100,
+    changes: [{
+      id: "actor-1",
+      name: "Karmakar",
+      beforePosition: { x: 0, y: 0 },
+      afterPosition: { x: 0, y: 0 },
+      movement: { cells: 0, beforeElevation: 0, afterElevation: 9, verticalMeters: 9 },
+    }],
+  });
+  assert.equal(event.category, "movement");
+  assert.deepEqual(
+    [event.targets[0].fromElevation, event.targets[0].toElevation, event.targets[0].verticalMeters],
+    [0, 9, 9],
+  );
+  const base = { kind: "move", round: 2, turn: { id: "actor-1", name: "Karmakar" } };
+  const target = (cells, fromElevation, toElevation) => ({
+    id: "actor-1", name: "Karmakar", cells, fromElevation, toElevation, verticalMeters: toElevation - fromElevation,
+  });
+  const [total] = aggregateCombatLogEvents([
+    { ...base, id: "m1", sequence: 1, targets: [target(0, 0, 9)] },
+    { ...base, id: "m2", sequence: 2, targets: [target(2, 9, 6)] },
+  ]);
+  assert.deepEqual([total.targets[0].cells, total.targets[0].fromElevation, total.targets[0].toElevation, total.targets[0].verticalMeters], [2, 0, 6, 6]);
+  const flightOnly = aggregateCombatLogEvents([{ ...base, id: "m3", sequence: 3, targets: [target(0, 0, 4.5)] }]);
+  assert.equal(flightOnly.length, 1, "a move that is only vertical stays in the log");
+  const undone = aggregateCombatLogEvents([
+    { ...base, id: "m4", sequence: 4, targets: [target(0, 0, 4.5)] },
+    { ...base, id: "m5", sequence: 5, action: "move-undo", targets: [target(-0, 4.5, 0)] },
+  ]);
+  assert.equal(undone.length, 0, "an undone climb leaves nothing behind");
+});

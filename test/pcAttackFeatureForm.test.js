@@ -87,9 +87,11 @@ test("Bardic Inspiration can be granted again while one is active; Twinned Spell
   assert.match(pcAttackFeatureRequest(feature("stregone-metamagia-incantesimo-raddoppiato"), twinned, { spellLevel: "12" }, { sourceId: "sor" }).error, /tra 0 e 9/);
 });
 
-test("Wild Magic Surge's d100 table stays in the character sheet; a reference feature with nothing to spend is only read", () => {
+test("Wild Magic Surge opens its d100 engine; a reference feature with nothing to spend is only read", () => {
   const wild = { characterBuild: [{ classId: "stregone", level: 1, subclassId: "stregone-magia-selvaggia" }] };
-  assert.equal(form("stregone-magia-selvaggia-impulso-di-magia-selvaggia", wild).kind, "sheet");
+  const surge = form("stregone-magia-selvaggia-impulso-di-magia-selvaggia", wild);
+  assert.equal(surge.kind, "wild-magic");
+  assert.equal(surge.label, "Tira l'Impulso");
   assert.equal(form("paladino-attacco-extra").kind, "reference");
 });
 

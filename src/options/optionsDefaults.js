@@ -98,6 +98,8 @@ export const DEFAULT_ROOM_OPTIONS = deepFreeze({
       visibility: "full",
       showDc: true,
       showCaster: true,
+      // The death-save popup on the table screen; the GM always sees it.
+      showDeathSaves: true,
     },
     bossDetails: "full",
     // Players' tracker size (table screen read from a distance): 1 = 100%, from 0.5 to 2.

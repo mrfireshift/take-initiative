@@ -125,6 +125,7 @@ mock.module("@owlbear-rodeo/sdk", {
 mock.module("../src/history.js", {
   exports: {
     suppressMovementHistory: () => false,
+    suppressElevationHistory: () => false,
     buildEffectsMutationHistoryEntry: ({ command, plan }) => ({
       id: `history:${command.commandId}`,
       kind: command.kind,

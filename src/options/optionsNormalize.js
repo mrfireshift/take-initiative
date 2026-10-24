@@ -223,6 +223,7 @@ function normalizeReminderPolicy(value, defaults) {
     visibility: enumOr(source.visibility, REMINDER_VISIBILITY, defaults.visibility),
     showDc: booleanOr(source.showDc, defaults.showDc),
     showCaster: booleanOr(source.showCaster, defaults.showCaster),
+    showDeathSaves: booleanOr(source.showDeathSaves, defaults.showDeathSaves ?? true),
   };
 }
 

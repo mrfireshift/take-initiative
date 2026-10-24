@@ -165,6 +165,18 @@ function maximumHitPoints(rule, casterHpMax, objectSize = "") {
   return Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
 }
 
+// The spell tokens that are creatures on the map (Mano arcana, actorCard): they get an elevation like a CHARACTER,
+// its label and the 3D distance, though they live on the PROP layer.
+export const SPELL_BOARD_TOKEN_ACTOR_SPELL_IDS = Object.freeze(Object.values(SPELL_BOARD_TOKEN_RULES)
+  .filter((rule) => rule.actorCard === true)
+  .map((rule) => rule.spellId));
+
+export function isSpellBoardTokenActor(item) {
+  const metadata = item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY];
+  return item?.layer === "PROP" && !item.attachedTo && metadata?.kind === "spell-board-token"
+    && SPELL_BOARD_TOKEN_ACTOR_SPELL_IDS.includes(metadata.spellId);
+}
+
 export function getSpellBoardTokenRule(spellOrId) {
   const id = normalizedId(typeof spellOrId === "object" ? spellOrId?.id : spellOrId);
   return SPELL_BOARD_TOKEN_RULES[id] || null;

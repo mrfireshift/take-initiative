@@ -65,6 +65,8 @@ export default defineConfig(() => {
         aoeSettings: path.resolve(process.cwd(), "aoe-settings.html"),
         concentrationWarning: path.resolve(process.cwd(), "concentration-warning.html"),
         speedWarning: path.resolve(process.cwd(), "speed-warning.html"),
+        deathSaveNotice: path.resolve(process.cwd(), "death-save-notice.html"),
+        wildMagicSurge: path.resolve(process.cwd(), "wild-magic-surge.html"),
         bossLinkNotice: path.resolve(process.cwd(), "boss-link-notice.html"),
         turnNotice: path.resolve(process.cwd(), "turn-notice.html"),
         zoneTriggerNotice: path.resolve(process.cwd(), "zone-trigger-notice.html"),

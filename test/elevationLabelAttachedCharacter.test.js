@@ -42,3 +42,11 @@ test("il renderer quota osserva un CHARACTER attached con elevation canonica", (
 
   assert.deepEqual(tokens.map((item) => item.id), ["top-level", "carried"]);
 });
+
+test("la Mano arcana, token PROP di un incantesimo, ha la sua quota come un CHARACTER", () => {
+  const BOARD = "com.thebigpicture.initiative/spellBoardToken";
+  const hand = { id: "hand", type: "IMAGE", layer: "PROP", metadata: { [META_KEY]: { hp: 40, hpMax: 40, elevation: 6 }, [BOARD]: { kind: "spell-board-token", spellId: "arcane-hand" } } };
+  const wall = { id: "wall", type: "IMAGE", layer: "PROP", metadata: { [META_KEY]: { elevation: 6 }, [BOARD]: { kind: "spell-board-token", spellId: "wall-of-fire" } } };
+  const prop = { id: "crate", type: "IMAGE", layer: "PROP", metadata: { [META_KEY]: { elevation: 6 } } };
+  assert.deepEqual(elevationLabelTokens([hand, wall, prop]).map((item) => item.id), ["hand"]);
+});

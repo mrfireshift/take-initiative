@@ -143,3 +143,20 @@ test("damage at 0 HP: one failure, two on a critical, a stable PC starts again, 
   assert.equal(hit({}, [pill("dead", "Morto", "death-save")]), null, "a dead PC counts nothing");
   assert.equal(hit({}, [ko], { damage: 0 }), null);
 });
+
+test("the death save comes only when the dying PC's turn really starts", () => {
+  const dying = pc({ deathSaves: { successes: 0, failures: 0 } });
+  const deathSaves = (options) => planEffectSaveReminderNotices({ items: [dying, ghoul], ...options })
+    .filter((notice) => notice.resolution?.mode === "death-save");
+  // Advancing to Aria's turn: the save.
+  assert.equal(deathSaves({ previousInitiativeState: state(1), initiativeState: { ...state(0), round: 3 } }).length, 1);
+  // Aria drops to 0 during her own turn (the state does not move): she rolls at the start of her next turn.
+  assert.equal(deathSaves({ previousInitiativeState: state(0), initiativeState: state(0) }).length, 0);
+  assert.equal(deathSaves({ previousInitiativeState: null, initiativeState: state(0) }).length, 0);
+  // Several turns skipped at once: Aria's skipped turn gives no save, only the turn now current would.
+  assert.equal(deathSaves({ previousInitiativeState: state(1), initiativeState: { ...state(1), round: 3 } }).length, 0);
+  // A paragon PC rolls on its first pass only.
+  const paragon = { round: 1, order: ["ghoul", "aria", "aria::p2"] };
+  assert.equal(deathSaves({ previousInitiativeState: { ...paragon, current: 0 }, initiativeState: { ...paragon, current: 1 } }).length, 1);
+  assert.equal(deathSaves({ previousInitiativeState: { ...paragon, current: 1 }, initiativeState: { ...paragon, current: 2 } }).length, 0);
+});

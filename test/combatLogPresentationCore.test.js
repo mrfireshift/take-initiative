@@ -774,3 +774,17 @@ test("un trucchetto con l'arma compare nel dettaglio con i suoi dadi", () => {
   const details = model.events[0].details.flatMap((section) => section.lines).join(" | ");
   assert.match(details, /Trucchetto con l'arma: Lama Verdefiamma \(1d8 · seconda creatura 1d8 \+ mod\.\)/u);
 });
+
+test("il cambio di quota compare nel movimento", () => {
+  const base = { kind: "move", category: "movement", round: 1, turn: { id: "a", name: "Arannis" } };
+  const model = buildCombatLogPresentation(null, [
+    event({ ...base, id: "move-up", sequence: 1, targets: [{ id: "g", name: "Grifone", cells: 0, fromElevation: 0, toElevation: 9, verticalMeters: 9 }] }),
+  ]);
+  assert.equal(model.events.length, 1);
+  assert.match(model.events[0].summary, /Grifone: quota 0 → 9 m \(\+9 m\)/u);
+  assert.doesNotMatch(model.events[0].summary, /caselle/u);
+  const both = buildCombatLogPresentation(null, [
+    event({ ...base, id: "move-down", sequence: 2, targets: [{ id: "g", name: "Grifone", cells: 3, fromElevation: 9, toElevation: 3, verticalMeters: -6 }] }),
+  ]);
+  assert.match(both.events[0].summary, /3 caselle · quota 9 → 3 m \(-6 m\)/u);
+});
