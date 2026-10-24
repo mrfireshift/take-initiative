@@ -6,6 +6,7 @@ export const HISTORY_OWNER_STATUS = Object.freeze({
   REMOVED: "removed",
   NOOP: "noop",
   CLEARED: "cleared",
+  MIGRATED: "migrated",
   CONFLICT: "conflict",
   REJECTED: "rejected",
   FAILED: "failed",
@@ -250,6 +251,14 @@ export function removeHistoryEntries(
   });
 }
 
+// ARCH-009 step 3: the same History written again, so the storage can move it (scene → local). Entries, order
+// and seq do not change; an empty History has nothing to move.
+export function rewriteHistoryForStorage(historyValue, options = {}) {
+  const history = normalizeHistoryState(historyValue, options);
+  if (!history.entries.length) return result(HISTORY_OWNER_STATUS.NOOP, history, { removedIds: [] });
+  return result(HISTORY_OWNER_STATUS.MIGRATED, history, { changed: true, removedIds: [] });
+}
+
 export function clearHistoryEntries(historyValue, options = {}) {
   const history = normalizeHistoryState(historyValue, options);
   if (!history.entries.length) return result(HISTORY_OWNER_STATUS.NOOP, history, { removedIds: [] });
@@ -424,6 +433,8 @@ export function createHistoryOwnerBroker({
         outcome = removeHistoryEntries(history, command.ids, { maxEntries });
       } else if (command.kind === "clear") {
         outcome = clearHistoryEntries(history, { maxEntries });
+      } else if (command.kind === "migrate") {
+        outcome = rewriteHistoryForStorage(history, { maxEntries });
       } else {
         return { ...base, status: HISTORY_OWNER_STATUS.REJECTED, reason: "unknown-command", changed: false };
       }

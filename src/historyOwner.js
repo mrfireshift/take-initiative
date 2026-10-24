@@ -12,7 +12,7 @@ import {
 } from "./sceneEpoch.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSince } from "./perfProbe.js";
-import { createHistoryStorage, createLocalHistoryDatabase } from "./historyLocalStore.js";
+import { createHistoryStorage, createLocalHistoryDatabase, migrateLegacyHistory } from "./historyLocalStore.js";
 import { HISTORY_LOCAL_STORE_FLAG_KEY } from "./historyLocalStoreCore.js";
 import {
   METADATA_OWNERSHIP,
@@ -106,6 +106,26 @@ function setOwnerSceneContext(ready) {
     ready: ownerSceneReady,
     sceneIdentity: ownerSceneIdentity,
     sceneEpoch: ownerSceneEpoch,
+  });
+  if (ownerSceneReady) scheduleLegacyHistoryMigration(ownerBroker, ownerSceneIdentity);
+}
+
+// ARCH-009 step 3, flag on only: move a History still whole in the scene to IndexedDB at owner start.
+function scheduleLegacyHistoryMigration(broker, sceneIdentity) {
+  if (!localHistoryStoreEnabled()) return;
+  void migrateLegacyHistory({
+    isEnabled: localHistoryStoreEnabled,
+    readSceneValue: async () => (await OBR.scene.getMetadata())?.[HISTORY_KEY],
+    handle: (command) => broker.handle(command),
+    sceneIdentity,
+    isCurrent: () => ownerBroker === broker && ownerSceneIdentity === sceneIdentity,
+    createId: () => createId("history-migrate"),
+  }).then((result) => {
+    if (result?.status === HISTORY_OWNER_STATUS.FAILED || result?.status === HISTORY_OWNER_STATUS.REJECTED) {
+      console.warn("[history-local-store] migration:", result?.error?.message || result?.reason || result?.status);
+    }
+  }).catch((error) => {
+    console.warn("[history-local-store] migration:", error?.message || error);
   });
 }
 

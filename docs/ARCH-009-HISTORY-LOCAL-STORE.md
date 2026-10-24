@@ -138,16 +138,23 @@ Pulizia: gli store non toccati da più di N giorni vengono eliminati al mount de
 
 ### 4.5 Migrazione
 
-Al mount dell'owner, per la scena corrente:
+Solo a flag acceso, solo nel browser del GM (l'owner non si monta per i giocatori):
 
-1. Testa v2 presente → niente da fare.
-2. Valore v1 con voci (oggi) → crea `storeId`, scrive le voci in IndexedDB in una transazione, poi scrive
-   la testa v2. Se la scrittura della testa fallisce, al mount successivo si riparte da capo; lo store
-   orfano viene eliminato dalla pulizia.
-3. Valore v1 vuoto o assente → testa v2 alla prima operazione.
-4. **Rollback del plugin:** il codice vecchio legge la testa v2 come History vuota. Se il codice vecchio
-   scrive, la chiave torna v1 con voci; reinstallando il codice nuovo, il punto 2 le migra di nuovo e lo
-   store precedente viene messo da parte.
+1. **All'avvio dell'owner**, quando la scena diventa pronta: se la chiave contiene ancora una History v1 con
+   voci, l'owner invia a se stesso un comando `migrate` nella propria coda (`migrateLegacyHistory` in
+   `historyLocalStore.js`, `rewriteHistoryForStorage` in `historyOwnerCore.js`). La coda è la stessa di
+   append, remove e clear, quindi nessuna aggiunta si può infilare a metà. Il comando non è accettato dal
+   canale broadcast: arriva solo dall'owner.
+2. **Alla prima scrittura**, se il flag viene acceso senza ricaricare: la scrittura stessa porta in IndexedDB
+   la History intera insieme alla modifica.
+3. La migrazione scrive prima il record IndexedDB e poi l'ancora. Se la scrittura dell'ancora fallisce, la
+   History resta v1 in scena e la migrazione si ripete al prossimo avvio o alla prossima scrittura; il record
+   orfano viene eliminato dalla pulizia (passo 7).
+4. History v1 vuota o assente: nessuna migrazione, l'ancora nasce alla prima operazione.
+5. **Rollback del plugin:** il codice vecchio legge l'ancora v2 come History vuota. Se il codice vecchio
+   scrive, la chiave torna v1 con voci; con il codice nuovo e il flag acceso viene migrata di nuovo in un
+   nuovo store; quello precedente resta da parte fino alla pulizia.
+6. IndexedDB non disponibile (D3): la History resta in scena e l'owner avvisa una volta.
 
 Journal: con record pendenti v1 la migrazione aspetta che il recovery li completi; con store vuoto
 (solo receipt) li copia in IndexedDB e scrive l'ancora v2.
@@ -160,7 +167,7 @@ Ogni passo ha build, test completi e, dove indicato, una misura con il probe.
 | --- | --- | --- | --- |
 | **1** ✅ | Estrarre gli adattatori di storage *senza cambiare comportamento*. History: `historyStorage` dentro `historyOwner.js`, che resta l'unico writer della chiave come vuole `historyOwnerInventory.test.js`; l'owner e i due lettori di `history.js` passano da `readHistoryValue()`. Journal: `createEffectsRecovery({ …, storage })` con default `createSceneEffectsRecoveryStorage(obr)` | identico | basso: i 39 file di test che leggono la chiave in scena restano verdi senza modifiche |
 | **2** ✅ | Adattatore IndexedDB della History (`historyLocalStore.js`, regole pure in `historyLocalStoreCore.js`), testa v2 e riconoscimento delle scene duplicate, **dietro un flag spento**: `localStorage["com.thebigpicture.initiative/history-local-store"] = "1"` nel browser GM (D4). A flag acceso, una scena che ha ancora voci v1 resta in scena fino al passo 3; a flag spento la scrittura successiva riporta la History intera in scena | identico a flag spento | basso |
-| **3** | Migrazione v1 → v2 all'avvio dell'owner, solo a flag acceso | cambia solo a flag acceso | medio |
+| **3** ✅ | Migrazione v1 → v2 all'avvio dell'owner con un comando `migrate` nella sua coda, e alla prima scrittura se il flag viene acceso senza ricaricare (§4.5). Solo a flag acceso | cambia solo a flag acceso | medio |
 | **4** | Adattatore IndexedDB del journal con ancora v2 e durabilità `strict`, a flag acceso | cambia solo a flag acceso | medio-alto: tocca il recovery |
 | **5** | Prova in room del DM, flag acceso solo nel browser GM: sessione completa e misura con il probe | — | — |
 | **6** | Flag acceso per default; integrazione di test eseguita con entrambi gli adattatori; ripiego sulla scena solo se IndexedDB manca | cambia per tutti | medio |

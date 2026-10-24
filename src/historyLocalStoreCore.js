@@ -80,10 +80,13 @@ export function resolveLocalHistory(head, record, { roomId = "" } = {}) {
   return { status: "ahead", history: { ...clone(record.history), seq, entries: clone(entries) } };
 }
 
+// A History still stored whole in the scene key (version 1) with entries to move.
+export function hasLegacyHistoryEntries(sceneValue) {
+  return !isLocalHistoryHead(sceneValue) && entriesOf(sceneValue).length > 0;
+}
+
 // Where the owner writes the next History. Flag off: the scene, whole, as before (also moving a local History
-// back). Flag on: local, unless the scene still holds legacy entries (moved by the migration of step 3).
-export function chooseHistoryWriteMode({ enabled, sceneValue }) {
-  if (!enabled) return "scene";
-  if (isLocalHistoryHead(sceneValue)) return "local";
-  return entriesOf(sceneValue).length ? "scene" : "local";
+// back). Flag on: local; a History still whole in the scene moves with that write (step 3 migration).
+export function chooseHistoryWriteMode({ enabled }) {
+  return enabled ? "local" : "scene";
 }

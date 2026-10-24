@@ -3,6 +3,7 @@ import {
   buildLocalHistoryHead,
   buildLocalHistoryRecord,
   chooseHistoryWriteMode,
+  hasLegacyHistoryEntries,
   isLocalHistoryHead,
   resolveLocalHistory,
 } from "./historyLocalStoreCore.js";
@@ -155,4 +156,29 @@ export function createHistoryStorage({
   }
 
   return Object.freeze({ resolveRead, prepareWrite });
+}
+
+// ARCH-009 step 3: when the owner's scene becomes ready, a History still whole in the scene moves to IndexedDB
+// through one "migrate" command on the owner's own queue, so no append can interleave with it. Only with the flag
+// on. A failure leaves the History where it is; the next write or the next start tries again.
+export async function migrateLegacyHistory({
+  isEnabled,
+  readSceneValue,
+  handle,
+  sceneIdentity,
+  isCurrent = () => true,
+  createId,
+}) {
+  if (!isEnabled() || !sceneIdentity) return { status: "skipped", reason: "disabled" };
+  const sceneValue = await readSceneValue();
+  if (!isCurrent()) return { status: "skipped", reason: "stale" };
+  if (!hasLegacyHistoryEntries(sceneValue)) return { status: "skipped", reason: "nothing-to-migrate" };
+  const requestId = createId();
+  return handle({
+    kind: "migrate",
+    requestId,
+    commandId: requestId,
+    correlationId: requestId,
+    sceneIdentity,
+  });
 }

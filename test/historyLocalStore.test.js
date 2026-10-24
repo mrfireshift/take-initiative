@@ -5,6 +5,7 @@ import {
   HISTORY_HEAD_VERSION,
   buildLocalHistoryHead,
   chooseHistoryWriteMode,
+  hasLegacyHistoryEntries,
   isLocalHistoryHead,
   resolveLocalHistory,
 } from "../src/historyLocalStoreCore.js";
@@ -12,8 +13,9 @@ import {
   HISTORY_LOCAL_DB_NAME,
   createHistoryStorage,
   createLocalHistoryDatabase,
+  migrateLegacyHistory,
 } from "../src/historyLocalStore.js";
-import { createHistoryOwnerBroker } from "../src/historyOwnerCore.js";
+import { HISTORY_OWNER_STATUS, createHistoryOwnerBroker, rewriteHistoryForStorage } from "../src/historyOwnerCore.js";
 
 const ROOM_ID = "room-1";
 
@@ -99,14 +101,16 @@ test("risoluzione: corrente, avanti (scena duplicata), indietro e mancante", () 
   assert.equal(resolveLocalHistory(head, { ...record(2, []), roomId: "other" }, { roomId: ROOM_ID }).status, "missing");
 });
 
-test("scelta della scrittura: flag spento sempre scena; acceso locale, salvo voci ancora in scena", () => {
+test("scelta della scrittura: flag spento sempre scena, acceso sempre locale; voci da migrare riconosciute", () => {
   const head = { version: 2, storage: "local", storeId: "s", rev: 1, seq: 0, entries: [] };
   assert.equal(chooseHistoryWriteMode({ enabled: false, sceneValue: head }), "scene");
-  assert.equal(chooseHistoryWriteMode({ enabled: false, sceneValue: undefined }), "scene");
+  assert.equal(chooseHistoryWriteMode({ enabled: false, sceneValue: history([entry("a", 1)]) }), "scene");
   assert.equal(chooseHistoryWriteMode({ enabled: true, sceneValue: head }), "local");
-  assert.equal(chooseHistoryWriteMode({ enabled: true, sceneValue: undefined }), "local");
-  assert.equal(chooseHistoryWriteMode({ enabled: true, sceneValue: history([]) }), "local");
-  assert.equal(chooseHistoryWriteMode({ enabled: true, sceneValue: history([entry("a", 1)]) }), "scene");
+  assert.equal(chooseHistoryWriteMode({ enabled: true, sceneValue: history([entry("a", 1)]) }), "local");
+  assert.equal(hasLegacyHistoryEntries(history([entry("a", 1)])), true);
+  assert.equal(hasLegacyHistoryEntries(history([])), false);
+  assert.equal(hasLegacyHistoryEntries(undefined), false);
+  assert.equal(hasLegacyHistoryEntries(head), false);
 });
 
 test("flag spento: la History resta intera nella scena e IndexedDB non viene aperto", async () => {
@@ -145,14 +149,15 @@ test("flag acceso su scena vuota: voci in IndexedDB, in scena solo la testa", as
   assert.deepEqual(await reader.read(), second);
 });
 
-test("flag acceso con voci ancora in scena: restano in scena fino alla migrazione", async () => {
+test("flag acceso con voci ancora in scena: la prima scrittura le porta tutte in IndexedDB", async () => {
   const indexedDB = createVersionedIndexedDB();
   const sceneState = scene(history([entry("a", 1)]));
   const storage = storageFor(sceneState, { database: createLocalHistoryDatabase({ indexedDB }) });
   const next = history([entry("a", 1), entry("b", 2)]);
   await ownerWrite(storage, next);
-  assert.deepEqual(sceneState.state.value, next);
-  assert.equal(indexedDB.inspect(HISTORY_LOCAL_DB_NAME), null);
+  assert.equal(isLocalHistoryHead(sceneState.state.value), true);
+  const [record] = indexedDB.inspect(HISTORY_LOCAL_DB_NAME).stores.historyStores.records;
+  assert.deepEqual(record.history, next);
 });
 
 test("flag spento dopo il locale: la scrittura successiva riporta la History intera in scena", async () => {
@@ -274,4 +279,142 @@ test("il broker dell'owner sullo storage locale: append idempotente, remove e cl
   assert.deepEqual(await ids(), []);
   assert.deepEqual(sceneState.state.writes.map((value) => value.rev), [1, 2, 3, 4]);
   assert.ok(sceneState.state.writes.every((value) => JSON.stringify(value).length < 400));
+});
+
+function ownerFor(sceneState, options) {
+  const storage = storageFor(sceneState, options);
+  const broker = createHistoryOwnerBroker({
+    readHistory: () => storage.read({ owner: true }),
+    writeHistory: (next) => storage.write(next),
+    isSceneCurrent: () => true,
+  });
+  broker.setSceneContext({ ready: true, sceneIdentity: "scene-A", sceneEpoch: 1 });
+  let sequence = 0;
+  const command = (kind, payload = {}) => {
+    sequence += 1;
+    return broker.handle({ requestId: `r${sequence}`, commandId: `c${sequence}`, sceneIdentity: "scene-A", kind, ...payload });
+  };
+  return { broker, command };
+}
+
+test("rewriteHistoryForStorage riscrive la stessa History e non tocca una History vuota", () => {
+  const legacy = history([entry("a", 1), entry("b", 2)]);
+  const migrated = rewriteHistoryForStorage(legacy);
+  assert.equal(migrated.status, HISTORY_OWNER_STATUS.MIGRATED);
+  assert.equal(migrated.changed, true);
+  assert.deepEqual(migrated.history.entries, legacy.entries);
+  assert.equal(migrated.history.seq, 2);
+  assert.equal(rewriteHistoryForStorage(history([])).status, HISTORY_OWNER_STATUS.NOOP);
+});
+
+test("migrazione: 30 voci in scena passano in IndexedDB identiche, in scena resta l'ancora", async () => {
+  const indexedDB = createVersionedIndexedDB();
+  const database = createLocalHistoryDatabase({ indexedDB });
+  const legacy = history(Array.from({ length: 30 }, (_, index) => entry(`e${index}`, index + 1, { padding: "x".repeat(4000) })));
+  const sceneState = scene(legacy);
+  const { command } = ownerFor(sceneState, { database, ids: ["migrated"] });
+
+  const result = await command("migrate");
+  assert.equal(result.status, HISTORY_OWNER_STATUS.MIGRATED);
+  assert.equal(isLocalHistoryHead(sceneState.state.value), true);
+  assert.equal(sceneState.state.value.count, 30);
+  assert.ok(JSON.stringify(sceneState.state.value).length < 400);
+
+  const reader = storageFor(sceneState, { enabled: false, database });
+  const read = await reader.read();
+  assert.deepEqual(read.entries, legacy.entries);
+  assert.equal(read.seq, 30);
+
+  // The History keeps working on the local store: retention 30, increasing seq.
+  assert.equal((await command("append", { entry: { id: "after", kind: "hp", changes: [] } })).status, HISTORY_OWNER_STATUS.APPLIED);
+  const afterAppend = await reader.read();
+  assert.equal(afterAppend.entries.length, 30);
+  assert.equal(afterAppend.entries.at(-1).id, "after");
+  assert.equal(afterAppend.entries.at(-1).storeSeq, 31);
+  assert.equal(sceneState.state.value.storeId, "migrated");
+  assert.equal(sceneState.state.value.rev, 2);
+});
+
+test("migrazione di una History vuota: nessuna scrittura", async () => {
+  const sceneState = scene(history([]));
+  const { command } = ownerFor(sceneState, { database: createLocalHistoryDatabase({ indexedDB: createVersionedIndexedDB() }) });
+  assert.equal((await command("migrate")).status, HISTORY_OWNER_STATUS.NOOP);
+  assert.deepEqual(sceneState.state.writes, []);
+});
+
+test("avvio dell'owner: migra solo a flag acceso e solo una History ancora in scena", async () => {
+  const calls = [];
+  const run = (overrides) => migrateLegacyHistory({
+    isEnabled: () => true,
+    readSceneValue: async () => history([entry("a", 1)]),
+    handle: async (command) => { calls.push(command); return { status: HISTORY_OWNER_STATUS.MIGRATED }; },
+    sceneIdentity: "scene-A",
+    createId: () => "history-migrate:1",
+    ...overrides,
+  });
+
+  assert.equal((await run({ isEnabled: () => false })).reason, "disabled");
+  assert.equal((await run({ sceneIdentity: null })).reason, "disabled");
+  assert.equal((await run({ readSceneValue: async () => buildLocalHistoryHead({ storeId: "s", rev: 1, history: history([]) }) })).reason, "nothing-to-migrate");
+  assert.equal((await run({ readSceneValue: async () => history([]) })).reason, "nothing-to-migrate");
+  assert.equal((await run({ isCurrent: () => false })).reason, "stale");
+  assert.deepEqual(calls, []);
+
+  assert.equal((await run({})).status, HISTORY_OWNER_STATUS.MIGRATED);
+  assert.deepEqual(calls, [{
+    kind: "migrate",
+    requestId: "history-migrate:1",
+    commandId: "history-migrate:1",
+    correlationId: "history-migrate:1",
+    sceneIdentity: "scene-A",
+  }]);
+});
+
+test("rollback: una History riscritta in scena da una versione precedente viene migrata di nuovo", async () => {
+  const indexedDB = createVersionedIndexedDB();
+  const database = createLocalHistoryDatabase({ indexedDB });
+  const sceneState = scene(history([entry("a", 1)]));
+  await ownerFor(sceneState, { database, ids: ["first"] }).command("migrate");
+  assert.equal(sceneState.state.value.storeId, "first");
+
+  // The older plugin reads the head as an empty History and writes its own version 1 value over it.
+  await sceneState.writeScene(history([entry("old-version", 1)]));
+  const { command } = ownerFor(sceneState, { database, ids: ["second"] });
+  assert.equal((await command("migrate")).status, HISTORY_OWNER_STATUS.MIGRATED);
+  assert.equal(sceneState.state.value.storeId, "second");
+  const reader = storageFor(sceneState, { enabled: false, database });
+  assert.deepEqual((await reader.read()).entries.map((item) => item.id), ["old-version"]);
+  const storeIds = indexedDB.inspect(HISTORY_LOCAL_DB_NAME).stores.historyStores.records.map((record) => record.storeId).sort();
+  assert.deepEqual(storeIds, ["first", "second"]);
+});
+
+test("ancora non scritta durante la migrazione: la History resta in scena e la migrazione si ripete", async () => {
+  const database = createLocalHistoryDatabase({ indexedDB: createVersionedIndexedDB() });
+  const legacy = history([entry("a", 1), entry("b", 2)]);
+  const sceneState = scene(legacy);
+  const realWrite = sceneState.writeScene;
+  sceneState.writeScene = async () => { throw new Error("scene write lost"); };
+  const failing = ownerFor(sceneState, { database, ids: ["lost"] });
+  assert.equal((await failing.command("migrate")).status, HISTORY_OWNER_STATUS.FAILED);
+  assert.deepEqual(sceneState.state.value, legacy);
+
+  sceneState.writeScene = realWrite;
+  const retry = ownerFor(sceneState, { database, ids: ["kept"] });
+  assert.equal((await retry.command("migrate")).status, HISTORY_OWNER_STATUS.MIGRATED);
+  assert.equal(sceneState.state.value.storeId, "kept");
+  const reader = storageFor(sceneState, { enabled: false, database });
+  assert.deepEqual((await reader.read()).entries, legacy.entries);
+});
+
+test("D3 durante la migrazione: senza IndexedDB la History resta in scena, con avviso", async () => {
+  const failures = [];
+  const legacy = history([entry("a", 1)]);
+  const sceneState = scene(legacy);
+  const { command } = ownerFor(sceneState, {
+    database: createLocalHistoryDatabase({ indexedDB: undefined }),
+    onLocalStoreFailed: (error) => failures.push(error.message),
+  });
+  assert.equal((await command("migrate")).status, HISTORY_OWNER_STATUS.MIGRATED);
+  assert.deepEqual(sceneState.state.value, legacy);
+  assert.deepEqual(failures, ["history-local-store-unavailable"]);
 });
