@@ -46,6 +46,9 @@ Il buffer tiene gli ultimi 5000 eventi.
 | `effects-transport` | `effectsMutations.js`, lato popup/tracker | andata e ritorno `context`/`apply`/`undo` per tipo di comando |
 | `effects-command` | `effectsMutations.js`, lato background | ms di elaborazione, ms totali con l'invio, chunk e byte della risposta |
 | `broadcast-rate-limited` | `effectsMutations.js` | ogni chunk rifiutato da Owlbear con «Too many requests» |
+| `effects-phase` | `effectsMutations.js`, coordinatore nel background | durata di `before-command` (journal di recovery), `prepare`, `commit`, `build-history`, `record-history` per comando |
+| `sdk-call` | solo background | durata di ogni chiamata SDK su item, item locali, metadata di scena e room, broadcast; `cmd` indica il comando effetti in corso |
+| `history-owner-phase`, `history-owner-command` | `historyOwner.js` | per ogni comando dell'owner: scrittura, notifica, Combat Log e tempo totale fino alla risposta |
 | `boot` | entry delle pagine | ms dalla navigazione a moduli valutati, `OBR.onReady`, first contentful paint |
 | `boot-resources` | entry delle pagine | script caricati, quanti dalla cache, byte trasferiti e decodificati |
 | `long-task` | entry delle pagine | task del main thread oltre 50 ms |
@@ -58,6 +61,16 @@ La latenza di una modifica PF dalla pillola è `history-action` di tipo `hp`: co
 modifica (`effects-transport`) e l'append della History. Non comprende la lettura degli item
 che `initiativeList.js` fa prima di aprirla. Il tempo di render del tracker resta nella
 diagnostica esistente: `__tbpInitiativeDiagnostics.enable()` nel contesto `index.html`.
+
+Nel background, a probe acceso, i metodi SDK elencati sopra sono avvolti da un wrapper che restituisce la
+stessa promise dell'originale e registra solo la durata. La `getItems` che `updateItems` fa al proprio interno è
+marcata `nested` e non viene contata due volte. Gli eventi registrati mentre una fase del coordinatore è in
+corso portano `cmd`/`cmdKind`: comprendono anche le chiamate di altri controller del background eseguite nel
+frattempo, perché il coordinatore è seriale ma il background no.
+
+`report()` mostra in testa `effectsPhases` (mediana di ogni fase per tipo di comando, con `outsidePhases` =
+tempo di elaborazione non coperto dalle fasi, cioè attesa in coda e broker), `sdkCalls` e `historyOwner`
+(`queueAndOther` = attesa in coda dell'owner e normalizzazione).
 
 Il background con il probe acceso aggiunge un proprio ascolto di scena, item e room e
 serializza ogni evento ricevuto per contarne i byte: è un piccolo costo in più, solo a

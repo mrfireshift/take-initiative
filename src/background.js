@@ -93,7 +93,7 @@ import { retainInitiativeCardRegistryWithinByteBudget } from "./initiativeCardRe
 import { retainActorVitalsRegistryWithinByteBudget } from "./actorVitalsCore.js";
 import { perfBootPage } from "./perfProbe.js";
 
-perfBootPage(OBR, { observeTraffic: true });
+perfBootPage(OBR, { observeTraffic: true, observeSdk: true });
 
 const HISTORY_UNDO_TOOL_ID = `${ID}/history-undo`;
 const HISTORY_UNDO_TOOL_SHORTCUT = "Alt+Z";

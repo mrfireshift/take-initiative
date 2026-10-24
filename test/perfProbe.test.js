@@ -5,6 +5,7 @@ import {
   perfJsonBytes,
   perfProbeEnabled,
   perfRecord,
+  perfSetContext,
   summarizePerfEvents,
 } from "../src/perfProbe.js";
 import {
@@ -112,6 +113,91 @@ test("summarizePerfEvents aggrega scritture, trasporto e avvio", () => {
   assert.deepEqual(summary.boot, [{ key: "turn-notice:module", samples: 1, sinceNavigationMs: { p50: 250, p95: 250, max: 250 } }]);
   assert.deepEqual(summary.longTasks, [{ page: "background", tasks: 1, totalMs: 70, maxMs: 70 }]);
   assert.equal(summary.rateLimited, 1);
+});
+
+test("perf probe acceso: il contesto del comando etichetta gli eventi registrati nel frattempo", () => {
+  globalThis.__tbpPerf.reset();
+  perfSetContext({ commandId: "cmd-1", commandKind: "effects:tick-boundaries" });
+  perfRecord("metadata-write", { key: "k", bytes: 1 });
+  perfSetContext(null);
+  perfRecord("metadata-write", { key: "k", bytes: 2 });
+  const [tagged, untagged] = globalThis.__tbpPerf.events;
+  assert.equal(tagged.cmd, "cmd-1");
+  assert.equal(tagged.cmdKind, "effects:tick-boundaries");
+  assert.equal(untagged.cmd, undefined);
+});
+
+test("perf probe acceso: le chiamate SDK restano le stesse e l'annidata di updateItems non conta due volte", async () => {
+  globalThis.__tbpPerf.reset();
+  const calls = [];
+  const items = {
+    getItems(ids) {
+      calls.push(["getItems", ids]);
+      return Promise.resolve([{ id: "a" }]);
+    },
+    updateItems(ids, update) {
+      calls.push(["updateItems", ids]);
+      return this.getItems(ids).then((found) => { update(found); return "updated"; });
+    },
+  };
+  const obr = { scene: { items }, onReady() {} };
+  perfBootPage(obr, { observeSdk: true });
+
+  const readPromise = obr.scene.items.getItems(["a"]);
+  assert.ok(readPromise instanceof Promise);
+  assert.deepEqual(await readPromise, [{ id: "a" }]);
+  let updated = null;
+  assert.equal(await obr.scene.items.updateItems(["a"], (found) => { updated = found; }), "updated");
+  assert.deepEqual(updated, [{ id: "a" }]);
+  assert.deepEqual(calls, [["getItems", ["a"]], ["updateItems", ["a"]], ["getItems", ["a"]]]);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const sdk = globalThis.__tbpPerf.events.filter((event) => event.type === "sdk-call");
+  assert.deepEqual(sdk.map((event) => [event.method, event.nested, event.ids]).sort(), [
+    ["scene.items.getItems", false, 1],
+    ["scene.items.getItems", true, 1],
+    ["scene.items.updateItems", false, 1],
+  ].sort());
+  const summary = summarizePerfEvents(globalThis.__tbpPerf.events);
+  assert.deepEqual(summary.sdkCalls.map((row) => [row.method, row.calls]).sort(), [
+    ["scene.items.getItems", 1],
+    ["scene.items.updateItems", 1],
+  ]);
+});
+
+test("summarizePerfEvents scompone comandi effetti e owner History per fase", () => {
+  const summary = summarizePerfEvents([
+    { type: "effects-command", kind: "apply", commandKind: "effects:tick-boundaries", commandId: "c1", handleMs: 3000, totalMs: 3100 },
+    { type: "effects-phase", phase: "before-command", commandId: "c1", durationMs: 100 },
+    { type: "effects-phase", phase: "prepare", commandId: "c1", durationMs: 900 },
+    { type: "effects-phase", phase: "commit", commandId: "c1", durationMs: 1500 },
+    { type: "effects-phase", phase: "record-history", commandId: "c1", durationMs: 400 },
+    { type: "sdk-call", method: "scene.items.updateItems", cmd: "c1", durationMs: 600, nested: false },
+    { type: "sdk-call", method: "scene.items.getItems", cmd: "c1", durationMs: 50, nested: true },
+    { type: "history-owner-command", kind: "append", commandId: "r1", handledMs: 700, totalMs: 720 },
+    { type: "history-owner-phase", phase: "write", commandId: "r1", durationMs: 150 },
+    { type: "history-owner-phase", phase: "combat-log", commandId: "r1", durationMs: 400 },
+  ]);
+  assert.deepEqual(summary.effectsPhases, [{
+    kind: "effects:tick-boundaries",
+    commands: 1,
+    handleMs: { p50: 3000, p95: 3000, max: 3000 },
+    "before-command": 100,
+    prepare: 900,
+    commit: 1500,
+    "record-history": 400,
+    outsidePhases: 100,
+    sdkCalls: 1,
+    sdkMs: 600,
+  }]);
+  assert.deepEqual(summary.historyOwner, [{
+    kind: "append",
+    commands: 1,
+    handledMs: { p50: 700, p95: 700, max: 700 },
+    write: 150,
+    "combat-log": 400,
+    queueAndOther: 150,
+  }]);
 });
 
 test("export produce JSON con eventi e riepilogo", () => {

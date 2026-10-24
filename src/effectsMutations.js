@@ -78,7 +78,7 @@ import { emitMatchedVisualEndsFromMutation } from "./embersMatchedVisualRenderer
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { suppressElevationHistory, suppressMovementHistory } from "./history.js";
 import { compactBackgroundReminderTransportResult } from "./effectsReminderTransportCore.js";
-import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSince } from "./perfProbe.js";
+import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSetContext, perfSince } from "./perfProbe.js";
 import {
   buildEffectsMutationResultMessages,
   createEffectsMutationResultAssembler,
@@ -4060,10 +4060,40 @@ async function commitCoordinatedEffectsPlan(plan, { isCurrent, command = {} }) {
 let effectsMutationCoordinator = null;
 let effectsRecovery = null;
 
+// Perf probe only: time one coordinator phase and tag the SDK calls and writes made meanwhile with its command.
+// Off, the phase runs exactly as before.
+function probeEffectsPhase(phase, command, run) {
+  if (!perfProbeEnabled()) return run();
+  const context = { commandId: String(command?.commandId || ""), commandKind: command?.kind || null };
+  const startedAt = perfNow();
+  perfSetContext(context);
+  const finish = () => {
+    perfSetContext(null);
+    perfRecord("effects-phase", {
+      phase,
+      commandId: context.commandId,
+      commandKind: context.commandKind,
+      durationMs: perfSince(startedAt),
+    });
+  };
+  let result;
+  try {
+    result = run();
+  } catch (error) {
+    finish();
+    throw error;
+  }
+  return Promise.resolve(result).finally(finish);
+}
+
 function createBackgroundEffectsMutationCoordinator() {
   return createEffectsMutationCoordinator({
-  beforeCommand: (command, isCurrent) => effectsRecovery?.beforeCommand(command, isCurrent),
-  prepare: async (operations, context) => {
+  beforeCommand: (command, isCurrent) => probeEffectsPhase(
+    "before-command",
+    command,
+    () => effectsRecovery?.beforeCommand(command, isCurrent),
+  ),
+  prepare: (operations, context) => probeEffectsPhase("prepare", context?.command, async () => {
     const preconditionFailure=await checkEffectsSceneMetadataPreconditions(context.command,context.isCurrent);
     if(preconditionFailure) return preconditionFailure;
     const plan = await prepareEffectsMutation(operations, context);
@@ -4073,8 +4103,12 @@ function createBackgroundEffectsMutationCoordinator() {
     }
     if (!context.isCurrent()) return { status: EFFECTS_MUTATION_STATUS.REJECTED };
     return prepareEffectsSideEffects(plan, context.command);
-  },
-  commit: (plan, { isCurrent, command }) => commitCoordinatedEffectsPlan(plan, { isCurrent, command }),
+  }),
+  commit: (plan, { isCurrent, command }) => probeEffectsPhase(
+    "commit",
+    command,
+    () => commitCoordinatedEffectsPlan(plan, { isCurrent, command }),
+  ),
   prepareUndo: (entries, { sceneEpoch, isCurrent }) => prepareEffectsMutationUndo(entries, {
     sceneEpoch,
     isCurrent,
@@ -4091,17 +4125,17 @@ function createBackgroundEffectsMutationCoordinator() {
   // nuovo timestamp `at`, trasformando tutti i retry successivi in
   // `entry-id-payload-mismatch`. Le risoluzioni che richiedono un ACK gia
   // undoabile (per esempio la catena Turbine) usano invece l'append sincrono.
-  buildHistoryEntry: async ({ command, plan, commitResult, sceneEpoch }) => {
+  buildHistoryEntry: ({ command, plan, commitResult, sceneEpoch }) => probeEffectsPhase("build-history", command, async () => {
     const { buildEffectsMutationHistoryEntry } = await import("./history.js");
     return buildEffectsMutationHistoryEntry({ command, plan, commitResult, sceneEpoch });
-  },
-  recordHistory: async ({ command, plan, commitResult, sceneEpoch }) => {
+  }),
+  recordHistory: ({ command, plan, commitResult, sceneEpoch }) => probeEffectsPhase("record-history", command, async () => {
     if (commitResult?.sideEffectsPending?.length) {
       throw new Error("effects-side-effects-pending");
     }
     const { recordEffectsMutationHistory } = await import("./history.js");
     return recordEffectsMutationHistory({ command, plan, commitResult, sceneEpoch });
-  },
+  }),
   });
 }
 
@@ -4468,6 +4502,7 @@ export async function mountEffectsMutationCoordinatorService() {
           perfRecord("effects-command", {
             kind: data.kind,
             commandKind: handledCommand?.kind || null,
+            commandId: handledCommand?.commandId || null,
             status: result?.status || null,
             handleMs: probeHandleMs,
             totalMs: perfSince(probeStartedAt),

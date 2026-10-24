@@ -112,14 +112,27 @@ function refreshOwnerSceneEpoch() {
   setOwnerSceneContext(true);
 }
 
+// Perf probe only: time one owner phase of one command. Off, the phase runs exactly as before.
+function probeOwnerPhase(phase, command, run) {
+  if (!perfProbeEnabled()) return run();
+  const startedAt = perfNow();
+  const finish = () => perfRecord("history-owner-phase", {
+    phase,
+    commandId: String(command?.requestId || command?.commandId || ""),
+    durationMs: perfSince(startedAt),
+  });
+  return Promise.resolve(run()).finally(finish);
+}
+
 function createOwnerBroker() {
   ownerBroker = createHistoryOwnerBroker({
     maxEntries: HISTORY_OWNER_MAX_ENTRIES,
-    readHistory: async () => {
+    readHistory: async ({ command } = {}) => {
       const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
       const metadata = await OBR.scene.getMetadata();
       if (perfProbeEnabled()) {
         perfRecord("history-read", {
+          commandId: String(command?.requestId || command?.commandId || ""),
           durationMs: perfSince(probeStartedAt),
           sceneMetadataBytes: perfJsonBytes(metadata),
           historyBytes: perfJsonBytes(metadata?.[HISTORY_KEY]),
@@ -128,13 +141,13 @@ function createOwnerBroker() {
       }
       return metadata?.[HISTORY_KEY];
     },
-    writeHistory: (history) => writeSceneMetadataKey(
+    writeHistory: (history, { command } = {}) => probeOwnerPhase("write", command, () => writeSceneMetadataKey(
       OBR.scene,
       METADATA_OWNERSHIP.HISTORY,
       history,
       { runtime: "historyOwner" },
-    ),
-    notify: async (result) => {
+    )),
+    notify: (result, { command } = {}) => probeOwnerPhase("notify", command, async () => {
       await OBR.broadcast.sendMessage(
         HISTORY_CHANGE_CHANNEL,
         {
@@ -146,10 +159,10 @@ function createOwnerBroker() {
         },
         { destination: "LOCAL" },
       );
-    },
-    recordCombatLog: (entry, { scene }) => recordHistoryInCombatLog(entry, {
-      sceneEpoch: scene.epoch,
     }),
+    recordCombatLog: (entry, { command, scene }) => probeOwnerPhase("combat-log", command, () => recordHistoryInCombatLog(entry, {
+      sceneEpoch: scene.epoch,
+    })),
     normalizeHistory: (value) => normalizeOwnerHistory(value),
     isSceneCurrent: ownerSceneIsCurrent,
   });
@@ -183,9 +196,22 @@ export async function mountHistoryOwner() {
         (event) => {
           const data = event?.data;
           if (!data?.requestId || !["context", "append", "remove", "clear"].includes(data.kind)) return;
-          void broker.handle(data).then((result) => (
-            respondToOwnerCommand(data.requestId, result)
-          )).catch((error) => respondToOwnerCommand(data.requestId, {
+          const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
+          let probeHandledMs = null;
+          const probeRecordResponse = (result) => {
+            if (!perfProbeEnabled()) return;
+            perfRecord("history-owner-command", {
+              kind: data.kind,
+              commandId: String(data.requestId),
+              status: result?.status || null,
+              handledMs: probeHandledMs,
+              totalMs: perfSince(probeStartedAt),
+            });
+          };
+          void broker.handle(data).then((result) => {
+            if (perfProbeEnabled()) probeHandledMs = perfSince(probeStartedAt);
+            return respondToOwnerCommand(data.requestId, result).then(() => probeRecordResponse(result));
+          }).catch((error) => respondToOwnerCommand(data.requestId, {
             requestId: data.requestId,
             commandId: data.commandId || data.requestId,
             correlationId: data.correlationId || data.commandId || data.requestId,

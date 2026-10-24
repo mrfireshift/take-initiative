@@ -17,6 +17,7 @@ let enabled = readFlag();
 let channel = null;
 let obrRef = null;
 let booted = false;
+let activeContext = null;
 
 function readFlag() {
   try { return globalThis.localStorage?.getItem(PERF_PROBE_STORAGE_KEY) === "1"; }
@@ -99,9 +100,23 @@ function ensureChannel() {
   return channel;
 }
 
+// The effects command being executed in this realm: events recorded meanwhile carry its id, including SDK calls
+// and writes of other background controllers that run in between (the coordinator itself is serial).
+export function perfSetContext(context) {
+  if (!enabled) return;
+  activeContext = context && context.commandId ? context : null;
+}
+
 export function perfRecord(type, detail = {}) {
   if (!enabled) return;
-  const event = { type, realm, instance, at: Math.round(epochMs()), ...detail };
+  const event = {
+    type,
+    realm,
+    instance,
+    at: Math.round(epochMs()),
+    ...(activeContext ? { cmd: activeContext.commandId, cmdKind: activeContext.commandKind || null } : {}),
+    ...detail,
+  };
   store(event);
   try { ensureChannel()?.postMessage(event); }
   catch {}
@@ -152,13 +167,65 @@ function observeSceneTraffic(obr) {
   } catch {}
 }
 
+const SDK_METHODS = Object.freeze([
+  ["scene.items", ["getItems", "updateItems", "addItems", "deleteItems", "getItemBounds"]],
+  ["scene.local", ["getItems", "updateItems", "addItems", "deleteItems"]],
+  ["scene", ["getMetadata", "setMetadata"]],
+  ["room", ["getMetadata", "setMetadata"]],
+  ["broadcast", ["sendMessage"]],
+]);
+
+function sdkTarget(obr, path) {
+  return path.split(".").reduce((target, key) => target?.[key], obr);
+}
+
+// Background only: times the SDK calls with a pass-through wrapper that returns the original promise unchanged.
+// updateItems reads its items through getItems synchronously before its first await: that inner call is marked
+// nested so its time is not counted twice.
+function observeSdkCalls(obr) {
+  let updating = false;
+  for (const [path, methods] of SDK_METHODS) {
+    const target = sdkTarget(obr, path);
+    if (!target) continue;
+    for (const method of methods) {
+      const original = target[method];
+      if (typeof original !== "function" || original.__tbpPerfWrapped) continue;
+      const name = `${path}.${method}`;
+      const wrapped = function perfObservedSdkCall(...args) {
+        const nested = updating && method === "getItems";
+        const startedAt = perfNow();
+        const ids = Array.isArray(args[0]) ? args[0].length : null;
+        if (method === "updateItems") updating = true;
+        let result;
+        try {
+          result = original.apply(this, args);
+        } catch (error) {
+          perfRecord("sdk-call", { method: name, ids, nested, ok: false, durationMs: perfSince(startedAt) });
+          throw error;
+        } finally {
+          if (method === "updateItems") updating = false;
+        }
+        Promise.resolve(result).then(
+          () => perfRecord("sdk-call", { method: name, ids, nested, ok: true, durationMs: perfSince(startedAt) }),
+          () => perfRecord("sdk-call", { method: name, ids, nested, ok: false, durationMs: perfSince(startedAt) }),
+        );
+        return result;
+      };
+      wrapped.__tbpPerfWrapped = true;
+      try { target[method] = wrapped; }
+      catch {}
+    }
+  }
+}
+
 // Call once at the top level of a page entry, right after its imports: at that point every static
 // import of the page has been fetched and evaluated.
-export function perfBootPage(obr, { observeTraffic = false } = {}) {
+export function perfBootPage(obr, { observeTraffic = false, observeSdk = false } = {}) {
   obrRef ||= obr || null;
   if (!enabled || booted) return;
   booted = true;
   ensureChannel();
+  if (observeSdk && obr) observeSdkCalls(obr);
   perfRecord("boot", { stage: "module", sinceNavigationMs: round(perfNow()) });
   recordBootResources();
   observeEntries("paint", (entry) => {
@@ -270,8 +337,68 @@ export function summarizePerfEvents(list = events) {
     }));
   const longTasks = groupBy(ofType(list, "long-task"), (event) => event.realm)
     .map(([page, group]) => ({ page, tasks: group.length, totalMs: round(sum(group, "durationMs")), maxMs: stats(group, "durationMs").max }));
+  const commandEvents = ofType(list, "effects-command").filter((event) => event.kind === "apply" && event.commandId);
+  const phasesByCommand = groupBy(ofType(list, "effects-phase"), (event) => event.commandId);
+  const phaseMap = new Map(phasesByCommand);
+  const sdkByCommand = new Map(groupBy(
+    ofType(list, "sdk-call").filter((event) => event.cmd && !event.nested),
+    (event) => event.cmd,
+  ));
+  const effectsPhases = groupBy(commandEvents, (event) => event.commandKind || "-").map(([kind, group]) => {
+    const rows = group.map((command) => {
+      const phases = phaseMap.get(command.commandId) || [];
+      const byPhase = {};
+      for (const phase of phases) byPhase[phase.phase] = (byPhase[phase.phase] || 0) + (Number(phase.durationMs) || 0);
+      const phaseTotal = Object.values(byPhase).reduce((total, value) => total + value, 0);
+      const sdkCalls = sdkByCommand.get(command.commandId) || [];
+      return {
+        ...byPhase,
+        outsidePhases: Math.max(0, (Number(command.handleMs) || 0) - phaseTotal),
+        sdkCalls: sdkCalls.length,
+        sdkMs: sum(sdkCalls, "durationMs"),
+      };
+    });
+    const names = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+    return {
+      kind,
+      commands: group.length,
+      handleMs: stats(group, "handleMs"),
+      ...Object.fromEntries(names.map((name) => [name, stats(rows, name).p50])),
+    };
+  });
+  const sdkCalls = groupBy(ofType(list, "sdk-call").filter((event) => !event.nested), (event) => event.method)
+    .map(([method, group]) => ({
+      method,
+      calls: group.length,
+      duringCommands: group.filter((event) => event.cmd).length,
+      failed: group.filter((event) => event.ok === false).length,
+      totalMs: round(sum(group, "durationMs")),
+      durationMs: stats(group, "durationMs"),
+    }))
+    .sort((a, b) => b.totalMs - a.totalMs);
+  const ownerPhases = new Map(groupBy(ofType(list, "history-owner-phase"), (event) => event.commandId));
+  const historyOwner = groupBy(ofType(list, "history-owner-command"), (event) => event.kind || "-").map(([kind, group]) => {
+    const rows = group.map((command) => {
+      const byPhase = {};
+      for (const phase of ownerPhases.get(command.commandId) || []) {
+        byPhase[phase.phase] = (byPhase[phase.phase] || 0) + (Number(phase.durationMs) || 0);
+      }
+      const phaseTotal = Object.values(byPhase).reduce((total, value) => total + value, 0);
+      return { ...byPhase, queueAndOther: Math.max(0, (Number(command.handledMs) || 0) - phaseTotal) };
+    });
+    const names = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+    return {
+      kind,
+      commands: group.length,
+      handledMs: stats(group, "handledMs"),
+      ...Object.fromEntries(names.map((name) => [name, stats(rows, name).p50])),
+    };
+  });
   return {
     events: list.length,
+    effectsPhases,
+    sdkCalls,
+    historyOwner,
     metadataWrites: writes,
     received,
     transport,
