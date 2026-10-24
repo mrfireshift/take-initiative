@@ -88,7 +88,7 @@ import {
   attachSpellExecutionHistory,
 } from "./spellExecutionHistoryCore.js";
 import { buildSpellCausality } from "./combatLogCausalityCore.js";
-import { executeSpellCastRecord } from "./spellCastRecord.js";
+import { executeSpellCastRecord, recordInCombatLog } from "./spellCastRecord.js";
 import { withSpellCastCost } from "./spellCastRecordCore.js";
 
 const STATE_KEY = `${ID}/state`;
@@ -479,6 +479,21 @@ function scopeBanishmentOperations(operations, eligibleTargetIds) {
     }
     return [operation];
   });
+}
+
+// The outcome of an attack in an activation's label, as the PC attack console names it: "Goblin: mancato".
+const ACTIVE_ATTACK_OUTCOME_WORDS = Object.freeze({ hit: "colpito", critical: "critico", miss: "mancato" });
+
+function activeAttackSummary(action, attackOutcome, attackEntries, ids, byId) {
+  const name = (id) => String(byId.get(id)?.name || "bersaglio").trim();
+  const word = (outcome) => ACTIVE_ATTACK_OUTCOME_WORDS[String(outcome || "").trim()] || "";
+  if (attackEntries.length) {
+    const parts = attackEntries.filter((entry) => word(entry.attackOutcome))
+      .map((entry) => `${name(entry.targetId)}: ${word(entry.attackOutcome)}`);
+    return parts.length > 3 ? `${parts.length} attacchi` : parts.join(", ");
+  }
+  if (action?.resolutionKind !== "single-attack" || !ids.length || !word(attackOutcome)) return "";
+  return `${name(ids[0])}: ${word(attackOutcome)}`;
 }
 
 function spellApplicationNoop(status, reason, extra = {}) {
@@ -1731,10 +1746,59 @@ export async function executeSpellActiveResolution({
       ? { damageRoll: attackEntries[0].damageRoll, attackOutcome: attackEntries[0].attackOutcome }
       : { damageRoll }),
   };
+  // An attack names its target and outcome, hit or miss, as the PC attack console does (Mano arcana's Pugno serrato).
+  const attackSummary = activeAttackSummary(action, attackOutcome, attackEntries, ids, byId);
+  const activationLabel = `Attivazione: ${spellName} · ${actionLabel}${attackSummary ? ` → ${attackSummary}` : ""}`;
+  const historyPayload = {
+    type: payload.type,
+    spellId: payload.spellId,
+    instanceId: payload.instanceId,
+    casterId: payload.casterId,
+    actionId: payload.actionId,
+    slotLevel: payload.slotLevel,
+    targetIds: ids,
+    outcomes,
+    ...(action?.resolutionKind === "single-save" && saveAbility
+      ? { saveAbility: String(saveAbility).trim().toLowerCase() }
+      : {}),
+    attackOutcome: String(attackOutcome || ""),
+    ...(action?.resolutionKind === "single-heal"
+      ? { healingRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)) }
+      : { damageRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)) }),
+    attacks: attackEntries,
+    ...(prismaticWallHistory ? { prismaticWall: prismaticWallHistory } : {}),
+    ...(action?.shortenStaticZone ? { shorteningFrom: String(shorteningFrom || action.shortenStaticZone.from || "end") } : {}),
+    naturalStormBonus: naturalStormBonus === true,
+    causality: buildSpellCausality({
+      eventType: "resolution",
+      spellId: payload.spellId,
+      spellName: payload.spellName,
+      instanceId: payload.instanceId,
+      slotLevel: payload.slotLevel,
+      phase: payload.castContext?.phase || payload.phase,
+      casterId: payload.casterId,
+      casterName: payload.casterName,
+      targets: causalTargets,
+      targetIds: ids,
+      outcomes,
+      attacks: attackEntries,
+      actionId: payload.actionId,
+      action: causalAction,
+      concentrationAction: action?.concentrationAction,
+      concentrationInstanceId: payload.instanceId,
+      zone: payload.zoneItemId
+        ? {
+          action: action?.childZone ? "resolve" : undefined,
+          zoneItemId: payload.zoneItemId,
+          ruleId: action?.placementRuleId || action?.childZone?.placementRuleId,
+        }
+        : undefined,
+    }),
+  };
   const mutation = await runEffectsMutation(operations, {
     kind: "spell-active-resolution",
     sharedHp,
-    label: `Attivazione: ${spellName} · ${actionLabel}`,
+    label: activationLabel,
     targetIds: [payload.casterId, ...ids],
     metadataPatches,
     sideEffects,
@@ -1742,56 +1806,27 @@ export async function executeSpellActiveResolution({
     ...(commandId ? { commandId } : {}),
     history: {
       kind: "spell-active-resolution",
-      label: `Attivazione: ${spellName} · ${actionLabel}`,
-      payload: {
-        type: payload.type,
-        spellId: payload.spellId,
-        instanceId: payload.instanceId,
-        casterId: payload.casterId,
-        actionId: payload.actionId,
-        slotLevel: payload.slotLevel,
-        targetIds: ids,
-        outcomes,
-        ...(action?.resolutionKind === "single-save" && saveAbility
-          ? { saveAbility: String(saveAbility).trim().toLowerCase() }
-          : {}),
-        attackOutcome: String(attackOutcome || ""),
-        ...(action?.resolutionKind === "single-heal"
-          ? { healingRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)) }
-          : { damageRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)) }),
-        attacks: attackEntries,
-        ...(prismaticWallHistory ? { prismaticWall: prismaticWallHistory } : {}),
-        ...(action?.shortenStaticZone ? { shorteningFrom: String(shorteningFrom || action.shortenStaticZone.from || "end") } : {}),
-        naturalStormBonus: naturalStormBonus === true,
-        causality: buildSpellCausality({
-          eventType: "resolution",
-          spellId: payload.spellId,
-          spellName: payload.spellName,
-          instanceId: payload.instanceId,
-          slotLevel: payload.slotLevel,
-          phase: payload.castContext?.phase || payload.phase,
-          casterId: payload.casterId,
-          casterName: payload.casterName,
-          targets: causalTargets,
-          targetIds: ids,
-          outcomes,
-          attacks: attackEntries,
-          actionId: payload.actionId,
-          action: causalAction,
-          concentrationAction: action?.concentrationAction,
-          concentrationInstanceId: payload.instanceId,
-          zone: payload.zoneItemId
-            ? {
-              action: action?.childZone ? "resolve" : undefined,
-              zoneItemId: payload.zoneItemId,
-              ruleId: action?.placementRuleId || action?.childZone?.placementRuleId,
-            }
-            : undefined,
-        }),
-      },
+      label: activationLabel,
+      payload: historyPayload,
     },
   });
   requireAppliedEffectsMutation(mutation);
+  // A missed attack changes nothing, so the coordinator keeps no History entry and the combat log hears nothing of it:
+  // it is recorded in the log alone, as a cast that spends nothing (spellCastRecord.js), like the PC console's misses.
+  if (attackSummary && !mutation.historyEntryId && !mutation.historyEntry?.id && mutation.historyPending !== true
+    && mutation.duplicate !== true) {
+    await recordInCombatLog({
+      id: "",
+      kind: "spell-active-resolution",
+      label: activationLabel,
+      at: Date.now(),
+      changes: [],
+      payload: historyPayload,
+      provenance: { recordingSource: "spell-active-resolution" },
+    }, sceneEpoch ?? currentSceneEpoch()).catch((error) => {
+      console.warn("[spell] active attack log:", error?.message || error);
+    });
+  }
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
     return attachSpellExecutionHistory(mutation, {
       ...mutation,

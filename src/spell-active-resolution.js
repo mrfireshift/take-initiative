@@ -61,6 +61,7 @@ import {
   SPELL_UNIFIED_PANEL_POPUP_STATUSES,
 } from "./spellUnifiedPopupProtocol.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
+import { SPELL_TURN_PROMPT_ACTION_CHANNEL } from "./callLightningTurnPromptController.js";
 
 const META_KEY = `${ID}/meta`;
 const params = new URLSearchParams(globalThis.location?.search || "");
@@ -475,8 +476,24 @@ function maxAttackCount() {
   return Math.max(1, Math.floor(Number(payload?.action?.maxAttacks) || 1));
 }
 
+// An action opened from the choice of the hand's actions (or another turn choice) can go back to it.
+function renderBackToChoice() {
+  const button = $("backToChoice");
+  if (!button) return;
+  button.hidden = payload?.returnToChoice !== true || isPreparedResolution();
+  button.disabled = busy;
+}
+
 function isMultiAttack() {
   return payload?.action?.resolutionKind === "single-attack" && maxAttackCount() > 1;
+}
+
+// As the PC attack console (Mano arcana's Pugno serrato): the outcome is chosen first, the damage is asked only on a
+// hit or a critical, and Applica records it; a miss needs no damage.
+function isConsoleFlowAttack() {
+  return !isPreparedResolution() && !isMultiAttack()
+    && payload?.action?.resolutionKind === "single-attack"
+    && payload?.action?.attack?.consoleFlow === true;
 }
 
 function childZone() {
@@ -1373,12 +1390,21 @@ async function renderStorm() {
     && !!selectedAttackTarget
     && (!requiresZoneRoot || rootReady);
   const damageValue = String($("attackDamage")?.value || "").trim();
+  const consoleFlow = isConsoleFlowAttack();
   for (const button of document.querySelectorAll("[data-attack-outcome]")) {
     const outcome = button.dataset.attackOutcome;
     const damageRequired = spellActiveResolutionAttackDamageRequired(payload?.action, outcome);
     button.classList.toggle("active", outcome === attackOutcome);
     button.hidden = !payload?.action?.attack?.outcomes?.includes(outcome);
-    button.disabled = !baseReady || (damageRequired && !damageValue);
+    button.disabled = !baseReady || (!consoleFlow && damageRequired && !damageValue);
+  }
+  if (consoleFlow) {
+    const damageNeeded = spellActiveResolutionAttackDamageRequired(payload?.action, attackOutcome);
+    if (attackField) attackField.hidden = !damageNeeded;
+    $("footer").hidden = false;
+    $("summary").hidden = true;
+    $("apply").textContent = "Applica";
+    $("apply").disabled = !baseReady || !attackOutcome || (damageNeeded && !damageValue);
   }
   attackRows.replaceChildren();
   if (multi) {
@@ -1973,6 +1999,7 @@ function renderTargetLine(targetName = "", emptyText = "") {
 function render() {
   if (!payload) return;
   if ($("apply")) $("apply").hidden = false;
+  renderBackToChoice();
   renderTargetLine("");
   renderContext();
   const prepared = isPreparedResolution();
@@ -2588,7 +2615,9 @@ async function apply() {
         : payload.action.resolutionKind === "child-zone"
         ? 0
         : payload.action.resolutionKind === "single-attack"
-        ? $("attackDamage").value
+        ? (isConsoleFlowAttack() && !spellActiveResolutionAttackDamageRequired(payload.action, attackOutcome)
+          ? 0
+          : $("attackDamage").value)
         : payload.action.resolutionKind === "single-heal"
           ? $("healAmount").value
         : payload.action.resolutionKind === "single-save"
@@ -2683,6 +2712,14 @@ if (!payload) {
   $("cancelPlacement")?.addEventListener("click", () => void cancelPlacement());
   $("blinkPlace")?.addEventListener("click", () => void placeArea());
   $("apply").addEventListener("click", () => void apply());
+  $("backToChoice")?.addEventListener("click", () => {
+    if (busy) return;
+    void OBR.broadcast.sendMessage(SPELL_TURN_PROMPT_ACTION_CHANNEL, {
+      type: "back-to-choice",
+      instanceId: payload?.instanceId,
+      actionId: payload?.actionId,
+    }, { destination: "LOCAL" }).catch(() => {});
+  });
   $("damage").addEventListener("input", (event) => {
     event.target.dataset.value = event.target.value;
     render();
@@ -2774,6 +2811,13 @@ if (!payload) {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       attackOutcome = button.dataset.attackOutcome;
+      if (isConsoleFlowAttack()) {
+        render();
+        if (spellActiveResolutionAttackDamageRequired(payload?.action, attackOutcome)) {
+          setTimeout(() => $("attackDamage")?.focus?.(), 0);
+        }
+        return;
+      }
       if (isPreparedResolution()) render();
       else void apply();
     });

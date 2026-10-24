@@ -207,6 +207,7 @@ import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { isCounterspell } from "./counterspellCore.js";
 import { openCounterspellPopover } from "./counterspellLauncher.js";
 import { executeSpellBoardTokenStateUpdate } from "./spellApplicationExecutor.js";
+import { SPELL_TURN_PROMPT_ACTION_CHANNEL } from "./callLightningTurnPromptController.js";
 import { DELAYED_BLAST_FIREBALL_ID } from "./delayedBlastFireballRules.js";
 import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
 import { buildBossActionsLauncher, buildTrackerConsoleLauncher, buildTrackerQuickActionLauncher, trackerHasConsoleEntries, trackerQuickActionsForGroup } from "./trackerQuickActions.js";
@@ -5136,6 +5137,17 @@ function __selectSpellBoardTokenCompanion(companion, event) {
 }
 
 // A summoned token with a sheet of its own (Mano arcana): a read-only popover, toggled like the creature card.
+// Azioni on a spell token's row (Mano arcana): the background's turn prompt controller opens the popup of its actions,
+// the one its caster's turn opens (callLightningTurnPromptController.js).
+async function __openSpellBoardTokenCompanionActions(companion) {
+  const itemId = String(companion?.itemId || "").trim();
+  if (!itemId || !IS_GM) return;
+  await OBR.broadcast.sendMessage(SPELL_TURN_PROMPT_ACTION_CHANNEL,
+    { type: "open-board-token-actions", zoneItemId: itemId }, { destination: "LOCAL" }).catch((error) => {
+    console.warn("[spell-board-token-actions] open:", error?.message || error);
+  });
+}
+
 async function __openSpellBoardTokenCompanionCard(companion) {
   const itemId = String(companion?.itemId || "").trim();
   if (!itemId) return;
@@ -10169,6 +10181,7 @@ function renderCompactTrack(
         onBindHP: IS_GM ? bindSpellBoardTokenCompanionHPEditor : null,
         onSelect: __selectSpellBoardTokenCompanion,
         onOpenCard: __openSpellBoardTokenCompanionCard,
+        onOpenActions: IS_GM ? __openSpellBoardTokenCompanionActions : null,
         selectedIds: __selectedSceneItemIds,
       },
     );
@@ -10376,6 +10389,7 @@ for (const e of entries) {
           onBindHP: IS_GM ? bindSpellBoardTokenCompanionHPEditor : null,
           onSelect: __selectSpellBoardTokenCompanion,
           onOpenCard: __openSpellBoardTokenCompanionCard,
+          onOpenActions: IS_GM ? __openSpellBoardTokenCompanionActions : null,
           selectedIds: __selectedSceneItemIds,
         },
       );

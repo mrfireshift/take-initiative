@@ -136,6 +136,11 @@ test("dal turno dopo il lancio il caster riceve un solo popup con i cinque effet
     } } },
   ];
   assert.deepEqual(spellTurnPromptRequests({ items, actorId: "caster", sceneEpoch: 4, turnKey: castTurn }), []);
+  // "Azioni della Mano" from the token's menu asks without a turn: the popup is there even on the cast turn.
+  const [fromMenu] = spellTurnPromptRequests({ items, actorId: "caster", sceneEpoch: 4, turnKey: "" });
+  assert.equal(fromMenu?.kind, "choice");
+  assert.equal(fromMenu.instanceId, "hand-cast-1");
+  assert.equal(fromMenu.zoneItemId, "hand-token");
   const [request, ...rest] = spellTurnPromptRequests({ items, actorId: "caster", sceneEpoch: 4, turnKey: "2:0:caster" });
   assert.equal(rest.length, 0);
   assert.equal(request.kind, "choice");

@@ -17,6 +17,7 @@ import { buildSpellUnifiedActivePopoverRequest } from "./spellUnifiedActiveAdapt
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import { spellOverviewGroups } from "./spellsPanelViewCore.js";
+import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 
 const STATE_KEY = `${ID}/state`;
 export const CALL_LIGHTNING_TURN_NOTICE_CHANNEL = `${ID}/turn-notice`;
@@ -240,10 +241,22 @@ async function openRequest(request, stackIndex, taskRevision) {
   opened.set(id, runtime);
 }
 
+// The choice an open action popup came from (its "‹ Azioni" brings the choice back): the reconcile keeps that action
+// open and does not reopen the choice above it.
+function choiceHeldByAction(request) {
+  if (request?.kind !== "choice") return false;
+  const id = popoverId(request);
+  return [...opened.values()].some((runtime) => runtime?.choiceRequest && popoverId(runtime.choiceRequest) === id);
+}
+
 async function closeMissing(requests) {
   const desiredIds = new Set(requests.map(popoverId));
+  const heldChoiceIds = new Set(requests.filter(choiceHeldByAction).map(popoverId));
   for (const [id, runtime] of [...opened]) {
-    if (desiredIds.has(id)) continue;
+    // A popup the GM opened from the hand's row stays until it is closed or used, whoever's turn it is; so does an
+    // action opened from a choice the turn still offers.
+    if (desiredIds.has(id) || runtime?.manual === true) continue;
+    if (runtime?.choiceRequest && heldChoiceIds.has(popoverId(runtime.choiceRequest))) continue;
     opened.delete(id);
     await closeRuntime(runtime);
   }
@@ -272,7 +285,7 @@ async function reconcileTurn(descriptor, taskRevision, forceOpen = false) {
     // Corona di Stelle, lanciata con azione bonus). Apriamo soltanto i prompt
     // nuovi senza ricreare quelli già presenti nello stesso turno.
     for (let index = 0; index < requests.length; index += 1) {
-      if (opened.has(popoverId(requests[index]))) continue;
+      if (opened.has(popoverId(requests[index])) || choiceHeldByAction(requests[index])) continue;
       await openRequest(requests[index], index, taskRevision);
     }
     return;
@@ -296,6 +309,31 @@ function requestCurrentTurn({ forceOpen = false } = {}) {
   }).catch((error) => {
     console.warn("[spell-turn-prompt] reconcile:", error?.message || error);
   });
+}
+
+// "Azioni della Mano" from the token's context menu (contextMenu.js): the popup the caster's turn opens, for this
+// spell token's instance, at any time. The cast turn's exclusion does not apply: the GM asked for it.
+async function openBoardTokenActions(zoneItemId) {
+  const items = await OBR.scene.items.getItems().catch(() => []);
+  const board = items.find((item) => item.id === zoneItemId)?.metadata?.[SPELL_BOARD_TOKEN_META_KEY];
+  const instanceId = String(board?.instanceId || "").trim();
+  if (!instanceId || !board?.casterId) return false;
+  const requests = spellTurnPromptRequests({
+    items,
+    actorId: String(board.casterId),
+    sceneEpoch: currentSceneEpoch(),
+    turnKey: "",
+  }).filter((request) => String(request?.instanceId || request?.payload?.instanceId || "").trim() === instanceId);
+  if (!requests.length) {
+    await OBR.notification.show("Nessuna azione disponibile per questo incantesimo.", "INFO").catch(() => {});
+    return false;
+  }
+  for (const [index, request] of requests.entries()) {
+    await openRequest(request, index, revision);
+    const runtime = opened.get(popoverId(request));
+    if (runtime) runtime.manual = true;
+  }
+  return true;
 }
 
 export async function mountCallLightningTurnPromptController() {
@@ -359,6 +397,31 @@ export async function mountCallLightningTurnPromptController() {
     SPELL_TURN_PROMPT_ACTION_CHANNEL,
     (event) => {
       const data = event?.data || {};
+      // "‹ Azioni" in an action popup opened from a choice: the choice comes back, to pick another action.
+      if (data.type === "back-to-choice") {
+        void enqueue(async () => {
+          const runtime = [...opened.values()].find((entry) => (
+            entry?.kind === "action"
+            && entry.choiceRequest
+            && String(entry.instanceId || "").trim() === String(data.instanceId || "").trim()
+          ));
+          if (!runtime) return;
+          opened.delete(runtime.popoverId);
+          await closeRuntime(runtime);
+          await openRequest(runtime.choiceRequest, 0, revision);
+          const choice = opened.get(popoverId(runtime.choiceRequest));
+          if (choice && runtime.manual) choice.manual = true;
+        }).catch((error) => {
+          console.warn("[spell-turn-prompt] back to choice:", error?.message || error);
+        });
+        return;
+      }
+      if (data.type === "open-board-token-actions") {
+        void enqueue(() => openBoardTokenActions(String(data.zoneItemId || "").trim())).catch((error) => {
+          console.warn("[spell-turn-prompt] board token actions:", error?.message || error);
+        });
+        return;
+      }
       if (!["select-action", "apply-choice-action", "dismiss-choice"].includes(data.type)) return;
 
       // La X non deve aspettare la work queue: chiudiamo il runtime host subito
@@ -518,7 +581,14 @@ export async function mountCallLightningTurnPromptController() {
 
         opened.delete(runtime.popoverId);
         await closeRuntime(runtime);
-        await openRequest({ kind: "action", payload }, 0, taskRevision);
+        // The action remembers its choice, so its popup can go back to it ("‹ Azioni").
+        const actionRequest = { kind: "action", payload: { ...payload, returnToChoice: true } };
+        await openRequest(actionRequest, 0, taskRevision);
+        const actionRuntime = opened.get(popoverId(actionRequest));
+        if (actionRuntime) {
+          actionRuntime.choiceRequest = request;
+          if (runtime.manual) actionRuntime.manual = true;
+        }
       }).catch((error) => {
         console.warn("[spell-turn-prompt] action choice:", error?.message || error);
       });

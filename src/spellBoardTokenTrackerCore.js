@@ -134,6 +134,7 @@ export function spellBoardTokenCompanionsByCasterId(items = []) {
       hpMax: view?.state?.hpMax,
       // A token with a sheet of its own (Mano arcana): CA, HP, abilities and speeds, read from its rule.
       ...(rule.actorCard === true ? { actorCard: true } : {}),
+      ...(rule.actorActions === true ? { actorActions: true } : {}),
     });
     companions.set(casterId, list);
   }
@@ -234,6 +235,7 @@ export function buildSpellBoardTokenCompanionCard(
     onBindHP = null,
     onSelect = null,
     onOpenCard = null,
+    onOpenActions = null,
     selectedIds = null,
     documentRef = globalThis.document,
   } = {},
@@ -387,6 +389,24 @@ export function buildSpellBoardTokenCompanionCard(
     });
     content.appendChild(sheet);
   }
+  // Azioni: the hand's actions (Pugno serrato, Afferra…), at any time, without waiting for its caster's turn.
+  if (companion.actorActions && typeof onOpenActions === "function") {
+    const actions = documentRef.createElement("button");
+    actions.type = "button";
+    actions.dataset.spellBoardTokenActions = "1";
+    actions.title = `Azioni di ${companion.label}`;
+    actions.setAttribute("aria-label", actions.title);
+    styleCardIconButton(actions, "sheet");
+    Object.assign(actions.style, { flex: "0 0 auto", pointerEvents: "auto", cursor: "pointer" });
+    actions.appendChild(buildCardIconGlyph("spells.svg", 9, documentRef));
+    actions.addEventListener?.("pointerdown", (event) => event?.stopPropagation?.());
+    actions.addEventListener?.("click", (event) => {
+      event?.stopPropagation?.();
+      event?.preventDefault?.();
+      onOpenActions(companion, event);
+    });
+    content.appendChild(actions);
+  }
   card.appendChild(icon);
   card.appendChild(content);
   if (hpBadge && typeof onBindHP === "function") onBindHP(hpBadge, companion);
@@ -428,6 +448,7 @@ export function appendSpellBoardTokenCompanions(
     onBindHP = null,
     onSelect = null,
     onOpenCard = null,
+    onOpenActions = null,
     selectedIds = null,
     onStackChange = null,
     documentRef = globalThis.document,
@@ -451,6 +472,7 @@ export function appendSpellBoardTokenCompanions(
       onBindHP,
       onSelect,
       onOpenCard,
+      onOpenActions,
       selectedIds,
       documentRef,
     });

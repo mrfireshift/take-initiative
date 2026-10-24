@@ -42,6 +42,8 @@
         cursor: pointer; transition: color .15s ease, background-color .12s ease;
       }
       .close:hover { color: #fff; background: var(--obrt-close-hover, rgba(255, 255, 255, .08)); }
+      .back { min-height: 24px; padding: 2px 8px; border: 1px solid rgba(196,181,253,.4); border-radius: 999px; background: rgba(76,29,149,.35); color: #ede9fe; font: 700 10.5px system-ui, sans-serif; cursor: pointer; }
+      .back:hover:not(:disabled) { filter: brightness(1.18); }
       .caster, .status, .hint { color: rgba(226,232,240,.74); font-size: 11px; line-height: 1.25; }
       .caster { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .economy { flex: none; padding: 2px 5px; border: 1px solid rgba(196,181,253,.4); border-radius: 4px; color: #ede9fe; font-size: var(--obrt-type-micro, 10px); font-weight: 800; }
@@ -205,6 +207,7 @@
             <div id="subtitle" class="subtitle" hidden></div>
           </div>
           <div class="heading-actions">
+            <button id="backToChoice" class="back" type="button" title="Torna alla scelta delle azioni" aria-label="Torna alla scelta delle azioni" hidden>‹ Azioni</button>
             <span id="economy" class="economy" hidden></span>
             <button id="close" class="close" type="button" aria-label="Chiudi">×</button>
           </div>

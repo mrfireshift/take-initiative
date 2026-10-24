@@ -139,6 +139,8 @@ export const SPELL_BOARD_TOKEN_RULES = Object.freeze({
     flies: true,
     // A sheet of its own in the tracker (spell-board-token-card.html).
     actorCard: true,
+    // Its row in the tracker opens the hand's actions, the popup its caster's turn opens (Azioni).
+    actorActions: true,
     reachMeters: 1.5,
     concentration: true,
     armorClass: 20,

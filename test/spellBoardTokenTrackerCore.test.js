@@ -405,3 +405,26 @@ test("Mano arcana opens its own sheet from its tracker row; other summons have n
   const weaponCard = buildSpellBoardTokenCompanionCard(weaponCompanion, { documentRef: testDocument(), onOpenCard });
   assert.equal(weaponCard.children[1].children.some((child) => child.dataset.spellBoardTokenSheet === "1"), false);
 });
+
+test("Mano arcana's row has an Azioni button that opens its actions; other summons have none", () => {
+  const hand = boardToken({ id: "hand-a", spellId: "arcane-hand", instanceId: "cast-a", casterId: "caster-a" });
+  const weapon = boardToken({ id: "weapon-a", instanceId: "cast-b", casterId: "caster-a" });
+  const companions = spellBoardTokenCompanionsByCasterId([hand, weapon]).get("caster-a");
+  const handCompanion = companions.find((companion) => companion.itemId === "hand-a");
+  const weaponCompanion = companions.find((companion) => companion.itemId === "weapon-a");
+  assert.equal(handCompanion.actorActions, true);
+  assert.equal(weaponCompanion.actorActions, undefined);
+  const opened = [];
+  const onOpenActions = (companion) => opened.push(companion.itemId);
+  const card = buildSpellBoardTokenCompanionCard(handCompanion, { documentRef: testDocument(), onOpenActions });
+  const actions = card.children[1].children.find((child) => child.dataset.spellBoardTokenActions === "1");
+  assert.ok(actions, "the hand's row has an Azioni button");
+  let stopped = false;
+  actions.listeners.click({ stopPropagation() { stopped = true; }, preventDefault() {} });
+  assert.deepEqual(opened, ["hand-a"]);
+  assert.equal(stopped, true, "opening the actions never selects the token");
+  const weaponCard = buildSpellBoardTokenCompanionCard(weaponCompanion, { documentRef: testDocument(), onOpenActions });
+  assert.equal(weaponCard.children[1].children.some((child) => child.dataset.spellBoardTokenActions === "1"), false);
+  const playerCard = buildSpellBoardTokenCompanionCard(handCompanion, { documentRef: testDocument() });
+  assert.equal(playerCard.children[1].children.some((child) => child.dataset.spellBoardTokenActions === "1"), false, "no callback, no button (players)");
+});

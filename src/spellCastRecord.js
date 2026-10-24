@@ -27,7 +27,7 @@ const uniqueIds = (values = []) => Array.from(new Set(
 
 // The combat log of this page: the History owner writes the log of a History entry, a cast without one is written
 // here, once the options say whether the log is on (combatLog.js, as the Quick HP console does).
-async function recordInCombatLog(entry, sceneEpoch) {
+export async function recordInCombatLog(entry, sceneEpoch) {
   const [{ startRuntimeOptions }, combatLog] = await Promise.all([
     import("./options/optionsRuntime.js"),
     import("./combatLog.js"),

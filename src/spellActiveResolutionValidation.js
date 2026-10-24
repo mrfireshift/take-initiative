@@ -27,6 +27,7 @@ import {
   SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES,
   SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE,
   SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
+  spellActiveResolutionAttackDamageRequired,
   validateSpellActiveResolutionPayload,
 } from "./spellActiveResolutionCore.js";
 import {
@@ -549,7 +550,11 @@ async function validateStorm({ payload, targetIds, outcomes, damageRoll, attackO
   if (!SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES.includes(String(attackOutcome || ""))) {
     errors.push("attack-outcome-invalid");
   }
-  if (numericRoll(damageRoll) === null) errors.push("damage-required");
+  // A miss needs no damage when the action asks it on a hit only (Mano arcana's Pugno serrato, as the PC console).
+  const damageNeeded = payload?.action?.attack?.damageRequiredOnHitOnly === true
+    ? spellActiveResolutionAttackDamageRequired(payload.action, attackOutcome)
+    : true;
+  if (damageNeeded && numericRoll(damageRoll) === null) errors.push("damage-required");
   const [target] = ids.length ? await OBR.scene.items.getItems(ids) : [];
   const [targetBounds, dpi, scale] = await Promise.all([
     target ? OBR.scene.items.getItemBounds([target.id]).catch(() => null) : null,
