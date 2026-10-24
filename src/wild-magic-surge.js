@@ -72,7 +72,7 @@ function renderRow() {
   const notes = [
     action?.kind === "manual" ? action.hint : "",
     action?.note || "",
-    row.noConcentration ? "Senza concentrazione per la tabella: il pannello la registra, toglila a lancio fatto." : "",
+    row.noConcentration ? "Senza concentrazione: dura per tutta la sua durata e non tocca la concentrazione dello Stregone." : "",
   ].filter(Boolean);
   $("note").hidden = !notes.length;
   $("note").textContent = notes.join(" ");

@@ -2731,6 +2731,7 @@ export function bootSpellUnifiedPanel(
       state.contract = buildContract(spellId, {
         phase: state.session?.phase || "",
         slotLevel: state.session?.slotLevel ?? null,
+        castContext: state.session?.castContext,
       });
     }
     state.session = updateSpellPanelSession(state.session, {
@@ -3389,6 +3390,7 @@ export function bootSpellUnifiedPanel(
         phase: state.session.phase,
         actionId,
         variant: "",
+        castContext: state.session.castContext,
       });
       state.session = changeSpellPanelActiveAction(
         state.session,

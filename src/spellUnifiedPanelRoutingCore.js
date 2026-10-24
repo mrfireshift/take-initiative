@@ -115,6 +115,9 @@ export function normalizeSpellUnifiedPanelOpenRequest(request = {}) {
     activeInstanceId: text(request.activeInstanceId || payload.activeInstanceId),
     activeActionId: text(request.activeActionId || payload.activeActionId),
     quickActionId,
+    // A spell cast by a Wild Magic Surge: no concentration, its full duration (spellCastContextCore.js).
+    withoutConcentration: request.withoutConcentration === true || payload.withoutConcentration === true
+      || text(request.concentration || payload.concentration) === "none",
     // The slot the cast spends, chosen before the panel opens: "none" (a ritual, a free quick action) or "pact".
     slotSource: ["none", "pact"].includes(text(request.slotSource || payload.slotSource))
       ? text(request.slotSource || payload.slotSource)
@@ -238,6 +241,7 @@ export function routeSpellUnifiedPanelOpenRequest(
         ...(normalized.variant ? { choice: normalized.variant } : {}),
         ...(normalized.phase ? { phase: normalized.phase } : {}),
         ...(normalized.passengerId ? { passengerId: normalized.passengerId } : {}),
+        ...(normalized.withoutConcentration && normalized.spellId ? { withoutConcentration: normalized.spellId } : {}),
       },
     },
     context: {
@@ -267,6 +271,7 @@ export function routeSpellUnifiedPanelOpenRequest(
     castContext: {
       ...(normalized.slotLevel === null ? {} : { slotLevel: normalized.slotLevel }),
       ...(normalized.passengerId ? { passengerId: normalized.passengerId } : {}),
+      ...(normalized.withoutConcentration ? { withoutConcentration: normalized.spellId } : {}),
     },
   });
   if (!contract) {
@@ -328,6 +333,7 @@ export function buildSpellUnifiedPanelRouteQuery(request = {}) {
     ["zoneRoot", normalized.zoneRoot],
     ["parentInstanceId", normalized.parentInstanceId],
     ["origin", normalized.origin === "legacy-entry-point" ? "" : normalized.origin],
+    ["concentration", normalized.withoutConcentration ? "none" : ""],
   ];
   for (const [key, value] of scalarEntries) {
     if (value !== null && value !== undefined && text(value)) query.set(key, String(value));

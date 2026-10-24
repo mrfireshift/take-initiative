@@ -1,4 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
+import { spellForCastContext } from "./spellCastContextCore.js";
 import { buildSharedHpPreview, sharedHpIntents, sharedHpCommittedUpdates, sharedHpDamageEntries } from "./sharedHpViewCore.js";
 import { resolveSharedHpGroup, sharedHpScopeIds } from "./sharedHpCore.js";
 import { ID } from "./constants.js";
@@ -908,7 +909,8 @@ function triggerFrom(command, runtime) {
 
 async function buildPlan(command, runtime) {
   const spellId = text(command?.spell?.spellId);
-  const spell = getSpellDefinition(spellId);
+  // A Wild Magic Surge casts it without concentration (spellCastContextCore.js).
+  const spell = spellForCastContext(getSpellDefinition(spellId), command?.spell?.castContext);
   if (!spell) return { valid: false, errors: [{ code: "spell-not-found", message: "Incantesimo non trovato." }] };
   const teleportRule = getSpellTeleportRule(spell.id);
   const commandTargetIds = uniqueIds(command?.targeting?.targetIds);

@@ -1,4 +1,5 @@
 import { normalizeMonsterActionContext } from "./monsterActionContextCore.js";
+import { spellForCastContext } from "./spellCastContextCore.js";
 import {
   getAreaSaveRuleChoices,
   getSpellDefinition,
@@ -1448,7 +1449,7 @@ export function buildSpellUnifiedPanelContract({
   choiceValue = "",
   castContext = {},
 } = {}) {
-  const spell = resolveSpell(spellValue, spellId);
+  const spell = spellForCastContext(resolveSpell(spellValue, spellId), castContext);
   if (!spell) return null;
 
   const teleportRule = getSpellTeleportRule(spell);

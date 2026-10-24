@@ -200,6 +200,8 @@ export function planWildMagicSurgeAction(row, {
           ...(action.rounds ? { durationTurns: action.rounds } : {}),
           targetIds: action.self ? [id] : [],
           origin: "wild-magic-surge",
+          // PHB 2014: a spell the surge casts needs no concentration and lasts its full duration.
+          withoutConcentration: true,
         },
         noConcentration: row.noConcentration === true,
       };

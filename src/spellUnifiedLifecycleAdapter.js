@@ -1,5 +1,6 @@
 import {
   resolveSpellConcentration,
+  spellForCastContext,
   resolveSpellSlotLevel,
   resolveSpellSubjectIds,
 } from "./spellCastContextCore.js";
@@ -135,9 +136,9 @@ function fallbackSpell(contract, session) {
 }
 
 function resolveRuntimeSpell(contract, session, runtime = {}) {
-  return runtime.spell
+  return spellForCastContext(runtime.spell
     || getSpellDefinition(contract?.spell?.id)
-    || fallbackSpell(contract, session);
+    || fallbackSpell(contract, session), session?.castContext);
 }
 
 function requiredTargetContextComplete(contract, targetIds, targetContext) {

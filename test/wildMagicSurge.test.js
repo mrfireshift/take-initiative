@@ -77,6 +77,7 @@ test("conditions, spells, healing and resources are planned for the runtime", ()
   assert.equal(fireball.kind, "spell");
   assert.deepEqual(fireball.route, {
     sourceId: "sor", casterId: "sor", spellId: "fireball", slotSource: "none", slotLevel: 3, targetIds: ["sor"], origin: "wild-magic-surge",
+    withoutConcentration: true,
   });
   assert.equal(plan("09-10").route.slotLevel, 5, "magic missile at 5th level");
   const confusion = plan("13-14");
