@@ -2,10 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 const SOURCE_DIR = path.resolve("data", "class-features");
-const OUTPUT_PATH = path.resolve("src", "class-features-runtime.json");
+// `--out-dir=<dir>` writes the two files elsewhere (the determinism test uses a temp dir, so the
+// suite never rewrites src/ while other test files import it); without it, src/ as always.
+const OUT_DIR_ARG = process.argv.slice(2).find((arg) => arg.startsWith("--out-dir="));
+const OUTPUT_DIR = OUT_DIR_ARG ? path.resolve(OUT_DIR_ARG.slice("--out-dir=".length)) : path.resolve("src");
+const OUTPUT_PATH = path.join(OUTPUT_DIR, "class-features-runtime.json");
 // The rules text of every feature, apart: only the character sheet shows it and loads it on demand
 // (classFeatureDescriptions.js, through classFeatureDescriptionsData.js), so the tracker and the background do not parse it.
-const DESCRIPTIONS_PATH = path.resolve("src", "class-features-descriptions.json");
+const DESCRIPTIONS_PATH = path.join(OUTPUT_DIR, "class-features-descriptions.json");
 const RUNTIME_VERSION = 4;
 const RUNTIME_OVERRIDES_FILE = "runtime-feature-overrides.json";
 const UNTRACKED_RESOURCE_POOL_IDS = new Set([

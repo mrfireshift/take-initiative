@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -401,15 +403,25 @@ test("gli incantesimi del Cacciatore delle Profondit\u00e0 usano il catalogo spe
 });
 
 test("una seconda generazione non modifica l'artefatto Ranger runtime", () => {
-  const runtimePath = new URL("../src/class-features-runtime.json", import.meta.url);
+  // Generates into a temp dir: rewriting src/ in place races the other test files that import the JSON.
   const generatorPath = fileURLToPath(new URL("../scripts/generate-class-feature-catalog.mjs", import.meta.url));
   const repoRoot = fileURLToPath(new URL("../", import.meta.url));
-  const before = fs.readFileSync(runtimePath);
-  execFileSync(process.execPath, [generatorPath], {
-    cwd: repoRoot,
-    stdio: "pipe",
-  });
-  assert.deepEqual(fs.readFileSync(runtimePath), before);
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "class-features-"));
+  try {
+    execFileSync(process.execPath, [generatorPath, `--out-dir=${outDir}`], {
+      cwd: repoRoot,
+      stdio: "pipe",
+    });
+    for (const fileName of ["class-features-runtime.json", "class-features-descriptions.json"]) {
+      assert.deepEqual(
+        fs.readFileSync(path.join(outDir, fileName)),
+        fs.readFileSync(new URL(`../src/${fileName}`, import.meta.url)),
+        fileName,
+      );
+    }
+  } finally {
+    fs.rmSync(outDir, { recursive: true, force: true });
+  }
 });
 
 test("i report Ranger Revised continuano a verificare gli SHA-256 dichiarati", () => {
