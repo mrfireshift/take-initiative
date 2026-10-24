@@ -2,7 +2,8 @@ import OBR from "@owlbear-rodeo/sdk";
 import { current, isDraft } from "immer";
 import { planSharedHpLinks, planSharedHpMutation } from "./sharedHpCore.js";
 import { BOSS_LINK_RESISTANCE_FIELD, bossLinkResistanceNoticeText, planBossLinkResistance } from "./bossLinkResistanceCore.js";
-import { createEffectsRecovery, supportsEffectsRecovery } from "./effectsRecovery.js";
+import { createEffectsRecovery, createLocalEffectsRecoveryStorage, supportsEffectsRecovery } from "./effectsRecovery.js";
+import { createLocalRecoveryDatabase, localStoreFlagEnabled } from "./historyLocalStore.js";
 import {
   EFFECTS_MUTATION_COMMAND_CHANNEL,
   EFFECTS_MUTATION_RESULT_CHANNEL,
@@ -3945,6 +3946,17 @@ async function applyRecoverySideEffect(effect, isCurrent, { recovering = true } 
   throw new Error("recovery-unsupported-side-effect");
 }
 
+const localRecoveryDatabase = createLocalRecoveryDatabase();
+const localRecoveryWarnings = new Set();
+
+function warnLocalRecovery(key, message) {
+  if (localRecoveryWarnings.has(key)) return;
+  localRecoveryWarnings.add(key);
+  console.warn("[effects-recovery-local-store]", message);
+  try { void OBR.notification?.show?.(message, "WARNING")?.catch?.(() => {}); }
+  catch {}
+}
+
 async function mountEffectsRecovery() {
   const identity = backgroundSceneIdentity;
   const epoch = currentSceneEpoch();
@@ -3962,6 +3974,20 @@ async function mountEffectsRecovery() {
     },
     inspectCanonical: inspectRecoveryCanonical,
     applySideEffect: applyRecoverySideEffect,
+    // ARCH-009 step 4: the scene, unless the GM-local flag moves the journal to IndexedDB (off by default).
+    storage: createLocalEffectsRecoveryStorage({
+      obr: OBR,
+      database: localRecoveryDatabase,
+      isEnabled: localStoreFlagEnabled,
+      onLocalJournalUnavailable: ({ scopeId }) => warnLocalRecovery(
+        `unavailable:${scopeId}`,
+        "Journal di recupero di questa scena non disponibile in questo browser: eventuali comandi rimasti a metà non verranno ripresi.",
+      ),
+      onLocalStoreFailed: (error) => warnLocalRecovery(
+        "store-failed",
+        `Archivio locale del journal di recupero non disponibile (${error?.message || error}): il journal resta nella scena.`,
+      ),
+    }),
   });
   effectsRecovery = recovery;
   await recovery.load(isCurrent);

@@ -156,8 +156,11 @@ Solo a flag acceso, solo nel browser del GM (l'owner non si monta per i giocator
    nuovo store; quello precedente resta da parte fino alla pulizia.
 6. IndexedDB non disponibile (D3): la History resta in scena e l'owner avvisa una volta.
 
-Journal: con record pendenti v1 la migrazione aspetta che il recovery li completi; con store vuoto
-(solo receipt) li copia in IndexedDB e scrive l'ancora v2.
+Journal (passo 4): nessun comando dedicato. A flag acceso la prima scrittura del journal, cioè il primo comando
+effetti o il recovery all'avvio del background, mette in IndexedDB lo store intero (stesso `scopeId`, record
+pendenti e receipt compresi) e poi scrive l'ancora in scena una sola volta. Le scritture successive restano
+locali. Flag spento: la scrittura successiva riporta il journal intero in scena. Il database passa alla versione
+2, che aggiunge `recoveryStores` a un database creato al passo 2 senza toccare la History.
 
 ## 5. Passi piccoli
 
@@ -168,7 +171,7 @@ Ogni passo ha build, test completi e, dove indicato, una misura con il probe.
 | **1** ✅ | Estrarre gli adattatori di storage *senza cambiare comportamento*. History: `historyStorage` dentro `historyOwner.js`, che resta l'unico writer della chiave come vuole `historyOwnerInventory.test.js`; l'owner e i due lettori di `history.js` passano da `readHistoryValue()`. Journal: `createEffectsRecovery({ …, storage })` con default `createSceneEffectsRecoveryStorage(obr)` | identico | basso: i 39 file di test che leggono la chiave in scena restano verdi senza modifiche |
 | **2** ✅ | Adattatore IndexedDB della History (`historyLocalStore.js`, regole pure in `historyLocalStoreCore.js`), testa v2 e riconoscimento delle scene duplicate, **dietro un flag spento**: `localStorage["com.thebigpicture.initiative/history-local-store"] = "1"` nel browser GM (D4). A flag acceso, una scena che ha ancora voci v1 resta in scena fino al passo 3; a flag spento la scrittura successiva riporta la History intera in scena | identico a flag spento | basso |
 | **3** ✅ | Migrazione v1 → v2 all'avvio dell'owner con un comando `migrate` nella sua coda, e alla prima scrittura se il flag viene acceso senza ricaricare (§4.5). Solo a flag acceso | cambia solo a flag acceso | medio |
-| **4** | Adattatore IndexedDB del journal con ancora v2 e durabilità `strict`, a flag acceso | cambia solo a flag acceso | medio-alto: tocca il recovery |
+| **4** ✅ | Adattatore IndexedDB del journal (`createLocalEffectsRecoveryStorage` in `effectsRecovery.js`, database versione 2 con `recoveryStores`) con ancora v2 e durabilità `strict`, a flag acceso. A flag spento lettura e scrittura hanno i passaggi asincroni di prima | cambia solo a flag acceso | medio-alto: tocca il recovery |
 | **5** | Prova in room del DM, flag acceso solo nel browser GM: sessione completa e misura con il probe | — | — |
 | **6** | Flag acceso per default; integrazione di test eseguita con entrambi gli adattatori; ripiego sulla scena solo se IndexedDB manca | cambia per tutti | medio |
 | **7** | Pulizia degli store vecchi; aggiornamento di ARCH-005 (History per browser) e ARCH-05B (journal locale) | — | basso |
@@ -213,6 +216,7 @@ ricarica della pagina funzionanti.
 | Scene duplicate | voci di una scena applicate all'altra (un Undo di "token rimosso" ricreerebbe item nella scena sbagliata) | `seq` nella testa e fork automatico (§4.4), test dedicato |
 | Divergenza testa/store | Undo su stato parziale | scrittura IndexedDB prima della testa; retry dei lettori; `history-pending` |
 | Perdita del journal in crash di sistema | comando applicato senza voce History | durabilità `strict`; resta la semantica attuale "applicato, History in attesa" |
+| Scena duplicata con il journal locale | le due scene condividono lo stesso `scopeId` e lo stesso record locale | rischio già presente oggi (la copia della scena copia anche la chiave del journal); i record pendenti durano pochi secondi. Da rivalutare se la prova in room mostra problemi |
 | Test esistenti legati alla chiave in scena | 39 file leggono `[HISTORY_KEY]` dai metadata finti | passo 1 a comportamento invariato; conversione al passo 6 con un helper unico |
 | Rollback | History apparentemente vuota con il codice vecchio | `entries: []` nella testa e ri-migrazione (§4.5) |
 | `initiativeList.js` e `history.js` sono fragili | regressioni su Undo e tracker | nessuna modifica alla logica di Undo, solo il punto di lettura; test d'integrazione esistenti come rete |

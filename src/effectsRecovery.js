@@ -1,6 +1,7 @@
 import { METADATA_OWNERSHIP, writeSceneMetadataKey } from "./metadataKeyScoped.js";
 import { compactHistoryEntryForStorage } from "./historyOwnerCore.js";
 import { perfProbeEnabled, perfRecord } from "./perfProbe.js";
+import { buildLocalRecoveryAnchor, isLocalRecoveryAnchor } from "./historyLocalStoreCore.js";
 
 export const EFFECTS_RECOVERY_KEY = METADATA_OWNERSHIP.EFFECTS_RECOVERY.key;
 export const EFFECTS_RECOVERY_LIMITS = Object.freeze({ records: 16, bytes: 131072, receipts: 128 });
@@ -41,6 +42,70 @@ export function createSceneEffectsRecoveryStorage(obr) {
   return Object.freeze({
     read: async () => (await obr.scene.getMetadata())[EFFECTS_RECOVERY_KEY],
     write: (value) => writeSceneMetadataKey(obr.scene, METADATA_OWNERSHIP.EFFECTS_RECOVERY, value, { runtime: "effectsRecovery" }),
+  });
+}
+
+// ARCH-009 step 4: the journal in the GM browser's IndexedDB behind the GM-local flag, with only an anchor
+// { schemaVersion: 2, storage: "local", scopeId } in the scene key. The anchor keeps the scopeId that History
+// entries carry as recoveryScope (history.js reads it from the scene to validate a replay).
+// - read: a scene anchor is read from IndexedDB, any other value is returned as it is; with no anchor the scene read
+//   and its timing are those of createSceneEffectsRecoveryStorage. A journal written in another browser reads as an
+//   empty journal with the same scopeId.
+// - write: flag off, the scene as before (a local journal moves back whole). Flag on, IndexedDB; the anchor is
+//   written only when the scene does not hold it yet, so a migrated journal costs no scene write per command.
+//   A journal still in the scene (version 1) moves with that write, scopeId and pending records included.
+export function createLocalEffectsRecoveryStorage({
+  obr,
+  database,
+  isEnabled = () => false,
+  currentRoomId = () => String(obr?.room?.id || ""),
+  now = () => Date.now(),
+  onLocalJournalUnavailable = () => {},
+  onLocalStoreFailed = () => {},
+}) {
+  const writeScene = (value) => writeSceneMetadataKey(obr.scene, METADATA_OWNERSHIP.EFFECTS_RECOVERY, value, { runtime: "effectsRecovery" });
+  let anchorScopeId = null;
+
+  async function readLocal(anchor) {
+    anchorScopeId = anchor.scopeId;
+    const record = await database.get(anchor.scopeId);
+    const roomId = currentRoomId();
+    if (record?.store && (!roomId || !record.roomId || record.roomId === roomId)) return record.store;
+    onLocalJournalUnavailable({ scopeId: anchor.scopeId });
+    return { schemaVersion: 1, scopeId: anchor.scopeId, records: {}, receipts: [] };
+  }
+
+  async function writeLocal(value) {
+    const scopeId = value?.scopeId;
+    try {
+      await database.put({ scopeId, roomId: currentRoomId(), store: value, touchedAt: now() });
+    } catch (error) {
+      // D3: no usable IndexedDB while the journal is still in the scene keeps it there; once the scene holds an
+      // anchor the error stands, as any failed journal write.
+      if (anchorScopeId) throw error;
+      onLocalStoreFailed(error);
+      return writeScene(value);
+    }
+    if (anchorScopeId !== scopeId) {
+      await writeScene(buildLocalRecoveryAnchor({ scopeId }));
+      anchorScopeId = scopeId;
+    }
+  }
+
+  return Object.freeze({
+    read: async () => {
+      const value = (await obr.scene.getMetadata())[EFFECTS_RECOVERY_KEY];
+      if (isLocalRecoveryAnchor(value)) return readLocal(value);
+      anchorScopeId = null;
+      return value;
+    },
+    write: (value) => {
+      if (!isEnabled()) {
+        anchorScopeId = null;
+        return writeScene(value);
+      }
+      return writeLocal(value);
+    },
   });
 }
 

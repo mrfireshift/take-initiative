@@ -5,6 +5,7 @@ import { ID } from "./constants.js";
 
 export const HISTORY_LOCAL_STORE_FLAG_KEY = `${ID}/history-local-store`;
 export const HISTORY_HEAD_VERSION = 2;
+export const RECOVERY_ANCHOR_SCHEMA_VERSION = 2;
 
 function clone(value) {
   return value === undefined ? undefined : structuredClone(value);
@@ -78,6 +79,20 @@ export function resolveLocalHistory(head, record, { roomId = "" } = {}) {
     return !Number.isFinite(storeSeq) || storeSeq <= seq;
   });
   return { status: "ahead", history: { ...clone(record.history), seq, entries: clone(entries) } };
+}
+
+// ARCH-009 step 4: what the journal key holds when the journal lives in IndexedDB. It keeps the scopeId that
+// History entries carry as recoveryScope, so their replay is still validated against the scene.
+export function isLocalRecoveryAnchor(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value)
+    && value.schemaVersion === RECOVERY_ANCHOR_SCHEMA_VERSION
+    && value.storage === "local"
+    && typeof value.scopeId === "string"
+    && value.scopeId.length > 0;
+}
+
+export function buildLocalRecoveryAnchor({ scopeId }) {
+  return { schemaVersion: RECOVERY_ANCHOR_SCHEMA_VERSION, storage: "local", scopeId };
 }
 
 // A History still stored whole in the scene key (version 1) with entries to move.

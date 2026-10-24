@@ -12,8 +12,12 @@ import {
 } from "./sceneEpoch.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSince } from "./perfProbe.js";
-import { createHistoryStorage, createLocalHistoryDatabase, migrateLegacyHistory } from "./historyLocalStore.js";
-import { HISTORY_LOCAL_STORE_FLAG_KEY } from "./historyLocalStoreCore.js";
+import {
+  createHistoryStorage,
+  createLocalHistoryDatabase,
+  localStoreFlagEnabled,
+  migrateLegacyHistory,
+} from "./historyLocalStore.js";
 import {
   METADATA_OWNERSHIP,
   writeSceneMetadataKey,
@@ -147,8 +151,7 @@ function probeOwnerPhase(phase, command, run) {
 }
 
 function localHistoryStoreEnabled() {
-  try { return globalThis.localStorage?.getItem(HISTORY_LOCAL_STORE_FLAG_KEY) === "1"; }
-  catch { return false; }
+  return localStoreFlagEnabled();
 }
 
 const localHistoryWarnings = new Set();

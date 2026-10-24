@@ -1,5 +1,6 @@
 import { ID } from "./constants.js";
 import {
+  HISTORY_LOCAL_STORE_FLAG_KEY,
   buildLocalHistoryHead,
   buildLocalHistoryRecord,
   chooseHistoryWriteMode,
@@ -8,11 +9,19 @@ import {
   resolveLocalHistory,
 } from "./historyLocalStoreCore.js";
 
-// ARCH-009 step 2: the IndexedDB side of the History and the storage that picks scene or local.
-// Separate database from the Combat Log, so their versions never depend on each other.
+// ARCH-009: the IndexedDB side of the History (step 2) and of the recovery journal (step 4), and the storage that
+// picks scene or local. Separate database from the Combat Log, so their versions never depend on each other.
+// Version 2 adds the journal store.
 export const HISTORY_LOCAL_DB_NAME = `${ID}.history-store`;
-const HISTORY_LOCAL_DB_VERSION = 1;
+const HISTORY_LOCAL_DB_VERSION = 2;
 const HISTORY_STORES = "historyStores";
+const RECOVERY_STORES = "recoveryStores";
+
+// The GM-local flag of ARCH-009 (D4), shared by the History owner and the recovery journal.
+export function localStoreFlagEnabled() {
+  try { return globalThis.localStorage?.getItem(HISTORY_LOCAL_STORE_FLAG_KEY) === "1"; }
+  catch { return false; }
+}
 
 function requestResult(request) {
   return new Promise((resolve, reject) => {
@@ -29,7 +38,7 @@ function transactionDone(tx) {
   });
 }
 
-export function createLocalHistoryDatabase({ indexedDB = globalThis.indexedDB } = {}) {
+function createLocalStoreConnection(indexedDB) {
   let dbPromise = null;
 
   function open() {
@@ -43,6 +52,9 @@ export function createLocalHistoryDatabase({ indexedDB = globalThis.indexedDB } 
         const db = request.result;
         if (!db.objectStoreNames.contains(HISTORY_STORES)) {
           db.createObjectStore(HISTORY_STORES, { keyPath: "storeId" });
+        }
+        if (!db.objectStoreNames.contains(RECOVERY_STORES)) {
+          db.createObjectStore(RECOVERY_STORES, { keyPath: "scopeId" });
         }
       };
       request.onsuccess = () => {
@@ -64,18 +76,35 @@ export function createLocalHistoryDatabase({ indexedDB = globalThis.indexedDB } 
   }
 
   return Object.freeze({
-    async get(storeId) {
+    async get(storeName, key) {
       const db = await open();
-      const tx = db.transaction([HISTORY_STORES], "readonly");
-      return requestResult(tx.objectStore(HISTORY_STORES).get(storeId));
+      const tx = db.transaction([storeName], "readonly");
+      return requestResult(tx.objectStore(storeName).get(key));
     },
-    async put(record) {
+    async put(storeName, record, options = undefined) {
       const db = await open();
-      const tx = db.transaction([HISTORY_STORES], "readwrite");
+      const tx = options ? db.transaction([storeName], "readwrite", options) : db.transaction([storeName], "readwrite");
       const done = transactionDone(tx);
-      tx.objectStore(HISTORY_STORES).put(record);
+      tx.objectStore(storeName).put(record);
       await done;
     },
+  });
+}
+
+export function createLocalHistoryDatabase({ indexedDB = globalThis.indexedDB } = {}) {
+  const connection = createLocalStoreConnection(indexedDB);
+  return Object.freeze({
+    get: (storeId) => connection.get(HISTORY_STORES, storeId),
+    put: (record) => connection.put(HISTORY_STORES, record),
+  });
+}
+
+// The journal is what recovers a command after a crash: its writes ask for strict durability.
+export function createLocalRecoveryDatabase({ indexedDB = globalThis.indexedDB } = {}) {
+  const connection = createLocalStoreConnection(indexedDB);
+  return Object.freeze({
+    get: (scopeId) => connection.get(RECOVERY_STORES, scopeId),
+    put: (record) => connection.put(RECOVERY_STORES, record, { durability: "strict" }),
   });
 }
 
