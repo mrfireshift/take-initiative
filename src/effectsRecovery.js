@@ -65,6 +65,7 @@ export function createLocalEffectsRecoveryStorage({
 }) {
   const writeScene = (value) => writeSceneMetadataKey(obr.scene, METADATA_OWNERSHIP.EFFECTS_RECOVERY, value, { runtime: "effectsRecovery" });
   let anchorScopeId = null;
+  let knownRecords = 0;
 
   async function readLocal(anchor) {
     anchorScopeId = anchor.scopeId;
@@ -77,6 +78,14 @@ export function createLocalEffectsRecoveryStorage({
 
   async function writeLocal(value) {
     const scopeId = value?.scopeId;
+    const records = Object.keys(value?.records || {}).length;
+    // A new pending command: check once that the scene still holds this journal's anchor (another plugin version or
+    // GM window may have rewritten the key meanwhile); the later writes of the same command trust that check.
+    if (records > knownRecords && anchorScopeId === scopeId) {
+      const current = (await obr.scene.getMetadata())[EFFECTS_RECOVERY_KEY];
+      if (!isLocalRecoveryAnchor(current) || current.scopeId !== scopeId) anchorScopeId = null;
+    }
+    knownRecords = records;
     try {
       await database.put({ scopeId, roomId: currentRoomId(), store: value, touchedAt: now() });
     } catch (error) {
@@ -95,6 +104,7 @@ export function createLocalEffectsRecoveryStorage({
   return Object.freeze({
     read: async () => {
       const value = (await obr.scene.getMetadata())[EFFECTS_RECOVERY_KEY];
+      knownRecords = 0;
       if (isLocalRecoveryAnchor(value)) return readLocal(value);
       anchorScopeId = null;
       return value;

@@ -166,7 +166,7 @@ test("D3: senza IndexedDB il journal resta in scena, con avviso", async () => {
   const failures = [];
   const obr = fakeObr();
   const recovery = recoveryFor(obr, {
-    database: createLocalRecoveryDatabase({ indexedDB: undefined }),
+    database: createLocalRecoveryDatabase({ indexedDB: null }),
     onLocalStoreFailed: (error) => failures.push(error.message),
   });
   await recovery.load(() => true);
@@ -190,4 +190,22 @@ test("un database creato dal passo 2 (versione 1) riceve lo store del journal se
   assert.equal(inspected.version, 2);
   assert.deepEqual(inspected.stores.historyStores.records.map((record) => record.storeId), ["store-1"]);
   assert.equal(inspected.stores.recoveryStores.records.length, 1);
+});
+
+test("un'ancora sostituita in scena da fuori viene riscritta al comando successivo", async () => {
+  const indexedDB = createVersionedIndexedDB();
+  const obr = fakeObr();
+  const recovery = recoveryFor(obr, { database: createLocalRecoveryDatabase({ indexedDB }) });
+  await recovery.load(() => true);
+  await runCommand(recovery, "cmd-1");
+  const scopeId = journalIn(obr).scopeId;
+
+  // Another plugin version or GM window rewrites the key while this background keeps running.
+  obr.state.metadata = {};
+  await runCommand(recovery, "cmd-2");
+  assert.deepEqual(journalIn(obr), { schemaVersion: 2, storage: "local", scopeId }, "the anchor is back, same scopeId");
+
+  const updatesBefore = obr.state.updates.length;
+  await runCommand(recovery, "cmd-3");
+  assert.equal(obr.state.updates.length, updatesBefore, "an anchor in place costs no scene write");
 });

@@ -17,10 +17,17 @@ const HISTORY_LOCAL_DB_VERSION = 2;
 const HISTORY_STORES = "historyStores";
 const RECOVERY_STORES = "recoveryStores";
 
-// The GM-local flag of ARCH-009 (D4), shared by the History owner and the recovery journal.
+// The GM-local flag of ARCH-009 (D4), shared by the History owner and the recovery journal. On by default since step
+// 6: "0" turns it off (the History and the journal go back whole to the scene at their next write). Without a usable
+// localStorage (not a browser, or site storage blocked, and IndexedDB with it) it stays off: the scene, as before.
 export function localStoreFlagEnabled() {
-  try { return globalThis.localStorage?.getItem(HISTORY_LOCAL_STORE_FLAG_KEY) === "1"; }
-  catch { return false; }
+  try {
+    const storage = globalThis.localStorage;
+    if (!storage || typeof storage.getItem !== "function") return false;
+    return storage.getItem(HISTORY_LOCAL_STORE_FLAG_KEY) !== "0";
+  } catch {
+    return false;
+  }
 }
 
 function requestResult(request) {

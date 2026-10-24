@@ -13,6 +13,7 @@ import {
   HISTORY_LOCAL_DB_NAME,
   createHistoryStorage,
   createLocalHistoryDatabase,
+  localStoreFlagEnabled,
   migrateLegacyHistory,
 } from "../src/historyLocalStore.js";
 import { HISTORY_OWNER_STATUS, createHistoryOwnerBroker, rewriteHistoryForStorage } from "../src/historyOwnerCore.js";
@@ -237,7 +238,7 @@ test("D3: IndexedDB inutilizzabile mentre la History è ancora in scena, resta i
   const failures = [];
   const sceneState = scene(undefined);
   const storage = storageFor(sceneState, {
-    database: createLocalHistoryDatabase({ indexedDB: undefined }),
+    database: createLocalHistoryDatabase({ indexedDB: null }),
     onLocalStoreFailed: (error) => failures.push(error.message),
   });
   const next = history([entry("a", 1)]);
@@ -411,10 +412,32 @@ test("D3 durante la migrazione: senza IndexedDB la History resta in scena, con a
   const legacy = history([entry("a", 1)]);
   const sceneState = scene(legacy);
   const { command } = ownerFor(sceneState, {
-    database: createLocalHistoryDatabase({ indexedDB: undefined }),
+    database: createLocalHistoryDatabase({ indexedDB: null }),
     onLocalStoreFailed: (error) => failures.push(error.message),
   });
   assert.equal((await command("migrate")).status, HISTORY_OWNER_STATUS.MIGRATED);
   assert.deepEqual(sceneState.state.value, legacy);
   assert.deepEqual(failures, ["history-local-store-unavailable"]);
+});
+
+test("flag di ARCH-009: acceso per default nel browser, \"0\" lo spegne, senza localStorage resta spento", () => {
+  const key = "com.thebigpicture.initiative/history-local-store";
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const install = (value) => Object.defineProperty(globalThis, "localStorage", { value, configurable: true, writable: true });
+  const storageWith = (values) => ({ getItem: (name) => (Object.hasOwn(values, name) ? values[name] : null) });
+  try {
+    install(undefined);
+    assert.equal(localStoreFlagEnabled(), false, "not a browser: the scene, as before");
+    install(storageWith({}));
+    assert.equal(localStoreFlagEnabled(), true, "no value: on by default");
+    install(storageWith({ [key]: "1" }));
+    assert.equal(localStoreFlagEnabled(), true);
+    install(storageWith({ [key]: "0" }));
+    assert.equal(localStoreFlagEnabled(), false, "\"0\" turns it off");
+    install({ getItem: () => { throw new Error("blocked"); } });
+    assert.equal(localStoreFlagEnabled(), false, "site storage blocked: the scene");
+  } finally {
+    if (previous) Object.defineProperty(globalThis, "localStorage", previous);
+    else delete globalThis.localStorage;
+  }
 });

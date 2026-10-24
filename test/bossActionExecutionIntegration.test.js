@@ -116,7 +116,7 @@ test.beforeEach(async()=>{
   await historyOwner.mountHistoryOwner(); await effects.mountEffectsMutationCoordinatorService();
   runtime = createBossActionRuntime({api:sdk,store,postDamage:async()=>[]});
   await runtime.bindBossActionProfile("auril",p2);
-  baselineCount=(await history.getHistoryEntries()).length;
+  baselineCount=(await settledHistoryEntries()).length;
 });
 test.after(()=>{effects.unmountEffectsMutationCoordinatorService(); historyOwner.unmountHistoryOwner();});
 async function resolve(profile,kind,decisions){
@@ -125,6 +125,18 @@ async function resolve(profile,kind,decisions){
     profileId:profile.profileId,profileRevision:profile.profileRevision,bossInstanceId:presentation.bossInstanceId,
     sceneIdentity:presentation.sceneIdentity,...decisions});
 }
+// The History once deferred appends have landed: an initiative card save (the profile binding) records its entry
+// after answering, a little later with the History in IndexedDB. Stable over two reads 20 ms apart.
+async function settledHistoryEntries(){
+  let entries=await history.getHistoryEntries(),stable=0;
+  for(let attempt=0;attempt<50 && stable<2;attempt+=1){
+    await new Promise(resolve=>setTimeout(resolve,20));
+    const next=await history.getHistoryEntries();
+    stable=next.length===entries.length?stable+1:0;entries=next;
+  }
+  return entries;
+}
+
 test("production coordinator: Icekiss has exactly one History entry and Undo restores complete mutation",async()=>{
   await resolve(p2,"attack-damage",{mode:"ranged",outcome:"hit",componentAmounts:{slashing:18,cold:7}});
   assert.equal(meta("dars").hp,35);
@@ -154,7 +166,7 @@ test("miss produces one logical History/log event, no damage, and is undoable",a
 });
 for(const [outcome,remaining] of [["failed",42],["passed",52]]) test(`Blizzard ${outcome}: one entry, no token relocation, Undo`,async()=>{
   await runtime.bindBossActionProfile("auril",p3);
-  baselineCount=(await history.getHistoryEntries()).length;
+  baselineCount=(await settledHistoryEntries()).length;
   const beforePosition=clone(sceneItems[1].position);
   const result=await resolve(p3,"save-damage",{outcome,componentAmounts:{bludgeoning:9,cold:9}});
   assert.equal(meta("dars").hp,remaining);
@@ -184,7 +196,7 @@ test("binding is compact, survives rename/reload; duplicated token has independe
 test("changed binding rejects pending action before mutation",async()=>{
   const old=await runtime.getBossActionPresentation("auril");
   await runtime.bindBossActionProfile("auril",p3);
-  baselineCount=(await history.getHistoryEntries()).length;
+  baselineCount=(await settledHistoryEntries()).length;
   await assert.rejects(()=>runtime.executeBossAction({sourceId:"auril",actionId:ability(p2,"attack-damage"),targetId:"dars",
     profileId:p2.profileId,profileRevision:p2.profileRevision,bossInstanceId:old.bossInstanceId,sceneIdentity:old.sceneIdentity,
     mode:"melee",outcome:"hit",componentAmounts:{slashing:18,cold:7}}),/profilo|binding|cambiat/i);
@@ -407,7 +419,7 @@ for(const mode of ["missing field","missing card"]) test("bind/unbind preserves 
 });
 
 test("Blizzard resource commits with HP, blocks overspend and Undo restores both",async()=>{
-  await runtime.bindBossActionProfile("auril",p3);baselineCount=(await history.getHistoryEntries()).length;
+  await runtime.bindBossActionProfile("auril",p3);baselineCount=(await settledHistoryEntries()).length;
   await resolve(p3,"save-damage",{outcome:"failed",componentAmounts:{bludgeoning:9,cold:9}});
   assert.equal(meta("dars").hp,42);
   const info=await runtime.getBossActionPresentation("auril");
@@ -441,7 +453,7 @@ test("manual 1/Phase registration consumes only a counter and survives rebind un
   await assert.rejects(()=>runtime.registerBossActionUse({sourceId:"auril",actionId:gather.id,manualConfirmed:true}),/esaurit/i);
 });
 test("two runtime clients cannot spend the same round use twice",async()=>{
-  await runtime.bindBossActionProfile("auril",p3);baselineCount=(await history.getHistoryEntries()).length;
+  await runtime.bindBossActionProfile("auril",p3);baselineCount=(await settledHistoryEntries()).length;
   const other=createBossActionRuntime({api:sdk,store,postDamage:async()=>[]});
   const actionId=ability(p3,"save-damage");
   const results=await Promise.allSettled([runtime,other].map(client=>client.executeBossAction({sourceId:"auril",actionId,targetId:"dars",outcome:"failed",componentAmounts:{bludgeoning:9,cold:9}})));
@@ -459,7 +471,7 @@ test("round-only scene precondition does not conflict with turn navigation",asyn
 });
 test("round changed during preparation prevents resource and HP commit",async()=>{
   await runtime.bindBossActionProfile("auril",p3);
-  baselineCount=(await history.getHistoryEntries()).length;
+  baselineCount=(await settledHistoryEntries()).length;
   const original=sdk.scene.items.getItems;let changed=false;
   sdk.scene.items.getItems=async(ids)=>{
     // Coordinator prepares against a complete item snapshot after runtime selected source/target.
@@ -483,7 +495,7 @@ for(const [name,amounts,remaining] of [
   await runtime.bindBossActionProfile("auril",profile);
   // v20: Rock only in the round of Gather the Winter Sky (registered first, as the first Epic Action).
   if(name==="Rock")await runtime.registerBossActionUse({sourceId:"auril",actionId:p2.abilities.find(a=>a.name==="Gather the Winter Sky").id,manualConfirmed:true});
-  baselineCount=(await history.getHistoryEntries()).length;
+  baselineCount=(await settledHistoryEntries()).length;
   const action=profile.abilities.find(a=>a.name===name);
   const result=await runtime.executeBossAction({sourceId:"auril",actionId:action.id,targetId:"dars",
     mode:"ranged",outcome:"hit",componentAmounts:amounts});

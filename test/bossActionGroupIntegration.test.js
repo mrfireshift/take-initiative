@@ -109,7 +109,7 @@ test.beforeEach(async () => {
   await historyOwner.mountHistoryOwner(); await effects.mountEffectsMutationCoordinatorService();
   runtime = createBossActionRuntime({ api: sdk, store, postDamage: async () => [] });
   await runtime.bindBossActionProfile("auril", p2);
-  baselineCount = (await history.getHistoryEntries()).length;
+  baselineCount = (await settledHistoryEntries()).length;
 });
 test.after(() => { effects.unmountEffectsMutationCoordinatorService(); historyOwner.unmountHistoryOwner(); });
 
@@ -143,6 +143,18 @@ function boundariesBetween(order, from, to) {
 async function advance(from, to) {
   sceneMetadata[STATE_KEY] = { ...sceneMetadata[STATE_KEY], round: to.round, current: to.current };
   await effects.advanceTurnBoundaryEffects(["dars", "mira", "sera"], boundariesBetween(ORDER, from, to));
+}
+
+// The History once deferred appends have landed: an initiative card save (the profile binding) records its entry
+// after answering, a little later with the History in IndexedDB. Stable over two reads 20 ms apart.
+async function settledHistoryEntries(){
+  let entries=await history.getHistoryEntries(),stable=0;
+  for(let attempt=0;attempt<50 && stable<2;attempt+=1){
+    await new Promise(resolve=>setTimeout(resolve,20));
+    const next=await history.getHistoryEntries();
+    stable=next.length===entries.length?stable+1:0;entries=next;
+  }
+  return entries;
 }
 
 test("three targets with mixed saves: full damage and Accecato on failure, shared half rounding on success, one History", async () => {
@@ -322,7 +334,7 @@ test("defenses from the Actor Profile: saved through the real card store, applie
   await saveInitiativeCard("dars", "Dars", { damageDefenses: { resistances: ["cold"] } }, { preserveExhaustion: true });
   await saveInitiativeCard("dars", "Dars", { armorClass: 17 }, { preserveExhaustion: true });
   assert.deepEqual(meta("dars").initiativeCard.damageDefenses, { immunities: [], resistances: ["cold"], vulnerabilities: [] }, "a partial save keeps the defenses");
-  baselineCount = (await history.getHistoryEntries()).length;
+  baselineCount = (await settledHistoryEntries()).length;
   const expectedDefenses = { dars: meta("dars").initiativeCard.damageDefenses, mira: {}, sera: {} };
   const result = await resolveBreath({ expectedDefenses });
   assert.equal(meta("dars").hp, 60 - 29, "cold 33 → 16 (resistance) + necrotic 13");

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "test": "node --experimental-test-module-mocks --test",
+    "test:local-store": "node scripts/test-local-store.mjs",
     "verify:version": "node scripts/check-version-sync.mjs",
     "verify:dist": "node scripts/check-version-sync.mjs --dist",
     "artifact:checksums": "node scripts/write-dist-checksums.mjs",
