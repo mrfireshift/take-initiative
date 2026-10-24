@@ -240,3 +240,36 @@ export function lowestSpentSpellSlot(slotRows = []) {
     .filter((row) => row && row.pact !== true && Number(row.current) < Number(row.maximum))
     .sort((left, right) => Number(left.level) - Number(right.level))[0] || null;
 }
+
+// The surge as the History and the combat log name it: "Impulso di Magia Selvaggia (72): Resistenza a tutto".
+// outcome: what Applica did, in the GM's words (the pill, the spell, "al tavolo").
+export function wildMagicSurgeRecord({ row = null, roll = null, outcome = "", sorcererId = "", sorcererName = "" } = {}) {
+  const normalizedRoll = normalizeWildMagicRoll(roll);
+  const range = String(row?.d100 || "").trim();
+  const shown = normalizedRoll === null ? range : String(normalizedRoll).padStart(2, "0");
+  const text = String(outcome || "").trim() || "al tavolo";
+  return {
+    label: `Impulso di Magia Selvaggia${shown ? ` (${shown})` : ""}: ${text}`.slice(0, 160),
+    payload: {
+      wildMagicSurge: {
+        ...(normalizedRoll === null ? {} : { roll: normalizedRoll }),
+        range,
+        effect: String(row?.effect || "").trim().slice(0, 300),
+        outcome: text.slice(0, 160),
+        ...(sorcererId ? { sorcererId: String(sorcererId) } : {}),
+        ...(sorcererName ? { sorcererName: String(sorcererName).slice(0, 100) } : {}),
+      },
+    },
+  };
+}
+
+// The combat log's lines of a surge (combatLogPresentationCore.js).
+export function wildMagicSurgeLogLines(surge) {
+  if (!surge || typeof surge !== "object") return [];
+  const roll = Number.isInteger(surge.roll) ? `d100 ${surge.roll}${surge.range ? ` (${surge.range})` : ""}` : surge.range ? `riga ${surge.range}` : "";
+  return [
+    [String(surge.sorcererName || "").trim(), roll].filter(Boolean).join(" · "),
+    surge.effect ? `Effetto: ${surge.effect}` : "",
+    surge.outcome ? `Esito: ${surge.outcome}` : "",
+  ].filter(Boolean);
+}

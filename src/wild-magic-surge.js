@@ -136,14 +136,19 @@ async function run(useDraft) {
       return;
     }
     const recoverTides = !$("tides-row").hidden && $("tides").checked;
+    // The surge is named in History and in the combat log: its roll, its row, what Applica did.
+    const record = { sorcererId, sorcererName, recoverTides, row, roll: $("roll").value };
     if (plan.kind === "spell") {
+      const spell = getSpellDefinition(row.spellId);
+      const spellName = spell?.displayName || spell?.name || row.spellId;
+      await applyWildMagicSurgePlan({ ok: true, kind: "manual", hint: "Pannello incantesimi aperto: lancia da lì, senza slot." }, {
+        ...record,
+        outcome: `lancia ${spellName}${plan.route?.slotLevel ? ` (${plan.route.slotLevel}°)` : ""} senza slot${plan.noConcentration ? ", senza concentrazione" : ""}`,
+      });
       await openSpellPanel(plan.route);
-      const { message } = recoverTides
-        ? await applyWildMagicSurgePlan({ ok: true, kind: "manual", hint: "Pannello incantesimi aperto." }, { sorcererId, recoverTides })
-        : { message: "Pannello incantesimi aperto: lancia da lì, senza slot." };
-      setStatus(message, "ok");
+      setStatus(`Pannello incantesimi aperto: lancia ${spellName} da lì, senza slot.${recoverTides ? " Onde di Caos recuperate." : ""}`, "ok");
     } else {
-      const { message } = await applyWildMagicSurgePlan(plan, { sorcererId, sorcererName, recoverTides });
+      const { message } = await applyWildMagicSurgePlan(plan, record);
       setStatus(message, "ok");
     }
     if (recoverTides) $("tides-row").hidden = true;

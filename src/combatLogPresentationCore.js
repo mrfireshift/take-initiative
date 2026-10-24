@@ -5,6 +5,7 @@ import { normalizeCombatLogCausality } from "./combatLogCausalityCore.js";
 import { normalizeCombatLogEventV3 } from "./combatLogV3Core.js";
 import { DEATH_SAVE_OUTCOME_LABELS, deathSaveTallyText } from "./deathSaveCore.js";
 import { counterspellLogLines } from "./counterspellCore.js";
+import { wildMagicSurgeLogLines } from "./wildMagicSurgeCore.js";
 
 export const COMBAT_LOG_CATEGORY_ORDER = Object.freeze([
   "hp",
@@ -814,6 +815,11 @@ function eventSummary(event, targets, outcomes) {
     ...["conditions", "spells", "concentrations"].flatMap((field) => facetChangeLines(event?.facets?.[field], field)),
     ...deathSaveLines(event, targets),
   ];
+  // A Wild Magic Surge that wrote nothing (at the table, a spell cast from the panel): what it was.
+  const surge = event?.payload?.wildMagicSurge;
+  if (surge && typeof surge === "object" && !hpLines.length && !facetLines.length) {
+    return stringValue(surge.outcome) || "Impulso di Magia Selvaggia";
+  }
   const sharedHpLines = sharedHpSummaryLines(event);
   if (sharedHpLines.length) {
     const memberIds = new Set(event.payload.sharedHp.groups.flatMap(group => group.memberIds || []));
@@ -872,6 +878,8 @@ function detailSections(event, targets, outcomes, turnName) {
   if (deathLines.length) sections.push({ label: "TS contro la morte", lines: deathLines });
   const counterspellLines = counterspellLogLines(event?.payload?.counterspell);
   if (counterspellLines.length) sections.push({ label: "Controincantesimo", lines: counterspellLines });
+  const surgeLines = wildMagicSurgeLogLines(event?.payload?.wildMagicSurge);
+  if (surgeLines.length) sections.push({ label: "Impulso di Magia Selvaggia", lines: surgeLines });
   if (outcomes.length) sections.push({ label: "Esito", lines: outcomes });
   const causalityLines = causalityDetailLines(event);
   if (causalityLines.length) sections.push({ label: "Causalità", lines: causalityLines });
