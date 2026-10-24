@@ -463,6 +463,11 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
           className: "unified-field__label",
           text: targets.context.label,
         }),
+        ...(targets.context.summary ? [createNode(documentRef, "span", {
+          className: `unified-field__hint unified-target-context__summary${targets.context.summaryInvalid ? " is-invalid" : ""}`,
+          text: targets.context.summary,
+          attributes: { "data-context-summary": "" },
+        })] : []),
       ],
     });
     const contextTargets = targets.context.targets || [];
@@ -493,6 +498,10 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
             attributes: {
               type: field.type || "text",
               value: target.values?.[field.id] ?? "",
+              ...(target.placeholders?.[field.id] || field.placeholder
+                ? { placeholder: target.placeholders?.[field.id] || field.placeholder }
+                : {}),
+              ...(field.type === "number" ? { min: "0", step: "1" } : {}),
               ...(field.required ? { required: true } : {}),
               "data-field": "target-context",
             },

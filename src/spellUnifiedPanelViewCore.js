@@ -51,6 +51,14 @@ import {
   applyTargetingLimitState,
   resolveTargetingCapacity,
 } from "./spellTargetingCapacityCore.js";
+import {
+  MAGIC_MISSILE_DART_DICE,
+  MAGIC_MISSILE_SPELL_ID,
+  magicMissileAllocationText,
+  magicMissileDartAllocation,
+  magicMissileTargetDamage,
+  magicMissileTargetText,
+} from "./magicMissileCore.js";
 
 const SUBJECT_LABELS = Object.freeze({
   none: "Nessun soggetto",
@@ -279,6 +287,7 @@ function normalizeTargetCandidates(
       hp: numberOrNull(candidate?.hp),
       hpMax: numberOrNull(candidate?.hpMax),
       sharedHpSourceId: asText(candidate?.sharedHpSourceId),
+      ...(candidate?.magicMissileGuard ? { magicMissileGuard: clone(candidate.magicMissileGuard) } : {}),
       turbineSize: asText(candidate?.turbineSize) || null,
       layer: asText(candidate?.layer) || null,
       isCreature: candidate?.isCreature === true || asText(candidate?.layer) === "CHARACTER",
@@ -367,7 +376,10 @@ function hpPreviewFor(
 ) {
   const inputs = presentation?.inputs || {};
   const isHealing = inputs.healing?.visible === true;
-  const isDamage = inputs.damage?.visible === true && damageInputVisible;
+  // Magic Missile: no damage input, the damage of each dart is written on its target.
+  const magicMissileCast = !isHealing && spellId === MAGIC_MISSILE_SPELL_ID
+    && inputs.targetContext?.visible === true;
+  const isDamage = (inputs.damage?.visible === true && damageInputVisible) || magicMissileCast;
   if (!isHealing && !isDamage) return { visible: false, targets: [] };
 
   const mode = isHealing ? QUICK_HP_MODES.HEAL : QUICK_HP_MODES.DAMAGE;
@@ -376,11 +388,18 @@ function hpPreviewFor(
     visible: true,
     mode,
     amount: value,
-    valid: value !== null && value >= 0,
+    valid: magicMissileCast || (value !== null && value >= 0),
     label: isHealing ? "Anteprima cura" : "Anteprima danno",
     targets: [],
   };
   if (!preview.valid) return preview;
+  const magicMissile = magicMissileCast
+    ? magicMissileDartAllocation({
+      targetIds: session?.targetIds || [],
+      targetContexts: session?.targetContext || {},
+      slotLevel: session?.slotLevel,
+    })
+    : null;
 
   preview.targets = (Array.isArray(candidates) ? candidates : [])
     .filter((candidate) => candidate.selected)
@@ -400,6 +419,22 @@ function hpPreviewFor(
         delta: null,
       };
       if (!base.available) return base;
+      if (magicMissile) {
+        // The sum of its darts, each one after the force defense and Shield (the same as the commit).
+        const darts = magicMissileTargetDamage({
+          rolls: magicMissile.damagesByTarget[candidate.key] || [],
+          guard: candidate.magicMissileGuard,
+        });
+        const change = calculateQuickHPChange({ mode, value: darts.damage, factor: QUICK_HP_FACTORS.FULL, hp: beforeHP, hpMax });
+        return {
+          ...base,
+          factor: QUICK_HP_FACTORS.FULL,
+          factorLabel: magicMissileTargetText(darts),
+          afterHP: change.afterHP,
+          delta: change.delta,
+          change,
+        };
+      }
       const outcome = asText(candidate.outcome?.value).toLocaleLowerCase("it");
       if (!isHealing && !outcome) {
         return { ...base, pendingOutcome: true };
@@ -455,7 +490,7 @@ function hpPreviewFor(
   return preview;
 }
 
-function targetContextFields(presentation, session, selectedTargets = []) {
+function targetContextFields(presentation, session, selectedTargets = [], spellId = "") {
   const workflow = presentation?.targeting?.workflow;
   const fields = Array.isArray(workflow?.context?.fields)
     ? workflow.context.fields
@@ -466,9 +501,22 @@ function targetContextFields(presentation, session, selectedTargets = []) {
     field?.automatic !== true && !field?.dependentOutcome
   ));
   const dependentOutcomeFields = fields.filter((field) => field?.dependentOutcome);
+  // Magic Missile: the darts still to assign.
+  const darts = spellId === MAGIC_MISSILE_SPELL_ID
+    ? magicMissileDartAllocation({
+      targetIds: (Array.isArray(selectedTargets) ? selectedTargets : []).map((target) => asText(target?.key)),
+      targetContexts: session?.targetContext || {},
+      slotLevel: session?.slotLevel,
+    })
+    : null;
   return {
     visible: presentation?.inputs?.targetContext?.visible === true && visibleFields.length > 0,
-    label: "Contesto bersaglio",
+    label: darts ? "Dardi per bersaglio" : "Contesto bersaglio",
+    ...(darts ? {
+      summary: `${magicMissileAllocationText(darts)} · un tiro di ${MAGIC_MISSILE_DART_DICE} per dardo`,
+      // Red only for too many darts or an unreadable list: missing darts are the normal state while typing.
+      summaryInvalid: darts.error === "over" || darts.error === "invalid",
+    } : {}),
     fields: clone(visibleFields),
     values: clone(session?.targetContext || {}),
     targets: (Array.isArray(selectedTargets) ? selectedTargets : []).map((target) => {
@@ -1111,6 +1159,7 @@ export function buildUnifiedPanelViewModel({
         presentation,
         session,
         allCandidates.filter((candidate) => candidate.selected),
+        contract?.spell?.id,
       ),
     },
     placement: activeActionDelegatesResolution

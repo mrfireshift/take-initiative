@@ -632,6 +632,25 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       })],
     }),
   }),
+  // No save: every dart hits (magicMissileCore.js). Each target lists the damage of its darts, one roll each.
+  "magic-missile": workflowRule({
+    spellId: "magic-missile",
+    ability: "con",
+    baseMaximum: 3,
+    additionalPerSlotAbove: 1,
+    baseSlot: 1,
+    spatial: { mode: "caster-range", maxMeters: 36 },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    context: targetContext({
+      fields: [targetContextField({
+        id: "darts",
+        label: "Danni dei dardi",
+        type: "text",
+        placeholder: "Es. 4 3",
+      })],
+    }),
+  }),
   "blight": workflowRule({
     spellId: "blight",
     ability: "con",

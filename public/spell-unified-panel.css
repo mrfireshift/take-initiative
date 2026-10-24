@@ -912,6 +912,15 @@ select:disabled {
   background: var(--unified-surface-soft);
 }
 
+/* Magic Missile: "Dardi assegnati X/Y", red while some dart has no target or one too many. */
+.unified-target-context__summary {
+  font-weight: var(--obrt-weight-semibold);
+}
+
+.unified-target-context__summary.is-invalid {
+  color: #fca5a5;
+}
+
 .unified-target-context__target {
   display: flex;
   flex-direction: column;

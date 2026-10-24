@@ -83,7 +83,7 @@ attive, trigger di zona) non spendono slot. Le regole sono in
 
 Il pannello elenca tutti i 477 incantesimi del catalogo. I 75 che il plugin
 non automatizza (istantanei senza area, cura né tracciamento:
-Controincantesimo, Dardo incantato, Desiderio…) si **registrano**: un solo comando spende il loro
+Controincantesimo, Desiderio, Identificare…) si **registrano**: un solo comando spende il loro
 costo, con History, Undo e voce nel registro di combattimento, senza pill sui
 bersagli, che restano facoltativi. Un lancio registrato che non spende nulla
 va soltanto nel registro. Il percorso è in `src/spellCastRecord.js`; quali
@@ -164,6 +164,21 @@ Dissolvi magie con `spell:remove-requested` per ogni incantesimo entro il
 limite e il campo «Prova» per quelli sopra. Le note (incantesimi rimasti, nessun
 effetto su un costrutto) tornano nel risultato come `notes` e compaiono nel
 messaggio del pannello.
+
+Dardo incantato (`src/magicMissileCore.js`) si risolve nella console ad area
+senza TS e senza un danno unico: il campo per bersaglio «Danni dei dardi»
+elenca il tiro di ogni dardo che lo colpisce («4 3»), e da lì si contano i
+dardi. `magicMissileHPEntries` nell'esecutore somma i dardi, ognuno dopo la
+difesa alla forza e Scudo. Ogni dardo resta un danno a sé: `hitsAtZero` e
+`damageInstance` vanno ai TS contro la morte (un fallimento per dardo, mai
+danno massiccio dalla somma), e gli avvisi di concentrazione partono uno per
+dardo, col suo danno. Il
+pannello blocca il lancio finché «Dardi assegnati X/Y» non torna pari.
+
+Gli avvisi di concentrazione della console ad area partono dopo il commit
+(`defaultConcentrationWarnings`), con la voce della Cronologia come causa:
+prima il gancio `onConcentrationWarnings` era vuoto e i danni del pannello non
+li mostravano.
 
 Il registro **Incantesimi attivi sul campo** aggrega le istanze attive anche
 quando sono state create da altri punti dell'interfaccia, compresa la

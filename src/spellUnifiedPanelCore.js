@@ -57,6 +57,7 @@ import {
   spellAttackResolutionChoiceOptions,
 } from "./spellAttackResolutionCore.js";
 import { validateAnimatedObjectComposition } from "./animatedObjectsCore.js";
+import { MAGIC_MISSILE_SPELL_ID, magicMissileDartAllocation } from "./magicMissileCore.js";
 
 export const SPELL_UNIFIED_PANEL_LANES = Object.freeze({
   SPELL_LIFECYCLE: "spell-lifecycle",
@@ -120,6 +121,7 @@ export const SPELL_PANEL_VALIDATION_LABELS = Object.freeze({
   targets: "bersagli",
   "primary-target": "bersaglio primario",
   "target-context": "contesto dei bersagli",
+  darts: "dardi",
   placement: "posizione dell'area",
   outcomes: "esiti dei bersagli",
   damage: "danno",
@@ -138,6 +140,7 @@ const SPELL_PANEL_VALIDATION_MESSAGES = Object.freeze({
   targets: "Seleziona almeno un bersaglio",
   "primary-target": "Seleziona il bersaglio primario",
   "target-context": "Completa il contesto dei bersagli",
+  darts: "Assegna ogni dardo a un bersaglio",
   placement: "Posiziona e conferma l'area",
   outcomes: "Registra l'esito di ogni bersaglio",
   damage: "Inserisci il valore del danno",
@@ -1139,7 +1142,8 @@ function inputDescriptor({
     || selectedAction?.capabilities.attack === true
     || !!getSpellAttackResolution(spell);
   const choiceRequired = choices.length > 0;
-  const damageRequired = hpInputVisible && !healing;
+  // Magic Missile: each dart's damage is written on its target, never one damage for the cast.
+  const damageRequired = hpInputVisible && !healing && text(spell?.id) !== MAGIC_MISSILE_SPELL_ID;
   const primaryDamageRequired = phasePlan?.phase === "resolve"
     && phasePlan?.attack?.primaryDamageMode === "final-applied";
   const healingRequired = hpInputVisible && healing;
@@ -2365,6 +2369,14 @@ function validationFor(contract, session, placement) {
     session.targetContext,
     session.outcomes,
   )) add("target-context", "target-context-required");
+  // Magic Missile: every dart needs a target, with its damage written on it.
+  if (contract.spell?.id === MAGIC_MISSILE_SPELL_ID
+    && session.targetIds.length
+    && !magicMissileDartAllocation({
+      targetIds: session.targetIds,
+      targetContexts: session.targetContext,
+      slotLevel: session.slotLevel,
+    }).valid) add("darts", "magic-missile-darts");
   if (!postPlacementTargeting && inputs.placement?.required && !placement.confirmed) {
     add("placement", "placement-required");
   }

@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "ed092032e221af5c",
+  "fingerprint": "1f74abab2659233b",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -18,8 +18,8 @@
     },
     "currentAutomationLevel": {
       "FULL": 66,
-      "MANUAL": 68,
-      "PARTIAL": 219,
+      "MANUAL": 67,
+      "PARTIAL": 220,
       "TRACK_ONLY": 124
     },
     "coverageStatus": {
@@ -101,7 +101,7 @@
     "smokeCategories": {
       "ACTIVE_ACTION": 46,
       "AREA_GEOMETRY": 139,
-      "CAST": 257,
+      "CAST": 258,
       "CLEANUP": 116,
       "CONCENTRATION": 218,
       "PERSISTENCE": 358,
@@ -110,7 +110,7 @@
     "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
     "integrationFragile": 0,
-    "runtimeSmokeRequired": 405,
+    "runtimeSmokeRequired": 406,
     "releaseReady": false
   },
   "rows": [
@@ -535,6 +535,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -912,6 +913,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -1535,6 +1537,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -1886,6 +1889,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -1989,6 +1993,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -2227,6 +2232,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -3104,6 +3110,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -3209,6 +3216,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -3849,6 +3857,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -4085,6 +4094,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -4493,6 +4503,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -4750,6 +4761,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets",
             "automation"
           ]
@@ -5237,6 +5249,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -5610,6 +5623,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -5854,6 +5868,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -5967,6 +5982,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -7053,6 +7069,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -7698,6 +7715,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "variant",
             "targets",
@@ -7822,6 +7840,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -7941,6 +7960,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -8159,6 +8179,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -8559,6 +8580,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -10447,6 +10469,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -10733,7 +10756,9 @@
           "lane": "spell-lifecycle",
           "targetingMode": "none",
           "placementPolicy": "unavailable",
-          "visibleInputs": []
+          "visibleInputs": [
+            "caster"
+          ]
         },
         "cast": {
           "adapter": "spell-lifecycle",
@@ -11527,6 +11552,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -11632,6 +11658,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -11881,6 +11908,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -11982,6 +12010,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -12082,6 +12111,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -12185,6 +12215,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -12435,6 +12466,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -12535,6 +12567,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "hp",
@@ -12993,6 +13026,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -13090,6 +13124,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -13138,19 +13173,23 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
-      "smokeCategories": [],
+      "smokeCategories": [
+        "CAST"
+      ],
       "verificationEvidence": [
         "STRUCTURAL"
       ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [],
-      "coverage": [],
+      "coverage": [
+        "TS"
+      ],
       "assessment": "istantaneo: gestione manuale",
       "priority": "—",
       "gaps": [],
@@ -13163,13 +13202,15 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
-        "smokeCategories": []
+        "smokeCategories": [
+          "CAST"
+        ]
       },
       "integration": {
         "status": "reachable",
@@ -13178,30 +13219,30 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "cast-record"
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
-            "targets"
+            "targets",
+            "targetContext"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert"
-          ],
-          "mutationMode": "tracking",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
           "required": false,
-          "declared": true,
+          "declared": false,
           "ruleIds": []
         },
         "actions": {
@@ -13211,8 +13252,10 @@
           "unreachableActionIds": [],
           "mode": "none"
         },
-        "smokeRequired": false,
-        "smokeCategories": []
+        "smokeRequired": true,
+        "smokeCategories": [
+          "CAST"
+        ]
       },
       "evidence": {
         "area": [],
@@ -13425,6 +13468,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "outcomes",
@@ -13679,6 +13723,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -13885,6 +13930,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -14139,6 +14185,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -14358,6 +14405,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -16078,6 +16126,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -18412,6 +18461,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -18513,6 +18563,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -19256,6 +19307,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -19452,6 +19504,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -19554,6 +19607,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -19655,6 +19709,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -19756,6 +19811,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -19857,6 +19913,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -19961,6 +20018,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -20228,6 +20286,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -20338,6 +20397,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -20820,6 +20880,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -21187,6 +21248,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "outcomes",
@@ -21435,6 +21497,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -21955,6 +22018,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -22449,6 +22513,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -23186,6 +23251,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -23528,6 +23594,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -23633,6 +23700,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -23743,6 +23811,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -24446,6 +24515,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -25246,6 +25316,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -25346,6 +25417,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -25680,6 +25752,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -27216,6 +27289,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -28341,6 +28415,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets",
             "automation"
           ]
@@ -28449,6 +28524,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -28675,6 +28751,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -28782,6 +28859,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -29022,6 +29100,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -29255,6 +29334,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -29367,6 +29447,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -29896,6 +29977,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -30636,10 +30718,11 @@
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [
-          "arcane-hand-interposing",
-          "arcane-hand-forceful",
+          "arcane-hand-clenched",
           "arcane-hand-grasping",
-          "arcane-hand-clenched"
+          "arcane-hand-crush",
+          "arcane-hand-forceful",
+          "arcane-hand-interposing"
         ],
         "phaseOptions": [],
         "movementMechanics": true,
@@ -30687,16 +30770,18 @@
         },
         "actions": {
           "declaredActionIds": [
-            "arcane-hand-interposing",
-            "arcane-hand-forceful",
+            "arcane-hand-clenched",
             "arcane-hand-grasping",
-            "arcane-hand-clenched"
+            "arcane-hand-crush",
+            "arcane-hand-forceful",
+            "arcane-hand-interposing"
           ],
           "panelActionIds": [
-            "arcane-hand-interposing",
-            "arcane-hand-forceful",
+            "arcane-hand-clenched",
             "arcane-hand-grasping",
-            "arcane-hand-clenched"
+            "arcane-hand-crush",
+            "arcane-hand-forceful",
+            "arcane-hand-interposing"
           ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
@@ -30792,6 +30877,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -31151,6 +31237,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -31998,7 +32085,9 @@
           "lane": "spell-lifecycle",
           "targetingMode": "none",
           "placementPolicy": "unavailable",
-          "visibleInputs": []
+          "visibleInputs": [
+            "caster"
+          ]
         },
         "cast": {
           "adapter": "spell-lifecycle",
@@ -32105,7 +32194,9 @@
           "lane": "spell-lifecycle",
           "targetingMode": "none",
           "placementPolicy": "unavailable",
-          "visibleInputs": []
+          "visibleInputs": [
+            "caster"
+          ]
         },
         "cast": {
           "adapter": "spell-lifecycle",
@@ -32341,6 +32432,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets",
             "automation"
           ]
@@ -32470,6 +32562,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -36145,6 +36238,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -36620,6 +36714,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -36883,6 +36978,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -36999,6 +37095,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -37115,6 +37212,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -37325,6 +37423,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -37544,6 +37643,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "hp",
@@ -37641,6 +37741,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "hp",
@@ -37864,6 +37965,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -38434,6 +38536,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -39195,6 +39298,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -39789,6 +39893,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "hp",
@@ -39991,6 +40096,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -40102,6 +40208,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -40604,6 +40711,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -40711,6 +40819,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -41976,6 +42085,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -42358,6 +42468,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets",
             "outcomes",
             "hp",
@@ -42597,6 +42708,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -42979,6 +43091,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -43087,6 +43200,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -43301,6 +43415,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -43525,6 +43640,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -43624,6 +43740,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -43721,6 +43838,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -43818,6 +43936,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -44032,6 +44151,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -44131,6 +44251,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -44228,6 +44349,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -44327,6 +44449,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -44425,6 +44548,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -44527,6 +44651,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -44905,6 +45030,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "targetContext"
@@ -45003,6 +45129,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -45116,6 +45243,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -45462,6 +45590,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -45565,6 +45694,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -45813,6 +45943,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -46173,6 +46304,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -46643,6 +46775,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -46850,6 +46983,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -47227,6 +47361,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -47443,6 +47578,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -48143,6 +48279,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -48250,6 +48387,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -48359,6 +48497,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -48467,6 +48606,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -48572,6 +48712,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -48679,6 +48820,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -48789,6 +48931,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -50299,6 +50442,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -50537,6 +50681,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -50653,6 +50798,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -50771,6 +50917,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -51408,6 +51555,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -51774,6 +51922,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -52033,6 +52182,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets",
             "automation"
           ]
@@ -52417,6 +52567,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -52640,6 +52791,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets"
           ]
         },
@@ -52887,6 +53039,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "automation"
@@ -52990,6 +53143,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -54412,6 +54566,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets",
             "outcomes",
             "hp",
@@ -54799,6 +54954,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -55448,6 +55604,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -55551,6 +55708,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -55648,6 +55806,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -55748,6 +55907,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -55855,6 +56015,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -57170,6 +57331,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -57402,6 +57564,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -57507,6 +57670,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]
@@ -57841,6 +58005,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets"
           ]

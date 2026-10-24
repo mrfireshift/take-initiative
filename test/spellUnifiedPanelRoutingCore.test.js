@@ -15,7 +15,7 @@ import { buildSpellUnifiedPanelContract } from "../src/spellUnifiedPanelCore.js"
 test("il router instrada lifecycle, area e active resolution dal contratto", () => {
   const lifecycle = routeSpellUnifiedPanelOpenRequest({
     sourceId: "caster-1",
-    spellId: "magic-missile",
+    spellId: "scorching-ray",
     casterId: "caster-2",
     slotLevel: 3,
   });
@@ -29,6 +29,8 @@ test("il router instrada lifecycle, area e active resolution dal contratto", () 
 
   const area = routeSpellUnifiedPanelOpenRequest({ spellId: "fireball" });
   assert.equal(area.lane, "area-transaction");
+  assert.equal(routeSpellUnifiedPanelOpenRequest({ spellId: "magic-missile" }).lane, "area-transaction",
+    "Magic Missile resolves its darts in the area command");
   assert.equal(area.adapter, "spellUnifiedAreaAdapter");
   assert.equal(area.executor, "executeSpellUnifiedArea");
 

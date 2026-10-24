@@ -141,6 +141,10 @@ function completeSession(contract, overrides = {}) {
       .filter((field) => field.required === true || field.requiredWhen)
       .map((field) => [field.id, validContextValue(field)])),
   ]));
+  // Magic Missile: the damage of its darts on its target, all three darts on it.
+  if (contract.spell?.id === "magic-missile") {
+    for (const targetId of targetIds) targetContext[targetId] = { darts: "4 3 5" };
+  }
   const attack = contract.presentation.outcomes?.mode === "attack";
   const composition = contract.presentation.composition;
   const castContext = composition?.required

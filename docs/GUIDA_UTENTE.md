@@ -140,8 +140,8 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   uguali il dardo balza su un'altra creatura. Tocco del vampiro si lancia dal
   pannello incantesimi; la console registra poi i tocchi finché dura la
   concentrazione, e il caster recupera metà del danno necrotico.
-- Gli incantesimi che il plugin non automatizza (Controincantesimo, Dardo
-  incantato, Desiderio, Identificare…) mostrano **Registra il lancio**: il lancio
+- Gli incantesimi che il plugin non automatizza (Controincantesimo,
+  Desiderio, Identificare…) mostrano **Registra il lancio**: il lancio
   spende lo slot e finisce nel registro di combattimento, senza etichette; gli
   effetti si risolvono al tavolo. I bersagli selezionati compaiono nel
   registro, ma non servono. Nel pannello il pulsante si chiama **Registra
@@ -200,6 +200,18 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   sulla creatura fino al 3° livello (o fino al livello dello slot); per quelli
   più alti segna nel campo **Prova** l'esito della prova del caster: se lo
   lasci vuoto restano, e il messaggio del pannello li elenca con la CD.
+- Dardo incantato si lancia dal pannello con tutti i suoi dardi (3 al 1°
+  livello, uno in più per slot sopra il 1°): scegli le creature e nel campo
+  **Danni dei dardi** di ognuna scrivi il tiro (1d4+1) di ogni dardo che la
+  colpisce, separati da spazi: «4 3» sono due dardi da 4 e da 3. «Dardi
+  assegnati X/Y» dice quando sono tutti assegnati. Ogni dardo è un danno a
+  sé: la resistenza alla forza dimezza ogni dardo, Scudo li blocca tutti, chi
+  è in concentrazione fa un TS per dardo e un PG a 0 PF segna un fallimento
+  per dardo. In alternativa la console attacchi registra
+  un dardo alla volta.
+- Il danno dei lanci nel pannello incantesimi (Palla di fuoco, Dardo
+  incantato…) mostra l'avviso di concentrazione sui bersagli che si
+  concentrano, come la Console effetti ad area.
 
 Gli incantesimi concessi da talenti, specie o oggetti restano nelle Azioni
 rapide.

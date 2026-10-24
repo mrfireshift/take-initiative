@@ -274,7 +274,10 @@ e senza quell'attacco il libro continua a registrare il lancio.
   un attacco per lancio. Raggio rovente e Dardo incantato: un raggio o dardo
   per registrazione, anche sullo stesso bersaglio, così ogni colpo ha il suo
   avviso di concentrazione. Dardo incantato non ha tiro per colpire ed è
-  bloccato da Scudo.
+  bloccato da Scudo. Dal 24 ottobre il pannello incantesimi lo lancia intero
+  (`src/magicMissileCore.js`): un tiro per dardo scritto sul suo bersaglio,
+  resistenza e Scudo per dardo, un TS di concentrazione e un
+  fallimento dei TS contro la morte per dardo.
 - Globo cromatico (nessun rimbalzo nel testo 2014) e Dardo di caos chiedono il
   tipo; con due d8 uguali il Dardo di caos balza su un'altra creatura senza
   nuovo slot, mai due volte sulla stessa.
@@ -438,7 +441,7 @@ Piccole, senza HP, utili subito al tavolo:
    rituale» registrerebbe il lancio senza slot con un tocco, invece di passare
    da ⚙ e «Senza slot».
 3. **Dadi nella registrazione.** Per gli incantesimi registrati che hanno
-   dadi (Dardo incantato, Guarigione) il pannello può
+   dadi (Guarigione) il pannello può
    mostrare i dadi al livello dello slot scelto, come fa per gli altri.
 4. **Dati di bersaglio.** Guarigione di massa usa ancora il limite di un
    bersaglio predefinito: va dichiarato «qualunque numero di creature»

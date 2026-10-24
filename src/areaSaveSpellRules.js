@@ -129,6 +129,8 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "phb2014-parola-del-potere-guarire",
   "lesser-restoration",
   "dispel-magic",
+  // No save: darts that always hit, split among the targets (magicMissileCore.js).
+  "magic-missile",
 ]);
 
 export const MULTI_TARGET_SAVE_SPELL_ID_SET = new Set(

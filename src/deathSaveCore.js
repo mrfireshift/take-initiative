@@ -118,8 +118,11 @@ export function deathSaveConditionOperation(itemId, name, detail = "") {
 //   a stable creature stops being stable. Morto takes the place of the automatic Privo di sensi.
 // - instantDeath (Power Word Kill, Divine Word, Disintegrate: hpBranchSpellRules.js): any creature down to 0 HP is
 //   dead, Morto with the spell's detail; a PC also gets its three failures.
+// - hitsAtZero (Magic Missile: each dart is its own damage, `damage` the damage of one): the hits that land
+//   at 0 HP, one failure each.
 export function planDeathSaveHpChange({
   meta = {}, instances = [], hpAfter, hpMax, damage = 0, critical = false, instantDeath = false, deathDetail = "",
+  hitsAtZero = undefined,
 } = {}) {
   const pc = String(meta?.attitude || "").trim().toLocaleLowerCase("it") === "pc";
   if (instantDeath === true && Number(hpAfter) <= 0 && Number(hpMax ?? meta?.hpMax) > 0 && !isDeadByDeathSaves(instances)) {
@@ -156,6 +159,20 @@ export function planDeathSaveHpChange({
   if (before > 0 && after <= 0 && !isDeadByDeathSaves(instances)) {
     const leftover = Math.max(0, Math.floor(Number(damage) || 0) - Math.floor(before));
     const massive = leftover >= max;
+    // Several hits in one cast (the darts of Magic Missile): those landing after the drop are failures already.
+    const laterHits = Math.max(0, Math.floor(Number(hitsAtZero) || 0));
+    if (!massive && laterHits > 0) {
+      const failures = Math.min(LIMIT, laterHits);
+      const dead = failures >= LIMIT;
+      return {
+        deathSaves: { value: { successes: 0, failures } },
+        removeInstanceIds: dead
+          ? resolveZeroHPUnconsciousAction({ ...meta, hp: 0 }, [...instances, { condition: DEATH_SAVE_DEAD_CONDITION }]).removeInstanceIds
+          : [],
+        addCondition: dead ? DEATH_SAVE_DEAD_CONDITION : "",
+        ...(dead ? { instantDeath: true } : {}),
+      };
+    }
     if (!massive && !hasTally) return null;
     return {
       ...(massive ? { deathSaves: { value: { successes: 0, failures: LIMIT } } }
@@ -169,7 +186,8 @@ export function planDeathSaveHpChange({
   if (before <= 0 && after <= 0 && hit > 0 && !isDeadByDeathSaves(instances)) {
     const stableIds = deathSaveConditionIds(instances, DEATH_SAVE_STABLE_CONDITION);
     // Becoming stable reset the tally: a stable creature starts again from no failures.
-    const failures = Math.min(LIMIT, (stableIds.length ? 0 : tally.failures) + (critical ? 2 : 1));
+    const hits = critical ? 2 : hitsAtZero !== undefined ? Math.max(1, Math.floor(Number(hitsAtZero) || 0)) : 1;
+    const failures = Math.min(LIMIT, (stableIds.length ? 0 : tally.failures) + hits);
     const dead = hit >= max || failures >= LIMIT;
     const unconsciousIds = dead
       ? resolveZeroHPUnconsciousAction({ ...meta, hp: 0 }, [...instances, { condition: DEATH_SAVE_DEAD_CONDITION }]).removeInstanceIds

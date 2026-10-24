@@ -644,9 +644,9 @@ da questo audit.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
 - Opzioni trackable del runtime: **361**; definizioni con tracking persistente verificate dall'audit: **358**; definizioni con regole d'area: **139** (144 regole).
-- Workflow che richiedono smoke test runtime: **405**.
+- Workflow che richiedono smoke test runtime: **406**.
 - Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `ed092032e221af5c`.
+- Impronta deterministica: `1f74abab2659233b`.
 
 ## Decisioni di prodotto chiuse
 
@@ -659,8 +659,8 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 68 |
-| PARTIAL | 219 |
+| MANUAL | 67 |
+| PARTIAL | 220 |
 | TRACK_ONLY | 124 |
 
 ### Stato di copertura (coverageStatus)
@@ -702,7 +702,7 @@ da questo audit.
 | --- | ---: |
 | ACTIVE_ACTION | 46 |
 | AREA_GEOMETRY | 139 |
-| CAST | 257 |
+| CAST | 258 |
 | CLEANUP | 116 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 358 |
@@ -867,7 +867,7 @@ Nessuna voce.
 | Danza Macabra | `xanathar-danza-macabra` | Xanathar / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Dardo di Caos | `xanathar-dardo-di-caos` | Xanathar / 1 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Dardo di fuoco | `fire-bolt` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Dardo incantato | `magic-missile` | SRD 5.1 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Dardo incantato | `magic-missile` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Dardo Stregato | `phb2014-dardo-stregato` | PHB 2014 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Dardo tracciante | `guiding-bolt` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Debilitazione | `xanathar-debilitazione` | Xanathar / 5 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente |

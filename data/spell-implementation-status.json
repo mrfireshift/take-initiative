@@ -26061,10 +26061,12 @@
         "src/pcAttackSpellCatalog.js",
         "src/pcAttackCore.js",
         "src/pcAttackExecution.js",
-        "src/pc-attack.js"
+        "src/pc-attack.js",
+        "src/magicMissileCore.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Multi-hit è già presente come maxAttacks + attacks[] (Lama del Disastro), anche stesso target. Gap reale: esporlo al cast con conteggio scalato e policy auto-hit per i dardi, senza parent fittizio.",
+        "Pannello incantesimi (console ad area): un tiro per dardo, scritto sul bersaglio che colpisce (campo Danni dei dardi), ogni dardo un danno a sé (resistenza per dardo, Scudo, un TS di concentrazione per dardo, un fallimento dei TS contro la morte per dardo). Console attacchi: un dardo alla volta, Scudo rispettato.",
         "Damage type: force"
       ],
       "existingReusableCapabilities": [
@@ -26124,6 +26126,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/magicMissile.test.js",
+          "test/magicMissileIntegration.test.js",
           "test/pcAttackSpells.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",

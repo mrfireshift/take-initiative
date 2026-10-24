@@ -1,4 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
+import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 import { spellForCastContext } from "./spellCastContextCore.js";
 import { buildSharedHpPreview, sharedHpIntents, sharedHpCommittedUpdates, sharedHpDamageEntries } from "./sharedHpViewCore.js";
 import { resolveSharedHpGroup, sharedHpScopeIds } from "./sharedHpCore.js";
@@ -42,6 +43,15 @@ import {
   SAVE_SPELL_OUTCOMES,
 } from "./saveSpellCore.js";
 import { CLEANSE_SPELL_ID_SET, planCleanseTarget } from "./cleanseSpellRules.js";
+import {
+  MAGIC_MISSILE_SPELL_ID,
+  magicMissileAllocationText,
+  magicMissileDartAllocation,
+  magicMissileDeathSaveHits,
+  magicMissileTargetDamage,
+  magicMissileTargetGuard,
+  magicMissileTargetText,
+} from "./magicMissileCore.js";
 import {
   HP_BRANCH_SPELL_ID_SET,
   planHpBranchAfterDamage,
@@ -353,10 +363,51 @@ function prismaticSprayHPEntries(items, prismaticSprayPlan) {
     .filter((entry) => entry?.change?.changed);
 }
 
+// Magic Missile: the sum of the darts each target takes, each one after its force defense and Shield.
+function magicMissileAllocationFor(command) {
+  return magicMissileDartAllocation({
+    targetIds: command?.targeting?.targetIds || [],
+    targetContexts: command?.targeting?.targetContexts || {},
+    slotLevel: command?.spell?.slotLevel,
+  });
+}
+
+function magicMissileHPEntries(command, items, allItems = items) {
+  const allocation = magicMissileAllocationFor(command);
+  return (Array.isArray(items) ? items : [])
+    .filter(trackedHP)
+    .map((item) => {
+      const rolls = allocation.damagesByTarget[text(item.id)] || [];
+      if (!rolls.length) return null;
+      const meta = itemMeta(item);
+      const magicMissile = magicMissileTargetDamage({ rolls, guard: magicMissileTargetGuard(item) });
+      const change = calculateQuickHPChange({
+        mode: QUICK_HP_MODES.DAMAGE,
+        value: magicMissile.damage,
+        factor: QUICK_HP_FACTORS.FULL,
+        hp: meta.hp,
+        hpMax: meta.hpMax,
+        deathSaveDamage: takesDeathSaveDamage(meta) && magicMissile.damage > 0,
+      });
+      return {
+        item,
+        outcome: SAVE_SPELL_OUTCOMES.FAILED,
+        change: {
+          ...change,
+          magicMissile,
+          // Each dart is its own damage: never massive damage from the sum, one death save failure per dart at 0 HP.
+          ...magicMissileDeathSaveHits({ hp: meta.hp, dartDamages: magicMissile.dartDamages }),
+        },
+      };
+    })
+    .filter((entry) => entry && (entry.change.changed || resolveSharedHpGroup(allItems, entry.item.id).memberIds?.length > 1));
+}
+
 function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan = null }) {
   if (spell?.id === PRISMATIC_SPRAY_SPELL_ID && prismaticSprayPlan) {
     return prismaticSprayHPEntries(items, prismaticSprayPlan);
   }
+  if (spell?.id === MAGIC_MISSILE_SPELL_ID) return magicMissileHPEntries(command, items, allItems);
   const hp = command?.hp || {};
   if (![QUICK_HP_MODES.DAMAGE, QUICK_HP_MODES.HEAL].includes(hp.mode)) return [];
   const amount = Math.max(0, Math.floor(Number(hp.amount) || 0));
@@ -560,7 +611,10 @@ function planAreaDeathSaves(entries) {
       instances: getConditionInstances(meta.conditions || {}),
       hpAfter: entry.change.afterHP,
       hpMax: entry.change.hpMax,
-      damage: entry.change.mode === QUICK_HP_MODES.DAMAGE ? entry.change.requested : 0,
+      damage: entry.change.mode === QUICK_HP_MODES.DAMAGE
+        ? entry.change.damageInstance ?? entry.change.requested
+        : 0,
+      ...(entry.change.hitsAtZero !== undefined ? { hitsAtZero: entry.change.hitsAtZero } : {}),
       instantDeath: entry.change.instantDeath === true,
       deathDetail: entry.change.deathDetail || "",
     });
@@ -717,6 +771,34 @@ async function defaultReadAuthoritativeHPVisualUpdates(
   }));
 }
 
+// The concentration saves of the damaged targets, after the commit: one per creature with the damage it took, one
+// per dart for Magic Missile (each dart is its own damage). The cause lets an Undo withdraw them.
+let areaConcentrationWarningSequence = 0;
+async function defaultConcentrationWarnings(entries = [], _plan = {}, { sceneEpoch, causeHistoryEntryId = "" } = {}) {
+  const damaged = (Array.isArray(entries) ? entries : [])
+    .filter((entry) => entry?.item?.id && entry.change?.mode === QUICK_HP_MODES.DAMAGE);
+  const items = damaged.map((entry) => entry.item);
+  const baseEventId = `area-${Date.now()}-${++areaConcentrationWarningSequence}`;
+  const waves = [];
+  const darts = Math.max(0, ...damaged.map((entry) => entry.change.magicMissile?.darts || 0));
+  for (let dart = 0; dart < darts; dart += 1) {
+    waves.push(damaged
+      .filter((entry) => (entry.change.magicMissile?.darts || 0) > dart)
+      .map((entry) => ({ itemId: entry.item.id, damage: entry.change.magicMissile.dartDamages[dart] })));
+  }
+  const whole = damaged.filter((entry) => !entry.change.magicMissile)
+    .map((entry) => ({ itemId: entry.item.id, damage: entry.change.requested }));
+  if (whole.length) waves.unshift(whole);
+  for (const [index, changes] of waves.entries()) {
+    await broadcastConcentrationSaveWarnings(changes, {
+      items,
+      sceneEpoch,
+      causeHistoryEntryId,
+      eventId: `${baseEventId}:${index + 1}`,
+    });
+  }
+}
+
 function defaultRuntime(overrides = {}) {
   const epoch = currentSceneEpoch();
   const runtime = {
@@ -747,7 +829,7 @@ function defaultRuntime(overrides = {}) {
     emitFireballVisual,
     emitMatchedSpellVisual,
     getZeroHPConditionHistoryIds,
-    onConcentrationWarnings: async () => {},
+    onConcentrationWarnings: defaultConcentrationWarnings,
     onEffectSaveWarnings: async () => {},
     buildCallLightningCloudPlacement: async (_casterId, preview) => {
       const cloudPreview = buildCallLightningCloudPreview(preview);
@@ -1815,6 +1897,15 @@ async function buildPlan(command, runtime) {
     ]),
   );
   const teleportHPItems = liveItems;
+  const magicMissileAllocation = spell.id === MAGIC_MISSILE_SPELL_ID ? magicMissileAllocationFor(command) : null;
+  if (magicMissileAllocation && !magicMissileAllocation.valid) {
+    return { valid: false, errors: [{
+      code: "magic-missile-darts",
+      message: magicMissileAllocation.error === "invalid"
+        ? "Scrivi i danni dei dardi come numeri separati da spazi (es. 4 3)."
+        : `${magicMissileAllocationText(magicMissileAllocation)}: ogni dardo deve avere un bersaglio.`,
+    }] };
+  }
   const entries = hpEntries({
     command,
     allItems,
@@ -1954,7 +2045,18 @@ async function buildPlan(command, runtime) {
     matchedVisualContext,
     prismaticSprayPlan: resolution.prismaticSpray || null,
     // CAP-CLEANSE: what the GM still has to do (Dispel Magic's spells above its limit, a construct Heal leaves).
-    notes: cleanse?.notes || [],
+    notes: [
+      ...(cleanse?.notes || []),
+      // Every target of the darts, those Shield protects included (no HP change, so no entry).
+      ...(magicMissileAllocation ? liveItems.filter((item) => magicMissileAllocation.byTarget[item.id] > 0)
+        .map((item) => `${item.name || "Bersaglio"}: ${magicMissileTargetText(
+          entries.find((entry) => entry.item.id === item.id)?.change.magicMissile
+            || magicMissileTargetDamage({
+              rolls: magicMissileAllocation.damagesByTarget[item.id],
+              guard: magicMissileTargetGuard(item),
+            }),
+        )}`) : []),
+    ],
     ...(turbineChains ? { turbineChains } : {}),
     appliedAt,
     hpMode: command?.hp?.mode,
@@ -2645,7 +2747,10 @@ export async function executeSpellAreaResolution(
       items: plan.allItems,
       isCurrent: () => runtime.isCurrent(sceneEpoch),
     }).catch((error) => warnings.push(normalizedError(error, "hp-memory"))),
-    Promise.resolve(runtime.onConcentrationWarnings(entries, plan))
+    Promise.resolve(runtime.onConcentrationWarnings(entries, plan, {
+      sceneEpoch,
+      causeHistoryEntryId: recordedEntry?.id || "",
+    }))
       .catch((error) => warnings.push(normalizedError(error, "concentration-warning"))),
     Promise.resolve(runtime.onEffectSaveWarnings(entries, plan))
       .catch((error) => warnings.push(normalizedError(error, "effect-save-warning"))),
