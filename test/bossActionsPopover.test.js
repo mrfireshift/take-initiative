@@ -1254,3 +1254,37 @@ test("asked to close at the end of the boss's turn, Boss Actions closes only whe
   await idle.ask();
   assert.deepEqual(idle.closed,["com.thebigpicture.initiative/boss-actions"],"the list of actions, nothing pending: closes");
 });
+
+test("asked to wait at the end of the boss's turn, an idle Boss Actions folds and pauses; woken, it unfolds and refreshes",async()=>{
+  const consoleWith=async(options={})=>{
+    const listeners=new Set(),closed=[];
+    const broadcast={onMessage:(channel,listener)=>{const entry={channel,listener};listeners.add(entry);return()=>listeners.delete(entry);},sendMessage:async()=>{}};
+    const f=fixture({...options,broadcast});await f.controller.ready;
+    f.api.popover.close=async id=>{closed.push(id);};
+    const send=async type=>{for(const entry of [...listeners]) if(entry.channel==="com.thebigpicture.initiative/boss-actions-console") entry.listener({data:{type}});await tick();await tick();};
+    return {f,closed,send};
+  };
+  const managing=await consoleWith();
+  const managingListeners=managing.f.listenerCount();
+  await managing.send("wait-if-idle");
+  assert.equal(managing.f.listenerCount(),managingListeners,"managing its profile: stays as it is");
+
+  const idle=await consoleWith();
+  await importAndBind(idle.f,"auril-phase-2.html");
+  const subscribed=idle.f.listenerCount();
+  assert.ok(subscribed>0);
+  await idle.send("wait-if-idle");
+  assert.deepEqual(idle.closed,[],"it waits, it does not close");
+  assert.equal(idle.f.documentRef.body.dataset.minimized,"true","folded to its header");
+  assert.equal(idle.f.listenerCount(),0,"live updates paused");
+  assert.match(idle.f.$("boss-status").textContent,/In attesa del prossimo turno del boss/u);
+  await idle.send("wake");
+  assert.equal(idle.f.documentRef.body.dataset.minimized,"false","the boss's next turn unfolds it");
+  assert.equal(idle.f.listenerCount(),subscribed,"live updates resumed once");
+  await idle.send("wait-if-idle");
+  await idle.f.$("boss-minimize").click();await tick();await tick();
+  assert.equal(idle.f.documentRef.body.dataset.minimized,"false","unfolded by hand");
+  assert.equal(idle.f.listenerCount(),subscribed,"unfolding by hand resumes the live updates");
+  await idle.send("close-if-idle");
+  assert.deepEqual(idle.closed,["com.thebigpicture.initiative/boss-actions"],"another boss's turn: an idle console still closes");
+});

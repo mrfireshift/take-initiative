@@ -965,7 +965,7 @@ test("a console holding decisions waits: the bar offers the move, after a confir
   assert.equal(bar.hidden, true);
 });
 
-test("a turn back to the console's actor clears the bar; a clean console closes on a turn with nothing to show", async () => {
+test("a turn back to the console's actor clears the bar; a clean console waits on a turn with nothing to show", async () => {
   const bus = followBroadcast();
   const f = fixture({ broadcast: bus.broadcast }); await f.controller.ready;
   await f.select(["ghoul"]);
@@ -979,8 +979,11 @@ test("a turn back to the console's actor clears the bar; a clean console closes 
   assert.equal(f.$("pc-attack-follow").querySelector("button").textContent, "Chiudi");
   const clean = followBroadcast();
   const h = fixture({ broadcast: clean.broadcast }); await h.controller.ready;
-  await clean.follow("", "");
-  assert.deepEqual(h.closed, ["com.thebigpicture.initiative/pc-attack"]);
+  await clean.follow("", "Auril");
+  assert.deepEqual(h.closed, [], "a clean console waits instead of closing");
+  assert.equal(h.documentRef.body.getAttribute("data-minimized"), "true", "folded to its header");
+  assert.equal(h.listenerCount(), 0, "live updates paused while it waits");
+  assert.match(h.$("pc-attack-status").textContent, /In attesa: turno di Auril/u);
 });
 
 // A 3rd level barbarian, 2 rages left of 3: its features fill the Capacità tab (Rage first, the usable ones first).
@@ -1467,4 +1470,36 @@ test("Usa reazione on Uncanny Dodge marks the reaction; out of combat or with th
   assert.match(textOf(out.$("pc-attack-total")), /Fuori dal combattimento/, "why the button is off, beside it");
   assert.equal(out.$("pc-attack-total").dataset.kind, "warning");
   assert.equal(out.$("pc-attack-launch-button").disabled, true);
+});
+
+test("a waiting console wakes with the next actor, with the same actor again, or unfolded by hand: no reload, live updates once", async () => {
+  const bus = followBroadcast();
+  const f = fixture({ broadcast: bus.broadcast }); await f.controller.ready;
+  const subscribed = f.listenerCount();
+  assert.ok(subscribed > 0);
+
+  await bus.follow("", "Auril");
+  assert.equal(f.listenerCount(), 0);
+  const loadsWhileWaiting = f.loads.length;
+  await f.select(["ghoul"]);
+  assert.equal(f.loads.length, loadsWhileWaiting, "a waiting console does not refresh");
+
+  await bus.follow("imp", "Imp");
+  assert.deepEqual(f.closed, []);
+  assert.equal(f.documentRef.body.getAttribute("data-minimized"), "false", "the next actor unfolds it");
+  assert.equal(f.listenerCount(), subscribed, "live updates resumed once");
+  assert.equal(f.sources.at(-1), "imp");
+
+  await bus.follow("", "Auril");
+  const loadsBeforeSame = f.loads.length;
+  await bus.follow("imp", "Imp");
+  assert.equal(f.documentRef.body.getAttribute("data-minimized"), "false", "the same actor again wakes it too");
+  assert.equal(f.listenerCount(), subscribed);
+  assert.ok(f.loads.length > loadsBeforeSame, "and refreshes it");
+
+  await bus.follow("", "Auril");
+  await f.$("pc-attack-minimize").click(); await tick(); await tick();
+  assert.equal(f.documentRef.body.getAttribute("data-minimized"), "false", "unfolded by hand");
+  assert.equal(f.listenerCount(), subscribed, "unfolding by hand resumes the live updates");
+  assert.deepEqual(f.closed, []);
 });

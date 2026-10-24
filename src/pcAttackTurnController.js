@@ -11,7 +11,8 @@ import { runtimeOptionsService } from "./options/optionsRuntime.js";
 import { selectPcAttackAutoOpen } from "./options/optionsSelectors.js";
 
 // The attack console opens by itself on the turn of an actor with attacks (GM only, local option off by default); on a
-// boss's turn, and on its Epic Action slots, Boss Actions opens instead, and closes (idle) when that turn is over.
+// boss's turn, and on its Epic Action slots, Boss Actions opens instead. When the turn belongs to the other console, an
+// idle one folds and waits (its live updates paused) instead of closing, and wakes on its next turn: no reload per turn.
 // It only reads the initiative state: never writes it, never moves the turn.
 const STATE_KEY = `${ID}/state`;
 const META_KEY = `${ID}/meta`;
@@ -101,6 +102,8 @@ export function createPcAttackTurnController({
   openBossConsole = openBossActionsPopover,
   isBossConsoleOpen = () => pingConsole(api, BOSS_ACTIONS_CONSOLE_CHANNEL),
   closeBossConsole = () => tellBossConsole(api, { type: "close-if-idle" }),
+  waitBossConsole = () => tellBossConsole(api, { type: "wait-if-idle" }),
+  wakeBossConsole = () => tellBossConsole(api, { type: "wake" }),
   closeSettleMs = 150,
   followConsole = (sourceId, name) => tellConsole(api, sourceId, name),
   getCard = getInitiativeCard,
@@ -133,11 +136,14 @@ export function createPcAttackTurnController({
       // Both consoles are asked at once: a closed one answers nothing within the ping's time.
       const [attackOpen, bossOpen] = await Promise.all([isConsoleOpen(), isBossConsoleOpen()]);
       if (taskRevision !== revision) return;
-      // A boss's turn, or one of its Epic Action slots: Boss Actions, never reloaded when open on this boss; open on
-      // another boss and idle, it gives way. A clean attack console left open closes (no attack of its own there).
+      // A boss's turn, or one of its Epic Action slots: Boss Actions, never reloaded when open on this boss (it wakes);
+      // open on another boss and idle, it gives way. A clean attack console left open waits (no attack of its own there).
       if (pcAttackTurnBoss(item, getCard)) {
         if (attackOpen) await followConsole("", String(item?.name || ""));
-        if (bossOpen && (bossOpen.sourceId === undefined || bossOpen.sourceId === item.id)) return;
+        if (bossOpen && (bossOpen.sourceId === undefined || bossOpen.sourceId === item.id)) {
+          await wakeBossConsole();
+          return;
+        }
         if (bossOpen) {
           if (bossOpen.idle === false) return;
           await closeBossConsole();
@@ -147,8 +153,8 @@ export function createPcAttackTurnController({
         if (taskRevision === revision) await openBossConsole(item.id);
         return;
       }
-      // The boss's turn or Epic Action is over: an idle Boss Actions closes by itself.
-      if (bossOpen) await closeBossConsole();
+      // The boss's turn or Epic Action is over: an idle Boss Actions folds and waits for the boss's next turn.
+      if (bossOpen) await waitBossConsole();
       if (taskRevision !== revision) return;
       const ready = !!sourceId && pcAttackTurnReady(item, getCard);
       // An open console is never reloaded: it moves to the new actor by itself (or closes), unless a draft holds it.
