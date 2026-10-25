@@ -155,8 +155,37 @@ test("the death save comes only when the dying PC's turn really starts", () => {
   assert.equal(deathSaves({ previousInitiativeState: null, initiativeState: state(0) }).length, 0);
   // Several turns skipped at once: Aria's skipped turn gives no save, only the turn now current would.
   assert.equal(deathSaves({ previousInitiativeState: state(1), initiativeState: { ...state(1), round: 3 } }).length, 0);
-  // A paragon PC rolls on its first pass only.
-  const paragon = { round: 1, order: ["ghoul", "aria", "aria::p2"] };
+  // A paragon PC rolls on its first pass only (its second pass is "::p1", expandParagonEntries).
+  const paragon = { round: 1, order: ["ghoul", "aria", "aria::p1", "aria::p2"] };
   assert.equal(deathSaves({ previousInitiativeState: { ...paragon, current: 0 }, initiativeState: { ...paragon, current: 1 } }).length, 1);
   assert.equal(deathSaves({ previousInitiativeState: { ...paragon, current: 1 }, initiativeState: { ...paragon, current: 2 } }).length, 0);
+  assert.equal(deathSaves({ previousInitiativeState: { ...paragon, current: 2 }, initiativeState: { ...paragon, current: 3 } }).length, 0);
+});
+
+test("the death save survives an HP write landing just after the turn change, and an order changed with it", () => {
+  const dying = pc({ deathSaves: { successes: 0, failures: 0 } });
+  const deathSaves = (options) => planEffectSaveReminderNotices({ items: [dying, ghoul], ...options })
+    .filter((notice) => notice.resolution?.mode === "death-save");
+  // The turn was reached a moment ago (the controller's recent turn), the PC's 0 HP arrives now.
+  assert.equal(deathSaves({ previousInitiativeState: state(0), initiativeState: state(0), recentDeathSaveTurnKey: "2:0:aria" }).length, 1);
+  assert.equal(deathSaves({ previousInitiativeState: state(0), initiativeState: state(0), recentDeathSaveTurnKey: "1:0:aria" }).length, 0,
+    "another turn's key gives nothing");
+  // A creature leaves the order as the GM advances to Aria's turn.
+  assert.equal(deathSaves({
+    previousInitiativeState: { round: 2, order: ["aria", "wolf", "ghoul"], current: 2 },
+    initiativeState: { round: 3, order: ["aria", "ghoul"], current: 0 },
+  }).length, 1);
+  assert.equal(deathSaves({
+    previousInitiativeState: { round: 2, order: ["ghoul", "wolf", "aria"], current: 0 },
+    initiativeState: { round: 2, order: ["ghoul", "aria"], current: 1 },
+  }).length, 1);
+  // A creature joins while the turn stays Aria's, or the GM goes back to her: no save.
+  assert.equal(deathSaves({
+    previousInitiativeState: { round: 2, order: ["ghoul", "aria"], current: 1 },
+    initiativeState: { round: 2, order: ["wolf", "ghoul", "aria"], current: 2 },
+  }).length, 0);
+  assert.equal(deathSaves({
+    previousInitiativeState: { round: 2, order: ["ghoul", "aria", "wolf"], current: 2 },
+    initiativeState: { round: 2, order: ["ghoul", "aria"], current: 1 },
+  }).length, 0);
 });

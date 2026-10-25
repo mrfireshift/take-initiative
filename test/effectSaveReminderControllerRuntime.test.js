@@ -161,6 +161,7 @@ mock.module("../src/constants.js", {
 
 mock.module("../src/effectSaveReminderCore.js", {
   exports: {
+    deathSaveTurnStartKey: (previous, next) => (next?.round === 3 && previous?.round !== 3 ? "3:0:actor" : ""),
     effectSaveReminderNoticeFromHistoryReplay({ replay }) {
       const notice = replay?.descriptor?.notice || replay?.notice;
       const target = Array.isArray(notice?.targets) ? notice.targets[0] : null;
@@ -168,10 +169,11 @@ mock.module("../src/effectSaveReminderCore.js", {
         ? { ...clone(notice), target: clone(target) }
         : null;
     },
-    planEffectSaveReminderNotices({ previousInitiativeState, initiativeState }) {
+    planEffectSaveReminderNotices({ previousInitiativeState, initiativeState, recentDeathSaveTurnKey }) {
       plannerCalls.push({
         previous: clone(previousInitiativeState),
         current: clone(initiativeState),
+        recentDeathSaveTurnKey,
       });
       if (Array.isArray(plannedActivationIds)) {
         return plannedActivationIds.map((activationId) => ({ activationId }));
@@ -290,6 +292,28 @@ test("delivery riuscito committa l'ID e non duplica il reconcile accodato", asyn
   assert.ok(
     plannerCalls.some((call) => call.current?.round === 3 && call.previous?.round === 3),
   );
+});
+
+test("il turno appena raggiunto resta valido per il TS contro la morte per qualche secondo", async () => {
+  const realNow = Date.now;
+  let now = 1_000_000;
+  Date.now = () => now;
+  try {
+    emitMetadata(3);
+    await waitFor(() => deliveryCalls.length === 1);
+    // The HP write that drops the PC lands after the turn change: the turn still gives its death save.
+    now += 1800;
+    emitItems();
+    await flush();
+    assert.equal(plannerCalls.at(-1).recentDeathSaveTurnKey, "3:0:actor");
+    // Later in the turn, a drop to 0 HP waits for the next turn.
+    now += 5000;
+    emitItems();
+    await flush();
+    assert.equal(plannerCalls.at(-1).recentDeathSaveTurnKey, "");
+  } finally {
+    Date.now = realNow;
+  }
 });
 
 test("Promise rejection lascia la transizione ritentabile", async () => {

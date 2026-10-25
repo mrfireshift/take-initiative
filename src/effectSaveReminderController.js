@@ -6,6 +6,7 @@ import {
   RUNTIME_CACHE_CLEANUP_CHANNEL,
 } from "./constants.js";
 import {
+  deathSaveTurnStartKey,
   effectSaveReminderNoticeFromHistoryReplay,
   planEffectSaveReminderNotices,
 } from "./effectSaveReminderCore.js";
@@ -28,6 +29,10 @@ const pendingHistoryReplays = new Map();
 let mounted = false;
 let sceneReady = false;
 let previousInitiativeState = null;
+// The turn the initiative reached last, and when: the HP write that drops a PC to 0 goes through the effects
+// coordinator and can land a moment after the GM moves to that PC's turn; its death save still comes.
+const DEATH_SAVE_LATE_HP_GRACE_MS = 5000;
+let recentDeathSaveTurn = null;
 let reconcileRunning = false;
 let reconcileRequested = false;
 let queuedSceneMetadata = null;
@@ -60,6 +65,7 @@ function snapshot(state) {
 function resetRuntimeState() {
   runtimeCacheRevision += 1;
   previousInitiativeState = null;
+  recentDeathSaveTurn = null;
   announcedActivationIds.clear();
   rearmableActivationIds.clear();
   pendingHistoryReplays.clear();
@@ -118,11 +124,20 @@ async function reconcileEffectSaveReminders(
     return;
   }
   const previousState = previousInitiativeState;
+  const reachedDeathSaveTurnKey = previousState !== null ? deathSaveTurnStartKey(previousState, initiativeState) : "";
+  if (reachedDeathSaveTurnKey && reachedDeathSaveTurnKey !== recentDeathSaveTurn?.turnKey) {
+    recentDeathSaveTurn = { turnKey: reachedDeathSaveTurnKey, at: Date.now() };
+  }
+  const recentDeathSaveTurnKey = recentDeathSaveTurn
+    && Date.now() - recentDeathSaveTurn.at <= DEATH_SAVE_LATE_HP_GRACE_MS
+    ? recentDeathSaveTurn.turnKey
+    : "";
   const plannedNotices = planEffectSaveReminderNotices({
     items,
     previousInitiativeState: previousState,
     initiativeState,
     includeCurrentTurnStart: previousState !== null,
+    recentDeathSaveTurnKey,
   });
   const replayNotices = [];
   for (const [activationId, replay] of [...pendingHistoryReplays]) {

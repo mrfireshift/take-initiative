@@ -363,6 +363,28 @@ export function effectSaveReminderBoundaries(previousState, nextState) {
   return boundaries;
 }
 
+// The turn whose death save is due: the current turn, when the initiative reached it by advancing (a PC that drops to
+// 0 HP during its own turn rolls at the start of its next one), never a turn skipped in a batch or a second paragon
+// pass. The order may change in the same update (a creature added or removed, the epic turns rebuilt): the turn then
+// counts as reached when the initiative moved forward, to a later round or past the turn that was current.
+export function deathSaveTurnStartKey(previousInitiativeState, initiativeState) {
+  const currentStart = currentTurnStartBoundary(initiativeState);
+  if (!currentStart?.turnKey || /::p\d+$/u.test(String(currentStart.turnKey))) return "";
+  if (effectSaveReminderBoundaries(previousInitiativeState, initiativeState)
+    .some((boundary) => boundary.timing === "turn-start" && boundary.turnKey === currentStart.turnKey)) {
+    return currentStart.turnKey;
+  }
+  const previous = stateSnapshot(previousInitiativeState);
+  const next = stateSnapshot(initiativeState);
+  if (!previous || !next) return "";
+  if (previous.order.length === next.order.length
+    && previous.order.every((id, index) => id === next.order[index])) return "";
+  if (next.round > previous.round) return currentStart.turnKey;
+  if (next.round < previous.round) return "";
+  const previousIndex = next.order.indexOf(previous.order[previous.current]);
+  return previousIndex >= 0 && previousIndex < next.current ? currentStart.turnKey : "";
+}
+
 function spellSaveDC(item) {
   return optionalDC(
     item?.metadata?.[META_KEY]?.initiativeCard?.spellSaveDC,
@@ -843,6 +865,9 @@ export function planEffectSaveReminderNotices({
   previousInitiativeState = null,
   initiativeState = null,
   includeCurrentTurnStart = true,
+  // The turn reached a moment ago (effectSaveReminderController.js): the HP write that dropped its PC to 0 can land
+  // just after the turn change.
+  recentDeathSaveTurnKey = "",
 } = {}) {
   const list = Array.isArray(items) ? items : [];
   const itemsById = new Map(list.map((item) => [String(item?.id || ""), item]));
@@ -851,13 +876,9 @@ export function planEffectSaveReminderNotices({
     initiativeState,
   );
   const currentStart = currentTurnStartBoundary(initiativeState);
-  // A death save comes only when the turn of the PC at 0 HP really starts: the turn reached by advancing, never a
-  // PC that drops to 0 during its own turn (the current-turn boundary below), a turn skipped in a batch, or a
-  // second paragon pass.
-  const deathSaveTurnKey = currentStart && !/::p(?:[2-9]|\d{2,})$/u.test(String(currentStart.turnKey || ""))
-    && boundaries.some((boundary) => boundary.timing === "turn-start" && boundary.turnKey === currentStart.turnKey)
-    ? currentStart.turnKey
-    : "";
+  // A death save comes only when the turn of the PC at 0 HP really starts (deathSaveTurnStartKey).
+  const deathSaveTurnKey = deathSaveTurnStartKey(previousInitiativeState, initiativeState)
+    || (recentDeathSaveTurnKey && currentStart?.turnKey === recentDeathSaveTurnKey ? recentDeathSaveTurnKey : "");
   if (includeCurrentTurnStart) {
     if (currentStart) boundaries.push(currentStart);
   }
@@ -890,14 +911,14 @@ export function planEffectSaveReminderNotices({
       boundary.turnKey,
       boundary.noticeTurnKey,
     ),
-    ...(boundary.turnKey === deathSaveTurnKey ? deathSaveNoticesForTiming(
-      list,
-      boundary.timing,
-      boundary.actorId,
-      boundary.turnKey,
-      boundary.noticeTurnKey,
-    ) : []),
     ]),
+    ...(deathSaveTurnKey ? deathSaveNoticesForTiming(
+      list,
+      currentStart.timing,
+      currentStart.actorId,
+      currentStart.turnKey,
+      currentStart.noticeTurnKey,
+    ) : []),
     ...(!includeCurrentTurnStart && currentStart
       ? spellTurnBoundaryNoticesForTiming({
         items: list,
