@@ -117,6 +117,27 @@ Correzioni fatte dopo il confronto:
     chiesto non cambia: il GM ne abbassa la CD a mano.
   - Limite noto: i PF temporanei sono la parte di PF oltre il massimo, quindi su
     un personaggio ferito si sommano ai PF come una cura.
+- **Danni extra negli attacchi** (console dell'attacco, sul colpo):
+  - *Furia dei piccoli* (goblin): danni del tipo dell'attacco pari al livello
+    (Volo) o al bonus di competenza (Mostri del Multiverso, una volta per turno),
+    con armi e incantesimi a tiro per colpire; spende l'uso. La taglia del
+    bersaglio la valuta il GM (la console lo ricorda).
+  - *Scintilla astrale* (giff): danni da forza pari al bonus di competenza, solo
+    con un'arma; spende l'uso.
+  - *Attacchi selvaggi* (mezzorco): con un critico in mischia, un dado dell'arma
+    in più (1d8 per una spada lunga), non raddoppiato.
+  - *Attacco a sorpresa* (bugbear): 2d6 con un tiro per colpire. Volo: nel primo
+    turno del bugbear, se il bersaglio è sorpreso (lo valuta il GM); Mostri del
+    Multiverso: contro una creatura che nel primo round non ha ancora agito,
+    letto dall'ordine di iniziativa.
+  - Trasformazioni dell'aasimar (Anima radiosa, Consunzione radiosa, Sudario
+    necrotico, e le Rivelazioni celestiali): mentre la trasformazione è attiva,
+    una volta nel proprio turno, danni radiosi o necrotici pari al livello (Volo)
+    o al bonus di competenza (Mostri del Multiverso), anche con incantesimi a
+    tiro per colpire. Il danno a fine turno della Consunzione radiosa resta al
+    tavolo.
+  I limiti per turno si contano solo in combattimento. Gli incantesimi risolti
+  dal pannello incantesimi non ricevono questi danni extra.
 - **Ruggito intimidatorio, Provocazione, Presenza inquietante**: come la
   Presenza conquistatrice del paladino, si selezionano sulla mappa le creature
   che falliscono il TS (la card mostra TS e CD, 8 + competenza + la

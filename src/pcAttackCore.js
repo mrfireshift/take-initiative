@@ -388,10 +388,24 @@ function featureActive(sourceItem, featureId, round) {
   return !!conditionName && conditionInstancesOf(sourceItem).some((instance) => instance?.active !== false && instance?.condition === conditionName);
 }
 
-function riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round }) {
+// Whether a creature has not taken its turn yet in this combat: first round, after the current turn in the order.
+function targetNotActedYet(turnState, targetId) {
+  const order = (Array.isArray(turnState?.order) ? turnState.order : []).map((id) => String(id || "").replace(/::p\d+$/u, ""));
+  const index = order.indexOf(String(targetId || ""));
+  const current = Math.max(0, Math.floor(Number(turnState?.current) || 0));
+  return Math.max(1, Math.floor(Number(turnState?.round) || 1)) === 1 && index > current;
+}
+
+function riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round, turnState = null }) {
   const requires = rider.requires || {};
   // An arrow without attack roll (Seeking, Piercing) never "hits": no damage rider applies.
   if (attack.mode) return "Solo con un tiro per colpire.";
+  // Surprise Attack: a hit with an attack roll, in combat (its first round, or a target that has not acted yet).
+  if (requires.attackRoll && pcAttackSave(attack)) return "Solo con un tiro per colpire.";
+  if ((requires.firstRound || requires.targetNotActed) && !turn) return "Solo in combattimento.";
+  if (requires.firstRound && turn.round !== 1) return "Solo nel primo round del combattimento.";
+  if (requires.targetNotActed && !targetItem) return "Scegli il bersaglio.";
+  if (requires.targetNotActed && !targetNotActedYet(turnState, targetItem.id)) return "Il bersaglio ha già agito in questo combattimento.";
   // Casters' riders exist only on cantrips (Agonizing Blast only on Eldritch Blast); the others need a weapon.
   if (rider.spellOnly && !attack.cantrip) return "Solo per i trucchetti.";
   if (rider.spellIds && !rider.spellIds.includes(attack.cantrip?.spellId)) return rider.spellReason || "Non per questo trucchetto.";
@@ -438,7 +452,7 @@ function riderOptionsFor(attack, { sourceItem, targetItem = null, turnState = nu
     && conditionInstancesOf(sourceItem).some((instance) => instance?.active !== false && instance?.condition === rider.grantedByCondition));
   return [...own, ...granted].map((rider) => {
     const slotLevels = pcAttackRiderSlotLevels(rider, card);
-    const reason = riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round: turnState?.round ?? null })
+    const reason = riderBlocker(rider, { attack, sourceItem, targetItem, turn, uses, round: turnState?.round ?? null, turnState })
       || (rider.slot && !slotLevels.length ? "Livello da warlock mancante nel profilo." : "");
     // A smite's dice follow the slot level (and the undead/fiend bonus): one entry per level the GM may pick.
     const diceBySlot = (bonus) => Object.fromEntries(slotLevels.map((slotLevel) => [slotLevel, pcAttackRiderDice(rider, card, { slotLevel, bonus })]));
@@ -520,6 +534,8 @@ function activationBlocker(activation, { attack, sourceItem, targetItem, turn, u
   const limit = pcAttackActivationLimit(activation);
   if (pcAttackSave(attack) || attack.spell?.delivery === "auto") return "Solo con un tiro per colpire.";
   if (outcome && !activation.preRoll && !ATTACK_HITS.has(outcome)) return "Solo se l'attacco colpisce.";
+  // Savage Attacks: only a critical hit.
+  if (requires.critical && outcome !== "critical") return "Solo con un colpo critico.";
   if (activation.spellIds) {
     if (!activation.spellIds.includes(attack.cantrip?.spellId)) return "Solo con la Deflagrazione occulta.";
   } else if ((attack.cantrip || attack.spell) && !activation.anyAttack) return "Solo per gli attacchi con arma.";
@@ -554,6 +570,12 @@ export function pcAttackActivationOptions({ action, spellId = "", attackMode = "
     damageTypes: [...riders, ...extras].map((entry) => entry?.type).filter(Boolean) });
 }
 
+// One damage die of the attack's weapon ("2d6+3" → "1d6"): Savage Attacks. null without a formula on the action.
+function weaponDieOf(attack) {
+  const match = /\d+d(\d+)/u.exec(String(attack?.components?.[0]?.formula || ""));
+  return match ? `1d${match[1]}` : null;
+}
+
 function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState = null, riderIds = [], damageTypes = [], outcome = "" }) {
   const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
   const card = sourceMeta.initiativeCard || {};
@@ -576,7 +598,8 @@ function activationOptionsFor(attack, { sourceItem, targetItem = null, turnState
     return {
       id: activation.id, label: pcAttackActivationLabel(activation),
       ...(activation.group ? { group: activation.group, groupLabel: activation.groupLabel } : {}),
-      damage, dice: deals || activation.tempHp ? pcAttackActivationDice(activation, card) : null,
+      damage, dice: deals || activation.tempHp ? (activation.dice?.weaponDie ? weaponDieOf(attack) : pcAttackActivationDice(activation, card)) : null,
+      ...(activation.noCriticalDouble ? { noCriticalDouble: true } : {}),
       ...(activation.tempHp ? { tempHp: true } : {}),
       ...(activation.choices ? { choices: activation.choices.map((choice) => {
         const choiceDc = pcAttackActivationSaveDC(activation, card, choice.save);

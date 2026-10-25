@@ -626,7 +626,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       field("on").checked=state.on;field("on").disabled=busy || !option.available;
       const resource=common?[]:resourceText(option);
       const dice=option.tempHp?`${option.dice || "2d8 + livello"} PF temporanei`
-        :option.damage || option.secondary?`${critical(option.dice) || "dado"} ${option.types.length===1?damageTypeLabel(option.types[0]):""}`.trim():"";
+        :option.damage || option.secondary?`${(option.noCriticalDouble?option.dice:critical(option.dice)) || "dado"} ${option.types.length===1?damageTypeLabel(option.types[0]):""}`.trim():"";
       // A choice's save and effect replace the activation's (Open Hand Technique).
       const choice=option.choices?option.choices.find(entry=>entry.id===state.choice) || null:null;
       const save=choice?choice.save:option.save;

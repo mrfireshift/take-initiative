@@ -6,7 +6,7 @@
 // Pure: no SDK, DOM or runtime state.
 import { getClassFeatureDefinition, getClassFeatureResourcePool, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { characterClassLevel, resolveClassFeatureResourceDie } from "./classFeatureCore.js";
-import { abilityModifier, abilitySaveDC } from "./abilityModifiersCore.js";
+import { abilityModifier, abilitySaveDC, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { getPcAttackRider, pcAttackRiderDice } from "./pcAttackRiderCatalog.js";
 
 export const PC_ATTACK_ACTIVATION_CATALOG_VERSION = 1;
@@ -157,6 +157,19 @@ export const PC_ATTACK_ACTIVATIONS = Object.freeze([
     effect: Object.freeze({ note: "Spinto di 3 m in linea retta lontano dal warlock." }) }),
   Object.freeze({ id: "warlock-suppliche-occulte-stretta-di-hadar", spellIds: Object.freeze(["eldritch-blast"]), limit: ONCE_PER_OWN_TURN,
     effect: Object.freeze({ note: "Tirato di 3 m in linea retta verso il warlock." }) }),
+  // Species traits (speciesTraitCore.js): their use is the trait's own pool. Fury of the Small (goblin, Volo and Mostri
+  // del Multiverso): extra damage of the attack's type equal to the level or to the proficiency bonus (then once per
+  // turn), with an attack or a spell, against a creature larger than the goblin (sizes are the GM's call).
+  Object.freeze({ id: "specie-goblin-furia-dei-piccoli", dice: Object.freeze({ totalLevel: true }), type: "weapon", anyAttack: true,
+    size: "contro una creatura più grande del goblin" }),
+  Object.freeze({ id: "specie-goblin-multiverso-furia-dei-piccoli", dice: Object.freeze({ proficiency: true }), type: "weapon", anyAttack: true,
+    limit: ONCE_PER_TURN, size: "contro una creatura più grande del goblin" }),
+  // Astral Spark (giff): force damage equal to the proficiency bonus on a hit with a simple or martial weapon.
+  Object.freeze({ id: "specie-giff-scintilla-astrale", dice: Object.freeze({ proficiency: true }), type: "force" }),
+  // Savage Attacks (half-orc, a passive trait: no use): on a critical hit in melee, one more die of the weapon, added to
+  // the critical's extra dice and not doubled again.
+  Object.freeze({ id: "specie-mezzorco-attacchi-selvaggi", dice: Object.freeze({ weaponDie: true }), type: "weapon", noCriticalDouble: true,
+    requires: Object.freeze({ range: "melee", critical: true }) }),
 ]);
 
 const ACTIVATION_BY_ID = new Map(PC_ATTACK_ACTIVATIONS.map((activation) => [activation.id, activation]));
@@ -225,6 +238,16 @@ export function pcAttackActivationDice(activation, card = {}, spec = activation?
   if (dice.martialArts) return withModifier(tableValue(MARTIAL_ARTS_DIE, characterClassLevel(build, "monaco")), dice.plus);
   if (dice.psionic) return withModifier(tableValue(PSIONIC_DIE, characterClassLevel(build, "guerriero")), dice.plus);
   if (dice.table) return tableValue(dice.table, characterClassLevel(build, dice.classId));
+  // Species traits: the total character level, or the proficiency bonus, as a flat bonus. weaponDie: from the attack
+  // (pcAttackCore.js reads the weapon's formula).
+  if (dice.totalLevel) {
+    const level = totalCharacterLevel(build);
+    return level ? `+${level}` : null;
+  }
+  if (dice.proficiency) {
+    const bonus = proficiencyBonusForLevel(totalCharacterLevel(build));
+    return bonus ? `+${bonus}` : null;
+  }
   return null;
 }
 

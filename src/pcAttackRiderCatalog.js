@@ -93,6 +93,23 @@ export const PC_ATTACK_RIDERS = Object.freeze([
     dice: Object.freeze({ ability: "int", minimum: 0 }), type: "weapon", limit: null, spellOnly: true }),
   Object.freeze({ id: "stregone-discendenza-draconica-affinita-elementale", label: "Affinità Elementale (tipo della discendenza)",
     dice: Object.freeze({ ability: "cha", minimum: 0 }), type: "weapon", limit: null, spellOnly: true }),
+  // Species traits (speciesTraitCore.js), no use spent. Surprise Attack (bugbear): 2d6 of the attack's type on a hit with
+  // an attack roll. Volo: on the bugbear's first turn in combat, once (the surprise is the GM's call); Mostri del
+  // Multiverso: against a creature that has not taken a turn yet in this combat (read from the initiative order).
+  Object.freeze({ id: "specie-bugbear-attacco-a-sorpresa", label: "Attacco a sorpresa (bersaglio sorpreso)", dice: Object.freeze({ fixed: "2d6" }),
+    type: "weapon", limit: ONCE_PER_OWN_TURN, anyAttack: true, requires: Object.freeze({ attackRoll: true, firstRound: true }) }),
+  Object.freeze({ id: "specie-bugbear-multiverso-attacco-a-sorpresa", label: "Attacco a sorpresa", dice: Object.freeze({ fixed: "2d6" }),
+    type: "weapon", limit: null, anyAttack: true, requires: Object.freeze({ attackRoll: true, targetNotActed: true }) }),
+  // Aasimar transformations: while active, once on each of the aasimar's turns, extra radiant or necrotic damage equal to
+  // the level (Volo) or the proficiency bonus (Mostri del Multiverso), with an attack or a spell.
+  ...[["specie-aasimar-anima-radiosa", "Anima radiosa", "radiant", "totalLevel"],
+    ["specie-aasimar-consunzione-radiosa", "Consunzione radiosa", "radiant", "totalLevel"],
+    ["specie-aasimar-sudario-necrotico", "Sudario necrotico", "necrotic", "totalLevel"],
+    ["specie-aasimar-multiverso-rivelazione-celestiale-ali", "Anima radiosa", "radiant", "proficiency"],
+    ["specie-aasimar-multiverso-rivelazione-celestiale-radiosita", "Consunzione radiosa", "radiant", "proficiency"],
+    ["specie-aasimar-multiverso-rivelazione-celestiale-sudario", "Sudario necrotico", "necrotic", "proficiency"],
+  ].map(([id, label, type, dice]) => Object.freeze({ id, label, dice: Object.freeze({ [dice]: true }), type, limit: ONCE_PER_OWN_TURN,
+    anyAttack: true, requires: Object.freeze({ activeFeatureId: id }) })),
 ]);
 
 // Potent Cantrip (School of Evocation, 6th level): a creature that passes the save against a damaging cantrip
@@ -150,6 +167,11 @@ export function pcAttackRiderDice(rider, card = {}, { slotLevel = null, bonus = 
   if (dice.proficiency) {
     const bonus = proficiencyBonusForLevel(totalCharacterLevel(build));
     return bonus ? `+${bonus}` : null;
+  }
+  // A species trait: the total character level (an aasimar's transformation, Volo).
+  if (dice.totalLevel) {
+    const total = totalCharacterLevel(build);
+    return total ? `+${total}` : null;
   }
   if (dice.ability) {
     const modifier = abilityModifier(card?.abilityModifiers, dice.ability);

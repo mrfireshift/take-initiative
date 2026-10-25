@@ -539,6 +539,17 @@ const scenarios = {
     const { pcAttackBreathActionId } = await import("/src/pcAttackBreathId.js");
     await openPcAttackPopover("mira", pcAttackBreathActionId("specie-dragonide-metallico-arma-a-soffio-metallica-oro", "debilitante"));
   },
+  // A species' extra damage on a weapon hit: Mira is a goblin (Fury of the Small, +5 at 5th level) with a long sword.
+  async "pc-fury"() {
+    const mira = fakeHost.state.items.find((item) => item.id === "mira");
+    mira.metadata[META].initiativeCard = { characterBuild: [{ classId: "guerriero", level: 5 }], abilityModifiers: { str: 3, dex: 2, con: 2, int: 0, wis: 1, cha: 0 },
+      species: { id: "goblin", ancestryId: "" },
+      quickActions: [{ id: "sword", label: "Spada lunga", kind: "attack", range: "melee", components: [{ type: "slashing", formula: "1d8+3" }] }] };
+    fakeHost.setItems([...fakeHost.state.items]);
+    fakeHost.setSelection(["dars"]);
+    const { openPcAttackPopover } = await import("/src/pcAttackLauncher.js");
+    await openPcAttackPopover("mira", "sword");
+  },
   async compare() { document.getElementById("open-hp").click(); await sleep(600); fakeHost.setSelection(["dars"]); await openBossActionsPopover("auril"); await sleep(400);
     const frame = bossFrame(); fakeHost.state.popovers.get("com.thebigpicture.initiative/boss-actions").anchorPosition = { left: 600, top: 60 }; frame.style.left = "600px"; frame.style.top = "60px";
     (await row("Icekiss +2")).click(); await sleep(200); await press('[data-outcome="hit"]'); },
