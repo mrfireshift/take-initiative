@@ -2,6 +2,7 @@ import { ID } from "./constants.js";
 import {
   resolveDamageEndsConditionRemovals,
   resolveZeroHPUnconsciousAction,
+  ZERO_HP_UNCONSCIOUS_TYPE,
 } from "./hpConditionRulesCore.js";
 import {
   exhaustionLevelFromInstances,
@@ -1852,7 +1853,7 @@ export function buildReminderResolutionPlan({
         type: "condition:add",
         targetIds: [targetId],
         conditionName: "Privo di sensi",
-        options: { type: "zero-hp-unconscious", expiry: { mode: "manual" } },
+        options: { type: ZERO_HP_UNCONSCIOUS_TYPE, expiry: { mode: "manual" } },
       });
       operations.push({ type: "condition:automate", subjectIds: [targetId] });
     }
@@ -1943,7 +1944,15 @@ export function buildReminderResolutionPlan({
     ...(turbine ? { turbineChain } : {}),
     operations,
     metadataPatches: [
-      { id: targetId, fields: metadataFields },
+      {
+        id: targetId,
+        fields: metadataFields,
+        // The damage dealt, not only the HP left: at 0 HP it is a death save failure, and its leftover can kill
+        // (effectsMutations.js, deathSaveCore.js).
+        ...(hpChange && hasDamage
+          ? { hpIntent: { mode: "damage", amount: damage.amount, eventId: `reminder:${activationId}` } }
+          : {}),
+      },
       ...actionMetadataPatches,
     ],
     sideEffects: [

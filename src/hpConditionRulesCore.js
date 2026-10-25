@@ -1,6 +1,8 @@
 import { conditionKey } from "./conditionRulesCore.js";
 
 export const ZERO_HP_UNCONSCIOUS_TYPE = "hp-zero";
+// The type a reminder's damage gave its Privo di sensi before it used the one above: still the automatic pill.
+const LEGACY_ZERO_HP_UNCONSCIOUS_TYPES = new Set([ZERO_HP_UNCONSCIOUS_TYPE, "zero-hp-unconscious"]);
 
 export function shouldPCBeUnconsciousAtZeroHP(meta = {}) {
   const attitude = String(meta?.attitude || "").trim().toLocaleLowerCase("it");
@@ -17,7 +19,7 @@ export function resolveZeroHPUnconsciousAction(meta = {}, instances = []) {
   const automaticIds = (Array.isArray(instances) ? instances : [])
     .filter((instance) => instance?.active !== false)
     .filter((instance) => conditionKey(instance) === "privo di sensi")
-    .filter((instance) => String(instance.type || "") === ZERO_HP_UNCONSCIOUS_TYPE)
+    .filter((instance) => LEGACY_ZERO_HP_UNCONSCIOUS_TYPES.has(String(instance.type || "")))
     .map((instance) => String(instance.id || "").trim())
     .filter(Boolean);
   // A PC dead by its death saves ("Morto") is no longer unconscious: that pill takes the place of this one.

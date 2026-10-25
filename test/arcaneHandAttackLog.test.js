@@ -148,6 +148,17 @@ test("Pugno serrato a segno: la voce nomina bersaglio ed esito, come la console 
   assert.deepEqual(logged, []);
 });
 
+test("Pugno serrato critico su un PG a 0 PF: il critico arriva ai TS contro la morte", async () => {
+  const intentFor = async (attackOutcome) => {
+    const payload = scene();
+    items.get("ogre").metadata[META_KEY] = { attitude: "pc", hp: 0, hpMax: 59, inInitiative: true };
+    await executeSpellActiveResolution({ payload, targetIds: ["ogre"], attackOutcome, damageRoll: 18, sceneEpoch: 7, isCurrent: () => true });
+    return mutationCalls[0].options.metadataPatches.find((patch) => patch.id === "ogre").hpIntents[0];
+  };
+  assert.equal((await intentFor("critical")).critical, true);
+  assert.equal((await intentFor("hit")).critical, undefined);
+});
+
 test("Pugno serrato mancato: il comando non salva nulla, ma il registro lo riceve con lo stesso nome", async () => {
   const payload = scene();
   // As the PC console: a miss is recorded with the damage field left empty.

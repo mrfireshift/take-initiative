@@ -307,7 +307,7 @@ export function bossGrappleBlocker(action, targetId, grappledIds = []) {
 export function buildBossActionMutation({
   profile, action, sourceItem, targetItem, mode = "", outcome = "",
   componentAmounts = {}, actionInstanceId, round, manualConfirmed=false, ignoredDefenses = [], expectedDefenses,
-  turnState = null, grappledIds = [], expectedMarkedIds, expectedEvasion, rider = "", teleport = null,
+  turnState = null, grappledIds = [], expectedMarkedIds, expectedEvasion, rider = "", teleport = null, critical = false,
 } = {}) {
   if (!isBossActionCreature(sourceItem) || !isBossActionTargetItem(targetItem))
     throw new Error("Attore e bersaglio devono essere token creatura reali.");
@@ -403,12 +403,14 @@ export function buildBossActionMutation({
     ...(destination?{teleport:{range:execution.teleport.range,from:placementPoint(sourceItem.position),to:destination}}:{}),
   };
   Object.assign(use.runtimeState.lastAction,{targetId:targetItem.id,outcome,...(attack?{mode}:{})});
-  const label = `${sourceItem.name || profile.name}: ${action.name} → ${targetItem.name || targetItem.id}`;
+  // A critical hit (its dice already doubled by the GM): two death save failures on a PC at 0 HP.
+  const criticalHit = attack && outcome === "hit" && critical === true;
+  const label = `${sourceItem.name || profile.name}: ${action.name} → ${targetItem.name || targetItem.id}${criticalHit ? " (critico)" : ""}`;
   return {
     change,damageComponents,manualText,causality,conditions,drain:causality.drain || null,
     operations:[...(change?.changed || drain?.healing.changed ? [{type:"hp:set",updates:[
       ...(change?.changed?[{itemId:targetItem.id,hp:change.afterHP,hpMax:change.hpMax,
-        hpIntent:{mode:"damage",amount:change.requested,eventId:actionInstanceId},
+        hpIntent:{mode:"damage",amount:change.requested,eventId:actionInstanceId,...(criticalHit && change.deathSaveDamage?{critical:true}:{})},
         expectedHP:bossMetadataSnapshot(targetMeta,"hp"),expectedHPMax:bossMetadataSnapshot(targetMeta,"hpMax")}]:[]),
       ...(drain?.healing.changed?[{itemId:sourceItem.id,hp:drain.healing.afterHP,hpMax:drain.healing.hpMax,
         expectedHP:bossMetadataSnapshot(sourceMeta,"hp"),expectedHPMax:bossMetadataSnapshot(sourceMeta,"hpMax")}]:[]),

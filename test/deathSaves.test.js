@@ -110,6 +110,12 @@ test("Morto ends the automatic Privo di sensi and keeps it from coming back", ()
   assert.deepEqual(action, { shouldHave: false, add: false, removeInstanceIds: ["ko"] });
 });
 
+test("the Privo di sensi a reminder's damage once added (zero-hp-unconscious) is still the automatic one", () => {
+  const healed = resolveZeroHPUnconsciousAction({ attitude: "pc", hp: 5, hpMax: 30 }, [pill("ko", "Privo di sensi", "zero-hp-unconscious")]);
+  assert.deepEqual(healed.removeInstanceIds, ["ko"]);
+  assert.equal(resolveZeroHPUnconsciousAction({ attitude: "pc", hp: 0, hpMax: 30 }, [pill("ko", "Privo di sensi", "zero-hp-unconscious")]).add, false);
+});
+
 test("an HP writer lets a hit on a PC at 0 HP through (deathSaveDamage), never a heal or another creature", async () => {
   const { calculateQuickHPChange } = await import("../src/quickHpCore.js");
   const { takesDeathSaveDamage } = await import("../src/deathSaveCore.js");

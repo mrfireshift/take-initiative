@@ -125,7 +125,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(!draft || draft.attempted) {writeSession(draftStorageKey(),null);return;}
     writeSession(draftStorageKey(),{actionId:draft.action.id,profileRevision:presentation?.profile?.profileRevision,
       bossInstanceId:presentation?.bossInstanceId,targetId:draft.targetId,locked:draft.locked,mode:draft.mode,
-      outcome:draft.outcome,amounts:draft.amounts,manualConfirmed:draft.manualConfirmed,targetIds:draft.targetIds,outcomes:draft.outcomes,area:draft.area,ignoredDefenses:draft.ignoredDefenses,
+      outcome:draft.outcome,critical:draft.critical===true,amounts:draft.amounts,manualConfirmed:draft.manualConfirmed,targetIds:draft.targetIds,outcomes:draft.outcomes,area:draft.area,ignoredDefenses:draft.ignoredDefenses,
       areas:draft.areas,innerIds:draft.innerIds,seamSegments:draft.seamSegments ?? null,targetAmounts:draft.targetAmounts,distance:draft.distance,damage:draft.damage,landing:draft.landing,effect:draft.effect,roll:draft.roll,
       rider:draft.rider,collisionTargetId:draft.collisionTargetId,collisionOutcome:draft.collisionOutcome,seam:draft.seam,sequenceConfirmed:draft.sequenceConfirmed,
       teleport:draft.teleport});
@@ -675,7 +675,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   function openAction(action,{restore=null}={}) {
     draft=newDraft(action);
     if(restore)Object.assign(draft,{targetId:restore.targetId ?? null,locked:!!restore.locked,mode:restore.mode || draft.mode,
-      outcome:restore.outcome || "",amounts:{...draft.amounts,...(restore.amounts || {})},manualConfirmed:!!restore.manualConfirmed,
+      outcome:restore.outcome || "",critical:restore.outcome==="hit" && restore.critical===true,amounts:{...draft.amounts,...(restore.amounts || {})},manualConfirmed:!!restore.manualConfirmed,
       targetIds:Array.isArray(restore.targetIds)?[...restore.targetIds]:[],outcomes:{...(restore.outcomes || {})},area:restore.area || null,ignoredDefenses:{...(restore.ignoredDefenses || {})},
       areas:Array.isArray(restore.areas)?structuredClone(restore.areas):[],innerIds:Array.isArray(restore.innerIds)?[...restore.innerIds]:[],
       ...(Array.isArray(restore.seamSegments)?{seamSegments:restore.seamSegments.filter(Number.isInteger)}:{}),
@@ -766,6 +766,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
     });
     return group;
   }
+  // The outcome button pressed: a critical hit is a hit with its own button (Critico), as in the PC console.
+  function outcomeChoice() {return draft?.outcome==="hit" && draft.critical===true?"critical":draft?.outcome || "";}
   function renderDecisions() {
     if(!draft) return;
     if(draft.kind==="group-save") return renderGroupState();
@@ -774,7 +776,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       for(const choice of group.children) {
         const value=choice.dataset.mode ?? choice.dataset.outcome;
         if(value===undefined) continue;
-        const current=choice.dataset.mode!==undefined?draft.mode:draft.outcome;
+        const current=choice.dataset.mode!==undefined?draft.mode:outcomeChoice();
         choice.setAttribute("aria-pressed",String(current===value));choice.disabled=busy;
       }
     }
@@ -1003,8 +1005,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
         execution.success==="none"?"nessun danno su successo":"metà danni su successo",...(failed?[`${failed} sui falliti`]:[]),
         ...(execution.grapple==="hold"?["solo la creatura Afferrata dal boss, che resta Afferrata e Trattenuta"]:[])].join(" · "),"stat-line"));
     }
-    form.appendChild(segmented("boss-outcome","outcome",draft.kind==="attack-damage"?[["hit","Colpito"],["miss","Mancato"]]:[["failed","TS fallito"],["passed","TS superato"]],draft.outcome,
-      value=>{draft.outcome=value;lockDraft();renderTargetBox();renderDecisions();persistDraft();}));
+    // Critico: the GM types the doubled dice; on a PC at 0 HP the hit is two death save failures.
+    form.appendChild(segmented("boss-outcome","outcome",draft.kind==="attack-damage"?[["hit","Colpito"],["critical","Critico"],["miss","Mancato"]]:[["failed","TS fallito"],["passed","TS superato"]],outcomeChoice(),
+      value=>{draft.critical=value==="critical";draft.outcome=value==="critical"?"hit":value;lockDraft();renderTargetBox();renderDecisions();persistDraft();}));
     if(draft.kind==="attack-damage" && execution.onHit) {
       const labels={pull:choice=>`Trascinare · ${choice.distance} ft`,grab:choice=>`Afferrare · CD ${choice.escapeDC}`};
       const pick=choiceGroup("boss-hit-rider","Sul colpo",execution.onHit.choices.map(choice=>[choice.id,labels[choice.id](choice)]),"hitRider",value=>{
@@ -1742,11 +1745,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(!draft || busy) return;
     if(!available(draft.action)){setStatus(availabilityFor(draft.action)?.reason || "Risorsa esaurita.");return;}
     // Freeze every decision before the commit: later selection changes cannot alter this request.
-    const frozen=structuredClone({targetId:draft.targetId,mode:draft.mode,outcome:draft.outcome,amounts:draft.amounts,manualConfirmed:draft.manualConfirmed,rider:draft.rider,teleport:draft.teleport,
+    const frozen=structuredClone({targetId:draft.targetId,mode:draft.mode,outcome:draft.outcome,critical:draft.critical===true,amounts:draft.amounts,manualConfirmed:draft.manualConfirmed,rider:draft.rider,teleport:draft.teleport,
       defenses:defensesOf(draft.targetId),marked:markAppliesFor(draft.targetId,draft.outcome),evasion:evasionFor(draft.targetId)});
     const validation=validateBossActionSelection({sourceId,action:draft.action,targetId:frozen.targetId,targets,
       mode:frozen.mode || draft.action.execution.attack?.modes?.[0] || "",outcome:frozen.outcome,manualConfirmed:frozen.manualConfirmed===true,
-      componentAmounts:frozen.amounts,rider:frozen.rider,teleport:frozen.teleport});
+      componentAmounts:frozen.amounts,rider:frozen.rider,teleport:frozen.teleport,critical:frozen.critical});
     if(!validation.ok){setStatus(validation.error);return;}
     const active=draft;
     return perform(async operation=>{

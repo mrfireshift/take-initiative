@@ -80,6 +80,7 @@ const { currentSceneEpoch, markSceneEpochReady } = await import("../src/sceneEpo
 const { resolveReminder } = await import("../src/reminderResolution.js");
 const { planEffectSaveReminderNotices } = await import("../src/effectSaveReminderCore.js");
 const { combatEventFromHistoryEntryV3 } = await import("../src/combatLogV3Core.js");
+const { buildReminderResolutionPlan } = await import("../src/reminderResolutionCore.js");
 const { buildCombatLogPresentation } = await import("../src/combatLogPresentationCore.js");
 
 const meta = (id) => sceneItems.find((item) => item.id === id).metadata[META_KEY];
@@ -186,6 +187,29 @@ test("a hit at 0 HP adds one failure, a critical two; Undo takes them back", asy
   await history.undoHistoryThrough((await lastEntry()).id, { sceneEpoch: currentSceneEpoch() });
   assert.deepEqual(meta("aria").deathSaves, { successes: 0, failures: 1 });
   assert.deepEqual(pills("aria"), ["Privo di sensi"]);
+});
+
+// The damage of a reminder, a zone or an aura (Guardiani spirituali, an aura of the boss): a manual-damage reminder.
+async function reminderDamage(amount) {
+  const notice = { activationId: `burn:${amount}`, target: { id: "aria" }, targets: [{ id: "aria" }], resolution: { version: 1,
+    mode: "manual-damage", damage: { dice: "2d8", type: "freddo" }, target: { id: "aria" }, source: { id: "ghoul" },
+    activation: { kind: "effect-save", activationId: `burn:${amount}`, turnKey: "3:0:aria" } } };
+  const plan = buildReminderResolutionPlan({ notice, items: sceneItems, outcome: "confirmed", damageRoll: amount, sceneMetadata });
+  assert.equal(plan.status, "ready");
+  return effects.runEffectsMutation(plan.operations, { kind: "reminder-resolution", label: "Bruciatura", targetIds: plan.targetIds,
+    metadataPatches: plan.metadataPatches, sideEffects: plan.sideEffects, history: { kind: "reminder-resolution", label: "Bruciatura" } });
+}
+
+test("the damage of a reminder or a zone at 0 HP is a death save failure too", async () => {
+  effects.requireAppliedEffectsMutation(await reminderDamage(7));
+  assert.deepEqual(meta("aria").deathSaves, { successes: 0, failures: 1 });
+  assert.equal(meta("aria").hp, 0);
+});
+
+test("a reminder's damage that drops a PC with its HP maximum left over is instant death", async () => {
+  Object.assign(meta("aria"), { hp: 5, conditions: { version: 2, instances: [] } });
+  effects.requireAppliedEffectsMutation(await reminderDamage(40));
+  assert.deepEqual(pills("aria"), ["Morto"]);
 });
 
 test("a hit on a stable PC ends Stabile and starts the saves again", async () => {

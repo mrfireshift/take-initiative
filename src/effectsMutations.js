@@ -1303,11 +1303,14 @@ export async function prepareEffectsMutation(operations = [], {
       hpOperations, instantDeathIds);
     if (Object.keys(deathSaveFields).length) hpPatches.push({ id: patch.id, fields: deathSaveFields });
   }
-  // Instant death: Morto, not Privo di sensi.
+  // Instant death: Morto, not Privo di sensi (neither the coordinator's nor one a writer adds with its HP, as a
+  // reminder's damage does).
   if (instantDeathIds.size) {
     for (let index = hpOperations.length - 1; index >= 0; index -= 1) {
       const operation = hpOperations[index];
-      if (operation?.type !== "condition:reconcile-zero-hp") continue;
+      const zeroHpUnconscious = operation?.type === "condition:add"
+        && operation.options?.type === ZERO_HP_UNCONSCIOUS_TYPE;
+      if (operation?.type !== "condition:reconcile-zero-hp" && !zeroHpUnconscious) continue;
       const targetIds = uniqueIds(operation.targetIds).filter((id) => !instantDeathIds.has(id));
       if (targetIds.length) hpOperations[index] = { ...operation, targetIds };
       else hpOperations.splice(index, 1);

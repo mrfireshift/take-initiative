@@ -70,6 +70,13 @@ test("damage confirmation rejects missing, negative, fractional and nonfinite co
   assert.equal(core.validateBossActionSelection?.({ ...input, componentAmounts: { piercing: 0, cold: 0 } })?.ok, true);
 });
 
+test("Critico travels with a hit only, never with a miss or a save", () => {
+  const input = { sourceId: "boss", action: icekiss, targetId: "target", targets: [creature("target")], mode: "melee", componentAmounts: { piercing: 24, cold: 20 } };
+  assert.equal(core.validateBossActionSelection?.({ ...input, outcome: "hit", critical: true })?.value?.critical, true);
+  assert.equal(core.validateBossActionSelection?.({ ...input, outcome: "hit" })?.value?.critical, undefined);
+  assert.equal(core.validateBossActionSelection?.({ ...input, outcome: "miss", critical: true })?.value?.critical, undefined);
+});
+
 test("a miss needs no damage values and cannot accidentally commit draft damage", () => {
   const result = core.validateBossActionSelection?.({ sourceId: "boss", action: icekiss, targetId: "target", targets: [creature("target")], mode: "ranged", outcome: "miss", componentAmounts: { piercing: 99, cold: "" } });
   assert.deepEqual(result?.value?.componentAmounts, {});

@@ -308,7 +308,7 @@ export function createBossActionRuntime({
         distance:request.distance ?? null,damage:request.damage ?? null,landing:request.landing ?? null,effect:request.effect ?? null,roll:request.roll ?? null,
         rider:request.rider ?? null,collisionTargetId:request.collisionTargetId ?? null,collisionOutcome:request.collisionOutcome ?? null,
         collisionIgnoredDefenses:request.collisionIgnoredDefenses ?? null,collisionExpectedDefenses:request.collisionExpectedDefenses ?? null,
-        seam:request.seam ?? null,sequenceConfirmed:request.sequenceConfirmed===true,teleport:request.teleport ?? null});
+        seam:request.seam ?? null,sequenceConfirmed:request.sequenceConfirmed===true,teleport:request.teleport ?? null,critical:request.critical===true});
       let draft=drafts.get(actionInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
         throw new Error("Le decisioni o la scena del draft sono cambiate: riapri l'azione.");

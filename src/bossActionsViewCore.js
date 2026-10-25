@@ -144,7 +144,7 @@ export function bossActionAttackSummary(action) {
 }
 
 export function validateBossActionSelection({ sourceId, action, targetId, targets = [], mode = "", outcome = "", componentAmounts = {}, manualConfirmed = false, rider = "",
-  teleport = null } = {}) {
+  teleport = null, critical = false } = {}) {
   const reject = (error) => ({ ok: false, error });
   const kind = bossActionExecutionKind(action);
   if (!["attack-damage", "save-damage"].includes(kind) || !action?.id) return reject("Questa abilità richiede una risoluzione manuale.");
@@ -178,6 +178,7 @@ export function validateBossActionSelection({ sourceId, action, targetId, target
   if (action.execution?.teleport && !destination) return reject("Scegli sulla mappa dove si teletrasporta il boss.");
   return { ok: true, value: { sourceId, actionId: action.id, targetId, mode: kind === "attack-damage" ? mode : "", outcome, componentAmounts: amounts, ...(requiresManual?{manualConfirmed:true}:{}),
     ...(destination ? { teleport: destination } : {}),
+    ...(kind === "attack-damage" && outcome === "hit" && critical === true ? { critical: true } : {}),
     ...(outcome === "hit" && choices.length ? { rider } : {}) } };
 }
 

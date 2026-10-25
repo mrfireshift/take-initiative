@@ -1533,7 +1533,9 @@ export async function executeSpellActiveResolution({
         if (!damage.valid) throw new Error("active-resolution-damage-invalid");
         resolutionDamageByTarget.set(targetId, { damage, outcome });
         sharedHpIntents.push({ targetId, mode: "damage", amount: damage.amount,
-          eventId: action?.resolutionKind === "single-attack" ? `active-attack:${sharedHpIntents.length}` : "active-save" });
+          eventId: action?.resolutionKind === "single-attack" ? `active-attack:${sharedHpIntents.length}` : "active-save",
+          // A critical hit on a PC at 0 HP: two death save failures.
+          ...(action?.resolutionKind === "single-attack" && outcome === "critical" ? { critical: true } : {}) });
         if (damage.amount <= 0) continue;
         if (!item
           || !Object.prototype.hasOwnProperty.call(meta, "hp")
@@ -1704,7 +1706,7 @@ export async function executeSpellActiveResolution({
       metadataPatches.push(patch);
     }
     if (patch) patch.hpIntents = sharedHpIntents.filter(entry => entry.targetId === targetId)
-      .map(({ mode, amount, eventId }) => ({ mode, amount, eventId }));
+      .map(({ mode, amount, eventId, critical }) => ({ mode, amount, eventId, ...(critical === true ? { critical: true } : {}) }));
   }
   const actionLabel = String(action.buttonLabel || action.label || "Attivazione").trim();
   const causalTargets = ids.map((targetId) => {

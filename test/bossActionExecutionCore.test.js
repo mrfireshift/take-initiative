@@ -39,6 +39,15 @@ for(const mode of ["melee","ranged"]) test(`Icekiss ${mode}: separate typed comp
   assert.equal(result.options.metadataPatches[1].fields.initiativeCard.mode,"assert","target defenses are a commit precondition");
   assert.equal(result.options.history.kind,"monster-action");
 });
+test("a critical hit on a PC at 0 HP carries two death save failures; on a standing creature it is a plain hit",()=>{
+  const dying = () => ({ ...target(), metadata:{[META]:{attitude:"pc",hp:0,hpMax:60,inInitiative:true}} });
+  const critical = plan({targetItem:dying(),critical:true});
+  assert.equal(critical.operations[0].updates[0].hpIntent.critical,true);
+  assert.match(critical.options.history.label,/\(critico\)$/);
+  assert.equal(plan({targetItem:dying()}).operations[0].updates[0].hpIntent.critical,undefined);
+  assert.equal(plan({critical:true}).operations[0].updates[0].hpIntent.critical,undefined,"HP above 0: the doubled dice are the whole critical");
+  assert.deepEqual(plan({outcome:"miss",componentAmounts:{},critical:true}).operations,[]);
+});
 test("miss records execution without HP mutation or invented damage",()=>{
   const result=plan({outcome:"miss",componentAmounts:{}});
   assert.deepEqual(result.operations,[]);
