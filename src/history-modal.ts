@@ -1782,13 +1782,27 @@ async function render(
     if (shouldRestoreFocus) timelineMore.focus();
   });
 
+  // A row of the log is one stored event, or a movement total made of several (sourceEventIds).
+  const storedEventIds = (event: any): string[] => (
+    Array.isArray(event?.sourceEventIds)
+      ? event.sourceEventIds.map((id: any) => String(id || "").trim()).filter(Boolean)
+      : [String(event?.id || "").trim()].filter(Boolean)
+  );
+  const storedEventIdsForRows = (rowIds: string[]): string[] => {
+    const byId = new Map((presentation?.events || []).map((event: any) => [String(event?.id || ""), event]));
+    return [...new Set(rowIds.flatMap((id) => (byId.has(id) ? storedEventIds(byId.get(id)) : [id])))];
+  };
+
   const deleteEvent = async (event: any) => {
     if (combatLogStorageAction || combatLogPageLoading || !sceneLifecycle.isCurrent(operation)) return;
     combatLogStorageAction = true;
     syncCombatLogPageControls();
     let resultMessage = "";
     try {
-      const deleted = await deleteCombatLogEvent(session?.id, event?.id, { sceneEpoch: operation.epoch });
+      const sourceIds = storedEventIds(event);
+      const deleted = Array.isArray(event?.sourceEventIds)
+        ? (await deleteCombatLogEvents(session?.id, sourceIds, { sceneEpoch: operation.epoch })).length > 0
+        : await deleteCombatLogEvent(session?.id, event?.id, { sceneEpoch: operation.epoch });
       if (!sceneLifecycle.isCurrent(operation)) return;
       combatLogUiState.confirmDeleteEventId = "";
       if (deleted) combatLogUiState.expandedEvents.delete(String(event?.id || ""));
@@ -1811,15 +1825,18 @@ async function render(
     syncSelectionBar();
     let resultMessage = "";
     try {
-      const deletedIds = await deleteCombatLogEvents(session?.id, ids, { sceneEpoch: operation.epoch });
+      const deletedIds = await deleteCombatLogEvents(session?.id, storedEventIdsForRows(ids), { sceneEpoch: operation.epoch });
       if (!sceneLifecycle.isCurrent(operation)) return;
-      for (const id of deletedIds) {
+      const deletedSet = new Set(deletedIds);
+      // The rows gone: a movement total goes with the events it is made of.
+      const deletedRows = ids.filter((id) => storedEventIdsForRows([id]).some((sourceId) => deletedSet.has(sourceId)));
+      for (const id of deletedRows) {
         combatLogUiState.expandedEvents.delete(id);
         combatLogUiState.selectedEvents.delete(id);
       }
-      if (deletedIds.length) combatLogUiState.selecting = false;
-      resultMessage = deletedIds.length
-        ? `${deletedIds.length === 1 ? "1 evento eliminato" : `${deletedIds.length} eventi eliminati`} dal registro. La scena e la cronologia non sono state modificate.`
+      if (deletedRows.length) combatLogUiState.selecting = false;
+      resultMessage = deletedRows.length
+        ? `${deletedRows.length === 1 ? "1 evento eliminato" : `${deletedRows.length} eventi eliminati`} dal registro. La scena e la cronologia non sono state modificate.`
         : "Gli eventi selezionati non sono più presenti nel registro.";
     } catch (error: any) {
       resultMessage = `Eliminazione eventi fallita: ${error?.message || error}`;

@@ -553,9 +553,13 @@ export function aggregateCombatLogEvents(events) {
           label: `Movimento totale: ${target?.name || "Token"}`,
           targets: [aggregateTarget],
           payload: { targets: [aggregateTarget] },
+          // The stored events this total is made of: deleting the row deletes them (history-modal.ts).
+          sourceEventIds: [],
         };
         movementGroups.set(key, aggregate);
       }
+      const sourceEventId = String(event?.id || "").trim();
+      if (sourceEventId && !aggregate.sourceEventIds.includes(sourceEventId)) aggregate.sourceEventIds.push(sourceEventId);
       const aggregateTarget = aggregate.targets[0];
       aggregateTarget.cells = Math.round((Number(aggregateTarget.cells) + (Number(target?.cells) || 0)) * 100) / 100;
       if (!aggregateTarget.from && target?.from) aggregateTarget.from = clone(target.from);

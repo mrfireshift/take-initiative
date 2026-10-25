@@ -1,6 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { isDeathSaveReminderNotice } from "./options/optionsProjection.js";
+import { historyReminderReplayWithdrawal } from "./historyReminderReplayCore.js";
 
 // The death saves leave the shared reminder popover for a popup of their own (death-save-notice.html), on the GM's
 // screen and, when the options let them, on the table screen. The notices arrive already projected for each side
@@ -11,6 +12,9 @@ const POPOVER_HEIGHT = 300;
 
 const shownActivationIds = new Set();
 let hostQueue = Promise.resolve();
+// The death save in the popup now, and the ones the last History Undo reopened (historyReminderReplayCore.js).
+let openActivationId = "";
+let historyReplayActivationIds = new Set();
 
 export function splitDeathSaveNotices(payload) {
   const notices = Array.isArray(payload?.notices) ? payload.notices : [];
@@ -51,8 +55,22 @@ export function receiveDeathSaveNotices(notices, rearmActivationIds = []) {
   const latest = fresh.at(-1);
   if (!latest) return hostQueue;
   for (const notice of fresh) shownActivationIds.add(String(notice.activationId));
-  hostQueue = hostQueue.then(() => openDeathSavePopover(latest)).catch((error) => {
+  hostQueue = hostQueue.then(() => {
+    openActivationId = String(latest.activationId);
+    return openDeathSavePopover(latest);
+  }).catch((error) => {
     console.warn("[death-save-notice] open:", error?.message || error);
   });
+  return hostQueue;
+}
+
+// A History Undo: the death save the previous Undo reopened closes, unless this Undo reopens it.
+export function withdrawHistoryReplayDeathSaves(data) {
+  const withdrawal = historyReminderReplayWithdrawal(historyReplayActivationIds, data);
+  if (!withdrawal) return hostQueue;
+  historyReplayActivationIds = withdrawal.next;
+  if (!openActivationId || !withdrawal.withdraw.includes(openActivationId)) return hostQueue;
+  openActivationId = "";
+  hostQueue = hostQueue.then(() => OBR.popover.close(DEATH_SAVE_NOTICE_POPOVER_ID)).catch(() => {});
   return hostQueue;
 }

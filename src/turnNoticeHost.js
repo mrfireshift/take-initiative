@@ -2,6 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import {
   EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
   ID,
+  REMINDER_HISTORY_REARM_CHANNEL,
   SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
 } from "./constants.js";
 import {
@@ -10,7 +11,7 @@ import {
   shouldCloseTurnNoticeFromHiddenLayout,
   shouldHonorTurnNoticeCloseRequest,
 } from "./turnNoticeHostCore.js";
-import { receiveDeathSaveNotices, splitDeathSaveNotices } from "./deathSaveNoticeHost.js";
+import { receiveDeathSaveNotices, splitDeathSaveNotices, withdrawHistoryReplayDeathSaves } from "./deathSaveNoticeHost.js";
 
 const TURN_NOTICE_CHANNEL = `${ID}/turn-notice`;
 const TURN_NOTICE_READY_CHANNEL = `${TURN_NOTICE_CHANNEL}/ready`;
@@ -326,6 +327,10 @@ export function mountTurnNoticeHost() {
     const { deathSaves, rest } = splitDeathSaveNotices(event.data);
     if (deathSaves.length) void receiveDeathSaveNotices(deathSaves, event.data.rearmActivationIds);
     if (!deathSaves.length || rest.notices.length) receiveNoticePayload(rest);
+  });
+  // A History Undo closes the death save the previous Undo reopened (historyReminderReplayCore.js).
+  OBR.broadcast.onMessage(REMINDER_HISTORY_REARM_CHANNEL, (event) => {
+    void withdrawHistoryReplayDeathSaves(event?.data);
   });
   OBR.broadcast.onMessage(SPELL_ZONE_TRIGGER_NOTICE_CHANNEL, (event) => {
     if (event?.data?.type === "show-zone-trigger-notices") receiveNoticePayload(event.data);

@@ -696,7 +696,9 @@ test("P0-A: Undo inoltra il replay generic al relativo owner senza bypassare tur
   try {
     const result = await history.undoHistoryThrough(undefined, { sceneEpoch });
     assert.equal(result.status, "applied");
-    assert.equal(messages.length, 1);
+    // First the Undo's announcement (the popups of the previous Undo close), then the reminder it reopens.
+    assert.equal(messages.length, 2);
+    assert.deepEqual(messages.shift(), { type: "history-undo-reminders", activationIds: [activationId], sceneEpoch });
     assert.equal(messages[0].type, "restore-reminder-activation");
     assert.equal(messages[0].owner, "effect-save");
     assert.equal(messages[0].activationId, activationId);

@@ -3,16 +3,17 @@ import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 
 const opened = [];
+const closed = [];
 mock.module("@owlbear-rodeo/sdk", {
   exports: {
     default: {
       viewport: { getWidth: async () => 1200, getHeight: async () => 800 },
-      popover: { open: async (options) => { opened.push(options); }, close: async () => {} },
+      popover: { open: async (options) => { opened.push(options); }, close: async (id) => { closed.push(id); } },
       broadcast: { onMessage: () => () => {} },
     },
   },
 });
-const { receiveDeathSaveNotices, splitDeathSaveNotices } = await import("../src/deathSaveNoticeHost.js");
+const { receiveDeathSaveNotices, splitDeathSaveNotices, withdrawHistoryReplayDeathSaves } = await import("../src/deathSaveNoticeHost.js");
 const { projectReminderNotice } = await import("../src/options/optionsProjection.js");
 
 const deathSave = (id = "aria:death-save:2:0:aria") => ({
@@ -47,4 +48,19 @@ test("the table screen can be spared the death saves; the GM always gets them", 
   assert.ok(projectReminderNotice(deathSave(), { role: "GM", policy }).resolution, "the GM keeps the buttons");
   const shown = projectReminderNotice(deathSave(), { role: "PLAYER", policy: { ...policy, showDeathSaves: true } });
   assert.equal(shown.resolution, undefined, "players never get the buttons");
+});
+
+test("the next Undo closes the death save the previous Undo reopened, unless it reopens it again", async () => {
+  const id = "cara:death-save:4:2:cara";
+  const undo = (activationIds) => withdrawHistoryReplayDeathSaves({ type: "history-undo-reminders", activationIds });
+  await undo([id]);
+  await receiveDeathSaveNotices([deathSave(id)], [id]);
+  closed.length = 0;
+  await undo([id]);
+  assert.equal(closed.length, 0, "the same Undo replay keeps it");
+  await undo([]);
+  assert.deepEqual(closed, ["com.thebigpicture.initiative/death-save-notice"]);
+  closed.length = 0;
+  await undo([]);
+  assert.equal(closed.length, 0, "nothing left to close");
 });

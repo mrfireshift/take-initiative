@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID, REMINDER_HISTORY_REARM_CHANNEL } from "./constants.js";
+import { HISTORY_UNDO_REMINDERS_MESSAGE } from "./historyReminderReplayCore.js";
 import { sharedHpHistorySnapshot } from "./sharedHpCore.js";
 import {
   readSceneItemsSnapshot,
@@ -2066,6 +2067,20 @@ async function dismissConcentrationWarningsCausedByEntries(entries = [], sceneEp
 
 async function reannounceHistoryReminderEntries(entries = [], sceneEpoch = currentSceneEpoch()) {
   if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  // This Undo moves to an earlier event: the popups the previous Undo reopened close, unless this one reopens them
+  // (historyReminderReplayCore.js). Sent first, so that it never closes what this Undo reopens.
+  await OBR.broadcast.sendMessage(
+    REMINDER_HISTORY_REARM_CHANNEL,
+    {
+      type: HISTORY_UNDO_REMINDERS_MESSAGE,
+      activationIds: [...new Set((Array.isArray(entries) ? entries : [])
+        .filter((entry) => String(entry?.kind || "") === "reminder-resolution" && entry?.payload?.replay?.type === "reminder")
+        .map((entry) => String(entry.payload.replay.activationId || "").trim())
+        .filter(Boolean))],
+      sceneEpoch,
+    },
+    { destination: "ALL" },
+  ).catch(() => {});
   const undoEntryIds = new Set(
     (Array.isArray(entries) ? entries : [])
       .map((entry) => String(entry?.id || "").trim())

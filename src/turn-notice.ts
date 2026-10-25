@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { ID, RUNTIME_CACHE_CLEANUP_CHANNEL } from "./constants.js";
+import { ID, REMINDER_HISTORY_REARM_CHANNEL, RUNTIME_CACHE_CLEANUP_CHANNEL } from "./constants.js";
+import { historyReminderReplayWithdrawal } from "./historyReminderReplayCore.js";
 import {
   SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED,
   pendingSpellZoneTriggerActivations,
@@ -130,6 +131,23 @@ let unsubscribeZoneItemChanges: (() => void) | null = null;
 let unsubscribeUiBroadcast: (() => void) | null = null;
 let unsubscribeTurnNoticeReadyRequest: (() => void) | null = null;
 let unsubscribeRuntimeCacheCleanup: (() => void) | null = null;
+let unsubscribeHistoryUndoReminders: (() => void) | null = null;
+// The reminders the last History Undo reopened (historyReminderReplayCore.js).
+let historyReplayActivationIds = new Set<string>();
+
+function withdrawHistoryReplayReminders(data: any) {
+  const withdrawal = historyReminderReplayWithdrawal(historyReplayActivationIds, data);
+  if (!withdrawal) return;
+  historyReplayActivationIds = withdrawal.next;
+  const shown = new Set([
+    ...(Array.isArray(currentSaveReminderBatch?.entries) ? currentSaveReminderBatch.entries : []),
+    ...pendingSaveReminderNotices,
+  ].map((entry: any) => String(entry?.activationId || "").trim()));
+  for (const activationId of withdrawal.withdraw) {
+    if (shown.has(activationId)) dismissResolvedReminder(activationId);
+  }
+  announceNoticeLayout({ force: true });
+}
 let noticeSceneEpoch = 0;
 let noticeSceneReady = true;
 let noticeRole = "PLAYER";
@@ -1682,6 +1700,10 @@ OBR.onReady(async () => {
       announceNoticeLayout({ force: true });
     }
   });
+  unsubscribeHistoryUndoReminders = OBR.broadcast.onMessage(
+    REMINDER_HISTORY_REARM_CHANNEL,
+    (event) => withdrawHistoryReplayReminders(event?.data),
+  );
   unsubscribeRuntimeCacheCleanup = OBR.broadcast.onMessage(
     RUNTIME_CACHE_CLEANUP_CHANNEL,
     (event) => {
@@ -1736,5 +1758,6 @@ window.addEventListener("beforeunload", () => {
   unsubscribeUiBroadcast?.();
   unsubscribeTurnNoticeReadyRequest?.();
   unsubscribeRuntimeCacheCleanup?.();
+  unsubscribeHistoryUndoReminders?.();
   unsubscribeOptions?.();
 });

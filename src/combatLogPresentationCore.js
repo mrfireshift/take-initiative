@@ -1147,6 +1147,8 @@ function projectedEvent(rawEvent, index) {
     causality,
     provenance: clone(event.provenance),
     turnContext: clone(context.turnContext),
+    // A movement total: the stored events behind the row (combatLogCore.js aggregateCombatLogEvents).
+    ...(Array.isArray(rawEvent?.sourceEventIds) ? { sourceEventIds: [...rawEvent.sourceEventIds] } : {}),
     searchableText,
     technical,
     boundary: category === "turn" || category === "round",

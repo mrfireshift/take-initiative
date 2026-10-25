@@ -397,6 +397,24 @@ test("un Undo successivo sottrae dal gruppo del movimento originale", () => {
   assert.equal(events[0].payload.nativeUndo, true);
 });
 
+test("un movimento totale porta gli eventi salvati di cui è fatto: eliminarlo li elimina", async () => {
+  const events = aggregateCombatLogEvents([
+    { id: "move-1", kind: "move", round: 1, turn: { id: "actor-1", name: "Karmakar" }, sequence: 1,
+      targets: [{ id: "actor-1", name: "Karmakar", cells: 2 }] },
+    { id: "move-2", kind: "move", round: 1, turn: { id: "actor-1", name: "Karmakar" }, sequence: 2,
+      targets: [{ id: "actor-1", name: "Karmakar", cells: 3 }] },
+  ]);
+  assert.equal(events.length, 1);
+  assert.match(events[0].id, /^movement-total:/u);
+  assert.deepEqual(events[0].sourceEventIds, ["move-1", "move-2"]);
+  const { buildCombatLogPresentation } = await import("../src/combatLogPresentationCore.js");
+  const presentation = buildCombatLogPresentation({ id: "s" }, [
+    { id: "move-1", kind: "move", round: 1, turn: { id: "actor-1", name: "Karmakar" }, sequence: 1,
+      targets: [{ id: "actor-1", name: "Karmakar", cells: 2 }] },
+  ]);
+  assert.deepEqual(presentation.events[0].sourceEventIds, ["move-1"]);
+});
+
 test("mantiene distinta la correzione History dall'Undo nativo OBR", () => {
   const events = aggregateCombatLogEvents([
     {
