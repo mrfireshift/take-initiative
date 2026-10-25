@@ -25,6 +25,8 @@ import { hasReactionUsed, isOffTurn, isReactionClassFeature } from "./reactionTr
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { classFeatureDescription, classFeatureDescriptionsLoaded, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
+import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUVER_OUTCOME_LABELS, PC_SHOVE_EFFECTS, PC_SHOVE_EFFECT_LABELS,
+  pcAttackManeuverEntries, pcGrappleHolds, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { pcBreathAreaRuleId } from "./pcAttackBreathId.js";
@@ -144,6 +146,18 @@ export function quiveringPalmSummary(result) {
   return `Registrato: Palmo Tremante su ${name}, ${PC_ATTACK_OUTCOME_LABELS[result?.outcome] || ""}.${hp}`;
 }
 
+// Grapple, Shove and the end of a grapple: what was registered.
+export function maneuverSummary(result) {
+  const maneuver=result?.maneuver || {};
+  const target=result?.target?.name || "il bersaglio";
+  if(maneuver.kind==="grapple-end") return maneuver.outcome==="release"?`Registrato: ${maneuver.grapplerName || "chi afferra"} lascia andare ${maneuver.grappledName || target}.`
+    :`Registrato: ${maneuver.grappledName || target} ${maneuver.outcome==="escaped"?"sfugge alla":"non sfugge alla"} presa di ${maneuver.grapplerName || "una creatura"}.`;
+  const name=pcManeuverLabel(maneuver.kind) || "Manovra";
+  if(maneuver.outcome!=="success") return `Registrato: ${name} su ${target} fallita.`;
+  const effect=maneuver.kind==="grapple"?`${target} Afferrato`:maneuver.effect==="prone"?`${target} Prono`:`${target} spinto via di 1,5 m`;
+  return `Registrato: ${name} riuscita, ${effect}.`;
+}
+
 export function bootPcAttack(documentRef=document,overrides={}) {
   const api=overrides.api || OBR;
   const lifecycle=overrides.lifecycle || createSceneLifecycleAdapter({obr:api});
@@ -182,6 +196,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const palmBox=$("pc-attack-palm"),palmNote=$("pc-attack-palm-note"),palmOutcomes=$("pc-attack-palm-outcomes"),palmAmount=$("pc-attack-palm-amount"),palmApply=$("pc-attack-palm-apply");
   // Quivering Palm: the decision to end the vibrations of the selected target (its own command, its own identity).
   let palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
+  // Grapple and Shove (Attacchi tab): the contest's decisions, their own identity; the grapples in progress above the form.
+  const maneuverBox=$("pc-attack-maneuver"),maneuverTarget=$("pc-attack-maneuver-target"),maneuverHint=$("pc-attack-maneuver-hint");
+  const maneuverEffects=$("pc-attack-maneuver-effects"),maneuverContest=$("pc-attack-maneuver-contest"),maneuverOutcomes=$("pc-attack-maneuver-outcomes");
+  const maneuverNote=$("pc-attack-maneuver-note"),grappleBox=$("pc-attack-grapple");
+  let maneuverDraft={kind:"",targetId:"",outcome:"",effect:"",id:newAttackId()},grappleSignature="",maneuverSignature="";
   const applyRow=$("pc-attack-apply-row");
   const reactionRow=$("pc-attack-reaction");
   let useReaction=true,reactionSignature="";
@@ -223,7 +242,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   launchButton?.addEventListener("click",()=>{
     const entry=currentEntry();
     if(!launching() || !entry) return;
-    if(entry.mode==="activate") void runFeature(entry);else void launchSpell(entry);
+    if(entry.mode==="maneuver") void registerManeuver(entry);
+    else if(entry.mode==="activate") void runFeature(entry);else void launchSpell(entry);
   });
   // The turn moved on while this attack holds decisions: the actor it waits to move to ({sourceId, name}).
   const followBar=$("pc-attack-follow");
@@ -1338,11 +1358,131 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     spellDetailsBox.open=detailsOpen;
     spellDetailsBody.replaceChildren(...nodes);
   }
+  // A segmented choice (the contest's outcome, the Shove's effect): its pressed state, off while saving.
+  function choiceButton(label,pressed,onClick,data={}) {
+    const button=node("button",label);button.type="button";
+    for(const [key,value] of Object.entries(data)) button.dataset[key]=value;
+    button.setAttribute("aria-pressed",String(pressed));button.disabled=busy || invalidated;
+    button.addEventListener("click",onClick);
+    return button;
+  }
+  // Grapple or Shove: the target (the attack's, else the creature selected on the map), the Shove's effect, the outcome
+  // of the contest rolled at the table; Registra in the fixed row. Never the reaction (not an opportunity attack).
+  function renderManeuver(entry) {
+    if(!maneuverBox) return;
+    maneuverBox.hidden=false;
+    const kind=entry.maneuver;
+    if(maneuverDraft.kind!==kind) maneuverDraft={...maneuverDraft,kind,outcome:"",effect:"",id:newAttackId()};
+    if(maneuverDraft.targetId && !targetById(maneuverDraft.targetId)) maneuverDraft.targetId="";
+    if(!maneuverDraft.targetId) maneuverDraft.targetId=(draft?.targetId && targetById(draft.targetId)?draft.targetId:"")
+      || (selection.status==="single" && targetById(selection.target?.id)?selection.target.id:"");
+    $("pc-attack-title").textContent=actorName();
+    $("pc-attack-subtitle").textContent=`${entry.label} · Attacco speciale in mischia`;
+    // Rebuilt only when what it shows changes: a live update never eats a click in flight or closes the open select.
+    const signature=JSON.stringify([kind,presentation.targets.map(item=>[item.id,bossTargetLabel(item)]),maneuverDraft.targetId,maneuverDraft.outcome,
+      maneuverDraft.effect,selection.status,busy,invalidated]);
+    if(signature!==maneuverSignature) {
+      maneuverSignature=signature;
+      const options=[node("option","— Scegli il bersaglio —")];options[0].value="";
+      for(const item of presentation.targets){const option=node("option",bossTargetLabel(item));option.value=item.id;options.push(option);}
+      maneuverTarget.replaceChildren(...options);
+      maneuverTarget.value=maneuverDraft.targetId || "";
+      maneuverTarget.disabled=busy || invalidated;
+      const message=maneuverDraft.targetId?"":pcAttackSelectionHint(selection.status);
+      maneuverHint.textContent=message;maneuverHint.hidden=!message;
+      maneuverEffects.hidden=kind!=="shove";
+      maneuverEffects.replaceChildren(...(kind==="shove"?PC_SHOVE_EFFECTS.map(effect=>choiceButton(PC_SHOVE_EFFECT_LABELS[effect],maneuverDraft.effect===effect,
+        ()=>{maneuverDraft.effect=effect;renderManeuver(entry);},{effect})):[]));
+      maneuverContest.textContent=PC_MANEUVER_CONTEST;
+      maneuverOutcomes.replaceChildren(...PC_MANEUVER_OUTCOMES.map(outcome=>choiceButton(PC_MANEUVER_OUTCOME_LABELS[outcome],maneuverDraft.outcome===outcome,
+        ()=>{maneuverDraft.outcome=outcome;renderManeuver(entry);},{outcome})));
+      maneuverNote.textContent=PC_MANEUVER_NOTES[kind] || "";
+    }
+    const target=targetById(maneuverDraft.targetId);
+    const blocker=pcManeuverBlocker({kind,sourceItem:presentation.item,targetItem:target,outcome:maneuverDraft.outcome,effect:maneuverDraft.effect});
+    if(applyRow) applyRow.hidden=false;
+    apply.hidden=true;
+    if(launchButton) {
+      launchButton.hidden=false;
+      launchButton.textContent=committing?"Registro…":"Registra";
+      launchButton.disabled=busy || invalidated || !!blocker;
+    }
+    total.replaceChildren();total.dataset.kind="";
+    const name=target?.name || "il bersaglio";
+    total.textContent=blocker || (maneuverDraft.outcome!=="success"?`${entry.label} fallita: nessun effetto.`
+      :kind==="grapple"?`${name} sarà Afferrato.`:maneuverDraft.effect==="prone"?`${name} sarà Prono.`:`Sposta ${name} di 1,5 m sulla mappa.`);
+    total.title=total.textContent;
+  }
+  async function registerManeuver(entry) {
+    const target=targetById(maneuverDraft.targetId);
+    return perform(async operation=>{
+      const blocker=pcManeuverBlocker({kind:entry.maneuver,sourceItem:presentation.item,targetItem:target,outcome:maneuverDraft.outcome,effect:maneuverDraft.effect});
+      if(blocker) throw new Error(blocker);
+      try {
+        const result=await runtime.executePcManeuver({sourceId,kind:entry.maneuver,targetId:target.id,outcome:maneuverDraft.outcome,
+          ...(entry.maneuver==="shove"?{effect:maneuverDraft.effect}:{}),attackInstanceId:maneuverDraft.id,sceneIdentity:presentation.sceneIdentity});
+        if(!lifecycle.isCurrent(operation)) return;
+        showUndo(result);
+        setStatus([maneuverSummary(result),...(result.manualText?[result.manualText]:[]),...(result.warnings || [])].join("\n"),"ok");
+        markPendingReady();
+        // Ready for the next attack of the action: same target, a new identity.
+        maneuverDraft={...maneuverDraft,outcome:"",effect:"",id:newAttackId()};
+        await refresh(operation);
+      } catch(error) {
+        // A definitive rejection needs a new identity; an uncertain acknowledgement keeps it for the retry.
+        if(["conflict","rejected"].includes(error?.status) && error.result?.committed!==true) maneuverDraft.id=newAttackId();
+        throw error;
+      }
+    },{commit:true});
+  }
+  // The grapples of the actor: the creatures it holds (let go, or record their escape) and the ones holding it (its escape).
+  function renderGrapple() {
+    if(!grappleBox) return;
+    const holds=presentation?pcGrappleHolds(presentation.targets,sourceId):[];
+    const on=presentation?pcGrapplesOn(presentation.item,presentation.targets):[];
+    grappleBox.hidden=!holds.length && !on.length;
+    if(grappleBox.hidden){grappleSignature="";return;}
+    const signature=JSON.stringify([holds,on,busy,invalidated]);
+    if(signature===grappleSignature) return;
+    grappleSignature=signature;
+    const actor=actorName();
+    // A short name beside the buttons; the whole sentence in its tooltip.
+    const row=(text,title,buttons)=>{
+      const line=node("div","","grapple-row");line.append(node("span",text,"grapple-name"));
+      line.title=title;line.append(...buttons);
+      return line;
+    };
+    const button=(label,title,onClick)=>{const element=node("button",label,"mini-button");element.type="button";element.title=title;
+      element.disabled=busy || invalidated;element.addEventListener("click",onClick);return element;};
+    const escapeTitle=(who,dc)=>dc?`${who} supera il TS per sfuggire (CD ${dc})`:`${who} vince la prova contrapposta (Atletica o Acrobazia contro Atletica)`;
+    grappleBox.replaceChildren(node("span","Presa","caption"),
+      ...holds.map(hold=>row(`✊ Tiene ${hold.name}`,`${hold.name}: Afferrato da ${actor}`,[
+        button("Lascia andare",`${actor} lascia andare ${hold.name} (nessuna azione)`,()=>void endGrapple(hold.targetId,hold.instanceId,"release")),
+        button("Sfugge",escapeTitle(hold.name),()=>void endGrapple(hold.targetId,hold.instanceId,"escaped")),
+        button("Non sfugge",`${hold.name} tenta di sfuggire e resta Afferrato`,()=>void endGrapple(hold.targetId,hold.instanceId,"escape-failed"))])),
+      ...on.map(grab=>row(`✊ Afferrato${grab.name?` da ${grab.name}`:""}${grab.escapeDC?` (CD ${grab.escapeDC})`:""}`,
+        `${actor}: Afferrato${grab.name?` da ${grab.name}`:""}${grab.escapeDC?` (CD ${grab.escapeDC} per sfuggire)`:""}`,[
+        button("Sfugge",escapeTitle(actor,grab.escapeDC),()=>void endGrapple(sourceId,grab.instanceId,"escaped")),
+        button("Non sfugge",`${actor} tenta di sfuggire e resta Afferrato`,()=>void endGrapple(sourceId,grab.instanceId,"escape-failed"))])));
+  }
+  function endGrapple(grappledId,instanceId,outcome) {
+    return perform(async operation=>{
+      const result=await runtime.endPcGrapple({sourceId,grappledId,instanceId,outcome,attackInstanceId:newAttackId(),sceneIdentity:presentation.sceneIdentity});
+      if(!lifecycle.isCurrent(operation)) return;
+      showUndo(result);
+      setStatus([maneuverSummary(result),...(result.warnings || [])].join("\n"),"ok");
+      markPendingReady();
+      await refresh(operation);
+    });
+  }
   // The card of an entry the console does not resolve. The warnings stay in view, the details sit in the accordion,
   // and Lancia (a spell) or Usa (a ⚡ quick action) waits in the fixed row at the bottom, always visible.
   function renderLaunch() {
     if(!launchBox) return;
     if(attackView) attackView.hidden=true;
+    // Grapple and Shove have a card of their own.
+    if(currentEntry()?.mode==="maneuver"){launchBox.hidden=true;launchSignature="";renderManeuver(currentEntry());return;}
+    if(maneuverBox) maneuverBox.hidden=true;
     launchBox.hidden=false;
     const entry=currentEntry();
     const level=entry?.level;
@@ -1657,9 +1797,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // A spell that left the book (or a launch view on an entry gone) falls back to the attack, or the first spell.
     if(launchKey && !(presentation.picker || []).some(entry=>entry.key===launchKey)) launchKey="";
     if(!draft && !launchKey) launchKey=pcAttackPickerDefault(presentation.picker,{})?.key || "";
-    renderPicker();renderCaster();
+    renderPicker();renderCaster();renderGrapple();
     if(launching()){renderReaction();renderLaunch();return;}
     if(attackView) attackView.hidden=false;
+    if(maneuverBox) maneuverBox.hidden=true;
     if(launchBox){launchBox.hidden=true;launchSignature="";}
     if(launchButton) launchButton.hidden=true;
     apply.hidden=false;
@@ -1671,7 +1812,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function renderLive() {
     renderFollow();renderUseSelected();renderReaction();renderTurnBadge();
     if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
-    renderPicker();renderCaster();
+    renderPicker();renderCaster();renderGrapple();
     if(launching()){renderLaunch();return;}
     renderTarget();renderPalm();updateDamageMeta();updateWoven();updateRiders();updateActivations();renderState();
   }
@@ -1696,6 +1837,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const loaded=await runtime.getPcAttackPresentation(askedSource,asked);
     // A load for an action the picker has already left, or for the actor before the turn moved on, is stale.
     if(!lifecycle.isCurrent(operation) || asked!==actionId || askedSource!==sourceId) return;
+    // Grapple and Shove: every creature can try them (never counted as something to show by pcAttackPickerEntries).
+    loaded.picker=[...(loaded.picker || []),...pcAttackManeuverEntries()];
     // Without an action asked for, the runtime picked one (the last attack, else the first weapon).
     const switched=!!presentation && loaded.actionId!==undefined && loaded.actionId!==presentation.actionId;
     if(loaded.actionId) actionId=loaded.actionId;
@@ -1738,6 +1881,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(!lifecycle.isCurrent(operation) || sequence!==selectionSequence || invalidated) return;
       selection=bossSelectionTarget(items,sourceId);
       selectedItems=(Array.isArray(items)?items:[]).filter(item=>item?.id);
+      // Grapple and Shove follow the map selection like the attack, until the outcome is chosen.
+      if(launching() && currentEntry()?.mode==="maneuver" && !busy) {
+        const next=reconcileBossDraftTarget({targetId:maneuverDraft.targetId || null,locked:!!maneuverDraft.outcome},selection);
+        if(next.targetId && targetById(next.targetId)) maneuverDraft.targetId=next.targetId;
+      }
       if(draft && !busy) {
         const next=reconcileBossDraftTarget({targetId:draft.targetId,locked:draftLocked(draft)},selection);
         if(next.targetId && targetById(next.targetId)) draft.targetId=next.targetId;
@@ -1936,6 +2084,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     await refresh(operation);
     render();
   },{commit:true}));
+  maneuverTarget?.addEventListener("change",()=>{maneuverDraft.targetId=maneuverTarget.value;const entry=currentEntry();if(entry?.mode==="maneuver")renderManeuver(entry);});
   palmAmount?.addEventListener("input",()=>{palmDraft.amount=palmAmount.value.trim();renderPalm();});
   palmApply?.addEventListener("click",()=>perform(async operation=>{
     const target=targetById(palmDraft.targetId);
@@ -1979,6 +2128,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     sourceId=next;actionId="";requestedSpellId="";launchKey="";launchSignature="";
     presentation=null;draft=null;liveSignature="";useReaction=true;reactionSignature="";
     beamTally={spellId:"",count:0};palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
+    maneuverDraft={kind:"",targetId:"",outcome:"",effect:"",id:newAttackId()};grappleSignature="";maneuverSignature="";
     selection={status:"none",target:null,candidates:[]};selectedItems=[];
     showUndo(null);setStatus(name?offTurn?`Fuori turno: ${name}.`:`Turno di ${name}.`:"");
     render();
@@ -1990,13 +2140,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function followTurn(next,name="") {
     if(invalidated) return;
     if(next===sourceId){pendingFollow=null;pendingReady=false;renderFollow();return;}
-    if(busy || launchBusy || palmDraft.outcome || (draft && draftLocked(draft))){pendingFollow={sourceId:next,name};pendingReady=false;renderFollow();return;}
+    if(busy || launchBusy || palmDraft.outcome || maneuverDraft.outcome || (draft && draftLocked(draft))){pendingFollow={sourceId:next,name};pendingReady=false;renderFollow();return;}
     if(!next){closeConsole();return;}
     switchActor(next,name);
   }
   // A creature the console can show: something in its picker (an attack, a spell, a feature).
   const hasEntries=item=>!!item && pcAttackPickerEntries(item.metadata?.[META_KEY]?.initiativeCard || {}).length>0;
-  const leaveDraft=()=>!((draft && draftLocked(draft)) || palmDraft.outcome)
+  const leaveDraft=()=>!((draft && draftLocked(draft)) || palmDraft.outcome || maneuverDraft.outcome)
     || confirmSwitch("Lasciare questo attacco? Le scelte non registrate andranno perse.");
   // The actor in the turn (presentation.turnState): never the Lair or an Epic Action slot; a Paragon's extra turn is its
   // creature's. Only a creature the console can show.
@@ -2035,7 +2185,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     button.addEventListener("click",()=>{
       const target=pendingFollow;
       if(!target || busy || launchBusy) return;
-      if(((draft && draftLocked(draft)) || palmDraft.outcome) && !confirmSwitch("Lasciare questo attacco? Le scelte non registrate andranno perse.")) return;
+      if(((draft && draftLocked(draft)) || palmDraft.outcome || maneuverDraft.outcome) && !confirmSwitch("Lasciare questo attacco? Le scelte non registrate andranno perse.")) return;
       if(!target.sourceId){closeConsole();return;}
       switchActor(target.sourceId,target.name);
     });
@@ -2068,7 +2218,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(event.key==="Escape" && menuOpen){setMenuOpen(false,{focus:true});return;}
     if(event.key==="Escape"){
       if(busy) return;
-      if(((draft && draftLocked(draft)) || palmDraft.outcome) && !confirmSwitch("Chiudere la console? Le scelte non registrate andranno perse.")) return;
+      if(((draft && draftLocked(draft)) || palmDraft.outcome || maneuverDraft.outcome) && !confirmSwitch("Chiudere la console? Le scelte non registrate andranno perse.")) return;
       closeConsole();return;
     }
     // Enter in a typed field (an amount, a feature's number) registers the attack, or runs the spell or feature, once

@@ -207,6 +207,15 @@
     .palm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
     .palm-title { font-weight: var(--obrt-weight-semibold); }
     .palm-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+    /* Grapple and Shove: the contest's card in place of the attack form; the grapples in progress above it. */
+    .maneuver { display: grid; gap: 6px; }
+    .maneuver[hidden] { display: none; }
+    .maneuver-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-top: 4px; }
+    .grapple { display: grid; gap: 4px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); }
+    .grapple[hidden] { display: none; }
+    .grapple-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .grapple-row .mini-button { flex: 0 0 auto; white-space: nowrap; }
+    .grapple-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--obrt-type-secondary); }
     .extra-fields { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 6px; }
     .field { height: 26px; min-width: 0; padding: 2px 6px; border: 1px solid rgba(148, 163, 184, .28); border-radius: var(--obrt-radius-md); outline: none; background: var(--surface); font-size: var(--obrt-type-secondary); }
     .lead-remove { width: var(--obrt-hit-min); height: var(--obrt-hit-min); padding: 0; border: 0; border-radius: var(--obrt-radius-sm); background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
@@ -266,7 +275,17 @@
           <div class="picker-list" id="pc-attack-picker-list" role="group" aria-label="Incantesimi" hidden></div>
         </section>
         <p class="caster-state" id="pc-attack-caster" hidden></p>
+        <section class="grapple" id="pc-attack-grapple" aria-label="Presa" hidden></section>
         <section class="card launch" id="pc-attack-launch" aria-label="Incantesimo" hidden></section>
+        <section class="card maneuver" id="pc-attack-maneuver" aria-label="Manovra" hidden>
+          <span class="caption">Bersaglio</span>
+          <select class="target-select" id="pc-attack-maneuver-target" aria-label="Bersaglio della manovra"></select>
+          <p class="hint" id="pc-attack-maneuver-hint" hidden></p>
+          <div class="segmented" id="pc-attack-maneuver-effects" role="group" aria-label="Effetto della spinta" hidden></div>
+          <div class="maneuver-head"><span class="caption">Prova contrapposta</span><span class="card-note" id="pc-attack-maneuver-contest"></span></div>
+          <div class="segmented" id="pc-attack-maneuver-outcomes" role="group" aria-label="Esito della prova contrapposta"></div>
+          <p class="launch-note" id="pc-attack-maneuver-note"></p>
+        </section>
         <div class="view" id="pc-attack-attack-view">
         <section class="card target-card" aria-label="Bersaglio">
           <span class="caption" id="pc-attack-target-caption">Bersaglio</span>

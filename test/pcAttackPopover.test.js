@@ -20,7 +20,9 @@ const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", 
   "pc-attack-mode", "pc-attack-outcome-block", "pc-attack-target-caption", "pc-attack-area", "pc-attack-area-note", "pc-attack-area-list",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed", "pc-attack-picker", "pc-attack-picker-tabs", "pc-attack-picker-select",
   "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow", "pc-attack-picker-list",
-  "pc-attack-launch-button", "pc-attack-spell-details", "pc-attack-spell-details-body", "pc-attack-use-selected"];
+  "pc-attack-launch-button", "pc-attack-spell-details", "pc-attack-spell-details-body", "pc-attack-use-selected",
+  "pc-attack-grapple", "pc-attack-maneuver", "pc-attack-maneuver-target", "pc-attack-maneuver-hint", "pc-attack-maneuver-effects", "pc-attack-maneuver-contest",
+  "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-use-selected", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
@@ -32,7 +34,7 @@ function createDocument() {
   };
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   for (const id of IDS) {
-    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select"].includes(id) ? "select" : BUTTONS.has(id) ? "button"
+    const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select", "pc-attack-maneuver-target"].includes(id) ? "select" : BUTTONS.has(id) ? "button"
       : ["pc-attack-auto-open", "pc-attack-picker-search"].includes(id) ? "input" : id === "pc-attack-spell-details" ? "details" : "div");
     node.id = id; doc.root.appendChild(node);
   }
@@ -78,6 +80,17 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
         target: { id: request.targetId, name: "Ghoul" }, hpChange: { before: 30, after: 0, hpMax: 30 } };
     },
     getPcAttackNearby: async (request) => { nearbyCalls.push(request); return nearby(request); },
+    executePcManeuver: async (request) => {
+      calls.push({ maneuver: request });
+      return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], target: { id: request.targetId, name: "Ghoul" },
+        maneuver: { kind: request.kind, outcome: request.outcome, ...(request.effect ? { effect: request.effect } : {}) },
+        ...(request.effect === "push" && request.outcome === "success" ? { manualText: "Sposta Ghoul di 1,5 m lontano da Aria sulla mappa." } : {}) };
+    },
+    endPcGrapple: async (request) => {
+      calls.push({ grappleEnd: request });
+      return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], target: { id: request.grappledId, name: "Ghoul" },
+        maneuver: { kind: "grapple-end", outcome: request.outcome, grapplerName: "Aria", grappledName: request.grappledId === "aria" ? "Aria" : "Ghoul" } };
+    },
     executePcAttackArea: async (request) => {
       calls.push({ area: request });
       return { historyEntryId: `entry-${calls.length}`, undoAvailable: true, warnings: [], area: true,
@@ -707,7 +720,7 @@ test("the picker: one tab per kind, the entries of the current tab, the cantrip 
   assert.equal(f.$("pc-attack-picker").hidden, false);
   assert.deepEqual(pickerTabs(f).map((button) => [button.textContent, button.getAttribute("aria-pressed")]),
     [["Attacchi", "true"], ["Trucchetti", "false"], ["Incantesimi", "false"]]);
-  assert.deepEqual(pickerOptions(f), ["holy-sword", "axe"]);
+  assert.deepEqual(pickerOptions(f), ["holy-sword", "axe", "maneuver::grapple", "maneuver::shove"], "Lotta and Spinta after the weapons");
   assert.equal(f.$("pc-attack-picker-select").value, "holy-sword");
   await pickerTabs(f)[1].click(); await tick();
   assert.equal(f.$("pc-attack-title").textContent, "Aria");
@@ -768,8 +781,11 @@ test("the attack spells tab and a single entry", async () => {
   assert.equal(pickerTabs(f)[1].textContent, "Incantesimi");
   assert.equal(f.controller.getDraft().spellId, "guiding-bolt");
   assert.equal(f.$("pc-attack-picker-select").hidden, true, "one entry in the tab: no select");
+  // A single weapon still shows the picker: Lotta and Spinta follow it in the Attacchi tab.
   const single = fixture({ actions: [sword] }); await single.controller.ready;
-  assert.equal(single.$("pc-attack-picker").hidden, true);
+  assert.equal(single.$("pc-attack-picker").hidden, false);
+  assert.deepEqual(pickerOptions(single), ["holy-sword", "maneuver::grapple", "maneuver::shove"]);
+  assert.equal(single.$("pc-attack-picker-tabs").hidden, true, "a single tab shows no tabs");
 });
 
 test("the console answers the turn controller's ping while it is open, and stops once closed", async () => {
@@ -1276,8 +1292,10 @@ const ownCard = { quickActions: [gazeAction, blessedAction] };
 
 test("the ⚡ quick actions stay out of the console: a card of quick actions only shows no Capacità tab", async () => {
   const f = fixture({ card: ownCard, attacker: { initiativeCard: { quickActions: ownCard.quickActions } }, actionId: "" }); await f.controller.ready; await tick();
-  assert.equal(f.$("pc-attack-picker").hidden, true);
-  assert.match(textOf(f.$("pc-attack-launch")), /Nessun attacco, incantesimo o capacità/);
+  // Only what every creature can do: Lotta and Spinta, no Capacità tab, no quick action.
+  assert.deepEqual(pickerOptions(f), ["maneuver::grapple", "maneuver::shove"]);
+  assert.equal(f.$("pc-attack-picker-tabs").hidden, true);
+  assert.equal(f.$("pc-attack-maneuver").hidden, false);
 });
 
 // Off-turn actions: the console on another actor than the turn's (a reaction, an opportunity attack).
@@ -1467,4 +1485,87 @@ test("Usa reazione on Uncanny Dodge marks the reaction; out of combat or with th
   assert.match(textOf(out.$("pc-attack-total")), /Fuori dal combattimento/, "why the button is off, beside it");
   assert.equal(out.$("pc-attack-total").dataset.kind, "warning");
   assert.equal(out.$("pc-attack-launch-button").disabled, true);
+});
+
+// Grapple and Shove (pcAttackManeuverCore.js): the contest's card in the Attacchi tab, the grapples in progress above it.
+const grabbed = (sourceId, id = "grab") => ({ conditions: { version: 2, instances: [{ id, condition: "Afferrato", sourceId, active: true, expiry: { mode: "manual" } }] } });
+const maneuverButton = (f, box, key, value) => f.$(box).querySelector(`[data-${key}="${value}"]`);
+
+test("Lotta: the target from the map, the contest's outcome, Registra; the next attempt starts afresh on the same target", async () => {
+  const f = fixture({ actions: [sword] }); await f.controller.ready; await tick();
+  await f.select(["ghoul"]);
+  await pick(f, "maneuver::grapple");
+  assert.equal(f.$("pc-attack-maneuver").hidden, false);
+  assert.equal(f.$("pc-attack-attack-view").hidden, true);
+  assert.equal(f.$("pc-attack-subtitle").textContent, "Lotta · Attacco speciale in mischia");
+  assert.equal(f.$("pc-attack-maneuver-target").value, "ghoul", "the attack's target carries over");
+  assert.equal(f.$("pc-attack-maneuver-effects").hidden, true, "a Grapple has no effect to choose");
+  assert.match(f.$("pc-attack-maneuver-contest").textContent, /Atletica contro Atletica o Acrobazia/);
+  assert.match(f.$("pc-attack-maneuver-note").textContent, /mano libera.*una taglia più grande/);
+  assert.equal(f.$("pc-attack-launch-button").textContent, "Registra");
+  assert.equal(f.$("pc-attack-launch-button").disabled, true);
+  assert.equal(f.$("pc-attack-total").textContent, "Scegli l'esito della prova contrapposta.");
+  await maneuverButton(f, "pc-attack-maneuver-outcomes", "outcome", "success").click();
+  assert.equal(f.$("pc-attack-total").textContent, "Ghoul sarà Afferrato.");
+  await f.$("pc-attack-launch-button").click(); await tick();
+  const [{ maneuver: request }] = f.calls;
+  assert.deepEqual([request.sourceId, request.kind, request.targetId, request.outcome, request.effect], ["aria", "grapple", "ghoul", "success", undefined]);
+  assert.match(request.attackInstanceId, /^pc-attack:/);
+  assert.equal(f.$("pc-attack-status").textContent, "Registrato: Lotta riuscita, Ghoul Afferrato.");
+  assert.equal(f.$("pc-attack-undo").hidden, false);
+  assert.equal(maneuverButton(f, "pc-attack-maneuver-outcomes", "outcome", "success").getAttribute("aria-pressed"), "false", "a fresh attempt");
+  assert.equal(f.$("pc-attack-maneuver-target").value, "ghoul");
+  await maneuverButton(f, "pc-attack-maneuver-outcomes", "outcome", "failure").click();
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.notEqual(f.calls[1].maneuver.attackInstanceId, request.attackInstanceId);
+  assert.equal(f.$("pc-attack-status").textContent, "Registrato: Lotta su Ghoul fallita.");
+  // Another creature selected on the map becomes the target of the next attempt (the attack's draft is still open).
+  await f.select(["imp"]);
+  assert.equal(f.$("pc-attack-maneuver-target").value, "imp");
+  await maneuverButton(f, "pc-attack-maneuver-outcomes", "outcome", "success").click();
+  await f.select(["ghoul"]);
+  assert.equal(f.$("pc-attack-maneuver-target").value, "imp", "an outcome chosen locks the target");
+});
+
+test("Spinta: the effect is required; a push says the token is moved by hand", async () => {
+  const f = fixture({ actions: [sword] }); await f.controller.ready; await tick();
+  await pick(f, "maneuver::shove");
+  assert.equal(f.$("pc-attack-maneuver-hint").hidden, false, "no target yet");
+  f.$("pc-attack-maneuver-target").value = "ghoul"; await f.$("pc-attack-maneuver-target").emit("change");
+  await maneuverButton(f, "pc-attack-maneuver-outcomes", "outcome", "success").click();
+  assert.equal(f.$("pc-attack-total").textContent, "Scegli se spingerlo via o buttarlo Prono.");
+  assert.equal(f.$("pc-attack-maneuver-effects").hidden, false);
+  await maneuverButton(f, "pc-attack-maneuver-effects", "effect", "push").click();
+  assert.equal(f.$("pc-attack-total").textContent, "Sposta Ghoul di 1,5 m sulla mappa.");
+  await f.$("pc-attack-launch-button").click(); await tick();
+  assert.deepEqual([f.calls[0].maneuver.kind, f.calls[0].maneuver.effect], ["shove", "push"]);
+  assert.match(f.$("pc-attack-status").textContent, /Spinta riuscita, Ghoul spinto via di 1,5 m\.\nSposta Ghoul di 1,5 m/);
+});
+
+test("off turn a maneuver never offers the reaction (not an opportunity attack)", async () => {
+  const f = fixture({ actions: [sword], turnState: { order: ["ghoul", "aria"], current: 0, round: 1 } }); await f.controller.ready; await tick();
+  await f.select(["ghoul"]);
+  assert.equal(f.$("pc-attack-reaction").hidden, false, "the weapon attack offers it");
+  await pick(f, "maneuver::grapple");
+  assert.equal(f.$("pc-attack-reaction").hidden, true);
+});
+
+test("the Presa box: the creature the actor holds (let go, its escape) and the grapple on the actor (its escape)", async () => {
+  const f = fixture({ actions: [sword], metas: { ghoul: grabbed("aria", "g1") }, attacker: { initiativeCard: { quickActions: [sword] }, ...grabbed("imp", "i1") } });
+  await f.controller.ready; await tick();
+  const box = f.$("pc-attack-grapple");
+  assert.equal(box.hidden, false);
+  assert.match(textOf(box), /Tiene Ghoul/);
+  assert.match(textOf(box), /Afferrato da Imp/);
+  assert.deepEqual(box.querySelectorAll(".grapple-row").map((line) => line.title), ["Ghoul: Afferrato da Aria", "Aria: Afferrato da Imp"]);
+  const buttons = box.querySelectorAll("button");
+  assert.deepEqual(buttons.map((button) => button.textContent), ["Lascia andare", "Sfugge", "Non sfugge", "Sfugge", "Non sfugge"]);
+  await buttons[0].click(); await tick();
+  assert.deepEqual((({ sourceId, grappledId, instanceId, outcome }) => ({ sourceId, grappledId, instanceId, outcome }))(f.calls[0].grappleEnd),
+    { sourceId: "aria", grappledId: "ghoul", instanceId: "g1", outcome: "release" });
+  assert.equal(f.$("pc-attack-status").textContent, "Registrato: Aria lascia andare Ghoul.");
+  await box.querySelectorAll("button")[3].click(); await tick();
+  assert.deepEqual([f.calls[1].grappleEnd.grappledId, f.calls[1].grappleEnd.instanceId, f.calls[1].grappleEnd.outcome], ["aria", "i1", "escaped"]);
+  const none = fixture({ actions: [sword] }); await none.controller.ready; await tick();
+  assert.equal(none.$("pc-attack-grapple").hidden, true, "no grapple, no box");
 });

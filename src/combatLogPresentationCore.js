@@ -626,6 +626,28 @@ function explicitContextLines(event) {
 
 const PC_ATTACK_LOG_SAVE_LABELS = Object.freeze({ str: "Forza", dex: "Destrezza", con: "Costituzione", int: "Intelligenza", wis: "Saggezza", cha: "Carisma" });
 
+function maneuverLogLines(maneuver) {
+  const contest = stringValue(maneuver.contest);
+  const result = maneuver.outcome === "success" || maneuver.outcome === "escaped" ? "riuscita" : "fallita";
+  if (maneuver.kind === "grapple" || maneuver.kind === "shove") {
+    const name = maneuver.kind === "grapple" ? "Lotta" : "Spinta";
+    const effect = maneuver.outcome !== "success" ? ""
+      : maneuver.kind === "grapple" ? " · Afferrato"
+        : maneuver.effect === "prone" ? " · Prono" : " · spinto via di 1,5 m";
+    return [`${name}${contest ? ` (${contest})` : ""}: ${result}${effect}`,
+      ...(stringValue(maneuver.manual) ? [`Da fare: ${stringValue(maneuver.manual)}`] : [])];
+  }
+  if (maneuver.kind !== "grapple-end") return [];
+  const grappler = stringValue(maneuver.grapplerName) || "una creatura";
+  const grappled = stringValue(maneuver.grappledName) || "la creatura";
+  const released = (Array.isArray(maneuver.releasedConditions) ? maneuver.releasedConditions : [])
+    .map((entry) => stringValue(entry?.condition)).filter(Boolean);
+  const ended = released.length ? ` · rimossi: ${released.join(", ")}` : "";
+  if (maneuver.outcome === "release") return [`Presa: ${grappler} lascia andare ${grappled}${ended}`];
+  return [`Presa: ${grappled} ${maneuver.outcome === "escaped" ? "sfugge alla" : "non sfugge alla"} presa di ${grappler}`
+    + `${contest ? ` (${contest})` : ""}: ${result}${ended}`];
+}
+
 function causalityDetailLines(event) {
   const causality = eventCausality(event);
   if (!causality) return [];
@@ -759,6 +781,8 @@ function causalityDetailLines(event) {
       : palm.outcome === "failed" ? `Palmo Tremante: TS Costituzione${dc} fallito → 0 PF`
         : `Palmo Tremante: TS Costituzione${dc} superato → ${stringValue(palm.dice) || "10d10"} (${numberText(damage)} necrotici)`);
   }
+  // Grapple and Shove (pcAttackManeuverCore.js): the contest and its result; the end of a grapple.
+  if (rawAttack?.maneuver && typeof rawAttack.maneuver === "object") lines.push(...maneuverLogLines(rawAttack.maneuver));
   for (const note of Array.isArray(rawAttack?.notes) ? rawAttack.notes : []) {
     if (stringValue(note)) lines.push(`Nota: ${note}`);
   }

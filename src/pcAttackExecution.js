@@ -9,6 +9,7 @@ import { bossActionTargets } from "./bossActionsViewCore.js";
 import { postBossDamage } from "./bossActionExecution.js";
 import { buildPcAttackAreaMutation, buildPcAttackMutation, buildPcAttackQuiveringPalmMutation, pcAttackAction, pcAttackNearbyIds } from "./pcAttackCore.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries } from "./pcAttackPickerCore.js";
+import { buildPcGrappleEndMutation, buildPcManeuverMutation } from "./pcAttackManeuverCore.js";
 import { bossFeetPerCell } from "./bossActionsViewCore.js";
 import { getEffectsMutationSceneContext, runEffectsMutation, requireAppliedEffectsMutation } from "./effectsMutations.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
@@ -430,7 +431,70 @@ export function createPcAttackRuntime({
       return structuredClone(draft.result);
     } finally {busy.delete(sourceId);}
   }
-  return {getPcAttackPresentation,executePcAttack,endQuiveringPalm,executePcAttackArea,getPcAttackNearby};
+  // Grapple and Shove (pcAttackManeuverCore.js), and the end of a grapple: actions of their own, the same command path.
+  // The plan is built from the creatures read now; the draft keeps it for a retry after a lost acknowledgement.
+  async function runManeuver(request,decision,build) {
+    const {sourceId}=request;
+    if(busy.has(sourceId)) throw new Error("Registrazione già in corso.");
+    busy.add(sourceId);
+    try {
+      const scope=await session(sourceId);
+      const attackInstanceId=request.attackInstanceId || newId();
+      const decisionKey=JSON.stringify(decision);
+      let draft=drafts.get(attackInstanceId);
+      if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
+        throw new Error("Le decisioni o la scena sono cambiate: riapri l'azione.");
+      if(draft?.result) return {...structuredClone(draft.result),duplicate:true};
+      if(!draft) {
+        const plan=await build(scope,attackInstanceId);
+        if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri l'azione.");
+        draft={decisionKey,plan,options:{...plan.options,sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
+        drafts.set(attackInstanceId,draft);
+      }
+      const plan=draft.plan;
+      const result=await runMutation(structuredClone(plan.operations),structuredClone(draft.options));
+      try {requireApplied(result);}
+      catch(error) {
+        if(["conflict","rejected"].includes(result?.status) && result.committed!==true)
+          error.message="Lo stato è cambiato prima del commit (creature o condizioni). Riapri l'azione e verifica.";
+        throw error;
+      }
+      const warnings=[];
+      // The pills changed without damage: the map labels of the creatures concerned.
+      if(result.duplicate!==true && scope.isCurrent() && plan.labelTargetIds?.length) {
+        try {await refreshLabels(plan.labelTargetIds);}
+        catch(error) {warnings.push(String(error?.message || error));}
+      }
+      draft.result={...result,attackInstanceId,maneuver:structuredClone(plan.causality.maneuver),warnings,
+        target:{id:plan.causality.targets[0].id,name:plan.causality.targets[0].name},
+        ...(plan.manualText?{manualText:plan.manualText}:{}),
+        historyEntryId:result.historyEntry?.id || null,
+        undoAvailable:!result.historyPending && !result.historySkipped && !!result.historyEntry?.id};
+      return structuredClone(draft.result);
+    } finally {busy.delete(sourceId);}
+  }
+  async function executePcManeuver(request={}) {
+    const {sourceId,targetId}=request;
+    return runManeuver(request,{kind:"maneuver",sourceId,targetId,maneuver:request.kind || "",outcome:request.outcome || "",effect:request.effect || ""},
+      async(scope,attackInstanceId)=>{
+        const [targetItem]=targetId?await api.scene.items.getItems([targetId]):[];
+        if(!targetItem) throw new Error("Il bersaglio non è più presente nella scena.");
+        return buildPcManeuverMutation({kind:request.kind,sourceItem:scope.item,targetItem,outcome:request.outcome,effect:request.effect,
+          attackInstanceId,turnState:scope.turnState});
+      });
+  }
+  async function endPcGrapple(request={}) {
+    const {sourceId,grappledId,instanceId}=request;
+    return runManeuver(request,{kind:"grapple-end",sourceId,grappledId,instanceId,outcome:request.outcome || ""},
+      async(scope,attackInstanceId)=>{
+        const items=(await api.scene.items.getItems()).filter(item=>isBossActionCreature(item));
+        const grappledItem=grappledId===scope.item.id?scope.item:items.find(item=>item.id===grappledId);
+        if(!grappledItem) throw new Error("La creatura afferrata non è più presente nella scena.");
+        return buildPcGrappleEndMutation({sourceItem:scope.item,grappledItem,instanceId,outcome:request.outcome,items,
+          attackInstanceId,turnState:scope.turnState});
+      });
+  }
+  return {getPcAttackPresentation,executePcAttack,endQuiveringPalm,executePcAttackArea,getPcAttackNearby,executePcManeuver,endPcGrapple};
 }
 const runtime=createPcAttackRuntime();
 export const getPcAttackPresentation=(...args)=>runtime.getPcAttackPresentation(...args);
@@ -438,3 +502,5 @@ export const executePcAttack=(...args)=>runtime.executePcAttack(...args);
 export const endQuiveringPalm=(...args)=>runtime.endQuiveringPalm(...args);
 export const executePcAttackArea=(...args)=>runtime.executePcAttackArea(...args);
 export const getPcAttackNearby=(...args)=>runtime.getPcAttackNearby(...args);
+export const executePcManeuver=(...args)=>runtime.executePcManeuver(...args);
+export const endPcGrapple=(...args)=>runtime.endPcGrapple(...args);
