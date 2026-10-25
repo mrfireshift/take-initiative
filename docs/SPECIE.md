@@ -138,6 +138,23 @@ Correzioni fatte dopo il confronto:
     tavolo.
   I limiti per turno si contano solo in combattimento. Gli incantesimi risolti
   dal pannello incantesimi non ricevono questi danni extra.
+- **Pill di un turno**: **Attiva** mette la pill e spende l'uso; la pill scade da
+  sola.
+  - *Passo nascosto* (firbolg): Invisibile sul firbolg fino all'inizio del suo
+    prossimo turno; finisce prima se attacca dalla console (danni o TS imposti
+    dal pannello incantesimi: la pill si toglie a mano).
+  - *Strisciare, piagnucolare e implorare* (coboldo, Volo): pill sul coboldo,
+    gli alleati hanno vantaggio contro i nemici entro 3 m fino alla fine del suo
+    prossimo turno.
+  - *Grido draconico* (coboldo, Mostri del Multiverso): pill sui nemici
+    selezionati entro 3 m, vantaggio a colpirli per il coboldo e i suoi alleati
+    fino all'inizio del suo prossimo turno.
+  - *Dono fatato* (hobgoblin, Mostri del Multiverso): si seleziona la creatura
+    aiutata e si sceglie il beneficio. Aiutare: pill «Aiutato». Dal 3° livello:
+    Ospitalità (il GM inserisce il d6: l'hobgoblin e la creatura ottengono d6 +
+    competenza PF temporanei), Passaggio (pill +3 m anche sull'hobgoblin, senza
+    selezionarlo), Dispetto (pill sulla creatura aiutata). Tutto fino all'inizio
+    del prossimo turno dell'hobgoblin.
 - **Ruggito intimidatorio, Provocazione, Presenza inquietante**: come la
   Presenza conquistatrice del paladino, si selezionano sulla mappa le creature
   che falliscono il TS (la card mostra TS e CD, 8 + competenza + la

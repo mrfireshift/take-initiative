@@ -290,12 +290,23 @@ const TOUCH_TARGETING = Object.freeze({ mode: "single-target", rangeMeters: 1.5,
 // The traits that put a condition on the creatures the GM selects, as Conquering Presence does: those that failed
 // the save (speciesSave: its ability, and the ability of its DC, 8 + proficiency + that modifier; "choice" is the
 // card's speciesSpellAbility), or the one creature unsettled. The pill ends with the timing of the source's turn.
-const conditionTrait = ({ condition, label = "", detail, rangeMeters, maxTargets = null, timing = "", rounds, save = null }) => Object.freeze({
+// self: the pill goes on the character (Hidden Step, Grovel). endsOnAttack: the console ends it when the character
+// attacks (as Invisibility). choices: the options picked at each use (Fey Gift), each with its pill; includeSource
+// puts it on the character too, temporaryHp gives both temporary hit points (the die entered at the table).
+const conditionTrait = ({ condition, label = "", detail, rangeMeters = null, maxTargets = null, timing = "", rounds, save = null,
+  self = false, endsOnAttack = false, choices = null, excludeSource = true }) => Object.freeze({
   effectPlan: Object.freeze({ kind: "condition", conditionName: condition, ...(label ? { displayLabel: label } : {}), detail }),
-  targeting: Object.freeze({ mode: "single-target", rangeMeters, maxTargets, excludeSource: true }),
+  targeting: self ? SELF_TARGETING : Object.freeze({ mode: "single-target", rangeMeters, maxTargets, excludeSource }),
   duration: Object.freeze({ rounds, ...(timing ? { timing } : {}) }),
   ...(save ? { speciesSave: Object.freeze(save) } : {}),
+  ...(self ? { self: true } : {}),
+  ...(endsOnAttack ? { endsOnAttack: true } : {}),
+  ...(choices ? { choiceOptions: Object.freeze(choices.map((choice) => Object.freeze(choice))) } : {}),
 });
+const HIDDEN_STEP = conditionTrait({ condition: "Invisibile", label: "Invisibile · Passo nascosto", self: true, endsOnAttack: true,
+  timing: "next-turn", rounds: 1,
+  detail: "Invisibile fino all'inizio del suo prossimo turno, o finché non attacca, tira danni o costringe una creatura a un tiro salvezza." });
+const FEY_GIFT_HELP = "Aiutato dall'hobgoblin: vantaggio alla prossima prova di caratteristica o al primo tiro per colpire contro una creatura entro 1,5 m dall'hobgoblin, prima dell'inizio del suo prossimo turno.";
 // Acid Spit (Simic hybrid): a save attack on one creature within 9 m, as the breath is resolved (the attack console),
 // no damage on a success.
 const SPECIES_TARGET_BREATHS = Object.freeze({
@@ -312,6 +323,29 @@ const SPECIES_CONDITION_TRAITS = Object.freeze({
     condition: "Provocato", rangeMeters: 18, maxTargets: 1, timing: "next-turn", rounds: 1,
     detail: "Svantaggio ai tiri per colpire contro bersagli diversi dal kender, fino all'inizio del suo prossimo turno. Va solo se fallisce il TS su Saggezza.",
     save: { ability: "wis", dc: "choice" } }),
+  "specie-firbolg-passo-nascosto": HIDDEN_STEP,
+  "specie-firbolg-multiverso-passo-nascosto": HIDDEN_STEP,
+  "specie-coboldo-strisciare-piagnucolare-implorare": conditionTrait({
+    condition: "Strisciare", label: "Strisciare, piagnucolare e implorare", self: true, timing: "next-turn-end", rounds: 1,
+    detail: "Gli alleati hanno vantaggio ai tiri per colpire contro i nemici entro 3 m dal coboldo che il coboldo può vedere, fino alla fine del suo prossimo turno." }),
+  "specie-coboldo-multiverso-grido-draconico": conditionTrait({
+    condition: "Grido draconico", rangeMeters: 3, timing: "next-turn", rounds: 1,
+    detail: "Il coboldo e i suoi alleati hanno vantaggio ai tiri per colpire contro questa creatura, fino all'inizio del prossimo turno del coboldo. Va su chi può sentirlo." }),
+  // Fey Gift: the Help action (a pill on the creature helped) and, from 3rd level, one benefit for each use.
+  "specie-hobgoblin-multiverso-dono-fatato": conditionTrait({
+    condition: "Aiutato", maxTargets: 1, excludeSource: false, timing: "next-turn", rounds: 1, detail: FEY_GIFT_HELP,
+    choices: [
+      { id: "aiutare", label: "Aiutare", effectPlan: { conditionName: "Aiutato", detail: FEY_GIFT_HELP } },
+      { id: "ospitalita", label: "Ospitalità (dal 3° livello)", temporaryHp: { amount: "pb", bonusDie: "1d6" },
+        effectPlan: { conditionName: "Aiutato", displayLabel: "Aiutato · Ospitalità",
+          detail: `${FEY_GIFT_HELP} Ospitalità: l'hobgoblin e la creatura aiutata hanno ottenuto 1d6 + competenza PF temporanei.` } },
+      { id: "passaggio", label: "Passaggio (dal 3° livello)", includeSource: true,
+        effectPlan: { conditionName: "Passaggio", displayLabel: "Passaggio · +3 m",
+          detail: "+3 m alla velocità camminando fino all'inizio del prossimo turno dell'hobgoblin (Dono fatato); la creatura aiutata ha anche l'aiuto." } },
+      { id: "dispetto", label: "Dispetto (dal 3° livello)",
+        effectPlan: { conditionName: "Aiutato", displayLabel: "Aiutato · Dispetto",
+          detail: `${FEY_GIFT_HELP} Dispetto: la prima volta che colpisce un bersaglio con un tiro per colpire, quel bersaglio ha svantaggio al suo prossimo tiro per colpire entro 1 minuto.` } },
+    ] }),
   "dono-hollow-one-presenza-inquietante": conditionTrait({
     condition: "Turbato", rangeMeters: 4.5, maxTargets: 1, rounds: 10,
     detail: "Svantaggio al prossimo tiro salvezza entro 1 minuto: togli la pill dopo quel tiro. Immuni costrutti, non morti e chi non può essere spaventato." }),
@@ -600,7 +634,7 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
     runtimeSupport,
     activation: Object.freeze({ primary: activation }),
     trackedResourcePoolIds: Object.freeze(poolId ? [poolId] : []),
-    targetMode: hpTrait?.kind === "heal" || conditionSpec ? "selection" : "self",
+    targetMode: hpTrait?.kind === "heal" || (conditionSpec && !conditionSpec.self) ? "selection" : "self",
     targeting: conditionSpec?.targeting || (hpTrait?.kind === "heal" ? TOUCH_TARGETING : SELF_TARGETING),
     theme: species.theme,
     effectPlan: plan,
@@ -612,6 +646,8 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
     ...(hpTrait ? { hpTrait } : {}),
     ...(innateSpell ? { innateSpell } : {}),
     ...(conditionSpec?.speciesSave ? { speciesSave: conditionSpec.speciesSave } : {}),
+    ...(conditionSpec?.endsOnAttack ? { endsOnAttack: true } : {}),
+    ...(conditionSpec?.choiceOptions ? { choiceOptions: conditionSpec.choiceOptions } : {}),
   });
 }
 

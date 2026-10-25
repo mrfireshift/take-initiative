@@ -761,6 +761,13 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
           if (cost === null) throw new Error("Inserisci un livello di incantesimo tra 0 e 9.");
           resourceValues = { [SORCERY_POINTS_POOL_ID]: cost };
         }
+        // Fey Gift's Hospitality: the d6 of its temporary hit points, rolled at the table.
+        const dieOption = speciesChoiceDieOption(feature, choiceId);
+        let value;
+        if (dieOption) {
+          value = window.prompt(`${feature.name}: risultato del ${dieOption.temporaryHp.bonusDie} di PF temporanei.`, "");
+          if (value === null) throw { cancelled: true };
+        }
         await activateClassFeature({
           sourceId: item.id,
           featureId: action.featureId,
@@ -768,6 +775,7 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
           choiceId,
           autoChoiceIds,
           resourceValues,
+          ...(dieOption ? { value } : {}),
         });
       }
       if (!sceneStillCurrent()) return;
@@ -2020,6 +2028,13 @@ function buildTwinnedSpellControls(feature) {
   return controls;
 }
 
+// The option of a species trait that asks a die for its temporary hit points (Fey Gift's Hospitality), or null.
+function speciesChoiceDieOption(feature, choiceId) {
+  if (!feature?.speciesId || !choiceId) return null;
+  return (Array.isArray(feature.choiceOptions) ? feature.choiceOptions : [])
+    .find((option) => option?.id === choiceId && option?.temporaryHp?.bonusDie) || null;
+}
+
 // An innate spell of the species (speciesInnateSpellCore.js): the spell panel opens on the spell, without a slot, at
 // the trait's level; the cast spends the trait's use and takes its DC.
 async function openSpeciesSpell(feature) {
@@ -2812,6 +2827,20 @@ function renderClassFeatures() {
           });
           if (choiceControl) appendFeatureControl(choiceControl);
           for (const control of autoChoiceControls.values()) appendFeatureControl(control);
+          // An option that gives temporary hit points with a die (Fey Gift's Hospitality): the roll, entered here.
+          const dieOptions = (Array.isArray(feature.choiceOptions) ? feature.choiceOptions : []).filter((option) => option?.temporaryHp?.bonusDie);
+          let speciesDieInput = null;
+          if (feature.speciesId && dieOptions.length) {
+            const label = document.createElement("label");
+            label.textContent = `${dieOptions[0].temporaryHp.bonusDie} tirato (${dieOptions.map((option) => option.label.replace(/ \(.*\)$/u, "")).join(", ")})`;
+            speciesDieInput = document.createElement("input");
+            speciesDieInput.type = "number";
+            speciesDieInput.min = "1";
+            speciesDieInput.step = "1";
+            speciesDieInput.inputMode = "numeric";
+            label.appendChild(speciesDieInput);
+            appendFeatureControl(label);
+          }
           // A species trait with a save (Daunting Roar, Taunt): its DC, and whom to select before Attiva.
           const speciesSave = speciesTraitSave(feature, profile);
           if (speciesSave) {
@@ -2870,6 +2899,7 @@ function renderClassFeatures() {
                 featureId: feature.id,
                 choiceId: classFeatureChoiceSelection(choiceControl),
                 autoChoiceIds: classFeatureAutoChoiceSelection(autoChoiceControls),
+                ...(speciesDieInput ? { value: speciesDieInput.value } : {}),
               });
             },
             isAuraToggle && alreadyActive

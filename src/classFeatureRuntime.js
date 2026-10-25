@@ -49,7 +49,7 @@ import { emitMatchedClassFeatureVisual } from "./embersMatchedVisualRenderer.js"
 import { spellSlotPoolId, spellSlotStatus } from "./spellSlotCore.js";
 import { quickActionUsesPool } from "./quickActionsCore.js";
 import { getHistoryEntries } from "./history.js";
-import { planSpeciesHpTrait, SPECIES_HP_TRAIT_KINDS, speciesLastDamageTaken } from "./speciesHpTraitCore.js";
+import { planSpeciesHpTrait, SPECIES_HP_TRAIT_KINDS, speciesHpTraitAmount, speciesLastDamageTaken } from "./speciesHpTraitCore.js";
 import { isReactionClassFeature, planReactionSpend } from "./reactionTrackerCore.js";
 
 const META_KEY = `${ID}/meta`;
@@ -460,6 +460,31 @@ export async function applyLayOnHands({
     mode,
     conditionCount,
   });
+}
+
+// A species trait's option (Fey Gift, speciesTraitCore.js): the raw option, with what the card's choice list leaves out.
+function speciesChoiceOption(feature, choiceId) {
+  if (!feature?.speciesId || !choiceId) return null;
+  return (Array.isArray(feature.choiceOptions) ? feature.choiceOptions : []).find((option) => option?.id === choiceId) || null;
+}
+
+// Fey Gift's Passage: the hobgoblin gets the pill too, without being selected.
+function speciesChoiceTargetIds(feature, choiceId, sourceId, targetIds) {
+  return speciesChoiceOption(feature, choiceId)?.includeSource && !targetIds.includes(sourceId) ? [...targetIds, sourceId] : targetIds;
+}
+
+// Fey Gift's Hospitality: the hobgoblin and the creature helped each gain the proficiency bonus + the d6 rolled at
+// the table (value) in temporary hit points.
+function speciesChoiceTemporaryHp(feature, profile, choiceId, sourceItem, targetIds, value) {
+  const spec = speciesChoiceOption(feature, choiceId)?.temporaryHp;
+  if (!spec) return [];
+  const base = speciesHpTraitAmount(spec.amount, profile);
+  if (base === null) throw new Error(`${feature.name}: manca il livello del personaggio sulla scheda.`);
+  const faces = Number(String(spec.bonusDie || "").match(/d(\d+)/u)?.[1]) || 0;
+  const roll = faces ? Number(value) : 0;
+  if (faces && (!Number.isInteger(roll) || roll < 1 || roll > faces)) throw new Error(`${feature.name}: inserisci il ${spec.bonusDie} tirato (1–${faces}).`);
+  const amount = base + roll;
+  return [...new Set([sourceItem.id, ...targetIds])].map((targetId) => ({ targetId, amount }));
 }
 
 function speciesShiftTemporaryHp(feature, profile, sourceItem, value) {
@@ -1392,12 +1417,12 @@ export async function activateClassFeature({
     }
   }
 
-  const resolvedTargetIds = await resolveTargetIds(
+  const resolvedTargetIds = speciesChoiceTargetIds(feature, choiceId, sourceItem.id, await resolveTargetIds(
     sourceItem.id,
     feature,
     targetIds,
     profile.characterBuild,
-  );
+  ));
   if (adapter === "bardic-inspiration") {
     await preflightBardicInspirationTarget(
       feature,
@@ -1418,6 +1443,7 @@ export async function activateClassFeature({
     }),
     // A shifter's Shifting: temporary hit points from the sheet (Beasthide's d6 entered at the table, as value).
     ...speciesShiftTemporaryHp(feature, profile, sourceItem, value),
+    ...speciesChoiceTemporaryHp(feature, profile, choiceId, sourceItem, resolvedTargetIds, value),
   ];
   activation = planClassFeatureActivation({
     state: sourceItem.metadata?.[META_KEY]?.[CLASS_FEATURE_STATE_FIELD],

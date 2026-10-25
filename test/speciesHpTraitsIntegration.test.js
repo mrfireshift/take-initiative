@@ -118,6 +118,7 @@ function resetScene() {
     PC("kael", "Kael", 1000, 40, 44, { id: "goliath" }),
     PC("tek", "Tek", 2000, 40, 40, { id: "shifter", ancestryId: "pelle-bestiale" }),
     PC("ssa", "Ssa", 3000, 40, 40, { id: "lucertoloide" }),
+    PC("hob", "Hob", 4000, 40, 40, { id: "hobgoblin-multiverso" }),
   ];
 }
 
@@ -227,4 +228,19 @@ test("Stone's Endurance takes the goliath's reaction: marked with the reduction,
   await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
   assert.equal(metaOf("kael").hp, 22);
   assert.ok(!conditionNames("kael").includes("Reazione usata"));
+});
+
+test("Fey Gift: Passage puts its pill on the hobgoblin too; Hospitality gives both PB + d6 temporary hit points", async () => {
+  await classFeatureRuntime.activateClassFeature({ sourceId: "hob", featureId: "specie-hobgoblin-multiverso-dono-fatato", targetIds: ["zar"], choiceId: "passaggio" });
+  assert.deepEqual(conditionNames("zar"), ["Passaggio"]);
+  assert.deepEqual(conditionNames("hob"), ["Passaggio"], "the hobgoblin, not selected, gets it too");
+  await mountRuntime();
+  await assert.rejects(classFeatureRuntime.activateClassFeature({ sourceId: "hob", featureId: "specie-hobgoblin-multiverso-dono-fatato", targetIds: ["zar"],
+    choiceId: "ospitalita" }), /1d6 tirato/);
+  await classFeatureRuntime.activateClassFeature({ sourceId: "hob", featureId: "specie-hobgoblin-multiverso-dono-fatato", targetIds: ["zar"],
+    choiceId: "ospitalita", value: "4" });
+  assert.equal(metaOf("hob").hp, 47, "40 + 3 + 4 temporary");
+  assert.equal(metaOf("zar").hp, 37, "30 + 7: the representation of temporary hit points on a wounded creature");
+  assert.deepEqual(conditionNames("zar"), ["Aiutato"]);
+  assert.equal(uses("hob", "specie-hobgoblin-multiverso-dono-fatato-usi"), 2);
 });

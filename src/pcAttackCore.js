@@ -1148,7 +1148,7 @@ export function buildPcAttackMutation({
     ? [{ type: "condition:add-instances", instancesByTarget: activationPlan.instancesByTarget }] : [];
   // CAP-LINK: Invisibility and Compelled Duel ended by this attack, in its own command (one Undo brings them back).
   const linkEnds = pcAttackLinkEnds({ sourceItem, targetItem, linkItems, damaged: !!change?.changed && change.requested > 0 });
-  if (linkEnds.length) causality.linkEnds = linkEnds.map(({ itemId, spellId, reason }) => ({ itemId, spellId, reason }));
+  if (linkEnds.length) causality.linkEnds = linkEnds.map(({ itemId, spellId, featureId, reason }) => ({ itemId, ...(spellId ? { spellId } : {}), ...(featureId ? { featureId } : {}), reason }));
   // The ids whose pills the attack changes outside the damaged creatures (a self pill on the attacker, an ended link).
   const pillTargetIds = [...new Set([...Object.keys(activationPlan.instancesByTarget), ...linkEnds.map((end) => end.itemId)])];
   if (activationPlan.notes.length) causality.notes = [...activationPlan.notes];
@@ -1247,6 +1247,11 @@ function attitudeSide(item) {
 export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damaged = false } = {}) {
   const ends = linkedSpellPills(sourceItem, "invisibility").map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id,
     spellId: "invisibility", reason: "Ha attaccato o lanciato un incantesimo." }));
+  // A species trait's pill that ends when its bearer attacks (Hidden Step, speciesTraitCore.js).
+  for (const instance of conditionInstancesOf(sourceItem)) {
+    if (instance?.active === false || !instance?.id || !getClassFeatureDefinition(instance.effectId)?.endsOnAttack) continue;
+    ends.push({ itemId: sourceItem.id, instanceId: instance.id, featureId: instance.effectId, reason: "Ha attaccato." });
+  }
   const byId = new Map([...(Array.isArray(linkItems) ? linkItems : []), targetItem, sourceItem].filter((item) => item?.id).map((item) => [item.id, item]));
   for (const item of byId.values()) {
     for (const instance of linkedSpellPills(item, "phb2014-duello-obbligato")) {
