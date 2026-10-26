@@ -203,6 +203,23 @@ non importata). Nomi di mostri e azioni restano in inglese.
 Il plugin non contiene dati di 5eTools: i file restano in memoria solo
 mentre modifichi la scheda.
 
+### Archivio 5eTools
+
+Invece di copiare ogni volta un JSON, il plugin può leggere i bestiari da un
+archivio online di 5eTools. L'indirizzo si scrive **una volta** in
+**Opzioni → Console attacchi → Archivio 5eTools** (vale solo per questo
+browser) e si controlla con **Prova**. È l'indirizzo della cartella dei dati
+di un mirror di 5eTools, per esempio quello su GitHub:
+
+```text
+https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/
+```
+
+Il plugin non porta con sé nessun indirizzo: se il mirror cambia o sparisce
+basta scriverne un altro, e **Carica file** resta come ripiego. I libri
+scaricati restano nel browser del GM (mai nella scena o nella room); la scelta
+dei libri dalla scheda arriva con il prossimo aggiornamento.
+
 ### Prompt per un assistente
 
 Allega lo statblock (testo, immagine o PDF) e incolla:

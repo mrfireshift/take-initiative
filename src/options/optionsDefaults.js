@@ -59,6 +59,9 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
   tools: {
     distance3d: true,
     reference: true,
+    // The online archive of 5eTools' bestiaries (attacchi dei mostri, fase 3): the address of its data folder, written
+    // once by the GM. Empty by default: the plugin ships no archive address (decision D1).
+    fiveToolsArchive: "",
   },
   runtime: {
     combatLog: true,

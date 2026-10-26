@@ -35,6 +35,9 @@ export function normalizeOptionsPanelDraft(value = {}) {
       pcAttackAutoOpen: localInput.pcAttackAutoOpen,
       pcAttackAutoOpenMonsters: localInput.pcAttackAutoOpenMonsters,
     },
+    tools: {
+      fiveToolsArchive: localInput.fiveToolsArchive,
+    },
     runtime: {
       combatLog: localInput.combatLog,
     },
@@ -82,6 +85,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
       combatLog: local.runtime.combatLog,
       pcAttackAutoOpen: local.windows.pcAttackAutoOpen,
       pcAttackAutoOpenMonsters: local.windows.pcAttackAutoOpenMonsters,
+      fiveToolsArchive: local.tools.fiveToolsArchive,
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,
@@ -135,6 +139,9 @@ export function buildOptionsPanelPatches(draft) {
         // Still inherited (null) until the GM ticks or unticks it: the panel's Salva does not freeze it.
         ...(typeof normalized.local.pcAttackAutoOpenMonsters === "boolean"
           ? { pcAttackAutoOpenMonsters: normalized.local.pcAttackAutoOpenMonsters } : {}),
+      },
+      tools: {
+        fiveToolsArchive: normalized.local.fiveToolsArchive,
       },
       runtime: {
         combatLog: normalized.local.combatLog,

@@ -8,6 +8,15 @@
     <link rel="stylesheet" href="/popover-glass.css" />
     <link rel="stylesheet" href="/options-modal.css" />
     <style>
+      /* The 5eTools archive (attacchi dei mostri, fase 3): an address and its Prova button on one row. */
+      .five-tools-archive-row { display: flex; gap: 6px; }
+      .five-tools-archive-row input { flex: 1 1 auto; min-width: 0; min-height: 32px; padding: 6px 8px; border: 1px solid rgba(148,163,184,.28); border-radius: 10px; background: #0f172a; color: inherit; font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-regular); }
+      .five-tools-archive-row .secondary { flex: 0 0 auto; min-height: 32px; padding: 6px 12px; border: 1px solid var(--obrt-btn-border, rgba(148,163,184,.28)); border-radius: var(--obrt-btn-radius, 8px); background: var(--obrt-btn-bg, rgba(255,255,255,.055)); color: inherit; font-size: var(--obrt-type-body); cursor: pointer; }
+      .five-tools-archive-status { font-weight: var(--obrt-weight-regular); }
+      .five-tools-archive-status[data-tone="error"] { color: #fecaca; }
+      .five-tools-archive-status[data-tone="ok"] { color: #bbf7d0; }
+    </style>
+    <style>
       html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
       .glass-shell {
         width: 100%; height: 100%; min-height: 0 !important;
@@ -76,6 +85,14 @@
             <span>Apri a ogni turno di un mostro con attacchi (e la console Boss per i boss)</span>
             <input type="checkbox" data-local="pcAttackAutoOpenMonsters" data-local-fallback="pcAttackAutoOpen" />
           </label>
+          <div class="option-field five-tools-archive">
+            <label for="fiveToolsArchiveInput">Archivio 5eTools (indirizzo della cartella dei dati)</label>
+            <div class="five-tools-archive-row">
+              <input id="fiveToolsArchiveInput" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://…/data/" data-local="fiveToolsArchive" />
+              <button class="secondary" type="button" data-action="test-fivetools-archive">Prova</button>
+            </div>
+            <small class="five-tools-archive-status" data-fivetools-archive-status role="status" aria-live="polite">Serve per cercare i mostri nella scheda senza copiare JSON: vedi la guida, «Archivio 5eTools».</small>
+          </div>
         </section>
 
         <section class="options-section" aria-labelledby="player-title">

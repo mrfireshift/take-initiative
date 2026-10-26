@@ -34,6 +34,7 @@ test("OPTIONS-003: il selector del pannello espone i gruppi senza metadata grezz
     combatLog: true,
     pcAttackAutoOpen: false,
     pcAttackAutoOpenMonsters: null,
+    fiveToolsArchive: "",
   });
   assert.equal(model.room.trackerOpen, false);
   assert.equal(model.room.knownFactionAssignment, true);
@@ -68,6 +69,7 @@ test("OPTIONS-003: il draft normalizza dati parziali e produce sole patch approv
     combatLog: true,
     pcAttackAutoOpen: false,
     pcAttackAutoOpenMonsters: null,
+    fiveToolsArchive: "",
   });
   assert.equal(patches.room.turn.popup, false);
   assert.equal(patches.room.automation.knownFactionAssignment, true);
@@ -125,6 +127,24 @@ test("the monsters' auto-open inherits the characters' one until set; the panel'
   assert.equal(model.local.pcAttackAutoOpenMonsters, null);
   const html = readFileSync(new URL("../options-modal.html", import.meta.url), "utf8");
   assert.match(html, /data-local="pcAttackAutoOpenMonsters" data-local-fallback="pcAttackAutoOpen"/);
+});
+
+// Attacchi dei mostri, fase 3, lotto 3: l'archivio di 5eTools, un'opzione di questo browser, vuota di default.
+test("the 5eTools archive: empty by default, saved as the data folder, anything else is no archive", async () => {
+  const { selectFiveToolsArchive } = await import("../src/options/optionsSelectors.js");
+  assert.equal(selectFiveToolsArchive(resolveOptions({ local: {}, room: {}, scene: {} })), "");
+  assert.equal(normalizeOptionsPanelDraft({}).local.fiveToolsArchive, "");
+  const draft = normalizeOptionsPanelDraft({ local: { fiveToolsArchive: "https://archivio.example/data/bestiary/index.json" } });
+  assert.equal(draft.local.fiveToolsArchive, "https://archivio.example/data/");
+  assert.deepEqual(buildOptionsPanelPatches(draft).local.tools, { fiveToolsArchive: "https://archivio.example/data/" });
+  for (const bad of ["http://archivio.example/data", "non un indirizzo", "https://utente:pw@archivio.example/data"]) {
+    assert.equal(normalizeOptionsPanelDraft({ local: { fiveToolsArchive: bad } }).local.fiveToolsArchive, "", bad);
+  }
+  assert.equal(selectFiveToolsArchive(resolveOptions({ local: { tools: { fiveToolsArchive: "https://archivio.example/data" } }, room: {}, scene: {} })),
+    "https://archivio.example/data/");
+  const html = readFileSync(new URL("../options-modal.html", import.meta.url), "utf8");
+  assert.match(html, /data-local="fiveToolsArchive"/);
+  assert.match(html, /data-action="test-fivetools-archive"/);
 });
 
 test("OPTIONS-003: automatic faction assignment is saved in Room", () => {

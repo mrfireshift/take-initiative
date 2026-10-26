@@ -63,6 +63,33 @@ function typedValue(control) {
   return control.value;
 }
 
+// Prova (attacchi dei mostri, fase 3): reads the archive's index at the address written, says how many books it holds.
+async function testFiveToolsArchive() {
+  const status = document.querySelector("[data-fivetools-archive-status]");
+  const input = document.getElementById("fiveToolsArchiveInput");
+  const setStatus = (text, tone = "") => { if (status) { status.textContent = text; status.dataset.tone = tone; } };
+  const { fiveToolsArchiveIndexUrl, parseFiveToolsArchiveIndex } = await import("./fiveToolsArchiveCore.js");
+  const url = fiveToolsArchiveIndexUrl(input?.value);
+  if (!url) {
+    setStatus("Indirizzo non valido: serve un indirizzo https della cartella dei dati.", "error");
+    return;
+  }
+  setStatus("Leggo l'indice dell'archivio…");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
+    if (!response.ok) throw new Error(`l'archivio risponde ${response.status}`);
+    const books = parseFiveToolsArchiveIndex(await response.json());
+    if (!books.length) throw new Error("all'indirizzo non c'è un indice di bestiari di 5eTools");
+    setStatus(`Archivio raggiungibile: ${books.length} libri, ${books.filter((book) => !book.disabled).length} delle regole 2014. Premi Salva.`, "ok");
+  } catch (error) {
+    setStatus(`Archivio non raggiungibile: ${error?.name === "AbortError" ? "nessuna risposta in 15 secondi" : error?.message || error}.`, "error");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function setControlValue(control, value) {
   if (control.type === "checkbox") control.checked = !!value;
   else control.value = String(value);
@@ -395,6 +422,7 @@ function bindControls() {
     if (action === "close") closeModal();
     if (action === "open-faction-configurator") void openFactionConfigurator();
     if (action === "cleanup-runtime") void cleanRuntimeData();
+    if (action === "test-fivetools-archive") void testFiveToolsArchive();
     if (action === "save") void save();
   });
   root.addEventListener("input", (event) => {

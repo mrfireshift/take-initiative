@@ -54,6 +54,11 @@ export function selectPcAttackAutoOpenMonsters(options) {
   return typeof windows.pcAttackAutoOpenMonsters === "boolean" ? windows.pcAttackAutoOpenMonsters : windows.pcAttackAutoOpen;
 }
 
+// The 5eTools archive's data folder this browser uses, or "" (attacchi dei mostri, fase 3).
+export function selectFiveToolsArchive(options) {
+  return resolved(options).local.tools.fiveToolsArchive || "";
+}
+
 export function selectDistance3dToolEnabled(options) {
   return resolved(options).local.tools.distance3d;
 }
@@ -192,6 +197,7 @@ export function selectOptionsPanelModel(options) {
       combatLog: value.local.runtime.combatLog,
       pcAttackAutoOpen: value.local.windows.pcAttackAutoOpen,
       pcAttackAutoOpenMonsters: value.local.windows.pcAttackAutoOpenMonsters,
+      fiveToolsArchive: value.local.tools.fiveToolsArchive || "",
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,
