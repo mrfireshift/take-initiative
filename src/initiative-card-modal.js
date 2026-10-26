@@ -74,6 +74,7 @@ import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileC
 import { fiveToolsCollection, fiveToolsImportSummary, fiveToolsMonsterLabel, fiveToolsMonsterToStatblock, fiveToolsMonsters, fiveToolsSearch, isFiveToolsData }
   from "./fiveToolsMonsterCore.js";
 import { createFiveToolsArchivePanel } from "./fiveToolsArchivePanel.js";
+import { monsterStatblockOf, monsterStatblockSectionsToClear, monsterStatblockTargets, sameMonsterStatblock } from "./monsterStatblockShareCore.js";
 import { createLocalOptionsStore } from "./options/localOptionsStore.js";
 import { hasCanonicalHitPoints, monsterHitPointsSummary, monsterNamesakes } from "./monsterHitPointsImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
@@ -3619,6 +3620,27 @@ function archivePanel() {
 // A monster's hit points chosen in the import, written after the sheet's Salva: { hp, overwrite, sameName } or null.
 let pendingMonsterHitPoints = null;
 
+// The namesakes of a monster's token get its stat block (fase 4, lotto 1); "" when there is nothing to copy.
+async function shareMonsterStatblock(source, card, { isCurrent = () => true, sceneIdentity = null } = {}) {
+  const items = await OBR.scene.items.getItems();
+  if (!isCurrent()) return "";
+  const targets = monsterStatblockTargets(items, source.id, card).filter((target) => !sameMonsterStatblock(getInitiativeCard(target), card));
+  if (!targets.length) return "";
+  const statblock = monsterStatblockOf(card);
+  const failed = [];
+  for (const target of targets) {
+    if (!isCurrent()) break;
+    try {
+      await saveInitiativeCard(target.id, target.name, statblock, { isCurrent, sceneIdentity });
+    } catch (error) {
+      failed.push(`${target.name || target.id} (${error?.message || error})`);
+    }
+  }
+  const copied = targets.length - failed.length;
+  return [copied ? `Statblock copiato su ${copied} ${copied === 1 ? "altro token" : "altri token"} «${source.name}».` : "",
+    failed.length ? `Non copiato su: ${failed.join(", ")}.` : ""].filter(Boolean).join(" ");
+}
+
 function setSheetImportStatus(message = "", tone = "") {
   $("sheetImportStatus").textContent = message;
   $("sheetImportStatus").dataset.tone = tone;
@@ -3768,7 +3790,8 @@ function renderSheetImportResult(result, { summary = "", report = [] } = {}) {
       copy.append(title, summary);
       row.append(checkbox, copy);
       if (SHEET_IMPORT_LIST_SECTIONS.includes(section.id)) {
-        const mode = selectControl([["add", "Aggiungi"], ["replace", "Sostituisci"]], "add");
+        // A monster's stat block replaces the one the card had (fase 4): its lists start on Sostituisci.
+        const mode = selectControl([["add", "Aggiungi"], ["replace", "Sostituisci"]], result.monster ? "replace" : "add");
         mode.dataset.sheetImportMode = section.id;
         mode.title = "Aggiungi i mancanti all'elenco attuale o sostituiscilo";
         row.appendChild(mode);
@@ -3845,6 +3868,28 @@ async function appendSheetImportHitPoints(result) {
   for (const node of [row, ...options]) $("sheetImportSections").insertBefore(node, unresolved);
 }
 
+// Empties one section of the stat block in the editor (fase 4, lotto 1): the stats, the abilities and saves, the
+// defenses, the attacks (the quick actions stay), the Multiattack, the notes.
+function clearSheetImportSection(id) {
+  if (id === "stats") {
+    for (const inputId of ["armorClassInput", "speedInput", "passivePerceptionInput", "spellSaveDCInput", "spellAttackBonusInput"]) $(inputId).value = "";
+  } else if (id === "abilities" || id === "saves") {
+    for (const key of ABILITY_KEYS) $(`${id === "abilities" ? "ability" : "save"}-${key}`).value = "";
+  } else if (id === "defenses") {
+    for (const type of DAMAGE_TYPES) $(`defense-${type.id}`).value = "";
+  } else if (id === "attacks") {
+    $("attackEditorList").replaceChildren();
+    syncQuickActionAddState();
+  } else if (id === "multiattack") {
+    if (draftMonsterProfile) {
+      const { multiattack: _dropped, ...rest } = draftMonsterProfile;
+      draftMonsterProfile = rest;
+    }
+  } else if (id === "notes") {
+    $("notesInput").value = "";
+  }
+}
+
 function applyImportedAttacks(attacks, mode) {
   const list = $("attackEditorList");
   if (mode === "replace") list.replaceChildren();
@@ -3872,6 +3917,11 @@ function applySheetImport() {
   if (!chosen.length && !$("sheetImportSections").querySelector("[data-sheet-import-hp]")?.checked) {
     setSheetImportStatus("Nessuna sezione scelta.", "error");
     return;
+  }
+  // A monster's stat block replaces the previous one as a whole: what it lacks is emptied, what it replaces is
+  // emptied before being written; a section the GM unticked stays as it is.
+  if (sheetImportResult.monster) {
+    for (const id of monsterStatblockSectionsToClear({ sections, chosen })) clearSheetImportSection(id);
   }
   for (const id of chosen) {
     const section = sections[id];
@@ -4780,9 +4830,15 @@ $("form").addEventListener("submit", async (event) => {
     [item] = await OBR.scene.items.getItems([item.id]);
     if (!sceneLifecycle.isCurrent(operation)) return;
     profile = getInitiativeCard(item);
+    // Tokens with the same name carry the same stat block (fase 4): a monster's card goes to its namesakes, their own
+    // state (hit points, conditions, uses) untouched.
+    const shareStatus = await shareMonsterStatblock(item, profile, { isCurrent: () => sceneLifecycle.isCurrent(operation),
+      sceneIdentity: ownerSceneContext.sceneIdentity });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     renderView();
     setEditing(false);
-    if (hitPointsStatus) $("status").textContent = hitPointsStatus;
+    const savedStatus = [hitPointsStatus, shareStatus].filter(Boolean).join(" ");
+    if (savedStatus) $("status").textContent = savedStatus;
   } catch (err) {
     $("status").textContent = err?.message || "Salvataggio non riuscito";
   } finally {
