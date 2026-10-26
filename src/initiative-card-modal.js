@@ -78,9 +78,9 @@ import { monsterStatblockOf, monsterStatblockSectionsToClear, monsterStatblockTa
 import { setTokenDisplayName, statblockReplacesHitPoints, statblockTokenName } from "./tokenNameCore.js";
 import { setTokenPortrait } from "./tokenPortraitCore.js";
 import { fiveToolsTokenUrl } from "./fiveToolsArchiveCore.js";
-import { createFiveToolsArchiveStore } from "./fiveToolsArchiveStore.js";
-import { monsterStatblockTextRecord, monsterStatblockTextRef, monsterStatblockTextView } from "./monsterStatblockTextCore.js";
-import { createMonsterStatblockTextStore } from "./monsterStatblockTextStore.js";
+import { monsterStatblockTextRecord, monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
+import { createMonsterStatblockTextLoader } from "./monsterStatblockTextLoader.js";
+import { monsterLegendarySummary, planMonsterLegendary, setMonsterLegendary } from "./monsterLegendaryCore.js";
 import { createLocalOptionsStore } from "./options/localOptionsStore.js";
 import { hasCanonicalHitPoints, monsterHitPointsSummary, monsterNamesakes } from "./monsterHitPointsImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
@@ -3631,10 +3631,11 @@ let pendingMonsterName = "";
 let pendingMonsterPortrait = null;
 // The monster's full stat block, kept in this browser after Salva (fase 4, lotto 4b): a record or null.
 let pendingMonsterText = null;
-let monsterStatblockTextStore = null;
-const statblockTextStore = () => (monsterStatblockTextStore ||= createMonsterStatblockTextStore());
-// What the Stats tab shows for a reference, read once: { view } or { view: null } when this browser has no text.
-const statblockTextViews = new Map();
+// The tracker's Leggendario mode from the stat block, set after Salva (fase 4, lotto 5): { actions, resistances } or null.
+let pendingMonsterLegendary = null;
+// The full stat blocks kept in this browser, each reference read once (monsterStatblockTextLoader.js).
+let monsterStatblockTextLoader = null;
+const statblockTextLoader = () => (monsterStatblockTextLoader ||= createMonsterStatblockTextLoader());
 // The import's two automatic steps, remembered in this browser: rename the token, set its hit points.
 const STATBLOCK_IMPORT_PREFS_KEY = `${ID}/statblock-import-prefs`;
 function statblockImportPrefs() {
@@ -3712,6 +3713,7 @@ function readSheetImport() {
   pendingMonsterName = "";
   pendingMonsterPortrait = null;
   pendingMonsterText = null;
+  pendingMonsterLegendary = null;
   const text = $("sheetImportText").value;
   // 5eTools' JSON (a monster, a list, a bestiary): its monsters join the picker; one alone is read at once.
   let data = null;
@@ -3784,6 +3786,7 @@ async function readFiveToolsMonster(monster, { retried = false } = {}) {
   pendingMonsterName = "";
   pendingMonsterPortrait = null;
   pendingMonsterText = null;
+  pendingMonsterLegendary = null;
   const { pool } = fiveToolsCollection(allFiveToolsInputs());
   const converted = fiveToolsMonsterToStatblock(monster, { pool });
   // A derived monster whose base is in a book not kept yet: the archive downloads it, once (decision D2).
@@ -3841,6 +3844,19 @@ function renderSheetImportResult(result, { summary = "", report = [], portrait =
       }
       return row;
     });
+  // A legendary monster (fase 4, lotto 5, decision D7): the tracker's Leggendario mode after Salva, on this token and its
+  // namesakes, never where a boss mode is set.
+  if (result.monster && result.legendary) {
+    const label = document.createElement("label");
+    label.className = "sheet-import-hp-option sheet-import-legendary";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = true;
+    box.dataset.sheetImportLegendary = "1";
+    const { actions, resistances } = result.legendary;
+    label.append(box, document.createTextNode(`Leggendario: ${actions} azioni${resistances ? `, ${resistances} resistenze` : ""} (anche agli omonimi; mai a chi ha già una modalità boss)`));
+    rows.push(label);
+  }
   // A monster's name for the token (fase 4, lotto 2): only the token in the sheet, after Salva.
   const newName = result.monster ? statblockTokenName(result.name, item?.name) : "";
   if (newName) {
@@ -4116,6 +4132,8 @@ function applySheetImport() {
     width: Number(portraitBox.dataset.width), height: Number(portraitBox.dataset.height) } : null;
   if (pendingMonsterPortrait) chosen.push("portrait");
   pendingMonsterText = sheetImportResult.monster && sheetImportResult.statblockText ? sheetImportResult.statblockText : null;
+  pendingMonsterLegendary = $("sheetImportSections").querySelector("[data-sheet-import-legendary]")?.checked ? sheetImportResult.legendary : null;
+  if (pendingMonsterLegendary) chosen.push("legendary");
   if (pendingMonsterText) chosen.push("statblockText");
   if (sheetImportResult.monster) {
     rememberStatblockImportPrefs({ rename: renameBox ? renameBox.checked : statblockImportPrefs().rename,
@@ -4127,7 +4145,7 @@ function applySheetImport() {
   }
   const labelsById = new Map([...SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]), ["hitPoints", "Punti ferita (dopo Salva)"],
     ["name", "Nome del token (dopo Salva)"], ["portrait", "Ritratto del token (dopo Salva)"],
-    ["statblockText", "Testo dello statblock (dopo Salva)"]]);
+    ["statblockText", "Testo dello statblock (dopo Salva)"], ["legendary", "Leggendario (dopo Salva)"]]);
   setSheetImportStatus(
     `Compilato: ${chosen.map((id) => labelsById.get(id)).join(", ")}. Controlla le schede e premi Salva.`,
     "success",
@@ -4538,24 +4556,6 @@ function renderView() {
   void renderStatblockText();
 }
 
-// The text of a monster's stat block for a reference: the one kept at its import, else the monster in the archive's
-// books kept in this browser (lotto 4b). null when this browser has neither.
-async function loadStatblockTextView(ref, { archive = false } = {}) {
-  if (statblockTextViews.has(ref)) return statblockTextViews.get(ref);
-  let view = monsterStatblockTextView(await statblockTextStore().get(ref));
-  if (!view && archive) {
-    try {
-      const { pool } = fiveToolsCollection(await createFiveToolsArchiveStore().allData());
-      const wanted = ref.toLowerCase();
-      const monster = pool.find((entry) => `${entry?.name}|${entry?.source}`.toLowerCase() === wanted);
-      const converted = monster ? fiveToolsMonsterToStatblock(monster, { pool }) : null;
-      if (converted?.monster) view = monsterStatblockTextView(monsterStatblockTextRecord({ ref, name: monster.name, fiveTools: converted.monster }));
-    } catch {}
-  }
-  statblockTextViews.set(ref, view);
-  return view;
-}
-
 // The full stat block at the bottom of the Stats tab: an NPC's sheet, for the GM, from this browser's memory.
 async function renderStatblockText() {
   const block = $("statblockTextBlock");
@@ -4565,7 +4565,8 @@ async function renderStatblockText() {
     block.hidden = true;
     return;
   }
-  const view = await loadStatblockTextView(ref, { archive: profile?.[MONSTER_PROFILE_FIELD]?.source === "5etools" });
+  // The one kept at its import, else the monster in the archive's books kept in this browser (lotto 4b).
+  const view = await statblockTextLoader().view(ref, { fromArchive: profile?.[MONSTER_PROFILE_FIELD]?.source === "5etools" });
   if (block.dataset.ref !== ref) return;
   const body = $("statblockText");
   if (!view) {
@@ -4741,6 +4742,7 @@ function setEditing(active) {
   pendingMonsterName = "";
   pendingMonsterPortrait = null;
   pendingMonsterText = null;
+  pendingMonsterLegendary = null;
   fiveToolsInputs = [];
   $("sheetImportSearch").value = "";
   $("sheetImportPicker").hidden = true;
@@ -5047,8 +5049,7 @@ $("form").addEventListener("submit", async (event) => {
     let statblockTextStatus = "";
     if (statblockText) {
       try {
-        const kept = await statblockTextStore().put(statblockText);
-        statblockTextViews.delete(statblockText.ref);
+        const kept = await statblockTextLoader().put(statblockText);
         if (!kept.persisted) statblockTextStatus = `Testo dello statblock tenuto solo per questa sessione: ${kept.reason}.`;
       } catch (error) {
         statblockTextStatus = `Testo dello statblock non salvato: ${error?.message || error}.`;
@@ -5084,6 +5085,26 @@ $("form").addEventListener("submit", async (event) => {
       }
       if (!sceneLifecycle.isCurrent(operation)) return;
     }
+    // The tracker's Leggendario mode (fase 4, lotto 5): written as its menu writes it (D8), merged into each token's
+    // metadata, outside the History; a token that already has a boss mode keeps it, spent pips included.
+    const legendary = pendingMonsterLegendary;
+    pendingMonsterLegendary = null;
+    let legendaryStatus = "";
+    if (legendary) {
+      try {
+        const plan = planMonsterLegendary({ items: await OBR.scene.items.getItems(), sourceId: item.id, legendary });
+        let written = 0;
+        if (plan.targetIds.length) {
+          await OBR.scene.items.updateItems(plan.targetIds, (drafts) => {
+            for (const draft of drafts) if (setMonsterLegendary(draft, legendary)) written += 1;
+          });
+        }
+        legendaryStatus = monsterLegendarySummary({ written, skipped: plan.skipped });
+      } catch (error) {
+        legendaryStatus = `Leggendario non attivato: ${error?.message || error}.`;
+      }
+      if (!sceneLifecycle.isCurrent(operation)) return;
+    }
     [item] = await OBR.scene.items.getItems([item.id]);
     if (!sceneLifecycle.isCurrent(operation)) return;
     profile = getInitiativeCard(item);
@@ -5094,7 +5115,7 @@ $("form").addEventListener("submit", async (event) => {
     if (!sceneLifecycle.isCurrent(operation)) return;
     renderView();
     setEditing(false);
-    const savedStatus = [nameStatus, portraitStatus, hitPointsStatus, shareStatus, statblockTextStatus].filter(Boolean).join(" ");
+    const savedStatus = [nameStatus, portraitStatus, hitPointsStatus, legendaryStatus, shareStatus, statblockTextStatus].filter(Boolean).join(" ");
     if (savedStatus) $("status").textContent = savedStatus;
   } catch (err) {
     $("status").textContent = err?.message || "Salvataggio non riuscito";

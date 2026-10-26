@@ -42,7 +42,7 @@ test("goblin: CA, PF, velocità, caratteristiche, due attacchi pieni; il tratto 
   assert.deepEqual(block.actions.map((action) => [action.name, action.attack.type, action.attack.bonus]), [["Scimitar", "melee", 4], ["Shortbow", "ranged", 4]]);
   assert.deepEqual(block.actions[1].attack.range, { normal: 80, long: 320 });
   assert.equal(block.notes, "Tratti: Nimble Escape.");
-  assert.ok(report.includes("tratti da leggere al tavolo: Nimble Escape"));
+  assert.ok(report.includes("tratti da leggere nella console (Capacità): Nimble Escape"));
   const parsed = imported("Goblin");
   assert.deepEqual(parsed.unresolved, []);
   assert.deepEqual(parsed.sections.attacks.map((attack) => [attack.label, attack.attackBonus, attack.reachFeet, attack.components[0].type]),
@@ -86,8 +86,9 @@ test("drago d'argento adulto: multiattacco, Presenza terrificante, i due soffi c
     [{ type: "cold", formula: "13d8" }], undefined]);
   const paralyzing = block.actions.find((action) => action.name === "Paralyzing Breath");
   assert.deepEqual([paralyzing.recharge, paralyzing.onFail, paralyzing.damage], [5, { condition: "paralyzed" }, []]);
-  assert.ok(report.includes("azioni leggendarie non ancora importate"));
-  assert.ok(report.includes("tratti da leggere al tavolo: Legendary Resistance (3/Day)"));
+  // Fase 4, lotto 5: the tracker's Leggendario mode, set after Salva; the traits are read in the console.
+  assert.deepEqual(block.legendary, { actions: 3, resistances: 3 });
+  assert.ok(report.includes("tratti da leggere nella console (Capacità): Legendary Resistance (3/Day)"));
   assert.ok(report.includes("da gestire al tavolo: Change Shape"));
   const parsed = imported("Adult Silver Dragon");
   assert.deepEqual(parsed.unresolved, []);

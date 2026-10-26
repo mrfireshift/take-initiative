@@ -178,6 +178,25 @@ originale** (chiuso: un clic lo apre).
 - Nel formato del plugin la chiave facoltativa `text` porta lo statblock come
   testo libero (al massimo 20.000 caratteri), conservato nello stesso modo.
 
+### Capacità e leggendarie
+
+- **Nella console**, scheda **Capacità**: i tratti, le reazioni e le azioni
+  leggendarie del mostro, ognuno con il suo testo (dallo statblock originale)
+  e, per le leggendarie, il costo («Leggendaria (2)»). Si leggono soltanto:
+  le azioni leggendarie si segnano sui diamanti del tracker, gli attacchi
+  restano nella scheda Attacchi.
+- **Modalità Leggendario**: per un mostro con azioni leggendarie il pannello
+  Importa mostra la riga **Leggendario: 3 azioni, 3 resistenze**, spuntata.
+  Dopo **Salva** accende la modalità del tracker (diamanti e scudi) sul token
+  e sugli altri token con lo stesso nome, con i numeri dello statblock (da 1
+  a 5). Non tocca mai un token che ha già una modalità boss (Leggendario,
+  Paragon o Epic: i diamanti già spesi restano tali) né un personaggio, e
+  importare uno statblock senza leggendarie non la spegne: si toglie dal menu
+  del tracker. Come il menu, non passa dalla Cronologia.
+- Nel formato del plugin: `"legendary": { "actions": 3, "resistances": 3 }`.
+- Un mostro con «Legendary Resistance» ma senza azioni leggendarie (il
+  Marut) non può avere solo gli scudi: le resistenze restano al tavolo.
+
 ### Incantesimi del mostro
 
 Gli incantesimi dello statblock usano le chiavi della scheda personaggio più
@@ -237,9 +256,10 @@ della sua base; se manca, il messaggio dice quale caricare.
 
 Sopra le sezioni compare cosa la console registra e, in **Al tavolo**, cosa
 resta da gestire a mano: il tiro salvezza al colpo, le azioni senza danni né
-tiro salvezza, i tratti, le azioni leggendarie, le difese condizionali (per
-esempio la resistenza alle armi non magiche, segnalata e non importata). Nomi
-di mostri e azioni restano in inglese.
+tiro salvezza, le difese condizionali (per esempio la resistenza alle armi non
+magiche, segnalata e non importata). Tratti e reazioni sono elencati con il
+rimando alla scheda Capacità della console. Nomi di mostri e azioni restano in
+inglese.
 
 Gli incantesimi si leggono dai blocchi «Spellcasting» e «Innate
 Spellcasting» come descritto sopra. In **Al tavolo** compaiono:

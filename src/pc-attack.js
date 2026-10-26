@@ -9,6 +9,9 @@ import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAtta
   pcAttackModeOptions, pcAttackAreaPreview, pcAttackActionPanelCantripIds, pcAttackSpellIds, pcAttackWithSpellType, pcAttackOpenSpellCast,
   pcAttackMonsterAreaNote, pcAttackMonsterTags } from "./pcAttackCore.js";
 import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
+import { PC_ATTACK_MONSTER_GROUP_TITLES, pcAttackMonsterTraitEntries } from "./pcAttackMonsterTraitsCore.js";
+import { monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
+import { createMonsterStatblockTextLoader } from "./monsterStatblockTextLoader.js";
 import { getPcAttackSpell, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
 import { spellSlotChoices } from "./spellSlotSpendCore.js";
 import { pcAttackHasPotentCantrip } from "./pcAttackRiderCatalog.js";
@@ -168,6 +171,17 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     isCurrentEpoch:epoch=>lifecycle.isReady() && lifecycle.currentEpoch()===epoch});
   const undoEntry=overrides.undo || defaultPcAttackUndo;
   const schedule=overrides.schedule || ((callback,delay)=>setTimeout(callback,delay));
+  // A monster's full stat block, kept in this browser (fase 4, lotto 5): its traits, reactions and legendary actions.
+  let statblockText=overrides.statblockText || null;
+  async function monsterTraitEntries(item) {
+    const card=item?.metadata?.[META_KEY]?.initiativeCard || {};
+    // The console is the GM's (pcAttackLauncher.js): the sheet's rule, an NPC's monster card only.
+    const ref=monsterStatblockTextRef({isGM:true,attitude:item?.metadata?.[META_KEY]?.attitude,card});
+    if(!ref) return [];
+    statblockText ||= createMonsterStatblockTextLoader();
+    const view=await statblockText.view(ref,{fromArchive:card[MONSTER_PROFILE_FIELD]?.source==="5etools"}).catch(()=>null);
+    return pcAttackMonsterTraitEntries(view);
+  }
   const params=new URLSearchParams(globalThis.location?.search || "");
   // The open console follows the turn (pcAttackTurnController.js): the actor changes in place.
   let sourceId=overrides.sourceId ?? params.get("source");
@@ -1002,7 +1016,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       return box;
     };
     const groupOf=entry=>entry.tab==="features"?entry.group:favourite(entry)?"pinned":entry.level;
-    const groupTitle=group=>group==="pinned"?"★ Preferiti":group==="usable"?"Utilizzabili":group==="other"?"Altre capacità":Number.isInteger(group)?`${group}° livello`:"Altri";
+    const groupTitle=group=>group==="pinned"?"★ Preferiti":group==="usable"?"Utilizzabili":group==="other"?"Altre capacità":Number.isInteger(group)?`${group}° livello`
+      :PC_ATTACK_MONSTER_GROUP_TITLES[group] || "Altri";
     // The favourites first, then the levels (or the features' groups) in their order.
     const groups=[...new Set(inTab.map(groupOf))].sort((left,right)=>Number(right==="pinned")-Number(left==="pinned"));
     // A level header carries its slots (shown by the CSS from data-slots): "slot 2/3", the pact's "patto 1/2".
@@ -1498,6 +1513,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(maneuverBox) maneuverBox.hidden=true;
     launchBox.hidden=false;
     const entry=currentEntry();
+    if(entry?.mode==="monster"){renderMonsterTrait(entry);return;}
     const level=entry?.level;
     const isFeature=entry?.mode==="activate" || entry?.mode==="reference";
     $("pc-attack-title").textContent=actorName();
@@ -1578,6 +1594,28 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!children.length) children.push(node("p","Nessun dettaglio da mostrare.","launch-details"));
     launchBox.replaceChildren(...children);
     syncTarget();
+  }
+  // A monster's trait, reaction or legendary action (fase 4, lotto 5): its text to read, no button (decision D9).
+  function renderMonsterTrait(entry) {
+    $("pc-attack-title").textContent=actorName();
+    const kind={"monster-trait":"Tratto","monster-reaction":"Reazione","monster-legendary":"Azione leggendaria"}[entry.group] || "";
+    $("pc-attack-subtitle").textContent=[plainLabel(entry.label),kind].filter(Boolean).join(" · ");
+    if(applyRow) applyRow.hidden=true;
+    apply.hidden=true;
+    if(launchButton) launchButton.hidden=true;
+    const signature=JSON.stringify(["monster",entry.key,entry.label,entry.text]);
+    if(signature===launchSignature) return;
+    launchSignature=signature;
+    const children=[];
+    if(entry.activation){
+      const row=node("div","","launch-meta"),text=capitalized(entry.activation),cost=costKind(text);
+      const pill=node("span",text,`launch-tag${cost?" cost-tag":""}`);
+      if(cost) pill.dataset.cost=cost;
+      row.append(pill);children.push(row);
+    }
+    children.push(node("p",entry.text || "Testo non disponibile.","spell-text"));
+    if(entry.group==="monster-legendary") children.push(node("p","Le azioni leggendarie si segnano sui diamanti del tracker.","launch-details"));
+    launchBox.replaceChildren(...children);
   }
   // Lancia: the tracker casts the spell as the 🪄 menu does (the spell panel, or the cast at once when nothing is asked).
   function askTrackerToLaunch(entry,{ackTimeoutMs=overrides.launchAckTimeoutMs ?? LAUNCH_ACK_TIMEOUT_MS}={}) {
@@ -1851,10 +1889,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   async function refresh(operation) {
     const asked=actionId,askedSource=sourceId;
     const loaded=await runtime.getPcAttackPresentation(askedSource,asked);
+    const traits=await monsterTraitEntries(loaded?.item);
     // A load for an action the picker has already left, or for the actor before the turn moved on, is stale.
     if(!lifecycle.isCurrent(operation) || asked!==actionId || askedSource!==sourceId) return;
-    // Grapple and Shove: every creature can try them (never counted as something to show by pcAttackPickerEntries).
-    loaded.picker=[...(loaded.picker || []),...pcAttackManeuverEntries()];
+    // A monster's traits join the Capacità tab; Grapple and Shove: every creature can try them (never counted as
+    // something to show by pcAttackPickerEntries).
+    loaded.picker=[...(loaded.picker || []),...traits,...pcAttackManeuverEntries()];
     // Without an action asked for, the runtime picked one (the last attack, else the first weapon).
     const switched=!!presentation && loaded.actionId!==undefined && loaded.actionId!==presentation.actionId;
     if(loaded.actionId) actionId=loaded.actionId;

@@ -272,6 +272,21 @@ function fiveToolsSpellcasting(monster, report) {
   return Object.fromEntries(Object.entries(out).filter(([, value]) => value !== undefined && !(Array.isArray(value) && !value.length)));
 }
 
+// The tracker's Leggendario mode (lotto 5): { actions, resistances } from the legendary actions (3 unless the stat block
+// says otherwise) and "Legendary Resistance (N/Day)", or null without legendary actions.
+function fiveToolsLegendary(monster, report) {
+  const resistance = (Array.isArray(monster.trait) ? monster.trait : [])
+    .map((trait) => fiveToolsPlainText(trait?.name || "")).find((name) => /^Legendary Resistance\b/i.test(name)) || "";
+  const resistances = Number(resistance.match(/\((\d+)\/Day/i)?.[1]) || 0;
+  if (!Array.isArray(monster.legendary) || !monster.legendary.length) {
+    if (resistance) report.push(`${resistance} senza azioni leggendarie: le resistenze si tengono al tavolo`);
+    return null;
+  }
+  if (/in this form/i.test(resistance)) report.push(`${resistance}: il contatore vale per la forma importata`);
+  const actions = Math.floor(Number(monster.legendaryActions)) || 3;
+  return { actions: Math.max(1, Math.min(5, actions)), resistances: Math.max(0, Math.min(5, resistances)) };
+}
+
 // The stat block's slots against the plugin's for the class: "" when they are the same.
 function fiveToolsSlotMismatch(levels, characterBuild) {
   const { slots, pact } = spellSlotMaximums(characterBuild);
@@ -517,10 +532,11 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
     .map((entry) => (entry === "exhaustion" ? "indebolimento" : monsterImportConditionName(entry).toLocaleLowerCase("it") || entry));
   const traits = (Array.isArray(monster.trait) ? monster.trait : []).map((trait) => fiveToolsPlainText(trait?.name || "")).filter(Boolean);
   const notes = [traits.length ? `Tratti: ${traits.join(", ")}.` : "", conditionImmune.length ? `Immune a: ${conditionImmune.join(", ")}.` : ""].filter(Boolean).join(" ");
-  if (traits.length) report.push(`tratti da leggere al tavolo: ${traits.join(", ")}`);
-  if (monster.legendary) report.push("azioni leggendarie non ancora importate");
+  // Traits, reactions and legendary actions are read in the console's Capacità tab (fase 4, lotto 5).
+  if (traits.length) report.push(`tratti da leggere nella console (Capacità): ${traits.join(", ")}`);
+  const legendary = fiveToolsLegendary(monster, report);
   const spellcasting = fiveToolsSpellcasting(monster, report);
-  if (Array.isArray(monster.reaction) && monster.reaction.length) report.push(`reazioni da gestire al tavolo: ${monster.reaction.map((entry) => fiveToolsPlainText(entry?.name || "")).join(", ")}`);
+  if (Array.isArray(monster.reaction) && monster.reaction.length) report.push(`reazioni da leggere nella console (Capacità): ${monster.reaction.map((entry) => fiveToolsPlainText(entry?.name || "")).join(", ")}`);
   if (monster.hp && !Number.isFinite(monster.hp.average)) report.push(`punti ferita speciali: ${fiveToolsPlainText(monster.hp.special || "")}`);
   const portrait = fiveToolsTokenPath({ ...monster, name: input.name, source: input.source });
   // The monster as read, kept in the GM's browser for its full stat block (lotto 4b).
@@ -531,6 +547,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
     ...(portrait ? { portrait: { fiveTools: portrait } } : {}),
     ...(armorClass ? { armorClass } : {}),
     ...spellcasting,
+    ...(legendary ? { legendary } : {}),
     ...(Number.isFinite(monster.hp?.average) ? { hitPoints: { average: monster.hp.average, ...(monster.hp.formula ? { formula: monster.hp.formula } : {}) } } : {}),
     ...(Number.isFinite(walk) && walk > 0 ? { speed: `${walk} ft` } : {}),
     ...(Object.keys(abilities).length ? { abilities } : {}),
