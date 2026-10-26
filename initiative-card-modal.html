@@ -211,6 +211,15 @@
     .class-build-badge { padding:5px 8px; border:1px solid rgba(var(--faction-rgb),.30); border-radius:999px; background:rgba(var(--faction-rgb),.10); color:var(--accent-bright); font-size:11px; font-weight:var(--obrt-weight-bold); }
     .class-feature-empty { padding:11px; border:1px dashed rgba(var(--faction-rgb),.25); border-radius:8px; color:rgba(255,255,255,.58); text-align:center; }
     .class-feature-resources,.class-feature-active,.class-feature-list { display:grid; gap:7px; }
+    /* An NPC's Capacità hide the character's parts: [hidden] wins over their display (flex, block). */
+    #classFeaturesView [hidden] { display:none !important; }
+    .monster-traits .section-title:first-child { margin-top:0; }
+    .monster-trait-list { display:grid; gap:6px; }
+    .monster-trait { padding:7px 10px; border-radius:7px; background:linear-gradient(145deg,rgba(var(--faction-rgb),.065),rgba(7,12,19,.28)); border:1px solid rgba(var(--faction-rgb),.20); }
+    .monster-trait p { margin:0; color:rgba(255,255,255,.86); font-size:var(--obrt-type-secondary); line-height:1.35; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .monster-trait b { color:#fff; font-weight:var(--obrt-weight-bold); }
+    .monster-trait .monster-trait-cost { float:right; margin-left:6px; color:var(--accent-bright); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); }
+    .monster-traits .class-feature-empty { margin-bottom:4px; }
     .class-feature-resource,.class-feature-active-row,.class-feature-card { padding:9px; border:1px solid rgba(var(--faction-rgb),.23); border-left:3px solid var(--feature-accent, rgba(var(--faction-rgb),.55)); border-radius:9px; background:linear-gradient(145deg,var(--feature-background,rgba(var(--faction-rgb),.075)),rgba(7,12,19,.30)); }
     .class-feature-resource,.class-feature-active-row { display:flex; align-items:center; gap:8px; }
     .class-feature-resource-copy,.class-feature-active-copy { min-width:0; flex:1; display:grid; gap:2px; }
@@ -487,13 +496,14 @@
       </section>
     </section>
     <section id="classFeaturesView" role="tabpanel" aria-labelledby="classFeaturesTab" hidden>
+      <div id="monsterTraits" class="monster-traits" hidden></div>
       <div id="classBuildSummary" class="class-build-summary"></div>
-      <span class="section-title">Risorse</span>
+      <span id="classFeatureResourcesTitle" class="section-title">Risorse</span>
       <div id="classFeatureRestActions" class="rest-actions" hidden></div>
       <div id="classFeatureResources" class="class-feature-resources"></div>
-      <span class="section-title">Attive</span>
+      <span id="classFeatureActiveTitle" class="section-title">Attive</span>
       <div id="classFeatureActive" class="class-feature-active"></div>
-      <span class="section-title">Capacità abilitate</span>
+      <span id="classFeatureListTitle" class="section-title">Capacità abilitate</span>
       <div id="classFeatureList" class="class-feature-list"></div>
       <div id="classFeatureRunStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
     </section>

@@ -185,6 +185,10 @@ originale** (chiuso: un clic lo apre).
   e, per le leggendarie, il costo («Leggendaria (2)»). Si leggono soltanto:
   le azioni leggendarie si segnano sui diamanti del tracker, gli attacchi
   restano nella scheda Attacchi.
+- **Nella scheda**, tab **Capacità**: per un PNG (alleato, neutrale, nemico)
+  con uno statblock di mostro, le stesse voci al posto di specie, classi e
+  capacità di classe, che restano dei personaggi. Le risorse compaiono solo
+  se il mostro ne ha.
 - **Modalità Leggendario**: per un mostro con azioni leggendarie il pannello
   Importa mostra la riga **Leggendario: 3 azioni, 3 resistenze**, spuntata.
   Dopo **Salva** accende la modalità del tracker (diamanti e scudi) sul token

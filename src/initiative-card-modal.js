@@ -81,6 +81,7 @@ import { fiveToolsTokenUrl } from "./fiveToolsArchiveCore.js";
 import { monsterStatblockTextRecord, monsterStatblockTextRef } from "./monsterStatblockTextCore.js";
 import { createMonsterStatblockTextLoader } from "./monsterStatblockTextLoader.js";
 import { monsterLegendarySummary, planMonsterLegendary, setMonsterLegendary } from "./monsterLegendaryCore.js";
+import { PC_ATTACK_MONSTER_GROUP_TITLES, legendaryActionCost, pcAttackMonsterTraitEntries } from "./pcAttackMonsterTraitsCore.js";
 import { createLocalOptionsStore } from "./options/localOptionsStore.js";
 import { hasCanonicalHitPoints, monsterHitPointsSummary, monsterNamesakes } from "./monsterHitPointsImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
@@ -2955,6 +2956,56 @@ function renderClassFeatures() {
           : "Configura classe e livello in Modifica."
       )]
   ));
+  renderMonsterTraits(resources.length > 0);
+}
+
+// An NPC's Capacità are its stat block's (fase 4): traits, reactions and legendary actions, from the full stat block kept
+// in the GM's browser, as the console lists them. Species and class features stay a character's: of the class part only
+// the resources remain, when the monster has some (a spellcaster's slots).
+function renderMonsterTraits(hasResources) {
+  const ref = monsterStatblockTextRef({ isGM, attitude: item?.metadata?.[META_KEY]?.attitude, card: profile });
+  const box = $("monsterTraits");
+  box.dataset.ref = ref;
+  box.hidden = !ref;
+  for (const id of ["classBuildSummary", "classFeatureActiveTitle", "classFeatureActive", "classFeatureListTitle", "classFeatureList"]) $(id).hidden = !!ref;
+  for (const id of ["classFeatureResourcesTitle", "classFeatureResources"]) $(id).hidden = !!ref && !hasResources;
+  if (!ref) return;
+  void statblockTextLoader().view(ref, { fromArchive: profile?.[MONSTER_PROFILE_FIELD]?.source === "5etools",
+    revision: JSON.stringify(profile?.[MONSTER_PROFILE_FIELD] || null) }).then((view) => {
+    if (box.dataset.ref !== ref) return;
+    const entries = pcAttackMonsterTraitEntries(view);
+    if (!entries.length) {
+      box.replaceChildren(classFeatureEmpty(view ? "Lo statblock non ha tratti, reazioni né azioni leggendarie."
+        : "Il testo dello statblock non è in questo browser: reimporta il mostro (o aggiungi il suo libro all'archivio)."));
+      return;
+    }
+    const nodes = [];
+    for (const group of [...new Set(entries.map((entry) => entry.group))]) {
+      const title = document.createElement("span");
+      title.className = "section-title";
+      title.textContent = PC_ATTACK_MONSTER_GROUP_TITLES[group] || "";
+      const list = document.createElement("div");
+      list.className = "monster-trait-list";
+      for (const entry of entries.filter((candidate) => candidate.group === group)) {
+        const card = document.createElement("div");
+        card.className = "monster-trait";
+        const text = document.createElement("p");
+        if (group === "monster-legendary") {
+          const cost = document.createElement("span");
+          cost.className = "monster-trait-cost";
+          cost.textContent = `costo ${legendaryActionCost(entry.label)}`;
+          text.appendChild(cost);
+        }
+        const name = document.createElement("b");
+        name.textContent = `${entry.label}. `;
+        text.append(name, document.createTextNode(entry.text || ""));
+        card.appendChild(text);
+        list.appendChild(card);
+      }
+      nodes.push(title, list);
+    }
+    box.replaceChildren(...nodes);
+  });
 }
 
 function populateSpellbookDatalist() {
