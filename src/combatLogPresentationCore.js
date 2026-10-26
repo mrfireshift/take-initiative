@@ -725,8 +725,15 @@ function causalityDetailLines(event) {
       ...(stringValue(monster.dice) ? [monster.half === true ? "metà se superato" : "niente se superato"] : []),
       ...(stringValue(onFail?.condition) ? [`${stringValue(onFail.condition)} se fallito`] : []),
     ];
+    // Its uses a day and recharge (lotto 3): spent with the action, or a recharge that came back at the table.
+    const spent = (Array.isArray(monster.spent) ? monster.spent : []).map((entry) => (
+      entry?.recharged === true ? `${stringValue(entry.name)} tornata al tavolo`
+        : finiteNumber(entry?.before) !== null && finiteNumber(entry?.after) !== null
+          ? `${stringValue(entry.name)} ${numberText(entry.before)} → ${numberText(entry.after)}` : ""
+    )).filter(Boolean);
     lines.push(`Azione del mostro: ${monsterName}${stringValue(monster.dice) ? ` (${stringValue(monster.dice)})` : ""}`
-      + `${ability ? ` · TS ${ability}${dc !== null ? ` CD ${numberText(dc)}` : ""}${effects.length ? `, ${effects.join(", ")}` : ""}` : ""}`);
+      + `${ability ? ` · TS ${ability}${dc !== null ? ` CD ${numberText(dc)}` : ""}${effects.length ? `, ${effects.join(", ")}` : ""}` : ""}`
+      + `${spent.length ? ` · ${spent.join(", ")}` : ""}`);
     if (stringValue(monster.note)) lines.push(`Da fare: ${stringValue(monster.note)}`);
   }
   if (rawAttack?.area && typeof rawAttack.area === "object") {

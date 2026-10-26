@@ -48,7 +48,7 @@ test("un TS senza area vale per una creatura, come lo Sputo acido", () => {
   "Sputo velenoso: al massimo 2 bersagli.");
 });
 
-test("soffio: pieno a chi fallisce, metà a chi supera, resistenze del bersaglio; nessun uso speso, CD nel Combat Log", () => {
+test("soffio: pieno a chi fallisce, metà a chi supera, resistenze del bersaglio; CD nel Combat Log", () => {
   const result = buildPcAttackAreaMutation({ action: fireBreath, sourceItem: dragon(),
     members: [{ item: elf(), outcome: "failed" }, { item: orc(), outcome: "passed" }], componentAmounts: { c1: 60 },
     attackInstanceId: "breath-1", expectedDefenses: {}, turnState: null });
@@ -56,12 +56,11 @@ test("soffio: pieno a chi fallisce, metà a chi supera, resistenze del bersaglio
     "l'elfo resiste al fuoco: 60 → 30; l'orco supera: 60 → 30");
   assert.equal(result.causality.attack.source, "monster");
   assert.deepEqual(result.causality.save, { ability: "dex", dc: 21 });
-  assert.deepEqual(result.causality.monster, { name: "Soffio di fuoco", half: true, dice: "18d6 fuoco" });
+  assert.deepEqual(result.causality.monster, { name: "Soffio di fuoco", half: true, dice: "18d6 fuoco",
+    spent: [{ poolId: "quick-action-recharge:fire-breath", name: "Ricarica: Soffio di fuoco", amount: 1, before: 1, after: 0 }] });
   assert.deepEqual(result.causality.area, { manual: true, count: 2, shape: "cone", sizeFeet: 60 });
   assert.equal(result.options.label, "Drago rosso adulto: Soffio di fuoco → 2 creature");
-  assert.equal(Object.hasOwn(result.options.metadataPatches[0].fields, "classFeatureState"), false, "la ricarica non spende nulla (lotto 3)");
   const lines = logLines(result);
-  assert.ok(lines.includes("Azione del mostro: Soffio di fuoco (18d6 fuoco) · TS Destrezza CD 21, metà se superato"), lines.join(" | "));
   assert.ok(lines.includes("Area: 2 creature nel cono"), lines.join(" | "));
 });
 
@@ -107,7 +106,7 @@ test("le etichette del mostro: bonus, portata e gittata in metri, ricarica e usi
   assert.deepEqual(pcAttackMonsterTags(bite), ["+14 al tiro", "portata 3 m"]);
   const bow = sanitizeQuickAction({ id: "bow", label: "Arco", kind: "attack", range: "ranged", components: [{ type: "piercing" }],
     attackBonus: -1, rangeFeet: { normal: 80, long: 320 }, uses: 3 });
-  assert.deepEqual(pcAttackMonsterTags(bow), ["−1 al tiro", "gittata 24/96 m", "3/giorno"]);
+  assert.deepEqual(pcAttackMonsterTags(bow), ["−1 al tiro", "gittata 24/96 m", "3/3 al giorno"]);
   assert.deepEqual(pcAttackMonsterTags(fireBreath), ["Ricarica 5–6"]);
   assert.deepEqual(pcAttackMonsterTags(sanitizeQuickAction({ ...bite, recharge: 6 })), ["+14 al tiro", "portata 3 m", "Ricarica 6"]);
   assert.deepEqual(pcAttackMonsterTags(sanitizeQuickAction({ id: "c", label: "T", kind: "attack", source: { kind: "cantrip" } })), []);
@@ -125,4 +124,62 @@ test("la nota dell'area: forma e misura, TS e CD, cosa fanno successo e fallimen
   const line = sanitizeQuickAction({ ...fireBreath, area: { shape: "line", sizeFeet: 60, widthFeet: 5 } });
   assert.match(pcAttackMonsterAreaNote(pcAttackResolvedAction(line), card), /^Linea di 18 m larga 1,5 m: /);
   assert.equal(pcAttackMonsterAreaNote(pcAttackResolvedAction(bite), card), "");
+});
+
+// Lotto 3: usi al giorno e ricarica, contatori in classFeatureState.resources spesi con l'attacco.
+import { quickActionRechargePool, quickActionRechargeState, quickActionResourcePools, quickActionUsesPool } from "../src/quickActionsCore.js";
+
+const USES = "quick-action-uses:bite-3";
+const RECHARGE = "quick-action-recharge:fire-breath";
+const limitedBite = sanitizeQuickAction({ ...bite, id: "bite-3", uses: 3 });
+const withResources = (actions, resources) => dragon(actions, { classFeatureState: { resources } });
+
+test("i contatori del mostro: usi al giorno al riposo lungo, ricarica di una carica anche al riposo breve", () => {
+  assert.deepEqual(quickActionUsesPool(limitedBite), { id: USES, name: "Usi: Morso", capacity: { type: "fixed", value: 3 },
+    refresh: [{ event: "riposo_lungo", amount: "massimo" }] });
+  assert.deepEqual(quickActionRechargePool(fireBreath), { id: RECHARGE, name: "Ricarica: Soffio di fuoco", capacity: { type: "fixed", value: 1 },
+    refresh: [{ event: "riposo_breve", amount: "massimo" }, { event: "riposo_lungo", amount: "massimo" }] });
+  assert.deepEqual(quickActionResourcePools(bite), []);
+  assert.equal(quickActionUsesPool(sanitizeQuickAction({ id: "c", label: "T", kind: "attack", source: { kind: "cantrip" } })), null);
+  assert.equal(quickActionUsesPool({ id: "s", label: "Sonno", kind: "spell", spellId: "sleep", cost: "uses", uses: 2 }).capacity.value, 2, "gli usi degli incantesimi restano");
+  assert.equal(quickActionRechargeState(fireBreath, {}).ready, true, "pronta finché non è usata");
+  assert.equal(quickActionRechargeState(fireBreath, { [RECHARGE]: { current: 0 } }).ready, false);
+});
+
+test("un attacco con usi al giorno ne spende uno anche se manca; finiti gli usi è bloccato", () => {
+  const result = buildPcAttackMutation({ action: limitedBite, sourceItem: dragon([limitedBite]), targetItem: orc(), outcome: "miss",
+    attackInstanceId: "bite-1", expectedDefenses: {}, turnState: null });
+  assert.equal(result.options.metadataPatches[0].fields.classFeatureState.value.resources[USES].current, 2);
+  assert.deepEqual(result.causality.monster, { name: "Morso", spent: [{ poolId: USES, name: "Usi: Morso", amount: 1, before: 3, after: 2 }] });
+  assert.ok(logLines(result).includes("Azione del mostro: Morso · Usi: Morso 3 → 2"), logLines(result).join(" | "));
+  const empty = withResources([limitedBite], { [USES]: { current: 0 } });
+  assert.equal(pcAttackPreview({ action: limitedBite, sourceItem: empty, targetItem: orc(), outcome: "hit", amounts: { c1: 19, c2: 7 } }).blocker,
+    "Morso: nessun uso rimasto (0/3).");
+  assert.throws(() => buildPcAttackMutation({ action: limitedBite, sourceItem: empty, targetItem: orc(), outcome: "hit", componentAmounts: { c1: 19, c2: 7 },
+    attackInstanceId: "bite-2", expectedDefenses: {}, turnState: null }), /nessun uso rimasto/);
+  assert.deepEqual(pcAttackMonsterTags(limitedBite, { [USES]: { current: 1 } }), ["+14 al tiro", "portata 3 m", "1/3 al giorno"]);
+});
+
+test("la ricarica si spende al primo uso e non blocca mai: riusata da spesa, il Combat Log dice che è tornata al tavolo", () => {
+  const members = [{ item: orc(), outcome: "failed" }];
+  const first = buildPcAttackAreaMutation({ action: fireBreath, sourceItem: dragon(), members, componentAmounts: { c1: 60 },
+    attackInstanceId: "breath-a", expectedDefenses: {}, turnState: null });
+  assert.equal(first.options.metadataPatches[0].fields.classFeatureState.value.resources[RECHARGE].current, 0);
+  assert.ok(logLines(first).includes("Azione del mostro: Soffio di fuoco (18d6 fuoco) · TS Destrezza CD 21, metà se superato · Ricarica: Soffio di fuoco 1 → 0"),
+    logLines(first).join(" | "));
+  const spentDragon = withResources(undefined, { [RECHARGE]: { current: 0 } });
+  assert.deepEqual(pcAttackMonsterTags(fireBreath, { [RECHARGE]: { current: 0 } }), ["Ricarica 5–6 · usata"]);
+  assert.equal(pcAttackAreaPreview({ action: fireBreath, sourceItem: spentDragon, members, amounts: { c1: 60 } }).ready, true, "mai bloccata");
+  const again = buildPcAttackAreaMutation({ action: fireBreath, sourceItem: spentDragon, members, componentAmounts: { c1: 60 },
+    attackInstanceId: "breath-b", expectedDefenses: {}, turnState: null });
+  assert.equal(Object.hasOwn(again.options.metadataPatches[0].fields, "classFeatureState"), false, "niente da spendere");
+  assert.deepEqual(again.causality.monster.spent, [{ poolId: RECHARGE, name: "Ricarica: Soffio di fuoco", recharged: true }]);
+  assert.ok(logLines(again).some((line) => line.endsWith("· Ricarica: Soffio di fuoco tornata al tavolo")), logLines(again).join(" | "));
+});
+
+test("un attacco senza contatori non tocca le risorse", () => {
+  const result = buildPcAttackMutation({ action: bite, sourceItem: dragon(), targetItem: orc(), outcome: "hit", componentAmounts: { c1: 5, c2: 2 },
+    attackInstanceId: "bite-x", expectedDefenses: {}, turnState: null });
+  assert.equal(Object.hasOwn(result.options.metadataPatches[0].fields, "classFeatureState"), false);
+  assert.equal(result.causality.monster, undefined);
 });

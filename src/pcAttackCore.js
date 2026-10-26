@@ -9,7 +9,8 @@ import { ID } from "./constants.js";
 import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
 import { takesDeathSaveDamage } from "./deathSaveCore.js";
 import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
-import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES, QUICK_ACTION_VERSION } from "./quickActionsCore.js";
+import { sanitizeQuickAction, sanitizeQuickActions, QUICK_ACTION_ATTACK_DAMAGE_TYPES, QUICK_ACTION_VERSION, quickActionRechargeState,
+  quickActionUsesLeft } from "./quickActionsCore.js";
 import { pcAttackBreathActionId, pcAttackBreathFeatureId, pcAttackBreathVariant } from "./pcAttackBreathId.js";
 import {
   isBossActionCreature, isBossActionTargetItem, bossMetadataSnapshot, bossConditionAppliedAt,
@@ -718,6 +719,40 @@ function planBreathSpend({ attack, card, state }) {
   return { state: next, spent };
 }
 
+// A monster attack's counters (attacchi dei mostri, lotto 3): its uses a day and its recharge, in the actor's
+// classFeatureState.resources like the spells' own uses (History, Undo, reset with the rests). The uses block the attack
+// when none is left; the recharge never does.
+export function pcAttackMonsterResources(action, sourceItem = null) {
+  const resources = normalizeClassFeatureState(sourceItem?.metadata?.[META_KEY]?.[CLASS_FEATURE_STATE_FIELD]).resources;
+  return { uses: quickActionUsesLeft(action, resources), recharge: quickActionRechargeState(action, resources) };
+}
+
+function monsterUsesBlocker(action, sourceItem) {
+  const { uses } = pcAttackMonsterResources(action, sourceItem);
+  return uses && !uses.current ? `${uses.pool.name.replace(/^Usi: /, "")}: nessun uso rimasto (0/${uses.maximum}).` : "";
+}
+
+// Spent with the attack, whatever its outcome: a use a day, and the recharge while it is ready. Used again while spent,
+// the recharge came back at the table (the GM rolled the d6): nothing to spend, the log says so.
+function planMonsterActionSpend({ action, card, state }) {
+  const uses = quickActionUsesLeft(action, state.resources);
+  const recharge = quickActionRechargeState(action, state.resources);
+  if (!uses && !recharge) return { state, changed: false, spent: [] };
+  if (uses && !uses.current) throw new Error(`${uses.pool.name.replace(/^Usi: /, "")}: nessun uso rimasto. Riapri l'attacco.`);
+  let next = state;
+  const spent = [];
+  const spend = (pool) => { next = planClassFeatureResourceAdjustment(next, pool, card.characterBuild, { delta: -1 }, card.abilityModifiers).state; };
+  if (uses) {
+    spend(uses.pool);
+    spent.push({ poolId: uses.pool.id, name: uses.pool.name, amount: 1, before: uses.current, after: uses.current - 1 });
+  }
+  if (recharge?.ready) {
+    spend(recharge.pool);
+    spent.push({ poolId: recharge.pool.id, name: recharge.pool.name, amount: 1, before: 1, after: 0 });
+  } else if (recharge) spent.push({ poolId: recharge.pool.id, name: recharge.pool.name, recharged: true });
+  return { state: next, changed: JSON.stringify(next) !== JSON.stringify(state), spent };
+}
+
 // What the console shows of a breath: its dice at this level, its DC and the shape of its area.
 export function pcAttackBreathInfo(attack, card = {}) {
   if (!attack?.breath) return null;
@@ -733,16 +768,19 @@ export function pcAttackFeetLabel(feet) {
 }
 
 // What a monster's attack prints beside its name (attacchi dei mostri, lotto 2): the attack bonus, reach and range, the
-// recharge and the uses a day. Shown, never checked: the GM rolls at the table. [] for any other attack.
-export function pcAttackMonsterTags(attack) {
+// recharge and the uses a day (resources: the actor's classFeatureState.resources, for the uses left and a recharge
+// already used). Shown, never checked: the GM rolls at the table. [] for any other attack.
+export function pcAttackMonsterTags(attack, resources = {}) {
   if (!attack || attack.source) return [];
   const range = attack.rangeFeet;
+  const uses = quickActionUsesLeft(attack, resources);
+  const recharge = quickActionRechargeState(attack, resources);
   return [
     ...(Number.isInteger(attack.attackBonus) ? [`${attack.attackBonus >= 0 ? "+" : "−"}${Math.abs(attack.attackBonus)} al tiro`] : []),
     ...(attack.reachFeet ? [`portata ${pcAttackFeetLabel(attack.reachFeet)}`] : []),
     ...(range?.normal ? [`gittata ${range.long ? `${pcAttackFeetLabel(range.normal).replace(" m", "")}/${pcAttackFeetLabel(range.long)}` : pcAttackFeetLabel(range.normal)}`] : []),
-    ...(attack.recharge ? [attack.recharge === 6 ? "Ricarica 6" : `Ricarica ${attack.recharge}–6`] : []),
-    ...(attack.uses ? [`${attack.uses}/giorno`] : []),
+    ...(attack.recharge ? [`${attack.recharge === 6 ? "Ricarica 6" : `Ricarica ${attack.recharge}–6`}${recharge && !recharge.ready ? " · usata" : ""}`] : []),
+    ...(uses ? [`${uses.current}/${uses.maximum} al giorno`] : []),
   ];
 }
 
@@ -917,7 +955,9 @@ export function pcAttackPreview({
     ? spellCasterHealingChange({ damageChanges: [{ requested: spellDamage }], ratio: attack.spell.casterHealRatio, hp: sourceMeta.hp, hpMax: sourceMeta.hpMax })
     : null;
   const spellBlocker = attack.spell && !spellPlan ? "Scegli l'attaccante." : spellPlan && !spellPlan.ok ? spellPlan.reason : "";
-  const blocker = !targetItem ? "Scegli il bersaglio."
+  const usesBlocker = sourceItem ? monsterUsesBlocker(action, sourceItem) : "";
+  const blocker = usesBlocker ? usesBlocker
+    : !targetItem ? "Scegli il bersaglio."
     : spellBlocker ? spellBlocker
     : modeBlocker ? modeBlocker
     : !pcAttackOutcomesFor(attack).includes(outcome) ? (pcAttackSave(attack) ? "Scegli l'esito del tiro salvezza." : "Scegli l'esito dell'attacco.")
@@ -1006,6 +1046,11 @@ export function buildPcAttackMutation({
   const activationPlan = planPcAttackActivations({ requests: activations, attack, outcome, sourceItem, targetItem, turnState, turn,
     attackInstanceId, chosenRiders, chosenExtras, secondaryItem, wovenSecondary: !!woven?.secondary, tempHpItems, burstItems,
     modeAmount, factor });
+  // A monster's uses a day and recharge, on top of what the activations spent.
+  const monsterSpend = planMonsterActionSpend({ action, card: sourceMeta.initiativeCard || {},
+    state: activationPlan.stateChanged ? activationPlan.state : normalizeClassFeatureState(sourceMeta[CLASS_FEATURE_STATE_FIELD]) });
+  const featureStateChanged = activationPlan.stateChanged || monsterSpend.changed;
+  const featureState = monsterSpend.changed ? monsterSpend.state : activationPlan.state;
   const amounts = componentAmounts && typeof componentAmounts === "object" ? componentAmounts : {};
   if (!miss && Object.keys(amounts).some((id) => !attack.components.some((component) => component.id === id)))
     throw new Error("Componente di danno sconosciuta.");
@@ -1094,6 +1139,8 @@ export function buildPcAttackMutation({
       ...(attack.spell ? { spellId: attack.spell.spellId, spellName: attack.spell.name, slotLevel: spellPlan.slotLevel } : {}) },
     action: { id: attack.id, label: actionName, ...(pcAttackSave(attack) ? {} : { attackOutcome: outcome }) },
     attack: { range: attack.range, outcome, source: attack.cantrip ? "cantrip" : attack.spell ? "spell" : "weapon" },
+    // A monster's attack with uses a day or a recharge: what it spent.
+    ...(monsterSpend.spent.length ? { monster: { name: attack.label, spent: monsterSpend.spent } } : {}),
     // slotTracked turns true when pcAttackExecution.js spends the slot in the first registration's command.
     ...(attack.spell ? { spell: { spellId: attack.spell.spellId, name: attack.spell.name, level: attack.spell.level,
       slotLevel: spellPlan.slotLevel, dice: spellPlan.dice, type: attack.components[0].type, typeLabel: damageTypeLabel(attack.components[0].type),
@@ -1262,7 +1309,7 @@ export function buildPcAttackMutation({
           initiativeCard: { mode: "assert", expected: bossMetadataSnapshot(sourceMeta, "initiativeCard") },
           [PC_ATTACK_STATE_FIELD]: { value: state, expected: bossMetadataSnapshot(sourceMeta, PC_ATTACK_STATE_FIELD) },
           // The resources the activations spent and their active instances: the field the card's activation writes.
-          ...(activationPlan.stateChanged ? { [CLASS_FEATURE_STATE_FIELD]: { value: activationPlan.state,
+          ...(featureStateChanged ? { [CLASS_FEATURE_STATE_FIELD]: { value: featureState,
             expected: bossMetadataSnapshot(sourceMeta, CLASS_FEATURE_STATE_FIELD) } } : {}),
         } },
         ...(change?.changed ? [targetProfileAssert(targetItem)] : []),
@@ -1618,7 +1665,9 @@ export function pcAttackAreaPreview({
     if (!option.available) return `${option.label}: ${option.reason}`;
     return option.types.includes(rider.type) ? "" : `${option.label}: scegli il tipo di danno.`;
   }).find(Boolean) || "";
-  const blocker = !chosen.length ? "Scegli le creature dell'area."
+  const usesBlocker = sourceItem ? monsterUsesBlocker(action, sourceItem) : "";
+  const blocker = usesBlocker ? usesBlocker
+    : !chosen.length ? "Scegli le creature dell'area."
     : attack.area.maxTargets && chosen.length > attack.area.maxTargets ? areaTargetLimitText(attack)
     : modeOption && !modeOption.available ? `${modeOption.label}: ${modeOption.reason}`
     : breathOption && !breathOption.available ? `${attack.breath.name}: ${breathOption.reason}`
@@ -1755,7 +1804,9 @@ export function buildPcAttackAreaMutation({
     causality.conditionsApplied = conditionOperations.map((operation) => ({ targetId: operation.targetIds[0], condition: onFail.condition,
       ...(appliedAt ? { appliedAt } : {}) }));
   }
-  const nextFeatureState = spend?.state || breathSpend?.state || null;
+  const monsterSpend = planMonsterActionSpend({ action, card, state: spend?.state || breathSpend?.state || originalState });
+  if (monsterSpend.spent.length && causality.monster) causality.monster.spent = monsterSpend.spent;
+  const nextFeatureState = monsterSpend.changed ? monsterSpend.state : spend?.state || breathSpend?.state || null;
   const stateChanged = !!nextFeatureState && JSON.stringify(nextFeatureState) !== JSON.stringify(originalState);
   return {
     causality, rows, changes: changed.map((row) => ({ item: row.item, change: row.change })),

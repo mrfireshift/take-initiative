@@ -47,7 +47,7 @@ import {
 } from "./classFeatureCatalog.js";
 import { emitMatchedClassFeatureVisual } from "./embersMatchedVisualRenderer.js";
 import { spellSlotPoolId, spellSlotStatus } from "./spellSlotCore.js";
-import { quickActionUsesPool } from "./quickActionsCore.js";
+import { quickActionResourcePools } from "./quickActionsCore.js";
 import { getHistoryEntries } from "./history.js";
 import { planSpeciesHpTrait, SPECIES_HP_TRAIT_KINDS, speciesHpTraitAmount, speciesLastDamageTaken } from "./speciesHpTraitCore.js";
 import { isReactionClassFeature, planReactionSpend } from "./reactionTrackerCore.js";
@@ -1878,9 +1878,9 @@ function characterResourcePools(sourceItem, profile) {
       if (poolId) poolIds.add(String(poolId));
     }
   }
+  // The quick actions' own counters: a spell's uses, a monster attack's uses a day and recharge.
   const quickActionPools = (Array.isArray(profile.quickActions) ? profile.quickActions : [])
-    .map(quickActionUsesPool)
-    .filter(Boolean);
+    .flatMap(quickActionResourcePools);
   return [
     ...[...poolIds].map((poolId) => getClassFeatureResourcePool(poolId)).filter(Boolean),
     ...quickActionPools,

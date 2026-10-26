@@ -1647,8 +1647,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const saveLabel=pcAttackSaveLabel(attack,presentation?.item?.metadata?.[META_KEY]?.initiativeCard);
     const parts=[named || action?.label,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[]),
       saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":RANGE_LABELS[attack?.range]) || "",
-      // A monster's attack: its bonus, reach or range, recharge and uses, as its stat block prints them.
-      ...pcAttackMonsterTags(attack)].filter(Boolean);
+      // A monster's attack: its bonus, reach or range, recharge and uses, as its stat block prints them; the uses left and a
+      // recharge already used from the actor's resources.
+      ...pcAttackMonsterTags(attack,presentation?.item?.metadata?.[META_KEY]?.classFeatureState?.resources || {})].filter(Boolean);
     $("pc-attack-subtitle").textContent=presentation?parts.join(" · "):"";
   }
   function renderTarget() {

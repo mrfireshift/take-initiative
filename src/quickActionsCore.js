@@ -49,6 +49,7 @@ export const QUICK_ACTION_EXPIRY_MODES = Object.freeze([
 export const QUICK_ACTION_SPELL_COSTS = Object.freeze(["slot", "uses", "free"]);
 export const MAX_QUICK_ACTION_USES = 9;
 const QUICK_ACTION_USES_POOL_PREFIX = "quick-action-uses:";
+const QUICK_ACTION_RECHARGE_POOL_PREFIX = "quick-action-recharge:";
 
 const spellCostSet = new Set(QUICK_ACTION_SPELL_COSTS);
 const kindSet = new Set(QUICK_ACTION_KINDS);
@@ -291,15 +292,44 @@ export function parseQuickActionAttackImport(text) {
 
 // The counter of a spell quick action with its own uses: a class-feature resource pool built from the action, kept in
 // classFeatureState.resources like the others (History, Undo, reset at the long rest).
+// A monster's attack with uses a day (attacchi dei mostri, lotto 3) has the same counter.
 export function quickActionUsesPool(action) {
   const normalized = sanitizeQuickAction(action);
-  if (normalized?.kind !== "spell" || normalized.cost !== "uses") return null;
+  const uses = normalized?.kind === "spell" && normalized.cost === "uses" ? normalized.uses
+    : normalized?.kind === "attack" && !normalized.source && normalized.uses ? normalized.uses : null;
+  if (!uses) return null;
   return {
     id: `${QUICK_ACTION_USES_POOL_PREFIX}${normalized.id}`,
     name: `Usi: ${normalized.label}`,
-    capacity: { type: "fixed", value: normalized.uses },
+    capacity: { type: "fixed", value: uses },
     refresh: [{ event: "riposo_lungo", amount: "massimo" }],
   };
+}
+
+// A monster's attack with a recharge (Recharge 5–6): one charge, spent when it is used and back with a rest. It never
+// blocks the attack: the GM rolls the d6 at the table and, when it comes back, simply uses it again.
+export function quickActionRechargePool(action) {
+  const normalized = sanitizeQuickAction(action);
+  if (normalized?.kind !== "attack" || normalized.source || !normalized.recharge) return null;
+  return {
+    id: `${QUICK_ACTION_RECHARGE_POOL_PREFIX}${normalized.id}`,
+    name: `Ricarica: ${normalized.label}`,
+    capacity: { type: "fixed", value: 1 },
+    refresh: [{ event: "riposo_breve", amount: "massimo" }, { event: "riposo_lungo", amount: "massimo" }],
+  };
+}
+
+// Every counter of an action: its uses, its recharge.
+export function quickActionResourcePools(action) {
+  return [quickActionUsesPool(action), quickActionRechargePool(action)].filter(Boolean);
+}
+
+// The recharge of an action (resources is classFeatureState.resources): ready until it is used; null without one.
+export function quickActionRechargeState(action, resources = {}) {
+  const pool = quickActionRechargePool(action);
+  if (!pool) return null;
+  const stored = resources?.[pool.id]?.current;
+  return { pool, recharge: sanitizeQuickAction(action).recharge, ready: stored === null || stored === undefined || Number(stored) > 0 };
 }
 
 // The uses left of an action with its own counter (resources is classFeatureState.resources); null without one.
