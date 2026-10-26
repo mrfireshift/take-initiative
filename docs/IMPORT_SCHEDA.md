@@ -163,7 +163,18 @@ Ciò che il plugin non riconosce va in rosso, non viene indovinato. Un'azione
 senza danni né tiro salvezza (un teletrasporto) è segnalata e resta da
 gestire al tavolo. Un attacco che al colpo chiede anche un tiro salvezza (il
 ghoul, il ragno gigante) registra il colpo; il tiro salvezza resta nella nota.
-I punti ferita (`hitPoints`) si leggono ma, per ora, si impostano dal tracker.
+I punti ferita (`hitPoints`, `{ "average", "formula" }` o un numero) compaiono
+come riga **Punti ferita** con la media dello statblock, modificabile (il
+plugin non tira la formula). Si scrivono dopo **Salva**, come PF attuali e
+massimi, con lo stesso comando delle modifiche PF del tracker (una voce di
+cronologia, annullabile):
+
+- un token che ha già i suoi PF li tiene, a meno di spuntare **Sostituisci i
+  PF attuali**;
+- **Anche agli altri token** imposta gli stessi PF sulle altre creature con lo
+  stesso nome (senza PF, o tutte con «Sostituisci»);
+- i personaggi e i token con PF condivisi non vengono mai toccati: i loro PF
+  si impostano dal tracker.
 
 ### Prompt per un assistente
 

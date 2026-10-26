@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 1 (piano)
 
-Stato: **approvato il 26/10/2026**, lotti 1–4 implementati.
+Stato: **approvato il 26/10/2026**, lotti 1–5 implementati.
 
 Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non viene toccato; i boss seguono l'interruttore Mostri; PF dalla media dello statblock, modificabile, con sovrascrittura spuntata solo se il token non ha PF; fase 1b dopo la fase 1.
 
@@ -16,6 +16,7 @@ Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non v
 - **Lotto 4, formato delle azioni.** `attack: { bonus, type: "melee" | "ranged", reach, range: { normal, long } }` (accettato anche `range: "melee"`); `area.size` e `area.width` in piedi o metri; `area.shape: "target"` con `targets`; condizioni in inglese o italiano mappate sui nomi di `CONDITION_LIST`. Un'azione con attacco **e** TS registra l'attacco e segnala il TS (fase 1b); un'azione senza danni né TS è segnalata e resta al tavolo. Formato e prompt in `docs/IMPORT_SCHEDA.md`.
 - **Lotto 4, marcatore del mostro.** Applicare uno statblock scrive sempre `monster.source` sulla scheda (anche senza multiattacco): servirà al lotto 6 per tenere le schede dei mostri fuori dal registro room. I PF (`hitPoints`) si leggono ma si applicano nel lotto 5.
 - **Lotto 4, accesso alla scheda.** Predicato unico `canOpenInitiativeCardSheet` (`src/initiativeCardSheetAccessCore.js`) per l'apertura dal tracker e per il pulsante delle carte classica e compatta.
+- **Lotto 5, cautele in più.** Oltre ai token con PF (salvo «Sostituisci»), restano fuori i personaggi (`attitude: "pc"`, i cui PF vivono anche in `hpMemory`) e ogni token di una riserva di PF condivisi, sorgente o membro, anche con il collegamento rotto: la riserva non si imposta dallo statblock di una creatura. Il comando `hp:set` ha History (Undo) e i valori attesi di `hp`/`hpMax`; dopo il commit barre e testi HP come la console HP rapida. Pianificatore puro in `src/monsterHitPointsImportCore.js`, passo runtime in `src/monsterHitPointsImport.js`.
 - **Lotto 2, banco.** Scenari `pc-monster`, `pc-monster-bite`, `pc-monster-presence` (e, dal lotto 4, `monster-sheet`: la scheda di un goblin nemico) nel banco `boss-actions-preview` (porta 5199).
 
 Decisioni già prese dall'utente (26/10/2026):
@@ -144,7 +145,7 @@ Ogni lotto è un commit a sé, con i test del suo modulo e `npm run build`.
 }
 ```
 
-### Lotto 5 — PF dallo statblock ⚠️ tocca la sincronizzazione dei PF
+### Lotto 5 — PF dallo statblock ⚠️ tocca la sincronizzazione dei PF ✅
 
 - Dopo **Salva** della scheda, se la sezione PF è spuntata: `hp:set` con `hp = hpMax = average` tramite `runEffectsMutation`, come `updateHP`. Mai una scrittura diretta dei metadata.
 - Il valore è modificabile nell'anteprima (il plugin non tira la formula).

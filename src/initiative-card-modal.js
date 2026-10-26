@@ -71,6 +71,7 @@ import {
   sheetImportSectionSummary,
 } from "./characterSheetImportCore.js";
 import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
+import { hasCanonicalHitPoints, monsterHitPointsSummary, monsterNamesakes } from "./monsterHitPointsImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
 import { pcAttackBreathActionId } from "./pcAttackBreathId.js";
 import { PC_ATTACK_CANTRIPS } from "./pcAttackCantripCatalog.js";
@@ -3585,6 +3586,8 @@ function importAttacks() {
 // Character sheet import: a JSON block read into sections; the GM picks some and they fill the editor
 // on every tab. Nothing is saved until Salva, as with the Attacks import.
 let sheetImportResult = null;
+// A monster's hit points chosen in the import, written after the sheet's Salva: { hp, overwrite, sameName } or null.
+let pendingMonsterHitPoints = null;
 
 function setSheetImportStatus(message = "", tone = "") {
   $("sheetImportStatus").textContent = message;
@@ -3621,6 +3624,8 @@ function sheetImportNames() {
 
 function readSheetImport() {
   resetSheetImport();
+  // A new block replaces the hit points chosen from the previous one; closing the panel after Applica keeps them.
+  pendingMonsterHitPoints = null;
   const result = parseCharacterSheetImport($("sheetImportText").value);
   if (result.error) {
     setSheetImportStatus(result.error, "error");
@@ -3662,10 +3667,58 @@ function readSheetImport() {
     rows.push(unresolved);
   }
   $("sheetImportSections").replaceChildren(...rows);
+  if (result.hitPoints) void appendSheetImportHitPoints(result);
   $("sheetImportSections").hidden = false;
   $("sheetImportApplyRow").hidden = false;
   const kind = result.monster ? "Statblock" : "Scheda";
   setSheetImportStatus(`${result.name ? `${kind} di ${result.name}: s` : "S"}cegli le sezioni da applicare.`);
+}
+
+// A monster's hit points: the stat block's average (editable: the plugin never rolls the formula), ticked; replacing the
+// token's current hit points only when asked; the other tokens with its name, when there are some.
+async function appendSheetImportHitPoints(result) {
+  const items = await OBR.scene.items.getItems().catch(() => []);
+  if (sheetImportResult !== result) return;
+  const self = items.find((entry) => entry.id === item?.id) || item;
+  const meta = self?.metadata?.[META_KEY] || {};
+  const row = document.createElement("label");
+  row.className = "sheet-import-section";
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = true;
+  checkbox.dataset.sheetImportHp = "1";
+  const copy = document.createElement("span");
+  const title = document.createElement("strong");
+  title.textContent = "Punti ferita";
+  const summary = document.createElement("small");
+  summary.textContent = `Media dello statblock${result.hitPoints.formula ? ` (${result.hitPoints.formula})` : ""} · dopo Salva`;
+  copy.append(title, summary);
+  const value = document.createElement("input");
+  value.type = "number";
+  value.min = "1";
+  value.max = "9999";
+  value.step = "1";
+  value.value = String(result.hitPoints.average);
+  value.className = "sheet-import-hp-value";
+  value.dataset.sheetImportHpValue = "1";
+  value.setAttribute("aria-label", "Punti ferita da impostare");
+  row.append(checkbox, copy, value);
+  const options = [];
+  const option = (dataset, text) => {
+    const label = document.createElement("label");
+    label.className = "sheet-import-hp-option";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.dataset[dataset] = "1";
+    label.append(box, document.createTextNode(text));
+    options.push(label);
+  };
+  if (hasCanonicalHitPoints(self)) option("sheetImportHpOverwrite", `Sostituisci i PF attuali (${meta.hp}/${meta.hpMax})`);
+  // The characters among them are never written: they are not counted.
+  const namesakes = monsterNamesakes(items, item?.id).filter((entry) => entry.metadata?.[META_KEY]?.attitude !== "pc");
+  if (namesakes.length) option("sheetImportHpNamesakes", `${namesakes.length === 1 ? "Anche all'altro token" : `Anche agli altri ${namesakes.length} token`} «${item.name}» (senza PF, o tutti con «Sostituisci»)`);
+  const unresolved = $("sheetImportSections").querySelector(".sheet-import-unresolved");
+  for (const node of [row, ...options]) $("sheetImportSections").insertBefore(node, unresolved);
 }
 
 function applyImportedAttacks(attacks, mode) {
@@ -3692,7 +3745,7 @@ function applySheetImport() {
     .filter((checkbox) => checkbox.checked)
     .map((checkbox) => checkbox.dataset.sheetImportSection);
   const modeOf = (id) => $("sheetImportSections").querySelector(`[data-sheet-import-mode="${id}"]`)?.value || "add";
-  if (!chosen.length) {
+  if (!chosen.length && !$("sheetImportSections").querySelector("[data-sheet-import-hp]")?.checked) {
     setSheetImportStatus("Nessuna sezione scelta.", "error");
     return;
   }
@@ -3743,11 +3796,24 @@ function applySheetImport() {
       $("notesInput").value = section;
     }
   }
+  // A monster's hit points: set after Salva, through the tracker's HP command.
+  const hpBox = $("sheetImportSections").querySelector("[data-sheet-import-hp]");
+  const hpValue = Number($("sheetImportSections").querySelector("[data-sheet-import-hp-value]")?.value);
+  if (hpBox?.checked && !(Number.isInteger(hpValue) && hpValue >= 1 && hpValue <= 9999)) {
+    setSheetImportStatus("Punti ferita: un numero intero da 1 a 9999.", "error");
+    return;
+  }
+  pendingMonsterHitPoints = hpBox?.checked ? {
+    hp: hpValue,
+    overwrite: !!$("sheetImportSections").querySelector("[data-sheet-import-hp-overwrite]")?.checked,
+    sameName: !!$("sheetImportSections").querySelector("[data-sheet-import-hp-namesakes]")?.checked,
+  } : null;
+  if (pendingMonsterHitPoints) chosen.push("hitPoints");
   // A monster's block marks the card as a monster's (its source), whatever sections were applied.
   if (sheetImportResult.monster) {
     draftMonsterProfile = sanitizeMonsterProfile({ ...(draftMonsterProfile || {}), source: sheetImportResult.monster.source });
   }
-  const labelsById = new Map(SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]));
+  const labelsById = new Map([...SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]), ["hitPoints", "Punti ferita (dopo Salva)"]]);
   setSheetImportStatus(
     `Compilato: ${chosen.map((id) => labelsById.get(id)).join(", ")}. Controlla le schede e premi Salva.`,
     "success",
@@ -4285,6 +4351,7 @@ function setEditing(active) {
   buildQuickActionEditor();
   buildSpellbookEditor();
   draftMonsterProfile = Object.hasOwn(profile || {}, MONSTER_PROFILE_FIELD) ? sanitizeMonsterProfile(profile[MONSTER_PROFILE_FIELD]) : undefined;
+  pendingMonsterHitPoints = null;
   setSheetImportOpen(false);
   buildSpeciesEditor();
   buildClassBuildEditor();
@@ -4554,11 +4621,27 @@ $("form").addEventListener("submit", async (event) => {
       sceneIdentity: ownerSceneContext.sceneIdentity,
     });
     if (!sceneLifecycle.isCurrent(operation)) return;
+    // A monster's hit points from its stat block: after the card, as their own command (History, Undo).
+    const hitPoints = pendingMonsterHitPoints;
+    pendingMonsterHitPoints = null;
+    let hitPointsStatus = "";
+    if (hitPoints) {
+      try {
+        const { applyMonsterHitPoints } = await import("./monsterHitPointsImport.js");
+        const { plan } = await applyMonsterHitPoints({ sourceId: item.id, ...hitPoints, sceneIdentity: ownerSceneContext.sceneIdentity,
+          isCurrent: () => sceneLifecycle.isCurrent(operation) });
+        hitPointsStatus = monsterHitPointsSummary(plan, hitPoints.hp);
+      } catch (error) {
+        hitPointsStatus = `Scheda salvata; PF non impostati: ${error?.message || error}`;
+      }
+      if (!sceneLifecycle.isCurrent(operation)) return;
+    }
     [item] = await OBR.scene.items.getItems([item.id]);
     if (!sceneLifecycle.isCurrent(operation)) return;
     profile = getInitiativeCard(item);
     renderView();
     setEditing(false);
+    if (hitPointsStatus) $("status").textContent = hitPointsStatus;
   } catch (err) {
     $("status").textContent = err?.message || "Salvataggio non riuscito";
   } finally {
