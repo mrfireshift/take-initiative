@@ -159,6 +159,28 @@ personaggio. Le distanze sono in piedi come negli statblock (`10`,
 | `uses` | Usi al giorno (`3` o `"3/giorno"`): finiti gli usi la console blocca l'azione; tornano con il riposo lungo. |
 | `note` | Fino a 280 caratteri: la parte dell'azione che il plugin non automatizza, mostrata sotto i danni. |
 
+### Incantesimi del mostro
+
+Gli incantesimi dello statblock usano le chiavi della scheda personaggio più
+una propria:
+
+- `spellSaveDC` e `spellAttackBonus`: CD e bonus degli incantesimi;
+- `classes` (`[{ "class": "wizard", "level": 9 }]`) e `spells`: un
+  incantatore a slot («è un incantatore di 9° livello… incantesimi da mago»).
+  Classe e livello danno gli slot, calcolati dal plugin come per un
+  personaggio; per un mostro le **capacità della classe partono spente**
+  (resta solo la magia). Gli incantesimi vanno nel libro, tutti preparati;
+- `innateSpells`: gli incantesimi innati, `[{ "name": "Darkness",
+  "perDay": 1 }, { "name": "Detect Magic" }]`; senza `perDay` sono a
+  volontà. Ognuno diventa un'**azione rapida** (⚡): «Gratuito» a volontà,
+  «Usi propri» con `perDay` usi (tornano con il riposo lungo). Un trucchetto
+  a volontà va invece nel libro, dove la console lo trova tra i Trucchetti.
+  Le azioni rapide sono al massimo 12: quelle in più vanno in rosso.
+
+Uno statblock di un mostro importato sopra un altro sostituisce anche classe,
+libro e incantesimi innati: un mostro senza incantesimi non tiene quelli di
+prima. Le azioni rapide che non sono incantesimi innati restano.
+
 Ciò che il plugin non riconosce va in rosso, non viene indovinato. Un'azione
 senza danni né tiro salvezza (un teletrasporto) è segnalata e resta da
 gestire al tavolo. Un attacco che al colpo chiede anche un tiro salvezza (il
@@ -196,9 +218,24 @@ della sua base; se manca, il messaggio dice quale caricare.
 
 Sopra le sezioni compare cosa la console registra e, in **Al tavolo**, cosa
 resta da gestire a mano: il tiro salvezza al colpo, le azioni senza danni né
-tiro salvezza, i tratti, le azioni leggendarie, gli incantesimi, le difese
-condizionali (per esempio la resistenza alle armi non magiche, segnalata e
-non importata). Nomi di mostri e azioni restano in inglese.
+tiro salvezza, i tratti, le azioni leggendarie, le difese condizionali (per
+esempio la resistenza alle armi non magiche, segnalata e non importata). Nomi
+di mostri e azioni restano in inglese.
+
+Gli incantesimi si leggono dai blocchi «Spellcasting» e «Innate
+Spellcasting» come descritto sopra. In **Al tavolo** compaiono:
+
+- gli slot dello statblock diversi da quelli della classe (alcuni mostri,
+  come l'Acolyte o il Flameskull, ne hanno di propri: la console usa quelli
+  della classe);
+- una CD diversa tra i due blocchi (la scheda tiene quella del blocco a slot);
+- gli usi «in comune» («3/day» senza «each»: ogni incantesimo ha i suoi usi,
+  il totale si tiene al tavolo);
+- un incantatore senza classe, i cui slot restano al tavolo.
+
+Il catalogo del plugin è quello dell'SRD: gli incantesimi con il nome di un
+mago (Melf's Acid Arrow, Evard's Black Tentacles…) si trovano con il nome
+dell'SRD, quelli fuori dall'SRD (Witch Bolt, Chromatic Orb…) vanno in rosso.
 
 Il plugin non contiene dati di 5eTools: i file restano in memoria solo
 mentre modifichi la scheda.
@@ -273,5 +310,9 @@ name e, a seconda dell'azione:
   gli usi al giorno;
 - note: al massimo 280 caratteri con ciò che resta da fare al tavolo
   (tiri salvezza al colpo, durate, ripetizioni del TS).
+Incantesimi: spellSaveDC e spellAttackBonus; per un incantatore a slot
+classes: [{ class, level }] con la classe in inglese e spells: i nomi
+inglesi degli incantesimi; per gli innati innateSpells: [{ name, perDay }],
+senza perDay se a volontà.
 Non inventare valori assenti. Usa le regole del Manuale dei Mostri 2014.
 ```

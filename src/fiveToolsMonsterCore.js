@@ -5,6 +5,7 @@
 // the 2014 ones. What the adapter cannot read becomes the action's note or a line of the report, never a guess.
 import { monsterImportConditionName } from "./monsterStatblockImportCore.js";
 import { fiveToolsTokenPath } from "./fiveToolsArchiveCore.js";
+import { spellSlotMaximums } from "./spellSlotCore.js";
 
 const ABILITY_BY_NAME = Object.freeze({ strength: "str", dexterity: "dex", constitution: "con", intelligence: "int", wisdom: "wis", charisma: "cha" });
 const SOURCES_2024 = new Set(["XMM", "XPHB", "XDMG"]);
@@ -188,6 +189,93 @@ function defenses(list, field, report) {
 // A monster derived from another (fase 2, lotto 2): `_copy` names its base (name and source) and `_mod` its changes.
 // The base comes from the monsters the GM loaded together (pool), a derived base is resolved in turn. The copy's own
 // fields replace the base's; the changes 5eTools data use on monsters are applied, the others reported.
+// A monster's spells (fase 4, lotto 4). The plugin's catalog is the SRD's: the spells named after a wizard in the
+// Monster Manual have their SRD name there; any other name stays as it is, and the sheet's import reports it if unknown.
+const SPELL_NAME_ALIASES = Object.freeze({
+  "bigby's hand": "Arcane Hand", "drawmij's instant summons": "Instant Summons", "evard's black tentacles": "Black Tentacles",
+  "leomund's secret chest": "Secret Chest", "leomund's tiny hut": "Tiny Hut", "melf's acid arrow": "Acid Arrow",
+  "mordenkainen's faithful hound": "Faithful Hound", "mordenkainen's magnificent mansion": "Magnificent Mansion",
+  "mordenkainen's private sanctum": "Private Sanctum", "mordenkainen's sword": "Arcane Sword", "nystul's magic aura": "Arcanist's Magic Aura",
+  "otiluke's freezing sphere": "Freezing Sphere", "otiluke's resilient sphere": "Resilient Sphere", "otto's irresistible dance": "Irresistible Dance",
+  "rary's telepathic bond": "Telepathic Bond", "tasha's hideous laughter": "Hideous Laughter", "tenser's floating disk": "Floating Disk",
+});
+// "The mage has the following wizard spells prepared": the class whose slots the plugin keeps (decision D5).
+const SPELLCASTING_CLASSES = Object.freeze({ bard: "bardo", cleric: "chierico", druid: "druido", paladin: "paladino", ranger: "ranger",
+  sorcerer: "stregone", warlock: "warlock", wizard: "mago" });
+const ORDINAL_LEVEL = /\b(\d{1,2})(?:st|nd|rd|th)-level spellcaster/i;
+
+// One spell of a list: "{@spell levitate} (self only)", "{@spell mage armor}*", "{@spell invisibility|PHB}" → its name.
+export function fiveToolsSpellName(entry) {
+  const tagged = String(entry ?? "").match(/\{@spell ([^}|]+)/);
+  const name = (tagged ? tagged[1] : fiveToolsPlainText(entry).replace(/\*+$/, "").replace(/\s*\(.*\)\s*$/, "")).replace(/\s+/g, " ").trim();
+  return SPELL_NAME_ALIASES[name.toLowerCase()] || name;
+}
+
+// The spellcasting of a monster as the plugin's stat block reads it: { spellSaveDC, spellAttackBonus, classes, spells,
+// innateSpells }. The block with slots gives the class and level (their slots are the plugin's, as a character's) and
+// the book, all prepared; "at will" and "X/day" give the innate spells, cast without slots. What the plugin cannot keep
+// goes to the report.
+function fiveToolsSpellcasting(monster, report) {
+  const blocks = (Array.isArray(monster.spellcasting) ? monster.spellcasting : []).filter((block) => block && typeof block === "object");
+  if (!blocks.length) return {};
+  const out = { spells: [], innateSpells: [] };
+  const header = (block) => entriesText(block.headerEntries);
+  const numberAfter = (text, tag) => {
+    const match = String(text).match(new RegExp(String.raw`\{@${tag} (-?\d+)\}`));
+    return match ? Number(match[1]) : null;
+  };
+  // The DC and bonus of the card: the block with slots first, as its are the ones a caster's spells use.
+  const ordered = [...blocks.filter((block) => block.spells), ...blocks.filter((block) => !block.spells)];
+  for (const block of ordered) {
+    const dc = numberAfter(header(block), "dc");
+    const hit = numberAfter(header(block), "hit");
+    if (out.spellSaveDC === undefined && dc !== null) out.spellSaveDC = dc;
+    else if (dc !== null && dc !== out.spellSaveDC) report.push(`${fiveToolsPlainText(block.name || "Spellcasting")}: CD ${dc}, sulla scheda ${out.spellSaveDC}`);
+    if (out.spellAttackBonus === undefined && hit !== null) out.spellAttackBonus = hit;
+  }
+  for (const block of ordered) {
+    const name = fiveToolsPlainText(block.name || "Spellcasting");
+    if (block.spells && typeof block.spells === "object") {
+      for (const level of Object.values(block.spells)) for (const spell of asList(level?.spells)) out.spells.push({ name: fiveToolsSpellName(spell) });
+      const text = header(block);
+      const level = Number(text.match(ORDINAL_LEVEL)?.[1]);
+      const englishClass = Object.keys(SPELLCASTING_CLASSES).find((key) => new RegExp(String.raw`\b${key} spells\b`, "i").test(text));
+      if (!out.classes && englishClass && level >= 1 && level <= 20) {
+        out.classes = [{ class: englishClass, level }];
+        const slotsReport = fiveToolsSlotMismatch(block.spells, [{ classId: SPELLCASTING_CLASSES[englishClass], level }]);
+        if (slotsReport) report.push(`${name}: slot dello statblock ${slotsReport.statblock}, quelli del plugin per ${englishClass} ${level} ${slotsReport.plugin}`);
+      } else if (!out.classes) {
+        report.push(`${name}: incantatore senza classe, gli slot restano al tavolo`);
+      }
+    }
+    for (const spell of asList(block.will)) out.innateSpells.push({ name: fiveToolsSpellName(spell) });
+    // As the stat block prints them, the most uses first ("3/day each", then "1/day each").
+    const daily = Object.entries(block.daily && typeof block.daily === "object" ? block.daily : {})
+      .sort(([left], [right]) => Number.parseInt(right, 10) - Number.parseInt(left, 10));
+    for (const [key, list] of daily) {
+      const perDay = Number.parseInt(key, 10);
+      if (!(perDay >= 1)) continue;
+      const spells = asList(list).map(fiveToolsSpellName);
+      for (const spell of spells) out.innateSpells.push({ name: spell, perDay });
+      // "3/day" without "each": one pool for all of them; the plugin gives each one its own uses.
+      if (!key.endsWith("e") && spells.length > 1) report.push(`${perDay}/giorno in comune tra ${spells.join(", ")}: ognuno ha i suoi usi, il totale si tiene al tavolo`);
+    }
+    for (const field of ["weekly", "rest", "recharge", "charges"]) {
+      if (block[field]) report.push(`${name}: incantesimi a uso ${field === "weekly" ? "settimanale" : field === "rest" ? "per riposo" : "a ricarica"} da gestire al tavolo`);
+    }
+  }
+  return Object.fromEntries(Object.entries(out).filter(([, value]) => value !== undefined && !(Array.isArray(value) && !value.length)));
+}
+
+// The stat block's slots against the plugin's for the class: "" when they are the same.
+function fiveToolsSlotMismatch(levels, characterBuild) {
+  const { slots, pact } = spellSlotMaximums(characterBuild);
+  const plugin = pact ? `${pact.count}×${pact.level}°` : Object.entries(slots).map(([level, count]) => `${count}×${level}°`).join(" ");
+  const statblock = Object.entries(levels).filter(([, level]) => Number(level?.slots) > 0)
+    .map(([level, entry]) => `${entry.slots}×${level}°`).join(" ");
+  return statblock && statblock !== plugin ? { statblock, plugin: plugin || "nessuno" } : null;
+}
+
 const MOD_TEXT_PROPS = Object.freeze(["trait", "action", "bonus", "reaction", "legendary", "mythic", "spellcasting"]);
 const MOD_ARRAY_MODES = new Set(["prependArr", "appendArr", "insertArr", "removeArr", "replaceArr", "replaceOrAppendArr", "appendIfNotExistsArr"]);
 const monsterKey = (name, source) => `${String(name || "").trim().toLowerCase()}|${String(source || "").trim().toLowerCase()}`;
@@ -326,7 +414,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
   const notes = [traits.length ? `Tratti: ${traits.join(", ")}.` : "", conditionImmune.length ? `Immune a: ${conditionImmune.join(", ")}.` : ""].filter(Boolean).join(" ");
   if (traits.length) report.push(`tratti da leggere al tavolo: ${traits.join(", ")}`);
   if (monster.legendary) report.push("azioni leggendarie non ancora importate");
-  if (monster.spellcasting) report.push("incantesimi del mostro non importati");
+  const spellcasting = fiveToolsSpellcasting(monster, report);
   if (Array.isArray(monster.reaction) && monster.reaction.length) report.push(`reazioni da gestire al tavolo: ${monster.reaction.map((entry) => fiveToolsPlainText(entry?.name || "")).join(", ")}`);
   if (monster.hp && !Number.isFinite(monster.hp.average)) report.push(`punti ferita speciali: ${fiveToolsPlainText(monster.hp.special || "")}`);
   const portrait = fiveToolsTokenPath({ ...monster, name: input.name, source: input.source });
@@ -335,6 +423,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
     // Its token image in 5eTools' image mirror (fase 4, lotto 3): the path; the sheet adds the mirror's address.
     ...(portrait ? { portrait: { fiveTools: portrait } } : {}),
     ...(armorClass ? { armorClass } : {}),
+    ...spellcasting,
     ...(Number.isFinite(monster.hp?.average) ? { hitPoints: { average: monster.hp.average, ...(monster.hp.formula ? { formula: monster.hp.formula } : {}) } } : {}),
     ...(Number.isFinite(walk) && walk > 0 ? { speed: `${walk} ft` } : {}),
     ...(Object.keys(abilities).length ? { abilities } : {}),

@@ -9,7 +9,7 @@ import { MAX_CHARACTER_CLASSES, sanitizeCharacterBuild } from "./classFeatureCor
 import { SPECIES, SUPERNATURAL_GIFTS, speciesDisplayName, supernaturalGiftDisplayName } from "./speciesTraitCore.js";
 import { DAMAGE_TYPES, sanitizeDamageDefenses, hasDamageDefenses } from "./damageDefensesCore.js";
 import { ABILITY_KEYS, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
-import { MAX_QUICK_ACTION_ATTACKS, sanitizeQuickAction } from "./quickActionsCore.js";
+import { MAX_QUICK_ACTIONS, MAX_QUICK_ACTION_ATTACKS, MAX_QUICK_ACTION_USES, sanitizeQuickAction } from "./quickActionsCore.js";
 import { MAX_SPELLBOOK_SPELLS, sanitizeSpellbook } from "./spellbookCore.js";
 import { normalizeSpeedMeters } from "./speedCheckCore.js";
 import { importedMonsterActions, importedMonsterHitPoints, isMonsterStatblock, monsterImportRef, monsterImportSource } from "./monsterStatblockImportCore.js";
@@ -24,6 +24,8 @@ export const SHEET_IMPORT_SECTIONS = Object.freeze([
   Object.freeze({ id: "saves", label: "Tiri salvezza" }),
   Object.freeze({ id: "defenses", label: "Difese ai danni" }),
   Object.freeze({ id: "spells", label: "Incantesimi" }),
+  // A monster's innate spells (attacchi dei mostri, fase 4, lotto 4): quick actions, free or with uses of their own.
+  Object.freeze({ id: "innate", label: "Incantesimi innati" }),
   Object.freeze({ id: "attacks", label: "Attacchi" }),
   // A monster's stat block (attacchi dei mostri, lotto 4): its Multiattack, shown over the console's attacks.
   Object.freeze({ id: "multiattack", label: "Multiattacco" }),
@@ -31,7 +33,7 @@ export const SHEET_IMPORT_SECTIONS = Object.freeze([
 ]);
 
 // The list sections can be added to the current list or replace it.
-export const SHEET_IMPORT_LIST_SECTIONS = Object.freeze(["spells", "attacks"]);
+export const SHEET_IMPORT_LIST_SECTIONS = Object.freeze(["spells", "innate", "attacks"]);
 
 export const SHEET_IMPORT_ABILITY_LABELS = Object.freeze({ str: "FOR", dex: "DES", con: "COS", int: "INT", wis: "SAG", cha: "CAR" });
 
@@ -330,6 +332,44 @@ function importedSpells(data, unresolved) {
   return spellbook.spellIds.length ? spellbook : null;
 }
 
+// innateSpells: [{ name, perDay }], no perDay for "at will" (a monster's stat block, fase 4, lotto 4). Each one a spell
+// quick action cast without a slot: "Gratuito" at will, "Usi propri" with perDay uses (back at the long rest). A cantrip
+// at will needs no slot anyway: it goes to the book (cantrips), where the console's Cantrips tab finds it.
+function importedInnateSpells(data, unresolved) {
+  const source = Array.isArray(data.innateSpells) ? data.innateSpells : [];
+  const actions = [];
+  const cantrips = [];
+  const overflow = [];
+  for (const entry of source) {
+    const raw = entry && typeof entry === "object" ? entry : { name: entry };
+    const name = text(raw.name ?? raw.nome);
+    if (!name) continue;
+    const spell = getSpellDefinition(name);
+    if (!spell) {
+      unresolved.push(`incantesimo "${name}"`);
+      continue;
+    }
+    const perDay = integer(raw.perDay);
+    if (!perDay && spell.level === 0) {
+      if (!cantrips.includes(spell.id)) cantrips.push(spell.id);
+      continue;
+    }
+    if (actions.some((action) => action.spellId === spell.id)) continue;
+    if (actions.length >= MAX_QUICK_ACTIONS) {
+      overflow.push(spell.displayName || spell.name);
+      continue;
+    }
+    const action = sanitizeQuickAction({ id: "import", kind: "spell", label: spell.displayName || spell.name, spellId: spell.id,
+      launchMode: "auto", targetMode: "selection", applyAutomations: true,
+      ...(perDay ? { cost: "uses", uses: Math.min(MAX_QUICK_ACTION_USES, Math.max(1, perDay)) } : { cost: "free" }) });
+    if (!action) continue;
+    const { id: _id, ...draft } = action;
+    actions.push(draft);
+  }
+  if (overflow.length) unresolved.push(`incantesimi innati oltre il limite di ${MAX_QUICK_ACTIONS} azioni rapide: ${overflow.join(", ")}`);
+  return { actions: actions.length ? actions : null, cantrips };
+}
+
 // The same entries as the Attacks import (label, range, components: [{ type, formula }], or a cantrip
 // source); the damage type may also be written in Italian.
 function importedAttacks(data, unresolved) {
@@ -376,6 +416,7 @@ export function parseCharacterSheetImport(value) {
   }
   const unresolved = [];
   const notes = text(data.notes ?? data.note).slice(0, 280);
+  const innate = importedInnateSpells(data, unresolved);
   const monster = isMonsterStatblock(data)
     ? importedMonsterActions(data, { resolveDamageType, resolveAbility: (value) => ABILITY_BY_ALIAS.get(lookupKey(value)) || "", unresolved })
     : null;
@@ -387,7 +428,8 @@ export function parseCharacterSheetImport(value) {
     abilities: importedAbilityModifiers(data),
     saves: importedSaves(data),
     defenses: importedDefenses(data, unresolved),
-    spells: importedSpells(data, unresolved),
+    spells: importedSpells({ ...data, cantrips: [...innate.cantrips.map((id) => ({ name: id })), ...asArray(data.cantrips ?? data.trucchetti)] }, unresolved),
+    innate: innate.actions,
     attacks: monster ? (monster.attacks.length ? monster.attacks : null) : importedAttacks(data, unresolved),
     multiattack: monster?.multiattack || null,
     notes: notes || null,
@@ -397,6 +439,11 @@ export function parseCharacterSheetImport(value) {
   return { error, name: text(data.name ?? data.nome).slice(0, 80), sections, unresolved,
     ...(monster ? { monster: { source: monsterImportSource(data), ...(monsterImportRef(data) ? { ref: monsterImportRef(data) } : {}) },
       hitPoints: importedMonsterHitPoints(data) } : {}) };
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) return value;
+  return value && typeof value === "object" ? Object.values(value).flat() : [];
 }
 
 function signed(value) {
@@ -443,6 +490,9 @@ export function sheetImportSectionSummary(id, section, { classNameOf = (classId)
   }
   if (id === "attacks") {
     return `${section.length} ${section.length === 1 ? "attacco" : "attacchi"}: ${section.map((attack) => attack.label).join(", ")}`;
+  }
+  if (id === "innate") {
+    return section.map((action) => `${action.label} ${action.cost === "uses" ? `${action.uses}/giorno` : "a volontà"}`).join(", ");
   }
   if (id === "notes" || id === "multiattack") return section.length > 60 ? `${section.slice(0, 60)}…` : section;
   return "";

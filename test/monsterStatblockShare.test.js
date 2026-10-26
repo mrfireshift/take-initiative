@@ -11,9 +11,11 @@ const goblinCard = { armorClass: 15, quickActions: [{ id: "a", label: "Scimitar"
 
 test("le sezioni da svuotare: quelle che lo statblock sostituisce e quelle che non ha; mai quelle tolte dal GM", () => {
   const sections = { stats: {}, attacks: [], notes: "x" };
-  assert.deepEqual(monsterStatblockSectionsToClear({ sections, chosen: ["stats", "attacks"] }), ["stats", "abilities", "saves", "defenses", "attacks", "multiattack"]);
+  assert.deepEqual(monsterStatblockSectionsToClear({ sections, chosen: ["stats", "attacks"] }),
+    ["classes", "stats", "abilities", "saves", "defenses", "spells", "innate", "attacks", "multiattack"], "a block without spells leaves none of the previous ones (lotto 4)");
   assert.deepEqual(monsterStatblockSectionsToClear({ sections, chosen: ["stats", "attacks", "notes"] }).includes("notes"), true);
-  assert.deepEqual(monsterStatblockSectionsToClear({ sections: { stats: {}, abilities: {}, saves: {}, defenses: {}, attacks: [], multiattack: "m", notes: "n" }, chosen: [] }), [],
+  assert.deepEqual(monsterStatblockSectionsToClear({ sections: { classes: [], stats: {}, abilities: {}, saves: {}, defenses: {}, spells: {}, innate: [], attacks: [],
+    multiattack: "m", notes: "n" }, chosen: [] }), [],
     "a block with every section, all unticked: nothing emptied");
 });
 

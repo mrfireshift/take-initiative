@@ -3940,7 +3940,17 @@ async function appendSheetImportPortrait(result, url) {
 // Empties one section of the stat block in the editor (fase 4, lotto 1): the stats, the abilities and saves, the
 // defenses, the attacks (the quick actions stay), the Multiattack, the notes.
 function clearSheetImportSection(id) {
-  if (id === "stats") {
+  if (id === "classes") {
+    $("classBuildEditorList").replaceChildren();
+    syncClassBuildAddState();
+    buildClassFeatureEditor();
+  } else if (id === "spells") {
+    draftSpellbook = sanitizeSpellbook(null);
+    renderSpellbookEditor();
+  } else if (id === "innate") {
+    for (const row of innateSpellRows()) row.remove();
+    syncQuickActionAddState();
+  } else if (id === "stats") {
     for (const inputId of ["armorClassInput", "speedInput", "passivePerceptionInput", "spellSaveDCInput", "spellAttackBonusInput"]) $(inputId).value = "";
   } else if (id === "abilities" || id === "saves") {
     for (const key of ABILITY_KEYS) $(`${id === "abilities" ? "ability" : "save"}-${key}`).value = "";
@@ -3957,6 +3967,29 @@ function clearSheetImportSection(id) {
   } else if (id === "notes") {
     $("notesInput").value = "";
   }
+}
+
+// The quick actions that are a spell cast without a slot (free or with uses of its own): a stat block's innate spells.
+function innateSpellRows() {
+  return Array.from($("quickActionEditorList").querySelectorAll("[data-quick-action-row='1']")).filter((row) =>
+    row.querySelector("[data-quick-action-field='kind']")?.value === "spell"
+    && ["free", "uses"].includes(row.querySelector("[data-quick-action-field='cost']")?.value));
+}
+
+// A monster's innate spells as quick actions (fase 4, lotto 4): Sostituisci removes the previous ones (the spells cast
+// without a slot), the other quick actions stay; a spell already there is not added twice.
+function applyImportedInnateSpells(actions, mode) {
+  const list = $("quickActionEditorList");
+  if (mode === "replace") for (const row of innateSpellRows()) row.remove();
+  const spellKey = (row) => getSpellDefinition(row.querySelector("[data-quick-action-field='reference']")?.value || "")?.id || "";
+  const present = new Set(Array.from(list.querySelectorAll("[data-quick-action-row='1']")).map(spellKey).filter(Boolean));
+  for (const action of actions) {
+    if (present.has(action.spellId)) continue;
+    if (list.querySelectorAll("[data-quick-action-row='1']").length >= MAX_QUICK_ACTIONS) break;
+    list.appendChild(buildQuickActionEditorRow({ ...action, id: quickActionId() }));
+    present.add(action.spellId);
+  }
+  syncQuickActionAddState();
 }
 
 function applyImportedAttacks(attacks, mode) {
@@ -4004,6 +4037,11 @@ function applySheetImport() {
       $("classBuildEditorList").replaceChildren(...build.map((entry) => buildClassBuildEditorRow(entry)));
       syncClassBuildAddState();
       buildClassFeatureEditor();
+      // A monster's class only gives its slots (fase 4, lotto 4, decision D5): its class features start off.
+      if (sheetImportResult.monster) {
+        for (const feature of getAvailableClassFeatures(collectCharacterBuildEditor())) draftEnabledFeatureIds.delete(feature.id);
+        buildClassFeatureEditor();
+      }
     } else if (id === "species") {
       $("speciesInput").value = section.id;
       buildSpeciesAncestryOptions(section.id, section.ancestryId);
@@ -4033,6 +4071,8 @@ function applySheetImport() {
       renderSpellbookEditor();
     } else if (id === "attacks") {
       applyImportedAttacks(section, modeOf(id));
+    } else if (id === "innate") {
+      applyImportedInnateSpells(section, modeOf(id));
     } else if (id === "multiattack") {
       draftMonsterProfile = { ...(draftMonsterProfile || {}), multiattack: section };
     } else if (id === "notes") {

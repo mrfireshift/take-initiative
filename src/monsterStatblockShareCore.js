@@ -12,8 +12,10 @@ import { monsterNamesakes } from "./monsterHitPointsImportCore.js";
 
 const META_KEY = `${ID}/meta`;
 
-// The import's sections that make a monster's stat block (characterSheetImportCore.js ids).
-export const MONSTER_STATBLOCK_SECTIONS = Object.freeze(["stats", "abilities", "saves", "defenses", "attacks", "multiattack", "notes"]);
+// The import's sections that make a monster's stat block (characterSheetImportCore.js ids). The class, the book and the
+// innate spells come from its spellcasting (lotto 4): a block without spells leaves none of the previous ones.
+export const MONSTER_STATBLOCK_SECTIONS = Object.freeze(["classes", "stats", "abilities", "saves", "defenses", "spells", "innate", "attacks",
+  "multiattack", "notes"]);
 
 // The sections to empty before a monster's block is applied: the ones it replaces (ticked) and the ones it lacks.
 export function monsterStatblockSectionsToClear({ sections = {}, chosen = [] } = {}) {
