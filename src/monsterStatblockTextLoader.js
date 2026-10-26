@@ -4,32 +4,44 @@ import { monsterStatblockTextRecord, monsterStatblockTextView } from "./monsterS
 import { createMonsterStatblockTextStore } from "./monsterStatblockTextStore.js";
 
 // A monster's full stat block as the sheet and the console read it (fase 4, lotti 4b e 5): the record kept at its import,
-// else, for a 5eTools monster, the monster in the archive's books kept in this browser. Each reference is read once
-// per page: { header, sections } or null when this browser has neither.
+// else, for a 5eTools monster, the monster in the archive's books kept in this browser. { header, sections } or null when
+// this browser has neither.
+// Read once per reference and revision (the card's monster profile): the console reloads on every change of the tokens,
+// and none of those reads the browser's memory again. The import keeps the record before it writes the card, so the
+// card's new revision finds it, in this page and in a console open in another popover.
 export function createMonsterStatblockTextLoader({ store = createMonsterStatblockTextStore(), archive = () => createFiveToolsArchiveStore() } = {}) {
   const views = new Map();
-  const cacheKey = (ref, fromArchive) => `${fromArchive ? "archive" : "kept"}::${ref}`;
+  const archiveViews = new Map();
+  const cacheKey = (ref, revision) => `${String(ref).toLowerCase()}::${revision}`;
+  async function read(ref, fromArchive) {
+    const view = monsterStatblockTextView(await store.get(ref));
+    if (view || !fromArchive) return view;
+    // Reading every kept book is the slow part: once per reference.
+    if (archiveViews.has(ref)) return archiveViews.get(ref);
+    let fromBooks = null;
+    try {
+      const { pool } = fiveToolsCollection(await archive().allData());
+      const wanted = String(ref).toLowerCase();
+      const monster = pool.find((entry) => `${entry?.name}|${entry?.source}`.toLowerCase() === wanted);
+      const converted = monster ? fiveToolsMonsterToStatblock(monster, { pool }) : null;
+      if (converted?.monster) fromBooks = monsterStatblockTextView(monsterStatblockTextRecord({ ref, name: monster.name, fiveTools: converted.monster }));
+    } catch {}
+    archiveViews.set(ref, fromBooks);
+    return fromBooks;
+  }
   return {
-    async view(ref, { fromArchive = false } = {}) {
-      const key = cacheKey(ref, fromArchive);
-      if (views.has(key)) return views.get(key);
-      let view = monsterStatblockTextView(await store.get(ref));
-      if (!view && fromArchive) {
-        try {
-          const { pool } = fiveToolsCollection(await archive().allData());
-          const wanted = String(ref).toLowerCase();
-          const monster = pool.find((entry) => `${entry?.name}|${entry?.source}`.toLowerCase() === wanted);
-          const converted = monster ? fiveToolsMonsterToStatblock(monster, { pool }) : null;
-          if (converted?.monster) view = monsterStatblockTextView(monsterStatblockTextRecord({ ref, name: monster.name, fiveTools: converted.monster }));
-        } catch {}
+    view(ref, { fromArchive = false, revision = "" } = {}) {
+      const key = cacheKey(ref, revision);
+      if (!views.has(key)) {
+        const pending = read(ref, fromArchive).catch(() => null);
+        views.set(key, pending);
       }
-      views.set(key, view);
-      return view;
+      return views.get(key);
     },
-    // Keeps a record (monsterStatblockTextRecord): { persisted, reason }; the next read sees it.
+    // Keeps a record (monsterStatblockTextRecord): { persisted, reason }; this page reads it again.
     async put(record) {
-      views.delete(cacheKey(record.ref, false));
-      views.delete(cacheKey(record.ref, true));
+      const prefix = `${String(record?.ref || "").toLowerCase()}::`;
+      for (const key of [...views.keys()]) if (key.startsWith(prefix)) views.delete(key);
       return store.put(record);
     },
   };

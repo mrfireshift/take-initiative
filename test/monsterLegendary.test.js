@@ -81,16 +81,23 @@ test("la scheda Capacità: tratti, reazioni e azioni leggendarie con il loro tes
   assert.deepEqual(pcAttackMonsterTraitEntries(null), []);
 });
 
-test("il lettore condiviso: il record tenuto, letto una volta; dopo un nuovo import, quello nuovo", async () => {
+test("il lettore condiviso: una lettura per riferimento e revisione della scheda; una nuova scheda rilegge", async () => {
+  // The console open while the sheet saves: it looked before the import, and reloads on every token change.
   const store = createMonsterStatblockTextStore({ indexedDB: createVersionedIndexedDB() });
   let reads = 0;
   const counted = { get: async (ref) => { reads += 1; return store.get(ref); }, put: (record) => store.put(record) };
-  const loader = createMonsterStatblockTextLoader({ store: counted, archive: () => ({ allData: async () => [] }) });
-  assert.equal(await loader.view("Goblin|MM"), null);
-  await loader.put(monsterStatblockTextRecord({ ref: "Goblin|MM", text: "uno" }));
-  assert.equal((await loader.view("Goblin|MM")).sections[0].entries[0].text, "uno");
-  await loader.view("Goblin|MM");
-  assert.equal(reads, 2, "read once after each import");
+  const consoleView = createMonsterStatblockTextLoader({ store: counted, archive: () => ({ allData: async () => [] }) });
+  const sheet = createMonsterStatblockTextLoader({ store });
+  assert.equal(await consoleView.view("Goblin|MM", { fromArchive: true, revision: "old" }), null);
+  for (let index = 0; index < 5; index += 1) await consoleView.view("Goblin|MM", { fromArchive: true, revision: "old" });
+  assert.equal(reads, 1, "the reloads on every token change read nothing");
+  // The import keeps the record, then writes the card: its new revision reads again.
+  await sheet.put(monsterStatblockTextRecord({ ref: "Goblin|MM", text: "uno" }, 1));
+  assert.equal((await consoleView.view("Goblin|MM", { fromArchive: true, revision: "new" })).sections[0].entries[0].text, "uno");
+  assert.equal(reads, 2);
+  await sheet.view("Goblin|MM", { revision: "new" });
+  await sheet.put(monsterStatblockTextRecord({ ref: "Goblin|MM", text: "due" }, 2));
+  assert.equal((await sheet.view("Goblin|MM", { revision: "new" })).sections[0].entries[0].text, "due", "the page that saved reads its own record");
   const fromArchive = createMonsterStatblockTextLoader({ store: createMonsterStatblockTextStore({ indexedDB: createVersionedIndexedDB() }),
     archive: () => ({ allData: async () => [srd] }) });
   assert.equal((await fromArchive.view("Adult Silver Dragon|MM", { fromArchive: true })).sections[1].title, "Actions");

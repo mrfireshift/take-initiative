@@ -4566,7 +4566,8 @@ async function renderStatblockText() {
     return;
   }
   // The one kept at its import, else the monster in the archive's books kept in this browser (lotto 4b).
-  const view = await statblockTextLoader().view(ref, { fromArchive: profile?.[MONSTER_PROFILE_FIELD]?.source === "5etools" });
+  const view = await statblockTextLoader().view(ref, { fromArchive: profile?.[MONSTER_PROFILE_FIELD]?.source === "5etools",
+    revision: JSON.stringify(profile?.[MONSTER_PROFILE_FIELD] || null) });
   if (block.dataset.ref !== ref) return;
   const body = $("statblockText");
   if (!view) {
@@ -5001,6 +5002,20 @@ $("form").addEventListener("submit", async (event) => {
     const spellbook = sanitizeSpellbook(draftSpellbook);
     const spellbookPatch = hasSpellbook(spellbook) || Object.hasOwn(profile || {}, SPELLBOOK_FIELD)
       ? { [SPELLBOOK_FIELD]: spellbook } : {};
+    // The monster's full stat block, in this browser only (lotto 4b): the card's reference finds it again. Kept before the
+    // card is written, so a console already open finds it when the card's change reloads it (fase 4, lotto 5).
+    const statblockText = pendingMonsterText;
+    pendingMonsterText = null;
+    let statblockTextStatus = "";
+    if (statblockText) {
+      try {
+        const kept = await statblockTextLoader().put(statblockText);
+        if (!kept.persisted) statblockTextStatus = `Testo dello statblock tenuto solo per questa sessione: ${kept.reason}.`;
+      } catch (error) {
+        statblockTextStatus = `Testo dello statblock non salvato: ${error?.message || error}.`;
+      }
+      if (!sceneLifecycle.isCurrent(operation)) return;
+    }
     // Come il libro: il profilo del mostro si scrive solo se importato o già presente.
     const monsterPatch = draftMonsterProfile !== undefined ? { [MONSTER_PROFILE_FIELD]: draftMonsterProfile } : {};
     await saveInitiativeCard(item.id, item.name, {
@@ -5040,19 +5055,6 @@ $("form").addEventListener("submit", async (event) => {
         nameStatus = `Token rinominato in «${newName}».`;
       } catch (error) {
         nameStatus = `Nome non cambiato: ${error?.message || error}.`;
-      }
-      if (!sceneLifecycle.isCurrent(operation)) return;
-    }
-    // The monster's full stat block, in this browser only (lotto 4b): the card's reference finds it again.
-    const statblockText = pendingMonsterText;
-    pendingMonsterText = null;
-    let statblockTextStatus = "";
-    if (statblockText) {
-      try {
-        const kept = await statblockTextLoader().put(statblockText);
-        if (!kept.persisted) statblockTextStatus = `Testo dello statblock tenuto solo per questa sessione: ${kept.reason}.`;
-      } catch (error) {
-        statblockTextStatus = `Testo dello statblock non salvato: ${error?.message || error}.`;
       }
       if (!sceneLifecycle.isCurrent(operation)) return;
     }

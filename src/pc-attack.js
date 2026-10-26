@@ -179,7 +179,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const ref=monsterStatblockTextRef({isGM:true,attitude:item?.metadata?.[META_KEY]?.attitude,card});
     if(!ref) return [];
     statblockText ||= createMonsterStatblockTextLoader();
-    const view=await statblockText.view(ref,{fromArchive:card[MONSTER_PROFILE_FIELD]?.source==="5etools"}).catch(()=>null);
+    // Read again only when the card's monster changes (a new import): the reloads on every token change cost nothing.
+    const view=await statblockText.view(ref,{fromArchive:card[MONSTER_PROFILE_FIELD]?.source==="5etools",
+      revision:JSON.stringify(card[MONSTER_PROFILE_FIELD] || null)}).catch(()=>null);
     return pcAttackMonsterTraitEntries(view);
   }
   const params=new URLSearchParams(globalThis.location?.search || "");
