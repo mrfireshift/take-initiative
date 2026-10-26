@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 1 (piano)
 
-Stato: **approvato il 26/10/2026**, lotti 1–7 implementati, lotto 8 in parte (documentazione fatta, misura in room da fare).
+Stato: **approvato il 26/10/2026**, lotti 1–8 implementati (misura fatta su una scena piccola il 26/10).
 
 Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non viene toccato; i boss seguono l'interruttore Mostri; PF dalla media dello statblock, modificabile, con sovrascrittura spuntata solo se il token non ha PF; fase 1b dopo la fase 1.
 
@@ -22,6 +22,7 @@ Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non v
 - **Lotto 7, interruttore spento.** Un turno il cui interruttore è spento non apre, non sposta e non chiude nulla, come oggi con l'opzione spenta; il turno di Tana segue l'uno o l'altro.
 - **Lotto 7, intestazione.** Le due pillole «PG» e «Mostri» sono compatte (stato dal colore, casella nascosta ma raggiungibile da tastiera, «Ogni turno» come etichetta del gruppo): il gruppo occupa 79 px e il nome dell'attore tiene il suo spazio (192 px nel banco, contro 15 px con le pillole complete).
 - **Lotto 8, misura.** I passi della sessione in room sono in `docs/MISURA_CONSOLE_MOSTRI.md` (blocchi PG, PG+Mostri, spenti, contro `perf-runs/gm-turni-flag-locale.json`); `scripts/perf-compare.mjs` mette gli export a confronto. Guida utente: sezione «Console attacchi per i mostri».
+- **Lotto 8, risultato (26/10, sessione automatica).** Scena piccola: 6 PG di livello 2 più mostri importati, senza buff attivi; i valori assoluti non si confrontano con la baseline di Icewind Dale (lì ogni tick aggiorna i token). Cambio turno p50/p95: PG 92/186 ms, PG+Mostri 78/107 ms, spenti 96/578 ms (un picco al primo turno). La console si apre una volta e segue il turno; seguire anche i mostri aggiunge 11 richieste di contesto su 10 turni (0–28 ms l'una), nessun long task. `initiativeCards` in room a 4.303 byte. Il blocco PG+Mostri ha girato con i timer di Chrome a 1 al secondo (finestra non visibile): ritmo falsato; nello stesso blocco l'avviso di turno si è riaperto 5 volte invece di 1, da verificare al tavolo. Decisione dell'utente: la misura basta così. File in `perf-runs/gm-mostri-*.json`.
 - **Lotto 2, banco.** Scenari `pc-monster`, `pc-monster-bite`, `pc-monster-presence` (e, dal lotto 4, `monster-sheet`: la scheda di un goblin nemico) nel banco `boss-actions-preview` (porta 5199).
 
 Decisioni già prese dall'utente (26/10/2026):
@@ -174,7 +175,7 @@ Ogni lotto è un commit a sé, con i test del suo modulo e `npm run build`.
 - Il controller resta in sola lettura dello stato di iniziativa: nessuna scrittura, nessun movimento del turno.
 - Test: `pcAttackAutoOpenOption`, test del controller con PG, mostro, boss, Tana, Paragon.
 
-### Lotto 8 — misura e documentazione (documentazione ✅, misura da fare)
+### Lotto 8 — misura e documentazione ✅
 
 - Probe prestazioni (`src/perfProbe.js`) su 10 turni con mostri importati e interruttore Mostri acceso, contro la baseline del 24/10 (tick 1,32 s con ARCH-009 acceso). Con l'apertura anche sui turni dei mostri, la console si riapre più spesso: va misurato quanto costa.
 - `docs/GUIDA_UTENTE.md`, `BACKLOG.md` (voce «Console attacchi per i mostri normali»).
