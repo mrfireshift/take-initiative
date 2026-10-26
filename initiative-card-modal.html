@@ -333,6 +333,14 @@
     .sheet-import-section input.sheet-import-hp-value { width:64px; height:28px; min-height:28px; padding:3px 6px; border-radius:8px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; font-size:var(--obrt-type-secondary); accent-color:auto; }
     .sheet-import-hp-option { display:flex; gap:7px; align-items:center; margin:0 0 0 31px; color:rgba(255,255,255,.75); font-size:10px; }
     .sheet-import-hp-option input { width:13px; height:13px; min-height:13px; margin:0; accent-color:var(--accent); }
+    /* 5eTools (attacchi dei mostri, fase 2, lotto 3): the monsters loaded, a search, what the stat block leaves at the table. */
+    .sheet-import-picker { display:grid; gap:5px; }
+    .sheet-import-picker[hidden] { display:none !important; }
+    .sheet-import-picker input, .sheet-import-picker select { width:100%; box-sizing:border-box; border-radius:8px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; font-size:var(--obrt-type-secondary); }
+    .sheet-import-picker input { min-height:28px; padding:3px 8px; }
+    .sheet-import-picker select { padding:3px; }
+    .sheet-import-pool { color:rgba(255,255,255,.62); font-size:10px; line-height:1.35; }
+    .sheet-import-report { margin:0; padding:7px 9px; border-radius:8px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.18); color:rgba(255,255,255,.78); font-size:10px; line-height:1.4; }
     .sheet-import-unresolved { margin:0; padding:7px 9px; border-radius:8px; border:1px solid rgba(252,165,165,.30); background:rgba(127,29,29,.18); color:#fecaca; font-size:10px; line-height:1.4; }
     #sheetImportStatus:empty { display:none; }
     .status { min-height:16px; margin-top:8px; color:#fca5a5; font-size:11px; }
@@ -467,10 +475,17 @@
     <form id="form" autocomplete="off">
       <section id="sheetImport" class="sheet-import" hidden>
         <span class="section-title">Importa da una scheda</span>
-        <textarea id="sheetImportText" spellcheck="false" autocomplete="off" aria-label="JSON della scheda personaggio" placeholder="Incolla qui il JSON della scheda personaggio"></textarea>
+        <textarea id="sheetImportText" spellcheck="false" autocomplete="off" aria-label="JSON della scheda personaggio" placeholder="Incolla qui il JSON della scheda personaggio, di uno statblock o di 5eTools"></textarea>
         <div class="attack-import-actions">
           <button id="sheetImportClose" class="quick-action-add" type="button">Chiudi</button>
+          <button id="sheetImportFileButton" class="quick-action-add" type="button" title="Un bestiario o un mostro di 5eTools (.json); più file insieme per i mostri derivati">Carica file</button>
+          <input id="sheetImportFile" type="file" accept=".json,application/json" multiple hidden />
           <button id="sheetImportRead" class="quick-action-add" type="button">Leggi</button>
+        </div>
+        <div id="sheetImportPicker" class="sheet-import-picker" hidden>
+          <input id="sheetImportSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Cerca per nome o libro (MM, VGM, IDRotF…)" aria-label="Cerca un mostro di 5eTools" />
+          <select id="sheetImportMonster" size="6" aria-label="Mostri di 5eTools"></select>
+          <small id="sheetImportPool" class="sheet-import-pool"></small>
         </div>
         <div id="sheetImportSections" class="sheet-import-sections" hidden></div>
         <div id="sheetImportStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>

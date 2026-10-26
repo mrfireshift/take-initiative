@@ -12,7 +12,7 @@ import { ABILITY_KEYS, sanitizeAbilityModifiers, hasAbilityModifiers } from "./a
 import { MAX_QUICK_ACTION_ATTACKS, sanitizeQuickAction } from "./quickActionsCore.js";
 import { MAX_SPELLBOOK_SPELLS, sanitizeSpellbook } from "./spellbookCore.js";
 import { normalizeSpeedMeters } from "./speedCheckCore.js";
-import { importedMonsterActions, importedMonsterHitPoints, isMonsterStatblock, monsterImportSource } from "./monsterStatblockImportCore.js";
+import { importedMonsterActions, importedMonsterHitPoints, isMonsterStatblock, monsterImportRef, monsterImportSource } from "./monsterStatblockImportCore.js";
 
 // In the order the import panel lists them.
 export const SHEET_IMPORT_SECTIONS = Object.freeze([
@@ -395,7 +395,8 @@ export function parseCharacterSheetImport(value) {
   const sections = Object.fromEntries(Object.entries(candidates).filter(([, section]) => section !== null));
   const error = Object.keys(sections).length ? "" : "Nel blocco non c'è nessun dato della scheda riconosciuto.";
   return { error, name: text(data.name ?? data.nome).slice(0, 80), sections, unresolved,
-    ...(monster ? { monster: { source: monsterImportSource(data) }, hitPoints: importedMonsterHitPoints(data) } : {}) };
+    ...(monster ? { monster: { source: monsterImportSource(data), ...(monsterImportRef(data) ? { ref: monsterImportRef(data) } : {}) },
+      hitPoints: importedMonsterHitPoints(data) } : {}) };
 }
 
 function signed(value) {

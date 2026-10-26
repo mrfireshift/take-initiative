@@ -157,3 +157,8 @@ test("la scheda letta dal token mantiene monster e i campi del mostro sugli atta
   assert.equal(card.quickActions[0].attackBonus, 14);
   assert.equal(card.armorClass, 19);
 });
+
+test("il profilo del mostro tiene il riferimento di 5eTools (nome|libro), tagliato a 120 caratteri", () => {
+  assert.deepEqual(sanitizeMonsterProfile({ source: "5etools", ref: " Goblin|MM ", multiattack: "Due colpi." }), { source: "5etools", ref: "Goblin|MM", multiattack: "Due colpi." });
+  assert.equal(sanitizeMonsterProfile({ ref: "x".repeat(200) }).ref.length, 120);
+});

@@ -4,15 +4,18 @@
 export const MONSTER_PROFILE_FIELD = "monster";
 export const MONSTER_PROFILE_SOURCES = Object.freeze(["manual", "5etools", "open5e"]);
 export const MAX_MONSTER_MULTIATTACK = 280;
+export const MAX_MONSTER_REF = 120;
 
 const sourceSet = new Set(MONSTER_PROFILE_SOURCES);
 
-// { source, multiattack? }, or null: null removes it (a card that is no longer a monster's), like the species.
+// { source, ref?, multiattack? }, or null: null removes it (a card that is no longer a monster's), like the species.
+// ref: the monster the stat block came from, "name|source" in 5eTools (fase 2, lotto 3).
 export function sanitizeMonsterProfile(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const source = sourceSet.has(value.source) ? value.source : "manual";
+  const ref = String(value.ref ?? "").trim().slice(0, MAX_MONSTER_REF);
   const multiattack = String(value.multiattack ?? "").replace(/\r\n?/g, "\n").trim().slice(0, MAX_MONSTER_MULTIATTACK);
-  return { source, ...(multiattack ? { multiattack } : {}) };
+  return { source, ...(ref ? { ref } : {}), ...(multiattack ? { multiattack } : {}) };
 }
 
 export function isMonsterProfileCard(card) {

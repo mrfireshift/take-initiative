@@ -71,6 +71,8 @@ import {
   sheetImportSectionSummary,
 } from "./characterSheetImportCore.js";
 import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
+import { fiveToolsCollection, fiveToolsImportSummary, fiveToolsMonsterLabel, fiveToolsMonsterToStatblock, fiveToolsMonsters, fiveToolsSearch, isFiveToolsData }
+  from "./fiveToolsMonsterCore.js";
 import { hasCanonicalHitPoints, monsterHitPointsSummary, monsterNamesakes } from "./monsterHitPointsImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
 import { pcAttackBreathActionId } from "./pcAttackBreathId.js";
@@ -3586,6 +3588,10 @@ function importAttacks() {
 // Character sheet import: a JSON block read into sections; the GM picks some and they fill the editor
 // on every tab. Nothing is saved until Salva, as with the Attacks import.
 let sheetImportResult = null;
+// 5eTools' documents loaded while editing (files and pasted blocks, fase 2, lotto 3): the picker lists their monsters and
+// the derived ones find their base among all of them. Only in memory, dropped when the edit starts again.
+let fiveToolsInputs = [];
+const MAX_FIVE_TOOLS_OPTIONS = 200;
 // A monster's hit points chosen in the import, written after the sheet's Salva: { hp, overwrite, sameName } or null.
 let pendingMonsterHitPoints = null;
 
@@ -3626,7 +3632,87 @@ function readSheetImport() {
   resetSheetImport();
   // A new block replaces the hit points chosen from the previous one; closing the panel after Applica keeps them.
   pendingMonsterHitPoints = null;
-  const result = parseCharacterSheetImport($("sheetImportText").value);
+  const text = $("sheetImportText").value;
+  // 5eTools' JSON (a monster, a list, a bestiary): its monsters join the picker; one alone is read at once.
+  let data = null;
+  try { data = JSON.parse(text); } catch {}
+  if (data && isFiveToolsData(data)) {
+    fiveToolsInputs.push(data);
+    const { monsters: pasted, excluded2024 } = fiveToolsCollection([data]);
+    renderFiveToolsPicker(pasted.length === 1 ? pasted[0] : null);
+    if (pasted.length === 1) readFiveToolsMonster(pasted[0]);
+    else if (pasted.length) setSheetImportStatus("Scegli il mostro nell'elenco.");
+    else setSheetImportStatus(excluded2024 ? "Mostri delle regole 2024: il plugin usa le regole del 2014 e non li importa." : "Nel blocco non c'è nessun mostro.", "error");
+    return;
+  }
+  renderSheetImportResult(parseCharacterSheetImport(text));
+}
+
+// The loaded files: each one's monsters join the picker; a file that is not JSON is named in the status.
+async function loadSheetImportFiles(files) {
+  const failed = [];
+  let added = 0;
+  for (const file of Array.from(files || [])) {
+    try {
+      const data = JSON.parse(await file.text());
+      const monsters = fiveToolsMonsters(data);
+      if (!monsters.length) throw new Error("nessun mostro");
+      fiveToolsInputs.push(data);
+      added += monsters.length;
+    } catch {
+      failed.push(file.name);
+    }
+  }
+  const { monsters } = fiveToolsCollection(fiveToolsInputs);
+  renderFiveToolsPicker(monsters.length === 1 ? monsters[0] : null);
+  if (monsters.length === 1 && !failed.length) readFiveToolsMonster(monsters[0]);
+  else setSheetImportStatus([added ? "Scegli il mostro nell'elenco." : "", failed.length ? `Non letti (non sono JSON di 5eTools): ${failed.join(", ")}.` : ""]
+    .filter(Boolean).join(" "), failed.length ? "error" : "");
+}
+
+// The picker: the monsters matching the search (at most 200), their count and books, the 2024 ones left out.
+function renderFiveToolsPicker(selected = null) {
+  const collection = fiveToolsCollection(fiveToolsInputs);
+  $("sheetImportPicker").hidden = !collection.monsters.length;
+  if (!collection.monsters.length) return;
+  const select = $("sheetImportMonster");
+  const keep = selected || collection.monsters.find((monster) => fiveToolsMonsterLabel(monster) === select.value) || null;
+  const matches = fiveToolsSearch(collection.monsters, $("sheetImportSearch").value, MAX_FIVE_TOOLS_OPTIONS);
+  select.replaceChildren(...matches.map((monster) => {
+    const option = document.createElement("option");
+    option.value = fiveToolsMonsterLabel(monster);
+    option.textContent = fiveToolsMonsterLabel(monster);
+    return option;
+  }));
+  if (keep && matches.includes(keep)) select.value = fiveToolsMonsterLabel(keep);
+  const total = fiveToolsSearch(collection.monsters, $("sheetImportSearch").value, Infinity).length;
+  $("sheetImportPool").textContent = [
+    `${collection.monsters.length} ${collection.monsters.length === 1 ? "mostro" : "mostri"} (${collection.sources.join(", ")})`,
+    total > matches.length ? `ne mostro ${matches.length} su ${total}: affina la ricerca` : "",
+    collection.excluded2024 ? `${collection.excluded2024} delle regole 2024 esclusi` : "",
+  ].filter(Boolean).join(" · ");
+}
+
+// A 5eTools monster read into the sections, as a pasted stat block, with the line of what the console registers and
+// what stays at the table.
+function readFiveToolsMonster(monster) {
+  resetSheetImport();
+  pendingMonsterHitPoints = null;
+  const { pool } = fiveToolsCollection(fiveToolsInputs);
+  const converted = fiveToolsMonsterToStatblock(monster, { pool });
+  if (converted.error) {
+    setSheetImportStatus(converted.error, "error");
+    return;
+  }
+  renderSheetImportResult(parseCharacterSheetImport(JSON.stringify(converted.block)), {
+    summary: fiveToolsImportSummary(converted, monster),
+    report: converted.report,
+  });
+}
+
+// The sections of a read block (a sheet, a stat block, a 5eTools monster) with their checkboxes; summary and report:
+// the 5eTools line and what stays at the table.
+function renderSheetImportResult(result, { summary = "", report = [] } = {}) {
   if (result.error) {
     setSheetImportStatus(result.error, "error");
     return;
@@ -3660,6 +3746,12 @@ function readSheetImport() {
       }
       return row;
     });
+  if (report.length) {
+    const notes = document.createElement("p");
+    notes.className = "sheet-import-report";
+    notes.textContent = `Al tavolo: ${report.join("; ")}.`;
+    rows.push(notes);
+  }
   if (result.unresolved.length) {
     const unresolved = document.createElement("p");
     unresolved.className = "sheet-import-unresolved";
@@ -3671,7 +3763,8 @@ function readSheetImport() {
   $("sheetImportSections").hidden = false;
   $("sheetImportApplyRow").hidden = false;
   const kind = result.monster ? "Statblock" : "Scheda";
-  setSheetImportStatus(`${result.name ? `${kind} di ${result.name}: s` : "S"}cegli le sezioni da applicare.`);
+  setSheetImportStatus(summary ? `${summary} Scegli le sezioni da applicare.`
+    : `${result.name ? `${kind} di ${result.name}: s` : "S"}cegli le sezioni da applicare.`);
 }
 
 // A monster's hit points: the stat block's average (editable: the plugin never rolls the formula), ticked; replacing the
@@ -3811,7 +3904,7 @@ function applySheetImport() {
   if (pendingMonsterHitPoints) chosen.push("hitPoints");
   // A monster's block marks the card as a monster's (its source), whatever sections were applied.
   if (sheetImportResult.monster) {
-    draftMonsterProfile = sanitizeMonsterProfile({ ...(draftMonsterProfile || {}), source: sheetImportResult.monster.source });
+    draftMonsterProfile = sanitizeMonsterProfile({ ...(draftMonsterProfile || {}), ...sheetImportResult.monster });
   }
   const labelsById = new Map([...SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]), ["hitPoints", "Punti ferita (dopo Salva)"]]);
   setSheetImportStatus(
@@ -4352,6 +4445,9 @@ function setEditing(active) {
   buildSpellbookEditor();
   draftMonsterProfile = Object.hasOwn(profile || {}, MONSTER_PROFILE_FIELD) ? sanitizeMonsterProfile(profile[MONSTER_PROFILE_FIELD]) : undefined;
   pendingMonsterHitPoints = null;
+  fiveToolsInputs = [];
+  $("sheetImportSearch").value = "";
+  $("sheetImportPicker").hidden = true;
   setSheetImportOpen(false);
   buildSpeciesEditor();
   buildClassBuildEditor();
@@ -4510,6 +4606,16 @@ $("spellbookAdd").addEventListener("click", addSpellbookSpell);
 $("sheetImportToggle").addEventListener("click", () => setSheetImportOpen($("sheetImport").hidden));
 $("sheetImportClose").addEventListener("click", () => setSheetImportOpen(false));
 $("sheetImportRead").addEventListener("click", readSheetImport);
+$("sheetImportFileButton").addEventListener("click", () => $("sheetImportFile").click());
+$("sheetImportFile").addEventListener("change", () => {
+  const files = $("sheetImportFile").files;
+  void loadSheetImportFiles(files).finally(() => { $("sheetImportFile").value = ""; });
+});
+$("sheetImportSearch").addEventListener("input", () => renderFiveToolsPicker());
+$("sheetImportMonster").addEventListener("change", () => {
+  const monster = fiveToolsCollection(fiveToolsInputs).monsters.find((entry) => fiveToolsMonsterLabel(entry) === $("sheetImportMonster").value);
+  if (monster) readFiveToolsMonster(monster);
+});
 $("sheetImportApply").addEventListener("click", applySheetImport);
 // Enter adds the spell: it must not submit the whole sheet.
 $("spellbookSearch").addEventListener("keydown", (event) => {

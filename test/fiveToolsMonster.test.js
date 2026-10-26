@@ -215,3 +215,39 @@ test("la base cercata per nome e libro senza maiuscole; un derivato da un mostro
   const modern = { name: "Goblin Warrior", source: "XMM", ac: [15] };
   assert.match(fiveToolsMonsterToStatblock({ name: "G2", source: "HB", _copy: { name: "Goblin Warrior", source: "XMM" } }, { pool: [modern] }).error, /regole 2024/);
 });
+
+// Lotto 3: i mostri di tutto ciò che il GM ha caricato, la ricerca, la riga di riepilogo, il riferimento sulla scheda.
+import { fiveToolsCollection, fiveToolsImportSummary, fiveToolsMonsterLabel, fiveToolsSearch } from "../src/fiveToolsMonsterCore.js";
+
+test("la raccolta: un mostro per nome e libro (vince l'ultimo caricato), in ordine, i 2024 contati ed esclusi", () => {
+  const updated = { ...monster("Goblin"), ac: [16] };
+  const modern = { name: "Goblin Warrior", source: "XMM", ac: [15] };
+  const derived = ghoulCopy(null);
+  const collection = fiveToolsCollection([srd, [updated, modern], derived]);
+  assert.equal(collection.monsters.length, 8);
+  assert.equal(collection.monsters.find((entry) => entry.name === "Goblin").ac[0], 16);
+  assert.deepEqual(collection.monsters.slice(0, 3).map(fiveToolsMonsterLabel), ["Adult Silver Dragon (MM)", "Bugbear (MM)", "Druid (MM)"]);
+  assert.equal(fiveToolsMonsterLabel(derived), "Ghoul delle nevi (HB) · derivato");
+  assert.equal(collection.excluded2024, 1);
+  assert.equal(collection.pool.length, 9, "the 2024 one stays in the pool, for nothing but a clear refusal");
+  assert.deepEqual(collection.sources, ["HB", "MM"]);
+});
+
+test("la ricerca: ogni parola nel nome o nel libro, senza maiuscole né accenti, con un limite", () => {
+  const { monsters } = fiveToolsCollection([srd, ghoulCopy(null)]);
+  assert.deepEqual(fiveToolsSearch(monsters, "ghoul").map((entry) => entry.name), ["Ghoul", "Ghoul delle nevi"]);
+  assert.deepEqual(fiveToolsSearch(monsters, "ghoul hb").map((entry) => entry.name), ["Ghoul delle nevi"]);
+  assert.deepEqual(fiveToolsSearch(monsters, "DRÁGON").map((entry) => entry.name), ["Adult Silver Dragon"]);
+  assert.equal(fiveToolsSearch(monsters, "").length, 8);
+  assert.equal(fiveToolsSearch(monsters, "", 3).length, 3);
+});
+
+test("la riga di riepilogo e il riferimento del mostro sulla scheda", () => {
+  const converted = fiveToolsMonsterToStatblock(monster("Ghoul"));
+  assert.equal(fiveToolsImportSummary(converted, monster("Ghoul")), "Da 5eTools (MM): Ghoul, 1 azione registrabile, 1 con il tiro salvezza al colpo nella nota.");
+  assert.equal(converted.block.ref, "Ghoul|MM");
+  const parsed = parseCharacterSheetImport(JSON.stringify(converted.block));
+  assert.deepEqual(parsed.monster, { source: "5etools", ref: "Ghoul|MM" });
+  assert.equal(fiveToolsImportSummary(fiveToolsMonsterToStatblock(monster("Giant Spider")), monster("Giant Spider")),
+    "Da 5eTools (MM): Giant Spider, 0 azioni registrabili, 1 con il tiro salvezza al colpo nella nota, 1 da gestire al tavolo.");
+});

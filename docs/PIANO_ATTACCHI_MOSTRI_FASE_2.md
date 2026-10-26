@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 2: JSON di 5eTools (piano)
 
-Stato: **approvato il 26/10/2026**, lotti 1 e 2 implementati.
+Stato: **approvato il 26/10/2026**, lotti 1–3 implementati.
 
 Decisioni confermate: entrambi gli input (JSON di un mostro e file bestiario); nomi in inglese; difese condizionali segnalate e non importate; leggendari dentro la fase 2 (lotto 4); testo completo dello statblock dopo la fase 2 (lotto 5 rimandato); bestiari 2024 rifiutati.
 
@@ -11,6 +11,7 @@ Decisioni confermate: entrambi gli input (JSON di un mostro e file bestiario); n
 - **Lotto 1, azioni bonus** (`bonus[]`) lette come le azioni, con « (bonus action)» nel nome; reazioni, tratti, azioni leggendarie e incantesimi elencati nel rapporto.
 - **Lotto 2, risultato.** Con i bestiari di Icewind Dale, Manuale dei Mostri e Volo caricati insieme, 30 derivati su 31 si risolvono (48 azioni: 42 piene, 3 parziali, 3 al tavolo); la Chwinga deriva da Tomb of Annihilation e il messaggio chiede quel bestiario. Ignorate e segnalate: `addSkills` (4) e i `_templates` di razza (Mountain Dwarf, Tiefling).
 - **Lotto 2, regole.** I campi propri del derivato sostituiscono quelli della base; `replaceTxt` cambia il testo delle voci, mai i loro nomi; con `*` vale per tratti, azioni, azioni bonus, reazioni, leggendarie, mitiche e incantesimi. Catene fino a 5 livelli, i cicli si rifiutano; una base delle regole 2024 rifiuta il derivato (il libro del derivato non basta a capirlo). La base si cerca per nome e libro senza distinguere le maiuscole.
+- **Lotto 3, interfaccia.** Nel pannello **Importa**: **Carica file** (uno o più `.json`, un file non leggibile è nominato), il JSON di 5eTools si può anche incollare in **Leggi** (un mostro solo si legge subito). L'elenco mostra «Nome (LIBRO)», «· derivato» per i `_copy`, con ricerca per parole su nome e libro (al massimo 200 voci, poi «affina la ricerca»); i mostri delle regole 2024 sono esclusi dall'elenco e contati. Sopra le sezioni: «Da 5eTools (MM): Ghoul, 1 azione registrabile, 1 con il tiro salvezza al colpo nella nota.» e un riquadro «Al tavolo» con il rapporto dell'adapter. I file restano in memoria finché dura la modifica della scheda. Il profilo del mostro tiene `ref: "nome|libro"`.
 - **Lotto 1, fixture.** `test-support/fivetools-srd-monsters.json`: sette mostri dell'SRD 5.1 (CC-BY-4.0, con attribuzione), ridotti ai campi letti; i casi limite usano mostri inventati.
 
 Fase 1 chiusa il 26/10/2026 ([piano](PIANO_ATTACCHI_MOSTRI_FASE_1.md)): la
@@ -102,7 +103,7 @@ Mostri (30 su 38), con poche modifiche (`replaceTxt`, `replaceArr`,
   da Owlbear (MM): carica anche il bestiario MM»). La fase 3 (online) li
   recupererà da sola.
 
-### Lotto 3 — import nella scheda
+### Lotto 3 — import nella scheda ✅
 
 - Il pannello **Importa** riconosce il JSON di 5eTools e aggiunge **Carica
   file** (uno o più file `.json`).

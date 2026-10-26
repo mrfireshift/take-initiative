@@ -328,7 +328,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
   if (Array.isArray(monster.reaction) && monster.reaction.length) report.push(`reazioni da gestire al tavolo: ${monster.reaction.map((entry) => fiveToolsPlainText(entry?.name || "")).join(", ")}`);
   if (monster.hp && !Number.isFinite(monster.hp.average)) report.push(`punti ferita speciali: ${fiveToolsPlainText(monster.hp.special || "")}`);
   const block = {
-    kind: "monster", source: "5etools", name: monster.name,
+    kind: "monster", source: "5etools", ref: `${input.name}|${input.source}`, name: monster.name,
     ...(armorClass ? { armorClass } : {}),
     ...(Number.isFinite(monster.hp?.average) ? { hitPoints: { average: monster.hp.average, ...(monster.hp.formula ? { formula: monster.hp.formula } : {}) } } : {}),
     ...(Number.isFinite(walk) && walk > 0 ? { speed: `${walk} ft` } : {}),
@@ -341,4 +341,36 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
     actions,
   };
   return { block, report, counts, error: "" };
+}
+
+// The monsters of everything the GM loaded in the sheet (files and pasted blocks, fase 2, lotto 3): one entry per name
+// and source, the last one loaded winning, sorted by name. The 2024 monsters are counted and left out of the list
+// (decision D6): the derived monsters still find a 2014 base among all the loaded ones (pool).
+export function fiveToolsCollection(inputs = []) {
+  const byKey = new Map();
+  for (const input of inputs) for (const monster of fiveToolsMonsters(input)) byKey.set(monsterKey(monster.name, monster.source), monster);
+  const pool = [...byKey.values()];
+  const modern = pool.filter(isFiveTools2024);
+  const monsters = pool.filter((monster) => !isFiveTools2024(monster))
+    .sort((left, right) => left.name.localeCompare(right.name, "en") || left.source.localeCompare(right.source));
+  return { pool, monsters, excluded2024: modern.length, sources: [...new Set(monsters.map((monster) => monster.source))].sort() };
+}
+
+export function fiveToolsMonsterLabel(monster) {
+  return `${monster?.name || ""} (${monster?.source || ""})${monster?._copy ? " · derivato" : ""}`;
+}
+
+// The monsters whose name or source holds every word of the query (case and accents aside), at most `limit`.
+export function fiveToolsSearch(monsters = [], query = "", limit = 200) {
+  const plain = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const words = plain(query).split(/\s+/).filter(Boolean);
+  return monsters.filter((monster) => words.every((word) => plain(`${monster.name} ${monster.source}`).includes(word))).slice(0, limit);
+}
+
+// The line over the sections: where the monster comes from and how much of it the console registers.
+export function fiveToolsImportSummary({ block, counts } = {}, monster = {}) {
+  const parts = [`${counts?.full || 0} ${counts?.full === 1 ? "azione registrabile" : "azioni registrabili"}`];
+  if (counts?.partial) parts.push(`${counts.partial} con il tiro salvezza al colpo nella nota`);
+  if (counts?.manual) parts.push(`${counts.manual} da gestire al tavolo`);
+  return `Da 5eTools (${monster.source || "?"}): ${block?.name || monster.name || ""}, ${parts.join(", ")}.`;
 }

@@ -223,6 +223,11 @@ export function isMonsterStatblock(data) {
     || Array.isArray(data?.actions) || Array.isArray(data?.azioni);
 }
 
+// The monster the block came from ("Goblin|MM" for 5eTools), or "".
+export function monsterImportRef(data) {
+  return text(data?.ref).slice(0, 120);
+}
+
 export function monsterImportSource(data) {
   const source = key(data?.source ?? data?.fonte);
   return MONSTER_PROFILE_SOURCES.includes(source) ? source : "manual";

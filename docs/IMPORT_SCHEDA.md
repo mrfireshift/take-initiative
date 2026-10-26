@@ -181,6 +181,28 @@ del GM, che la ritrova per nome su un nuovo token: non entra nella memoria
 condivisa della room, il cui spazio resta alle schede dei personaggi. Su un
 altro dispositivo del GM la scheda del mostro si reimporta.
 
+### Da 5eTools
+
+Lo stesso pannello legge il JSON di [5eTools](https://5e.tools), solo dei
+manuali 2014 (i mostri delle regole 2024 non si importano):
+
+- incolla in **Importa** il JSON di un mostro e premi **Leggi**, oppure
+- premi **Carica file** e scegli uno o più file `.json` (un bestiario intero,
+  un file homebrew). Poi cerca il mostro per nome o libro e sceglilo.
+
+Un mostro **derivato** da un altro (molti di Icewind Dale derivano dal
+Manuale dei Mostri) si ricostruisce se carichi insieme anche il bestiario
+della sua base; se manca, il messaggio dice quale caricare.
+
+Sopra le sezioni compare cosa la console registra e, in **Al tavolo**, cosa
+resta da gestire a mano: il tiro salvezza al colpo, le azioni senza danni né
+tiro salvezza, i tratti, le azioni leggendarie, gli incantesimi, le difese
+condizionali (per esempio la resistenza alle armi non magiche, segnalata e
+non importata). Nomi di mostri e azioni restano in inglese.
+
+Il plugin non contiene dati di 5eTools: i file restano in memoria solo
+mentre modifichi la scheda.
+
 ### Prompt per un assistente
 
 Allega lo statblock (testo, immagine o PDF) e incolla:
