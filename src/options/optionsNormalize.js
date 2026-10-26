@@ -6,7 +6,7 @@ import {
   SCENE_OVERRIDE_PATHS,
 } from "./optionsDefaults.js";
 import { normalizeTrackerScale } from "../trackerScaleCore.js";
-import { normalizeFiveToolsArchiveBase } from "../fiveToolsArchiveCore.js";
+import { normalizeFiveToolsArchiveBase, normalizeFiveToolsImagesBase } from "../fiveToolsArchiveCore.js";
 
 export function isPlainObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -177,6 +177,8 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
       ),
       // The archive's data folder, normalized (https, no credentials); anything else is no archive.
       fiveToolsArchive: normalizeFiveToolsArchiveBase(tools.fiveToolsArchive) || defaults.tools.fiveToolsArchive,
+      // The token images' mirror (fase 4, lotto 3), the same way.
+      fiveToolsImages: normalizeFiveToolsImagesBase(tools.fiveToolsImages) || defaults.tools.fiveToolsImages,
     },
     runtime: {
       ...runtime,

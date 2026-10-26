@@ -228,6 +228,25 @@ plugin scarica da solo anche quello. **Aggiorna** riscarica un libro,
 **Rimuovi** lo toglie dalla memoria. In una finestra in incognito i libri
 valgono solo per quella sessione.
 
+### Immagini 5eTools (ritratto del token)
+
+Facoltativa. In **Opzioni → Console attacchi → Immagini 5eTools** si scrive
+l'indirizzo della cartella delle immagini di un mirror (quella che contiene
+`bestiary/tokens/`) e si controlla con **Prova**, per esempio:
+
+```text
+https://raw.githubusercontent.com/5etools-mirror-3/5etools-img/main/
+```
+
+Quando importi un mostro di 5eTools che ha un'immagine del token, il
+pannello Importa mostra la sua anteprima con la casella **Usa il ritratto di
+5eTools come immagine del token**, spenta di default. Spuntata, dopo
+**Salva** cambia l'immagine del solo token aperto (non degli omonimi): il
+token tiene il suo ingombro sulla mappa e il tracker mostra il nuovo
+ritratto. L'immagine resta sul mirror: il token ne salva solo l'indirizzo,
+quindi se il mirror sparisce il token resta senza immagine finché non ne
+scegli un'altra in Owlbear Rodeo.
+
 ### Prompt per un assistente
 
 Allega lo statblock (testo, immagine o PDF) e incolla:

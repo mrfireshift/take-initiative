@@ -59,6 +59,11 @@ export function selectFiveToolsArchive(options) {
   return resolved(options).local.tools.fiveToolsArchive || "";
 }
 
+// The 5eTools token images' folder this browser uses, or "" (attacchi dei mostri, fase 4, lotto 3).
+export function selectFiveToolsImages(options) {
+  return resolved(options).local.tools.fiveToolsImages || "";
+}
+
 export function selectDistance3dToolEnabled(options) {
   return resolved(options).local.tools.distance3d;
 }
@@ -198,6 +203,7 @@ export function selectOptionsPanelModel(options) {
       pcAttackAutoOpen: value.local.windows.pcAttackAutoOpen,
       pcAttackAutoOpenMonsters: value.local.windows.pcAttackAutoOpenMonsters,
       fiveToolsArchive: value.local.tools.fiveToolsArchive || "",
+      fiveToolsImages: value.local.tools.fiveToolsImages || "",
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,

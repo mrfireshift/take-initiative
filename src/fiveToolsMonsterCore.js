@@ -4,6 +4,7 @@
 // Only the 2014 data: a 2024 block ({@atkr}, {@actSave}, the 2025 Monster Manual) is refused, as the plugin's rules are
 // the 2014 ones. What the adapter cannot read becomes the action's note or a line of the report, never a guess.
 import { monsterImportConditionName } from "./monsterStatblockImportCore.js";
+import { fiveToolsTokenPath } from "./fiveToolsArchiveCore.js";
 
 const ABILITY_BY_NAME = Object.freeze({ strength: "str", dexterity: "dex", constitution: "con", intelligence: "int", wisdom: "wis", charisma: "cha" });
 const SOURCES_2024 = new Set(["XMM", "XPHB", "XDMG"]);
@@ -328,8 +329,11 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
   if (monster.spellcasting) report.push("incantesimi del mostro non importati");
   if (Array.isArray(monster.reaction) && monster.reaction.length) report.push(`reazioni da gestire al tavolo: ${monster.reaction.map((entry) => fiveToolsPlainText(entry?.name || "")).join(", ")}`);
   if (monster.hp && !Number.isFinite(monster.hp.average)) report.push(`punti ferita speciali: ${fiveToolsPlainText(monster.hp.special || "")}`);
+  const portrait = fiveToolsTokenPath({ ...monster, name: input.name, source: input.source });
   const block = {
     kind: "monster", source: "5etools", ref: `${input.name}|${input.source}`, name: monster.name,
+    // Its token image in 5eTools' image mirror (fase 4, lotto 3): the path; the sheet adds the mirror's address.
+    ...(portrait ? { portrait: { fiveTools: portrait } } : {}),
     ...(armorClass ? { armorClass } : {}),
     ...(Number.isFinite(monster.hp?.average) ? { hitPoints: { average: monster.hp.average, ...(monster.hp.formula ? { formula: monster.hp.formula } : {}) } } : {}),
     ...(Number.isFinite(walk) && walk > 0 ? { speed: `${walk} ft` } : {}),

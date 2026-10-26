@@ -90,6 +90,29 @@ async function testFiveToolsArchive() {
   }
 }
 
+// Prova (fase 4, lotto 3): loads one token image from the folder written (the Goblin of the Monster Manual).
+async function testFiveToolsImages() {
+  const status = document.querySelector("[data-fivetools-images-status]");
+  const input = document.getElementById("fiveToolsImagesInput");
+  const setStatus = (text, tone = "") => { if (status) { status.textContent = text; status.dataset.tone = tone; } };
+  const { fiveToolsTokenUrl } = await import("./fiveToolsArchiveCore.js");
+  const url = fiveToolsTokenUrl(input?.value, "bestiary/tokens/MM/Goblin.webp");
+  if (!url) {
+    setStatus("Indirizzo non valido: serve un indirizzo https della cartella delle immagini.", "error");
+    return;
+  }
+  setStatus("Carico un'immagine di prova…");
+  const image = new Image();
+  const loaded = await new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), 15000);
+    image.onload = () => { clearTimeout(timer); resolve(true); };
+    image.onerror = () => { clearTimeout(timer); resolve(false); };
+    image.src = url;
+  });
+  if (loaded) setStatus(`Immagini raggiungibili (Goblin, ${image.naturalWidth}×${image.naturalHeight}). Premi Salva.`, "ok");
+  else setStatus("Immagini non raggiungibili: all'indirizzo non c'è bestiary/tokens/MM/Goblin.webp.", "error");
+}
+
 function setControlValue(control, value) {
   if (control.type === "checkbox") control.checked = !!value;
   else control.value = String(value);
@@ -423,6 +446,7 @@ function bindControls() {
     if (action === "open-faction-configurator") void openFactionConfigurator();
     if (action === "cleanup-runtime") void cleanRuntimeData();
     if (action === "test-fivetools-archive") void testFiveToolsArchive();
+    if (action === "test-fivetools-images") void testFiveToolsImages();
     if (action === "save") void save();
   });
   root.addEventListener("input", (event) => {

@@ -124,3 +124,32 @@ export function fiveToolsArchiveSizeLabel(bytes) {
   const value = Number(bytes) || 0;
   return value >= 1024 * 1024 ? `${String(Math.round(value / 1024 / 1024 * 10) / 10).replace(".", ",")} MB` : `${Math.max(1, Math.round(value / 1024))} KB`;
 }
+
+// The token images of 5eTools (attacchi dei mostri, fase 4, lotto 3): a mirror of its own, written by the GM in the
+// options as the data's is (empty by default). The folder that holds `bestiary/tokens/…`, in any form the GM pastes.
+export function normalizeFiveToolsImagesBase(value) {
+  let url;
+  try { url = new URL(String(value || "").trim()); } catch { return ""; }
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (!(url.protocol === "https:" || (url.protocol === "http:" && local)) || url.username || url.password) return "";
+  url.search = "";
+  url.hash = "";
+  url.pathname = url.pathname.replace(/\/bestiary(?:\/tokens(?:\/.*)?)?\/?$/i, "/").replace(/\/?$/, "/");
+  return url.href;
+}
+
+// A monster's token image in that mirror, as 5eTools names it: its own name and book (or those its `token` points to),
+// accents and quotes taken out ("Deep Rothé" → "Deep Rothe"). "" when the monster has no token.
+export function fiveToolsTokenPath(monster) {
+  if (!monster || !(monster.hasToken || monster.token)) return "";
+  const name = String(monster.token?.name || monster.name || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/Æ/g, "AE").replace(/æ/g, "ae").replace(/"/g, "").trim();
+  const source = String(monster.token?.source || monster.source || "").trim();
+  if (!name || !/^[A-Za-z0-9-]{1,24}$/.test(source)) return "";
+  return `bestiary/tokens/${source}/${encodeURIComponent(name)}.webp`;
+}
+
+export function fiveToolsTokenUrl(base, path) {
+  const normalized = normalizeFiveToolsImagesBase(base);
+  return normalized && /^bestiary\/tokens\/[A-Za-z0-9-]+\/[^/]+\.webp$/.test(String(path || "")) ? new URL(path, normalized).href : "";
+}

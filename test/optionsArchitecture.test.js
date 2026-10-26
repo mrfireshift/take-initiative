@@ -42,7 +42,7 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
       scale: 1,
     },
     windows: { clocksCompact: false, pcAttackAutoOpen: false, pcAttackAutoOpenMonsters: null },
-    tools: { distance3d: true, reference: true, fiveToolsArchive: "" },
+    tools: { distance3d: true, reference: true, fiveToolsArchive: "", fiveToolsImages: "" },
     runtime: { combatLog: true },
   });
   assert.deepEqual(room.playerView.hp.trackerClassic, {

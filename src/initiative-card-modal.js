@@ -76,6 +76,8 @@ import { fiveToolsCollection, fiveToolsImportSummary, fiveToolsMonsterLabel, fiv
 import { createFiveToolsArchivePanel } from "./fiveToolsArchivePanel.js";
 import { monsterStatblockOf, monsterStatblockSectionsToClear, monsterStatblockTargets, sameMonsterStatblock } from "./monsterStatblockShareCore.js";
 import { setTokenDisplayName, statblockReplacesHitPoints, statblockTokenName } from "./tokenNameCore.js";
+import { setTokenPortrait } from "./tokenPortraitCore.js";
+import { fiveToolsTokenUrl } from "./fiveToolsArchiveCore.js";
 import { createLocalOptionsStore } from "./options/localOptionsStore.js";
 import { hasCanonicalHitPoints, monsterHitPointsSummary, monsterNamesakes } from "./monsterHitPointsImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
@@ -3602,10 +3604,10 @@ let fiveToolsArchiveInputs = [];
 let fiveToolsArchivePanel = null;
 let fiveToolsLocalOptions = null;
 const allFiveToolsInputs = () => [...fiveToolsArchiveInputs, ...fiveToolsInputs];
-function fiveToolsArchiveBase() {
+function fiveToolsArchiveBase(key = "fiveToolsArchive") {
   try {
     fiveToolsLocalOptions ||= createLocalOptionsStore();
-    return fiveToolsLocalOptions.readPersisted()?.tools?.fiveToolsArchive || "";
+    return fiveToolsLocalOptions.readPersisted()?.tools?.[key] || "";
   } catch {
     return "";
   }
@@ -3622,6 +3624,8 @@ function archivePanel() {
 let pendingMonsterHitPoints = null;
 // The token's new name from a monster's stat block, written after Salva (fase 4, lotto 2), or "".
 let pendingMonsterName = "";
+// The monster's 5eTools portrait as the token's image, written after Salva (fase 4, lotto 3): { url, width, height } or null.
+let pendingMonsterPortrait = null;
 // The import's two automatic steps, remembered in this browser: rename the token, set its hit points.
 const STATBLOCK_IMPORT_PREFS_KEY = `${ID}/statblock-import-prefs`;
 function statblockImportPrefs() {
@@ -3697,6 +3701,7 @@ function readSheetImport() {
   // A new block replaces the hit points chosen from the previous one; closing the panel after Applica keeps them.
   pendingMonsterHitPoints = null;
   pendingMonsterName = "";
+  pendingMonsterPortrait = null;
   const text = $("sheetImportText").value;
   // 5eTools' JSON (a monster, a list, a bestiary): its monsters join the picker; one alone is read at once.
   let data = null;
@@ -3764,6 +3769,7 @@ async function readFiveToolsMonster(monster, { retried = false } = {}) {
   resetSheetImport();
   pendingMonsterHitPoints = null;
   pendingMonsterName = "";
+  pendingMonsterPortrait = null;
   const { pool } = fiveToolsCollection(allFiveToolsInputs());
   const converted = fiveToolsMonsterToStatblock(monster, { pool });
   // A derived monster whose base is in a book not kept yet: the archive downloads it, once (decision D2).
@@ -3778,12 +3784,13 @@ async function readFiveToolsMonster(monster, { retried = false } = {}) {
   renderSheetImportResult(parseCharacterSheetImport(JSON.stringify(converted.block)), {
     summary: fiveToolsImportSummary(converted, monster),
     report: converted.report,
+    portrait: fiveToolsTokenUrl(fiveToolsArchiveBase("fiveToolsImages"), converted.block.portrait?.fiveTools),
   });
 }
 
 // The sections of a read block (a sheet, a stat block, a 5eTools monster) with their checkboxes; summary and report:
 // the 5eTools line and what stays at the table.
-function renderSheetImportResult(result, { summary = "", report = [] } = {}) {
+function renderSheetImportResult(result, { summary = "", report = [], portrait = "" } = {}) {
   if (result.error) {
     setSheetImportStatus(result.error, "error");
     return;
@@ -3844,6 +3851,7 @@ function renderSheetImportResult(result, { summary = "", report = [] } = {}) {
   }
   $("sheetImportSections").replaceChildren(...rows);
   if (result.hitPoints) void appendSheetImportHitPoints(result);
+  if (portrait) void appendSheetImportPortrait(result, portrait);
   $("sheetImportSections").hidden = false;
   $("sheetImportApplyRow").hidden = false;
   const kind = result.monster ? "Statblock" : "Scheda";
@@ -3901,6 +3909,32 @@ async function appendSheetImportHitPoints(result) {
   if (namesakes.length) option("sheetImportHpNamesakes", "Anche agli altri token con lo stesso nome (mai a quelli feriti)", true);
   const unresolved = $("sheetImportSections").querySelector(".sheet-import-unresolved");
   for (const node of [row, ...options]) $("sheetImportSections").insertBefore(node, unresolved);
+}
+
+// The monster's portrait from 5eTools' images (fase 4, lotto 3): offered only once the file has loaded (its size keeps
+// the token's footprint), off by default; a monster without one in the mirror offers nothing.
+async function appendSheetImportPortrait(result, url) {
+  const image = new Image();
+  const loaded = await new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), 15000);
+    image.onload = () => { clearTimeout(timer); resolve(image.naturalWidth > 0 && image.naturalHeight > 0); };
+    image.onerror = () => { clearTimeout(timer); resolve(false); };
+    image.src = url;
+  });
+  if (sheetImportResult !== result || !loaded) return;
+  const label = document.createElement("label");
+  label.className = "sheet-import-hp-option sheet-import-portrait";
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = false;
+  box.dataset.sheetImportPortrait = url;
+  box.dataset.width = String(image.naturalWidth);
+  box.dataset.height = String(image.naturalHeight);
+  image.alt = "";
+  image.className = "sheet-import-portrait-preview";
+  label.append(box, image, document.createTextNode("Usa il ritratto di 5eTools come immagine del token"));
+  const rename = $("sheetImportSections").querySelector(".sheet-import-rename");
+  $("sheetImportSections").insertBefore(label, rename?.nextSibling || $("sheetImportSections").querySelector(".sheet-import-report, .sheet-import-unresolved"));
 }
 
 // Empties one section of the stat block in the editor (fase 4, lotto 1): the stats, the abilities and saves, the
@@ -4021,6 +4055,10 @@ function applySheetImport() {
   const renameBox = $("sheetImportSections").querySelector("[data-sheet-import-rename]");
   pendingMonsterName = renameBox?.checked ? renameBox.dataset.sheetImportRename : "";
   if (pendingMonsterName) chosen.push("name");
+  const portraitBox = $("sheetImportSections").querySelector("[data-sheet-import-portrait]");
+  pendingMonsterPortrait = portraitBox?.checked ? { url: portraitBox.dataset.sheetImportPortrait,
+    width: Number(portraitBox.dataset.width), height: Number(portraitBox.dataset.height) } : null;
+  if (pendingMonsterPortrait) chosen.push("portrait");
   if (sheetImportResult.monster) {
     rememberStatblockImportPrefs({ rename: renameBox ? renameBox.checked : statblockImportPrefs().rename,
       hitPoints: hpBox ? hpBox.checked : statblockImportPrefs().hitPoints });
@@ -4030,7 +4068,7 @@ function applySheetImport() {
     draftMonsterProfile = sanitizeMonsterProfile({ ...(draftMonsterProfile || {}), ...sheetImportResult.monster });
   }
   const labelsById = new Map([...SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]), ["hitPoints", "Punti ferita (dopo Salva)"],
-    ["name", "Nome del token (dopo Salva)"]]);
+    ["name", "Nome del token (dopo Salva)"], ["portrait", "Ritratto del token (dopo Salva)"]]);
   setSheetImportStatus(
     `Compilato: ${chosen.map((id) => labelsById.get(id)).join(", ")}. Controlla le schede e premi Salva.`,
     "success",
@@ -4570,6 +4608,7 @@ function setEditing(active) {
   draftMonsterProfile = Object.hasOwn(profile || {}, MONSTER_PROFILE_FIELD) ? sanitizeMonsterProfile(profile[MONSTER_PROFILE_FIELD]) : undefined;
   pendingMonsterHitPoints = null;
   pendingMonsterName = "";
+  pendingMonsterPortrait = null;
   fiveToolsInputs = [];
   $("sheetImportSearch").value = "";
   $("sheetImportPicker").hidden = true;
@@ -4870,6 +4909,20 @@ $("form").addEventListener("submit", async (event) => {
       }
       if (!sceneLifecycle.isCurrent(operation)) return;
     }
+    // The monster's portrait as this token's image (fase 4, lotto 3): only this token, its footprint on the map kept.
+    const portrait = pendingMonsterPortrait;
+    pendingMonsterPortrait = null;
+    let portraitStatus = "";
+    if (portrait) {
+      try {
+        let changed = false;
+        await OBR.scene.items.updateItems([item.id], (drafts) => { changed = setTokenPortrait(drafts[0], portrait); });
+        portraitStatus = changed ? "Ritratto del token cambiato." : "Ritratto non cambiato: il token non è un'immagine.";
+      } catch (error) {
+        portraitStatus = `Ritratto non cambiato: ${error?.message || error}.`;
+      }
+      if (!sceneLifecycle.isCurrent(operation)) return;
+    }
     // A monster's hit points from its stat block: after the card, as their own command (History, Undo).
     const hitPoints = pendingMonsterHitPoints;
     pendingMonsterHitPoints = null;
@@ -4895,7 +4948,7 @@ $("form").addEventListener("submit", async (event) => {
     if (!sceneLifecycle.isCurrent(operation)) return;
     renderView();
     setEditing(false);
-    const savedStatus = [nameStatus, hitPointsStatus, shareStatus].filter(Boolean).join(" ");
+    const savedStatus = [nameStatus, portraitStatus, hitPointsStatus, shareStatus].filter(Boolean).join(" ");
     if (savedStatus) $("status").textContent = savedStatus;
   } catch (err) {
     $("status").textContent = err?.message || "Salvataggio non riuscito";

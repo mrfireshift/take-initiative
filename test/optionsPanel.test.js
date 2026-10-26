@@ -35,6 +35,7 @@ test("OPTIONS-003: il selector del pannello espone i gruppi senza metadata grezz
     pcAttackAutoOpen: false,
     pcAttackAutoOpenMonsters: null,
     fiveToolsArchive: "",
+    fiveToolsImages: "",
   });
   assert.equal(model.room.trackerOpen, false);
   assert.equal(model.room.knownFactionAssignment, true);
@@ -70,6 +71,7 @@ test("OPTIONS-003: il draft normalizza dati parziali e produce sole patch approv
     pcAttackAutoOpen: false,
     pcAttackAutoOpenMonsters: null,
     fiveToolsArchive: "",
+    fiveToolsImages: "",
   });
   assert.equal(patches.room.turn.popup, false);
   assert.equal(patches.room.automation.knownFactionAssignment, true);
@@ -136,7 +138,7 @@ test("the 5eTools archive: empty by default, saved as the data folder, anything 
   assert.equal(normalizeOptionsPanelDraft({}).local.fiveToolsArchive, "");
   const draft = normalizeOptionsPanelDraft({ local: { fiveToolsArchive: "https://archivio.example/data/bestiary/index.json" } });
   assert.equal(draft.local.fiveToolsArchive, "https://archivio.example/data/");
-  assert.deepEqual(buildOptionsPanelPatches(draft).local.tools, { fiveToolsArchive: "https://archivio.example/data/" });
+  assert.deepEqual(buildOptionsPanelPatches(draft).local.tools, { fiveToolsArchive: "https://archivio.example/data/", fiveToolsImages: "" });
   for (const bad of ["http://archivio.example/data", "non un indirizzo", "https://utente:pw@archivio.example/data"]) {
     assert.equal(normalizeOptionsPanelDraft({ local: { fiveToolsArchive: bad } }).local.fiveToolsArchive, "", bad);
   }
@@ -145,6 +147,19 @@ test("the 5eTools archive: empty by default, saved as the data folder, anything 
   const html = readFileSync(new URL("../options-modal.html", import.meta.url), "utf8");
   assert.match(html, /data-local="fiveToolsArchive"/);
   assert.match(html, /data-action="test-fivetools-archive"/);
+});
+
+// Fase 4, lotto 3: le immagini di 5eTools, una seconda opzione di questo browser, vuota di default.
+test("the 5eTools images: empty by default, saved as the folder that holds bestiary/tokens", async () => {
+  const { selectFiveToolsImages } = await import("../src/options/optionsSelectors.js");
+  assert.equal(selectFiveToolsImages(resolveOptions({ local: {}, room: {}, scene: {} })), "");
+  const draft = normalizeOptionsPanelDraft({ local: { fiveToolsImages: "https://immagini.example/img/bestiary/tokens/MM/Goblin.webp" } });
+  assert.equal(draft.local.fiveToolsImages, "https://immagini.example/img/");
+  assert.equal(buildOptionsPanelPatches(draft).local.tools.fiveToolsImages, "https://immagini.example/img/");
+  assert.equal(normalizeOptionsPanelDraft({ local: { fiveToolsImages: "http://immagini.example/" } }).local.fiveToolsImages, "");
+  const html = readFileSync(new URL("../options-modal.html", import.meta.url), "utf8");
+  assert.match(html, /data-local="fiveToolsImages"/);
+  assert.match(html, /data-action="test-fivetools-images"/);
 });
 
 test("OPTIONS-003: automatic faction assignment is saved in Room", () => {
