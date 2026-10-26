@@ -1,0 +1,434 @@
+{
+ "_meta": {
+  "attribution": "Monsters from the System Reference Document 5.1 © Wizards of the Coast LLC, licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/legalcode); JSON in the shape of 5eTools data, trimmed to the fields the adapter reads, for tests only."
+ },
+ "monster": [
+  {
+   "name": "Goblin",
+   "source": "MM",
+   "srd": true,
+   "ac": [
+    {
+     "ac": 15,
+     "from": [
+      "{@item leather armor|phb}",
+      "{@item shield|phb}"
+     ]
+    }
+   ],
+   "hp": {
+    "average": 7,
+    "formula": "2d6"
+   },
+   "speed": {
+    "walk": 30
+   },
+   "str": 8,
+   "dex": 14,
+   "con": 10,
+   "int": 10,
+   "wis": 8,
+   "cha": 8,
+   "passive": 9,
+   "trait": [
+    {
+     "name": "Nimble Escape",
+     "entries": [
+      "(testo omesso)"
+     ]
+    }
+   ],
+   "action": [
+    {
+     "name": "Scimitar",
+     "entries": [
+      "{@atk mw} {@hit 4} to hit, reach 5 ft., one target. {@h}5 ({@damage 1d6 + 2}) slashing damage."
+     ]
+    },
+    {
+     "name": "Shortbow",
+     "entries": [
+      "{@atk rw} {@hit 4} to hit, range 80/320 ft., one target. {@h}5 ({@damage 1d6 + 2}) piercing damage."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Bugbear",
+   "source": "MM",
+   "srd": true,
+   "ac": [
+    {
+     "ac": 16,
+     "from": [
+      "{@item hide armor|phb}",
+      "{@item shield|phb}"
+     ]
+    }
+   ],
+   "hp": {
+    "average": 27,
+    "formula": "5d8 + 5"
+   },
+   "speed": {
+    "walk": 30
+   },
+   "str": 15,
+   "dex": 14,
+   "con": 13,
+   "int": 8,
+   "wis": 11,
+   "cha": 9,
+   "passive": 10,
+   "trait": [
+    {
+     "name": "Brute",
+     "entries": [
+      "(testo omesso)"
+     ]
+    },
+    {
+     "name": "Surprise Attack",
+     "entries": [
+      "(testo omesso)"
+     ]
+    }
+   ],
+   "action": [
+    {
+     "name": "Morningstar",
+     "entries": [
+      "{@atk mw} {@hit 4} to hit, reach 5 ft., one target. {@h}11 ({@damage 2d8 + 2}) piercing damage."
+     ]
+    },
+    {
+     "name": "Javelin",
+     "entries": [
+      "{@atk mw,rw} {@hit 4} to hit, reach 5 ft. or range 30/120 ft., one target. {@h}9 ({@damage 2d6 + 2}) piercing damage in melee or 5 ({@damage 1d6 + 2}) piercing damage at range."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Ghoul",
+   "source": "MM",
+   "srd": true,
+   "ac": [
+    12
+   ],
+   "hp": {
+    "average": 22,
+    "formula": "5d8"
+   },
+   "speed": {
+    "walk": 30
+   },
+   "str": 13,
+   "dex": 15,
+   "con": 10,
+   "int": 7,
+   "wis": 10,
+   "cha": 6,
+   "passive": 10,
+   "immune": [
+    "poison"
+   ],
+   "conditionImmune": [
+    "charmed",
+    "exhaustion",
+    "poisoned"
+   ],
+   "action": [
+    {
+     "name": "Bite",
+     "entries": [
+      "{@atk mw} {@hit 2} to hit, reach 5 ft., one creature. {@h}9 ({@damage 2d6 + 2}) piercing damage."
+     ]
+    },
+    {
+     "name": "Claws",
+     "entries": [
+      "{@atk mw} {@hit 4} to hit, reach 5 ft., one target. {@h}7 ({@damage 2d4 + 2}) slashing damage. If the target is a creature other than an elf or undead, it must succeed on a {@dc 10} Constitution saving throw or be {@condition paralyzed} for 1 minute. The target can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Adult Silver Dragon",
+   "source": "MM",
+   "srd": true,
+   "ac": [
+    {
+     "ac": 19,
+     "from": [
+      "natural armor"
+     ]
+    }
+   ],
+   "hp": {
+    "average": 243,
+    "formula": "18d12 + 126"
+   },
+   "speed": {
+    "walk": 40,
+    "fly": 80
+   },
+   "str": 27,
+   "dex": 10,
+   "con": 25,
+   "int": 16,
+   "wis": 13,
+   "cha": 21,
+   "save": {
+    "dex": "+5",
+    "con": "+12",
+    "wis": "+6",
+    "cha": "+10"
+   },
+   "passive": 21,
+   "immune": [
+    "cold"
+   ],
+   "trait": [
+    {
+     "name": "Legendary Resistance (3/Day)",
+     "entries": [
+      "(testo omesso)"
+     ]
+    }
+   ],
+   "action": [
+    {
+     "name": "Multiattack",
+     "entries": [
+      "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+     ]
+    },
+    {
+     "name": "Bite",
+     "entries": [
+      "{@atk mw} {@hit 13} to hit, reach 10 ft., one target. {@h}19 ({@damage 2d10 + 8}) piercing damage."
+     ]
+    },
+    {
+     "name": "Claw",
+     "entries": [
+      "{@atk mw} {@hit 13} to hit, reach 5 ft., one target. {@h}15 ({@damage 2d6 + 8}) slashing damage."
+     ]
+    },
+    {
+     "name": "Tail",
+     "entries": [
+      "{@atk mw} {@hit 13} to hit, reach 15 ft., one target. {@h}17 ({@damage 2d8 + 8}) bludgeoning damage."
+     ]
+    },
+    {
+     "name": "Frightful Presence",
+     "entries": [
+      "Each creature of the dragon's choice that is within 120 feet of the dragon and aware of it must succeed on a {@dc 18} Wisdom saving throw or become {@condition frightened} for 1 minute. A creature can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success. If a creature's saving throw is successful or the effect ends for it, the creature is immune to the dragon's Frightful Presence for the next 24 hours."
+     ]
+    },
+    {
+     "name": "Breath Weapons {@recharge 5}",
+     "entries": [
+      "The dragon uses one of the following breath weapons.",
+      {
+       "type": "list",
+       "style": "list-hang-notitle",
+       "items": [
+        {
+         "type": "item",
+         "name": "Cold Breath",
+         "entry": "The dragon exhales an icy blast in a 60-foot cone. Each creature in that area must make a {@dc 20} Constitution saving throw, taking 58 ({@damage 13d8}) cold damage on a failed save, or half as much damage on a successful one."
+        },
+        {
+         "type": "item",
+         "name": "Paralyzing Breath",
+         "entry": "The dragon exhales paralyzing gas in a 60-foot cone. Each creature in that area must succeed on a {@dc 20} Constitution saving throw or be {@condition paralyzed} for 1 minute. A creature can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success."
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Change Shape",
+     "entries": [
+      "The dragon magically polymorphs into a humanoid or beast that has a challenge rating no higher than its own, or back into its true form. It reverts to its true form if it dies. Any equipment it is wearing or carrying is absorbed or borne by the new form (the dragon's choice).",
+      "In a new form, the dragon retains its alignment, hit points, Hit Dice, ability to speak, proficiencies, Legendary Resistance, lair actions, and Intelligence, Wisdom, and Charisma scores, as well as this action. Its statistics and capabilities are otherwise replaced by those of the new form, except any class features or legendary actions of that form."
+     ]
+    }
+   ],
+   "legendary": [
+    {
+     "name": "Detect",
+     "entries": [
+      "(testo omesso)"
+     ]
+    },
+    {
+     "name": "Tail Attack",
+     "entries": [
+      "(testo omesso)"
+     ]
+    },
+    {
+     "name": "Wing Attack (Costs 2 Actions)",
+     "entries": [
+      "(testo omesso)"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Druid",
+   "source": "MM",
+   "srd": true,
+   "ac": [
+    11,
+    {
+     "ac": 16,
+     "condition": "with {@spell barkskin}",
+     "braces": true
+    }
+   ],
+   "hp": {
+    "average": 27,
+    "formula": "5d8 + 5"
+   },
+   "speed": {
+    "walk": 30
+   },
+   "str": 10,
+   "dex": 12,
+   "con": 13,
+   "int": 12,
+   "wis": 15,
+   "cha": 11,
+   "passive": 14,
+   "action": [
+    {
+     "name": "Quarterstaff",
+     "entries": [
+      "{@atk mw} {@hit 2} to hit ({@hit 4} to hit with shillelagh), reach 5 ft., one target. {@h}3 ({@damage 1d6}) bludgeoning damage, 4 ({@damage 1d8}) bludgeoning damage if wielded with two hands, or 6 ({@damage 1d8 + 2}) bludgeoning damage with {@spell shillelagh}."
+     ]
+    }
+   ],
+   "spellcasting": [
+    {
+     "name": "Spellcasting"
+    }
+   ]
+  },
+  {
+   "name": "Elephant",
+   "source": "MM",
+   "srd": true,
+   "ac": [
+    {
+     "ac": 12,
+     "from": [
+      "natural armor"
+     ]
+    }
+   ],
+   "hp": {
+    "average": 76,
+    "formula": "8d12 + 24"
+   },
+   "speed": {
+    "walk": 40
+   },
+   "str": 22,
+   "dex": 9,
+   "con": 17,
+   "int": 3,
+   "wis": 11,
+   "cha": 6,
+   "passive": 10,
+   "trait": [
+    {
+     "name": "Trampling Charge",
+     "entries": [
+      "(testo omesso)"
+     ]
+    }
+   ],
+   "action": [
+    {
+     "name": "Gore",
+     "entries": [
+      "{@atk mw} {@hit 8} to hit, reach 5 ft., one target. {@h}19 ({@damage 3d8 + 6}) piercing damage."
+     ]
+    },
+    {
+     "name": "Stomp",
+     "entries": [
+      "{@atk mw} {@hit 8} to hit, reach 5 ft., one {@condition prone} creature. {@h}22 ({@damage 3d10 + 6}) bludgeoning damage."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Giant Spider",
+   "source": "MM",
+   "srd": true,
+   "ac": [
+    {
+     "ac": 14,
+     "from": [
+      "natural armor"
+     ]
+    }
+   ],
+   "hp": {
+    "average": 26,
+    "formula": "4d10 + 4"
+   },
+   "speed": {
+    "walk": 30,
+    "climb": 30
+   },
+   "str": 14,
+   "dex": 16,
+   "con": 12,
+   "int": 2,
+   "wis": 11,
+   "cha": 4,
+   "passive": 10,
+   "trait": [
+    {
+     "name": "Spider Climb",
+     "entries": [
+      "(testo omesso)"
+     ]
+    },
+    {
+     "name": "Web Sense",
+     "entries": [
+      "(testo omesso)"
+     ]
+    },
+    {
+     "name": "Web Walker",
+     "entries": [
+      "(testo omesso)"
+     ]
+    }
+   ],
+   "action": [
+    {
+     "name": "Bite",
+     "entries": [
+      "{@atk mw} {@hit 5} to hit, reach 5 ft., one creature. {@h}7 ({@damage 1d8 + 3}) piercing damage, and the target must make a {@dc 11} Constitution saving throw, taking 9 ({@damage 2d8}) poison damage on a failed save, or half as much damage on a successful one. If the poison damage reduces the target to 0 hit points, the target is stable but {@condition poisoned} for 1 hour, even after regaining hit points, and is {@condition paralyzed} while {@condition poisoned} in this way."
+     ]
+    },
+    {
+     "name": "Web {@recharge 5}",
+     "entries": [
+      "{@atk rw} {@hit 5} to hit, range 30/60 ft., one creature. {@h}The target is {@condition restrained} by webbing. As an action, the {@condition restrained} target can make a {@dc 12} Strength check, bursting the webbing on a success. The webbing can also be attacked and destroyed (AC 10; hp 5; vulnerability to fire damage; immunity to bludgeoning, poison, and psychic damage)."
+     ]
+    }
+   ]
+  }
+ ]
+}

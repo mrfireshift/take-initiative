@@ -40,6 +40,11 @@ function text(value) {
 }
 
 const CONDITION_BY_KEY = new Map(Object.entries(CONDITION_ALIASES).flatMap(([name, aliases]) => [name, ...aliases].map((alias) => [key(alias), name])));
+
+// A condition's name in the tracker (English or Italian in, CONDITION_LIST's name out), or "".
+export function monsterImportConditionName(value) {
+  return CONDITION_BY_KEY.get(key(value)) || "";
+}
 const AREA_BY_KEY = new Map(Object.entries(AREA_ALIASES).flatMap(([shape, aliases]) => aliases.map((alias) => [key(alias), shape])));
 
 // "+7", 7, "7" -> 7; else null.
