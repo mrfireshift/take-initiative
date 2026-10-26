@@ -442,3 +442,60 @@ test("registry Room: la retain tiene ogni alias accanto alla sua voce", () => {
     false,
   );
 });
+
+// Attacchi dei mostri, lotto 6: le schede dei mostri restano nel registro locale del GM e sul token, mai nella Room.
+const monsterEntry = (name, updatedAt, extra = {}) => ({
+  actorProfileId: `actor-${name}`, name,
+  profile: { armorClass: 15, monster: { source: "manual", multiattack: "Due colpi." },
+    quickActions: [{ id: "bite", label: "Morso", kind: "attack", range: "melee", components: [{ type: "piercing", formula: "1d6+2" }], attackBonus: 4 }], ...extra },
+  updatedAt,
+});
+
+test("registry Room: le schede dei mostri e i loro alias restano fuori, PG e alias dei PG intatti", () => {
+  const goblin = monsterEntry("Goblin", 300);
+  const registry = { ...roomAliasRegistry(), "asset:https://assets.test/goblin.png": goblin, goblin };
+  const encoded = encodeInitiativeCardRegistryForRoom(registry, roomCodecDefaults);
+  assert.deepEqual(Object.keys(encoded).sort(), [ROOM_ALIAS_ASSET_KEY, "alias hero"].sort());
+  assert.deepEqual(encoded["alias hero"], { [ROOM_CARD_ALIAS_FIELD]: ROOM_ALIAS_ASSET_KEY, updatedAt: 200 });
+  const decoded = decodeInitiativeCardRegistryFromRoom(encoded, roomCodecDefaults);
+  assert.equal(decoded["alias hero"].name, "Alias Hero");
+  assert.equal(decoded.goblin, undefined);
+});
+
+test("registry Room: un profilo senza mostro (monster null) resta, una voce eliminata resta", () => {
+  const former = monsterEntry("Ex mostro", 10, { monster: null });
+  const deleted = { name: "Gone", deleted: true, updatedAt: 5 };
+  const encoded = encodeInitiativeCardRegistryForRoom({ former, gone: deleted }, roomCodecDefaults);
+  assert.deepEqual(Object.keys(encoded).sort(), ["former", "gone"]);
+});
+
+test("registry Room: con i mostri fuori, dieci statblock importati non spingono via le schede dei PG", () => {
+  const registry = {};
+  for (let index = 0; index < 4; index += 1) {
+    const entry = { actorProfileId: `actor-${index}`, name: `PG ${index}`, profile: roomCodecProfile(), updatedAt: 100 + index };
+    registry[`asset:https://assets.test/pg-${index}.png`] = entry;
+    registry[`pg ${index}`] = entry;
+  }
+  // Più recenti dei PG e grandi come uno statblock vero (cinque azioni con note): senza il filtro il budget terrebbe
+  // loro e scarterebbe i PG.
+  const actions = Array.from({ length: 5 }, (_, action) => ({ id: `a${action}`, label: `Azione ${action}`, kind: "attack", range: "melee",
+    components: [{ type: "slashing", formula: "2d6+4" }], attackBonus: 6, reachFeet: 5, note: "Il bersaglio deve superare un TS Costituzione CD 13 o è avvelenato." }));
+  for (let index = 0; index < 10; index += 1) registry[`mostro ${index}`] = monsterEntry(`Mostro ${index}`, 1000 + index, { quickActions: actions });
+  const unfiltered = retainInitiativeCardRegistryWithinByteBudget(registry);
+  assert.ok(Object.keys(unfiltered).filter((key) => key.startsWith("pg ")).length < 4, "senza filtro i PG verrebbero scartati");
+  const retained = retainInitiativeCardRegistryWithinByteBudget(encodeInitiativeCardRegistryForRoom(registry, roomCodecDefaults));
+  const kept = decodeInitiativeCardRegistryFromRoom(retained, roomCodecDefaults);
+  for (let index = 0; index < 4; index += 1) assert.equal(kept[`pg ${index}`]?.name, `PG ${index}`, `PG ${index}`);
+  assert.equal(Object.keys(kept).some((key) => key.startsWith("mostro")), false);
+});
+
+test("registro locale e Room: la scheda del mostro si ritrova dalla copia locale", () => {
+  const goblin = monsterEntry("Goblin", 300);
+  const local = { goblin };
+  const room = decodeInitiativeCardRegistryFromRoom(encodeInitiativeCardRegistryForRoom(local, roomCodecDefaults), roomCodecDefaults);
+  const merged = mergeInitiativeCardRegistries(local, room);
+  assert.deepEqual(merged.goblin, goblin);
+  // Una vecchia voce Room non da mostro, più vecchia, non vince sulla copia locale.
+  const stale = { goblin: { name: "Goblin", profile: { armorClass: 12 }, updatedAt: 100 } };
+  assert.deepEqual(mergeInitiativeCardRegistries(local, stale).goblin, goblin);
+});

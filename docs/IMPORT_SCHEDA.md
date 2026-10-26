@@ -176,6 +176,11 @@ cronologia, annullabile):
 - i personaggi e i token con PF condivisi non vengono mai toccati: i loro PF
   si impostano dal tracker.
 
+La scheda di un mostro resta sul suo token e nella memoria locale del browser
+del GM, che la ritrova per nome su un nuovo token: non entra nella memoria
+condivisa della room, il cui spazio resta alle schede dei personaggi. Su un
+altro dispositivo del GM la scheda del mostro si reimporta.
+
 ### Prompt per un assistente
 
 Allega lo statblock (testo, immagine o PDF) e incolla:

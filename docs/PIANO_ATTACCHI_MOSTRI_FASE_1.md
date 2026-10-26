@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 1 (piano)
 
-Stato: **approvato il 26/10/2026**, lotti 1–5 implementati.
+Stato: **approvato il 26/10/2026**, lotti 1–6 implementati.
 
 Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non viene toccato; i boss seguono l'interruttore Mostri; PF dalla media dello statblock, modificabile, con sovrascrittura spuntata solo se il token non ha PF; fase 1b dopo la fase 1.
 
@@ -17,6 +17,7 @@ Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non v
 - **Lotto 4, marcatore del mostro.** Applicare uno statblock scrive sempre `monster.source` sulla scheda (anche senza multiattacco): servirà al lotto 6 per tenere le schede dei mostri fuori dal registro room. I PF (`hitPoints`) si leggono ma si applicano nel lotto 5.
 - **Lotto 4, accesso alla scheda.** Predicato unico `canOpenInitiativeCardSheet` (`src/initiativeCardSheetAccessCore.js`) per l'apertura dal tracker e per il pulsante delle carte classica e compatta.
 - **Lotto 5, cautele in più.** Oltre ai token con PF (salvo «Sostituisci»), restano fuori i personaggi (`attitude: "pc"`, i cui PF vivono anche in `hpMemory`) e ogni token di una riserva di PF condivisi, sorgente o membro, anche con il collegamento rotto: la riserva non si imposta dallo statblock di una creatura. Il comando `hp:set` ha History (Undo) e i valori attesi di `hp`/`hpMax`; dopo il commit barre e testi HP come la console HP rapida. Pianificatore puro in `src/monsterHitPointsImportCore.js`, passo runtime in `src/monsterHitPointsImport.js`.
+- **Lotto 6, filtro nella codifica.** Il filtro sta in `encodeInitiativeCardRegistryForRoom`, prima degli alias: nessun alias punta a una voce che la Room non tiene. La prima scrittura dopo l'aggiornamento toglie dalla Room anche le schede di mostri salvate prima; la copia locale del GM le conserva. Le voci eliminate e i profili con `monster: null` restano. Limite noto: un altro dispositivo del GM non ritrova per nome la scheda di un mostro (la reimporta).
 - **Lotto 2, banco.** Scenari `pc-monster`, `pc-monster-bite`, `pc-monster-presence` (e, dal lotto 4, `monster-sheet`: la scheda di un goblin nemico) nel banco `boss-actions-preview` (porta 5199).
 
 Decisioni già prese dall'utente (26/10/2026):
@@ -154,7 +155,7 @@ Ogni lotto è un commit a sé, con i test del suo modulo e `npm run build`.
 - `hpMemory` non è toccato: vale solo per i PG.
 - Rischio: barre HP sulla mappa e PF condivisi. Test di integrazione su gruppo condiviso, token con PF già impostati, scena cambiata a metà.
 
-### Lotto 6 — schede dei mostri fuori dal registro room ⚠️ tocca i metadata di room
+### Lotto 6 — schede dei mostri fuori dal registro room ⚠️ tocca i metadata di room ✅
 
 - Oggi ogni salvataggio di scheda scrive anche nel registro room (`updateRoomCards`, budget di 4.450 byte), che conserva le voci più recenti: cinque schede di mostri importate spingerebbero fuori quelle dei PG.
 - Patch: le schede con `monster` restano solo nel registro locale del GM (`writeLocalInitiativeCards`), che basta a ritrovare la scheda di un nuovo token «Goblin» per nome. Il token conserva comunque la sua scheda.

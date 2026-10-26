@@ -11,6 +11,7 @@ import {
   jsonBytes,
 } from "./roomMetadataBudget.js";
 import { sanitizeEnabledClassFeatureIds } from "./classFeatureCore.js";
+import { isMonsterProfileCard } from "./monsterProfileCore.js";
 import {
   ABILITY_MODIFIERS_FIELD,
   compactAbilityModifiers,
@@ -238,8 +239,16 @@ function expandRoomAbilityModifiers(profile) {
   return { ...profile, [ABILITY_MODIFIERS_FIELD]: sanitizeAbilityModifiers(profile[ABILITY_MODIFIERS_FIELD]) };
 }
 
+// A monster's card (attacchi dei mostri, lotto 6) stays in the GM's local registry and on its token: in the Room, whose
+// budget keeps the newest entries, a few imported stat blocks would push the characters' cards out. Players never open
+// a monster's sheet. Filtered before the aliases, so no alias points to an entry the Room does not hold.
+function withoutMonsterCards(value) {
+  return Object.fromEntries(Object.entries(normalizeInitiativeCardRegistry(value))
+    .filter(([, entry]) => !isMonsterProfileCard(entry?.profile && typeof entry.profile === "object" ? entry.profile : null)));
+}
+
 export function encodeInitiativeCardRegistryForRoom(value, defaultClassFeatureIds) {
-  return aliasInitiativeCardRegistryForRoom(mapInitiativeCardRegistryProfiles(value, (profile) =>
+  return aliasInitiativeCardRegistryForRoom(mapInitiativeCardRegistryProfiles(withoutMonsterCards(value), (profile) =>
     compactRoomAbilityModifiers(encodeInitiativeCardRoomProfile(profile, defaultClassFeatureIds))
   ));
 }
