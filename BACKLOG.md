@@ -59,6 +59,14 @@ Il riferimento generale è [Indice della documentazione](docs/INDICE.md).
   dismissal è un'Azione; expiry/rimozione da Etereo passa dal terminal gateway
   prima del cleanup. Reload, stale checks e History/Undo sono condivisi; tiro,
   LOS, occupazione, distanza RAW e interazioni planari restano manuali.
+- Console attacchi per i mostri, fase 1 (ottobre 2026,
+  [piano](docs/PIANO_ATTACCHI_MOSTRI_FASE_1.md)): il GM apre la scheda di
+  nemici e neutrali e ne importa lo statblock in JSON (azioni, multiattacco,
+  CA, caratteristiche, TS, difese, PF); la console esegue attacchi con bonus,
+  portata e gittata, azioni a tiro salvezza con CD, area e condizione propri,
+  ricarica come promemoria e usi al giorno; i PF si scrivono con `hp:set` e
+  History, mai su personaggi o PF condivisi; le schede dei mostri restano
+  fuori dal registro room; apertura automatica separata per PG e Mostri.
 
 ## Capacità di classe
 
@@ -85,11 +93,23 @@ come capacità attivabile. Il dettaglio dello snapshot è in
   danno/cura e terminazione RAW; nessun nuovo motore di movimento o controllo
   forzato.
 
-- Console attacchi per i mostri normali: oggi un mostro compare nella console
-  (e la apre a inizio turno) solo se gli si aggiungono a mano azioni d'attacco.
-  Obiettivo: importare gli attacchi da uno stat block (testo incollato o scheda
-  importata) come azioni d'attacco del mostro, con tiro, danni e tipi, così la
-  console funziona anche al turno dei mostri senza preparazione.
+- Console attacchi per i mostri, dopo la fase 1:
+  - misura delle prestazioni in room con l'apertura automatica anche sui turni
+    dei mostri, contro la baseline del 24/10 (passi in
+    [Misura prestazioni: console sui mostri](docs/MISURA_CONSOLE_MOSTRI.md));
+  - fase 1b: tiro salvezza secondario al colpo (ghoul, ragno gigante: 127
+    attacchi su 728 nel Manuale dei Mostri 2014) e condizione al colpo
+    (Ragnatela), oggi lasciati nella nota;
+  - fase 2: adapter del JSON di 5eTools (incollato o file) verso il formato
+    dello statblock, testo completo dello statblock in uno store locale con
+    riferimento sul token;
+  - fase 3: ricerca online su 5eTools; `5e.tools` rifiuta le richieste dirette
+    (403 il 26/10/2026) e risponde il mirror GitHub, che può sparire: sorgente
+    configurabile, il file come ripiego;
+  - fuori dalla fase 1: azioni leggendarie, incantesimi e reazioni dei mostri,
+    disegno dell'area del mostro sulla mappa, campi del mostro modificabili
+    nell'editor degli Attacchi (oggi si reimporta), scheda del mostro su un
+    altro dispositivo del GM (oggi si reimporta).
 
 - Creare icone dedicate per i token PROP generati dagli incantesimi (Arma
   spirituale, Spada arcana, Lama del Disastro e Mano arcana), sostituendo gli

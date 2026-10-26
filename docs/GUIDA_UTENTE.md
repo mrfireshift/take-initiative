@@ -59,7 +59,7 @@ Il pulsante di modalità passa da un layout all'altro. La posizione della barra 
 La barra resta alta sempre uguale: quello che non sta nella card si apre di lato, non verso il basso.
 
 - **Colonna sinistra**: maniglia per trascinare la barra, il **Round** corrente (visibile anche ai giocatori), il cambio di vista e, per il GM, il menu `…` con Reset round, Cronologia, Aggiungi attori, Compila iniziativa, Opzioni, Etichette mappa e Svuota iniziativa.
-- **Card**: in alto a sinistra il badge dell'iniziativa e, sotto, l'icona blu della scheda personaggio (PG e alleati); a destra del ritratto la colonna dei pulsanti ⚡ 🪄 🗡️ (solo GM); il badge **KO** compare sul ritratto quando una creatura va a 0 PF.
+- **Card**: in alto a sinistra il badge dell'iniziativa e, sotto, l'icona blu della scheda personaggio (PG e alleati; per il GM ogni creatura); a destra del ritratto la colonna dei pulsanti ⚡ 🪄 🗡️ (solo GM); il badge **KO** compare sul ritratto quando una creatura va a 0 PF.
 - **Effetti**: la card mostra la prima etichetta; un clic sull'etichetta o sul pulsante `+N` apre accanto alla card un cassetto con tutte le altre, in colonne. Un nuovo clic sull'etichetta lo chiude. È aperto un cassetto alla volta e scorrendo la barra resta aperto.
 - **Token collegati ed evocazioni**: una linguetta stretta accanto alla card mostra i ritratti e il numero; un clic la apre e mostra le righe dei compagni, con i loro PF (modificabili dal GM) e il clic per selezionare la pedina. Le card successive scorrono a destra.
 
@@ -272,8 +272,9 @@ In **Modifica**, **Importa** compila la scheda da un blocco JSON ricavato da
 una scheda personaggio (anche da un PDF, con l'aiuto di un assistente).
 Scegli quali sezioni applicare: classi, specie, dono soprannaturale, statistiche, caratteristiche,
 tiri salvezza, difese, incantesimi, attacchi e note. Nulla è salvato finché
-non premi **Salva**. Formato e prompt sono in
-[Importare una scheda](IMPORT_SCHEDA.md).
+non premi **Salva**. Lo stesso pannello legge lo statblock di un mostro
+(`"kind": "monster"`): azioni, multiattacco e punti ferita. Formato e prompt
+sono in [Importare una scheda](IMPORT_SCHEDA.md).
 
 La scheda della card include anche la sezione **Azioni rapide**. Puoi
 configurare fino a 12 scorciatoie per:
@@ -294,7 +295,7 @@ Fai doppio clic sul nome per rinominare rapidamente il token. Il nuovo nome vien
 
 Il GM modifica gli HP con un clic sul valore, nella card estesa come in quella compatta: si aprono due campi, HP attuali e massimi, dove puoi scrivere il nuovo valore, un delta (`-7`, `+5`) o un piccolo calcolo. **Invio** conferma, **Esc** annulla, **Tab** passa al massimo e poi alla card successiva. Nella card compatta il testo resta al suo posto: diventa tutto bianco e i numeri modificabili sono sottolineati. Ogni modifica è una voce annullabile della Cronologia.
 
-L'icona blu della scheda (accanto agli HP nella card estesa, sotto l'iniziativa in quella compatta) apre in un clic la scheda personaggio di PG e alleati, anche per i giocatori. Il pulsante **±** della card estesa ricalibra insieme HP attuali e massimi.
+L'icona blu della scheda (accanto agli HP nella card estesa, sotto l'iniziativa in quella compatta) apre in un clic la scheda personaggio di PG e alleati, anche per i giocatori. Il GM la apre anche per nemici e neutrali, per importarne lo statblock (vedi [Console attacchi per i mostri](#console-attacchi-per-i-mostri)). Il pulsante **±** della card estesa ricalibra insieme HP attuali e massimi.
 
 Allo stesso modo un clic sul badge dell'iniziativa lo rende modificabile (solo GM, in entrambe le viste); **Invio** salva, riordina le card e passa alla card successiva. **Compila iniziativa** apre in fila le creature ancora da compilare e le evidenzia con un bordo tratteggiato: **Invio** o **Tab** passa alla successiva, **Ctrl+Invio** chiude, e le card si riordinano alla fine.
 
@@ -366,6 +367,53 @@ reazione del caster quando li lanci dal pannello incantesimi o da un'azione
 rapida, nello stesso passo annullabile dello slot. Succede solo in
 combattimento, con un ordine di iniziativa. Se la reazione è già usata, il
 plugin chiede conferma prima di lanciare.
+
+### Console attacchi per i mostri
+
+La console attacchi (🗡️ sulla card) registra anche i turni dei mostri, senza
+preparazione al tavolo: basta importarne lo statblock.
+
+1. Il GM apre la scheda del mostro dall'icona blu della card (per nemici e
+   neutrali solo il GM la vede), preme **Modifica** e poi **Importa**.
+2. Incolla il JSON dello statblock (si prepara con il prompt di
+   [Importare una scheda](IMPORT_SCHEDA.md)), preme **Leggi**, sceglie le
+   sezioni e **Applica al modulo**.
+3. La riga **Punti ferita** propone la media dello statblock, modificabile.
+   I PF di un token che li ha già restano, a meno di spuntare **Sostituisci i
+   PF attuali**; **Anche agli altri token** imposta gli stessi PF sulle altre
+   creature con lo stesso nome. I PF dei personaggi e quelli condivisi non si
+   toccano mai da qui.
+4. **Salva**: la scheda e, subito dopo, i PF (una voce annullabile della
+   Cronologia).
+
+Al turno del mostro la console mostra:
+
+- gli **attacchi** con bonus al tiro, portata o gittata in metri nel
+  sottotitolo («Morso · Mischia · +14 al tiro · portata 3 m»): si tirano i
+  dadi al tavolo, si sceglie Colpito, Critico o Mancato e si inseriscono i
+  danni, come per un PG;
+- le **azioni a tiro salvezza** (soffi, sguardi, Presenza terrificante): la
+  nota dice area, TS e CD del mostro; si spuntano le creature colpite e
+  l'esito del TS di ognuna; chi supera subisce metà danni solo se lo
+  statblock lo prevede; la condizione di chi fallisce si applica da sola e si
+  rimuove a mano;
+- **Ricarica 5–6**: dopo l'uso il sottotitolo scrive «usata»; non blocca mai,
+  se al tavolo la ricarica esce, si usa di nuovo;
+- **usi al giorno** («2/3 al giorno»): finiti gli usi l'azione è bloccata;
+  tornano con il riposo lungo;
+- il **multiattacco** sopra gli attacchi e, sotto i danni, «Da risolvere al
+  tavolo» con la parte dell'azione che il plugin non automatizza (per esempio
+  il tiro salvezza al colpo del ghoul).
+
+Nell'intestazione della console le pillole **PG** e **Mostri** (gruppo «Ogni
+turno», solo questo browser) aprono la console da sola al turno di un
+personaggio o alleato e, rispettivamente, di un mostro; ai boss si apre la
+console Boss. Finché non tocchi **Mostri**, vale come **PG**. Le stesse
+caselle sono nel pannello Opzioni, sezione **Console attacchi**.
+
+La scheda di un mostro resta sul token e nella memoria di questo browser, che
+la ritrova per nome su un nuovo token; non occupa la memoria condivisa della
+room, riservata alle schede dei personaggi.
 
 ## 5. HP e modifiche rapide
 

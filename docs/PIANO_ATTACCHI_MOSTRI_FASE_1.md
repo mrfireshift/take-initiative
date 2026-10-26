@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 1 (piano)
 
-Stato: **approvato il 26/10/2026**, lotti 1–7 implementati.
+Stato: **approvato il 26/10/2026**, lotti 1–7 implementati, lotto 8 in parte (documentazione fatta, misura in room da fare).
 
 Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non viene toccato; i boss seguono l'interruttore Mostri; PF dalla media dello statblock, modificabile, con sovrascrittura spuntata solo se il token non ha PF; fase 1b dopo la fase 1.
 
@@ -21,6 +21,7 @@ Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non v
 - **Lotto 7, eredità.** `windows.pcAttackAutoOpenMonsters` vale `null` finché non viene toccato e allora segue `pcAttackAutoOpen` (`selectPcAttackAutoOpenMonsters`); il Salva del pannello opzioni non lo congela (la patch lo scrive solo se è un booleano) e la sua casella mostra il valore che eredita (`data-local-fallback`). L'attitudine assente vale «ally», come nelle voci del tracker.
 - **Lotto 7, interruttore spento.** Un turno il cui interruttore è spento non apre, non sposta e non chiude nulla, come oggi con l'opzione spenta; il turno di Tana segue l'uno o l'altro.
 - **Lotto 7, intestazione.** Le due pillole «PG» e «Mostri» sono compatte (stato dal colore, casella nascosta ma raggiungibile da tastiera, «Ogni turno» come etichetta del gruppo): il gruppo occupa 79 px e il nome dell'attore tiene il suo spazio (192 px nel banco, contro 15 px con le pillole complete).
+- **Lotto 8, misura.** I passi della sessione in room sono in `docs/MISURA_CONSOLE_MOSTRI.md` (blocchi PG, PG+Mostri, spenti, contro `perf-runs/gm-turni-flag-locale.json`); `scripts/perf-compare.mjs` mette gli export a confronto. Guida utente: sezione «Console attacchi per i mostri».
 - **Lotto 2, banco.** Scenari `pc-monster`, `pc-monster-bite`, `pc-monster-presence` (e, dal lotto 4, `monster-sheet`: la scheda di un goblin nemico) nel banco `boss-actions-preview` (porta 5199).
 
 Decisioni già prese dall'utente (26/10/2026):
@@ -173,7 +174,7 @@ Ogni lotto è un commit a sé, con i test del suo modulo e `npm run build`.
 - Il controller resta in sola lettura dello stato di iniziativa: nessuna scrittura, nessun movimento del turno.
 - Test: `pcAttackAutoOpenOption`, test del controller con PG, mostro, boss, Tana, Paragon.
 
-### Lotto 8 — misura e documentazione
+### Lotto 8 — misura e documentazione (documentazione ✅, misura da fare)
 
 - Probe prestazioni (`src/perfProbe.js`) su 10 turni con mostri importati e interruttore Mostri acceso, contro la baseline del 24/10 (tick 1,32 s con ARCH-009 acceso). Con l'apertura anche sui turni dei mostri, la console si riapre più spesso: va misurato quanto costa.
 - `docs/GUIDA_UTENTE.md`, `BACKLOG.md` (voce «Console attacchi per i mostri normali»).
