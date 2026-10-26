@@ -75,6 +75,7 @@ import { fiveToolsCollection, fiveToolsImportSummary, fiveToolsMonsterLabel, fiv
   from "./fiveToolsMonsterCore.js";
 import { createFiveToolsArchivePanel } from "./fiveToolsArchivePanel.js";
 import { monsterStatblockOf, monsterStatblockSectionsToClear, monsterStatblockTargets, sameMonsterStatblock } from "./monsterStatblockShareCore.js";
+import { setTokenDisplayName, statblockReplacesHitPoints, statblockTokenName } from "./tokenNameCore.js";
 import { createLocalOptionsStore } from "./options/localOptionsStore.js";
 import { hasCanonicalHitPoints, monsterHitPointsSummary, monsterNamesakes } from "./monsterHitPointsImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
@@ -3619,6 +3620,21 @@ function archivePanel() {
 }
 // A monster's hit points chosen in the import, written after the sheet's Salva: { hp, overwrite, sameName } or null.
 let pendingMonsterHitPoints = null;
+// The token's new name from a monster's stat block, written after Salva (fase 4, lotto 2), or "".
+let pendingMonsterName = "";
+// The import's two automatic steps, remembered in this browser: rename the token, set its hit points.
+const STATBLOCK_IMPORT_PREFS_KEY = `${ID}/statblock-import-prefs`;
+function statblockImportPrefs() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STATBLOCK_IMPORT_PREFS_KEY) || "{}");
+    return { rename: stored.rename !== false, hitPoints: stored.hitPoints !== false };
+  } catch {
+    return { rename: true, hitPoints: true };
+  }
+}
+function rememberStatblockImportPrefs(prefs) {
+  try { localStorage.setItem(STATBLOCK_IMPORT_PREFS_KEY, JSON.stringify(prefs)); } catch {}
+}
 
 // The namesakes of a monster's token get its stat block (fase 4, lotto 1); "" when there is nothing to copy.
 async function shareMonsterStatblock(source, card, { isCurrent = () => true, sceneIdentity = null } = {}) {
@@ -3680,6 +3696,7 @@ function readSheetImport() {
   resetSheetImport();
   // A new block replaces the hit points chosen from the previous one; closing the panel after Applica keeps them.
   pendingMonsterHitPoints = null;
+  pendingMonsterName = "";
   const text = $("sheetImportText").value;
   // 5eTools' JSON (a monster, a list, a bestiary): its monsters join the picker; one alone is read at once.
   let data = null;
@@ -3746,6 +3763,7 @@ function renderFiveToolsPicker(selected = null) {
 async function readFiveToolsMonster(monster, { retried = false } = {}) {
   resetSheetImport();
   pendingMonsterHitPoints = null;
+  pendingMonsterName = "";
   const { pool } = fiveToolsCollection(allFiveToolsInputs());
   const converted = fiveToolsMonsterToStatblock(monster, { pool });
   // A derived monster whose base is in a book not kept yet: the archive downloads it, once (decision D2).
@@ -3800,6 +3818,18 @@ function renderSheetImportResult(result, { summary = "", report = [] } = {}) {
       }
       return row;
     });
+  // A monster's name for the token (fase 4, lotto 2): only the token in the sheet, after Salva.
+  const newName = result.monster ? statblockTokenName(result.name, item?.name) : "";
+  if (newName) {
+    const label = document.createElement("label");
+    label.className = "sheet-import-hp-option sheet-import-rename";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = statblockImportPrefs().rename;
+    box.dataset.sheetImportRename = newName;
+    label.append(box, document.createTextNode(`Rinomina il token in «${newName}»`));
+    rows.push(label);
+  }
   if (report.length) {
     const notes = document.createElement("p");
     notes.className = "sheet-import-report";
@@ -3832,7 +3862,7 @@ async function appendSheetImportHitPoints(result) {
   row.className = "sheet-import-section";
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
-  checkbox.checked = true;
+  checkbox.checked = statblockImportPrefs().hitPoints;
   checkbox.dataset.sheetImportHp = "1";
   const copy = document.createElement("span");
   const title = document.createElement("strong");
@@ -3851,19 +3881,24 @@ async function appendSheetImportHitPoints(result) {
   value.setAttribute("aria-label", "Punti ferita da impostare");
   row.append(checkbox, copy, value);
   const options = [];
-  const option = (dataset, text) => {
+  const option = (dataset, text, checked = false) => {
     const label = document.createElement("label");
     label.className = "sheet-import-hp-option";
     const box = document.createElement("input");
     box.type = "checkbox";
+    box.checked = checked;
     box.dataset[dataset] = "1";
     label.append(box, document.createTextNode(text));
     options.push(label);
   };
-  if (hasCanonicalHitPoints(self)) option("sheetImportHpOverwrite", `Sostituisci i PF attuali (${meta.hp}/${meta.hpMax})`);
-  // The characters among them are never written: they are not counted.
+  // Replaced by default, unless the token is wounded (fase 4: a monster in a fight never goes back to full).
+  if (hasCanonicalHitPoints(self)) {
+    const replace = statblockReplacesHitPoints(meta);
+    option("sheetImportHpOverwrite", `Sostituisci i PF attuali (${meta.hp}/${meta.hpMax})${replace ? "" : ": il token è ferito"}`, replace);
+  }
+  // The tokens with the same name get the same stat block (lotto 1) and, ticked, its hit points; never a wounded one.
   const namesakes = monsterNamesakes(items, item?.id).filter((entry) => entry.metadata?.[META_KEY]?.attitude !== "pc");
-  if (namesakes.length) option("sheetImportHpNamesakes", `${namesakes.length === 1 ? "Anche all'altro token" : `Anche agli altri ${namesakes.length} token`} «${item.name}» (senza PF, o tutti con «Sostituisci»)`);
+  if (namesakes.length) option("sheetImportHpNamesakes", "Anche agli altri token con lo stesso nome (mai a quelli feriti)", true);
   const unresolved = $("sheetImportSections").querySelector(".sheet-import-unresolved");
   for (const node of [row, ...options]) $("sheetImportSections").insertBefore(node, unresolved);
 }
@@ -3983,11 +4018,19 @@ function applySheetImport() {
     sameName: !!$("sheetImportSections").querySelector("[data-sheet-import-hp-namesakes]")?.checked,
   } : null;
   if (pendingMonsterHitPoints) chosen.push("hitPoints");
+  const renameBox = $("sheetImportSections").querySelector("[data-sheet-import-rename]");
+  pendingMonsterName = renameBox?.checked ? renameBox.dataset.sheetImportRename : "";
+  if (pendingMonsterName) chosen.push("name");
+  if (sheetImportResult.monster) {
+    rememberStatblockImportPrefs({ rename: renameBox ? renameBox.checked : statblockImportPrefs().rename,
+      hitPoints: hpBox ? hpBox.checked : statblockImportPrefs().hitPoints });
+  }
   // A monster's block marks the card as a monster's (its source), whatever sections were applied.
   if (sheetImportResult.monster) {
     draftMonsterProfile = sanitizeMonsterProfile({ ...(draftMonsterProfile || {}), ...sheetImportResult.monster });
   }
-  const labelsById = new Map([...SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]), ["hitPoints", "Punti ferita (dopo Salva)"]]);
+  const labelsById = new Map([...SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]), ["hitPoints", "Punti ferita (dopo Salva)"],
+    ["name", "Nome del token (dopo Salva)"]]);
   setSheetImportStatus(
     `Compilato: ${chosen.map((id) => labelsById.get(id)).join(", ")}. Controlla le schede e premi Salva.`,
     "success",
@@ -4526,6 +4569,7 @@ function setEditing(active) {
   buildSpellbookEditor();
   draftMonsterProfile = Object.hasOwn(profile || {}, MONSTER_PROFILE_FIELD) ? sanitizeMonsterProfile(profile[MONSTER_PROFILE_FIELD]) : undefined;
   pendingMonsterHitPoints = null;
+  pendingMonsterName = "";
   fiveToolsInputs = [];
   $("sheetImportSearch").value = "";
   $("sheetImportPicker").hidden = true;
@@ -4812,6 +4856,20 @@ $("form").addEventListener("submit", async (event) => {
       sceneIdentity: ownerSceneContext.sceneIdentity,
     });
     if (!sceneLifecycle.isCurrent(operation)) return;
+    // The monster's name for this token (fase 4, lotto 2): before the hit points, so its namesakes are those of the new
+    // name, as the shared stat block's.
+    const newName = pendingMonsterName;
+    pendingMonsterName = "";
+    let nameStatus = "";
+    if (newName) {
+      try {
+        await OBR.scene.items.updateItems([item.id], (drafts) => { setTokenDisplayName(drafts[0], newName); });
+        nameStatus = `Token rinominato in «${newName}».`;
+      } catch (error) {
+        nameStatus = `Nome non cambiato: ${error?.message || error}.`;
+      }
+      if (!sceneLifecycle.isCurrent(operation)) return;
+    }
     // A monster's hit points from its stat block: after the card, as their own command (History, Undo).
     const hitPoints = pendingMonsterHitPoints;
     pendingMonsterHitPoints = null;
@@ -4837,7 +4895,7 @@ $("form").addEventListener("submit", async (event) => {
     if (!sceneLifecycle.isCurrent(operation)) return;
     renderView();
     setEditing(false);
-    const savedStatus = [hitPointsStatus, shareStatus].filter(Boolean).join(" ");
+    const savedStatus = [nameStatus, hitPointsStatus, shareStatus].filter(Boolean).join(" ");
     if (savedStatus) $("status").textContent = savedStatus;
   } catch (err) {
     $("status").textContent = err?.message || "Salvataggio non riuscito";

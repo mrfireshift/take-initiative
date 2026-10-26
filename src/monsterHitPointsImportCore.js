@@ -48,6 +48,8 @@ export function planMonsterHitPointsImport({ items = [], sourceId = "", hp, over
     // A member of a pool, its source, or a broken link: the shared pool is never set from one creature's stat block.
     else if (String(meta.sharedHpSourceId || "").trim() || (!shared.status && shared.memberIds?.length > 1)) skipped.push({ id: item.id, name, reason: "shared" });
     else if (hasCanonicalHitPoints(item) && !overwrite) skipped.push({ id: item.id, name, reason: "has-hp" });
+    // «Sostituisci» is the GM's choice for the token in the sheet; a wounded namesake keeps its hit points (fase 4).
+    else if (item.id !== sourceId && hasCanonicalHitPoints(item) && meta.hp < meta.hpMax) skipped.push({ id: item.id, name, reason: "wounded" });
     else if (meta.hp === value && meta.hpMax === value) skipped.push({ id: item.id, name, reason: "same" });
     else updates.push({ itemId: item.id, hp: value, hpMax: value,
       expectedHP: bossMetadataSnapshot(meta, "hp"), expectedHPMax: bossMetadataSnapshot(meta, "hpMax") });
@@ -59,6 +61,7 @@ const SKIP_TEXT = Object.freeze({
   "has-hp": ["ha già i suoi PF", "hanno già i loro PF", " (spunta «Sostituisci» per riscriverli)"],
   pc: ["è un personaggio", "sono personaggi", ": i PF dei personaggi si impostano dal tracker"],
   shared: ["condivide i PF con altri token", "condividono i PF con altri token", ": la riserva si imposta dal tracker"],
+  wounded: ["è ferito", "sono feriti", ": i PF di un mostro ferito non si toccano"],
 });
 
 // One line for the sheet's status: what was set, then what was left alone, one clause per reason ("Goblin ha già i suoi

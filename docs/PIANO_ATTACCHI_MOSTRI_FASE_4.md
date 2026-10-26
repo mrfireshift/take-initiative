@@ -1,8 +1,8 @@
 # Attacchi dei mostri — fase 4: import completo dello statblock (piano)
 
-Stato: **in corso dal 26/10/2026**, lotto 1 implementato.
+Stato: **in corso dal 26/10/2026**, lotti 1 e 2 implementati.
 
-Indicazione dell'utente all'avvio: **i token con lo stesso nome devono avere lo stesso statblock.** Salvare la scheda di un mostro copia quindi il suo statblock sugli omonimi (lotto 1); il nome resta da rinominare solo sul token aperto (D2). Le altre decisioni (D1, D3–D6) restano da confermare lotto per lotto.
+Indicazione dell'utente all'avvio: **i token con lo stesso nome devono avere lo stesso statblock.** Salvare la scheda di un mostro copia quindi il suo statblock sugli omonimi (lotto 1); il nome resta da rinominare solo sul token aperto (D2). D1 confermata con il lotto 1; D2 e D3 confermate con il lotto 2 (nome solo sul token aperto, PF sostituiti tranne se il token è ferito); D4–D6 restano da confermare.
 
 ## Deviazioni dal piano emerse in implementazione
 
@@ -51,6 +51,7 @@ fase 3 (statblock 2024 opzionali) e il lotto 5 (documentazione) restano dopo.
   del Manuale dei Mostri hanno tutti `hasToken`.
 - **Nome**: il tracker rinomina già un token (doppio clic sul nome), anche
   l'etichetta sotto il token.
+- **Lotto 2.** «Rinomina il token in «…»» compare solo se il nome cambia e scrive nome ed etichetta come il doppio clic del tracker (`src/tokenNameCore.js`). Dopo **Salva** l'ordine è: scheda, nome, PF, statblock agli omonimi; così gli omonimi sono quelli del nome nuovo, per i PF come per lo statblock. «Sostituisci i PF attuali» è spuntata tranne se il token è ferito (PF sotto il massimo); «Anche agli altri token con lo stesso nome» è spuntata e non tocca mai un omonimo ferito, anche con «Sostituisci». Le due caselle principali (nome, PF) si ricordano in questo browser.
 
 ## Lotti
 
@@ -64,7 +65,7 @@ fase 3 (statblock 2024 opzionali) e il lotto 5 (documentazione) restano dopo.
   (classi di un PG, specie) restano.
 - Test: un goblin importato sopra un drago non tiene nulla del drago.
 
-### Lotto 2 — nome e PF automatici
+### Lotto 2 — nome e PF automatici ✅
 
 - Nel pannello Importa, per uno statblock, due caselle ricordate in questo
   browser:

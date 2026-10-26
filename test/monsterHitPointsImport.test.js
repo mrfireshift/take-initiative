@@ -107,3 +107,11 @@ test("niente da scrivere: nessun comando", async () => {
   assert.equal(mutations.length, 0);
   assert.deepEqual(result.plan.skipped.map((entry) => entry.reason), ["has-hp"]);
 });
+
+test("con «Sostituisci» il token della scheda cambia anche se ferito; un omonimo ferito mai", () => {
+  const items = [creature("g1", "Goblin", { hp: 2, hpMax: 7 }), creature("g2", "Goblin", { hp: 3, hpMax: 7 }), creature("g3", "Goblin", { hp: 7, hpMax: 7 })];
+  const plan = planMonsterHitPointsImport({ items, sourceId: "g1", hp: 9, overwrite: true, sameName: true });
+  assert.deepEqual(plan.targetIds, ["g1", "g3"]);
+  assert.deepEqual(plan.skipped.map((entry) => [entry.id, entry.reason]), [["g2", "wounded"]]);
+  assert.equal(monsterHitPointsSummary(plan, 9), "PF 9 impostati su 2 token. Goblin è ferito: i PF di un mostro ferito non si toccano.");
+});
