@@ -17,6 +17,7 @@ Lettura, mostri derivati e sezioni restano quelli della fase 2.
 ## Deviazioni dal piano emerse in implementazione
 
 - **Lotto 1.** `src/fiveToolsArchiveCore.js`. L'indirizzo accetta la cartella dei dati in ogni forma (con o senza `/`, l'indirizzo dell'indice o di un file), solo `https` (`http` soltanto per un server locale) e mai con credenziali; i nomi dei file sono solo `bestiary-….json`. Sull'indice vero del mirror: 112 libri, 16 segnati «regole 2024» (i tre manuali 2024 e ciò che è uscito da settembre 2024; Vecna: Eve of Ruin, di maggio 2024, resta 2014), 13 senza nome noto mostrati col codice.
+- **Lotto 2.** `src/fiveToolsArchiveStore.js`, database `<ID>.fivetools-archive` con due store: `bookInfo` (ciò che il pannello elenca) e `bookData` (il file), così l'elenco non legge mai i file; chiave il codice del libro senza maiuscole. Senza IndexedDB o con lo spazio esaurito il libro resta per la sessione (`persisted: false`, con il motivo). Prova nel Chrome vero il 26/10 dal mirror: indice in 1,3 s; Icewind Dale (158 KB) scaricato in 0,24 s e salvato in 4 ms; Manuale dei Mostri (1,5 MB) in 0,28 s e 28 ms; i 533 mostri riletti in 9 ms.
 
 ## La fonte (verificata il 26/10/2026)
 
@@ -59,7 +60,7 @@ l'indirizzo è un'opzione, e **Carica file** della fase 2 resta il ripiego.
   dimensione, numero di mostri, versione del formato).
 - Test con indice e file finti; nessuna rete nei test.
 
-### Lotto 2 — cache locale
+### Lotto 2 — cache locale ✅
 
 - Nuovo `src/fiveToolsArchiveStore.js`: IndexedDB del browser del GM
   (`<ID>.fivetools-archive`), un record per libro; leggi, salva, elenca,
