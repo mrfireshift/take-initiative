@@ -178,6 +178,8 @@ test("normalizza un attacco: portata, 1-3 componenti tipizzate e bersaglio sempr
       { id: "c1", type: "slashing", formula: "1d8+3" },
       { id: "c2", type: "radiant" },
     ],
+    // Il bonus al tiro dei mostri (attacchi dei mostri, lotto 1): mostrato, mai tirato.
+    attackBonus: 7,
   });
   const base = { id: "a", label: "Attacco", kind: "attack", components: [{ type: "piercing" }] };
   assert.equal(sanitizeQuickAction(base).range, "melee");

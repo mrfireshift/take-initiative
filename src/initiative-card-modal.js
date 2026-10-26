@@ -35,6 +35,7 @@ import {
   findQuickAction,
   isAttackQuickAction,
   parseQuickActionAttackImport,
+  quickActionMonsterAttackFields,
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
 import {
@@ -3152,6 +3153,9 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
   row.className = "quick-action-editor-row";
   row.dataset.quickActionRow = "1";
   row.dataset.actionId = current.id || quickActionId();
+  // A monster's attack fields (save, bonus, recharge…) have no input here yet: the row keeps them for the save.
+  const monsterFields = quickActionMonsterAttackFields(current);
+  if (Object.keys(monsterFields).length) row.dataset.monsterAttackFields = JSON.stringify(monsterFields);
 
   const head = document.createElement("div");
   head.className = "quick-action-editor-head";
@@ -3346,11 +3350,13 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
   addComponent.type = "button";
   addComponent.className = "quick-action-add";
   addComponent.textContent = "+ Componente";
+  // A monster's save without damage (Frightful Presence: a condition on a failed save) keeps no component.
+  const damagelessSave = !!monsterFields.onFail;
   const syncComponentState = () => {
     const rows = componentRows.querySelectorAll("[data-attack-component='1']");
     addComponent.disabled = rows.length >= MAX_QUICK_ACTION_ATTACK_COMPONENTS;
     rows.forEach((componentRow) => {
-      componentRow.querySelector("button").disabled = rows.length <= 1;
+      componentRow.querySelector("button").disabled = rows.length <= 1 && !damagelessSave;
     });
   };
   const addComponentRow = (component = {}) => {
@@ -3385,7 +3391,7 @@ function buildQuickActionEditorRow(action = null, { attack: attackRow = false } 
     syncComponentState();
   };
   addComponent.addEventListener("click", () => addComponentRow());
-  (current.kind === "attack" && current.components?.length ? current.components : [{}]).forEach(addComponentRow);
+  (current.kind === "attack" && current.components?.length ? current.components : damagelessSave ? [] : [{}]).forEach(addComponentRow);
   componentsBox.append(sectionHead("Componenti di danno", "formula solo come promemoria"), componentRows, addComponent);
 
   const makeLabel = (text, control, className = "") => {
@@ -3792,6 +3798,7 @@ function collectQuickActions() {
         kind,
         range: field("attackSource").value,
         components,
+        ...(row.dataset.monsterAttackFields ? JSON.parse(row.dataset.monsterAttackFields) : {}),
       };
     }
     const reference = field("reference").value.trim();

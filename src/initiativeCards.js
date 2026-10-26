@@ -42,6 +42,7 @@ import { DAMAGE_DEFENSES_FIELD, sanitizeDamageDefenses, hasDamageDefenses } from
 import { ABILITY_MODIFIERS_FIELD, sanitizeAbilityModifiers, hasAbilityModifiers } from "./abilityModifiersCore.js";
 import { SPECIES_FIELD, SPECIES_SPELL_ABILITY_FIELD, SUPERNATURAL_GIFT_FIELD, sanitizeSpecies, sanitizeSpeciesSpellAbility, sanitizeSupernaturalGift } from "./speciesTraitCore.js";
 import { SPELLBOOK_FIELD, hasSpellbook, sanitizeSpellbook } from "./spellbookCore.js";
+import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import {
   sanitizeCharacterBuild,
   sanitizeEnabledClassFeatureIds,
@@ -116,6 +117,8 @@ export function sanitizeInitiativeCard(value) {
   if (Object.hasOwn(source, SPECIES_SPELL_ABILITY_FIELD)) normalized[SPECIES_SPELL_ABILITY_FIELD] = sanitizeSpeciesSpellAbility(source[SPECIES_SPELL_ABILITY_FIELD]);
   // Opzionale come la specie: i profili senza incantesimi mantengono la forma precedente.
   if (Object.hasOwn(source, SPELLBOOK_FIELD)) normalized[SPELLBOOK_FIELD] = sanitizeSpellbook(source[SPELLBOOK_FIELD]);
+  // Come la specie: null toglie lo statblock del mostro, le schede senza restano invariate.
+  if (Object.hasOwn(source, MONSTER_PROFILE_FIELD)) normalized[MONSTER_PROFILE_FIELD] = sanitizeMonsterProfile(source[MONSTER_PROFILE_FIELD]);
   const actorProfileId = actorProfileIdFromProfile(source);
   if (actorProfileId) normalized[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
   return normalized;
@@ -186,6 +189,9 @@ function mergeProfile(base, value) {
   if (Object.hasOwn(value, SPELLBOOK_FIELD) || Object.hasOwn(base || {}, SPELLBOOK_FIELD)) {
     merged[SPELLBOOK_FIELD] = value[SPELLBOOK_FIELD] !== undefined ? cleanValue[SPELLBOOK_FIELD] : cleanBase[SPELLBOOK_FIELD];
   }
+  if (Object.hasOwn(value, MONSTER_PROFILE_FIELD) || Object.hasOwn(base || {}, MONSTER_PROFILE_FIELD)) {
+    merged[MONSTER_PROFILE_FIELD] = value[MONSTER_PROFILE_FIELD] !== undefined ? cleanValue[MONSTER_PROFILE_FIELD] : cleanBase[MONSTER_PROFILE_FIELD];
+  }
   const actorProfileId = actorProfileIdFromProfile(value) || actorProfileIdFromProfile(base);
   if (actorProfileId) merged[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
   return merged;
@@ -254,6 +260,7 @@ const INITIATIVE_CARD_KNOWN_FIELDS = new Set([
   SUPERNATURAL_GIFT_FIELD,
   SPECIES_SPELL_ABILITY_FIELD,
   SPELLBOOK_FIELD,
+  MONSTER_PROFILE_FIELD,
   "characterBuild",
   "enabledClassFeatureIds",
   "classFeaturesConfigured",
@@ -750,6 +757,7 @@ export function hasInitiativeCardValues(profile) {
     Boolean(sanitizeSpecies(profile?.[SPECIES_FIELD])) ||
     Boolean(sanitizeSupernaturalGift(profile?.[SUPERNATURAL_GIFT_FIELD])) ||
     hasSpellbook(profile?.[SPELLBOOK_FIELD]) ||
+    Boolean(sanitizeMonsterProfile(profile?.[MONSTER_PROFILE_FIELD])) ||
     Number(profile?.exhaustion) > 0 ||
     Array.isArray(profile?.quickActions) && profile.quickActions.length > 0 ||
     Array.isArray(profile?.characterBuild) && profile.characterBuild.length > 0 ||

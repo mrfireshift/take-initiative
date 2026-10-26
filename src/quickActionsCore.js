@@ -22,6 +22,11 @@ export const QUICK_ACTION_ATTACK_DAMAGE_TYPES = Object.freeze([
   "piercing", "poison", "psychic", "radiant", "slashing", "thunder",
 ]);
 export const MAX_QUICK_ACTION_ATTACK_COMPONENTS = 3;
+// A monster's attack (attacchi dei mostri, lotto 1): a save in place of the attack roll, on one of the six abilities,
+// over an area whose creatures the GM picks (or "target": up to maxTargets creatures).
+export const QUICK_ACTION_ATTACK_SAVE_ABILITIES = Object.freeze(["str", "dex", "con", "int", "wis", "cha"]);
+export const QUICK_ACTION_ATTACK_AREA_SHAPES = Object.freeze(["cone", "line", "sphere", "cube", "cylinder", "target"]);
+export const MAX_QUICK_ACTION_ATTACK_NOTE = 280;
 
 export const QUICK_ACTION_TARGET_MODES = Object.freeze([
   "self",
@@ -52,6 +57,8 @@ const spellLaunchModeSet = new Set(QUICK_ACTION_SPELL_LAUNCH_MODES);
 const expiryModeSet = new Set(QUICK_ACTION_EXPIRY_MODES);
 const attackRangeSet = new Set(QUICK_ACTION_ATTACK_RANGES);
 const attackDamageTypeSet = new Set(QUICK_ACTION_ATTACK_DAMAGE_TYPES);
+const attackSaveAbilitySet = new Set(QUICK_ACTION_ATTACK_SAVE_ABILITIES);
+const attackAreaShapeSet = new Set(QUICK_ACTION_ATTACK_AREA_SHAPES);
 
 function shortText(value, maxLength) {
   return String(value ?? "").trim().slice(0, maxLength);
@@ -66,6 +73,70 @@ function optionalInteger(value, min, max) {
 
 function sanitizeId(value) {
   return shortText(value, 96).replace(/[^a-zA-Z0-9:_-]/g, "");
+}
+
+// A whole number within the bounds (numbers written as text too, "+7"), or null: never clamped, a printed value
+// out of range is a wrong value.
+function boundedInteger(value, min, max) {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(String(value).trim().replace(/^\+/, ""));
+  return Number.isInteger(number) && number >= min && number <= max ? number : null;
+}
+
+// The save that replaces a monster's attack roll: its ability and DC (both needed: the card's spell save DC is not the
+// monster's), half damage on a passed save, its area and the condition of a failed save. Null without one.
+function attackSaveOf(value) {
+  const save = attackSaveAbilitySet.has(value?.save) ? value.save : "";
+  const saveDC = boundedInteger(value?.saveDC, 1, 30);
+  if (!save || saveDC === null) return null;
+  const condition = shortText(value.onFail?.condition, 80);
+  const area = attackAreaOf(value.area);
+  return {
+    save, saveDC,
+    ...(value.saveHalf === true ? { saveHalf: true } : {}),
+    ...(area ? { area } : {}),
+    ...(condition ? { onFail: { condition } } : {}),
+  };
+}
+
+// A save's area: its shape and size in feet (a line's width too), or "target" with the creatures it can choose.
+function attackAreaOf(value) {
+  const shape = attackAreaShapeSet.has(value?.shape) ? value.shape : "";
+  if (!shape) return null;
+  if (shape === "target") return { shape, maxTargets: boundedInteger(value.maxTargets, 1, 20) ?? 1 };
+  const sizeFeet = boundedInteger(value.sizeFeet, 5, 1000);
+  if (sizeFeet === null) return null;
+  const widthFeet = shape === "line" ? boundedInteger(value.widthFeet, 5, 100) : null;
+  return { shape, sizeFeet, ...(widthFeet !== null ? { widthFeet } : {}) };
+}
+
+// A monster's attack fields besides its damage (attacchi dei mostri, lotto 1), all optional, kept only when valid: the
+// save in place of the attack roll (attackSaveOf), else the attack bonus; reach and range in feet (shown, never checked);
+// a recharge (Recharge 5–6: 5), uses a day, and a note for what the console does not automate.
+function monsterAttackFieldsOf(value, save = attackSaveOf(value)) {
+  const attackBonus = save ? null : boundedInteger(value?.attackBonus, -30, 30);
+  const reachFeet = boundedInteger(value?.reachFeet, 5, 300);
+  const normal = boundedInteger(value?.rangeFeet?.normal, 5, 10000);
+  const long = normal === null ? null : boundedInteger(value.rangeFeet.long, normal, 10000);
+  const recharge = boundedInteger(value?.recharge, 2, 6);
+  const uses = boundedInteger(value?.uses, 1, MAX_QUICK_ACTION_USES);
+  const note = shortText(value?.note, MAX_QUICK_ACTION_ATTACK_NOTE);
+  return {
+    ...(attackBonus !== null ? { attackBonus } : {}),
+    ...(save || {}),
+    ...(reachFeet !== null ? { reachFeet } : {}),
+    ...(normal !== null ? { rangeFeet: { normal, ...(long !== null && long > normal ? { long } : {}) } } : {}),
+    ...(recharge !== null ? { recharge } : {}),
+    ...(uses !== null ? { uses } : {}),
+    ...(note ? { note } : {}),
+  };
+}
+
+// The monster's fields of a stored weapon attack, for the card's editor to keep them on a row it cannot edit yet
+// (collectQuickActions rebuilds an attack from its label, range and components). {} for any other action.
+export function quickActionMonsterAttackFields(action) {
+  if (action?.kind !== "attack" || action.source) return {};
+  return monsterAttackFieldsOf(action);
 }
 
 export function sanitizeQuickAction(value) {
@@ -148,8 +219,10 @@ export function sanitizeQuickAction(value) {
       };
     }
     // Component ids come from their position: no identity to persist. The formula is a hint, never evaluated.
+    // A monster's save without damage is an attack only when a failed save applies a condition (Frightful Presence).
     const source = Array.isArray(value.components) ? value.components : [];
-    if (!source.length || source.length > MAX_QUICK_ACTION_ATTACK_COMPONENTS) return null;
+    const save = attackSaveOf(value);
+    if ((!source.length && !save?.onFail) || source.length > MAX_QUICK_ACTION_ATTACK_COMPONENTS) return null;
     const components = [];
     for (const [index, component] of source.entries()) {
       const type = attackDamageTypeSet.has(component?.type) ? component.type : "";
@@ -165,6 +238,7 @@ export function sanitizeQuickAction(value) {
       targetMode: "selection",
       range: attackRangeSet.has(value.range) ? value.range : "melee",
       components,
+      ...monsterAttackFieldsOf(value, save),
     };
   }
 
