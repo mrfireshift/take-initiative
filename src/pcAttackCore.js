@@ -224,6 +224,13 @@ export function pcAttackResolvedAction(action, spellId = "", attackMode = "") {
         ...(spell.leap ? { leap: { ...spell.leap } } : {}), ...(spell.casterHealRatio ? { casterHealRatio: spell.casterHealRatio } : {}),
         ...(spell.fromActiveSpell ? { fromActiveSpell: true } : {}) } };
   }
+  // A monster's save action (attacchi dei mostri, lotto 2): its own save, DC and area, the creatures ticked by hand
+  // (one creature without an area, like Acid Spit); half on a passed save when it says so, its condition on a failure.
+  if (attack.save && !attack.source) {
+    const area = attack.area || { shape: "target", maxTargets: 1 };
+    return { ...attack, saveHalf: attack.saveHalf === true, area: { ...area, manual: true },
+      monster: { name: attack.label, half: attack.saveHalf === true, ...(attack.onFail ? { onFail: { ...attack.onFail } } : {}) } };
+  }
   if (attack.source?.kind !== "cantrip") {
     if (!attackMode) return attack;
     const mode = getPcAttackActivation(attackMode);
@@ -334,6 +341,8 @@ export function pcAttackSaveLabel(attack, card = {}) {
 }
 
 function pcAttackSaveDC(attack, card = {}) {
+  // A monster's action prints its own DC: never the card's spell save DC.
+  if (Number.isInteger(attack?.saveDC)) return attack.saveDC;
   if (attack?.mode) return pcAttackActivationSaveDC(getPcAttackActivation(attack.mode.id), card) || null;
   if (attack?.breath) return abilitySaveDC(card, "con");
   const dc = Number(card?.spellSaveDC);
@@ -715,6 +724,50 @@ export function pcAttackBreathInfo(attack, card = {}) {
   const feature = getClassFeatureDefinition(attack.breath.featureId);
   return { name: attack.breath.name, dice: pcAttackBreathDice(feature?.breath, card), damageType: attack.breath.damageType,
     shape: attack.area?.shape || "", dc: pcAttackSaveDC(attack, card), save: pcAttackSave(attack) };
+}
+
+// A distance of a monster's stat block in metres, as the table reads it: 1,5 m every 5 feet ("3 m", "4,5 m").
+export function pcAttackFeetLabel(feet) {
+  const meters = Math.round(Number(feet) * 3) / 10;
+  return Number.isFinite(meters) ? `${String(meters).replace(".", ",")} m` : "";
+}
+
+// What a monster's attack prints beside its name (attacchi dei mostri, lotto 2): the attack bonus, reach and range, the
+// recharge and the uses a day. Shown, never checked: the GM rolls at the table. [] for any other attack.
+export function pcAttackMonsterTags(attack) {
+  if (!attack || attack.source) return [];
+  const range = attack.rangeFeet;
+  return [
+    ...(Number.isInteger(attack.attackBonus) ? [`${attack.attackBonus >= 0 ? "+" : "−"}${Math.abs(attack.attackBonus)} al tiro`] : []),
+    ...(attack.reachFeet ? [`portata ${pcAttackFeetLabel(attack.reachFeet)}`] : []),
+    ...(range?.normal ? [`gittata ${range.long ? `${pcAttackFeetLabel(range.normal).replace(" m", "")}/${pcAttackFeetLabel(range.long)}` : pcAttackFeetLabel(range.normal)}`] : []),
+    ...(attack.recharge ? [attack.recharge === 6 ? "Ricarica 6" : `Ricarica ${attack.recharge}–6`] : []),
+    ...(attack.uses ? [`${attack.uses}/giorno`] : []),
+  ];
+}
+
+const MONSTER_AREA_TEXT = Object.freeze({
+  cone: (area) => `Cono di ${pcAttackFeetLabel(area.sizeFeet)}`,
+  line: (area) => `Linea di ${pcAttackFeetLabel(area.sizeFeet)}${area.widthFeet ? ` larga ${pcAttackFeetLabel(area.widthFeet)}` : ""}`,
+  sphere: (area) => `Sfera di ${pcAttackFeetLabel(area.sizeFeet)} di raggio`,
+  cube: (area) => `Cubo di ${pcAttackFeetLabel(area.sizeFeet)} di lato`,
+  cylinder: (area) => `Cilindro di ${pcAttackFeetLabel(area.sizeFeet)} di raggio`,
+});
+
+// The area note of a monster's save action: where its creatures are, its save and DC, what a success and a failure do.
+// "" for any other attack.
+export function pcAttackMonsterAreaNote(attack, card = {}) {
+  if (!attack?.monster || !attack.area) return "";
+  const area = attack.area;
+  const where = area.shape === "target"
+    ? (area.maxTargets > 1 ? `Fino a ${area.maxTargets} bersagli: spuntali. ` : "Un bersaglio: spuntalo. ")
+    : `${MONSTER_AREA_TEXT[area.shape]?.(area) || "Area"}: spunta le creature colpite. `;
+  const onFail = attack.monster.onFail;
+  const effects = [
+    ...(attack.components.length ? [attack.monster.half ? "metà se superato" : "niente se superato"] : []),
+    ...(onFail ? [`chi fallisce è ${onFail.condition.toLowerCase()}`] : []),
+  ];
+  return `${where}${pcAttackSaveLabel(attack, card)}${effects.length ? `: ${effects.join(", ")}` : ""}.`;
 }
 
 // Creatures near a token (3C): the edge-to-edge grid distance of the area tool, within radiusFeet. The caster's
@@ -1508,6 +1561,12 @@ function burstBlocker(option, request, { items = [], targetItem = null, secondar
 // 3C: an attack against every creature of an area (area cantrips around the caster, Piercing Arrow's line). One damage
 // roll; each creature saves on its own: a failure takes it all, a success half (Piercing Arrow, Potent Cantrip) or
 // nothing; each with its own defenses and hit points. One command, one History entry, one Undo.
+// Acid Spit and a monster's single-target save: one creature; a monster's "up to three creatures": three.
+function areaTargetLimitText(attack) {
+  const name = attack.breath?.name || attack.label;
+  return attack.area.maxTargets === 1 ? `${name}: un solo bersaglio.` : `${name}: al massimo ${attack.area.maxTargets} bersagli.`;
+}
+
 function areaFactor(attack, outcome, card) {
   if (outcome === "failed") return "full";
   return outcome === "passed" && (attack.saveHalf || (attack.cantrip && pcAttackHasPotentCantrip(card))) ? "half" : "zero";
@@ -1560,7 +1619,7 @@ export function pcAttackAreaPreview({
     return option.types.includes(rider.type) ? "" : `${option.label}: scegli il tipo di danno.`;
   }).find(Boolean) || "";
   const blocker = !chosen.length ? "Scegli le creature dell'area."
-    : attack.area.maxTargets && chosen.length > attack.area.maxTargets ? `${attack.breath?.name || attack.label}: un solo bersaglio.`
+    : attack.area.maxTargets && chosen.length > attack.area.maxTargets ? areaTargetLimitText(attack)
     : modeOption && !modeOption.available ? `${modeOption.label}: ${modeOption.reason}`
     : breathOption && !breathOption.available ? `${attack.breath.name}: ${breathOption.reason}`
     : rows.some((row) => !PC_ATTACK_SAVE_OUTCOMES.includes(row.outcome)) ? "Scegli l'esito del tiro salvezza di ogni creatura."
@@ -1586,7 +1645,7 @@ export function buildPcAttackAreaMutation({
   const list = Array.isArray(members) ? members : [];
   if (!list.length) throw new Error("Scegli le creature dell'area.");
   if (new Set(list.map((member) => member?.item?.id)).size !== list.length) throw new Error("La stessa creatura è indicata due volte.");
-  if (attack.area.maxTargets && list.length > attack.area.maxTargets) throw new Error(`${attack.breath?.name || attack.label}: un solo bersaglio.`);
+  if (attack.area.maxTargets && list.length > attack.area.maxTargets) throw new Error(areaTargetLimitText(attack));
   for (const member of list) {
     if (!isBossActionTargetItem(member?.item)) throw new Error("Una creatura dell'area non è più nella scena.");
     if (member.item.id === sourceItem.id) throw new Error("L'attaccante non è tra le creature colpite dalla sua area.");
@@ -1645,7 +1704,8 @@ export function buildPcAttackAreaMutation({
     ...([...currentRiderUses(sourceMeta, turn?.turnKey), ...newUses].length ? { riderUses: [...currentRiderUses(sourceMeta, turn?.turnKey), ...newUses] } : {}),
   };
   const sourceName = sourceItem.name || sourceItem.id;
-  const actionName = attack.cantrip ? attack.cantrip.name : attack.breath ? attack.breath.name : `${attack.label} · ${attack.mode.label}`;
+  const actionName = attack.cantrip ? attack.cantrip.name : attack.breath ? attack.breath.name : attack.monster ? attack.monster.name
+    : `${attack.label} · ${attack.mode.label}`;
   const breathInfo = attack.breath ? pcAttackBreathInfo(attack, card) : null;
   const cantripDice = attack.cantrip ? pcAttackCantripDiceFor(attack, card, null) : null;
   const dc = pcAttackSaveDC(attack, card);
@@ -1655,14 +1715,19 @@ export function buildPcAttackAreaMutation({
     cause: { kind: PC_ATTACK_HISTORY_KIND, quickActionId: attack.id, actionName, attackInstanceId, range: attack.range,
       ...(attack.cantrip ? { spellId: attack.cantrip.spellId, spellName: attack.cantrip.name } : {}) },
     action: { id: attack.id, label: actionName },
-    attack: { range: attack.range, outcome: "area", source: attack.cantrip ? "cantrip" : attack.breath ? "breath" : "weapon" },
+    attack: { range: attack.range, outcome: "area", source: attack.cantrip ? "cantrip" : attack.breath ? "breath" : attack.monster ? "monster" : "weapon" },
     ...(breathInfo ? { breath: { featureId: attack.breath.featureId, name: breathInfo.name, dice: breathInfo.dice, shape: breathInfo.shape,
       type: breathInfo.damageType, typeLabel: breathInfo.damageType ? damageTypeLabel(breathInfo.damageType) : "", half: attack.breath.half,
       ...(attack.breath.onFail ? { onFail: { ...attack.breath.onFail } } : {}), spent: breathSpend.spent } } : {}),
     ...(attack.cantrip ? { cantrip: { ...attack.cantrip, ...(cantripDice ? { dice: cantripDice } : {}), saveLabel: pcAttackSaveLabel(attack, card) } } : {}),
     ...(attack.mode ? { mode: { id: attack.mode.id, label: attack.mode.label, kind: attack.mode.kind } } : {}),
+    // A monster's save action: its dice as printed, half or nothing on a success, its condition and its note.
+    ...(attack.monster ? { monster: { name: attack.monster.name, half: attack.monster.half,
+      ...(attack.components.length ? { dice: attack.components.map((component) => [component.formula, damageTypeLabel(component.type)].filter(Boolean).join(" ")).join(" + ") } : {}),
+      ...(attack.monster.onFail ? { onFail: { ...attack.monster.onFail } } : {}), ...(attack.note ? { note: attack.note } : {}) } } : {}),
     save: { ability: pcAttackSave(attack), ...(dc ? { dc } : {}) },
-    area: attack.area.manual ? { manual: true, count: rows.length, ...(attack.area.shape ? { shape: attack.area.shape, lengthFeet: attack.area.lengthFeet } : {}) }
+    area: attack.area.manual ? { manual: true, count: rows.length, ...(attack.area.shape ? { shape: attack.area.shape,
+      ...(attack.area.lengthFeet ? { lengthFeet: attack.area.lengthFeet } : {}), ...(attack.area.sizeFeet ? { sizeFeet: attack.area.sizeFeet } : {}) } : {}) }
       : { radiusFeet: attack.area.radiusFeet, origin: "caster", count: rows.length },
     ...(turn ? { turn } : {}),
     ...(chosenRiders.length ? { riders: chosenRiders.map((rider) => ({ featureId: rider.id, name: rider.option.label, ...(rider.dice ? { dice: rider.dice } : {}),
@@ -1677,12 +1742,12 @@ export function buildPcAttackAreaMutation({
   };
   const changed = rows.filter((row) => row.change.changed);
   // The metallic breath: its condition on each creature that failed the save, ending with the dragonborn's turn when
-  // the option says so (Incapacitato), else removed by hand (Prono).
-  const onFail = attack.breath?.onFail || null;
+  // the option says so (Incapacitato), else removed by hand (Prono). A monster's condition is removed by hand.
+  const onFail = attack.breath?.onFail || attack.monster?.onFail || null;
   const appliedAt = bossConditionAppliedAt(turnState);
   const conditionOperations = onFail ? rows.filter((row) => row.outcome === "failed").map((row) => ({
     type: "condition:add", targetIds: [row.item.id], conditionName: onFail.condition,
-    instanceIds: { [row.item.id]: bossGroupConditionInstanceId(`${attackInstanceId}:breath`, onFail.condition, row.item.id) },
+    instanceIds: { [row.item.id]: bossGroupConditionInstanceId(`${attackInstanceId}:${attack.monster ? "monster" : "breath"}`, onFail.condition, row.item.id) },
     options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: !onFail.expiry,
       expiry: onFail.expiry ? { ...onFail.expiry, ...(onFail.expiry.actor === "source" ? { actorId: sourceItem.id } : {}) } : { mode: "manual" },
       ...(appliedAt ? { appliedAt } : {}) } })) : [];

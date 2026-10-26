@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 1 (piano)
 
-Stato: **approvato il 26/10/2026**, lotto 1 implementato.
+Stato: **approvato il 26/10/2026**, lotti 1 e 2 implementati.
 
 Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non viene toccato; i boss seguono l'interruttore Mostri; PF dalla media dello statblock, modificabile, con sovrascrittura spuntata solo se il token non ha PF; fase 1b dopo la fase 1.
 
@@ -9,6 +9,9 @@ Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non v
 - **Lotto 1, nomi dei campi.** Gittata come oggetto, `rangeFeet: { normal, long }` (la lunga solo se oltre la normale), come i profili Boss; misura dell'area in `area.sizeFeet`, larghezza solo per la linea (`widthFeet`).
 - **Lotto 1, valori fuori intervallo.** I campi del mostro si scartano invece di essere riportati nei limiti (una CD 0 o un bonus +45 sono valori sbagliati, non da correggere). Senza CD il TS cade per intero: la CD degli incantesimi della scheda non è quella del mostro.
 - **Lotto 1, editor della scheda.** `collectQuickActions` ricostruisce ogni attacco da etichetta, raggio e componenti: salvare la scheda avrebbe cancellato i campi del mostro. La riga ora li conserva (`quickActionMonsterAttackFields`) e li rimette al salvataggio; un TS senza danni non riceve più la componente «tagliente» di default.
+- **Lotto 2, TS senza area.** Un'azione a TS senza area vale per una creatura (`area: { shape: "target", maxTargets: 1 }`), come lo Sputo acido: tutte le azioni a TS dei mostri passano dallo stesso percorso ad area. Con `maxTargets` oltre 1 il blocco dice «al massimo N bersagli».
+- **Lotto 2, Combat Log.** Riga «Azione del mostro: nome (dadi) · TS, CD, effetto» e «Da fare: nota»; le aree a scelta manuale nominano anche sfera, cubo e cilindro (prima tutto ciò che non era cono o bersaglio diventava «sulla linea»).
+- **Lotto 2, banco.** Scenari `pc-monster`, `pc-monster-bite`, `pc-monster-presence` nel banco `boss-actions-preview` (porta 5199).
 
 Decisioni già prese dall'utente (26/10/2026):
 
@@ -91,14 +94,14 @@ Ogni lotto è un commit a sé, con i test del suo modulo e `npm run build`.
 - Il campo `monster` vive in `src/monsterProfileCore.js` (`sanitizeMonsterProfile`, `isMonsterProfileCard`).
 - Test: `test/quickActionsCore.test.js`, nuovo `test/monsterAttackModel.test.js`.
 
-### Lotto 2 — la console esegue le azioni dei mostri
+### Lotto 2 — la console esegue le azioni dei mostri ✅
 
 - `pcAttackResolvedAction`: un'azione con `save` diventa un'azione ad area (`area.manual`), con `saveHalf` e `onFail` propri; `area.shape: "target"` vale come bersaglio singolo a TS.
 - `pcAttackSaveDC`: `attack.saveDC` prima della CD della scheda.
 - `buildPcAttackAreaMutation`: la condizione sul fallimento si legge da `attack.breath?.onFail || attack.onFail` (oggi solo il soffio).
 - Picker e Dettagli: bonus, portata o gittata in metri, TS e CD, area, nota; riga del multiattacco in testa alla console.
 - Nessun disegno dell'area sulla mappa in fase 1: le creature si scelgono a mano come per il soffio.
-- Test: `pcAttackCore`, `pcAttackAreas`, `pcAttackPicker`.
+- Test: nuovo `test/pcAttackMonsterActions.test.js`, due test della console in `test/pcAttackPopover.test.js`.
 
 ### Lotto 3 — usi e ricarica
 

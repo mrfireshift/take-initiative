@@ -648,6 +648,11 @@ function maneuverLogLines(maneuver) {
     + `${contest ? ` (${contest})` : ""}: ${result}${ended}`];
 }
 
+// Where the creatures of an area ticked by hand were: a breath's cone or line, a monster's area.
+const MANUAL_AREA_SHAPE_TEXT = Object.freeze({
+  cone: "nel cono", line: "sulla linea", target: "come bersaglio", sphere: "nella sfera", cube: "nel cubo", cylinder: "nel cilindro",
+});
+
 function causalityDetailLines(event) {
   const causality = eventCausality(event);
   if (!causality) return [];
@@ -709,12 +714,27 @@ function causalityDetailLines(event) {
       + `${spent.length ? ` · ${spent.join(", ")}` : ""}`);
     if (stringValue(onFail?.note)) lines.push(`Da fare: ${stringValue(onFail.note)}`);
   }
+  // A monster's save action (attacchi dei mostri): its dice as printed, its save, what a success and a failure do.
+  const monsterName = stringValue(rawAttack?.monster?.name);
+  if (monsterName) {
+    const monster = rawAttack.monster;
+    const ability = PC_ATTACK_LOG_SAVE_LABELS[stringValue(rawAttack.save?.ability)];
+    const dc = finiteNumber(rawAttack.save?.dc);
+    const onFail = monster.onFail && typeof monster.onFail === "object" ? monster.onFail : null;
+    const effects = [
+      ...(stringValue(monster.dice) ? [monster.half === true ? "metà se superato" : "niente se superato"] : []),
+      ...(stringValue(onFail?.condition) ? [`${stringValue(onFail.condition)} se fallito`] : []),
+    ];
+    lines.push(`Azione del mostro: ${monsterName}${stringValue(monster.dice) ? ` (${stringValue(monster.dice)})` : ""}`
+      + `${ability ? ` · TS ${ability}${dc !== null ? ` CD ${numberText(dc)}` : ""}${effects.length ? `, ${effects.join(", ")}` : ""}` : ""}`);
+    if (stringValue(monster.note)) lines.push(`Da fare: ${stringValue(monster.note)}`);
+  }
   if (rawAttack?.area && typeof rawAttack.area === "object") {
     const count = finiteNumber(rawAttack.area.count);
     const creatures = count !== null ? `${numberText(count)} ${count === 1 ? "creatura" : "creature"}` : "creature";
     const radius = finiteNumber(rawAttack.area.radiusFeet);
     const manualShape = stringValue(rawAttack.area.shape);
-    lines.push(rawAttack.area.manual ? `Area: ${creatures} ${manualShape === "cone" ? "nel cono" : manualShape === "target" ? "come bersaglio" : "sulla linea"}`
+    lines.push(rawAttack.area.manual ? `Area: ${creatures} ${MANUAL_AREA_SHAPE_TEXT[manualShape] || "sulla linea"}`
       : `Area: ${creatures} entro ${radius !== null ? `${numberText((radius / 10) * 3).replace(".", ",")} m` : "l'area"}${stringValue(rawAttack.actor?.name) ? ` da ${rawAttack.actor.name}` : ""}`);
   }
   // A weapon cantrip woven into the attack (Booming Blade, Green-Flame Blade).

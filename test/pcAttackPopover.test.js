@@ -22,7 +22,7 @@ const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", 
   "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow", "pc-attack-picker-list",
   "pc-attack-launch-button", "pc-attack-spell-details", "pc-attack-spell-details-body", "pc-attack-use-selected",
   "pc-attack-grapple", "pc-attack-maneuver", "pc-attack-maneuver-target", "pc-attack-maneuver-hint", "pc-attack-maneuver-effects", "pc-attack-maneuver-contest",
-  "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note"];
+  "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note", "pc-attack-multiattack", "pc-attack-monster-note"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-use-selected", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
@@ -1568,4 +1568,39 @@ test("the Presa box: the creature the actor holds (let go, its escape) and the g
   assert.deepEqual([f.calls[1].grappleEnd.grappledId, f.calls[1].grappleEnd.instanceId, f.calls[1].grappleEnd.outcome], ["aria", "i1", "escaped"]);
   const none = fixture({ actions: [sword] }); await none.controller.ready; await tick();
   assert.equal(none.$("pc-attack-grapple").hidden, true, "no grapple, no box");
+});
+
+// Attacchi dei mostri, lotto 2: bonus e portata nel sottotitolo, il multiattacco sopra gli attacchi, la nota sotto i
+// danni; un'azione a TS con la sua area, la sua CD e le creature spuntate a mano.
+const dragonBite = sanitizeQuickAction({ id: "bite", label: "Morso", kind: "attack", range: "melee",
+  components: [{ type: "piercing", formula: "2d10+8" }], attackBonus: 14, reachFeet: 10, note: "Più 2d6 fuoco." });
+const dragonBreath = sanitizeQuickAction({ id: "breath", label: "Soffio di fuoco", kind: "attack", range: "ranged",
+  components: [{ type: "fire", formula: "18d6" }], save: "dex", saveDC: 21, saveHalf: true, area: { shape: "cone", sizeFeet: 60 }, recharge: 5 });
+const dragonCard = { spellSaveDC: 8, quickActions: [dragonBite, dragonBreath], monster: { source: "manual", multiattack: "Un morso e due artigli." } };
+
+test("monster attack in the console: its bonus and reach in the subtitle, the Multiattack, the note under the damage", async () => {
+  const f = fixture({ card: dragonCard, actionId: "bite", attacker: { initiativeCard: dragonCard } }); await f.controller.ready; await tick();
+  assert.equal(f.$("pc-attack-subtitle").textContent, "Morso · Mischia · +14 al tiro · portata 3 m");
+  assert.equal(f.$("pc-attack-multiattack").hidden, false);
+  assert.equal(f.$("pc-attack-multiattack").textContent, "Multiattacco: Un morso e due artigli.");
+  assert.equal(f.$("pc-attack-monster-note").hidden, false);
+  assert.equal(f.$("pc-attack-monster-note").textContent, "Da risolvere al tavolo: Più 2d6 fuoco.");
+  assert.deepEqual(f.$("pc-attack-outcomes").children.map((button) => button.dataset.outcome), ["hit", "critical", "miss"]);
+});
+
+test("monster save action in the console: its area note and DC, the creatures ticked by hand, no map drawing", async () => {
+  const f = fixture({ card: dragonCard, actionId: "breath", attacker: { initiativeCard: dragonCard } }); await f.controller.ready; await tick();
+  assert.equal(f.$("pc-attack-subtitle").textContent, "Soffio di fuoco · TS Destrezza (CD 21) · Ricarica 5–6");
+  assert.equal(f.$("pc-attack-area").hidden, false);
+  assert.equal(f.$("pc-attack-area-note").textContent, "Cono di 18 m: spunta le creature colpite. TS Destrezza (CD 21): metà se superato.");
+  assert.equal(f.$("pc-attack-area-propose").hidden, true);
+  assert.equal(f.$("pc-attack-monster-note").hidden, true, "no note on this action");
+  await areaField(areaRow(f, "ghoul"), "failed").click();
+  await areaField(areaRow(f, "imp"), "passed").click();
+  await typeAmounts(f, ["63"]);
+  assert.equal(f.$("pc-attack-apply").disabled, false, f.$("pc-attack-total").textContent);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.deepEqual(f.calls[0].area.members, [{ targetId: "ghoul", outcome: "failed" }, { targetId: "imp", outcome: "passed" }]);
+  assert.deepEqual(f.calls[0].area.componentAmounts, { c1: 63 });
+  assert.match(f.$("pc-attack-status").textContent, /^Registrato: Soffio di fuoco su 2 creature\./);
 });

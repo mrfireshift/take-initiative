@@ -6,7 +6,9 @@ import { spellSlotStatus } from "./spellSlotCore.js";
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
-  pcAttackModeOptions, pcAttackAreaPreview, pcAttackActionPanelCantripIds, pcAttackSpellIds, pcAttackWithSpellType, pcAttackOpenSpellCast } from "./pcAttackCore.js";
+  pcAttackModeOptions, pcAttackAreaPreview, pcAttackActionPanelCantripIds, pcAttackSpellIds, pcAttackWithSpellType, pcAttackOpenSpellCast,
+  pcAttackMonsterAreaNote, pcAttackMonsterTags } from "./pcAttackCore.js";
+import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { getPcAttackSpell, pcAttackSpellDice } from "./pcAttackSpellCatalog.js";
 import { spellSlotChoices } from "./spellSlotSpendCore.js";
 import { pcAttackHasPotentCantrip } from "./pcAttackRiderCatalog.js";
@@ -233,6 +235,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   documentRef.addEventListener?.("click",event=>{if(menuOpen && !event.target?.closest?.("#pc-attack-picker-dropdown"))setMenuOpen(false);});
   const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open");
   const attackView=$("pc-attack-attack-view"),launchBox=$("pc-attack-launch"),casterLine=$("pc-attack-caster");
+  // A monster's card: its Multiattack over the Attacchi tab, its action's note (what the console does not automate).
+  const multiattackLine=$("pc-attack-multiattack"),monsterNote=$("pc-attack-monster-note");
   // A spell the console does not resolve (launched, woven into a weapon, or by hand): its card replaces the attack form.
   let launchKey="",launchBusy=false,launchSignature="";
   // Lancia / Usa in the fixed row; the spell's accordion in the attack form; one open state for both.
@@ -755,7 +759,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ?`${pcAttackSaveLabel(attack,attackerCard())}: chi fallisce è ${onFail.condition.toLowerCase()}${onFail.when?` ${onFail.when}`:""}.${onFail.note?` ${onFail.note}`:""}`
       :`${attack.components[0]?.formula || ""} ${damageTypeLabel(attack.breath?.damageType)} · ${pcAttackSaveLabel(attack,attackerCard())}, ${attack.breath?.half===false?"niente se superato":"metà se superato"}.`;
     const breathNote=attack.breath?breathWhere+breathEffect:"";
-    areaNote.textContent=breathNote || (area.manual?"Sulla linea di 9 m: spunta le creature colpite."
+    areaNote.textContent=breathNote || pcAttackMonsterAreaNote(attack,attackerCard()) || (area.manual?"Sulla linea di 9 m: spunta le creature colpite."
       :`Entro 1,5 m da ${name}${area.chosen?", solo quelle che scegli":", alleati compresi"}.`);
     areaPropose.hidden=!!area.manual;
     if(areaDraw){areaDraw.hidden=!pcBreathAreaRuleId(area.shape,breathAreaType(attack));areaDraw.textContent=drawing?"Disegno…":"Disegna";}
@@ -1124,6 +1128,15 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // slots left sit in the spells' level headers).
   const concentrationNames=()=>Object.entries(presentation?.item?.metadata?.[META_KEY]?.[`${ID}/concentration`] || {})
     .map(([key,entry])=>String(entry?.name || entry?.spellId || key).trim()).filter(Boolean);
+  function renderMonster() {
+    const multiattack=sanitizeMonsterProfile(attackerCard()[MONSTER_PROFILE_FIELD])?.multiattack || "";
+    if(multiattackLine) {
+      multiattackLine.hidden=!multiattack || currentEntry()?.tab!=="attacks";
+      multiattackLine.textContent=multiattack?`Multiattacco: ${multiattack}`:"";
+    }
+    const note=launching()?"":resolved()?.note || "";
+    if(monsterNote){monsterNote.hidden=!note;monsterNote.textContent=note?`Da risolvere al tavolo: ${note}`:"";}
+  }
   function renderCaster() {
     if(!casterLine) return;
     const tab=currentEntry()?.tab;
@@ -1633,7 +1646,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // A saving throw cantrip names its save (and the actor's DC) instead of a range.
     const saveLabel=pcAttackSaveLabel(attack,presentation?.item?.metadata?.[META_KEY]?.initiativeCard);
     const parts=[named || action?.label,...(attack?.cantrip?["Trucchetto"]:[]),...(attack?.spell?[`Incantesimo di ${attack.spell.level}° livello`]:[]),
-      saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":RANGE_LABELS[attack?.range]) || ""].filter(Boolean);
+      saveLabel || (attack?.spell?.delivery==="auto"?"Senza tiro per colpire":RANGE_LABELS[attack?.range]) || "",
+      // A monster's attack: its bonus, reach or range, recharge and uses, as its stat block prints them.
+      ...pcAttackMonsterTags(attack)].filter(Boolean);
     $("pc-attack-subtitle").textContent=presentation?parts.join(" · "):"";
   }
   function renderTarget() {
@@ -1797,7 +1812,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // A spell that left the book (or a launch view on an entry gone) falls back to the attack, or the first spell.
     if(launchKey && !(presentation.picker || []).some(entry=>entry.key===launchKey)) launchKey="";
     if(!draft && !launchKey) launchKey=pcAttackPickerDefault(presentation.picker,{})?.key || "";
-    renderPicker();renderCaster();renderGrapple();
+    renderPicker();renderCaster();renderMonster();renderGrapple();
     if(launching()){renderReaction();renderLaunch();return;}
     if(attackView) attackView.hidden=false;
     if(maneuverBox) maneuverBox.hidden=true;
@@ -1812,7 +1827,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function renderLive() {
     renderFollow();renderUseSelected();renderReaction();renderTurnBadge();
     if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
-    renderPicker();renderCaster();renderGrapple();
+    renderPicker();renderCaster();renderMonster();renderGrapple();
     if(launching()){renderLaunch();return;}
     renderTarget();renderPalm();updateDamageMeta();updateWoven();updateRiders();updateActivations();renderState();
   }
@@ -2029,7 +2044,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         attackInstanceId:draft.attackInstanceId,sceneIdentity:presentation.sceneIdentity});
       if(!lifecycle.isCurrent(operation)) return;
       showUndo(result);
-      setStatus([areaSummary(result,attack.cantrip?.name || attack.breath?.name || attack.mode?.label),...(result.warnings || [])].join("\n"),"ok");
+      setStatus([areaSummary(result,attack.cantrip?.name || attack.breath?.name || attack.monster?.name || attack.mode?.label),...(result.warnings || [])].join("\n"),"ok");
       rememberEntry(currentEntry()?.key);
       markPendingReady();
       draft=emptyDraft(presentation.action,null,draft.spellId,draft.attackMode);

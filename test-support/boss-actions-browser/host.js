@@ -550,6 +550,25 @@ const scenarios = {
     const { openPcAttackPopover } = await import("/src/pcAttackLauncher.js");
     await openPcAttackPopover("mira", "sword");
   },
+  // A monster's save action (attacchi dei mostri, lotto 2): Mira carries a red dragon's card, its Fire Breath a 18 m cone
+  // with its own DC; the Multiattack over the attacks. ?scenario=pc-monster-bite opens the bite with its bonus and note.
+  async "pc-monster"(actionId = "breath") {
+    const mira = fakeHost.state.items.find((item) => item.id === "mira");
+    mira.metadata[META].initiativeCard = { spellSaveDC: 8, monster: { source: "manual", multiattack: "Usa Presenza terrificante, poi un morso e due artigli." },
+      quickActions: [
+        { id: "bite", label: "Morso", kind: "attack", range: "melee", components: [{ type: "piercing", formula: "2d10+8" }, { type: "fire", formula: "2d6" }],
+          attackBonus: 14, reachFeet: 10 },
+        { id: "breath", label: "Soffio di fuoco", kind: "attack", range: "ranged", components: [{ type: "fire", formula: "18d6" }],
+          save: "dex", saveDC: 21, saveHalf: true, area: { shape: "cone", sizeFeet: 60 }, recharge: 5 },
+        { id: "presence", label: "Presenza terrificante", kind: "attack", components: [], save: "wis", saveDC: 19,
+          area: { shape: "sphere", sizeFeet: 120 }, onFail: { condition: "Spaventato" }, note: "Ripete il TS a fine turno; immune per 24 ore dopo un successo." },
+      ] };
+    fakeHost.setItems([...fakeHost.state.items]);
+    const { openPcAttackPopover } = await import("/src/pcAttackLauncher.js");
+    await openPcAttackPopover("mira", actionId);
+  },
+  async "pc-monster-bite"() { await scenarios["pc-monster"]("bite"); },
+  async "pc-monster-presence"() { await scenarios["pc-monster"]("presence"); },
   async compare() { document.getElementById("open-hp").click(); await sleep(600); fakeHost.setSelection(["dars"]); await openBossActionsPopover("auril"); await sleep(400);
     const frame = bossFrame(); fakeHost.state.popovers.get("com.thebigpicture.initiative/boss-actions").anchorPosition = { left: 600, top: 60 }; frame.style.left = "600px"; frame.style.top = "60px";
     (await row("Icekiss +2")).click(); await sleep(200); await press('[data-outcome="hit"]'); },
