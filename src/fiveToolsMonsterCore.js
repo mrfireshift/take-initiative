@@ -261,11 +261,12 @@ export function resolveFiveToolsMonster(monster, pool = [], seen = new Set()) {
   const key = monsterKey(name, source);
   if (seen.has(key) || seen.size >= 5) return { monster: null, report: [], error: `${monster.name}: catena di mostri derivati non risolvibile.` };
   const base = pool.find((entry) => monsterKey(entry?.name, entry?.source) === key);
-  if (!base) return { monster: null, report: [], error: `${monster.name} deriva da ${name} (${source}): carica anche il bestiario ${source}.` };
+  // missingSource: the book to load (or download from the archive, fase 3) for the base.
+  if (!base) return { monster: null, report: [], missingSource: String(source || ""), error: `${monster.name} deriva da ${name} (${source}): carica anche il bestiario ${source}.` };
   // The merged monster carries the copy's own source: a 2024 base is caught here, before it.
   if (isFiveTools2024(base)) return { monster: null, report: [], error: `${monster.name} deriva da ${name} (${source}), un mostro delle regole 2024: il plugin usa quelle del 2014.` };
   const resolvedBase = resolveFiveToolsMonster(base, pool, new Set([...seen, key]));
-  if (resolvedBase.error) return { monster: null, report: [], error: resolvedBase.error };
+  if (resolvedBase.error) return { monster: null, report: [], ...(resolvedBase.missingSource ? { missingSource: resolvedBase.missingSource } : {}), error: resolvedBase.error };
   const report = [`derivato da ${name} (${source})`, ...resolvedBase.report.filter((line) => !line.startsWith("derivato da"))];
   const { _copy: _ignored, ...own } = monster;
   const merged = { ...clone(resolvedBase.monster), ...clone(copyRest), ...clone(own) };
@@ -285,7 +286,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
   if (!input || typeof input !== "object" || typeof input.name !== "string") return { block: null, report: [], error: "Non è un mostro di 5eTools." };
   if (isFiveTools2024(input)) return { block: null, report: [], error: `${input.name} (${input.source}) è un mostro delle regole 2024: il plugin usa quelle del 2014.` };
   const resolved = resolveFiveToolsMonster(input, pool);
-  if (resolved.error) return { block: null, report: [], error: resolved.error };
+  if (resolved.error) return { block: null, report: [], ...(resolved.missingSource ? { missingSource: resolved.missingSource } : {}), error: resolved.error };
   const monster = resolved.monster;
   const report = [...resolved.report];
   const actions = [];

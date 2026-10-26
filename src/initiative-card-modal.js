@@ -73,6 +73,8 @@ import {
 import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { fiveToolsCollection, fiveToolsImportSummary, fiveToolsMonsterLabel, fiveToolsMonsterToStatblock, fiveToolsMonsters, fiveToolsSearch, isFiveToolsData }
   from "./fiveToolsMonsterCore.js";
+import { createFiveToolsArchivePanel } from "./fiveToolsArchivePanel.js";
+import { createLocalOptionsStore } from "./options/localOptionsStore.js";
 import { hasCanonicalHitPoints, monsterHitPointsSummary, monsterNamesakes } from "./monsterHitPointsImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
 import { pcAttackBreathActionId } from "./pcAttackBreathId.js";
@@ -3592,6 +3594,28 @@ let sheetImportResult = null;
 // the derived ones find their base among all of them. Only in memory, dropped when the edit starts again.
 let fiveToolsInputs = [];
 const MAX_FIVE_TOOLS_OPTIONS = 200;
+// The books of the online archive this browser keeps (fase 3, lotto 4): their files join the loaded ones in the picker,
+// listed first so a file the GM loads now wins over the kept copy.
+let fiveToolsArchiveInputs = [];
+let fiveToolsArchivePanel = null;
+let fiveToolsLocalOptions = null;
+const allFiveToolsInputs = () => [...fiveToolsArchiveInputs, ...fiveToolsInputs];
+function fiveToolsArchiveBase() {
+  try {
+    fiveToolsLocalOptions ||= createLocalOptionsStore();
+    return fiveToolsLocalOptions.readPersisted()?.tools?.fiveToolsArchive || "";
+  } catch {
+    return "";
+  }
+}
+function archivePanel() {
+  fiveToolsArchivePanel ||= createFiveToolsArchivePanel({
+    container: $("sheetImportArchiveBody"),
+    readBase: fiveToolsArchiveBase,
+    onChange: (data) => { fiveToolsArchiveInputs = data; renderFiveToolsPicker(); },
+  });
+  return fiveToolsArchivePanel;
+}
 // A monster's hit points chosen in the import, written after the sheet's Salva: { hp, overwrite, sameName } or null.
 let pendingMonsterHitPoints = null;
 
@@ -3617,6 +3641,8 @@ function setSheetImportOpen(open) {
     return;
   }
   $("sheetImportText").focus();
+  // The kept books of the online archive: their monsters in the picker at once, no network.
+  void archivePanel().refresh().catch((error) => console.warn("[5etools] archive:", error?.message || error));
 }
 
 function sheetImportNames() {
@@ -3640,7 +3666,7 @@ function readSheetImport() {
     fiveToolsInputs.push(data);
     const { monsters: pasted, excluded2024 } = fiveToolsCollection([data]);
     renderFiveToolsPicker(pasted.length === 1 ? pasted[0] : null);
-    if (pasted.length === 1) readFiveToolsMonster(pasted[0]);
+    if (pasted.length === 1) void readFiveToolsMonster(pasted[0]);
     else if (pasted.length) setSheetImportStatus("Scegli il mostro nell'elenco.");
     else setSheetImportStatus(excluded2024 ? "Mostri delle regole 2024: il plugin usa le regole del 2014 e non li importa." : "Nel blocco non c'è nessun mostro.", "error");
     return;
@@ -3663,16 +3689,16 @@ async function loadSheetImportFiles(files) {
       failed.push(file.name);
     }
   }
-  const { monsters } = fiveToolsCollection(fiveToolsInputs);
+  const { monsters } = fiveToolsCollection(allFiveToolsInputs());
   renderFiveToolsPicker(monsters.length === 1 ? monsters[0] : null);
-  if (monsters.length === 1 && !failed.length) readFiveToolsMonster(monsters[0]);
+  if (monsters.length === 1 && !failed.length) void readFiveToolsMonster(monsters[0]);
   else setSheetImportStatus([added ? "Scegli il mostro nell'elenco." : "", failed.length ? `Non letti (non sono JSON di 5eTools): ${failed.join(", ")}.` : ""]
     .filter(Boolean).join(" "), failed.length ? "error" : "");
 }
 
 // The picker: the monsters matching the search (at most 200), their count and books, the 2024 ones left out.
 function renderFiveToolsPicker(selected = null) {
-  const collection = fiveToolsCollection(fiveToolsInputs);
+  const collection = fiveToolsCollection(allFiveToolsInputs());
   $("sheetImportPicker").hidden = !collection.monsters.length;
   if (!collection.monsters.length) return;
   const select = $("sheetImportMonster");
@@ -3695,11 +3721,16 @@ function renderFiveToolsPicker(selected = null) {
 
 // A 5eTools monster read into the sections, as a pasted stat block, with the line of what the console registers and
 // what stays at the table.
-function readFiveToolsMonster(monster) {
+async function readFiveToolsMonster(monster, { retried = false } = {}) {
   resetSheetImport();
   pendingMonsterHitPoints = null;
-  const { pool } = fiveToolsCollection(fiveToolsInputs);
+  const { pool } = fiveToolsCollection(allFiveToolsInputs());
   const converted = fiveToolsMonsterToStatblock(monster, { pool });
+  // A derived monster whose base is in a book not kept yet: the archive downloads it, once (decision D2).
+  if (converted.missingSource && !retried && archivePanel().hasBase()) {
+    setSheetImportStatus(`Scarico dall'archivio il libro della base (${converted.missingSource})…`);
+    if (await archivePanel().ensureSource(converted.missingSource)) return readFiveToolsMonster(monster, { retried: true });
+  }
   if (converted.error) {
     setSheetImportStatus(converted.error, "error");
     return;
@@ -4612,9 +4643,13 @@ $("sheetImportFile").addEventListener("change", () => {
   void loadSheetImportFiles(files).finally(() => { $("sheetImportFile").value = ""; });
 });
 $("sheetImportSearch").addEventListener("input", () => renderFiveToolsPicker());
+// The archive's list of books is read when the GM opens "Archivio online", not before.
+$("sheetImportArchive").addEventListener("toggle", () => {
+  if ($("sheetImportArchive").open && archivePanel().hasBase()) void archivePanel().loadIndex();
+});
 $("sheetImportMonster").addEventListener("change", () => {
-  const monster = fiveToolsCollection(fiveToolsInputs).monsters.find((entry) => fiveToolsMonsterLabel(entry) === $("sheetImportMonster").value);
-  if (monster) readFiveToolsMonster(monster);
+  const monster = fiveToolsCollection(allFiveToolsInputs()).monsters.find((entry) => fiveToolsMonsterLabel(entry) === $("sheetImportMonster").value);
+  if (monster) void readFiveToolsMonster(monster);
 });
 $("sheetImportApply").addEventListener("click", applySheetImport);
 // Enter adds the spell: it must not submit the whole sheet.

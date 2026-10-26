@@ -216,9 +216,17 @@ https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/
 ```
 
 Il plugin non porta con sé nessun indirizzo: se il mirror cambia o sparisce
-basta scriverne un altro, e **Carica file** resta come ripiego. I libri
-scaricati restano nel browser del GM (mai nella scena o nella room); la scelta
-dei libri dalla scheda arriva con il prossimo aggiornamento.
+basta scriverne un altro, e **Carica file** resta come ripiego.
+
+Poi, nella scheda: **Modifica** → **Importa** → **Archivio online** →
+**Leggi l'elenco**, scegli un libro e **Aggiungi libro**. Lo fai **una volta
+per libro**: i libri restano nel browser del GM (mai nella scena o nella
+room) e i loro mostri compaiono nell'elenco dell'import ogni volta che apri
+**Importa**, anche senza rete. Per Icewind Dale basta aggiungere il libro
+della campagna: quando scegli un mostro che deriva dal Manuale dei Mostri, il
+plugin scarica da solo anche quello. **Aggiorna** riscarica un libro,
+**Rimuovi** lo toglie dalla memoria. In una finestra in incognito i libri
+valgono solo per quella sessione.
 
 ### Prompt per un assistente
 

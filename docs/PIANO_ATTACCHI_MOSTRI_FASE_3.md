@@ -19,6 +19,7 @@ Lettura, mostri derivati e sezioni restano quelli della fase 2.
 - **Lotto 1.** `src/fiveToolsArchiveCore.js`. L'indirizzo accetta la cartella dei dati in ogni forma (con o senza `/`, l'indirizzo dell'indice o di un file), solo `https` (`http` soltanto per un server locale) e mai con credenziali; i nomi dei file sono solo `bestiary-….json`. Sull'indice vero del mirror: 112 libri, 16 segnati «regole 2024» (i tre manuali 2024 e ciò che è uscito da settembre 2024; Vecna: Eve of Ruin, di maggio 2024, resta 2014), 13 senza nome noto mostrati col codice.
 - **Lotto 2.** `src/fiveToolsArchiveStore.js`, database `<ID>.fivetools-archive` con due store: `bookInfo` (ciò che il pannello elenca) e `bookData` (il file), così l'elenco non legge mai i file; chiave il codice del libro senza maiuscole. Senza IndexedDB o con lo spazio esaurito il libro resta per la sessione (`persisted: false`, con il motivo). Prova nel Chrome vero il 26/10 dal mirror: indice in 1,3 s; Icewind Dale (158 KB) scaricato in 0,24 s e salvato in 4 ms; Manuale dei Mostri (1,5 MB) in 0,28 s e 28 ms; i 533 mostri riletti in 9 ms.
 - **Lotto 3.** Opzione locale `tools.fiveToolsArchive` (vuota di default), salvata già normalizzata (`…/data/`); un indirizzo non valido non si salva. **Prova** legge l'indice con un limite di 15 secondi e dice quanti libri trova («112 libri, 96 delle regole 2014» sul mirror, «l'archivio risponde 404» su un indirizzo sbagliato). L'indirizzo del mirror è scritto solo in `docs/IMPORT_SCHEDA.md` (D1).
+- **Lotto 4.** `src/fiveToolsArchiveClient.js` (rete, con limite di 30 secondi e errori in italiano) e `src/fiveToolsArchivePanel.js` (il riquadro **Archivio online** a scomparsa nel pannello Importa). L'elenco dei libri si legge solo quando il GM apre il riquadro; i libri tenuti entrano nell'elenco dei mostri appena si apre **Importa**, prima dei file caricati, che così hanno la precedenza; senza indirizzo i libri tenuti restano usabili. Il risolutore dei derivati restituisce `missingSource`, e la scheda scarica quel libro una volta sola prima di riprovare. Prova nel banco con il mirror: 112 libri (16 disattivati), Icewind Dale aggiunto, Snowy Owlbear scelto → Manuale dei Mostri scaricato da solo, sezioni pronte; dopo il ricaricamento 533 mostri disponibili senza rete.
 
 ## La fonte (verificata il 26/10/2026)
 
@@ -76,7 +77,7 @@ l'indirizzo è un'opzione, e **Carica file** della fase 2 resta il ripiego.
   dati, nel pannello Opzioni, sezione Console attacchi, con **Prova** (legge
   l'indice e dice quanti libri trova). Vedi D1 per il valore iniziale.
 
-### Lotto 4 — archivio nella scheda
+### Lotto 4 — archivio nella scheda ✅
 
 - Nel pannello **Importa**: **Archivio online** con i libri in memoria (data,
   dimensione, mostri, **Aggiorna**, **Rimuovi**) e **Aggiungi libro** (elenco
