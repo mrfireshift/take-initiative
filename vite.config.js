@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import { readFileSync } from "node:fs";
 import { createBuildMetadata } from "./scripts/build-metadata.mjs";
 import { devManifestPlugin } from "./scripts/dev-manifest.mjs";
+import { perfRunsDevPlugin } from "./scripts/perf-runs-dev-plugin.mjs";
 import path from "node:path";   // 👈 usa path cross-platform (Windows ok)
 
 const packageJson = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
@@ -22,6 +23,8 @@ export default defineConfig(() => {
     devManifestPlugin({
       readManifest: () => JSON.parse(readFileSync(new URL("./public/manifest.json", import.meta.url), "utf8")),
     }),
+    // `npm run dev` only: the measurement session saves the probe's exports in perf-runs/ (src/perfSessionRunner.js).
+    perfRunsDevPlugin(),
     {
       name: "take-initiative-build-info",
       generateBundle() {

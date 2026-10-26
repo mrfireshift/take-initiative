@@ -225,6 +225,9 @@ export function perfBootPage(obr, { observeTraffic = false, observeSdk = false }
   if (!enabled || booted) return;
   booted = true;
   ensureChannel();
+  // The measurement session's tracker side (src/perfSessionRunner.js): it acts only on an explicit command from the
+  // background's console, never by itself.
+  if (realm === "index") void import("./perfSessionRunner.js").then((module) => module.installPerfRunnerRemote()).catch(() => {});
   if (observeSdk && obr) observeSdkCalls(obr);
   perfRecord("boot", { stage: "module", sinceNavigationMs: round(perfNow()) });
   recordBootResources();
@@ -489,4 +492,14 @@ globalThis.__tbpPerf = {
   },
   metadataSizes,
   events,
+  // Dev tool (docs/MISURA_CONSOLE_MOSTRI.md), from the background's console: the monster-console measurement blocks.
+  async runMonsterSession(options = {}) {
+    if (realm !== "background") return "Esegui dal contesto background.html della Console.";
+    const { runMonsterSession } = await import("./perfSessionRunner.js");
+    return runMonsterSession({ probe: globalThis.__tbpPerf, obr: obrRef, ...options });
+  },
+  async stopSession() {
+    const { stopPerfSession } = await import("./perfSessionRunner.js");
+    return stopPerfSession();
+  },
 };

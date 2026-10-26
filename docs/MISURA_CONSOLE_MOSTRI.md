@@ -36,7 +36,37 @@ Si leggono con `node scripts/perf-compare.mjs perf-runs/gm-turni-flag-locale.jso
    contesti in alto): `__tbpPerf.enable()`, poi ricarica la pagina di Owlbear.
 5. Lascia la finestra giocatori chiusa, come nella baseline del GM.
 
-## Blocchi
+## Sessione automatica (consigliata)
+
+Dopo la preparazione, la sessione si fa da sola:
+
+1. Riavvia `npm run dev` se era già acceso prima di questo aggiornamento: il
+   salvataggio in `perf-runs/` è un plugin del server di sviluppo.
+2. Apri il tracker come GM e tieni aperta **una sola** finestra di Owlbear in
+   questo profilo del browser (ogni tracker aperto riceverebbe i comandi).
+3. F12 → Console → contesto **background.html** →
+   `await __tbpPerf.runMonsterSession()`.
+
+Il tool:
+
+- salva le dimensioni dei metadata in `perf-runs/gm-mostri-dimensioni.json`;
+- per ogni blocco della tabella sotto imposta le pillole, chiude le console,
+  azzera il probe e manda **10 turni avanti** con la scorciatoia del tracker
+  (lo stesso «→» del GM, con tutti i suoi controlli: non scrive mai lo stato
+  dell'iniziativa); dopo ogni turno aspetta il suo tick (al massimo 15 s) e
+  altri 3 s perché le console si aprano;
+- salva l'export di ogni blocco in `perf-runs/` (un file esistente non viene
+  mai sovrascritto: il nuovo prende `-2`, `-3`…);
+- alla fine rimette le pillole come erano, anche se la sessione si ferma o
+  fallisce, e stampa una tabella e il comando di confronto.
+
+Dura pochi minuti (circa 3 con i valori predefiniti). Va fatta su una scena di prova: 30 turni avanti fanno
+scorrere round, durate e scadenze. Si ferma dopo il turno in corso con
+`__tbpPerf.stopSession()`. Opzioni: `runMonsterSession({ turns: 10, settleMs:
+3000 })`. Senza il server di sviluppo (build di produzione) gli export si
+stampano in console, da copiare a mano.
+
+## Blocchi a mano
 
 Prima di ogni blocco, nel contesto **background.html**:
 `__tbpPerf.reset()`. Durante il blocco non toccare la console (nessun clic,

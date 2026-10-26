@@ -4,7 +4,9 @@
 non vede: byte scritti e ricevuti, latenze dei comandi, avvio delle pagine e long task.
 
 È spento per default. Acceso, osserva soltanto: non cambia scritture, messaggi o il loro
-ordine. Spento, ogni hook è una condizione falsa e non serializza nulla
+ordine. L'unica eccezione è la sessione automatica (`src/perfSessionRunner.js`), che agisce
+solo quando la lanci dalla console del background: nel tracker ascolta i suoi comandi su un
+canale proprio e, finché non ne arriva uno, non fa nulla. Spento, ogni hook è una condizione falsa e non serializza nulla
 (`test/perfProbe.test.js`).
 
 ## Accensione
@@ -32,6 +34,8 @@ anche quelli dei popup già chiusi.
 | `copy(__tbpPerf.export("etichetta"))` | Copia negli appunti il JSON con riepilogo ed eventi |
 | `__tbpPerf.reset()` | Azzera gli eventi raccolti in questa finestra |
 | `await __tbpPerf.metadataSizes()` | Byte attuali di scena e room, per chiave |
+| `await __tbpPerf.runMonsterSession()` | Sessione di misura automatica della console sui mostri ([passi](MISURA_CONSOLE_MOSTRI.md)) |
+| `__tbpPerf.stopSession()` | Ferma la sessione automatica dopo il turno in corso |
 
 Il buffer tiene gli ultimi 5000 eventi.
 
