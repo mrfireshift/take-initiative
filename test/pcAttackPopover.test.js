@@ -22,7 +22,7 @@ const IDS = ["pc-attack-reaction", "pc-attack-turn", "pc-attack-picker-search", 
   "pc-attack-auto-open-row", "pc-attack-auto-open", "pc-attack-attack-view", "pc-attack-launch", "pc-attack-caster", "pc-attack-follow", "pc-attack-picker-list",
   "pc-attack-launch-button", "pc-attack-spell-details", "pc-attack-spell-details-body", "pc-attack-use-selected",
   "pc-attack-grapple", "pc-attack-maneuver", "pc-attack-maneuver-target", "pc-attack-maneuver-hint", "pc-attack-maneuver-effects", "pc-attack-maneuver-contest",
-  "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note", "pc-attack-multiattack", "pc-attack-monster-note"];
+  "pc-attack-maneuver-outcomes", "pc-attack-maneuver-note", "pc-attack-multiattack", "pc-attack-monster-note", "pc-attack-auto-open-monsters"];
 const BUTTONS = new Set(["pc-attack-close", "pc-attack-apply", "pc-attack-launch-button", "pc-attack-use-selected", "pc-attack-undo", "pc-attack-add-extra", "pc-attack-palm-apply",
   "pc-attack-area-propose", "pc-attack-area-all-failed", "pc-attack-area-all-passed"]);
 function createDocument() {
@@ -35,7 +35,7 @@ function createDocument() {
   doc.root = new FakeNode(doc, "body"); doc.body = doc.root;
   for (const id of IDS) {
     const node = new FakeNode(doc, ["pc-attack-target", "pc-attack-cantrip", "pc-attack-mode", "pc-attack-picker-select", "pc-attack-maneuver-target"].includes(id) ? "select" : BUTTONS.has(id) ? "button"
-      : ["pc-attack-auto-open", "pc-attack-picker-search"].includes(id) ? "input" : id === "pc-attack-spell-details" ? "details" : "div");
+      : ["pc-attack-auto-open", "pc-attack-auto-open-monsters", "pc-attack-picker-search"].includes(id) ? "input" : id === "pc-attack-spell-details" ? "details" : "div");
     node.id = id; doc.root.appendChild(node);
   }
   return doc;
@@ -45,7 +45,7 @@ const sword = sanitizeQuickAction({ id: "holy-sword", label: "Spada sacra", kind
   components: [{ type: "slashing", formula: "1d8+3" }, { type: "radiant", formula: "2d8" }] });
 
 // actions: the actor's quick actions, for the picker (the runtime then loads the one asked for, like pcAttackExecution).
-function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, featureState = null, featureRuntime, actionId = "holy-sword", confirm, broadcast, autoOpenOption, metas = {}, openTracker } = {}) {
+function fixture({ defenses = null, attacker = {}, turnState = null, action = sword, nearby = () => [], actions = null, card = null, featureState = null, featureRuntime, actionId = "holy-sword", confirm, broadcast, autoOpenOption, autoOpenMonstersOption, metas = {}, openTracker } = {}) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
   // metas: more metadata for the ghoul and the imp (their cards, for the off-turn actions).
@@ -103,7 +103,7 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
         damageComponents: [{ amount: 17 }], hpChange: { before: 30, after: 13, hpMax: 30 } };
     },
   };
-  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, featureRuntime, openTracker, launchAckTimeoutMs: 40, schedule: (callback) => setTimeout(callback, 0),
+  const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "aria", actionId, confirm, autoOpenOption, autoOpenMonstersOption, featureRuntime, openTracker, launchAckTimeoutMs: 40, schedule: (callback) => setTimeout(callback, 0),
     undo: async (entryId) => { undoCalls.push(entryId); return { ok: true }; } });
   const $ = (id) => documentRef.getElementById(id);
   // keydown: a key pressed in the console, its target the element focused (or the one given).
@@ -812,7 +812,7 @@ test("the header switch shows and changes the turn auto-open option", async () =
   assert.equal(box.checked, false);
   box.checked = true; await box.emit("change"); await tick();
   assert.deepEqual(values, [true]);
-  assert.match(f.$("pc-attack-status").textContent, /si aprirà da sola a ogni turno/);
+  assert.match(f.$("pc-attack-status").textContent, /si aprirà da sola a ogni turno di un personaggio o alleato/);
   notify(false);
   assert.equal(box.checked, false, "a change made in the options panel shows here");
   await f.$("pc-attack-close").click();
@@ -1603,4 +1603,23 @@ test("monster save action in the console: its area note and DC, the creatures ti
   assert.deepEqual(f.calls[0].area.members, [{ targetId: "ghoul", outcome: "failed" }, { targetId: "imp", outcome: "passed" }]);
   assert.deepEqual(f.calls[0].area.componentAmounts, { c1: 63 });
   assert.match(f.$("pc-attack-status").textContent, /^Registrato: Soffio di fuoco su 2 creature\./);
+});
+
+// Attacchi dei mostri, lotto 7: la seconda pillola, «Mostri», con la sua opzione.
+test("the header's Mostri switch shows and changes the monsters' auto-open option", async () => {
+  const pc = [], monsters = [];
+  let notifyMonsters = null;
+  const option = (values, keep) => ({ subscribe: async (listener) => { if (keep) notifyMonsters = listener; listener(keep); return () => { if (keep) notifyMonsters = null; }; },
+    set: async (value) => { values.push(value); }, stop() {} });
+  const f = fixture({ autoOpenOption: option(pc, false), autoOpenMonstersOption: option(monsters, true) }); await f.controller.ready; await tick();
+  const box = f.$("pc-attack-auto-open-monsters");
+  assert.equal(box.checked, true, "inherited or set: the option says on");
+  assert.equal(f.$("pc-attack-auto-open").checked, false);
+  box.checked = false; await box.emit("change"); await tick();
+  assert.deepEqual([pc, monsters], [[], [false]]);
+  assert.match(f.$("pc-attack-status").textContent, /non si aprirà più da sola al turno di un mostro/);
+  notifyMonsters(true);
+  assert.equal(box.checked, true);
+  await f.$("pc-attack-close").click();
+  assert.equal(notifyMonsters, null);
 });

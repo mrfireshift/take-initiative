@@ -24,6 +24,14 @@
     /* Ogni turno as a switch of its own: a 24 px pill, blue when on. */
     .auto-toggle { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: var(--obrt-hit-min); padding: 0 8px; border: 1px solid var(--line); border-radius: var(--obrt-radius-pill); color: var(--muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-semibold); cursor: pointer; }
     .auto-toggle:hover { background: var(--obrt-hover); }
+    /* Two switches since attacchi dei mostri, lotto 7: characters and allies, monsters (and bosses). */
+    .auto-group { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; }
+    .auto-group[hidden] { display: none; }
+    /* Compact pills, so the actor's name keeps its room: the state is the pill's colour, the checkbox stays for the
+       keyboard and assistive technology (focus ring on the pill). "Ogni turno" is the group's label and tooltip. */
+    .auto-group .auto-toggle { position: relative; padding: 0 7px; }
+    .auto-group .auto-toggle input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .auto-group .auto-toggle:has(input:focus-visible) { outline: 2px solid var(--obrt-accent); outline-offset: 1px; }
     .auto-toggle:has(input:checked) { border-color: rgba(96, 165, 250, .45); background: rgba(30, 64, 175, .22); color: var(--info-text); }
     .auto-toggle input { width: 14px; height: 14px; margin: 0; accent-color: var(--obrt-accent); cursor: pointer; }
     /* The header drags the console: six dots say so. */
@@ -261,7 +269,7 @@
     <header class="header" data-drag-handle draggable="true" title="Trascina per spostare">
       <div class="header-text"><div class="title-row"><h1 class="title" id="pc-attack-title">Attacco</h1><span class="turn-badge" id="pc-attack-turn" hidden></span></div><div class="subtitle" id="pc-attack-subtitle"></div></div>
       <span class="drag-grip" aria-hidden="true"></span>
-      <label class="auto-toggle" id="pc-attack-auto-open-row" title="Apri la console da sola a ogni turno di un attore con attacchi (questo browser)" hidden><input type="checkbox" id="pc-attack-auto-open" /><span>Ogni turno</span></label>
+      <span class="auto-group" id="pc-attack-auto-open-row" role="group" aria-label="Apri da sola a ogni turno (questo browser)" title="Apri la console da sola a ogni turno (questo browser)" hidden><label class="auto-toggle" title="A ogni turno di un personaggio o alleato con attacchi"><input type="checkbox" id="pc-attack-auto-open" /><span>PG</span></label><label class="auto-toggle" title="A ogni turno di un mostro con attacchi; ai boss si apre la console Boss"><input type="checkbox" id="pc-attack-auto-open-monsters" /><span>Mostri</span></label></span>
       <button class="icon-button" id="pc-attack-minimize" type="button" title="Riduci" aria-label="Riduci" aria-expanded="true">&minus;</button>
       <button class="icon-button" id="pc-attack-close" type="button" title="Chiudi" aria-label="Chiudi">&times;</button>
     </header>

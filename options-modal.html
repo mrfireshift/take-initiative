@@ -69,8 +69,12 @@
             <span class="scope-badge local">Questo browser</span>
           </div>
           <label class="option-toggle compact">
-            <span>Apri a ogni turno di un attore con attacchi</span>
+            <span>Apri a ogni turno di un personaggio o alleato con attacchi</span>
             <input type="checkbox" data-local="pcAttackAutoOpen" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Apri a ogni turno di un mostro con attacchi (e la console Boss per i boss)</span>
+            <input type="checkbox" data-local="pcAttackAutoOpenMonsters" data-local-fallback="pcAttackAutoOpen" />
           </label>
         </section>
 

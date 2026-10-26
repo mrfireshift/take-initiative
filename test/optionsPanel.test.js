@@ -33,6 +33,7 @@ test("OPTIONS-003: il selector del pannello espone i gruppi senza metadata grezz
     trackerScale: 1,
     combatLog: true,
     pcAttackAutoOpen: false,
+    pcAttackAutoOpenMonsters: null,
   });
   assert.equal(model.room.trackerOpen, false);
   assert.equal(model.room.knownFactionAssignment, true);
@@ -66,6 +67,7 @@ test("OPTIONS-003: il draft normalizza dati parziali e produce sole patch approv
     trackerScale: 1,
     combatLog: true,
     pcAttackAutoOpen: false,
+    pcAttackAutoOpenMonsters: null,
   });
   assert.equal(patches.room.turn.popup, false);
   assert.equal(patches.room.automation.knownFactionAssignment, true);
@@ -106,6 +108,23 @@ test("the attack console's auto-open is a local option, off by default, saved un
   assert.equal(model.local.pcAttackAutoOpen, true);
   const html = readFileSync(new URL("../options-modal.html", import.meta.url), "utf8");
   assert.match(html, /data-local="pcAttackAutoOpen"/);
+});
+
+// Attacchi dei mostri, lotto 7: l'interruttore Mostri eredita «Ogni turno» finché non viene toccato.
+test("the monsters' auto-open inherits the characters' one until set; the panel's Salva does not freeze it", async () => {
+  const { selectPcAttackAutoOpenMonsters } = await import("../src/options/optionsSelectors.js");
+  assert.equal(selectPcAttackAutoOpenMonsters(resolveOptions({ local: { windows: { pcAttackAutoOpen: true } }, room: {}, scene: {} })), true);
+  assert.equal(selectPcAttackAutoOpenMonsters(resolveOptions({ local: { windows: { pcAttackAutoOpen: false } }, room: {}, scene: {} })), false);
+  assert.equal(selectPcAttackAutoOpenMonsters(resolveOptions({ local: { windows: { pcAttackAutoOpen: true, pcAttackAutoOpenMonsters: false } }, room: {}, scene: {} })), false);
+  const inherited = normalizeOptionsPanelDraft({ local: { pcAttackAutoOpen: true } });
+  assert.equal(inherited.local.pcAttackAutoOpenMonsters, null);
+  assert.deepEqual(buildOptionsPanelPatches(inherited).local.windows, { pcAttackAutoOpen: true }, "null: not written");
+  const set = normalizeOptionsPanelDraft({ local: { pcAttackAutoOpen: true, pcAttackAutoOpenMonsters: false } });
+  assert.deepEqual(buildOptionsPanelPatches(set).local.windows, { pcAttackAutoOpen: true, pcAttackAutoOpenMonsters: false });
+  const model = selectOptionsPanelModel(resolveOptions({ local: { windows: { pcAttackAutoOpen: true } }, room: {}, scene: {} }));
+  assert.equal(model.local.pcAttackAutoOpenMonsters, null);
+  const html = readFileSync(new URL("../options-modal.html", import.meta.url), "utf8");
+  assert.match(html, /data-local="pcAttackAutoOpenMonsters" data-local-fallback="pcAttackAutoOpen"/);
 });
 
 test("OPTIONS-003: automatic faction assignment is saved in Room", () => {

@@ -23,3 +23,22 @@ test("the switch reads the local option (off by default) and writes only its own
   assert.equal(stored.runtime.combatLog, false);
   off(); option.stop();
 });
+
+// Attacchi dei mostri, lotto 7: l'interruttore Mostri segue quello PG finché non viene toccato, poi vale da solo.
+test("the monsters' switch follows the characters' one until touched, then writes its own key", async () => {
+  const storage = memoryStorage({ [LOCAL_KEY]: JSON.stringify({ windows: { pcAttackAutoOpen: true } }) });
+  const store = createLocalOptionsStore({ storage, eventTarget: null });
+  const pc = createPcAttackAutoOpenOption(store);
+  const monsters = createPcAttackAutoOpenOption(createLocalOptionsStore({ storage, eventTarget: null }), { monsters: true });
+  const seen = [];
+  const off = await monsters.subscribe((value) => seen.push(value));
+  assert.deepEqual(seen, [true], "inherited from PG");
+  await monsters.set(false);
+  let stored = JSON.parse(storage.getItem(LOCAL_KEY));
+  assert.deepEqual(stored.windows, { pcAttackAutoOpen: true, pcAttackAutoOpenMonsters: false, clocksCompact: false });
+  await pc.set(false);
+  await pc.set(true);
+  stored = JSON.parse(storage.getItem(LOCAL_KEY));
+  assert.equal(stored.windows.pcAttackAutoOpenMonsters, false, "once touched, PG no longer moves it");
+  off(); monsters.stop(); pc.stop();
+});

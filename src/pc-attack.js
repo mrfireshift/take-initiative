@@ -233,7 +233,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   });
   // A click elsewhere closes it.
   documentRef.addEventListener?.("click",event=>{if(menuOpen && !event.target?.closest?.("#pc-attack-picker-dropdown"))setMenuOpen(false);});
-  const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open");
+  const autoOpenRow=$("pc-attack-auto-open-row"),autoOpenBox=$("pc-attack-auto-open"),autoOpenMonstersBox=$("pc-attack-auto-open-monsters");
   const attackView=$("pc-attack-attack-view"),launchBox=$("pc-attack-launch"),casterLine=$("pc-attack-caster");
   // A monster's card: its Multiattack over the Attacchi tab, its action's note (what the console does not automate).
   const multiattackLine=$("pc-attack-multiattack"),monsterNote=$("pc-attack-monster-note");
@@ -2259,21 +2259,27 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(event?.data?.type!=="ping") return;
     void Promise.resolve().then(()=>api.broadcast.sendMessage(PC_ATTACK_CONSOLE_CHANNEL,{type:"pong",sourceId,actionId},{destination:"LOCAL"})).catch(()=>{});
   });
-  // The turn auto-open: a local option of this browser, switched here or in the options panel (pcAttackAutoOpenOption.js).
-  if(autoOpenBox) {
-    const option=overrides.autoOpenOption?Promise.resolve(overrides.autoOpenOption)
-      :import("./pcAttackAutoOpenOption.js").then(module=>module.createPcAttackAutoOpenOption());
+  // The turn auto-open: local options of this browser, switched here or in the options panel (pcAttackAutoOpenOption.js),
+  // one for characters and allies (PG), one for monsters and bosses (Mostri, following PG until touched).
+  const offAutoOpens=[];
+  const bindAutoOpen=(box,override,monsters,who)=>{
+    if(!box) return;
+    const option=override?Promise.resolve(override)
+      :import("./pcAttackAutoOpenOption.js").then(module=>module.createPcAttackAutoOpenOption(undefined,{monsters}));
     void option.then(async value=>{
-      const off=await value.subscribe(on=>{autoOpenBox.checked=on;if(autoOpenRow)autoOpenRow.hidden=false;});
-      offAutoOpen=()=>{off?.();value.stop?.();};
-      autoOpenBox.addEventListener("change",()=>{
-        const on=autoOpenBox.checked;
+      const off=await value.subscribe(on=>{box.checked=on;if(autoOpenRow)autoOpenRow.hidden=false;});
+      offAutoOpens.push(()=>{off?.();value.stop?.();});
+      box.addEventListener("change",()=>{
+        const on=box.checked;
         void Promise.resolve().then(()=>value.set(on)).then(()=>setStatus(on
-          ?"La console si aprirà da sola a ogni turno di un attore con attacchi."
-          :"La console non si aprirà più da sola a inizio turno.","ok")).catch(error=>setStatus(String(error?.message || error),"error"));
+          ?`La console si aprirà da sola a ogni turno di ${who} con attacchi.`
+          :`La console non si aprirà più da sola al turno di ${who}.`,"ok")).catch(error=>setStatus(String(error?.message || error),"error"));
       });
     }).catch(error=>console.warn("[pc-attack] auto-open option:",error?.message || error));
-  }
+  };
+  bindAutoOpen(autoOpenBox,overrides.autoOpenOption,false,"un personaggio o alleato");
+  bindAutoOpen(autoOpenMonstersBox,overrides.autoOpenMonstersOption,true,"un mostro");
+  offAutoOpen=()=>{for(const off of offAutoOpens.splice(0)) off();};
   const unsubscribe=lifecycle.subscribe(event=>{
     if(event.phase==="unavailable"){
       invalidated=true;presentation=null;draft=null;unmountLiveUpdates();render();showUndo(null);

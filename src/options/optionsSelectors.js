@@ -48,6 +48,12 @@ export function selectPcAttackAutoOpen(options) {
   return resolved(options).local.windows.pcAttackAutoOpen;
 }
 
+// The monsters' switch: its own value once touched, else the characters' one.
+export function selectPcAttackAutoOpenMonsters(options) {
+  const windows = resolved(options).local.windows;
+  return typeof windows.pcAttackAutoOpenMonsters === "boolean" ? windows.pcAttackAutoOpenMonsters : windows.pcAttackAutoOpen;
+}
+
 export function selectDistance3dToolEnabled(options) {
   return resolved(options).local.tools.distance3d;
 }
@@ -185,6 +191,7 @@ export function selectOptionsPanelModel(options) {
       trackerScale: value.local.tracker.scale,
       combatLog: value.local.runtime.combatLog,
       pcAttackAutoOpen: value.local.windows.pcAttackAutoOpen,
+      pcAttackAutoOpenMonsters: value.local.windows.pcAttackAutoOpenMonsters,
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,

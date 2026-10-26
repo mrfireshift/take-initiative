@@ -152,6 +152,13 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
         "pcAttackAutoOpen",
         defaults.windows.pcAttackAutoOpen,
       ),
+      // A boolean once touched; null inherits pcAttackAutoOpen (selectPcAttackAutoOpenMonsters).
+      pcAttackAutoOpenMonsters: layeredBoolean(
+        windows,
+        legacyWindows,
+        "pcAttackAutoOpenMonsters",
+        defaults.windows.pcAttackAutoOpenMonsters,
+      ),
     },
     tools: {
       ...tools,

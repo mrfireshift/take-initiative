@@ -50,8 +50,11 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
   },
   windows: {
     clocksCompact: false,
-    // The attack console opens by itself on the turn of an actor with attacks (pcAttackTurnController.js).
+    // The attack console opens by itself on the turn of an actor with attacks (pcAttackTurnController.js): a character
+    // or an ally with pcAttackAutoOpen, any other creature (monsters, bosses) with pcAttackAutoOpenMonsters. null: the
+    // monsters follow pcAttackAutoOpen until their own switch is touched (attacchi dei mostri, lotto 7).
     pcAttackAutoOpen: false,
+    pcAttackAutoOpenMonsters: null,
   },
   tools: {
     distance3d: true,

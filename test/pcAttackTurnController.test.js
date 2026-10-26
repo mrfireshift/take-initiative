@@ -4,7 +4,8 @@ import test, { mock } from "node:test";
 const sdk = { onReady() {}, broadcast: { onMessage: () => () => {}, sendMessage: async () => {} }, player: { getRole: async () => "GM" },
   scene: { items: { getItems: async () => [] } }, room: {}, popover: {} };
 mock.module("@owlbear-rodeo/sdk", { exports: { default: sdk, buildLabel() {}, buildImage() {}, buildPath() {}, buildShape() {}, buildText() {}, Command: class {} } });
-const { createPcAttackTurnController, pcAttackTurnOf, pcAttackTurnSourceId, pcAttackTurnReady, pcAttackEpicBossId, pcAttackTurnBoss, PC_ATTACK_CONSOLE_CHANNEL } =
+const { createPcAttackTurnController, pcAttackTurnOf, pcAttackTurnSourceId, pcAttackTurnReady, pcAttackEpicBossId, pcAttackTurnBoss, PC_ATTACK_CONSOLE_CHANNEL,
+  pcAttackTurnGroup } =
   await import("../src/pcAttackTurnController.js");
 
 const META = "com.thebigpicture.initiative/meta";
@@ -19,7 +20,8 @@ function fixture({ items = [archer, creature("goblin")], enabled = true, open = 
   let consoleOpen = open, isEnabled = enabled, bossConsoleOpen = bossOpen;
   const controller = createPcAttackTurnController({
     api: { scene: { items: { getItems: async (ids) => items.filter((item) => ids.includes(item.id)) } } },
-    isEnabled: () => isEnabled,
+    // enabled: one boolean for both switches, or { pc, monsters } (attacchi dei mostri, lotto 7).
+    isEnabled: (group) => (isEnabled && typeof isEnabled === "object" ? isEnabled[group] === true : isEnabled),
     openConsole: async (sourceId) => { opened.push(sourceId); },
     isConsoleOpen: async () => consoleOpen,
     followConsole: async (sourceId, name) => { followed.push([sourceId, name]); },
@@ -187,4 +189,51 @@ test("from one boss to another: an idle Boss Actions gives way, a busy one stays
   await busy.controller.onState({ order: ["auril", "frost"], current: 0, round: 1 });
   await busy.controller.onState({ order: ["auril", "frost"], current: 1, round: 1 });
   assert.deepEqual([busy.bossClosed, busy.bossOpened], [[], []], "a resolution in progress keeps Auril's console");
+});
+
+// Attacchi dei mostri, lotto 7: due interruttori, PG (personaggi e alleati) e Mostri (ogni altra creatura, i boss).
+const orc = creature("orc", { attitude: "enemy", initiativeCard: { quickActions: [bow] } });
+const villager = creature("npc", { attitude: "neutral", initiativeCard: { quickActions: [bow] } });
+const friend = creature("ally", { attitude: "ally", initiativeCard: { quickActions: [bow] } });
+const sideOrder = ["mira", "orc", "npc", "ally", "__LAIR__", "auril", "mira::p1"];
+
+test("whose switch a turn follows: characters and allies PG, every other creature and every boss Mostri", () => {
+  const raw = (item) => item?.metadata?.[META]?.initiativeCard || {};
+  assert.equal(pcAttackTurnGroup(creature("hero", { attitude: "pc" }), raw), "pc");
+  assert.equal(pcAttackTurnGroup(friend, raw), "pc");
+  assert.equal(pcAttackTurnGroup(archer, raw), "pc", "no attitude: an ally, as the tracker shows it");
+  assert.equal(pcAttackTurnGroup(orc, raw), "monsters");
+  assert.equal(pcAttackTurnGroup(villager, raw), "monsters");
+  assert.equal(pcAttackTurnGroup(creature("boss", { attitude: "pc", epic: true }), raw), "monsters", "a boss is a monster's turn");
+});
+
+test("PG on, Mostri off: the console opens for characters and allies only, a monster's turn moves nothing", async () => {
+  const f = fixture({ items: [archer, orc, villager, friend, auril], enabled: { pc: true, monsters: false } });
+  await f.controller.onState({ order: sideOrder, current: 6, round: 1 });
+  for (let current = 0; current < 7; current += 1) await f.controller.onState({ order: sideOrder, current, round: 2 });
+  assert.deepEqual(f.opened, ["mira", "ally", "mira"], "Mira, the ally, Mira's Paragon turn");
+  assert.deepEqual(f.bossOpened, [], "the boss follows Mostri");
+});
+
+test("Mostri on, PG off: monsters and bosses only; an open console stays where it is on a character's turn", async () => {
+  const f = fixture({ items: [archer, orc, villager, friend, auril], enabled: { pc: false, monsters: true } });
+  await f.controller.onState({ order: sideOrder, current: 6, round: 1 });
+  for (let current = 0; current < 7; current += 1) await f.controller.onState({ order: sideOrder, current, round: 2 });
+  assert.deepEqual(f.opened, ["orc", "npc"]);
+  assert.deepEqual(f.bossOpened, ["auril"]);
+  const open = fixture({ items: [archer, orc], enabled: { pc: false, monsters: true }, open: "orc" });
+  await open.controller.onState({ order: ["orc", "mira"], current: 0, round: 1 });
+  await open.controller.onState({ order: ["orc", "mira"], current: 1, round: 1 });
+  assert.deepEqual(open.followed, [], "Mira's turn: the PG switch is off, the console is left alone");
+});
+
+test("both off: nothing; the Lair turn follows either switch", async () => {
+  const off = fixture({ items: [archer, orc], enabled: { pc: false, monsters: false }, open: true });
+  await off.controller.onState({ order: ["mira", "orc", "__LAIR__"], current: 0, round: 1 });
+  for (const current of [1, 2]) await off.controller.onState({ order: ["mira", "orc", "__LAIR__"], current, round: 1 });
+  assert.deepEqual([off.opened, off.followed], [[], []]);
+  const lair = fixture({ items: [archer, orc], enabled: { pc: false, monsters: true }, open: true });
+  await lair.controller.onState({ order: ["orc", "__LAIR__"], current: 0, round: 1 });
+  await lair.controller.onState({ order: ["orc", "__LAIR__"], current: 1, round: 1 });
+  assert.deepEqual(lair.followed, [["", ""]], "the open console leaves the Lair turn empty");
 });

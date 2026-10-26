@@ -8,10 +8,11 @@ import { openPcAttackConsoleForActor, PC_ATTACK_CONSOLE_CHANNEL } from "./pcAtta
 import { BOSS_ACTIONS_CONSOLE_CHANNEL, openBossActionsPopover } from "./bossActionsLauncher.js";
 import { INITIATIVE_EPIC_ACTION_PREFIX } from "./initiativeSelectionProjectionCore.js";
 import { runtimeOptionsService } from "./options/optionsRuntime.js";
-import { selectPcAttackAutoOpen } from "./options/optionsSelectors.js";
+import { selectPcAttackAutoOpen, selectPcAttackAutoOpenMonsters } from "./options/optionsSelectors.js";
 
-// The attack console opens by itself on the turn of an actor with attacks (GM only, local option off by default); on a
-// boss's turn, and on its Epic Action slots, Boss Actions opens instead, and closes (idle) when that turn is over.
+// The attack console opens by itself on the turn of an actor with attacks (GM only, local options off by default: one
+// for characters and allies, one for monsters, pcAttackTurnGroup); on a boss's turn, and on its Epic Action slots, Boss
+// Actions opens instead, and closes (idle) when that turn is over.
 // It only reads the initiative state: never writes it, never moves the turn.
 const STATE_KEY = `${ID}/state`;
 const META_KEY = `${ID}/meta`;
@@ -52,6 +53,15 @@ const standing = (item) => {
 export function pcAttackTurnBoss(item, getCard = getInitiativeCard) {
   if (!isBossActionCreature(item) || !standing(item)) return false;
   return item.metadata?.[META_KEY]?.epic === true || !!getCard(item)?.bossActionBinding;
+}
+
+// Whose switch a creature's turn follows (attacchi dei mostri, lotto 7): "pc" for a character or an ally, "monsters" for
+// any other creature and for every boss (Boss Actions). The attitude defaults to "ally", as the tracker's entries do.
+export const PC_ATTACK_TURN_GROUPS = Object.freeze(["pc", "monsters"]);
+export function pcAttackTurnGroup(item, getCard = getInitiativeCard) {
+  if (pcAttackTurnBoss(item, getCard)) return "monsters";
+  const attitude = String(item?.metadata?.[META_KEY]?.attitude || "ally").trim().toLowerCase();
+  return ["pc", "ally"].includes(attitude) ? "pc" : "monsters";
 }
 
 // A creature on the map, standing (HP above 0: a character at 0 HP rolls death saves), with an attack or a spell.
@@ -95,7 +105,8 @@ const settle = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function createPcAttackTurnController({
   api = OBR,
-  isEnabled = () => runtimeOptionsService.get(selectPcAttackAutoOpen) === true,
+  // isEnabled(group): the switch of "pc" or "monsters".
+  isEnabled = (group) => runtimeOptionsService.get(group === "monsters" ? selectPcAttackAutoOpenMonsters : selectPcAttackAutoOpen) === true,
   openConsole = openPcAttackConsoleForActor,
   isConsoleOpen = () => pingConsole(api),
   openBossConsole = openBossActionsPopover,
@@ -124,12 +135,15 @@ export function createPcAttackTurnController({
     if (first || !turn) return work;
     return enqueue(async () => {
       // A later turn (the GM skipped several) wins: only the latest one opens or moves the console.
-      if (taskRevision !== revision || !isEnabled()) return;
+      if (taskRevision !== revision || !PC_ATTACK_TURN_GROUPS.some((group) => isEnabled(group))) return;
       const sourceId = pcAttackTurnSourceId(turn.actorId);
       const epicBossId = pcAttackEpicBossId(turn.actorId);
       const lookupId = sourceId || epicBossId;
       const [item] = lookupId ? await api.scene.items.getItems([lookupId]) : [];
       if (taskRevision !== revision) return;
+      // A creature's turn follows its side's switch, off: nothing opens, moves or closes, as with both off. A turn
+      // without a creature (the Lair) follows either.
+      if (item && !isEnabled(pcAttackTurnGroup(item, getCard))) return;
       // Both consoles are asked at once: a closed one answers nothing within the ping's time.
       const [attackOpen, bossOpen] = await Promise.all([isConsoleOpen(), isBossConsoleOpen()]);
       if (taskRevision !== revision) return;
