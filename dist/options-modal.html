@@ -16,17 +16,18 @@
       .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; position: relative; }
       * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.55) transparent; }
     </style>
-    <script type="module" crossorigin src="/assets/optionsModal-CSz12wyO.js"></script>
+    <script type="module" crossorigin src="/assets/optionsModal-CA9EHiBp.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
-    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-NjKbSitF.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-Q7uDuEtv.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-wRoTHbG4.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-DEGw6ZYJ.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-CmQhG0O3.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-WgeiyJ-r.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-DhsHPZi8.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-D7K0wEvc.js">
-    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-D2gYnpnV.js">
+    <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-BUFEwbNS.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-CH57oQIl.js">
+    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-C8NGDjOD.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-D3QrJC8M.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeStyle-CUzjg6Rv.js">
     <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-Cdz46GuY.js">
@@ -85,8 +86,12 @@
             <span class="scope-badge local">Questo browser</span>
           </div>
           <label class="option-toggle compact">
-            <span>Apri a ogni turno di un attore con attacchi</span>
+            <span>Apri a ogni turno di un personaggio o alleato con attacchi</span>
             <input type="checkbox" data-local="pcAttackAutoOpen" />
+          </label>
+          <label class="option-toggle compact">
+            <span>Apri a ogni turno di un mostro con attacchi (e la console Boss per i boss)</span>
+            <input type="checkbox" data-local="pcAttackAutoOpenMonsters" data-local-fallback="pcAttackAutoOpen" />
           </label>
         </section>
 
