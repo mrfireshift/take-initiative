@@ -115,6 +115,16 @@
     .notes[hidden] { display:none; }
     .notes span { display:block; margin-bottom:4px; color:var(--accent-bright); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
     .notes p { margin:0; color:rgba(255,255,255,.86); font-size:var(--obrt-type-secondary); line-height:1.35; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .statblock-text summary { cursor:pointer; list-style:none; }
+    .statblock-text summary::-webkit-details-marker { display:none; }
+    .statblock-text summary span::before { content:"▸ "; }
+    .statblock-text[open] summary span::before { content:"▾ "; }
+    .statblock-text[open] summary span { margin-bottom:6px; }
+    .statblock-text p + p { margin-top:4px; }
+    .statblock-text .statblock-text-line { color:rgba(255,255,255,.78); }
+    .statblock-text b { color:#fff; font-weight:var(--obrt-weight-bold); }
+    .statblock-text .statblock-text-title { margin:10px 0 4px; padding-bottom:2px; border-bottom:1px solid rgba(var(--faction-rgb),.28); color:var(--accent-bright); font-size:var(--obrt-type-secondary); font-weight:var(--obrt-weight-bold); }
+    .statblock-text .statblock-text-missing { color:rgba(255,255,255,.6); font-style:italic; }
     .quick-actions-block { margin-top:0; }
     .quick-actions-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .quick-actions-heading .section-title { margin:0; }
@@ -450,6 +460,7 @@
       <div id="saves" class="saves"></div>
       <div id="damageDefensesBlock" class="notes" hidden><span>Difese ai danni</span><p id="damageDefenses"></p></div>
       <div id="notesBlock" class="notes" hidden><span>Note</span><p id="notes"></p></div>
+      <details id="statblockTextBlock" class="notes statblock-text" hidden><summary><span>Statblock originale</span></summary><div id="statblockText"></div></details>
     </section>
     <section id="spellbookView" role="tabpanel" aria-labelledby="spellbookTab" hidden>
       <div class="spellbook-summary">

@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 4: import completo dello statblock (piano)
 
-Stato: **in corso dal 26/10/2026**, lotti 1, 2, 3 e 4 implementati.
+Stato: **in corso dal 26/10/2026**, lotti 1, 2, 3, 4 e 4b implementati.
 
 Indicazione dell'utente all'avvio: **i token con lo stesso nome devono avere lo stesso statblock.** Salvare la scheda di un mostro copia quindi il suo statblock sugli omonimi (lotto 1); il nome resta da rinominare solo sul token aperto (D2). D1 confermata con il lotto 1; D2 e D3 confermate con il lotto 2 (nome solo sul token aperto, PF sostituiti tranne se il token è ferito); D4 confermata con il lotto 3 (il ritratto cambia l'immagine del token, spento di default); D5 e D6 confermate con il lotto 4 (classe e livello dedotti con le capacità di classe spente; innati come azioni rapide).
 
@@ -51,6 +51,7 @@ fase 3 (statblock 2024 opzionali) e il lotto 5 (documentazione) restano dopo.
   del Manuale dei Mostri hanno tutti `hasToken`.
 - **Nome**: il tracker rinomina già un token (doppio clic sul nome), anche
   l'etichetta sotto il token.
+- **Lotto 4b, statblock originale** (aggiunto su richiesta dell'utente prima del lotto 5; decisioni: memoria locale del GM, testo nella tab Statistiche, solo per i PNG). `fiveToolsStatblockSections` rende il mostro risolto come lo stampa 5eTools (intestazione, tratti, incantesimi, azioni, azioni bonus, reazioni, leggendarie, mitiche), i tag in chiaro (anche `{@chance}` e `{@quickref}`, prima resi male nelle note); provato su tutti i 781 mostri di MM, VGM, MTF e IDRotF senza tag residui. `src/monsterStatblockTextCore.js` (record per riferimento, al massimo 64 KB; testo incollato al massimo 20.000 caratteri; visibile solo per il GM e su token non `pc`) e `src/monsterStatblockTextStore.js` (IndexedDB `<ID>.monster-statblocks`, ripiego per la sessione). Il record di 5eTools conserva il mostro risolto, che il lotto 5 leggerà per tratti e leggendarie. Il record si salva dopo **Salva**; senza record, per un mostro di 5eTools il testo si ricostruisce dai libri dell'archivio tenuti nel browser. Nel formato del plugin `text` facoltativo; senza `ref` il riferimento diventa `Nome|testo`. Correzione nell'adapter: un incantesimo nascosto (`{ entry, hidden }`) ora si importa per nome invece di finire in rosso. Nel banco: Drow Mage sul goblin nemico → riquadro con 16 voci; nascosto su `pc`, visibile su alleato, neutrale e nemico; la scheda dell'omonimo aperta da zero lo rilegge dalla memoria.
 - **Lotto 4, incantesimi.** `fiveToolsSpellcasting` nell'adapter legge CD e bonus (del blocco a slot se c'è; una CD diversa dell'altro blocco va in «Al tavolo»), «Nth-level spellcaster… <classe> spells» → `classes`, gli incantesimi a slot → `spells`, `will`/`daily` → `innateSpells` (`perDay`, dal più alto). Confronta gli slot dello statblock con quelli che il plugin calcola per la classe (`spellSlotMaximums`): su MM, VGM, MTF e IDRotF 7 mostri su 207 incantatori ne hanno di diversi (Acolyte, Flameskull, Mummy Lord, Conjurer, Enchanter, Morkoth, Dzaan's Simulacrum), segnalati; la console usa quelli della classe. Alias per i 17 incantesimi con il nome di un mago; 47 incantatori su 207 hanno almeno un incantesimo fuori dall'SRD, in rosso. Nella scheda: nuova sezione **Incantesimi innati** (`innateSpells`, valida anche nel formato del plugin) → azioni rapide ⚡ «Gratuito» o «Usi propri»; per un mostro le capacità della classe importata partono spente; classe, libro e innati sono sezioni dello statblock (un mostro senza incantesimi le svuota; le ⚡ che non sono innati restano). **Deviazione da D6:** un trucchetto a volontà va nel libro invece che in una ⚡ (non serve slot e la console lo trova tra i Trucchetti; risparmia posti sulle 12 ⚡). Gli slot non dipendono dalle capacità attive (`spellSlotStatus` legge solo `characterBuild`): spegnerle non tocca gli slot. Nel banco: mago di 9° con innati sul goblin → Mago 9, 0 capacità su 4 attive, libro, 3 ⚡ innate, omonimo uguale; la console mostra gli slot 4/4, 3/3, 1/1; reimportare un goblin semplice svuota classe, libro, CD e innati su entrambi.
 - **Lotto 3, ritratto.** L'adapter porta il percorso dell'immagine (`bestiary/tokens/<libro>/<nome>.webp`, il nome senza accenti né virgolette come lo scrive 5eTools, o quello di `token` se il mostro punta all'immagine di un altro); la seconda opzione **Immagini 5eTools** (`tools.fiveToolsImages`, vuota, con **Prova** sul Goblin del Manuale dei Mostri) dà l'indirizzo. La casella compare solo se l'immagine si carica davvero (un mostro senza immagine nel mirror non offre nulla), con un'anteprima. Dopo **Salva**, tra nome e PF, `src/tokenPortraitCore.js` cambia `image` (url, dimensioni, `image/webp`) e ricalcola `grid.dpi` e `grid.offset` dalle dimensioni del file: stesse caselle in larghezza, ancora nello stesso punto dell'immagine. Solo il token aperto, mai gli omonimi. **Deviazione:** come il nome, il cambio d'immagine è un `updateItems` di Owlbear Rodeo e non passa dalla Cronologia del plugin. Barre PF ed etichette non si toccano: l'ingombro del token resta lo stesso; nel banco l'immagine e la griglia risultano giuste (Goblin 280×280, 1 casella), la resa delle barre sulla mappa vera è da guardare al tavolo.
 - **Lotto 2.** «Rinomina il token in «…»» compare solo se il nome cambia e scrive nome ed etichetta come il doppio clic del tracker (`src/tokenNameCore.js`). Dopo **Salva** l'ordine è: scheda, nome, PF, statblock agli omonimi; così gli omonimi sono quelli del nome nuovo, per i PF come per lo statblock. «Sostituisci i PF attuali» è spuntata tranne se il token è ferito (PF sotto il massimo); «Anche agli altri token con lo stesso nome» è spuntata e non tocca mai un omonimo ferito, anche con «Sostituisci». Le due caselle principali (nome, PF) si ricordano in questo browser.
@@ -97,11 +98,14 @@ fase 3 (statblock 2024 opzionali) e il lotto 5 (documentazione) restano dopo.
   X usi propri (tornano al riposo lungo) (D6).
 - Nomi non trovati in rosso; alias per le differenze note.
 
+### Lotto 4b — statblock originale ✅
+
+- Testo completo dello statblock nella memoria locale del GM, letto nella tab
+  Statistiche delle schede dei PNG (vedi sopra).
+
 ### Lotto 5 — capacità e leggendarie ⚠️ metadata del token
 
-- Testo completo dello statblock (tratti, reazioni, azioni leggendarie, tana)
-  nella memoria locale del GM, con il riferimento `nome|libro` sulla scheda;
-  per i libri dell'archivio c'è già.
+- Il testo dello statblock è quello del lotto 4b.
 - Nella console, scheda **Capacità** del mostro: tratti, reazioni e azioni
   leggendarie come voci da leggere, con il loro testo nei Dettagli.
 - «Legendary Resistance (N/Day)» e le azioni leggendarie (3 di default)

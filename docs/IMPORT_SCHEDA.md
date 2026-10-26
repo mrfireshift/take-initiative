@@ -159,6 +159,25 @@ personaggio. Le distanze sono in piedi come negli statblock (`10`,
 | `uses` | Usi al giorno (`3` o `"3/giorno"`): finiti gli usi la console blocca l'azione; tornano con il riposo lungo. |
 | `note` | Fino a 280 caratteri: la parte dell'azione che il plugin non automatizza, mostrata sotto i danni. |
 
+### Statblock originale
+
+Importando un mostro di 5eTools, il plugin conserva anche il suo statblock
+completo, in inglese come nel libro: tipo, CA, PF, velocità, caratteristiche,
+sensi, tratti, incantesimi, azioni, reazioni e azioni leggendarie. Lo trovi in
+fondo alla tab **Statistiche** della scheda, nel riquadro **Statblock
+originale** (chiuso: un clic lo apre).
+
+- Compare solo sulle schede dei PNG (alleati, neutrali, nemici), mai su
+  quella di un personaggio, e solo per il GM.
+- Il testo resta **nel browser del GM** (come i libri dell'archivio), mai sul
+  token, nella scena o nella room. I token con lo stesso nome lo ritrovano da
+  soli, perché la scheda ricorda il mostro (`Goblin|MM`).
+- Per un mostro dei libri tenuti nell'archivio il testo si ritrova anche
+  senza reimportarlo. Altrimenti, su un altro browser o dopo una finestra in
+  incognito, il riquadro dice di reimportare il mostro.
+- Nel formato del plugin la chiave facoltativa `text` porta lo statblock come
+  testo libero (al massimo 20.000 caratteri), conservato nello stesso modo.
+
 ### Incantesimi del mostro
 
 Gli incantesimi dello statblock usano le chiavi della scheda personaggio più

@@ -78,6 +78,9 @@ import { monsterStatblockOf, monsterStatblockSectionsToClear, monsterStatblockTa
 import { setTokenDisplayName, statblockReplacesHitPoints, statblockTokenName } from "./tokenNameCore.js";
 import { setTokenPortrait } from "./tokenPortraitCore.js";
 import { fiveToolsTokenUrl } from "./fiveToolsArchiveCore.js";
+import { createFiveToolsArchiveStore } from "./fiveToolsArchiveStore.js";
+import { monsterStatblockTextRecord, monsterStatblockTextRef, monsterStatblockTextView } from "./monsterStatblockTextCore.js";
+import { createMonsterStatblockTextStore } from "./monsterStatblockTextStore.js";
 import { createLocalOptionsStore } from "./options/localOptionsStore.js";
 import { hasCanonicalHitPoints, monsterHitPointsSummary, monsterNamesakes } from "./monsterHitPointsImportCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
@@ -3626,6 +3629,12 @@ let pendingMonsterHitPoints = null;
 let pendingMonsterName = "";
 // The monster's 5eTools portrait as the token's image, written after Salva (fase 4, lotto 3): { url, width, height } or null.
 let pendingMonsterPortrait = null;
+// The monster's full stat block, kept in this browser after Salva (fase 4, lotto 4b): a record or null.
+let pendingMonsterText = null;
+let monsterStatblockTextStore = null;
+const statblockTextStore = () => (monsterStatblockTextStore ||= createMonsterStatblockTextStore());
+// What the Stats tab shows for a reference, read once: { view } or { view: null } when this browser has no text.
+const statblockTextViews = new Map();
 // The import's two automatic steps, remembered in this browser: rename the token, set its hit points.
 const STATBLOCK_IMPORT_PREFS_KEY = `${ID}/statblock-import-prefs`;
 function statblockImportPrefs() {
@@ -3702,6 +3711,7 @@ function readSheetImport() {
   pendingMonsterHitPoints = null;
   pendingMonsterName = "";
   pendingMonsterPortrait = null;
+  pendingMonsterText = null;
   const text = $("sheetImportText").value;
   // 5eTools' JSON (a monster, a list, a bestiary): its monsters join the picker; one alone is read at once.
   let data = null;
@@ -3715,7 +3725,10 @@ function readSheetImport() {
     else setSheetImportStatus(excluded2024 ? "Mostri delle regole 2024: il plugin usa le regole del 2014 e non li importa." : "Nel blocco non c'è nessun mostro.", "error");
     return;
   }
-  renderSheetImportResult(parseCharacterSheetImport(text));
+  const parsed = parseCharacterSheetImport(text);
+  // A stat block of the plugin's format with its full text ("text"): kept like a 5eTools monster's (lotto 4b).
+  if (parsed.monster?.ref && typeof data?.text === "string") parsed.statblockText = monsterStatblockTextRecord({ ref: parsed.monster.ref, name: parsed.name, text: data.text });
+  renderSheetImportResult(parsed);
 }
 
 // The loaded files: each one's monsters join the picker; a file that is not JSON is named in the status.
@@ -3770,6 +3783,7 @@ async function readFiveToolsMonster(monster, { retried = false } = {}) {
   pendingMonsterHitPoints = null;
   pendingMonsterName = "";
   pendingMonsterPortrait = null;
+  pendingMonsterText = null;
   const { pool } = fiveToolsCollection(allFiveToolsInputs());
   const converted = fiveToolsMonsterToStatblock(monster, { pool });
   // A derived monster whose base is in a book not kept yet: the archive downloads it, once (decision D2).
@@ -3781,7 +3795,9 @@ async function readFiveToolsMonster(monster, { retried = false } = {}) {
     setSheetImportStatus(converted.error, "error");
     return;
   }
-  renderSheetImportResult(parseCharacterSheetImport(JSON.stringify(converted.block)), {
+  const parsed = parseCharacterSheetImport(JSON.stringify(converted.block));
+  parsed.statblockText = monsterStatblockTextRecord({ ref: converted.block.ref, name: converted.block.name, fiveTools: converted.monster });
+  renderSheetImportResult(parsed, {
     summary: fiveToolsImportSummary(converted, monster),
     report: converted.report,
     portrait: fiveToolsTokenUrl(fiveToolsArchiveBase("fiveToolsImages"), converted.block.portrait?.fiveTools),
@@ -4099,6 +4115,8 @@ function applySheetImport() {
   pendingMonsterPortrait = portraitBox?.checked ? { url: portraitBox.dataset.sheetImportPortrait,
     width: Number(portraitBox.dataset.width), height: Number(portraitBox.dataset.height) } : null;
   if (pendingMonsterPortrait) chosen.push("portrait");
+  pendingMonsterText = sheetImportResult.monster && sheetImportResult.statblockText ? sheetImportResult.statblockText : null;
+  if (pendingMonsterText) chosen.push("statblockText");
   if (sheetImportResult.monster) {
     rememberStatblockImportPrefs({ rename: renameBox ? renameBox.checked : statblockImportPrefs().rename,
       hitPoints: hpBox ? hpBox.checked : statblockImportPrefs().hitPoints });
@@ -4108,7 +4126,8 @@ function applySheetImport() {
     draftMonsterProfile = sanitizeMonsterProfile({ ...(draftMonsterProfile || {}), ...sheetImportResult.monster });
   }
   const labelsById = new Map([...SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]), ["hitPoints", "Punti ferita (dopo Salva)"],
-    ["name", "Nome del token (dopo Salva)"], ["portrait", "Ritratto del token (dopo Salva)"]]);
+    ["name", "Nome del token (dopo Salva)"], ["portrait", "Ritratto del token (dopo Salva)"],
+    ["statblockText", "Testo dello statblock (dopo Salva)"]]);
   setSheetImportStatus(
     `Compilato: ${chosen.map((id) => labelsById.get(id)).join(", ")}. Controlla le schede e premi Salva.`,
     "success",
@@ -4516,6 +4535,78 @@ function renderView() {
   }));
   renderAbilityModifiers();
   renderDamageDefenses();
+  void renderStatblockText();
+}
+
+// The text of a monster's stat block for a reference: the one kept at its import, else the monster in the archive's
+// books kept in this browser (lotto 4b). null when this browser has neither.
+async function loadStatblockTextView(ref, { archive = false } = {}) {
+  if (statblockTextViews.has(ref)) return statblockTextViews.get(ref);
+  let view = monsterStatblockTextView(await statblockTextStore().get(ref));
+  if (!view && archive) {
+    try {
+      const { pool } = fiveToolsCollection(await createFiveToolsArchiveStore().allData());
+      const wanted = ref.toLowerCase();
+      const monster = pool.find((entry) => `${entry?.name}|${entry?.source}`.toLowerCase() === wanted);
+      const converted = monster ? fiveToolsMonsterToStatblock(monster, { pool }) : null;
+      if (converted?.monster) view = monsterStatblockTextView(monsterStatblockTextRecord({ ref, name: monster.name, fiveTools: converted.monster }));
+    } catch {}
+  }
+  statblockTextViews.set(ref, view);
+  return view;
+}
+
+// The full stat block at the bottom of the Stats tab: an NPC's sheet, for the GM, from this browser's memory.
+async function renderStatblockText() {
+  const block = $("statblockTextBlock");
+  const ref = monsterStatblockTextRef({ isGM, attitude: item?.metadata?.[META_KEY]?.attitude, card: profile });
+  block.dataset.ref = ref;
+  if (!ref) {
+    block.hidden = true;
+    return;
+  }
+  const view = await loadStatblockTextView(ref, { archive: profile?.[MONSTER_PROFILE_FIELD]?.source === "5etools" });
+  if (block.dataset.ref !== ref) return;
+  const body = $("statblockText");
+  if (!view) {
+    const missing = document.createElement("p");
+    missing.className = "statblock-text-missing";
+    missing.textContent = "Il testo non è in questo browser: reimporta il mostro (o aggiungi il suo libro all'archivio).";
+    body.replaceChildren(missing);
+  } else {
+    const nodes = view.header.map((row) => {
+      const line = document.createElement("p");
+      line.className = "statblock-text-line";
+      if (row.label) {
+        const label = document.createElement("b");
+        label.textContent = `${row.label} `;
+        line.appendChild(label);
+      }
+      line.appendChild(document.createTextNode(row.text));
+      return line;
+    });
+    for (const section of view.sections) {
+      if (section.title) {
+        const title = document.createElement("h4");
+        title.className = "statblock-text-title";
+        title.textContent = section.title;
+        nodes.push(title);
+      }
+      for (const entry of section.entries) {
+        const line = document.createElement("p");
+        line.className = "statblock-text-entry";
+        if (entry.name) {
+          const name = document.createElement("b");
+          name.textContent = `${entry.name}. `;
+          line.appendChild(name);
+        }
+        line.appendChild(document.createTextNode(entry.text));
+        nodes.push(line);
+      }
+    }
+    body.replaceChildren(...nodes);
+  }
+  block.hidden = false;
 }
 
 // Modificatori di caratteristica: massimi dei pool a formula e CD delle capacità di classe.
@@ -4649,6 +4740,7 @@ function setEditing(active) {
   pendingMonsterHitPoints = null;
   pendingMonsterName = "";
   pendingMonsterPortrait = null;
+  pendingMonsterText = null;
   fiveToolsInputs = [];
   $("sheetImportSearch").value = "";
   $("sheetImportPicker").hidden = true;
@@ -4949,6 +5041,20 @@ $("form").addEventListener("submit", async (event) => {
       }
       if (!sceneLifecycle.isCurrent(operation)) return;
     }
+    // The monster's full stat block, in this browser only (lotto 4b): the card's reference finds it again.
+    const statblockText = pendingMonsterText;
+    pendingMonsterText = null;
+    let statblockTextStatus = "";
+    if (statblockText) {
+      try {
+        const kept = await statblockTextStore().put(statblockText);
+        statblockTextViews.delete(statblockText.ref);
+        if (!kept.persisted) statblockTextStatus = `Testo dello statblock tenuto solo per questa sessione: ${kept.reason}.`;
+      } catch (error) {
+        statblockTextStatus = `Testo dello statblock non salvato: ${error?.message || error}.`;
+      }
+      if (!sceneLifecycle.isCurrent(operation)) return;
+    }
     // The monster's portrait as this token's image (fase 4, lotto 3): only this token, its footprint on the map kept.
     const portrait = pendingMonsterPortrait;
     pendingMonsterPortrait = null;
@@ -4988,7 +5094,7 @@ $("form").addEventListener("submit", async (event) => {
     if (!sceneLifecycle.isCurrent(operation)) return;
     renderView();
     setEditing(false);
-    const savedStatus = [nameStatus, portraitStatus, hitPointsStatus, shareStatus].filter(Boolean).join(" ");
+    const savedStatus = [nameStatus, portraitStatus, hitPointsStatus, shareStatus, statblockTextStatus].filter(Boolean).join(" ");
     if (savedStatus) $("status").textContent = savedStatus;
   } catch (err) {
     $("status").textContent = err?.message || "Salvataggio non riuscito";

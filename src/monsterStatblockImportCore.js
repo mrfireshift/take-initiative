@@ -223,9 +223,13 @@ export function isMonsterStatblock(data) {
     || Array.isArray(data?.actions) || Array.isArray(data?.azioni);
 }
 
-// The monster the block came from ("Goblin|MM" for 5eTools), or "".
+// The monster the block came from ("Goblin|MM" for 5eTools), or "". A block with its full text (lotto 4b) and no ref is
+// known by its name: "Capo goblin|testo".
 export function monsterImportRef(data) {
-  return text(data?.ref).slice(0, 120);
+  const ref = text(data?.ref).slice(0, 120);
+  if (ref) return ref;
+  const name = text(data?.name ?? data?.nome).slice(0, 80);
+  return name && typeof data?.text === "string" && data.text.trim() ? `${name}|testo` : "";
 }
 
 export function monsterImportSource(data) {

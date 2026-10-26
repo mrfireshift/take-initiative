@@ -42,6 +42,9 @@ export function fiveToolsPlainText(value) {
     if (tag === "h") return "Hit: ";
     if (tag === "dc") return `DC ${parts[0]}`;
     if (tag === "recharge") return `(Recharge ${parts[0] ? `${parts[0]}–6` : "6"})`;
+    // {@chance 50|50 percent|…}: the second part is what the book prints; {@quickref name|source|chapter|index|text}.
+    if (tag === "chance") return parts[1] || `${parts[0]} percent`;
+    if (tag === "quickref" || tag === "filter") return parts[4] || parts[0];
     return parts[2] || parts[0];
   }).replace(/\s+/g, " ").trim();
 }
@@ -205,7 +208,9 @@ const SPELLCASTING_CLASSES = Object.freeze({ bard: "bardo", cleric: "chierico", 
 const ORDINAL_LEVEL = /\b(\d{1,2})(?:st|nd|rd|th)-level spellcaster/i;
 
 // One spell of a list: "{@spell levitate} (self only)", "{@spell mage armor}*", "{@spell invisibility|PHB}" → its name.
-export function fiveToolsSpellName(entry) {
+export function fiveToolsSpellName(value) {
+  // A spell the stat block does not print ({ entry, hidden: true }) is still one the monster casts.
+  const entry = value && typeof value === "object" ? value.entry : value;
   const tagged = String(entry ?? "").match(/\{@spell ([^}|]+)/);
   const name = (tagged ? tagged[1] : fiveToolsPlainText(entry).replace(/\*+$/, "").replace(/\s*\(.*\)\s*$/, "")).replace(/\s+/g, " ").trim();
   return SPELL_NAME_ALIASES[name.toLowerCase()] || name;
@@ -274,6 +279,106 @@ function fiveToolsSlotMismatch(levels, characterBuild) {
   const statblock = Object.entries(levels).filter(([, level]) => Number(level?.slots) > 0)
     .map(([level, entry]) => `${entry.slots}×${level}°`).join(" ");
   return statblock && statblock !== plugin ? { statblock, plugin: plugin || "nessuno" } : null;
+}
+
+// The stat block as 5eTools prints it, for the GM to read (fase 4, lotto 4b): { header: [{ label, text }], sections:
+// [{ title, entries: [{ name, text }] }] }, in English, the tags made plain. Pure; nothing here is guessed or translated.
+const SIZE_NAMES = Object.freeze({ T: "Tiny", S: "Small", M: "Medium", L: "Large", H: "Huge", G: "Gargantuan" });
+const ALIGNMENT_NAMES = Object.freeze({ L: "lawful", N: "neutral", C: "chaotic", G: "good", E: "evil", U: "unaligned", A: "any alignment" });
+const ABILITY_ORDER = Object.freeze(["str", "dex", "con", "int", "wis", "cha"]);
+const SPELL_LEVEL_NAMES = Object.freeze(["Cantrips", "1st level", "2nd level", "3rd level", "4th level", "5th level", "6th level", "7th level", "8th level", "9th level"]);
+
+function plainList(value) {
+  return asList(value).map((entry) => {
+    if (typeof entry === "string") return fiveToolsPlainText(entry);
+    if (entry?.special) return fiveToolsPlainText(entry.special);
+    const inner = Object.entries(entry || {}).find(([, list]) => Array.isArray(list))?.[1];
+    return [fiveToolsPlainText(entry?.preNote || ""), inner ? plainList(inner) : "", fiveToolsPlainText(entry?.note || "")].filter(Boolean).join(" ");
+  }).filter(Boolean).join(", ");
+}
+
+function fiveToolsHeader(monster) {
+  const rows = [];
+  const add = (label, text) => { if (text) rows.push({ label, text }); };
+  const type = typeof monster.type === "string" ? monster.type
+    : monster.type?.type ? `${typeof monster.type.type === "string" ? monster.type.type : plainList(monster.type.type?.choose)}${monster.type.tags?.length ? ` (${monster.type.tags.map((tag) => (typeof tag === "string" ? tag : [tag?.prefixHidden ? "" : tag?.prefix, tag?.tag].filter(Boolean).join(" "))).join(", ")})` : ""}` : "";
+  const alignment = asList(monster.alignment).every((entry) => typeof entry === "string")
+    ? asList(monster.alignment).map((code) => ALIGNMENT_NAMES[code] || "").filter(Boolean).join(" ") : "";
+  add("", [asList(monster.size).map((code) => SIZE_NAMES[code] || code).join(" or "), type].filter(Boolean).join(" ") + (alignment ? `, ${alignment}` : ""));
+  // "12 (15 with mage armor)": an alternative AC in braces follows the one before it.
+  add("Armor Class", asList(monster.ac).map((entry) => {
+    if (typeof entry === "number") return String(entry);
+    const text = `${entry?.ac ?? ""}${entry?.from ? ` (${entry.from.map(fiveToolsPlainText).join(", ")})` : ""}${entry?.condition ? ` ${fiveToolsPlainText(entry.condition)}` : ""}`;
+    return entry?.braces ? `(${text})` : text;
+  }).join(", ").replace(/, \(/g, " ("));
+  add("Hit Points", monster.hp ? (Number.isFinite(monster.hp.average) ? `${monster.hp.average}${monster.hp.formula ? ` (${monster.hp.formula})` : ""}` : fiveToolsPlainText(monster.hp.special || "")) : "");
+  add("Speed", Object.entries(monster.speed && typeof monster.speed === "object" ? monster.speed : {}).filter(([mode]) => mode !== "canHover")
+    .map(([mode, value]) => {
+      const feet = typeof value === "object" ? `${value?.number ?? ""} ft.${value?.condition ? ` ${fiveToolsPlainText(value.condition)}` : ""}` : `${value} ft.`;
+      return mode === "walk" ? feet : `${mode} ${feet}`;
+    }).join(", "));
+  if (ABILITY_ORDER.some((key) => Number.isFinite(monster[key]))) {
+    add("", ABILITY_ORDER.map((key) => {
+      const score = Number(monster[key]);
+      const modifier = Math.floor((score - 10) / 2);
+      // No break inside a score: "CHA 12 (+1)" stays on one line.
+      return Number.isFinite(score) ? `${key.toUpperCase()} ${score} (${modifier >= 0 ? "+" : "−"}${Math.abs(modifier)})` : "";
+    }).filter(Boolean).join("  "));
+  }
+  const bonuses = (value) => Object.entries(value && typeof value === "object" ? value : {})
+    .filter(([, bonus]) => typeof bonus === "string" || typeof bonus === "number")
+    .map(([key, bonus]) => `${key.length === 3 ? key[0].toUpperCase() + key.slice(1) : key.replace(/^\w/, (letter) => letter.toUpperCase())} ${bonus}`).join(", ");
+  add("Saving Throws", bonuses(monster.save));
+  add("Skills", bonuses(monster.skill));
+  add("Damage Vulnerabilities", plainList(monster.vulnerable));
+  add("Damage Resistances", plainList(monster.resist));
+  add("Damage Immunities", plainList(monster.immune));
+  add("Condition Immunities", plainList(monster.conditionImmune));
+  add("Senses", [plainList(monster.senses), Number.isFinite(monster.passive) ? `passive Perception ${monster.passive}` : ""].filter(Boolean).join(", "));
+  add("Languages", plainList(monster.languages) || (monster.languages === null ? "—" : ""));
+  add("Challenge", typeof monster.cr === "string" ? monster.cr : monster.cr?.cr ? `${monster.cr.cr}${monster.cr.lair ? ` (${monster.cr.lair} in lair)` : ""}` : "");
+  return rows;
+}
+
+function spellcastingText(block) {
+  const list = (spells) => asList(spells).filter((entry) => !(entry && typeof entry === "object" && entry.hidden))
+    .map((entry) => fiveToolsPlainText(entry && typeof entry === "object" ? entry.entry : entry)).filter(Boolean).join(", ");
+  const lines = [entriesText(block.headerEntries)];
+  for (const [level, entry] of Object.entries(block.spells && typeof block.spells === "object" ? block.spells : {})) {
+    const slots = Number(entry?.slots) > 0 ? ` (${entry.slots} slot${entry.slots === 1 ? "" : "s"}${entry.lower ? `, level ${level}` : ""})` : level === "0" ? " (at will)" : "";
+    lines.push(`${SPELL_LEVEL_NAMES[Number(level)] || `Level ${level}`}${slots}: ${list(entry?.spells)}`);
+  }
+  if (block.will) lines.push(`At will: ${list(block.will)}`);
+  const daily = Object.entries(block.daily && typeof block.daily === "object" ? block.daily : {})
+    .sort(([left], [right]) => Number.parseInt(right, 10) - Number.parseInt(left, 10));
+  for (const [key, spells] of daily) lines.push(`${Number.parseInt(key, 10)}/day${key.endsWith("e") ? " each" : ""}: ${list(spells)}`);
+  for (const [key, label] of [["weekly", "week"], ["rest", "rest"]]) {
+    for (const [count, spells] of Object.entries(block[key] && typeof block[key] === "object" ? block[key] : {})) {
+      lines.push(`${Number.parseInt(count, 10)}/${label}${count.endsWith("e") ? " each" : ""}: ${list(spells)}`);
+    }
+  }
+  if (block.footerEntries) lines.push(entriesText(block.footerEntries));
+  return lines.map(fiveToolsPlainText).filter(Boolean).join("\n");
+}
+
+export function fiveToolsStatblockSections(monster) {
+  if (!monster || typeof monster !== "object") return { header: [], sections: [] };
+  const named = (list) => asList(list).filter((entry) => entry && typeof entry === "object")
+    .map((entry) => ({ name: fiveToolsPlainText(entry.name || ""), text: fiveToolsPlainText(entriesText(entry.entries ?? entry.entry)) }))
+    .filter((entry) => entry.name || entry.text);
+  const shortName = String(monster.shortName === true ? monster.name : monster.shortName || monster.name || "").toLowerCase();
+  const legendaryIntro = monster.legendaryHeader ? fiveToolsPlainText(entriesText(monster.legendaryHeader))
+    : `The ${shortName} can take ${monster.legendaryActions || 3} legendary actions, choosing from the options below. Only one legendary action option can be used at a time and only at the end of another creature's turn. The ${shortName} regains spent legendary actions at the start of its turn.`;
+  const sections = [
+    { title: "", entries: [...named(monster.trait), ...asList(monster.spellcasting).filter((block) => block && typeof block === "object")
+      .map((block) => ({ name: fiveToolsPlainText(block.name || "Spellcasting"), text: spellcastingText(block) }))] },
+    { title: "Actions", entries: named(monster.action) },
+    { title: "Bonus Actions", entries: named(monster.bonus) },
+    { title: "Reactions", entries: named(monster.reaction) },
+    { title: "Legendary Actions", entries: monster.legendary ? [{ name: "", text: legendaryIntro }, ...named(monster.legendary)] : [] },
+    { title: "Mythic Actions", entries: monster.mythic ? [...(monster.mythicHeader ? [{ name: "", text: fiveToolsPlainText(entriesText(monster.mythicHeader)) }] : []), ...named(monster.mythic)] : [] },
+  ].filter((section) => section.entries.length);
+  return { header: fiveToolsHeader(monster), sections };
 }
 
 const MOD_TEXT_PROPS = Object.freeze(["trait", "action", "bonus", "reaction", "legendary", "mythic", "spellcasting"]);
@@ -418,6 +523,8 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
   if (Array.isArray(monster.reaction) && monster.reaction.length) report.push(`reazioni da gestire al tavolo: ${monster.reaction.map((entry) => fiveToolsPlainText(entry?.name || "")).join(", ")}`);
   if (monster.hp && !Number.isFinite(monster.hp.average)) report.push(`punti ferita speciali: ${fiveToolsPlainText(monster.hp.special || "")}`);
   const portrait = fiveToolsTokenPath({ ...monster, name: input.name, source: input.source });
+  // The monster as read, kept in the GM's browser for its full stat block (lotto 4b).
+  const resolvedMonster = { ...monster, name: input.name, source: input.source };
   const block = {
     kind: "monster", source: "5etools", ref: `${input.name}|${input.source}`, name: monster.name,
     // Its token image in 5eTools' image mirror (fase 4, lotto 3): the path; the sheet adds the mirror's address.
@@ -434,7 +541,7 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
     ...(notes ? { notes: notes.length > MAX_NOTE ? `${notes.slice(0, MAX_NOTE - 1).trimEnd()}…` : notes } : {}),
     actions,
   };
-  return { block, report, counts, error: "" };
+  return { block, report, counts, monster: resolvedMonster, error: "" };
 }
 
 // The monsters of everything the GM loaded in the sheet (files and pasted blocks, fase 2, lotto 3): one entry per name
