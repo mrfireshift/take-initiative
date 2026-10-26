@@ -17,6 +17,7 @@ import {
   enableClassicCardRename,
 } from "./initiativeEditors.js";
 import { compactStatusBadge } from "./initiativeCardCompact.js";
+import { canOpenInitiativeCardSheet } from "./initiativeCardSheetAccessCore.js";
 import { fitCardToChipDock } from "./initiativeChipOverflow.js";
 import { buildReactionIndicator } from "./reactionIndicator.js";
 import {
@@ -1061,7 +1062,8 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   };
 
   let initiativeCardButton = null;
-  if (["pc", "ally"].includes(e.attitude)) {
+  // A character's or an ally's sheet; the GM opens every creature's (a monster's stat block).
+  if (canOpenInitiativeCardSheet(e, { isGM: IS_GM })) {
     initiativeCardButton = document.createElement("button");
     initiativeCardButton.type = "button";
     initiativeCardButton.title = "Apri scheda personaggio";

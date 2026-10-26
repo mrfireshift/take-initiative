@@ -1221,6 +1221,10 @@ test("la scheda personaggio si apre dal compatto in un clic, per PG e alleati", 
 
   assert.ok(buildCompactSheetButton({ id: "ally", attitude: "ally" }, { onOpen, documentRef }));
   assert.equal(buildCompactSheetButton({ id: "foe", attitude: "enemy" }, { onOpen, documentRef }), null);
+  // Attacchi dei mostri, lotto 4: il GM apre la scheda di ogni creatura, mai di un turno di Tana o di un'Azione Epica.
+  assert.ok(buildCompactSheetButton({ id: "foe", attitude: "enemy" }, { onOpen, documentRef, isGM: true }));
+  assert.ok(buildCompactSheetButton({ id: "npc", attitude: "neutral" }, { onOpen, documentRef, isGM: true }));
+  assert.equal(buildCompactSheetButton({ id: "__LAIR__", attitude: "enemy" }, { onOpen, documentRef, isGM: true }), null);
   assert.equal(buildCompactSheetButton({ id: "g", attitude: "pc", __groupCollapsed: true }, { onOpen, documentRef }), null);
   assert.equal(buildCompactSheetButton({ id: "pc", attitude: "pc" }, { documentRef }), null);
 });

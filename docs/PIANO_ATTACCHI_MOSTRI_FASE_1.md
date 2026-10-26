@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 1 (piano)
 
-Stato: **approvato il 26/10/2026**, lotti 1–3 implementati.
+Stato: **approvato il 26/10/2026**, lotti 1–4 implementati.
 
 Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non viene toccato; i boss seguono l'interruttore Mostri; PF dalla media dello statblock, modificabile, con sovrascrittura spuntata solo se il token non ha PF; fase 1b dopo la fase 1.
 
@@ -13,7 +13,10 @@ Decisioni confermate: l'interruttore Mostri eredita «Ogni turno» finché non v
 - **Lotto 2, Combat Log.** Riga «Azione del mostro: nome (dadi) · TS, CD, effetto» e «Da fare: nota»; le aree a scelta manuale nominano anche sfera, cubo e cilindro (prima tutto ciò che non era cono o bersaglio diventava «sulla linea»).
 - **Lotto 3, ricarica come contatore.** La ricarica è una carica (`quick-action-recharge:<id>`, capacità 1, torna con riposo breve e lungo) accanto agli usi (`quick-action-uses:<id>`); si spende nello stesso comando dell'attacco, quindi History e Undo la riportano indietro. Riusata da spesa non blocca: il Combat Log scrive «tornata al tavolo». Il sottotitolo mostra «Ricarica 5–6 · usata» e «2/3 al giorno».
 - **Lotto 3, usi anche sul mancato.** Un uso al giorno si spende con qualsiasi esito: l'azione è stata usata.
-- **Lotto 2, banco.** Scenari `pc-monster`, `pc-monster-bite`, `pc-monster-presence` nel banco `boss-actions-preview` (porta 5199).
+- **Lotto 4, formato delle azioni.** `attack: { bonus, type: "melee" | "ranged", reach, range: { normal, long } }` (accettato anche `range: "melee"`); `area.size` e `area.width` in piedi o metri; `area.shape: "target"` con `targets`; condizioni in inglese o italiano mappate sui nomi di `CONDITION_LIST`. Un'azione con attacco **e** TS registra l'attacco e segnala il TS (fase 1b); un'azione senza danni né TS è segnalata e resta al tavolo. Formato e prompt in `docs/IMPORT_SCHEDA.md`.
+- **Lotto 4, marcatore del mostro.** Applicare uno statblock scrive sempre `monster.source` sulla scheda (anche senza multiattacco): servirà al lotto 6 per tenere le schede dei mostri fuori dal registro room. I PF (`hitPoints`) si leggono ma si applicano nel lotto 5.
+- **Lotto 4, accesso alla scheda.** Predicato unico `canOpenInitiativeCardSheet` (`src/initiativeCardSheetAccessCore.js`) per l'apertura dal tracker e per il pulsante delle carte classica e compatta.
+- **Lotto 2, banco.** Scenari `pc-monster`, `pc-monster-bite`, `pc-monster-presence` (e, dal lotto 4, `monster-sheet`: la scheda di un goblin nemico) nel banco `boss-actions-preview` (porta 5199).
 
 Decisioni già prese dall'utente (26/10/2026):
 
@@ -111,8 +114,9 @@ Ogni lotto è un commit a sé, con i test del suo modulo e `npm run build`.
 - Ricarica come **promemoria, mai blocco**: dopo l'uso la riga mostra «Ricarica 5–6»; il GM tira il d6 al tavolo e, se si è ricaricata, usa l'azione e basta. Nessun clic in più, nessun contatore da segnare (vedi la regola sul bookkeeping di turno).
 - Test: `pcAttackExecutionIntegration`, `quickActions`.
 
-### Lotto 4 — import dello statblock nel formato del plugin
+### Lotto 4 — import dello statblock nel formato del plugin ✅
 
+- **Scheda aperta a nemici e neutrali, solo per il GM** (aggiunto il 26/10): oggi `openInitiativeCardPopup` e il pulsante della scheda (carta classica e compatta) valgono solo per `pc` e `ally`, quindi un nemico non può ricevere attacchi e la console non compare mai per lui. Il GM apre la scheda di qualsiasi creatura; i giocatori restano a `pc` e `ally`.
 - Nuovo `src/monsterStatblockImportCore.js`: legge il JSON (chiavi sotto), nomi italiani o inglesi per tipi di danno, condizioni e caratteristiche; ciò che non riconosce va in rosso, non si indovina.
 - Il pannello Importa della scheda riconosce `"kind": "monster"` e mostra le sezioni: Statistiche (CA, caratteristiche, TS), Difese, PF, Azioni (Aggiungi/Sostituisci), Multiattacco.
 - `docs/IMPORT_SCHEDA.md`: formato del mostro e prompt per un assistente.

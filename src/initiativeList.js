@@ -312,6 +312,7 @@ import { showUndoToast } from "./undoToast.js";
 import { appendCompactCompanionDrawer } from "./compactCompanionDrawer.js";
 import { turnShortcutDirection } from "./turnShortcutCore.js";
 import { buildTieReorderHandle, realTieInitiatives, showsTieReorderHandle } from "./tieReorderCore.js";
+import { canOpenInitiativeCardSheet } from "./initiativeCardSheetAccessCore.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -7844,8 +7845,7 @@ async function openCardSpellsPopup(sourceEntry, {
 }
 
 async function openInitiativeCardPopup(sourceEntry, { quickActionId = "" } = {}) {
-  if (!sourceEntry || sourceEntry.__groupCollapsed || !["pc", "ally"].includes(sourceEntry.attitude) ||
-      isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
+  if (!canOpenInitiativeCardSheet(sourceEntry, { isGM: IS_GM })) return;
 
   const sourceId = splitParagonId(sourceEntry.id).baseId;
   if (!sourceId) return;
@@ -10051,6 +10051,7 @@ function renderCompactTrack(
     if (activeMarker) card.appendChild(activeMarker);
     const sheetButton = buildCompactSheetButton(entry, {
       onOpen: () => void openInitiativeCardPopup(entry),
+      isGM: IS_GM,
     });
     if (sheetButton) card.appendChild(sheetButton);
 

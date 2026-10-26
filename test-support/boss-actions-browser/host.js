@@ -568,6 +568,16 @@ const scenarios = {
     await openPcAttackPopover("mira", actionId);
   },
   async "pc-monster-bite"() { await scenarios["pc-monster"]("bite"); },
+  // A monster's stat block imported from the sheet (attacchi dei mostri, lotto 4): the goblin is an enemy without a card;
+  // its sheet opens for the GM, Modifica → Importa takes the block.
+  async "monster-sheet"() {
+    const goblin = fakeHost.state.items.find((item) => item.id === "goblin-a");
+    goblin.metadata[META].attitude = "enemy";
+    fakeHost.setItems([...fakeHost.state.items]);
+    await OBR.popover.open({ id: "com.thebigpicture.initiative/initiative-card-modal", url: "/initiative-card-modal.html?source=goblin-a",
+      width: 440, height: 560, anchorReference: "POSITION", anchorPosition: { left: 20, top: 20 },
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: "LEFT", vertical: "TOP" } });
+  },
   async "pc-monster-presence"() { await scenarios["pc-monster"]("presence"); },
   async compare() { document.getElementById("open-hp").click(); await sleep(600); fakeHost.setSelection(["dars"]); await openBossActionsPopover("auril"); await sleep(400);
     const frame = bossFrame(); fakeHost.state.popovers.get("com.thebigpicture.initiative/boss-actions").anchorPosition = { left: 600, top: 60 }; frame.style.left = "600px"; frame.style.top = "60px";

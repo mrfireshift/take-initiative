@@ -70,6 +70,7 @@ import {
   parseCharacterSheetImport,
   sheetImportSectionSummary,
 } from "./characterSheetImportCore.js";
+import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { openPcAttackPopover } from "./pcAttackLauncher.js";
 import { pcAttackBreathActionId } from "./pcAttackBreathId.js";
 import { PC_ATTACK_CANTRIPS } from "./pcAttackCantripCatalog.js";
@@ -179,6 +180,9 @@ let activeCardTab = "stats";
 let editing = false;
 // The spellbook being edited: rebuilt from the profile each time the editor opens, saved with Salva.
 let draftSpellbook = sanitizeSpellbook(null);
+// The card's monster profile (a stat block's source and Multiattack): undefined until the card has one or a monster's
+// block is applied, so a character's card keeps its shape.
+let draftMonsterProfile;
 // Prepara mode (renderSpellPreparation): the spells left unprepared while the GM ticks, null outside it.
 let spellPreparationDraft = null;
 // The spell of the book whose details are open (one at a time), "" when none is.
@@ -3660,7 +3664,8 @@ function readSheetImport() {
   $("sheetImportSections").replaceChildren(...rows);
   $("sheetImportSections").hidden = false;
   $("sheetImportApplyRow").hidden = false;
-  setSheetImportStatus(`${result.name ? `Scheda di ${result.name}: s` : "S"}cegli le sezioni da applicare.`);
+  const kind = result.monster ? "Statblock" : "Scheda";
+  setSheetImportStatus(`${result.name ? `${kind} di ${result.name}: s` : "S"}cegli le sezioni da applicare.`);
 }
 
 function applyImportedAttacks(attacks, mode) {
@@ -3732,9 +3737,15 @@ function applySheetImport() {
       renderSpellbookEditor();
     } else if (id === "attacks") {
       applyImportedAttacks(section, modeOf(id));
+    } else if (id === "multiattack") {
+      draftMonsterProfile = { ...(draftMonsterProfile || {}), multiattack: section };
     } else if (id === "notes") {
       $("notesInput").value = section;
     }
+  }
+  // A monster's block marks the card as a monster's (its source), whatever sections were applied.
+  if (sheetImportResult.monster) {
+    draftMonsterProfile = sanitizeMonsterProfile({ ...(draftMonsterProfile || {}), source: sheetImportResult.monster.source });
   }
   const labelsById = new Map(SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]));
   setSheetImportStatus(
@@ -4273,6 +4284,7 @@ function setEditing(active) {
   $("notesInput").value = profile.notes ?? "";
   buildQuickActionEditor();
   buildSpellbookEditor();
+  draftMonsterProfile = Object.hasOwn(profile || {}, MONSTER_PROFILE_FIELD) ? sanitizeMonsterProfile(profile[MONSTER_PROFILE_FIELD]) : undefined;
   setSheetImportOpen(false);
   buildSpeciesEditor();
   buildClassBuildEditor();
@@ -4514,6 +4526,8 @@ $("form").addEventListener("submit", async (event) => {
     const spellbook = sanitizeSpellbook(draftSpellbook);
     const spellbookPatch = hasSpellbook(spellbook) || Object.hasOwn(profile || {}, SPELLBOOK_FIELD)
       ? { [SPELLBOOK_FIELD]: spellbook } : {};
+    // Come il libro: il profilo del mostro si scrive solo se importato o già presente.
+    const monsterPatch = draftMonsterProfile !== undefined ? { [MONSTER_PROFILE_FIELD]: draftMonsterProfile } : {};
     await saveInitiativeCard(item.id, item.name, {
       armorClass: $("armorClassInput").value,
       passivePerception: $("passivePerceptionInput").value,
@@ -4533,6 +4547,7 @@ $("form").addEventListener("submit", async (event) => {
       ...giftPatch,
       ...spellAbilityPatch,
       ...spellbookPatch,
+      ...monsterPatch,
     }, {
       isCurrent: () => sceneLifecycle.isCurrent(operation),
       commandId: ownerSceneContext.commandId,

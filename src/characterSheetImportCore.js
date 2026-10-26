@@ -12,6 +12,7 @@ import { ABILITY_KEYS, sanitizeAbilityModifiers, hasAbilityModifiers } from "./a
 import { MAX_QUICK_ACTION_ATTACKS, sanitizeQuickAction } from "./quickActionsCore.js";
 import { MAX_SPELLBOOK_SPELLS, sanitizeSpellbook } from "./spellbookCore.js";
 import { normalizeSpeedMeters } from "./speedCheckCore.js";
+import { importedMonsterActions, importedMonsterHitPoints, isMonsterStatblock, monsterImportSource } from "./monsterStatblockImportCore.js";
 
 // In the order the import panel lists them.
 export const SHEET_IMPORT_SECTIONS = Object.freeze([
@@ -24,6 +25,8 @@ export const SHEET_IMPORT_SECTIONS = Object.freeze([
   Object.freeze({ id: "defenses", label: "Difese ai danni" }),
   Object.freeze({ id: "spells", label: "Incantesimi" }),
   Object.freeze({ id: "attacks", label: "Attacchi" }),
+  // A monster's stat block (attacchi dei mostri, lotto 4): its Multiattack, shown over the console's attacks.
+  Object.freeze({ id: "multiattack", label: "Multiattacco" }),
   Object.freeze({ id: "notes", label: "Note" }),
 ]);
 
@@ -358,6 +361,8 @@ function importedAttacks(data, unresolved) {
  * Reads a pasted block. Returns { error, name, sections, unresolved }: sections holds only what the block
  * contains (classes, species, stats, abilities, saves, defenses, spells, attacks, notes), unresolved the
  * names the catalogs did not recognise. A block is never thrown on.
+ * A monster's stat block ("kind": "monster", or a list of actions) also returns monster ({ source }) and hitPoints
+ * ({ average, formula } or null): its actions are the attacks, its Multiattack a section of its own.
  */
 export function parseCharacterSheetImport(value) {
   let data;
@@ -371,6 +376,9 @@ export function parseCharacterSheetImport(value) {
   }
   const unresolved = [];
   const notes = text(data.notes ?? data.note).slice(0, 280);
+  const monster = isMonsterStatblock(data)
+    ? importedMonsterActions(data, { resolveDamageType, resolveAbility: (value) => ABILITY_BY_ALIAS.get(lookupKey(value)) || "", unresolved })
+    : null;
   const candidates = {
     classes: importedClasses(data, unresolved),
     species: importedSpecies(data, unresolved),
@@ -380,12 +388,14 @@ export function parseCharacterSheetImport(value) {
     saves: importedSaves(data),
     defenses: importedDefenses(data, unresolved),
     spells: importedSpells(data, unresolved),
-    attacks: importedAttacks(data, unresolved),
+    attacks: monster ? (monster.attacks.length ? monster.attacks : null) : importedAttacks(data, unresolved),
+    multiattack: monster?.multiattack || null,
     notes: notes || null,
   };
   const sections = Object.fromEntries(Object.entries(candidates).filter(([, section]) => section !== null));
   const error = Object.keys(sections).length ? "" : "Nel blocco non c'è nessun dato della scheda riconosciuto.";
-  return { error, name: text(data.name ?? data.nome).slice(0, 80), sections, unresolved };
+  return { error, name: text(data.name ?? data.nome).slice(0, 80), sections, unresolved,
+    ...(monster ? { monster: { source: monsterImportSource(data) }, hitPoints: importedMonsterHitPoints(data) } : {}) };
 }
 
 function signed(value) {
@@ -433,7 +443,7 @@ export function sheetImportSectionSummary(id, section, { classNameOf = (classId)
   if (id === "attacks") {
     return `${section.length} ${section.length === 1 ? "attacco" : "attacchi"}: ${section.map((attack) => attack.label).join(", ")}`;
   }
-  if (id === "notes") return section.length > 60 ? `${section.slice(0, 60)}…` : section;
+  if (id === "notes" || id === "multiattack") return section.length > 60 ? `${section.slice(0, 60)}…` : section;
   return "";
 }
 

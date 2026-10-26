@@ -104,3 +104,92 @@ al combattimento.
 Usa i nomi italiani del Manuale del Giocatore quando la scheda è in italiano,
 altrimenti quelli inglesi. Non inventare valori assenti.
 ```
+
+## Importare lo statblock di un mostro
+
+Lo stesso pannello **Importa** legge lo statblock di un mostro: le sue azioni
+diventano attacchi che la console esegue al turno del mostro (tiro per
+colpire, oppure tiro salvezza con CD, area e condizione propri), il
+multiattacco compare sopra gli attacchi della console.
+
+La scheda di un nemico o di un neutrale si apre dal tracker **solo per il
+GM**; i giocatori aprono soltanto quelle di personaggi e alleati.
+
+Un blocco è uno statblock quando ha `"kind": "monster"` oppure una lista
+`actions`. Le altre chiavi (`armorClass`, `speed`, `abilities`,
+`savingThrows`, `damageDefenses`, `notes`) sono quelle della scheda
+personaggio. Le distanze sono in piedi come negli statblock (`10`,
+`"10 ft"`) oppure in metri (`"3 m"`).
+
+```json
+{
+  "kind": "monster",
+  "name": "Drago rosso adulto",
+  "armorClass": 19,
+  "hitPoints": { "average": 256, "formula": "19d12+133" },
+  "speed": "40 ft",
+  "abilities": { "str": 27, "dex": 10, "con": 25, "int": 16, "wis": 13, "cha": 21 },
+  "savingThrows": { "dex": 6, "con": 13, "wis": 7, "cha": 11 },
+  "damageDefenses": { "immunities": ["fire"] },
+  "multiattack": "Usa Presenza terrificante, poi un morso e due artigli.",
+  "actions": [
+    { "name": "Morso", "attack": { "bonus": 14, "type": "melee", "reach": 10 },
+      "damage": [{ "type": "piercing", "formula": "2d10+8" }, { "type": "fire", "formula": "2d6" }] },
+    { "name": "Arco lungo", "attack": { "bonus": 6, "type": "ranged", "range": { "normal": 150, "long": 600 } },
+      "uses": 3, "damage": [{ "type": "piercing", "formula": "1d8+2" }] },
+    { "name": "Soffio di fuoco", "recharge": 5,
+      "save": { "ability": "dex", "dc": 21, "half": true }, "area": { "shape": "cone", "size": 60 },
+      "damage": [{ "type": "fire", "formula": "18d6" }] },
+    { "name": "Presenza terrificante", "save": { "ability": "wis", "dc": 19 },
+      "area": { "shape": "sphere", "size": 120 }, "onFail": { "condition": "frightened" },
+      "note": "Ripete il TS a fine turno; immune per 24 ore dopo un successo." }
+  ]
+}
+```
+
+| Chiave dell'azione | Contenuto |
+| --- | --- |
+| `name` | Nome dell'azione. Un'azione chiamata "Multiattack" o "Multiattacco" diventa il testo del multiattacco (dal suo `note`). |
+| `attack` | Attacco con tiro per colpire: `bonus`, `type` (`melee` o `ranged`), `reach` (portata) oppure `range: { normal, long }` (gittata). Bonus, portata e gittata si mostrano, non si controllano: i dadi si tirano al tavolo. |
+| `save` | Tiro salvezza al posto del tiro per colpire: `ability` (`str`… o il nome, anche in italiano), `dc`, `half: true` se chi supera subisce metà danni. Senza `area` vale per una creatura. |
+| `area` | `shape` (`cone`, `line`, `sphere`, `cube`, `cylinder` o `target`) e `size` in piedi (raggio per sfera e cilindro, lato per il cubo); `width` per la linea; per `target`, `targets` è il numero di creature. Le creature si spuntano a mano nella console. |
+| `onFail` | `{ "condition": "frightened" }`: la condizione di chi fallisce il TS (nome inglese o italiano), da rimuovere a mano. Con una condizione l'azione può non avere danni. |
+| `damage` | Da 1 a 3 componenti `{ type, formula }`, come gli attacchi della scheda. |
+| `recharge` | Ricarica: `5` per "Ricarica 5–6". Dopo l'uso la console scrive «usata»; non blocca mai: se al tavolo si ricarica, si usa di nuovo. |
+| `uses` | Usi al giorno (`3` o `"3/giorno"`): finiti gli usi la console blocca l'azione; tornano con il riposo lungo. |
+| `note` | Fino a 280 caratteri: la parte dell'azione che il plugin non automatizza, mostrata sotto i danni. |
+
+Ciò che il plugin non riconosce va in rosso, non viene indovinato. Un'azione
+senza danni né tiro salvezza (un teletrasporto) è segnalata e resta da
+gestire al tavolo. Un attacco che al colpo chiede anche un tiro salvezza (il
+ghoul, il ragno gigante) registra il colpo; il tiro salvezza resta nella nota.
+I punti ferita (`hitPoints`) si leggono ma, per ora, si impostano dal tracker.
+
+### Prompt per un assistente
+
+Allega lo statblock (testo, immagine o PDF) e incolla:
+
+```text
+Leggi lo statblock di D&D 5e allegato e restituisci SOLO un oggetto JSON,
+senza commenti né testo intorno, con queste chiavi (ometti quelle assenti):
+
+kind: "monster"; name; armorClass; hitPoints: { average, formula };
+speed in piedi ("40 ft"); abilities: punteggi con chiavi str dex con int
+wis cha; savingThrows: bonus totali con le stesse chiavi; damageDefenses:
+{ resistances, immunities, vulnerabilities } con i tipi di danno in inglese;
+multiattack: il testo del Multiattacco; actions: una voce per azione con
+name e, a seconda dell'azione:
+- attacco con tiro per colpire: attack: { bonus, type: "melee" o "ranged",
+  reach in piedi oppure range: { normal, long } in piedi } e damage:
+  [{ type, formula }] con i tipi di danno in inglese (al massimo 3);
+- azione a tiro salvezza: save: { ability: str/dex/con/int/wis/cha, dc,
+  half: true se chi supera subisce metà danni }, area: { shape: cone, line,
+  sphere, cube, cylinder o target, size in piedi, width per la linea,
+  targets per target }, damage come sopra, onFail: { condition } con la
+  condizione in inglese se chi fallisce la subisce;
+- recharge: il numero minimo della ricarica (5 per "Recharge 5-6"); uses:
+  gli usi al giorno;
+- note: al massimo 280 caratteri con ciò che resta da fare al tavolo
+  (tiri salvezza al colpo, durate, ripetizioni del TS).
+Non inventare valori assenti. Usa le regole del Manuale dei Mostri 2014.
+```

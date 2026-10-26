@@ -177,7 +177,8 @@ test("each section has a one-line summary for the panel", () => {
   assert.equal(summary("spells"), "2 incantesimi: Scudo, Palla di fuoco");
   assert.equal(summary("attacks"), "1 attacco: Pugnale");
   assert.equal(summary("notes"), "Breve");
-  assert.deepEqual(SHEET_IMPORT_SECTIONS.map((section) => section.id).filter((id) => !sections[id]), ["saves"]);
+  // The Multiattack comes only from a monster's stat block (attacchi dei mostri, lotto 4).
+  assert.deepEqual(SHEET_IMPORT_SECTIONS.map((section) => section.id).filter((id) => !sections[id]), ["saves", "multiattack"]);
 });
 
 test("imported spells add to the book or replace it, keeping surviving favourites", () => {

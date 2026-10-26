@@ -10,6 +10,7 @@ import { getSpellSummaryParts } from "./spells-srd.js";
 import { COMPACT_CARD_WIDTH } from "./constants.js";
 import { HIT_AREA_MIN_SIZE, extendHitArea } from "./hitAreaCore.js";
 import { CARD_ICON_BUTTON_SIZE, buildCardIconGlyph, styleCardIconButton } from "./cardIconButton.js";
+import { canOpenInitiativeCardSheet } from "./initiativeCardSheetAccessCore.js";
 
 export { COMPACT_CARD_WIDTH };
 export const COMPACT_CARD_HEIGHT = 120;
@@ -522,9 +523,10 @@ export function buildCompactSheetButton(
   {
     onOpen,
     documentRef = globalThis.document,
+    isGM = false,
   } = {},
 ) {
-  if (typeof onOpen !== "function" || entry?.__groupCollapsed || !["pc", "ally"].includes(entry?.attitude)) {
+  if (typeof onOpen !== "function" || !canOpenInitiativeCardSheet(entry, { isGM })) {
     return null;
   }
   const document = compactDocument(documentRef);
