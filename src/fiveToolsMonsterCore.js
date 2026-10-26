@@ -76,7 +76,7 @@ function hitDamage(text) {
   return { components, rest };
 }
 
-const ATTACK = /^\{@atk ([a-z,]+)\} \{@hit (-?\d+)\} to hit(?: \([^)]*\))?, (?:reach (\d+) ft\.(?: or range (\d+)(?:\/(\d+))? ft\.)?|range (\d+)(?:\/(\d+))? ft\.).*?\{@h\}(.*)$/;
+const ATTACK = /^\{@atk ([a-z,]+)\} \{@hit (-?\d+)\} to hit(?: \([^)]*\))?, (?:reach (\d+) ft\.(?: or ranged? (\d+)(?:\/(\d+))? ft\.)?|ranged? (\d+)(?:\/(\d+))? ft\.).*?\{@h\}(.*)$/;
 
 function attackAction(name, text, extra) {
   const match = text.match(ATTACK);
@@ -184,18 +184,110 @@ function defenses(list, field, report) {
   return plain;
 }
 
+// A monster derived from another (fase 2, lotto 2): `_copy` names its base (name and source) and `_mod` its changes.
+// The base comes from the monsters the GM loaded together (pool), a derived base is resolved in turn. The copy's own
+// fields replace the base's; the changes 5eTools data use on monsters are applied, the others reported.
+const MOD_TEXT_PROPS = Object.freeze(["trait", "action", "bonus", "reaction", "legendary", "mythic", "spellcasting"]);
+const MOD_ARRAY_MODES = new Set(["prependArr", "appendArr", "insertArr", "removeArr", "replaceArr", "replaceOrAppendArr", "appendIfNotExistsArr"]);
+const monsterKey = (name, source) => `${String(name || "").trim().toLowerCase()}|${String(source || "").trim().toLowerCase()}`;
+const clone = (value) => (value === undefined ? value : JSON.parse(JSON.stringify(value)));
+const asList = (value) => (Array.isArray(value) ? value : value === undefined || value === null ? [] : [value]);
+
+// The text of entries, never the names of the actions: "the goliath" becomes "Aruk" in what the actions say.
+function replaceText(value, pattern, replacement) {
+  if (typeof value === "string") return value.replace(pattern, replacement);
+  if (Array.isArray(value)) return value.map((entry) => replaceText(entry, pattern, replacement));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, key === "name" ? entry : replaceText(entry, pattern, replacement)]));
+  }
+  return value;
+}
+
+function arrayMod(list, op, report, where) {
+  const current = asList(list);
+  const items = asList(op.items).map(clone);
+  const byName = (target) => (entry) => typeof target === "string" && String(entry?.name ?? entry) === target;
+  const indexOf = (target) => (typeof target === "object" && Number.isInteger(target?.index) ? target.index
+    : target && typeof target === "object" && target.regex ? current.findIndex((entry) => new RegExp(target.regex, target.flags || "").test(String(entry?.name ?? entry)))
+      : current.findIndex(byName(target)));
+  switch (op.mode) {
+    case "prependArr": return [...items, ...current];
+    case "appendArr": return [...current, ...items];
+    case "insertArr": return [...current.slice(0, op.index ?? current.length), ...items, ...current.slice(op.index ?? current.length)];
+    case "appendIfNotExistsArr": return [...current, ...items.filter((item) => !current.some((entry) => String(entry?.name ?? entry) === String(item?.name ?? item)))];
+    case "removeArr": {
+      const names = asList(op.names);
+      return current.filter((entry) => !names.includes(String(entry?.name ?? entry))
+        && !asList(op.items).some((item) => JSON.stringify(item) === JSON.stringify(entry)));
+    }
+    case "replaceArr":
+    case "replaceOrAppendArr": {
+      const index = indexOf(op.replace);
+      if (index < 0) {
+        if (op.mode === "replaceOrAppendArr") return [...current, ...items];
+        report.push(`${where}: «${typeof op.replace === "string" ? op.replace : "voce"}» da sostituire non trovata`);
+        return current;
+      }
+      return [...current.slice(0, index), ...items, ...current.slice(index + 1)];
+    }
+    default: return current;
+  }
+}
+
+function applyMods(monster, mods, report) {
+  const result = monster;
+  for (const [prop, ops] of Object.entries(mods || {})) {
+    for (const op of asList(ops)) {
+      const mode = typeof op === "string" ? op : op?.mode;
+      const targets = prop === "*" ? MOD_TEXT_PROPS.filter((name) => result[name] !== undefined) : [prop];
+      if (mode === "remove" && prop !== "*" && prop !== "_") delete result[prop];
+      else if (mode === "replaceTxt" && op.replace) {
+        const pattern = new RegExp(op.replace, `g${String(op.flags || "").replace(/g/g, "")}`);
+        for (const name of targets) if (result[name] !== undefined) result[name] = replaceText(result[name], pattern, op.with ?? "");
+      } else if (MOD_ARRAY_MODES.has(mode) && prop !== "*" && prop !== "_") result[prop] = arrayMod(result[prop], op, report, prop);
+      else report.push(`modifica di 5eTools ignorata: ${mode || "?"}${prop === "_" || prop === "*" ? "" : ` (${prop})`}`);
+    }
+  }
+  return result;
+}
+
+/**
+ * The monster with its `_copy` resolved: { monster, report, error }. pool: every monster loaded with it (files,
+ * pasted blocks). A missing base names the book to load; a chain deeper than 5, or a loop, is refused.
+ */
+export function resolveFiveToolsMonster(monster, pool = [], seen = new Set()) {
+  if (!monster?._copy) return { monster, report: [], error: "" };
+  const { name, source, _mod: mods, _templates: templates, ...copyRest } = monster._copy;
+  const key = monsterKey(name, source);
+  if (seen.has(key) || seen.size >= 5) return { monster: null, report: [], error: `${monster.name}: catena di mostri derivati non risolvibile.` };
+  const base = pool.find((entry) => monsterKey(entry?.name, entry?.source) === key);
+  if (!base) return { monster: null, report: [], error: `${monster.name} deriva da ${name} (${source}): carica anche il bestiario ${source}.` };
+  // The merged monster carries the copy's own source: a 2024 base is caught here, before it.
+  if (isFiveTools2024(base)) return { monster: null, report: [], error: `${monster.name} deriva da ${name} (${source}), un mostro delle regole 2024: il plugin usa quelle del 2014.` };
+  const resolvedBase = resolveFiveToolsMonster(base, pool, new Set([...seen, key]));
+  if (resolvedBase.error) return { monster: null, report: [], error: resolvedBase.error };
+  const report = [`derivato da ${name} (${source})`, ...resolvedBase.report.filter((line) => !line.startsWith("derivato da"))];
+  const { _copy: _ignored, ...own } = monster;
+  const merged = { ...clone(resolvedBase.monster), ...clone(copyRest), ...clone(own) };
+  delete merged._copy;
+  applyMods(merged, mods, report);
+  if (asList(templates).length) report.push(`modelli di 5eTools ignorati: ${asList(templates).map((entry) => entry?.name).filter(Boolean).join(", ")}`);
+  return { monster: merged, report, error: "" };
+}
+
 /**
  * A 5eTools monster as a stat block of phase 1: { block, report, error }. block goes to the sheet's import as it is;
  * report lists, in Italian, what stays at the table (traits, legendary actions, spells, conditional defenses, the
- * actions with neither damage nor save); error refuses the monster (2024 data, a monster derived from another).
+ * actions with neither damage nor save) and, for a derived monster, its base; error refuses the monster (2024 data, a
+ * derived monster whose base is not in pool, the monsters loaded with it).
  */
-export function fiveToolsMonsterToStatblock(monster) {
-  if (!monster || typeof monster !== "object" || typeof monster.name !== "string") return { block: null, report: [], error: "Non è un mostro di 5eTools." };
-  if (isFiveTools2024(monster)) return { block: null, report: [], error: `${monster.name} (${monster.source}) è un mostro delle regole 2024: il plugin usa quelle del 2014.` };
-  if (monster._copy) {
-    return { block: null, report: [], error: `${monster.name} deriva da ${monster._copy.name} (${monster._copy.source}): i mostri derivati arrivano con il lotto 2.` };
-  }
-  const report = [];
+export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
+  if (!input || typeof input !== "object" || typeof input.name !== "string") return { block: null, report: [], error: "Non è un mostro di 5eTools." };
+  if (isFiveTools2024(input)) return { block: null, report: [], error: `${input.name} (${input.source}) è un mostro delle regole 2024: il plugin usa quelle del 2014.` };
+  const resolved = resolveFiveToolsMonster(input, pool);
+  if (resolved.error) return { block: null, report: [], error: resolved.error };
+  const monster = resolved.monster;
+  const report = [...resolved.report];
   const actions = [];
   const counts = { full: 0, partial: 0, manual: 0 };
   let multiattack = "";

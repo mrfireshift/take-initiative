@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 2: JSON di 5eTools (piano)
 
-Stato: **approvato il 26/10/2026**, lotto 1 implementato.
+Stato: **approvato il 26/10/2026**, lotti 1 e 2 implementati.
 
 Decisioni confermate: entrambi gli input (JSON di un mostro e file bestiario); nomi in inglese; difese condizionali segnalate e non importate; leggendari dentro la fase 2 (lotto 4); testo completo dello statblock dopo la fase 2 (lotto 5 rimandato); bestiari 2024 rifiutati.
 
@@ -9,6 +9,8 @@ Decisioni confermate: entrambi gli input (JSON di un mostro e file bestiario); n
 - **Lotto 1, copertura reale.** Con l'adapter vero, letto poi dall'import della scheda: Manuale dei Mostri 75% di azioni piene e 12% parziali, nessun crash e nessun mostro scartato dall'import; Volo 74/13; Tomo dei Nemici 67/15; Mostri del Multiverso 63/12 (lì anche gli incantesimi e le azioni bonus stanno tra le azioni, al tavolo); Icewind Dale 82/7 sui 52 mostri non derivati. Il Manuale dei Mostri 2025 (503 mostri) è rifiutato per intero.
 - **Lotto 1, TS letti solo dal fallimento.** Le componenti di danno di un'azione a TS vengono solo dalla frase con la CD e da quelle che iniziano con «On a failed save» / «On a failure»: un'azione che fa danni a chi supera (il Lamento della banshee) resta al tavolo invece di essere letta a rovescio. La nota tiene solo le frasi dopo la CD che non sono esiti (ripetere il TS, immunità di 24 ore).
 - **Lotto 1, azioni bonus** (`bonus[]`) lette come le azioni, con « (bonus action)» nel nome; reazioni, tratti, azioni leggendarie e incantesimi elencati nel rapporto.
+- **Lotto 2, risultato.** Con i bestiari di Icewind Dale, Manuale dei Mostri e Volo caricati insieme, 30 derivati su 31 si risolvono (48 azioni: 42 piene, 3 parziali, 3 al tavolo); la Chwinga deriva da Tomb of Annihilation e il messaggio chiede quel bestiario. Ignorate e segnalate: `addSkills` (4) e i `_templates` di razza (Mountain Dwarf, Tiefling).
+- **Lotto 2, regole.** I campi propri del derivato sostituiscono quelli della base; `replaceTxt` cambia il testo delle voci, mai i loro nomi; con `*` vale per tratti, azioni, azioni bonus, reazioni, leggendarie, mitiche e incantesimi. Catene fino a 5 livelli, i cicli si rifiutano; una base delle regole 2024 rifiuta il derivato (il libro del derivato non basta a capirlo). La base si cerca per nome e libro senza distinguere le maiuscole.
 - **Lotto 1, fixture.** `test-support/fivetools-srd-monsters.json`: sette mostri dell'SRD 5.1 (CC-BY-4.0, con attribuzione), ridotti ai campi letti; i casi limite usano mostri inventati.
 
 Fase 1 chiusa il 26/10/2026 ([piano](PIANO_ATTACCHI_MOSTRI_FASE_1.md)): la
@@ -88,13 +90,14 @@ Mostri (30 su 38), con poche modifiche (`replaceTxt`, `replaceArr`,
   ghoul, ragno gigante, bugbear, druido, elefante, drago d'argento adulto… Niente testi fuori SRD nel
   repository.
 
-### Lotto 2 — mostri derivati (`_copy`)
+### Lotto 2 — mostri derivati (`_copy`) ✅
 
 - Risolve `_copy` quando il mostro di base è nello stesso input (più file
   caricati insieme, per esempio il bestiario di Icewind Dale e quello del
   Manuale dei Mostri).
-- Modi supportati: `replaceTxt`, `replaceArr`, `appendArr`, `prependArr`,
-  `removeArr`, `insertArr`; `addSkills` e gli altri si ignorano e si segnalano.
+- Modi supportati: `replaceTxt`, `replaceArr`, `replaceOrAppendArr`, `appendArr`,
+  `appendIfNotExistsArr`, `prependArr`, `removeArr`, `insertArr`, `remove`;
+  `addSkills` e gli altri si ignorano e si segnalano.
 - Base mancante: messaggio con nome e libro che servono («Snowy Owlbear deriva
   da Owlbear (MM): carica anche il bestiario MM»). La fase 3 (online) li
   recupererà da sola.

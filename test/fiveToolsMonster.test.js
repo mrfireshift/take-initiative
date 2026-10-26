@@ -155,3 +155,63 @@ test("punti ferita speciali: non importati, segnalati", () => {
   assert.equal(block.hitPoints, undefined);
   assert.ok(report.includes("punti ferita speciali: equal to the summoner's level"));
 });
+
+// Lotto 2: i mostri derivati (`_copy`), risolti dai mostri caricati insieme (pool).
+import { resolveFiveToolsMonster } from "../src/fiveToolsMonsterCore.js";
+
+const ghoulCopy = (mod, extra = {}) => ({ name: "Ghoul delle nevi", source: "HB", _copy: { name: "Ghoul", source: "MM", ...(mod ? { _mod: mod } : {}) }, ...extra });
+
+test("un derivato prende lo statblock della base, i suoi campi sostituiscono quelli della base", () => {
+  const { block, report, error } = fiveToolsMonsterToStatblock(ghoulCopy(null, { ac: [14], hp: { average: 30, formula: "6d8 + 3" } }), { pool: srd.monster });
+  assert.equal(error, "");
+  assert.equal(block.name, "Ghoul delle nevi");
+  assert.equal(block.armorClass, 14);
+  assert.deepEqual(block.hitPoints, { average: 30, formula: "6d8 + 3" });
+  assert.deepEqual(block.actions.map((action) => action.name), ["Bite", "Claws"]);
+  assert.equal(report[0], "derivato da Ghoul (MM)");
+});
+
+test("le modifiche: testo sostituito (mai i nomi), azioni sostituite, tolte, aggiunte in testa e in coda", () => {
+  const { monster, report } = resolveFiveToolsMonster(ghoulCopy({
+    "*": { mode: "replaceTxt", replace: "the target", with: "la preda", flags: "i" },
+    action: [
+      { mode: "replaceArr", replace: "Bite", items: { name: "Morso gelido", entries: ["{@atk mw} {@hit 3} to hit, reach 5 ft., one target. {@h}9 ({@damage 2d6 + 2}) cold damage."] } },
+      { mode: "appendArr", items: { name: "Urlo", entries: ["Il ghoul urla."] } },
+      { mode: "removeArr", names: "Claws" },
+    ],
+    trait: { mode: "prependArr", items: { name: "Pelle di ghiaccio", entries: ["Resiste al freddo."] } },
+  }), srd.monster);
+  assert.deepEqual(monster.action.map((action) => action.name), ["Morso gelido", "Urlo"]);
+  assert.deepEqual(monster.trait.map((trait) => trait.name), ["Pelle di ghiaccio"]);
+  assert.deepEqual(report, ["derivato da Ghoul (MM)"]);
+  const { monster: replaced } = resolveFiveToolsMonster(ghoulCopy({ "*": { mode: "replaceTxt", replace: "the target", with: "la preda", flags: "i" } }), srd.monster);
+  assert.match(replaced.action[1].entries[0], /If la preda is a creature other than an elf/);
+  assert.equal(replaced.action[1].name, "Claws");
+});
+
+test("una modifica sconosciuta, un modello e una voce da sostituire assente finiscono nel rapporto", () => {
+  const { report } = fiveToolsMonsterToStatblock(ghoulCopy({ _: { mode: "addSkills", skills: { stealth: 1 } }, action: { mode: "replaceArr", replace: "Tail", items: [] } },
+    { _copy: { name: "Ghoul", source: "MM", _templates: [{ name: "Mountain Dwarf", source: "PHB" }], _mod: { _: { mode: "addSkills", skills: {} }, action: { mode: "replaceArr", replace: "Tail", items: [] } } } }),
+  { pool: srd.monster });
+  assert.ok(report.includes("modifica di 5eTools ignorata: addSkills"), report.join(" | "));
+  assert.ok(report.includes("action: «Tail» da sostituire non trovata"), report.join(" | "));
+  assert.ok(report.includes("modelli di 5eTools ignorati: Mountain Dwarf"), report.join(" | "));
+});
+
+test("una catena di derivati si risolve; la base mancante dice quale bestiario caricare; un ciclo si rifiuta", () => {
+  const middle = { name: "Ghoul delle nevi", source: "HB", _copy: { name: "Ghoul", source: "MM" }, ac: [14] };
+  const top = { name: "Re dei ghoul", source: "HB2", _copy: { name: "Ghoul delle nevi", source: "HB" }, hp: { average: 60, formula: "10d8 + 15" } };
+  const { block, report } = fiveToolsMonsterToStatblock(top, { pool: [...srd.monster, middle] });
+  assert.deepEqual([block.armorClass, block.hitPoints.average, block.actions.length], [14, 60, 2]);
+  assert.equal(report[0], "derivato da Ghoul delle nevi (HB)");
+  assert.equal(fiveToolsMonsterToStatblock(top, { pool: srd.monster }).error, "Re dei ghoul deriva da Ghoul delle nevi (HB): carica anche il bestiario HB.");
+  const loopA = { name: "A", source: "X", _copy: { name: "B", source: "X" } };
+  const loopB = { name: "B", source: "X", _copy: { name: "A", source: "X" } };
+  assert.match(fiveToolsMonsterToStatblock(loopA, { pool: [loopA, loopB] }).error, /catena di mostri derivati non risolvibile/);
+});
+
+test("la base cercata per nome e libro senza maiuscole; un derivato da un mostro 2024 è rifiutato", () => {
+  assert.equal(fiveToolsMonsterToStatblock({ name: "G", source: "HB", _copy: { name: "ghoul", source: "mm" } }, { pool: srd.monster }).error, "");
+  const modern = { name: "Goblin Warrior", source: "XMM", ac: [15] };
+  assert.match(fiveToolsMonsterToStatblock({ name: "G2", source: "HB", _copy: { name: "Goblin Warrior", source: "XMM" } }, { pool: [modern] }).error, /regole 2024/);
+});
