@@ -854,7 +854,7 @@ Con i pacchetti importati:
 - le regole dei manuali (quando un pacchetto le contiene) compaiono nella
   scheda **Regole** negli stessi argomenti dell'SRD, con la sigla del manuale.
   Sotto la ricerca compare una riga di filtri, una per fonte con il numero di
-  voci (per esempio **SRD · 243** e **XGE · 160**): un clic nasconde o mostra le
+  voci (per esempio **SRD · 243**, **PHB · 125** e **XGE · 160**): un clic nasconde o mostra le
   voci di quella fonte nell'albero e nella ricerca. L'ultima fonte visibile non
   si può nascondere, e la scelta resta in questo browser.
 

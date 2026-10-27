@@ -355,6 +355,23 @@ testo (`<manuale>-pdf.txt` → `<manuale>.txt`): unisce frammenti vicini che
 insieme formano una parola nota e scrive ogni unione in
 `<manuale>-riparazioni.txt`.
 
+Il PDF italiano del Manuale del Giocatore ha un livello di testo illeggibile:
+il suo testo viene dall'OCR. Le pagine si rasterizzano con l'API PDF di Windows
+e si leggono con Tesseract e il modello italiano (`tessdata/ita.traineddata`
+nella cartella privata), una colonna alla volta, tagliando sulla canalina
+centrale, così le tabelle a destra non si mescolano al testo a sinistra.
+`sorgenti/regole/phb2014-pulizia.cjs` pulisce il risultato
+(`phb2014-pdf.txt` → `phb2014.txt`): toglie piè di pagina, filigrana e le righe
+lette nelle illustrazioni, e ricostruisce elenchi puntati e frasi spezzate. La
+riparazione delle parole non serve, perché Tesseract non spezza le parole. Le
+correzioni si scrivono come espressioni regolari in `phb2014-correzioni.cjs`,
+che produce il JSON letto dall'indice, e `phb2014-bozza-indice.cjs` scrive
+l'indice dai titoli in maiuscolo. L'indice copre solo le parti che il
+compendio SRD non ha: dettagli e caratteristiche personali, i 13 background,
+equipaggiamento di partenza, taglie, stile di vita e oggetti insoliti, i talenti
+e le parti non SRD dei capitoli 7–9 (attività durante il viaggio, interazioni
+sociali, griglia, descrizione dei danni).
+
 La cartella privata contiene `sorgenti/` (file grezzi e database completi),
 `testi/<manuale>/incantesimi.json` e `capacita.json` (scritti dai generatori) e
 `pacchetti/`. Per aggiornare i pacchetti dopo una modifica:
@@ -365,6 +382,7 @@ npm run generate:class-features
 npm run generate:private-rules -- --book=xanathar
 npm run repair:ocr -- --book=tasha
 npm run generate:private-rules -- --book=tasha
+npm run generate:private-rules -- --book=phb2014
 npm run packs:build
 npm run check:private-texts -- --dist=dist
 ```
