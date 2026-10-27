@@ -166,6 +166,13 @@ export const PC_ATTACK_ACTIVATIONS = Object.freeze([
     limit: ONCE_PER_TURN, size: "contro una creatura più grande del goblin" }),
   // Astral Spark (giff): force damage equal to the proficiency bonus on a hit with a simple or martial weapon.
   Object.freeze({ id: "specie-giff-scintilla-astrale", dice: Object.freeze({ proficiency: true }), type: "force" }),
+  // Vampiric Bite (dhampir): on a hit with the bite (not a construct nor an undead: the GM's call), the use spent; the
+  // dhampir regains the piercing damage dealt, or keeps it as a bonus to its next check or attack roll (pcAttackCore.js).
+  Object.freeze({ id: "specie-dhampir-morso-vampirico-potenziamento", hint: "Solo con il morso, non contro costrutti o non morti.",
+    choices: Object.freeze([
+      Object.freeze({ id: "cura", label: "Cura", effect: Object.freeze({ casterHeal: "piercing" }) }),
+      Object.freeze({ id: "bonus", label: "Bonus", effect: Object.freeze({ selfBonus: "piercing" }) }),
+    ]) }),
   // Savage Attacks (half-orc, a passive trait: no use): on a critical hit in melee, one more die of the weapon, added to
   // the critical's extra dice and not doubled again.
   Object.freeze({ id: "specie-mezzorco-attacchi-selvaggi", dice: Object.freeze({ weaponDie: true }), type: "weapon", noCriticalDouble: true,
@@ -271,6 +278,10 @@ export function pcAttackActivationEffect(activation, spec = activation?.effect) 
     return plan?.conditionName ? { kind: "pill", label: plan.conditionName, self: effect.self === true } : null;
   }
   if (effect.condition) return { kind: "condition", label: effect.condition, ...(effect.expiry ? { expiry: { ...effect.expiry } } : {}) };
+  // Vampiric Bite: the attacker regains the damage dealt (of that type), or keeps it as a bonus pill (pcAttackCore.js).
+  if (effect.casterHeal) return { kind: "caster-heal", label: "Recuperi PF pari ai danni perforanti inflitti", damageType: effect.casterHeal };
+  if (effect.selfBonus) return { kind: "self-bonus", label: "Bonus pari ai danni perforanti alla prossima prova o tiro per colpire",
+    damageType: effect.selfBonus };
   return effect.note ? { kind: "note", label: effect.note } : null;
 }
 

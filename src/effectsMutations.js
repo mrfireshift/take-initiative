@@ -15,6 +15,7 @@ import {
   reconcileExhaustionCondition,
 } from "./conditions.js";
 import { CLASS_FEATURE_STATE_FIELD } from "./classFeatureCore.js";
+import { speciesConditionImmunities } from "./speciesConditionImmunityCore.js";
 import {
   isClassFeatureStateMutationOperation,
   planClassFeatureStateMutations,
@@ -762,6 +763,9 @@ function normalizedSceneItem(item) {
       ? meta[CONC_META_KEY]
       : {},
     conditions,
+    // The species' condition immunities (a yuan-ti is never poisoned): read only, by the immunity check.
+    ...(speciesConditionImmunities(meta.initiativeCard?.species).length
+      ? { conditionImmunities: speciesConditionImmunities(meta.initiativeCard?.species) } : {}),
   };
 }
 

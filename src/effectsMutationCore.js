@@ -47,6 +47,9 @@ const FREEDOM_OF_MOVEMENT_IMMUNITIES = Object.freeze({
 
 function conditionImmunityRules(state) {
   const rules = [];
+  // The creature's own immunities (its species: effectsMutations.js), whatever the source of the condition.
+  const ownNames = (Array.isArray(state?.conditionImmunities) ? state.conditionImmunities : []).map(conditionKey).filter(Boolean);
+  if (ownNames.length) rules.push({ names: new Set(ownNames), magicalOnly: false });
   for (const instance of Array.isArray(state?.conditions) ? state.conditions : []) {
     if (!instance || instance.active === false) continue;
     const raw = instance?.mechanics?.conditionImmunities
@@ -127,6 +130,8 @@ function normalizeState(item) {
       ? clone(item.concentrations)
       : {},
     conditions: Array.isArray(item?.conditions) ? clone(item.conditions) : [],
+    ...(Array.isArray(item?.conditionImmunities) && item.conditionImmunities.length
+      ? { conditionImmunities: clone(item.conditionImmunities) } : {}),
   };
 }
 

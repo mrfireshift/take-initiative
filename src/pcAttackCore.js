@@ -1128,9 +1128,16 @@ export function buildPcAttackMutation({
   const sourceHpMeta = sourceItem.metadata?.[META_KEY] || {};
   const spellNecrotic = spellPlan?.ok && attack.spell.casterHealRatio && !miss
     ? damageComponents.find((component) => component.id === "c1")?.amount || 0 : 0;
+  // Vampiric Bite: the piercing damage dealt (after the target's defenses) heals the dhampir, or becomes its bonus pill.
+  const bite = activationPlan.chosen.find((entry) => entry.applies && ["caster-heal", "self-bonus"].includes(entry.effect?.kind)) || null;
+  const biteDamage = bite && !miss ? damageComponents.filter((component) => component.type === bite.effect.damageType)
+    .reduce((sum, component) => sum + (Number(component.amount) || 0), 0) : 0;
+  const biteHeal = bite?.effect?.kind === "caster-heal" ? biteDamage : 0;
   const casterHealChange = spellNecrotic > 0 && Number.isFinite(sourceHpMeta.hp) && Number.isFinite(sourceHpMeta.hpMax)
     ? spellCasterHealingChange({ damageChanges: [{ requested: spellNecrotic }], ratio: attack.spell.casterHealRatio, hp: sourceHpMeta.hp, hpMax: sourceHpMeta.hpMax })
-    : null;
+    : biteHeal > 0 && Number.isFinite(sourceHpMeta.hp) && Number.isFinite(sourceHpMeta.hpMax)
+      ? spellCasterHealingChange({ damageChanges: [{ requested: biteHeal }], ratio: 1, hp: sourceHpMeta.hp, hpMax: sourceHpMeta.hpMax })
+      : null;
   const secondaryMeta = secondaryItemUsed?.metadata?.[META_KEY] || {};
   let secondaryChange = null;
   if (secondaryItemUsed) {
@@ -1284,6 +1291,15 @@ export function buildPcAttackMutation({
     options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: !entry.expiry,
       expiry: entry.expiry ? { ...entry.expiry, ...(entry.expiry.actor === "source" ? { actorId: sourceItem.id } : {}) } : { mode: "manual" },
       ...(appliedAt ? { appliedAt } : {}) } }));
+  // Vampiric Bite's bonus: a pill on the dhampir with the damage dealt, removed by hand after that roll.
+  const biteBonusOperations = bite?.effect?.kind === "self-bonus" && biteDamage > 0 ? [{
+    type: "condition:add", targetIds: [sourceItem.id], conditionName: "Bonus del morso",
+    instanceIds: { [sourceItem.id]: bossGroupConditionInstanceId(`${attackInstanceId}:bite`, "Bonus del morso", sourceItem.id) },
+    options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: true, expiry: { mode: "manual" },
+      displayLabel: `Bonus del morso +${biteDamage}`,
+      effectDetail: `+${biteDamage} alla prossima prova di caratteristica o al prossimo tiro per colpire (Morso vampirico): togli la pill dopo quel tiro.` },
+  }] : [];
+  if (bite && biteDamage > 0) causality.vampiricBite = { mode: bite.effect.kind === "caster-heal" ? "heal" : "bonus", amount: biteDamage };
   const activationPillOperations = Object.keys(activationPlan.instancesByTarget).length
     ? [{ type: "condition:add-instances", instancesByTarget: activationPlan.instancesByTarget }] : [];
   // CAP-LINK: Invisibility and Compelled Duel ended by this attack, in its own command (one Undo brings them back).
@@ -1297,7 +1313,8 @@ export function buildPcAttackMutation({
     followUps: [...pcAttackFollowUps(sourceMeta.initiativeCard, chosenRiders, activationPlan.chosen.map((activation) => activation.id)), ...activationPlan.notes],
     // Temporary hit points (Inspiring Smite): their own projections after the commit (no concentration warnings).
     tempHpChanges: activationPlan.tempHp.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
-    labelTargetIds: [...new Set([...pillTargetIds, ...(activationConditions.length ? [targetItem.id] : [])])],
+    labelTargetIds: [...new Set([...pillTargetIds, ...(activationConditions.length ? [targetItem.id] : []),
+      ...(biteBonusOperations.length ? [sourceItem.id] : [])])],
     ...(secondaryItemUsed ? { secondaryChange, secondaryItem: secondaryItemUsed } : {}),
     // The creatures of Bursting Arrow: their own post-damage projections after the commit.
     burstChanges: burstRows.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
@@ -1336,12 +1353,13 @@ export function buildPcAttackMutation({
       }] : []),
     ] }] : []), ...conditionOperations,
     ...(conditionOperations.length ? [{ type: "condition:automate", subjectIds: [targetItem.id] }] : []), ...cantripOperations,
-    ...activationPillOperations,
+    ...activationPillOperations, ...biteBonusOperations,
     ...(linkEnds.length ? [{ type: "condition:remove-instances", removals: linkEnds.map(({ itemId, instanceId }) => ({ itemId, instanceId })) }] : [])],
     options: {
       commandId: attackInstanceId, correlationId: attackInstanceId, sourceId: sourceItem.id,
       targetIds: [...new Set([targetItem.id, ...(secondaryItemUsed ? [secondaryItemUsed.id] : []), ...pillTargetIds,
-        ...burstRows.map((row) => row.item.id), ...(casterHealChange?.changed ? [sourceItem.id] : [])])], kind: PC_ATTACK_HISTORY_KIND, label,
+        ...burstRows.map((row) => row.item.id), ...(casterHealChange?.changed || biteBonusOperations.length ? [sourceItem.id] : [])])],
+      kind: PC_ATTACK_HISTORY_KIND, label,
       // The quick action read from the attacker's card, and the defenses read from the target's card,
       // must still be the ones at commit.
       metadataPatches: [

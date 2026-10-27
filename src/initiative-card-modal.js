@@ -161,6 +161,7 @@ perfBootPage(OBR);
 import { requestSpellAreaPlacement } from "./spellAreaPlacementClient.js";
 import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
 import { speciesTeleportInfo, speciesTeleportRuleId } from "./speciesTeleportCore.js";
+import { speciesNaturalWeaponAction, speciesNaturalWeaponState } from "./speciesNaturalWeaponCore.js";
 
 const META_KEY = `${ID}/meta`;
 const MODAL_ID = `${ID}/initiative-card-modal`;
@@ -2115,6 +2116,55 @@ function buildSpeciesTeleportControls(feature, state) {
   return controls;
 }
 
+// A species' natural weapon (speciesNaturalWeaponCore.js): added to the card's attacks, filled from the trait, with a
+// partial save of the card (the other fields stay as stored).
+async function addSpeciesNaturalWeapon(feature) {
+  const operation = sceneLifecycle.capture({ operationId: `initiative-natural-weapon:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation) || !isGM || !item) return;
+  const status = $("classFeatureRunStatus");
+  const attack = speciesNaturalWeaponAction(feature, profile);
+  const state = speciesNaturalWeaponState(feature, profile);
+  if (!attack || state.present) return;
+  if (state.full) {
+    status.textContent = "Attacchi al completo: togline uno dalla scheda.";
+    status.dataset.tone = "error";
+    return;
+  }
+  try {
+    const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    await saveInitiativeCard(item.id, item.name, { quickActions: [...(Array.isArray(profile?.quickActions) ? profile.quickActions : []), attack] }, {
+      isCurrent: () => sceneLifecycle.isCurrent(operation),
+      commandId: ownerSceneContext.commandId,
+      sceneIdentity: ownerSceneContext.sceneIdentity,
+      preserveExhaustion: true,
+    });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    [item] = await OBR.scene.items.getItems([item.id]);
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    profile = getInitiativeCard(item);
+    renderClassFeatures();
+    renderQuickActions();
+    status.textContent = `${attack.label} aggiunto agli Attacchi.`;
+    status.dataset.tone = "success";
+  } catch (error) {
+    status.textContent = error?.message || "Salvataggio non riuscito.";
+    status.dataset.tone = "error";
+  }
+}
+
+function buildNaturalWeaponControl(feature) {
+  const attack = speciesNaturalWeaponAction(feature, profile);
+  const state = speciesNaturalWeaponState(feature, profile);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = state.present ? "Già tra gli Attacchi" : "Aggiungi agli Attacchi";
+  button.title = attack ? `${attack.label}: ${attack.components[0]?.formula || ""} in mischia` : "";
+  button.disabled = !attack || state.present;
+  button.addEventListener("click", () => void addSpeciesNaturalWeapon(feature));
+  return button;
+}
+
 // The option of a species trait that asks a die for its temporary hit points (Fey Gift's Hospitality), or null.
 function speciesChoiceDieOption(feature, choiceId) {
   if (!feature?.speciesId || !choiceId) return null;
@@ -3000,6 +3050,8 @@ function renderClassFeatures() {
           appendFeatureControl(activate);
           }
         }
+        // A species' natural weapon, passive or not: added to the attacks from here.
+        if (isGM && feature.naturalWeapon) appendFeatureControl(buildNaturalWeaponControl(feature));
         card.appendChild(head);
         const descriptionText = classFeatureDescription(feature);
         if (descriptionText) {

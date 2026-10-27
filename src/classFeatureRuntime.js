@@ -51,6 +51,8 @@ import { quickActionResourcePools } from "./quickActionsCore.js";
 import { getHistoryEntries } from "./history.js";
 import { planSpeciesHpTrait, SPECIES_HP_TRAIT_KINDS, speciesHpTraitAmount, speciesLastDamageTaken } from "./speciesHpTraitCore.js";
 import { planSpeciesTeleport } from "./speciesTeleportCore.js";
+import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
+import { proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
 import { damageDefensesForItem } from "./damageDefensesCore.js";
 import { isReactionClassFeature, planReactionSpend } from "./reactionTrackerCore.js";
 
@@ -462,6 +464,22 @@ export async function applyLayOnHands({
     mode,
     conditionCount,
   });
+}
+
+// Radiant Consumption (speciesTraitCore.js): the reminder at the end of each of the aasimar's turns, on its own pill, with
+// the damage worked out from the card. Volo hurts the aasimar too: the GM confirms that damage from the reminder.
+function speciesTurnEndReminders(feature, profile, sourceId, instances) {
+  const spec = feature?.turnEndDamage;
+  if (!spec) return instances;
+  const level = totalCharacterLevel(profile?.characterBuild);
+  const amount = spec.amount === "pb" ? proficiencyBonusForLevel(level) : level ? Math.ceil(level / 2) : null;
+  const text = amount === null ? "danni radiosi" : `${amount} danni radiosi`;
+  const [reminder] = normalizeEffectSaveReminders(spec.self
+    ? { timing: "turn-end", actor: "target", mode: "manual-damage", damage: { dice: String(amount ?? "?"), type: spec.type },
+      label: `${feature.name}: ${text} a te (conferma qui) e a ogni creatura entro 3 m (console PF).` }
+    : { timing: "turn-end", actor: "target", mode: "consume",
+      label: `${feature.name}: ${text} a ogni creatura entro 3 m (console PF).` });
+  return reminder ? instances.map((instance) => (instance.targetId === sourceId ? { ...instance, saveReminder: reminder } : instance)) : instances;
 }
 
 // A species trait's option (Fey Gift, speciesTraitCore.js): the raw option, with what the card's choice list leaves out.
@@ -1579,12 +1597,12 @@ export async function activateClassFeature({
   const conditionFeature = adapter === "bardic-inspiration"
     ? featureWithEloquenceInfallibleReminder(feature, profile)
     : feature;
-  const additions = classFeatureConditionInstancesForActivation(
+  const additions = speciesTurnEndReminders(feature, profile, sourceItem.id, classFeatureConditionInstancesForActivation(
     conditionFeature,
     activation.instance,
     sourceItem.name,
     profile.characterBuild,
-  );
+  ));
   const instancesByTarget = {};
   for (const instance of additions) {
     (instancesByTarget[instance.targetId] ||= []).push(instance);

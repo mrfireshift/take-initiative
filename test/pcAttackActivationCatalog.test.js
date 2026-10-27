@@ -33,7 +33,8 @@ test("the 3A, 3B and 3C scope: every class with an on-hit activation", () => {
   assert.deepEqual([...classes].sort(), ["barbaro", "bardo", "chierico", "guerriero", "ladro", "monaco", "paladino", "warlock"]);
   // The species traits with an on-hit activation (speciesTraitCore.js): no class.
   assert.deepEqual(PC_ATTACK_ACTIVATIONS.filter((activation) => getClassFeatureDefinition(activation.id).speciesId).map((activation) => activation.id),
-    ["specie-goblin-furia-dei-piccoli", "specie-goblin-multiverso-furia-dei-piccoli", "specie-giff-scintilla-astrale", "specie-mezzorco-attacchi-selvaggi"]);
+    ["specie-goblin-furia-dei-piccoli", "specie-goblin-multiverso-furia-dei-piccoli", "specie-giff-scintilla-astrale",
+    "specie-dhampir-morso-vampirico-potenziamento", "specie-mezzorco-attacchi-selvaggi"]);
   assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "manovra").length, 12);
   assert.equal(PC_ATTACK_ACTIVATIONS.filter((activation) => activation.group === "tiro-arcano").length, 8);
 });

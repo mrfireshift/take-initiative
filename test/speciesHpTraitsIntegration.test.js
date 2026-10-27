@@ -125,6 +125,8 @@ function resetScene() {
     PC("hob", "Hob", 4000, 40, 40, { id: "hobgoblin-multiverso" }),
     PC("sk", "Sk", 5000, 40, 40, { id: "shadar-kai" }),
     PC("ela", "Ela", 6000, 40, 40, { id: "eladrin", ancestryId: "estate" }),
+    PC("scourge", "Scourge", 7000, 40, 40, { id: "aasimar", ancestryId: "flagello" }),
+    PC("yt", "Yt", 8000, 40, 40, { id: "yuan-ti" }),
   ];
 }
 
@@ -280,4 +282,20 @@ test("Fey Step in Summer: the eladrin moves and the creatures selected take its 
   await waitForPosition("ela", 6300);
   assert.equal(metaOf("grom").hp, 4, "5 - 1: Charisma +1");
   assert.equal(uses("ela", "specie-eladrin-passo-fatato-usi"), 0);
+});
+
+test("Radiant Consumption: its pill carries the end-of-turn reminder with the damage worked out from the card", async () => {
+  await classFeatureRuntime.activateClassFeature({ sourceId: "scourge", featureId: "specie-aasimar-consunzione-radiosa" });
+  const pill = (metaOf("scourge").conditions?.instances || []).find((instance) => instance.condition === "Consunzione radiosa");
+  assert.deepEqual([pill.saveReminder.timing, pill.saveReminder.mode, pill.saveReminder.damage], ["turn-end", "manual-damage", { dice: "3", type: "radiant" }],
+    "level 5: half the level rounded up");
+  assert.match(pill.saveReminder.label, /a ogni creatura entro 3 m/);
+});
+
+test("a yuan-ti pureblood is never poisoned, whoever applies the condition", async () => {
+  const mutation = await effects.runEffectsMutation([{ type: "condition:add", targetIds: ["yt", "grom"], conditionName: "Avvelenato",
+    instanceIds: { yt: "poison-yt", grom: "poison-grom" }, options: { sourceId: "grom", sourceName: "Grom" } }], { kind: "condition", label: "Veleno", targetIds: ["yt", "grom"] });
+  effects.requireAppliedEffectsMutation(mutation);
+  assert.deepEqual(conditionNames("yt"), []);
+  assert.deepEqual(conditionNames("grom"), ["Avvelenato"]);
 });

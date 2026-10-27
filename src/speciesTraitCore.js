@@ -314,6 +314,39 @@ const SPECIES_TARGET_BREATHS = Object.freeze({
     damageType: "acid", dice: Object.freeze({ 5: "2d10", 11: "3d10", 17: "4d10" }), dc: "con", half: false }),
 });
 
+// The natural weapons a card can add to its attacks (speciesNaturalWeaponCore.js): label, die, type and the ability
+// added to the damage. The Simic hybrid's appendages from 5th level, the shifter's fangs while shifted.
+const naturalWeapon = (label, dice, type, ability = "str") => Object.freeze({ label, dice, type, ability });
+const SPECIES_NATURAL_WEAPONS = Object.freeze({
+  "specie-aarakocra-artigli": naturalWeapon("Artigli", "1d4", "slashing"),
+  "specie-aarakocra-multiverso-artigli": naturalWeapon("Artigli", "1d6", "slashing"),
+  "specie-lucertoloide-morso": naturalWeapon("Morso", "1d6", "piercing"),
+  "specie-lucertoloide-multiverso-morso": naturalWeapon("Morso", "1d6", "slashing"),
+  "specie-tabaxi-artigli-felini": naturalWeapon("Artigli", "1d4", "slashing"),
+  "specie-tabaxi-multiverso-artigli-felini": naturalWeapon("Artigli", "1d6", "slashing"),
+  "specie-tortle-artigli": naturalWeapon("Artigli", "1d4", "slashing"),
+  "specie-tortle-multiverso-artigli": naturalWeapon("Artigli", "1d6", "slashing"),
+  "specie-centauro-zoccoli": naturalWeapon("Zoccoli", "1d4", "bludgeoning"),
+  "specie-centauro-multiverso-zoccoli": naturalWeapon("Zoccoli", "1d6", "bludgeoning"),
+  "specie-minotauro-corna": naturalWeapon("Corna", "1d6", "piercing"),
+  "specie-minotauro-multiverso-corna": naturalWeapon("Corna", "1d6", "piercing"),
+  "specie-leonin-artigli": naturalWeapon("Artigli", "1d4", "slashing"),
+  "specie-satiro-ariete": naturalWeapon("Testata", "1d4", "bludgeoning"),
+  "specie-satiro-multiverso-ariete": naturalWeapon("Testata", "1d6", "bludgeoning"),
+  "specie-dhampir-morso-vampirico": naturalWeapon("Morso", "1d4", "piercing", "con"),
+  "specie-ibrido-simic-potenziamento-appendici": naturalWeapon("Appendici", "1d6", "bludgeoning"),
+  "specie-shifter-mutazione-zanna-lunga": naturalWeapon("Zanne", "1d6", "piercing"),
+  "specie-shifter-multiverso-mutazione-zanna-lunga": naturalWeapon("Zanne", "1d6", "piercing"),
+});
+
+// Radiant Consumption: the radiant damage at the end of each of the aasimar's turns while it lasts, a reminder on its
+// pill (classFeatureRuntime.js). Volo: half the level rounded up, to the aasimar too; Mostri del Multiverso: the
+// proficiency bonus, to the other creatures within 3 m only.
+const SPECIES_TURN_END_DAMAGE = Object.freeze({
+  "specie-aasimar-consunzione-radiosa": Object.freeze({ amount: "half-level-up", type: "radiant", self: true }),
+  "specie-aasimar-multiverso-rivelazione-celestiale-radiosita": Object.freeze({ amount: "pb", type: "radiant", self: false }),
+});
+
 // The teleports of a species (speciesTeleportCore.js): up to 9 m to a free space the character can see, picked on the
 // map. resistAllFromLevel: the shadar-kai's resistance to all damage until the start of its next turn. seasons: the
 // eladrin's season (the species option) from 3rd level, its save DC (8 + proficiency + Charisma, or the species'
@@ -664,6 +697,8 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
     ...(innateSpell ? { innateSpell } : {}),
     ...(conditionSpec?.speciesSave ? { speciesSave: conditionSpec.speciesSave } : {}),
     ...(SPECIES_TELEPORTS[id] ? { speciesTeleport: SPECIES_TELEPORTS[id] } : {}),
+    ...(SPECIES_NATURAL_WEAPONS[id] ? { naturalWeapon: SPECIES_NATURAL_WEAPONS[id] } : {}),
+    ...(SPECIES_TURN_END_DAMAGE[id] ? { turnEndDamage: SPECIES_TURN_END_DAMAGE[id] } : {}),
     ...(SEASON_SAVES[id] ? { speciesSave: SEASON_SAVES[id] } : {}),
     ...(conditionSpec?.endsOnAttack ? { endsOnAttack: true } : {}),
     ...(conditionSpec?.choiceOptions ? { choiceOptions: conditionSpec.choiceOptions } : {}),

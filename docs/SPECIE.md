@@ -138,6 +138,22 @@ Correzioni fatte dopo il confronto:
     tavolo.
   I limiti per turno si contano solo in combattimento. Gli incantesimi risolti
   dal pannello incantesimi non ricevono questi danni extra.
+- **Armi naturali** (artigli, morso, corna, zoccoli, testate; le appendici
+  dell'ibrido simic e le zanne dello shifter): **Aggiungi agli Attacchi** sul
+  tratto crea l'attacco in mischia già compilato (dado, tipo e modificatore della
+  scheda: Costituzione per il morso del dhampir). Il modificatore resta quello del
+  momento: se cambia, si aggiorna la formula nella scheda.
+- **Morso vampirico** (dhampir): sul colpo col morso, nella console, l'attivazione
+  spende l'uso e chiede Cura (il dhampir recupera i danni perforanti inflitti,
+  dopo le difese del bersaglio, nello stesso comando) o Bonus (pill «Bonus del
+  morso +N» sul dhampir, da togliere dopo il tiro). Costrutti e non morti: li
+  esclude il GM.
+- **Immunità ad avvelenato** (yuan-ti di Volo, grung): la condizione non viene
+  messa, chiunque la applichi.
+- **Consunzione radiosa**: la pill dell'aasimar ha un promemoria a fine turno
+  con il danno calcolato (metà livello per eccesso in Volo, da confermare anche
+  sull'aasimar; bonus di competenza in Mostri del Multiverso); le creature entro
+  3 m si colpiscono dalla console PF.
 - **Teletrasporti** (*Passo fatato* dell'eladrin, *Benedizione della Regina
   Corvo* dello shadar-kai, *Passo di luce stellare* dell'elfo astrale):
   **Teletrasporta** riduce la scheda, il GM sceglie sulla mappa la casella di
