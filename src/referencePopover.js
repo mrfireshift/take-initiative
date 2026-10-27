@@ -37,7 +37,7 @@ export async function openReferencePopover({
   try { await OBR.popover.close(REFERENCE_POPUP_ID); } catch {}
 
   const params = new URLSearchParams();
-  if (tab === "spells") params.set("tab", "spells");
+  if (tab === "spells" || tab === "rules") params.set("tab", tab);
   if (entry) params.set("entry", entry);
   const query = params.toString();
 
