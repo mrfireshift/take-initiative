@@ -157,7 +157,7 @@ immune, in inglese o in italiano: la console lo segna «Immune») ed
 | `area` | `shape` (`cone`, `line`, `sphere`, `cube`, `cylinder` o `target`) e `size` in piedi (raggio per sfera e cilindro, lato per il cubo); `width` per la linea; per `target`, `targets` è il numero di creature. `origin`: `"self"` (un soffio, «each creature within 30 feet of the dragon») o `"point"` (una sfera su un punto); `"choice": true` per «each creature of its choice». La console disegna l'area alla sua misura, o propone da sola le creature attorno al mostro. |
 | `onFail` | La condizione di chi fallisce il TS (nome inglese o italiano): `condition`, `also` (fino a due condizioni in più), `duration` (`{ "rounds": 10 }` per un minuto, oppure `{ "until": "turn-end", "anchor": "target" }` per «fino alla fine del suo prossimo turno», `"source"` se è il turno del mostro) e `repeat` (`{ "timing": "turn-end", "ends": true }`: il tiro ripetuto che chiude l'effetto). Con una condizione l'azione può non avere danni. |
 | `immuneHours` | Le ore di immunità a questa azione che dà un successo (`24` per la Presenza terrificante). |
-| `onHit` | Su un attacco: ciò che aggiunge il colpo. `save` (`ability`, `dc`, `half`, `damage` come sopra, `conditions` in inglese o italiano, `duration` e `repeat` come in `onFail`), `grapple` (`{ "escapeDC": 13, "conditions": ["restrained"] }` se resta anche trattenuto), `prone: true`, `pushFeet`. |
+| `onHit` | Su un attacco: ciò che aggiunge il colpo. `save` (`ability`, `dc`, `half`, `damage` come sopra, `conditions` in inglese o italiano, `duration` e `repeat` come in `onFail`), `grapple` (`{ "escapeDC": 13, "conditions": ["restrained"] }` se resta anche trattenuto), `prone: true`, `pushFeet`, `conditions` e `duration` (fuori dal TS: le condizioni che il colpo dà da sé, con la loro durata, senza tiro ripetuto; per esempio `"conditions": ["poisoned"], "duration": { "until": "turn-start", "anchor": "source" }`). |
 | `damage` | Da 1 a 3 componenti `{ type, formula }`, come gli attacchi della scheda. |
 | `recharge` | Ricarica: `5` per "Ricarica 5–6". Dopo l'uso la console scrive «usata»; non blocca mai: se al tavolo si ricarica, si usa di nuovo. |
 | `uses` | Usi al giorno (`3` o `"3/giorno"`): finiti gli usi la console blocca l'azione; tornano con il riposo lungo. |
@@ -397,7 +397,9 @@ name e, a seconda dell'azione:
   un'immunità a quell'azione;
 - effetti al colpo di un attacco: onHit: { save: { ability, dc, half,
   damage, conditions, duration, repeat }, grapple: { escapeDC,
-  conditions }, prone: true, pushFeet };
+  conditions }, prone: true, pushFeet, conditions, duration } (conditions
+  e duration fuori dal TS: le condizioni che il colpo dà da sé, come il
+  2024 "has the Poisoned condition until …", senza tiro ripetuto);
 - recharge: il numero minimo della ricarica (5 per "Recharge 5-6"); uses:
   gli usi al giorno;
 - note: al massimo 280 caratteri con ciò che resta da fare al tavolo

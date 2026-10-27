@@ -56,7 +56,10 @@ export function monsterActionConditions(text) {
   const plain = monsterActionPlainText(text);
   const found = [];
   const pattern = new RegExp(String.raw`\b(?:be|become|becomes|is|are|fall|falls|knocked)(?: \w+ly)?(?: knocked)? ${CONDITION}((?:(?:,| and| or|, and) (?:is |be |become )?${CONDITION})*)`, "gi");
-  for (const match of plain.matchAll(pattern)) {
+  // The 2024 wording (fase 3, lotto 6): "has the Poisoned condition", "has the Grappled condition (escape DC 13)", "has the
+  // Blinded and Deafened conditions"; never a choice ("the Charmed or Poisoned condition (pixie's choice)").
+  const pattern2024 = new RegExp(String.raw`\bha(?:s|ve) the ${CONDITION}(?:(?:,| and|, and) ${CONDITION})* conditions?\b`, "gi");
+  for (const match of [...plain.matchAll(pattern), ...plain.matchAll(pattern2024)].sort((left, right) => left.index - right.index)) {
     // A condition the sentence only names or asks for ("can't be charmed", "while it is invisible", "if the target is
     // prone") is not an effect.
     const before = plain.slice(Math.max(0, match.index - 40), match.index).toLowerCase();
@@ -152,12 +155,38 @@ export function monsterHitEffects(text) {
       ...(monsterActionRepeat(from) ? { repeat: monsterActionRepeat(from) } : {}) };
     if (!damage.length && !conditions.length) delete effects.save;
   }
-  const grapple = hit.match(/\bgrappled \(escape DC (\d+)\)/i);
+  // A 2024 condition only in some cases the table judges ("moved 20+ feet straight toward it immediately before the hit",
+  // "had Advantage on the attack roll", "if it is already …", "If this damage reduces the target to 0 Hit Points") is
+  // never applied by itself: it stays in the note.
+  const guarded = (sentence) => /\bmoved\b|\battack roll\b|\balready\b|\b0 Hit Points\b/i.test(sentence);
+  const sentences = sentencesOf(hit).filter((sentence) => !SAVE.test(sentence) && !guarded(sentence));
+  const unguarded = sentences.join(" ");
+  // 2014 "grappled (escape DC 16)", 2024 "has the Grappled condition (escape DC 14)".
+  const grapple = hit.match(/\bgrappled(?: condition)? \(escape DC (\d+)\)/i);
+  // What lasts while held ("Until this grapple ends, the target is restrained", "has the Blinded and Restrained conditions
+  // until the grapple ends", "While Grappled, the target has the Restrained condition"): every condition of that
+  // sentence, never a condition of its own.
+  const whileHeld = (sentence) => /\bgrapple ends\b|\bWhile Grappled\b/i.test(sentence);
   if (grapple) {
-    const whileGrappled = hit.match(new RegExp(String.raw`Until (?:this|the) grapple ends, the (?:target|creature) is ${CONDITION}`, "i"));
-    effects.grapple = { escapeDC: Number(grapple[1]), ...(whileGrappled ? { conditions: [whileGrappled[1].toLowerCase()] } : {}) };
+    const whileGrappled = sentencesOf(hit).filter((sentence) => whileHeld(sentence) && !SAVE.test(sentence)).flatMap((sentence) => monsterActionConditions(sentence)).filter((condition) => condition !== "grappled");
+    effects.grapple = { escapeDC: Number(grapple[1]), ...(whileGrappled.length ? { conditions: [...new Set(whileGrappled)] } : {}) };
   }
-  if (!effects.save && /\b(?:is|be) knocked prone\b/i.test(hit)) effects.prone = true;
+  if (!effects.save && (/\b(?:is|be) knocked prone\b/i.test(hit) || /\bha(?:s|ve) the Prone condition\b/i.test(unguarded))) effects.prone = true;
+  // Any other condition the hit gives by itself, with its duration, in the 2024 words only ("has the Poisoned condition
+  // until the end of the target's next turn"): never the grapple's, never prone, never in a hit with a saving throw (what
+  // follows depends on it: "Until this poison ends, the target is paralyzed"), never once swallowed.
+  const held = new Set(["grappled", "prone", ...(effects.grapple?.conditions || [])]);
+  // Never what lasts only while something else does ("While the cloaker is attached, the target has the Blinded condition").
+  const own = (sentence) => /\bha(?:s|ve) the \w+(?:(?:,| and|, and) \w+)* conditions?\b/i.test(sentence) && !whileHeld(sentence)
+    && !/\bswallow/i.test(sentence) && !/^While\b/i.test(sentence.trim());
+  const direct = /\bsaving throw\b/i.test(hit) ? [] : sentences.filter(own).flatMap((sentence) => monsterActionConditions(sentence).filter((condition) => !held.has(condition))
+    .map((condition) => ({ condition, sentence })));
+  if (direct.length) {
+    const names = [...new Set(direct.map((entry) => entry.condition))].slice(0, 3);
+    const duration = monsterActionDuration(direct[0].sentence);
+    effects.conditions = names;
+    if (duration) effects.duration = duration;
+  }
   const push = hit.match(/\bpushed (?:up to )?(\d+) feet/i);
   if (push) effects.pushFeet = Number(push[1]);
   return effects;

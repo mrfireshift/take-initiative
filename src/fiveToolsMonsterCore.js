@@ -77,10 +77,14 @@ function hitDamage(text) {
   let rest = text;
   const first = rest.match(new RegExp(`^(?:${DAMAGE})`));
   if (!first) return { components, rest };
-  const push = (match) => components.push(match[2] ? { type: match[3], formula: match[2].replace(/\s+/g, "") } : { type: match[5], formula: match[4] });
+  // The 2024 types are capitalized ("Slashing"): the plugin's are not.
+  const push = (match) => components.push(match[2] ? { type: match[3].toLowerCase(), formula: match[2].replace(/\s+/g, "") } : { type: match[5].toLowerCase(), formula: match[4] });
   push(first);
   rest = rest.slice(first[0].length);
   for (let next = rest.match(new RegExp(`^,? plus (?:${DAMAGE})`)); next && components.length < 3; next = rest.match(new RegExp(`^,? plus (?:${DAMAGE})`))) {
+    // "plus 2 (1d4) Slashing damage if the attack roll had Advantage": a damage only sometimes, left to the note (fase 3,
+    // lotto 6, decision D4).
+    if (/^\s*if\b/i.test(rest.slice(next[0].length))) break;
     push(next);
     rest = rest.slice(next[0].length);
   }
@@ -88,9 +92,14 @@ function hitDamage(text) {
 }
 
 const ATTACK = /^\{@atk ([a-z,]+)\} \{@hit (-?\d+)\} to hit(?: \([^)]*\))?, (?:reach (\d+) ft\.(?: or ranged? (\d+)(?:\/(\d+))? ft\.)?|ranged? (\d+)(?:\/(\d+))? ft\.).*?\{@h\}(.*)$/;
+// The 2024 attack roll (fase 3, lotto 6): "{@atkr m} {@hit 4}, reach 5 ft.", "{@atkr m,r} {@hit 6}, reach 5 ft. or range 120
+// ft.", "{@atkr r} {@hit 4}, range 80/320 ft."; a few still say "to hit" or add "(with Advantage if …)". The same groups as
+// the 2014 one: "m" and "r" read as its codes.
+// A few spell the feet out ("reach 5 feet") or drop the dot ("reach 5 ft or range 20/60 ft.").
+const ATTACK_2024 = /^\{@atkr ([mr,]+)\} \{@hit (-?\d+)\}(?: to hit)?(?: \([^)]*\))?,? (?:reach (\d+) (?:ft\.?|feet)(?: or range (\d+)(?:\/(\d+))? (?:ft\.?|feet))?|range (\d+)(?:\/(\d+))? (?:ft\.?|feet)).*?\{@h\}(.*)$/;
 
 function attackAction(name, text, extra) {
-  const match = text.match(ATTACK);
+  const match = text.match(ATTACK) || text.match(ATTACK_2024);
   if (!match) return null;
   const [, codes, bonus, reach, meleeRange, meleeLong, range, long, hit] = match;
   const ranged = !reach;
@@ -116,13 +125,20 @@ function attackAction(name, text, extra) {
   // What the hit does beyond its damage, read by rule (fase 5, lotto 4): the console registers it, and its sentences
   // (the second save and its repeat, the grapple, prone) leave the note; what is left there stays at the table.
   const onHit = monsterHitEffects(rest);
-  const remainder = note(sentencesOf(fiveToolsPlainText(rest)).filter((sentence) =>
-    // A save only for some targets ("other than an elf or undead", "If the target is a humanoid") keeps its sentence.
-    !(onHit.save && /\bDC \d+ \w+ saving throw\b|\brepeat the saving throw\b/i.test(sentence)
-      && !/\bother than\b|\bIf the target is (?:a|an) (?!creature\b)\w+/i.test(sentence))
-    && !(onHit.grapple && /\bgrappled \(escape DC \d+\)|\bUntil (?:this|the) grapple ends\b/i.test(sentence))
-    && !(onHit.prone && /\bknocked prone\b/i.test(sentence))).join(" "));
-  const status = !components.length ? "manual" : /\{@dc \d+\}|\{@condition /.test(rest) && !(onHit.save || onHit.grapple || onHit.prone) ? "partial" : "full";
+  // A sentence for some targets only ("other than an elf or undead", "If the target is a Large or smaller creature")
+  // keeps its words in the note: the table checks the target.
+  const forSomeTargets = (sentence) => /\bother than\b|\bIf the target is (?:a|an) (?!creature\b)\w+/i.test(sentence);
+  const remainder = note(sentencesOf(fiveToolsPlainText(rest)).filter((sentence) => forSomeTargets(sentence) || (
+    !(onHit.save && /\bDC \d+ \w+ saving throw\b|\brepeat the saving throw\b/i.test(sentence))
+    && !(onHit.grapple && /\bgrappled(?: condition)? \(escape DC \d+\)/i.test(sentence))
+    // What lasts while held leaves the note only when the card plays it all (restrained): "blinded and restrained" stays.
+    && !(onHit.grapple && /\bgrapple ends\b|\bWhile Grappled\b/i.test(sentence) && (onHit.grapple.conditions || []).every((condition) => condition === "restrained"))
+    && !(onHit.prone && /\bknocked prone\b|\bhas the Prone condition\b/i.test(sentence))
+    // The conditions the hit gives by itself (2024 "has the Poisoned condition…"), never one only in some cases.
+    && !(onHit.conditions && /\bha(?:s|ve) the \w+(?:(?:,| and|, and) \w+)* conditions?\b/i.test(sentence) && !/^While\b/i.test(sentence.trim())
+      && !/\bmoved\b|\battack roll\b|\balready\b|\b0 Hit Points\b|\bswallow/i.test(sentence)))).join(" "));
+  const status = !components.length ? "manual"
+    : /\{@dc \d+\}|\{@condition /.test(rest) && !(onHit.save || onHit.grapple || onHit.prone || onHit.conditions) ? "partial" : "full";
   return [{ ...base, damage: components, ...(remainder ? { note: remainder } : {}), ...(Object.keys(onHit).length ? { onHit } : {}), status }];
 }
 

@@ -105,7 +105,8 @@ function attackSaveOf(value) {
 
 // A hit's effects (fase 5, lotto 4), all optional: a second save of the target ({ ability, dc, half, damage: up to two
 // { type, formula }, onFail: a failure as a save action's }), a grapple ({ escapeDC, restrained: held, it is also
-// restrained }), prone, a push in feet (moved by hand).
+// restrained }), prone, a push in feet (moved by hand), a condition the hit gives by itself (apply: { condition, also,
+// rounds, until, anchor }, fase 3 lotto 6).
 function attackHitEffectsOf(value) {
   if (!value || typeof value !== "object") return null;
   const ability = attackSaveAbilitySet.has(value.save?.ability) ? value.save.ability : "";
@@ -118,8 +119,13 @@ function attackHitEffectsOf(value) {
     ...(damage.length ? { damage } : {}), ...(condition ? { onFail: { condition, ...attackFailureTimingOf(value.save.onFail) } } : {}) } : null;
   const escapeDC = boundedInteger(value.grapple?.escapeDC, 1, 30);
   const pushFeet = boundedInteger(value.pushFeet, 5, 300);
+  // A condition the hit gives by itself (fase 3, lotto 6: the 2024 "has the Poisoned condition until …"), with its
+  // duration as a failure's, never a repeated save.
+  const applied = shortText(value.apply?.condition, 80);
+  const { repeat: _noRepeat, ...appliedTiming } = applied ? attackFailureTimingOf(value.apply) : {};
   const effects = {
     ...(save ? { save } : {}),
+    ...(applied ? { apply: { condition: applied, ...appliedTiming } } : {}),
     ...(escapeDC !== null ? { grapple: { escapeDC, ...(value.grapple.restrained === true ? { restrained: true } : {}) } } : {}),
     ...(value.prone === true ? { prone: true } : {}),
     ...(pushFeet !== null ? { pushFeet } : {}),

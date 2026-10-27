@@ -95,3 +95,67 @@ test("lo statblock originale 2024: iniziativa, incantesimi tra azioni, azioni bo
   assert.equal(old.header.some((row) => row.label === "Initiative"), false);
   assert.match(old.sections.find((section) => section.title === "Legendary Actions").entries[0].text, /^The test archmage can take 3 legendary actions/);
 });
+
+// Sotto-lotto 3: gli attacchi 2024. L'intestazione «{@atkr m} {@hit 7}, reach 5 ft.», i tipi con l'iniziale maiuscola,
+// le condizioni «has the X condition» al colpo con la loro durata, la presa 2024; i danni solo in certi casi nella nota (D4).
+import { importedMonsterActions } from "../src/monsterStatblockImportCore.js";
+import { sanitizeQuickAction } from "../src/quickActionsCore.js";
+
+const assassin = { name: "Test Assassin", source: "XMM", ac: [16], hp: { average: 97 }, action: [
+  { name: "Shortsword", entries: ["{@atkr m} {@hit 7}, reach 5 ft. {@h}7 ({@damage 1d6 + 4}) Piercing damage plus 17 ({@damage 5d6}) Poison damage, and the target has the {@condition Poisoned|XPHB} condition until the start of the assassin's next turn."] },
+  { name: "Rapier", entries: ["{@atkr m} {@hit 5}, reach 5 ft. {@h}6 ({@damage 1d8 + 2}) Piercing damage plus 7 ({@damage 2d6}) Piercing damage if the attack roll had Advantage."] },
+  { name: "Tentacle", entries: ["{@atkr m} {@hit 7}, reach 10 ft. {@h}7 ({@damage 1d6 + 4}) Slashing damage. The target has the {@condition Grappled|XPHB} condition (escape {@dc 14}), and it has the {@condition Restrained|XPHB} condition until the grapple ends."] },
+  { name: "Gore", entries: ["{@atkr m} {@hit 6}, reach 5 ft. {@h}9 ({@damage 2d6 + 2}) Piercing damage. If the target is a Large or smaller creature and the bull moved 20+ feet straight toward it immediately before the hit, the target has the {@condition Prone|XPHB} condition."] },
+  { name: "Longbow", entries: ["{@atkr r} {@hit 4}, range 150/600 ft. {@h}6 ({@damage 1d8 + 2}) Piercing damage."] },
+  { name: "Hand Crossbow", entries: ["{@atkr m,r} {@hit 6} to hit, reach 5 ft. or range 30/120 ft. {@h}5 ({@damage 1d6 + 3}) Piercing damage."] },
+] };
+const cardsOf = (block) => importedMonsterActions(block, { resolveDamageType: (type) => type, resolveAbility: (value) => value, unresolved: [] })
+  .attacks.map((fields) => sanitizeQuickAction({ id: fields.label, ...fields }));
+
+test("attacchi 2024: intestazione, gittata, tipi in minuscolo; la condizione al colpo con la sua durata arriva alla scheda", () => {
+  const block = fiveToolsMonsterToStatblock(assassin, { allow2024: true }).block;
+  const byName = Object.fromEntries(block.actions.map((action) => [action.name, action]));
+  assert.deepEqual([byName.Shortsword.attack, byName.Shortsword.damage], [{ bonus: 7, type: "melee", reach: 5 },
+    [{ type: "piercing", formula: "1d6+4" }, { type: "poison", formula: "5d6" }]]);
+  assert.deepEqual(byName.Shortsword.onHit, { conditions: ["poisoned"], duration: { until: "turn-start", anchor: "source" } });
+  assert.equal(byName.Shortsword.note, undefined, "the condition is played: nothing left to read");
+  assert.deepEqual(byName.Longbow.attack, { bonus: 4, type: "ranged", range: { normal: 150, long: 600 } });
+  assert.equal(byName["Hand Crossbow"].attack.reach, 5);
+  // D4: the damage only with Advantage stays in the note, never added.
+  assert.deepEqual(byName.Rapier.damage, [{ type: "piercing", formula: "1d8+2" }]);
+  assert.match(byName.Rapier.note, /if the attack roll had Advantage/);
+  assert.deepEqual(byName.Tentacle.onHit, { grapple: { escapeDC: 14, conditions: ["restrained"] } });
+  // Prone only after a charge: the table judges it.
+  assert.equal(byName.Gore.onHit, undefined);
+  assert.match(byName.Gore.note, /has the Prone condition/);
+  const cards = Object.fromEntries(cardsOf(block).map((card) => [card.label, card]));
+  assert.deepEqual(cards.Shortsword.onHit, { apply: { condition: "Avvelenato", until: "turn-start", anchor: "source" } });
+  assert.deepEqual(cards.Tentacle.onHit, { grapple: { escapeDC: 14, restrained: true } });
+});
+
+test("attacchi 2024: «feet» per esteso, condizioni al plurale; ciò che dura finché si è afferrati resta della presa", () => {
+  const block = fiveToolsMonsterToStatblock({ name: "Test Giant", source: "XMM", ac: [16], hp: { average: 230 }, action: [
+    { name: "Thunderbolt", entries: ["{@atkr r} {@hit 14}, range 500 feet. {@h}22 ({@damage 2d12 + 9}) Lightning damage, and the target has the {@condition Blinded|XPHB} and {@condition Deafened|XPHB} conditions until the start of the giant's next turn."] },
+    { name: "Handaxe", entries: ["{@atkr m,r} {@hit 7}, reach 5 ft or range 20/60 ft. {@h}14 ({@damage 3d6 + 4}) Slashing damage."] },
+    { name: "Smother", entries: ["{@atkr m} {@hit 5}, reach 5 ft. {@h}10 ({@damage 2d6 + 3}) Bludgeoning damage. The target has the {@condition Grappled|XPHB} condition (escape {@dc 13}). Until the grapple ends, the target has the {@condition Blinded|XPHB} and {@condition Restrained|XPHB} conditions."] },
+    { name: "Dust", entries: ["{@atkr r} {@hit 5}, range 60 ft. {@h}The target has the {@condition Charmed|XPHB} or {@condition Poisoned|XPHB} condition (pixie's choice) until the start of the pixie's next turn."] },
+  ] }, { allow2024: true }).block;
+  const byName = Object.fromEntries(block.actions.map((action) => [action.name, action]));
+  assert.deepEqual(byName.Thunderbolt.attack, { bonus: 14, type: "ranged", range: { normal: 500 } });
+  assert.deepEqual(byName.Thunderbolt.onHit, { conditions: ["blinded", "deafened"], duration: { until: "turn-start", anchor: "source" } });
+  assert.deepEqual(byName.Handaxe.attack, { bonus: 7, type: "melee", reach: 5, range: { normal: 20, long: 60 } });
+  // Never Restrained for good: the card plays restrained while held, the blindness stays to read.
+  assert.deepEqual(byName.Smother.onHit, { grapple: { escapeDC: 13, conditions: ["blinded", "restrained"] } });
+  assert.match(byName.Smother.note, /Blinded and Restrained conditions/);
+  assert.equal(byName.Dust, undefined, "no damage and a choice: the table's, from the block's text");
+});
+
+test("nel 2014 le condizioni dirette non si leggono; la presa prende «restrained until the grapple ends»", () => {
+  const block = fiveToolsMonsterToStatblock({ name: "Test Canoloth", source: "MTF", ac: [16], hp: { average: 120 }, action: [
+    { name: "Tongue", entries: ["{@atk mw} {@hit 9} to hit, reach 30 ft., one target. {@h}17 ({@damage 2d12 + 4}) piercing damage. If the target is Medium or smaller, it is {@condition grappled} (escape {@dc 15}), pulled up to 30 feet toward the canoloth, and is {@condition restrained} until the grapple ends."] },
+    { name: "Tentacles", entries: ["{@atk mw} {@hit 6} to hit, reach 5 ft., one target. {@h}4 ({@damage 1d4 + 2}) poison damage, and the target must succeed on a {@dc 13} Constitution saving throw or be {@condition poisoned} for 1 minute. Until this poison ends, the target is {@condition paralyzed}."] },
+  ] }).block;
+  const byName = Object.fromEntries(block.actions.map((action) => [action.name, action]));
+  assert.deepEqual(byName.Tongue.onHit, { grapple: { escapeDC: 15, conditions: ["restrained"] } });
+  assert.equal(byName.Tentacles.onHit.conditions, undefined, "the paralysis follows the save: never a condition of its own");
+});

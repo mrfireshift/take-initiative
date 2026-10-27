@@ -1953,6 +1953,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       }
       if(onHit.grapple) children.push(node("p",`Afferrato (fuga CD ${onHit.grapple.escapeDC})${onHit.grapple.restrained?" e trattenuto finché dura la presa":""}.`,"launch-details"));
       if(onHit.prone) children.push(node("p","Prono.","launch-details"));
+      if(onHit.apply) children.push(node("p",`${pcAttackMonsterFailureText(onHit.apply).replace(/^./,letter=>letter.toUpperCase())}.`,"launch-details"));
       if(onHit.pushFeet) children.push(node("p",`Spinto di ${pcAttackFeetLabel(onHit.pushFeet)}: sposta il token a mano.`,"launch-details"));
       hitBox.replaceChildren(...children);
     }

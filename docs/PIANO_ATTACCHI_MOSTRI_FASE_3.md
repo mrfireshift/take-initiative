@@ -139,7 +139,22 @@ quelle delle fasi 1–5.
    («Melee Attack Roll:», «Dexterity Saving Throw:», «Failure:», «Success:», «Trigger:», «Response:»), i tipi di danno in
    minuscolo, `{@variantrule Cone [Area of Effect]|XPHB|Cone}` come «Cone». Serve allo statblock originale, alle note e
    alle regole.
-3. **Attacchi 2024.** `{@atkr …} {@hit N}, reach/range` → attacco con bonus, portata, gittata; i danni extra
+3. **Attacchi 2024.** ✅ Fatto (27/10): `{@atkr m|r|m,r} {@hit N}, reach/range` → attacco con bonus, portata e gittata
+   (anche «to hit», «reach 5 feet», «5 ft» senza punto); i tipi di danno in minuscolo; un «plus … if the attack roll had
+   Advantage» resta nella nota (D4). Al colpo: la presa 2024 («has the Grappled condition (escape DC 14)», con ciò che
+   dura finché si è afferrati: «until the grapple ends», «While Grappled, … Restrained»), prono («has the Prone
+   condition») e, nuovo, le condizioni che il colpo dà da sé con la loro durata («has the Poisoned condition until the
+   start of the assassin's next turn», anche al plurale «the Blinded and Deafened conditions») → `onHit.apply` sulla
+   scheda, applicate al colpo con la durata come un fallimento, senza tiro ripetuto, mai a chi ne è immune; la console
+   le scrive nel riquadro «Al colpo». Restano nella nota (il tavolo giudica): una scelta («Charmed or Poisoned (pixie's
+   choice)»), dopo una carica («moved 20+ feet»), con il Vantaggio, a 0 PF, «While …» (agganciato, inghiottito), in un
+   colpo con un TS (sotto-lotto 4). Le condizioni dirette si leggono solo nella formula 2024: nel 2014 «Until this
+   poison ends, the target is paralyzed» segue un TS. Effetto sul 2014: cinque prese guadagnano Trattenuto «until this
+   grapple ends» (Behir, Morkoth, Canoloth, The Hungry, Hungry Sorrowsworn), nient'altro cambia. Misura con `--2024`
+   sul Monster Manual 2025: attacchi letti 642 su 651 (i 9 fuori scelgono il tipo di danno o un effetto), azioni al
+   tavolo da 1020 a 374, effetti al colpo letti 99 (38 prese, 32 prono, 28 condizioni con durata). Nel banco: la
+   Shortsword dell'Assassino toglie 7 + 17 PF e mette Avvelenato fino all'inizio del prossimo turno del mostro.
+   Piano originale: `{@atkr …} {@hit N}, reach/range` → attacco con bonus, portata, gittata; i danni extra
    condizionati restano nella nota; gli effetti al colpo («has the Grappled condition (escape DC 13)», un `{@actSave}`
    dentro il colpo) dalle regole della fase 5, estese a «has the X condition».
 4. **Azioni a TS 2024.** `{@actSave ability} {@dc N}` → TS e CD; il testo di `{@actSaveFail}` → danni e condizioni del

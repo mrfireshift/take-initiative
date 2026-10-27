@@ -176,6 +176,14 @@ export function pcAttackHitEffectPlan({ attack, outcome = "", hitEffect = null, 
     if (grapple.restrained && !pcAttackTargetConditionImmune(targetItem, "Trattenuto")) operations.push(condition("Trattenuto"));
   }
   if (onHit.prone && !pcAttackTargetConditionImmune(targetItem, "Prono")) operations.push(condition("Prono"));
+  // A condition the hit gives by itself (fase 3, lotto 6), with its duration; never on a creature immune to it.
+  if (onHit.apply) {
+    const pseudo = { monster: { onFail: onHit.apply }, save: "", saveDC: null };
+    for (const name of [onHit.apply.condition, ...(onHit.apply.also || [])].filter((entry) => !pcAttackTargetConditionImmune(targetItem, entry))) {
+      const timing = pcAttackMonsterConditionTiming(pseudo, { sourceId, targetId });
+      operations.push(condition(name, { manualRemoval: timing.manualRemoval, expiry: timing.expiry }));
+    }
+  }
   const targetName = targetItem?.name || targetId;
   const manual = onHit.pushFeet ? `Sposta ${targetName} di ${pcAttackFeetLabel(onHit.pushFeet)} lontano da ${sourceName} sulla mappa.` : "";
   const causality = {

@@ -215,7 +215,8 @@ function monsterArea(value, where, unresolved) {
 }
 
 // What a hit adds (fase 5, lotto 4), as the 5eTools adapter writes it: save { ability, dc, half, damage, conditions,
-// duration, repeat }, grapple { escapeDC, conditions: the ones while held }, prone, pushFeet. The plugin's names.
+// duration, repeat }, grapple { escapeDC, conditions: the ones while held }, prone, pushFeet, conditions and their duration (the 2024 "has
+// the Poisoned condition until …", fase 3 lotto 6). The plugin's names.
 function monsterHitEffects(value, where, unresolved, { resolveDamageType, resolveAbility }) {
   if (!value || typeof value !== "object") return null;
   const save = value.save && typeof value.save === "object" ? value.save : null;
@@ -231,8 +232,16 @@ function monsterHitEffects(value, where, unresolved, { resolveDamageType, resolv
     ...(conditions.length ? { onFail: { condition: conditions[0], ...(conditions.length > 1 ? { also: conditions.slice(1) } : {}), ...timing } } : {}) } : null;
   const held = (Array.isArray(value.grapple?.conditions) ? value.grapple.conditions : []).map((entry) => CONDITION_BY_KEY.get(key(entry)));
   const escapeDC = integer(value.grapple?.escapeDC);
+  // The conditions the hit gives by itself (fase 3, lotto 6), with their duration.
+  const direct = (Array.isArray(value.conditions) ? value.conditions : []).map((entry) => {
+    const name = CONDITION_BY_KEY.get(key(entry));
+    if (!name) unresolved.push(`${where}: condizione al colpo "${text(entry)}"`);
+    return name;
+  }).filter(Boolean);
+  const directTiming = direct.length ? monsterFailureTiming({ duration: value.duration }, where, unresolved) : {};
   const effects = {
     ...(savePart?.ability && savePart.dc ? { save: savePart } : {}),
+    ...(direct.length ? { apply: { condition: direct[0], ...(direct.length > 1 ? { also: direct.slice(1) } : {}), ...directTiming } } : {}),
     ...(escapeDC ? { grapple: { escapeDC, ...(held.includes("Trattenuto") ? { restrained: true } : {}) } } : {}),
     ...(value.prone === true ? { prone: true } : {}),
     ...(integer(value.pushFeet) ? { pushFeet: integer(value.pushFeet) } : {}),

@@ -402,3 +402,24 @@ test("la presa: Afferrato con la CD di fuga e Trattenuto, mai due volte dallo st
   assert.deepEqual(conditionsOf(buildPcAttackMutation({ action: trample, sourceItem: dragon([trample]), targetItem: orc(), outcome: "miss",
     componentAmounts: {}, attackInstanceId: "ram-2" }).operations), [], "nothing on a miss");
 });
+
+// Fase 3, lotto 6, sotto-lotto 3: la condizione che il colpo dà da sé (il 2024 «has the Poisoned condition until …»), con
+// la sua durata, senza tiro salvezza né tiro ripetuto; mai a chi ne è immune.
+const assassinBlade = sanitizeQuickAction({ id: "shortsword", label: "Shortsword", kind: "attack", range: "melee", components: [{ type: "piercing", formula: "1d6+4" }],
+  attackBonus: 7, onHit: { apply: { condition: "Avvelenato", until: "turn-start", anchor: "source", repeat: "turn-end" } } });
+
+test("la condizione al colpo: con la durata del mostro, senza tiro ripetuto; mai a chi ne è immune né al mancato", () => {
+  assert.deepEqual(assassinBlade.onHit, { apply: { condition: "Avvelenato", until: "turn-start", anchor: "source" } }, "never a repeated save");
+  const result = buildPcAttackMutation({ action: assassinBlade, sourceItem: dragon([assassinBlade]), targetItem: orc(), outcome: "hit",
+    componentAmounts: { c1: 7 }, attackInstanceId: "blade-1" });
+  const poison = result.operations.find((operation) => operation.conditionName === "Avvelenato");
+  assert.deepEqual([poison.options.manualRemoval, poison.options.expiry, poison.options.saveReminder],
+    [false, { mode: "turn-start", remaining: 1, actor: "source", actorId: "dragon", anchor: "next-turn" }, undefined]);
+  assert.deepEqual(result.causality.onHit, { conditions: ["Avvelenato"] });
+  const undead = creature("zombie", "Zombi", { initiativeCard: { monster: { source: "manual", conditionImmunities: ["avvelenato"] } } });
+  assert.deepEqual(conditionsOf(buildPcAttackMutation({ action: assassinBlade, sourceItem: dragon([assassinBlade]), targetItem: undead, outcome: "hit",
+    componentAmounts: { c1: 7 }, attackInstanceId: "blade-2" }).operations), []);
+  assert.deepEqual(conditionsOf(buildPcAttackMutation({ action: assassinBlade, sourceItem: dragon([assassinBlade]), targetItem: orc(), outcome: "miss",
+    componentAmounts: {}, attackInstanceId: "blade-3" }).operations), []);
+  assert.equal(pcAttackMonsterFailureText(assassinBlade.onHit.apply), "avvelenato fino all'inizio del prossimo turno del mostro");
+});
