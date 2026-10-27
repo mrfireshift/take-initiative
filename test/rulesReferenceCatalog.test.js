@@ -124,3 +124,54 @@ test("il generatore si ferma se una tabella aggiunge o perde parole, o se una ri
   missingHeading.nodes.splice(2, 1, { kind: "entry", heading: "Afferrare", page: 1 });
   assert.throws(() => buildRulesReference(fixture, missingHeading), /Titolo non trovato a p\. 1/u);
 });
+
+// A private manual's outline (scripts/generate-private-rules.mjs): its own footer, page offset, id prefix, OCR
+// corrections that may split a line, a topic the outline comes back to, and small tables rebuilt from their cells.
+const bookPage = (lines) => `${lines.join("\n")}\n\nCAPITOLO 2 I STRUMENTI\n`;
+const bookFixture = [bookPage([
+  "CADUTE",
+  "Una caduta da ld6 metri.",
+  "ATTREZZI DA PROVA Gli attrezzi servono.",
+  "ATTREZZI DA PROVA",
+  "Attività",
+  "CD",
+  "Aprire una porta",
+  "10 chiudere una porta",
+  "15",
+  "SONNO",
+  "Si dorme.",
+  "FINE",
+])].join("\f");
+
+const bookOutline = {
+  source: "manuale finto",
+  idPrefix: "mf-",
+  pageOffset: -1,
+  footer: "^CAPITOLO 2 I STRUMENTI$",
+  corrections: [
+    { from: String.raw`\bld(\d)`, to: "1d$1" },
+    { from: "^((?:[A-Z]{2,} ){1,6}[A-Z]{2,}) ([A-Z][a-z])", to: "$1\n$2" },
+  ],
+  autoTables: [["Attività", "CD"]],
+  nodes: [
+    { kind: "topic", id: "avventura", name: "Avventura" },
+    { kind: "entry", heading: "CADUTE", page: 1, name: "Cadute" },
+    { kind: "topic", id: "equipaggiamento", name: "Equipaggiamento" },
+    { kind: "entry", heading: "ATTREZZI DA PROVA", page: 1, name: "Attrezzi da prova" },
+    { kind: "topic", id: "avventura", name: "Avventura" },
+    { kind: "entry", heading: "SONNO", page: 1, name: "Sonno" },
+    { kind: "end", heading: "FINE", page: 1 },
+  ],
+};
+
+test("il generatore legge un manuale privato: piè di pagina, pagine, prefisso, correzioni e tabelle in celle", () => {
+  const { reference } = buildRulesReference(bookFixture, bookOutline);
+  assert.deepEqual(reference.topics.map((topic) => topic.id), ["avventura", "equipaggiamento"]);
+  assert.deepEqual(reference.entries.map((entry) => [entry.id, entry.topic, entry.page]), [
+    ["mf-cadute", "avventura", 0],
+    ["mf-attrezzi-da-prova", "equipaggiamento", 0],
+    ["mf-sonno", "avventura", 0],
+  ]);
+  assert.equal(reference.entries[0].text, "Una caduta da 1d6 metri.");
+  assert.equal(reference.entries[1].text, "Gli attrezzi servono.\n\nATTREZZI DA PROVA\n\nAttività | CD\nAprire una porta | 10\nchiudere una porta | 15");
+});

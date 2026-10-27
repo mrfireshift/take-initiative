@@ -11,6 +11,10 @@
 // of every text are the words of its lines in the same order, and the words of a rebuilt table are the words of the
 // lines it replaces (checked before writing, in any order: pdftotext reads some tables by column; a table may repeat
 // its header or a label, never add a word).
+//
+// The same function builds the rules of a private manual (scripts/generate-private-rules.mjs): its outline then says
+// how its pages end (footer), how its PDF pages map to the book's (pageOffset), the prefix of its ids (idPrefix) and
+// the OCR mistakes to fix line by line before anything else (corrections: [{ from, to }], regular expressions).
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -47,14 +51,19 @@ export function words(text) {
 }
 
 // Every non-empty line of the PDF text but the page footers, with its page (1-based, the footer's number) and its
-// line in the page (0-based, blank lines counted), the way to point at a line whose text repeats on the page.
-export function pdfLines(pdfText) {
+// line in the page (0-based, blank lines counted), the way to point at a line whose text repeats on the page. The
+// corrections apply to every line, in order; one that writes a line break splits the line.
+export function pdfLines(pdfText, { footer = FOOTER, corrections = [] } = {}) {
+  const fixes = corrections.map(({ from, to }) => [new RegExp(from, "gu"), to]);
   const lines = [];
   pdfText.replace(/\r\n?/gu, "\n").split("\f").forEach((pageText, pageIndex) => {
     pageText.split("\n").forEach((raw, line) => {
-      const text = raw.trim();
-      if (!text || FOOTER.test(text)) return;
-      lines.push({ page: pageIndex + 1, line, text });
+      // A correction may split a line (a heading the OCR glued to its paragraph): each part is a line of its own.
+      for (const part of fixes.reduce((value, [pattern, to]) => value.replace(pattern, to), raw).split("\n")) {
+        const text = part.trim();
+        if (!text || footer.test(text)) continue;
+        lines.push({ page: pageIndex + 1, line, text });
+      }
     });
   });
   return lines;
@@ -107,6 +116,55 @@ function checkTableWords(label, run, rebuilt, omit = []) {
   }
 }
 
+// A private manual's small tables, rebuilt from the lines the PDF gives one cell at a time (outline.autoTables: the
+// header, as [["Attività", "CD"]]): after the header, a label then its number, in turn ("10 identificare un veleno",
+// a number glued to the next label by the OCR, counts as both). An upper-case line just before the header becomes the
+// caption. The cells are the lines' own text, so no word changes; fewer than two rows leave the lines as they were.
+const TABLE_VALUE = /^\d+(?:\s*[-–]\s*\d+)?$/u;
+const TABLE_VALUE_AND_LABEL = /^(\d+(?:\s*[-–]\s*\d+)?)\s+(\D.*)$/u;
+
+function autoTables(parts, headers = []) {
+  const out = [];
+  for (let index = 0; index < parts.length; index += 1) {
+    const header = headers.find((cells) => cells.every((cell, offset) => parts[index + offset]?.text === cell));
+    if (!header) {
+      out.push(parts[index]);
+      continue;
+    }
+    const rows = [];
+    let label = null;
+    let next = index + header.length;
+    for (; next < parts.length; next += 1) {
+      const text = parts[next].text;
+      if (text === undefined) break;
+      const glued = TABLE_VALUE_AND_LABEL.exec(text);
+      if (label !== null && glued) {
+        rows.push([label, glued[1]]);
+        label = glued[2];
+      } else if (label !== null && TABLE_VALUE.test(text)) {
+        rows.push([label, text]);
+        label = null;
+      } else if (label === null && !TABLE_VALUE.test(text) && text.length < 120) {
+        label = text;
+      } else break;
+    }
+    if (label !== null) next -= 1;
+    if (rows.length < 2) {
+      out.push(parts[index]);
+      continue;
+    }
+    const caption = out.at(-1)?.text;
+    if (caption && caption === caption.toLocaleUpperCase("it") && /\p{L}{3}/u.test(caption)) out[out.length - 1] = { caption };
+    const consumed = parts.slice(index, next).map((part) => part.text).join(" ");
+    if (words(consumed).join(" ") !== words([header, ...rows].flat().join(" ")).join(" ")) {
+      throw new Error(`Tabella ricostruita con parole diverse: ${consumed.slice(0, 60)}`);
+    }
+    out.push({ table: [header, ...rows] });
+    index = next - 1;
+  }
+  return out;
+}
+
 // The blocks of a table spec: { rows } alone, or { blocks: [{ caption, rows }] } when the PDF puts several tables, or
 // a table split by group, in one run of lines.
 function tableBlocks(table) {
@@ -150,7 +208,11 @@ function bodyText(parts) {
 }
 
 export function buildRulesReference(pdfText, outline) {
-  const lines = pdfLines(pdfText);
+  const lines = pdfLines(pdfText, {
+    footer: outline.footer ? new RegExp(outline.footer, "u") : FOOTER,
+    corrections: outline.corrections || [],
+  });
+  const prefix = outline.idPrefix || "";
   const owner = new Array(lines.length).fill(null);
   const claim = (index, label) => {
     if (owner[index] !== null) throw new Error(`Riga ${index} (p. ${lines[index].page}) usata due volte: ${label} e ${owner[index]}`);
@@ -174,7 +236,7 @@ export function buildRulesReference(pdfText, outline) {
 
   // Tables: the run of lines they replace, inside one body.
   const tablesByStart = new Map();
-  for (const table of outline.tables) {
+  for (const table of outline.tables || []) {
     const start = findTableLine(lines, table.page, table.first, 0, table.label, table.firstLine);
     const end = findTableLine(lines, table.lastPage ?? table.page, table.last, start, table.label, table.lastLine);
     const run = lines.slice(start, end + 1).map((line) => line.text).join("\n");
@@ -200,8 +262,13 @@ export function buildRulesReference(pdfText, outline) {
   for (let position = 0; position < located.length; position += 1) {
     const { node, index, size } = located[position];
     if (node.kind === "topic") {
-      topic = { id: node.id || slugify(node.name), name: node.name, sections: [] };
-      topics.push(topic);
+      // A topic the outline comes back to keeps its sections: a manual moves between subjects.
+      const topicId = node.id || slugify(node.name);
+      topic = topics.find((item) => item.id === topicId);
+      if (!topic) {
+        topic = { id: topicId, name: node.name, sections: [] };
+        topics.push(topic);
+      }
       section = null;
       continue;
     }
@@ -233,16 +300,17 @@ export function buildRulesReference(pdfText, outline) {
     }
     if (!topic) throw new Error(`Voce fuori da un argomento: ${name}`);
     if (node.kind === "section") {
-      section = { id: node.id || slugify(name), name };
+      section = { id: node.id || prefix + slugify(name), name };
       topic.sections.push(section);
     }
     if (!parts.length) continue;
-    const text = bodyText(parts);
-    const captions = new Set(parts.filter((part) => part.caption).map((part) => part.caption));
+    const tabled = autoTables(parts, outline.autoTables);
+    const text = bodyText(tabled);
+    const captions = new Set(tabled.filter((part) => part.caption).map((part) => part.caption));
     const textWords = words(text.split("\n").filter((line) => !line.includes(" | ") && !captions.has(line)).join("\n"));
-    const sourceWords = words(parts.filter((part) => part.text !== undefined).map((part) => part.text).join("\n"));
+    const sourceWords = words(tabled.filter((part) => part.text !== undefined).map((part) => part.text).join("\n"));
     if (textWords.join(" ") !== sourceWords.join(" ")) throw new Error(`Parole cambiate nel testo di: ${name}`);
-    const id = node.id || (node.kind === "section" ? section.id : slugify(name));
+    const id = node.id || (node.kind === "section" ? section.id : prefix + slugify(name));
     if (ids.has(id)) throw new Error(`Id ripetuto: ${id} (${name})`);
     ids.add(id);
     entries.push({
@@ -250,7 +318,7 @@ export function buildRulesReference(pdfText, outline) {
       topic: topic.id,
       section: section?.id ?? null,
       name,
-      page: node.page,
+      page: node.page + (outline.pageOffset || 0),
       text,
       aliases: node.aliases || [],
       related: node.related || [],
@@ -284,9 +352,9 @@ export function buildRulesReference(pdfText, outline) {
     reference: {
       schemaVersion: 1,
       language: "it",
-      ruleset: "D&D 5e SRD 5.1 (2014)",
+      ruleset: outline.ruleset || "D&D 5e SRD 5.1 (2014)",
       source: outline.source,
-      license: "CC-BY-4.0",
+      license: outline.license || "CC-BY-4.0",
       generatedAt: new Date().toISOString().slice(0, 10),
       topics: topics.map((item) => ({ ...item, sections: item.sections.filter((candidate) => entries.some((entry) => entry.section === candidate.id && entry.topic === item.id)) })),
       entries,
@@ -295,14 +363,14 @@ export function buildRulesReference(pdfText, outline) {
   };
 }
 
-function report({ reference, excluded }, outline) {
+export function rulesReport({ reference, excluded }, outline) {
   const out = [];
   for (const topic of reference.topics) {
     const topicEntries = reference.entries.filter((entry) => entry.topic === topic.id);
     const count = topicEntries.reduce((sum, entry) => sum + words(entry.text).length, 0);
     out.push(`${topic.name}: ${topicEntries.length} voci, ${count} parole`);
   }
-  out.push(`Totale: ${reference.entries.length} voci, ${outline.tables.filter((table) => !table.drop).length} tabelle`);
+  out.push(`Totale: ${reference.entries.length} voci, ${(outline.tables || []).filter((table) => !table.drop).length} tabelle`);
   out.push(`Esclusi: ${excluded.map((item) => `${item.name} (p. ${item.page}, ${item.words} parole)`).join("; ")}`);
   const long = reference.entries.filter((entry) => entry.text.length > 6000).map((entry) => `${entry.name} (${entry.text.length})`);
   if (long.length) out.push(`Voci oltre 6.000 caratteri: ${long.join(", ")}`);
@@ -318,7 +386,7 @@ function report({ reference, excluded }, outline) {
   return out.join("\n");
 }
 
-function preview({ reference }) {
+export function previewMarkdown({ reference }) {
   const out = [`# Anteprima del compendio SRD (${reference.entries.length} voci)`, ""];
   for (const topic of reference.topics) {
     out.push(`## ${topic.name}`, "");
@@ -345,6 +413,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const outline = JSON.parse(fs.readFileSync(OUTLINE_PATH, "utf8"));
   const result = buildRulesReference(fs.readFileSync(args["pdf-text"], "utf8"), outline);
   fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(result.reference, null, 2)}\n`, "utf8");
-  if (args.preview) fs.writeFileSync(args.preview, preview(result), "utf8");
-  console.log(report(result, outline));
+  if (args.preview) fs.writeFileSync(args.preview, previewMarkdown(result), "utf8");
+  console.log(rulesReport(result, outline));
 }

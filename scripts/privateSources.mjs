@@ -78,6 +78,21 @@ export function writePrivateFeatureTexts(book, features, tables = readFeatureFil
   return file;
 }
 
+// The rules of a book: its outline (written by hand, in sorgenti/regole/, next to the text pdftotext extracted) and
+// what generate-private-rules.mjs builds from them ({ book, rules: { topics, entries } }).
+export function privateRulesOutlinePath(book) {
+  return path.join(privateDir(), "sorgenti", "regole", `${book}-indice.json`);
+}
+
+export function privateRulesPath(book) {
+  return path.join(privateDir(), "testi", book, "regole.json");
+}
+
+export function readPrivateRules(book) {
+  const file = privateRulesPath(book);
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")).rules || null : null;
+}
+
 // Writes the texts of a book's spells, sorted by id, for build-private-packs.mjs.
 export function writePrivateSpellTexts(book, spells) {
   const file = privateSpellTextsPath(book);

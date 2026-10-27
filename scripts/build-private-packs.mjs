@@ -5,16 +5,16 @@
 //   node scripts/build-private-packs.mjs
 //
 // A pack carries the texts of its spells (<dir>/testi/<book>/incantesimi.json) and of its class features that are
-// not SRD text (<dir>/testi/<book>/capacita.json); the rules join it in a later lot. Every pack is checked with the
-// validation the encyclopedia runs on import.
+// not SRD text (<dir>/testi/<book>/capacita.json), and its rules (<dir>/testi/<book>/regole.json, written by
+// generate-private-rules.mjs). Every pack is checked with the validation the encyclopedia runs on import.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PRIVATE_PACK_BOOKS, PRIVATE_PACK_FORMAT, PRIVATE_PACK_SCHEMA_VERSION, privatePackContentsLabel, privatePackSummary, validatePrivatePack } from "../src/privatePackCore.js";
-import { privateDir, readPrivateFeatureTables, readPrivateFeatureTexts, readPrivateSpellTexts } from "./privateSources.mjs";
+import { privateDir, readPrivateFeatureTables, readPrivateFeatureTexts, readPrivateRules, readPrivateSpellTexts } from "./privateSources.mjs";
 
-export function buildPrivatePack(book, { spells = null, classFeatures = null, classFeatureTables = null, generatedAt = new Date().toISOString().slice(0, 10) } = {}) {
+export function buildPrivatePack(book, { rules = null, spells = null, classFeatures = null, classFeatureTables = null, generatedAt = new Date().toISOString().slice(0, 10) } = {}) {
   const pack = {
     format: PRIVATE_PACK_FORMAT,
     schemaVersion: PRIVATE_PACK_SCHEMA_VERSION,
@@ -22,6 +22,7 @@ export function buildPrivatePack(book, { spells = null, classFeatures = null, cl
     title: book.title,
     badge: book.badge,
     generatedAt,
+    ...(rules ? { rules } : {}),
     ...(spells ? { spells } : {}),
     ...(classFeatures ? { classFeatures } : {}),
     ...(classFeatureTables ? { classFeatureTables } : {}),
@@ -37,8 +38,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   for (const book of Object.values(PRIVATE_PACK_BOOKS)) {
     const spells = readPrivateSpellTexts(book.id);
     const classFeatures = readPrivateFeatureTexts(book.id);
-    if (!spells && !classFeatures) continue;
-    const pack = buildPrivatePack(book, { spells, classFeatures, classFeatureTables: readPrivateFeatureTables(book.id) });
+    const rules = readPrivateRules(book.id);
+    if (!spells && !classFeatures && !rules) continue;
+    const pack = buildPrivatePack(book, { rules, spells, classFeatures, classFeatureTables: readPrivateFeatureTables(book.id) });
     const text = `${JSON.stringify(pack)}\n`;
     fs.mkdirSync(outDir, { recursive: true });
     const file = path.join(outDir, `${book.id}.private-pack.json`);

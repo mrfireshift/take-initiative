@@ -327,6 +327,7 @@ dell'Enciclopedia.
 | Archivio nel browser (IndexedDB `…private-packs`, sessione senza IndexedDB) | `src/privatePackStore.js` |
 | Testo di incantesimi, capacità e tabelle dai pacchetti | `src/spellbookCatalog.js`, `src/classFeatureDescriptions.js` |
 | Cartella privata (`TAKE_INITIATIVE_PRIVATE_DIR`, di default `L:/Dungeons & Dragons/Take Initiative`) | `scripts/privateSources.mjs` |
+| Regole di un manuale privato (indice scritto a mano, correzioni OCR, tabelle ricostruite) | `scripts/generate-private-rules.mjs` |
 | Costruzione dei pacchetti | `scripts/build-private-packs.mjs` |
 | Ricerca dei testi privati nel repo e in una build | `scripts/check-private-texts.mjs` |
 
@@ -338,6 +339,14 @@ stesso id. Un incantesimo non SRD porta in `italianReference` solo i fatti e
 `privateSource`/`privateTextId`; una capacità resta con il testo nel repo solo
 se il testo è SRD.
 
+Le regole di un manuale si costruiscono come il compendio SRD: il testo del PDF
+(`sorgenti/regole/<manuale>.txt`, da `pdftotext`) è tagliato ai titoli
+dell'indice `sorgenti/regole/<manuale>-indice.json`, che dichiara anche il
+piè di pagina, lo scarto tra pagine del PDF e del libro, il prefisso degli id
+(`xge-`), le correzioni degli errori di OCR (espressioni regolari, che possono
+anche dividere una riga) e le intestazioni delle tabelle da ricostruire dalle
+celle (`autoTables`).
+
 La cartella privata contiene `sorgenti/` (file grezzi e database completi),
 `testi/<manuale>/incantesimi.json` e `capacita.json` (scritti dai generatori) e
 `pacchetti/`. Per aggiornare i pacchetti dopo una modifica:
@@ -345,6 +354,7 @@ La cartella privata contiene `sorgenti/` (file grezzi e database completi),
 ```text
 npm run generate:supplement-spells
 npm run generate:class-features
+npm run generate:private-rules -- --book=xanathar
 npm run packs:build
 npm run check:private-texts -- --dist=dist
 ```
