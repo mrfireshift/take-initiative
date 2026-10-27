@@ -1,0 +1,3858 @@
+{
+  "source": "https://media.wizards.com/2023/downloads/dnd/SRD_CC_v5.1_IT.pdf",
+  "nodes": [
+    {
+      "kind": "topic",
+      "id": "personaggio",
+      "name": "Personaggio"
+    },
+    {
+      "kind": "section",
+      "heading": "Oltre il 1° livello",
+      "page": 60,
+      "aliases": [
+        "salire di livello",
+        "livello"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Avanzamento dei personaggi",
+      "page": 60,
+      "aliases": [
+        "PE",
+        "punti esperienza",
+        "tabella dei livelli"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Multiclasse",
+      "page": 60
+    },
+    {
+      "kind": "entry",
+      "heading": "Prerequisiti",
+      "page": 61,
+      "name": "Prerequisiti di multiclasse"
+    },
+    {
+      "kind": "entry",
+      "heading": "Punti Esperienza",
+      "page": 61,
+      "name": "Punti esperienza (multiclasse)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Punti Ferita e Dadi Vita",
+      "page": 61,
+      "name": "Punti ferita e Dadi Vita (multiclasse)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Bonus di competenza",
+      "page": 61,
+      "name": "Bonus di competenza (multiclasse)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Competenze",
+      "page": 61,
+      "name": "Competenze (multiclasse)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Privilegi di classe",
+      "page": 62,
+      "name": "Privilegi di classe (multiclasse)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Attacco Extra",
+      "page": 62,
+      "name": "Attacco Extra (multiclasse)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Difesa senza armatura",
+      "page": 62,
+      "name": "Difesa senza armatura (multiclasse)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Incanalare Divinità",
+      "page": 62,
+      "name": "Incanalare Divinità (multiclasse)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Incantesimi",
+      "page": 62,
+      "name": "Incantesimi (multiclasse)",
+      "aliases": [
+        "incantatore multiclasse",
+        "slot multiclasse",
+        "magia del patto"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Allineamento",
+      "page": 63
+    },
+    {
+      "kind": "entry",
+      "heading": "Gli allineamenti nel multiverso",
+      "page": 63
+    },
+    {
+      "kind": "section",
+      "heading": "Linguaggi",
+      "page": 64,
+      "aliases": [
+        "lingue"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Ispirazione",
+      "page": 64
+    },
+    {
+      "kind": "entry",
+      "heading": "Ottenere ispirazione",
+      "page": 64
+    },
+    {
+      "kind": "entry",
+      "heading": "Usare l'ispirazione",
+      "page": 65
+    },
+    {
+      "kind": "section",
+      "heading": "Background",
+      "page": 65
+    },
+    {
+      "kind": "entry",
+      "heading": "Competenze",
+      "page": 65,
+      "name": "Competenze (background)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Linguaggi",
+      "page": 65,
+      "name": "Linguaggi (background)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Equipaggiamento",
+      "page": 65,
+      "name": "Equipaggiamento (background)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Caratteristiche suggerite",
+      "page": 65
+    },
+    {
+      "kind": "entry",
+      "heading": "Personalizzare un background",
+      "page": 65
+    },
+    {
+      "kind": "exclude",
+      "heading": "Accolito",
+      "page": 66
+    },
+    {
+      "kind": "topic",
+      "id": "equipaggiamento",
+      "name": "Equipaggiamento"
+    },
+    {
+      "kind": "section",
+      "heading": "Equipaggiamento",
+      "page": 68,
+      "id": "monete",
+      "name": "Monete",
+      "aliases": [
+        "denaro",
+        "mo",
+        "ma",
+        "mr"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Valori di scambio",
+      "page": 68,
+      "aliases": [
+        "cambio delle monete"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Vendere i tesori",
+      "page": 68
+    },
+    {
+      "kind": "section",
+      "heading": "Armature",
+      "page": 69,
+      "aliases": [
+        "CA",
+        "classe armatura"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Armature leggere",
+      "page": 69
+    },
+    {
+      "kind": "entry",
+      "heading": "Armature medie",
+      "page": 69
+    },
+    {
+      "kind": "entry",
+      "heading": "Armature pesanti",
+      "page": 70
+    },
+    {
+      "kind": "entry",
+      "heading": "Armature",
+      "page": 70,
+      "name": "Tabella delle armature",
+      "aliases": [
+        "armatura",
+        "corazza",
+        "scudo"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Indossare e togliere un'armatura",
+      "page": 71,
+      "aliases": [
+        "vestire armatura",
+        "togliere armatura"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Armi",
+      "page": 71
+    },
+    {
+      "kind": "entry",
+      "heading": "Competenza nelle armi",
+      "page": 71
+    },
+    {
+      "kind": "entry",
+      "heading": "Proprietà delle armi",
+      "page": 71,
+      "aliases": [
+        "accurata",
+        "versatile",
+        "pesante",
+        "leggera",
+        "portata",
+        "lancio",
+        "munizioni",
+        "ricarica",
+        "due mani",
+        "speciale"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Armi improvvisate",
+      "page": 72
+    },
+    {
+      "kind": "entry",
+      "heading": "Armi argentate",
+      "page": 72,
+      "aliases": [
+        "argento"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Armi speciali",
+      "page": 72,
+      "aliases": [
+        "lancia da cavaliere",
+        "rete"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Armi",
+      "page": 73,
+      "name": "Tabella delle armi",
+      "aliases": [
+        "arma",
+        "danni delle armi"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Equipaggiamento d'avventura",
+      "page": 74,
+      "aliases": [
+        "fuoco dell'alchimista",
+        "acido",
+        "triboli",
+        "biglie",
+        "corda",
+        "pozione di guarigione",
+        "veleno base"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Capienza dei contenitori",
+      "page": 77
+    },
+    {
+      "kind": "exclude",
+      "heading": "Dotazioni",
+      "page": 78
+    },
+    {
+      "kind": "entry",
+      "heading": "Strumenti",
+      "page": 78,
+      "aliases": [
+        "arnesi da scasso",
+        "strumenti da artigiano",
+        "borsa da erborista",
+        "kit da guaritore"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Cavalcature e veicoli",
+      "page": 80,
+      "aliases": [
+        "cavallo",
+        "nave"
+      ]
+    },
+    {
+      "kind": "exclude",
+      "heading": "Merci",
+      "page": 81
+    },
+    {
+      "kind": "topic",
+      "id": "caratteristiche",
+      "name": "Caratteristiche"
+    },
+    {
+      "kind": "entry",
+      "heading": [
+        "Usare i punteggi",
+        "di caratteristica"
+      ],
+      "page": 85,
+      "id": "le-sei-caratteristiche",
+      "name": "Le sei caratteristiche"
+    },
+    {
+      "kind": "entry",
+      "heading": [
+        "Punteggi di caratteristica",
+        "e modificatori"
+      ],
+      "page": 85,
+      "name": "Punteggi di caratteristica e modificatori",
+      "aliases": [
+        "modificatore"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Vantaggio e svantaggio",
+      "page": 85
+    },
+    {
+      "kind": "entry",
+      "heading": "Bonus di competenza",
+      "page": 86
+    },
+    {
+      "kind": "entry",
+      "heading": "Prove di caratteristica",
+      "page": 86,
+      "aliases": [
+        "CD",
+        "classe difficoltà",
+        "prova"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Contese",
+      "page": 87,
+      "aliases": [
+        "prova contrapposta"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Abilità",
+      "page": 87,
+      "aliases": [
+        "skill"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Variante: abilità con caratteristiche diverse",
+      "page": 88,
+      "optional": true
+    },
+    {
+      "kind": "entry",
+      "heading": "Prove passive",
+      "page": 88,
+      "aliases": [
+        "percezione passiva"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Collaborare",
+      "page": 88,
+      "aliases": [
+        "aiutare"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Prove di gruppo",
+      "page": 89
+    },
+    {
+      "kind": "entry",
+      "heading": "Usare ogni caratteristica",
+      "page": 89
+    },
+    {
+      "kind": "section",
+      "heading": "Forza",
+      "page": 89
+    },
+    {
+      "kind": "entry",
+      "heading": "Prove di Forza",
+      "page": 89,
+      "aliases": [
+        "atletica",
+        "scalare",
+        "nuotare",
+        "saltare"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Tiri per colpire e danni",
+      "page": 89,
+      "name": "Tiri per colpire e danni (Forza)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Sollevamento e trasporto",
+      "page": 89,
+      "aliases": [
+        "capacità di trasporto",
+        "carico",
+        "spingere trascinare sollevare"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Variante: ingombro",
+      "page": 90,
+      "optional": true,
+      "aliases": [
+        "ingombro",
+        "ingombrato"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Destrezza",
+      "page": 90
+    },
+    {
+      "kind": "entry",
+      "heading": "Prove di Destrezza",
+      "page": 90,
+      "aliases": [
+        "acrobazia",
+        "furtività",
+        "rapidità di mano"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Tiri per colpire e danni",
+      "page": 90,
+      "name": "Tiri per colpire e danni (Destrezza)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Classe Armatura",
+      "page": 90,
+      "aliases": [
+        "CA"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Iniziativa",
+      "page": 90,
+      "name": "Iniziativa (Destrezza)",
+      "related": [
+        "iniziativa"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Nascondersi",
+      "page": 91,
+      "aliases": [
+        "furtività",
+        "nascosto"
+      ],
+      "related": [
+        "nascondersi-azione",
+        "condition:Invisibile"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Costituzione",
+      "page": 91
+    },
+    {
+      "kind": "entry",
+      "heading": "Prove di Costituzione",
+      "page": 91
+    },
+    {
+      "kind": "entry",
+      "heading": "Punti Ferita",
+      "page": 91,
+      "name": "Punti ferita (Costituzione)"
+    },
+    {
+      "kind": "section",
+      "heading": "Intelligenza",
+      "page": 91
+    },
+    {
+      "kind": "entry",
+      "heading": "Prove di Intelligenza",
+      "page": 91,
+      "aliases": [
+        "arcano",
+        "indagare",
+        "natura",
+        "religione",
+        "storia"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Caratteristica da incantatore",
+      "page": 92,
+      "name": "Caratteristica da incantatore (Intelligenza)"
+    },
+    {
+      "kind": "section",
+      "heading": "Saggezza",
+      "page": 92
+    },
+    {
+      "kind": "entry",
+      "heading": "Prove di Saggezza",
+      "page": 92,
+      "aliases": [
+        "addestrare animali",
+        "intuizione",
+        "medicina",
+        "percezione",
+        "sopravvivenza"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Caratteristica da Incantatore",
+      "page": 93,
+      "name": "Caratteristica da incantatore (Saggezza)"
+    },
+    {
+      "kind": "section",
+      "heading": "Carisma",
+      "page": 93
+    },
+    {
+      "kind": "entry",
+      "heading": "Prove di Carisma",
+      "page": 93,
+      "aliases": [
+        "inganno",
+        "intimidire",
+        "intrattenere",
+        "persuasione"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Caratteristica da incantatore",
+      "page": 93,
+      "name": "Caratteristica da incantatore (Carisma)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Tiri salvezza",
+      "page": 94,
+      "aliases": [
+        "TS",
+        "tiro salvezza"
+      ]
+    },
+    {
+      "kind": "topic",
+      "id": "avventura",
+      "name": "Avventura"
+    },
+    {
+      "kind": "entry",
+      "heading": "Tempo",
+      "page": 95,
+      "aliases": [
+        "minuti ore giorni",
+        "round"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Movimento",
+      "page": 95
+    },
+    {
+      "kind": "entry",
+      "heading": "Velocità",
+      "page": 95
+    },
+    {
+      "kind": "entry",
+      "heading": "Passo di viaggio",
+      "page": 95,
+      "aliases": [
+        "viaggio",
+        "marcia forzata",
+        "passo veloce",
+        "passo lento"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Terreno difficile",
+      "page": 96,
+      "name": "Terreno difficile (viaggio)",
+      "related": [
+        "terreno-difficile"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Tipi speciali di movimento",
+      "page": 96
+    },
+    {
+      "kind": "entry",
+      "heading": "Nuotare, scalare e strisciare",
+      "page": 96,
+      "aliases": [
+        "arrampicarsi",
+        "nuoto",
+        "strisciare"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Saltare",
+      "page": 96,
+      "aliases": [
+        "salto in lungo",
+        "salto in alto"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "L'ambiente",
+      "page": 97
+    },
+    {
+      "kind": "entry",
+      "heading": "Cadute",
+      "page": 97,
+      "aliases": [
+        "caduta",
+        "danni da caduta"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Soffocamento",
+      "page": 97,
+      "aliases": [
+        "trattenere il fiato",
+        "annegare",
+        "apnea"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Visione e illuminazione",
+      "page": 97,
+      "aliases": [
+        "luce fioca",
+        "oscurità",
+        "oscurato",
+        "leggermente oscurato",
+        "pesantemente oscurato"
+      ],
+      "related": [
+        "scurovisione",
+        "vista-cieca",
+        "vista-pura",
+        "condition:Accecato"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Scurovisione",
+      "page": 97
+    },
+    {
+      "kind": "entry",
+      "heading": "Vista cieca",
+      "page": 97
+    },
+    {
+      "kind": "entry",
+      "heading": "Vista pura",
+      "page": 98
+    },
+    {
+      "kind": "entry",
+      "heading": "Cibo e acqua",
+      "page": 98
+    },
+    {
+      "kind": "entry",
+      "heading": "Cibo",
+      "page": 98,
+      "aliases": [
+        "fame",
+        "razioni"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Acqua",
+      "page": 98,
+      "aliases": [
+        "sete"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Interazioni con gli oggetti",
+      "page": 98
+    },
+    {
+      "kind": "section",
+      "heading": "Riposare",
+      "page": 98,
+      "aliases": [
+        "riposo"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Riposo breve",
+      "page": 99,
+      "aliases": [
+        "dadi vita"
+      ],
+      "related": [
+        "riposo-lungo"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Riposo lungo",
+      "page": 99,
+      "related": [
+        "riposo-breve"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Tra un'avventura e l'altra",
+      "page": 100,
+      "aliases": [
+        "fuori servizio",
+        "downtime"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Spese dello stile di vita",
+      "page": 100
+    },
+    {
+      "kind": "entry",
+      "heading": "Attività fuori servizio",
+      "page": 100
+    },
+    {
+      "kind": "entry",
+      "heading": "Addestrarsi",
+      "page": 100
+    },
+    {
+      "kind": "entry",
+      "heading": "Condurre ricerche",
+      "page": 100
+    },
+    {
+      "kind": "entry",
+      "heading": "Fabbricare oggetti",
+      "page": 101,
+      "aliases": [
+        "crafting",
+        "creare oggetti"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Praticare una professione",
+      "page": 101
+    },
+    {
+      "kind": "entry",
+      "heading": "Recuperare le forze",
+      "page": 101
+    },
+    {
+      "kind": "topic",
+      "id": "combattimento",
+      "name": "Combattimento"
+    },
+    {
+      "kind": "section",
+      "heading": "L'ordine di combattimento",
+      "page": 102,
+      "aliases": [
+        "round",
+        "turno"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Le fasi del combattimento",
+      "page": 102
+    },
+    {
+      "kind": "entry",
+      "heading": "Sorpresa",
+      "page": 102,
+      "aliases": [
+        "sorpreso",
+        "imboscata"
+      ],
+      "related": [
+        "iniziativa"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Iniziativa",
+      "page": 102,
+      "aliases": [
+        "ordine di iniziativa",
+        "parità"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Il turno di un personaggio",
+      "page": 102
+    },
+    {
+      "kind": "entry",
+      "heading": "Azioni bonus",
+      "page": 103,
+      "aliases": [
+        "azione bonus"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Altre attività nel proprio turno",
+      "page": 103,
+      "aliases": [
+        "interazione gratuita",
+        "parlare"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Reazioni",
+      "page": 103,
+      "aliases": [
+        "reazione"
+      ],
+      "related": [
+        "attacchi-di-opportunita",
+        "prepararsi"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Movimento e posizione",
+      "page": 103
+    },
+    {
+      "kind": "entry",
+      "heading": "Spezzare il proprio movimento",
+      "page": 103
+    },
+    {
+      "kind": "entry",
+      "heading": "Muoversi tra gli attacchi",
+      "page": 103
+    },
+    {
+      "kind": "entry",
+      "heading": "Usare velocità diverse",
+      "page": 104
+    },
+    {
+      "kind": "entry",
+      "heading": "Terreno difficile",
+      "page": 104
+    },
+    {
+      "kind": "entry",
+      "heading": "Creature prone",
+      "page": 104,
+      "aliases": [
+        "prono",
+        "rialzarsi",
+        "cadere prono"
+      ],
+      "related": [
+        "condition:Prono"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Interagire con gli oggetti circostanti",
+      "page": 104
+    },
+    {
+      "kind": "entry",
+      "heading": "Muoversi attorno ad altre creature",
+      "page": 104,
+      "aliases": [
+        "attraversare",
+        "spazio ostile"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Movimento in volo",
+      "page": 104,
+      "aliases": [
+        "volare",
+        "fluttuare"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Taglia delle creature",
+      "page": 105,
+      "aliases": [
+        "minuscola",
+        "piccola",
+        "media",
+        "grande",
+        "enorme",
+        "mastodontica"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Spazio",
+      "page": 105
+    },
+    {
+      "kind": "entry",
+      "heading": "Intrufolarsi in uno spazio più piccolo",
+      "page": 105,
+      "aliases": [
+        "spremersi",
+        "stringersi"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Azioni in combattimento",
+      "page": 105,
+      "aliases": [
+        "azioni"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Aiuto",
+      "page": 105,
+      "aliases": [
+        "aiutare"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Attacco",
+      "page": 105,
+      "name": "Attacco (azione)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Cercare",
+      "page": 105
+    },
+    {
+      "kind": "entry",
+      "heading": "Disimpegno",
+      "page": 106,
+      "aliases": [
+        "disingaggio"
+      ],
+      "related": [
+        "attacchi-di-opportunita"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Lanciare un incantesimo",
+      "page": 106,
+      "name": "Lanciare un incantesimo (azione)",
+      "related": [
+        "lanciare-un-incantesimo"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Nascondersi",
+      "page": 106,
+      "name": "Nascondersi (azione)",
+      "related": [
+        "nascondersi",
+        "condition:Invisibile"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Prepararsi",
+      "page": 106,
+      "aliases": [
+        "azione preparata",
+        "preparare"
+      ],
+      "related": [
+        "reazioni"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Scatto",
+      "page": 106,
+      "aliases": [
+        "correre",
+        "dash"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Schivata",
+      "page": 106,
+      "aliases": [
+        "schivare"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Usare un oggetto",
+      "page": 106
+    },
+    {
+      "kind": "section",
+      "heading": "Effettuare un attacco",
+      "page": 107,
+      "aliases": [
+        "attaccare"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Tiri per colpire",
+      "page": 107,
+      "aliases": [
+        "tiro per colpire",
+        "colpire"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Modificatori al tiro",
+      "page": 107
+    },
+    {
+      "kind": "entry",
+      "heading": "Ottenere un 1 o un 20",
+      "page": 107,
+      "aliases": [
+        "20 naturale",
+        "1 naturale",
+        "fallimento automatico"
+      ],
+      "related": [
+        "colpi-critici"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Attaccanti e bersagli non visibili",
+      "page": 107,
+      "aliases": [
+        "bersaglio invisibile",
+        "attaccante nascosto"
+      ],
+      "related": [
+        "visione-e-illuminazione",
+        "condition:Invisibile",
+        "condition:Accecato"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Attacchi a distanza",
+      "page": 108
+    },
+    {
+      "kind": "entry",
+      "heading": "Gittata",
+      "page": 108,
+      "aliases": [
+        "gittata lunga"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Attacchi a distanza in combattimento ravvicinato",
+      "page": 108,
+      "aliases": [
+        "svantaggio a distanza",
+        "mischia e distanza"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Attacchi in mischia",
+      "page": 108,
+      "aliases": [
+        "portata",
+        "colpo senz'armi",
+        "pugno"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Attacchi di opportunità",
+      "page": 108,
+      "aliases": [
+        "attacco di opportunità",
+        "AdO"
+      ],
+      "related": [
+        "disimpegno",
+        "reazioni"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Combattere con Due Armi",
+      "page": 108,
+      "aliases": [
+        "due armi",
+        "arma secondaria"
+      ],
+      "related": [
+        "azioni-bonus"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Lottare",
+      "page": 109,
+      "aliases": [
+        "afferrare",
+        "presa",
+        "liberarsi"
+      ],
+      "related": [
+        "contese-in-combattimento",
+        "spingere-una-creatura",
+        "condition:Afferrato"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Contese in combattimento",
+      "page": 109,
+      "related": [
+        "contese"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Spingere una creatura",
+      "page": 109,
+      "aliases": [
+        "spinta",
+        "buttare prono"
+      ],
+      "related": [
+        "lottare",
+        "condition:Prono"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Copertura",
+      "page": 109,
+      "aliases": [
+        "mezza copertura",
+        "copertura dei tre quarti",
+        "copertura totale"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Danni e guarigione",
+      "page": 110
+    },
+    {
+      "kind": "entry",
+      "heading": "Punti ferita",
+      "page": 110,
+      "aliases": [
+        "PF",
+        "ferito"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Tiri per i danni",
+      "page": 110,
+      "aliases": [
+        "danni"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Colpi critici",
+      "page": 110,
+      "aliases": [
+        "critico",
+        "colpo critico"
+      ],
+      "related": [
+        "ottenere-un-1-o-un-20"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Tipi di danno",
+      "page": 110,
+      "aliases": [
+        "acido",
+        "contundente",
+        "freddo",
+        "fuoco",
+        "forza",
+        "fulmine",
+        "necrotico",
+        "perforante",
+        "psichico",
+        "radioso",
+        "tagliente",
+        "tuono",
+        "veleno"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Resistenza e vulnerabilità ai danni",
+      "page": 111,
+      "aliases": [
+        "resistenza",
+        "vulnerabilità",
+        "immunità"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Guarigione",
+      "page": 111,
+      "aliases": [
+        "curare",
+        "recuperare punti ferita"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Scendere a 0 punti ferita",
+      "page": 111,
+      "aliases": [
+        "0 PF",
+        "morente",
+        "a terra"
+      ],
+      "related": [
+        "morte-istantanea",
+        "tiri-salvezza-contro-morte",
+        "condition:Privo di sensi"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Morte istantanea",
+      "page": 111
+    },
+    {
+      "kind": "entry",
+      "heading": "Perdere conoscenza (privo di sensi)",
+      "page": 111,
+      "name": "Perdere conoscenza",
+      "related": [
+        "condition:Privo di sensi"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Tiri salvezza contro morte",
+      "page": 111,
+      "aliases": [
+        "TS contro morte",
+        "morire",
+        "stabile"
+      ],
+      "related": [
+        "stabilizzare-una-creatura",
+        "scendere-a-0-punti-ferita"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Stabilizzare una creatura",
+      "page": 112,
+      "aliases": [
+        "stabilizzare",
+        "medicina"
+      ],
+      "related": [
+        "tiri-salvezza-contro-morte"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Morte dei mostri",
+      "page": 112
+    },
+    {
+      "kind": "entry",
+      "heading": "Tramortire una creatura",
+      "page": 112,
+      "aliases": [
+        "colpo non letale",
+        "non uccidere"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Punti ferita temporanei",
+      "page": 112,
+      "aliases": [
+        "PF temporanei"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Combattere in sella",
+      "page": 113,
+      "aliases": [
+        "cavalcatura",
+        "combattimento a cavallo"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Salire e smontare dalla sella",
+      "page": 113
+    },
+    {
+      "kind": "entry",
+      "heading": "Controllare una cavalcatura",
+      "page": 113
+    },
+    {
+      "kind": "section",
+      "heading": "Combattere sott'acqua",
+      "page": 113,
+      "aliases": [
+        "subacqueo",
+        "sott'acqua"
+      ]
+    },
+    {
+      "kind": "topic",
+      "id": "magia",
+      "name": "Magia"
+    },
+    {
+      "kind": "entry",
+      "heading": "Incantesimi",
+      "page": 114,
+      "id": "la-magia",
+      "name": "La magia"
+    },
+    {
+      "kind": "entry",
+      "heading": "Cos'è un incantesimo?",
+      "page": 114
+    },
+    {
+      "kind": "entry",
+      "heading": "Livello dell'incantesimo",
+      "page": 114
+    },
+    {
+      "kind": "entry",
+      "heading": "Incantesimi conosciuti e preparati",
+      "page": 114,
+      "aliases": [
+        "preparare incantesimi"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Slot incantesimo",
+      "page": 114,
+      "aliases": [
+        "slot",
+        "recuperare slot"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Lanciare un incantesimo a un livello superiore",
+      "page": 115,
+      "aliases": [
+        "livello superiore",
+        "upcast"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Lanciare incantesimi in armatura",
+      "page": 115
+    },
+    {
+      "kind": "entry",
+      "heading": "Trucchetti",
+      "page": 115,
+      "aliases": [
+        "trucchetto"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Rituali",
+      "page": 115,
+      "aliases": [
+        "rituale"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Lanciare un incantesimo",
+      "page": 115
+    },
+    {
+      "kind": "entry",
+      "heading": "Tempo di lancio",
+      "page": 115
+    },
+    {
+      "kind": "entry",
+      "heading": "Azione bonus",
+      "page": 115,
+      "name": "Azione bonus (incantesimi)",
+      "aliases": [
+        "incantesimo con azione bonus"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Reazioni",
+      "page": 115,
+      "name": "Reazioni (incantesimi)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Tempi di lancio superiori",
+      "page": 115
+    },
+    {
+      "kind": "entry",
+      "heading": "Gittata",
+      "page": 116,
+      "name": "Gittata (incantesimi)"
+    },
+    {
+      "kind": "entry",
+      "heading": "Componenti",
+      "page": 116,
+      "aliases": [
+        "verbale",
+        "somatica",
+        "materiale",
+        "focus",
+        "borsa per componenti"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Durata",
+      "page": 116
+    },
+    {
+      "kind": "entry",
+      "heading": "Istantanea",
+      "page": 116
+    },
+    {
+      "kind": "entry",
+      "heading": "Concentrazione",
+      "page": 116,
+      "aliases": [
+        "perdere la concentrazione",
+        "TS concentrazione"
+      ],
+      "related": [
+        "durata"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Bersagli",
+      "page": 117
+    },
+    {
+      "kind": "entry",
+      "heading": "Percorso libero fino al bersaglio",
+      "page": 117,
+      "aliases": [
+        "linea di vista"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Bersagliare se stessi",
+      "page": 117
+    },
+    {
+      "kind": "entry",
+      "heading": "Aree di effetto",
+      "page": 117,
+      "aliases": [
+        "area",
+        "punto di origine"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Cilindro",
+      "page": 117
+    },
+    {
+      "kind": "entry",
+      "heading": "Cono",
+      "page": 117
+    },
+    {
+      "kind": "entry",
+      "heading": "Cubo",
+      "page": 118
+    },
+    {
+      "kind": "entry",
+      "heading": "Linea",
+      "page": 118
+    },
+    {
+      "kind": "entry",
+      "heading": "Sfera",
+      "page": 118
+    },
+    {
+      "kind": "entry",
+      "heading": "Tiri salvezza",
+      "page": 118,
+      "name": "Tiri salvezza (incantesimi)",
+      "aliases": [
+        "CD dei tiri salvezza degli incantesimi"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Tiri per colpire",
+      "page": 118,
+      "name": "Tiri per colpire (incantesimi)",
+      "aliases": [
+        "attacco con incantesimo"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Le scuole di magia",
+      "page": 118,
+      "aliases": [
+        "scuola",
+        "abiurazione",
+        "ammaliamento",
+        "divinazione",
+        "evocazione",
+        "illusione",
+        "invocazione",
+        "necromanzia",
+        "trasmutazione"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Combinare gli effetti magici",
+      "page": 119,
+      "aliases": [
+        "sovrapporre",
+        "stesso incantesimo due volte"
+      ]
+    },
+    {
+      "kind": "end",
+      "heading": "Liste degli incantesimi",
+      "page": 120
+    },
+    {
+      "kind": "topic",
+      "id": "strumenti-del-dm",
+      "name": "Strumenti del DM"
+    },
+    {
+      "kind": "section",
+      "heading": "Trappole",
+      "page": 223
+    },
+    {
+      "kind": "entry",
+      "heading": "Trappole nel gioco",
+      "page": 223
+    },
+    {
+      "kind": "entry",
+      "heading": "Innescare una trappola",
+      "page": 223
+    },
+    {
+      "kind": "entry",
+      "heading": "Individuare e disinnescare una trappola",
+      "page": 223,
+      "aliases": [
+        "disinnescare",
+        "trovare trappole"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Effetti delle trappole",
+      "page": 224
+    },
+    {
+      "kind": "entry",
+      "heading": "CD dei tiri salvezza e bonus di attacco",
+      "page": 224,
+      "name": "CD e bonus di attacco delle trappole"
+    },
+    {
+      "kind": "entry",
+      "heading": "Gravità dei danni per livello",
+      "page": 224,
+      "name": "Danni delle trappole per livello"
+    },
+    {
+      "kind": "entry",
+      "heading": "Trappole complesse",
+      "page": 224
+    },
+    {
+      "kind": "entry",
+      "heading": "Esempi di trappole",
+      "page": 224
+    },
+    {
+      "kind": "entry",
+      "heading": "Ago avvelenato",
+      "page": 225
+    },
+    {
+      "kind": "entry",
+      "heading": "Crollo del tetto",
+      "page": 225
+    },
+    {
+      "kind": "entry",
+      "heading": "Dardi avvelenati",
+      "page": 225
+    },
+    {
+      "kind": "entry",
+      "heading": "Fosse",
+      "page": 225,
+      "aliases": [
+        "fossa",
+        "botola"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Rete in caduta",
+      "page": 226
+    },
+    {
+      "kind": "entry",
+      "heading": "Sfera annientatrice",
+      "page": 226
+    },
+    {
+      "kind": "entry",
+      "heading": "Sfera rotolante",
+      "page": 227,
+      "aliases": [
+        "masso rotolante"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Statua del soffio di fuoco",
+      "page": 227
+    },
+    {
+      "kind": "section",
+      "heading": "Malattie",
+      "page": 228,
+      "aliases": [
+        "malattia"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Esempi di malattie",
+      "page": 228
+    },
+    {
+      "kind": "entry",
+      "heading": "Epidemia fognaria",
+      "page": 228
+    },
+    {
+      "kind": "entry",
+      "heading": "Febbre giuliva",
+      "page": 228
+    },
+    {
+      "kind": "entry",
+      "heading": "Vista putrefatta",
+      "page": 229
+    },
+    {
+      "kind": "section",
+      "heading": "Follia",
+      "page": 230
+    },
+    {
+      "kind": "entry",
+      "heading": "Impazzire",
+      "page": 230
+    },
+    {
+      "kind": "entry",
+      "heading": "Effetti della follia",
+      "page": 230
+    },
+    {
+      "kind": "entry",
+      "heading": "Follia temporanea",
+      "page": 230
+    },
+    {
+      "kind": "entry",
+      "heading": "Follia duratura",
+      "page": 230
+    },
+    {
+      "kind": "entry",
+      "heading": "Follia imprecisata",
+      "page": 231
+    },
+    {
+      "kind": "entry",
+      "heading": "Curare la follia",
+      "page": 231
+    },
+    {
+      "kind": "section",
+      "heading": "Oggetti",
+      "page": 232,
+      "aliases": [
+        "rompere oggetti",
+        "distruggere oggetti"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Statistiche degli oggetti",
+      "page": 232
+    },
+    {
+      "kind": "entry",
+      "heading": "Classe Armatura degli oggetti",
+      "page": 232,
+      "aliases": [
+        "CA degli oggetti"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Punti ferita degli oggetti",
+      "page": 232,
+      "aliases": [
+        "PF degli oggetti"
+      ]
+    },
+    {
+      "kind": "section",
+      "heading": "Veleni",
+      "page": 233,
+      "aliases": [
+        "veleno",
+        "avvelenato"
+      ],
+      "related": [
+        "condition:Avvelenato"
+      ]
+    },
+    {
+      "kind": "entry",
+      "heading": "Esempi di veleno",
+      "page": 233
+    },
+    {
+      "kind": "end",
+      "heading": "Oggetti magici",
+      "page": 235
+    }
+  ],
+  "tables": [
+    {
+      "label": "Avanzamento dei personaggi",
+      "page": 60,
+      "first": "Punti Esperienza 0",
+      "last": "Bonus di Competenza +2",
+      "rows": [
+        [
+          "Punti Esperienza",
+          "Livello",
+          "Bonus di Competenza"
+        ],
+        [
+          "0",
+          "1",
+          "+2"
+        ],
+        [
+          "300",
+          "2",
+          "+2"
+        ],
+        [
+          "900",
+          "3",
+          "+2"
+        ],
+        [
+          "2.700",
+          "4",
+          "+2"
+        ],
+        [
+          "6.500",
+          "5",
+          "+3"
+        ],
+        [
+          "14.000",
+          "6",
+          "+3"
+        ],
+        [
+          "23.000",
+          "7",
+          "+3"
+        ],
+        [
+          "34.000",
+          "8",
+          "+3"
+        ],
+        [
+          "48.000",
+          "9",
+          "+4"
+        ],
+        [
+          "64.000",
+          "10",
+          "+4"
+        ],
+        [
+          "85.000",
+          "11",
+          "+4"
+        ],
+        [
+          "100.000",
+          "12",
+          "+4"
+        ],
+        [
+          "120.000",
+          "13",
+          "+5"
+        ],
+        [
+          "140.000",
+          "14",
+          "+5"
+        ],
+        [
+          "165.000",
+          "15",
+          "+5"
+        ],
+        [
+          "195.000",
+          "16",
+          "+5"
+        ],
+        [
+          "225.000",
+          "17",
+          "+6"
+        ],
+        [
+          "265.000",
+          "18",
+          "+6"
+        ],
+        [
+          "305.000",
+          "19",
+          "+6"
+        ],
+        [
+          "355.000",
+          "20",
+          "+6"
+        ]
+      ]
+    },
+    {
+      "label": "Prerequisiti di multiclasse",
+      "page": 61,
+      "first": "Classe Barbaro Bardo Chierico",
+      "last": "Punteggio di caratteristica minimo",
+      "rows": [
+        [
+          "Classe",
+          "Punteggio di caratteristica minimo"
+        ],
+        [
+          "Barbaro",
+          "Forza 13"
+        ],
+        [
+          "Bardo",
+          "Carisma 13"
+        ],
+        [
+          "Chierico",
+          "Saggezza 13"
+        ],
+        [
+          "Druido",
+          "Saggezza 13"
+        ],
+        [
+          "Guerriero",
+          "Forza 13 o Destrezza 13"
+        ],
+        [
+          "Ladro",
+          "Destrezza 13"
+        ],
+        [
+          "Mago",
+          "Intelligenza 13"
+        ],
+        [
+          "Monaco",
+          "Destrezza 13 e Saggezza 13"
+        ],
+        [
+          "Paladino",
+          "Forza 13 e Carisma 13"
+        ],
+        [
+          "Ranger",
+          "Destrezza 13 e Saggezza 13"
+        ],
+        [
+          "Stregone",
+          "Carisma 13"
+        ],
+        [
+          "Warlock",
+          "Carisma 13"
+        ]
+      ]
+    },
+    {
+      "label": "Competenze dei multiclasse",
+      "page": 61,
+      "first": "Classe Barbaro Bardo",
+      "last": "Competenze ottenute",
+      "rows": [
+        [
+          "Classe",
+          "Competenze ottenute"
+        ],
+        [
+          "Barbaro",
+          "Scudi, armi semplici, armi da guerra"
+        ],
+        [
+          "Bardo",
+          "Armature leggere, un'abilità a scelta, uno strumento musicale a scelta"
+        ],
+        [
+          "Chierico",
+          "Armature leggere, armature medie, scudi"
+        ],
+        [
+          "Druido",
+          "Armature leggere, armature medie, scudi (i druidi non usano armature e scudi fatti di metallo)"
+        ],
+        [
+          "Guerriero",
+          "Armature leggere, armature medie, scudi, armi semplici, armi da guerra"
+        ],
+        [
+          "Ladro",
+          "Armatura leggera, un'abilità dalla lista delle abilità della classe, arnesi da scasso"
+        ],
+        [
+          "Mago",
+          "—"
+        ],
+        [
+          "Monaco",
+          "Armi semplici, spade corte"
+        ],
+        [
+          "Paladino",
+          "Armature leggere, armature medie, scudi, armi semplici, armi da guerra"
+        ],
+        [
+          "Ranger",
+          "Armature leggere, armature medie, scudi, armi semplici, armi da guerra, un'abilità dalla lista delle abilità di classe"
+        ],
+        [
+          "Stregone",
+          "—"
+        ],
+        [
+          "Warlock",
+          "Armature leggere, armi semplici"
+        ]
+      ]
+    },
+    {
+      "label": "Incantatore multiclasse",
+      "page": 63,
+      "first": "Livello 1° 2° 3°",
+      "last": "Livello 1° 2° 3°",
+      "rows": [
+        [
+          "Livello",
+          "1°",
+          "2°",
+          "3°",
+          "4°",
+          "5°",
+          "6°",
+          "7°",
+          "8°",
+          "9°"
+        ],
+        [
+          "1°",
+          "2",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "2°",
+          "3",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "3°",
+          "4",
+          "2",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "4°",
+          "4",
+          "3",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "5°",
+          "4",
+          "3",
+          "2",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "6°",
+          "4",
+          "3",
+          "3",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "7°",
+          "4",
+          "3",
+          "3",
+          "1",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "8°",
+          "4",
+          "3",
+          "3",
+          "2",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "9°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "1",
+          "—",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "10°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "2",
+          "—",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "11°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "2",
+          "1",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "12°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "2",
+          "1",
+          "—",
+          "—",
+          "—"
+        ],
+        [
+          "13°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "2",
+          "1",
+          "1",
+          "—",
+          "—"
+        ],
+        [
+          "14°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "2",
+          "1",
+          "1",
+          "—",
+          "—"
+        ],
+        [
+          "15°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "2",
+          "1",
+          "1",
+          "1",
+          "—"
+        ],
+        [
+          "16°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "2",
+          "1",
+          "1",
+          "1",
+          "—"
+        ],
+        [
+          "17°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "2",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        [
+          "18°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "3",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        [
+          "19°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "3",
+          "2",
+          "1",
+          "1",
+          "1"
+        ],
+        [
+          "20°",
+          "4",
+          "3",
+          "3",
+          "3",
+          "3",
+          "2",
+          "2",
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "label": "Linguaggi",
+      "page": 64,
+      "first": "Linguaggi standard",
+      "last": "Infernale Nanico Elfico Elfico",
+      "blocks": [
+        {
+          "caption": "Linguaggi standard",
+          "rows": [
+            [
+              "Linguaggio",
+              "Parlanti tipici",
+              "Scrittura"
+            ],
+            [
+              "Comune",
+              "Umani",
+              "Comune"
+            ],
+            [
+              "Elfico",
+              "Elfi",
+              "Elfico"
+            ],
+            [
+              "Gigante",
+              "Ogre, giganti",
+              "Nanico"
+            ],
+            [
+              "Gnomesco",
+              "Gnomi",
+              "Nanico"
+            ],
+            [
+              "Goblin",
+              "Goblinoidi",
+              "Nanico"
+            ],
+            [
+              "Halfling",
+              "Halfling",
+              "Comune"
+            ],
+            [
+              "Nanico",
+              "Nani",
+              "Nanico"
+            ],
+            [
+              "Orchesco",
+              "Orchi",
+              "Nanico"
+            ]
+          ]
+        },
+        {
+          "caption": "Linguaggi esotici",
+          "rows": [
+            [
+              "Linguaggio",
+              "Parlanti tipici",
+              "Scrittura"
+            ],
+            [
+              "Abissale",
+              "Demoni",
+              "Infernale"
+            ],
+            [
+              "Celestiale",
+              "Celestiali",
+              "Celestiale"
+            ],
+            [
+              "Draconico",
+              "Draghi, dragonidi",
+              "Draconico"
+            ],
+            [
+              "Gergo delle profondità",
+              "Aboleth, manti assassini",
+              "—"
+            ],
+            [
+              "Infernale",
+              "Diavoli",
+              "Infernale"
+            ],
+            [
+              "Primordiale",
+              "Elementali",
+              "Nanico"
+            ],
+            [
+              "Silvano",
+              "Creature fatate",
+              "Elfico"
+            ],
+            [
+              "Sottocomune",
+              "Mercanti del sottosuolo",
+              "Elfico"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Armature",
+      "page": 70,
+      "first": "Armatura Armature leggere",
+      "last": "3 kg",
+      "blocks": [
+        {
+          "caption": "Armature leggere",
+          "rows": [
+            [
+              "Armatura",
+              "Costo",
+              "Classe Armatura (CA)",
+              "Forza",
+              "Furtività",
+              "Peso"
+            ],
+            [
+              "Imbottita",
+              "5 mo",
+              "11 + modificatore di Des",
+              "—",
+              "Svantaggio",
+              "4 kg"
+            ],
+            [
+              "Cuoio",
+              "10 mo",
+              "11 + modificatore di Des",
+              "—",
+              "—",
+              "5 kg"
+            ],
+            [
+              "Cuoio borchiato",
+              "45 mo",
+              "12 + modificatore di Des",
+              "—",
+              "—",
+              "6,5 kg"
+            ]
+          ]
+        },
+        {
+          "caption": "Armature medie",
+          "rows": [
+            [
+              "Armatura",
+              "Costo",
+              "Classe Armatura (CA)",
+              "Forza",
+              "Furtività",
+              "Peso"
+            ],
+            [
+              "Pelle",
+              "10 mo",
+              "12 + modificatore di Des (max 2)",
+              "—",
+              "—",
+              "6 kg"
+            ],
+            [
+              "Giaco di maglia",
+              "50 mo",
+              "13 + modificatore di Des (max 2)",
+              "—",
+              "—",
+              "10 kg"
+            ],
+            [
+              "Corazza a scaglie",
+              "50 mo",
+              "14 + modificatore di Des (max 2)",
+              "—",
+              "Svantaggio",
+              "22,5 kg"
+            ],
+            [
+              "Corazza di piastre",
+              "400 mo",
+              "14 + modificatore di Des (max 2)",
+              "—",
+              "—",
+              "10 kg"
+            ],
+            [
+              "Mezza armatura",
+              "750 mo",
+              "15 + modificatore di Des (max 2)",
+              "—",
+              "Svantaggio",
+              "20 kg"
+            ]
+          ]
+        },
+        {
+          "caption": "Armature pesanti",
+          "rows": [
+            [
+              "Armatura",
+              "Costo",
+              "Classe Armatura (CA)",
+              "Forza",
+              "Furtività",
+              "Peso"
+            ],
+            [
+              "Corazza ad anelli",
+              "30 mo",
+              "14",
+              "—",
+              "Svantaggio",
+              "20 kg"
+            ],
+            [
+              "Cotta di maglia",
+              "75 mo",
+              "16",
+              "For 13",
+              "Svantaggio",
+              "27,5 kg"
+            ],
+            [
+              "Corazza a strisce",
+              "200 mo",
+              "17",
+              "For 15",
+              "Svantaggio",
+              "30 kg"
+            ],
+            [
+              "Armatura a piastre",
+              "1.500 mo",
+              "18",
+              "For 15",
+              "Svantaggio",
+              "32,5 kg"
+            ]
+          ]
+        },
+        {
+          "caption": "Scudi",
+          "rows": [
+            [
+              "Armatura",
+              "Costo",
+              "Classe Armatura (CA)",
+              "Forza",
+              "Furtività",
+              "Peso"
+            ],
+            [
+              "Scudo",
+              "10 mo",
+              "+2",
+              "—",
+              "—",
+              "3 kg"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Indossare e togliere armature",
+      "page": 71,
+      "first": "Categoria Armature leggere",
+      "last": "Togliere 1 minuto 1 minuto",
+      "rows": [
+        [
+          "Categoria",
+          "Indossare",
+          "Togliere"
+        ],
+        [
+          "Armature leggere",
+          "1 minuto",
+          "1 minuto"
+        ],
+        [
+          "Armature medie",
+          "5 minuti",
+          "1 minuto"
+        ],
+        [
+          "Armature pesanti",
+          "10 minuti",
+          "5 minuti"
+        ],
+        [
+          "Scudo",
+          "1 azione",
+          "1 azione"
+        ]
+      ]
+    },
+    {
+      "label": "Valori di scambio",
+      "page": 68,
+      "first": "Moneta",
+      "last": "1",
+      "lastLine": 48,
+      "rows": [
+        [
+          "Moneta",
+          "MR",
+          "MA",
+          "ME",
+          "MO",
+          "MP"
+        ],
+        [
+          "Rame (mr)",
+          "1",
+          "1/10",
+          "1/50",
+          "1/100",
+          "1/1.000"
+        ],
+        [
+          "Argento (ma)",
+          "10",
+          "1",
+          "1/5",
+          "1/10",
+          "1/100"
+        ],
+        [
+          "Electrum (me)",
+          "50",
+          "5",
+          "1",
+          "1/2",
+          "1/20"
+        ],
+        [
+          "Oro (mo)",
+          "100",
+          "10",
+          "2",
+          "1",
+          "1/10"
+        ],
+        [
+          "Platino (mp)",
+          "1.000",
+          "100",
+          "20",
+          "10",
+          "1"
+        ]
+      ]
+    },
+    {
+      "label": "Armi",
+      "page": 73,
+      "first": "Nome Armi da mischia semplici",
+      "last": "Due mani, Munizioni (gittata 45/180)",
+      "blocks": [
+        {
+          "caption": "Armi da mischia semplici",
+          "rows": [
+            [
+              "Nome",
+              "Costo",
+              "Danni",
+              "Peso",
+              "Proprietà"
+            ],
+            [
+              "Ascia",
+              "5 mo",
+              "1d6 taglienti",
+              "1 kg",
+              "Lancio (gittata 6/18), Leggera"
+            ],
+            [
+              "Bastone ferrato",
+              "2 ma",
+              "1d6 contundenti",
+              "2 kg",
+              "Versatile (1d8)"
+            ],
+            [
+              "Falcetto",
+              "1 mo",
+              "1d4 taglienti",
+              "1 kg",
+              "Leggera"
+            ],
+            [
+              "Giavellotto",
+              "5 ma",
+              "1d6 perforanti",
+              "1 kg",
+              "Lancio (gittata 9/36)"
+            ],
+            [
+              "Lancia",
+              "1 mo",
+              "1d6 perforanti",
+              "1,5 kg",
+              "Lancio (gittata 6/18), Versatile (1d8)"
+            ],
+            [
+              "Martello leggero",
+              "2 mo",
+              "1d4 contundenti",
+              "1 kg",
+              "Lancio (gittata 6/18), Leggera"
+            ],
+            [
+              "Mazza",
+              "5 mo",
+              "1d6 contundenti",
+              "2 kg",
+              "—"
+            ],
+            [
+              "Pugnale",
+              "2 mo",
+              "1d4 perforanti",
+              "0,5 kg",
+              "Accurata, Lancio (gittata 6/18), Leggera"
+            ],
+            [
+              "Randello",
+              "1 ma",
+              "1d4 contundenti",
+              "1 kg",
+              "Leggera"
+            ],
+            [
+              "Randello pesante",
+              "2 ma",
+              "1d8 contundenti",
+              "5 kg",
+              "Due mani"
+            ]
+          ]
+        },
+        {
+          "caption": "Armi a distanza semplici",
+          "rows": [
+            [
+              "Nome",
+              "Costo",
+              "Danni",
+              "Peso",
+              "Proprietà"
+            ],
+            [
+              "Arco corto",
+              "25 mo",
+              "1d6 perforanti",
+              "1 kg",
+              "Due mani, Munizioni (gittata 24/96)"
+            ],
+            [
+              "Balestra leggera",
+              "25 mo",
+              "1d8 perforanti",
+              "2,5 kg",
+              "Due mani, Munizioni (gittata 24/96), Ricarica"
+            ],
+            [
+              "Dardo",
+              "5 mr",
+              "1d4 perforanti",
+              "0,125 kg",
+              "Accurata, Lancio (gittata 6/18)"
+            ],
+            [
+              "Fionda",
+              "1 ma",
+              "1d4 contundenti",
+              "—",
+              "Munizioni (gittata 9/36)"
+            ]
+          ]
+        },
+        {
+          "caption": "Armi da mischia da guerra",
+          "rows": [
+            [
+              "Nome",
+              "Costo",
+              "Danni",
+              "Peso",
+              "Proprietà"
+            ],
+            [
+              "Alabarda",
+              "20 mo",
+              "1d10 taglienti",
+              "3 kg",
+              "Due mani, Pesante, Portata"
+            ],
+            [
+              "Ascia bipenne",
+              "30 mo",
+              "1d12 taglienti",
+              "3,5 kg",
+              "Due mani, Pesante"
+            ],
+            [
+              "Ascia da battaglia",
+              "10 mo",
+              "1d8 taglienti",
+              "2 kg",
+              "Versatile (1d10)"
+            ],
+            [
+              "Falcione",
+              "20 mo",
+              "1d10 taglienti",
+              "3 kg",
+              "Due mani, Pesante, Portata"
+            ],
+            [
+              "Frusta",
+              "2 mo",
+              "1d4 taglienti",
+              "1,5 kg",
+              "Accurata, Portata"
+            ],
+            [
+              "Lancia da cavaliere",
+              "10 mo",
+              "1d12 perforanti",
+              "3 kg",
+              "Portata, Speciale"
+            ],
+            [
+              "Maglio",
+              "10 mo",
+              "2d6 contundenti",
+              "5 kg",
+              "Due mani, Pesante"
+            ],
+            [
+              "Martello da guerra",
+              "15 mo",
+              "1d8 contundenti",
+              "1 kg",
+              "Versatile (1d10)"
+            ],
+            [
+              "Mazza chiodata",
+              "15 mo",
+              "1d8 perforanti",
+              "2 kg",
+              "—"
+            ],
+            [
+              "Mazzafrusto",
+              "10 mo",
+              "1d8 contundenti",
+              "1 kg",
+              "—"
+            ],
+            [
+              "Picca",
+              "5 mo",
+              "1d10 perforanti",
+              "9 kg",
+              "Due mani, Pesante, Portata"
+            ],
+            [
+              "Piccone da guerra",
+              "5 mo",
+              "1d8 perforanti",
+              "1 kg",
+              "—"
+            ],
+            [
+              "Scimitarra",
+              "25 mo",
+              "1d6 taglienti",
+              "1,5 kg",
+              "Accurata, Leggera"
+            ],
+            [
+              "Spada corta",
+              "10 mo",
+              "1d6 perforanti",
+              "1 kg",
+              "Accurata, Leggera"
+            ],
+            [
+              "Spada lunga",
+              "15 mo",
+              "1d8 taglienti",
+              "1,5 kg",
+              "Versatile (1d10)"
+            ],
+            [
+              "Spadone",
+              "50 mo",
+              "2d6 taglienti",
+              "3 kg",
+              "Due mani, Pesante"
+            ],
+            [
+              "Stocco",
+              "25 mo",
+              "1d8 perforanti",
+              "1 kg",
+              "Accurata"
+            ],
+            [
+              "Tridente",
+              "5 mo",
+              "1d6 perforanti",
+              "2 kg",
+              "Lancio (gittata 6/18), Versatile (1d8)"
+            ]
+          ]
+        },
+        {
+          "caption": "Armi a distanza da guerra",
+          "rows": [
+            [
+              "Nome",
+              "Costo",
+              "Danni",
+              "Peso",
+              "Proprietà"
+            ],
+            [
+              "Arco lungo",
+              "50 mo",
+              "1d8 perforanti",
+              "1 kg",
+              "Due mani, Munizioni (gittata 45/180), Pesante"
+            ],
+            [
+              "Balestra a mano",
+              "75 mo",
+              "1d6 perforanti",
+              "1,5 kg",
+              "Leggera, Munizioni (gittata 9/36), Ricarica"
+            ],
+            [
+              "Balestra pesante",
+              "50 mo",
+              "1d10 perforanti",
+              "9 kg",
+              "Due mani, Munizioni (gittata 30/120), Pesante, Ricarica"
+            ],
+            [
+              "Cerbottana",
+              "10 mo",
+              "1 perforante",
+              "0,5 kg",
+              "Munizioni (gittata 7,5/30), Ricarica"
+            ],
+            [
+              "Rete",
+              "1 mo",
+              "—",
+              "1,5 kg",
+              "Lancio (gittata 1,5/4,5), Speciale"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Equipaggiamento d'avventura",
+      "page": 76,
+      "first": "Equipaggiamento d'avventura",
+      "lastPage": 77,
+      "last": "— 2 kg 2,5 kg",
+      "drop": true
+    },
+    {
+      "label": "Capienza dei contenitori",
+      "page": 77,
+      "first": "Contenitore Ampolla o boccale Barile Borsa",
+      "lastPage": 78,
+      "last": "di equipaggiamento",
+      "lastLine": 40,
+      "omit": [
+        "Contenitore",
+        "Capienza"
+      ],
+      "rows": [
+        [
+          "Contenitore",
+          "Capienza"
+        ],
+        [
+          "Ampolla o boccale",
+          "0,5 litri liquidi"
+        ],
+        [
+          "Barile",
+          "160 litri liquidi, 4 cubi con spigolo di 30 cm"
+        ],
+        [
+          "Borsa",
+          "1 cubo con spigolo di 3 cm/3 kg di equipaggiamento"
+        ],
+        [
+          "Bottiglia",
+          "0,75 litri liquidi"
+        ],
+        [
+          "Brocca o caraffa",
+          "4 litri liquidi"
+        ],
+        [
+          "Canestro",
+          "2 cubi con spigolo di 30 cm/20 kg di equipaggiamento"
+        ],
+        [
+          "Fiala",
+          "120 grammi liquidi"
+        ],
+        [
+          "Forziere",
+          "12 cubi con spigolo di 30 cm/150 kg di equipaggiamento"
+        ],
+        [
+          "Otre",
+          "2 litri liquidi"
+        ],
+        [
+          "Pentola di ferro",
+          "4 litri liquidi"
+        ],
+        [
+          "Sacco",
+          "1 cubo con spigolo di 30 cm/15 kg di equipaggiamento"
+        ],
+        [
+          "Secchio",
+          "12 litri liquidi, 1 cubo con spigolo di 15 cm"
+        ],
+        [
+          "Zaino*",
+          "1 cubo con spigolo di 30 cm/15 kg di equipaggiamento"
+        ]
+      ]
+    },
+    {
+      "label": "Strumenti",
+      "page": 78,
+      "first": "Strumenti",
+      "firstLine": 59,
+      "lastPage": 79,
+      "last": "*",
+      "lastLine": 35,
+      "drop": true
+    },
+    {
+      "label": "Cavalcature e altri animali",
+      "page": 80,
+      "first": "Cavalcatura Asino o mulo",
+      "last": "210 kg 240 kg",
+      "rows": [
+        [
+          "Cavalcatura",
+          "Costo",
+          "Velocità",
+          "Capacità di trasporto"
+        ],
+        [
+          "Asino o mulo",
+          "8 mo",
+          "12 m",
+          "210 kg"
+        ],
+        [
+          "Cammello",
+          "50 mo",
+          "15 m",
+          "240 kg"
+        ],
+        [
+          "Cavallo da galoppo",
+          "75 mo",
+          "18 m",
+          "240 kg"
+        ],
+        [
+          "Cavallo da guerra",
+          "400 mo",
+          "18 m",
+          "270 kg"
+        ],
+        [
+          "Cavallo da tiro",
+          "50 mo",
+          "12 m",
+          "270 kg"
+        ],
+        [
+          "Elefante",
+          "200 mo",
+          "12 m",
+          "660 kg"
+        ],
+        [
+          "Mastino",
+          "25 mo",
+          "12 m",
+          "97,5 kg"
+        ],
+        [
+          "Pony",
+          "30 mo",
+          "12 m",
+          "112,5 kg"
+        ]
+      ]
+    },
+    {
+      "label": "Finimenti e veicoli da tiro",
+      "page": 80,
+      "first": "Finimenti e veicoli da tiro",
+      "last": "—",
+      "lastLine": 39,
+      "drop": true
+    },
+    {
+      "label": "Imbarcazioni",
+      "page": 80,
+      "first": "Oggetto Barca a remi",
+      "last": "6 km/h 3 km/h",
+      "rows": [
+        [
+          "Oggetto",
+          "Costo",
+          "Velocità"
+        ],
+        [
+          "Barca a remi",
+          "50 mo",
+          "2,25 km/h"
+        ],
+        [
+          "Barcone",
+          "3.000 mo",
+          "1,5 km/h"
+        ],
+        [
+          "Galea",
+          "30.000 mo",
+          "6 km/h"
+        ],
+        [
+          "Nave a vela",
+          "10.000 mo",
+          "3 km/h"
+        ],
+        [
+          "Nave da guerra",
+          "25.000 mo",
+          "3,75 km/h"
+        ],
+        [
+          "Nave lunga",
+          "10.000 mo",
+          "4,5 km/h"
+        ]
+      ]
+    },
+    {
+      "label": "Punteggi di caratteristica e modificatori",
+      "page": 85,
+      "first": "Punteggio 1",
+      "last": "Modificatore -5",
+      "rows": [
+        [
+          "Punteggio",
+          "Modificatore"
+        ],
+        [
+          "1",
+          "-5"
+        ],
+        [
+          "2–3",
+          "-4"
+        ],
+        [
+          "4–5",
+          "-3"
+        ],
+        [
+          "6–7",
+          "-2"
+        ],
+        [
+          "8–9",
+          "-1"
+        ],
+        [
+          "10–11",
+          "+0"
+        ],
+        [
+          "12–13",
+          "+1"
+        ],
+        [
+          "14–15",
+          "+2"
+        ],
+        [
+          "16–17",
+          "+3"
+        ],
+        [
+          "18–19",
+          "+4"
+        ],
+        [
+          "20–21",
+          "+5"
+        ],
+        [
+          "22–23",
+          "+6"
+        ],
+        [
+          "24–25",
+          "+7"
+        ],
+        [
+          "26–27",
+          "+8"
+        ],
+        [
+          "28–29",
+          "+9"
+        ],
+        [
+          "30",
+          "+10"
+        ]
+      ]
+    },
+    {
+      "label": "Classi Difficoltà Tipiche",
+      "page": 86,
+      "first": "Difficoltà dell'impresa CD",
+      "last": "30",
+      "lastLine": 43,
+      "rows": [
+        [
+          "Difficoltà dell'impresa",
+          "CD"
+        ],
+        [
+          "Molto facile",
+          "5"
+        ],
+        [
+          "Facile",
+          "10"
+        ],
+        [
+          "Media",
+          "15"
+        ],
+        [
+          "Difficile",
+          "20"
+        ],
+        [
+          "Molto difficile",
+          "25"
+        ],
+        [
+          "Quasi impossibile",
+          "30"
+        ]
+      ]
+    },
+    {
+      "label": "Passo di viaggio",
+      "page": 96,
+      "first": "Passo Veloce",
+      "last": "Effetto Penalità",
+      "rows": [
+        [
+          "Passo",
+          "Distanza percorsa ogni... Minuto",
+          "Ora",
+          "Giorno",
+          "Effetto"
+        ],
+        [
+          "Veloce",
+          "120 m",
+          "6 km",
+          "45 km",
+          "Penalità di -5 ai punteggi di Saggezza (Percezione) passiva"
+        ],
+        [
+          "Normale",
+          "90 m",
+          "4,5 km",
+          "36 km",
+          "—"
+        ],
+        [
+          "Lento",
+          "60 m",
+          "3 km",
+          "27 km",
+          "Consente l'utilizzo di furtività"
+        ]
+      ]
+    },
+    {
+      "label": "Categorie di taglia",
+      "page": 105,
+      "first": "Taglia Minuscola Piccola Media",
+      "last": "3m×3m",
+      "rows": [
+        [
+          "Taglia",
+          "Spazio"
+        ],
+        [
+          "Minuscola",
+          "75 × 75 cm"
+        ],
+        [
+          "Piccola",
+          "1,5 m × 1,5 m"
+        ],
+        [
+          "Media",
+          "1,5 m × 1,5 m"
+        ],
+        [
+          "Grande",
+          "3m×3m"
+        ],
+        [
+          "Enorme",
+          "4,5 m × 4,5 m"
+        ],
+        [
+          "Mastodontica",
+          "6 × 6 metri o più"
+        ]
+      ]
+    },
+    {
+      "label": "CD dei tiri salvezza e bonus di attacco",
+      "page": 224,
+      "first": "Pericolo della trappola",
+      "last": "Bonus di attacco",
+      "rows": [
+        [
+          "Pericolo della trappola",
+          "CD del tiro salvezza",
+          "Bonus di attacco"
+        ],
+        [
+          "Imprevisto",
+          "10–11",
+          "da +3 a +5"
+        ],
+        [
+          "Pericolosa",
+          "12–15",
+          "da +6 a +8"
+        ],
+        [
+          "Letale",
+          "16–20",
+          "da +9 a +12"
+        ]
+      ]
+    },
+    {
+      "label": "Gravità dei danni per livello",
+      "page": 224,
+      "first": "Livello del personaggio",
+      "last": "Letale 4d10",
+      "rows": [
+        [
+          "Livello del personaggio",
+          "Imprevisto",
+          "Pericoloso",
+          "Letale"
+        ],
+        [
+          "1° – 4°",
+          "1d10",
+          "2d10",
+          "4d10"
+        ],
+        [
+          "5° – 10°",
+          "2d10",
+          "4d10",
+          "10d10"
+        ],
+        [
+          "11° – 16°",
+          "4d10",
+          "10d10",
+          "18d10"
+        ],
+        [
+          "17° – 20°",
+          "10d10",
+          "18d10",
+          "24d10"
+        ]
+      ]
+    },
+    {
+      "label": "Follia temporanea",
+      "page": 230,
+      "first": "d100 01–20",
+      "last": "Effetto (dura 1d10 minuti)",
+      "rows": [
+        [
+          "d100",
+          "Effetto (dura 1d10 minuti)"
+        ],
+        [
+          "01–20",
+          "Il personaggio si ritira nella propria mente e diventa paralizzato. Questo effetto termina se il personaggio subisce danni."
+        ],
+        [
+          "21–30",
+          "Il personaggio diventa incapacitato e trascorre la durata dell'effetto urlando, ridendo o piangendo."
+        ],
+        [
+          "31–40",
+          "Il personaggio diventa spaventato e a ogni round deve usare la sua azione e il suo movimento per fuggire dalla fonte della sua paura."
+        ],
+        [
+          "41–50",
+          "Il personaggio inizia a balbettare e non è in grado di parlare normalmente o lanciare incantesimi."
+        ],
+        [
+          "51–60",
+          "Il personaggio deve usare la sua azione a ogni round per attaccare la creatura più vicina."
+        ],
+        [
+          "61–70",
+          "Il personaggio soffre di vivide allucinazioni e subisce svantaggio alle prove di caratteristica."
+        ],
+        [
+          "71–75",
+          "Il personaggio fa qualsiasi cosa gli venga detto di fare purché non sia palesemente autodistruttiva."
+        ],
+        [
+          "76–80",
+          "Il personaggio soffre dell'impulso irrefrenabile di mangiare qualcosa di strano come terriccio, fanghiglia o escrementi."
+        ],
+        [
+          "81–90",
+          "Il personaggio è stordito."
+        ],
+        [
+          "91–100",
+          "Il personaggio cade privo di sensi."
+        ]
+      ]
+    },
+    {
+      "label": "Follia duratura",
+      "page": 230,
+      "first": "d100 01–10",
+      "lastPage": 231,
+      "last": "Effetto (dura 1d10 × 10 ore)",
+      "omit": [
+        "d100",
+        "Effetto (dura 1d10 × 10 ore)"
+      ],
+      "rows": [
+        [
+          "d100",
+          "Effetto (dura 1d10 × 10 ore)"
+        ],
+        [
+          "01–10",
+          "Il personaggio si sente obbligato a ripetere un'attività specifica all'infinito, come per esempio lavarsi le mani, toccare qualcosa, pregare o contare le monete."
+        ],
+        [
+          "11–20",
+          "Il personaggio soffre di vivide allucinazioni e subisce svantaggio alle prove di caratteristica."
+        ],
+        [
+          "21–30",
+          "Il personaggio soffre di una grave forma di paranoia e subisce svantaggio alle prove di Saggezza e di Carisma."
+        ],
+        [
+          "31–40",
+          "Il personaggio prova una forte repulsione nei confronti di qualcosa (solitamente la fonte della sua follia), come se fosse sotto l'effetto antipatia dell'incantesimo antipatia/simpatia."
+        ],
+        [
+          "41–45",
+          "Il personaggio è affetto da un forte delirio. Il GM sceglie una pozione, dei cui effetti il personaggio immagina di risentire."
+        ],
+        [
+          "46–55",
+          "Il personaggio si affeziona a un \"portafortuna\", che può essere una persona o un oggetto e subisce svantaggio ai tiri per colpire, alle prove di caratteristica e ai tiri salvezza quando si allontana per più di 9 metri da esso."
+        ],
+        [
+          "56–65",
+          "Il personaggio è accecato (25%) o assordato (75%)."
+        ],
+        [
+          "66–75",
+          "Il personaggio soffre di tremori e tic incontrollabili che gli impongono svantaggio ai tiri per colpire, alle prove di caratteristica e ai tiri salvezza basati su Forza e Destrezza."
+        ],
+        [
+          "76–85",
+          "Il personaggio soffre di amnesia parziale. Sa chi è e conserva i suoi tratti razziali e privilegi di classe, ma non riconosce le altre persone e non ricorda nulla di ciò che è avvenuto prima che cadesse preda della follia."
+        ],
+        [
+          "86–90",
+          "Ogni volta che il personaggio subisce danni, deve superare un tiro salvezza su Saggezza con CD 15, altrimenti subisce le conseguenze di un tiro salvezza fallito contro l'incantesimo confusione, il cui effetto dura 1 minuto."
+        ],
+        [
+          "91–95",
+          "Il personaggio perde la capacità di parlare."
+        ],
+        [
+          "96–100",
+          "Il personaggio cade privo di sensi e non si risveglia né se viene scosso né se subisce danni."
+        ]
+      ]
+    },
+    {
+      "label": "Follia imprecisata",
+      "page": 231,
+      "first": "d100 01–15",
+      "last": "Difetto (permane",
+      "rows": [
+        [
+          "d100",
+          "Difetto (permane finché non viene curato)"
+        ],
+        [
+          "01–15",
+          "\"Solo ubriacandomi evito di impazzire.\""
+        ],
+        [
+          "16–25",
+          "\"Tengo tutto ciò che trovo.\""
+        ],
+        [
+          "26–30",
+          "\"Cerco di diventare più simile a qualcuno che conosco, adottando il suo stile di vestire, i suoi modi di fare e il suo nome.\""
+        ],
+        [
+          "31–35",
+          "\"Devo distorcere la verità, esagerare o mentire spudoratamente per risultare interessante agli occhi degli altri.\""
+        ],
+        [
+          "36–45",
+          "\"Raggiungere il mio obiettivo è l'unica cosa che mi interessa e per farlo ignorerò tutto il resto.\""
+        ],
+        [
+          "46–50",
+          "\"Mi riesce difficile provare interesse per qualsiasi cosa accada intorno a me.\""
+        ],
+        [
+          "51–55",
+          "\"Non mi piace il modo in cui la gente continua a giudicarmi.\""
+        ],
+        [
+          "56–70",
+          "\"Sono la persona più intelligente, più saggia, più forte, più veloce e più bella che io conosca.\""
+        ],
+        [
+          "71–80",
+          "\"Ho la certezza che potenti nemici mi diano la caccia e che i loro agenti siano presenti ovunque io vada e mi osservino in ogni momento.\""
+        ],
+        [
+          "81–85",
+          "\"C'è solo una persona di cui posso fidarmi e solo io sono in grado vedere questo amico speciale.\""
+        ],
+        [
+          "86–95",
+          "\"Non riesco a prendere nulla sul serio. Più la situazione è seria, più la trovo divertente.\""
+        ],
+        [
+          "96–100",
+          "\"Ho scoperto che mi piace moltissimo uccidere la gente.\""
+        ]
+      ]
+    },
+    {
+      "label": "Classe Armatura degli oggetti",
+      "page": 232,
+      "first": "Materiale",
+      "last": "23",
+      "rows": [
+        [
+          "Materiale",
+          "CA"
+        ],
+        [
+          "Stoffa, carta, corda",
+          "11"
+        ],
+        [
+          "Cristallo, vetro, ghiaccio",
+          "13"
+        ],
+        [
+          "Legno, osso",
+          "15"
+        ],
+        [
+          "Pietra",
+          "17"
+        ],
+        [
+          "Ferro, acciaio",
+          "19"
+        ],
+        [
+          "Mithral",
+          "21"
+        ],
+        [
+          "Adamantio",
+          "23"
+        ]
+      ]
+    },
+    {
+      "label": "Punti ferita degli oggetti",
+      "page": 232,
+      "first": "Taglia Minuscola (bottiglia",
+      "last": "Resiliente 5",
+      "rows": [
+        [
+          "Taglia",
+          "Fragile",
+          "Resiliente"
+        ],
+        [
+          "Minuscola (bottiglia, serratura)",
+          "2 (1d4)",
+          "5 (2d4)"
+        ],
+        [
+          "Piccola (forziere, liuto)",
+          "3 (1d6)",
+          "10 (3d6)"
+        ],
+        [
+          "Media (barile, lampadario)",
+          "4 (1d8)",
+          "18 (4d8)"
+        ],
+        [
+          "Grande (carretto, finestra di 3 × 3 m)",
+          "5 (1d10)",
+          "27 (5d10)"
+        ]
+      ]
+    },
+    {
+      "label": "Veleni",
+      "page": 233,
+      "first": "Veleno Essenza di etere",
+      "last": "2.000 mo 1.200 mo",
+      "rows": [
+        [
+          "Veleno",
+          "Tipo",
+          "Prezzo per dose"
+        ],
+        [
+          "Essenza di etere",
+          "Inalazione",
+          "300 mo"
+        ],
+        [
+          "Fumi di othur bruciato",
+          "Inalazione",
+          "500 mo"
+        ],
+        [
+          "Lacrime di mezzanotte",
+          "Ingestione",
+          "1.500 mo"
+        ],
+        [
+          "Malizia",
+          "Inalazione",
+          "250 mo"
+        ],
+        [
+          "Muco di vermeiena",
+          "Contatto",
+          "200 mo"
+        ],
+        [
+          "Olio di taggit",
+          "Contatto",
+          "400 mo"
+        ],
+        [
+          "Sangue dell'assassino",
+          "Ingestione",
+          "150 mo"
+        ],
+        [
+          "Siero della verità",
+          "Ingestione",
+          "150 mo"
+        ],
+        [
+          "Tintura pallida",
+          "Ingestione",
+          "250 mo"
+        ],
+        [
+          "Torpore",
+          "Ingestione",
+          "600 mo"
+        ],
+        [
+          "Veleno di drow",
+          "Ferimento",
+          "200 mo"
+        ],
+        [
+          "Veleno di serpente",
+          "Ferimento",
+          "200 mo"
+        ],
+        [
+          "Veleno di verme purpureo",
+          "Ferimento",
+          "2.000 mo"
+        ],
+        [
+          "Veleno di viverna",
+          "Ferimento",
+          "1.200 mo"
+        ]
+      ]
+    }
+  ]
+}
