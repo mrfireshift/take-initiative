@@ -91,7 +91,7 @@ l'indirizzo è un'opzione, e **Carica file** della fase 2 resta il ripiego.
 
 ### Lotto 6 — statblock 2024 opzionali (piano dettagliato del 27/10/2026)
 
-Stato: **piano, in attesa delle decisioni dell'utente**. Riscritto dopo le fasi 4 e 5: oltre ad attacchi e azioni a
+Stato: **D1–D5 confermate come raccomandate il 27/10; sotto-lotto 1 fatto.** Riscritto dopo le fasi 4 e 5: oltre ad attacchi e azioni a
 TS, un mostro 2024 deve passare anche da incantesimi, leggendarie, testo dello statblock ed effetti letti ad euristica.
 
 Il principio non cambia: il plugin gioca con le regole del 2014 (condizioni, indebolimento, riposi, incantesimi del
@@ -118,9 +118,15 @@ quelle delle fasi 1–5.
 
 #### Lotti
 
-1. **Opzione e sblocco.** Opzione locale **Statblock 2024** (Opzioni → Console attacchi, spenta). Accesa: l'elenco
+1. **Opzione e sblocco.** ✅ Opzione locale **Statblock 2024** (Opzioni → Console attacchi, spenta). Accesa: l'elenco
    dell'import mostra i mostri 2024 con «· 2024», l'archivio abilita i libri 2024, i derivati da una base 2024 si
    risolvono. Spenta: tutto come oggi. Lo script di copertura prende `--2024`.
+   Fatto (27/10): `tools.fiveTools2024` (solo `true` la accende), `allow2024` in `fiveToolsCollection`,
+   `fiveToolsMonsterToStatblock` e `resolveFiveToolsMonster`; il rapporto apre con «regole 2024: condizioni e regole
+   del tracker restano quelle del 2014» anche per un derivato da una base 2024; a opzione spenta il messaggio dice
+   dove accenderla. Il testo dello statblock di un mostro 2024 importato si ritrova dai libri dell'archivio. Misura di
+   partenza con `--2024` sul Monster Manual 2025: 1020 azioni ancora «al tavolo» (le leggono i sotto-lotti 3–5). Nel
+   banco: Goblin Warrior (XMM) rifiutato a opzione spenta, importato come «Goblin Warrior (XMM) · 2024» ad accesa.
 2. **Testo in chiaro 2024.** `fiveToolsPlainText` e il lettore ad euristica rendono i tag nuovi come li stampa il libro
    («Melee Attack Roll:», «Dexterity Saving Throw:», «Failure:», «Success:», «Trigger:», «Response:»), i tipi di danno in
    minuscolo, `{@variantrule Cone [Area of Effect]|XPHB|Cone}` come «Cone». Serve allo statblock originale, alle note e

@@ -3,7 +3,9 @@
 // 5eTools: quante azioni ogni regola riconosce, cosa resta fuori, e quanti byte i campi nuovi aggiungerebbero alla scheda
 // di un mostro (che sta sul token: ogni byte viaggia in ogni evento della scena).
 //
-//   node scripts/monster-heuristics-coverage.mjs bestiary-mm.json bestiary-idrotf.json [--samples]
+//   node scripts/monster-heuristics-coverage.mjs bestiary-mm.json bestiary-idrotf.json [--samples] [--2024]
+//
+// --2024: the 2024 monsters too (fase 3, lotto 6), as with the «Statblock 2024» option on.
 //
 // I file restano dove sono; i derivati (_copy) trovano la base fra tutti i file passati.
 import { readFileSync } from "node:fs";
@@ -15,12 +17,13 @@ import { sanitizeQuickActions } from "../src/quickActionsCore.js";
 const args = process.argv.slice(2);
 const files = args.filter((arg) => !arg.startsWith("--"));
 const showSamples = args.includes("--samples");
+const allow2024 = args.includes("--2024");
 if (!files.length) {
   console.error("Uso: node scripts/monster-heuristics-coverage.mjs <bestiario.json> [...] [--samples]");
   process.exit(1);
 }
 const inputs = files.map((file) => JSON.parse(readFileSync(file, "utf8")));
-const { pool, monsters, excluded2024 } = fiveToolsCollection(inputs);
+const { pool, monsters, excluded2024 } = fiveToolsCollection(inputs, { allow2024 });
 
 const count = {};
 const bump = (key, by = 1) => { count[key] = (count[key] || 0) + by; };
@@ -31,7 +34,7 @@ const addedBytes = [];
 const quantile = (list, p) => [...list].sort((a, b) => a - b)[Math.floor(p * (list.length - 1))] ?? 0;
 
 for (const monster of monsters) {
-  const converted = fiveToolsMonsterToStatblock(monster, { pool });
+  const converted = fiveToolsMonsterToStatblock(monster, { pool, allow2024 });
   if (!converted.block) continue;
   bump("mostri");
   const actions = converted.block.actions || [];

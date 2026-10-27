@@ -63,6 +63,7 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
     // once by the GM. Empty by default: the plugin ships no archive address (decision D1).
     fiveToolsArchive: "",
     fiveToolsImages: "",
+    fiveTools2024: false,
   },
   runtime: {
     combatLog: true,

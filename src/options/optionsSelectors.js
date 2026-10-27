@@ -60,6 +60,11 @@ export function selectFiveToolsArchive(options) {
 }
 
 // The 5eTools token images' folder this browser uses, or "" (attacchi dei mostri, fase 4, lotto 3).
+// Whether this browser imports the 2024 stat blocks (fase 3, lotto 6).
+export function selectFiveTools2024(options) {
+  return resolved(options).local.tools.fiveTools2024 === true;
+}
+
 export function selectFiveToolsImages(options) {
   return resolved(options).local.tools.fiveToolsImages || "";
 }
@@ -204,6 +209,7 @@ export function selectOptionsPanelModel(options) {
       pcAttackAutoOpenMonsters: value.local.windows.pcAttackAutoOpenMonsters,
       fiveToolsArchive: value.local.tools.fiveToolsArchive || "",
       fiveToolsImages: value.local.tools.fiveToolsImages || "",
+      fiveTools2024: value.local.tools.fiveTools2024 === true,
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,

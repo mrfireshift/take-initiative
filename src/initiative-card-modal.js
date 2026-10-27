@@ -3776,6 +3776,8 @@ let fiveToolsArchiveInputs = [];
 let fiveToolsArchivePanel = null;
 let fiveToolsLocalOptions = null;
 const allFiveToolsInputs = () => [...fiveToolsArchiveInputs, ...fiveToolsInputs];
+// The 2024 stat blocks, turned on in this browser's options (fase 3, lotto 6, decision D1).
+const fiveTools2024 = () => fiveToolsArchiveBase("fiveTools2024") === true;
 function fiveToolsArchiveBase(key = "fiveToolsArchive") {
   try {
     fiveToolsLocalOptions ||= createLocalOptionsStore();
@@ -3788,6 +3790,7 @@ function archivePanel() {
   fiveToolsArchivePanel ||= createFiveToolsArchivePanel({
     container: $("sheetImportArchiveBody"),
     readBase: fiveToolsArchiveBase,
+    allow2024: fiveTools2024,
     onChange: (data) => { fiveToolsArchiveInputs = data; renderFiveToolsPicker(); },
   });
   return fiveToolsArchivePanel;
@@ -3889,11 +3892,11 @@ function readSheetImport() {
   try { data = JSON.parse(text); } catch {}
   if (data && isFiveToolsData(data)) {
     fiveToolsInputs.push(data);
-    const { monsters: pasted, excluded2024 } = fiveToolsCollection([data]);
+    const { monsters: pasted, excluded2024 } = fiveToolsCollection([data], { allow2024: fiveTools2024() });
     renderFiveToolsPicker(pasted.length === 1 ? pasted[0] : null);
     if (pasted.length === 1) void readFiveToolsMonster(pasted[0]);
     else if (pasted.length) setSheetImportStatus("Scegli il mostro nell'elenco.");
-    else setSheetImportStatus(excluded2024 ? "Mostri delle regole 2024: il plugin usa le regole del 2014 e non li importa." : "Nel blocco non c'è nessun mostro.", "error");
+    else setSheetImportStatus(excluded2024 ? "Mostri delle regole 2024: per importarli accendi «Statblock 2024» nelle Opzioni (si giocano con le regole 2014 del plugin)." : "Nel blocco non c'è nessun mostro.", "error");
     return;
   }
   const parsed = parseCharacterSheetImport(text);
@@ -3917,7 +3920,7 @@ async function loadSheetImportFiles(files) {
       failed.push(file.name);
     }
   }
-  const { monsters } = fiveToolsCollection(allFiveToolsInputs());
+  const { monsters } = fiveToolsCollection(allFiveToolsInputs(), { allow2024: fiveTools2024() });
   renderFiveToolsPicker(monsters.length === 1 ? monsters[0] : null);
   if (monsters.length === 1 && !failed.length) void readFiveToolsMonster(monsters[0]);
   else setSheetImportStatus([added ? "Scegli il mostro nell'elenco." : "", failed.length ? `Non letti (non sono JSON di 5eTools): ${failed.join(", ")}.` : ""]
@@ -3926,7 +3929,7 @@ async function loadSheetImportFiles(files) {
 
 // The picker: the monsters matching the search (at most 200), their count and books, the 2024 ones left out.
 function renderFiveToolsPicker(selected = null) {
-  const collection = fiveToolsCollection(allFiveToolsInputs());
+  const collection = fiveToolsCollection(allFiveToolsInputs(), { allow2024: fiveTools2024() });
   $("sheetImportPicker").hidden = !collection.monsters.length;
   if (!collection.monsters.length) return;
   const select = $("sheetImportMonster");
@@ -3957,7 +3960,7 @@ async function readFiveToolsMonster(monster, { retried = false } = {}) {
   pendingMonsterText = null;
   pendingMonsterLegendary = null;
   const { pool } = fiveToolsCollection(allFiveToolsInputs());
-  const converted = fiveToolsMonsterToStatblock(monster, { pool });
+  const converted = fiveToolsMonsterToStatblock(monster, { pool, allow2024: fiveTools2024() });
   // A derived monster whose base is in a book not kept yet: the archive downloads it, once (decision D2).
   if (converted.missingSource && !retried && archivePanel().hasBase()) {
     setSheetImportStatus(`Scarico dall'archivio il libro della base (${converted.missingSource})…`);
@@ -5087,7 +5090,8 @@ $("sheetImportArchive").addEventListener("toggle", () => {
   if ($("sheetImportArchive").open && archivePanel().hasBase()) void archivePanel().loadIndex();
 });
 $("sheetImportMonster").addEventListener("change", () => {
-  const monster = fiveToolsCollection(allFiveToolsInputs()).monsters.find((entry) => fiveToolsMonsterLabel(entry) === $("sheetImportMonster").value);
+  const monster = fiveToolsCollection(allFiveToolsInputs(), { allow2024: fiveTools2024() }).monsters
+    .find((entry) => fiveToolsMonsterLabel(entry) === $("sheetImportMonster").value);
   if (monster) void readFiveToolsMonster(monster);
 });
 $("sheetImportApply").addEventListener("click", applySheetImport);

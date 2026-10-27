@@ -38,6 +38,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
     tools: {
       fiveToolsArchive: localInput.fiveToolsArchive,
       fiveToolsImages: localInput.fiveToolsImages,
+      fiveTools2024: localInput.fiveTools2024,
     },
     runtime: {
       combatLog: localInput.combatLog,
@@ -88,6 +89,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
       pcAttackAutoOpenMonsters: local.windows.pcAttackAutoOpenMonsters,
       fiveToolsArchive: local.tools.fiveToolsArchive,
       fiveToolsImages: local.tools.fiveToolsImages,
+      fiveTools2024: local.tools.fiveTools2024,
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,
@@ -145,6 +147,7 @@ export function buildOptionsPanelPatches(draft) {
       tools: {
         fiveToolsArchive: normalized.local.fiveToolsArchive,
         fiveToolsImages: normalized.local.fiveToolsImages,
+        fiveTools2024: normalized.local.fiveTools2024,
       },
       runtime: {
         combatLog: normalized.local.combatLog,

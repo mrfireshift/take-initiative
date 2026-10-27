@@ -179,6 +179,8 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
       fiveToolsArchive: normalizeFiveToolsArchiveBase(tools.fiveToolsArchive) || defaults.tools.fiveToolsArchive,
       // The token images' mirror (fase 4, lotto 3), the same way.
       fiveToolsImages: normalizeFiveToolsImagesBase(tools.fiveToolsImages) || defaults.tools.fiveToolsImages,
+      // The 2024 stat blocks (fase 3, lotto 6, decision D1): off unless the GM turns them on in this browser.
+      fiveTools2024: tools.fiveTools2024 === true,
     },
     runtime: {
       ...runtime,

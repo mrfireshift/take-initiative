@@ -23,7 +23,8 @@ export function createMonsterStatblockTextLoader({ store = createMonsterStatbloc
       const { pool } = fiveToolsCollection(await archive().allData());
       const wanted = String(ref).toLowerCase();
       const monster = pool.find((entry) => `${entry?.name}|${entry?.source}`.toLowerCase() === wanted);
-      const converted = monster ? fiveToolsMonsterToStatblock(monster, { pool }) : null;
+      // A card can only point at a 2024 monster the GM imported with the 2024 stat blocks on.
+      const converted = monster ? fiveToolsMonsterToStatblock(monster, { pool, allow2024: true }) : null;
       if (converted?.monster) fromBooks = monsterStatblockTextView(monsterStatblockTextRecord({ ref, name: monster.name, fiveTools: converted.monster }));
     } catch {}
     archiveViews.set(ref, fromBooks);

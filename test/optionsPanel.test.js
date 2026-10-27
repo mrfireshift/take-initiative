@@ -36,6 +36,7 @@ test("OPTIONS-003: il selector del pannello espone i gruppi senza metadata grezz
     pcAttackAutoOpenMonsters: null,
     fiveToolsArchive: "",
     fiveToolsImages: "",
+    fiveTools2024: false,
   });
   assert.equal(model.room.trackerOpen, false);
   assert.equal(model.room.knownFactionAssignment, true);
@@ -72,6 +73,7 @@ test("OPTIONS-003: il draft normalizza dati parziali e produce sole patch approv
     pcAttackAutoOpenMonsters: null,
     fiveToolsArchive: "",
     fiveToolsImages: "",
+    fiveTools2024: false,
   });
   assert.equal(patches.room.turn.popup, false);
   assert.equal(patches.room.automation.knownFactionAssignment, true);
@@ -138,7 +140,7 @@ test("the 5eTools archive: empty by default, saved as the data folder, anything 
   assert.equal(normalizeOptionsPanelDraft({}).local.fiveToolsArchive, "");
   const draft = normalizeOptionsPanelDraft({ local: { fiveToolsArchive: "https://archivio.example/data/bestiary/index.json" } });
   assert.equal(draft.local.fiveToolsArchive, "https://archivio.example/data/");
-  assert.deepEqual(buildOptionsPanelPatches(draft).local.tools, { fiveToolsArchive: "https://archivio.example/data/", fiveToolsImages: "" });
+  assert.deepEqual(buildOptionsPanelPatches(draft).local.tools, { fiveToolsArchive: "https://archivio.example/data/", fiveToolsImages: "", fiveTools2024: false });
   for (const bad of ["http://archivio.example/data", "non un indirizzo", "https://utente:pw@archivio.example/data"]) {
     assert.equal(normalizeOptionsPanelDraft({ local: { fiveToolsArchive: bad } }).local.fiveToolsArchive, "", bad);
   }

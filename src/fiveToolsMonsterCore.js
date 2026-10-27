@@ -1,8 +1,10 @@
 // 5eTools' JSON of a monster (attacchi dei mostri, fase 2, lotto 1): read into the stat block format of phase 1
 // (monsterStatblockImportCore.js, docs/IMPORT_SCHEDA.md), which the sheet's import then reads as any other block, so no
 // rule lives twice. Pure. The plugin ships no 5eTools data: the GM brings it.
-// Only the 2014 data: a 2024 block ({@atkr}, {@actSave}, the 2025 Monster Manual) is refused, as the plugin's rules are
-// the 2014 ones. What the adapter cannot read becomes the action's note or a line of the report, never a guess.
+// The 2014 data by default: a 2024 block ({@atkr}, {@actSave}, the 2025 Monster Manual) is refused, as the plugin's
+// rules are the 2014 ones, unless the GM turned on the 2024 stat blocks (fase 3, lotto 6: allow2024); even then they
+// are played with the plugin's 2014 rules, and the report says so. What the adapter cannot read becomes the action's
+// note or a line of the report, never a guess.
 import { monsterImportConditionName } from "./monsterStatblockImportCore.js";
 import { fiveToolsTokenPath } from "./fiveToolsArchiveCore.js";
 import { spellSlotMaximums } from "./spellSlotCore.js";
@@ -487,7 +489,7 @@ function applyMods(monster, mods, report) {
  * The monster with its `_copy` resolved: { monster, report, error }. pool: every monster loaded with it (files,
  * pasted blocks). A missing base names the book to load; a chain deeper than 5, or a loop, is refused.
  */
-export function resolveFiveToolsMonster(monster, pool = [], seen = new Set()) {
+export function resolveFiveToolsMonster(monster, pool = [], seen = new Set(), { allow2024 = false } = {}) {
   if (!monster?._copy) return { monster, report: [], error: "" };
   const { name, source, _mod: mods, _templates: templates, ...copyRest } = monster._copy;
   const key = monsterKey(name, source);
@@ -496,8 +498,8 @@ export function resolveFiveToolsMonster(monster, pool = [], seen = new Set()) {
   // missingSource: the book to load (or download from the archive, fase 3) for the base.
   if (!base) return { monster: null, report: [], missingSource: String(source || ""), error: `${monster.name} deriva da ${name} (${source}): carica anche il bestiario ${source}.` };
   // The merged monster carries the copy's own source: a 2024 base is caught here, before it.
-  if (isFiveTools2024(base)) return { monster: null, report: [], error: `${monster.name} deriva da ${name} (${source}), un mostro delle regole 2024: il plugin usa quelle del 2014.` };
-  const resolvedBase = resolveFiveToolsMonster(base, pool, new Set([...seen, key]));
+  if (!allow2024 && isFiveTools2024(base)) return { monster: null, report: [], error: `${monster.name} deriva da ${name} (${source}), un mostro delle regole 2024: il plugin usa quelle del 2014.` };
+  const resolvedBase = resolveFiveToolsMonster(base, pool, new Set([...seen, key]), { allow2024 });
   if (resolvedBase.error) return { monster: null, report: [], ...(resolvedBase.missingSource ? { missingSource: resolvedBase.missingSource } : {}), error: resolvedBase.error };
   const report = [`derivato da ${name} (${source})`, ...resolvedBase.report.filter((line) => !line.startsWith("derivato da"))];
   const { _copy: _ignored, ...own } = monster;
@@ -514,13 +516,15 @@ export function resolveFiveToolsMonster(monster, pool = [], seen = new Set()) {
  * actions with neither damage nor save) and, for a derived monster, its base; error refuses the monster (2024 data, a
  * derived monster whose base is not in pool, the monsters loaded with it).
  */
-export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
+export function fiveToolsMonsterToStatblock(input, { pool = [], allow2024 = false } = {}) {
   if (!input || typeof input !== "object" || typeof input.name !== "string") return { block: null, report: [], error: "Non è un mostro di 5eTools." };
-  if (isFiveTools2024(input)) return { block: null, report: [], error: `${input.name} (${input.source}) è un mostro delle regole 2024: il plugin usa quelle del 2014.` };
-  const resolved = resolveFiveToolsMonster(input, pool);
+  if (!allow2024 && isFiveTools2024(input)) return { block: null, report: [], error: `${input.name} (${input.source}) è un mostro delle regole 2024: il plugin usa quelle del 2014.` };
+  const resolved = resolveFiveToolsMonster(input, pool, new Set(), { allow2024 });
   if (resolved.error) return { block: null, report: [], ...(resolved.missingSource ? { missingSource: resolved.missingSource } : {}), error: resolved.error };
   const monster = resolved.monster;
-  const report = [...resolved.report];
+  // A 2024 monster, or one derived from it (decision D2): played with the plugin's 2014 rules, said first.
+  const rules2024 = isFiveTools2024(input) || isFiveTools2024(monster);
+  const report = [...(rules2024 ? ["regole 2024: condizioni e regole del tracker restano quelle del 2014"] : []), ...resolved.report];
   const actions = [];
   const counts = { full: 0, partial: 0, manual: 0 };
   let multiattack = "";
@@ -589,19 +593,21 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
 
 // The monsters of everything the GM loaded in the sheet (files and pasted blocks, fase 2, lotto 3): one entry per name
 // and source, the last one loaded winning, sorted by name. The 2024 monsters are counted and left out of the list
-// (decision D6): the derived monsters still find a 2014 base among all the loaded ones (pool).
-export function fiveToolsCollection(inputs = []) {
+// (decision D6), unless the 2024 stat blocks are on (fase 3, lotto 6: allow2024); the derived monsters still find a
+// base among all the loaded ones (pool).
+export function fiveToolsCollection(inputs = [], { allow2024 = false } = {}) {
   const byKey = new Map();
   for (const input of inputs) for (const monster of fiveToolsMonsters(input)) byKey.set(monsterKey(monster.name, monster.source), monster);
   const pool = [...byKey.values()];
-  const modern = pool.filter(isFiveTools2024);
-  const monsters = pool.filter((monster) => !isFiveTools2024(monster))
+  const modern = allow2024 ? [] : pool.filter(isFiveTools2024);
+  const monsters = pool.filter((monster) => allow2024 || !isFiveTools2024(monster))
     .sort((left, right) => left.name.localeCompare(right.name, "en") || left.source.localeCompare(right.source));
   return { pool, monsters, excluded2024: modern.length, sources: [...new Set(monsters.map((monster) => monster.source))].sort() };
 }
 
+// "Goblin Warrior (XMM) · 2024": the picker's entry, a 2024 monster marked as such.
 export function fiveToolsMonsterLabel(monster) {
-  return `${monster?.name || ""} (${monster?.source || ""})${monster?._copy ? " · derivato" : ""}`;
+  return `${monster?.name || ""} (${monster?.source || ""})${monster?._copy ? " · derivato" : ""}${isFiveTools2024(monster) ? " · 2024" : ""}`;
 }
 
 // The monsters whose name or source holds every word of the query (case and accents aside), at most `limit`.
