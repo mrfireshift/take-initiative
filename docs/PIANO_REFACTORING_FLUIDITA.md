@@ -48,6 +48,11 @@ Lotti fatti, tutti il 27/10:
 
   Esclusi: la pulizia degli orfani da una lettura più vecchia, perché in un caso di Undo cancellerebbe e ricreerebbe una barra, e il controllo della scena pronta senza metadata, perché il guadagno è quasi nullo. Gli SDK finti di due test ora accettano ID o item come quello reale.
 
+- **F3**: immagini ricompresse con Pillow (libwebp), stessi nomi.
+  - I cinque token incantesimo restano alle stesse dimensioni, in WebP qualità 90 con trasparenza senza perdita: da 5,5 MB a 943 KB. Alfa identico; PSNR 38–40 dB sul fondo scuro del tracker.
+  - La cornice dei boss è ridotta a 400×399 PNG senza perdita (860 → 154 KB): basta fino al 200% su uno schermo 1,5×.
+  - Confronto visivo affiancato, a figura intera e al 100%, senza differenze visibili.
+
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.
