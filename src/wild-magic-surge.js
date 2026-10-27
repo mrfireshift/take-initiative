@@ -1,6 +1,8 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { CLASS_FEATURE_BY_ID } from "./classFeatureCatalog.js";
+import { classFeatureTableText, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
+import { privateTextMissingNote } from "./privatePackCore.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import { BUFF_DURATION_UNITS, BUFF_ICONS } from "./buffPresetCore.js";
 import { buildSpellUnifiedPanelRouteQuery } from "./spellUnifiedPanelRoutingCore.js";
@@ -22,7 +24,9 @@ const POPOVER_ID = `${ID}/wild-magic-surge`;
 const SPELLS_POPOVER_ID = `${ID}/spells-modal`;
 const $ = (id) => document.getElementById(id);
 const sorcererId = new URLSearchParams(window.location.search).get("source") || "";
-const rows = CLASS_FEATURE_BY_ID.get(WILD_MAGIC_SURGE_FEATURE_ID)?.wildMagicTable || [];
+// The rows' ranges and actions come with the catalog; their texts are the Manuale's, from the GM's private pack.
+const catalogRows = CLASS_FEATURE_BY_ID.get(WILD_MAGIC_SURGE_FEATURE_ID)?.wildMagicTable || [];
+let rows = catalogRows;
 let sorcererName = "Stregone";
 let currentRow = null;
 let busy = false;
@@ -66,7 +70,7 @@ function renderRow() {
   $("range").textContent = row.d100;
   $("auto-tag").dataset.auto = String(automated);
   $("auto-tag").textContent = automated ? "Automatico" : "Al tavolo";
-  $("effect").textContent = row.effect;
+  $("effect").textContent = row.effect || privateTextMissingNote("phb2014");
   const spell = row.spellId ? getSpellDefinition(row.spellId) : null;
   $("action-line").textContent = `⟶ ${wildMagicActionSummary(row)}${spell ? `: ${spell.displayName || spell.name}` : ""}`;
   const notes = [
@@ -179,6 +183,8 @@ $("pill-apply").addEventListener("click", () => void run(true));
 $("close").addEventListener("click", () => void OBR.popover.close(POPOVER_ID).catch(() => {}));
 
 OBR.onReady(async () => {
+  await loadClassFeatureDescriptions().catch(() => {});
+  rows = catalogRows.map((row) => ({ ...row, effect: row.effect || classFeatureTableText(WILD_MAGIC_SURGE_FEATURE_ID, row.d100) }));
   if (!rows.length) {
     setStatus("Tabella degli Impulsi non disponibile.", "error");
     return;

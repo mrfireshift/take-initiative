@@ -682,8 +682,9 @@ function normalizeWildMagicTable(value, featureId) {
     .map((row) => {
       if (!row || typeof row !== "object") return null;
       const d100 = shortText(row.d100 || row.range, 20);
+      // The rows' texts are the Manuale's: the database keeps the ranges, the texts are in the GM's private pack.
       const effect = shortText(row.effetto || row.effect, 8000);
-      return d100 && effect ? { d100, effect } : null;
+      return d100 ? { d100, ...(effect ? { effect } : {}) } : null;
     })
     .filter(Boolean);
   if (rows.length !== expectedRanges.length) {

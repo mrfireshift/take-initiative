@@ -17,12 +17,11 @@ corrente partire da [Indice della documentazione](../INDICE.md).
 | `strategy` | Analisi strategiche esterne al runtime corrente. |
 | `integrations` | Snapshot di integrazioni esterne. |
 | `class-features` | Report narrativi duplicati dal catalogo/audit generato. |
-| `raw-duplicates` | Copie raw verificate rispetto a `data/class-features` e pacchetto non usato. |
 
 `docs/audits/` resta separata come raccolta di evidenze tecniche di release;
 anche quei documenti non sostituiscono le guide correnti o gli artefatti
 runtime.
 
-In `raw-duplicates/` i JSON sono stati conservati per provenienza dopo il
-confronto SHA-256 con la fonte canonica in `data/class-features/`. Non sono
-input di generatori o test; il loro spostamento non modifica il runtime.
+I duplicati raw che stavano in `raw-duplicates/` (copie dei database delle capacità con i testi dei manuali e un
+`module.zip` non usato) sono usciti dal repo con la fase 2 del compendio: sono nella cartella privata del GM
+(`scripts/privateSources.mjs`, `sorgenti/capacita/raw-duplicates/`). Non erano input di generatori o test.

@@ -510,7 +510,11 @@ const spells = inputs.flatMap((input) =>
 );
 const ids = spells.map((spell) => spell.id);
 if (new Set(ids).size !== ids.length) throw new Error("ID duplicati nel catalogo normalizzato.");
-const publicSpell = ({ description: _description, higherLevels: _higherLevels, ...spell }) => spell;
+// The review keeps its flags and proposals; its phrases and notes quote the text, so they stay out of the repo too.
+const publicSpell = ({ description: _description, higherLevels: _higherLevels, review, ...spell }) => {
+  const { exactTurnPhrases: _phrases, normalizationNotes: _notes, ...publicReview } = review;
+  return { ...spell, review: publicReview };
+};
 
 const payload = {
   schemaVersion: SCHEMA_VERSION,

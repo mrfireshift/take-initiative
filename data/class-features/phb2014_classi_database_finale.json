@@ -304,8 +304,7 @@
           "danno_ira": 4,
           "dadi_critico_brutale": 3
         }
-      ],
-      "descrizione": "Combattente primordiale che incanala l'ira per aumentare resistenza e potenza in mischia."
+      ]
     },
     {
       "id": "bardo",
@@ -761,8 +760,7 @@
             "9": 1
           }
         }
-      ],
-      "descrizione": "Incantatore versatile che usa musica, conoscenza e ispirazione per sostenere gli alleati e influenzare la scena."
+      ]
     },
     {
       "id": "chierico",
@@ -1186,8 +1184,7 @@
           "usi_incanalare_divinita": 3,
           "distruggere_non_morti_gs_massimo": "4"
         }
-      ],
-      "descrizione": "Incantatore divino al servizio di una divinità, capace di guarire, proteggere e incanalare il potere del proprio dominio."
+      ]
     },
     {
       "id": "druido",
@@ -1653,8 +1650,7 @@
             "limitazioni": []
           }
         }
-      ],
-      "descrizione": "Incantatore della natura capace di assumere forme bestiali e manipolare gli elementi e il mondo naturale."
+      ]
     },
     {
       "id": "guerriero",
@@ -1932,8 +1928,7 @@
           "usi_azione_impetuosa": 2,
           "usi_indomito": 3
         }
-      ],
-      "descrizione": "Specialista marziale altamente personalizzabile, dotato del maggior numero di attacchi e aumenti di caratteristica."
+      ]
     },
     {
       "id": "ladro",
@@ -2179,8 +2174,7 @@
           ],
           "attacco_furtivo": "10d6"
         }
-      ],
-      "descrizione": "Esperto di abilità, furtività e precisione, capace di infliggere ingenti danni con Attacco Furtivo."
+      ]
     },
     {
       "id": "mago",
@@ -2532,8 +2526,7 @@
             "9": 1
           }
         }
-      ],
-      "descrizione": "Incantatore arcano che apprende e prepara un vasto repertorio di incantesimi tramite il proprio libro."
+      ]
     },
     {
       "id": "monaco",
@@ -2830,8 +2823,7 @@
           "punti_ki": 20,
           "movimento_senza_armatura_bonus_metri": 9
         }
-      ],
-      "descrizione": "Combattente agile che usa il ki per potenziare mobilità, difesa e colpi senz'armi."
+      ]
     },
     {
       "id": "paladino",
@@ -3161,8 +3153,7 @@
             "5": 2
           }
         }
-      ],
-      "descrizione": "Guerriero sacro vincolato a un giuramento, capace di proteggere gli alleati e punire i nemici con energia divina."
+      ]
     },
     {
       "id": "ranger",
@@ -3497,8 +3488,7 @@
             "5": 2
           }
         }
-      ],
-      "descrizione": "Esploratore e combattente delle terre selvagge che combina armi, capacità di caccia e magia naturale."
+      ]
     },
     {
       "id": "stregone",
@@ -3894,8 +3884,7 @@
             "9": 1
           }
         }
-      ],
-      "descrizione": "Incantatore arcano innato che modella i propri incantesimi tramite Metamagia e punti stregoneria."
+      ]
     },
     {
       "id": "warlock",
@@ -4277,8 +4266,7 @@
             9
           ]
         }
-      ],
-      "descrizione": "Incantatore che trae potere da un patto ultraterreno e combina Magia del Patto, Doni e Suppliche Occulte."
+      ]
     }
   ],
   "sottoclassi": [
@@ -4293,7 +4281,6 @@
         "barbaro-cammino-del-berserker-presenza-intimidatoria",
         "barbaro-cammino-del-berserker-ritorsione"
       ],
-      "descrizione": "Per alcuni barbari, l'ira è un mezzo per raggiungere un fine – e quel fine è la violenza. Il Cammino del Berserker è un cammino di furia indiscriminata, grondante di sangue. Quando un barbaro entra nell'ira del berserker, si esalta nel caos della battaglia, ignorando la propria salute e la propria incolumità.",
       "fonte_descrizione": "foundry_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -4322,7 +4309,6 @@
         "barbaro-cammino-del-combattente-totemico-viandante-spirituale",
         "barbaro-cammino-del-combattente-totemico-sintonia-totemica"
       ],
-      "descrizione": "Il Cammino del Combattente Totemico è un viaggio spirituale in cui il barbaro accetta uno spirito animale come sua guida, protettore e ispiratore. In battaglia, il suo spirito totemico lo pervade di energia soprannaturale, aggiungendo vigore magico alla sua ira barbarica. Molte tribù barbariche considerano un animale totemico affiliato a un clan in particolare. In questi casi è raro che un individuo possieda più di uno spirito totemico animale, anche se esistono delle eccezioni.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "3": [
@@ -4351,7 +4337,6 @@
         "bardo-collegio-della-sapienza-segreti-magici-aggiuntivi",
         "bardo-collegio-della-sapienza-abilita-impareggiabile"
       ],
-      "descrizione": "I bardi del Collegio della Sapienza hanno conoscenze su qualsiasi argomento e raccolgono informazioni dalle fonti più disparate, che possono variare dai tomi accademici ai racconti dei contadini. Che si tratti di intonare ballate popolari da taverna o di poemi nelle corti reali, questi bardi usano sempre i loro doni per ammaliare il puòblico. Quando gli applausi si spengono, il puòblico si ritrova a dubitare di tutto ciò che fino ad allora aveva dato per certo, dalla sua fede nel sacerdozio locale alla sua lealtà al re. Questi bardi sono votati innanzitutto alla ricerca della bellezza e della verità, e non a un monarca o ai precetti di una divinità. Un nobile che tiene presso di sé un bardo del genere come araldo o consigliere farà bene a sapere che tale bardo tende a essere più onesto che diplomatico. I membri di questo collegio si radunano nelle biblioteche e a volte in alcuni collegi veri e propri, con tanto di aule e di dormitori, dove condividono liberamente le conoscenze recuperate. Si incontrano anche in occasione di feste popolari e ricevimenti di stato, dove possono denunciare casi di corruzione, smascherare bugie e farsi beffe dei più pomposi esponenti delle autorità.",
       "fonte_descrizione": "foundry_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -4377,7 +4362,6 @@
         "bardo-collegio-del-valore-attacco-extra",
         "bardo-collegio-del-valore-magia-da-battaglia"
       ],
-      "descrizione": "I bardi del Collegio del Valore sono audaci scaldi che con le loro storie mantengono in vita il ricordo dei grandi eroi del passato e ispirano una nuova generazione di eroi. Questi bardi si radunano nelle sale del sidro o attorno a grandi falò per cantare le gesta dei potenti, sia delle epoche passate che del presente. Viaggiano di terra in terra per assistere ai grandi eventi di persona e per assicurarsi che il ricordo di tali eventi non scompaia dal mondo. Con le loro canzoni ispirano altri a raggiungere le vette e i traguardi degli eroi dei tempi antichi.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "3": [
@@ -4426,7 +4410,6 @@
           "Scrutare"
         ]
       },
-      "descrizione": "Gli dèi della conoscenza danno valore all'apprendimento e alla comprensione più di ogni altra cosa. Alcuni insegnano che le conoscenze devono essere recuperate e condivise, altri promuovono il sapere pratico dell'artigianato e delle invenzioni, mentre altri ancora custodiscono gelosamente segreti e misteri. I chierici di questo dominio studiano le tradizioni, raccolgono informazioni e cercano verità dimenticate.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -4481,7 +4464,6 @@
           "Blocca Mostri"
         ]
       },
-      "descrizione": "La guerra può manirestarsi in molti modi. Può trasfonnare un individuo comune in un eroe, può rivelarsi un'esperienza disperata e terrificante, e può indurre a compiere atti di crudeltà e codardia in grado di eclissare ogni manifestazione di virtù e coraggio. In tutti i casi, gli dèi della guerra vegliano sui combattenti e li ricompensano per le loro grandi gesta. l chierici di queste divinità eccellono in battaglia e ispirano altri a combattere valorosamente o a offrire i loro atti di violenza come preghiere. Gli dèi della guerra includono campioni dell'onore e del cavalierato (come Torm, Heironeous e Kiri-lolith), divinità della distruzione e del saccheggio (come Erythnul, la Furia, Gruumsh e Ares) e divinità della conquista e del dominio (come Bane, Hextor e Maglubiyet). Altre divinità della guerra (come Tempus, Nike e Nuada) mantengono una posizione più neutrale: promuovono la guerra in tutte le sue manifestazioni e sostengono i combattenti in qualsiasi circostanza.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "1": [
@@ -4539,7 +4521,6 @@
           "Modificare Memoria"
         ]
       },
-      "descrizione": "Gli dèi dell'inganno, come Tymora, Beshaba, Olidammara, il Viaggiatore, Garl Glittergold e Loki, sono mistificatori e fomentatori, sempre pronti a turbare l'ordine e la stabilità, sia presso gli dèi che presso i mortali. Sono i patroni di ladri, canaglie, giocatori d'azzardo, ribelli e liberatori. I loro chierici esercitano una forza perturbatrice nel mondo: umiliano i superbi, si fanno beffe dei tiranni, rubano ai ricchi, liberano i prigionieri e contestano le tradizioni di facciata. Prediligono i sotterfugi, le burle, gli inganni e i furti agli scontri diretti.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "1": [
@@ -4597,7 +4578,6 @@
           "Scrutare"
         ]
       },
-      "descrizione": "Le divinità della luce promuovono gli ideali di rinascita, rinnovamento, verità, vigilanza e bellezza, spesso usando il sole come simbolo. Alcune sono raffigurate come il sole stesso o come guide del suo corso nel cielo; altre sono sentinelle instancabili il cui sguardo penetra le ombre e smaschera gli inganni. I loro chierici combattono l'oscurità e portano luce nei luoghi in cui dominano menzogna e corruzione.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -4653,7 +4633,6 @@
           "Traslazione Arborea"
         ]
       },
-      "descrizione": "Le divinità della natura sono variegate quanto lo stesso mondo naturale, dagli imperscrutabili dèi delle foreste più fitte (come Silvanus, Obad-Hai, Chislev, Bafinor e Pan) alle divinità amichevoli associate a sorgenti e boschi specifici (come Eldath). I druidi venerano la natura nella sua interezza e potrebbero servire una di queste divinità, praticando misteriosi riti e recitando preghiere pressoché dimenticate nella loro lingua segreta. Molte di queste divinità dispongono però anche di chierici, veri e propri campioni pronti a svolgere un ruolo più attivo nel sostenere gli interessi di uno specifico dio della natura. Questi chierici possono dare la caccia alle mostruosità malvagie che profanano i boschi, benedire i raccolti dei fedeli o fare avvizzire le coltivazioni di coloro che suscitano la collera del loro dio.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "1": [
@@ -4712,7 +4691,6 @@
           "Piaga degli Insetti"
         ]
       },
-      "descrizione": "Le divinità la cui area di influenza include il dominio della Tempesta, tra cui Talos, Umberlee, Kord, Zeboim, il Divoratore, Zeus e Thor, governano le tempeste, il mare e il cielo. Includono gli dèi del tuono e del fulmine, gli dèi dei terremoti, gli dèi del fuoco e alcuni dèi della violenza, della forza fisica e del coraggio. In alcuni pantheon, un dio di questo dominio regna anche sulle altre divinità ed è noto per la giustizia sommaria che impartisce tramite le sue folgori. Gli dèi della tempesta inviano spesso i loro chierici a incutere paura ai popolani, in alcuni casi per mantenere i fedeli sulla rettitudine, in altri per spronarli a offrire sacrifici o celebrare riti propiziatori per placare la loro collera divina.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "1": [
@@ -4771,7 +4749,6 @@
           "Rianimare Morti"
         ]
       },
-      "descrizione": "Il dominio della Vita si concentra sulla vibrante energia positiva che anima ogni essere vivente e costituisce una delle forze fondamentali dell'universo. Le divinità della vita promuovono la vitalità e la salute curando i feriti e i malati, badando ai bisognosi e scacciando le forze della morte e della non morte. Pressoché qualsiasi divinità che non sia malvagia può reclamare influenza su questo dominio, specialmente le divinità agricole (come Chauntea, Arawai e Demetra), le divinità del sole (come Lathander, Pelor e Ra-Horakhty), le divinità della guarigione o della temperanza (come Ilmater, Mishakal, Apollo e Dian Cecht) e le divinità della casa e della comunità (come Estia, Hathor e Boldrei).",
       "fonte_descrizione": "foundry_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -4808,7 +4785,6 @@
         "druido-circolo-della-terra-interdizione-della-natura",
         "druido-circolo-della-terra-rifugio-della-natura"
       ],
-      "descrizione": "Il Circolo della Terra è composto da mistici e sapienti che preservano i riti e le conoscenze dei tempi antichi tramite una vasta tradizione orale. Questi druidi si incontrano all'interno di circoli sacri di alberi o pietre verticali, per rivelarsi in Druidico a vicenda i segreti primordiali che hanno appreso. I più saggi membri del circolo presiedono come sommi sacerdoti delle comunità che seguono ancora la Vecchia Fede e fungono da consiglieri per i governanti di quelle comunità. In quanto membro di questo circolo, il druido vede la sua magia influenzata dalla terra in cui egli è stato iniziato ai misteriosi riti del circolo.",
       "fonte_descrizione": "foundry_verificato",
       "privilegi_per_livello": {
         "2": [
@@ -4850,7 +4826,6 @@
         "druido-circolo-della-luna-forma-selvatica-elementale",
         "druido-circolo-della-luna-mille-forme"
       ],
-      "descrizione": "I druidi del Circolo della Luna sono indomiti protettori delle terre selvagge. I membri di questo ordine si radunano nelle notti di luna piena per condividere notizie e mettersi in guardia l'un l'altro. Si aggirano nelle zone più remote delle terre selvagge, là dove è possibile trascorrere molte settimane di fila prima di incrociare il cammino di un'altra creatura umanoide, e tanto meno di un altro druido. Mutevole come la luna, un druido di questo circolo potrebbe aggirarsi nella forma di un grande fefino una notte, sfrecciare in volo sopra le cime degli alberi il giorno successivo e avanzare a passo pesante nel sottobosco in forma di orso per scacciare un mostro invasore. Il sangue di questo druido è selvaggio quanto le terre che egli protegge.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "2": [
@@ -4881,7 +4856,6 @@
         "guerriero-campione-critico-superiore",
         "guerriero-campione-sopravvissuto"
       ],
-      "descrizione": "L'archetipo del Campione è incentrato sullo sviluppo della potenza fisica allo stato puro, affinata fino a raggiungere una letale perfezione. Un guerriero modellato su questo archetipo unisce un rigoroso addestramento a uno stato fisico eccellente per infliggere colpi devastanti.",
       "fonte_descrizione": "foundry_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -4914,7 +4888,6 @@
         "guerriero-maestro-di-battaglia-implacabile",
         "guerriero-maestro-di-battaglia-manovre"
       ],
-      "descrizione": "MAESTRO Chi decide di emulare l'archetipo del Maestro di Battaglia fa uso di tecniche marziali tramandate nell'arco di molte generazioni. Per un Maestro di Battaglia, un combattimento è una materia accademica che a volte include discipline estranee alla battaglia vera e propria, come la forgiatura delle armi e la calligrafia. Non tutti i guerrieri assimilano le lezioni di storia, di arte e di teoria impartite dall'archetipo del Maestro di Battaglia, ma coloro che lo fanno diventano guerrieri più completi, dotati di grandi abilità e conoscenze.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "3": [
@@ -4949,7 +4922,6 @@
         "guerriero-cavaliere-mistico-carica-arcana",
         "guerriero-cavaliere-mistico-magia-da-guerra-migliorata"
       ],
-      "descrizione": "Nell'archetipo del Cavaliere Mistico, la maestria nell'arte della guerra comune a tutti i guerrieri si unisce a un attento studio della magia. I Cavalieri Mistici usano tecniche magiche simili a quelle praticate dai maghi, concentrando i loro studi su due delle otto scuole di magia: abiurazione e invocazione. Gli incantesimi di abiurazione conferiscono a un Cavaliere Mistico ulteriore protezione in battaglia, mentre gli incantesimi di invocazione infliggono danni a molti avversari contemporaneamente, ampliando la portata del guerriero in combattimento. Questi cavalieri apprendono un nunumero relativamente limitato di incantesimi e li imparano a memoria anziché custodirli in un libro degli incantesimi.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "3": [
@@ -4982,7 +4954,6 @@
         "ladro-furfante-usare-oggetto-magico",
         "ladro-furfante-riflessi-da-furfante"
       ],
-      "descrizione": "Questo ladro ha affinato le abilità più utili all'arte del furto. Gli scassinatori, i banditi, i tagliaborse e gli altri criminali aderiscono spesso a questo archetipo, ma lo stesso vale per quei ladri che preferiscono considerarsi dei cacciatori di tesori, esploratori. cercatori e investigatori professionisti. Oltre a migliorare la propria agilità e furtività, un furfante sviluppa le abilità più utili a esplorare gli antichi complessi di rovine, leggere i linguaggi sconosciuti e usare gli oggetti magici di cui normalmente non potrebbe fare utilizzo.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "3": [
@@ -5012,7 +4983,6 @@
         "ladro-assassino-impostore",
         "ladro-assassino-colpo-mortale"
       ],
-      "descrizione": "Un assassino si specializza nella tetra arte di impartire la morte. Molte figure diverse possono aderire a questo archetipo: sicari prezzolati, spie, cacciatori di taglie e perfino alcuni sacerdoti speciali, consacrati per sopprimere i nemici delle loro divinità. Grazie alla furtività, al veleno e ai travestimenti, un assassino può eliminare i suoi avversari con letale efficacia.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "3": [
@@ -5042,7 +5012,6 @@
         "ladro-mistificatore-arcano-ingannatore-versatile",
         "ladro-mistificatore-arcano-ladro-di-incantesimi"
       ],
-      "descrizione": "Alcuni ladri potenziano le loro sopraffine abilità furtive e di agilità con la magia, imparando alcuni trucchi di ammaliamento e di illusione. Questi ladri includono borseggiatori, scassinatori, burloni e combinaguai di ogni genere, e naturalmente un considerevole numero di avventurieri.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "3": [
@@ -5072,7 +5041,6 @@
         "mago-scuola-di-abiurazione-abiurazione-migliorata",
         "mago-scuola-di-abiurazione-resistenza-agli-incantesimi"
       ],
-      "descrizione": "La Scuola di Abiurazione è incentrata sulle magie che bloccano, respingono o proteggono. I detrattori di tale scuola la definiscono una tradizione centrata sul rifiuto e sulla negazione, anziché sull'asserzione positiva, ma un mago di questa scuola sa bene che quella di bloccare gli effetti dannosi, proteggere i deboli ed esiliare gli influssi malvagi è tutt'altro che una filosofia passiva: è una vocazione orgogliosa e rispettata. Gli abiuratori, come vengono chiamati i membri di questa scuola, sono assai richiesti per esorcizzare gli spiriti funesti, proteggere i luoghi importanti dallo scrutamento magico o sigillare portali magici che conducono su altri piani di esistenza.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "2": [
@@ -5102,7 +5070,6 @@
         "mago-scuola-di-ammaliamento-ammaliamento-condiviso",
         "mago-scuola-di-ammaliamento-alterare-ricordi"
       ],
-      "descrizione": "Un mago che aderisce alla Scuola di Ammaliamento ha affinato la capacità di circuire e ammaliare magicamente le altre creature e i mostri. Alcuni ammaliatori sono dei pacificatori, che stregano i violenti per indurli ad abbassare le armi e affascinano i crudeli per convincerli a mostrare pietà. Altri sono dei tiranni che sottomettono magicamente chi non accetterebbe mai di servirli. La maggior parte degli ammaliatori, tuttavia, si trova a metà strada tra questi due estremi.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "2": [
@@ -5132,7 +5099,6 @@
         "mago-scuola-di-divinazione-terzo-occhio",
         "mago-scuola-di-divinazione-portento-superiore"
       ],
-      "descrizione": "Il consiglio di un divinatore è ambito sia dai re che dai semplici popolani, poiché tutti desiderano comprendere meglio il passato, il presente e il futuro. Un divinatore si sforza di squarciare i veli dello spazio, del tempo e della coscienza per vedere nitidamente, specializzandosi negli incantesimi di discernimento, visione a distanza, conoscenze soprannaturali e preveggenza.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "2": [
@@ -5162,7 +5128,6 @@
         "mago-scuola-di-evocazione-evocazione-focalizzata",
         "mago-scuola-di-evocazione-evocazioni-perduranti"
       ],
-      "descrizione": "Un evocatore predilige gli incantesimi che fanno comparire oggetti e creature dal nulla: può evocare sbuffanti nubi di nebbia letale, o richiamare da un luogo lontano una creatura che combatta per lui. Quando sviluppa una maggiore padronanza, un evocatore impara anche a usare alcuni incantesimi di viaggio e di teletrasporto che gli permettono di coprire vaste distanze o addirittura di raggiungere altri piani di esistenza nel giro di un istante.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "2": [
@@ -5192,7 +5157,6 @@
         "mago-scuola-di-illusione-sosia-illusorio",
         "mago-scuola-di-illusione-realta-illusoria"
       ],
-      "descrizione": "Un illusionista concentra i suoi studi sulla magia che frastorna i sensi. confonde la mente e inganna perfino i soggetti più saggi. La sua magia è sottile, ma le illusioni generate dalla sua mente acuta possono far apparire reale anche l'impossibile. Alcuni illusionisti (tra cui molti gnomi maghi) sono ingannatori benevoli che usano i loro incantesimi per intrattenere. Altri sono maestri di inganni dall'indole più sinistra, pronti a usare le loro illusioni per spaventare e raggirare gli altri in nome del loro tornaconto personale.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "2": [
@@ -5222,7 +5186,6 @@
         "mago-scuola-di-invocazione-invocazione-potente",
         "mago-scuola-di-invocazione-saturazione-magica"
       ],
-      "descrizione": "Un invocatore concentra i suoi studi sulle magie che generano potenti effetti elementali come un freddo pungente, una fiamma incandescente, un rombo di tuono, un fulmine crepitante o un acido sfrigolante. Alcuni invocatori prestano servizio nelle forze militari come unità di artiglieria in grado di colpire gli eserciti nemici da grandi distanze. Altri usano i loro straordinari poteri per proteggere i deboli, mentre altri ancora vanno in cerca di profitto come banditi, avventurieri o aspiranti tiranni.",
       "fonte_descrizione": "foundry_verificato",
       "privilegi_per_livello": {
         "2": [
@@ -5252,7 +5215,6 @@
         "mago-scuola-di-negromanzia-impervio-alla-non-morte",
         "mago-scuola-di-negromanzia-comandare-non-morti"
       ],
-      "descrizione": "La Scuola di Necromanzia esplora le forze cosmiche della vita, della morte e della non morte. Un necromante concentra i suoi studi in questa tradizione, allo scopo di manipolare l'energia che anima tutto ciò che vive. Quando padroneggia la sua arte, impara a fiaccare l'energia vitale di una creatura, a distruggere il suo corpo tramite la magia e a trasformare quell'energia vitale in altro potere magico da manipolare. La maggior parte della gente considera i necromanti minacciosi o addirittura malvagi, a causa del loro stretto legame con la morte. Non tutti i necromanti sono malvagi, ma le forze che essi manipolano sono considerate tabù da molte società.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "2": [
@@ -5282,7 +5244,6 @@
         "mago-scuola-di-trasmutazione-mutaforma",
         "mago-scuola-di-trasmutazione-maestro-trasmutatore"
       ],
-      "descrizione": "Un trasmutatore si specializza nello studio degli incantesimi che modificano l'energia e la materia. Per lui il mondo non è qualcosa di fisso, bensì di altamente mutevole, e il trasmutatore ama l'idea di essere una delle cause di questo mutamento, manipolando la materia prima della creazione e imparando ad alterare sia le forme fisiche che le qualità mentali. La magia gli fornisce i mezzi per diventare un fabbro della forgia della realtà. Alcuni trasmutatori amano gli scherzi e gli esperimenti folli: trasformano le persone in rospi e il rame in argento al puro scopo di divertirsi o di trarne un profitto. Altri si dedicano ai loro studi magici con grande serietà e ambiscono a eguagliare il potere di un dio nel creare o nel distruggere un mondo.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "2": [
@@ -5311,7 +5272,6 @@
         "monaco-via-della-mano-aperta-tranquillita",
         "monaco-via-della-mano-aperta-palmo-tremante"
       ],
-      "descrizione": "I monaci della Via della Mano Aperta sono i maestri supremi delle arti marziali, sia nei combattimenti armati che in quelli senz'armi. Apprendono tecniche speciali per spingere e sbilanciare i loro avversari, manipolano il ki per curarsi dei danni corporei subiti e praticano una forma di meditazione avanzata che può proteggerli dai danni.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "3": [
@@ -5339,7 +5299,6 @@
         "monaco-via-dell-ombra-manto-di-ombre",
         "monaco-via-dell-ombra-opportunista"
       ],
-      "descrizione": "I monaci della Via dell'Ombra seguono una tradizione incentrata sulla furtività e sul sotterfugio. Questi monaci a volte sono noti come ninja o ombre danzanti e fungono da spie e da assassini. A volte i membri di un monastero ninja sono imparentati tra loro e formano un clan votato alla segretezza nelle sue arti e missioni. Altri monasteri sono più simili alle gilde dei ladri e vendono i loro servizi ai nobili, ai ricchi mercanti e a chiunque sia in grado di pagare le loro tariffe. A prescindere dai loro metodi, i capi di questi monasteri esigono un'obbedienza incondizionata da parte dei loro discepoli.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "3": [
@@ -5365,7 +5324,6 @@
         "monaco-via-dei-quattro-elementi-discepolo-degli-elementi",
         "monaco-via-dei-quattro-elementi-discipline-elementali"
       ],
-      "descrizione": "Il monaco aderisce a una tradizione monastica che insegna come imbrigliare il potere degli elementi. Quando il monaco concentra il suo ki, entra in sintonia con le forze della creazione e piega i quattro elementi alla sua volontà, usandoli come un'estensione del suo corpo. Alcuni membri di questa tradizione si dedicano a un singolo elemento, ma altri fondono i vari elementi tra loro. Molti monaci di questa tradizione si tatuano il corpo con vari simboli dei loro poteri ki, in genere raffigurati come draghi serpeggianti, ma anche come fenici, pesci, alberi, montagne o grandi onde marine.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "3": [
@@ -5417,7 +5375,6 @@
           "Colpo Infuocato"
         ]
       },
-      "descrizione": "Il Giuramento di Devozione lega un paladino ai più alti ideali di giustizia, virtù e ordine. A volte chiamati cavalieri bianchi o combattenti sacri, questi paladini incarnano l'ideale del cavaliere in armatura splendente e agiscono onorevolmente in nome della giustizia e del bene superiore. Si considerano modelli esemplari di condotta e, alcuni, nel bene e nel male, applicano i loro stessi parametri al resto del mondo. Considerano gli angeli i perfetti servitori del bene, i loro ideali di riferimento e spesso sfoggiano il simbolo delle ali angeliche sui loro elmetti o sui loro stemmi araldici. Dettami di Devozione Sebbene le parole e gli obblighi esatti del Giuramento di Devozione possano variare, i paladini di questo giuramento condividono i seguenti precetti. Onestà. Non mentire e non rubare. Che la tua parola sia vincolante come una promessa. Coraggio. Non avere mai paura di agire, anche se la prudenza è segno di saggezza. Compassione. Aiuta gli altri, proteggi i deboli e punisci coloro che li minacciano. Mostra pietà ai tuoi nemici, ma che la tua pietà sia accompagnata dalla saggezza. Onore. Tratta gli altri con gentilezza e lascia che i tuoi atti onorevoli siano di esempio per loro. Fa' tutto il bene possibile provocando il minimo ammontare di danni. Dovere. Sii responsabile delle tue azioni e delle loro conseguenze, proteggi coloro che sono stati affidati alle tue cure e obbedisci a chi esercita la sua legittima autorità su di te.",
       "fonte_descrizione": "foundry_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -5472,7 +5429,6 @@
           "Traslazione Arborea"
         ]
       },
-      "descrizione": "Il Giuramento degli Antichi è antico quanto le razze degli elfi e i rituali dei druidi. I paladini che lo pronunciano si schierano dalla parte della luce e della vita, non necessariamente perché credano nei principi dell'onore e della giustizia, ma perché amano ciò che rende il mondo bello e vitale. I suoi dettami impongono di alimentare la luce tramite misericordia e gentilezza, proteggerla dalle forze che vogliono spegnerla, preservare la gioia e la speranza dentro di sé e fungere da esempio per gli altri.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -5527,7 +5483,6 @@
           "Scrutare"
         ]
       },
-      "descrizione": "Con il Giuramento di Vendetta un paladino promette di punire chi ha commesso i peccati più gravi. Questi paladini, spesso chiamati vendicatori o cavalieri oscuri, considerano l'impartire giustizia più importante della propria purezza. I loro dettami richiedono di combattere il male peggiore, non mostrare pietà ai nemici giurati, perseguirli a qualunque costo e risarcire le vittime dei loro misfatti.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -5556,7 +5511,6 @@
         "ranger-cacciatore-multiattacco",
         "ranger-cacciatore-difesa-del-cacciatore-superiore"
       ],
-      "descrizione": "Emulando l'archetipo del Cacciatore, il ranger accetta il suo ruolo di baluardo tra il mondo civilizzato e i territori delle terre selvagge. Quando intraprende il cammino del Cacciatore, il ranger apprende alcune tecniche specializzate per combattere con efficacia le minacce che affronta, dalle orde infuriate di orchi e di ogre, ai giganti torreggianti, fino ai draghi più terrificanti.",
       "fonte_descrizione": "foundry_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -5584,7 +5538,6 @@
         "ranger-signore-delle-bestie-furia-bestiale",
         "ranger-signore-delle-bestie-condividere-incantesimi"
       ],
-      "descrizione": "L'archetipo del Signore delle Bestie incarna l'amicizia tra le razze civilizzate e le bestie delle terre selvagge. La bestia e il ranger combattono assieme contro quei mostri che minacciano indistintamente la civiltà e le terre selvagge.",
       "fonte_descrizione": "manuale_errata",
       "privilegi_per_livello": {
         "3": [
@@ -5613,7 +5566,6 @@
         "stregone-discendenza-draconica-ali-di-drago",
         "stregone-discendenza-draconica-presenza-draconica"
       ],
-      "descrizione": "La magia innata dello stregone scaturisce da una magia draconica che si mescolò al sangue dei suoi antenati. Spesso gli stregoni con questa origine annoverano tra i loro antenati un potente stregone dei tempi antichi che stipulò un patto con un drago o che addirittura vantava un drago come genitore. Alcune di queste discendenze sono ben note in tutto il mondo, ma nella maggior parte dei casi si tratta di un retaggio misterioso. Qualsiasi stregone potrebbe essere il primo di una futura discendenza, come risultato di un patto o di qualche altra circostanza straordinaria.",
       "fonte_descrizione": "foundry_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -5643,208 +5595,157 @@
         "stregone-magia-selvaggia-caos-controllato",
         "stregone-magia-selvaggia-bombardamento-magico"
       ],
-      "descrizione": "La magia innata dello stregone deriva dalle forze del caos che sottostanno all'ordine del creato. Lo stregone potrebbe essere rimasto esposto alla magia grezza, forse attraverso un portale planare che conduceva al Limbo, ai Piani Elementali o al Reame Remoto. Forse è stato benedetto da un folletto o marchiato da un demone. Oppure la sua magia potrebbe essere dovuta a un fenomeno inspiegabile verificatosi alla sua nascita senza alcuna causa apparente. Quale che sia la causa, questa magia ora si agita dentro lui e preme per uscire.",
       "fonte_descrizione": "manuale_errata",
       "tabella_impulsi_magia_selvaggia": [
         {
-          "d100": "01-02",
-          "effetto": "Lo stregone tira su questa tabella all’inizio di ogni suo turno per il minuto successivo, ignorando questo risultato ai tiri successivi."
+          "d100": "01-02"
         },
         {
-          "d100": "03-04",
-          "effetto": "Per il minuto successivo, lo stregone è in grado di vedere qualsiasi creatura invisibile, se dispone di linea di vista fino a essa."
+          "d100": "03-04"
         },
         {
-          "d100": "05-06",
-          "effetto": "Un modron scelto e controllato dal DM compare in uno spazio libero a 1,5 metri dallo stregone, poi scompare 1 minuto dopo."
+          "d100": "05-06"
         },
         {
-          "d100": "07-08",
-          "effetto": "Lo stregone lancia palla di fuoco come incantesimo di 3° livello centrato su se stesso."
+          "d100": "07-08"
         },
         {
-          "d100": "09-10",
-          "effetto": "Lo stregone lancia dardo incantato come incantesimo di 5° livello."
+          "d100": "09-10"
         },
         {
-          "d100": "11-12",
-          "effetto": "Lo stregone tira un d10. La sua altezza cambia di una misura pari a 2,5 cm per il risultato ottenuto. Se il risultato è dispari, si rimpicciolisce; se è pari, cresce."
+          "d100": "11-12"
         },
         {
-          "d100": "13-14",
-          "effetto": "Lo stregone lancia confusione centrata su se stesso."
+          "d100": "13-14"
         },
         {
-          "d100": "15-16",
-          "effetto": "Per il minuto successivo, lo stregone recupera 5 punti ferita all’inizio di ogni suo turno."
+          "d100": "15-16"
         },
         {
-          "d100": "17-18",
-          "effetto": "Lo stregone sviluppa una lunga barba fatta di piume che rimane finché non starnutisce. Quando questo accade, le piume schizzano via dal suo volto in un’esplosione innocua."
+          "d100": "17-18"
         },
         {
-          "d100": "19-20",
-          "effetto": "Lo stregone lancia unto centrato su se stesso."
+          "d100": "19-20"
         },
         {
-          "d100": "21-22",
-          "effetto": "Le creature subiscono svantaggio ai tiri salvezza contro il prossimo incantesimo che sia lanciato dallo stregone nel minuto successivo e che richieda un tiro salvezza."
+          "d100": "21-22"
         },
         {
-          "d100": "23-24",
-          "effetto": "La pelle dello stregone si tinge di una vivace tonalità di azzurro. Un incantesimo rimuovi maledizione può porre termine a questo effetto."
+          "d100": "23-24"
         },
         {
-          "d100": "25-26",
-          "effetto": "Un occhio appare sulla fronte dello stregone per il minuto successivo. Durante quel periodo, lo stregone dispone di vantaggio alle prove di Saggezza (Percezione) basate sulla vista."
+          "d100": "25-26"
         },
         {
-          "d100": "27-28",
-          "effetto": "Per il minuto successivo, tutti gli incantesimi dello stregone con un tempo di lancio pari a 1 azione hanno un tempo di lancio di 1 azione bonus."
+          "d100": "27-28"
         },
         {
-          "d100": "29-30",
-          "effetto": "Lo stregone si teletrasporta fino a 18 metri di distanza, in uno spazio libero a sua scelta che egli sia in grado di vedere."
+          "d100": "29-30"
         },
         {
-          "d100": "31-32",
-          "effetto": "Lo stregone viene trasportato sul Piano Astrale fino alla fine del suo turno successivo, poi ritorna nello spazio che occupava in precedenza o nello spazio libero più vicino, se quello spazio è ora occupato."
+          "d100": "31-32"
         },
         {
-          "d100": "33-34",
-          "effetto": "Lo stregone massimizza i danni del successivo incantesimo che infligge danni e che lancerà entro il minuto successivo."
+          "d100": "33-34"
         },
         {
-          "d100": "35-36",
-          "effetto": "Lo stregone tira un d10. La sua età cambia di un numero di anni pari al risultato del tiro. Se il risultato è dispari, ringiovanisce fino a un minimo di un anno di età; se è pari, invecchia."
+          "d100": "35-36"
         },
         {
-          "d100": "37-38",
-          "effetto": "1d6 flumph controllati dal DM appaiono su altrettanti spazi liberi entro 18 metri dallo stregone e sono spaventati da lui. Svaniscono dopo 1 minuto."
+          "d100": "37-38"
         },
         {
-          "d100": "39-40",
-          "effetto": "Lo stregone recupera 2d10 punti ferita."
+          "d100": "39-40"
         },
         {
-          "d100": "41-42",
-          "effetto": "Lo stregone si trasforma in una pianta in vaso fino all’inizio del suo turno successivo. Finché è una pianta, è incapacitato e subisce vulnerabilità a tutti i danni. Se scende a 0 punti ferita, il vaso si rompe e lo stregone torna alla sua forma normale."
+          "d100": "41-42"
         },
         {
-          "d100": "43-44",
-          "effetto": "Per il minuto successivo, lo stregone può teletrasportarsi di un massimo di 6 metri come azione bonus in ognuno dei suoi turni."
+          "d100": "43-44"
         },
         {
-          "d100": "45-46",
-          "effetto": "Lo stregone lancia levitazione su se stesso."
+          "d100": "45-46"
         },
         {
-          "d100": "47-48",
-          "effetto": "Un unicorno controllato dal DM appare in uno spazio entro 1,5 metri dallo stregone, poi scompare 1 minuto dopo."
+          "d100": "47-48"
         },
         {
-          "d100": "49-50",
-          "effetto": "Lo stregone non può parlare per il minuto successivo. Ogni volta che prova a farlo, alcune bolle rosa escono fluttuando dalla sua bocca."
+          "d100": "49-50"
         },
         {
-          "d100": "51-52",
-          "effetto": "Uno scudo spettrale fluttua accanto allo stregone per il minuto successivo, conferendogli un bonus di +2 alla CA e l’immunità a dardo incantato."
+          "d100": "51-52"
         },
         {
-          "d100": "53-54",
-          "effetto": "Lo stregone è immune all’intossicazione alcolica per i 5d6 giorni successivi."
+          "d100": "53-54"
         },
         {
-          "d100": "55-56",
-          "effetto": "Lo stregone perde tutti i capelli, che però ricrescono nel giro di 24 ore."
+          "d100": "55-56"
         },
         {
-          "d100": "57-58",
-          "effetto": "Per il minuto successivo, ogni oggetto infiammabile toccato dallo stregone e che non sia indossato o trasportato da un’altra creatura prende fuoco."
+          "d100": "57-58"
         },
         {
-          "d100": "59-60",
-          "effetto": "Lo stregone recupera lo slot incantesimo di livello più basso che ha speso."
+          "d100": "59-60"
         },
         {
-          "d100": "61-62",
-          "effetto": "Per il minuto successivo, lo stregone deve gridare quando parla."
+          "d100": "61-62"
         },
         {
-          "d100": "63-64",
-          "effetto": "Lo stregone lancia nube di nebbia centrata su se stesso."
+          "d100": "63-64"
         },
         {
-          "d100": "65-66",
-          "effetto": "Fino a tre creature scelte dallo stregone e situate entro 9 metri da lui subiscono 4d10 danni da fulmine."
+          "d100": "65-66"
         },
         {
-          "d100": "67-68",
-          "effetto": "Lo stregone è spaventato dalla creatura più vicina fino alla fine del proprio turno successivo."
+          "d100": "67-68"
         },
         {
-          "d100": "69-70",
-          "effetto": "Ogni creatura entro 9 metri dallo stregone diventa invisibile per il minuto successivo. L’invisibilità su una creatura termina quando quella creatura attacca o lancia un incantesimo."
+          "d100": "69-70"
         },
         {
-          "d100": "71-72",
-          "effetto": "Lo stregone ottiene resistenza a tutti i danni per il minuto successivo."
+          "d100": "71-72"
         },
         {
-          "d100": "73-74",
-          "effetto": "Una creatura casuale entro 18 metri dallo stregone diventa avvelenata per 1d4 ore."
+          "d100": "73-74"
         },
         {
-          "d100": "75-76",
-          "effetto": "Lo stregone risplende di luce intensa entro un raggio di 9 metri per il minuto successivo. Ogni creatura che termina il suo turno entro 1,5 metri dallo stregone è accecata fino alla fine del proprio turno successivo."
+          "d100": "75-76"
         },
         {
-          "d100": "77-78",
-          "effetto": "Lo stregone lancia metamorfosi su se stesso. Se fallisce il tiro salvezza, si trasforma in una pecora per la durata dell’incantesimo."
+          "d100": "77-78"
         },
         {
-          "d100": "79-80",
-          "effetto": "Farfalle e petali di fiori illusori fluttuano nell’aria entro 3 metri dallo stregone per il minuto successivo."
+          "d100": "79-80"
         },
         {
-          "d100": "81-82",
-          "effetto": "Lo stregone può effettuare un’azione aggiuntiva immediatamente."
+          "d100": "81-82"
         },
         {
-          "d100": "83-84",
-          "effetto": "Ogni creatura entro 9 metri dallo stregone subisce 1d10 danni necrotici. Lo stregone recupera un numero di punti ferita pari alla somma dei danni necrotici inferti."
+          "d100": "83-84"
         },
         {
-          "d100": "85-86",
-          "effetto": "Lo stregone lancia immagine speculare."
+          "d100": "85-86"
         },
         {
-          "d100": "87-88",
-          "effetto": "Lo stregone lancia volare su una creatura casuale situata entro 18 metri da lui."
+          "d100": "87-88"
         },
         {
-          "d100": "89-90",
-          "effetto": "Lo stregone diventa invisibile per il minuto successivo. Durante quel periodo le altre creature non possono udirlo. L’invisibilità termina se lo stregone attacca o lancia un incantesimo."
+          "d100": "89-90"
         },
         {
-          "d100": "91-92",
-          "effetto": "Se lo stregone muore entro il minuto successivo, torna in vita immediatamente, come per l’effetto dell’incantesimo reincarnazione."
+          "d100": "91-92"
         },
         {
-          "d100": "93-94",
-          "effetto": "La taglia dello stregone aumenta di una categoria per il minuto successivo."
+          "d100": "93-94"
         },
         {
-          "d100": "95-96",
-          "effetto": "Lo stregone e tutte le creature entro 9 metri da lui ottengono vulnerabilità ai danni perforanti per il minuto successivo."
+          "d100": "95-96"
         },
         {
-          "d100": "97-98",
-          "effetto": "Lo stregone è circondato da una debole musica eterea per il minuto successivo."
+          "d100": "97-98"
         },
         {
-          "d100": "99-00",
-          "effetto": "Lo stregone recupera tutti i punti stregoneria spesi."
+          "d100": "99-00"
         }
       ],
       "privilegi_per_livello": {
@@ -5896,7 +5797,6 @@
           "Sembrare"
         ]
       },
-      "descrizione": "Il patrono del warlock è un potente nobile dei folletti, custode di segreti più antichi delle razze mortali. Le sue motivazioni sono spesso imperscrutabili e mutevoli: può desiderare nuovo potere magico, saldare un debito antico o trascinare il warlock nelle rivalità delle corti fatate.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -5946,7 +5846,6 @@
           "Santificare"
         ]
       },
-      "descrizione": "Il warlock ha stipulato un patto con un immondo dei piani inferiori, un essere dalle mire malvagie che desidera corrompere o distruggere ogni cosa. Il patrono può essere un signore dei demoni, un arcidiavolo o un altro immondo di eccezionale potenza.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -5996,7 +5895,6 @@
           "Telecinesi"
         ]
       },
-      "descrizione": "Il patrono del warlock è un'entità misteriosa e aliena al tessuto della realtà. Potrebbe provenire dal Reame Remoto o essere una divinità antica nota soltanto nelle leggende. Le sue motivazioni sono incomprensibili ai mortali e potrebbe perfino ignorare l'esistenza del warlock, che trae potere dai segreti appresi sul suo conto.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [

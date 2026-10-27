@@ -57,12 +57,10 @@
           "bonus-or-penalty"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -96,11 +94,9 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -136,11 +132,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -174,14 +168,10 @@
           "extra-damage"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "choice-candidate",
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Corretto refuso «tiuo» → «tipo»."
         ],
         "proposedAutomation": null
       }
@@ -220,14 +210,10 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "area-candidate",
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Rimosso apostrofo estraneo prima di «effettuare»."
         ],
         "proposedAutomation": null
       }
@@ -263,17 +249,11 @@
           "extra-damage"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "L'incantatore possiede resistenza al tipo di danno innescante fino all'inizio del proprio turno successivo."
-        ],
         "flags": [
           "exact-turn-boundary",
           "effect-candidate",
           "text-normalized",
           "multi-stage"
-        ],
-        "normalizationNotes": [
-          "Normalizzata la spaziatura dei simboli di livello."
         ],
         "proposedAutomation": {
           "integration": "multi-stage",
@@ -343,11 +323,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -379,11 +357,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -418,13 +394,11 @@
           "bonus-or-penalty"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "choice-candidate",
           "instantaneous-lingering-effect"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -460,12 +434,10 @@
           "advantage"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -506,14 +478,12 @@
           "movement-restriction"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate",
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -545,11 +515,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -584,14 +552,10 @@
           "speed-change"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "Che l'attacco colpisca o manchi, la velocità base sul terreno dell'incantatore aumenta di 9 metri fino alla fine di quel turno."
-        ],
         "flags": [
           "exact-turn-boundary",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -623,12 +587,8 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Normalizzata la spaziatura dei simboli di livello."
         ],
         "proposedAutomation": null
       }
@@ -665,13 +625,11 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "duration-review",
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -711,14 +669,12 @@
           "disadvantage"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate",
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -750,9 +706,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -788,13 +742,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "area-candidate",
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
         ],
         "proposedAutomation": null
       }
@@ -827,9 +777,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -863,11 +811,9 @@
           "bonus-or-penalty"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -899,11 +845,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -935,9 +879,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -969,14 +911,10 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [
-          "Se il diavoletto di polvere si muove su sabbia, polvere, terriccio o ghiaia, risucchia il materiale e forma attorno a se stesso una nube di detriti del raggio di 3 metri che permane fino all'inizio del prossimo turno dell'incantatore."
-        ],
         "flags": [
           "exact-turn-boundary",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1008,11 +946,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1048,13 +984,11 @@
           "advantage"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1092,13 +1026,11 @@
           "movement-restriction"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1132,14 +1064,10 @@
           "disadvantage"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "choice-candidate",
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Normalizzata la spaziatura dei simboli di livello."
         ],
         "proposedAutomation": null
       }
@@ -1172,11 +1100,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1208,12 +1134,8 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
         ],
         "proposedAutomation": null
       }
@@ -1248,11 +1170,9 @@
           "temporary-hp"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1286,12 +1206,10 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1327,13 +1245,11 @@
           "damage-immunity"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1365,9 +1281,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1403,12 +1317,10 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1444,15 +1356,11 @@
           "advantage"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "Se non usa questo beneficio prima dell'inizio del suo turno successivo, tale beneficio va perduto."
-        ],
         "flags": [
           "exact-turn-boundary",
           "condition-candidate",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1489,12 +1397,10 @@
           "movement-restriction"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1530,11 +1436,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1568,11 +1472,9 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1604,12 +1506,8 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
         ],
         "proposedAutomation": null
       }
@@ -1644,14 +1542,10 @@
           "damage-resistance"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "Se lo fa, le resistenze terminano e l'incantatore possiede l'immunità fino alla fine del suo turno successivo, quando l'incantesimo termina."
-        ],
         "flags": [
           "exact-turn-boundary",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1692,15 +1586,11 @@
           "movement-restriction"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "Una creatura che fallisce il suo tiro salvezza contro questo effetto ha velocità dimezzata fino all'inizio del turno successivo dell'incantatore."
-        ],
         "flags": [
           "exact-turn-boundary",
           "effect-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1738,12 +1628,10 @@
           "disadvantage"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1782,12 +1670,10 @@
           "damage-immunity"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1829,16 +1715,12 @@
           "movement-restriction"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "Se lo fa, viene espulso nello spazio libero più vicino, questo incantesimo termina e l'incantatore è stordito fino alla fine del suo turno successivo."
-        ],
         "flags": [
           "exact-turn-boundary",
           "condition-candidate",
           "effect-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1870,9 +1752,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1906,11 +1786,9 @@
           "advantage"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -1946,14 +1824,10 @@
           "advantage"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate",
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
         ],
         "proposedAutomation": null
       }
@@ -1992,12 +1866,10 @@
           "movement-restriction"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2031,12 +1903,10 @@
           "temporary-hp"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2068,9 +1938,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2106,13 +1974,11 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "duration-review",
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2150,16 +2016,12 @@
           "movement-restriction"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "duration-review",
           "effect-candidate",
           "choice-candidate",
           "area-candidate",
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Ricostruito l'elenco delle opzioni su righe proprie."
         ],
         "proposedAutomation": null
       }
@@ -2194,17 +2056,11 @@
           "disadvantage"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "Il bersaglio deve effettuare un tiro salvezza su Costituzione; se lo fallisce, subisce 1d6 danni da freddo e subisce svantaggio al prossimo tiro per colpire con un'arma che effettua prima della fine del suo turno successivo."
-        ],
         "flags": [
           "exact-turn-boundary",
           "effect-candidate",
           "instantaneous-lingering-effect",
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
         ],
         "proposedAutomation": null
       }
@@ -2240,11 +2096,9 @@
           "movement-restriction"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2278,12 +2132,10 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2317,11 +2169,9 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2355,12 +2205,10 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2394,11 +2242,9 @@
           "damage-resistance"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2432,11 +2278,9 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2474,12 +2318,10 @@
           "disadvantage"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2515,12 +2357,10 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2556,12 +2396,10 @@
           "movement-restriction"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2597,12 +2435,10 @@
           "disadvantage"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2634,12 +2470,8 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
         ],
         "proposedAutomation": null
       }
@@ -2672,9 +2504,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2706,9 +2536,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2740,9 +2568,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2780,9 +2606,6 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [
-          "Ogni creatura entro 3 metri dal bersaglio deve superare un tiro salvezza su Costituzione, altrimenti diventa accecata fino alla fine del turno successivo dell'incantatore."
-        ],
         "flags": [
           "exact-turn-boundary",
           "condition-candidate",
@@ -2790,7 +2613,6 @@
           "area-candidate",
           "instantaneous-lingering-effect"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2825,11 +2647,9 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2863,12 +2683,10 @@
           "advantage"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -2900,12 +2718,8 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
         ],
         "proposedAutomation": null
       }
@@ -2938,12 +2752,8 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
         ],
         "proposedAutomation": null
       }
@@ -2980,12 +2790,10 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3021,12 +2829,10 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3062,14 +2868,10 @@
           "movement-restriction"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate",
           "text-normalized"
-        ],
-        "normalizationNotes": [
-          "Normalizzata la spaziatura dei simboli di livello."
         ],
         "proposedAutomation": null
       }
@@ -3102,9 +2904,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3147,12 +2947,10 @@
           "damage-immunity"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3191,12 +2989,10 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3232,11 +3028,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3276,13 +3070,11 @@
           "movement-restriction"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3318,12 +3110,10 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3357,11 +3147,9 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3397,12 +3185,10 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3436,12 +3222,10 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3475,12 +3259,10 @@
           "bonus-or-penalty"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3519,12 +3301,10 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3556,9 +3336,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3593,11 +3371,9 @@
           "temporary-hp"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3637,14 +3413,12 @@
           "damage-immunity"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate",
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3676,11 +3450,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3718,12 +3490,10 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3757,11 +3527,9 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3793,9 +3561,7 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3836,13 +3602,11 @@
           "movement-restriction"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3876,12 +3640,10 @@
           "speed-change"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3920,13 +3682,11 @@
           "damage-immunity"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -3965,15 +3725,11 @@
           "healing-block"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "Se il bersaglio è una creatura, non può recuperare punti ferita fino all'inizio del turno successivo dell'aberrazione."
-        ],
         "flags": [
           "exact-turn-boundary",
           "condition-candidate",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4012,16 +3768,12 @@
           "speed-change"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [
-          "Qualsiasi creatura, escluso il personaggio, che inizi il suo turno entro 1,5 metri dallo spirito vede la sua velocità ridotta di 6 metri fino all'inizio del proprio turno successivo."
-        ],
         "flags": [
           "exact-turn-boundary",
           "condition-candidate",
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4063,13 +3815,11 @@
           "temporary-hp"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "name-collision-existing",
           "condition-candidate",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4112,16 +3862,12 @@
           "speed-change"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [
-          "Quando una creatura che il costrutto può vedere inizia il suo turno entro 3 metri da esso, il costrutto può costringerla a effettuare un tiro salvezza su Saggezza contro la CD del tiro salvezza dell'incantesimo del personaggio: in caso di fallimento, il bersaglio non può usare reazioni e la sua velocità è dimezzata fino all'inizio del suo turno successivo."
-        ],
         "flags": [
           "exact-turn-boundary",
           "condition-candidate",
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4165,13 +3911,11 @@
           "damage-immunity"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "name-collision-existing",
           "condition-candidate",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4212,10 +3956,6 @@
           "bonus-or-penalty"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [
-          "Il folletto dispone di vantaggio al prossimo tiro per colpire che effettua prima della fine di questo turno.",
-          "Il folletto può colmare di oscurità magica un cubo con spigolo di 1,5 metri entro 1,5 metri da sé; l'effetto termina alla fine del suo turno successivo."
-        ],
         "flags": [
           "name-collision-existing",
           "exact-turn-boundary",
@@ -4223,7 +3963,6 @@
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4262,12 +4001,10 @@
           "damage-immunity"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4308,17 +4045,11 @@
           "movement-restriction"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "Qualsiasi creatura, escluso il personaggio, che inizi il suo turno entro 1,5 metri dallo spirito deve superare un tiro salvezza su Costituzione contro la CD del tiro salvezza dell'incantesimo del personaggio o essere avvelenata fino all'inizio del proprio turno successivo.",
-          "Colpito: 1d8 + 3 + il livello dell'incantesimo danni necrotici, e la creatura deve superare un tiro salvezza su Saggezza contro la CD del tiro salvezza dell'incantesimo del personaggio o essere spaventata dal non morto fino alla fine del turno successivo della creatura.",
-          "Se il bersaglio è avvelenato, deve superare un tiro salvezza su Costituzione contro la CD del tiro salvezza dell'incantesimo del personaggio, altrimenti è paralizzato fino al termine del proprio turno successivo."
-        ],
         "flags": [
           "exact-turn-boundary",
           "condition-candidate",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4356,13 +4087,11 @@
           "bonus-or-penalty"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
           "effect-candidate",
           "choice-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4397,11 +4126,9 @@
           "damage-resistance"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4437,11 +4164,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4477,15 +4202,11 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "Se colpisce, il bersaglio subisce gli effetti normalmente inflitti dall'attacco con quest'arma e resta avvinto dal suo roboante flusso di energia fino all'inizio del turno successivo dell'incantatore."
-        ],
         "flags": [
           "exact-turn-boundary",
           "area-candidate",
           "target-review"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": {
           "integration": "manual-trigger",
           "spellExpiry": {
@@ -4543,12 +4264,10 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "area-candidate",
           "target-review"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4584,12 +4303,10 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "area-candidate",
           "target-review"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4625,11 +4342,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4663,14 +4378,10 @@
           "bonus-or-penalty"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "La creatura deve superare un tiro salvezza su Intelligenza o subire 1d6 danni psichici e sottrarre 1d4 al tiro salvezza successivo che effettua prima del termine del turno successivo dell'incantatore."
-        ],
         "flags": [
           "exact-turn-boundary",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": {
           "integration": "manual-trigger",
           "spellExpiry": {
@@ -4729,15 +4440,11 @@
           "reaction-block"
         ],
         "choiceCandidate": false,
-        "exactTurnPhrases": [
-          "In caso di fallimento, il bersaglio subisce 3d6 danni psichici e non può effettuare una reazione fino al termine del proprio turno successivo."
-        ],
         "flags": [
           "duplicate-existing",
           "exact-turn-boundary",
           "effect-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": {
           "integration": "target-turn",
           "spellExpiry": {
@@ -4791,11 +4498,9 @@
         ],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "condition-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4834,17 +4539,12 @@
           "speed-change"
         ],
         "choiceCandidate": true,
-        "exactTurnPhrases": [
-          "Tutte le creature che subiscono questi danni non possono recuperare punti ferita fino all'inizio del turno successivo dell'incantatore.",
-          "In più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 3 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore."
-        ],
         "flags": [
           "exact-turn-boundary",
           "effect-candidate",
           "choice-candidate",
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     },
@@ -4880,11 +4580,9 @@
         "conditionCandidates": [],
         "effectCandidates": [],
         "choiceCandidate": false,
-        "exactTurnPhrases": [],
         "flags": [
           "area-candidate"
         ],
-        "normalizationNotes": [],
         "proposedAutomation": null
       }
     }

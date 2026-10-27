@@ -4,8 +4,9 @@
 // validation and the merge of a pack's rules with the SRD compendium (src/rules-reference-it.json).
 //
 // A pack: { format, schemaVersion, id, title, badge, generatedAt?, rules?: { topics, entries }, spells?: { [spellId]:
-// { description, higherLevels } }, classFeatures?: { [featureId]: text } }. rules follows the schema of the SRD
-// compendium; its topics reuse the SRD ids so the entries land under the same subjects.
+// { description, higherLevels } }, classFeatures?: { [featureId]: text }, classFeatureTables?: { [featureId]: { [row]:
+// text } } }. rules follows the schema of the SRD compendium; its topics reuse the SRD ids so the entries land under
+// the same subjects.
 
 export const PRIVATE_PACK_FORMAT = "take-initiative/private-pack";
 export const PRIVATE_PACK_SCHEMA_VERSION = 1;
@@ -80,6 +81,9 @@ export function validatePrivatePack(value) {
   if (value.classFeatures !== undefined && !(isObject(value.classFeatures) && Object.values(value.classFeatures).every((text) => typeof text === "string"))) {
     return { error: `Pacchetto "${value.title}": i testi delle capacità non sono validi.` };
   }
+  if (value.classFeatureTables !== undefined && !(isObject(value.classFeatureTables) && Object.values(value.classFeatureTables).every((table) => (
+    isObject(table) && Object.values(table).every((text) => typeof text === "string")
+  )))) return { error: `Pacchetto "${value.title}": le tabelle delle capacità non sono valide.` };
   return { pack: value };
 }
 

@@ -19,6 +19,8 @@
     "generate:phb2014-extra": "node scripts/generate-phb2014-extra-catalog.mjs",
     "generate:class-features": "node scripts/generate-class-feature-catalog.mjs",
     "generate:rules-reference": "node scripts/generate-srd-rules-reference.mjs",
+    "packs:build": "node scripts/build-private-packs.mjs",
+    "check:private-texts": "node scripts/check-private-texts.mjs",
     "audit:class-features": "node scripts/audit-class-features.mjs",
     "audit:barbaro": "node scripts/audit-barbaro-features.mjs",
     "audit:spells": "node scripts/audit-spell-automation.mjs",

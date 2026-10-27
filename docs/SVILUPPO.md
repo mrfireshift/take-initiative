@@ -33,6 +33,9 @@ Lo sviluppo usa Vite. Installa il manifest esposto dal server locale nella room 
 | `npm run generate:class-features` | Rigenera il catalogo runtime delle capacità di classe |
 | `npm run audit:class-features` | Rigenera audit JSON e Markdown delle capacità |
 | `npm run audit:barbaro` | Genera l'audit mirato delle capacità del Barbaro |
+| `npm run generate:rules-reference -- --pdf-text=srd-it.txt` | Rigenera il compendio delle regole SRD dell'Enciclopedia |
+| `npm run packs:build` | Costruisce i pacchetti privati dei manuali nella cartella privata (vedi [Riferimento](RIFERIMENTO_FUNZIONI.md#pacchetti-privati)) |
+| `npm run check:private-texts -- --dist=dist` | Cerca i testi dei manuali non SRD nel repo e nella build |
 
 ## Struttura del progetto
 

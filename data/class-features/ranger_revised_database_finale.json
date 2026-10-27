@@ -418,7 +418,6 @@
           }
         }
       ],
-      "descrizione": "Versione playtest del ranger pubblicata in Unearthed Arcana nel 2016. Mantiene la progressione magica del ranger del Player's Handbook, ma sostituisce numerosi privilegi di classe e assegna i privilegi offensivi del 5° livello al conclave scelto.",
       "compatibilita": {
         "coesistenza_con_ranger_phb": true,
         "sostituisce_automaticamente_ranger_phb": false,
@@ -447,7 +446,6 @@
         "ranger-revised-conclave-della-bestia-tempesta-di-artigli-e-zanne",
         "ranger-revised-conclave-della-bestia-difesa-superiore-della-bestia"
       ],
-      "descrizione": "Molti ranger si sentono più a casa nelle terre selvagge che nella civiltà, al punto che gli animali li considerano propri simili. I membri del Conclave della Bestia sviluppano uno stretto legame con una bestia e lo rafforzano ulteriormente tramite la magia.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "privilegi_per_livello": {
         "3": [
@@ -482,7 +480,6 @@
         "ranger-revised-conclave-del-cacciatore-multiattacco",
         "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore"
       ],
-      "descrizione": "Alcuni ranger cercano di padroneggiare le armi per proteggere meglio la civiltà dagli orrori delle terre selvagge. I membri del Conclave del Cacciatore apprendono tecniche specializzate contro le minacce più terribili, dagli ogre e dalle orde di orchi fino ai giganti e ai draghi.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "privilegi_per_livello": {
         "3": [
@@ -517,7 +514,6 @@
         "ranger-revised-conclave-del-cacciatore-delle-profondita-raffica-del-cacciatore",
         "ranger-revised-conclave-del-cacciatore-delle-profondita-schivata-del-cacciatore"
       ],
-      "descrizione": "La maggior parte delle persone scende nelle profondità dell'Underdark soltanto in circostanze disperate. Il male, però, prospera troppo spesso sotto terra senza essere notato, e i ranger del Conclave del Cacciatore delle Profondità cercano di scoprire e sconfiggere tali minacce prima che raggiungano la superficie.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "privilegi_per_livello": {
         "3": [

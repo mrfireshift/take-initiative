@@ -314,6 +314,45 @@ alias, rimandi, parti escluse, tabelle ricostruite), mai nel JSON generato. Nel
 bundle entra solo testo SRD 5.1; il piano è in
 [PIANO_COMPENDIO_REGOLE_FASE_1.md](PIANO_COMPENDIO_REGOLE_FASE_1.md).
 
+### Pacchetti privati
+
+I testi dei manuali che non sono nell'SRD non stanno né nel bundle né nel repo
+([fase 2](PIANO_COMPENDIO_REGOLE_FASE_2.md)). I cataloghi tengono la meccanica;
+il testo arriva da un pacchetto che il GM importa nel pannello **Pacchetti**
+dell'Enciclopedia.
+
+| Pezzo | Dove |
+| --- | --- |
+| Formato, validazione, unione delle regole con l'SRD | `src/privatePackCore.js` |
+| Archivio nel browser (IndexedDB `…private-packs`, sessione senza IndexedDB) | `src/privatePackStore.js` |
+| Testo di incantesimi, capacità e tabelle dai pacchetti | `src/spellbookCatalog.js`, `src/classFeatureDescriptions.js` |
+| Cartella privata (`TAKE_INITIATIVE_PRIVATE_DIR`, di default `L:/Dungeons & Dragons/Take Initiative`) | `scripts/privateSources.mjs` |
+| Costruzione dei pacchetti | `scripts/build-private-packs.mjs` |
+| Ricerca dei testi privati nel repo e in una build | `scripts/check-private-texts.mjs` |
+
+Un pacchetto è un JSON `{ format: "take-initiative/private-pack", schemaVersion:
+1, id, title, badge, rules?, spells?, classFeatures?, classFeatureTables? }`,
+uno per manuale (`phb2014`, `dmg2014`, `xanathar`, `tasha`, `ranger-revised`).
+Una voce di regole di un pacchetto non sostituisce mai una voce SRD con lo
+stesso id. Un incantesimo non SRD porta in `italianReference` solo i fatti e
+`privateSource`/`privateTextId`; una capacità resta con il testo nel repo solo
+se il testo è SRD.
+
+La cartella privata contiene `sorgenti/` (file grezzi e database completi),
+`testi/<manuale>/incantesimi.json` e `capacita.json` (scritti dai generatori) e
+`pacchetti/`. Per aggiornare i pacchetti dopo una modifica:
+
+```text
+npm run generate:supplement-spells
+npm run generate:class-features
+npm run packs:build
+npm run check:private-texts -- --dist=dist
+```
+
+I test che leggono i testi privati si saltano quando la cartella non c'è (CI,
+clone nuovo); `test/privateTextGuard.test.js` verifica sempre che i cataloghi e
+i database nel repo non abbiano testi non SRD.
+
 ## Persistenza funzionale
 
 | Dato | Ambito |

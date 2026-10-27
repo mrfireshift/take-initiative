@@ -830,3 +830,32 @@ Nella scheda **Regole**:
 Le varianti, come l'ingombro, portano l'etichetta **Regola opzionale**. Le
 schede Incantesimi e Regole si scaricano la prima volta che le apri, così
 l'Enciclopedia si apre subito sulle Condizioni.
+
+### Pacchetti privati
+
+Il plugin pubblico contiene solo il testo dell'SRD 5.1. I testi del Manuale del
+Giocatore, di Xanathar, di Tasha e dell'Unearthed Arcana del Ranger arrivano con
+i **pacchetti privati**: file che generi dai tuoi manuali e che restano solo nel
+browser in cui li importi, mai nella stanza né agli altri giocatori.
+
+1. apri l'Enciclopedia DM e premi **Pacchetti** accanto al titolo;
+2. premi **Importa pacchetto…** e scegli i file `*.private-pack.json` (anche più
+   di uno insieme): li trovi in `L:\Dungeons & Dragons\Take Initiative\pacchetti`;
+3. l'elenco mostra per ogni pacchetto sigla, titolo, quanti testi contiene e la
+   data; **Rimuovi** lo toglie.
+
+Con i pacchetti importati:
+
+- la scheda personaggio, la console attacchi e la scheda Incantesimi mostrano
+  il testo degli incantesimi di Xanathar, Tasha e del Manuale non presenti
+  nell'SRD;
+- le capacità di classe mostrano il loro testo, e la finestra degli Impulsi di
+  Magia Selvaggia mostra l'effetto di ogni riga;
+- le regole dei manuali (quando un pacchetto le contiene) compaiono nella
+  scheda **Regole** negli stessi argomenti dell'SRD, con la sigla del manuale.
+
+Senza il pacchetto quei punti mostrano i dati di gioco e dicono quale pacchetto
+importare; le automazioni funzionano comunque. Una scheda personaggio già
+aperta legge i pacchetti alla riapertura. In una finestra in incognito il
+pacchetto vale solo per la sessione: la finestra dei giocatori sul tavolo non
+ne ha bisogno.

@@ -4,7 +4,8 @@
 //   <dir>/sorgenti/incantesimi/   the raw spell files the catalog generators read
 //   <dir>/sorgenti/capacita/   the class-feature databases with every text, as they were before the split
 //   <dir>/testi/<book>/incantesimi.json   { book, spells: { [spellId]: { description, higherLevels } } }
-//   <dir>/testi/<book>/capacita.json   { book, features: { [featureId]: text } }: the features whose text is not SRD
+//   <dir>/testi/<book>/capacita.json   { book, features: { [featureId]: text }, tables?: { [featureId]: { [row]: text } } }:
+//                                       the features whose text is not SRD, and the texts of their tables
 //   <dir>/pacchetti/<book>.private-pack.json   what the GM imports in the encyclopedia (build-private-packs.mjs)
 //
 // The scripts and the tests that need a text read it from here; without the folder (a fresh clone, the CI) the tests
@@ -50,19 +51,29 @@ export function privateFeatureTextsPath(book) {
 // process, like the spells'.
 const featureTextsByBook = new Map();
 
+function readFeatureFile(book) {
+  const file = privateFeatureTextsPath(book);
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : null;
+}
+
 export function readPrivateFeatureTexts(book) {
   if (featureTextsByBook.has(book)) return featureTextsByBook.get(book);
-  const file = privateFeatureTextsPath(book);
-  const texts = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")).features || {} : null;
+  const texts = readFeatureFile(book)?.features || null;
   featureTextsByBook.set(book, texts);
   return texts;
 }
 
-export function writePrivateFeatureTexts(book, features) {
+// { [featureId]: { [row]: text } }: the tables of a book's features (the Wild Magic Surge's d100), or null.
+export function readPrivateFeatureTables(book) {
+  const tables = readFeatureFile(book)?.tables;
+  return tables && Object.keys(tables).length ? tables : null;
+}
+
+export function writePrivateFeatureTexts(book, features, tables = readFeatureFile(book)?.tables || null) {
   const file = privateFeatureTextsPath(book);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const sorted = Object.fromEntries(Object.entries(features).sort(([left], [right]) => left.localeCompare(right)));
-  fs.writeFileSync(file, `${JSON.stringify({ book, features: sorted }, null, 2)}\n`, "utf8");
+  fs.writeFileSync(file, `${JSON.stringify({ book, features: sorted, ...(tables ? { tables } : {}) }, null, 2)}\n`, "utf8");
   featureTextsByBook.set(book, sorted);
   return file;
 }

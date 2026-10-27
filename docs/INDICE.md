@@ -103,7 +103,6 @@ determinare lo stato corrente senza confrontarli con i documenti sopra:
 - [Audit funzionale ottobre 2026](audits/FUNCTIONAL-AUDIT-2026-10.md)
 - [Smoke test manuale](audits/SMOKE-CHECKLIST-MANUALE.md)
 - [Archivio documentazione](archive/README.md)
-- [Duplicati raw archiviati](archive/raw-duplicates/README.md)
 - [Workspace class features](class-features/README.md)
 
 Gli audit possono descrivere un campione, una roadmap o uno snapshot generato.

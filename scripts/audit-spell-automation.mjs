@@ -1792,8 +1792,25 @@ export function renderSpellAutomationMarkdown(audit) {
   return lines.join("\n");
 }
 
+// The written audit keeps no sentence of a private text (compendio delle regole, fase 2): for the spells whose text is
+// in the GM's packs the evidence lists are emptied and a gap keeps its codes only. The rows' verdicts do not change.
+function publicSpellAutomationAudit(audit) {
+  const privateIds = new Set(getSpellCatalog().filter((spell) => spell.italianReference?.privateSource).map((spell) => spell.id));
+  const code = (value) => /^[A-Z0-9_-]+$/u.test(String(value));
+  return {
+    ...audit,
+    rows: audit.rows.map((row) => (privateIds.has(row.id)
+      ? {
+        ...row,
+        evidence: Object.fromEntries(Object.keys(row.evidence || {}).map((key) => [key, []])),
+        gaps: (row.gaps || []).map((gap) => ({ ...gap, evidence: (gap.evidence || []).filter(code) })),
+      }
+      : row)),
+  };
+}
+
 export async function writeSpellAutomationAudit() {
-  const audit = buildSpellAutomationAudit();
+  const audit = publicSpellAutomationAudit(buildSpellAutomationAudit());
   // Preserve the separately reviewed semantic audit; registry regeneration
   // must not silently discard human status, scope and dependency decisions.
   const previous = await fs.readFile(MARKDOWN_OUTPUT, "utf8").catch((error) => {

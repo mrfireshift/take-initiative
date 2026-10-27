@@ -12,9 +12,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PRIVATE_PACK_BOOKS, PRIVATE_PACK_FORMAT, PRIVATE_PACK_SCHEMA_VERSION, privatePackContentsLabel, privatePackSummary, validatePrivatePack } from "../src/privatePackCore.js";
-import { privateDir, readPrivateFeatureTexts, readPrivateSpellTexts } from "./privateSources.mjs";
+import { privateDir, readPrivateFeatureTables, readPrivateFeatureTexts, readPrivateSpellTexts } from "./privateSources.mjs";
 
-export function buildPrivatePack(book, { spells = null, classFeatures = null, generatedAt = new Date().toISOString().slice(0, 10) } = {}) {
+export function buildPrivatePack(book, { spells = null, classFeatures = null, classFeatureTables = null, generatedAt = new Date().toISOString().slice(0, 10) } = {}) {
   const pack = {
     format: PRIVATE_PACK_FORMAT,
     schemaVersion: PRIVATE_PACK_SCHEMA_VERSION,
@@ -24,6 +24,7 @@ export function buildPrivatePack(book, { spells = null, classFeatures = null, ge
     generatedAt,
     ...(spells ? { spells } : {}),
     ...(classFeatures ? { classFeatures } : {}),
+    ...(classFeatureTables ? { classFeatureTables } : {}),
   };
   const { error } = validatePrivatePack(pack);
   if (error) throw new Error(error);
@@ -37,7 +38,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const spells = readPrivateSpellTexts(book.id);
     const classFeatures = readPrivateFeatureTexts(book.id);
     if (!spells && !classFeatures) continue;
-    const pack = buildPrivatePack(book, { spells, classFeatures });
+    const pack = buildPrivatePack(book, { spells, classFeatures, classFeatureTables: readPrivateFeatureTables(book.id) });
     const text = `${JSON.stringify(pack)}\n`;
     fs.mkdirSync(outDir, { recursive: true });
     const file = path.join(outDir, `${book.id}.private-pack.json`);

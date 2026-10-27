@@ -156,3 +156,9 @@ test("un pacchetto non valido non entra nell'archivio", async () => {
   await assert.rejects(store.put({ ...pack(), format: "altro" }), /Non è un pacchetto/u);
   assert.deepEqual(await store.list(), []);
 });
+
+test("le tabelle delle capacità di un pacchetto hanno un testo per riga", () => {
+  assert.ok(validatePrivatePack(pack({ classFeatureTables: { "capacita-finta": { "01-02": "Una riga inventata." } } })).pack);
+  assert.match(validatePrivatePack(pack({ classFeatureTables: { "capacita-finta": { "01-02": 3 } } })).error, /tabelle delle capacità/u);
+  assert.match(validatePrivatePack(pack({ classFeatureTables: [] })).error, /tabelle delle capacità/u);
+});

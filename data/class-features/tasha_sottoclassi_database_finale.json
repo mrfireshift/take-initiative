@@ -51,7 +51,6 @@
         "barbaro-cammino-della-bestia-furia-contagiosa",
         "barbaro-cammino-della-bestia-chiamata-alla-caccia"
       ],
-      "descrizione": "I barbari che percorrono il Cammino della Bestia traggono la loro ira da una scintilla bestiale che brucia nella loro anima. Questa bestia esplode in preda all'ira, trasformando fisicamente il barbaro. Un tale barbaro potrebbe essere animato da uno spirito primordiale o discendere dai mutaforma. Il personaggio può scegliere l'origine della sua potenza selvaggia o determinarla con un tiro sulla tabella \"",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -81,7 +80,6 @@
         "barbaro-cammino-della-magia-selvaggia-reazione-instabile",
         "barbaro-cammino-della-magia-selvaggia-impeto-controllato"
       ],
-      "descrizione": "Molti luoghi del multiverso sono di straordinaria bellezza, traboccano di emozioni intense e magia inarrestabile: la Selva Fatata, i Piani Superiori e regni soprannaturali irradiano una tale forza da poter influenzare profondamente le creature. Il barbari provano sentimenti profondi e sono particolarmente sensibili a queste influenze selvagge, perciò alcuni di loro vengono completamente trasformati dalla magia. Questi barbari pervasi dalla magia seguono il Cammino della Magia Selvaggia. Barbari elfi, tiefling, aasimar e genasi spesso percorrono questo cammino, desiderosi di manifestare la magia ultraterrena dei loro antenati.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -112,7 +110,6 @@
         "bardo-collegio-dell-eloquenza-linguaggio-universale",
         "bardo-collegio-dell-eloquenza-ispirazione-contagiosa"
       ],
-      "descrizione": "I membri del Collegio dell'Eloquenza padroneggiano l'arte oratoria. Questi bardi si esprimono dosando abilmente logica ed emozione, conquistando scettici e detrattori con argomentazioni razionali, ma anche suscitando le emozioni più profonde di chi li ascolta.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -140,7 +137,6 @@
         "bardo-collegio-della-creazione-creazione-animata",
         "bardo-collegio-della-creazione-crescendo-creativo"
       ],
-      "descrizione": "I bardi credono che il cosmo sia un'opera d'arte plasmata dai primi draghi e dèi. Una creazione frutto di armonie che continuano a risuonare attraverso l'esistenza ancora oggi: un potere noto come il Canto della Creazione. I bardi del Collegio della Creazione attingono a quel canto primordiale attraverso la danza, la musica e la poesia, e i loro insegnanti condividono questa lezione: \"Prima del sole e della luna, c'era il Canto e la sua musica risveglid la prima alba. Le sue melodie deliziarono le pietre e gli alberi così tanto che alcuni ottennero una voce propria. E adesso cantano anche loro. Imparate la canzone, studenti, e anche voi potrete insegnare alle montagne a cantare e a danzare\". I nani e gli gnomi spesso incoraggiano i loro bardi a diventare studenti del Canto della Creazione. E tra i dragonidi, il Canto della Creazione è venerato poiché secondo le leggende Bahamut e Tiamat, i più grandi fra i draghi, furono tra i primi a intonare il canto.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -170,7 +166,6 @@
         "chierico-dominio-del-crepuscolo-colpo-divino",
         "chierico-dominio-del-crepuscolo-sudario-del-crepuscolo"
       ],
-      "descrizione": "Il passaggio al crepuscolo dalla luce all'oscurità infonde spesso calma e persino gioia, poiché le fatiche della giornata terminano e ci si abbandona al riposo. L'oscurità può anche risvegliare le proprie paure, ma gli dèi del crepuscolo proteggono dagli orrori della notte. I chierici che servono queste divinità portano conforto a coloro che cercano riposo e li proteggono avventurandosi nell'oscurità invadente, per assicurarsi che essa sia un conforto e non motivo di terrore.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -231,7 +226,6 @@
         "chierico-dominio-dell-ordine-colpo-divino",
         "chierico-dominio-dell-ordine-ira-dell-ordine"
       ],
-      "descrizione": "Il Dominio dell'Ordine rappresenta la disciplina e la devozione alle leggi che governano una società, un'istituzione o una filosofia. I chierici dell'Ordine meditano sulla logica e sulla giustizia mentre servono i loro dèi. Credono che delle leggi ben congegnate determinino gerarchie legittime e che tutti debbano obbedire a chi è stato scelto dalla legge per comandare. Coloro che obbediscono devono farlo al meglio delle loro possibilità e, se chi comanda non riesce a proteggere la legge, deve essere sostituito. In questo modo, la legge tesse una rete di obblighi che generano ordine e sicurezza in un multiverso caotico.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -291,7 +285,6 @@
         "chierico-dominio-della-pace-incantesimi-potenti",
         "chierico-dominio-della-pace-legame-espansivo"
       ],
-      "descrizione": "Il balsamo della pace prospera nel cuore di comunità sane, tra nazioni amiche e nelle anime di coloro che sono di animo buono. Gli dèi della pace ispirano persone di ogni tipo a risolvere i conflitti e a opporsi alle forze che cercano di impedire che la pace si diffonda. I chierici del Dominio della Pace presiedono alla firma di trattati e spesso viene loro chiesto di arbitrare le controversie. Le loro benedizioni uniscono le persone e le aiutano a sostenersi a vicenda, mentre la loro magia assiste coloro che sono spinti a combattere per difendere la pace.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -346,7 +339,6 @@
         "druido-circolo-della-fiamma-fiamme-cauterizzanti",
         "druido-circolo-della-fiamma-recupero-ardente"
       ],
-      "descrizione": "I druidi del Circolo della Fiamma comprendono che spesso la distruzione è necessaria alla rinascita, come succede alle foreste andate in fiamme dalle quali ricresce nuova vita. Questi druidi si legano a uno spirito primordiale nel quale coesistono poteri di creazione e di distruzione, tramite il quale possono evocare fiamme controllate che inceneriscono qualcosa per dare vita a qualcos'altro.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "2": [
@@ -398,7 +390,6 @@
         "druido-circolo-delle-spore-diffusione-di-spore",
         "druido-circolo-delle-spore-corpo-fungino"
       ],
-      "descrizione": "I druidi del Circolo delle Spore riescono a vedere la bellezza nel fenomeno della decomposizione. Percepiscono come la muffa e altre varietà di funghi abbiano la capacità di trasformare materiali senza vita in forme di vita rigogliose, sebbene a volte singolari. Per questi druidi, la vita e la morte non sono che fasi ricorrenti di un ciclo imponente, nel quale l'una conduce all'altra e viceversa. La morte non è il termine della vita, ma un cambiamento di stato nel quale la vita cambia forma. La relazione dei druidi appartenenti a questo circolo con i non morti è complessa: non considerano la non-morte intrinsecamente sbagliata, ma credono che il ciclo della natura sia più sano se ogni suo elemento resta vitale e in condizioni di perpetuo cambiamento. Quando i non morti cercano di sostituire tutta la vita o di evitare il passaggio verso la morte definitiva, violano l'equilibrio del ciclo naturale e devono essere fermati.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "2": [
@@ -450,7 +441,6 @@
         "druido-circolo-delle-stelle-costellazioni-scintillanti",
         "druido-circolo-delle-stelle-manto-di-stelle"
       ],
-      "descrizione": "Il Circolo delle Stelle consente ai druidi di attingere al potere della luce stellare. I druidi appartenenti a questo circolo tracciano le costellazioni da tempo immemorabile, rivelandone i segreti nascosti. Grazie alla rivelazione e alla comprensione di questi segreti, il Circolo delle Stelle cerca di sfruttare i poteri del cosmo. Molti dei druidi appartenenti a questo circolo tengono traccia del moto delle costellazioni e dell'influenza delle stelle sul mondo. Alcuni gruppi di questi druidi utilizzano siti megalitici per testimoniare le loro osservazioni, rendendoli delle misteriose librerie per la conservazione del sapere. Questi siti possono essere circoli di pietre, piramidi, petroglifi, templi sotterranei, o una qualsiasi costruzione che possa durare nel tempo proteggendo la sacra conoscenza in esso conservata anche in caso di cataclisma.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "2": [
@@ -483,7 +473,6 @@
         "guerriero-cavaliere-runico-maestro-delle-rune",
         "guerriero-cavaliere-runico-colosso-runico"
       ],
-      "descrizione": "I Cavalieri Runici migliorano la loro abilità marziale usando i poteri soprannaturali delle rune, una pratica antichissima originata dai giganti. Ogni famiglia di giganti conta almeno un membro in grado di intagliare le rune e il personaggio probabilmente ha appreso quest'arte mistica direttamente o indirettamente da un tale artigiano mistico. Potrebbe essere entrato in contatto con quest'arte trovando tracce dell'opera dei giganti incise su una collina o in una grotta o averne appreso i segreti da un sapiente o incontrando un gigante di persona; in ogni caso ha studiato l'arte dei giganti imparando come applicare le rune al suo equipaggiamento per potenziarlo con la loro magia.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -523,7 +512,6 @@
         "guerriero-guerriero-psionico-baluardo-della-forza",
         "guerriero-guerriero-psionico-maestro-della-telecinesi"
       ],
-      "descrizione": "Divenuto consapevole del proprio potere psionico, un Guerriero Psionico aggiunge alla propria potenza fisica sferzate telecinetiche, barriere di forza mentale e colpi delle armi infusi di energia psionica. Molti githyanki si addestrano per diventare guerrieri di questo tipo, così come alcuni degli elfi alti più disciplinati. Anche molti giovani kalashtar del mondo di Eberron sognano di diventare Guerrieri Psionici. Un guerriero che ha intrapreso il percorso del Guerriero Psionico potrebbe avere acquisito le sue abilità psioniche attraverso la disciplina, o sotto la guida di un maestro, oppure averle perfezionate in un'accademia specializzata nell'utilizzo dei poteri mentali per l'attacco e la difesa.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -565,7 +553,6 @@
         "ladro-fantasma-cammino-fantasma",
         "ladro-fantasma-compagno-della-morte"
       ],
-      "descrizione": "Molti ladri camminano costantemente sul sottile confine che separa la vita e morte, mettendo a rischio la propria e mietendo quelle degli altri. Lungo quel confine, alcuni di loro scoprono una connessione mistica con la morte stessa. Questi ladri acquisiscono conoscenza dai morti e si immergono nella loro energia negativa, finendo per diventare creature simili ai fantasmi. Le gilde dei ladri considerano i ladri che aderiscono a questo archetipo degli utili raccoglitori di informazioni e spie molto efficaci. Molti shadar-kai della Coltre Oscura sono dei veri maestri di queste macabre tecniche e alcuni di loro le insegnano ad altri. In luoghi come Thay nei Forgotten Realms e Karrnath a Eberron, dove molti necromanti praticano le loro arti oscure, un Fantasma può diventare il confidente e il braccio destro di un mago. Nei templi degli dèi della morte, il Fantasma potrebbe adoperarsi a rintracciare chi cerca di sfuggire alla morte e a recuperare le conoscenze che chi muore potrebbe portare con sé nella tomba. In che modo il personaggio ha acquisito questo oscuro potere? Forse si e addormentato in un cimitero e si è risvegliato in possesso di nuove abilità? O si è formato in un tempio o in una gilda di ladri dedicata a una divinità della morte?",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -596,7 +583,6 @@
         "ladro-lama-spirituale-velo-psichico",
         "ladro-lama-spirituale-squarciare-la-mente"
       ],
-      "descrizione": "La maggior parte degli assassini colpisce con armi fisiche e molti scassinatori e spie usano arnesi da scasso per infiltrarsi in luoghi protetti, mentre una Lama Spirituale colpisce insinuandosi nella mente, attraversando sia le barriere fisiche che quelle psichiche. Questi ladri hanno scoperto il potere psionico dentro di loro e lo incanalano per compiere il loro lavoro ladresco. Trovano facilmente impiego come membri di gilde dei ladri, anche se spesso devono fare i conti con altri ladri che diffidano di chi usa strani poteri mentali per portare a termine i propri affari. Molto dei governi sono ben felici di avere una Lama Spirituale al proprio servizio come spia, se ne hanno l'occasione. A volte gli elfi dei boschi delle antiche foreste sul Piano Materiale e nella Selva Fatata intraprendono il percorso della Lama Spirituale, diventando guardiani silenziosi e letali dei loro territori. Nella guerra senza i gith, un githzerai viene incoraggiato a diventare una Lama Spirituale quando la furtivita è necessaria per contrastare i nemici githyanki. Come Lama Spirituale, le abilità psioniche del personaggio potrebbero averlo tormentato fin da bambino, rivelando il loro pieno potenziale solo quando ha dovuto affrontare le tensioni della vita da avventuriero. Oppure potrebbe essere andato alla ricerca di un ordine occulto di adepti psichici trascorrendo con loro anni per imparare a manifestare il suo potere.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -634,7 +620,6 @@
         "mago-canto-della-lama-canzone-di-difesa",
         "mago-canto-della-lama-canzone-di-vittoria"
       ],
-      "descrizione": "I cantori della lama padroneggiano un'arte magica che incorpora scherma e danza. Creata in origine dagli elfi, quest'arte è stata adottata anche da praticanti di altre razze, che onorano e arricchiscono le tradizioni elfiche. In combattimento, il cantore della lama usa una serie di complesse ed eleganti manovre per tenere lontani i pericoli, avendo così il tempo di utilizzare la propria magia per generare devastanti attacchi e intricate difese. Chi ha osservato di persona l'opera di un cantore della lama la ricorda spesso come una delle esperienze più belle della sua vita, una danza epica accompagnata dal canto della lama.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "2": [
@@ -665,7 +650,6 @@
         "mago-ordine-degli-scribi-scrivano-arcano",
         "mago-ordine-degli-scribi-comunione-con-il-testo"
       ],
-      "descrizione": "Magia dei libri: è così che molti chiamano l'arte di lanciare incantesimi. Il nome è adatto, considerato quanto tempo i maghi trascorrono a studiare tomi e a scrivere teorie sulla natura della magia. È raro vedere maghi in viaggio senza un carico di libri e pergamene, e qualsiasi mago degno di questo nome sarebbe disposto a tutto pur di avere accesso a un archivio di antico sapere. Tra tutti i maghi, nessuno è più dedito ai libri dei membri dell'Ordine degli Scribi: la loro missione assume forme diverse nei vari mondi, ma lo scopo principale resta catalogare ogni scoperta magica per far progredire l'arte della magia. Sono capaci di risvegliare il proprio libro degli incantesimi, trasformandolo in un fidato compagno.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "2": [
@@ -695,7 +679,6 @@
         "monaco-via-del-se-astrale-corpo-del-se-astrale",
         "monaco-via-del-se-astrale-se-astrale-risvegliato"
       ],
-      "descrizione": "Un monaco che segue la Via del sé Astrale crede che la realtà del corpo sia solo un'illusione. Per questo monaco il ki è la rappresentazione della vera forma di un individuo, forma che definisce \"sé astrale\". Questo sé astrale può essere una forza al servizio dell'ordine o del caos e a seconda di questa interpretazione alcuni monasteri addestrano i novizi a usare i propri poteri per proteggere i deboli, mentre altri li addestrano a manifestare il loro vero sé al servizio dei potenti.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -726,7 +709,6 @@
         "monaco-via-della-misericordia-raffica-di-guarigione-e-dolore",
         "monaco-via-della-misericordia-mano-della-misericordia-suprema"
       ],
-      "descrizione": "I monaci della Via della Misericordia imparano a manipolare la forza vitale negli altri per aiutare chi ne ha bisogno. Sono veri e propri guaritori erranti per i poveri e i feriti abbandonati a loro stessi. E a quelli ormai privi di ogni speranza di salvezza, donano una fine rapida come atto di misericordia. I monaci che seguono la Via della Misericordia potrebbero fare parte di un ordine religioso che si occupa dei bisognosi, costretti a fronteggiare scelte difficili facendo affidamento più sul realismo che sull'idealismo. Possono essere guaritori dal cuore gentile, amati dalle comunità in cui vivono, oppure monaci che elargiscono macabri atti di misericordia. Chi appartiene a un ordine monastico solitamente indossa vesti dotate di ampi cappucci e spesso nasconde il volto dietro una maschera che ne attesta il ruolo di anonimo dispensatore di vita e di morte.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -757,7 +739,6 @@
         "paladino-giuramento-delle-sentinelle-punizione-solerte",
         "paladino-giuramento-delle-sentinelle-baluardo-dei-mortali"
       ],
-      "descrizione": "Con il Giuramento delle Sentinelle il paladino presta voto di proteggere i reami delle creature mortali dalle incursioni di creature extraplanari, molte delle quali sono in grado di annientare i combattenti mortali. A questo scopo, le Sentinelle affinano corpo, mente e spirito affinché il loro ordine diventi l'arma definitiva contro questo tipo di minacce. I paladini che prestano il Giuramento delle Sentinelle vigilano costantemente per individuare eventuali influenze provenienti da forze extraplanari, spesso utilizzando una rete di spie e informatori per raccogliere informazioni sui culti sospetti. Per una Sentinella, mantenere un'attitudine di sana diffidenza e di consapevolezza nei confronti di tutto ciò che la circonda è naturale come indossare un'armatura in battaglia.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -816,7 +797,6 @@
         "paladino-giuramento-di-gloria-difesa-gloriosa",
         "paladino-giuramento-di-gloria-leggenda-vivente"
       ],
-      "descrizione": "I paladini che prestano il Giuramento di Gloria credono di essere destinati alla gloria assieme ai loro compagni attraverso il compimento di atti di eroismo. Si allenano diligentemente incoraggiandosi a vicenda in modo da essere pronti quando il destino li chiamera.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -877,7 +857,6 @@
         "ranger-custode-degli-sciami-sciame-possente",
         "ranger-custode-degli-sciami-dispersione-brulicante"
       ],
-      "descrizione": "Grazie alla profonda connessione raggiunta con l'ambiente che li circonda, alcuni ranger possono ricorrere a questa connessione magica con il mondo legandosi a uno sciame di spiriti della natura. Lo sciame diventa un potente alleato in battaglia, oltre che un'utile compagnia per il ranger. Alcuni ranger custodi degli sciami sono dei reietti o degli eremiti che preferiscono isolarsi dal mondo con i loro sciami piuttosto che affrontare il disagio della compagnia altrui. Altri custodi, invece, amano costruire comunità vivaci che collaborano per l'interesse comune di tutti quelli che considerano parte del loro sciame.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -927,7 +906,6 @@
         "ranger-viandante-fatato-rinforzi-fatati",
         "ranger-viandante-fatato-viandante-velato"
       ],
-      "descrizione": "Un'aura mistica circonda il ranger, grazie al dono di un signore fatato, al frutto splendente di un albero parlante che ha mangiato, alla sorgente magica in cui hai nuotato oa qualche altro evento di buon auspicio. Comunque lui abbia acquisito la sua magia fatata, adesso è un Viandante Fatato, un ranger che rappresenta sia il regno mortale che quello dei reami fatati. Mentre vaga per il multiverso, la sua risata gioiosa illumina i cuori degli oppressi e la sua abilità marziale suscita terrore nei suoi nemici, perché grande = lallegria degli esseri fatati e terribile è la loro furia.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -976,7 +954,6 @@
         "stregone-anima-meccanica-trance-dell-ordine",
         "stregone-anima-meccanica-cavalleria-meccanica"
       ],
-      "descrizione": "Le forze cosmiche dell'ordine hanno infuso di magia lo stregone: è un potere proveniente da Mechanus o da un mondo simile, piani di esistenza fondati su una perfetta efficienza meccanica. Lo stregone (o qualche suo antenato) potrebbe essere rimasto coinvolto nelle macchinazioni dei modron, le disciplinate creature che popolano Mechanus, o magari un suo progenitore ha preso parte alla Grande Marcia dei modron. Quali che ne siano le origini, lo stregone ritiene il potere dell'ordine, così alieno per molti, un elemento fondante di un vasto e impeccabile sistema.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -1030,7 +1007,6 @@
         "stregone-mente-aberrante-rivelazione-della-carne",
         "stregone-mente-aberrante-implosione-distorcente"
       ],
-      "descrizione": "Un'entità aliena è entrata in contatto con la mente dello stregone, donandogli un potere psionico che può usare per interagire con altre menti e alterare il mondo attorno a sé, controllando l'energia magica del multiverso. Può usare questo potere come faro di speranza per il prossimo oppure come fonte di terrore per coloro che verranno violati dal tocco della sua mente e assisteranno alle manifestazioni innaturali delle sue capacità soprannaturali. Uno stregone Mente Aberrante può aver ottenuto i propri poteri fin dalla nascita oppure in seguito a un evento che ha risvegliato la sua consapevolezza psionica.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -1085,7 +1061,6 @@
         "warlock-il-genio-santuario-del-recipiente",
         "warlock-il-genio-desiderio-limitato"
       ],
-      "descrizione": "Il warlock ha stretto un patto con uno dei più rari tra i geni: un genio nobile. Queste entità regnano su grandi possedimenti nei Piani Elementali ed esercitano grande influenza sui geni minori e sulle altre creature elementali. I geni nobili hanno motivazioni variegate, ma sono quasi tutti arroganti e il loro potere è paragonabile a quello di divinità minori. Adorano ingannare i mortali, che spesso vincolano i geni al proprio servizio, e non esitano a stringere patti per ampliare i propri domini. Il patrono può essere un dao, un djinni, un efreeti o un marid.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -1208,7 +1183,6 @@
         "warlock-l-insondabile-presa-dei-tentacoli",
         "warlock-l-insondabile-immersione-insondabile"
       ],
-      "descrizione": "Il patrono del warlock proviene dalle acque più profonde: si tratta di un'entità dell'oceano, del Piano Elementale dell'Acqua o di un altro mare ultraterreno, che gli concede di fare uso dei suoi poteri acquatici. Sta utilizzando il warlock per apprendere di più sulle terre emerse, o forse per spalancare le dighe del cosmo e inondare l'universo? Il warlock potrebbe essere stato concepito in un antico culto che venera I'Insondabile e la sua progenie, o potrebbe essere Stato salvato dal suo patrono dopo un naufragio, quando ormai era sul punto di annegare. Quali che siano le cause di questo patto, il warlock ascolta le voci del mare e delle sue misteriose profondità. L'entità degli abissi che concede i propri poteri al warlock potrebbe essere un kraken, un antico elementale dell'acqua, un'allucinazione semidivina nata dalla mente dei kuo-toa, un semidio marinide o una congrega di megere marine.",
       "fonte_descrizione": "manuale_verificato",
       "privilegi_per_livello": {
         "1": [
@@ -1486,65 +1460,7 @@
       ],
       "pagina": 29,
       "pagina_pdf": 30,
-      "fonte_descrizione": "manuale_verificato",
-      "statblock": {
-        "nome": "Oggetto Danzante",
-        "tipo": "Costrutto",
-        "taglia": "Grande o inferiore",
-        "classe_armatura": 16,
-        "armatura": "naturale",
-        "punti_ferita": {
-          "formula": "10 + 5 * livello_bardo"
-        },
-        "velocita_m": 9,
-        "volare_m": 9,
-        "fluttuare": true,
-        "caratteristiche": {
-          "forza": 18,
-          "destrezza": 14,
-          "costituzione": 16,
-          "intelligenza": 4,
-          "saggezza": 10,
-          "carisma": 6
-        },
-        "immunita_danni": [
-          "psichico",
-          "veleno"
-        ],
-        "immunita_condizioni": [
-          "affascinato",
-          "avvelenato",
-          "indebolimento",
-          "spaventato"
-        ],
-        "sensi": {
-          "percezione_passiva": 10,
-          "scurovisione_m": 18
-        },
-        "linguaggi": "Comprende i linguaggi parlati dal personaggio.",
-        "bonus_competenza": "Pari a quello del personaggio.",
-        "tratti": [
-          {
-            "nome": "Forma Immutabile",
-            "descrizione": "L'oggetto è immune a qualsiasi incantesimo o effetto che ne altererebbe la forma."
-          },
-          {
-            "nome": "Danza Irrefrenabile",
-            "descrizione": "Se una creatura inizia il suo turno entro 3 metri dall'oggetto, questo può aumentare o diminuire, a scelta del personaggio, la velocità base della creatura di 3 metri fino alla fine del turno, purché l'oggetto non sia incapacitato."
-          }
-        ],
-        "azioni": [
-          {
-            "nome": "Schianto Rinforzato",
-            "tipo": "attacco_con_arma_da_mischia",
-            "tiro_per_colpire": "modificatore di attacco dell’incantesimo del personaggio",
-            "portata_m": 1.5,
-            "bersaglio": "uno nel campo visivo del personaggio",
-            "danni": "1d10 + bonus_competenza",
-            "tipo_danno": "forza"
-          }
-        ]
-      }
+      "fonte_descrizione": "manuale_verificato"
     },
     {
       "id": "bardo-collegio-della-creazione-crescendo-creativo",
@@ -1820,59 +1736,7 @@
       ],
       "pagina": 36,
       "pagina_pdf": 37,
-      "fonte_descrizione": "manuale_verificato",
-      "statblock": {
-        "nome": "Spirito della Fiamma",
-        "tipo": "Elementale",
-        "taglia": "Piccola",
-        "classe_armatura": 13,
-        "armatura": "naturale",
-        "punti_ferita": {
-          "formula": "5 + 5 * livello_druido"
-        },
-        "velocita_m": 9,
-        "volare_m": 9,
-        "fluttuare": true,
-        "caratteristiche": {
-          "forza": 10,
-          "destrezza": 14,
-          "costituzione": 14,
-          "intelligenza": 13,
-          "saggezza": 15,
-          "carisma": 11
-        },
-        "immunita_danni": [
-          "fuoco"
-        ],
-        "immunita_condizioni": [
-          "affascinato",
-          "afferrato",
-          "prono",
-          "spaventato",
-          "trattenuto"
-        ],
-        "sensi": {
-          "percezione_passiva": 12,
-          "scurovisione_m": 18
-        },
-        "linguaggi": "Comprende i linguaggi parlati dal personaggio.",
-        "bonus_competenza": "Pari a quello del personaggio.",
-        "azioni": [
-          {
-            "nome": "Seme di Fiamma",
-            "tipo": "attacco_con_arma_a_distanza",
-            "tiro_per_colpire": "modificatore di attacco dell’incantesimo del personaggio",
-            "gittata_m": 18,
-            "bersaglio": "uno nel campo visivo del personaggio",
-            "danni": "1d6 + bonus_competenza",
-            "tipo_danno": "fuoco"
-          },
-          {
-            "nome": "Teletrasporto Esplosivo",
-            "descrizione": "Lo spirito e ogni creatura consenziente a scelta del personaggio entro 1,5 metri dallo spirito si teletrasportano di un massimo di 4,5 metri fino a uno spazio libero nel campo visivo del personaggio. Dopodiché, ogni creatura entro 1,5 metri dallo spazio lasciato dallo spirito deve superare un tiro salvezza su Destrezza contro la CD del tiro salvezza dell'incantesimo del druido o subire 1d6 + bonus di competenza danni da fuoco."
-          }
-        ]
-      }
+      "fonte_descrizione": "manuale_verificato"
     },
     {
       "id": "druido-circolo-della-fiamma-legame-migliorato",

@@ -110,7 +110,8 @@ test("preserves all 50 Wild Magic Surge rows and consultive spell guidance", () 
     assert.equal(row.noConcentration, true, range);
     assert.equal(row.fullDuration, true, range);
   }
-  assert.equal(surge.wildMagicTable.find((entry) => entry.d100 === "99-00").effect.length > 0, true);
+  // The rows' texts are the Manuale's: they come with the GM's private pack (compendio delle regole, fase 2).
+  assert.ok(surge.wildMagicTable.every((entry) => !("effect" in entry)));
 });
 
 test("keeps reference features out of activation surfaces and Metamagia resource-only", () => {

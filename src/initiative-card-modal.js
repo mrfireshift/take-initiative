@@ -61,7 +61,7 @@ import {
   loadSpellbookSpellReference,
 } from "./spellbookCatalog.js";
 import { subclassGrantedSpells, subclassSuggestedSpells } from "./subclassSpellsCatalog.js";
-import { classFeatureDescription, classFeatureMissingText, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
+import { classFeatureDescription, classFeatureMissingText, classFeatureTableText, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
 import {
   SHEET_IMPORT_LIST_SECTIONS,
@@ -1778,7 +1778,7 @@ function wildMagicOutcomeView(row, { onRestorePoints = null } = {}) {
   const effectLabel = document.createElement("strong");
   effectLabel.textContent = `Risultato ${row.d100}`;
   const effectText = document.createElement("span");
-  effectText.textContent = row.effect;
+  effectText.textContent = row.effect || classFeatureTableText(WILD_MAGIC_SURGE_FEATURE_ID, row.d100) || privateTextMissingNote("phb2014");
   effect.append(effectLabel, effectText);
   outcome.append(
     effect,
