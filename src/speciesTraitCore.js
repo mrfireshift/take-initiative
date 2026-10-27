@@ -314,6 +314,23 @@ const SPECIES_TARGET_BREATHS = Object.freeze({
     damageType: "acid", dice: Object.freeze({ 5: "2d10", 11: "3d10", 17: "4d10" }), dc: "con", half: false }),
 });
 
+// The teleports of a species (speciesTeleportCore.js): up to 9 m to a free space the character can see, picked on the
+// map. resistAllFromLevel: the shadar-kai's resistance to all damage until the start of its next turn. seasons: the
+// eladrin's season (the species option) from 3rd level, its save DC (8 + proficiency + Charisma, or the species'
+// chosen ability) and Summer's fire damage (Charisma, minimum 1, or the proficiency bonus).
+const SPECIES_TELEPORTS = Object.freeze({
+  "specie-eladrin-passo-fatato": Object.freeze({ rangeFeet: 30, seasons: Object.freeze({ fromLevel: 3, summer: "cha-min1" }) }),
+  "specie-eladrin-multiverso-passo-fatato": Object.freeze({ rangeFeet: 30, seasons: Object.freeze({ fromLevel: 3, summer: "pb" }) }),
+  "specie-shadar-kai-benedizione-della-regina-corvo": Object.freeze({ rangeFeet: 30, resistAllFromLevel: 3 }),
+  "specie-shadar-kai-multiverso-benedizione-della-regina-corvo": Object.freeze({ rangeFeet: 30, resistAllFromLevel: 3 }),
+  "specie-elfo-astrale-passo-di-luce-stellare": Object.freeze({ rangeFeet: 30 }),
+});
+// The eladrin's seasons force a Wisdom save: the DC's ability is Charisma (Tomo dei Nemici) or the species' choice.
+const SEASON_SAVES = Object.freeze({
+  "specie-eladrin-passo-fatato": Object.freeze({ ability: "wis", dc: "cha" }),
+  "specie-eladrin-multiverso-passo-fatato": Object.freeze({ ability: "wis", dc: "choice" }),
+});
+
 const SPECIES_CONDITION_TRAITS = Object.freeze({
   "specie-leonin-ruggito-intimidatorio": conditionTrait({
     condition: "Spaventato", label: "Spaventato · Ruggito intimidatorio", rangeMeters: 3, timing: "next-turn-end", rounds: 1,
@@ -646,6 +663,8 @@ function speciesTrait({ speciesId = "", giftId = "", optionId = "", key, name, p
     ...(hpTrait ? { hpTrait } : {}),
     ...(innateSpell ? { innateSpell } : {}),
     ...(conditionSpec?.speciesSave ? { speciesSave: conditionSpec.speciesSave } : {}),
+    ...(SPECIES_TELEPORTS[id] ? { speciesTeleport: SPECIES_TELEPORTS[id] } : {}),
+    ...(SEASON_SAVES[id] ? { speciesSave: SEASON_SAVES[id] } : {}),
     ...(conditionSpec?.endsOnAttack ? { endsOnAttack: true } : {}),
     ...(conditionSpec?.choiceOptions ? { choiceOptions: conditionSpec.choiceOptions } : {}),
   });

@@ -138,6 +138,24 @@ Correzioni fatte dopo il confronto:
     tavolo.
   I limiti per turno si contano solo in combattimento. Gli incantesimi risolti
   dal pannello incantesimi non ricevono questi danni extra.
+- **Teletrasporti** (*Passo fatato* dell'eladrin, *Benedizione della Regina
+  Corvo* dello shadar-kai, *Passo di luce stellare* dell'elfo astrale):
+  **Teletrasporta** riduce la scheda, il GM sceglie sulla mappa la casella di
+  arrivo entro 9 m (lo strumento del teletrasporto del boss) e un solo comando
+  sposta il token e spende l'uso: un Annulla riporta tutto indietro. Dal 3°
+  livello:
+  - shadar-kai: pill «Resistenza ai danni» fino all'inizio del suo prossimo
+    turno, con le difese vere (i danni vengono dimezzati);
+  - eladrin, secondo la stagione scelta nella scheda (TS su Saggezza con CD 8 +
+    competenza + Carisma, o la caratteristica a scelta della specie in Mostri del
+    Multiverso; si selezionano prima le creature, poi Teletrasporta):
+    Inverno, Spaventato sulla creatura che fallisce fino alla fine del prossimo
+    turno dell'eladrin; Autunno, Affascinato su fino a due creature per 1 minuto,
+    finché non subiscono danni; Primavera, si teletrasporta la creatura
+    consenziente selezionata al posto dell'eladrin; Estate, danni da fuoco
+    (Carisma minimo 1, o bonus di competenza) alle creature selezionate, con le
+    loro resistenze.
+  Che la casella sia libera e visibile lo valuta il GM.
 - **Pill di un turno**: **Attiva** mette la pill e spende l'uso; la pill scade da
   sola.
   - *Passo nascosto* (firbolg): Invisibile sul firbolg fino all'inizio del suo

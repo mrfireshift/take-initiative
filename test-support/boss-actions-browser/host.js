@@ -579,6 +579,16 @@ const scenarios = {
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: "LEFT", vertical: "TOP" } });
   },
   async "pc-monster-presence"() { await scenarios["pc-monster"]("presence"); },
+  // A species teleport from the card: Mira is a shadar-kai (Blessing of the Raven Queen, resistance from 3rd level).
+  async "pc-teleport"() {
+    const mira = fakeHost.state.items.find((item) => item.id === "mira");
+    mira.metadata[META].initiativeCard = { characterBuild: [{ classId: "ladro", level: 5 }], abilityModifiers: { str: 0, dex: 3, con: 1, int: 1, wis: 1, cha: 2 },
+      species: { id: "shadar-kai", ancestryId: "" }, quickActions: [] };
+    fakeHost.setItems([...fakeHost.state.items]);
+    await OBR.popover.open({ id: "com.thebigpicture.initiative/initiative-card-modal", url: "/initiative-card-modal.html?source=mira", width: 440, height: 560,
+      anchorReference: "POSITION", anchorPosition: { left: 20, top: 60 }, anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" }, hidePaper: true });
+  },
   async compare() { document.getElementById("open-hp").click(); await sleep(600); fakeHost.setSelection(["dars"]); await openBossActionsPopover("auril"); await sleep(400);
     const frame = bossFrame(); fakeHost.state.popovers.get("com.thebigpicture.initiative/boss-actions").anchorPosition = { left: 600, top: 60 }; frame.style.left = "600px"; frame.style.top = "60px";
     (await row("Icekiss +2")).click(); await sleep(200); await press('[data-outcome="hit"]'); },

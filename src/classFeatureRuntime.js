@@ -50,6 +50,8 @@ import { spellSlotPoolId, spellSlotStatus } from "./spellSlotCore.js";
 import { quickActionResourcePools } from "./quickActionsCore.js";
 import { getHistoryEntries } from "./history.js";
 import { planSpeciesHpTrait, SPECIES_HP_TRAIT_KINDS, speciesHpTraitAmount, speciesLastDamageTaken } from "./speciesHpTraitCore.js";
+import { planSpeciesTeleport } from "./speciesTeleportCore.js";
+import { damageDefensesForItem } from "./damageDefensesCore.js";
 import { isReactionClassFeature, planReactionSpend } from "./reactionTrackerCore.js";
 
 const META_KEY = `${ID}/meta`;
@@ -638,6 +640,112 @@ async function applySpeciesHpTraitResolved({
     ...(lastDamage ? { lastDamage } : {}),
     ...reactionResult(reaction),
   };
+}
+
+// A species teleport (speciesTeleportCore.js): the move (token:teleport, the boss's teleport), the trait's use, the
+// pills of its season or of the shadar-kai's resistance and Summer's fire damage, in one command: one Undo.
+async function applySpeciesTeleportResolved({ feature, sourceItem, profile, targetIds = [], position = null, sceneEpoch = null } = {}) {
+  const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
+  const selected = [...new Set((Array.isArray(targetIds) ? targetIds : []).map((id) => String(id || "").trim()).filter(Boolean))];
+  const items = await OBR.scene.items.getItems([sourceItem.id, ...selected]);
+  const byId = new Map(items.map((entry) => [entry.id, entry]));
+  const currentSource = byId.get(sourceItem.id);
+  if (!currentSource) throw classFeatureError("source-not-found");
+  const targets = selected.map((id) => byId.get(id)).filter((entry) => entry?.layer === "CHARACTER" && !entry.attachedTo);
+  const plan = planSpeciesTeleport({ feature, card: profile, sourceItem: currentSource, targets, position, metaKey: META_KEY,
+    defensesFor: (entry) => damageDefensesForItem(entry, META_KEY) });
+  if (!plan.ok) throw new Error(plan.blocker);
+  const turnState = await currentTurnState();
+  const instanceId = createInstanceId();
+  const sourceMeta = currentSource.metadata?.[META_KEY] || {};
+  const beforeState = sourceMeta[CLASS_FEATURE_STATE_FIELD];
+  const activation = planClassFeatureActivation({
+    state: beforeState,
+    feature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: profile.characterBuild,
+    abilityModifiers: profile.abilityModifiers,
+    sourceId: sourceItem.id,
+    targetIds: [sourceItem.id],
+    currentRound: turnState.round,
+    currentTurnKey: turnState.turnKey,
+    instanceId,
+    enabledFeatureIds: getEnabledClassFeatures(profile).map((entry) => entry.id),
+  });
+  if (!activation.ok) throw classFeatureError(activation.reason || "invalid-activation", activation.poolId);
+  const sourceName = String(currentSource.name || "Personaggio").trim() || "Personaggio";
+  const appliedAt = { round: turnState.round, actorId: sourceItem.id, ...(turnState.turnKey ? { turnKey: turnState.turnKey } : {}) };
+  const conditionOperations = plan.conditions.map((entry) => ({
+    type: "condition:add",
+    targetIds: [entry.targetId],
+    conditionName: entry.condition,
+    instanceIds: { [entry.targetId]: `class-feature:${instanceId}:${entry.targetId}:${entry.condition}` },
+    options: {
+      sourceId: sourceItem.id,
+      sourceName,
+      parentEffectId: instanceId,
+      type: "class-feature",
+      effectId: feature.id,
+      displayLabel: entry.label,
+      effectDetail: entry.detail,
+      manualRemoval: true,
+      expiry: entry.expiry
+        ? { ...entry.expiry, ...(entry.expiry.actor === "source" ? { actorId: sourceItem.id } : {}) }
+        : { mode: "rounds", remaining: entry.rounds },
+      ...(entry.mechanics ? { mechanics: entry.mechanics } : {}),
+      appliedAt,
+    },
+  }));
+  const damaged = plan.damage.filter((row) => row.change.changed);
+  const operations = [
+    ...(damaged.length ? [{
+      type: "hp:set",
+      updates: damaged.map((row) => ({
+        itemId: row.item.id,
+        hp: row.change.afterHP,
+        hpMax: row.change.hpMax,
+        hpIntent: { mode: "damage", amount: row.change.requested, eventId: instanceId },
+        expectedHP: metadataFieldExpectation(row.item.metadata?.[META_KEY] || {}, "hp"),
+        expectedHPMax: metadataFieldExpectation(row.item.metadata?.[META_KEY] || {}, "hpMax"),
+      })),
+    }] : []),
+    ...conditionOperations,
+  ];
+  const label = `${sourceName}: ${feature.name}`;
+  const itemIds = [...new Set([sourceItem.id, plan.subjectId, ...targets.map((entry) => entry.id)])];
+  const mutation = await runEffectsMutation(operations, {
+    kind: "class-feature",
+    label,
+    targetIds: itemIds,
+    sceneEpoch: originEpoch,
+    metadataPatches: [{
+      id: sourceItem.id,
+      fields: {
+        [CLASS_FEATURE_STATE_FIELD]: {
+          mode: "set",
+          value: activation.state,
+          expected: metadataFieldExpectation(sourceMeta, CLASS_FEATURE_STATE_FIELD),
+        },
+      },
+    }],
+    sideEffects: [{ type: "token:teleport", targetId: plan.subjectId, position: { x: Number(position.x), y: Number(position.y) }, operationId: instanceId }],
+    history: {
+      kind: "class-feature",
+      label,
+      payload: { speciesTrait: { featureId: feature.id, name: feature.name, actor: { id: sourceItem.id, name: sourceName },
+        detail: plan.detail, spent: speciesTraitSpent(feature, profile, beforeState, activation.state) } },
+    },
+  });
+  requireAppliedEffectsMutation(mutation);
+  await refreshConditionLabels(itemIds);
+  return { feature, state: activation.state, subjectId: plan.subjectId, season: plan.season, detail: plan.detail,
+    damage: plan.damage.map((row) => ({ id: row.item.id, before: row.change.hp, after: row.change.afterHP })) };
+}
+
+export async function applySpeciesTeleport({ sourceId, featureId, targetIds = [], position = null, sceneEpoch = null } = {}) {
+  const feature = getClassFeatureDefinition(featureId);
+  const { sourceItem, profile } = await loadEnabledClassFeatureSource(sourceId, feature);
+  return applySpeciesTeleportResolved({ feature, sourceItem, profile, targetIds, position, sceneEpoch });
 }
 
 export async function applySpeciesHpTrait({
@@ -1238,6 +1346,7 @@ export async function activateClassFeature({
   damage = "",
   hit = true,
   spendReaction = true,
+  position = null,
 } = {}) {
   const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
   const feature = featureOverride || getClassFeatureDefinition(featureId);
@@ -1287,6 +1396,10 @@ export async function activateClassFeature({
       spellInstanceId,
       spellName,
     });
+  }
+  // A species teleport: its destination is picked on the map first (the card), whoever calls.
+  if (feature.speciesTeleport) {
+    return applySpeciesTeleportResolved({ feature, sourceItem, profile, targetIds, position, sceneEpoch: originEpoch });
   }
   // A species trait that changes hit points (Shifting excepted: its pill goes on below, with its temporary HP).
   if (feature.hpTrait && feature.hpTrait.kind !== SPECIES_HP_TRAIT_KINDS.SHIFT) {

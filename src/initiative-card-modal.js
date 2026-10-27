@@ -145,6 +145,7 @@ import {
   getClassFeatureState,
   applyLayOnHands,
   applySpeciesHpTrait,
+  applySpeciesTeleport,
   previewSpeciesHpTrait,
   purifyClassFeatureSpell,
   restoreWildMagicTidesOfChaos,
@@ -156,6 +157,10 @@ import { speciesSpellCast, speciesSpellActionId, speciesSpellOpenRequest, specie
 import { perfBootPage } from "./perfProbe.js";
 
 perfBootPage(OBR);
+
+import { requestSpellAreaPlacement } from "./spellAreaPlacementClient.js";
+import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
+import { speciesTeleportInfo, speciesTeleportRuleId } from "./speciesTeleportCore.js";
 
 const META_KEY = `${ID}/meta`;
 const MODAL_ID = `${ID}/initiative-card-modal`;
@@ -745,6 +750,16 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
       await openPcAttackPopover(item.id, action.id, action.launchSpellId || "");
       if (!sceneStillCurrent()) return;
       closeInitiativeCardPopover();
+      return;
+    }
+    // A species teleport: its destination is picked on the map, then the move goes with the use.
+    if (action.kind === "feature" && CLASS_FEATURE_BY_ID.get(action.featureId)?.speciesTeleport) {
+      if (!isGM) throw new Error("Solo il GM può attivare una capacità.");
+      await teleportWithSpeciesTrait(CLASS_FEATURE_BY_ID.get(action.featureId));
+      if (!sceneStillCurrent()) return;
+      setStatus(`Eseguita: ${action.label}.`, "success");
+      quickActionLaunching = false;
+      setButtonsDisabled(false);
       return;
     }
     if (action.kind === "feature" && CLASS_FEATURE_BY_ID.get(action.featureId)?.innateSpell) {
@@ -2046,6 +2061,60 @@ function buildTwinnedSpellControls(feature) {
   return controls;
 }
 
+// A species teleport (speciesTeleportCore.js): the creatures selected first (the season's, or Spring's willing one),
+// then the card folds to its header while the GM picks the free cell within range on the map (the boss's teleport
+// tool), then one command moves the token, spends the use and applies the season or the resistance.
+async function teleportWithSpeciesTrait(feature) {
+  if (!item || classFeatureMutating) return;
+  const sourceId = item.id;
+  const targetIds = (await OBR.player.getSelection().catch(() => []) || []).filter((id) => id !== sourceId);
+  const status = $("classFeatureRunStatus");
+  status.textContent = "Scegli sulla mappa la casella di arrivo; Esc annulla.";
+  status.dataset.tone = "";
+  const popoverId = `${ID}/initiative-card-modal`;
+  let height = 0;
+  try {
+    height = Number(await OBR.popover.getHeight(popoverId)) || 560;
+    await OBR.popover.setHeight(popoverId, 48);
+  } catch {}
+  let result;
+  try {
+    result = await requestSpellAreaPlacement({ ruleId: speciesTeleportRuleId(feature), casterId: sourceId,
+      context: { phase: "species-trait", pointSelection: true, directPointSelection: true, autoConfirmPoint: true } },
+    { broadcast: OBR.broadcast, windowRef: window });
+  } catch (error) {
+    result = { status: "error", error: String(error?.message || error) };
+  }
+  try {
+    if (height) await OBR.popover.setHeight(popoverId, height);
+  } catch {}
+  const position = result?.status === "confirmed" ? spellTeleportDestinationPosition(result.preview) : null;
+  if (!position) {
+    status.textContent = result?.status === "cancelled" ? "Teletrasporto annullato." : `Destinazione non scelta${result?.error ? `: ${result.error}` : ""}.`;
+    return;
+  }
+  await runClassFeatureMutation(
+    () => applySpeciesTeleport({ sourceId, featureId: feature.id, targetIds, position }),
+    `${feature.name}: teletrasporto eseguito.`,
+  );
+}
+
+function buildSpeciesTeleportControls(feature, state) {
+  const controls = document.createElement("div");
+  controls.className = "class-feature-special-controls";
+  const info = speciesTeleportInfo(feature, profile);
+  const note = document.createElement("small");
+  note.textContent = info.spec ? `${info.text} Seleziona prima le creature, poi Teletrasporta.` : info.text;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Teletrasporta";
+  button.title = "Scegli la casella di arrivo sulla mappa; l'uso si spende col teletrasporto";
+  button.disabled = classFeatureMutating || classFeatureResourceRemaining(feature, state) === 0;
+  button.addEventListener("click", () => void teleportWithSpeciesTrait(feature));
+  controls.append(note, button);
+  return controls;
+}
+
 // The option of a species trait that asks a die for its temporary hit points (Fey Gift's Hospitality), or null.
 function speciesChoiceDieOption(feature, choiceId) {
   if (!feature?.speciesId || !choiceId) return null;
@@ -2825,6 +2894,8 @@ function renderClassFeatures() {
             appendFeatureControl(buildWildMagicTidesControls());
           } else if (adapter === "spell-thief") {
             appendFeatureControl(buildSpellThiefControls(feature));
+          } else if (feature.speciesTeleport) {
+            appendFeatureControl(buildSpeciesTeleportControls(feature, state));
           } else if (feature.innateSpell) {
             appendFeatureControl(buildSpeciesSpellControls(feature, state));
           } else if (feature.hpTrait) {

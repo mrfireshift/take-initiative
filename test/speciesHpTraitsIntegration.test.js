@@ -25,6 +25,7 @@ const scene = { ready: true, metadata: {}, items: [] };
 const readyListeners = new Set();
 const metadataListeners = new Set();
 const broadcastListeners = new Map();
+const itemListeners = new Set();
 
 function itemsFor(ids) {
   if (typeof ids === "function") return scene.items.filter(ids).map(clone);
@@ -58,7 +59,10 @@ const sdkStub = {
         const drafts = produce(itemsFor(ids), updater);
         const byId = new Map(drafts.map((item) => [item.id, item]));
         scene.items = scene.items.map((item) => byId.get(item.id) || item);
+        for (const listener of [...itemListeners]) listener(scene.items.map(clone));
       },
+      // The movement History watcher (a teleport's Undo waits for its acknowledgment).
+      onChange(listener) { itemListeners.add(listener); return () => itemListeners.delete(listener); },
       addItems: async (items) => { scene.items.push(...clone(items || [])); },
       deleteItems: async (ids) => {
         const wanted = new Set(ids || []);
@@ -119,6 +123,8 @@ function resetScene() {
     PC("tek", "Tek", 2000, 40, 40, { id: "shifter", ancestryId: "pelle-bestiale" }),
     PC("ssa", "Ssa", 3000, 40, 40, { id: "lucertoloide" }),
     PC("hob", "Hob", 4000, 40, 40, { id: "hobgoblin-multiverso" }),
+    PC("sk", "Sk", 5000, 40, 40, { id: "shadar-kai" }),
+    PC("ela", "Ela", 6000, 40, 40, { id: "eladrin", ancestryId: "estate" }),
   ];
 }
 
@@ -243,4 +249,35 @@ test("Fey Gift: Passage puts its pill on the hobgoblin too; Hospitality gives bo
   assert.equal(metaOf("zar").hp, 37, "30 + 7: the representation of temporary hit points on a wounded creature");
   assert.deepEqual(conditionNames("zar"), ["Aiutato"]);
   assert.equal(uses("hob", "specie-hobgoblin-multiverso-dono-fatato-usi"), 2);
+});
+
+const positionOf = (id) => scene.items.find((item) => item.id === id).position;
+async function waitForPosition(id, x) {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    if (positionOf(id)?.x === x) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  assert.fail(`${id} did not reach x = ${x}: ${JSON.stringify(positionOf(id))}`);
+}
+
+let movementWatcherMounted = false;
+test("Blessing of the Raven Queen: the token moves, the use is spent, the resistance pill; one Undo brings all back", async () => {
+  if (!movementWatcherMounted) { await history.mountMovementHistoryWatcher(); movementWatcherMounted = true; }
+  await classFeatureRuntime.applySpeciesTeleport({ sourceId: "sk", featureId: "specie-shadar-kai-benedizione-della-regina-corvo", position: { x: 5300, y: 0 } });
+  await waitForPosition("sk", 5300);
+  assert.equal(uses("sk", "specie-shadar-kai-benedizione-della-regina-corvo-usi"), 0);
+  const pill = (metaOf("sk").conditions?.instances || []).find((instance) => instance.condition === "Resistenza ai danni");
+  assert.ok(pill?.mechanics?.damageDefenses?.resistances?.includes("fire"));
+  const [entry] = await waitForHistoryCount(1);
+  await history.undoHistoryThrough(entry.id, { sceneEpoch: currentSceneEpoch() });
+  await waitForPosition("sk", 5000);
+  assert.equal(metaOf("sk").classFeatureState, undefined, "the use is back");
+  assert.deepEqual(conditionNames("sk"), []);
+});
+
+test("Fey Step in Summer: the eladrin moves and the creatures selected take its fire damage", async () => {
+  await classFeatureRuntime.applySpeciesTeleport({ sourceId: "ela", featureId: "specie-eladrin-passo-fatato", targetIds: ["grom"], position: { x: 6300, y: 0 } });
+  await waitForPosition("ela", 6300);
+  assert.equal(metaOf("grom").hp, 4, "5 - 1: Charisma +1");
+  assert.equal(uses("ela", "specie-eladrin-passo-fatato-usi"), 0);
 });

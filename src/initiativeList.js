@@ -8468,7 +8468,8 @@ async function __activateClassFeatureFromContext(entry, featureId, scopeIds = []
     await openCardSpellsPopup(entry, { quickActionId: request.quickActionId, routeRequest: request });
     return { mode: "review", route: "spell-unified-panel" };
   }
-  if (feature.hpTrait && speciesHpTraitNeedsRoll(feature.hpTrait)) {
+  // A species teleport picks its destination on the map from the card (Teletrasporta).
+  if ((feature.hpTrait && speciesHpTraitNeedsRoll(feature.hpTrait)) || feature.speciesTeleport) {
     await openInitiativeCardPopup(entry);
     return { mode: "review", route: "initiative-card" };
   }
@@ -8532,8 +8533,9 @@ async function __runTrackerQuickAction(sourceEntry, action) {
       await openCardSpellsPopup(sourceEntry, { quickActionId: request.quickActionId, routeRequest: request });
       return { mode: "review", route: "spell-unified-panel" };
     }
-    // A species trait that changes hit points asks its roll in the card, which writes the HP (speciesHpTraitCore.js).
-    if (feature?.hpTrait) {
+    // A species trait that changes hit points asks its roll in the card, which writes the HP (speciesHpTraitCore.js); a
+    // species teleport picks its destination from the card.
+    if (feature?.hpTrait || feature?.speciesTeleport) {
       await openInitiativeCardPopup(sourceEntry, { quickActionId: action.id });
       return { mode: "review", route: "initiative-card" };
     }
