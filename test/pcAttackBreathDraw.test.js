@@ -9,7 +9,8 @@ const sdk = { onReady() {}, broadcast: { onMessage: () => () => {}, sendMessage:
 mock.module("@owlbear-rodeo/sdk", { exports: { default: sdk, buildLabel() {}, buildImage() {}, buildPath() {}, buildShape() {}, buildText() {}, Command: class {} } });
 const { bootPcAttack } = await import("../src/pc-attack.js");
 const { pcAttackBreathAction } = await import("../src/pcAttackCore.js");
-const { pcAttackBreathActionId, pcBreathAreaRuleId } = await import("../src/pcAttackBreathId.js");
+const { pcAttackBreathActionId, pcBreathAreaRuleId, pcMonsterAreaRuleId } = await import("../src/pcAttackBreathId.js");
+const { sanitizeQuickAction } = await import("../src/quickActionsCore.js");
 const { getSpellAreaRuleById } = await import("../src/spellAreaRules.js");
 const { spellAreaTheme } = await import("../src/spellAreaStyleCore.js");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
@@ -41,20 +42,21 @@ const RED = "specie-dragonide-arma-a-soffio-rosso";
 const card = { characterBuild: [{ classId: "paladino", level: 6 }], abilityModifiers: { str: 3, dex: 0, con: 2, int: 0, wis: 1, cha: 2 },
   species: { id: "dragonide", ancestryId: "rosso" }, quickActions: [] };
 
-function fixture({ placement }) {
+function fixture({ placement, monsterAction = null, nearby = async () => [] }) {
   const documentRef = createDocument();
   const creature = (id, name, hp, extra = {}) => ({ id, name, type: "IMAGE", layer: "CHARACTER", metadata: { [META]: { hp, hpMax: hp, inInitiative: true, ...extra } } });
-  const items = [creature("kriv", "Kriv", 40, { initiativeCard: card }), creature("ghoul", "Ghoul", 30), creature("imp", "Imp", 10)];
+  const attackerCard = monsterAction ? { quickActions: [monsterAction], monster: { source: "manual" } } : card;
+  const items = [creature("kriv", "Kriv", 40, { initiativeCard: attackerCard, attitude: monsterAction ? "enemy" : "pc" }), creature("ghoul", "Ghoul", 30), creature("imp", "Imp", 10)];
   const heights = [], requests = [];
   const api = {
     player: { getRole: async () => "GM", getSelection: async () => [], onChange: () => () => {} },
     scene: { isReady: async () => true, onReadyChange: () => () => {}, items: { getItems: async () => items, onChange: () => () => {} } },
     popover: { close: async () => {}, getHeight: async () => 560, setHeight: async (id, height) => { heights.push(height); } },
   };
-  const action = pcAttackBreathAction(card, pcAttackBreathActionId(RED));
+  const action = monsterAction || pcAttackBreathAction(card, pcAttackBreathActionId(RED));
   const runtime = {
     getPcAttackPresentation: async () => ({ item: items[0], action, targets: items.slice(1), turnState: null, sceneIdentity: "scene-A" }),
-    getPcAttackNearby: async () => [],
+    getPcAttackNearby: nearby,
   };
   const controller = bootPcAttack(documentRef, { api, runtime, sourceId: "kriv", actionId: action.id, schedule: (callback) => setTimeout(callback, 0),
     placeArea: async (request) => { requests.push(request); return placement(request); }, cancelArea: async () => {} });
@@ -98,4 +100,54 @@ test("a cancelled drawing leaves the ticks as they were", async () => {
   assert.deepEqual(Object.values(f.controller.getDraft().area.members).filter((member) => member.on), []);
   assert.equal(textOf(f.$("pc-attack-status")), "Disegno annullato.");
   assert.equal(f.$("pc-attack-area-draw").disabled, false);
+});
+
+// Attacchi dei mostri, fase 5, lotto 1: l'area di un mostro alla misura dello statblock, disegnata dal suo token o su un
+// punto; la sfera «within N feet of» il mostro propone da sola le creature (decisione D1).
+const monsterSave = (area, type = "fire") => sanitizeQuickAction({ id: "breath", label: "Fire Breath", kind: "attack", range: "ranged",
+  components: [{ id: "c1", type, formula: "18d6" }], save: "dex", saveDC: 21, saveHalf: true, area });
+
+test("a monster's rules: cone, line, cube from its token, a sphere on a point or around it, at the stat block's size", () => {
+  assert.equal(pcMonsterAreaRuleId({ shape: "cone", sizeFeet: 60 }, "fire"), "pc-monster-area:cone:60ft:fire");
+  assert.equal(pcMonsterAreaRuleId({ shape: "line", sizeFeet: 90, widthFeet: 10 }, "lightning"), "pc-monster-area:line:90ft:10ft:lightning");
+  assert.equal(pcMonsterAreaRuleId({ shape: "sphere", sizeFeet: 20, origin: "point" }, "fire"), "pc-monster-area:sphere:20ft:fire");
+  assert.equal(pcMonsterAreaRuleId({ shape: "sphere", sizeFeet: 120, origin: "self" }, ""), "pc-monster-area:emanation:120ft:force");
+  assert.equal(pcMonsterAreaRuleId({ shape: "target", maxTargets: 1 }, "fire"), "");
+  assert.equal(pcMonsterAreaRuleId({ shape: "cone", sizeFeet: 12 }, "fire"), "", "a size the grid cannot draw");
+  const cone = getSpellAreaRuleById("pc-monster-area:cone:60ft:fire");
+  assert.deepEqual([cone.geometry.shape, cone.geometry.size.value, cone.placement.origin, cone.targeting.includeCaster, cone.lifecycle.persistence],
+    ["cone", 18, "caster-adjacent", false, "preview"]);
+  const line = getSpellAreaRuleById("pc-monster-area:line:90ft:10ft:lightning");
+  assert.deepEqual([line.geometry.size.value, line.geometry.width.value], [27, 3]);
+  const cube = getSpellAreaRuleById("pc-monster-area:cube:15ft:thunder");
+  assert.deepEqual([cube.geometry.shape, cube.geometry.size.value, cube.geometry.width.value, cube.placement.origin], ["rectangle", 4.5, 4.5, "caster-adjacent"]);
+  assert.deepEqual([getSpellAreaRuleById("pc-monster-area:sphere:20ft:fire").placement.origin, getSpellAreaRuleById("pc-monster-area:emanation:120ft:force").placement.origin],
+    ["point", "caster"]);
+  assert.equal(spellAreaTheme(cone.spellId), "fire", "coloured by its damage type");
+  assert.equal(getSpellAreaRuleById("pc-monster-area:cone:12ft:fire"), null);
+});
+
+test("Disegna for a monster: its cone at the stat block's size from its token, the creatures inside ticked", async () => {
+  const f = fixture({ monsterAction: monsterSave({ shape: "cone", sizeFeet: 60, origin: "self" }),
+    placement: (request) => ({ status: "confirmed", requestId: request.requestId, preview: { targetIds: ["kriv", "ghoul", "imp"] } }) });
+  await f.controller.ready; await tick();
+  assert.equal(f.$("pc-attack-area-draw").hidden, false);
+  assert.equal(f.$("pc-attack-area-propose").hidden, true, "a cone is drawn, never proposed");
+  await f.$("pc-attack-area-draw").click(); await tick();
+  assert.deepEqual([f.requests[0].ruleId, f.requests[0].casterId], ["pc-monster-area:cone:60ft:fire", "kriv"]);
+  const members = f.controller.getDraft().area.members;
+  assert.deepEqual(["ghoul", "imp"].map((id) => !!members[id]?.on), [true, true]);
+  assert.match(textOf(f.$("pc-attack-status")), /^Nel cono: 2 creature\. Segna i tiri salvezza\./);
+});
+
+test("a sphere around the monster proposes the creatures within its radius, no drawing needed", async () => {
+  const asked = [];
+  const f = fixture({ monsterAction: monsterSave({ shape: "sphere", sizeFeet: 120, origin: "self", choice: true }, "psychic"),
+    nearby: async (request) => { asked.push(request); return ["ghoul"]; }, placement: () => ({ status: "cancelled" }) });
+  await f.controller.ready; await tick(); await tick();
+  assert.deepEqual(asked[0], { sourceId: "kriv", centerId: "kriv", radiusFeet: 120 });
+  const members = f.controller.getDraft().area.members;
+  assert.deepEqual(["ghoul", "imp"].map((id) => !!members[id]?.on), [true, false]);
+  assert.equal(f.$("pc-attack-area-propose").hidden, false);
+  assert.match(textOf(f.$("pc-attack-area-note")), /^Entro 36 m dal mostro: proposte, togli quelle che non sceglie\./);
 });

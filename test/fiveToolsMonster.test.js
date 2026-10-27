@@ -97,7 +97,7 @@ test("drago d'argento adulto: multiattacco, Presenza terrificante, i due soffi c
   assert.deepEqual(parsed.unresolved, []);
   const coldAttack = parsed.sections.attacks.find((attack) => attack.label === "Cold Breath");
   assert.deepEqual([coldAttack.save, coldAttack.saveDC, coldAttack.saveHalf, coldAttack.area, coldAttack.recharge],
-    ["con", 20, true, { shape: "cone", sizeFeet: 60 }, 5]);
+    ["con", 20, true, { shape: "cone", sizeFeet: 60, origin: "self" }, 5]);
   assert.equal(parsed.sections.attacks.find((attack) => attack.label === "Paralyzing Breath").onFail.condition, "Paralizzato");
 });
 

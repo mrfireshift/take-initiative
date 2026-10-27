@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 5: azioni complesse ad euristica (piano)
 
-Stato: **lotto 0 implementato** (27/10/2026); D1–D7 da confermare prima del lotto 1.
+Stato: **lotti 0 e 1 implementati** (27/10/2026); D1–D7 confermate come raccomandate (D7: con il tiro ripetuto niente conteggio dei round).
 
 Richiesta dell'utente: le azioni complesse degli NPC (tiri salvezza, soffi,
 coni, linee, aree) oggi si risolvono solo con «TS superato / fallito»;
@@ -105,7 +105,18 @@ Byte netti dei campi nuovi sulla scheda, se salvati togliendo dalla nota le fras
 - `scripts/monster-heuristics-coverage.mjs`: copertura per regola su
   qualunque bestiario di 5eTools.
 
-### Lotto 1 — l'area sulla mappa
+### Lotto 1 — l'area sulla mappa ✅
+
+Fatto (27/10): l'azione salvata sulla scheda tiene `area.origin` («self» o «point») e `area.choice` (anche nel formato
+del plugin: `"origin": "self"`, `"choice": true`). Nuove sagome `pc-monster-area:…` in `src/spellAreaRules.js`, alla
+misura dello statblock e con il colore del primo tipo di danno: cono, linea (lunghezza × larghezza) e cubo (un quadrato
+che parte dal token) dal mostro; sfera su un punto libero; sfera attorno al mostro centrata sul token. Nella console
+**Disegna** compare per ogni area di un mostro; la sfera «within N feet of» il mostro propone da sola le creature entro
+il raggio (la stessa distanza da bordo a bordo dei trucchetti ad area), con **Proponi** per rifarlo; il GM toglie quelle
+che il mostro non sceglie (D1). L'area resta «manuale» nel motore: esecuzione, Cronologia e Combat Log non cambiano.
+Nel banco: Ancient Black Dragon → Frightful Presence propone le creature entro 36 m (mai il drago), Acid Breath offre
+**Disegna** con la linea di 27 × 3 m. Il disegno sulla mappa vera (lo strumento area gira nella pagina di sfondo di
+Owlbear Rodeo, non nel banco) è da provare in room; il percorso è quello del soffio dei dragonidi.
 
 - **Disegna** anche per le azioni dei mostri, con la misura dello
   statblock: cono e linea dal token del mostro, sfera centrata su un punto,

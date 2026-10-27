@@ -204,7 +204,10 @@ function monsterArea(value, where, unresolved) {
     return null;
   }
   const widthFeet = monsterImportFeet(value.width ?? value.widthFeet ?? value.larghezza);
-  return { shape, sizeFeet, ...(shape === "line" && widthFeet !== null ? { widthFeet } : {}) };
+  // Where it starts and who it takes (fase 5, lotto 1): "self" or "point"; "of its choice".
+  const origin = ({ self: "self", mostro: "self", point: "point", punto: "point" })[key(value.origin ?? value.origine)] || "";
+  return { shape, sizeFeet, ...(shape === "line" && widthFeet !== null ? { widthFeet } : {}), ...(origin ? { origin } : {}),
+    ...(value.choice === true || value.scelta === true ? { choice: true } : {}) };
 }
 
 // The block's hit points, for the tracker (lotto 5): { average, formula }, or null.

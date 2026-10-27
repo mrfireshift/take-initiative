@@ -116,9 +116,15 @@ test("le etichette del mostro: bonus, portata e gittata in metri, ricarica e usi
 test("la nota dell'area: forma e misura, TS e CD, cosa fanno successo e fallimento", () => {
   const card = dragon().metadata[META].initiativeCard;
   assert.equal(pcAttackMonsterAreaNote(pcAttackResolvedAction(fireBreath), card),
-    "Cono di 18 m: spunta le creature colpite. TS Destrezza (CD 21): metà se superato.");
+    "Cono di 18 m: disegna l'area sulla mappa o spunta le creature colpite. TS Destrezza (CD 21): metà se superato.");
   assert.equal(pcAttackMonsterAreaNote(pcAttackResolvedAction(presence), card),
-    "Sfera di 36 m di raggio: spunta le creature colpite. TS Saggezza (CD 19): chi fallisce è spaventato.");
+    "Sfera di 36 m di raggio: disegna l'area sulla mappa o spunta le creature colpite. TS Saggezza (CD 19): chi fallisce è spaventato.");
+  // Fase 5, lotto 1: "within 120 feet of the dragon", "of its choice": the creatures within are proposed.
+  const around = pcAttackResolvedAction(sanitizeQuickAction({ ...presence, area: { shape: "sphere", sizeFeet: 120, origin: "self", choice: true } }));
+  assert.deepEqual([around.area.manual, around.area.proposeFeet, around.area.chosen], [true, 120, true]);
+  assert.equal(pcAttackMonsterAreaNote(around, card), "Entro 36 m dal mostro: proposte, togli quelle che non sceglie. TS Saggezza (CD 19): chi fallisce è spaventato.");
+  const onPoint = pcAttackResolvedAction(sanitizeQuickAction({ ...presence, area: { shape: "sphere", sizeFeet: 20, origin: "point" } }));
+  assert.equal(onPoint.area.proposeFeet, undefined, "a sphere on a point is drawn, never proposed");
   assert.equal(pcAttackMonsterAreaNote(pcAttackResolvedAction(poison), card),
     "Un bersaglio: spuntalo. TS Costituzione (CD 13): niente se superato.");
   const line = sanitizeQuickAction({ ...fireBreath, area: { shape: "line", sizeFeet: 60, widthFeet: 5 } });

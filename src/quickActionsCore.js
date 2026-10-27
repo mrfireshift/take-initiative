@@ -108,7 +108,10 @@ function attackAreaOf(value) {
   const sizeFeet = boundedInteger(value.sizeFeet, 5, 1000);
   if (sizeFeet === null) return null;
   const widthFeet = shape === "line" ? boundedInteger(value.widthFeet, 5, 100) : null;
-  return { shape, sizeFeet, ...(widthFeet !== null ? { widthFeet } : {}) };
+  // Where it starts (fase 5, lotto 1): "self" (a breath, "within 30 feet of the dragon") or "point"; choice: "each
+  // creature of its choice". Optional: an area without them is drawn wherever the GM wants.
+  const origin = ["self", "point"].includes(value.origin) ? value.origin : "";
+  return { shape, sizeFeet, ...(widthFeet !== null ? { widthFeet } : {}), ...(origin ? { origin } : {}), ...(value.choice === true ? { choice: true } : {}) };
 }
 
 // A monster's attack fields besides its damage (attacchi dei mostri, lotto 1), all optional, kept only when valid: the

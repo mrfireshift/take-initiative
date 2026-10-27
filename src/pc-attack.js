@@ -34,7 +34,7 @@ import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUV
   pcAttackManeuverEntries, pcGrappleHolds, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
-import { pcBreathAreaRuleId } from "./pcAttackBreathId.js";
+import { pcBreathAreaRuleId, pcMonsterAreaRuleId } from "./pcAttackBreathId.js";
 import "./popoverDrag.js";
 import { perfBootPage } from "./perfProbe.js";
 
@@ -283,6 +283,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   let drawing="";
   // The colour of the drawn shape: the breath's damage type (the metallic breath has none: the arcane colour).
   const breathAreaType=attack=>attack?.breath?(attack.breath.damageType || "force"):"";
+  // The shape drawn on the map: a breath's cone or line, a monster's area at its stat block's size (fase 5, lotto 1).
+  const areaRuleId=attack=>attack?.monster?pcMonsterAreaRuleId(attack.area,attack.components?.[0]?.type)
+    :pcBreathAreaRuleId(attack?.area?.shape,breathAreaType(attack));
   let presentation=null,draft=null,busy=false,committing=false,invalidated=false,lastUndo=null;
   // Eldritch Blast: the beams registered in this console for the cantrip in use (one registration per beam).
   let beamTally={spellId:"",count:0};
@@ -777,12 +780,14 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const breathNote=attack.breath?breathWhere+breathEffect:"";
     areaNote.textContent=breathNote || pcAttackMonsterAreaNote(attack,attackerCard()) || (area.manual?"Sulla linea di 9 m: spunta le creature colpite."
       :`Entro 1,5 m da ${name}${area.chosen?", solo quelle che scegli":", alleati compresi"}.`);
-    areaPropose.hidden=!!area.manual;
-    if(areaDraw){areaDraw.hidden=!pcBreathAreaRuleId(area.shape,breathAreaType(attack));areaDraw.textContent=drawing?"Disegno…":"Disegna";}
+    // A monster's sphere around itself proposes its creatures like an area cantrip (proposeFeet), still ticked by hand.
+    const proposeFeet=area.manual?area.proposeFeet:area.radiusFeet;
+    areaPropose.hidden=!proposeFeet;
+    if(areaDraw){areaDraw.hidden=!areaRuleId(attack);areaDraw.textContent=drawing?"Disegno…":"Disegna";}
     const key=`${draft.spellId}|${draft.attackMode}`;
-    if(!area.manual && draft.area.proposalKey!==key && typeof runtime.getPcAttackNearby==="function") {
+    if(proposeFeet && draft.area.proposalKey!==key && typeof runtime.getPcAttackNearby==="function") {
       draft.area.proposalKey=key;
-      void runtime.getPcAttackNearby({sourceId,centerId:sourceId,radiusFeet:area.radiusFeet}).then(ids=>{
+      void runtime.getPcAttackNearby({sourceId,centerId:sourceId,radiusFeet:proposeFeet}).then(ids=>{
         if(draft?.area?.proposalKey!==key) return;
         for(const item of presentation.targets) draft.area.members[item.id]={on:ids.includes(item.id),outcome:draft.area.members[item.id]?.outcome || ""};
         renderArea();renderState();
@@ -2041,11 +2046,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   // attacker); the GM still marks each save and may tick or untick by hand. Esc in the tool cancels.
   async function drawBreathArea() {
     const attack=resolved();
-    const ruleId=pcBreathAreaRuleId(attack?.area?.shape,breathAreaType(attack));
+    const ruleId=areaRuleId(attack);
     if(!ruleId || drawing || busy || !draft) return;
-    const requestId=createSpellAreaPlacementRequestId(),active=draft,shape=attack.area.shape==="line"?"la linea":"il cono";
+    const requestId=createSpellAreaPlacementRequestId(),active=draft;
+    const shape={line:"la linea",cone:"il cono",cube:"il cubo"}[attack.area.shape] || "la sfera";
+    const where=attack.area.shape==="sphere" && attack.area.origin!=="self"?"sul punto scelto":`dal token di ${presentation.item?.name || "l'attaccante"}`;
     drawing=requestId;renderArea();renderMinimized();
-    setStatus(`Disegna ${shape} dal token di ${presentation.item?.name || "l'attaccante"}, poi conferma la sagoma. Esc annulla.`);
+    setStatus(`Disegna ${shape} ${where}, poi conferma la sagoma. Esc annulla.`);
     const height=await foldConsole(true);
     let result;
     try {result=await placeArea({ruleId,casterId:sourceId,requestId,context:{phase:"pc-attack",actionId}});}
@@ -2061,7 +2068,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         member.on=ids.has(item.id);
       }
       const listed=presentation.targets.filter(item=>ids.has(item.id)).length,untracked=ids.size-listed;
-      setStatus(`${attack.area.shape==="line"?"Sulla linea":"Nel cono"}: ${listed} ${listed===1?"creatura":"creature"}`
+      setStatus(`${{line:"Sulla linea",cone:"Nel cono",cube:"Nel cubo"}[attack.area.shape] || "Nella sfera"}: ${listed} ${listed===1?"creatura":"creature"}`
         +`${untracked>0?` (${untracked} senza PF tracciati, escluse)`:""}. Segna i tiri salvezza.`,"ok");
     } else setStatus(result?.status==="cancelled"?"Disegno annullato.":`Disegno non riuscito${result?.error?`: ${result.error}`:""}.`,result?.status==="cancelled"?"warn":"error");
     renderArea();renderState();

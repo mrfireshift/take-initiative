@@ -2,7 +2,7 @@ import { CATALOG_SPELL_AREA_SPECS } from "./spellAreaCatalog.js";
 import { AREA_SAVE_SPELL_ID_SET } from "./areaSaveSpellRules.js";
 import { getSpellBoardTokenPlacementRuleById } from "./spellBoardTokenCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
-import { pcBreathAreaRuleId } from "./pcAttackBreathId.js";
+import { pcBreathAreaRuleId, pcMonsterAreaRuleId } from "./pcAttackBreathId.js";
 import {
   DELAYED_BLAST_FIREBALL_ID,
   DELAYED_BLAST_FIREBALL_RANGE_METERS,
@@ -3654,6 +3654,7 @@ export function getSpellAreaRuleById(ruleId) {
     || getSpellBoardTokenPlacementRuleById(normalizedRuleId)
     || getBossActionAreaRuleById(normalizedRuleId)
     || getPcBreathAreaRuleById(normalizedRuleId)
+    || getPcMonsterAreaRuleById(normalizedRuleId)
     || null;
 }
 
@@ -3688,6 +3689,49 @@ export function getPcBreathAreaRuleById(ruleId) {
     }));
   }
   return PC_BREATH_AREA_RULES.get(id);
+}
+
+// A monster's area drawn from the PC attack console (attacchi dei mostri, fase 5, lotto 1), at the stat block's size:
+// the cone, the line and the cube leave the monster's token like Cone of Cold (the pointer gives the direction), the
+// sphere "within N feet of" the monster is centred on it, any other sphere on a free point (like Fireball). The monster
+// is never hit. A preview, gone once the GM confirms; coloured by the action's damage type, as the breath. The console
+// builds the id with pcMonsterAreaRuleId (pcAttackBreathId.js).
+export { pcMonsterAreaRuleId };
+const PC_MONSTER_AREA_RULE_PATTERN = /^pc-monster-area:(?:(cone|cube|sphere|emanation):(\d{1,3})ft|line:(\d{1,3})ft:(\d{1,3})ft):([a-z]+)$/;
+const PC_MONSTER_AREA_RULES = new Map();
+const feetToMetres = (feet) => (feet / 5) * 1.5;
+
+export function getPcMonsterAreaRuleById(ruleId) {
+  const match = String(ruleId || "").trim().match(PC_MONSTER_AREA_RULE_PATTERN);
+  if (!match) return null;
+  const [id, shape = "line", size, lineLength, lineWidth, type] = match;
+  const feet = Number(size || lineLength);
+  const width = Number(lineWidth || 0);
+  if (!(feet >= 5) || feet % 5 !== 0 || (lineWidth && (!(width >= 5) || width % 5 !== 0))) return null;
+  if (!PC_MONSTER_AREA_RULES.has(id)) {
+    const fromToken = { origin: "caster-adjacent", direction: "pointer", anchor: "caster" };
+    const placed = {
+      cone: { geometry: { shape: "cone", size: meters(feetToMetres(feet), "length") }, placement: fromToken },
+      line: { geometry: { shape: "line", size: meters(feetToMetres(feet), "length"), width: meters(feetToMetres(width), "width") }, placement: fromToken },
+      // A cube's face touches the monster: a square that leaves its token.
+      cube: { geometry: { shape: "rectangle", size: meters(feetToMetres(feet), "length"), width: meters(feetToMetres(feet), "width") }, placement: fromToken },
+      sphere: { geometry: { shape: "circle", size: meters(feetToMetres(feet), "radius") },
+        placement: { origin: "point", direction: "none", anchor: "world", range: null } },
+      emanation: { geometry: { shape: "circle", size: meters(feetToMetres(feet), "radius") },
+        placement: { origin: "caster", direction: "none", anchor: "caster", range: null } },
+    }[shape];
+    PC_MONSTER_AREA_RULES.set(id, defineRule({
+      id,
+      spellId: `${PC_BREATH_AREA_SPELL_PREFIX}${type}`,
+      trigger: CAST_TRIGGER,
+      kind: "instant",
+      ...placed,
+      lifecycle: PREVIEW_LIFECYCLE,
+      targeting: COMMON_TARGETING,
+      effectPolicy: ON_CONFIRM,
+    }));
+  }
+  return PC_MONSTER_AREA_RULES.get(id);
 }
 
 // Boss Action areas reuse the shared placement tool with a free origin: the GM picks the

@@ -1588,11 +1588,11 @@ test("monster attack in the console: its bonus and reach in the subtitle, the Mu
   assert.deepEqual(f.$("pc-attack-outcomes").children.map((button) => button.dataset.outcome), ["hit", "critical", "miss"]);
 });
 
-test("monster save action in the console: its area note and DC, the creatures ticked by hand, no map drawing", async () => {
+test("monster save action in the console: its area note and DC, drawn on the map or ticked by hand", async () => {
   const f = fixture({ card: dragonCard, actionId: "breath", attacker: { initiativeCard: dragonCard } }); await f.controller.ready; await tick();
   assert.equal(f.$("pc-attack-subtitle").textContent, "Soffio di fuoco · TS Destrezza (CD 21) · Ricarica 5–6");
   assert.equal(f.$("pc-attack-area").hidden, false);
-  assert.equal(f.$("pc-attack-area-note").textContent, "Cono di 18 m: spunta le creature colpite. TS Destrezza (CD 21): metà se superato.");
+  assert.equal(f.$("pc-attack-area-note").textContent, "Cono di 18 m: disegna l'area sulla mappa o spunta le creature colpite. TS Destrezza (CD 21): metà se superato.");
   assert.equal(f.$("pc-attack-area-propose").hidden, true);
   assert.equal(f.$("pc-attack-monster-note").hidden, true, "no note on this action");
   await areaField(areaRow(f, "ghoul"), "failed").click();

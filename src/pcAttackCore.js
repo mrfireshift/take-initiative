@@ -229,7 +229,11 @@ export function pcAttackResolvedAction(action, spellId = "", attackMode = "") {
   // (one creature without an area, like Acid Spit); half on a passed save when it says so, its condition on a failure.
   if (attack.save && !attack.source) {
     const area = attack.area || { shape: "target", maxTargets: 1 };
-    return { ...attack, saveHalf: attack.saveHalf === true, area: { ...area, manual: true },
+    // A sphere "within N feet of" the monster (fase 5, lotto 1, decision D1): the creatures within N feet are proposed,
+    // as an area cantrip's; "of its choice" says the GM unticks those it spares. Still ticked by hand at will.
+    const proposeFeet = area.origin === "self" && ["sphere", "cylinder"].includes(area.shape) ? area.sizeFeet : 0;
+    return { ...attack, saveHalf: attack.saveHalf === true,
+      area: { ...area, manual: true, ...(proposeFeet ? { proposeFeet } : {}), ...(area.choice ? { chosen: true } : {}) },
       monster: { name: attack.label, half: attack.saveHalf === true, ...(attack.onFail ? { onFail: { ...attack.onFail } } : {}) } };
   }
   if (attack.source?.kind !== "cantrip") {
@@ -799,7 +803,9 @@ export function pcAttackMonsterAreaNote(attack, card = {}) {
   const area = attack.area;
   const where = area.shape === "target"
     ? (area.maxTargets > 1 ? `Fino a ${area.maxTargets} bersagli: spuntali. ` : "Un bersaglio: spuntalo. ")
-    : `${MONSTER_AREA_TEXT[area.shape]?.(area) || "Area"}: spunta le creature colpite. `;
+    : area.proposeFeet
+      ? `Entro ${pcAttackFeetLabel(area.proposeFeet)} dal mostro: proposte${area.chosen ? ", togli quelle che non sceglie" : ", alleati compresi"}. `
+      : `${MONSTER_AREA_TEXT[area.shape]?.(area) || "Area"}: disegna l'area sulla mappa o spunta le creature colpite. `;
   const onFail = attack.monster.onFail;
   const effects = [
     ...(attack.components.length ? [attack.monster.half ? "metà se superato" : "niente se superato"] : []),
