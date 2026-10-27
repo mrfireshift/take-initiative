@@ -38,21 +38,26 @@
     .section-title { margin:12px 0 5px; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.07em; }
     .text { margin:0; white-space:pre-wrap; color:rgba(255,255,255,.88); }
     .source-note { margin:14px 0 0; color:var(--muted); font-size:10px; }
+    .result[aria-pressed="true"] { background:rgba(37,99,235,.28); border-color:rgba(96,165,250,.55); }
+    .topic { width:100%; min-height:32px; display:flex; align-items:center; gap:6px; text-align:left; font-weight:700; }
+    .topic::before { content:"▸"; color:var(--muted); font-size:10px; }
+    .topic[aria-expanded="true"]::before { content:"▾"; }
+    .section-label { margin:6px 2px 0; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+    .more { padding:6px 4px; color:var(--muted); font-size:10px; text-align:center; }
+    .crumbs { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin-bottom:6px; color:var(--muted); font-size:11px; }
+    .crumb { min-height:0; padding:2px 7px; border-radius:7px; font-size:11px; }
+    .back { min-height:26px; padding:3px 9px; margin-bottom:8px; }
+    .badge.optional { border-color:rgba(251,191,36,.55); color:#fde68a; }
+    .related { display:flex; flex-wrap:wrap; gap:5px; }
+    .chip { min-height:26px; padding:3px 9px; font-size:11px; }
     @media (max-width:520px) { .content { grid-template-columns:1fr; grid-template-rows:150px minmax(0,1fr); } }
   </style>
-  <script type="module" crossorigin src="/assets/referenceModal-dhtTitgJ.js"></script>
+  <script type="module" crossorigin src="/assets/referenceModal-D1qPO7zo.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
+  <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
   <link rel="modulepreload" crossorigin href="/assets/rulesTextView-Cgrjw5AW.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectLabelCore-BxJURo7r.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-BqyfCr_o.js">
-  <link rel="modulepreload" crossorigin href="/assets/distance3dCore-DjQKSEJL.js">
-  <link rel="modulepreload" crossorigin href="/assets/blinkRules-BgTzE3Nz.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-CmDx267j.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionRules-DBvvU8xb.js">
-  <link rel="modulepreload" crossorigin href="/assets/spells-srd-BHOfqlik.js">
-  <link rel="modulepreload" crossorigin href="/assets/spell-reference-it-Dj9a0V4s.js">
 </head>
 <body>
   <div class="shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/reference-modal">
@@ -62,6 +67,7 @@
       <div class="tabs" role="tablist" aria-label="Tipo di riferimento">
         <button type="button" data-tab="conditions" class="active" aria-selected="true">Condizioni</button>
         <button type="button" data-tab="spells" aria-selected="false">Incantesimi</button>
+        <button type="button" data-tab="rules" aria-selected="false">Regole</button>
       </div>
       <input id="search" type="search" placeholder="Cerca una voce…" aria-label="Cerca nell'enciclopedia" autocomplete="off" />
       <div class="content">
