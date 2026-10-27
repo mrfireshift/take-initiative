@@ -376,15 +376,31 @@ preparazione al tavolo: basta importarne lo statblock.
 1. Il GM apre la scheda del mostro dall'icona blu della card (per nemici e
    neutrali solo il GM la vede), preme **Modifica** e poi **Importa**.
 2. Incolla il JSON dello statblock (si prepara con il prompt di
-   [Importare una scheda](IMPORT_SCHEDA.md)), preme **Leggi**, sceglie le
-   sezioni e **Applica al modulo**.
-3. La riga **Punti ferita** propone la media dello statblock, modificabile.
-   I PF di un token che li ha già restano, a meno di spuntare **Sostituisci i
-   PF attuali**; **Anche agli altri token** imposta gli stessi PF sulle altre
-   creature con lo stesso nome. I PF dei personaggi e quelli condivisi non si
-   toccano mai da qui.
-4. **Salva**: la scheda e, subito dopo, i PF (una voce annullabile della
-   Cronologia).
+   [Importare una scheda](IMPORT_SCHEDA.md)), oppure carica un file di
+   [5eTools](IMPORT_SCHEDA.md#da-5etools) o cerca il mostro nei libri
+   dell'**Archivio online**; preme **Leggi**, sceglie le sezioni e
+   **Applica al modulo**. Lo statblock di un mostro **sostituisce** quello di
+   prima, incantesimi compresi.
+3. Le righe automatiche, ricordate in questo browser:
+   - **Punti ferita**: la media dello statblock, modificabile; sostituisce i
+     PF del token tranne se è ferito, e con **Anche agli altri token** va
+     sugli omonimi non feriti. I PF dei personaggi e quelli condivisi non si
+     toccano mai da qui;
+   - **Rinomina il token** con il nome del mostro (solo il token aperto);
+   - **Leggendario** per un mostro con azioni leggendarie: accende la modalità
+     del tracker, con i numeri dello statblock, sul token e sugli omonimi che
+     non hanno già una modalità boss;
+   - **Usa il ritratto di 5eTools** (spenta; serve l'indirizzo delle immagini
+     nelle Opzioni).
+4. **Salva**: la scheda, poi nome, ritratto, PF e Leggendario. I token con lo
+   stesso nome ricevono lo stesso statblock; i loro PF, condizioni e usi
+   restano i loro.
+
+Dello statblock la scheda tiene anche gli **incantesimi** (classe e livello
+per gli slot, con le capacità di classe spente; il libro; gli innati come
+azioni rapide ⚡) e, nel browser del GM, il **testo originale**: in fondo alla
+tab Statistiche (riquadro **Statblock originale**) e, per tratti, reazioni e
+azioni leggendarie, nella tab **Capacità** della scheda e della console.
 
 Al turno del mostro la console mostra:
 
@@ -393,17 +409,29 @@ Al turno del mostro la console mostra:
   dadi al tavolo, si sceglie Colpito, Critico o Mancato e si inseriscono i
   danni, come per un PG;
 - le **azioni a tiro salvezza** (soffi, sguardi, Presenza terrificante): la
-  nota dice area, TS e CD del mostro; si spuntano le creature colpite e
-  l'esito del TS di ognuna; chi supera subisce metà danni solo se lo
-  statblock lo prevede; la condizione di chi fallisce si applica da sola e si
-  rimuove a mano;
+  nota dice area, TS, CD e cosa succede a chi fallisce e a chi supera.
+  **Disegna** mette l'area sulla mappa alla misura dello statblock (dal token
+  del mostro, o su un punto) e spunta le creature dentro; un'area attorno al
+  mostro propone le creature da sola. Accanto a ogni creatura il suo bonus al
+  TS, «Elusione» e le sue immunità; gli esiti sono **TS fallito**, **TS
+  superato** e **Immune** (chi è immune parte già lì). Chi supera subisce
+  metà danni solo se lo statblock lo prevede; le condizioni durano quanto
+  dice lo statblock e, con il tiro ripetuto, portano il promemoria del TS a
+  fine turno della creatura, che superato le toglie; un'azione come la
+  Presenza terrificante rende immune per 24 ore chi la supera;
+- gli **effetti al colpo** (il veleno del ragno gigante, la paralisi del
+  ghoul, la presa del coccodrillo): su Colpito o Critico, il riquadro **Al
+  colpo** chiede l'esito del TS del bersaglio e il suo danno, applica le
+  condizioni, «Afferrato» con la CD di fuga e Prono; la spinta si fa a mano;
 - **Ricarica 5–6**: dopo l'uso il sottotitolo scrive «usata»; non blocca mai,
   se al tavolo la ricarica esce, si usa di nuovo;
 - **usi al giorno** («2/3 al giorno»): finiti gli usi l'azione è bloccata;
   tornano con il riposo lungo;
 - il **multiattacco** sopra gli attacchi e, sotto i danni, «Da risolvere al
   tavolo» con la parte dell'azione che il plugin non automatizza (per esempio
-  il tiro salvezza al colpo del ghoul).
+  una malattia o un trascinamento);
+- nella scheda **Capacità**, tratti, reazioni e azioni leggendarie del mostro
+  da leggere, con il costo delle leggendarie (i diamanti restano sul tracker).
 
 Nell'intestazione della console le pillole **PG** e **Mostri** (gruppo «Ogni
 turno», solo questo browser) aprono la console da sola al turno di un

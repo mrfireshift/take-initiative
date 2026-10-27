@@ -29,15 +29,12 @@ const sample = (key, text) => { (samples[key] ||= []).length < 5 && samples[key]
 const cardBytes = [];
 const addedBytes = [];
 const quantile = (list, p) => [...list].sort((a, b) => a - b)[Math.floor(p * (list.length - 1))] ?? 0;
-// The note sentences a field replaces once the console reads it (lots 3 and 4): they leave the card.
-const REPLACED = /\b(?:can|must) repeat the saving throw|\bimmune to [^.]* for the next \d+ hours|\bsaving throw\b|\bgrappled \(escape DC/i;
 
 for (const monster of monsters) {
   const converted = fiveToolsMonsterToStatblock(monster, { pool });
   if (!converted.block) continue;
   bump("mostri");
   const actions = converted.block.actions || [];
-  let added = 0;
   for (const action of actions) {
     bump("azioni");
     if (action.save) {
@@ -54,11 +51,8 @@ for (const monster of monsters) {
         if (action.onFail.duration) bump("TS: condizione con durata");
         if (action.onFail.repeat) bump(`TS: tiro ripetuto (${action.onFail.repeat.timing})`);
         if (action.onFail.endsOnDamage) bump("TS: finisce con i danni");
-        added += JSON.stringify({ also: action.onFail.also, duration: action.onFail.duration, repeat: action.onFail.repeat }).length;
       }
       if (action.immuneHours) bump("TS: immunità dopo il successo");
-      if (action.area?.origin) added += 18;
-      if (action.immuneHours) added += 16;
       if (/repeat the saving throw/i.test(action.note || "") && !action.onFail?.repeat) {
         bump("TS: tiro ripetuto non letto");
         sample("tiro ripetuto non letto", `${monster.name} / ${action.name}: ${action.note.slice(0, 140)}`);
@@ -68,14 +62,11 @@ for (const monster of monsters) {
       if (action.onHit) {
         bump("attacchi: effetto al colpo letto");
         for (const key of Object.keys(action.onHit)) bump(`attacchi: al colpo ${key}`);
-        added += JSON.stringify(action.onHit).length + 10;
       } else if (/\bDC \d+|saving throw|\{@dc/i.test(action.note || "")) {
         bump("attacchi: effetto al colpo non letto");
         sample("effetto al colpo non letto", `${monster.name} / ${action.name}: ${String(action.note).slice(0, 140)}`);
       }
     }
-    const replaced = String(action.note || "").split(/(?<=\.)\s+/).filter((sentence) => REPLACED.test(sentence)).join(" ");
-    if (action.save?.dc || action.onHit) added -= replaced.length;
   }
   for (const entry of converted.report || []) if (/^da gestire al tavolo/.test(entry)) bump("azioni da gestire al tavolo");
   const sheet = parseCharacterSheetImport(JSON.stringify(converted.block));
@@ -85,11 +76,16 @@ for (const monster of monsters) {
     spellbook: sheet.sections.spells, characterBuild: sheet.sections.classes || [], monster: { ...sheet.monster, multiattack: sheet.sections.multiattack } };
   const bytes = JSON.stringify(card).length;
   cardBytes.push(bytes);
-  addedBytes.push(Math.round((added / bytes) * 1000) / 10);
+  // The card already holds phase 5's fields (lotti 1–4): their share of it, the sentences they replaced already out of
+  // the notes.
+  const phase5 = card.quickActions.reduce((sum, action) => sum + JSON.stringify({ onHit: action.onHit, immuneHours: action.immuneHours,
+    origin: action.area?.origin, choice: action.area?.choice, also: action.onFail?.also, rounds: action.onFail?.rounds,
+    until: action.onFail?.until, anchor: action.onFail?.anchor, repeat: action.onFail?.repeat }).length - 2, 0);
+  addedBytes.push(Math.round((phase5 / bytes) * 1000) / 10);
 }
 
 console.log(`File: ${files.map((file) => basename(file)).join(", ")}${excluded2024 ? ` (${excluded2024} mostri 2024 esclusi)` : ""}`);
 for (const [key, value] of Object.entries(count)) console.log(`  ${key.padEnd(40)} ${value}`);
 console.log(`  ${"scheda: byte (mediana / p90 / max)".padEnd(40)} ${quantile(cardBytes, 0.5)} / ${quantile(cardBytes, 0.9)} / ${quantile(cardBytes, 1)}`);
-console.log(`  ${"campi nuovi, netti: % della scheda (p50 / p90 / max)".padEnd(40)} ${quantile(addedBytes, 0.5)}% / ${quantile(addedBytes, 0.9)}% / ${quantile(addedBytes, 1)}%`);
+console.log(`  ${"campi della fase 5: % della scheda (p50 / p90 / max)".padEnd(40)} ${quantile(addedBytes, 0.5)}% / ${quantile(addedBytes, 0.9)}% / ${quantile(addedBytes, 1)}%`);
 if (showSamples) for (const [key, list] of Object.entries(samples)) console.log(`\n${key}:\n  ${list.join("\n  ")}`);

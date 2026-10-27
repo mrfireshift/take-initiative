@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 4: import completo dello statblock (piano)
 
-Stato: **in corso dal 26/10/2026**, lotti 1, 2, 3, 4, 4b e 5 implementati; resta il lotto 6 (documentazione).
+Stato: **chiusa il 27/10/2026**: lotti 1, 2, 3, 4, 4b, 5 e 6 implementati.
 
 Indicazione dell'utente all'avvio: **i token con lo stesso nome devono avere lo stesso statblock.** Salvare la scheda di un mostro copia quindi il suo statblock sugli omonimi (lotto 1); il nome resta da rinominare solo sul token aperto (D2). D1 confermata con il lotto 1; D2 e D3 confermate con il lotto 2 (nome solo sul token aperto, PF sostituiti tranne se il token è ferito); D4 confermata con il lotto 3 (il ritratto cambia l'immagine del token, spento di default); D5 e D6 confermate con il lotto 4 (classe e livello dedotti con le capacità di classe spente; innati come azioni rapide).
 
@@ -114,7 +114,11 @@ fase 3 (statblock 2024 opzionali) e il lotto 5 (documentazione) restano dopo.
   `meta.legendary`), con il coordinatore e la Cronologia, solo se il token non
   li ha già.
 
-### Lotto 6 — documentazione
+### Lotto 6 — documentazione ✅
+
+Fatto (27/10, insieme al lotto 5 della fase 5): `docs/IMPORT_SCHEDA.md` (statblock originale, Capacità e leggendarie,
+incantesimi, ritratto, formato del plugin), `docs/GUIDA_UTENTE.md` (passi dell'import con le righe automatiche,
+incantesimi, testo e Capacità), `BACKLOG.md`.
 
 - `docs/IMPORT_SCHEDA.md`, `docs/GUIDA_UTENTE.md`, `BACKLOG.md`.
 

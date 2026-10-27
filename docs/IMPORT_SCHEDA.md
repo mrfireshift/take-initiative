@@ -118,7 +118,9 @@ GM**; i giocatori aprono soltanto quelle di personaggi e alleati.
 Un blocco è uno statblock quando ha `"kind": "monster"` oppure una lista
 `actions`. Le altre chiavi (`armorClass`, `speed`, `abilities`,
 `savingThrows`, `damageDefenses`, `notes`) sono quelle della scheda
-personaggio. Le distanze sono in piedi come negli statblock (`10`,
+personaggio; in più `conditionImmunities` (le condizioni a cui il mostro è
+immune, in inglese o in italiano: la console lo segna «Immune») ed
+`"evasion": true` (il tratto Elusione). Le distanze sono in piedi come negli statblock (`10`,
 `"10 ft"`) oppure in metri (`"3 m"`).
 
 ```json
@@ -152,8 +154,10 @@ personaggio. Le distanze sono in piedi come negli statblock (`10`,
 | `name` | Nome dell'azione. Un'azione chiamata "Multiattack" o "Multiattacco" diventa il testo del multiattacco (dal suo `note`). |
 | `attack` | Attacco con tiro per colpire: `bonus`, `type` (`melee` o `ranged`), `reach` (portata) oppure `range: { normal, long }` (gittata). Bonus, portata e gittata si mostrano, non si controllano: i dadi si tirano al tavolo. |
 | `save` | Tiro salvezza al posto del tiro per colpire: `ability` (`str`… o il nome, anche in italiano), `dc`, `half: true` se chi supera subisce metà danni. Senza `area` vale per una creatura. |
-| `area` | `shape` (`cone`, `line`, `sphere`, `cube`, `cylinder` o `target`) e `size` in piedi (raggio per sfera e cilindro, lato per il cubo); `width` per la linea; per `target`, `targets` è il numero di creature. Le creature si spuntano a mano nella console. |
-| `onFail` | `{ "condition": "frightened" }`: la condizione di chi fallisce il TS (nome inglese o italiano), da rimuovere a mano. Con una condizione l'azione può non avere danni. |
+| `area` | `shape` (`cone`, `line`, `sphere`, `cube`, `cylinder` o `target`) e `size` in piedi (raggio per sfera e cilindro, lato per il cubo); `width` per la linea; per `target`, `targets` è il numero di creature. `origin`: `"self"` (un soffio, «each creature within 30 feet of the dragon») o `"point"` (una sfera su un punto); `"choice": true` per «each creature of its choice». La console disegna l'area alla sua misura, o propone da sola le creature attorno al mostro. |
+| `onFail` | La condizione di chi fallisce il TS (nome inglese o italiano): `condition`, `also` (fino a due condizioni in più), `duration` (`{ "rounds": 10 }` per un minuto, oppure `{ "until": "turn-end", "anchor": "target" }` per «fino alla fine del suo prossimo turno», `"source"` se è il turno del mostro) e `repeat` (`{ "timing": "turn-end", "ends": true }`: il tiro ripetuto che chiude l'effetto). Con una condizione l'azione può non avere danni. |
+| `immuneHours` | Le ore di immunità a questa azione che dà un successo (`24` per la Presenza terrificante). |
+| `onHit` | Su un attacco: ciò che aggiunge il colpo. `save` (`ability`, `dc`, `half`, `damage` come sopra, `conditions` in inglese o italiano, `duration` e `repeat` come in `onFail`), `grapple` (`{ "escapeDC": 13, "conditions": ["restrained"] }` se resta anche trattenuto), `prone: true`, `pushFeet`. |
 | `damage` | Da 1 a 3 componenti `{ type, formula }`, come gli attacchi della scheda. |
 | `recharge` | Ricarica: `5` per "Ricarica 5–6". Dopo l'uso la console scrive «usata»; non blocca mai: se al tavolo si ricarica, si usa di nuovo. |
 | `uses` | Usi al giorno (`3` o `"3/giorno"`): finiti gli usi la console blocca l'azione; tornano con il riposo lungo. |
@@ -225,8 +229,44 @@ prima. Le azioni rapide che non sono incantesimi innati restano.
 
 Ciò che il plugin non riconosce va in rosso, non viene indovinato. Un'azione
 senza danni né tiro salvezza (un teletrasporto) è segnalata e resta da
-gestire al tavolo. Un attacco che al colpo chiede anche un tiro salvezza (il
-ghoul, il ragno gigante) registra il colpo; il tiro salvezza resta nella nota.
+gestire al tavolo.
+
+### Nella console: aree, esiti, condizioni ed effetti al colpo
+
+- **L'area.** Per un'azione ad area, **Disegna** mette la sagoma sulla mappa
+  alla misura dello statblock: cono, linea e cubo partono dal token del
+  mostro, una sfera su un punto si piazza dove serve; le creature dentro si
+  spuntano da sole (mai il mostro). Una sfera attorno al mostro («within 30
+  feet of») propone le creature senza disegnare; con «of its choice» togli
+  quelle che il mostro risparmia. Si può sempre spuntare a mano.
+- **Gli esiti.** Accanto a ogni creatura il suo bonus al tiro salvezza (quello
+  della scheda, o il modificatore di un mostro; i dadi restano vostri),
+  «Elusione» (ladro di 7° o tratto Evasion, su un TS di Destrezza che dimezza)
+  e «immune a …». Oltre a «TS fallito» e «TS superato» c'è **Immune**: niente
+  danni, niente condizione. Chi è immune all'unico effetto dell'azione, o ha
+  già superato un'azione che dà l'immunità di 24 ore, parte su Immune.
+- **Le condizioni.** Durano quanto dice lo statblock. Con il tiro ripetuto
+  («can repeat the saving throw at the end of each of its turns») la
+  condizione porta il promemoria del TS, con caratteristica e CD, a fine o
+  inizio turno della creatura: superato, toglie la condizione (e dà
+  l'immunità, se l'azione la prevede). Senza tiro ripetuto scade da sola,
+  dopo i suoi round o alla fine del prossimo turno giusto. Chi supera
+  un'azione con immunità prende la pillola «Immune · azione».
+- **Gli effetti al colpo.** Su Colpito o Critico, sotto i danni dell'arma, il
+  riquadro **Al colpo**: il TS del bersaglio con il suo bonus, il danno di
+  quel TS (metà o niente se superato) e le sue condizioni; «Afferrato (fuga
+  CD N)», con Trattenuto finché dura la presa; Prono; la spinta da fare a
+  mano (resta nel Combat Log come passo manuale). Tutto nello stesso comando
+  dell'attacco: una voce di Cronologia, un Undo.
+
+Il plugin legge queste regole dal testo dello statblock, mai dal nome del
+mostro: valgono per qualunque libro. `scripts/monster-heuristics-coverage.mjs`
+misura quanto copre ogni regola su un bestiario di 5eTools prima di usarlo:
+
+```bash
+node scripts/monster-heuristics-coverage.mjs bestiary-mm.json bestiary-idrotf.json --samples
+```
+
 I punti ferita (`hitPoints`, `{ "average", "formula" }` o un numero) compaiono
 come riga **Punti ferita** con la media dello statblock, modificabile (il
 plugin non tira la formula). Si scrivono dopo **Salva**, come PF attuali e
@@ -259,8 +299,9 @@ Manuale dei Mostri) si ricostruisce se carichi insieme anche il bestiario
 della sua base; se manca, il messaggio dice quale caricare.
 
 Sopra le sezioni compare cosa la console registra e, in **Al tavolo**, cosa
-resta da gestire a mano: il tiro salvezza al colpo, le azioni senza danni né
-tiro salvezza, le difese condizionali (per esempio la resistenza alle armi non
+resta da gestire a mano: le azioni senza danni né tiro salvezza, gli effetti
+al colpo che le regole non leggono (malattie, trascinamenti, riduzione dei PF
+massimi: restano nella nota), le difese condizionali (per esempio la resistenza alle armi non
 magiche, segnalata e non importata). Tratti e reazioni sono elencati con il
 rimando alla scheda Capacità della console. Nomi di mostri e azioni restano in
 inglese.
@@ -347,12 +388,22 @@ name e, a seconda dell'azione:
 - azione a tiro salvezza: save: { ability: str/dex/con/int/wis/cha, dc,
   half: true se chi supera subisce metà danni }, area: { shape: cone, line,
   sphere, cube, cylinder o target, size in piedi, width per la linea,
-  targets per target }, damage come sopra, onFail: { condition } con la
-  condizione in inglese se chi fallisce la subisce;
+  targets per target, origin: "self" se parte dal mostro o lo circonda,
+  "point" se è su un punto, choice: true per "of its choice" }, damage come
+  sopra, onFail: { condition in inglese, also: altre condizioni,
+  duration: { rounds } oppure { until: "turn-end", anchor: "target" o
+  "source" }, repeat: { timing: "turn-end" o "turn-start", ends: true } }
+  se chi fallisce subisce una condizione; immuneHours se un successo dà
+  un'immunità a quell'azione;
+- effetti al colpo di un attacco: onHit: { save: { ability, dc, half,
+  damage, conditions, duration, repeat }, grapple: { escapeDC,
+  conditions }, prone: true, pushFeet };
 - recharge: il numero minimo della ricarica (5 per "Recharge 5-6"); uses:
   gli usi al giorno;
 - note: al massimo 280 caratteri con ciò che resta da fare al tavolo
-  (tiri salvezza al colpo, durate, ripetizioni del TS).
+  (ciò che le chiavi sopra non dicono).
+conditionImmunities: le condizioni a cui il mostro è immune; evasion: true
+se ha Elusione.
 Incantesimi: spellSaveDC e spellAttackBonus; per un incantatore a slot
 classes: [{ class, level }] con la classe in inglese e spells: i nomi
 inglesi degli incantesimi; per gli innati innateSpells: [{ name, perDay }],

@@ -67,6 +67,18 @@ Il riferimento generale è [Indice della documentazione](docs/INDICE.md).
   ricarica come promemoria e usi al giorno; i PF si scrivono con `hp:set` e
   History, mai su personaggi o PF condivisi; le schede dei mostri restano
   fuori dal registro room; apertura automatica separata per PG e Mostri.
+- Console attacchi per i mostri, fasi 2–5 (ottobre 2026,
+  [fase 2](docs/PIANO_ATTACCHI_MOSTRI_FASE_2.md), [fase 3](docs/PIANO_ATTACCHI_MOSTRI_FASE_3.md),
+  [fase 4](docs/PIANO_ATTACCHI_MOSTRI_FASE_4.md), [fase 5](docs/PIANO_ATTACCHI_MOSTRI_FASE_5.md)):
+  JSON di 5eTools (mostro, bestiario, derivati `_copy`), archivio online con i
+  libri tenuti nel browser del GM; lo statblock sostituisce il precedente ed è
+  lo stesso per i token omonimi; nome, PF, ritratto e Leggendario automatici;
+  incantesimi (slot dalla classe, libro, innati come ⚡); testo originale e
+  Capacità dello statblock; azioni lette ad euristica su qualunque libro: aree
+  disegnate alla misura dello statblock, esiti con bonus al TS, Immune ed
+  Elusione, condizioni con durata, tiro ripetuto e immunità di 24 ore, effetti
+  al colpo (TS secondario, presa, prono). Copertura misurata con
+  `scripts/monster-heuristics-coverage.mjs`.
 
 ## Capacità di classe
 
@@ -93,23 +105,20 @@ come capacità attivabile. Il dettaglio dello snapshot è in
   danno/cura e terminazione RAW; nessun nuovo motore di movimento o controllo
   forzato.
 
-- Console attacchi per i mostri, dopo la fase 1:
-  - misura delle prestazioni in room con l'apertura automatica anche sui turni
-    dei mostri, contro la baseline del 24/10 (passi in
-    [Misura prestazioni: console sui mostri](docs/MISURA_CONSOLE_MOSTRI.md));
-  - fase 1b: tiro salvezza secondario al colpo (ghoul, ragno gigante: 127
-    attacchi su 728 nel Manuale dei Mostri 2014) e condizione al colpo
-    (Ragnatela), oggi lasciati nella nota;
-  - fase 2: adapter del JSON di 5eTools (incollato o file) verso il formato
-    dello statblock, testo completo dello statblock in uno store locale con
-    riferimento sul token;
-  - fase 3: ricerca online su 5eTools; `5e.tools` rifiuta le richieste dirette
-    (403 il 26/10/2026) e risponde il mirror GitHub, che può sparire: sorgente
-    configurabile, il file come ripiego;
-  - fuori dalla fase 1: azioni leggendarie, incantesimi e reazioni dei mostri,
-    disegno dell'area del mostro sulla mappa, campi del mostro modificabili
-    nell'editor degli Attacchi (oggi si reimporta), scheda del mostro su un
-    altro dispositivo del GM (oggi si reimporta).
+- Console attacchi per i mostri, dopo la fase 5:
+  - prove in room: disegno delle aree dei mostri sulla mappa (il banco non ha
+    lo strumento area), promemoria del tiro ripetuto al cambio turno, carta
+    boss Leggendario sullo schermo dei giocatori;
+  - statblock 2024 opzionali (fase 3, lotto 6) e documentazione della fase 3
+    (lotto 5);
+  - restano al tavolo: effetti al colpo che le regole non leggono (malattie,
+    trascinamenti, riduzione dei PF massimi: 47 attacchi su 1274 in MM, VGM,
+    MTF, IDRotF), tiri ripetuti condizionati (11), Ragnatela e azioni senza
+    danni né TS (243), spendere i diamanti leggendari dalla console, più
+    condizioni con un solo promemoria (oggi uno per condizione);
+  - campi del mostro modificabili nell'editor degli Attacchi (oggi si
+    reimporta); il testo dello statblock su un altro dispositivo del GM (oggi
+    si reimporta, o si ritrova dai libri dell'archivio).
 
 - Creare icone dedicate per i token PROP generati dagli incantesimi (Arma
   spirituale, Spada arcana, Lama del Disastro e Mano arcana), sostituendo gli

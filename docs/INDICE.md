@@ -27,6 +27,7 @@ plugin.
 | [Risoluzione dei problemi](RISOLUZIONE_PROBLEMI.md) | Diagnostica per l'uso al tavolo e per lo sviluppo. |
 | [Performance harness](PERFORMANCE-HARNESS.md) | Baseline deterministica, profili e limiti della misura produttiva. |
 | [Probe prestazioni](PERFORMANCE-PROBE.md) | Misura opt-in nel browser reale: byte, latenze, avvio delle pagine. |
+| [Piani: attacchi dei mostri](PIANO_ATTACCHI_MOSTRI_FASE_5.md) | Fasi 1–5 della console sui mostri (anche [1](PIANO_ATTACCHI_MOSTRI_FASE_1.md), [2](PIANO_ATTACCHI_MOSTRI_FASE_2.md), [3](PIANO_ATTACCHI_MOSTRI_FASE_3.md), [4](PIANO_ATTACCHI_MOSTRI_FASE_4.md)): decisioni, deviazioni, misure di copertura. |
 | [Misura: console sui mostri](MISURA_CONSOLE_MOSTRI.md) | Passi della sessione in room per il costo della console ai turni dei mostri; confronto con `scripts/perf-compare.mjs`. |
 | [Sviluppo e release](SVILUPPO.md) | Script, test, generatori e gate di rilascio. |
 

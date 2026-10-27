@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 5: azioni complesse ad euristica (piano)
 
-Stato: **lotti 0–4 implementati** (27/10/2026); resta il lotto 5 (documentazione e misura finale); D1–D7 confermate come raccomandate (D7: con il tiro ripetuto niente conteggio dei round).
+Stato: **chiusa il 27/10/2026**: lotti 0–5 implementati; D1–D7 confermate come raccomandate (D7: con il tiro ripetuto niente conteggio dei round).
 
 Richiesta dell'utente: le azioni complesse degli NPC (tiri salvezza, soffi,
 coni, linee, aree) oggi si risolvono solo con «TS superato / fallito»;
@@ -189,7 +189,33 @@ con effetto letto passano da «parziali» a registrabili (Ghoul: 2 su 2). Nel ba
 - «Grappled (escape DC 16)»: afferrato applicato al colpo, con la presa del
   plugin (`pcGrappleHolds`); prono e spinta come condizione o nota.
 
-### Lotto 5 — documentazione e misura finale
+### Lotto 5 — documentazione e misura finale ✅
+
+Fatto (27/10): `docs/IMPORT_SCHEDA.md` (chiavi nuove del formato del plugin, sezione «Nella console: aree, esiti,
+condizioni ed effetti al colpo», prompt per l'assistente), `docs/GUIDA_UTENTE.md`, `BACKLOG.md`, `docs/INDICE.md`. Lo
+script di copertura ora misura la quota dei campi della fase 5 dentro la scheda (sono salvati dal lotto 4) invece di
+proiettarla.
+
+Misura finale con `scripts/monster-heuristics-coverage.mjs`:
+
+| | MM + VGM + MTF + IDRotF | MM + MPMM (libro mai usato per scrivere le regole) |
+| --- | --- | --- |
+| Mostri / azioni | 815 / 1559 | 711 / 1411 |
+| Azioni a TS / con condizione | 285 / 165 | 291 / 170 |
+| … con durata / tiro ripetuto | 125 / 85 | 122 / 81 |
+| Immunità dopo il successo | 46 | 43 |
+| Aree con origine, su tutte | 163 / 163 | 158 / 159 |
+| Attacchi con effetto al colpo letto / non letto | 166 / 47 | 155 / 40 |
+| Azioni da gestire al tavolo | 243 (248 prima del lotto 0) | 308 |
+| Scheda di un mostro, byte (mediana / p90 / max) | 977 / 2191 / 4543 | 1004 / 2263 / 4340 |
+| Campi della fase 5 nella scheda (p50 / p90 / max) | 0% / 7,1% / 22,2% | 0% / 7,7% / 18,7% |
+
+Rispetto al lotto 0 (stessi quattro libri, prima che i campi fossero salvati) la scheda di un mostro passa da 955 a
+977 byte alla mediana (+2,3%), da 2240 a 2191 al p90 (−2,2%: le frasi diventate campi sono uscite dalle note) e da
+4425 a 4543 al massimo (+2,7%): sotto la soglia del +10% della valutazione.
+
+Da provare in room (il banco non lo copre): il disegno delle aree sulla mappa, il promemoria del tiro ripetuto al
+cambio turno, la carta boss Leggendario sullo schermo dei giocatori.
 
 - `docs/IMPORT_SCHEDA.md`, `docs/GUIDA_UTENTE.md`, `BACKLOG.md`; tabella di
   copertura prima/dopo.
