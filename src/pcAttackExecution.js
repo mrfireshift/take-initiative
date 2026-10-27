@@ -6,7 +6,7 @@ import { getInitiativeCard } from "./initiativeCards.js";
 import { findQuickAction } from "./quickActionsCore.js";
 import { isBossActionCreature } from "./bossActionExecutionCore.js";
 import { bossActionTargets } from "./bossActionsViewCore.js";
-import { postBossDamage } from "./bossActionExecution.js";
+import { postBossDamage, quietReads } from "./bossActionExecution.js";
 import { buildPcAttackAreaMutation, buildPcAttackMutation, buildPcAttackQuiveringPalmMutation, pcAttackAction, pcAttackNearbyIds } from "./pcAttackCore.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries } from "./pcAttackPickerCore.js";
 import { buildPcGrappleEndMutation, buildPcManeuverMutation } from "./pcAttackManeuverCore.js";
@@ -138,12 +138,16 @@ export function createPcAttackRuntime({
   // Retain the prepared command for lost-ACK retries; History remains in the coordinator.
   const drafts=new Map();
   async function session(sourceId) {
-    if(await api.player.getRole()!=="GM") throw new Error("Solo il GM può registrare un attacco.");
     const epoch=getEpoch();
-    const scene=await getSceneContext();
-    const [item]=await api.scene.items.getItems([sourceId]);
+    // The four reads start together; their answers are checked in the order they were read before (role, scene,
+    // token, metadata), so the same error wins, and a non-GM fails without waiting for the others.
+    const [role,sceneRead,itemRead,metadataRead]=quietReads([api.player.getRole(),getSceneContext(),
+      api.scene.items.getItems([sourceId]),api.scene.getMetadata()]);
+    if(await role!=="GM") throw new Error("Solo il GM può registrare un attacco.");
+    const scene=await sceneRead;
+    const [item]=await itemRead;
     if(!isBossActionCreature(item)) throw new Error("L'attaccante non è più un token creatura nella scena.");
-    const metadata=await api.scene.getMetadata();
+    const metadata=await metadataRead;
     if(!isCurrentEpoch(epoch)) throw new Error("Scena cambiata: riapri l'attacco.");
     return {item,epoch,scene,turnState:metadata?.[ID+"/state"] || null,isCurrent:()=>isCurrentEpoch(epoch)};
   }
@@ -163,6 +167,8 @@ export function createPcAttackRuntime({
     return withBossLinkDefenses(item,source,Number(round));
   }
   async function getPcAttackPresentation(sourceId,actionId) {
+    // Every item (the targets) is read while the session is: the scene check below still follows both.
+    const [itemsRead]=quietReads([api.scene.items.getItems()]);
     const scope=await session(sourceId);
     // The console's picker (pcAttackPickerCore.js). Without an action: the last attack, else the first weapon; an actor
     // with spells and no attack opens with no action (the console shows its spells).
@@ -170,7 +176,7 @@ export function createPcAttackRuntime({
     const picker=pcAttackPickerEntries(card);
     const chosen=actionId?null:pcAttackPickerDefault(picker,{lastAttack:scope.item?.metadata?.[`${ID}/meta`]?.pcAttackState?.lastAttack,attackOnly:true});
     const action=actionId || chosen?attackOf(scope.item,actionId || chosen.actionId):null;
-    const items=await api.scene.items.getItems();
+    const items=await itemsRead;
     if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri l'attacco.");
     const round=Number(scope.turnState?.round);
     const targets=bossActionTargets(items,scope.item.id).map(item=>withBossLinkDefenses(item,items.find(entry=>entry.id===item.metadata?.[`${ID}/meta`]?.sharedHpSourceId),round));
@@ -304,8 +310,9 @@ export function createPcAttackRuntime({
   // 3C: the tracked creatures near a token (the caster for an area cantrip, the target for Bursting Arrow), by the
   // edge-to-edge grid distance of the area tool. A proposal: the GM ticks or unticks them.
   async function getPcAttackNearby({sourceId,centerId,radiusFeet}={}) {
+    const [itemsRead]=quietReads([api.scene.items.getItems()]);
     const scope=await session(sourceId);
-    const items=await api.scene.items.getItems();
+    const items=await itemsRead;
     const tracked=[scope.item,...bossActionTargets(items,scope.item.id)];
     if(!tracked.some(item=>item.id===centerId)) return [];
     const [dpi,scale]=await Promise.all([api.scene.grid.getDpi(),api.scene.grid.getScale()]);

@@ -87,6 +87,16 @@ async function postBossEdgeSave({api=OBR,edge,sourceName,activationId,isCurrent}
   return [];
 }
 
+// Reads started together and awaited one by one in the caller's order: a rejection is reported where it is
+// awaited (none is left unhandled when an earlier check throws first).
+export function quietReads(reads) {
+  return reads.map((read) => {
+    const promise = Promise.resolve(read);
+    promise.catch(() => {});
+    return promise;
+  });
+}
+
 // Runtime reads definitions and canonical token state only. It never parses ability prose.
 export function createBossActionRuntime({
   api=OBR,store=null,getCard=getInitiativeCard,saveCard=saveInitiativeCard,
@@ -105,11 +115,15 @@ export function createBossActionRuntime({
     return item;
   }
   async function session(sourceId) {
-    if(await api.player.getRole()!=="GM") throw new Error("Solo il GM può usare Boss Actions.");
     const epoch=getEpoch();
-    const scene=await getSceneContext();
-    const item=await readSource(sourceId);
-    const metadata=await api.scene.getMetadata();
+    // The four reads start together; their answers are checked in the order they were read before (role, scene,
+    // boss token, metadata), so the same error wins, and a non-GM fails without waiting for the others.
+    const [role,sceneRead,sourceRead,metadataRead]=quietReads([api.player.getRole(),getSceneContext(),
+      readSource(sourceId),api.scene.getMetadata()]);
+    if(await role!=="GM") throw new Error("Solo il GM può usare Boss Actions.");
+    const scene=await sceneRead;
+    const item=await sourceRead;
+    const metadata=await metadataRead;
     if(!isCurrentEpoch(epoch)) throw new Error("Scena cambiata: riapri Boss Actions.");
     return {item,epoch,scene,round:metadata?.[ID+"/state"]?.round,turnState:metadata?.[ID+"/state"] || null,isCurrent:()=>isCurrentEpoch(epoch)};
   }
@@ -251,8 +265,9 @@ export function createBossActionRuntime({
     } finally {busy.delete(sourceId);}
   }
   // Which revisions the tokens of this scene use: the library cleanup never removes those.
-  async function listSceneBindings() {
-    const items=await api.scene.items.getItems();
+  // items: the scene's items when the caller has just read them (the console's refresh), else read here.
+  async function listSceneBindings(sceneItems=null) {
+    const items=Array.isArray(sceneItems)?sceneItems:await api.scene.items.getItems();
     return items.filter(isBossActionCreature).map(item=>({tokenId:item.id,name:item.name || item.id,
       binding:sanitizeBossActionBinding(getCard(item)?.bossActionBinding)})).filter(row=>row.binding)
       .map(row=>({tokenId:row.tokenId,name:row.name,profileId:row.binding.profileId,profileRevision:row.binding.profileRevision}));

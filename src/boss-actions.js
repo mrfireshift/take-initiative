@@ -270,9 +270,9 @@ export function bootBossActions(documentRef=document, overrides={}) {
       await refresh(operation);
     });
   }
-  async function loadSceneBindings() {
+  async function loadSceneBindings(items=null) {
     try {
-      if(typeof runtime.listSceneBindings==="function"){sceneBindings=await runtime.listSceneBindings();return;}
+      if(typeof runtime.listSceneBindings==="function"){sceneBindings=await runtime.listSceneBindings(items);return;}
     } catch {}
     sceneBindings=presentation?.binding?[{tokenId:sourceId,name:presentation.item?.name || sourceId,...presentation.binding}]:[];
   }
@@ -1829,8 +1829,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
 
   async function refresh(operation,{preserveResolution=false}={}) {
     const previous=presentation;
+    // Every item is read while the presentation is: one round trip less, and the bindings below reuse the same list.
+    const itemsRead=Promise.resolve(api.scene.items.getItems());
+    itemsRead.catch(()=>{});
     const loaded=await runtime.getBossActionPresentation(sourceId);
-    const items=await api.scene.items.getItems();
+    const items=await itemsRead;
     if(!lifecycle.isCurrent(operation))return;
     if(!isBossActionSourceItem(loaded.item))throw new Error("Seleziona il token reale del boss.");
     const sameDraftBinding=previous?.profile?.profileId===loaded.profile?.profileId
@@ -1838,7 +1841,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       && previous?.bossInstanceId===loaded.bossInstanceId && previous?.sceneIdentity===loaded.sceneIdentity
       && previous?.binding?.profileId===loaded.binding?.profileId && previous?.binding?.profileRevision===loaded.binding?.profileRevision;
     presentation=loaded;targets=bossActionTargets(items,sourceId);liveSignature=computeLiveSignature(items);
-    await loadSceneBindings();
+    await loadSceneBindings(items);
     if(!lifecycle.isCurrent(operation))return;
     const keep=!!draft && preserveResolution && sameDraftBinding && !!loaded.profile?.abilities.some(action=>action.id===draft.action.id);
     if(draft && !keep) {

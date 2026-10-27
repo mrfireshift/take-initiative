@@ -20,6 +20,8 @@ Lotti fatti, tutti il 27/10:
 
 - **V2**: l'alone della card attiva (vista classica) non scrive più `Date.now()` nel proprio stile, quindi il suo HTML resta uguale da un render all'altro. Una card ricostruita mantiene la fase della pulsazione partendo dall'origine del documento. Nel banco la card attiva resta lo stesso nodo DOM quando cambiano i PF di un'altra creatura.
 
+- **P2**: le sessioni delle due console leggono ruolo, contesto di scena, token e metadata insieme, e controllano le risposte nell'ordine di prima: vince lo stesso errore, e chi non è GM non aspetta. La console attacchi legge tutti gli item insieme alla sessione. La console Boss li legge insieme alla presentazione e li riusa per i profili collegati: nel banco, una lettura completa per aggiornamento invece di due. Dal codice: da 4 a 1 RT in fila per la sessione.
+
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.
