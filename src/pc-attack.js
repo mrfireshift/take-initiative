@@ -3,7 +3,8 @@ import { ID } from "./constants.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { createPcAttackRuntime, pcAttackSmiteSlotPlans, pcAttackSpellSlotPlan } from "./pcAttackExecution.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
-import { pcAttackAreaOutcomes, pcAttackTargetActionImmune, pcAttackTargetConditionImmune, pcAttackTargetEvasion, pcAttackTargetSaveBonus } from "./pcAttackCore.js";
+import { pcAttackAreaOutcomes, pcAttackTargetActionImmune, pcAttackTargetConditionImmune, pcAttackTargetEvasion, pcAttackTargetSaveBonus,
+  pcAttackFeetLabel, pcAttackMonsterFailureText, pcAttackSaveLabel as hitSaveLabel } from "./pcAttackCore.js";
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
@@ -343,7 +344,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       amounts:draft?.amounts,ignoredDefenses:draft?.ignored,riders:chosenRiders(draft),extras:chosenExtras(draft),turnState:presentation?.turnState,
       weaponCantrip:chosenWeaponCantrip(draft),secondaryItem:targetById(secondaryTargetId()),activations:chosenActivations(draft),
       tempHpItems:presentation?[presentation.item,...presentation.targets]:[],attackMode:draft?.attackMode || "",modeAmount:draft?.modeAmount ?? "",
-      burstItems:presentation?[presentation.item,...presentation.targets]:[]});
+      burstItems:presentation?[presentation.item,...presentation.targets]:[],hitEffect:draft?.hitEffect || null});
   }
   // 3C: an area attack (area cantrip, Piercing Arrow): the creatures ticked with their save outcomes, one damage roll.
   const isArea=()=>!!resolved()?.area;
@@ -1824,6 +1825,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   function renderState() {
     renderReaction();
+    // The hit effect follows the outcome, which a click changes without a full render (fase 5, lotto 4).
+    renderHitEffect();
     if(isArea()) return renderAreaState();
     // On a miss the section stays only for the activations used on the roll (a bonus to hit); the extras need a hit,
     // or a passed save that still halves an arrow's damage.
@@ -1899,6 +1902,63 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     renderPicker();renderCaster();renderMonster();renderGrapple();
     if(launching()){renderLaunch();return;}
     renderTarget();renderPalm();updateDamageMeta();updateWoven();updateRiders();updateActivations();renderState();
+  }
+  // What a monster's weapon attack adds on a hit (fase 5, lotto 4): the target's second save (its bonus beside it, the
+  // dice the table's), that save's damage, the conditions it gives and how long they last; a grapple, prone, a push.
+  // Built under the monster's note; rebuilt only when the attack, its outcome or the target change.
+  let hitBox=null,hitSignature="";
+  function renderHitEffect() {
+    const attack=resolved(),onHit=attack?.onHit;
+    const shown=!!onHit && !!draft && ["hit","critical"].includes(draft.outcome) && !launching();
+    if(!hitBox) {
+      // Under the attack's damage rows, before the extras.
+      if(!shown || !damage?.parentNode) return;
+      hitBox=node("div","","hit-effect");
+      // The card is a grid ordered by section: the damage rows are 1, the extras 2.
+      if(hitBox.style) hitBox.style.order="1";
+      if(typeof damage.parentNode.insertBefore==="function") damage.parentNode.insertBefore(hitBox,damage.nextSibling || null);
+      else damage.parentNode.appendChild(hitBox);
+    }
+    hitBox.hidden=!shown;
+    if(!shown){hitSignature="";return;}
+    const hit=draft.hitEffect ||= {saveOutcome:"",amounts:{}};
+    const target=targetById(draft.targetId);
+    const signature=JSON.stringify([attack.id,draft.outcome,draft.targetId]);
+    if(signature!==hitSignature) {
+      hitSignature=signature;
+      const children=[node("span","Al colpo","caption")];
+      const save=onHit.save;
+      if(save) {
+        const bonus=pcAttackTargetSaveBonus(target,save.ability);
+        children.push(node("p",`${hitSaveLabel({save:save.ability,saveDC:save.dc})}${bonus!==null?` · ${target?.name || "bersaglio"} TS ${bonus>=0?"+":""}${bonus}`:""}`,"launch-details"));
+        const outcomes=node("div","","segmented mini");outcomes.setAttribute("role","group");outcomes.setAttribute("aria-label","Tiro salvezza al colpo");
+        for(const outcome of ["failed","passed"]) {
+          const button=node("button",outcome==="failed"?"TS fallito":"TS superato");button.type="button";button.dataset.hitOutcome=outcome;
+          button.addEventListener("click",()=>{hit.saveOutcome=outcome;renderHitEffect();renderState();});
+          outcomes.append(button);
+        }
+        children.push(outcomes);
+        // Its damage: a row like the attack's own (name over the dice, the total rolled at the table on the right).
+        for(const [index,entry] of (save.damage || []).entries()) {
+          const id=`h${index+1}`,body=node("div","","component-body");
+          body.append(node("span",typeLabel(entry.type),"component-title"),
+            node("div",`${entry.formula || ""}${save.half?" · metà se superato":" · niente se superato"}`,"component-meta"));
+          const input=amountInput(hit.amounts[id] ?? "",`Danni ${damageTypeLabel(entry.type)} del tiro salvezza al colpo`);input.dataset.hitAmount=id;
+          input.placeholder=entry.formula || "";
+          input.addEventListener("input",()=>{hit.amounts[id]=input.value.trim();renderState();});
+          children.push(componentRow(null,body,input));
+        }
+        if(save.onFail) children.push(node("p",`Chi fallisce è ${pcAttackMonsterFailureText(save.onFail)}.`,"launch-details"));
+      }
+      if(onHit.grapple) children.push(node("p",`Afferrato (fuga CD ${onHit.grapple.escapeDC})${onHit.grapple.restrained?" e trattenuto finché dura la presa":""}.`,"launch-details"));
+      if(onHit.prone) children.push(node("p","Prono.","launch-details"));
+      if(onHit.pushFeet) children.push(node("p",`Spinto di ${pcAttackFeetLabel(onHit.pushFeet)}: sposta il token a mano.`,"launch-details"));
+      hitBox.replaceChildren(...children);
+    }
+    for(const button of hitBox.querySelectorAll("[data-hit-outcome]")) {
+      button.setAttribute("aria-pressed",String(hit.saveOutcome===button.dataset.hitOutcome));button.disabled=busy;
+    }
+    for(const input of hitBox.querySelectorAll("[data-hit-amount]")) input.disabled=busy || (hit.saveOutcome==="passed" && !onHit.save?.half);
   }
 
   // commit: the work registers the attack (Registra reads "Registro…" meanwhile).
@@ -2129,7 +2189,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const view=preview();
     if(!view.ready) throw new Error(view.blocker);
     // Freeze every decision before the commit: later selection changes cannot alter this request.
-    const request={sourceId,actionId,targetId:draft.targetId,outcome:draft.outcome,
+    const hitEffect=resolved()?.onHit && ["hit","critical"].includes(draft.outcome) && draft.hitEffect
+      ?{saveOutcome:draft.hitEffect.saveOutcome,amounts:Object.fromEntries(Object.entries(draft.hitEffect.amounts).filter(([,value])=>value!=="").map(([id,value])=>[id,Number(value)]))}:null;
+    const request={sourceId,actionId,targetId:draft.targetId,outcome:draft.outcome,...(hitEffect?{hitEffect}:{}),
       componentAmounts:draft.outcome==="miss"?{}:Object.fromEntries(Object.entries(draft.amounts).map(([id,value])=>[id,Number(value)])),
       ignoredDefenses:[...draft.ignored],expectedDefenses:view.profileDefenses,expectedAction:presentation.action,
       riders:chosenRiders(draft).map(rider=>({...rider,amount:Number(rider.amount)})),

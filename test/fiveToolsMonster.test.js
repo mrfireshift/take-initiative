@@ -58,12 +58,14 @@ test("bugbear: il giavellotto con due danni diventa due azioni, mischia e distan
     [["Javelin (melee)", "melee", "2d6+2", 5, undefined], ["Javelin (ranged)", "ranged", "1d6+2", undefined, { normal: 30, long: 120 }]]);
 });
 
-test("ghoul: il TS degli artigli al colpo resta nella nota (fase 1b); immunità alle condizioni in italiano", () => {
+test("ghoul: il TS degli artigli al colpo si registra (fase 5, lotto 4), l'eccezione sui bersagli resta nella nota; immunità in italiano", () => {
   const { block, report, counts } = fiveToolsMonsterToStatblock(monster("Ghoul"));
-  assert.deepEqual(counts, { full: 1, partial: 1, manual: 0 });
+  assert.deepEqual(counts, { full: 2, partial: 0, manual: 0 });
   const claws = block.actions.find((action) => action.name === "Claws");
-  assert.match(claws.note, /^If the target is a creature other than an elf or undead, it must succeed on a DC 10 Constitution saving throw or be paralyzed/);
-  assert.ok(report.includes("Claws: il tiro salvezza o la condizione al colpo resta nella nota"));
+  assert.deepEqual(claws.onHit.save.conditions, ["paralyzed"]);
+  assert.match(claws.note, /^If the target is a creature other than an elf or undead, it must succeed on a DC 10 Constitution saving throw or be paralyzed/,
+    "a save for some targets only keeps its sentence");
+  assert.ok(!report.some((line) => /resta nella nota/.test(line)));
   assert.equal(block.notes, "Immune a: affascinato, indebolimento, avvelenato.");
   assert.deepEqual(block.damageDefenses, { resistances: [], immunities: ["poison"], vulnerabilities: [] });
   assert.deepEqual(imported("Ghoul").unresolved, []);
@@ -249,11 +251,11 @@ test("la ricerca: ogni parola nel nome o nel libro, senza maiuscole né accenti,
 
 test("la riga di riepilogo e il riferimento del mostro sulla scheda", () => {
   const converted = fiveToolsMonsterToStatblock(monster("Ghoul"));
-  assert.equal(fiveToolsImportSummary(converted, monster("Ghoul")), "Da 5eTools (MM): Ghoul, 1 azione registrabile, 1 con il tiro salvezza al colpo nella nota.");
+  assert.equal(fiveToolsImportSummary(converted, monster("Ghoul")), "Da 5eTools (MM): Ghoul, 2 azioni registrabili.");
   assert.equal(converted.block.ref, "Ghoul|MM");
   const parsed = parseCharacterSheetImport(JSON.stringify(converted.block));
   // Fase 5, lotto 2: the conditions it is immune to, as the plugin names them, for the console's «Immune».
   assert.deepEqual(parsed.monster, { source: "5etools", ref: "Ghoul|MM", conditionImmunities: ["affascinato", "indebolimento", "avvelenato"] });
   assert.equal(fiveToolsImportSummary(fiveToolsMonsterToStatblock(monster("Giant Spider")), monster("Giant Spider")),
-    "Da 5eTools (MM): Giant Spider, 0 azioni registrabili, 1 con il tiro salvezza al colpo nella nota, 1 da gestire al tavolo.");
+    "Da 5eTools (MM): Giant Spider, 1 azione registrabile, 1 da gestire al tavolo.");
 });

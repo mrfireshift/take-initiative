@@ -108,10 +108,16 @@ function attackAction(name, text, extra) {
     ];
   }
   const { components, rest } = hitDamage(hit);
-  const remainder = note(rest);
-  const status = !components.length ? "manual" : /\{@dc \d+\}|\{@condition /.test(rest) ? "partial" : "full";
-  // What the hit does beyond its damage, read by rule (fase 5, lotto 0): the console reads it from lot 4.
+  // What the hit does beyond its damage, read by rule (fase 5, lotto 4): the console registers it, and its sentences
+  // (the second save and its repeat, the grapple, prone) leave the note; what is left there stays at the table.
   const onHit = monsterHitEffects(rest);
+  const remainder = note(sentencesOf(fiveToolsPlainText(rest)).filter((sentence) =>
+    // A save only for some targets ("other than an elf or undead", "If the target is a humanoid") keeps its sentence.
+    !(onHit.save && /\bDC \d+ \w+ saving throw\b|\brepeat the saving throw\b/i.test(sentence)
+      && !/\bother than\b|\bIf the target is (?:a|an) (?!creature\b)\w+/i.test(sentence))
+    && !(onHit.grapple && /\bgrappled \(escape DC \d+\)|\bUntil (?:this|the) grapple ends\b/i.test(sentence))
+    && !(onHit.prone && /\bknocked prone\b/i.test(sentence))).join(" "));
+  const status = !components.length ? "manual" : /\{@dc \d+\}|\{@condition /.test(rest) && !(onHit.save || onHit.grapple || onHit.prone) ? "partial" : "full";
   return [{ ...base, damage: components, ...(remainder ? { note: remainder } : {}), ...(Object.keys(onHit).length ? { onHit } : {}), status }];
 }
 

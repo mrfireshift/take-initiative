@@ -103,6 +103,30 @@ function attackSaveOf(value) {
   };
 }
 
+// A hit's effects (fase 5, lotto 4), all optional: a second save of the target ({ ability, dc, half, damage: up to two
+// { type, formula }, onFail: a failure as a save action's }), a grapple ({ escapeDC, restrained: held, it is also
+// restrained }), prone, a push in feet (moved by hand).
+function attackHitEffectsOf(value) {
+  if (!value || typeof value !== "object") return null;
+  const ability = attackSaveAbilitySet.has(value.save?.ability) ? value.save.ability : "";
+  const dc = boundedInteger(value.save?.dc, 1, 30);
+  const damage = (Array.isArray(value.save?.damage) ? value.save.damage : [])
+    .filter((entry) => attackDamageTypeSet.has(entry?.type)).slice(0, 2)
+    .map((entry) => ({ type: entry.type, ...(shortText(entry.formula, 24) ? { formula: shortText(entry.formula, 24) } : {}) }));
+  const condition = shortText(value.save?.onFail?.condition, 80);
+  const save = ability && dc !== null && (damage.length || condition) ? { ability, dc, ...(value.save.half === true ? { half: true } : {}),
+    ...(damage.length ? { damage } : {}), ...(condition ? { onFail: { condition, ...attackFailureTimingOf(value.save.onFail) } } : {}) } : null;
+  const escapeDC = boundedInteger(value.grapple?.escapeDC, 1, 30);
+  const pushFeet = boundedInteger(value.pushFeet, 5, 300);
+  const effects = {
+    ...(save ? { save } : {}),
+    ...(escapeDC !== null ? { grapple: { escapeDC, ...(value.grapple.restrained === true ? { restrained: true } : {}) } } : {}),
+    ...(value.prone === true ? { prone: true } : {}),
+    ...(pushFeet !== null ? { pushFeet } : {}),
+  };
+  return Object.keys(effects).length ? effects : null;
+}
+
 // What a failure lasts (fase 5, lotto 3), all optional: more conditions (also), rounds ("for 1 minute": 10), the end or
 // start of the next turn of the target or of the monster (until, anchor), the repeated save (repeat: "turn-end" or
 // "turn-start", a success ending it).
@@ -144,9 +168,12 @@ function monsterAttackFieldsOf(value, save = attackSaveOf(value)) {
   const recharge = boundedInteger(value?.recharge, 2, 6);
   const uses = boundedInteger(value?.uses, 1, MAX_QUICK_ACTION_USES);
   const note = shortText(value?.note, MAX_QUICK_ACTION_ATTACK_NOTE);
+  // What a weapon attack's hit adds (fase 5, lotto 4): never on a save action, whose failure is its own.
+  const onHit = save ? null : attackHitEffectsOf(value?.onHit);
   return {
     ...(attackBonus !== null ? { attackBonus } : {}),
     ...(save || {}),
+    ...(onHit ? { onHit } : {}),
     ...(reachFeet !== null ? { reachFeet } : {}),
     ...(normal !== null ? { rangeFeet: { normal, ...(long !== null && long > normal ? { long } : {}) } } : {}),
     ...(recharge !== null ? { recharge } : {}),

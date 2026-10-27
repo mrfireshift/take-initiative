@@ -325,3 +325,80 @@ test("più condizioni, ognuna saltata per chi ne è immune; la condizione a temp
   assert.deepEqual(result.operations.filter((operation) => operation.type === "condition:add").map((operation) => [operation.conditionName, operation.options.expiry]),
     [["Paralizzato", { mode: "rounds", remaining: 10 }]]);
 });
+
+// Attacchi dei mostri, fase 5, lotto 4 (la vecchia fase 1b): gli effetti al colpo. Il TS secondario del bersaglio con i
+// suoi danni e le sue condizioni, la presa con la CD di fuga, prono, la spinta a mano.
+import { pcAttackHitEffectPlan } from "../src/pcAttackCore.js";
+
+const spiderBite = sanitizeQuickAction({ id: "spider-bite", label: "Bite", kind: "attack", range: "melee", components: [{ type: "piercing", formula: "1d8+3" }],
+  attackBonus: 5, reachFeet: 5, onHit: { save: { ability: "con", dc: 11, half: true, damage: [{ type: "poison", formula: "2d8" }] } } });
+const ghoulClaws = sanitizeQuickAction({ id: "claws", label: "Claws", kind: "attack", range: "melee", components: [{ type: "slashing", formula: "2d4+2" }],
+  attackBonus: 4, onHit: { save: { ability: "con", dc: 10, onFail: { condition: "Paralizzato", rounds: 10, repeat: "turn-end" } } } });
+const crocBite = sanitizeQuickAction({ id: "croc", label: "Morso", kind: "attack", range: "melee", components: [{ type: "piercing", formula: "1d10+2" }],
+  attackBonus: 4, onHit: { grapple: { escapeDC: 12, restrained: true }, pushFeet: 10 } });
+const trample = sanitizeQuickAction({ id: "ram", label: "Carica", kind: "attack", range: "melee", components: [{ type: "bludgeoning", formula: "2d6" }], onHit: { prone: true } });
+const conditionsOf = (operations) => operations.filter((operation) => operation.type === "condition:add").map((operation) => operation.conditionName);
+
+test("sulla scheda: il TS al colpo (caratteristica, CD, danni, condizione con durata), la presa, prono, la spinta", () => {
+  assert.deepEqual(spiderBite.onHit, { save: { ability: "con", dc: 11, half: true, damage: [{ type: "poison", formula: "2d8" }] } });
+  assert.deepEqual(ghoulClaws.onHit.save.onFail, { condition: "Paralizzato", rounds: 10, repeat: "turn-end" });
+  assert.deepEqual(crocBite.onHit, { grapple: { escapeDC: 12, restrained: true }, pushFeet: 10 });
+  assert.equal(sanitizeQuickAction({ ...spiderBite, onHit: { save: { ability: "con", dc: 11 } } }).onHit, undefined, "a save with neither damage nor condition");
+  assert.equal(sanitizeQuickAction({ ...presence, onHit: { prone: true } }).onHit, undefined, "never on a save action");
+});
+
+test("il ragno: danni del TS al colpo, metà se superato, con le difese del bersaglio; servono l'esito e il danno", () => {
+  const attack = pcAttackResolvedAction(spiderBite);
+  assert.equal(pcAttackHitEffectPlan({ attack, outcome: "hit", targetItem: orc() }).blocker, "Scegli l'esito del tiro salvezza al colpo.");
+  assert.equal(pcAttackHitEffectPlan({ attack, outcome: "hit", targetItem: orc(), hitEffect: { saveOutcome: "failed", amounts: {} } }).blocker,
+    "Inserisci il danno del tiro salvezza al colpo.");
+  assert.deepEqual(pcAttackHitEffectPlan({ attack, outcome: "miss", targetItem: orc() }).components, [], "nothing on a miss");
+  const failed = buildPcAttackMutation({ action: spiderBite, sourceItem: dragon([spiderBite]), targetItem: orc(), outcome: "hit",
+    componentAmounts: { c1: 7 }, attackInstanceId: "bite-1", hitEffect: { saveOutcome: "failed", amounts: { h1: 9 } } });
+  assert.equal(failed.change.requested, 16);
+  assert.deepEqual(failed.causality.onHit, { save: { ability: "con", dc: 11, outcome: "failed", factor: "full" } });
+  const passed = buildPcAttackMutation({ action: spiderBite, sourceItem: dragon([spiderBite]), targetItem: orc(), outcome: "hit",
+    componentAmounts: { c1: 7 }, attackInstanceId: "bite-2", hitEffect: { saveOutcome: "passed", amounts: { h1: 9 } } });
+  assert.equal(passed.change.requested, 11, "7 + half of 9");
+  const undead = creature("zombie", "Zombi", { initiativeCard: { damageDefenses: { immunities: ["poison"] } } });
+  const immune = buildPcAttackMutation({ action: spiderBite, sourceItem: dragon([spiderBite]), targetItem: undead, outcome: "hit",
+    componentAmounts: { c1: 7 }, attackInstanceId: "bite-3", hitEffect: { saveOutcome: "failed", amounts: { h1: 9 } } });
+  assert.equal(immune.change.requested, 7, "immune to poison: the bite only");
+  assert.throws(() => buildPcAttackMutation({ action: spiderBite, sourceItem: dragon([spiderBite]), targetItem: orc(), outcome: "hit",
+    componentAmounts: { c1: 7 }, attackInstanceId: "bite-4" }), /esito del tiro salvezza al colpo/);
+});
+
+test("il ghoul: la paralisi al TS fallito con il promemoria del tiro ripetuto; mai a chi ne è immune", () => {
+  const result = buildPcAttackMutation({ action: ghoulClaws, sourceItem: dragon([ghoulClaws]), targetItem: orc(), outcome: "hit",
+    componentAmounts: { c1: 5 }, attackInstanceId: "claws-1", hitEffect: { saveOutcome: "failed", amounts: {} } });
+  const paralysis = result.operations.find((operation) => operation.conditionName === "Paralizzato");
+  assert.deepEqual([paralysis.options.expiry, paralysis.options.saveReminder.ability, paralysis.options.saveReminder.timing, paralysis.options.saveReminder.dc],
+    [{ mode: "manual" }, "con", "turn-end", 10]);
+  assert.ok(result.operations.some((operation) => operation.type === "condition:automate"));
+  assert.deepEqual(result.labelTargetIds, ["orc"]);
+  const passed = buildPcAttackMutation({ action: ghoulClaws, sourceItem: dragon([ghoulClaws]), targetItem: orc(), outcome: "critical",
+    componentAmounts: { c1: 10 }, attackInstanceId: "claws-2", hitEffect: { saveOutcome: "passed", amounts: {} } });
+  assert.deepEqual(conditionsOf(passed.operations), []);
+  const elfImmune = creature("elf", "Elfo", { initiativeCard: { monster: { source: "manual", conditionImmunities: ["paralizzato"] } } });
+  const immune = buildPcAttackMutation({ action: ghoulClaws, sourceItem: dragon([ghoulClaws]), targetItem: elfImmune, outcome: "hit",
+    componentAmounts: { c1: 5 }, attackInstanceId: "claws-3", hitEffect: { saveOutcome: "failed", amounts: {} } });
+  assert.deepEqual(conditionsOf(immune.operations), []);
+});
+
+test("la presa: Afferrato con la CD di fuga e Trattenuto, mai due volte dallo stesso mostro; prono; la spinta resta da fare a mano", () => {
+  const result = buildPcAttackMutation({ action: crocBite, sourceItem: dragon([crocBite]), targetItem: orc(), outcome: "hit",
+    componentAmounts: { c1: 7 }, attackInstanceId: "croc-1" });
+  assert.deepEqual(conditionsOf(result.operations), ["Afferrato", "Trattenuto"]);
+  const grab = result.operations.find((operation) => operation.conditionName === "Afferrato");
+  assert.deepEqual([grab.options.sourceId, grab.options.escapeDC, grab.options.manualRemoval], ["dragon", 12, true]);
+  assert.deepEqual(result.causality.onHit, { conditions: ["Afferrato", "Trattenuto"], grapple: { escapeDC: 12 },
+    manual: "Sposta Orco di 3 m lontano da Drago rosso adulto sulla mappa." });
+  assert.equal(result.options.history.payload.manualRemainder, "Sposta Orco di 3 m lontano da Drago rosso adulto sulla mappa.");
+  const held = creature("orc", "Orco", { hp: 15, hpMax: 15, conditions: [{ condition: "Afferrato", sourceId: "dragon", active: true }] });
+  assert.deepEqual(conditionsOf(buildPcAttackMutation({ action: crocBite, sourceItem: dragon([crocBite]), targetItem: held, outcome: "hit",
+    componentAmounts: { c1: 7 }, attackInstanceId: "croc-2" }).operations), [], "already held by this monster");
+  assert.deepEqual(conditionsOf(buildPcAttackMutation({ action: trample, sourceItem: dragon([trample]), targetItem: orc(), outcome: "hit",
+    componentAmounts: { c1: 7 }, attackInstanceId: "ram-1" }).operations), ["Prono"]);
+  assert.deepEqual(conditionsOf(buildPcAttackMutation({ action: trample, sourceItem: dragon([trample]), targetItem: orc(), outcome: "miss",
+    componentAmounts: {}, attackInstanceId: "ram-2" }).operations), [], "nothing on a miss");
+});

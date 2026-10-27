@@ -169,6 +169,8 @@ function monsterAttackDraft(entry, label, note, { resolveDamageType, resolveAbil
       ...(reach !== null ? { reachFeet: reach } : {}),
       ...(normal !== null ? { rangeFeet: { normal, ...(long !== null ? { long } : {}) } } : {}),
     });
+    const onHit = monsterHitEffects(entry.onHit, where, unresolved, { resolveDamageType, resolveAbility });
+    if (onHit) fields.onHit = onHit;
   } else if (!components.length) return null;
   const recharge = rechargeOf(entry.recharge ?? entry.ricarica);
   if (recharge !== null) fields.recharge = recharge;
@@ -210,6 +212,32 @@ function monsterArea(value, where, unresolved) {
   const origin = ({ self: "self", mostro: "self", point: "point", punto: "point" })[key(value.origin ?? value.origine)] || "";
   return { shape, sizeFeet, ...(shape === "line" && widthFeet !== null ? { widthFeet } : {}), ...(origin ? { origin } : {}),
     ...(value.choice === true || value.scelta === true ? { choice: true } : {}) };
+}
+
+// What a hit adds (fase 5, lotto 4), as the 5eTools adapter writes it: save { ability, dc, half, damage, conditions,
+// duration, repeat }, grapple { escapeDC, conditions: the ones while held }, prone, pushFeet. The plugin's names.
+function monsterHitEffects(value, where, unresolved, { resolveDamageType, resolveAbility }) {
+  if (!value || typeof value !== "object") return null;
+  const save = value.save && typeof value.save === "object" ? value.save : null;
+  const conditions = (Array.isArray(save?.conditions) ? save.conditions : []).map((entry) => {
+    const name = CONDITION_BY_KEY.get(key(entry));
+    if (!name) unresolved.push(`${where}: condizione al colpo "${text(entry)}"`);
+    return name;
+  }).filter(Boolean);
+  const timing = save ? monsterFailureTiming({ duration: save.duration, repeat: save.repeat }, where, unresolved) : {};
+  const savePart = save ? { ability: resolveAbility(save.ability), dc: integer(save.dc), ...(save.half === true ? { half: true } : {}),
+    damage: (Array.isArray(save.damage) ? save.damage : []).map((entry) => ({ type: resolveDamageType(entry?.type), formula: text(entry?.formula) }))
+      .filter((entry) => entry.type),
+    ...(conditions.length ? { onFail: { condition: conditions[0], ...(conditions.length > 1 ? { also: conditions.slice(1) } : {}), ...timing } } : {}) } : null;
+  const held = (Array.isArray(value.grapple?.conditions) ? value.grapple.conditions : []).map((entry) => CONDITION_BY_KEY.get(key(entry)));
+  const escapeDC = integer(value.grapple?.escapeDC);
+  const effects = {
+    ...(savePart?.ability && savePart.dc ? { save: savePart } : {}),
+    ...(escapeDC ? { grapple: { escapeDC, ...(held.includes("Trattenuto") ? { restrained: true } : {}) } } : {}),
+    ...(value.prone === true ? { prone: true } : {}),
+    ...(integer(value.pushFeet) ? { pushFeet: integer(value.pushFeet) } : {}),
+  };
+  return Object.keys(effects).length ? effects : null;
 }
 
 // How long a failure lasts (fase 5, lotto 3): more conditions ("also"), "duration": { rounds } or { until, anchor },

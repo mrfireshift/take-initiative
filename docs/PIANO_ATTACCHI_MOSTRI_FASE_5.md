@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 5: azioni complesse ad euristica (piano)
 
-Stato: **lotti 0–3 implementati** (27/10/2026); D1–D7 confermate come raccomandate (D7: con il tiro ripetuto niente conteggio dei round).
+Stato: **lotti 0–4 implementati** (27/10/2026); resta il lotto 5 (documentazione e misura finale); D1–D7 confermate come raccomandate (D7: con il tiro ripetuto niente conteggio dei round).
 
 Richiesta dell'utente: le azioni complesse degli NPC (tiri salvezza, soffi,
 coni, linee, aree) oggi si risolvono solo con «TS superato / fallito»;
@@ -170,7 +170,18 @@ già in uso per la console Boss: da guardare in room.
 - I casi che il lettore non sa chiudere («ends if the creature takes damage»)
   restano nella nota della condizione.
 
-### Lotto 4 — effetti al colpo (assorbe la fase 1b)
+### Lotto 4 — effetti al colpo (assorbe la fase 1b) ✅
+
+Fatto (27/10): un attacco con arma di un mostro tiene `onHit` sulla scheda: `save` (caratteristica, CD, `half`, fino a
+due danni, `onFail` come una condizione del lotto 3), `grapple` (`escapeDC`, `restrained`), `prone`, `pushFeet`; anche
+nel formato del plugin. Le frasi riconosciute escono dalla nota, tranne un TS solo per alcuni bersagli («other than an
+elf or undead»), che resta da leggere. Nella console, sotto i danni dell'arma, il riquadro **Al colpo** (solo su colpito
+o critico): il TS del bersaglio con il suo bonus, «TS fallito / superato», il danno del TS (metà o niente se superato,
+con le difese del bersaglio, nello stesso comando e nella stessa Cronologia dell'attacco), le condizioni con durata e
+promemoria, «Afferrato (fuga CD N)» con Trattenuto finché dura la presa (sorgente il mostro, mai due prese dello stesso
+mostro), Prono, la spinta da fare a mano (nel Combat Log come resto manuale). Nel MM, VGM, MTF e IDRotF gli attacchi
+con effetto letto passano da «parziali» a registrabili (Ghoul: 2 su 2). Nel banco: morso del Giant Spider su Dars
+(TS +4), fallito, 7 + 9 veleno = 16, PF 60 → 44.
 
 - Dopo un colpo: il tiro salvezza secondario («must succeed on a DC 11
   Constitution saving throw or be poisoned») con esito, danni extra (metà se

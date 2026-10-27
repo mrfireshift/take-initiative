@@ -234,7 +234,7 @@ export function createPcAttackRuntime({
           spellId:request.spellId || "",weaponCantrip:request.weaponCantrip || null,secondaryItem:secondaryItem || null,
           expectedSecondaryDefenses:request.expectedSecondaryDefenses,activations:request.activations || [],tempHpItems,
           attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,burstItems,expectedBurstDefenses:request.expectedBurstDefenses || {},
-          spellCast:request.spellCast || null,linkItems});
+          spellCast:request.spellCast || null,linkItems,hitEffect:request.hitEffect || null});
         spendSmiteSlots(scope.item,plan,request.castWithoutSlot===true);
         spendSpellCastSlot(scope.item,plan,request.castWithoutSlot===true);
         const reaction=spendAttackReaction(scope.item,plan,scope.turnState,request.useReaction===true);

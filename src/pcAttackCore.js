@@ -124,6 +124,70 @@ export function pcAttackMonsterConditionTiming(attack, { sourceId = "", targetId
 
 const ROUND_TEXT = (rounds) => (rounds % 600 === 0 ? `${rounds / 600} ${rounds === 600 ? "ora" : "ore"}`
   : rounds % 10 === 0 ? `${rounds / 10} ${rounds === 10 ? "minuto" : "minuti"}` : `${rounds} ${rounds === 1 ? "round" : "round"}`);
+// What a monster's weapon attack adds on a hit (fase 5, lotto 4): a second save of the target (its damage, half or none
+// on a success, and its conditions with their duration and repeated save, as a save action's), a grapple (Afferrato,
+// its source the monster, removed by hand; Trattenuto while held), prone, a push (moved by hand). hitEffect: the
+// console's { saveOutcome: "failed" | "passed", amounts: { h1, h2 } }. Returns { components (defended), operations,
+// causality, blocker, labelTargetIds }; nothing on a miss.
+const GRAPPLED_CONDITION = "Afferrato";
+function heldBy(item, sourceId) {
+  const value = item?.metadata?.[META_KEY]?.conditions;
+  const instances = Array.isArray(value) ? value : Array.isArray(value?.instances) ? value.instances : [];
+  return instances.some((instance) => instance?.active !== false && (instance?.condition || instance?.name) === GRAPPLED_CONDITION
+    && String(instance?.sourceId || "") === sourceId);
+}
+export function pcAttackHitEffectPlan({ attack, outcome = "", hitEffect = null, targetItem = null, sourceItem = null, attackInstanceId = "",
+  turnState = null } = {}) {
+  const onHit = attack?.onHit;
+  const empty = { components: [], operations: [], causality: null, blocker: "", labelTargetIds: [] };
+  if (!onHit || !["hit", "critical"].includes(outcome)) return empty;
+  const sourceId = sourceItem?.id || "", targetId = targetItem?.id || "";
+  const sourceName = sourceItem?.name || sourceId;
+  const appliedAt = bossConditionAppliedAt(turnState);
+  const save = onHit.save || null;
+  const saveOutcome = save ? hitEffect?.saveOutcome || "" : "";
+  if (save && !["failed", "passed"].includes(saveOutcome)) return { ...empty, blocker: "Scegli l'esito del tiro salvezza al colpo." };
+  const factor = !save ? "zero" : saveOutcome === "failed" ? "full" : save.half ? "half" : "zero";
+  const damage = save?.damage || [];
+  const amounts = hitEffect?.amounts || {};
+  const components = damage.map((entry, index) => ({ id: `h${index + 1}`, type: entry.type, source: { kind: "monster-hit", name: attack.label } }));
+  if (factor !== "zero" && components.some((component) => !validAmount(amounts[component.id])))
+    return { ...empty, blocker: "Inserisci il danno del tiro salvezza al colpo." };
+  const defended = factor !== "zero" && targetItem && components.length
+    ? defendedComponents(components, Object.fromEntries(components.map((component) => [component.id, Number(amounts[component.id])])), factor, targetItem, [], undefined)
+    : [];
+  const condition = (name, extra = {}) => ({ type: "condition:add", targetIds: [targetId], conditionName: name,
+    instanceIds: { [targetId]: bossGroupConditionInstanceId(`${attackInstanceId}:hit`, name, targetId) },
+    options: { sourceId, sourceName, parentEffectId: "", type: "automatic", manualRemoval: true, expiry: { mode: "manual" }, ...extra,
+      ...(appliedAt ? { appliedAt } : {}) } });
+  const operations = [];
+  const onFail = saveOutcome === "failed" ? save.onFail : null;
+  if (onFail) {
+    const pseudo = { monster: { onFail }, save: save.ability, saveDC: save.dc };
+    for (const name of [onFail.condition, ...(onFail.also || [])].filter((entry) => !pcAttackTargetConditionImmune(targetItem, entry))) {
+      const timing = pcAttackMonsterConditionTiming(pseudo, { sourceId, targetId });
+      operations.push(condition(name, { manualRemoval: timing.manualRemoval, expiry: timing.expiry,
+        ...(timing.saveReminder ? { saveReminder: { ...timing.saveReminder, label: `Se supera il TS, termina ${name}.` } } : {}) }));
+    }
+  }
+  const grapple = onHit.grapple && !heldBy(targetItem, sourceId) && !pcAttackTargetConditionImmune(targetItem, GRAPPLED_CONDITION) ? onHit.grapple : null;
+  if (grapple) {
+    operations.push(condition(GRAPPLED_CONDITION, { escapeDC: grapple.escapeDC }));
+    if (grapple.restrained && !pcAttackTargetConditionImmune(targetItem, "Trattenuto")) operations.push(condition("Trattenuto"));
+  }
+  if (onHit.prone && !pcAttackTargetConditionImmune(targetItem, "Prono")) operations.push(condition("Prono"));
+  const targetName = targetItem?.name || targetId;
+  const manual = onHit.pushFeet ? `Sposta ${targetName} di ${pcAttackFeetLabel(onHit.pushFeet)} lontano da ${sourceName} sulla mappa.` : "";
+  const causality = {
+    ...(save ? { save: { ability: save.ability, dc: save.dc, outcome: saveOutcome, ...(damage.length ? { factor } : {}) } } : {}),
+    ...(operations.length ? { conditions: operations.map((operation) => operation.conditionName) } : {}),
+    ...(grapple ? { grapple: { escapeDC: grapple.escapeDC } } : {}),
+    ...(manual ? { manual } : {}),
+  };
+  return { components: defended, operations, causality: Object.keys(causality).length ? causality : null, blocker: "",
+    labelTargetIds: operations.length ? [targetId] : [], manual };
+}
+
 // The failure in words, for the area note: "spaventato per 1 minuto, TS a fine turno".
 export function pcAttackMonsterFailureText(onFail) {
   if (!onFail?.condition) return "";
@@ -926,7 +990,7 @@ function extraLabel(value) {
 export function pcAttackPreview({
   action, spellId = "", sourceItem = null, targetItem = null, outcome = "", amounts = {}, ignoredDefenses = [],
   riders = [], extras = [], turnState = null, weaponCantrip = null, secondaryItem = null, activations = [], tempHpItems = [],
-  attackMode = "", modeAmount = "", burstItems = [], spellCast = null,
+  attackMode = "", modeAmount = "", burstItems = [], spellCast = null, hitEffect = null,
 } = {}) {
   const resolved = pcAttackResolvedAction(action, spellId, attackMode);
   if (!resolved) return { ready: false, blocker: pcAttackAction(action)
@@ -966,8 +1030,11 @@ export function pcAttackPreview({
   const profileDefenses = targetItem ? damageDefensesForItem(targetItem, META_KEY) : {};
   const defenses = relevantDamageDefenses(profileDefenses, components.filter((component) => damageTypeSet.has(component.type)), ignoredDefenses);
   // Full damage on a hit, a critical or a failed save (the shared helper would halve a "passed" save).
-  const total = targetItem && outcome && !miss
-    ? bossDefendedDamage(components, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, ignoredDefenses) : 0;
+  // A monster's hit effect (fase 5, lotto 4): its save's damage on top, with the target's defenses.
+  const hitPlan = targetItem ? pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem }) : null;
+  const total = (targetItem && outcome && !miss
+    ? bossDefendedDamage(components, allAmounts, factor === "half" ? "passed" : "hit", profileDefenses, ignoredDefenses) : 0)
+    + (hitPlan?.components || []).reduce((sum, component) => sum + component.amount, 0);
   const meta = targetItem?.metadata?.[META_KEY] || {};
   const hp = targetItem && Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
     ? { before: meta.hp, after: miss ? meta.hp : calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax }).afterHP, hpMax: meta.hpMax }
@@ -1052,9 +1119,11 @@ export function pcAttackPreview({
     : wovenBlocker ? wovenBlocker
     : activationBlock ? activationBlock
     : secondaryBlocker ? secondaryBlocker
+    : hitPlan?.blocker ? hitPlan.blocker
     : !hp ? "Il bersaglio non ha HP canonici validi."
     : "";
   return { ready: !blocker, blocker, defenses, profileDefenses, total, hp, ...(secondary ? { secondary } : {}),
+    ...(hitPlan?.causality ? { hitEffect: hitPlan.causality } : {}),
     ...(spellPlan?.ok ? { spell: { slotLevel: spellPlan.slotLevel, dice: spellPlan.dice, index: spellPlan.index, total: spellPlan.total,
       firstOfCast: spellPlan.firstOfCast, ...(spellPlan.leap ? { leap: true } : {}), ...(spellPlan.fromActiveSpell ? { fromActiveSpell: true } : {}),
       ...(casterHeal ? { casterHeal: { amount: casterHeal.requested, before: casterHeal.hp, after: casterHeal.afterHP, hpMax: casterHeal.hpMax } } : {}) } } : {}) };
@@ -1064,7 +1133,7 @@ export function buildPcAttackMutation({
   action, sourceItem, targetItem, outcome = "", componentAmounts = {}, attackInstanceId,
   ignoredDefenses = [], expectedDefenses, turnState = null, riders = [], extras = [], spellId = "",
   weaponCantrip = null, secondaryItem = null, expectedSecondaryDefenses, activations = [], tempHpItems = [],
-  attackMode = "", modeAmount = null, burstItems = [], expectedBurstDefenses = {}, spellCast = null, linkItems = [],
+  attackMode = "", modeAmount = null, burstItems = [], expectedBurstDefenses = {}, spellCast = null, linkItems = [], hitEffect = null,
 } = {}) {
   if (!isBossActionCreature(sourceItem) || !isBossActionTargetItem(targetItem))
     throw new Error("Attaccante e bersaglio devono essere token creatura reali.");
@@ -1146,8 +1215,11 @@ export function buildPcAttackMutation({
     ...activationPlan.chosen.filter((activation) => activation.option.damage).map((activation) => [`a:${activation.id}`, activation.amount]),
     ...chosenExtras.map((extra, index) => [`x${index + 1}`, extra.amount]),
   ]);
+  // A monster's hit effect (fase 5, lotto 4): its save's damage joins the attack's, its conditions the attack's command.
+  const hitPlan = pcAttackHitEffectPlan({ attack, outcome, hitEffect, targetItem, sourceItem, attackInstanceId, turnState });
+  if (hitPlan.blocker) throw new Error(hitPlan.blocker);
   // A critical hit keeps the full factor: the totals the GM enters already include the doubled dice.
-  const damageComponents = defendedComponents(components, inputs, factor, targetItem, ignoredDefenses, expectedDefenses);
+  const damageComponents = [...defendedComponents(components, inputs, factor, targetItem, ignoredDefenses, expectedDefenses), ...hitPlan.components];
   const requestedDamage = damageComponents.reduce((sum, component) => sum + component.amount, 0);
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
   let change = null;
@@ -1353,13 +1425,14 @@ export function buildPcAttackMutation({
   // The ids whose pills the attack changes outside the damaged creatures (a self pill on the attacker, an ended link).
   const pillTargetIds = [...new Set([...Object.keys(activationPlan.instancesByTarget), ...linkEnds.map((end) => end.itemId)])];
   if (activationPlan.notes.length) causality.notes = [...activationPlan.notes];
+  if (hitPlan.causality) causality.onHit = hitPlan.causality;
   return {
     change, damageComponents, causality,
     followUps: [...pcAttackFollowUps(sourceMeta.initiativeCard, chosenRiders, activationPlan.chosen.map((activation) => activation.id)), ...activationPlan.notes],
     // Temporary hit points (Inspiring Smite): their own projections after the commit (no concentration warnings).
     tempHpChanges: activationPlan.tempHp.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
     labelTargetIds: [...new Set([...pillTargetIds, ...(activationConditions.length ? [targetItem.id] : []),
-      ...(biteBonusOperations.length ? [sourceItem.id] : [])])],
+      ...(biteBonusOperations.length ? [sourceItem.id] : []), ...hitPlan.labelTargetIds])],
     ...(secondaryItemUsed ? { secondaryChange, secondaryItem: secondaryItemUsed } : {}),
     // The creatures of Bursting Arrow: their own post-damage projections after the commit.
     burstChanges: burstRows.filter((row) => row.change.changed).map((row) => ({ item: row.item, change: row.change })),
@@ -1396,8 +1469,8 @@ export function buildPcAttackMutation({
         hpIntent: { mode: QUICK_HP_MODES.HEAL, amount: casterHealChange.requested, eventId: attackInstanceId },
         expectedHP: bossMetadataSnapshot(sourceHpMeta, "hp"), expectedHPMax: bossMetadataSnapshot(sourceHpMeta, "hpMax"),
       }] : []),
-    ] }] : []), ...conditionOperations,
-    ...(conditionOperations.length ? [{ type: "condition:automate", subjectIds: [targetItem.id] }] : []), ...cantripOperations,
+    ] }] : []), ...conditionOperations, ...hitPlan.operations,
+    ...(conditionOperations.length || hitPlan.operations.length ? [{ type: "condition:automate", subjectIds: [targetItem.id] }] : []), ...cantripOperations,
     ...activationPillOperations, ...biteBonusOperations,
     ...(linkEnds.length ? [{ type: "condition:remove-instances", removals: linkEnds.map(({ itemId, instanceId }) => ({ itemId, instanceId })) }] : [])],
     options: {
@@ -1426,7 +1499,8 @@ export function buildPcAttackMutation({
       ] } : {}),
       history: { kind: PC_ATTACK_HISTORY_KIND, label, payload: { causality, damageComponents: structuredClone(damageComponents),
         // The cantrip's on-hit effect is not applied yet: it is recorded as the part the GM resolves by hand.
-        ...(DAMAGING_OUTCOMES.has(outcome) && attack.cantrip?.effectNote ? { manualRemainder: attack.cantrip.effectNote } : {}) } },
+        ...(DAMAGING_OUTCOMES.has(outcome) && attack.cantrip?.effectNote ? { manualRemainder: attack.cantrip.effectNote }
+          : hitPlan.manual ? { manualRemainder: hitPlan.manual } : {}) } },
     },
   };
 }
