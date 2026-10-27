@@ -320,7 +320,7 @@ export function restoreRulesTextTable(text, id) {
 }
 
 function normalizeWord(word) {
-  return word.toLocaleLowerCase("it").normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return word.toLocaleLowerCase("it").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 // The words of a text with their position: { word, start, end }.
