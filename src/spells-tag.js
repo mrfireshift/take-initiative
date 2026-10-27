@@ -77,7 +77,7 @@
   const CONC_WIDGET_CASTER = `${ID}/concWidgetCaster`; // caster id (per label)
   const CONC_LABEL_HASHKEY = `${ID}/concLabelHash`;    // hash label (testo+dimensioni)
   const CONC_DOT_LAYOUT_KEY = `${ID}/concDotLayout`;
-  const CONC_DOT_LAYOUT_VERSION = 9;
+  const CONC_DOT_LAYOUT_VERSION = 11;
 
   // Alcuni incantesimi ad aura hanno una pill di membership dedicata sui
   // bersagli. In questi casi la pill generica della concentrazione sarebbe

@@ -30,7 +30,7 @@ const CONC_WIDGET_KEY = `${ID}/concWidgetKey`;
 const CONC_WIDGET_CASTER = `${ID}/concWidgetCaster`;
 const CONC_LABEL_HASHKEY = `${ID}/concLabelHash`;
 const CONC_DOT_LAYOUT_KEY = `${ID}/concDotLayout`;
-const CONC_DOT_LAYOUT_VERSION = 9;
+const CONC_DOT_LAYOUT_VERSION = 11;
 const CONC_LABEL_LAYOUT_KEY = `${ID}/concLabelLayout`;
 const CONC_LABEL_LAYOUT_VERSION = 2;
 

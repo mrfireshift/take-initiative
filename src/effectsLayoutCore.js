@@ -366,9 +366,13 @@ function planDot(token, assignments, config, sceneDpi) {
     solid: "hsl(0, 70%, 45%)",
     fillOpacity: 1,
   };
+  // The badge sits in the corner of the top-left grid cell the token covers, inside it: the footprint is counted in
+  // whole cells around the token's centre, so an image larger than its cells does not push the badge out.
   const box = visualTokenBox(token, sceneDpi);
-  const radius = box.diameter / 2;
-  const circleInset = radius * (0.9 - Math.SQRT1_2);
+  const cell = Math.max(1, Number(sceneDpi) || 70);
+  const cellLeft = (Number(token?.position?.x) || 0) - Math.max(1, Math.round(box.width / cell)) * cell / 2;
+  const cellTop = (Number(token?.position?.y) || 0) - Math.max(1, Math.round(box.height / cell)) * cell / 2;
+  const inset = Math.max(2, cell * 0.04);
   return {
     identity: `dot|${token.id}`,
     kind: "dot",
@@ -376,13 +380,16 @@ function planDot(token, assignments, config, sceneDpi) {
     casterId: token.id,
     key: concentrationKey,
     text: "C",
-    x: box.left + circleInset,
-    y: box.top + circleInset,
+    // A label hangs from its position, the middle of one side (pointer UP, no pointer: the top centre). Past its
+    // maxViewScale Owlbear keeps the badge's size on screen and shrinks it toward that point: hung from the top, it
+    // stays on the cell's upper edge when zoomed in, sliding right by at most half its width.
+    x: cellLeft + inset + config.dotDiameter / 2,
+    y: cellTop + inset,
     width: config.dotDiameter,
     height: config.dotDiameter,
     backgroundColor: color.solid,
     backgroundOpacity: 1,
-    pointerDirection: "DOWN",
+    pointerDirection: "UP",
     fontFamily: config.fontFamily,
     fontSize: config.dotFontSize,
     fontWeight: 700,

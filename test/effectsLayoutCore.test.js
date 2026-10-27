@@ -211,6 +211,21 @@ test("le pill compatte rientrano del 25% anche su un token multicasella", () => 
   assert.ok(topmost >= 95 && topmost < 96);
 });
 
+test("il pallino C sta nella casella in alto a sinistra del token, anche se grande o con l'immagine debordante", () => {
+  const dotOf = (overrides) => planEffectsLayout({ measureText, sceneDpi: 70, tokens: [token("caster", {
+    concentrationKey: "Ragnatela",
+    assignments: [{ key: "Ragnatela", displayName: "Ragnatela", isConc: true, targets: ["caster"], color: { solid: "#7e22ce" } }],
+    ...overrides,
+  })] }).find((entry) => entry.kind === "dot");
+  const badge = (dot) => ({ left: dot.x - dot.width / 2, top: dot.y, right: dot.x + dot.width / 2, bottom: dot.y + dot.height });
+  // Large (2×2 cells around 100,100): its top-left cell is 30..100.
+  const large = badge(dotOf({ width: 140, height: 140 }));
+  assert.ok(large.left > 30 && large.right < 100 && large.top > 30 && large.bottom < 100);
+  // A medium token whose image overflows its cell (80 px): still the cell 65..135.
+  const overflowing = badge(dotOf({ width: 80, height: 80 }));
+  assert.ok(overflowing.left > 65 && overflowing.top > 65 && overflowing.right < 135 && overflowing.bottom < 135);
+});
+
 test("il pallino C resta invariato nella vista compatta", () => {
   const tokens = [token("caster", {
     concentrationKey: "Ragnatela",
@@ -808,8 +823,10 @@ test("un token IMAGE da una casella ancora pill e badge al suo ingombro di scena
   const dot = desired.find((entry) => entry.kind === "dot");
   const spell = desired.find((entry) => entry.kind === "spell");
   const condition = desired.find((entry) => entry.kind === "condition");
-  assert.ok(Math.abs(dot.x - 71.75) < 0.01);
-  assert.ok(Math.abs(dot.y - 71.75) < 0.01);
+  // Inside the token's cell (65..135), in its top-left corner, hung from its top: the badge spans 67.8..109.8.
+  assert.equal(dot.pointerDirection, "UP");
+  assert.ok(Math.abs(dot.x - 88.8) < 0.01);
+  assert.ok(Math.abs(dot.y - 67.8) < 0.01);
   assert.deepEqual({ x: spell.x, y: spell.y }, { x: 118, y: 74 });
   assert.deepEqual({ x: condition.x, y: condition.y }, { x: 118, y: 103 });
 });
