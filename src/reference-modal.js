@@ -3,8 +3,6 @@ import { ID } from "./constants.js";
 import { CONDITION_REFERENCE, REFERENCE_SOURCE } from "./referenceData.js";
 import { buildRulesIndex, entryPath, resolveRelated, rulesTree, searchRules } from "./rulesReferenceCore.js";
 import { rulesTextBlock } from "./rulesTextView.js";
-import { getSpellCatalog } from "./spells-srd.js";
-import spellReferenceData from "./spell-reference-it.json" with { type: "json" };
 
 const MODAL_ID = `${ID}/reference-modal`;
 const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
@@ -15,6 +13,23 @@ const RULES_SEARCH_DELAY_MS = 120;
 // The SRD rules compendium is a chunk of its own, downloaded the first time the Rules tab opens.
 function loadRulesCatalog() {
   return import("./rules-reference-it.json").then((module) => module.default);
+}
+
+// The spell catalog and its Italian texts, the heaviest part of the encyclopedia, likewise wait for the Spells tab;
+// the texts through the module the character sheet loads too, so both share one chunk.
+function loadSpells() {
+  return Promise.all([import("./spells-srd.js"), import("./spellReferenceItData.js")]).then(([catalog, reference]) => {
+    const spellReferenceData = reference.default;
+    const spellReferences = spellReferenceData?.spells && typeof spellReferenceData.spells === "object"
+      ? spellReferenceData.spells
+      : {};
+    return catalog.getSpellCatalog()
+      .map((spell) => ({
+        ...spell,
+        italianReference: spellReferences[spell.id] || spell.italianReference || null,
+      }))
+      .sort((a, b) => spellLabel(a).localeCompare(spellLabel(b), "it"));
+  });
 }
 
 function closeReferencePopover() {
@@ -72,15 +87,7 @@ OBR.onReady(() => {
   const tabs = Array.from(document.querySelectorAll("[data-tab]"));
   if (!results || !detail || !search) return;
 
-  const spellReferences = spellReferenceData?.spells && typeof spellReferenceData.spells === "object"
-    ? spellReferenceData.spells
-    : {};
-  const spells = getSpellCatalog()
-    .map((spell) => ({
-      ...spell,
-      italianReference: spellReferences[spell.id] || spell.italianReference || null,
-    }))
-    .sort((a, b) => spellLabel(a).localeCompare(spellLabel(b), "it"));
+  const spells = { status: "idle", list: [] };
   const params = new URLSearchParams(window.location.search);
   let activeTab = TABS.has(params.get("tab")) ? params.get("tab") : "conditions";
   let activeEntry = CONDITION_REFERENCE[0] || null;
@@ -89,7 +96,7 @@ OBR.onReady(() => {
   let pendingRuleId = activeTab === "rules" ? params.get("entry") || "" : "";
   let searchTimer = null;
 
-  const currentEntries = () => activeTab === "conditions" ? CONDITION_REFERENCE : spells;
+  const currentEntries = () => activeTab === "conditions" ? CONDITION_REFERENCE : spells.list;
   const entryLabel = (entry) => activeTab === "conditions" ? entry.name : spellLabel(entry);
 
   function renderDetail(entry) {
@@ -178,6 +185,42 @@ OBR.onReady(() => {
     empty.className = "empty";
     empty.textContent = text;
     return empty;
+  }
+
+  // The results column of a tab whose data is still downloading, or failed to: a note, and a retry after a failure.
+  function renderLoadState(state, { loading, failed }) {
+    results.replaceChildren();
+    if (state.status !== "error") {
+      results.appendChild(emptyNote(loading));
+      return;
+    }
+    const note = emptyNote(failed);
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = "Riprova";
+    retry.addEventListener("click", () => {
+      state.status = "idle";
+      renderResults();
+    });
+    note.append(document.createElement("br"), retry);
+    results.appendChild(note);
+  }
+
+  function ensureSpells() {
+    if (spells.status !== "idle") return;
+    spells.status = "loading";
+    loadSpells()
+      .then((list) => {
+        spells.list = list;
+        spells.status = "ready";
+      })
+      .catch((error) => {
+        console.warn("[reference-modal] incantesimi:", error?.message || error);
+        spells.status = "error";
+      })
+      .finally(() => {
+        if (activeTab === "spells") renderResults();
+      });
   }
 
   function ensureRules() {
@@ -337,27 +380,13 @@ OBR.onReady(() => {
   }
 
   function renderRules() {
-    results.replaceChildren();
     if (rules.status === "idle") ensureRules();
-    if (rules.status === "loading") {
-      results.appendChild(emptyNote("Caricamento delle regole…"));
+    if (rules.status !== "ready") {
+      renderLoadState(rules, { loading: "Caricamento delle regole…", failed: "Impossibile caricare le regole." });
       renderRuleDetail(null);
       return;
     }
-    if (rules.status === "error") {
-      const failed = emptyNote("Impossibile caricare le regole.");
-      const retry = document.createElement("button");
-      retry.type = "button";
-      retry.textContent = "Riprova";
-      retry.addEventListener("click", () => {
-        rules.status = "idle";
-        renderResults();
-      });
-      failed.append(document.createElement("br"), retry);
-      results.appendChild(failed);
-      renderRuleDetail(null);
-      return;
-    }
+    results.replaceChildren();
 
     if (search.value.trim()) {
       const { results: found, total } = searchRules(rules.index, search.value);
@@ -409,6 +438,14 @@ OBR.onReady(() => {
     if (activeTab === "rules") {
       renderRules();
       return;
+    }
+    if (activeTab === "spells") {
+      if (spells.status === "idle") ensureSpells();
+      if (spells.status !== "ready") {
+        renderLoadState(spells, { loading: "Caricamento degli incantesimi…", failed: "Impossibile caricare gli incantesimi." });
+        renderDetail(null);
+        return;
+      }
     }
     const query = normalize(search.value);
     const entries = currentEntries().filter((entry) => normalize(

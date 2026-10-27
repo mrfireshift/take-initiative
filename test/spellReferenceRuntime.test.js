@@ -13,12 +13,14 @@ test("the runtime excerpt matches the full Italian reference", () => {
   assert.deepEqual(excerpt.ritualIds, rituals);
 });
 
-test("only the reference window and the spell details load the full reference", async () => {
+test("the reference window and the spell details load the full reference only on demand", async () => {
   const { readdirSync, readFileSync } = await import("node:fs");
   const importers = readdirSync(new URL("../src/", import.meta.url))
     .filter((file) => file.endsWith(".js"))
     .filter((file) => /from "\.\/spell-reference-it\.json"/u.test(readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8")));
-  assert.deepEqual(importers.sort(), ["reference-modal.js", "spellReferenceItData.js"]);
+  assert.deepEqual(importers.sort(), ["spellReferenceItData.js"]);
   const catalog = readFileSync(new URL("../src/spellbookCatalog.js", import.meta.url), "utf8");
   assert.match(catalog, /import\("\.\/spellReferenceItData\.js"\)/u, "the sheet loads it on demand");
+  const modal = readFileSync(new URL("../src/reference-modal.js", import.meta.url), "utf8");
+  assert.match(modal, /import\("\.\/spellReferenceItData\.js"\)/u, "the encyclopedia loads it with its Spells tab");
 });

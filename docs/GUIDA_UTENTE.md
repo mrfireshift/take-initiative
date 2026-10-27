@@ -797,3 +797,33 @@ Sullo schermo del tavolo **Alt+Shift+R** sospende o riprende la rotazione. I
 lati Est e Ovest scambiano larghezza e altezza della pagina: sono sperimentali e
 si possono disattivare nello userscript (`allowQuarterTurns: false`). Gli altri
 client, senza userscript, non ricevono niente e non cambiano.
+
+## 17. Enciclopedia DM
+
+Lo strumento **Enciclopedia DM** (solo GM) apre un riferimento delle regole in
+italiano, con tre schede:
+
+- **Condizioni**: gli effetti di ogni condizione dell'SRD, Indebolimento
+  compreso. Un clic su un'etichetta di condizione nel tracker apre direttamente
+  la sua voce.
+- **Incantesimi**: livello, scuola, tempo di lancio, gittata, componenti,
+  durata e descrizione. Dal pannello incantesimi si arriva alla voce
+  dell'incantesimo scelto.
+- **Regole**: le regole dell'SRD 5.1 divise per argomento (Personaggio,
+  Equipaggiamento, Caratteristiche, Avventura, Combattimento, Magia, Strumenti
+  del DM), con le tabelle di armi, armature, CD, viaggio, trappole, follia,
+  oggetti e veleni.
+
+Nella scheda **Regole**:
+
+1. a ricerca vuota apri un argomento e scegli una voce dall'elenco;
+2. oppure scrivi nella ricerca: bastano l'inizio delle parole (`cop` trova
+   Copertura) e funzionano anche sinonimi come `afferrare` o `AdO`; sotto ogni
+   risultato c'è il percorso della voce;
+3. in fondo alla voce, **Vedi anche** porta alle regole collegate o alla
+   condizione (per esempio da Lottare ad Afferrato); **‹ Indietro** riporta
+   alla voce di prima, e un clic sull'argomento in alto torna all'elenco.
+
+Le varianti, come l'ingombro, portano l'etichetta **Regola opzionale**. Le
+schede Incantesimi e Regole si scaricano la prima volta che le apri, così
+l'Enciclopedia si apre subito sulle Condizioni.

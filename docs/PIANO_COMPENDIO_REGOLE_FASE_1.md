@@ -2,6 +2,8 @@
 
 Obiettivo: una terza scheda **Regole** nell'Enciclopedia DM con le regole dell'SRD 5.1 italiano divise per argomento, scaricate solo quando la scheda si apre e cercabili con un indice costruito una volta sola.
 
+Stato (27/10/2026): decisioni D1–D5 approvate così come proposte; R1 e R2 in `842d8a2`, R3 in `6f807c8`, R4 chiuso. All'apertura l'Enciclopedia carica 90 KB di JS, 64 dei quali sono l'SDK di Owlbear condiviso; prima erano più di 900 KB.
+
 Fuori da questa fase: il testo di Manuale del Giocatore, Guida del DM, Xanathar e Tasha che non è nell'SRD (fase 2, pacchetto privato importato in locale), gli oggetti magici, i mostri, le razze e le classi (le capacità di classe hanno già il loro catalogo).
 
 ## Indice

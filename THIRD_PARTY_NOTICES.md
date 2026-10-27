@@ -2,10 +2,12 @@
 
 ## D&D 5e SRD 5.1
 
-Spell metadata in `src/spells-srd-5.1.json` and the Italian encyclopedia data
-in `src/spell-reference-it.json` derive from the D&D 5e System Reference
-Document 5.1 by Wizards of the Coast LLC and are used under the Creative
-Commons Attribution 4.0 International license.
+Spell metadata in `src/spells-srd-5.1.json`, the Italian encyclopedia data
+in `src/spell-reference-it.json` and the Italian rules compendium in
+`src/rules-reference-it.json` (generated from the official Italian PDF by
+`scripts/generate-srd-rules-reference.mjs`) derive from the D&D 5e System
+Reference Document 5.1 by Wizards of the Coast LLC and are used under the
+Creative Commons Attribution 4.0 International license.
 
 - Official Italian source: https://media.wizards.com/2023/downloads/dnd/SRD_CC_v5.1_IT.pdf
 - License: https://creativecommons.org/licenses/by/4.0/

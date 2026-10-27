@@ -285,6 +285,35 @@ Le aree generiche possono essere usate soltanto per selezionare bersagli. Le
 zone e le aure degli incantesimi aggiungono invece appartenenza, terreno
 difficile, trigger turnali, attraversamento e pulizia legata all'istanza.
 
+## Enciclopedia DM
+
+La apre solo il GM, dallo strumento **Enciclopedia DM**. Ha tre schede:
+
+| Scheda | Contenuto | Fonte | Caricamento |
+| --- | --- | --- | --- |
+| Condizioni | Le 15 condizioni dell'Appendice A più Ira | `src/referenceData.js` | all'apertura |
+| Incantesimi | Il catalogo del tracker con il testo italiano, dove c'è | `src/spells-srd.js`, `src/spell-reference-it.json` | alla prima apertura della scheda |
+| Regole | 243 voci SRD in 7 argomenti, con 24 tabelle | `src/rules-reference-it.json` | alla prima apertura della scheda |
+
+La scheda Regole mostra gli argomenti come un albero (argomento › sezione › voce)
+e, durante una ricerca, la lista dei risultati con il percorso di ognuno. La
+ricerca (`src/rulesReferenceCore.js`) parte 120 ms dopo l'ultimo tasto, vuole
+tutte le parole e mette prima nome esatto, inizio del nome, nome, alias,
+percorso e infine testo; mostra al massimo 60 risultati. Una voce mostra
+percorso, etichetta **Regola opzionale**, testo e tabelle, **Vedi anche** verso
+altre regole o condizioni (con **‹ Indietro**) e la pagina dell'SRD.
+
+`openReferencePopover({ tab, entry })` apre l'Enciclopedia su una scheda: per
+Condizioni e Incantesimi `entry` è il testo cercato, per Regole è l'id della
+voce (per esempio `lottare`).
+
+Il compendio si rigenera dal PDF SRD italiano estratto con `pdftotext`:
+`npm run generate:rules-reference -- --pdf-text=srd-it.txt`. Il contenuto si
+cambia nell'indice scritto a mano `scripts/srd-rules-outline-it.json` (titoli,
+alias, rimandi, parti escluse, tabelle ricostruite), mai nel JSON generato. Nel
+bundle entra solo testo SRD 5.1; il piano è in
+[PIANO_COMPENDIO_REGOLE_FASE_1.md](PIANO_COMPENDIO_REGOLE_FASE_1.md).
+
 ## Persistenza funzionale
 
 | Dato | Ambito |
