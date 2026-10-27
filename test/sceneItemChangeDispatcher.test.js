@@ -4,6 +4,7 @@ import { ACTIVE_TURN_LABEL_META, ID } from "../src/constants.js";
 import {
   classifySceneItemChanges,
   createSceneItemChangeDispatcher,
+  createSceneItemsSnapshot,
 } from "../src/sceneItemChangeDispatcherCore.js";
 
 const META_KEY = ID + "/meta";
@@ -20,6 +21,30 @@ function token(overrides = {}) {
     ...overrides,
   };
 }
+
+test("lo snapshot riusa le firme di un item identico anche quando l'SDK consegna una copia clonata", () => {
+  const items = [token(), token({ id: "token-2", name: "Orco" })];
+  const first = createSceneItemsSnapshot(structuredClone(items));
+  // Owlbear delivers fresh clones on every emission: the reference checks never match, the raw string does.
+  const changed = structuredClone(items);
+  changed[1].metadata[META_KEY].hp = 4;
+  const next = createSceneItemsSnapshot(changed, first);
+  const fresh = createSceneItemsSnapshot(structuredClone(changed));
+
+  assert.equal(next.get("token-1").hpSignature, first.get("token-1").hpSignature);
+  assert.equal(next.get("token-1").metadataSignatures, first.get("token-1").metadataSignatures, "unchanged item: signatures reused");
+  assert.equal(next.get("token-1").item, changed[0], "the record carries the item of this emission");
+  assert.notEqual(next.get("token-2").metadataSignatures, first.get("token-2").metadataSignatures, "changed item: signatures recomputed");
+  for (const id of ["token-1", "token-2"]) {
+    const { item: _a, ...reused } = next.get(id);
+    const { item: _b, ...computed } = fresh.get(id);
+    assert.deepEqual(reused, computed, `${id}: the same record as a snapshot computed from scratch`);
+  }
+  // Classification is unchanged: only the HP of token-2 changed.
+  const event = classifySceneItemChanges(structuredClone(items), changed);
+  assert.equal(event.flags.hpBars, true);
+  assert.equal(event.flags.movement, false);
+});
 
 test("classifies movement without scheduling tracker or HP work", () => {
   const before = token();

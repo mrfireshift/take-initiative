@@ -6,7 +6,9 @@ Lotti fatti, tutti il 27/10:
 - **S2**: la Cronologia scritta dal background va al proprio owner senza passare da OBR.
 - **S3**: l'append risponde dopo aver letto il contesto del turno; la scrittura del Combat Log segue nella sua coda. Un errore di scrittura del log finisce nella console e non è più tra i `postCommitErrors` della risposta.
 
-Il guadagno in millisecondi va misurato in stanza, perché `perf-harness` non passa da questi percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
+- **S1**: l'Event Hub riconosce un item identico dalla sua stringa JSON grezza e ne riusa le firme. Misurato su 92 item da 128 KB clonati come fa l'SDK: lo snapshot passa da 1,70 a 0,38 ms per evento in ogni iframe in ascolto, con firme identiche in tutti i record.
+
+Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.
 

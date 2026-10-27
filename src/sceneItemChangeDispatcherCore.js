@@ -108,9 +108,17 @@ export function changedSceneItemMetadataKeys(beforeSnapshot, afterSnapshot) {
   ].filter((key) => before[key] !== after[key]));
 }
 
-function canReuseItemSnapshot(previous, item) {
+// The item as the SDK delivered it, in one plain string. Owlbear hands every iframe fresh clones on each emission,
+// so the reference checks below never match there: an identical string (same values in the same order) gives the
+// same signatures, without fingerprinting the whole item again. Null when it cannot be serialised.
+function rawItemJson(item) {
+  try { return JSON.stringify(item); } catch { return null; }
+}
+
+function canReuseItemSnapshot(previous, item, rawJson = null) {
   if (!previous?.item || !item) return false;
   if (previous.item === item) return true;
+  if (rawJson !== null && previous.rawJson === rawJson) return true;
   const before = previous.item;
   return before.id === item.id
     && before.type === item.type
@@ -214,10 +222,11 @@ export function createSceneItemsSnapshot(items = [], previousSnapshot = null) {
     .filter((item) => item?.id)
     .map((item) => {
       const previous = previousSnapshot?.get(item.id);
-      if (canReuseItemSnapshot(previous, item)) {
-        return [item.id, { ...previous, item }];
+      const rawJson = rawItemJson(item);
+      if (canReuseItemSnapshot(previous, item, rawJson)) {
+        return [item.id, { ...previous, item, rawJson }];
       }
-      return [item.id, snapshotItem(item)];
+      return [item.id, { ...snapshotItem(item), rawJson }];
     }));
 }
 
