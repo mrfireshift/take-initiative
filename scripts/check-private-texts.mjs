@@ -68,13 +68,14 @@ function filesUnder(dir) {
   });
 }
 
-// The private runs: from the texts and the raw files ({ file, keys }), minus the runs of the SRD texts.
+// The private runs: from the texts and the raw files ({ file, keys }), minus the runs of the SRD texts and the runs
+// with no word (a table's column of numbers, "2 3 4 … 13").
 export function privateRuns({ privateFiles, srdFiles }) {
   const srd = new Set(srdFiles.flatMap((file) => stringsOf(file).flatMap((text) => runsOf(normalizeWords(text)))));
   const runs = new Set();
   for (const { file, keys } of privateFiles) {
     for (const text of stringsOf(file, keys)) {
-      for (const run of runsOf(normalizeWords(text))) if (!srd.has(run)) runs.add(run);
+      for (const run of runsOf(normalizeWords(text))) if (!srd.has(run) && /\p{L}/u.test(run)) runs.add(run);
     }
   }
   return runs;
