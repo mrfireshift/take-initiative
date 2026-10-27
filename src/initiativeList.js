@@ -9329,6 +9329,17 @@ function __syncTrackerCardStateClasses(card) {
 }
 
 function __copyTrackerCardOuterState(liveCard, nextCard) {
+  // Called for a card whose content is unchanged: with the same chip parameters and width its chip lines wrap as
+  // before, so the height measured on the live card still holds and the copy needs no forced layout read. The
+  // sweep before the next paint (initiativeChipOverflow.js) still measures every card.
+  const keepsChipHeight = liveCard.dataset.chipDockCard === "1"
+    && nextCard.dataset.chipDockCard === "1"
+    && liveCard.dataset.chipBaseHeight === nextCard.dataset.chipBaseHeight
+    && liveCard.dataset.chipDockTop === nextCard.dataset.chipDockTop
+    && liveCard.style.width === nextCard.style.width
+    && !!liveCard.style.height;
+  const measuredHeight = liveCard.style.height;
+  const measuredMinHeight = liveCard.style.minHeight;
   for (const attribute of Array.from(liveCard.attributes)) {
     if (!nextCard.hasAttribute(attribute.name)) liveCard.removeAttribute(attribute.name);
   }
@@ -9337,6 +9348,11 @@ function __copyTrackerCardOuterState(liveCard, nextCard) {
   }
   liveCard.__selectionBaseShadow = nextCard.__selectionBaseShadow ?? nextCard.style.boxShadow ?? "";
   __syncTrackerCardStateClasses(liveCard);
+  if (keepsChipHeight) {
+    liveCard.style.height = measuredHeight;
+    liveCard.style.minHeight = measuredMinHeight;
+    return;
+  }
   // The copied style carries the base height: the live card re-fits its wrapped chips at once.
   syncChipDockCardHeight(liveCard);
 }
