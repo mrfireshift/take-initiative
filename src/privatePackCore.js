@@ -156,3 +156,18 @@ export function mergeRulesCatalogs(srd, packs = []) {
   }
   return { ...srd, topics, entries, sources, skipped };
 }
+
+// The sources of a merged catalog with how many entries each has: [{ id, title, badge, count }], in the catalog's
+// order, the sources without entries left out.
+export function rulesSourceCounts(catalog) {
+  const counts = new Map();
+  for (const entry of catalog?.entries || []) counts.set(entry.source, (counts.get(entry.source) || 0) + 1);
+  return (catalog?.sources || []).filter((source) => counts.has(source.id)).map((source) => ({ ...source, count: counts.get(source.id) }));
+}
+
+// The merged catalog without the entries of the hidden sources (a Set of ids): the Rules tab's filter. Topics and
+// sources stay; rulesTree leaves out the sections left empty.
+export function filterRulesCatalogBySource(catalog, hidden = new Set()) {
+  if (!hidden.size) return catalog;
+  return { ...catalog, entries: (catalog?.entries || []).filter((entry) => !hidden.has(entry.source)) };
+}

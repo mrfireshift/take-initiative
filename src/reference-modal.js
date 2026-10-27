@@ -2,11 +2,13 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { fiveToolsArchiveSizeLabel } from "./fiveToolsArchiveCore.js";
 import {
+  filterRulesCatalogBySource,
   mergeRulesCatalogs,
   parsePrivatePack,
   privatePackContentsLabel,
   privateSpellTexts,
   privateTextMissingNote,
+  rulesSourceCounts,
   SRD_SOURCE,
 } from "./privatePackCore.js";
 import { createPrivatePackStore } from "./privatePackStore.js";
@@ -19,6 +21,23 @@ const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
 const TABS = new Set(["conditions", "spells", "rules"]);
 // The rules tab searches a few hundred texts: it waits for a pause in typing instead of running on every key.
 const RULES_SEARCH_DELAY_MS = 120;
+// The sources the GM hid in the Rules tab, kept in this browser only (a viewer's convenience).
+const HIDDEN_SOURCES_KEY = `${ID}/reference-rules-hidden-sources`;
+
+function readHiddenSources() {
+  try {
+    const value = JSON.parse(localStorage.getItem(HIDDEN_SOURCES_KEY) || "[]");
+    return new Set(Array.isArray(value) ? value.filter((id) => typeof id === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveHiddenSources(hidden) {
+  try {
+    localStorage.setItem(HIDDEN_SOURCES_KEY, JSON.stringify([...hidden]));
+  } catch {}
+}
 
 // The SRD rules compendium is a chunk of its own, downloaded the first time the Rules tab opens.
 function loadRulesCatalog() {
@@ -100,6 +119,7 @@ OBR.onReady(() => {
   const results = document.getElementById("results");
   const detail = document.getElementById("detail");
   const search = document.getElementById("search");
+  const sourceFilter = document.getElementById("sources");
   const close = document.getElementById("close");
   const panel = document.querySelector(".panel");
   const packsToggle = document.getElementById("packsToggle");
@@ -116,8 +136,12 @@ OBR.onReady(() => {
   let activeTab = TABS.has(params.get("tab")) ? params.get("tab") : "conditions";
   let activeEntry = CONDITION_REFERENCE[0] || null;
   // The Rules tab keeps its own selection, the topics opened in the tree and the entries left through "Vedi anche".
-  // catalog is the SRD compendium (srd) merged with the rules of the imported packs.
-  const rules = { status: "idle", srd: null, catalog: null, index: null, tree: [], active: null, history: [], expanded: new Set() };
+  // merged is the SRD compendium (srd) with the rules of the imported packs; catalog is merged without the sources the
+  // GM hid (hiddenSources), and the index and the tree follow it.
+  const rules = {
+    status: "idle", srd: null, merged: null, catalog: null, index: null, tree: [], active: null, history: [], expanded: new Set(),
+    hiddenSources: readHiddenSources(),
+  };
   let pendingRuleId = activeTab === "rules" ? params.get("entry") || "" : "";
   let searchTimer = null;
 
@@ -252,7 +276,13 @@ OBR.onReady(() => {
 
   // Rebuilds the index and the tree; the selection and the "Indietro" stack follow their entries, or drop the ones
   // a removed pack took away.
-  function setRulesCatalog(catalog) {
+  function setRulesCatalog(merged) {
+    rules.merged = merged;
+    const shown = new Set(rulesSourceCounts(merged).map((source) => source.id));
+    // A hidden source that no longer has entries (its pack removed) stops hiding; at least one source stays shown.
+    for (const id of rules.hiddenSources) if (!shown.has(id)) rules.hiddenSources.delete(id);
+    if ([...shown].every((id) => rules.hiddenSources.has(id))) rules.hiddenSources.clear();
+    const catalog = filterRulesCatalogBySource(merged, rules.hiddenSources);
     rules.catalog = catalog;
     rules.index = buildRulesIndex(catalog);
     rules.tree = rulesTree(catalog);
@@ -563,6 +593,36 @@ OBR.onReady(() => {
     }
   }
 
+  // The source chips under the search: shown in the Rules tab when a pack adds rules to the SRD's, one per source with
+  // its count; a click hides or shows that source's entries, never the last one shown.
+  function renderSources() {
+    const counts = activeTab === "rules" && rules.status === "ready" ? rulesSourceCounts(rules.merged) : [];
+    sourceFilter.hidden = counts.length < 2;
+    if (sourceFilter.hidden) {
+      sourceFilter.replaceChildren();
+      return;
+    }
+    sourceFilter.replaceChildren(...counts.map((source) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "source-chip";
+      chip.dataset.source = source.id;
+      chip.textContent = `${source.badge} · ${source.count}`;
+      chip.title = source.title;
+      const shown = !rules.hiddenSources.has(source.id);
+      chip.setAttribute("aria-pressed", String(shown));
+      chip.addEventListener("click", () => {
+        if (shown && counts.every((other) => other.id === source.id || rules.hiddenSources.has(other.id))) return;
+        if (shown) rules.hiddenSources.add(source.id);
+        else rules.hiddenSources.delete(source.id);
+        saveHiddenSources(rules.hiddenSources);
+        setRulesCatalog(rules.merged);
+        renderResults();
+      });
+      return chip;
+    }));
+  }
+
   function renderRules() {
     if (rules.status === "idle") ensureRules();
     if (rules.status !== "ready") {
@@ -591,6 +651,8 @@ OBR.onReady(() => {
     }
 
     for (const { topic, sections } of rules.tree) {
+      // A topic whose entries the source filter hides all is left out.
+      if (!sections.length) continue;
       const expanded = rules.expanded.has(topic.id);
       const header = document.createElement("button");
       header.className = "topic";
@@ -619,6 +681,7 @@ OBR.onReady(() => {
   }
 
   function renderResults() {
+    renderSources();
     if (activeTab === "rules") {
       renderRules();
       return;

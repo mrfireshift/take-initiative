@@ -335,7 +335,10 @@ Un pacchetto è un JSON `{ format: "take-initiative/private-pack", schemaVersion
 1, id, title, badge, rules?, spells?, classFeatures?, classFeatureTables? }`,
 uno per manuale (`phb2014`, `dmg2014`, `xanathar`, `tasha`, `ranger-revised`).
 Una voce di regole di un pacchetto non sostituisce mai una voce SRD con lo
-stesso id. Un incantesimo non SRD porta in `italianReference` solo i fatti e
+stesso id. Nella scheda Regole il filtro per fonte (`rulesSourceCounts`,
+`filterRulesCatalogBySource`) ricostruisce indice e albero senza le fonti
+nascoste; le fonti nascoste si salvano in `localStorage` del browser, e un
+argomento senza voci visibili sparisce dall'albero. Un incantesimo non SRD porta in `italianReference` solo i fatti e
 `privateSource`/`privateTextId`; una capacità resta con il testo nel repo solo
 se il testo è SRD.
 

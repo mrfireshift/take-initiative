@@ -9,6 +9,8 @@ import {
   PRIVATE_PACK_FORMAT,
   privatePackContentsLabel,
   privatePackSummary,
+  filterRulesCatalogBySource,
+  rulesSourceCounts,
   validatePrivatePack,
 } from "../src/privatePackCore.js";
 import { createPrivatePackStore } from "../src/privatePackStore.js";
@@ -161,4 +163,15 @@ test("le tabelle delle capacità di un pacchetto hanno un testo per riga", () =>
   assert.ok(validatePrivatePack(pack({ classFeatureTables: { "capacita-finta": { "01-02": "Una riga inventata." } } })).pack);
   assert.match(validatePrivatePack(pack({ classFeatureTables: { "capacita-finta": { "01-02": 3 } } })).error, /tabelle delle capacità/u);
   assert.match(validatePrivatePack(pack({ classFeatureTables: [] })).error, /tabelle delle capacità/u);
+});
+
+test("il filtro per fonte conta le voci di ogni fonte e toglie quelle nascoste", () => {
+  const merged = mergeRulesCatalogs(srd, [pack()]);
+  assert.deepEqual(rulesSourceCounts(merged).map((source) => [source.badge, source.count]), [["SRD", 2], ["MF", 2]]);
+  const onlyPack = filterRulesCatalogBySource(merged, new Set(["srd"]));
+  assert.deepEqual(onlyPack.entries.map((entry) => entry.id), ["capriola-finta", "ferite-finte"]);
+  assert.equal(filterRulesCatalogBySource(merged, new Set()), merged);
+  const tree = rulesTree(onlyPack);
+  assert.deepEqual(tree.find((node) => node.topic.id === "combattimento").sections.map((group) => group.section?.id), ["manovre"]);
+  assert.equal(tree.find((node) => node.topic.id === "avventura").sections.length, 0);
 });

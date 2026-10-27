@@ -853,6 +853,10 @@ Con i pacchetti importati:
   Magia Selvaggia mostra l'effetto di ogni riga;
 - le regole dei manuali (quando un pacchetto le contiene) compaiono nella
   scheda **Regole** negli stessi argomenti dell'SRD, con la sigla del manuale.
+  Sotto la ricerca compare una riga di filtri, una per fonte con il numero di
+  voci (per esempio **SRD · 243** e **XGE · 160**): un clic nasconde o mostra le
+  voci di quella fonte nell'albero e nella ricerca. L'ultima fonte visibile non
+  si può nascondere, e la scelta resta in questo browser.
 
 Senza il pacchetto quei punti mostrano i dati di gioco e dicono quale pacchetto
 importare; le automazioni funzionano comunque. Una scheda personaggio già
