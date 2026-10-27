@@ -286,7 +286,7 @@ export function __buildCompactEffectPill(
       ? themeColor(effectTheme.text, "#fff")
       : "#fff",
     fontFamily: "var(--obrt-font-ui)",
-    fontSize: "var(--obrt-type-micro, 10px)",
+    fontSize: "8px",
     fontWeight: "600",
     lineHeight: preview ? "12px" : "15px",
     textAlign: "center",

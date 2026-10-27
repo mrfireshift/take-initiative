@@ -79,7 +79,7 @@ export function buildEffectSummaryContainer(
       background: "rgba(8,12,21,.82)",
       color: "#fff",
       fontFamily: "var(--obrt-font-ui)",
-      fontSize: "var(--obrt-type-micro, 10px)",
+      fontSize: preview ? "7px" : "8px",
       fontWeight: "600",
       lineHeight: preview ? "12px" : "1",
       textAlign: "center",

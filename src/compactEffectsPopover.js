@@ -49,7 +49,7 @@ function buildPill(effect) {
     background: tone.background,
     color: "#fff",
     fontFamily: "var(--obrt-font-ui)",
-    fontSize: "var(--obrt-type-micro, 10px)",
+    fontSize: "8px",
     fontWeight: "600",
     lineHeight: "12px",
     textAlign: "center",

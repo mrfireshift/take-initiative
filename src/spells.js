@@ -246,8 +246,8 @@ export function buildSpellChips(spells, options = {}) {
       marker.title = `Concentrazione: ${displayName}`;
       marker.setAttribute("aria-label", marker.title);
       Object.assign(marker.style, { display: "inline-flex", alignItems: "center", justifyContent: "center",
-        flex: "0 0 auto", width: "13px", height: "13px", borderRadius: "50%",
-        fontSize: "var(--obrt-type-micro, 10px)", fontWeight: "800", lineHeight: "1", background: "rgba(0,0,0,.4)",
+        flex: "0 0 auto", width: "12px", height: "12px", borderRadius: "50%",
+        fontSize: "8px", fontWeight: "800", lineHeight: "1", background: "rgba(0,0,0,.4)",
         border: "1px solid rgba(255,255,255,.45)", boxSizing: "border-box" });
       chip.appendChild(marker);
     }

@@ -53,15 +53,6 @@ Lotti fatti, tutti il 27/10:
   - La cornice dei boss è ridotta a 400×399 PNG senza perdita (860 → 154 KB): basta fino al 200% su uno schermo 1,5×.
   - Confronto visivo affiancato, a figura intera e al 100%, senza differenze visibili.
 
-- **V4**: nelle card della vista classica e nelle pill (classica, compatta, cassetto degli effetti) i testi sono ad almeno 10 px (token `--obrt-type-micro`).
-  - Dentro le card: pill, riepiloghi «10 PF temp.», «C» della concentrazione, «HP» dei boss, risorse leggendarie, righe dei compagni, tag «Azione Epica», lettura del movimento.
-  - Restano com'erano, come eccezione:
-    - la barra in alto della vista classica, perché a 10 px «Condizioni», «Incantesimi», «Movimento», «Focus token» e «Su selezione» venivano tagliati con i puntini;
-    - i glifi «+» e «−».
-  - Nella vista compatta le pill mostrano meno lettere prima dei puntini; il nome completo resta nel cassetto.
-  - Le righe 5eTools delle Opzioni hanno il riquadro delle altre righe e il suggerimento a 10 px.
-  - La pagina del tracker si intitola «Take Initiative!».
-
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.
