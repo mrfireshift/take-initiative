@@ -22,6 +22,8 @@ const actionReadiness = createActionLauncherReadinessCoordinator({
 });
 let unsubscribeActionOpenChange = null;
 const TRACKER_POPOVER_PROBE_TIMEOUT_MS = 750;
+// A probe OBR did not answer in time: it says nothing about the tracker, unlike an error or a zero height.
+const TRACKER_POPOVER_PROBE_TIMED_OUT = Symbol("tracker-popover-probe-timed-out");
 
 function readTrackerPopoverHeightWithTimeout() {
   return new Promise((resolve) => {
@@ -32,7 +34,7 @@ function readTrackerPopoverHeightWithTimeout() {
       clearTimeout(timeoutId);
       resolve(value);
     };
-    const timeoutId = setTimeout(() => finish(null), TRACKER_POPOVER_PROBE_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => finish(TRACKER_POPOVER_PROBE_TIMED_OUT), TRACKER_POPOVER_PROBE_TIMEOUT_MS);
     Promise.resolve()
       .then(() => OBR.popover.getHeight(TRACKER_POPOVER_ID))
       .then(finish, () => finish(null));
@@ -43,6 +45,8 @@ async function isTrackerPopoverActuallyOpen() {
   if (!isTrackerPopoverOpen()) return false;
   if (typeof OBR.popover?.getHeight !== "function") return true;
   const height = await readTrackerPopoverHeightWithTimeout();
+  // A slow OBR keeps the stored state (open), so the click closes the tracker instead of reopening it.
+  if (height === TRACKER_POPOVER_PROBE_TIMED_OUT) return true;
   const open = Number.isFinite(Number(height)) && Number(height) > 0;
   if (!open) markTrackerPopoverClosed();
   return open;
