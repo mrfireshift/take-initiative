@@ -4,8 +4,8 @@ import { getInitiativeCard } from "./initiativeCards.js";
 import { isBossActionCreature } from "./bossActionExecutionCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { pcAttackPickerEntries } from "./pcAttackPickerCore.js";
-import { openPcAttackConsoleForActor, PC_ATTACK_CONSOLE_CHANNEL } from "./pcAttackLauncher.js";
-import { BOSS_ACTIONS_CONSOLE_CHANNEL, openBossActionsPopover } from "./bossActionsLauncher.js";
+import { openPcAttackConsoleForActor, PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_POPOVER_ID } from "./pcAttackLauncher.js";
+import { BOSS_ACTIONS_CONSOLE_CHANNEL, BOSS_ACTIONS_POPOVER_ID, openBossActionsPopover } from "./bossActionsLauncher.js";
 import { INITIATIVE_EPIC_ACTION_PREFIX } from "./initiativeSelectionProjectionCore.js";
 import { runtimeOptionsService } from "./options/optionsRuntime.js";
 import { selectPcAttackAutoOpen, selectPcAttackAutoOpenMonsters } from "./options/optionsSelectors.js";
@@ -70,12 +70,22 @@ export function pcAttackTurnReady(item, getCard = getInitiativeCard) {
   return pcAttackPickerEntries(getCard(item)).length > 0;
 }
 
-function pingConsole(api, channel = PC_ATTACK_CONSOLE_CHANNEL, timeoutMs = CONSOLE_PING_TIMEOUT_MS) {
+// A closed console answers nothing, so the ping alone waits its whole timeout on every turn. Its popover's height,
+// asked at the same time, tells a closed one at once (no height); a console that has one is still awaited until its
+// pong or the timeout, as before, so an open console is never taken for closed and reloaded.
+export function pingConsole(api, channel = PC_ATTACK_CONSOLE_CHANNEL, timeoutMs = CONSOLE_PING_TIMEOUT_MS, popoverId = "") {
   if (typeof api.broadcast?.onMessage !== "function") return Promise.resolve(false);
   return new Promise((resolve) => {
     let unsubscribe = () => {};
+    let done = false;
     // The pong itself (its console's sourceId, Boss Actions' idle), or false: a closed console answers nothing.
-    const finish = (open) => { clearTimeout(timer); unsubscribe(); resolve(open); };
+    const finish = (open) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      unsubscribe();
+      resolve(open);
+    };
     const timer = setTimeout(() => finish(false), timeoutMs);
     unsubscribe = api.broadcast.onMessage(channel, (event) => {
       if (event?.data?.type === "pong") finish(event.data);
@@ -83,6 +93,11 @@ function pingConsole(api, channel = PC_ATTACK_CONSOLE_CHANNEL, timeoutMs = CONSO
     Promise.resolve()
       .then(() => api.broadcast.sendMessage(channel, { type: "ping" }, { destination: "LOCAL" }))
       .catch(() => finish(false));
+    if (popoverId && typeof api.popover?.getHeight === "function") {
+      Promise.resolve()
+        .then(() => api.popover.getHeight(popoverId))
+        .then((height) => { if (!(Number(height) > 0)) finish(false); }, () => {});
+    }
   });
 }
 
@@ -108,9 +123,9 @@ export function createPcAttackTurnController({
   // isEnabled(group): the switch of "pc" or "monsters".
   isEnabled = (group) => runtimeOptionsService.get(group === "monsters" ? selectPcAttackAutoOpenMonsters : selectPcAttackAutoOpen) === true,
   openConsole = openPcAttackConsoleForActor,
-  isConsoleOpen = () => pingConsole(api),
+  isConsoleOpen = () => pingConsole(api, PC_ATTACK_CONSOLE_CHANNEL, CONSOLE_PING_TIMEOUT_MS, PC_ATTACK_POPOVER_ID),
   openBossConsole = openBossActionsPopover,
-  isBossConsoleOpen = () => pingConsole(api, BOSS_ACTIONS_CONSOLE_CHANNEL),
+  isBossConsoleOpen = () => pingConsole(api, BOSS_ACTIONS_CONSOLE_CHANNEL, CONSOLE_PING_TIMEOUT_MS, BOSS_ACTIONS_POPOVER_ID),
   closeBossConsole = () => tellBossConsole(api, { type: "close-if-idle" }),
   closeSettleMs = 150,
   followConsole = (sourceId, name) => tellConsole(api, sourceId, name),
@@ -139,14 +154,15 @@ export function createPcAttackTurnController({
       const sourceId = pcAttackTurnSourceId(turn.actorId);
       const epicBossId = pcAttackEpicBossId(turn.actorId);
       const lookupId = sourceId || epicBossId;
-      const [item] = lookupId ? await api.scene.items.getItems([lookupId]) : [];
+      // The creature and both consoles are asked at once (a ping only reads: a console answers it and does nothing).
+      const [[item], [attackOpen, bossOpen]] = await Promise.all([
+        lookupId ? api.scene.items.getItems([lookupId]) : [],
+        Promise.all([isConsoleOpen(), isBossConsoleOpen()]),
+      ]);
       if (taskRevision !== revision) return;
       // A creature's turn follows its side's switch, off: nothing opens, moves or closes, as with both off. A turn
       // without a creature (the Lair) follows either.
       if (item && !isEnabled(pcAttackTurnGroup(item, getCard))) return;
-      // Both consoles are asked at once: a closed one answers nothing within the ping's time.
-      const [attackOpen, bossOpen] = await Promise.all([isConsoleOpen(), isBossConsoleOpen()]);
-      if (taskRevision !== revision) return;
       // A boss's turn, or one of its Epic Action slots: Boss Actions, never reloaded when open on this boss; open on
       // another boss and idle, it gives way. A clean attack console left open closes (no attack of its own there).
       if (pcAttackTurnBoss(item, getCard)) {

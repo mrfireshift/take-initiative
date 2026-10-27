@@ -12,6 +12,8 @@ Lotti fatti, tutti il 27/10:
 
 - **P1**: pannelli del tracker (Cronologia, console effetti, condizioni, scheda, token evocato). Niente più seconda chiusura del pannello; posizione e chiusura dell'eventuale modale si leggono insieme; viewport, scala e ruolo in parallelo nel tracker e nel trascinamento. Dal codice: da 4 a 2 RT in fila per aprire un pannello con la vista compatta, da circa 8 a 3 con quella classica.
 
+- **P3**: l'apertura automatica legge la creatura insieme ai ping delle console. Una console chiusa si riconosce subito, perché il suo popover non ha altezza: niente più attesa di 300 ms a ogni turno. Una console con un'altezza resta attesa fino al pong come prima, quindi non viene mai ricaricata. L'attesa fissa di 150 ms dopo la chiusura della console Boss resta.
+
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.

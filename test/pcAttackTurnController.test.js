@@ -5,7 +5,7 @@ const sdk = { onReady() {}, broadcast: { onMessage: () => () => {}, sendMessage:
   scene: { items: { getItems: async () => [] } }, room: {}, popover: {} };
 mock.module("@owlbear-rodeo/sdk", { exports: { default: sdk, buildLabel() {}, buildImage() {}, buildPath() {}, buildShape() {}, buildText() {}, Command: class {} } });
 const { createPcAttackTurnController, pcAttackTurnOf, pcAttackTurnSourceId, pcAttackTurnReady, pcAttackEpicBossId, pcAttackTurnBoss, PC_ATTACK_CONSOLE_CHANNEL,
-  pcAttackTurnGroup } =
+  pcAttackTurnGroup, pingConsole } =
   await import("../src/pcAttackTurnController.js");
 
 const META = "com.thebigpicture.initiative/meta";
@@ -236,4 +236,35 @@ test("both off: nothing; the Lair turn follows either switch", async () => {
   await lair.controller.onState({ order: ["orc", "__LAIR__"], current: 0, round: 1 });
   await lair.controller.onState({ order: ["orc", "__LAIR__"], current: 1, round: 1 });
   assert.deepEqual(lair.followed, [["", ""]], "the open console leaves the Lair turn empty");
+});
+
+// A console answers the ping with a pong while it is open; its popover's height is asked at the same time.
+function pingApi({ height, pong = false, pongDelayMs = 5 }) {
+  const listeners = new Set();
+  return {
+    broadcast: {
+      onMessage: (_channel, listener) => { listeners.add(listener); return () => listeners.delete(listener); },
+      sendMessage: async () => {
+        if (pong) setTimeout(() => { for (const listener of [...listeners]) listener({ data: { type: "pong", sourceId: "mira" } }); }, pongDelayMs);
+      },
+    },
+    ...(height === "missing" ? {} : { popover: { getHeight: async () => height } }),
+  };
+}
+
+test("una console chiusa si riconosce subito dall'altezza del suo popover, senza aspettare il timeout del ping", async () => {
+  const startedAt = Date.now();
+  assert.equal(await pingConsole(pingApi({ height: undefined }), PC_ATTACK_CONSOLE_CHANNEL, 2000, "console"), false);
+  assert.ok(Date.now() - startedAt < 500, "closed: no wait for the 2 s timeout");
+});
+
+test("una console con un'altezza resta attesa fino al suo pong: mai presa per chiusa e ricaricata", async () => {
+  const open = await pingConsole(pingApi({ height: 420, pong: true, pongDelayMs: 40 }), PC_ATTACK_CONSOLE_CHANNEL, 2000, "console");
+  assert.deepEqual(open, { type: "pong", sourceId: "mira" });
+  // Without the popover's height (or its id) the ping alone decides, as before.
+  const startedAt = Date.now();
+  assert.equal(await pingConsole(pingApi({ height: "missing" }), PC_ATTACK_CONSOLE_CHANNEL, 120, "console"), false);
+  assert.ok(Date.now() - startedAt >= 100, "no height to ask: the ping's timeout");
+  assert.deepEqual(await pingConsole(pingApi({ height: undefined, pong: true }), PC_ATTACK_CONSOLE_CHANNEL, 2000), { type: "pong", sourceId: "mira" },
+    "no popover id: the pong still counts");
 });
