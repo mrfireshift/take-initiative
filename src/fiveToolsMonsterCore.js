@@ -8,7 +8,7 @@
 import { monsterImportConditionName } from "./monsterStatblockImportCore.js";
 import { fiveToolsTokenPath } from "./fiveToolsArchiveCore.js";
 import { spellSlotMaximums } from "./spellSlotCore.js";
-import { fiveTools2024TagText, monsterActionAreaOrigin, monsterHitEffects, monsterSaveEffects } from "./monsterActionHeuristicsCore.js";
+import { fiveTools2024TagText, monsterActionAreaOrigin, monsterHitEffects, monsterSave2024, monsterSaveEffects } from "./monsterActionHeuristicsCore.js";
 
 const ABILITY_BY_NAME = Object.freeze({ strength: "str", dexterity: "dex", constitution: "con", intelligence: "int", wisdom: "wis", charisma: "cha" });
 const SOURCES_2024 = new Set(["XMM", "XPHB", "XDMG"]);
@@ -128,7 +128,14 @@ function attackAction(name, text, extra) {
   // A sentence for some targets only ("other than an elf or undead", "If the target is a Large or smaller creature")
   // keeps its words in the note: the table checks the target.
   const forSomeTargets = (sentence) => /\bother than\b|\bIf the target is (?:a|an) (?!creature\b)\w+/i.test(sentence);
-  const remainder = note(sentencesOf(fiveToolsPlainText(rest)).filter((sentence) => forSomeTargets(sentence) || (
+  // A 2024 save in the hit (fase 3, lotto 6): what precedes it is read as below, what it leaves is its own note.
+  const plainRest = fiveToolsPlainText(rest);
+  const save2024 = onHit.save ? monsterSave2024(plainRest) : null;
+  const readText = save2024 ? plainRest.slice(0, plainRest.length - plainRest.slice(plainRest.search(/\b\w+ Saving Throw: DC \d+/)).length) : plainRest;
+  // Only the plain lead-in leaves ("If the target is a creature, it is subjected to the following effect."); "a creature
+  // that isn't an Undead or elf" stays.
+  const leadIn = /^(?:\W*and |If the target is a creature, )?(?:it|the target) (?:is (?:also )?subjected to the following effect|must make the following saving throw)\.?$/i;
+  const remainder = note([...sentencesOf(readText).filter((sentence) => !(save2024 && leadIn.test(sentence.trim()))).filter((sentence) => forSomeTargets(sentence) || (
     !(onHit.save && /\bDC \d+ \w+ saving throw\b|\brepeat the saving throw\b/i.test(sentence))
     && !(onHit.grapple && /\bgrappled(?: condition)? \(escape DC \d+\)/i.test(sentence))
     // What lasts while held leaves the note only when the card plays it all (restrained): "blinded and restrained" stays.
@@ -136,7 +143,7 @@ function attackAction(name, text, extra) {
     && !(onHit.prone && /\bknocked prone\b|\bhas the Prone condition\b/i.test(sentence))
     // The conditions the hit gives by itself (2024 "has the Poisoned condition…"), never one only in some cases.
     && !(onHit.conditions && /\bha(?:s|ve) the \w+(?:(?:,| and|, and) \w+)* conditions?\b/i.test(sentence) && !/^While\b/i.test(sentence.trim())
-      && !/\bmoved\b|\battack roll\b|\balready\b|\b0 Hit Points\b|\bswallow/i.test(sentence)))).join(" "));
+      && !/\bmoved\b|\battack roll\b|\balready\b|\b0 Hit Points\b|\bswallow/i.test(sentence)))), ...(save2024?.note ? [save2024.note] : [])].join(" "));
   const status = !components.length ? "manual"
     : /\{@dc \d+\}|\{@condition /.test(rest) && !(onHit.save || onHit.grapple || onHit.prone || onHit.conditions) ? "partial" : "full";
   return [{ ...base, damage: components, ...(remainder ? { note: remainder } : {}), ...(Object.keys(onHit).length ? { onHit } : {}), status }];
@@ -174,7 +181,38 @@ function saveArea(text) {
   return null;
 }
 
+// The 2024 area (fase 3, lotto 6): "each creature in a 60-foot Cone", "a 90-foot-long, 5-foot-wide Line", "a 20-foot-radius
+// Sphere", "a 20-foot-radius, 40-foot-high Cylinder"; an Emanation is the monster's own sphere.
+function saveArea2024(targets) {
+  const line = targets.match(/(\d+)-foot-long, (\d+)-foot-wide Line\b/i);
+  if (line) return { shape: "line", size: Number(line[1]), width: Number(line[2]) };
+  const match = targets.match(/(\d+)-foot(?:-radius)?(?:, \d+-foot-high)? (Cone|Cube|Sphere|Cylinder|Emanation)\b/i);
+  if (!match) return null;
+  const shape = match[2].toLowerCase();
+  return shape === "emanation" ? { shape: "sphere", size: Number(match[1]), origin: "self" } : { shape, size: Number(match[1]) };
+}
+
+// The 2024 save action: "{@actSave dex} {@dc 21}, each creature in a 60-foot Cone. {@actSaveFail} … {@actSaveSuccess} Half
+// damage." The same fields as the 2014 one; what is left is the note.
+function saveAction2024(name, text, extra) {
+  const read = monsterSave2024(text);
+  if (!read) return null;
+  const condition = read.conditions[0] || "";
+  if (!read.damage.length && !condition) return [{ name, status: "manual", text }];
+  const area = saveArea2024(read.targets);
+  const { origin, choice } = area && !area.origin ? monsterActionAreaOrigin(read.targets, area.shape) : {};
+  const onFail = condition ? { condition, ...(read.conditions.length > 1 ? { also: read.conditions.slice(1) } : {}),
+    ...(read.duration ? { duration: read.duration } : {}), ...(read.repeat ? { repeat: read.repeat } : {}),
+    ...(read.endsOnDamage ? { endsOnDamage: true } : {}) } : null;
+  const remainder = note([read.before, read.note].filter(Boolean).join(" "));
+  return [{ name, save: { ability: read.ability, dc: read.dc, half: read.half },
+    ...(area ? { area: { ...area, ...(origin ? { origin } : {}), ...(choice ? { choice: true } : {}) } } : {}), ...(onFail ? { onFail } : {}),
+    ...(read.immuneHours ? { immuneHours: read.immuneHours } : {}),
+    damage: read.damage, ...extra, ...(remainder ? { note: remainder } : {}), status: "full" }];
+}
+
 function saveAction(name, text, extra) {
+  if (/\{@actSave /.test(text)) return saveAction2024(name, text, extra);
   const dc = text.match(/\{@dc (\d+)\} (Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) saving throw/);
   if (!dc) return null;
   const failure = failureText(text);

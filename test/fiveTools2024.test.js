@@ -159,3 +159,47 @@ test("nel 2014 le condizioni dirette non si leggono; la presa prende «restraine
   assert.deepEqual(byName.Tongue.onHit, { grapple: { escapeDC: 15, conditions: ["restrained"] } });
   assert.equal(byName.Tentacles.onHit.conditions, undefined, "the paralysis follows the save: never a condition of its own");
 });
+
+// Sotto-lotto 4: le azioni a TS 2024. «{@actSave dex} {@dc 21}, each creature in a 60-foot Cone. {@actSaveFail} …
+// {@actSaveSuccess} Half damage.»: TS, CD, area, danni e condizioni del fallimento, metà al successo, tiro ripetuto,
+// immunità; un secondo fallimento, «Failure or Success:» e le frasi non capite restano nella nota.
+const tyrant = { name: "Test Tyrant", source: "XMM", ac: [18], hp: { average: 180 }, action: [
+  { name: "Fire Breath {@recharge 5}", entries: ["{@actSave dex} {@dc 21}, each creature in a 60-foot {@variantrule Cone [Area of Effect]|XPHB|Cone}. {@actSaveFail} 59 ({@damage 17d6}) Fire damage. {@actSaveSuccess} Half damage."] },
+  { name: "Lightning Breath", entries: ["{@actSave dex} {@dc 19}, each creature in a 90-foot-long, 5-foot-wide {@variantrule Line [Area of Effect]|XPHB|Line}. {@actSaveFail} 60 ({@damage 11d10}) Lightning damage. {@actSaveSuccess} Half damage."] },
+  { name: "Mind Blast", entries: ["{@actSave int} {@dc 15}, each creature in a 60-foot {@variantrule Cone [Area of Effect]|XPHB|Cone}. {@actSaveFail} 31 ({@damage 6d8 + 4}) Psychic damage, and the target has the {@condition Stunned|XPHB} condition until the end of the mind flayer's next turn. {@actSaveSuccess} Half damage only."] },
+  { name: "Moan", entries: ["{@actSave wis} {@dc 13}, each creature in a 60-foot {@variantrule Emanation [Area of Effect]|XPHB|Emanation} originating from the cloaker. {@actSaveFail} The target has the {@condition Frightened|XPHB} condition until the end of the cloaker's next turn. {@actSaveSuccess} The target is immune to this cloaker's Moan for 24 hours."] },
+  { name: "Spores", entries: ["{@actSave con} {@dc 11}, each creature in a 20-foot {@variantrule Emanation [Area of Effect]|XPHB|Emanation} originating from the myconid. {@actSaveFail} The target has the {@condition Stunned|XPHB} condition, and it repeats the save at the end of each of its turns, ending the effect on itself on a success. After 1 minute, it succeeds automatically."] },
+  { name: "Telekinetic Ray", entries: ["{@actSave str} {@dc 16}. {@actSaveFail} The target has the {@condition Restrained|XPHB} condition until the start of the beholder's next turn or until the beholder has the {@condition Incapacitated|XPHB} condition."] },
+  { name: "Howl", entries: ["{@actSave con} {@dc 19}, each creature in a 30-foot {@variantrule Emanation [Area of Effect]|XPHB|Emanation} originating from the demilich. {@actSaveFail} 70 ({@damage 20d6}) Psychic damage. {@actSaveSuccess} Half damage. {@actSaveSuccessOrFail} The target has the {@condition Frightened|XPHB} condition until the start of the demilich's next turn."] },
+  { name: "Psychic Crush", entries: ["{@actSave int} {@dc 10}, one creature the ooze can see within 60 feet. {@actSaveFail} 13 ({@damage 3d8}) Psychic damage."] },
+  { name: "Claw", entries: ["{@atkr m} {@hit 4}, reach 5 ft. {@h}4 ({@damage 1d4 + 2}) Slashing damage. If the target is a creature that isn't an Undead or elf, it is subjected to the following effect. {@actSave con} {@dc 10}. {@actSaveFail} The target has the {@condition Paralyzed|XPHB} condition until the end of its next turn."] },
+  { name: "Earth Burst", entries: ["{@atkr r} {@hit 10}, range 120 ft. {@h}15 ({@damage 2d8 + 6}) Bludgeoning damage. {@hom}Earth explodes from the target's space, creating the following effect. {@actSave dex} {@dc 16}, each creature in a 10-foot {@variantrule Emanation [Area of Effect]|XPHB|Emanation} originating from and including the target. {@actSaveFail} 10 ({@damage 3d6}) Thunder damage."] },
+] };
+
+test("TS 2024: area, danni, metà al successo; condizione con durata, tiro ripetuto, immunità; il resto nella nota", () => {
+  const block = fiveToolsMonsterToStatblock(tyrant, { allow2024: true }).block;
+  const byName = Object.fromEntries(block.actions.map((action) => [action.name, action]));
+  assert.deepEqual(byName["Fire Breath"], { name: "Fire Breath", save: { ability: "dex", dc: 21, half: true }, area: { shape: "cone", size: 60, origin: "self" },
+    damage: [{ type: "fire", formula: "17d6" }], recharge: 5 });
+  assert.deepEqual(byName["Lightning Breath"].area, { shape: "line", size: 90, width: 5, origin: "self" });
+  assert.deepEqual([byName["Mind Blast"].save.half, byName["Mind Blast"].onFail], [true, { condition: "stunned", duration: { until: "turn-end", anchor: "source" } }]);
+  assert.equal(byName["Mind Blast"].note, undefined, "everything is played");
+  assert.deepEqual([byName.Moan.area, byName.Moan.immuneHours, byName.Moan.note], [{ shape: "sphere", size: 60, origin: "self" }, 24, undefined]);
+  assert.deepEqual(byName.Spores.onFail, { condition: "stunned", repeat: { timing: "turn-end", ends: true } });
+  assert.equal(byName.Spores.note, "Failure: After 1 minute, it succeeds automatically.");
+  // The beholder's own Incapacitated condition is never the target's.
+  assert.deepEqual(byName["Telekinetic Ray"].onFail, { condition: "restrained", duration: { until: "turn-start", anchor: "source" } });
+  assert.equal(byName.Howl.note, "Failure or Success: The target has the Frightened condition until the start of the demilich's next turn.");
+  assert.deepEqual([byName["Psychic Crush"].area, byName["Psychic Crush"].save.half], [undefined, false]);
+  // In a hit: the save of the hit, its lead-in for some targets kept; never after "Hit or Miss:".
+  assert.deepEqual(byName.Claw.onHit, { save: { ability: "con", dc: 10, half: false, conditions: ["paralyzed"], duration: { until: "turn-end", anchor: "target" } } });
+  assert.equal(byName.Claw.note, "If the target is a creature that isn't an Undead or elf, it is subjected to the following effect.");
+  assert.equal(byName["Earth Burst"].onHit, undefined);
+  assert.match(byName["Earth Burst"].note, /^Hit or Miss:/);
+  const played = ["Mind Blast", "Moan", "Spores", "Claw"];
+  const cards = Object.fromEntries(cardsOf({ ...block, actions: block.actions.filter((action) => played.includes(action.name)) }).map((card) => [card.label, card]));
+  assert.deepEqual([cards["Mind Blast"].save, cards["Mind Blast"].saveDC, cards["Mind Blast"].saveHalf, cards["Mind Blast"].area, cards["Mind Blast"].onFail],
+    ["int", 15, true, { shape: "cone", sizeFeet: 60, origin: "self" }, { condition: "Stordito", until: "turn-end", anchor: "source" }]);
+  assert.deepEqual([cards.Moan.immuneHours, cards.Spores.onFail], [24, { condition: "Stordito", repeat: "turn-end" }]);
+  assert.deepEqual(cards.Claw.onHit.save.onFail, { condition: "Paralizzato", until: "turn-end", anchor: "target" });
+});

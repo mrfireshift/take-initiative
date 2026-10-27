@@ -157,7 +157,24 @@ quelle delle fasi 1–5.
    Piano originale: `{@atkr …} {@hit N}, reach/range` → attacco con bonus, portata, gittata; i danni extra
    condizionati restano nella nota; gli effetti al colpo («has the Grappled condition (escape DC 13)», un `{@actSave}`
    dentro il colpo) dalle regole della fase 5, estese a «has the X condition».
-4. **Azioni a TS 2024.** `{@actSave ability} {@dc N}` → TS e CD; il testo di `{@actSaveFail}` → danni e condizioni del
+4. **Azioni a TS 2024.** ✅ Fatto (27/10): un solo lettore ad euristica, `monsterSave2024` in
+   `src/monsterActionHeuristicsCore.js`, per le azioni a TS e per i TS dentro un colpo. Legge il testo in chiaro per
+   etichette («Dexterity Saving Throw: DC 21, … Failure: … Success: …»): TS e CD; l'area dal bersaglio (Cone, Line con
+   larghezza, Sphere, Cube, Cylinder; Emanation = sfera del mostro); dalla prima frase del fallimento i danni; le
+   condizioni con la durata (mai in una frase «While …», «If …», da inghiottito o inglobato, né quella del mostro: «until
+   the beholder has the Incapacitated condition»); il tiro ripetuto 2024 («repeats the save at the end of each of its
+   turns, ending the effect on itself on a success»); «Half damage (only)» → metà; «immune to this ghast's Stench for 24
+   hours» → immunità. Il «First Failure» vale come fallimento. Nella nota, con la loro etichetta: le frasi del fallimento
+   non capite per intero, il resto del successo, «Second Failure:», «Failure by 5 or More:», «Failure or Success:», ciò
+   che precede il TS. Al colpo: il TS 2024 diventa `onHit.save` come quello 2014; la frase generica «it is subjected to
+   the following effect» lascia la nota, quella per alcuni bersagli («a creature that isn't an Undead or elf») resta; mai
+   un TS dopo «Hit or Miss:» (prende un'area anche al mancato: resta nella nota). Il 2014 resta identico (schede
+   confrontate azione per azione su cinque bestiari). Misura con `--2024` sul Monster Manual 2025: 226 azioni a TS lette
+   (124 con condizione, 66 con durata, 17 con tiro ripetuto, 11 immunità; aree: 58 coni, 24 linee, 31 sfere), 9 TS al
+   colpo, azioni al tavolo da 374 a 152. Nel banco: il Claw del Ghoul (TS fallito: Paralizzato fino alla fine del
+   prossimo turno del bersaglio) e il Mind Blast (cono di 18 m, metà se superato, stordito fino alla fine del prossimo
+   turno del mostro, Ricarica 5–6).
+   Piano originale: `{@actSave ability} {@dc N}` → TS e CD; il testo di `{@actSaveFail}` → danni e condizioni del
    fallimento, `{@actSaveSuccess} Half damage.` → metà, un successo che dice altro resta nella nota; area (Cone, Line,
    Cube, Sphere, Emanation dal mostro), durata e tiro ripetuto dalle regole della fase 5; `{@actSaveFail 2}` (secondo
    fallimento, la pietrificazione) nella nota.
