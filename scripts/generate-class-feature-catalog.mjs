@@ -290,6 +290,19 @@ function shortText(value, maxLength = 8000) {
     .slice(0, maxLength);
 }
 
+// A bulleted list the source kept inline ("benefici: • A • B") goes on lines of its own, so the sheet shows it as a
+// list. The first item needs a sentence or a colon before it, and a "*" a capital after it ("3 metri * il risultato
+// del dado" is a product).
+function inlineBulletLines(text) {
+  let inList = false;
+  return text.replace(/([^\s])[ \t]+([•*])[ \t]+(?=(\S))/gu, (match, before, marker, next) => {
+    if (marker === "*" && !/\p{Lu}/u.test(next)) return match;
+    if (!inList && !/[.:;]/u.test(before)) return match;
+    inList = true;
+    return `${before}\n• `;
+  });
+}
+
 function uniqueStrings(values = []) {
   return Array.from(new Set(
     (Array.isArray(values) ? values : [])
@@ -1079,7 +1092,7 @@ for (const [id, record] of recordsById) {
     name: featureName,
     // Il runtime mostra solo una sintesi operativa; il testo integrale resta
     // nei cataloghi sorgente sotto data/class-features.
-    description: shortText(record.descrizione, 8000),
+    description: inlineBulletLines(shortText(record.descrizione, 8000)),
     classId: identity.classId,
     subclassId: identity.subclassId || "",
     ...(parentFeatureId ? { parentFeatureId } : {}),

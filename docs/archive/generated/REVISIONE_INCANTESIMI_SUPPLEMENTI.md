@@ -1,6 +1,6 @@
 # Revisione incantesimi dei supplementi
 
-Catalogo generato il 2026-09-02. Tutte le voci sono abilitate nel catalogo runtime; le automazioni restano limitate ai casi revisionati esplicitamente.
+Catalogo generato il 2026-10-27. Tutte le voci sono abilitate nel catalogo runtime; le automazioni restano limitate ai casi revisionati esplicitamente.
 
 ## Fonti
 
@@ -50,8 +50,8 @@ Totale: **116** incantesimi.
 | Investitura del Ghiaccio | xanathar | Concentrazione, fino a 10 minuti | trackable-review | — | exact-turn-boundary, effect-candidate, area-candidate |
 | Investitura della Pietra | xanathar | Concentrazione, fino a 10 minuti | trackable-review | — | exact-turn-boundary, condition-candidate, effect-candidate, area-candidate |
 | Modellare Acqua | xanathar | Istantanea o 1 ora (vedi sotto) | trackable-review | — | duration-review, choice-candidate, area-candidate |
-| Modellare Terra | xanathar | Istantanea o 1 ora (vedi sotto) | trackable-review | — | duration-review, effect-candidate, choice-candidate, area-candidate |
-| Morsa del Gelo | xanathar | Istantanea | manual-review | — | exact-turn-boundary, effect-candidate, instantaneous-lingering-effect |
+| Modellare Terra | xanathar | Istantanea o 1 ora (vedi sotto) | trackable-review | — | duration-review, effect-candidate, choice-candidate, area-candidate, text-normalized |
+| Morsa del Gelo | xanathar | Istantanea | manual-review | — | exact-turn-boundary, effect-candidate, instantaneous-lingering-effect, text-normalized |
 | Pirotecnica | xanathar | Istantanea | manual-review | — | exact-turn-boundary, condition-candidate, choice-candidate, area-candidate, instantaneous-lingering-effect |
 | Evoca Aberrazione | tasha | Concentrazione, fino a 1 ora | trackable-review | — | exact-turn-boundary, condition-candidate, effect-candidate |
 | Evoca Bestia d'Ombra | tasha | Concentrazione, fino a 1 ora | trackable-review | — | exact-turn-boundary, condition-candidate, effect-candidate, choice-candidate |

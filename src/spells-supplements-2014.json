@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "language": "it",
   "ruleset": "D&D 5e (2014)",
-  "generatedAt": "2026-09-02",
+  "generatedAt": "2026-10-27",
   "intendedUse": "private",
   "sources": [
     {
@@ -803,7 +803,7 @@
       "concentration": true,
       "durationKind": "concentration",
       "defaultTurns": 10,
-      "description": "L'incantatore crea un falò su un punto del terreno situato entro gittata e che egli sia in grado di vedere. Finché l'incantesimo non termina, il falò occupa un cubo con spigolo di 1,5 metri. Ogni creatura nello spazio del falò nel momento in cui l'incantatore lancia l'incantesimo deve superare un tiro salvezza su Destrezza, altrimenti subisce 1d8 danni da fuoco. Una creatura deve effettuare il tiro salvezza anche quando entra nello spazio del falò per la prima volta in un turno o vi termina il proprio turno.\n\nIl falò incendia gli oggetti infiammabili entro l'area che non siano indossati o trasportati.\n\nI danni dell'incantesimo aumentano di 1d8 quando l'incantatore raggiunge il 5° livello (2d8), 11° livello (3d8) e il 17° livello (4d8).",
+      "description": "L'incantatore crea un falò su un punto del terreno situato entro gittata e che egli sia in grado di vedere. Finché l'incantesimo non termina, il falò occupa un cubo con spigolo di 1,5 metri. Ogni creatura nello spazio del falò nel momento in cui l'incantatore lancia l'incantesimo deve superare un tiro salvezza su Destrezza, altrimenti subisce 1d8 danni da fuoco. Una creatura deve effettuare il tiro salvezza anche quando entra nello spazio del falò per la prima volta in un turno o vi termina il proprio turno.\n\nIl falò incendia gli oggetti infiammabili entro l'area che non siano indossati o trasportati.\n\nI danni dell'incantesimo aumentano di 1d8 quando l'incantatore raggiunge il 5° livello (2d8), l'11° livello (3d8) e il 17° livello (4d8).",
       "higherLevels": "",
       "source": "xanathar",
       "sourceTitle": "Guida Omnicomprensiva di Xanathar",
@@ -826,9 +826,12 @@
         "choiceCandidate": false,
         "exactTurnPhrases": [],
         "flags": [
-          "area-candidate"
+          "area-candidate",
+          "text-normalized"
         ],
-        "normalizationNotes": [],
+        "normalizationNotes": [
+          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
+        ],
         "proposedAutomation": null
       }
     },
@@ -1246,7 +1249,7 @@
       "concentration": false,
       "durationKind": "instantaneous",
       "defaultTurns": null,
-      "description": "L'incantatore incanala la magia primordiale e sviluppa denti o unghie affilate con cui sferrare un attacco corrosivo. L'incantatore effettua un attacco con incantesimo in mischia contro una creatura situata entro 1,5 metri da lui. Se colpisce, il bersaglio subisce 1d10 danni da acido. Dopo che l'incantatore ha effettuato questo attacco, i suoi denti o le sue unghie tornano alla normalità.\n\nI danni dell'incantesimo aumentano di 1d10 quando l'incantatore raggiunge il 5° livello (2d10), 11° livello (3d10) e il 17° livello (4d10).",
+      "description": "L'incantatore incanala la magia primordiale e sviluppa denti o unghie affilate con cui sferrare un attacco corrosivo. L'incantatore effettua un attacco con incantesimo in mischia contro una creatura situata entro 1,5 metri da lui. Se colpisce, il bersaglio subisce 1d10 danni da acido. Dopo che l'incantatore ha effettuato questo attacco, i suoi denti o le sue unghie tornano alla normalità.\n\nI danni dell'incantesimo aumentano di 1d10 quando l'incantatore raggiunge il 5° livello (2d10), l'11° livello (3d10) e il 17° livello (4d10).",
       "higherLevels": "",
       "source": "xanathar",
       "sourceTitle": "Guida Omnicomprensiva di Xanathar",
@@ -1264,8 +1267,12 @@
         "effectCandidates": [],
         "choiceCandidate": false,
         "exactTurnPhrases": [],
-        "flags": [],
-        "normalizationNotes": [],
+        "flags": [
+          "text-normalized"
+        ],
+        "normalizationNotes": [
+          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
+        ],
         "proposedAutomation": null
       }
     },
@@ -1658,7 +1665,7 @@
       "concentration": false,
       "durationKind": "instantaneous",
       "defaultTurns": null,
-      "description": "L'incantatore fa apparire temporaneamente una nube di termiti, pulci e altri parassiti su una creatura situata entro gittata e che egli sia in grado di vedere. Il bersaglio deve superare un tiro salvezza su Costituzione, altrimenti subisce 1d6 danni da veleno e si muove di 1,5 metri in una direzione casuale se è in grado di muoversi e la sua velocità è di almeno 1,5 metri. Si tira un d4 per la direzione: 1, nord; 2, sud; 3, est; o 4, ovest. Questo movimento non provoca attacchi di opportunità e, se la direzione indicata dal tiro è bloccata, il bersaglio non si muove.\n\nI danni dell'incantesimo aumentano di 1d6 quando l'incantatore raggiunge il 5° livello (2d6), 11° livello (3d6) e il 17° livello (4d6).",
+      "description": "L'incantatore fa apparire temporaneamente una nube di termiti, pulci e altri parassiti su una creatura situata entro gittata e che egli sia in grado di vedere. Il bersaglio deve superare un tiro salvezza su Costituzione, altrimenti subisce 1d6 danni da veleno e si muove di 1,5 metri in una direzione casuale se è in grado di muoversi e la sua velocità è di almeno 1,5 metri. Si tira un d4 per la direzione: 1, nord; 2, sud; 3, est; o 4, ovest. Questo movimento non provoca attacchi di opportunità e, se la direzione indicata dal tiro è bloccata, il bersaglio non si muove.\n\nI danni dell'incantesimo aumentano di 1d6 quando l'incantatore raggiunge il 5° livello (2d6), l'11° livello (3d6) e il 17° livello (4d6).",
       "higherLevels": "",
       "source": "xanathar",
       "sourceTitle": "Guida Omnicomprensiva di Xanathar",
@@ -1676,8 +1683,12 @@
         "effectCandidates": [],
         "choiceCandidate": false,
         "exactTurnPhrases": [],
-        "flags": [],
-        "normalizationNotes": [],
+        "flags": [
+          "text-normalized"
+        ],
+        "normalizationNotes": [
+          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
+        ],
         "proposedAutomation": null
       }
     },
@@ -2008,7 +2019,7 @@
       "concentration": true,
       "durationKind": "concentration",
       "defaultTurns": 100,
-      "description": "L'incantatore stabilisce un legame telepatico con una bestia con cui è in contatto, che è stata da lui affascinata o è amichevole nei suoi confronti. L'incantesimo fallisce se l'Intelligenza della bestia è pari o superiore a 4. Finché l'incantesimo non termina, il legame resta attivo fintanto che l'incantatore e la bestia rimangono entro la linea di vista l'uno dall'altra. Attraverso il legame, la bestia può capire i messaggi telepatici che l'incantatore le invia e può a sua volta comunicare telepaticamente le emozioni e i concetti più semplici all'incantatore. Fintanto che il legame è attivo, la bestia dispone di vantaggio ai tiri per colpire contro qualsiasi creatura situata entro 1,5 metri dall'incantatore e che quest'ultimo sia in grado di vedere.",
+      "description": "L'incantatore stabilisce un legame telepatico con una bestia con cui è in contatto, che è stata da lui affascinata o è amichevole nei suoi confronti. L'incantesimo fallisce se l'Intelligenza della bestia è pari o superiore a 4. Finché l'incantesimo non termina, il legame resta attivo fintanto che l'incantatore e la bestia rimangono entro linea di vista l'uno dall'altra. Attraverso il legame, la bestia può capire i messaggi telepatici che l'incantatore le invia e può a sua volta comunicare telepaticamente le emozioni e i concetti più semplici all'incantatore. Fintanto che il legame è attivo, la bestia dispone di vantaggio ai tiri per colpire contro qualsiasi creatura situata entro 1,5 metri dall'incantatore e che quest'ultimo sia in grado di vedere.",
       "higherLevels": "",
       "source": "xanathar",
       "sourceTitle": "Guida Omnicomprensiva di Xanathar",
@@ -2032,9 +2043,12 @@
         "exactTurnPhrases": [],
         "flags": [
           "condition-candidate",
-          "effect-candidate"
+          "effect-candidate",
+          "text-normalized"
         ],
-        "normalizationNotes": [],
+        "normalizationNotes": [
+          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
+        ],
         "proposedAutomation": null
       }
     },
@@ -2217,7 +2231,7 @@
       "concentration": false,
       "durationKind": "hybrid",
       "defaultTurns": null,
-      "description": "L'incantatore sceglie una parte di terra o di pietra situata entro gittata, che egli sia in grado di vedere e che sia contenuta entro un cubo con spigolo di 1,5 metri. Manipola quella terra in uno dei modi seguenti:\n\nSe l'incantatore bersaglia un'area di terra smossa, può istantaneamente scavarla, spostarla lungo il terreno e depositarla fino a 1,5 metri di distanza. Questo movimento non ha abbastanza forza da infliggere danni. • L'incantatore fa comparire forme, colori o entrambe le cose sulla terra o sulla pietra, per formare parole, creare immagini o tracciare disegni. Questi cambiamenti permangono per 1 ora. Se il terriccio o la pietra modellati dall'incantatore si trovano sul terreno, l'incantatore può rendere quel terreno difficile. In alternativa, se quel terreno è già terreno difficile, l'incantatore può renderlo terreno normale. Questo cambiamento permane per 1 ora.\n\nSe l'incantatore lancia questo incantesimo più volte, non può avere attivi più di due suoi effetti non istantanei alla volta e può congedare uno di questi effetti con un'azione.",
+      "description": "L'incantatore sceglie una parte di terra o di pietra situata entro gittata, che egli sia in grado di vedere e che sia contenuta entro un cubo con spigolo di 1,5 metri. Manipola quella terra in uno dei modi seguenti:\n• Se l'incantatore bersaglia un'area di terra smossa, può istantaneamente scavarla, spostarla lungo il terreno e depositarla fino a 1,5 metri di distanza. Questo movimento non ha abbastanza forza da infliggere danni.\n• L'incantatore fa comparire forme, colori o entrambe le cose sulla terra o sulla pietra, per formare parole, creare immagini o tracciare disegni. Questi cambiamenti permangono per 1 ora.\n• Se il terriccio o la pietra modellati dall'incantatore si trovano sul terreno, l'incantatore può rendere quel terreno difficile. In alternativa, se quel terreno è già terreno difficile, l'incantatore può renderlo terreno normale. Questo cambiamento permane per 1 ora.\n\nSe l'incantatore lancia questo incantesimo più volte, non può avere attivi più di due suoi effetti non istantanei alla volta e può congedare uno di questi effetti con un'azione.",
       "higherLevels": "",
       "source": "xanathar",
       "sourceTitle": "Guida Omnicomprensiva di Xanathar",
@@ -2245,9 +2259,12 @@
           "duration-review",
           "effect-candidate",
           "choice-candidate",
-          "area-candidate"
+          "area-candidate",
+          "text-normalized"
         ],
-        "normalizationNotes": [],
+        "normalizationNotes": [
+          "Ricostruito l'elenco delle opzioni su righe proprie."
+        ],
         "proposedAutomation": null
       }
     },
@@ -2264,7 +2281,7 @@
       "concentration": false,
       "durationKind": "instantaneous",
       "defaultTurns": null,
-      "description": "L'incantatore crea una patina di gelo che intorpidisce su una creatura situata entro gittata e che egli sia in grado di vedere. Il bersaglio deve effettuare un tiro salvezza su Costituzione; se lo fallisce, subisce 1d6 danni da freddo e subisce svantaggio al prossimo tiro per colpire con un'arma che effettua prima della fine del suo turno successivo.\n\nI danni dell'incantesimo aumentano di 1d6 quando l'incantatore raggiunge il 5° livello (2d6), 11° livello (3d6) e il 17° livello (4d6).",
+      "description": "L'incantatore crea una patina di gelo che intorpidisce su una creatura situata entro gittata e che egli sia in grado di vedere. Il bersaglio deve effettuare un tiro salvezza su Costituzione; se lo fallisce, subisce 1d6 danni da freddo e subisce svantaggio al prossimo tiro per colpire con un'arma che effettua prima della fine del suo turno successivo.\n\nI danni dell'incantesimo aumentano di 1d6 quando l'incantatore raggiunge il 5° livello (2d6), l'11° livello (3d6) e il 17° livello (4d6).",
       "higherLevels": "",
       "source": "xanathar",
       "sourceTitle": "Guida Omnicomprensiva di Xanathar",
@@ -2289,9 +2306,12 @@
         "flags": [
           "exact-turn-boundary",
           "effect-candidate",
-          "instantaneous-lingering-effect"
+          "instantaneous-lingering-effect",
+          "text-normalized"
         ],
-        "normalizationNotes": [],
+        "normalizationNotes": [
+          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
+        ],
         "proposedAutomation": null
       }
     },
@@ -2725,7 +2745,7 @@
       "concentration": false,
       "durationKind": "instantaneous",
       "defaultTurns": null,
-      "description": "L'incantatore pronuncia una parola divina e un bagliore radioso e bruciante compare attorno alla sua figura. Ogni creatura a sua scelta situata entro gittata e che egli sia in grado di vedere deve superare un tiro salvezza su Costituzione, altrimenti subisce 1d6 danni radiosi.\n\nI danni dell'incantesimo aumentano di 1d6 quando l'incantatore raggiunge il 5° livello (2d6), 11° livello (3d6) e il 17° livello (4d6).",
+      "description": "L'incantatore pronuncia una parola divina e un bagliore radioso e bruciante compare attorno alla sua figura. Ogni creatura a sua scelta situata entro gittata e che egli sia in grado di vedere deve superare un tiro salvezza su Costituzione, altrimenti subisce 1d6 danni radiosi.\n\nI danni dell'incantesimo aumentano di 1d6 quando l'incantatore raggiunge il 5° livello (2d6), l'11° livello (3d6) e il 17° livello (4d6).",
       "higherLevels": "",
       "source": "xanathar",
       "sourceTitle": "Guida Omnicomprensiva di Xanathar",
@@ -2743,8 +2763,12 @@
         "effectCandidates": [],
         "choiceCandidate": false,
         "exactTurnPhrases": [],
-        "flags": [],
-        "normalizationNotes": [],
+        "flags": [
+          "text-normalized"
+        ],
+        "normalizationNotes": [
+          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
+        ],
         "proposedAutomation": null
       }
     },
@@ -3001,7 +3025,7 @@
       "concentration": false,
       "durationKind": "instantaneous",
       "defaultTurns": null,
-      "description": "L'incantatore indica una creatura situata entro gittata e che egli sia in grado di vedere e il lugubre rintocco di una campana echeggia attorno ad essa per un istante. Il bersaglio deve superare un tiro salvezza su Saggezza, altrimenti subisce 1d8 danni necrotici. Se al bersaglio mancano uno o più punti ferita, subisce invece 1d12 danni necrotici.\n\nI danni dell'incantesimo aumentano di un dado quando l'incantatore raggiunge il 5° livello (2d8 o 2d12), 11° livello (3d8 o 3d12) e il 17° livello (4d8 o 4d12).",
+      "description": "L'incantatore indica una creatura situata entro gittata e che egli sia in grado di vedere e il lugubre rintocco di una campana echeggia attorno ad essa per un istante. Il bersaglio deve superare un tiro salvezza su Saggezza, altrimenti subisce 1d8 danni necrotici. Se al bersaglio mancano uno o più punti ferita, subisce invece 1d12 danni necrotici.\n\nI danni dell'incantesimo aumentano di un dado quando l'incantatore raggiunge il 5° livello (2d8 o 2d12), l'11° livello (3d8 o 3d12) e il 17° livello (4d8 o 4d12).",
       "higherLevels": "",
       "source": "xanathar",
       "sourceTitle": "Guida Omnicomprensiva di Xanathar",
@@ -3019,8 +3043,12 @@
         "effectCandidates": [],
         "choiceCandidate": false,
         "exactTurnPhrases": [],
-        "flags": [],
-        "normalizationNotes": [],
+        "flags": [
+          "text-normalized"
+        ],
+        "normalizationNotes": [
+          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
+        ],
         "proposedAutomation": null
       }
     },
@@ -3037,7 +3065,7 @@
       "concentration": false,
       "durationKind": "instantaneous",
       "defaultTurns": null,
-      "description": "L'incantatore genera un'esplosione tonante, che può essere udita a 30 metri di distanza. Ogni creatura situata entro gittata, ad eccezione dell'incantatore, deve effettuare un tiro salvezza su Costituzione; se lo fallisce, subisce 1d6 danni da tuono.\n\nI danni dell'incantesimo aumentano di 1d6 quando l'incantatore raggiunge il 5° livello (2d6), 11° livello (3d6) e il 17° livello ( 4d6).",
+      "description": "L'incantatore genera un'esplosione tonante, che può essere udita a 30 metri di distanza. Ogni creatura situata entro gittata, ad eccezione dell'incantatore, deve effettuare un tiro salvezza su Costituzione; se lo fallisce, subisce 1d6 danni da tuono.\n\nI danni dell'incantesimo aumentano di 1d6 quando l'incantatore raggiunge il 5° livello (2d6), l'11° livello (3d6) e il 17° livello (4d6).",
       "higherLevels": "",
       "source": "xanathar",
       "sourceTitle": "Guida Omnicomprensiva di Xanathar",
@@ -3055,8 +3083,12 @@
         "effectCandidates": [],
         "choiceCandidate": false,
         "exactTurnPhrases": [],
-        "flags": [],
-        "normalizationNotes": [],
+        "flags": [
+          "text-normalized"
+        ],
+        "normalizationNotes": [
+          "Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar."
+        ],
         "proposedAutomation": null
       }
     },
@@ -3427,8 +3459,8 @@
       "concentration": true,
       "durationKind": "concentration",
       "defaultTurns": 10,
-      "description": "L'incantatore tocca una creatura consenziente e infonde in essa il potere di esalare energia magica dalla bocca, purché ne possieda una. L'incantatore sceglie tra acido, freddo, fulmine, fuoco o veleno. Finché l'incantesimo non termina, la creatura può usare un'azione per esalare l'energia del tipo scelto in un cono di 4,5 metri. Ogni creatura in quell'area deve effettuare un tiro salvezza su Destrezza; se lo fallisce, subisce 3d6 danni del tipo scelto, mentre se lo supera, subisce la metà di quei danni. Ai Livelli Superiori. Quando l'incantatore lancia questo incantesimo usando uno slot incantesimo di 3° livello o superiore, i danni aumentano di 1d6 per ogni slot di livello superiore al 2°.",
-      "higherLevels": "",
+      "description": "L'incantatore tocca una creatura consenziente e infonde in essa il potere di esalare energia magica dalla bocca, purché ne possieda una. L'incantatore sceglie tra acido, freddo, fulmine, fuoco o veleno. Finché l'incantesimo non termina, la creatura può usare un'azione per esalare l'energia del tipo scelto in un cono di 4,5 metri. Ogni creatura in quell'area deve effettuare un tiro salvezza su Destrezza; se lo fallisce, subisce 3d6 danni del tipo scelto, mentre se lo supera, subisce la metà di quei danni.",
+      "higherLevels": "Quando l'incantatore lancia questo incantesimo usando uno slot incantesimo di 3° livello o superiore, i danni aumentano di 1d6 per ogni slot di livello superiore al 2°.",
       "source": "xanathar",
       "sourceTitle": "Guida Omnicomprensiva di Xanathar",
       "sourcePageRange": {

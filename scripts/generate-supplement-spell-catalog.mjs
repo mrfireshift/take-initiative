@@ -168,9 +168,53 @@ function cleanText(value) {
     .trim();
 }
 
+// The spells whose extraction ran their list of options into the text: the first words of each item, in order. Each
+// item gets a line of its own starting with "• "; no word changes.
+const LIST_ITEM_STARTS = Object.freeze({
+  "xanathar-modellare-terra": Object.freeze([
+    "Se l'incantatore bersaglia un'area di terra smossa",
+    "L'incantatore fa comparire forme, colori",
+    "Se il terriccio o la pietra modellati",
+  ]),
+});
+
+function listItemLines(id, value) {
+  let text = String(value || "");
+  for (const start of LIST_ITEM_STARTS[id] || []) {
+    const at = text.indexOf(start);
+    if (at < 0) throw new Error(`${id}: voce d'elenco non trovata: «${start}».`);
+    text = `${text.slice(0, at).replace(/[\s•]+$/u, "")}\n• ${text.slice(at)}`;
+  }
+  return text;
+}
+
+// The words the source JSON changed from the book, checked against the PDF of Xanathar's guide: [from, to].
+const CANTRIP_ELEVENTH_LEVEL = Object.freeze([["), 11° livello (", "), l'11° livello ("]]);
+const TEXT_CORRECTIONS = Object.freeze({
+  "xanathar-creare-falo": CANTRIP_ELEVENTH_LEVEL,
+  "xanathar-ferocia-primordiale": CANTRIP_ELEVENTH_LEVEL,
+  "xanathar-infestazione": CANTRIP_ELEVENTH_LEVEL,
+  "xanathar-morsa-del-gelo": CANTRIP_ELEVENTH_LEVEL,
+  "xanathar-parola-radiosa": CANTRIP_ELEVENTH_LEVEL,
+  "xanathar-rintocco-dei-morti": CANTRIP_ELEVENTH_LEVEL,
+  "xanathar-rombo-di-tuono": Object.freeze([...CANTRIP_ELEVENTH_LEVEL, ["livello ( 4d6)", "livello (4d6)"]]),
+  "xanathar-legame-con-le-bestie": Object.freeze([["entro la linea di vista", "entro linea di vista"]]),
+});
+
+function correctedText(id, value) {
+  let text = String(value || "");
+  for (const [from, to] of TEXT_CORRECTIONS[id] || []) {
+    if (text.split(from).length !== 2) throw new Error(`${id}: «${from}» non trovato una sola volta.`);
+    text = text.replace(from, to);
+  }
+  return text;
+}
+
+// "Ai Livelli Superiori." opens the second part of the text, on a paragraph of its own or, where the extraction
+// lost the break, right after a sentence.
 function splitDescription(value) {
   const clean = cleanText(value);
-  const marker = /\n\nAi Livelli Superiori\.\s*/iu;
+  const marker = /(?:\n\n|(?<=[.!?])[ \t]+)Ai Livelli Superiori\.\s*/iu;
   const match = marker.exec(clean);
   if (!match) return { description: clean, higherLevels: "" };
   return {
@@ -269,11 +313,11 @@ for (const name of LEGACY_NAMES) {
 
 function normalizeSpell(sourceId, rawSpell) {
   const source = SOURCES[sourceId];
+  const id = `${sourceId}-${normalizedLookup(rawSpell.nome)}`;
   const rawDescription = String(rawSpell.descrizione || "");
   const cleanedFullDescription = cleanText(rawDescription);
-  const { description, higherLevels } = splitDescription(rawDescription);
+  const { description, higherLevels } = splitDescription(listItemLines(id, correctedText(id, rawDescription)));
   const duration = durationDetails(rawSpell.durata);
-  const id = `${sourceId}-${normalizedLookup(rawSpell.nome)}`;
   const conditions = CONDITION_PATTERNS
     .filter(([, pattern]) => pattern.test(description))
     .map(([condition]) => condition);
@@ -302,6 +346,8 @@ function normalizeSpell(sourceId, rawSpell) {
   if (area) flags.push("area-candidate");
   if (lingeringInstantaneous) flags.push("instantaneous-lingering-effect");
   const notes = correctionNotes(rawDescription, cleanedFullDescription);
+  if (LIST_ITEM_STARTS[id]) notes.push("Ricostruito l'elenco delle opzioni su righe proprie.");
+  if (TEXT_CORRECTIONS[id]) notes.push("Testo corretto come nel PDF della Guida Omnicomprensiva di Xanathar.");
   if (notes.length) flags.push("text-normalized");
   const proposal = ONE_ROUND_PROPOSALS[id] || null;
   if (proposal?.integration === "multi-stage") flags.push("multi-stage");

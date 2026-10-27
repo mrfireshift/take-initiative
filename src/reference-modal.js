@@ -1,6 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { CONDITION_REFERENCE, REFERENCE_SOURCE } from "./referenceData.js";
+import { rulesTextBlock } from "./rulesTextView.js";
 import { getSpellCatalog } from "./spells-srd.js";
 import spellReferenceData from "./spell-reference-it.json" with { type: "json" };
 
@@ -101,10 +102,7 @@ OBR.onReady(() => {
       sectionTitle.className = "section-title";
       sectionTitle.textContent = "EFFETTI";
       detail.appendChild(sectionTitle);
-      const text = document.createElement("p");
-      text.className = "text";
-      text.textContent = entry.details;
-      detail.appendChild(text);
+      detail.appendChild(rulesTextBlock(entry.details, { className: "text" }));
       const source = document.createElement("p");
       source.className = "source-note";
       source.textContent = `${REFERENCE_SOURCE.label} · Appendice A · ${REFERENCE_SOURCE.license}`;
@@ -139,20 +137,14 @@ OBR.onReady(() => {
     sectionTitle.className = "section-title";
     sectionTitle.textContent = "DESCRIZIONE";
     detail.appendChild(sectionTitle);
-    const text = document.createElement("p");
-    text.className = "text";
-    text.textContent = reference.description || "Descrizione non disponibile.";
-    detail.appendChild(text);
+    detail.appendChild(rulesTextBlock(reference.description || "Descrizione non disponibile.", { className: "text" }));
 
     if (reference.higherLevels) {
       const higherTitle = document.createElement("div");
       higherTitle.className = "section-title";
       higherTitle.textContent = "AI LIVELLI SUPERIORI";
       detail.appendChild(higherTitle);
-      const higher = document.createElement("p");
-      higher.className = "text";
-      higher.textContent = reference.higherLevels.replace(/^Ai livelli superiori\.\s*/i, "");
-      detail.appendChild(higher);
+      detail.appendChild(rulesTextBlock(reference.higherLevels.replace(/^Ai livelli superiori\.\s*/i, ""), { className: "text" }));
     }
 
     const source = document.createElement("p");

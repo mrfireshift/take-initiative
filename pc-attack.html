@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/ui-typography.css" />
   <link rel="stylesheet" href="/popover-glass.css" />
   <link rel="stylesheet" href="/console-shell.css" />
+  <link rel="stylesheet" href="/rules-text.css" />
   <style>
     /* The action costs' colours (Baldur's Gate 3); the console's other colour names are console-shell.css's. */
     :root {
@@ -134,6 +135,7 @@
     .spell-details[open] summary { margin-bottom: 6px; }
     .spell-details, .spell-details-body { display: grid; gap: 6px; }
     .spell-text { margin: 0; font-size: var(--obrt-type-secondary); line-height: 1.4; white-space: pre-line; }
+    .spell-rules { font-size: var(--obrt-type-secondary); line-height: 1.4; }
     /* The turn moved on while an attack is in progress: the console waits for the GM (pcAttackTurnController.js). */
     .follow-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: var(--obrt-space-md); padding: 6px 10px; border: 1px solid rgba(253, 230, 138, .45); border-radius: var(--obrt-radius-lg); background: rgba(161, 98, 7, .18); color: var(--warn-text); font-size: var(--obrt-type-secondary); }
     .follow-bar[data-kind="off"] { border-color: rgba(96, 165, 250, .40); background: rgba(30, 64, 175, .20); color: var(--info-text); }

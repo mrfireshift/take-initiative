@@ -155,6 +155,7 @@ import {
 import { speciesHealDice, speciesHpTraitAmount, speciesHpTraitAmountLabel, speciesReductionHint } from "./speciesHpTraitCore.js";
 import { speciesSpellCast, speciesSpellActionId, speciesSpellOpenRequest, speciesTraitSave } from "./speciesInnateSpellCore.js";
 import { perfBootPage } from "./perfProbe.js";
+import { rulesTextBlock } from "./rulesTextView.js";
 
 perfBootPage(OBR);
 
@@ -1440,11 +1441,7 @@ function buildSpellbookDetails(spell, details) {
     block.appendChild(line);
   }
   block.appendChild(facts);
-  if (details.description) {
-    const text = document.createElement("p");
-    text.textContent = details.description;
-    block.appendChild(text);
-  }
+  if (details.description) block.appendChild(rulesTextBlock(details.description));
   if (details.higherLevels) {
     const higher = document.createElement("p");
     const title = document.createElement("strong");
@@ -3055,9 +3052,7 @@ function renderClassFeatures() {
         card.appendChild(head);
         const descriptionText = classFeatureDescription(feature);
         if (descriptionText) {
-          const description = document.createElement("p");
-          description.className = "class-feature-description";
-          description.textContent = descriptionText;
+          const description = rulesTextBlock(descriptionText, { className: "class-feature-description" });
           description.title = descriptionText;
           card.appendChild(description);
         }

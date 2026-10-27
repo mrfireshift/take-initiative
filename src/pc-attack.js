@@ -24,6 +24,7 @@ import { bossActionTargets, bossSelectionTarget, reconcileBossDraftTarget, bossT
 import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel, damageDefensesForItem } from "./damageDefensesCore.js";
 import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL, PC_ATTACK_WIDTH } from "./pcAttackLauncher.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
+import { rulesTextBlock } from "./rulesTextView.js";
 import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
 import { classFeatureTargeting } from "./classFeatureCore.js";
 import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFormCore.js";
@@ -1379,7 +1380,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       void loadClassFeatureDescriptions().then(()=>{launchSignature="";if(launching())renderLaunch();}).catch(()=>{});
     }
     const text=classFeatureDescription(getClassFeatureDefinition(entry.featureId));
-    return [text?node("p",text,"spell-text"):node("p",classFeatureDescriptionsLoaded()?"Testo non disponibile.":"Caricamento del testo…","launch-details")];
+    return [text?rulesTextBlock(text,{document:documentRef,className:"spell-rules",paragraphClass:"spell-text"}):node("p",classFeatureDescriptionsLoaded()?"Testo non disponibile.":"Caricamento del testo…","launch-details")];
   }
   // The spell's details under an accordion ("Dettagli"): tags, casting time, range, components, duration, then the
   // text of the spell and its higher levels. One open state for every accordion of the console: open stays open.
@@ -1393,7 +1394,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(tags.length){const row=node("div","","launch-meta");row.append(...tags.map(([text,kind])=>node("span",text,`launch-tag${kind?" "+kind:""}`)));nodes.push(row);}
     const line=details?[details.castingTime,details.range,details.components,details.duration].filter(Boolean).join(" · "):"";
     if(line) nodes.push(node("p",line,"launch-details"));
-    if(details?.description) nodes.push(node("p",details.description,"spell-text"));
+    if(details?.description) nodes.push(rulesTextBlock(details.description,{document:documentRef,className:"spell-rules",paragraphClass:"spell-text"}));
     if(details?.higherLevels) nodes.push(node("p",`Ai livelli superiori. ${details.higherLevels}`,"spell-text"));
     if(spellId && !details) nodes.push(node("p",spellbookSpellReferenceLoaded()?"Testo non disponibile.":"Caricamento del testo…","launch-details"));
     return nodes;
