@@ -334,9 +334,10 @@ function importedSpells(data, unresolved) {
   return spellbook.spellIds.length ? spellbook : null;
 }
 
-// innateSpells: [{ name, perDay }], no perDay for "at will" (a monster's stat block, fase 4, lotto 4). Each one a spell
-// quick action cast without a slot: "Gratuito" at will, "Usi propri" with perDay uses (back at the long rest). A cantrip
-// at will needs no slot anyway: it goes to the book (cantrips), where the console's Cantrips tab finds it.
+// innateSpells: [{ name, perDay, level }], no perDay for "at will" (a monster's stat block, fase 4, lotto 4). Each one a
+// spell quick action cast without a slot: "Gratuito" at will, "Usi propri" with perDay uses (back at the long rest); level
+// (the 2024 "level 5 version", fase 3 lotto 6) is the level it is cast at. A cantrip at will needs no slot anyway: it goes
+// to the book (cantrips), where the console's Cantrips tab finds it.
 function importedInnateSpells(data, unresolved) {
   const source = Array.isArray(data.innateSpells) ? data.innateSpells : [];
   const actions = [];
@@ -352,6 +353,7 @@ function importedInnateSpells(data, unresolved) {
       continue;
     }
     const perDay = integer(raw.perDay);
+    const castLevel = integer(raw.level ?? raw.livello);
     if (!perDay && spell.level === 0) {
       if (!cantrips.includes(spell.id)) cantrips.push(spell.id);
       continue;
@@ -363,6 +365,7 @@ function importedInnateSpells(data, unresolved) {
     }
     const action = sanitizeQuickAction({ id: "import", kind: "spell", label: spell.displayName || spell.name, spellId: spell.id,
       launchMode: "auto", targetMode: "selection", applyAutomations: true,
+      ...(castLevel && spell.level > 0 && castLevel > spell.level && castLevel <= 9 ? { slotLevel: castLevel } : {}),
       ...(perDay ? { cost: "uses", uses: Math.min(MAX_QUICK_ACTION_USES, Math.max(1, perDay)) } : { cost: "free" }) });
     if (!action) continue;
     const { id: _id, ...draft } = action;
@@ -504,7 +507,7 @@ export function sheetImportSectionSummary(id, section, { classNameOf = (classId)
     return `${section.length} ${section.length === 1 ? "attacco" : "attacchi"}: ${section.map((attack) => attack.label).join(", ")}`;
   }
   if (id === "innate") {
-    return section.map((action) => `${action.label} ${action.cost === "uses" ? `${action.uses}/giorno` : "a volontà"}`).join(", ");
+    return section.map((action) => `${action.label}${action.slotLevel ? ` (${action.slotLevel}°)` : ""} ${action.cost === "uses" ? `${action.uses}/giorno` : "a volontà"}`).join(", ");
   }
   if (id === "notes" || id === "multiattack") return section.length > 60 ? `${section.slice(0, 60)}…` : section;
   return "";

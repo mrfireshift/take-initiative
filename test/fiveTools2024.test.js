@@ -203,3 +203,35 @@ test("TS 2024: area, danni, metà al successo; condizione con durata, tiro ripet
   assert.deepEqual([cards.Moan.immuneHours, cards.Spores.onFail], [24, { condition: "Stordito", repeat: "turn-end" }]);
   assert.deepEqual(cards.Claw.onHit.save.onFail, { condition: "Paralizzato", until: "turn-end", anchor: "target" });
 });
+
+// Sotto-lotto 5: incantesimi e leggendarie 2024. «(level 5 version)» è il livello di lancio dell'azione rapida; «1/Long
+// Rest» vale come 1/giorno; la magia della congrega resta al tavolo; leggendarie e resistenze fuori dalla tana (D5).
+import { parseCharacterSheetImport } from "../src/characterSheetImportCore.js";
+
+const lich = { name: "Test Lich", source: "XMM", ac: [17], hp: { average: 315 }, legendaryActionsLair: 4,
+  trait: [{ name: "Legendary Resistance (4/Day, or 5/Day in Lair)", entries: ["If the lich fails a saving throw, it can choose to succeed instead."] }],
+  legendary: [{ name: "Deathly Teleport", entries: ["The lich teleports up to 60 feet."] }],
+  spellcasting: [
+    { name: "Spellcasting", type: "spellcasting", headerEntries: ["The lich casts one of the following spells (spell save {@dc 20}):"], ability: "int", displayAs: "action",
+      will: ["{@spell Detect Magic|XPHB}", "{@spell Fireball|XPHB} (level 5 version)", "{@spell Mage Hand|XPHB}"],
+      daily: { "1e": ["{@spell Cone of Cold|XPHB} (level 9 version)", "{@spell Fly|XPHB}"] } },
+    { name: "Coven Magic", type: "spellcasting", headerEntries: ["While in a coven, the lich casts (spell save {@dc 11}):"], ability: "int",
+      restLong: { 1: ["{@spell Augury|XPHB}"] } },
+    { name: "Ritual Magic", type: "spellcasting", headerEntries: ["The lich casts (spell save {@dc 20}):"], ability: "int",
+      restLong: { 1: ["{@spell Scrying|XPHB}"] } },
+  ] };
+
+test("incantesimi 2024: il livello della versione, 1/riposo lungo come 1/giorno, la congrega al tavolo; la tana nel rapporto", () => {
+  const converted = fiveToolsMonsterToStatblock(lich, { allow2024: true });
+  assert.equal(converted.block.spellSaveDC, 20, "never the coven's DC");
+  assert.deepEqual(converted.block.innateSpells, [{ name: "Detect Magic" }, { name: "Fireball", level: 5 }, { name: "Mage Hand" },
+    { name: "Cone of Cold", perDay: 1, level: 9 }, { name: "Fly", perDay: 1 }, { name: "Scrying", perDay: 1 }]);
+  assert.deepEqual(converted.block.legendary, { actions: 3, resistances: 4 });
+  assert.ok(converted.report.includes("Coven Magic: incantesimi della congrega da gestire al tavolo"));
+  assert.ok(converted.report.includes("nella tana: 4 azioni leggendarie e 5 resistenze leggendarie (sulla scheda i numeri fuori dalla tana: si cambiano dal tracker)"));
+  const innate = parseCharacterSheetImport(JSON.stringify(converted.block)).sections.innate;
+  const byLabel = Object.fromEntries(innate.map((action) => [action.spellId, action]));
+  assert.deepEqual([byLabel.fireball.slotLevel, byLabel.fireball.cost], [5, "free"]);
+  assert.deepEqual([byLabel["cone-of-cold"].slotLevel, byLabel["cone-of-cold"].cost, byLabel["cone-of-cold"].uses], [9, "uses", 1]);
+  assert.equal(byLabel.fly.slotLevel, null, "no version: the catalog's level");
+});

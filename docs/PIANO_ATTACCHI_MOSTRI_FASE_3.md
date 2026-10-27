@@ -178,7 +178,20 @@ quelle delle fasi 1–5.
    fallimento, `{@actSaveSuccess} Half damage.` → metà, un successo che dice altro resta nella nota; area (Cone, Line,
    Cube, Sphere, Emanation dal mostro), durata e tiro ripetuto dalle regole della fase 5; `{@actSaveFail 2}` (secondo
    fallimento, la pietrificazione) nella nota.
-5. **Incantesimi e leggendarie 2024.** Ogni incantesimo diventa un'azione rapida ⚡ come gli innati del 2014 (a
+5. **Incantesimi e leggendarie 2024.** ✅ Fatto (27/10): gli incantesimi 2024 (`will`, `daily`, senza slot) passano per
+   la strada degli innati del 2014; «(level 5 version)» → `innateSpells[].level` → `slotLevel` dell'azione rapida ⚡,
+   solo se più alto del livello dell'incantesimo (il riepilogo dell'import lo scrive: «Palla di fuoco (5°) a volontà»).
+   «1/Long Rest» (`restLong`) vale come 1/giorno: gli usi propri tornano con il riposo lungo. La «Coven Magic» delle
+   megere resta al tavolo (vale solo nella congrega; prima ne prendeva anche la CD). Gli incantesimi a ricarica restano
+   nel rapporto, come nel 2014. Nomi dal catalogo SRD per nome (D3): sul Monster Manual 2025 663 incantesimi di 122
+   incantatori, 533 azioni rapide (47 con il livello della versione), 10 nomi non trovati (27 volte: Elementalism, Mind
+   Spike, Vitriolic Sphere, Ice Knife, Ray of Sickness, Destructive Wave…) in rosso. Leggendarie (D5): sulla scheda i
+   numeri fuori dalla tana (3 azioni; «Legendary Resistance (3/Day, or 4/Day in Lair)» → 3), il rapporto dice quelli
+   nella tana («nella tana: 4 azioni leggendarie e 4 resistenze leggendarie … si cambiano dal tracker»). Tratti, reazioni
+   e leggendarie nella Capacità come per il 2014. Il 2014 resta identico (incantesimi, CD, classi e leggendarie
+   confrontati su cinque bestiari). Nel banco: la Lich (XMM) incollata nella scheda con l'opzione accesa: Leggendario 3
+   azioni e 4 resistenze, Palla di fuoco e Fulmine a volontà con slot 5 nell'editor delle azioni rapide.
+   Piano originale: ogni incantesimo diventa un'azione rapida ⚡ come gli innati del 2014 (a
    volontà gratuita, X/Day con usi propri; un trucchetto a volontà nel libro); «(level 4 version)» → livello dello
    slot dell'azione rapida; nomi cercati nel catalogo SRD 2014 (vedi D3). Leggendarie e resistenze con i numeri fuori
    dalla tana (vedi D5). Tratti, reazioni e leggendarie nella scheda Capacità, come per il 2014.

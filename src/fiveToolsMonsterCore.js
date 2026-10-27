@@ -298,12 +298,24 @@ export function fiveToolsSpellName(value) {
   return SPELL_NAME_ALIASES[name.toLowerCase()] || name;
 }
 
+// The level a 2024 stat block casts a spell at (fase 3, lotto 6): "{@spell Fireball|XPHB} (level 5 version)" → 5, or null.
+export function fiveToolsSpellLevel(value) {
+  const entry = value && typeof value === "object" ? value.entry : value;
+  const level = Number(String(entry ?? "").match(/\(level (\d) version\)/i)?.[1]);
+  return level >= 1 && level <= 9 ? level : null;
+}
+
 // The spellcasting of a monster as the plugin's stat block reads it: { spellSaveDC, spellAttackBonus, classes, spells,
 // innateSpells }. The block with slots gives the class and level (their slots are the plugin's, as a character's) and
 // the book, all prepared; "at will" and "X/day" give the innate spells, cast without slots. What the plugin cannot keep
 // goes to the report.
 function fiveToolsSpellcasting(monster, report) {
-  const blocks = (Array.isArray(monster.spellcasting) ? monster.spellcasting : []).filter((block) => block && typeof block === "object");
+  // A coven's magic (the 2024 hags' "Coven Magic") only works with the coven: the table's, never the card's.
+  const coven = (block) => /\bCoven\b/i.test(fiveToolsPlainText(block.name || ""));
+  for (const block of Array.isArray(monster.spellcasting) ? monster.spellcasting : []) {
+    if (block && typeof block === "object" && coven(block)) report.push(`${fiveToolsPlainText(block.name)}: incantesimi della congrega da gestire al tavolo`);
+  }
+  const blocks = (Array.isArray(monster.spellcasting) ? monster.spellcasting : []).filter((block) => block && typeof block === "object" && !coven(block));
   if (!blocks.length) return {};
   const out = { spells: [], innateSpells: [] };
   const header = (block) => entriesText(block.headerEntries);
@@ -335,15 +347,22 @@ function fiveToolsSpellcasting(monster, report) {
         report.push(`${name}: incantatore senza classe, gli slot restano al tavolo`);
       }
     }
-    for (const spell of asList(block.will)) out.innateSpells.push({ name: fiveToolsSpellName(spell) });
-    // As the stat block prints them, the most uses first ("3/day each", then "1/day each").
-    const daily = Object.entries(block.daily && typeof block.daily === "object" ? block.daily : {})
+    // The 2024 "(level 5 version)" is the level the quick action casts it at.
+    const innate = (spell, perDay) => {
+      const level = fiveToolsSpellLevel(spell);
+      return { name: fiveToolsSpellName(spell), ...(perDay ? { perDay } : {}), ...(level ? { level } : {}) };
+    };
+    for (const spell of asList(block.will)) out.innateSpells.push(innate(spell));
+    // As the stat block prints them, the most uses first ("3/day each", then "1/day each"). The 2024 "1/Long Rest"
+    // (restLong) is the same: the uses come back at the long rest.
+    const daily = Object.entries({ ...(block.daily && typeof block.daily === "object" ? block.daily : {}),
+      ...(block.restLong && typeof block.restLong === "object" ? block.restLong : {}) })
       .sort(([left], [right]) => Number.parseInt(right, 10) - Number.parseInt(left, 10));
     for (const [key, list] of daily) {
       const perDay = Number.parseInt(key, 10);
       if (!(perDay >= 1)) continue;
       const spells = asList(list).map(fiveToolsSpellName);
-      for (const spell of spells) out.innateSpells.push({ name: spell, perDay });
+      for (const spell of asList(list)) out.innateSpells.push(innate(spell, perDay));
       // "3/day" without "each": one pool for all of them; the plugin gives each one its own uses.
       if (!key.endsWith("e") && spells.length > 1) report.push(`${perDay}/giorno in comune tra ${spells.join(", ")}: ognuno ha i suoi usi, il totale si tiene al tavolo`);
     }
@@ -366,6 +385,14 @@ function fiveToolsLegendary(monster, report) {
   }
   if (/in this form/i.test(resistance)) report.push(`${resistance}: il contatore vale per la forma importata`);
   const actions = Math.floor(Number(monster.legendaryActions)) || 3;
+  // The 2024 lair (fase 3, lotto 6, decision D5): the card keeps the numbers out of it, the report tells the lair's ones,
+  // changed from the tracker when the fight is there.
+  const lairActions = Math.floor(Number(monster.legendaryActionsLair)) || 0;
+  const lairResistances = Number(resistance.match(/\bor (\d+)\/Day in Lair\b/i)?.[1]) || 0;
+  if (lairActions || lairResistances) {
+    report.push(`nella tana: ${[lairActions ? `${lairActions} azioni leggendarie` : "", lairResistances ? `${lairResistances} resistenze leggendarie` : ""]
+      .filter(Boolean).join(" e ")} (sulla scheda i numeri fuori dalla tana: si cambiano dal tracker)`);
+  }
   return { actions: Math.max(1, Math.min(5, actions)), resistances: Math.max(0, Math.min(5, resistances)) };
 }
 

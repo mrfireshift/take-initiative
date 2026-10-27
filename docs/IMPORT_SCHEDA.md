@@ -221,6 +221,9 @@ una propria:
   volontà. Ognuno diventa un'**azione rapida** (⚡): «Gratuito» a volontà,
   «Usi propri» con `perDay` usi (tornano con il riposo lungo). Un trucchetto
   a volontà va invece nel libro, dove la console lo trova tra i Trucchetti.
+  `level` (facoltativo) è il livello a cui si lancia, per uno statblock
+  2024 con «(level 5 version)»: diventa il livello dello slot dell'azione
+  rapida, solo se più alto di quello dell'incantesimo.
   Le azioni rapide sono al massimo 12: quelle in più vanno in rosso.
 
 Uno statblock di un mostro importato sopra un altro sostituisce anche classe,
@@ -408,7 +411,8 @@ conditionImmunities: le condizioni a cui il mostro è immune; evasion: true
 se ha Elusione.
 Incantesimi: spellSaveDC e spellAttackBonus; per un incantatore a slot
 classes: [{ class, level }] con la classe in inglese e spells: i nomi
-inglesi degli incantesimi; per gli innati innateSpells: [{ name, perDay }],
-senza perDay se a volontà.
+inglesi degli incantesimi; per gli innati innateSpells: [{ name, perDay,
+level }], senza perDay se a volontà, level solo se si lancia a un livello
+più alto del suo.
 Non inventare valori assenti. Usa le regole del Manuale dei Mostri 2014.
 ```
