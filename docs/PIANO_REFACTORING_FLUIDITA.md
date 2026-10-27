@@ -34,6 +34,14 @@ Lotti fatti, tutti il 27/10:
 
   L'harness non passa da queste letture: il guadagno (una lettura filtrata della scena per controller a ogni passata) va contato in stanza.
 
+- **S5** (parte sicura):
+  - il crollo del boss prende le immagini segnate dallo snapshot dell'Event Hub e il round dall'ultimo evento dei metadata. Un'immagine già allo stadio giusto non viene riscritta. Niente più letture SDK nei turni senza nulla da far crollare;
+  - Chiamare il fulmine prende gli item dallo snapshot quando è completo.
+
+  Fuori dal lotto, di proposito:
+  - il caricamento dei limiti in parallelo, perché `test/sceneItemBoundsCache.test.js` fissa il caricamento in serie come scelta voluta, da decidere a parte;
+  - la passata immediata e il watchdog delle zone, dove una lettura mancata farebbe perdere un trigger.
+
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.

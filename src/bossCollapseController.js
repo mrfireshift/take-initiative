@@ -5,9 +5,12 @@ import { ID } from "./constants.js";
 import { BOSS_COLLAPSE_ITEM_KEY, bossCollapseUpdates } from "./bossCollapseCore.js";
 import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { readSceneItemsSnapshot } from "./sceneItemEvents.js";
 
 const STATE_KEY = `${ID}/state`;
 const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
+// The scene metadata of the latest event, with its scene epoch: a reconcile it asks for reads the round from it.
+let latestMetadata = null;
 let mounted = false;
 let working = false;
 let requested = false;
@@ -18,9 +21,17 @@ async function reconcileBossCollapseMarkers() {
   const sceneEpoch = currentSceneEpoch();
   const ready = await OBR.scene.isReady().catch(() => false);
   if (!ready || !isCurrentSceneEpoch(sceneEpoch)) return;
+  // The marked images from the Event Hub snapshot when it is complete for this scene, the round from the latest
+  // metadata event: no SDK read on a turn without anything to fold. Otherwise both are read, as before.
+  const snapshot = readSceneItemsSnapshot(sceneEpoch);
+  const isMarker = (item) => !!item?.metadata?.[BOSS_COLLAPSE_ITEM_KEY];
   const [metadata, items] = await Promise.all([
-    OBR.scene.getMetadata().catch(() => ({})),
-    OBR.scene.items.getItems((item) => !!item?.metadata?.[BOSS_COLLAPSE_ITEM_KEY]).catch(() => []),
+    latestMetadata?.sceneEpoch === sceneEpoch
+      ? latestMetadata.metadata
+      : OBR.scene.getMetadata().catch(() => ({})),
+    snapshot.complete
+      ? snapshot.items.filter(isMarker)
+      : OBR.scene.items.getItems(isMarker).catch(() => []),
   ]);
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const updates = bossCollapseUpdates(items, metadata?.[STATE_KEY]?.round);
@@ -32,7 +43,10 @@ async function reconcileBossCollapseMarkers() {
       const update = byId.get(draft?.id);
       const record = draft?.metadata?.[BOSS_COLLAPSE_ITEM_KEY];
       if (!update || !record || !draft.image) continue;
-      draft.image.url = new URL(update.asset, origin).href;
+      const url = new URL(update.asset, origin).href;
+      // Already at this stage (a snapshot a moment behind our own last write): nothing to write.
+      if (record.stage === update.stage && draft.image.url === url) continue;
+      draft.image.url = url;
       // Metadata merged: only the stage of this image changes.
       draft.metadata = { ...draft.metadata, [BOSS_COLLAPSE_ITEM_KEY]: { ...record, stage: update.stage } };
     }
@@ -64,9 +78,11 @@ export async function mountBossCollapseController() {
   mounted = true;
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     stateMetadataWatcher.reset();
+    latestMetadata = null;
     if (ready) requestReconcile();
   });
   unsubscribeSceneMetadata = OBR.scene.onMetadataChange((metadata) => {
+    latestMetadata = { sceneEpoch: currentSceneEpoch(), metadata };
     if (stateMetadataWatcher.observe(metadata).changed) requestReconcile();
   });
   requestReconcile();
@@ -79,5 +95,6 @@ export function unmountBossCollapseController() {
   unsubscribeSceneMetadata?.();
   unsubscribeSceneMetadata = null;
   stateMetadataWatcher.reset();
+  latestMetadata = null;
   mounted = false;
 }

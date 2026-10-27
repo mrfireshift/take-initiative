@@ -2,7 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { currentSceneEpoch } from "./sceneEpoch.js";
-import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { readSceneItemsSnapshot, subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
 import {
@@ -165,7 +165,12 @@ async function casterAnchor(casterId) {
 }
 
 async function requestsForTurn(descriptor) {
-  const items = await OBR.scene.items.getItems().catch(() => []);
+  // The Event Hub snapshot when it is complete for this scene (it already holds the event that asked for this pass),
+  // else one SDK read as before.
+  const snapshot = readSceneItemsSnapshot(descriptor.sceneEpoch);
+  const items = snapshot.complete
+    ? snapshot.items
+    : await OBR.scene.items.getItems().catch(() => []);
   return spellTurnPromptRequests({
     items,
     actorId: descriptor.actorId,
