@@ -16,6 +16,8 @@ Lotti fatti, tutti il 27/10:
 
 - **T2**: il ripiegamento automatico dei gruppi non gira più sul client giocatore, che non può scriverlo. Sul GM usa lo snapshot dell'Event Hub quando è completo. Nel banco: nessuna lettura completa degli item per turno sullo schermo del tavolo; sul GM resta solo quella del `prepare` del coordinatore.
 
+- **T3**: il reset delle azioni leggendarie salta la chiamata quando lo snapshot completo dice che la creatura non ne ha. Per un boss leggendario la lettura resta fresca, e se è già pieno non riscrive il `meta`. Nel banco: in 15 turni un solo `updateItems` sul token attivo, per il boss leggendario, che torna da 2/3 a 3/3. Il limite al solo GM (D4) resta per dopo.
+
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.

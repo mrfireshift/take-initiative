@@ -7421,12 +7421,22 @@ async function setLegendaryResistanceMax(itemId, nextMax) {
 // Reset al pieno a inizio turno della creatura attiva
 async function resetLegendaryIfAny(activeId) {
   if (!activeId) return;
+  // Most turns belong to a creature without legendary actions (or to no token): the complete Event Hub snapshot says
+  // so without an SDK call. A legendary one is always read fresh by updateItems, so an action spent just before its
+  // turn is still reset.
+  const snapshot = readSceneItemsSnapshot();
+  if (snapshot.complete) {
+    const known = snapshot.items.find((item) => item?.id === activeId);
+    if (!(Number(known?.metadata?.[META_KEY]?.legendary?.max) > 0)) return;
+  }
   await OBR.scene.items.updateItems([activeId], (items) => {
     const it = items[0];
     if (!it) return;
     const m  = it.metadata || {};
     const me = { ...(m[META_KEY] || {}) };
     if (me.legendary && Number(me.legendary.max) > 0) {
+      // Already full: nothing to write. An equal copy of the whole meta would still cover a concurrent change.
+      if (me.legendary.current === (Number(me.legendary.max) || 0)) return;
       me.legendary.current = Number(me.legendary.max) || 0;
       m[META_KEY] = me;
       it.metadata = m;
