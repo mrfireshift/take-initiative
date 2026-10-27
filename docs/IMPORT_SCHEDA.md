@@ -290,8 +290,9 @@ altro dispositivo del GM la scheda del mostro si reimporta.
 
 ### Da 5eTools
 
-Lo stesso pannello legge il JSON di [5eTools](https://5e.tools), solo dei
-manuali 2014 (i mostri delle regole 2024 non si importano):
+Lo stesso pannello legge il JSON di [5eTools](https://5e.tools) dei manuali
+2014; quelli delle regole 2024 solo con l'opzione apposita (vedi
+[Statblock 2024](#statblock-2024-opzionali)):
 
 - incolla in **Importa** il JSON di un mostro e premi **Leggi**, oppure
 - premi **Carica file** e scegli uno o più file `.json` (un bestiario intero,
@@ -326,6 +327,45 @@ dell'SRD, quelli fuori dall'SRD (Witch Bolt, Chromatic Orb…) vanno in rosso.
 
 Il plugin non contiene dati di 5eTools: i file restano in memoria solo
 mentre modifichi la scheda.
+
+### Statblock 2024 (opzionali)
+
+I mostri delle regole 2024 (il Monster Manual 2025, `XMM`, e i derivati da
+una sua base) si importano solo se accendi **Importa anche i mostri delle
+regole 2024** in **Opzioni → Console attacchi**. L'opzione è di questo
+browser e parte spenta: spenta, l'elenco li esclude e dice quanti sono.
+Accesa, compaiono con «· 2024» accanto al nome.
+
+Il mostro si gioca con le **regole 2014 del plugin**: condizioni,
+indebolimento, riposi e incantesimi del catalogo SRD. **Al tavolo** lo dice
+per primo («regole 2024: condizioni e regole del tracker restano quelle del
+2014»). Le regole leggono il testo 2024 come quello 2014:
+
+- **attacchi**: bonus, portata e gittata; «has the Poisoned condition until
+  the start of the assassin's next turn» mette la condizione al colpo con la
+  sua durata, senza tiro salvezza; la presa con ciò che dura finché si è
+  afferrati; prono. Un danno solo in certi casi («if the attack roll had
+  Advantage») resta nella nota, mai sommato;
+- **tiri salvezza**: caratteristica, CD e area (cono, linea, sfera, cubo,
+  cilindro; un'«Emanation» è una sfera attorno al mostro); dal fallimento i
+  danni, le condizioni con la durata e il tiro ripetuto; «Half damage» dà
+  metà danni al successo; l'immunità dopo il successo. «Second Failure»,
+  «Failure by 5 or More» e «Failure or Success» restano nella nota con la
+  loro etichetta;
+- **incantesimi**: a volontà e X/giorno come gli innati del 2014; «(level 5
+  version)» è il livello a cui l'azione rapida lancia l'incantesimo. I nomi
+  si cercano nel catalogo SRD: quelli che mancano (Mind Spike, Ice Knife,
+  Vitriolic Sphere…) vanno in rosso. La «Coven Magic» delle megere e gli
+  incantesimi a ricarica restano al tavolo;
+- **leggendarie**: sulla scheda i numeri **fuori dalla tana** (azioni e
+  resistenze leggendarie); quelli nella tana sono in **Al tavolo** e si
+  cambiano dal tracker quando lo scontro è lì.
+
+Restano al tavolo, come nel 2014, le scelte del mostro («Charmed or Poisoned
+(pixie's choice)», un tipo di danno a scelta), le condizioni solo in certi
+casi (dopo una carica, con il Vantaggio, «While …»), le maledizioni e le
+azioni senza danni né condizioni. Lo statblock originale nella tab
+Statistiche è stampato come nel manuale 2025.
 
 ### Archivio 5eTools
 

@@ -3896,7 +3896,7 @@ function readSheetImport() {
     renderFiveToolsPicker(pasted.length === 1 ? pasted[0] : null);
     if (pasted.length === 1) void readFiveToolsMonster(pasted[0]);
     else if (pasted.length) setSheetImportStatus("Scegli il mostro nell'elenco.");
-    else setSheetImportStatus(excluded2024 ? "Mostri delle regole 2024: per importarli accendi «Statblock 2024» nelle Opzioni (si giocano con le regole 2014 del plugin)." : "Nel blocco non c'è nessun mostro.", "error");
+    else setSheetImportStatus(excluded2024 ? "Mostri delle regole 2024: per importarli accendi «Importa anche i mostri delle regole 2024» in Opzioni → Console attacchi (si giocano con le regole 2014 del plugin)." : "Nel blocco non c'è nessun mostro.", "error");
     return;
   }
   const parsed = parseCharacterSheetImport(text);

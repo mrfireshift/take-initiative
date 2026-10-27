@@ -380,7 +380,10 @@ preparazione al tavolo: basta importarne lo statblock.
    [5eTools](IMPORT_SCHEDA.md#da-5etools) o cerca il mostro nei libri
    dell'**Archivio online**; preme **Leggi**, sceglie le sezioni e
    **Applica al modulo**. Lo statblock di un mostro **sostituisce** quello di
-   prima, incantesimi compresi.
+   prima, incantesimi compresi. I mostri delle regole 2024 (Monster Manual
+   2025) si importano solo con **Importa anche i mostri delle regole 2024**
+   acceso in **Opzioni → Console attacchi**, e si giocano con le regole 2014
+   del plugin (vedi [Statblock 2024](IMPORT_SCHEDA.md#statblock-2024-opzionali)).
 3. Le righe automatiche, ricordate in questo browser:
    - **Punti ferita**: la media dello statblock, modificabile; sostituisce i
      PF del token tranne se è ferito, e con **Anche agli altri token** va

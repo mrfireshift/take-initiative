@@ -91,7 +91,7 @@ l'indirizzo è un'opzione, e **Carica file** della fase 2 resta il ripiego.
 
 ### Lotto 6 — statblock 2024 opzionali (piano dettagliato del 27/10/2026)
 
-Stato: **D1–D5 confermate come raccomandate il 27/10; sotto-lotti 1 e 2 fatti.** Riscritto dopo le fasi 4 e 5: oltre ad attacchi e azioni a
+Stato: **D1–D5 confermate come raccomandate il 27/10; lotto chiuso il 27/10 (sotto-lotti 1–6).** Riscritto dopo le fasi 4 e 5: oltre ad attacchi e azioni a
 TS, un mostro 2024 deve passare anche da incantesimi, leggendarie, testo dello statblock ed effetti letti ad euristica.
 
 Il principio non cambia: il plugin gioca con le regole del 2014 (condizioni, indebolimento, riposi, incantesimi del
@@ -118,7 +118,8 @@ quelle delle fasi 1–5.
 
 #### Lotti
 
-1. **Opzione e sblocco.** ✅ Opzione locale **Statblock 2024** (Opzioni → Console attacchi, spenta). Accesa: l'elenco
+1. **Opzione e sblocco.** ✅ Opzione locale **Statblock 2024** (Opzioni → Console attacchi, casella «Importa anche i
+   mostri delle regole 2024», spenta). Accesa: l'elenco
    dell'import mostra i mostri 2024 con «· 2024», l'archivio abilita i libri 2024, i derivati da una base 2024 si
    risolvono. Spenta: tutto come oggi. Lo script di copertura prende `--2024`.
    Fatto (27/10): `tools.fiveTools2024` (solo `true` la accende), `allow2024` in `fiveToolsCollection`,
@@ -195,8 +196,30 @@ quelle delle fasi 1–5.
    volontà gratuita, X/Day con usi propri; un trucchetto a volontà nel libro); «(level 4 version)» → livello dello
    slot dell'azione rapida; nomi cercati nel catalogo SRD 2014 (vedi D3). Leggendarie e resistenze con i numeri fuori
    dalla tana (vedi D5). Tratti, reazioni e leggendarie nella scheda Capacità, come per il 2014.
-6. **Misura e documentazione.** Copertura sul Monster Manual 2025 (obiettivo: le stesse quote del 2014), guida e
-   formato.
+6. **Misura e documentazione.** ✅ Fatto (27/10). Copertura con `scripts/monster-heuristics-coverage.mjs`, Monster
+   Manual 2014 (`MM`) contro Monster Manual 2025 (`XMM --2024`):
+
+   | Cosa | MM 2014 | MM 2025 |
+   | --- | --- | --- |
+   | Mostri / azioni | 450 / 879 | 503 / 868 |
+   | Attacchi letti | 713 | 642 (su 651: i 9 fuori scelgono il tipo di danno o l'effetto) |
+   | Azioni a TS lette | 166 | 226 |
+   | Azioni al tavolo | 130 (14,8%) | 152 (17,5%; erano 1020 a inizio lotto) |
+   | Effetti al colpo letti / non letti | 93 / 26 | 107 / 12 |
+   | TS con condizione / con durata | 93 / 70 | 124 / 66 |
+   | Tiro ripetuto letto | 53 | 17 |
+   | Immunità dopo il successo | 33 | 11 |
+   | Aree: coni, linee, sfere | 45, 22, 36 | 58, 24, 31 |
+   | Scheda: byte mediana / p90 / max | 891 / 1909 / 3851 | 973 / 2069 / 3867 |
+
+   Le quote sono quelle del 2014. Il tiro ripetuto e l'immunità sono meno perché il manuale 2025 li usa meno («until
+   the end of its next turn» al posto di «for 1 minute, repeat»): dei 48 testi con «repeats the save» non letti, quasi
+   tutti sono un solo tiro («at which point it repeats the save», la pietrificazione) o non hanno una condizione del
+   plugin (Weakening Breath). Restano fuori l'immunità alle maledizioni dei licantropi e quella «of all yetis (but not
+   abominable yetis)». La scheda pesa una ottantina di byte in più in mediana (note più lunghe), lontano dal massimo.
+   Documentazione: `docs/IMPORT_SCHEDA.md` (sezione «Statblock 2024 (opzionali)», `level` degli innati, `onHit`
+   `conditions`/`duration`), `docs/GUIDA_UTENTE.md` (passo 2 dell'import), `BACKLOG.md`. Il messaggio a opzione spenta
+   nomina la casella vera («Importa anche i mostri delle regole 2024» in Opzioni → Console attacchi).
 
 #### Decisioni da confermare
 

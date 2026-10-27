@@ -109,8 +109,10 @@ come capacità attivabile. Il dettaglio dello snapshot è in
   - prove in room: disegno delle aree dei mostri sulla mappa (il banco non ha
     lo strumento area), promemoria del tiro ripetuto al cambio turno, carta
     boss Leggendario sullo schermo dei giocatori;
-  - statblock 2024 opzionali (fase 3, lotto 6) e documentazione della fase 3
-    (lotto 5);
+  - documentazione della fase 3 (lotto 5); gli statblock 2024 opzionali (fase
+    3, lotto 6) sono chiusi il 27/10/2026: al tavolo restano le immunità alle
+    maledizioni dei licantropi, i tiri ripetuti «una volta sola» e i 10
+    incantesimi 2024 fuori dal catalogo SRD (Mind Spike, Ice Knife…);
   - restano al tavolo: effetti al colpo che le regole non leggono (malattie,
     trascinamenti, riduzione dei PF massimi: 47 attacchi su 1274 in MM, VGM,
     MTF, IDRotF), tiri ripetuti condizionati (11), Ragnatela e azioni senza
