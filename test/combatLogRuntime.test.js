@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test, { after, mock } from "node:test";
+import { readFileSync } from "node:fs";
 
 function clone(value) {
   return value === undefined ? undefined : structuredClone(value);
@@ -305,6 +306,30 @@ test("History observer eredita la revisione corrente dal session writer", async 
   );
   assert.equal(created.length, 1);
   assert.equal(created[0].turnContext.orderRevision, 1);
+});
+
+test("senza attendere la scrittura, l'evento della History resta in coda e in ordine con il contesto del momento", async () => {
+  const session = (await listCombatLogSessions())[0];
+  const deferred = await recordHistoryInCombatLog(
+    hpEntry({ source: "deferred" }, "history-runtime-deferred"),
+    { sceneEpoch: currentSceneEpoch(), awaitWrite: false },
+  );
+  assert.deepEqual(deferred, [], "resolves before the IndexedDB write");
+  // The next awaited write runs behind it in the same queue.
+  await recordHistoryInCombatLog(
+    hpEntry({ source: "after-deferred" }, "history-runtime-after-deferred"),
+    { sceneEpoch: currentSceneEpoch() },
+  );
+  const events = (await getCombatLogEvents(session.id))
+    .filter((event) => ["history-runtime-deferred", "history-runtime-after-deferred"].includes(event.historyEntryId));
+  assert.deepEqual(events.map((event) => event.historyEntryId), ["history-runtime-deferred", "history-runtime-after-deferred"]);
+  assert.ok(events[0].sequence < events[1].sequence);
+  assert.equal(events[0].round, 3, "the turn context read before the answer");
+});
+
+test("l'owner della History risponde all'append senza aspettare la scrittura del Combat Log", () => {
+  const source = readFileSync(new URL("../src/historyOwner.js", import.meta.url), "utf8");
+  assert.match(source, /recordHistoryInCombatLog\(entry, \{\s*sceneEpoch: scene\.epoch,\s*awaitWrite: false,\s*\}\)/);
 });
 
 test("Combat Log disabilitato non esegue scritture", async () => {

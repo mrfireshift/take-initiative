@@ -717,12 +717,19 @@ export async function appendCombatLogEvent(
   });
 }
 
-export async function recordHistoryInCombatLog(entry, { sceneEpoch = currentSceneEpoch() } = {}) {
+// awaitWrite false: resolves once the turn context is read and the event is queued in order behind the earlier
+// writes, without waiting for IndexedDB (the History owner answers its append meanwhile). A failed write is logged.
+export async function recordHistoryInCombatLog(entry, { sceneEpoch = currentSceneEpoch(), awaitWrite = true } = {}) {
   if (!eventSinkEnabled || !isSceneEpochCurrent(sceneEpoch)) return [];
   try {
     const context = await currentContext({ sceneEpoch });
     if (!isSceneEpochCurrent(sceneEpoch)) return [];
-    return appendCombatLogEvent(combatEventFromHistoryEntryV3(entry, context), { sceneEpoch, context });
+    const written = appendCombatLogEvent(combatEventFromHistoryEntryV3(entry, context), { sceneEpoch, context });
+    if (!awaitWrite) {
+      void written.catch((error) => console.warn("[combat-log] history event:", error?.message || error));
+      return [];
+    }
+    return written;
   } catch (error) {
     console.warn("[combat-log] history event:", error?.message || error);
     return [];

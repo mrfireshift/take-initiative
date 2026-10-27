@@ -270,8 +270,11 @@ function createOwnerBroker() {
         { destination: "LOCAL" },
       );
     }),
+    // The turn context is read here, as before; the IndexedDB write follows in the Combat Log's own queue, after the
+    // answer (130–220 ms per append in the 24/10 room runs).
     recordCombatLog: (entry, { command, scene }) => probeOwnerPhase("combat-log", command, () => recordHistoryInCombatLog(entry, {
       sceneEpoch: scene.epoch,
+      awaitWrite: false,
     })),
     normalizeHistory: (value) => normalizeOwnerHistory(value),
     isSceneCurrent: ownerSceneIsCurrent,

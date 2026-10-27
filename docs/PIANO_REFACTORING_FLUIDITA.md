@@ -2,7 +2,11 @@
 
 Stato: **fase 1 (misure e analisi) chiusa il 27/10/2026.** Le decisioni D1–D8 e l'ordine dei lotti sono stati approvati il 27/10, così come raccomandati.
 
-Lotti fatti: **S2** (27/10). La Cronologia scritta dal background va al proprio owner senza passare da OBR. Il guadagno in millisecondi va misurato in stanza: `perf-harness` non passa da quel trasporto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
+Lotti fatti, tutti il 27/10:
+- **S2**: la Cronologia scritta dal background va al proprio owner senza passare da OBR.
+- **S3**: l'append risponde dopo aver letto il contesto del turno; la scrittura del Combat Log segue nella sua coda. Un errore di scrittura del log finisce nella console e non è più tra i `postCommitErrors` della risposta.
+
+Il guadagno in millisecondi va misurato in stanza, perché `perf-harness` non passa da questi percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.
 
