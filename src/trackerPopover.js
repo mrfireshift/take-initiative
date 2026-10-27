@@ -104,10 +104,7 @@ async function refreshCompactTrackerPopoverAtStoredPosition() {
 }
 
 export async function moveCompactTrackerPopover(deltaX, deltaY) {
-  let viewportHeight = 900;
-  let viewportWidth = 1200;
-  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
-  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+  const { viewportWidth, viewportHeight } = await viewportSize();
   const current = compactAnchorPosition(viewportWidth, viewportHeight);
   localStorage.setItem(TRACKER_COMPACT_POSITION_KEY, JSON.stringify({
     left: clamp(current.left + (Number(deltaX) || 0), COMPACT_EDGE_MARGIN, viewportWidth - COMPACT_EDGE_MARGIN),
@@ -167,12 +164,13 @@ export async function storeSharedTrackerView(view) {
   return { layoutChanged, layout: local.layout, changed: layoutChanged || (local.layout === TRACKER_LAYOUT_COMPACT ? compactChanged : classicChanged) };
 }
 
+// Height and width in one round trip, each falling back on its own default.
 async function viewportSize() {
-  let viewportHeight = 900;
-  let viewportWidth = 1200;
-  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
-  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
-  return { viewportWidth, viewportHeight };
+  const [height, width] = await Promise.all([
+    Promise.resolve().then(() => OBR.viewport.getHeight()).catch(() => null),
+    Promise.resolve().then(() => OBR.viewport.getWidth()).catch(() => null),
+  ]);
+  return { viewportWidth: Number(width) || 1200, viewportHeight: Number(height) || 900 };
 }
 
 // The extended tracker on this screen at its tracker scale: 340 px wide at 100%, narrower below and wider above,
@@ -187,8 +185,8 @@ export function getClassicTrackerScaledFrame(scale, { viewportWidth = 1200, view
 
 // A drag of the extended tracker: it docks to the nearer side at the dropped distance.
 export async function moveClassicTrackerPopover(deltaX, deltaY) {
-  const { viewportWidth, viewportHeight } = await viewportSize();
-  const width = getClassicTrackerScaledFrame(await getTrackerViewScale(), { viewportWidth, viewportHeight }).width;
+  const [{ viewportWidth, viewportHeight }, scale] = await Promise.all([viewportSize(), getTrackerViewScale()]);
+  const width = getClassicTrackerScaledFrame(scale, { viewportWidth, viewportHeight }).width;
   storeClassicTrackerPlacement(moveTrackerPlacement(getClassicTrackerPlacement(), deltaX, deltaY,
     { width, viewportWidth, viewportHeight }));
   await openTrackerPopover({ refresh: true });
@@ -202,16 +200,21 @@ export async function toggleClassicTrackerSide() {
 
 // Where a side panel (spells, references, effects) opens next to the extended tracker.
 export async function getTrackerSidePanelAnchor({ trackerWidth = null, panelWidth = 560 } = {}) {
-  const { viewportWidth, viewportHeight } = await viewportSize();
+  const [{ viewportWidth, viewportHeight }, scale] = await Promise.all([
+    viewportSize(),
+    Number(trackerWidth) ? null : getTrackerViewScale(),
+  ]);
   const width = Number(trackerWidth)
-    || getClassicTrackerScaledFrame(await getTrackerViewScale(), { viewportWidth, viewportHeight }).width;
+    || getClassicTrackerScaledFrame(scale, { viewportWidth, viewportHeight }).width;
   return trackerSidePanelAnchor(getClassicTrackerPlacement(), { trackerWidth: width, viewportWidth, panelWidth });
 }
 
 // Tracker scale of this screen: the room scale for players (table screen), the local one (this browser) for the GM.
 export async function getTrackerViewScale() {
-  const role = await Promise.resolve().then(() => OBR.player.getRole()).catch(() => null);
-  await startRuntimeOptions().catch(() => {});
+  const [role] = await Promise.all([
+    Promise.resolve().then(() => OBR.player.getRole()).catch(() => null),
+    startRuntimeOptions().catch(() => {}),
+  ]);
   let scale = 1;
   let gmScale = 1;
   try { scale = runtimeOptionsService.get(selectPlayerTrackerScale); } catch {}
@@ -292,14 +295,14 @@ export async function openTrackerPopover({ refresh = false, compactSize = null }
   const compact = layout === TRACKER_LAYOUT_COMPACT;
   let viewportHeight = 900;
   let viewportWidth = 1200;
-  const [nextHeight, nextWidth] = await Promise.all([
+  // The tracker follows this screen's scale: the room one for players, the local one for the GM (1 by default).
+  const [nextHeight, nextWidth, viewScale] = await Promise.all([
     Promise.resolve().then(() => OBR.viewport.getHeight()).catch(() => viewportHeight),
     Promise.resolve().then(() => OBR.viewport.getWidth()).catch(() => viewportWidth),
+    getTrackerViewScale(),
   ]);
   viewportHeight = Number(nextHeight) || viewportHeight;
   viewportWidth = Number(nextWidth) || viewportWidth;
-  // The tracker follows this screen's scale: the room one for players, the local one for the GM (1 by default).
-  const viewScale = await getTrackerViewScale();
   const compactScale = compact ? compactTrackerScale(viewScale, { viewportHeight }) : 1;
   const preferredCompactWidth = Number(compactSize?.width)
     || getCompactTrackerManualWidth()
@@ -392,9 +395,6 @@ export async function setTrackerPopoverOpen(open, options) {
 }
 
 export async function getCompactTrackerPopoverAnchor() {
-  let viewportHeight = 900;
-  let viewportWidth = 1200;
-  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
-  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+  const { viewportWidth, viewportHeight } = await viewportSize();
   return compactAnchorPosition(viewportWidth, viewportHeight);
 }

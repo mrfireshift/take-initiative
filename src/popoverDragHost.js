@@ -50,12 +50,18 @@ async function moveTrackedPopover(id, deltaX, deltaY) {
   const current = trackedPopovers.get(id);
   if (!current) return;
 
-  let viewportWidth = 1200;
-  let viewportHeight = 800;
-  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
-  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
-  const width = Number(await OBR.popover.getWidth(id).catch(() => current.width)) || current.width;
-  const height = Number(await OBR.popover.getHeight(id).catch(() => current.height)) || current.height;
+  // The four reads in one round trip, each with its own fallback as before.
+  const read = (call, fallback) => Promise.resolve().then(call).catch(() => fallback);
+  const [rawViewportWidth, rawViewportHeight, rawWidth, rawHeight] = await Promise.all([
+    read(() => OBR.viewport.getWidth(), null),
+    read(() => OBR.viewport.getHeight(), null),
+    read(() => OBR.popover.getWidth(id), current.width),
+    read(() => OBR.popover.getHeight(id), current.height),
+  ]);
+  const viewportWidth = Number(rawViewportWidth) || 1200;
+  const viewportHeight = Number(rawViewportHeight) || 800;
+  const width = Number(rawWidth) || current.width;
+  const height = Number(rawHeight) || current.height;
   const left = Math.max(12, Math.min(
     current.anchorPosition.left + (Number(deltaX) || 0),
     Math.max(12, viewportWidth - width - 12),

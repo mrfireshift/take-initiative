@@ -1959,9 +1959,7 @@ function makeHistoryBtn() {
     const popupId = `${ID}/history-modal`;
     if (!await beginTrackerPopoverToggle(popupId)) return;
     try {
-      const anchorPosition = await getTrackerPopoverAnchor();
-      await OBR.modal.close(popupId).catch(() => {});
-      await OBR.popover.close(popupId).catch(() => {});
+      const anchorPosition = await trackerPanelAnchorAfterToggle(popupId);
       await openTrackedPopover({
         id: popupId,
         url: "/history-modal.html",
@@ -5154,7 +5152,6 @@ async function __openSpellBoardTokenCompanionCard(companion) {
   if (!itemId) return;
   const popupId = `${ID}/spell-board-token-card`;
   if (!await beginTrackerPopoverToggle(popupId)) return;
-  try { await OBR.popover.close(popupId); } catch {}
   const anchorPosition = await getTrackerPopoverAnchor();
   try {
     await openTrackedPopover({
@@ -7696,6 +7693,16 @@ async function beginTrackerPopoverToggle(popupId) {
   return true;
 }
 
+// After beginTrackerPopoverToggle, which closed every tracker popover (this one included): the panel's anchor,
+// read while a legacy modal with the same id closes, in one round trip instead of three in a row.
+async function trackerPanelAnchorAfterToggle(popupId) {
+  const [anchorPosition] = await Promise.all([
+    getTrackerPopoverAnchor(),
+    Promise.resolve().then(() => OBR.modal.close(popupId)).catch(() => {}),
+  ]);
+  return anchorPosition;
+}
+
 async function openQuickHPPopup({
   sourceId = "",
   quickActionId = "",
@@ -7703,9 +7710,7 @@ async function openQuickHPPopup({
 } = {}) {
   const popupId = QUICK_HP_POPUP_ID;
   if (!await beginTrackerPopoverToggle(popupId)) return;
-  try { await OBR.modal.close(popupId); } catch {}
-  try { await OBR.popover.close(popupId); } catch {}
-  const anchorPosition = await getTrackerPopoverAnchor();
+  const anchorPosition = await trackerPanelAnchorAfterToggle(popupId);
   const popupQuery = new URLSearchParams();
   if (sourceId) popupQuery.set("source", sourceId);
   if (quickActionId) popupQuery.set("quickAction", quickActionId);
@@ -7742,9 +7747,7 @@ async function openCardEffectsPopup(sourceEntry, entries, {
 
   const popupId = EFFECTS_POPUP_ID;
   if (!await beginTrackerPopoverToggle(popupId)) return;
-  try { await OBR.modal.close(popupId); } catch {}
-  try { await OBR.popover.close(popupId); } catch {}
-  const anchorPosition = await getTrackerPopoverAnchor();
+  const anchorPosition = await trackerPanelAnchorAfterToggle(popupId);
   const popupQuery = new URLSearchParams({ source: sourceId });
   if (quickActionId) popupQuery.set("quickAction", quickActionId);
   try {
@@ -7852,9 +7855,7 @@ async function openInitiativeCardPopup(sourceEntry, { quickActionId = "" } = {})
 
   const popupId = `${ID}/initiative-card-modal`;
   if (!await beginTrackerPopoverToggle(popupId)) return;
-  try { await OBR.modal.close(popupId); } catch {}
-  try { await OBR.popover.close(popupId); } catch {}
-  const anchorPosition = await getTrackerPopoverAnchor();
+  const anchorPosition = await trackerPanelAnchorAfterToggle(popupId);
   try {
     await openTrackedPopover({
       id: popupId,
