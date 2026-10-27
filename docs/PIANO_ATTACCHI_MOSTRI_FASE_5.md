@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 5: azioni complesse ad euristica (piano)
 
-Stato: **piano, in attesa delle decisioni dell'utente** (26/10/2026).
+Stato: **lotto 0 implementato** (27/10/2026); D1–D7 da confermare prima del lotto 1.
 
 Richiesta dell'utente: le azioni complesse degli NPC (tiri salvezza, soffi,
 coni, linee, aree) oggi si risolvono solo con «TS superato / fallito»;
@@ -68,7 +68,32 @@ Ogni lotto ripete la misura e riporta quante azioni passano da «al tavolo» o
 
 ## Lotti
 
-### Lotto 0 — lettore euristico e misura
+### Lotto 0 — lettore euristico e misura ✅
+
+Fatto (27/10): `src/monsterActionHeuristicsCore.js` lavora sul testo in chiaro (i tag di 5eTools resi come li stampa il
+libro), quindi vale anche per testi incollati. L'adapter di 5eTools aggiunge ai blocchi `onFail.also`,
+`onFail.duration`, `onFail.repeat`, `onFail.endsOnDamage`, `area.origin`, `area.choice`, `immuneHours` e `onHit`;
+l'import della scheda **non li salva ancora** (li leggeranno i lotti 1–4): in gioco cambia solo che il lettore
+riconosce più condizioni al fallimento, che la console già applica. Una condizione citata solo come requisito («can't
+be charmed», «while it is invisible», «if the target is prone») non è un effetto.
+
+Misura con `scripts/monster-heuristics-coverage.mjs` su MM, VGM, MTF e IDRotF (815 mostri, 1559 azioni):
+
+| Regola | Riconosciute |
+| --- | --- |
+| Azioni a TS con condizione | 165 (prima 151) |
+| … con durata / con tiro ripetuto / più condizioni | 125 / 85 / 8 |
+| Immunità dopo il successo | 46 |
+| Aree con origine (dal mostro / su un punto) | 158 / 5, su 163 |
+| «Of its choice» | 26 |
+| Attacchi con effetto al colpo letto (TS / afferrato / prono / spinta) | 166 (113 / 58 / 5 / 1) |
+| Attacchi con effetto al colpo non letto | 47 (malattie, trascinamenti, PF massimi: restano al tavolo) |
+| Tiri ripetuti non letti | 11 (condizionati, «at the end of its next turn»: restano nella nota) |
+| Azioni da gestire al tavolo | 243 (prima 248) |
+
+Byte netti dei campi nuovi sulla scheda, se salvati togliendo dalla nota le frasi che sostituiscono: 0% alla mediana,
+0,9% al p90, 9,6% al massimo (scheda: mediana 955 B, p90 2,2 KB): sotto la soglia del +10%.
+
 
 - `src/monsterActionHeuristicsCore.js`, puro: dal testo di un'azione ricava
   origine e forma dell'area, chi è colpito («of its choice»), esito al
@@ -122,6 +147,27 @@ Ogni lotto ripete la misura e riporta quante azioni passano da «al tavolo» o
 - `docs/IMPORT_SCHEDA.md`, `docs/GUIDA_UTENTE.md`, `BACKLOG.md`; tabella di
   copertura prima/dopo.
 
+## Peso stimato in gioco (valutazione del 26/10, prima del lotto 0)
+
+Riferimento: la misura in room del 24/10. Ogni cambio di un token consegna gli
+item interi a ogni finestra del plugin (eventi da ~114 KB, 71 MB di snapshot in
+10 minuti), e i metadata pesanti rallentano ogni chiamata dell'SDK; il cambio
+turno è il comando più lento (1,3–2,3 s).
+
+| Voce | Oggi (misurato) | Con la fase 5 (stima) |
+| --- | --- | --- |
+| Import di un mostro | 0,21 ms (815 mostri) | qualche decimo di ms in più, una volta |
+| Scheda di un mostro sul token | mediana 0,95 KB, p90 2,2 KB, drago adulto 1,9 KB | +0–60 B la mediana; drago +150–300 B lordi, quasi zero netti: le frasi che diventano campi escono dalla nota (fino a 280 B per azione) |
+| Scontro tipo (drago + 6 coboldi) | ~6 KB di schede su ~114 KB di item per evento | +<1 KB (<1%) |
+| Console | — | nessuna analisi di testo; la geometria solo quando il GM disegna; i bonus dei bersagli dalle schede già lette |
+| Cambio turno | — | nessuna scrittura nuova; i promemoria del tiro ripetuto riusano il calcolo che già gira |
+| Cambio round | — | una condizione con durata a round entra nell'operazione unica che già fa scalare gli effetti a tempo (una per round, non per turno) |
+
+L'unico punto con un costo che cresce in gioco è la durata a round delle
+condizioni (lotto 3): vedi D7. Lo script di copertura del lotto 0 misura anche
+i byte netti per mostro; regola di accettazione: p90 della scheda non oltre
++10%.
+
 ## Prestazioni
 
 Priorità dell'utente: la reattività dei token.
@@ -154,3 +200,7 @@ Priorità dell'utente: la reattività dei token.
 6. **D6 — mostri già importati.** Prendono le regole nuove reimportandoli
    (raccomandato: l'import è già lo strumento), oppure con una migrazione
    automatica dal testo salvato.
+7. **D7 — durata delle condizioni.** Con il tiro ripetuto la condizione si
+   chiude con il promemoria e non conta i round (la durata massima resta nella
+   nota): nessuna scrittura per round (raccomandato); i round si contano solo
+   per le condizioni a tempo senza tiro ripetuto. Oppure si contano sempre.

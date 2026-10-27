@@ -79,13 +79,16 @@ test("drago d'argento adulto: multiattacco, Presenza terrificante, i due soffi c
   const { block, report } = fiveToolsMonsterToStatblock(monster("Adult Silver Dragon"));
   assert.match(block.multiattack, /^The dragon can use its Frightful Presence\. It then makes three attacks/);
   const presence = block.actions.find((action) => action.name === "Frightful Presence");
-  assert.deepEqual([presence.save, presence.area, presence.onFail, presence.damage], [{ ability: "wis", dc: 18, half: false }, { shape: "sphere", size: 120 }, { condition: "frightened" }, []]);
+  assert.deepEqual([presence.save, presence.area, presence.onFail, presence.damage], [{ ability: "wis", dc: 18, half: false },
+    { shape: "sphere", size: 120, origin: "self", choice: true },
+    { condition: "frightened", duration: { rounds: 10 }, repeat: { timing: "turn-end", ends: true } }, []], "phase 5, lot 0: origin, choice, duration, repeat");
+  assert.equal(presence.immuneHours, 24);
   assert.match(presence.note, /^A creature can repeat the saving throw at the end of each of its turns/);
   const cold = block.actions.find((action) => action.name === "Cold Breath");
-  assert.deepEqual([cold.recharge, cold.save, cold.area, cold.damage, cold.note], [5, { ability: "con", dc: 20, half: true }, { shape: "cone", size: 60 },
+  assert.deepEqual([cold.recharge, cold.save, cold.area, cold.damage, cold.note], [5, { ability: "con", dc: 20, half: true }, { shape: "cone", size: 60, origin: "self" },
     [{ type: "cold", formula: "13d8" }], undefined]);
   const paralyzing = block.actions.find((action) => action.name === "Paralyzing Breath");
-  assert.deepEqual([paralyzing.recharge, paralyzing.onFail, paralyzing.damage], [5, { condition: "paralyzed" }, []]);
+  assert.deepEqual([paralyzing.recharge, paralyzing.onFail, paralyzing.damage], [5, { condition: "paralyzed", duration: { rounds: 10 }, repeat: { timing: "turn-end", ends: true } }, []]);
   // Fase 4, lotto 5: the tracker's Leggendario mode, set after Salva; the traits are read in the console.
   assert.deepEqual(block.legendary, { actions: 3, resistances: 3 });
   assert.ok(report.includes("tratti da leggere nella console (Capacità): Legendary Resistance (3/Day)"));
@@ -123,9 +126,9 @@ test("danni detti solo per chi supera il TS: al tavolo, mai letti come danni del
 
 test("usi al giorno, ricarica 6, linea con larghezza, un bersaglio, danno fisso, condizione «or fall»", () => {
   const [line] = fiveToolsActions({ name: "Raggio {@recharge}", entries: ["The creature exhales lightning in a 30-foot line that is 5 feet wide. Each creature in that line must make a {@dc 12} Dexterity saving throw, taking 10 ({@damage 3d6}) lightning damage on a failed save, or half as much damage on a successful one."] });
-  assert.deepEqual([line.name, line.recharge, line.area, line.save.half], ["Raggio", 6, { shape: "line", size: 30, width: 5 }, true]);
+  assert.deepEqual([line.name, line.recharge, line.area, line.save.half], ["Raggio", 6, { shape: "line", size: 30, width: 5, origin: "self" }, true]);
   const [gaze] = fiveToolsActions({ name: "Sguardo (3/Day)", entries: ["The creature targets one creature it can see within 30 feet of it. The target must succeed on a {@dc 11} Wisdom saving throw or fall {@condition unconscious} for 1 minute."] });
-  assert.deepEqual([gaze.name, gaze.uses, gaze.area, gaze.onFail], ["Sguardo", 3, undefined, { condition: "unconscious" }]);
+  assert.deepEqual([gaze.name, gaze.uses, gaze.area, gaze.onFail], ["Sguardo", 3, undefined, { condition: "unconscious", duration: { rounds: 10 } }]);
   const [poke] = fiveToolsActions({ name: "Puntura", entries: ["{@atk mw} {@hit 3} to hit, reach 5 ft., one target. {@h}1 piercing damage."] });
   assert.deepEqual(poke.damage, [{ type: "piercing", formula: "1" }]);
   const [bolt] = fiveToolsActions({ name: "Dardo", entries: ["{@atk rs} {@hit 5} to hit, range 120 ft., one target. {@h}10 ({@damage 3d6}) fire damage."] });

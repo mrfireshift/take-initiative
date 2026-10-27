@@ -6,6 +6,7 @@
 import { monsterImportConditionName } from "./monsterStatblockImportCore.js";
 import { fiveToolsTokenPath } from "./fiveToolsArchiveCore.js";
 import { spellSlotMaximums } from "./spellSlotCore.js";
+import { monsterActionAreaOrigin, monsterHitEffects, monsterSaveEffects } from "./monsterActionHeuristicsCore.js";
 
 const ABILITY_BY_NAME = Object.freeze({ strength: "str", dexterity: "dex", constitution: "con", intelligence: "int", wisdom: "wis", charisma: "cha" });
 const SOURCES_2024 = new Set(["XMM", "XPHB", "XDMG"]);
@@ -109,7 +110,9 @@ function attackAction(name, text, extra) {
   const { components, rest } = hitDamage(hit);
   const remainder = note(rest);
   const status = !components.length ? "manual" : /\{@dc \d+\}|\{@condition /.test(rest) ? "partial" : "full";
-  return [{ ...base, damage: components, ...(remainder ? { note: remainder } : {}), status }];
+  // What the hit does beyond its damage, read by rule (fase 5, lotto 0): the console reads it from lot 4.
+  const onHit = monsterHitEffects(rest);
+  return [{ ...base, damage: components, ...(remainder ? { note: remainder } : {}), ...(Object.keys(onHit).length ? { onHit } : {}), status }];
 }
 
 // The sentences of a save that tell what a failure does: the one with the DC and those that open with "On a failed save"
@@ -151,11 +154,20 @@ function saveAction(name, text, extra) {
   const components = [...failure.matchAll(new RegExp(String.raw`(\d+) \(\{@damage ([^}]+)\}\) (\w+) damage`, "g"))].slice(0, 3)
     .map((match) => ({ type: match[3], formula: match[2].replace(/\s+/g, "") }));
   // "or be frightened", "or become", "or fall unconscious", "or be magically charmed", "and be stunned".
-  const condition = failure.match(/(?:\b(?:or|and) (?:be|become|fall|is|are)|\bis|\bbecomes)(?: \w+ly)? \{@condition ([^}|]+)/);
+  const tagged = failure.match(/(?:\b(?:or|and) (?:be|become|fall|is|are)|\bis|\bbecomes)(?: \w+ly)? \{@condition ([^}|]+)/);
+  // The rules of phase 5 (lotto 0): every condition, its duration, the repeated save, the 24-hour immunity, where the
+  // area starts. The first condition stays in `condition`, as the console reads it today.
+  const effects = monsterSaveEffects(text);
+  const condition = effects.conditions[0] || tagged?.[1] || "";
   if (!components.length && !condition) return [{ name, status: "manual", text }];
   const area = saveArea(text);
+  const { origin, choice } = area ? monsterActionAreaOrigin(text, area.shape) : {};
+  const onFail = condition ? { condition, ...(effects.conditions.length > 1 ? { also: effects.conditions.slice(1) } : {}),
+    ...(effects.duration ? { duration: effects.duration } : {}), ...(effects.repeat ? { repeat: effects.repeat } : {}),
+    ...(effects.endsOnDamage ? { endsOnDamage: true } : {}) } : null;
   return [{ name, save: { ability: ABILITY_BY_NAME[dc[2].toLowerCase()], dc: Number(dc[1]), half: /half as much damage/.test(text) },
-    ...(area ? { area } : {}), ...(condition ? { onFail: { condition: condition[1] } } : {}),
+    ...(area ? { area: { ...area, ...(origin ? { origin } : {}), ...(choice ? { choice: true } : {}) } } : {}), ...(onFail ? { onFail } : {}),
+    ...(effects.immuneHours ? { immuneHours: effects.immuneHours } : {}),
     damage: components, ...extra, ...(saveRemainder(text) ? { note: saveRemainder(text) } : {}), status: "full" }];
 }
 
