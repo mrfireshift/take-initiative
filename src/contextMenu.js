@@ -269,8 +269,10 @@ async function toggleEpicBossOn(ids) {
     OBR.contextMenu.create({
       id: `${ID}/boss-actions`,
       group: MENU_GROUP,
-      icons: [{ icon: ICON_BOSS, label: "Boss Actions", filter: { every: [
+      // Only an Epic boss (Abilita Epic Boss) has the console of its actions.
+      icons: [{ icon: ICON_BOSS, label: "Boss Actions", filter: { roles: ["GM"], every: [
         isCharacter(), { key: "type", value: "IMAGE" },
+        { key: ["metadata", META_KEY, "epic"], operator: "!=", value: undefined },
       ] } }],
       onClick: async (context) => {
         if (context.items?.length === 1) await openBossActionsPopover(context.items[0].id);
@@ -311,6 +313,7 @@ async function toggleEpicBossOn(ids) {
           icon: ICON_MARK,
           label: "Segna come…",
           filter: {
+          roles: ["GM"],
           every: [
           isCharacter(),
           { key: ["metadata", META_KEY, "inInitiative"], operator: "==", value: true }, // ← SOLO se in iniziativa
@@ -333,6 +336,7 @@ async function toggleEpicBossOn(ids) {
           icon: ICON_REMOVE,
           label: "Rimuovi dall’iniziativa",
           filter: {
+  roles: ["GM"],
   every: [
     isCharacter(),
      { key: ["metadata", META_KEY, "inInitiative"], operator: "==", value: true },
@@ -385,6 +389,7 @@ async function toggleEpicBossOn(ids) {
           icon: ICON_ADD,
           label: "Aggiungi all’iniziativa…",
           filter: {
+          roles: ["GM"],
           every: [
           isCharacter(),
           // Mostra la voce solo se NON è già in iniziativa
@@ -399,6 +404,7 @@ async function toggleEpicBossOn(ids) {
       },
     });
 
+    // The GM sets the height of any creature, a player that of a player character (attitude "pc") only.
     OBR.contextMenu.create({
       id: `${ID}/token-elevation`,
       group: MENU_GROUP,
@@ -408,6 +414,13 @@ async function toggleEpicBossOn(ids) {
         filter: {
           roles: ["GM"],
           every: [isCharacter()],
+        },
+      }, {
+        icon: ICON_ELEVATION,
+        label: "Imposta quota…",
+        filter: {
+          roles: ["PLAYER"],
+          every: [isCharacter(), { key: ["metadata", META_KEY, "attitude"], value: "pc" }],
         },
       }],
       embed: {
@@ -517,6 +530,7 @@ async function toggleEpicBossOn(ids) {
       label: "Abilita Azioni Leggendarie",
       // Mostra solo su CHARACTER tracciati, senza Paragon, e senza Legendary
       filter: {
+        roles: ["GM"],
         every: [
           isCharacter(),
           hasMeta("!="),
@@ -549,6 +563,7 @@ async function toggleEpicBossOn(ids) {
       label: "Disabilita Azioni Leggendarie",
       // Mostra solo su CHARACTER tracciati, senza Paragon, e con Legendary presenti
       filter: {
+        roles: ["GM"],
         every: [
           isCharacter(),
           hasMeta("!="),
@@ -636,6 +651,7 @@ OBR.contextMenu.create({
     label: "Abilita Epic Boss",
     // Mostra solo su CHARACTER tracciati, senza Legendary, senza Paragon, senza Epic
     filter: {
+      roles: ["GM"],
       every: [
         isCharacter(),
         hasMeta("!="),
@@ -662,6 +678,7 @@ OBR.contextMenu.create({
     label: "Disabilita Epic Boss",
     // Mostra solo su CHARACTER tracciati, con Epic presente
     filter: {
+      roles: ["GM"],
       every: [
         isCharacter(),
         hasMeta("!="),
