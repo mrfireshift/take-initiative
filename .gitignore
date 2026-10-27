@@ -29,3 +29,6 @@ test-support/embers-gallery/_probe/
 
 # Performance probe exports from real rooms (docs/PERFORMANCE-PROBE.md), kept local
 perf-runs/
+
+# Private packs of the DM encyclopedia (docs/PIANO_COMPENDIO_REGOLE_FASE_2.md): manual texts, never in the repo
+*.private-pack.json

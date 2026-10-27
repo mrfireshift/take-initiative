@@ -1,5 +1,8 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { fiveToolsArchiveSizeLabel } from "./fiveToolsArchiveCore.js";
+import { mergeRulesCatalogs, parsePrivatePack, privatePackContentsLabel, SRD_SOURCE } from "./privatePackCore.js";
+import { createPrivatePackStore } from "./privatePackStore.js";
 import { CONDITION_REFERENCE, REFERENCE_SOURCE } from "./referenceData.js";
 import { buildRulesIndex, entryPath, resolveRelated, rulesTree, searchRules } from "./rulesReferenceCore.js";
 import { rulesTextBlock } from "./rulesTextView.js";
@@ -84,15 +87,23 @@ OBR.onReady(() => {
   const detail = document.getElementById("detail");
   const search = document.getElementById("search");
   const close = document.getElementById("close");
+  const panel = document.querySelector(".panel");
+  const packsToggle = document.getElementById("packsToggle");
+  const packsPanel = document.getElementById("packs");
   const tabs = Array.from(document.querySelectorAll("[data-tab]"));
   if (!results || !detail || !search) return;
+
+  // The private packs this browser keeps (privatePackStore.js) and the state of the Pacchetti panel.
+  const packStore = createPrivatePackStore();
+  const packs = { open: false, list: [], busy: false, message: { text: "", tone: "" } };
 
   const spells = { status: "idle", list: [] };
   const params = new URLSearchParams(window.location.search);
   let activeTab = TABS.has(params.get("tab")) ? params.get("tab") : "conditions";
   let activeEntry = CONDITION_REFERENCE[0] || null;
   // The Rules tab keeps its own selection, the topics opened in the tree and the entries left through "Vedi anche".
-  const rules = { status: "idle", catalog: null, index: null, tree: [], active: null, history: [], expanded: new Set() };
+  // catalog is the SRD compendium (srd) merged with the rules of the imported packs.
+  const rules = { status: "idle", srd: null, catalog: null, index: null, tree: [], active: null, history: [], expanded: new Set() };
   let pendingRuleId = activeTab === "rules" ? params.get("entry") || "" : "";
   let searchTimer = null;
 
@@ -223,15 +234,34 @@ OBR.onReady(() => {
       });
   }
 
+  // Rebuilds the index and the tree; the selection and the "Indietro" stack follow their entries, or drop the ones
+  // a removed pack took away.
+  function setRulesCatalog(catalog) {
+    rules.catalog = catalog;
+    rules.index = buildRulesIndex(catalog);
+    rules.tree = rulesTree(catalog);
+    rules.active = rules.active ? rules.index.byId.get(rules.active.id) || null : null;
+    rules.history = rules.history.map((entry) => rules.index.byId.get(entry.id)).filter(Boolean);
+  }
+
+  function refreshRulesFromPacks() {
+    if (rules.status !== "ready") return;
+    void packStore.all().then((list) => {
+      setRulesCatalog(mergeRulesCatalogs(rules.srd, list));
+      if (activeTab === "rules" && !packs.open) renderResults();
+    });
+  }
+
+  const sourceOf = (entry) => rules.catalog?.sources?.find((source) => source.id === entry.source) || SRD_SOURCE;
+
   function ensureRules() {
     if (rules.status !== "idle") return;
     rules.status = "loading";
     let linked = false;
-    loadRulesCatalog()
-      .then((catalog) => {
-        rules.catalog = catalog;
-        rules.index = buildRulesIndex(catalog);
-        rules.tree = rulesTree(catalog);
+    Promise.all([loadRulesCatalog(), packStore.all()])
+      .then(([srd, list]) => {
+        rules.srd = srd;
+        setRulesCatalog(mergeRulesCatalogs(srd, list));
         rules.status = "ready";
         if (pendingRuleId) {
           const entry = rules.index.byId.get(pendingRuleId);
@@ -285,9 +315,11 @@ OBR.onReady(() => {
     button.textContent = entry.name;
     button.title = entry.name;
     button.setAttribute("aria-pressed", String(entry === rules.active));
-    if (path.length) {
+    // The badge of a pack's entry (XGE, TCE…) and, in the search results, the path.
+    const metaText = [entry.source !== SRD_SOURCE.id ? sourceOf(entry).badge : "", path.join(" › ")].filter(Boolean).join(" · ");
+    if (metaText) {
       const meta = document.createElement("small");
-      meta.textContent = path.join(" › ");
+      meta.textContent = metaText;
       button.appendChild(meta);
     }
     button.addEventListener("click", () => showRule(entry));
@@ -336,13 +368,23 @@ OBR.onReady(() => {
     title.textContent = entry.name;
     detail.appendChild(title);
 
-    if (entry.optional) {
+    const entrySource = sourceOf(entry);
+    if (entry.optional || entrySource.id !== SRD_SOURCE.id) {
       const badges = document.createElement("div");
       badges.className = "badges";
-      const badge = document.createElement("span");
-      badge.className = "badge optional";
-      badge.textContent = "Regola opzionale";
-      badges.appendChild(badge);
+      if (entrySource.id !== SRD_SOURCE.id) {
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = entrySource.badge;
+        badge.title = entrySource.title;
+        badges.appendChild(badge);
+      }
+      if (entry.optional) {
+        const badge = document.createElement("span");
+        badge.className = "badge optional";
+        badge.textContent = "Regola opzionale";
+        badges.appendChild(badge);
+      }
       detail.appendChild(badges);
     }
 
@@ -375,8 +417,126 @@ OBR.onReady(() => {
 
     const source = document.createElement("p");
     source.className = "source-note";
-    source.textContent = `${REFERENCE_SOURCE.label} · p. ${entry.page} · ${REFERENCE_SOURCE.license}`;
+    source.textContent = entrySource.id === SRD_SOURCE.id
+      ? `${REFERENCE_SOURCE.label} · p. ${entry.page} · ${REFERENCE_SOURCE.license}`
+      : `${entrySource.title} · p. ${entry.page} · pacchetto privato`;
     detail.appendChild(source);
+  }
+
+  // The Pacchetti panel: the packs this browser keeps, Importa pacchetto… and Rimuovi. It takes the place of the tabs.
+  function packRow(info) {
+    const row = document.createElement("div");
+    row.className = "pack-row";
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = info.badge;
+    const text = document.createElement("span");
+    text.className = "pack-info";
+    const title = document.createElement("strong");
+    title.textContent = info.title;
+    const meta = document.createElement("small");
+    const imported = info.importedAt ? new Date(info.importedAt).toLocaleDateString("it-IT") : "";
+    meta.textContent = [
+      privatePackContentsLabel(info),
+      info.bytes ? fiveToolsArchiveSizeLabel(info.bytes) : "",
+      imported ? `importato il ${imported}` : "",
+      info.persisted ? "" : "solo per questa sessione",
+    ].filter(Boolean).join(" · ");
+    text.append(title, meta);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Rimuovi";
+    remove.disabled = packs.busy;
+    remove.dataset.packRemove = info.id;
+    remove.addEventListener("click", () => void removePack(info));
+    row.append(badge, text, remove);
+    return row;
+  }
+
+  function renderPacks() {
+    if (!packsPanel) return;
+    const intro = document.createElement("p");
+    intro.className = "packs-intro";
+    intro.textContent = "I pacchetti privati aggiungono i testi dei manuali che non sono nell'SRD. Li generi dai tuoi PDF e restano solo in questo browser: non vanno nella stanza né agli altri giocatori.";
+    const list = document.createElement("div");
+    list.className = "pack-list";
+    if (packs.list.length) list.append(...packs.list.map(packRow));
+    else list.appendChild(emptyNote("Nessun pacchetto importato."));
+    const actions = document.createElement("div");
+    actions.className = "pack-actions";
+    const file = document.createElement("input");
+    file.type = "file";
+    file.accept = ".json,application/json";
+    file.multiple = true;
+    file.hidden = true;
+    file.addEventListener("change", () => void importPacks([...file.files]));
+    const add = document.createElement("button");
+    add.type = "button";
+    add.textContent = "Importa pacchetto…";
+    add.disabled = packs.busy;
+    add.addEventListener("click", () => file.click());
+    actions.append(add, file);
+    const nodes = [intro, list, actions];
+    if (packs.message.text) {
+      const message = document.createElement("p");
+      message.className = `packs-message ${packs.message.tone}`.trim();
+      message.setAttribute("role", "status");
+      message.textContent = packs.message.text;
+      nodes.push(message);
+    }
+    packsPanel.replaceChildren(...nodes);
+  }
+
+  async function reloadPacks() {
+    packs.list = await packStore.list();
+    renderPacks();
+  }
+
+  async function importPacks(files) {
+    if (!files.length) return;
+    packs.busy = true;
+    renderPacks();
+    const done = [];
+    const failed = [];
+    for (const file of files) {
+      const { pack, error } = parsePrivatePack(await file.text().catch(() => ""));
+      if (error) {
+        failed.push(`${file.name}: ${error}`);
+        continue;
+      }
+      const saved = await packStore.put(pack, { bytes: file.size });
+      done.push(saved.persisted ? pack.title.trim() : `${pack.title.trim()} (solo per questa sessione: ${saved.reason})`);
+    }
+    packs.busy = false;
+    packs.message = failed.length
+      ? { text: [done.length ? `Importati: ${done.join(", ")}.` : "", ...failed].filter(Boolean).join(" "), tone: "error" }
+      : { text: `Importati: ${done.join(", ")}.`, tone: "ok" };
+    await reloadPacks();
+    refreshRulesFromPacks();
+  }
+
+  async function removePack(info) {
+    packs.busy = true;
+    renderPacks();
+    await packStore.remove(info.id);
+    packs.busy = false;
+    packs.message = { text: `Rimosso: ${info.title}.`, tone: "ok" };
+    await reloadPacks();
+    refreshRulesFromPacks();
+  }
+
+  function setPacksOpen(open) {
+    packs.open = open;
+    panel?.classList.toggle("packs-open", open);
+    if (packsPanel) packsPanel.hidden = !open;
+    packsToggle?.setAttribute("aria-pressed", String(open));
+    if (packsToggle) packsToggle.textContent = open ? "‹ Enciclopedia" : "Pacchetti";
+    if (open) {
+      packs.message = { text: "", tone: "" };
+      void reloadPacks();
+    } else {
+      renderResults();
+    }
   }
 
   function renderRules() {
@@ -506,6 +666,7 @@ OBR.onReady(() => {
   search.addEventListener("keyup", refreshSearchResults);
   search.addEventListener("compositionend", refreshSearchResults);
   close?.addEventListener("click", closeReferencePopover);
+  packsToggle?.addEventListener("click", () => setPacksOpen(!packs.open));
   for (const tab of tabs) {
     const active = tab.dataset.tab === activeTab;
     tab.classList.toggle("active", active);
