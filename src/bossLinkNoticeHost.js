@@ -11,15 +11,16 @@ export async function openBossLinkNotice(notices) {
   if (!card) return false;
   let viewportWidth = 1200;
   let viewportHeight = 800;
+  // The previous card closes while the screen's size is read; the new one opens after both.
   const [reportedWidth, reportedHeight] = await Promise.all([
     OBR.viewport.getWidth().catch(() => viewportWidth),
     OBR.viewport.getHeight().catch(() => viewportHeight),
+    OBR.popover.close(BOSS_LINK_NOTICE_POPOVER_ID).catch(() => {}),
   ]);
   viewportWidth = Number(reportedWidth) || viewportWidth;
   viewportHeight = Number(reportedHeight) || viewportHeight;
   const cardWidth = Math.min(500, Math.max(312, viewportWidth - 40));
   const top = Math.max(12, Math.round(viewportHeight * 0.09));
-  await OBR.popover.close(BOSS_LINK_NOTICE_POPOVER_ID).catch(() => {});
   await OBR.popover.open({
     id: BOSS_LINK_NOTICE_POPOVER_ID,
     url: `/boss-link-notice.html?payload=${encodeURIComponent(JSON.stringify(card))}`,

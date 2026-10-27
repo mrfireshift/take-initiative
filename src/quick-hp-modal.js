@@ -140,9 +140,11 @@ function itemForId(id) {
   return targets.find((item) => item.id === wanted) || null;
 }
 
-async function currentInitiativeActorId() {
-  const metadata = await OBR.scene.getMetadata().catch(() => ({}));
-  const state = metadata?.[STATE_KEY] || {};
+// The state loadTargets just read, when given, spares a second read of the scene metadata.
+async function currentInitiativeActorId(initiativeState = null) {
+  const state = initiativeState
+    || (await OBR.scene.getMetadata().catch(() => ({})))?.[STATE_KEY]
+    || {};
   const order = Array.isArray(state.order) ? state.order : [];
   const current = Math.max(0, Math.min(order.length - 1, Number(state.current) || 0));
   for (let index = current; index < order.length; index += 1) {
@@ -626,7 +628,11 @@ function updateControls() {
 async function loadTargets() {
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId("quick-hp-load") });
   if (!sceneLifecycle.isCurrent(operation)) return false;
-  const metadata = await OBR.scene.getMetadata().catch(() => ({}));
+  // The order and the tokens are read together: neither read depends on the other.
+  const [metadata, sceneItems] = await Promise.all([
+    OBR.scene.getMetadata().catch(() => ({})),
+    OBR.scene.items.getItems(),
+  ]);
   if (!sceneLifecycle.isCurrent(operation)) return false;
   const state = metadata?.[STATE_KEY] || { order: [] };
   const orderedIds = uniqueIds(
@@ -636,9 +642,8 @@ async function loadTargets() {
   );
   const orderIndex = new Map(orderedIds.map((id, index) => [id, index]));
   const orderedSet = new Set(orderedIds);
-  sharedHpItems = await OBR.scene.items.getItems();
+  sharedHpItems = sceneItems;
   const items = sharedHpTargetItems(sharedHpItems, [...orderedSet]);
-  if (!sceneLifecycle.isCurrent(operation)) return false;
   items.sort((a, b) => {
     const ai = orderIndex.has(a.id) ? orderIndex.get(a.id) : Number.MAX_SAFE_INTEGER;
     const bi = orderIndex.has(b.id) ? orderIndex.get(b.id) : Number.MAX_SAFE_INTEGER;
@@ -648,14 +653,15 @@ async function loadTargets() {
   for (const item of targets) {
     if (!factors.has(item.id)) factors.set(item.id, QUICK_HP_FACTORS.FULL);
   }
-  return true;
+  // The initiative state it read (truthy, like the former true), for the condition sources.
+  return state;
 }
 
-async function refreshConditionSourceOptions() {
+async function refreshConditionSourceOptions(initiativeState = null) {
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId("quick-hp-condition-sources") });
   if (!sceneLifecycle.isCurrent(operation)) return false;
   const previous = text(conditionSourceSelect.value);
-  const activeId = await currentInitiativeActorId();
+  const activeId = await currentInitiativeActorId(initiativeState);
   if (!sceneLifecycle.isCurrent(operation)) return false;
   conditionSourceSelect.replaceChildren(new Option("Nessuna fonte", ""));
   for (const item of targets) {
@@ -905,8 +911,7 @@ async function applyOperation() {
       : `Applicato a ${entries.length} bersagli.`;
     if (coordinatedMutation.historyPending) status.textContent += " Cronologia in recupero; non ripetere l'azione.";
     sharedHpSelection = { policy: "once", chosenTargetIds: {} };
-    await loadTargets();
-    await refreshConditionSourceOptions();
+    await refreshConditionSourceOptions(await loadTargets() || null);
     if (!sceneLifecycle.isCurrent(operation)) return;
   } catch (error) {
     console.error("[quick-hp] apply:", error);
@@ -982,8 +987,7 @@ async function undoLastOperation() {
     }
     lastEntryId = "";
     status.textContent = "Ultima applicazione annullata.";
-    await loadTargets();
-    await refreshConditionSourceOptions();
+    await refreshConditionSourceOptions(await loadTargets() || null);
   } catch (error) {
     console.error("[quick-hp] undo:", error);
     if (!sceneLifecycle.isCurrent(operation)) {
@@ -1092,7 +1096,7 @@ OBR.onReady(async () => {
     if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
       mountSelectionSync();
       status.textContent = "Nuova scena pronta: seleziona di nuovo i bersagli.";
-      void loadTargets().then(() => refreshConditionSourceOptions()).then(() => {
+      void loadTargets().then((state) => refreshConditionSourceOptions(state || null)).then(() => {
         if (sceneAvailable()) renderTargets();
       }).catch(() => {});
     }
@@ -1117,8 +1121,7 @@ OBR.onReady(async () => {
   populateConditionOptions();
   renderBulkActions();
   mountSelectionSync();
-  await loadTargets();
-  await refreshConditionSourceOptions();
+  await refreshConditionSourceOptions(await loadTargets() || null);
   renderTargets();
   await refreshSelectionFromScene();
   amountInput.focus();

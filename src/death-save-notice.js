@@ -161,10 +161,12 @@ renderMarks($("failures"), 0, "failure", "☠");
 
 OBR.onReady(async () => {
   if (!activationId || !target?.id) { close(); return; }
+  // The token is read while the role is asked; the outcome buttons still appear as soon as the role is known.
+  const itemRead = OBR.scene.items.getItems([target.id]).catch(() => []);
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   // The GM records the roll; the table screen (and a GM in informational mode, without a resolution) only watches.
   if (role === "GM" && notice.resolution) renderOutcomes();
-  const [item] = await OBR.scene.items.getItems([target.id]).catch(() => []);
+  const [item] = await itemRead;
   if (!item) { close(); return; }
   renderToken(item);
   OBR.scene.items.onChange((items) => {

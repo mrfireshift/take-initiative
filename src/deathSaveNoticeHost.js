@@ -26,9 +26,14 @@ export function splitDeathSaveNotices(payload) {
 }
 
 async function openDeathSavePopover(notice) {
-  const viewportWidth = Number(await OBR.viewport.getWidth().catch(() => 1200)) || 1200;
-  const viewportHeight = Number(await OBR.viewport.getHeight().catch(() => 800)) || 800;
-  await OBR.popover.close(DEATH_SAVE_NOTICE_POPOVER_ID).catch(() => {});
+  // The screen's size and the close of the previous popup at once (they do not depend on each other), then the open.
+  const [reportedWidth, reportedHeight] = await Promise.all([
+    OBR.viewport.getWidth().catch(() => 1200),
+    OBR.viewport.getHeight().catch(() => 800),
+    OBR.popover.close(DEATH_SAVE_NOTICE_POPOVER_ID).catch(() => {}),
+  ]);
+  const viewportWidth = Number(reportedWidth) || 1200;
+  const viewportHeight = Number(reportedHeight) || 800;
   await OBR.popover.open({
     id: DEATH_SAVE_NOTICE_POPOVER_ID,
     url: `/death-save-notice.html?payload=${encodeURIComponent(JSON.stringify({ notice }))}`,

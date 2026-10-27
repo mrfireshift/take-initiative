@@ -55,6 +55,8 @@ Lotti fatti, tutti il 27/10:
 
 - **P4** (parte a): all'avvio l'avviso di turno legge opzioni e ruolo insieme, con un passaggio in meno su ogni client a ogni turno. Il primo contenuto nell'URL (parte b, D5) resta da fare.
 
+- **P5**: gli host del tiro contro la morte e del Legame del boss chiudono il popup precedente mentre leggono le misure dello schermo; il popup del tiro legge il token mentre chiede il ruolo. La console PF rapida legge ordine e token insieme e riusa lo stato appena letto per la fonte delle condizioni. Dal codice: da 4 a 2 RT in fila prima dell'apertura del tiro contro la morte, da 3 a 2 per il Legame, da 2 a 1 per il token nel popup, e da 3 a 1 per caricare la console PF (all'avvio, dopo un'applicazione e dopo un Annulla).
+
 Lotto saltato: **V4** (tipografia), per scelta dell'utente il 28/10: le dimensioni attuali dei testi vanno bene al tavolo. Il commit `7e480cc` è stato annullato da `d87abd1`.
 
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
