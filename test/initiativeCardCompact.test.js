@@ -1270,7 +1270,7 @@ test("gli altri effetti si aprono in un cassetto a destra della card, in colonne
   const [firstColumn, secondColumn] = drawer.children;
   assert.equal(firstColumn.children.length, 6);
   assert.equal(secondColumn.children.length, 1);
-  // The same pill as on the card: 14px, 8px text, the card's padding.
+  // The same pill as on the card: 14px, 10px text (the micro type token), the card's padding.
   const cardPill = __buildCompactEffectPill(effects[0], true, { documentRef });
   for (const key of ["height", "fontSize", "fontWeight", "lineHeight", "padding"]) {
     assert.equal(firstColumn.children[0].style[key], cardPill.style[key], key);

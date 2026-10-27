@@ -1112,7 +1112,7 @@ const EPIC_TAG_CFG = {
   },
   action: {
     label: "Azione Epica",
-    fontSize: 9, fontWeight: 500, padX: 8, padY: 2, radius: 999,
+    fontSize: 10, fontWeight: 500, padX: 8, padY: 2, radius: 999,
     bg: "rgba(255, 0, 0, 1)", color: "#fff",
     border: "1px solid rgba(6, 0, 0, 1)", letterSpacing: .2
   }
@@ -2358,7 +2358,7 @@ for (const [key, label] of [
   caption.textContent = label;
   Object.assign(caption.style, {
     color: "rgba(255,255,255,.58)",
-    fontSize: "9px",
+    fontSize: "var(--obrt-type-micro, 10px)",
     textTransform: "uppercase",
   });
   const value = document.createElement("strong");
@@ -3731,7 +3731,7 @@ function applyTrackerLayout() {
       gap: "3px",
       padding: "3px 8px",
       borderRadius: "10px",
-      fontSize: "9px",
+      fontSize: "var(--obrt-type-micro, 10px)",
       textAlign: "center",
       cursor: "default",
       pointerEvents: "auto",
@@ -3747,7 +3747,7 @@ function applyTrackerLayout() {
       minWidth: "0",
       width: "100%",
       overflow: "hidden",
-      fontSize: "9px",
+      fontSize: "var(--obrt-type-micro, 10px)",
       textAlign: "center",
       textOverflow: "ellipsis",
     });

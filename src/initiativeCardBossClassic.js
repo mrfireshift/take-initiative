@@ -310,7 +310,7 @@ export function buildClassicLegendaryResourceDock(
     Object.assign(label.style, {
       flex: "0 0 auto",
       color: "rgba(255,255,255,.74)",
-      fontSize: "7px",
+      fontSize: "var(--obrt-type-micro, 10px)",
       fontWeight: "700",
       lineHeight: "1",
       letterSpacing: ".04em",

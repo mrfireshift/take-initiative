@@ -1173,12 +1173,12 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   for (const icon of hpRowIcons) icon.style.marginBottom = CARD_ICON_LIFT;
 
   if (legendaryHPRow) {
-    hpCaption.style.fontSize = "9px";
+    hpCaption.style.fontSize = "10px";
     hpCaption.style.lineHeight = "11px";
     legendaryHPRow.append(hpCaption, pill, ...hpRowIcons);
     hpControlsRow.appendChild(hpBarWrap);
   } else if (bossTopRow) {
-    hpCaption.style.fontSize = "9px";
+    hpCaption.style.fontSize = "10px";
     hpCaption.style.lineHeight = "11px";
     bossTopRow.append(hpCaption, pill, ...hpRowIcons);
     hpControlsRow.appendChild(hpBarWrap);

@@ -1539,7 +1539,7 @@ export function buildConditionChips(cond = {}, opts = {}) {
           borderRadius: "999px",
           background: "rgba(255,255,255,.16)",
           border: "1px solid rgba(255,255,255,.28)",
-          fontSize: compact ? "8px" : "9px",
+          fontSize: "var(--obrt-type-micro, 10px)",
           fontWeight: "700",
           lineHeight: "1",
         });
