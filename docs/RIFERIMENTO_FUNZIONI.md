@@ -348,7 +348,12 @@ dell'indice `sorgenti/regole/<manuale>-indice.json`, che dichiara anche il
 piè di pagina, lo scarto tra pagine del PDF e del libro, il prefisso degli id
 (`xge-`), le correzioni degli errori di OCR (espressioni regolari, che possono
 anche dividere una riga) e le intestazioni delle tabelle da ricostruire dalle
-celle (`autoTables`).
+celle (`autoTables`: due colonne una cella per riga, come "Attività / CD", o
+tabelle a dado con l'intestazione su una riga, come "d100 Effetto"). Quando
+l'OCR spezza le parole (Tasha), `scripts/repair-ocr-text.mjs` ripara prima il
+testo (`<manuale>-pdf.txt` → `<manuale>.txt`): unisce frammenti vicini che
+insieme formano una parola nota e scrive ogni unione in
+`<manuale>-riparazioni.txt`.
 
 La cartella privata contiene `sorgenti/` (file grezzi e database completi),
 `testi/<manuale>/incantesimi.json` e `capacita.json` (scritti dai generatori) e
@@ -358,6 +363,8 @@ La cartella privata contiene `sorgenti/` (file grezzi e database completi),
 npm run generate:supplement-spells
 npm run generate:class-features
 npm run generate:private-rules -- --book=xanathar
+npm run repair:ocr -- --book=tasha
+npm run generate:private-rules -- --book=tasha
 npm run packs:build
 npm run check:private-texts -- --dist=dist
 ```

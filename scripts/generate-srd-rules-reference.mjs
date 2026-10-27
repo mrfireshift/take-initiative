@@ -123,10 +123,54 @@ function checkTableWords(label, run, rebuilt, omit = []) {
 const TABLE_VALUE = /^\d+(?:\s*[-–]\s*\d+)?$/u;
 const TABLE_VALUE_AND_LABEL = /^(\d+(?:\s*[-–]\s*\d+)?)\s+(\D.*)$/u;
 
+// A die table with its header on one line ({ header: "d100 Effetto", columns: ["d100", "Effetto"] }): each row starts
+// with its range ("01-06 Per le 2 ore…", or the range alone on a line before the text), a line that starts with no
+// range goes on the previous row's text, an upper-case heading ends the table.
+const DIE_RANGE = /^(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)$/u;
+const DIE_ROW = /^(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)\s+(\D.*)$/u;
+const isUpperHeading = (text) => {
+  const letters = text.replace(/[^\p{L}]/gu, "");
+  return letters.length >= 4 && letters === letters.toLocaleUpperCase("it") && text.length < 70;
+};
+
+function dieTable(parts, index, spec) {
+  const rows = [];
+  let range = null;
+  let next = index + 1;
+  for (; next < parts.length; next += 1) {
+    const text = parts[next].text;
+    if (text === undefined || isUpperHeading(text)) break;
+    // The header again, where the table goes on in the next column or page.
+    if (text === spec.header) continue;
+    const row = DIE_ROW.exec(text);
+    if (range === null && row) rows.push([row[1], row[2]]);
+    else if (range === null && DIE_RANGE.test(text)) range = text;
+    else if (range !== null && !DIE_RANGE.test(text)) {
+      rows.push([range, text]);
+      range = null;
+    } else if (rows.length && range === null) rows.at(-1)[1] += ` ${text}`;
+    else break;
+  }
+  if (range !== null) next -= 1;
+  return { rows: [spec.columns, ...rows], next };
+}
+
 function autoTables(parts, headers = []) {
   const out = [];
   for (let index = 0; index < parts.length; index += 1) {
-    const header = headers.find((cells) => cells.every((cell, offset) => parts[index + offset]?.text === cell));
+    const die = headers.find((spec) => !Array.isArray(spec) && parts[index]?.text === spec.header);
+    if (die) {
+      const { rows, next } = dieTable(parts, index, die);
+      const consumed = parts.slice(index, next).map((part) => part.text).filter((text, offset) => offset === 0 || text !== die.header).join(" ");
+      if (rows.length < 3 || words(consumed).join(" ") !== words(rows.flat().join(" ")).join(" ")) {
+        out.push(parts[index]);
+        continue;
+      }
+      out.push({ table: rows });
+      index = next - 1;
+      continue;
+    }
+    const header = headers.filter(Array.isArray).find((cells) => cells.every((cell, offset) => parts[index + offset]?.text === cell));
     if (!header) {
       out.push(parts[index]);
       continue;

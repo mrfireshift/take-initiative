@@ -175,3 +175,40 @@ test("il generatore legge un manuale privato: piè di pagina, pagine, prefisso, 
   assert.equal(reference.entries[0].text, "Una caduta da 1d6 metri.");
   assert.equal(reference.entries[1].text, "Gli attrezzi servono.\n\nATTREZZI DA PROVA\n\nAttività | CD\nAprire una porta | 10\nchiudere una porta | 15");
 });
+
+test("una tabella a dado con l'intestazione su una riga diventa una tabella, righe a capo comprese", () => {
+  const fixture = [bookPage([
+    "REGIONE FINTA",
+    "Accade qualcosa.",
+    "d100 Effetto",
+    "01-50 Piove",
+    "per un'ora.",
+    "51-00",
+    "Nevica.",
+    "ALTRA VOCE",
+    "Fine del testo.",
+    "FINE",
+  ])].join("\f");
+  const { reference } = buildRulesReference(fixture, {
+    source: "manuale finto",
+    idPrefix: "mf-",
+    footer: "^CAPITOLO 2 I STRUMENTI$",
+    autoTables: [{ header: "d100 Effetto", columns: ["d100", "Effetto"] }],
+    nodes: [
+      { kind: "topic", id: "avventura", name: "Avventura" },
+      { kind: "entry", heading: "REGIONE FINTA", page: 1, name: "Regione finta" },
+      { kind: "entry", heading: "ALTRA VOCE", page: 1, name: "Altra voce" },
+      { kind: "end", heading: "FINE", page: 1 },
+    ],
+  });
+  assert.equal(reference.entries[0].text, "Accade qualcosa.\n\nd100 | Effetto\n01-50 | Piove per un'ora.\n51-00 | Nevica.");
+});
+
+test("la riparazione dell'OCR unisce i frammenti che formano una parola nota, mai due parole vere", async () => {
+  const { mendLine, vocabularyOf } = await import("../scripts/repair-ocr-text.mjs");
+  const known = vocabularyOf(["il suo personaggio di prova svolgere una gilda"]);
+  assert.deepEqual(mendLine("il s uo pe rsonaggio", known), ["il suo personaggio", [["s uo", "suo"], ["pe rsonaggio", "personaggio"]]]);
+  assert.deepEqual(mendLine("TIPI D I G ILDA", known)[0], "TIPI DI GILDA");
+  assert.deepEqual(mendLine("svolge r e", known)[0], "svolgere");
+  assert.deepEqual(mendLine("di prova", known), ["di prova", []]);
+});

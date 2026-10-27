@@ -51,8 +51,10 @@ function stringsOf(file, keys = null) {
 }
 
 // The private files and the keys to read in each: every string of the texts, the text fields of the raw files.
+// The PDF's raw text (sorgenti/regole/*.txt) is left out: its rules are in testi/<book>/regole.json, and the rest of
+// it (a spell's components, its school) is the facts the catalogs keep on purpose.
 function privateSources(dir) {
-  return filesUnder(dir).map((file) => ({
+  return filesUnder(dir).filter((file) => !file.endsWith(".txt")).map((file) => ({
     file,
     keys: path.relative(dir, file).startsWith("testi") ? null : RAW_TEXT_KEYS,
   }));

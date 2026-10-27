@@ -20,6 +20,7 @@
     "generate:class-features": "node scripts/generate-class-feature-catalog.mjs",
     "generate:rules-reference": "node scripts/generate-srd-rules-reference.mjs",
     "generate:private-rules": "node scripts/generate-private-rules.mjs",
+    "repair:ocr": "node scripts/repair-ocr-text.mjs",
     "packs:build": "node scripts/build-private-packs.mjs",
     "check:private-texts": "node scripts/check-private-texts.mjs",
     "audit:class-features": "node scripts/audit-class-features.mjs",
