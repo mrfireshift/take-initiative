@@ -21,7 +21,9 @@ const sdk = { onReady() {}, player: { getRole: async () => "GM" },
   scene: { getMetadata: async () => ({}), onReadyChange: () => () => {}, items: {
     getItems: async ids => structuredClone(items.filter(item => !ids || (typeof ids === "function" ? ids(item) : ids.includes(item.id)))),
     getItemBounds: async () => ({ width: 150, height: 150, min: { x: 0, y: 0 }, max: { x: 150, y: 150 } }),
-    updateItems: async (ids, update) => { const drafts = structuredClone(items.filter(item => ids.includes(item.id))); update(drafts);
+    // Ids or items, as the SDK takes them.
+    updateItems: async (ids, update) => { const wanted = ids.map(entry => (typeof entry === "object" ? entry?.id : entry));
+      const drafts = structuredClone(items.filter(item => wanted.includes(item.id))); update(drafts);
       items = items.map(item => drafts.find(draft => draft.id === item.id) || item); },
     addItems: async added => { items.push(...structuredClone(added)); },
     deleteItems: async ids => { items = items.filter(item => !ids.includes(item.id)); },

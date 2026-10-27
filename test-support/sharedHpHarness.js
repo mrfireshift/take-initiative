@@ -25,7 +25,9 @@ export const sdk = {
       getItems: async ids => clone(items.filter(item => !ids || (typeof ids === "function" ? ids(item) : ids.includes(item.id)))),
       updateItems: async (ids, updater) => {
         if (failWrite) { failWrite = false; throw new Error("injected SDK failure"); }
-        const drafts = clone(items.filter(item => typeof ids === "function" ? ids(item) : ids.includes(item.id)));
+        // A filter, ids or items, as the SDK takes them.
+        const wanted = typeof ids === "function" ? null : ids.map(entry => (typeof entry === "object" ? entry?.id : entry));
+        const drafts = clone(items.filter(item => wanted ? wanted.includes(item.id) : ids(item)));
         updater(drafts); const byId = new Map(drafts.map(item => [item.id, item]));
         items = items.map(item => byId.get(item.id) || item);
       },

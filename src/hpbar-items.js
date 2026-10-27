@@ -569,7 +569,12 @@ async function flushQueued(){
       const finalIds = Array.from(new Set(idsToUpdate.filter(id => existing.has(id))));
 
       if (finalIds.length) {
-        await OBR.scene.items.updateItems(finalIds, (items) => {
+        // The items just read are the base of the update: given ids, the SDK would read the same items again.
+        const finalIdSet = new Set(finalIds);
+        const finalItems = current.filter((item, index, list) => (
+          finalIdSet.has(item?.id) && list.findIndex((other) => other?.id === item.id) === index
+        ));
+        await OBR.scene.items.updateItems(finalItems, (items) => {
           for (const it of items) {
             const u = updatesById.get(it.id);
             if (!u) { continue; }
@@ -917,7 +922,8 @@ async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
     const [token] = await OBR.scene.items.getItems([tokenId]);
     if (!token) return;
 
-    const L = await computeBarLayout(tokenId);
+    // The token just read gives the layout its zIndex: without it, computeBarLayout reads the whole scene.
+    const L = await computeBarLayout(tokenId, token);
     if (!L) return;
     const { leftX, topY, barH, tokenZ } = L;
 

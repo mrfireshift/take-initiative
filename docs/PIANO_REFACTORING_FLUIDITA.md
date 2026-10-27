@@ -42,6 +42,12 @@ Lotti fatti, tutti il 27/10:
   - il caricamento dei limiti in parallelo, perché `test/sceneItemBoundsCache.test.js` fissa il caricamento in serie come scelta voluta, da decidere a parte;
   - la passata immediata e il watchdog delle zone, dove una lettura mancata farebbe perdere un trigger.
 
+- **S6** (due punti su quattro):
+  - le barre dei PF si aggiornano a partire dagli item appena riletti, invece degli ID: l'SDK non rilegge più gli stessi item;
+  - il testo dei PF passa al layout il token già letto: niente più lettura di tutta la scena per lo `zIndex`.
+
+  Esclusi: la pulizia degli orfani da una lettura più vecchia, perché in un caso di Undo cancellerebbe e ricreerebbe una barra, e il controllo della scena pronta senza metadata, perché il guadagno è quasi nullo. Gli SDK finti di due test ora accettano ID o item come quello reale.
+
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.
