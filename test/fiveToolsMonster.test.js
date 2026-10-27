@@ -259,3 +259,20 @@ test("la riga di riepilogo e il riferimento del mostro sulla scheda", () => {
   assert.equal(fiveToolsImportSummary(fiveToolsMonsterToStatblock(monster("Giant Spider")), monster("Giant Spider")),
     "Da 5eTools (MM): Giant Spider, 1 azione registrabile, 1 da gestire al tavolo.");
 });
+
+// Testi fuori forma (27/10): il versatile abbreviato di Zariel, «to hit.» con il punto, la parentesi chiusa dopo il tipo.
+// Testi inventati sulla loro forma; le scelte di tipo restano al tavolo.
+test("testi fuori forma: versatile abbreviato con il «plus» sommato, «to hit.», la parentesi spostata", () => {
+  const [hammer] = fiveToolsActions({ name: "Warhammer", entries: ["{@atk mw} {@hit 16} to hit, reach 10 ft., one target. {@h}17 ({@damage 2d8 + 8}) bludgeoning, or 19 ({@damage 2d10 + 8}) bludgeoning damage if used with two hands, plus 36 ({@damage 8d8}) fire damage. In addition, the weapon emits a burst of cold."] });
+  assert.deepEqual([hammer.status, hammer.damage], ["full", [{ type: "bludgeoning", formula: "2d8+8" }, { type: "fire", formula: "8d8" }]]);
+  assert.equal(hammer.note, "or 19 (2d10 + 8) bludgeoning damage if used with two hands. In addition, the weapon emits a burst of cold.");
+  // The two-handed damage before the "plus": the "plus" adds to both.
+  const [sword] = fiveToolsActions({ name: "Longsword", entries: ["{@atk mw} {@hit 11} to hit, reach 5 ft., one target. {@h}9 ({@damage 1d8 + 5}) slashing damage, or 10 ({@damage 1d10 + 5}) slashing damage if used with two hands, plus 18 ({@damage 4d8}) necrotic damage."] });
+  assert.deepEqual([sword.damage, sword.note], [[{ type: "slashing", formula: "1d8+5" }, { type: "necrotic", formula: "4d8" }], "or 10 (1d10 + 5) slashing damage if used with two hands."]);
+  const [claw] = fiveToolsActions({ name: "Claw", entries: ["{@atk mw} {@hit 6} to hit. reach 10 ft., one target. {@h}7 ({@damage 1d6 + 4}) slashing damage."] });
+  assert.deepEqual([claw.status, claw.attack], ["full", { bonus: 6, type: "melee", reach: 10 }]);
+  const [deathly] = fiveToolsActions({ name: "Deathly Claw", entries: ["{@atk mw} {@hit 6} to hit, reach 5 ft., one target. {@h}13 ({@damage 3d6 + 3} necrotic damage)."] });
+  assert.deepEqual([deathly.status, deathly.damage, deathly.note], ["full", [{ type: "necrotic", formula: "3d6+3" }], undefined]);
+  const [choice] = fiveToolsActions({ name: "Sledgehammer", entries: ["{@atk mw} {@hit 9} to hit, reach 5 ft., one target. {@h}27 ({@damage 6d6 + 6}) bludgeoning or force damage (tomb tapper's choice)."] });
+  assert.equal(choice.status, "manual", "a choice of type stays at the table");
+});

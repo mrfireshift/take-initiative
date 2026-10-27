@@ -75,12 +75,18 @@ function note(text) {
 function hitDamage(text) {
   const components = [];
   let rest = text;
-  const first = rest.match(new RegExp(`^(?:${DAMAGE})`));
+  // "17 (2d8 + 8) bludgeoning, or 19 (2d10 + 8) bludgeoning damage if used with two hands": the one-handed damage
+  // without its "damage" (Zariel's Matalotok), the same groups as DAMAGE's first form.
+  const first = rest.match(new RegExp(`^(?:${DAMAGE})`))
+    || rest.match(/^(\d+) \(\{@damage ([^}]+)\}\) (\w+)(?=, or \d+ \(\{@damage [^}]+\}\) \3 damage if used with two hands\b)/);
   if (!first) return { components, rest };
   // The 2024 types are capitalized ("Slashing"): the plugin's are not.
   const push = (match) => components.push(match[2] ? { type: match[3].toLowerCase(), formula: match[2].replace(/\s+/g, "") } : { type: match[5].toLowerCase(), formula: match[4] });
   push(first);
   rest = rest.slice(first[0].length);
+  // The two-handed damage between the first one and its "plus": left to the note, the "plus" still adds.
+  const twoHands = rest.match(new RegExp(`^, or (?:${DAMAGE}) if used with two hands(?=, plus )`));
+  if (twoHands) rest = rest.slice(twoHands[0].length);
   for (let next = rest.match(new RegExp(`^,? plus (?:${DAMAGE})`)); next && components.length < 3; next = rest.match(new RegExp(`^,? plus (?:${DAMAGE})`))) {
     // "plus 2 (1d4) Slashing damage if the attack roll had Advantage": a damage only sometimes, left to the note (fase 3,
     // lotto 6, decision D4).
@@ -88,10 +94,11 @@ function hitDamage(text) {
     push(next);
     rest = rest.slice(next[0].length);
   }
-  return { components, rest };
+  return { components, rest: twoHands ? `${twoHands[0]}${rest}` : rest };
 }
 
-const ATTACK = /^\{@atk ([a-z,]+)\} \{@hit (-?\d+)\} to hit(?: \([^)]*\))?, (?:reach (\d+) ft\.(?: or ranged? (\d+)(?:\/(\d+))? ft\.)?|ranged? (\d+)(?:\/(\d+))? ft\.).*?\{@h\}(.*)$/;
+// "to hit." with a dot (the girallon's Claw) reads as "to hit,".
+const ATTACK = /^\{@atk ([a-z,]+)\} \{@hit (-?\d+)\} to hit(?: \([^)]*\))?[,.] (?:reach (\d+) ft\.(?: or ranged? (\d+)(?:\/(\d+))? ft\.)?|ranged? (\d+)(?:\/(\d+))? ft\.).*?\{@h\}(.*)$/;
 // The 2024 attack roll (fase 3, lotto 6): "{@atkr m} {@hit 4}, reach 5 ft.", "{@atkr m,r} {@hit 6}, reach 5 ft. or range 120
 // ft.", "{@atkr r} {@hit 4}, range 80/320 ft."; a few still say "to hit" or add "(with Advantage if …)". The same groups as
 // the 2014 one: "m" and "r" read as its codes.
@@ -101,7 +108,9 @@ const ATTACK_2024 = /^\{@atkr ([mr,]+)\} \{@hit (-?\d+)\}(?: to hit)?(?: \([^)]*
 function attackAction(name, text, extra) {
   const match = text.match(ATTACK) || text.match(ATTACK_2024);
   if (!match) return null;
-  const [, codes, bonus, reach, meleeRange, meleeLong, range, long, hit] = match;
+  const [, codes, bonus, reach, meleeRange, meleeLong, range, long, printed] = match;
+  // "13 ({@damage 3d6 + 3} necrotic damage)": the parenthesis closed after the type (the deathlock mastermind's Claw).
+  const hit = printed.replace(/(\d+) \(\{@damage ([^}]+)\} (\w+) damage\)/g, "$1 ({@damage $2}) $3 damage");
   const ranged = !reach;
   const normal = Number(range || meleeRange) || null;
   const longRange = Number(long || meleeLong) || null;
