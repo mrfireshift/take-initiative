@@ -115,6 +115,16 @@
     .notes[hidden] { display:none; }
     .notes span { display:block; margin-bottom:4px; color:var(--accent-bright); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
     .notes p { margin:0; color:rgba(255,255,255,.86); font-size:var(--obrt-type-secondary); line-height:1.35; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .statblock-text summary { cursor:pointer; list-style:none; }
+    .statblock-text summary::-webkit-details-marker { display:none; }
+    .statblock-text summary span::before { content:"▸ "; }
+    .statblock-text[open] summary span::before { content:"▾ "; }
+    .statblock-text[open] summary span { margin-bottom:6px; }
+    .statblock-text p + p { margin-top:4px; }
+    .statblock-text .statblock-text-line { color:rgba(255,255,255,.78); }
+    .statblock-text b { color:#fff; font-weight:var(--obrt-weight-bold); }
+    .statblock-text .statblock-text-title { margin:10px 0 4px; padding-bottom:2px; border-bottom:1px solid rgba(var(--faction-rgb),.28); color:var(--accent-bright); font-size:var(--obrt-type-secondary); font-weight:var(--obrt-weight-bold); }
+    .statblock-text .statblock-text-missing { color:rgba(255,255,255,.6); font-style:italic; }
     .quick-actions-block { margin-top:0; }
     .quick-actions-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .quick-actions-heading .section-title { margin:0; }
@@ -201,6 +211,15 @@
     .class-build-badge { padding:5px 8px; border:1px solid rgba(var(--faction-rgb),.30); border-radius:999px; background:rgba(var(--faction-rgb),.10); color:var(--accent-bright); font-size:11px; font-weight:var(--obrt-weight-bold); }
     .class-feature-empty { padding:11px; border:1px dashed rgba(var(--faction-rgb),.25); border-radius:8px; color:rgba(255,255,255,.58); text-align:center; }
     .class-feature-resources,.class-feature-active,.class-feature-list { display:grid; gap:7px; }
+    /* An NPC's Capacità hide the character's parts: [hidden] wins over their display (flex, block). */
+    #classFeaturesView [hidden] { display:none !important; }
+    .monster-traits .section-title:first-child { margin-top:0; }
+    .monster-trait-list { display:grid; gap:6px; }
+    .monster-trait { padding:7px 10px; border-radius:7px; background:linear-gradient(145deg,rgba(var(--faction-rgb),.065),rgba(7,12,19,.28)); border:1px solid rgba(var(--faction-rgb),.20); }
+    .monster-trait p { margin:0; color:rgba(255,255,255,.86); font-size:var(--obrt-type-secondary); line-height:1.35; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .monster-trait b { color:#fff; font-weight:var(--obrt-weight-bold); }
+    .monster-trait .monster-trait-cost { float:right; margin-left:6px; color:var(--accent-bright); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); }
+    .monster-traits .class-feature-empty { margin-bottom:4px; }
     .class-feature-resource,.class-feature-active-row,.class-feature-card { padding:9px; border:1px solid rgba(var(--faction-rgb),.23); border-left:3px solid var(--feature-accent, rgba(var(--faction-rgb),.55)); border-radius:9px; background:linear-gradient(145deg,var(--feature-background,rgba(var(--faction-rgb),.075)),rgba(7,12,19,.30)); }
     .class-feature-resource,.class-feature-active-row { display:flex; align-items:center; gap:8px; }
     .class-feature-resource-copy,.class-feature-active-copy { min-width:0; flex:1; display:grid; gap:2px; }
@@ -333,6 +352,28 @@
     .sheet-import-section input.sheet-import-hp-value { width:64px; height:28px; min-height:28px; padding:3px 6px; border-radius:8px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; font-size:var(--obrt-type-secondary); accent-color:auto; }
     .sheet-import-hp-option { display:flex; gap:7px; align-items:center; margin:0 0 0 31px; color:rgba(255,255,255,.75); font-size:10px; }
     .sheet-import-hp-option input { width:13px; height:13px; min-height:13px; margin:0; accent-color:var(--accent); }
+    .sheet-import-portrait-preview { width:28px; height:28px; flex:0 0 28px; border-radius:50%; object-fit:cover; background:rgba(255,255,255,.06); }
+    /* 5eTools (attacchi dei mostri, fase 2, lotto 3): the monsters loaded, a search, what the stat block leaves at the table. */
+    .sheet-import-picker { display:grid; gap:5px; }
+    .sheet-import-picker[hidden] { display:none !important; }
+    .sheet-import-picker input, .sheet-import-picker select { width:100%; box-sizing:border-box; border-radius:8px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; font-size:var(--obrt-type-secondary); }
+    .sheet-import-picker input { min-height:28px; padding:3px 8px; }
+    .sheet-import-picker select { padding:3px; }
+    .sheet-import-pool { color:rgba(255,255,255,.62); font-size:10px; line-height:1.35; }
+    .sheet-import-report { margin:0; padding:7px 9px; border-radius:8px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.18); color:rgba(255,255,255,.78); font-size:10px; line-height:1.4; }
+    /* The 5eTools archive (fase 3, lotto 4): the books this browser keeps and Aggiungi libro. */
+    .sheet-import-archive { border:1px solid rgba(var(--faction-rgb),.18); border-radius:8px; padding:5px 8px; }
+    .sheet-import-archive > summary { cursor:pointer; color:#fff; font-size:var(--obrt-type-secondary); font-weight:var(--obrt-weight-bold); }
+    .sheet-import-archive-body { display:grid; gap:5px; margin-top:6px; }
+    .five-tools-book, .five-tools-add { display:flex; gap:6px; align-items:center; min-width:0; }
+    .five-tools-book-info { flex:1 1 auto; min-width:0; }
+    .five-tools-book-info strong, .five-tools-book-info small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .five-tools-book-info strong { color:#fff; font-size:var(--obrt-type-secondary); }
+    .five-tools-book-info small { color:rgba(255,255,255,.62); font-size:10px; }
+    .five-tools-add select { flex:1 1 auto; min-width:0; min-height:28px; border-radius:8px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; font-size:var(--obrt-type-secondary); }
+    .five-tools-archive-message { margin:0; color:rgba(255,255,255,.78); font-size:10px; line-height:1.35; }
+    .five-tools-archive-message[data-tone="error"] { color:#fecaca; }
+    .five-tools-archive-message[data-tone="ok"] { color:#bbf7d0; }
     .sheet-import-unresolved { margin:0; padding:7px 9px; border-radius:8px; border:1px solid rgba(252,165,165,.30); background:rgba(127,29,29,.18); color:#fecaca; font-size:10px; line-height:1.4; }
     #sheetImportStatus:empty { display:none; }
     .status { min-height:16px; margin-top:8px; color:#fca5a5; font-size:11px; }
@@ -381,76 +422,77 @@
       .eyebrow { display:none; }
     }
   </style>
-  <script type="module" crossorigin src="/assets/initiativeCardModal-Mghw-Mr1.js"></script>
+  <script type="module" crossorigin src="/assets/initiativeCardModal-BJmNWwCz.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
   <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
   <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-Xnaks2-t.js">
   <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BEeUqVid.js">
-  <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-DEGw6ZYJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-Ds9nI5d0.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-28TsGb8f.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3dCore-DjQKSEJL.js">
   <link rel="modulepreload" crossorigin href="/assets/blinkRules-B7h2dcBC.js">
   <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-6KKWKaI9.js">
-  <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-BUFEwbNS.js">
-  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-CH57oQIl.js">
-  <link rel="modulepreload" crossorigin href="/assets/history-DvP36yLX.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-Bj5YOVqf.js">
+  <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-VtTguaiy.js">
+  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-D92JV1e-.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-BZvQPn--.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-CLg6Sxsu.js">
   <link rel="modulepreload" crossorigin href="/assets/effectLabelCore-BxJURo7r.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditions-Dyq09ZrA.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-jBIkpIRZ.js">
   <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-BqyfCr_o.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-D3QrJC8M.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-CUzjg6Rv.js">
   <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-Cdz46GuY.js">
   <link rel="modulepreload" crossorigin href="/assets/customAuraCore-DHb778YP.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-CmDx267j.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-BkE3p-AU.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-BTZU8s_u.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-mOkcZX8z.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-Si4K1nkQ.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-_uE9Akgc.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3d-0Hv9UNB4.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-CoiWSQ6H.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-Cw85z9iu.js">
   <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-CJ-dHtGF.js">
-  <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-CmQhG0O3.js">
-  <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-DuDSInVV.js">
+  <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BrzTWjqm.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-CjXC0cev.js">
   <link rel="modulepreload" crossorigin href="/assets/spellbookCore-B67x6sIA.js">
-  <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-CrLJx-Qz.js">
-  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-DHgc5oUe.js">
-  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-lX2DTkH_.js">
+  <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-B1ZgDdCJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-lLcBWjcg.js">
+  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-DLkqC34i.js">
   <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionRules-BxyKhMb_.js">
   <link rel="modulepreload" crossorigin href="/assets/spells-srd-NJmrROBU.js">
   <link rel="modulepreload" crossorigin href="/assets/spellExpiryCore-DbSfb06C.js">
   <link rel="modulepreload" crossorigin href="/assets/combatLogCausalityCore-CMBZlm78.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellCastRecordCore-DJ9Qqklo.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-B6yscTrM.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellCastRecordCore-DAtaie0j.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-D81Efz9c.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-DhsHPZi8.js">
-  <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-BXTw3yIc.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureDescriptions-C_vvaqTQ.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-chFwQjWl.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-yl2w4rpI.js">
+  <link rel="modulepreload" crossorigin href="/assets/pcAttackLauncher-CruevhVZ.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureDescriptions-BMxtAgpX.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-CntGNRhy.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-CmN-uiYU.js">
   <link rel="modulepreload" crossorigin href="/assets/spellExecutionHistoryCore-CnIq3c04.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellAreaResolutionCommandCore-CkFIpeQk.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionCore-W-xsd4Wb.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-B9hKBtAH.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelSceneProvider-Bl2VCeIG.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-CSHbkUJW.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditionApplicationExecutor-pd-LtnGN.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-Cnq0PW5c.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellAreaResolutionCommandCore-BssRw1PA.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionCore-D507Gq46.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedActiveAdapter-vXzfFv3u.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelSceneProvider-BIfNM1iT.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-Dms0so-y.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditionApplicationExecutor-Be1B-9XN.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionValidation-a9SVCb_E.js">
   <link rel="modulepreload" crossorigin href="/assets/spellDamageHealingCore-XKk4C40j.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-5hUM_IHG.js">
-  <link rel="modulepreload" crossorigin href="/assets/optionsProjection-CKg7TZeY.js">
-  <link rel="modulepreload" crossorigin href="/assets/reminderProjectionBroadcast-DMVwN8mp.js">
+  <link rel="modulepreload" crossorigin href="/assets/optionsProjection-Dr_4Ap_H.js">
+  <link rel="modulepreload" crossorigin href="/assets/reminderProjectionBroadcast-Cz0m5sZG.js">
   <link rel="modulepreload" crossorigin href="/assets/zoneTriggerNoticeCore-B3Yyoa4v.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-avQEgFwd.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellStaticZone-EhLsqxbr.js">
   <link rel="modulepreload" crossorigin href="/assets/counterspellCore-Dov7qTRC.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellCastRecord-D8a6mLl-.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-Bo5lMCN0.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-NdDQItjt.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellCastRecord-DTwSSMQV.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellApplicationExecutor-BxeIoQD1.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellSlotSpendCore-BLrPVw1N.js">
   <link rel="modulepreload" crossorigin href="/assets/reactionTrackerCore-Jt1t4N2P.js">
   <link rel="modulepreload" crossorigin href="/assets/counterspellLauncher-BgsWdsFF.js">
-  <link rel="modulepreload" crossorigin href="/assets/quickActionExecution-CZTumO13.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickActionExecution-lnursnfM.js">
   <link rel="modulepreload" crossorigin href="/assets/speciesHpTraitCore-q14MSnKU.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureRuntime-DHs7fXbq.js">
+  <link rel="modulepreload" crossorigin href="/assets/speciesInnateSpellCore-BtxPxoiq.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureRuntime-DGqePTZd.js">
 </head>
 <body>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/initiative-card-modal">
@@ -498,6 +540,7 @@
       <div id="saves" class="saves"></div>
       <div id="damageDefensesBlock" class="notes" hidden><span>Difese ai danni</span><p id="damageDefenses"></p></div>
       <div id="notesBlock" class="notes" hidden><span>Note</span><p id="notes"></p></div>
+      <details id="statblockTextBlock" class="notes statblock-text" hidden><summary><span>Statblock originale</span></summary><div id="statblockText"></div></details>
     </section>
     <section id="spellbookView" role="tabpanel" aria-labelledby="spellbookTab" hidden>
       <div class="spellbook-summary">
@@ -524,23 +567,35 @@
       </section>
     </section>
     <section id="classFeaturesView" role="tabpanel" aria-labelledby="classFeaturesTab" hidden>
+      <div id="monsterTraits" class="monster-traits" hidden></div>
       <div id="classBuildSummary" class="class-build-summary"></div>
-      <span class="section-title">Risorse</span>
+      <span id="classFeatureResourcesTitle" class="section-title">Risorse</span>
       <div id="classFeatureRestActions" class="rest-actions" hidden></div>
       <div id="classFeatureResources" class="class-feature-resources"></div>
-      <span class="section-title">Attive</span>
+      <span id="classFeatureActiveTitle" class="section-title">Attive</span>
       <div id="classFeatureActive" class="class-feature-active"></div>
-      <span class="section-title">Capacità abilitate</span>
+      <span id="classFeatureListTitle" class="section-title">Capacità abilitate</span>
       <div id="classFeatureList" class="class-feature-list"></div>
       <div id="classFeatureRunStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>
     </section>
     <form id="form" autocomplete="off">
       <section id="sheetImport" class="sheet-import" hidden>
         <span class="section-title">Importa da una scheda</span>
-        <textarea id="sheetImportText" spellcheck="false" autocomplete="off" aria-label="JSON della scheda personaggio" placeholder="Incolla qui il JSON della scheda personaggio"></textarea>
+        <textarea id="sheetImportText" spellcheck="false" autocomplete="off" aria-label="JSON della scheda personaggio" placeholder="Incolla qui il JSON della scheda personaggio, di uno statblock o di 5eTools"></textarea>
         <div class="attack-import-actions">
           <button id="sheetImportClose" class="quick-action-add" type="button">Chiudi</button>
+          <button id="sheetImportFileButton" class="quick-action-add" type="button" title="Un bestiario o un mostro di 5eTools (.json); più file insieme per i mostri derivati">Carica file</button>
+          <input id="sheetImportFile" type="file" accept=".json,application/json" multiple hidden />
           <button id="sheetImportRead" class="quick-action-add" type="button">Leggi</button>
+        </div>
+        <details id="sheetImportArchive" class="sheet-import-archive">
+          <summary>Archivio online</summary>
+          <div id="sheetImportArchiveBody" class="sheet-import-archive-body"></div>
+        </details>
+        <div id="sheetImportPicker" class="sheet-import-picker" hidden>
+          <input id="sheetImportSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Cerca per nome o libro (MM, VGM, IDRotF…)" aria-label="Cerca un mostro di 5eTools" />
+          <select id="sheetImportMonster" size="6" aria-label="Mostri di 5eTools"></select>
+          <small id="sheetImportPool" class="sheet-import-pool"></small>
         </div>
         <div id="sheetImportSections" class="sheet-import-sections" hidden></div>
         <div id="sheetImportStatus" class="quick-action-run-status" role="status" aria-live="polite"></div>

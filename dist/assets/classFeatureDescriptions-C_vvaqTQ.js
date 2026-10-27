@@ -1,1 +1,0 @@
-import{_ as i}from"./preload-helper-BXl3LOEh.js";let r=null,e=null;function o(){return!!r}function s(){return e||=i(()=>import("./classFeatureDescriptionsData-BPZDVtY7.js"),[]).then(t=>{r=t.default||{}}).catch(t=>{throw e=null,t}),e}function a(t){return r?.[t?.id]||t?.description||""}export{a,o as c,s as l};
