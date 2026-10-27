@@ -12,10 +12,34 @@ const ABILITIES = Object.freeze({ strength: "str", dexterity: "dex", constitutio
 const SAVE = /DC (\d+) (Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) saving throw/i;
 const DAMAGE = /(\d+) \((\d+d\d+(?: ?[+-−] ?\d+)?)\) (\w+) damage/g;
 
+// The 2024 stat blocks' tags as the 2025 Monster Manual prints them (fase 3, lotto 6): "{@atkr m}" → "Melee Attack
+// Roll:", "{@actSave dex}" → "Dexterity Saving Throw:", "{@actSaveFail 2}" → "Second Failure:", "{@hom}" → "Hit or Miss:".
+// null for any other tag. One table for the adapter's text and the rules' text.
+const ATTACK_ROLL_KINDS = Object.freeze({ m: "Melee", r: "Ranged", "m,r": "Melee or Ranged", "r,m": "Melee or Ranged" });
+const SAVE_ABILITY_NAMES = Object.freeze({ str: "Strength", dex: "Dexterity", con: "Constitution", int: "Intelligence", wis: "Wisdom", cha: "Charisma" });
+const ORDINALS = Object.freeze({ 1: "First", 2: "Second", 3: "Third" });
+export function fiveTools2024TagText(tag, parts = []) {
+  if (tag === "atkr") return `${ATTACK_ROLL_KINDS[String(parts[0] || "").trim()] || "Attack"} Attack Roll:`;
+  if (tag === "actSave") return `${SAVE_ABILITY_NAMES[String(parts[0] || "").trim()] || "Saving"} Saving Throw:`;
+  if (tag === "actSaveFail") {
+    const step = String(parts[0] || "").trim();
+    return !step ? "Failure:" : ORDINALS[step] ? `${ORDINALS[step]} Failure:` : `Failure ${step}:`;
+  }
+  if (tag === "actSaveFailBy") return `Failure by ${parts[0] || 5} or More:`;
+  if (tag === "actSaveSuccess") return "Success:";
+  if (tag === "actSaveSuccessOrFail") return "Failure or Success:";
+  if (tag === "actTrigger") return "Trigger:";
+  if (tag === "actResponse") return "Response:";
+  if (tag === "hom") return "Hit or Miss:";
+  return null;
+}
+
 // 5eTools' tags as the book prints them: "{@dc 13}" → "DC 13", "{@condition prone}" → "prone", "{@damage 2d6}" → "2d6".
 export function monsterActionPlainText(value) {
   return String(value ?? "").replace(/\{@(\w+)(?: ([^}]*))?\}/g, (_, tag, body = "") => {
     const parts = body.split("|");
+    const printed2024 = fiveTools2024TagText(tag, parts);
+    if (printed2024 !== null) return printed2024;
     if (tag === "dc") return `DC ${parts[0]}`;
     if (tag === "hit") return `${Number(parts[0]) >= 0 ? "+" : ""}${parts[0]}`;
     if (tag === "h") return "Hit: ";

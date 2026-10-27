@@ -8,7 +8,7 @@
 import { monsterImportConditionName } from "./monsterStatblockImportCore.js";
 import { fiveToolsTokenPath } from "./fiveToolsArchiveCore.js";
 import { spellSlotMaximums } from "./spellSlotCore.js";
-import { monsterActionAreaOrigin, monsterHitEffects, monsterSaveEffects } from "./monsterActionHeuristicsCore.js";
+import { fiveTools2024TagText, monsterActionAreaOrigin, monsterHitEffects, monsterSaveEffects } from "./monsterActionHeuristicsCore.js";
 
 const ABILITY_BY_NAME = Object.freeze({ strength: "str", dexterity: "dex", constitution: "con", intelligence: "int", wisdom: "wis", charisma: "cha" });
 const SOURCES_2024 = new Set(["XMM", "XPHB", "XDMG"]);
@@ -40,6 +40,9 @@ export function isFiveTools2024(monster) {
 export function fiveToolsPlainText(value) {
   return String(value ?? "").replace(/\{@(\w+)(?: ([^}]*))?\}/g, (_, tag, body = "") => {
     const parts = body.split("|");
+    // The 2024 tags (fase 3, lotto 6), as the 2025 Monster Manual prints them.
+    const printed2024 = fiveTools2024TagText(tag, parts);
+    if (printed2024 !== null) return printed2024;
     if (tag === "atk") return `${ATTACK_LABELS[parts[0]] || "Attack"}:`;
     if (tag === "hit") return `${Number(parts[0]) >= 0 ? "+" : ""}${parts[0]}`;
     if (tag === "h") return "Hit: ";
@@ -337,6 +340,13 @@ function plainList(value) {
   }).filter(Boolean).join(", ");
 }
 
+// The proficiency bonus of a challenge rating ("1/2", "17", { cr: "17" }): +2 up to 4, +1 every 4 more.
+function crProficiencyBonus(cr) {
+  const raw = typeof cr === "object" && cr ? cr.cr : cr;
+  const value = String(raw || "0").includes("/") ? 0 : Number(raw) || 0;
+  return value <= 4 ? 2 : Math.min(9, 2 + Math.ceil((value - 4) / 4));
+}
+
 function fiveToolsHeader(monster) {
   const rows = [];
   const add = (label, text) => { if (text) rows.push({ label, text }); };
@@ -351,6 +361,11 @@ function fiveToolsHeader(monster) {
     const text = `${entry?.ac ?? ""}${entry?.from ? ` (${entry.from.map(fiveToolsPlainText).join(", ")})` : ""}${entry?.condition ? ` ${fiveToolsPlainText(entry.condition)}` : ""}`;
     return entry?.braces ? `(${text})` : text;
   }).join(", ").replace(/, \(/g, " ("));
+  // A 2024 stat block prints its Initiative: Dexterity modifier plus its proficiency bonus times the multiplier.
+  if (isFiveTools2024(monster) && Number.isFinite(monster.dex)) {
+    const bonus = Math.floor((monster.dex - 10) / 2) + (Number(monster.initiative?.proficiency) || 0) * crProficiencyBonus(monster.cr);
+    add("Initiative", `${bonus >= 0 ? "+" : "−"}${Math.abs(bonus)} (${10 + bonus})`);
+  }
   add("Hit Points", monster.hp ? (Number.isFinite(monster.hp.average) ? `${monster.hp.average}${monster.hp.formula ? ` (${monster.hp.formula})` : ""}` : fiveToolsPlainText(monster.hp.special || "")) : "");
   add("Speed", Object.entries(monster.speed && typeof monster.speed === "object" ? monster.speed : {}).filter(([mode]) => mode !== "canHover")
     .map(([mode, value]) => {
@@ -384,16 +399,18 @@ function spellcastingText(block) {
   const list = (spells) => asList(spells).filter((entry) => !(entry && typeof entry === "object" && entry.hidden))
     .map((entry) => fiveToolsPlainText(entry && typeof entry === "object" ? entry.entry : entry)).filter(Boolean).join(", ");
   const lines = [entriesText(block.headerEntries)];
-  for (const [level, entry] of Object.entries(block.spells && typeof block.spells === "object" ? block.spells : {})) {
+  // A list the stat block does not print ("hidden": the spell is named in the header, as the 2024 Misty Step).
+  const shown = (key) => !asList(block.hidden).includes(key);
+  for (const [level, entry] of Object.entries(shown("spells") && block.spells && typeof block.spells === "object" ? block.spells : {})) {
     const slots = Number(entry?.slots) > 0 ? ` (${entry.slots} slot${entry.slots === 1 ? "" : "s"}${entry.lower ? `, level ${level}` : ""})` : level === "0" ? " (at will)" : "";
     lines.push(`${SPELL_LEVEL_NAMES[Number(level)] || `Level ${level}`}${slots}: ${list(entry?.spells)}`);
   }
-  if (block.will) lines.push(`At will: ${list(block.will)}`);
-  const daily = Object.entries(block.daily && typeof block.daily === "object" ? block.daily : {})
+  if (block.will && shown("will")) lines.push(`At will: ${list(block.will)}`);
+  const daily = Object.entries(shown("daily") && block.daily && typeof block.daily === "object" ? block.daily : {})
     .sort(([left], [right]) => Number.parseInt(right, 10) - Number.parseInt(left, 10));
   for (const [key, spells] of daily) lines.push(`${Number.parseInt(key, 10)}/day${key.endsWith("e") ? " each" : ""}: ${list(spells)}`);
   for (const [key, label] of [["weekly", "week"], ["rest", "rest"]]) {
-    for (const [count, spells] of Object.entries(block[key] && typeof block[key] === "object" ? block[key] : {})) {
+    for (const [count, spells] of Object.entries(shown(key) && block[key] && typeof block[key] === "object" ? block[key] : {})) {
       lines.push(`${Number.parseInt(count, 10)}/${label}${count.endsWith("e") ? " each" : ""}: ${list(spells)}`);
     }
   }
@@ -407,15 +424,23 @@ export function fiveToolsStatblockSections(monster) {
     .map((entry) => ({ name: fiveToolsPlainText(entry.name || ""), text: fiveToolsPlainText(entriesText(entry.entries ?? entry.entry)) }))
     .filter((entry) => entry.name || entry.text);
   const shortName = String(monster.shortName === true ? monster.name : monster.shortName || monster.name || "").toLowerCase();
+  const rules2024 = isFiveTools2024(monster);
+  const uses = monster.legendaryActions || 3;
+  // The 2025 Monster Manual's opening of the legendary actions, with the uses in the lair (fase 3, lotto 6).
   const legendaryIntro = monster.legendaryHeader ? fiveToolsPlainText(entriesText(monster.legendaryHeader))
-    : `The ${shortName} can take ${monster.legendaryActions || 3} legendary actions, choosing from the options below. Only one legendary action option can be used at a time and only at the end of another creature's turn. The ${shortName} regains spent legendary actions at the start of its turn.`;
+    : rules2024
+      ? `Legendary Action Uses: ${uses}${monster.legendaryActionsLair ? ` (${monster.legendaryActionsLair} in Lair)` : ""}. Immediately after another creature's turn, the ${shortName} can expend a use to take one of the following actions. The ${shortName} regains all expended uses at the start of each of its turns.`
+      : `The ${shortName} can take ${uses} legendary actions, choosing from the options below. Only one legendary action option can be used at a time and only at the end of another creature's turn. The ${shortName} regains spent legendary actions at the start of its turn.`;
+  // A 2024 spellcasting is an action, a bonus action, a reaction or a legendary action (displayAs): it stands there.
+  const spellcasting = (place) => asList(monster.spellcasting).filter((block) => block && typeof block === "object" && (block.displayAs || "trait") === place)
+    .map((block) => ({ name: fiveToolsPlainText(block.name || "Spellcasting"), text: spellcastingText(block) }));
   const sections = [
-    { title: "", entries: [...named(monster.trait), ...asList(monster.spellcasting).filter((block) => block && typeof block === "object")
-      .map((block) => ({ name: fiveToolsPlainText(block.name || "Spellcasting"), text: spellcastingText(block) }))] },
-    { title: "Actions", entries: named(monster.action) },
-    { title: "Bonus Actions", entries: named(monster.bonus) },
-    { title: "Reactions", entries: named(monster.reaction) },
-    { title: "Legendary Actions", entries: monster.legendary ? [{ name: "", text: legendaryIntro }, ...named(monster.legendary)] : [] },
+    { title: "", entries: [...named(monster.trait), ...spellcasting("trait")] },
+    { title: "Actions", entries: [...named(monster.action), ...spellcasting("action")] },
+    { title: "Bonus Actions", entries: [...named(monster.bonus), ...spellcasting("bonus")] },
+    { title: "Reactions", entries: [...named(monster.reaction), ...spellcasting("reaction")] },
+    { title: "Legendary Actions", entries: monster.legendary || spellcasting("legendary").length
+      ? [{ name: "", text: legendaryIntro }, ...named(monster.legendary), ...spellcasting("legendary")] : [] },
     { title: "Mythic Actions", entries: monster.mythic ? [...(monster.mythicHeader ? [{ name: "", text: fiveToolsPlainText(entriesText(monster.mythicHeader)) }] : []), ...named(monster.mythic)] : [] },
   ].filter((section) => section.entries.length);
   return { header: fiveToolsHeader(monster), sections };

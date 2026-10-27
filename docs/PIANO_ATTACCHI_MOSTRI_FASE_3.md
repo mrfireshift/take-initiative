@@ -91,7 +91,7 @@ l'indirizzo è un'opzione, e **Carica file** della fase 2 resta il ripiego.
 
 ### Lotto 6 — statblock 2024 opzionali (piano dettagliato del 27/10/2026)
 
-Stato: **D1–D5 confermate come raccomandate il 27/10; sotto-lotto 1 fatto.** Riscritto dopo le fasi 4 e 5: oltre ad attacchi e azioni a
+Stato: **D1–D5 confermate come raccomandate il 27/10; sotto-lotti 1 e 2 fatti.** Riscritto dopo le fasi 4 e 5: oltre ad attacchi e azioni a
 TS, un mostro 2024 deve passare anche da incantesimi, leggendarie, testo dello statblock ed effetti letti ad euristica.
 
 Il principio non cambia: il plugin gioca con le regole del 2014 (condizioni, indebolimento, riposi, incantesimi del
@@ -127,7 +127,15 @@ quelle delle fasi 1–5.
    dove accenderla. Il testo dello statblock di un mostro 2024 importato si ritrova dai libri dell'archivio. Misura di
    partenza con `--2024` sul Monster Manual 2025: 1020 azioni ancora «al tavolo» (le leggono i sotto-lotti 3–5). Nel
    banco: Goblin Warrior (XMM) rifiutato a opzione spenta, importato come «Goblin Warrior (XMM) · 2024» ad accesa.
-2. **Testo in chiaro 2024.** `fiveToolsPlainText` e il lettore ad euristica rendono i tag nuovi come li stampa il libro
+2. **Testo in chiaro 2024.** ✅ Fatto (27/10): una sola tabella, `fiveTools2024TagText` in
+   `src/monsterActionHeuristicsCore.js`, usata dall'adapter e dalle regole («Melee or Ranged Attack Roll:», «Second
+   Failure:», «Failure by 5 or More:», «Hit or Miss:»…). Lo statblock originale di un mostro 2024 ha l'iniziativa
+   («Initiative +12 (22)», dalla Destrezza e dalla competenza del GS), gli incantesimi tra azioni, azioni bonus,
+   reazioni o leggendarie secondo `displayAs`, l'apertura 2024 delle leggendarie («Legendary Action Uses: 3 (4 in
+   Lair)») e non stampa le liste nascoste (`hidden`, anche per il 2014). Nessun tag residuo sui 503 mostri del Monster
+   Manual 2025. Nota per il sotto-lotto 4: il TS 2024 in chiaro è «Dexterity Saving Throw: DC 21», l'ordine inverso del
+   2014 («DC 21 Dexterity saving throw»).
+   Piano originale: `fiveToolsPlainText` e il lettore ad euristica rendono i tag nuovi come li stampa il libro
    («Melee Attack Roll:», «Dexterity Saving Throw:», «Failure:», «Success:», «Trigger:», «Response:»), i tipi di danno in
    minuscolo, `{@variantrule Cone [Area of Effect]|XPHB|Cone}` come «Cone». Serve allo statblock originale, alle note e
    alle regole.
