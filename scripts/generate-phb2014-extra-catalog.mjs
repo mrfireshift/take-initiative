@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { writePrivateSpellTexts } from "./privateSources.mjs";
+
 const OUTPUT_PATH = "src/spells-phb2014-extra.json";
 const SCHEMA_VERSION = 1;
 const EXPECTED_SPELL_COUNT = 41;
@@ -179,8 +181,12 @@ const payload = {
     spellCount: spells.length,
   },
   approvedIds: ids,
-  spells,
+  // The texts are private (compendio delle regole, fase 2): the repo keeps every other field, the texts go to the
+  // private folder (scripts/privateSources.mjs) for the GM's Manuale del Giocatore pack.
+  spells: spells.map(({ description: _description, higherLevels: _higherLevels, ...spell }) => spell),
 };
 
 fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 console.log(`Scritti ${spells.length} incantesimi in ${OUTPUT_PATH}`);
+const texts = Object.fromEntries(spells.map((spell) => [spell.id, { description: spell.description, higherLevels: spell.higherLevels || "" }]));
+console.log(`Testi privati scritti in ${writePrivateSpellTexts(SOURCE.id, texts)}`);

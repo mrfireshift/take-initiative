@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import phb2014Data from "../src/spells-phb2014-extra.json" with { type: "json" };
 import referenceData from "../src/spell-reference-it.json" with { type: "json" };
 import supplementData from "../src/spells-supplements-runtime.json" with { type: "json" };
+import { readPrivateSpellTexts } from "./privateSources.mjs";
 import {
   getAreaSaveRuleChoices,
   getSpellCatalog,
@@ -435,11 +436,20 @@ function hasSignal(text, name) {
   return SIGNAL_PATTERNS[name].some((pattern) => pattern.test(text));
 }
 
+// The supplement and PHB spells carry their facts only: their text comes from the private folder
+// (scripts/privateSources.mjs). Without it their rows have no text, as for a spell missing from the reference. An
+// italianReference names its book and text with privateSource and privateTextId (the legacy Mind Whip reuses Tasha's).
+function withPrivateText(entry) {
+  if (!entry) return entry;
+  const text = readPrivateSpellTexts(entry.privateSource || entry.source)?.[entry.privateTextId || entry.id];
+  return text ? { ...entry, description: text.description, higherLevels: text.higherLevels } : entry;
+}
+
 function referenceMap() {
   return new Map([
     ...Object.values(referenceData.spells || {}).map((entry) => [entry.id, entry]),
-    ...(supplementData.spells || []).map((entry) => [entry.id, entry]),
-    ...(phb2014Data.spells || []).map((entry) => [entry.id, entry]),
+    ...(supplementData.spells || []).map((entry) => [entry.id, withPrivateText(entry)]),
+    ...(phb2014Data.spells || []).map((entry) => [entry.id, withPrivateText(entry)]),
   ]);
 }
 
@@ -1564,7 +1574,7 @@ export function buildSpellAutomationAudit() {
   const allRows = getSpellCatalog()
     .map((spell) => deriveSpellAudit(
       spell,
-      references.get(spell.id) || spell.italianReference || null,
+      references.get(spell.id) || withPrivateText(spell.italianReference) || null,
       trackableIds,
       unifiedCatalogById,
     ))

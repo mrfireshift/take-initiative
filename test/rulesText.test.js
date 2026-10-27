@@ -6,7 +6,13 @@ import { rulesTextBlock, rulesTextNodes } from "../src/rulesTextView.js";
 import { CONDITION_REFERENCE } from "../src/referenceData.js";
 import { classFeatureDescription, loadClassFeatureDescriptions } from "../src/classFeatureDescriptions.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails } from "../src/spellbookCatalog.js";
-import supplementCatalog from "../src/spells-supplements-runtime.json" with { type: "json" };
+import { readPrivateSpellTexts } from "../scripts/privateSources.mjs";
+
+// The texts of the Xanathar and Tasha spells are in the GM's private folder (compendio delle regole, fase 2).
+const supplementTexts = readPrivateSpellTexts("xanathar") && readPrivateSpellTexts("tasha")
+  ? { ...readPrivateSpellTexts("xanathar"), ...readPrivateSpellTexts("tasha") }
+  : null;
+const noSupplementTexts = !supplementTexts && "testi privati assenti";
 
 function createTestDocument() {
   const makeNode = (tagName) => ({
@@ -121,8 +127,8 @@ test("le capacità con un elenco in linea lo hanno su righe proprie, un prodotto
   assert.ok(!rulesTextBlocks(blades).some((block) => block.kind === "list"));
 });
 
-test("gli incantesimi di Xanathar e Tasha tengono paragrafi, elenchi e tabelle", () => {
-  const spell = (id) => supplementCatalog.spells.find((entry) => entry.id === id);
+test("gli incantesimi di Xanathar e Tasha tengono paragrafi, elenchi e tabelle", { skip: noSupplementTexts }, () => {
+  const spell = (id) => supplementTexts[id];
   const moldEarth = rulesTextBlocks(spell("xanathar-modellare-terra").description);
   assert.deepEqual(moldEarth.map((block) => block.kind), ["paragraph", "list", "paragraph"]);
   assert.deepEqual(moldEarth[1].items.map((item) => item.split(" ").slice(0, 4).join(" ")), [
@@ -168,8 +174,8 @@ test("le capacità di Xanathar e Tasha hanno i paragrafi e gli elenchi del manua
   assert.ok(kinds("barbaro-cammino-della-bestia-forma-della-bestia").length >= 4);
 });
 
-test("gli incantesimi di Xanathar corretti come nel PDF, Sudario spirituale resta a 3 metri", () => {
-  const spell = (id) => supplementCatalog.spells.find((entry) => entry.id === id);
+test("gli incantesimi di Xanathar corretti come nel PDF, Sudario spirituale resta a 3 metri", { skip: noSupplementTexts }, () => {
+  const spell = (id) => supplementTexts[id];
   for (const id of ["creare-falo", "ferocia-primordiale", "infestazione", "morsa-del-gelo", "parola-radiosa", "rintocco-dei-morti", "rombo-di-tuono"]) {
     assert.match(spell(`xanathar-${id}`).description, /\), l'11° livello \(/u, id);
   }

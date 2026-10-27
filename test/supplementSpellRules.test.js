@@ -10,6 +10,7 @@ import {
   getSpellEffects,
   getTrackableSpellOptions,
 } from "../src/spells-srd.js";
+import { readPrivateSpellTexts } from "../scripts/privateSources.mjs";
 import { effectSummaryPartsFor } from "../src/effectLabelCore.js";
 
 test("tutti i supplementi sono nel catalogo e le spell istantanee pure restano escluse dal tracker", () => {
@@ -32,7 +33,8 @@ test("Gabbia dell'Anima resta tracking-only con durata e riferimento RAW complet
   assert.deepEqual(spell.activeActions, []);
   assert.deepEqual(spell.effects, []);
 
-  const description = spell.italianReference.description;
+  const description = readPrivateSpellTexts("xanathar")?.[spell.italianReference.privateTextId]?.description;
+  if (!description) return;
   for (const phrase of [
     "anima intrappolata",
     "sei volte",

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { privateSourcePath } from "../scripts/privateSources.mjs";
 import test from "node:test";
 
 import { buildArea, areaHitsBounds } from "../src/aoeGeometryCore.js";
@@ -85,17 +86,10 @@ function windWallPlacement(targetIds = []) {
   };
 }
 
-test("il RAW locale di Muro di Vento alimenta il workflow normalizzato", () => {
-  const rawCatalog = JSON.parse(fs.readFileSync(
-    path.join(
-      root,
-      "docs",
-      "class-features",
-      "raw",
-      "incantesimi_manualedelgiocatore_pagine_211_289_BOZZA.json",
-    ),
-    "utf8",
-  ));
+const RAW_SPELLS = privateSourcePath("incantesimi", "incantesimi_manualedelgiocatore_pagine_211_289_BOZZA.json");
+
+test("il RAW locale di Muro di Vento alimenta il workflow normalizzato", { skip: !fs.existsSync(RAW_SPELLS) && "sorgenti private assenti" }, () => {
+  const rawCatalog = JSON.parse(fs.readFileSync(RAW_SPELLS, "utf8"));
   const raw = rawCatalog.find((entry) => entry.nome === "Muro di Vento");
   assert.ok(raw);
   assert.equal(raw.livello, 3);

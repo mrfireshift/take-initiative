@@ -1,7 +1,14 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { fiveToolsArchiveSizeLabel } from "./fiveToolsArchiveCore.js";
-import { mergeRulesCatalogs, parsePrivatePack, privatePackContentsLabel, SRD_SOURCE } from "./privatePackCore.js";
+import {
+  mergeRulesCatalogs,
+  parsePrivatePack,
+  privatePackContentsLabel,
+  privateSpellTexts,
+  privateTextMissingNote,
+  SRD_SOURCE,
+} from "./privatePackCore.js";
 import { createPrivatePackStore } from "./privatePackStore.js";
 import { CONDITION_REFERENCE, REFERENCE_SOURCE } from "./referenceData.js";
 import { buildRulesIndex, entryPath, resolveRelated, rulesTree, searchRules } from "./rulesReferenceCore.js";
@@ -19,20 +26,27 @@ function loadRulesCatalog() {
 }
 
 // The spell catalog and its Italian texts, the heaviest part of the encyclopedia, likewise wait for the Spells tab;
-// the texts through the module the character sheet loads too, so both share one chunk.
-function loadSpells() {
-  return Promise.all([import("./spells-srd.js"), import("./spellReferenceItData.js")]).then(([catalog, reference]) => {
-    const spellReferenceData = reference.default;
-    const spellReferences = spellReferenceData?.spells && typeof spellReferenceData.spells === "object"
-      ? spellReferenceData.spells
-      : {};
-    return catalog.getSpellCatalog()
-      .map((spell) => ({
-        ...spell,
-        italianReference: spellReferences[spell.id] || spell.italianReference || null,
-      }))
-      .sort((a, b) => spellLabel(a).localeCompare(spellLabel(b), "it"));
-  });
+// the texts through the module the character sheet loads too, so both share one chunk. The supplement and PHB spells
+// take their text from the GM's private packs (privatePacks: () => Promise<pack[]>).
+function loadSpells(privatePacks) {
+  return Promise.all([import("./spells-srd.js"), import("./spellReferenceItData.js"), privatePacks().catch(() => [])])
+    .then(([catalog, reference, packs]) => {
+      const spellReferenceData = reference.default;
+      const spellReferences = spellReferenceData?.spells && typeof spellReferenceData.spells === "object"
+        ? spellReferenceData.spells
+        : {};
+      const texts = privateSpellTexts(packs);
+      return catalog.getSpellCatalog()
+        .map((spell) => {
+          const base = spellReferences[spell.id] || spell.italianReference || null;
+          const text = base?.privateSource ? texts.get(base.privateTextId || spell.id) : null;
+          return {
+            ...spell,
+            italianReference: text ? { ...base, description: text.description, higherLevels: text.higherLevels } : base,
+          };
+        })
+        .sort((a, b) => spellLabel(a).localeCompare(spellLabel(b), "it"));
+    });
 }
 
 function closeReferencePopover() {
@@ -168,7 +182,9 @@ OBR.onReady(() => {
     sectionTitle.className = "section-title";
     sectionTitle.textContent = "DESCRIZIONE";
     detail.appendChild(sectionTitle);
-    detail.appendChild(rulesTextBlock(reference.description || "Descrizione non disponibile.", { className: "text" }));
+    const description = reference.description
+      || (reference.privateSource ? privateTextMissingNote(reference.privateSource) : "Descrizione non disponibile.");
+    detail.appendChild(rulesTextBlock(description, { className: "text" }));
 
     if (reference.higherLevels) {
       const higherTitle = document.createElement("div");
@@ -184,7 +200,7 @@ OBR.onReady(() => {
       const pages = reference.sourcePageRange
         ? `pp. ${reference.sourcePageRange.from}–${reference.sourcePageRange.to}`
         : "pagina non indicata";
-      source.textContent = `${reference.sourceTitle} · ${pages} · catalogo privato`;
+      source.textContent = `${reference.sourceTitle} · ${pages} · pacchetto privato`;
     } else {
       source.textContent = `${REFERENCE_SOURCE.label} · p. ${reference.sourcePage} · ${REFERENCE_SOURCE.license}`;
     }
@@ -220,7 +236,7 @@ OBR.onReady(() => {
   function ensureSpells() {
     if (spells.status !== "idle") return;
     spells.status = "loading";
-    loadSpells()
+    loadSpells(() => packStore.all())
       .then((list) => {
         spells.list = list;
         spells.status = "ready";
@@ -250,6 +266,12 @@ OBR.onReady(() => {
       setRulesCatalog(mergeRulesCatalogs(rules.srd, list));
       if (activeTab === "rules" && !packs.open) renderResults();
     });
+  }
+
+  function resetSpells() {
+    if (spells.status !== "ready") return;
+    spells.status = "idle";
+    spells.list = [];
   }
 
   const sourceOf = (entry) => rules.catalog?.sources?.find((source) => source.id === entry.source) || SRD_SOURCE;
@@ -513,6 +535,7 @@ OBR.onReady(() => {
       : { text: `Importati: ${done.join(", ")}.`, tone: "ok" };
     await reloadPacks();
     refreshRulesFromPacks();
+    resetSpells();
   }
 
   async function removePack(info) {
@@ -523,6 +546,7 @@ OBR.onReady(() => {
     packs.message = { text: `Rimosso: ${info.title}.`, tone: "ok" };
     await reloadPacks();
     refreshRulesFromPacks();
+    resetSpells();
   }
 
   function setPacksOpen(open) {

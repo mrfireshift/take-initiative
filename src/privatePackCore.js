@@ -11,6 +11,32 @@ export const PRIVATE_PACK_FORMAT = "take-initiative/private-pack";
 export const PRIVATE_PACK_SCHEMA_VERSION = 1;
 // The source of the entries that come from the SRD compendium, next to the packs' ids.
 export const SRD_SOURCE = Object.freeze({ id: "srd", title: "D&D 5e SRD 5.1 italiano", badge: "SRD" });
+// The manuals a pack can carry, by the id the catalogs already use as a spell's or a feature's source.
+export const PRIVATE_PACK_BOOKS = Object.freeze({
+  phb2014: Object.freeze({ id: "phb2014", title: "Manuale del Giocatore", badge: "PHB" }),
+  dmg2014: Object.freeze({ id: "dmg2014", title: "Guida del Dungeon Master", badge: "DMG" }),
+  xanathar: Object.freeze({ id: "xanathar", title: "Guida Omnicomprensiva di Xanathar", badge: "XGE" }),
+  tasha: Object.freeze({ id: "tasha", title: "Calderone Omnicomprensivo di Tasha", badge: "TCE" }),
+  "ranger-revised": Object.freeze({ id: "ranger-revised", title: "Unearthed Arcana: Ranger rivisto", badge: "UA" }),
+});
+
+// The texts of the spells in the packs: Map spellId → { description, higherLevels, pack }. A later pack wins.
+export function privateSpellTexts(packs = []) {
+  const texts = new Map();
+  for (const pack of packs) {
+    for (const [id, spell] of Object.entries(pack?.spells || {})) {
+      texts.set(id, { description: spell.description, higherLevels: spell.higherLevels || "", pack: pack.id });
+    }
+  }
+  return texts;
+}
+
+// "Il testo è nel pacchetto privato «Guida Omnicomprensiva di Xanathar»: importalo dall'Enciclopedia DM (Pacchetti)."
+export function privateTextMissingNote(bookId) {
+  const book = PRIVATE_PACK_BOOKS[bookId];
+  const name = book ? `«${book.title}»` : "del manuale";
+  return `Il testo è nel pacchetto privato ${name}: importalo dall'Enciclopedia DM (Pacchetti).`;
+}
 
 const ID = /^[a-z0-9][a-z0-9-]*$/u;
 const MAX_BADGE = 6;

@@ -60,17 +60,30 @@ export function spellbookSpell(spellId) {
 
 const SRD_RITUAL_IDS = new Set(spellReferenceRuntime.ritualIds || []);
 
-// The Italian reference of the SRD spells (466 KB): loaded on the first expanded spell, never with the catalog.
+// The Italian reference of the SRD spells (466 KB): loaded on the first expanded spell, never with the catalog. With
+// it, the texts of the supplement and PHB spells from the GM's private packs (compendio delle regole, fase 2): the
+// bundle carries their facts only.
 let spellReferenceSpells = null;
 let spellReferenceLoading = null;
+let privateTexts = new Map();
 
 export function spellbookSpellReferenceLoaded() {
   return !!spellReferenceSpells;
 }
 
+// The packs this browser keeps; none when IndexedDB is unavailable or a pack cannot be read.
+function loadPrivateTexts() {
+  return Promise.all([import("./privatePackStore.js"), import("./privatePackCore.js")])
+    .then(([store, core]) => store.createPrivatePackStore().all().then((packs) => core.privateSpellTexts(packs)))
+    .catch(() => new Map());
+}
+
 export function loadSpellbookSpellReference() {
-  spellReferenceLoading ||= import("./spellReferenceItData.js")
-    .then((module) => { spellReferenceSpells = module.default?.spells || {}; })
+  spellReferenceLoading ||= Promise.all([import("./spellReferenceItData.js"), loadPrivateTexts()])
+    .then(([module, texts]) => {
+      privateTexts = texts;
+      spellReferenceSpells = module.default?.spells || {};
+    })
     .catch((error) => {
       spellReferenceLoading = null;
       throw error;
@@ -78,13 +91,18 @@ export function loadSpellbookSpellReference() {
   return spellReferenceLoading;
 }
 
-// The Italian text of a spell: the SRD reference file once loaded, or the reference a supplement spell carries.
+// The Italian text of a spell: the SRD reference file once loaded, or the reference a supplement spell carries with
+// the text of its pack when the GM imported it.
 function spellReference(spell) {
-  return spellReferenceSpells?.[spell?.id] || spell?.italianReference || null;
+  const reference = spellReferenceSpells?.[spell?.id] || spell?.italianReference || null;
+  if (!reference?.privateSource) return reference;
+  const text = privateTexts.get(reference.privateTextId || spell.id);
+  return text ? { ...reference, description: text.description, higherLevels: text.higherLevels } : reference;
 }
 
 // What the card shows when a spell is expanded: { school, castingTime, range, components, duration, description,
-// higherLevels }; null for a spell without a reference, or before loadSpellbookSpellReference for an SRD spell.
+// higherLevels, missingText }; null for a spell without a reference, or before loadSpellbookSpellReference for an SRD
+// spell. missingText is the manual whose private pack holds the text, when this browser has not imported it.
 export function spellbookSpellDetails(spellId) {
   const reference = spellReference(getSpellDefinition(spellId));
   if (!reference) return null;
@@ -97,6 +115,7 @@ export function spellbookSpellDetails(spellId) {
     duration: field("duration"),
     description: field("description"),
     higherLevels: field("higherLevels"),
+    missingText: spellReferenceSpells && reference.privateSource && !field("description") ? reference.privateSource : "",
   };
 }
 

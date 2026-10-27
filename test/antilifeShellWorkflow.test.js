@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { privateSourcePath } from "../scripts/privateSources.mjs";
 
 import { buildEffectsMutationPlan } from "../src/effectsMutationCore.js";
 import {
@@ -89,11 +90,10 @@ function casterState(plan) {
   return plan.states.find((entry) => entry.id === "caster");
 }
 
-test("il RAW locale di Guscio Anti-vita alimenta i fatti normalizzati", () => {
-  const rawCatalog = JSON.parse(fs.readFileSync(
-    path.join(root, "docs", "class-features", "raw", "incantesimi_manualedelgiocatore_pagine_211_289_BOZZA.json"),
-    "utf8",
-  ));
+const RAW_SPELLS = privateSourcePath("incantesimi", "incantesimi_manualedelgiocatore_pagine_211_289_BOZZA.json");
+
+test("il RAW locale di Guscio Anti-vita alimenta i fatti normalizzati", { skip: !fs.existsSync(RAW_SPELLS) && "sorgenti private assenti" }, () => {
+  const rawCatalog = JSON.parse(fs.readFileSync(RAW_SPELLS, "utf8"));
   const raw = rawCatalog.find((entry) => entry.nome === "Guscio Anti-vita");
   assert.ok(raw);
   assert.equal(raw.tempo_di_lancio, "1 azione");

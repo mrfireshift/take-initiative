@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import catalog from "../src/spells-phb2014-extra.json" with { type: "json" };
+import { readPrivateSpellTexts } from "../scripts/privateSources.mjs";
 import {
   getAreaSaveAutomation,
   getAreaSaveSpellOptions,
@@ -44,7 +45,8 @@ test("il catalogo PHB 2014 conserva le 41 voci ripulite con ID univoci", () => {
     && entry.name
     && entry.school
     && entry.duration
-    && entry.description
+    && !("description" in entry)
+    && !("higherLevels" in entry)
     && entry.source === "phb2014"
   ));
 
@@ -63,9 +65,17 @@ test("tutte le 41 spell sono ricercabili e mostrano il riferimento italiano comp
     const definition = spell(entry.name);
     assert.equal(definition.id, entry.id);
     assert.equal(definition.displayName, entry.name);
-    assert.equal(definition.italianReference.description, entry.description);
+    assert.equal(definition.italianReference.description, undefined);
+    assert.equal(definition.italianReference.privateSource, "phb2014");
+    assert.equal(definition.italianReference.privateTextId, entry.id);
     assert.equal(definition.italianReference.sourceTitle, "Manuale del Giocatore 2014");
   }
+});
+
+const phbTexts = readPrivateSpellTexts("phb2014");
+
+test("la cartella privata ha il testo delle 41 spell del Manuale", { skip: !phbTexts && "testi privati assenti" }, () => {
+  for (const entry of catalog.spells) assert.ok(phbTexts[entry.id]?.description, entry.id);
 });
 
 test("il tracker include le durate persistenti e il solo istantaneo con effetto residuo", () => {

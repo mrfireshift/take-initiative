@@ -3,6 +3,12 @@ import assert from "node:assert/strict";
 
 import catalog from "../src/spells-supplements-2014.json" with { type: "json" };
 import runtimeCatalog from "../src/spells-supplements-runtime.json" with { type: "json" };
+import { readPrivateSpellTexts } from "../scripts/privateSources.mjs";
+
+// The texts are in the GM's private folder (compendio delle regole, fase 2): the tests that read them are skipped
+// without it.
+const xanatharTexts = readPrivateSpellTexts("xanathar");
+const tashaTexts = readPrivateSpellTexts("tasha");
 
 function spell(id) {
   return catalog.spells.find((entry) => entry.id === id);
@@ -17,9 +23,22 @@ test("il catalogo supplementi conserva tutte le voci con ID univoci", () => {
   );
   assert.equal(new Set(catalog.spells.map((entry) => entry.id)).size, 116);
   assert.ok(catalog.spells.every((entry) =>
-    entry.name && entry.school && entry.duration && entry.description &&
+    entry.name && entry.school && entry.duration &&
     ["xanathar", "tasha"].includes(entry.source)
   ));
+});
+
+test("il catalogo nel repo non contiene i testi dei supplementi", () => {
+  for (const entries of [catalog.spells, runtimeCatalog.spells]) {
+    assert.ok(entries.every((entry) => !("description" in entry) && !("higherLevels" in entry)));
+  }
+});
+
+test("la cartella privata ha il testo di ogni incantesimo dei supplementi", { skip: !(xanatharTexts && tashaTexts) && "testi privati assenti" }, () => {
+  for (const entry of catalog.spells) {
+    const texts = entry.source === "xanathar" ? xanatharTexts : tashaTexts;
+    assert.ok(texts[entry.id]?.description, entry.id);
+  }
 });
 
 test("il catalogo runtime contiene tutti gli incantesimi forniti", () => {
@@ -70,10 +89,11 @@ test("tutti gli incantesimi da un round hanno una proposta di scadenza", () => {
   );
 });
 
-test("la normalizzazione separa descrizione e progressione ai livelli superiori", () => {
+test("la normalizzazione separa descrizione e progressione ai livelli superiori", { skip: !xanatharTexts && "testi privati assenti" }, () => {
   const mindSpike = spell("xanathar-aculeo-mentale");
-  assert.equal(mindSpike.description.includes("Ai Livelli Superiori"), false);
-  assert.match(mindSpike.higherLevels, /3° livello/u);
+  const text = xanatharTexts[mindSpike.id];
+  assert.equal(text.description.includes("Ai Livelli Superiori"), false);
+  assert.match(text.higherLevels, /3° livello/u);
   assert.equal(mindSpike.defaultTurns, 600);
   assert.equal(mindSpike.concentration, true);
 });

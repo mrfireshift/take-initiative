@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { privateSourcePath, writePrivateSpellTexts } from "./privateSources.mjs";
+
 import italian from "../src/spells-it-2014.json" with { type: "json" };
 
 const OUTPUT_PATH = "src/spells-supplements-2014.json";
@@ -495,16 +497,20 @@ ${priorityRows.join("\n")}
 `;
 }
 
+// The raw files and the texts are private (compendio delle regole, fase 2): the inputs default to the private folder
+// (scripts/privateSources.mjs), the repo keeps every field but description and higherLevels, and the texts go to
+// <private folder>/testi/<book>/incantesimi.json for the GM's packs.
 const args = parseArgs(process.argv.slice(2));
 const inputs = [
-  readSource("xanathar", args.xanathar),
-  readSource("tasha", args.tasha),
+  readSource("xanathar", args.xanathar || privateSourcePath("incantesimi", "incantesimi_xanathar_pagine_151_172.json")),
+  readSource("tasha", args.tasha || privateSourcePath("incantesimi", "incantesimi_tasha_pagine_107_117.json")),
 ];
 const spells = inputs.flatMap((input) =>
   input.entries.map((spell) => normalizeSpell(input.sourceId, spell))
 );
 const ids = spells.map((spell) => spell.id);
 if (new Set(ids).size !== ids.length) throw new Error("ID duplicati nel catalogo normalizzato.");
+const publicSpell = ({ description: _description, higherLevels: _higherLevels, ...spell }) => spell;
 
 const payload = {
   schemaVersion: SCHEMA_VERSION,
@@ -519,7 +525,7 @@ const payload = {
     inputFile: path.basename(input.filePath),
     spellCount: input.entries.length,
   })),
-  spells,
+  spells: spells.map(publicSpell),
 };
 
 fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
@@ -531,7 +537,7 @@ fs.writeFileSync(RUNTIME_OUTPUT_PATH, `${JSON.stringify({
   spells: runtimeIds.map((id) => {
     const spell = spells.find((entry) => entry.id === id);
     if (!spell) throw new Error(`Incantesimo runtime approvato non trovato: ${id}`);
-    return spell;
+    return publicSpell(spell);
   }),
 }, null, 2)}\n`, "utf8");
 fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
@@ -539,3 +545,8 @@ fs.writeFileSync(REPORT_PATH, markdownReport(payload), "utf8");
 console.log(`Scritti ${spells.length} incantesimi in ${OUTPUT_PATH}`);
 console.log(`Scritti ${runtimeIds.length} incantesimi in ${RUNTIME_OUTPUT_PATH}`);
 console.log(`Rapporto scritto in ${REPORT_PATH}`);
+for (const input of inputs) {
+  const texts = Object.fromEntries(spells.filter((spell) => spell.source === input.sourceId)
+    .map((spell) => [spell.id, { description: spell.description, higherLevels: spell.higherLevels || "" }]));
+  console.log(`Testi privati scritti in ${writePrivateSpellTexts(input.sourceId, texts)}`);
+}

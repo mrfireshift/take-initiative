@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test, { mock } from "node:test";
+import { privateSourcePath } from "../scripts/privateSources.mjs";
 
 const META_KEY = "com.thebigpicture.initiative/meta";
 const SPELLS_KEY = "com.thebigpicture.initiative/spells";
@@ -99,10 +100,10 @@ mock.module("../src/effectsMutations.js", {
   },
 });
 
-const raw = JSON.parse(readFileSync(new URL(
-  "../docs/class-features/raw/incantesimi_manualedelgiocatore_pagine_211_289_BOZZA.json",
-  import.meta.url,
-), "utf8"));
+// The raw PHB spell chapter is in the GM's private folder (compendio delle regole, fase 2): without it the RAW test is
+// skipped.
+const RAW_SPELLS = privateSourcePath("incantesimi", "incantesimi_manualedelgiocatore_pagine_211_289_BOZZA.json");
+const raw = existsSync(RAW_SPELLS) ? JSON.parse(readFileSync(RAW_SPELLS, "utf8")) : [];
 const rawWall = raw.find((entry) => entry?.nome === "Muro Prismatico");
 
 const {
@@ -263,7 +264,7 @@ function allDamageTotals() {
     .map((layer, index) => [layer.id, (index + 1) * 10]));
 }
 
-test("RAW locale: Muro Prismatico resta la source of truth verificata", () => {
+test("RAW locale: Muro Prismatico resta la source of truth verificata", { skip: !rawWall && "sorgenti private assenti" }, () => {
   assert.ok(rawWall);
   assert.equal(rawWall.livello, 9);
   assert.equal(rawWall.tempo_di_lancio, "1 azione");

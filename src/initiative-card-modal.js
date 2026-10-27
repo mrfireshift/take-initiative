@@ -156,6 +156,7 @@ import { speciesHealDice, speciesHpTraitAmount, speciesHpTraitAmountLabel, speci
 import { speciesSpellCast, speciesSpellActionId, speciesSpellOpenRequest, speciesTraitSave } from "./speciesInnateSpellCore.js";
 import { perfBootPage } from "./perfProbe.js";
 import { rulesTextBlock } from "./rulesTextView.js";
+import { privateTextMissingNote } from "./privatePackCore.js";
 
 perfBootPage(OBR);
 
@@ -1442,6 +1443,11 @@ function buildSpellbookDetails(spell, details) {
   }
   block.appendChild(facts);
   if (details.description) block.appendChild(rulesTextBlock(details.description));
+  if (details.missingText) {
+    const note = document.createElement("small");
+    note.textContent = privateTextMissingNote(details.missingText);
+    block.appendChild(note);
+  }
   if (details.higherLevels) {
     const higher = document.createElement("p");
     const title = document.createElement("strong");

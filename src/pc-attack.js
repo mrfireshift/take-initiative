@@ -25,6 +25,7 @@ import { DAMAGE_TYPES, damageDefenseTag, damageTypeLabel, damageDefensesForItem 
 import { PC_ATTACK_CONSOLE_CHANNEL, PC_ATTACK_HEIGHT, PC_ATTACK_POPOVER_ID, PC_ATTACK_SPELL_LAUNCH_CHANNEL, PC_ATTACK_WIDTH } from "./pcAttackLauncher.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails, spellbookSpellReferenceLoaded } from "./spellbookCatalog.js";
 import { rulesTextBlock } from "./rulesTextView.js";
+import { privateTextMissingNote } from "./privatePackCore.js";
 import { getClassFeatureDefinition } from "./classFeatureCatalog.js";
 import { classFeatureTargeting } from "./classFeatureCore.js";
 import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFormCore.js";
@@ -1395,6 +1396,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const line=details?[details.castingTime,details.range,details.components,details.duration].filter(Boolean).join(" · "):"";
     if(line) nodes.push(node("p",line,"launch-details"));
     if(details?.description) nodes.push(rulesTextBlock(details.description,{document:documentRef,className:"spell-rules",paragraphClass:"spell-text"}));
+    if(details?.missingText) nodes.push(node("p",privateTextMissingNote(details.missingText),"launch-details"));
     if(details?.higherLevels) nodes.push(node("p",`Ai livelli superiori. ${details.higherLevels}`,"spell-text"));
     if(spellId && !details) nodes.push(node("p",spellbookSpellReferenceLoaded()?"Testo non disponibile.":"Caricamento del testo…","launch-details"));
     return nodes;

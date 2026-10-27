@@ -1867,8 +1867,9 @@ function supplementRuntimeSpell(id) {
       components: spell.components,
       duration: spell.duration,
       concentration: spell.concentration,
-      description: spell.description,
-      higherLevels: spell.higherLevels,
+      // The text is in the GM's private pack of the manual (compendio delle regole, fase 2), read by spellbookCatalog.js.
+      privateSource: spell.source,
+      privateTextId: spell.id,
       sourceTitle: spell.sourceTitle,
       sourcePageRange: spell.sourcePageRange,
     }),
@@ -1915,8 +1916,9 @@ function phb2014ExtraRuntimeSpell(id) {
       components: spell.components,
       duration: spell.duration,
       concentration: spell.concentration,
-      description: spell.description,
-      higherLevels: spell.higherLevels,
+      // The text is in the GM's private pack of the manual (compendio delle regole, fase 2), read by spellbookCatalog.js.
+      privateSource: spell.source,
+      privateTextId: spell.id,
       sourceTitle: spell.sourceTitle,
       sourcePageRange: spell.sourcePageRange,
     }),
