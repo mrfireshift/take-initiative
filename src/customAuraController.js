@@ -238,6 +238,11 @@ async function reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot = null)
     readItems: () => OBR.scene.items.getItems(
       (item) => !!item?.metadata?.[CUSTOM_AURA_META_KEY],
     ),
+    // The owned visuals of the spatial snapshot this pass planned from, while it is current: no extra scene read.
+    // A write of ours makes it stale, and the core reads the scene again on its next pass.
+    initialItems: snapshot && spatialSceneSnapshot.isCurrent(snapshot)
+      ? snapshot.items.filter((item) => !!item?.metadata?.[CUSTOM_AURA_META_KEY])
+      : null,
     identityOfItem: (item) => item?.metadata?.[CUSTOM_AURA_META_KEY]?.instanceId,
     isCompatible: auraVisualIsCompatible,
     needsUpdate: auraVisualNeedsUpdate,

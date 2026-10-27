@@ -28,6 +28,12 @@ Lotti fatti, tutti il 27/10:
 
   Turno attivo e round mostrati sono sempre corretti.
 
+- **S4** (parte sicura): i tre controller delle aure prendono le proprie visuali dallo snapshot spaziale con cui hanno pianificato, finché è attuale, invece di rileggerle dalla scena. Dopo una loro scrittura il nucleo rilegge dal vivo. Restano per ora come sono:
+  - il controllo della scena pronta, perché toglierlo farebbe partire un recupero in più;
+  - DPI e scala, già in cache nel servizio dello snapshot.
+
+  L'harness non passa da queste letture: il guadagno (una lettura filtrata della scena per controller a ogni passata) va contato in stanza.
+
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.

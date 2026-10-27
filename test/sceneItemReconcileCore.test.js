@@ -139,3 +139,42 @@ test("un cambio epoch interrompe la convergenza prima della mutazione successiva
   assert.equal(result.outcome, "stale");
   assert.deepEqual(store.snapshot(), initialState());
 });
+
+test("gli item iniziali evitano la prima lettura, e dopo una scrittura il passo successivo rilegge dal vivo", async () => {
+  let items = [{ id: "v1", identity: "a", value: 1 }];
+  let reads = 0;
+  const result = await reconcileOwnedSceneItems({
+    desired: [{ identity: "a", value: 2 }],
+    identityOfDesired: (desired) => desired.identity,
+    readItems: async () => { reads += 1; return clone(items); },
+    identityOfItem: (item) => item.identity,
+    needsUpdate: (item, desired) => item.value !== desired.value,
+    buildItem: (desired) => ({ id: `new-${desired.identity}`, ...desired }),
+    addItems: async (added) => { items = [...items, ...clone(added)]; },
+    updateItems: async (updates) => { items = items.map((item) => {
+      const update = updates.find((entry) => entry.item.id === item.id);
+      return update ? { ...item, value: update.spec.value } : item;
+    }); },
+    deleteItems: async (ids) => { items = items.filter((item) => !ids.includes(item.id)); },
+    initialItems: clone(items),
+  });
+  assert.equal(result.metrics.reads, reads);
+  assert.ok(reads >= 1, "the pass after the update reads the scene again");
+  assert.equal(result.metrics.passes, reads + 1, "the first pass used the initial items");
+  assert.deepEqual(items.map((item) => item.value), [2]);
+});
+
+test("i tre controller delle aure passano le visuali dello snapshot spaziale solo finché è attuale", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const [file, key] of [
+    ["spellAuraController.js", "SPELL_AURA_META_KEY"],
+    ["classFeatureAuraController.js", "CLASS_FEATURE_AURA_META_KEY"],
+    ["customAuraController.js", "CUSTOM_AURA_META_KEY"],
+  ]) {
+    const source = readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8");
+    const compact = source.replace(/\s+/g, " ");
+    assert.ok(compact.includes(
+      `initialItems: snapshot && spatialSceneSnapshot.isCurrent(snapshot) ? snapshot.items.filter((item) => !!item?.metadata?.[${key}]) : null`,
+    ), file);
+  }
+});
