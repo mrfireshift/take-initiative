@@ -450,10 +450,13 @@ test("il cambio scena scarta il render tardivo e usa il primo snapshot history c
     "async function renderAll(reason = \"unspecified\") {",
     "OBR.onReady(async () => {"
   );
-  const renderRead = render.indexOf("const stateRaw = await getSceneState();");
+  // The state comes from the latest metadata event (a "metadata" render) or from the scene: both before the guard.
+  const renderRead = render.indexOf("const stateRaw = reason === \"metadata\"");
+  const sceneRead = render.indexOf(": await getSceneState();", renderRead);
   const staleRenderGuard = render.indexOf('"render-read-state"');
   const renderCommit = render.indexOf("renderTrack(ordered, stateClean");
-  assert.ok(renderRead >= 0 && staleRenderGuard > renderRead);
+  assert.ok(renderRead >= 0 && sceneRead > renderRead && staleRenderGuard > sceneRead);
+  assert.match(render, /eventState\.metadataRevision === __initiativeMetadataRevision/);
   assert.ok(renderCommit > staleRenderGuard);
 
   const watcherStart = historySource.indexOf("export async function mountSceneHistoryWatcher()");

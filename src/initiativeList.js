@@ -393,6 +393,9 @@ let __lastInitiativeMetadataDigest;
 let __lastQueuedInitiativeMetadataDigest;
 const __initiativeMetadataProcessor = createSerialProcessor();
 let __initiativeMetadataRevision = 0;
+// The tracker state carried by the latest metadata event, with its scene epoch and revision: the full render asked
+// by that event's processing draws it instead of reading the scene again (__executeFullRenderRequest).
+let __latestMetadataEventState = null;
 let __optimisticNavigationDigest = null;
 let __lastActiveId = null;
 let __lastTurnNoticeActiveId = null;
@@ -747,6 +750,7 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __activeTurnLabelDpi = null;
   __activeLabelEntriesById = new Map();
   __latestInitiativeState = null;
+  __latestMetadataEventState = null;
   __spellBoardTokenItems = [];
   __activeTurnLabelDesired = null;
   __activeTurnLabelLatestKey = null;
@@ -10869,7 +10873,15 @@ async function __executeFullRenderRequest(request) {
   const renderRevision = ++__renderRequestRevision;
   ensureGlobalPanelControls();
   __initiativeDiag("render:requested", { renderRevision, reason });
-  const stateRaw = await getSceneState();
+  // The render asked by a metadata event draws the state that event carried, while it is still the latest one for
+  // this scene (a newer event brings its own render): one SDK round trip less between the event and the DOM. Every
+  // other render, and any doubt, reads the scene as before; the guards below check this state the same way.
+  const eventState = __latestMetadataEventState;
+  const stateRaw = reason === "metadata"
+    && eventState?.sceneEpoch === sceneEpoch
+    && eventState.metadataRevision === __initiativeMetadataRevision
+    ? structuredClone(eventState.state)
+    : await getSceneState();
   if (!__isCurrentSceneOperation(sceneEpoch, "render-read-state", { reason, renderRevision })) return;
   // Gli snapshot intermedi di una raffica di click non devono ridisegnare
   // lista, fumetto o selezione sopra lo stato ottimistico più recente.
@@ -11530,6 +11542,11 @@ OBR.scene.onMetadataChange((meta) => {
   }
   __lastQueuedInitiativeMetadataDigest = stateDigest;
   const metadataRevision = ++__initiativeMetadataRevision;
+  __latestMetadataEventState = {
+    sceneEpoch,
+    metadataRevision,
+    state: st === undefined ? undefined : structuredClone(st),
+  };
   const run = () => __processInitiativeMetadata(
     st,
     stateDigest,

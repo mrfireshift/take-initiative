@@ -22,6 +22,12 @@ Lotti fatti, tutti il 27/10:
 
 - **P2**: le sessioni delle due console leggono ruolo, contesto di scena, token e metadata insieme, e controllano le risposte nell'ordine di prima: vince lo stesso errore, e chi non è GM non aspetta. La console attacchi legge tutti gli item insieme alla sessione. La console Boss li legge insieme alla presentazione e li riusa per i profili collegati: nel banco, una lettura completa per aggiornamento invece di due. Dal codice: da 4 a 1 RT in fila per la sessione.
 
+- **T1**: il render chiesto da un evento dei metadata disegna lo stato portato da quell'evento, finché è ancora l'ultimo per questa scena. Ogni altro render, e ogni dubbio, rilegge la scena come prima. Nel banco:
+  - client giocatore: 16 turni (avanti, indietro, cambio di round) senza nessuna `scene.getMetadata`;
+  - GM: da circa 4 a 3,1 `scene.getMetadata` per turno.
+
+  Turno attivo e round mostrati sono sempre corretti.
+
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.
