@@ -53,6 +53,8 @@ Lotti fatti, tutti il 27/10:
   - La cornice dei boss è ridotta a 400×399 PNG senza perdita (860 → 154 KB): basta fino al 200% su uno schermo 1,5×.
   - Confronto visivo affiancato, a figura intera e al 100%, senza differenze visibili.
 
+- **P4** (parte a): all'avvio l'avviso di turno legge opzioni e ruolo insieme, con un passaggio in meno su ogni client a ogni turno. Il primo contenuto nell'URL (parte b, D5) resta da fare.
+
 Lotto saltato: **V4** (tipografia), per scelta dell'utente il 28/10: le dimensioni attuali dei testi vanno bene al tavolo. Il commit `7e480cc` è stato annullato da `d87abd1`.
 
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.

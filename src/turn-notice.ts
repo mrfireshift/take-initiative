@@ -1662,10 +1662,15 @@ document.addEventListener("keydown", (event) => {
 });
 
 OBR.onReady(async () => {
-  await startRuntimeOptions().catch(() => {});
-  noticeRole = await OBR.player.getRole()
-    .then((role) => role === "GM" ? "GM" : "PLAYER")
-    .catch(() => "PLAYER");
+  // The options and the role at once (one round trip instead of two on every client, every turn); the role is
+  // still set once both have answered, as before.
+  const [, role] = await Promise.all([
+    startRuntimeOptions().catch(() => {}),
+    OBR.player.getRole()
+      .then((value) => value === "GM" ? "GM" : "PLAYER")
+      .catch(() => "PLAYER"),
+  ]);
+  noticeRole = role;
   if (noticeRole === "GM" && currentSaveReminderBatch) {
     renderSaveReminderBatch(currentSaveReminderBatch);
   }
