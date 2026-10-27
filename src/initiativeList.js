@@ -11467,6 +11467,9 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
 
   queueSelectAndFocus(activeId, isAutoFocusEnabled(st));
 }
+  // Auto-collapse writes the scene state, which only the GM can do (setSceneState): on the players' table screen it
+  // would read every item for nothing, and the GM's collapse reaches it with the next metadata event.
+  if (!IS_GM) return;
   try {
     if (
       __isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision })
@@ -11474,7 +11477,13 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
       && metadataRevision === __initiativeMetadataRevision
       && __matchesLatestActiveTurn(st)
     ) {
-      const entriesNow = await readEntries();
+      // The Event Hub snapshot when it is complete for this scene, as the full render takes it; else one SDK read.
+      const collapseItems = await readFullRenderItemSnapshot({
+        snapshot: readSceneItemsSnapshot(sceneEpoch),
+        sceneEpoch,
+        readItems: () => OBR.scene.items.getItems(),
+      });
+      const entriesNow = await readEntries(collapseItems.items);
       if (
         !__isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision })
         || metadataRevision !== __initiativeMetadataRevision

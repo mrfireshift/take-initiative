@@ -14,6 +14,8 @@ Lotti fatti, tutti il 27/10:
 
 - **P3**: l'apertura automatica legge la creatura insieme ai ping delle console. Una console chiusa si riconosce subito, perché il suo popover non ha altezza: niente più attesa di 300 ms a ogni turno. Una console con un'altezza resta attesa fino al pong come prima, quindi non viene mai ricaricata. L'attesa fissa di 150 ms dopo la chiusura della console Boss resta.
 
+- **T2**: il ripiegamento automatico dei gruppi non gira più sul client giocatore, che non può scriverlo. Sul GM usa lo snapshot dell'Event Hub quando è completo. Nel banco: nessuna lettura completa degli item per turno sullo schermo del tavolo; sul GM resta solo quella del `prepare` del coordinatore.
+
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.
