@@ -158,6 +158,11 @@ function saveAction(name, text, extra) {
   // The rules of phase 5 (lotto 0): every condition, its duration, the repeated save, the 24-hour immunity, where the
   // area starts. The first condition stays in `condition`, as the console reads it today.
   const effects = monsterSaveEffects(text);
+  // The note keeps what no field holds (fase 5, lotto 3): the repeated save that ends the effect and the 24-hour
+  // immunity are fields now, their sentences leave it.
+  const noteOf = ({ repeat, immuneHours }) => note(sentencesOf(saveRemainder(text) || "").filter((sentence) =>
+    !(repeat?.ends && /\brepeat the saving throw at the (?:end|start) of each of/i.test(sentence))
+    && !(immuneHours && /\bimmune to\b[^.]*\bfor the next \d+ hours/i.test(fiveToolsPlainText(sentence)))).join(" "));
   const condition = effects.conditions[0] || tagged?.[1] || "";
   if (!components.length && !condition) return [{ name, status: "manual", text }];
   const area = saveArea(text);
@@ -168,7 +173,7 @@ function saveAction(name, text, extra) {
   return [{ name, save: { ability: ABILITY_BY_NAME[dc[2].toLowerCase()], dc: Number(dc[1]), half: /half as much damage/.test(text) },
     ...(area ? { area: { ...area, ...(origin ? { origin } : {}), ...(choice ? { choice: true } : {}) } } : {}), ...(onFail ? { onFail } : {}),
     ...(effects.immuneHours ? { immuneHours: effects.immuneHours } : {}),
-    damage: components, ...extra, ...(saveRemainder(text) ? { note: saveRemainder(text) } : {}), status: "full" }];
+    damage: components, ...extra, ...(noteOf(effects) ? { note: noteOf(effects) } : {}), status: "full" }];
 }
 
 // One 5eTools action: zero, one or two stat block actions (a thrown weapon with two damages), each with its status:

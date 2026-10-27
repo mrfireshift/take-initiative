@@ -3,7 +3,7 @@ import { ID } from "./constants.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { createPcAttackRuntime, pcAttackSmiteSlotPlans, pcAttackSpellSlotPlan } from "./pcAttackExecution.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
-import { pcAttackAreaOutcomes, pcAttackTargetConditionImmune, pcAttackTargetEvasion, pcAttackTargetSaveBonus } from "./pcAttackCore.js";
+import { pcAttackAreaOutcomes, pcAttackTargetActionImmune, pcAttackTargetConditionImmune, pcAttackTargetEvasion, pcAttackTargetSaveBonus } from "./pcAttackCore.js";
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
@@ -797,10 +797,13 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     // A monster's action (fase 5, lotto 2): «Immune» beside the two outcomes; a creature immune to its only effect (no
     // damage, a condition in its immunities) starts on Immune, which the GM may change.
     const outcomes=pcAttackAreaOutcomes(attack),condition=attack.monster?.onFail?.condition || "";
-    if(attack.monster && !attack.components.length && condition) {
+    // A creature that passed this monster's action before keeps its immunity pill (fase 5, lotto 3): Immune too.
+    if(attack.monster) {
       for(const item of presentation.targets) {
         const member=draft.area.members[item.id];
-        if(member?.on && !member.outcome && pcAttackTargetConditionImmune(item,condition)) member.outcome="immune";
+        if(!member?.on || member.outcome) continue;
+        if(pcAttackTargetActionImmune(item,attack,sourceId) || (!attack.components.length && condition && pcAttackTargetConditionImmune(item,condition)))
+          member.outcome="immune";
       }
     }
     const signature=`${presentation.targets.map(item=>item.id).join(",")}|${outcomes.join(",")}`;
@@ -836,6 +839,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       if(bonus!==null) label.append(node("span",` · TS ${bonus>=0?"+":""}${bonus}`,"area-hp"));
       if(pcAttackTargetEvasion(attack,item)) label.append(node("span"," · Elusione","area-hp"));
       if(condition && pcAttackTargetConditionImmune(item,condition)) label.append(node("span",` · immune a ${condition.toLowerCase()}`,"area-hp"));
+      if(pcAttackTargetActionImmune(item,attack,sourceId)) label.append(node("span",` · immune a ${attack.label}`,"area-hp"));
       for(const outcome of outcomes) {
         const button=row.querySelector(`[data-area-field="${outcome}"]`);
         button.setAttribute("aria-pressed",String(!!member.on && member.outcome===outcome));button.disabled=busy;

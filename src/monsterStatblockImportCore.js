@@ -150,9 +150,11 @@ function monsterAttackDraft(entry, label, note, { resolveDamageType, resolveAbil
     const condition = text(entry.onFail?.condition ?? entry.seFallito?.condizione);
     if (condition) {
       const name = CONDITION_BY_KEY.get(key(condition));
-      if (name) fields.onFail = { condition: name };
+      if (name) fields.onFail = { condition: name, ...monsterFailureTiming(entry.onFail, where, unresolved) };
       else unresolved.push(`${where}: condizione "${condition}"`);
     }
+    const immuneHours = integer(entry.immuneHours);
+    if (immuneHours !== null && immuneHours > 0) fields.immuneHours = immuneHours;
   } else if (hasAttack) {
     const bonus = integer(attack.bonus ?? attack.toHit);
     if (bonus === null) unresolved.push(`${where}: bonus al tiro per colpire mancante`);
@@ -208,6 +210,26 @@ function monsterArea(value, where, unresolved) {
   const origin = ({ self: "self", mostro: "self", point: "point", punto: "point" })[key(value.origin ?? value.origine)] || "";
   return { shape, sizeFeet, ...(shape === "line" && widthFeet !== null ? { widthFeet } : {}), ...(origin ? { origin } : {}),
     ...(value.choice === true || value.scelta === true ? { choice: true } : {}) };
+}
+
+// How long a failure lasts (fase 5, lotto 3): more conditions ("also"), "duration": { rounds } or { until, anchor },
+// "repeat": { timing, ends } (only a repeated save that ends it is kept), as the 5eTools adapter writes them.
+function monsterFailureTiming(value, where, unresolved) {
+  const also = (Array.isArray(value?.also) ? value.also : []).map((entry) => {
+    const name = CONDITION_BY_KEY.get(key(entry));
+    if (!name) unresolved.push(`${where}: condizione "${text(entry)}"`);
+    return name;
+  }).filter(Boolean);
+  const duration = value?.duration && typeof value.duration === "object" ? value.duration : {};
+  const rounds = integer(duration.rounds ?? value?.rounds);
+  const until = ["turn-end", "turn-start"].includes(duration.until) ? duration.until : "";
+  const repeat = value?.repeat && typeof value.repeat === "object" ? value.repeat : null;
+  return {
+    ...(also.length ? { also } : {}),
+    ...(rounds !== null && rounds > 0 ? { rounds } : {}),
+    ...(until ? { until, anchor: duration.anchor === "source" ? "source" : "target" } : {}),
+    ...(repeat?.ends === true && ["turn-end", "turn-start"].includes(repeat.timing) ? { repeat: repeat.timing } : {}),
+  };
 }
 
 // The block's hit points, for the tracker (lotto 5): { average, formula }, or null.

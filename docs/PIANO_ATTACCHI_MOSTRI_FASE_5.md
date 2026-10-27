@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 5: azioni complesse ad euristica (piano)
 
-Stato: **lotti 0, 1 e 2 implementati** (27/10/2026); D1–D7 confermate come raccomandate (D7: con il tiro ripetuto niente conteggio dei round).
+Stato: **lotti 0–3 implementati** (27/10/2026); D1–D7 confermate come raccomandate (D7: con il tiro ripetuto niente conteggio dei round).
 
 Richiesta dell'utente: le azioni complesse degli NPC (tiri salvezza, soffi,
 coni, linee, aree) oggi si risolvono solo con «TS superato / fallito»;
@@ -146,7 +146,20 @@ spaventato (parte su Immune, «TS -1»), un PG con TS Saggezza +5; Acid Breath c
   bersaglio (D3) o se il bersaglio ha l'immunità di 24 ore a quell'azione.
 - Evasione dei bersagli, come nella console Boss.
 
-### Lotto 3 — condizioni con durata e tiro ripetuto
+### Lotto 3 — condizioni con durata e tiro ripetuto ✅
+
+Fatto (27/10): sull'azione salvata `onFail` tiene `also` (fino a 2 condizioni in più), `rounds`, `until`/`anchor`
+(«until the end of its next turn», del bersaglio o del mostro) e `repeat` (solo un tiro ripetuto che chiude
+l'effetto); l'azione tiene `immuneHours`. Le frasi del tiro ripetuto e dell'immunità escono dalla nota (la Presenza
+terrificante non ha più nota). All'esecuzione, come la console Boss: con il tiro ripetuto la condizione è manuale e
+porta il promemoria (caratteristica e CD dell'azione, fine o inizio turno della creatura) che, superato, la toglie e
+applica l'immunità (D7: nessun conteggio dei round); senza, scade dopo i suoi round o alla fine/inizio del prossimo turno
+giusto. Ogni condizione si salta per chi ne è immune. Chi supera un'azione con immunità prende la pillola «Immune ·
+azione» (buff, legata a quel mostro e a quell'azione) e la volta dopo parte su Immune; la nota dell'area dice «chi
+fallisce è spaventato fino a 1 minuto, TS a fine turno, chi supera è immune per 24 ore». Nel banco: Frightful Presence
+dell'Ancient Black Dragon, Dars fallisce (Spaventato, promemoria TS Saggezza CD 19 a fine turno, nessuna durata a
+round), Mira supera (pillola d'immunità) e alla riapertura parte su Immune. Il promemoria al cambio turno usa il sistema
+già in uso per la console Boss: da guardare in room.
 
 - La condizione al fallimento prende durata («for 1 minute» → 10 round,
   «until the end of its next turn»…) e promemoria del tiro ripetuto con CD e

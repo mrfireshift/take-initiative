@@ -255,3 +255,73 @@ test("immunità alle condizioni ed Elusione nel profilo del mostro: dal formato 
   assert.deepEqual(MONSTER_PROFILE_STATBLOCK_FIELDS, ["conditionImmunities", "evasion"], "a new block replaces them, never merges");
   assert.equal(parseCharacterSheetImport(JSON.stringify({ name: "PG", conditionImmunities: ["frightened"] })).monster, undefined, "only a monster's block");
 });
+
+// Attacchi dei mostri, fase 5, lotto 3: la condizione dura quanto dice lo statblock; il tiro ripetuto la chiude con il
+// promemoria (D7: mai il conteggio dei round); chi supera un'azione con immunità prende la pillola per 24 ore.
+import { pcAttackActionImmunityId, pcAttackMonsterConditionTiming, pcAttackMonsterFailureText, pcAttackTargetActionImmune } from "../src/pcAttackCore.js";
+import { importedMonsterActions } from "../src/monsterStatblockImportCore.js";
+import { fiveToolsMonsterToStatblock } from "../src/fiveToolsMonsterCore.js";
+import { readFileSync } from "node:fs";
+
+const frightful = sanitizeQuickAction({ id: "presence", label: "Presenza terrificante", kind: "attack", components: [], save: "wis", saveDC: 19,
+  area: { shape: "sphere", sizeFeet: 120, origin: "self", choice: true }, onFail: { condition: "Spaventato", rounds: 10, repeat: "turn-end" }, immuneHours: 24 });
+
+test("sulla scheda: condizioni in più, round, fino al prossimo turno, tiro ripetuto, ore di immunità", () => {
+  assert.deepEqual([frightful.onFail, frightful.immuneHours], [{ condition: "Spaventato", rounds: 10, repeat: "turn-end" }, 24]);
+  assert.deepEqual(sanitizeQuickAction({ ...frightful, onFail: { condition: "Avvelenato", also: ["Paralizzato", "Paralizzato"], until: "turn-end", anchor: "source",
+    repeat: "sometimes" } }).onFail, { condition: "Avvelenato", also: ["Paralizzato"], until: "turn-end", anchor: "source" });
+  // From 5eTools to the card: the dragon's Frightful Presence.
+  const srd = JSON.parse(readFileSync(new URL("../test-support/fivetools-srd-monsters.json", import.meta.url), "utf8"));
+  const block = fiveToolsMonsterToStatblock(srd.monster.find((monster) => monster.name === "Adult Silver Dragon")).block;
+  const presenceFields = importedMonsterActions(block, { resolveDamageType: (type) => type, resolveAbility: (value) => ({ wisdom: "wis", wis: "wis" })[String(value).toLowerCase()] || "", unresolved: [] })
+    .attacks.find((action) => action.label === "Frightful Presence");
+  assert.deepEqual([presenceFields.onFail, presenceFields.immuneHours], [{ condition: "Spaventato", rounds: 10, repeat: "turn-end" }, 24]);
+});
+
+test("la durata in parole e nei comandi: il tiro ripetuto non conta i round (D7)", () => {
+  const attack = pcAttackResolvedAction(frightful);
+  assert.equal(pcAttackMonsterFailureText(attack.monster.onFail), "spaventato fino a 1 minuto, TS a fine turno");
+  assert.match(pcAttackMonsterAreaNote(attack, dragon().metadata[META].initiativeCard), /chi fallisce è spaventato fino a 1 minuto, TS a fine turno, chi supera è immune per 24 ore\.$/);
+  assert.deepEqual(pcAttackMonsterConditionTiming(attack), { expiry: { mode: "manual" }, manualRemoval: true, saveReminder: { ability: "wis", timing: "turn-end", dc: 19 } });
+  const timed = pcAttackResolvedAction(sanitizeQuickAction({ ...frightful, onFail: { condition: "Stordito", rounds: 1 }, immuneHours: undefined }));
+  assert.deepEqual(pcAttackMonsterConditionTiming(timed), { manualRemoval: false, expiry: { mode: "rounds", remaining: 1 } });
+  assert.equal(pcAttackMonsterFailureText(timed.monster.onFail), "stordito per 1 round");
+  const untilTarget = pcAttackResolvedAction(sanitizeQuickAction({ ...frightful, onFail: { condition: "Trattenuto", until: "turn-end" } }));
+  assert.deepEqual(pcAttackMonsterConditionTiming(untilTarget, { sourceId: "dragon", targetId: "orc" }).expiry,
+    { mode: "turn-end", remaining: 1, actor: "target", actorId: "orc", anchor: "next-turn" });
+  const untilSource = pcAttackResolvedAction(sanitizeQuickAction({ ...frightful, onFail: { condition: "Accecato", until: "turn-end", anchor: "source" } }));
+  assert.equal(pcAttackMonsterFailureText(untilSource.monster.onFail), "accecato fino alla fine del prossimo turno del mostro");
+  assert.equal(pcAttackMonsterConditionTiming(untilSource, { sourceId: "dragon", targetId: "orc" }).expiry.actorId, "dragon");
+});
+
+test("all'esecuzione: la condizione con il promemoria che, superato, applica l'immunità; chi supera è immune per 24 ore", () => {
+  const result = buildPcAttackAreaMutation({ action: frightful, sourceItem: dragon([frightful]),
+    members: [{ item: orc(), outcome: "failed" }, { item: elf(), outcome: "passed" }], componentAmounts: {}, attackInstanceId: "presence-3", expectedDefenses: {}, turnState: null });
+  const [fear, immunity] = result.operations;
+  assert.deepEqual([fear.type, fear.targetIds, fear.conditionName, fear.options.manualRemoval, fear.options.expiry], ["condition:add", ["orc"], "Spaventato", true, { mode: "manual" }]);
+  assert.deepEqual([fear.options.saveReminder.ability, fear.options.saveReminder.timing, fear.options.saveReminder.dc], ["wis", "turn-end", 19]);
+  assert.equal(fear.options.saveReminder.label, "Se supera il TS, termina Spaventato e diventa immune per 24 ore.");
+  const immunityId = pcAttackActionImmunityId(pcAttackResolvedAction(frightful), "dragon");
+  assert.equal(fear.options.saveReminder.resolution.success.actions[0].options.effectId, immunityId);
+  assert.deepEqual([immunity.targetIds, immunity.conditionName, immunity.options.effectId, immunity.options.effectKind], [["elf"], "Immune · Presenza terrificante", immunityId, "buff"]);
+  assert.deepEqual(result.causality.immunityApplied, { hours: 24, targetIds: ["elf"] });
+  assert.deepEqual(result.labelTargetIds, ["orc", "elf"]);
+  // The pill on the elf: Immune to this dragon's Frightful Presence, never to another dragon's.
+  const pill = { effectId: immunityId, active: true };
+  const immuneElf = creature("elf", "Elfo", { conditions: [pill] });
+  assert.equal(pcAttackTargetActionImmune(immuneElf, pcAttackResolvedAction(frightful), "dragon"), true);
+  assert.equal(pcAttackTargetActionImmune(immuneElf, pcAttackResolvedAction(frightful), "other-dragon"), false);
+  const again = buildPcAttackAreaMutation({ action: frightful, sourceItem: dragon([frightful]), members: [{ item: immuneElf, outcome: "passed" }],
+    componentAmounts: {}, attackInstanceId: "presence-4", expectedDefenses: {}, turnState: null });
+  assert.equal(again.operations.length, 0, "already immune: no second pill");
+});
+
+test("più condizioni, ognuna saltata per chi ne è immune; la condizione a tempo scade da sola", () => {
+  const sting = sanitizeQuickAction({ id: "sting", label: "Pungiglione", kind: "attack", components: [{ type: "poison", formula: "2d6" }], save: "con", saveDC: 13,
+    onFail: { condition: "Avvelenato", also: ["Paralizzato"], rounds: 10 } });
+  const undeadImmune = creature("zombie", "Zombi", { initiativeCard: { monster: { source: "manual", conditionImmunities: ["avvelenato"] } } });
+  const result = buildPcAttackAreaMutation({ action: sting, sourceItem: dragon([sting]), members: [{ item: undeadImmune, outcome: "failed" }],
+    componentAmounts: { c1: 7 }, attackInstanceId: "sting-1", expectedDefenses: {}, turnState: null });
+  assert.deepEqual(result.operations.filter((operation) => operation.type === "condition:add").map((operation) => [operation.conditionName, operation.options.expiry]),
+    [["Paralizzato", { mode: "rounds", remaining: 10 }]]);
+});

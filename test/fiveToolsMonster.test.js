@@ -83,7 +83,8 @@ test("drago d'argento adulto: multiattacco, Presenza terrificante, i due soffi c
     { shape: "sphere", size: 120, origin: "self", choice: true },
     { condition: "frightened", duration: { rounds: 10 }, repeat: { timing: "turn-end", ends: true } }, []], "phase 5, lot 0: origin, choice, duration, repeat");
   assert.equal(presence.immuneHours, 24);
-  assert.match(presence.note, /^A creature can repeat the saving throw at the end of each of its turns/);
+  // Fase 5, lotto 3: the repeated save and the 24-hour immunity are fields; their sentences left the note.
+  assert.equal(presence.note, undefined);
   const cold = block.actions.find((action) => action.name === "Cold Breath");
   assert.deepEqual([cold.recharge, cold.save, cold.area, cold.damage, cold.note], [5, { ability: "con", dc: 20, half: true }, { shape: "cone", size: 60, origin: "self" },
     [{ type: "cold", formula: "13d8" }], undefined]);

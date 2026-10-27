@@ -92,11 +92,30 @@ function attackSaveOf(value) {
   if (!save || saveDC === null) return null;
   const condition = shortText(value.onFail?.condition, 80);
   const area = attackAreaOf(value.area);
+  const immuneHours = boundedInteger(value.immuneHours, 1, 720);
   return {
     save, saveDC,
     ...(value.saveHalf === true ? { saveHalf: true } : {}),
     ...(area ? { area } : {}),
-    ...(condition ? { onFail: { condition } } : {}),
+    ...(condition ? { onFail: { condition, ...attackFailureTimingOf(value.onFail) } } : {}),
+    // A success makes the creature immune to this action for these hours (fase 5, lotto 3: Frightful Presence, 24).
+    ...(immuneHours !== null ? { immuneHours } : {}),
+  };
+}
+
+// What a failure lasts (fase 5, lotto 3), all optional: more conditions (also), rounds ("for 1 minute": 10), the end or
+// start of the next turn of the target or of the monster (until, anchor), the repeated save (repeat: "turn-end" or
+// "turn-start", a success ending it).
+function attackFailureTimingOf(value) {
+  const also = [...new Set((Array.isArray(value?.also) ? value.also : []).map((name) => shortText(name, 80)).filter(Boolean))].slice(0, 2);
+  const rounds = boundedInteger(value?.rounds, 1, 6000);
+  const until = ["turn-end", "turn-start"].includes(value?.until) ? value.until : "";
+  const repeat = ["turn-end", "turn-start"].includes(value?.repeat) ? value.repeat : "";
+  return {
+    ...(also.length ? { also } : {}),
+    ...(rounds !== null ? { rounds } : {}),
+    ...(until ? { until, anchor: value.anchor === "source" ? "source" : "target" } : {}),
+    ...(repeat ? { repeat } : {}),
   };
 }
 

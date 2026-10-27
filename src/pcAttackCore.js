@@ -91,6 +91,49 @@ export function pcAttackTargetEvasion(attack, item) {
   return actorHasEvasion(card) || card[MONSTER_PROFILE_FIELD]?.evasion === true;
 }
 
+// The immunity a success gives (fase 5, lotto 3: "immune to the dragon's Frightful Presence for the next 24 hours"):
+// a buff pill on the creature, for this monster's action. A creature that carries it is Immune to the action.
+export function pcAttackActionImmunityId(attack, sourceId) {
+  return attack?.monster && attack.immuneHours ? `monster-action:${sourceId}:${attack.id}:immune` : "";
+}
+export function pcAttackTargetActionImmune(item, attack, sourceId) {
+  const effectId = pcAttackActionImmunityId(attack, sourceId);
+  if (!effectId) return false;
+  const value = item?.metadata?.[META_KEY]?.conditions;
+  const instances = Array.isArray(value) ? value : Array.isArray(value?.instances) ? value.instances : [];
+  return instances.some((instance) => instance?.effectId === effectId && instance.active !== false);
+}
+
+// A monster's failure as the condition commands write it (fase 5, lotto 3, decision D7). A repeated save closes the
+// condition through its reminder (caratteristica, CD, end or start of the creature's turn), never by counting rounds;
+// without one it ends after its rounds, or at the end or start of the next turn of the creature or of the monster.
+export function pcAttackMonsterConditionTiming(attack, { sourceId = "", targetId = "" } = {}) {
+  const onFail = attack?.monster?.onFail;
+  if (!onFail) return null;
+  if (onFail.repeat) {
+    return { expiry: { mode: "manual" }, manualRemoval: true,
+      saveReminder: { ability: pcAttackSave(attack), timing: onFail.repeat, dc: attack.saveDC } };
+  }
+  if (onFail.until) {
+    return { manualRemoval: false, expiry: { mode: onFail.until, remaining: 1, actor: onFail.anchor === "source" ? "source" : "target",
+      actorId: onFail.anchor === "source" ? sourceId : targetId, anchor: "next-turn" } };
+  }
+  if (onFail.rounds) return { manualRemoval: false, expiry: { mode: "rounds", remaining: onFail.rounds } };
+  return { manualRemoval: true, expiry: { mode: "manual" } };
+}
+
+const ROUND_TEXT = (rounds) => (rounds % 600 === 0 ? `${rounds / 600} ${rounds === 600 ? "ora" : "ore"}`
+  : rounds % 10 === 0 ? `${rounds / 10} ${rounds === 10 ? "minuto" : "minuti"}` : `${rounds} ${rounds === 1 ? "round" : "round"}`);
+// The failure in words, for the area note: "spaventato per 1 minuto, TS a fine turno".
+export function pcAttackMonsterFailureText(onFail) {
+  if (!onFail?.condition) return "";
+  const names = [onFail.condition, ...(onFail.also || [])].map((name) => name.toLowerCase()).join(" e ");
+  const timing = onFail.repeat ? `${onFail.rounds ? ` fino a ${ROUND_TEXT(onFail.rounds)}` : ""}, TS ${onFail.repeat === "turn-end" ? "a fine" : "a inizio"} turno`
+    : onFail.until ? ` fino ${onFail.until === "turn-end" ? "alla fine" : "all'inizio"} del prossimo turno${onFail.anchor === "source" ? " del mostro" : ""}`
+    : onFail.rounds ? ` per ${ROUND_TEXT(onFail.rounds)}` : "";
+  return `${names}${timing}`;
+}
+
 // What this outcome deals: the full damage on a hit, a critical or a failed save; half on a passed save when the
 // caster has Potent Cantrip, or for an arrow that halves it (Seeking, Piercing); nothing otherwise.
 export function pcAttackDamageFactor(attack, outcome, card = {}) {
@@ -843,7 +886,8 @@ export function pcAttackMonsterAreaNote(attack, card = {}) {
   const onFail = attack.monster.onFail;
   const effects = [
     ...(attack.components.length ? [attack.monster.half ? "metà se superato" : "niente se superato"] : []),
-    ...(onFail ? [`chi fallisce è ${onFail.condition.toLowerCase()}`] : []),
+    ...(onFail ? [`chi fallisce è ${pcAttackMonsterFailureText(onFail)}`] : []),
+    ...(attack.immuneHours ? [`chi supera è immune per ${attack.immuneHours} ore`] : []),
   ];
   return `${where}${pcAttackSaveLabel(attack, card)}${effects.length ? `: ${effects.join(", ")}` : ""}.`;
 }
@@ -1865,16 +1909,45 @@ export function buildPcAttackAreaMutation({
   // the option says so (Incapacitato), else removed by hand (Prono). A monster's condition is removed by hand.
   const onFail = attack.breath?.onFail || attack.monster?.onFail || null;
   const appliedAt = bossConditionAppliedAt(turnState);
+  // A monster's success can give a 24-hour immunity to this action (fase 5, lotto 3): a buff pill, also applied when its
+  // repeated save is passed.
+  const immunityId = pcAttackActionImmunityId(attack, sourceItem.id);
+  const immunityOptions = immunityId ? { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", effectId: immunityId,
+    effectKind: "buff", effectDetail: `Immune a ${actionName} di ${sourceName} per ${attack.immuneHours} ore.`, manualRemoval: true, expiry: { mode: "manual" } } : null;
+  const immunityName = `Immune · ${actionName}`;
   // Never on a creature immune to the condition (its monster card's immunities, fase 5, lotto 2).
-  const conditionOperations = onFail ? rows.filter((row) => row.outcome === "failed" && !row.conditionImmune).map((row) => ({
-    type: "condition:add", targetIds: [row.item.id], conditionName: onFail.condition,
-    instanceIds: { [row.item.id]: bossGroupConditionInstanceId(`${attackInstanceId}:${attack.monster ? "monster" : "breath"}`, onFail.condition, row.item.id) },
-    options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: !onFail.expiry,
-      expiry: onFail.expiry ? { ...onFail.expiry, ...(onFail.expiry.actor === "source" ? { actorId: sourceItem.id } : {}) } : { mode: "manual" },
-      ...(appliedAt ? { appliedAt } : {}) } })) : [];
+  const conditionOperations = !onFail ? [] : attack.monster
+    ? rows.filter((row) => row.outcome === "failed").flatMap((row) => [onFail.condition, ...(onFail.also || [])]
+      .filter((name) => !pcAttackTargetConditionImmune(row.item, name)).map((name) => {
+        const timing = pcAttackMonsterConditionTiming(attack, { sourceId: sourceItem.id, targetId: row.item.id });
+        const reminder = timing.saveReminder ? { ...timing.saveReminder,
+          label: `Se supera il TS, termina ${name}${immunityOptions ? ` e diventa immune per ${attack.immuneHours} ore` : ""}.`,
+          ...(immunityOptions ? { resolution: { success: { mode: "remove-effect", actions: [{ kind: "condition", action: "apply",
+            name: immunityName, options: structuredClone(immunityOptions) }] } } } : {}) } : null;
+        return { type: "condition:add", targetIds: [row.item.id], conditionName: name,
+          instanceIds: { [row.item.id]: bossGroupConditionInstanceId(`${attackInstanceId}:monster`, name, row.item.id) },
+          options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: timing.manualRemoval,
+            expiry: timing.expiry, ...(reminder ? { saveReminder: reminder } : {}), ...(appliedAt ? { appliedAt } : {}) } };
+      }))
+    : rows.filter((row) => row.outcome === "failed" && !row.conditionImmune).map((row) => ({
+      type: "condition:add", targetIds: [row.item.id], conditionName: onFail.condition,
+      instanceIds: { [row.item.id]: bossGroupConditionInstanceId(`${attackInstanceId}:breath`, onFail.condition, row.item.id) },
+      options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: !onFail.expiry,
+        expiry: onFail.expiry ? { ...onFail.expiry, ...(onFail.expiry.actor === "source" ? { actorId: sourceItem.id } : {}) } : { mode: "manual" },
+        ...(appliedAt ? { appliedAt } : {}) } }));
   if (conditionOperations.length) {
-    causality.conditionsApplied = conditionOperations.map((operation) => ({ targetId: operation.targetIds[0], condition: onFail.condition,
+    causality.conditionsApplied = conditionOperations.map((operation) => ({ targetId: operation.targetIds[0], condition: operation.conditionName,
+      ...(operation.options.saveReminder ? { repeat: operation.options.saveReminder.timing } : {}),
+      ...(operation.options.expiry.mode !== "manual" ? { expiry: { ...operation.options.expiry } } : {}),
       ...(appliedAt ? { appliedAt } : {}) }));
+  }
+  const immuneNow = immunityOptions ? rows.filter((row) => row.outcome === "passed" && !pcAttackTargetActionImmune(row.item, attack, sourceItem.id))
+    .map((row) => row.item.id) : [];
+  if (immuneNow.length) {
+    conditionOperations.push({ type: "condition:add", targetIds: immuneNow, conditionName: immunityName,
+      instanceIds: Object.fromEntries(immuneNow.map((id) => [id, bossGroupConditionInstanceId(`${attackInstanceId}:monster`, "immune", id)])),
+      options: { ...structuredClone(immunityOptions), ...(appliedAt ? { appliedAt } : {}) } });
+    causality.immunityApplied = { hours: attack.immuneHours, targetIds: immuneNow };
   }
   const monsterSpend = planMonsterActionSpend({ action, card, state: spend?.state || breathSpend?.state || originalState });
   if (monsterSpend.spent.length && causality.monster) causality.monster.spent = monsterSpend.spent;
@@ -1882,7 +1955,7 @@ export function buildPcAttackAreaMutation({
   const stateChanged = !!nextFeatureState && JSON.stringify(nextFeatureState) !== JSON.stringify(originalState);
   return {
     causality, rows, changes: changed.map((row) => ({ item: row.item, change: row.change })),
-    labelTargetIds: conditionOperations.map((operation) => operation.targetIds[0]),
+    labelTargetIds: [...new Set(conditionOperations.flatMap((operation) => operation.targetIds))],
     operations: [...(changed.length ? [{ type: "hp:set", updates: changed.map((row) => ({
       itemId: row.item.id, hp: row.change.afterHP, hpMax: row.change.hpMax,
       hpIntent: { mode: "damage", amount: row.change.requested, eventId: attackInstanceId },
