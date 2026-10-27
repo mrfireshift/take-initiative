@@ -12,7 +12,8 @@ import { ABILITY_KEYS, sanitizeAbilityModifiers, hasAbilityModifiers } from "./a
 import { MAX_QUICK_ACTIONS, MAX_QUICK_ACTION_ATTACKS, MAX_QUICK_ACTION_USES, sanitizeQuickAction } from "./quickActionsCore.js";
 import { MAX_SPELLBOOK_SPELLS, sanitizeSpellbook } from "./spellbookCore.js";
 import { normalizeSpeedMeters } from "./speedCheckCore.js";
-import { importedMonsterActions, importedMonsterHitPoints, isMonsterStatblock, monsterImportRef, monsterImportSource } from "./monsterStatblockImportCore.js";
+import { importedMonsterActions, importedMonsterHitPoints, isMonsterStatblock, monsterImportConditionName, monsterImportRef, monsterImportSource }
+  from "./monsterStatblockImportCore.js";
 import { monsterLegendaryOf } from "./monsterLegendaryCore.js";
 
 // In the order the import panel lists them.
@@ -438,8 +439,18 @@ export function parseCharacterSheetImport(value) {
   const sections = Object.fromEntries(Object.entries(candidates).filter(([, section]) => section !== null));
   const error = Object.keys(sections).length ? "" : "Nel blocco non c'è nessun dato della scheda riconosciuto.";
   return { error, name: text(data.name ?? data.nome).slice(0, 80), sections, unresolved,
-    ...(monster ? { monster: { source: monsterImportSource(data), ...(monsterImportRef(data) ? { ref: monsterImportRef(data) } : {}) },
+    ...(monster ? { monster: { source: monsterImportSource(data), ...(monsterImportRef(data) ? { ref: monsterImportRef(data) } : {}),
+      ...monsterDefensesOf(data) },
       hitPoints: importedMonsterHitPoints(data), legendary: monsterLegendaryOf(data) } : {}) };
+}
+
+// A monster's conditions immunities and Evasion (fase 5, lotto 2): the plugin's condition names, in English or Italian
+// ("frightened", "Spaventato"); exhaustion as "indebolimento"; an unknown name kept as written.
+function monsterDefensesOf(data) {
+  const names = (Array.isArray(data.conditionImmunities) ? data.conditionImmunities : [])
+    .map((name) => text(name)).filter(Boolean)
+    .map((name) => (/^(exhaustion|indebolimento)$/i.test(name) ? "indebolimento" : monsterImportConditionName(name) || name).toLocaleLowerCase("it"));
+  return { ...(names.length ? { conditionImmunities: names } : {}), ...(data.evasion === true ? { evasion: true } : {}) };
 }
 
 function asArray(value) {

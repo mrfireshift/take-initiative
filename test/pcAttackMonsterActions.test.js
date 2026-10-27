@@ -189,3 +189,69 @@ test("un attacco senza contatori non tocca le risorse", () => {
   assert.equal(Object.hasOwn(result.options.metadataPatches[0].fields, "classFeatureState"), false);
   assert.equal(result.causality.monster, undefined);
 });
+
+// Attacchi dei mostri, fase 5, lotto 2: esiti più ricchi. Il bonus al TS del bersaglio accanto ai pulsanti (i dadi restano
+// del tavolo), l'esito «Immune», le immunità alle condizioni della scheda del mostro (D3), l'Elusione.
+import { PC_ATTACK_MONSTER_SAVE_OUTCOMES, pcAttackAreaOutcomes, pcAttackTargetConditionImmune, pcAttackTargetEvasion, pcAttackTargetSaveBonus }
+  from "../src/pcAttackCore.js";
+
+const undead = () => creature("zombie", "Zombi", { attitude: "enemy", initiativeCard: { monster: { source: "manual", conditionImmunities: ["avvelenato", "spaventato"] },
+  abilityModifiers: { str: 1, dex: -2, con: 3, int: -4, wis: -2, cha: -3 }, savingThrows: { wis: 0 } } });
+const rogue = () => creature("rogue", "Ladra", { attitude: "pc", initiativeCard: { characterBuild: [{ classId: "ladro", level: 7 }],
+  savingThrows: { dex: 7 }, abilityModifiers: { dex: 4 } } });
+
+test("il bonus al TS del bersaglio: il TS della scheda, il modificatore di un mostro, nulla se non si sa", () => {
+  assert.equal(pcAttackTargetSaveBonus(undead(), "wis"), 0, "the sheet's save first");
+  assert.equal(pcAttackTargetSaveBonus(undead(), "dex"), -2, "a monster without proficiency: its modifier");
+  assert.equal(pcAttackTargetSaveBonus(rogue(), "dex"), 7);
+  assert.equal(pcAttackTargetSaveBonus(rogue(), "wis"), null, "a character's modifier is not its save: unknown");
+  assert.equal(pcAttackTargetSaveBonus(orc(), "dex"), null);
+});
+
+test("Immune: terzo esito delle azioni dei mostri, mai danni né condizione; immunità alle condizioni della scheda", () => {
+  assert.deepEqual(pcAttackAreaOutcomes(pcAttackResolvedAction(presence)), PC_ATTACK_MONSTER_SAVE_OUTCOMES);
+  assert.deepEqual(pcAttackAreaOutcomes(pcAttackResolvedAction(fireBreath)), ["failed", "passed", "immune"]);
+  assert.equal(pcAttackTargetConditionImmune(undead(), "Spaventato"), true);
+  assert.equal(pcAttackTargetConditionImmune(orc(), "Spaventato"), false);
+  // Everyone immune: nothing to roll, nothing written but the action's use.
+  const allImmune = pcAttackAreaPreview({ action: presence, sourceItem: dragon(), members: [{ item: undead(), outcome: "immune" }] });
+  assert.equal(allImmune.blocker, "");
+  const result = buildPcAttackAreaMutation({ action: presence, sourceItem: dragon(), members: [{ item: undead(), outcome: "immune" }, { item: orc(), outcome: "failed" }],
+    componentAmounts: {}, attackInstanceId: "presence-immune", expectedDefenses: {}, turnState: null });
+  assert.deepEqual(result.operations.filter((operation) => operation.type === "condition:add").map((operation) => operation.targetIds[0]), ["orc"]);
+  assert.deepEqual(result.causality.targets.map((target) => [target.id, target.outcome]), [["zombie", "immune"], ["orc", "failed"]]);
+  // A failed save of a creature immune to the condition: the damage, never the condition.
+  const poisonCloud = sanitizeQuickAction({ id: "cloud", label: "Nube velenosa", kind: "attack", components: [{ type: "poison", formula: "4d8" }],
+    save: "con", saveDC: 14, saveHalf: true, area: { shape: "sphere", sizeFeet: 20 }, onFail: { condition: "Avvelenato" } });
+  const cloud = buildPcAttackAreaMutation({ action: poisonCloud, sourceItem: dragon([poisonCloud]), members: [{ item: undead(), outcome: "failed" }, { item: orc(), outcome: "failed" }],
+    componentAmounts: { c1: 18 }, attackInstanceId: "cloud-1", expectedDefenses: {}, turnState: null });
+  assert.deepEqual(cloud.rows.map((row) => [row.item.id, row.change.requested]), [["zombie", 18], ["orc", 18]]);
+  assert.deepEqual(cloud.operations.filter((operation) => operation.type === "condition:add").map((operation) => operation.targetIds[0]), ["orc"]);
+  assert.equal(cloud.causality.targets[0].conditionImmune, true);
+});
+
+test("Elusione: TS di Destrezza che dimezza, niente se superato e metà se fallito; mai su un altro TS", () => {
+  const breath = pcAttackResolvedAction(fireBreath);
+  assert.equal(pcAttackTargetEvasion(breath, rogue()), true);
+  assert.equal(pcAttackTargetEvasion(breath, orc()), false);
+  assert.equal(pcAttackTargetEvasion(pcAttackResolvedAction(presence), rogue()), false, "a Wisdom save");
+  const monk = creature("shadow", "Danzatore", { initiativeCard: { monster: { source: "5etools", evasion: true } } });
+  assert.equal(pcAttackTargetEvasion(breath, monk), true, "a monster with the Evasion trait");
+  const result = buildPcAttackAreaMutation({ action: fireBreath, sourceItem: dragon(), members: [{ item: rogue(), outcome: "passed" }, { item: monk, outcome: "failed" }],
+    componentAmounts: { c1: 40 }, attackInstanceId: "breath-evasion", expectedDefenses: {}, turnState: null });
+  assert.deepEqual(result.rows.map((row) => [row.item.id, row.factor, row.change.requested]), [["rogue", "zero", 0], ["shadow", "half", 20]]);
+  assert.deepEqual(result.causality.targets.map((target) => target.evasion), ["applied", "applied"]);
+});
+
+import { MONSTER_PROFILE_STATBLOCK_FIELDS, sanitizeMonsterProfile } from "../src/monsterProfileCore.js";
+import { parseCharacterSheetImport } from "../src/characterSheetImportCore.js";
+
+test("immunità alle condizioni ed Elusione nel profilo del mostro: dal formato del plugin, in inglese o in italiano", () => {
+  const sheet = parseCharacterSheetImport(JSON.stringify({ kind: "monster", name: "Ombra", actions: [],
+    conditionImmunities: ["frightened", "Avvelenato", "exhaustion"], evasion: true }));
+  assert.deepEqual(sheet.monster, { source: "manual", conditionImmunities: ["spaventato", "avvelenato", "indebolimento"], evasion: true });
+  assert.deepEqual(sanitizeMonsterProfile({ source: "5etools", conditionImmunities: ["Spaventato", "spaventato", ""], evasion: "sì" }),
+    { source: "5etools", conditionImmunities: ["spaventato"] });
+  assert.deepEqual(MONSTER_PROFILE_STATBLOCK_FIELDS, ["conditionImmunities", "evasion"], "a new block replaces them, never merges");
+  assert.equal(parseCharacterSheetImport(JSON.stringify({ name: "PG", conditionImmunities: ["frightened"] })).monster, undefined, "only a monster's block");
+});

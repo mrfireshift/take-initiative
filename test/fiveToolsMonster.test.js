@@ -251,7 +251,8 @@ test("la riga di riepilogo e il riferimento del mostro sulla scheda", () => {
   assert.equal(fiveToolsImportSummary(converted, monster("Ghoul")), "Da 5eTools (MM): Ghoul, 1 azione registrabile, 1 con il tiro salvezza al colpo nella nota.");
   assert.equal(converted.block.ref, "Ghoul|MM");
   const parsed = parseCharacterSheetImport(JSON.stringify(converted.block));
-  assert.deepEqual(parsed.monster, { source: "5etools", ref: "Ghoul|MM" });
+  // Fase 5, lotto 2: the conditions it is immune to, as the plugin names them, for the console's «Immune».
+  assert.deepEqual(parsed.monster, { source: "5etools", ref: "Ghoul|MM", conditionImmunities: ["affascinato", "indebolimento", "avvelenato"] });
   assert.equal(fiveToolsImportSummary(fiveToolsMonsterToStatblock(monster("Giant Spider")), monster("Giant Spider")),
     "Da 5eTools (MM): Giant Spider, 0 azioni registrabili, 1 con il tiro salvezza al colpo nella nota, 1 da gestire al tavolo.");
 });

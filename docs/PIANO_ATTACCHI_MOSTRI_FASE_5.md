@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 5: azioni complesse ad euristica (piano)
 
-Stato: **lotti 0 e 1 implementati** (27/10/2026); D1–D7 confermate come raccomandate (D7: con il tiro ripetuto niente conteggio dei round).
+Stato: **lotti 0, 1 e 2 implementati** (27/10/2026); D1–D7 confermate come raccomandate (D7: con il tiro ripetuto niente conteggio dei round).
 
 Richiesta dell'utente: le azioni complesse degli NPC (tiri salvezza, soffi,
 coni, linee, aree) oggi si risolvono solo con «TS superato / fallito»;
@@ -126,7 +126,19 @@ Owlbear Rodeo, non nel banco) è da provare in room; il percorso è quello del s
 - Il mostro non è mai tra i bersagli; «of its choice» spunta tutti e il GM
   toglie gli alleati.
 
-### Lotto 2 — esiti più ricchi
+### Lotto 2 — esiti più ricchi ✅
+
+Fatto (27/10): il profilo del mostro sulla scheda tiene `conditionImmunities` (i nomi delle condizioni del plugin,
+«spaventato») ed `evasion` (D3), dall'adapter di 5eTools e dal formato del plugin (`"conditionImmunities":
+["frightened"]`, `"evasion": true`); un nuovo statblock li sostituisce, mai li somma. Nella console, per le azioni a
+TS dei mostri: terzo esito **Immune** (nessun danno, nessuna condizione; se tutte le creature sono immuni non serve
+tirare i danni); una creatura immune all'unico effetto dell'azione (niente danni, condizione tra le sue immunità) parte
+su Immune, che il GM può cambiare, e «Tutti falliti / superati» non la tocca; chi fallisce ma è immune alla condizione
+prende i danni senza la condizione; accanto al nome il bonus al TS (quello della scheda, o il modificatore di un mostro
+senza competenza; nulla per un PG senza TS sulla scheda), «Elusione» (ladro di 7° livello o tratto Evasion, su TS di
+Destrezza che dimezza: niente se superato, metà se fallito) e «immune a …». Il Combat Log registra `evasion` e
+`conditionImmune` per bersaglio. Nel banco: Frightful Presence dell'Ancient Black Dragon con un goblin immune a
+spaventato (parte su Immune, «TS -1»), un PG con TS Saggezza +5; Acid Breath con una ladra di 7° («TS +8 · Elusione»).
 
 - Accanto a ogni bersaglio il suo bonus al tiro salvezza (dalla scheda; per un
   mostro senza competenza, il modificatore della caratteristica).

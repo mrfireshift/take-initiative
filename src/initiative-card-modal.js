@@ -70,7 +70,7 @@ import {
   parseCharacterSheetImport,
   sheetImportSectionSummary,
 } from "./characterSheetImportCore.js";
-import { MONSTER_PROFILE_FIELD, sanitizeMonsterProfile } from "./monsterProfileCore.js";
+import { MONSTER_PROFILE_FIELD, MONSTER_PROFILE_STATBLOCK_FIELDS, sanitizeMonsterProfile } from "./monsterProfileCore.js";
 import { fiveToolsCollection, fiveToolsImportSummary, fiveToolsMonsterLabel, fiveToolsMonsterToStatblock, fiveToolsMonsters, fiveToolsSearch, isFiveToolsData }
   from "./fiveToolsMonsterCore.js";
 import { createFiveToolsArchivePanel } from "./fiveToolsArchivePanel.js";
@@ -4263,7 +4263,9 @@ function applySheetImport() {
   }
   // A monster's block marks the card as a monster's (its source), whatever sections were applied.
   if (sheetImportResult.monster) {
-    draftMonsterProfile = sanitizeMonsterProfile({ ...(draftMonsterProfile || {}), ...sheetImportResult.monster });
+    // The stat block's own fields (immunities, Evasion) are the new block's, never the old monster's (fase 5, lotto 2).
+    const kept = Object.fromEntries(Object.entries(draftMonsterProfile || {}).filter(([field]) => !MONSTER_PROFILE_STATBLOCK_FIELDS.includes(field)));
+    draftMonsterProfile = sanitizeMonsterProfile({ ...kept, ...sheetImportResult.monster });
   }
   const labelsById = new Map([...SHEET_IMPORT_SECTIONS.map((section) => [section.id, section.label]), ["hitPoints", "Punti ferita (dopo Salva)"],
     ["name", "Nome del token (dopo Salva)"], ["portrait", "Ritratto del token (dopo Salva)"],

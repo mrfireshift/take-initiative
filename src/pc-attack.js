@@ -3,6 +3,7 @@ import { ID } from "./constants.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { createPcAttackRuntime, pcAttackSmiteSlotPlans, pcAttackSpellSlotPlan } from "./pcAttackExecution.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
+import { pcAttackAreaOutcomes, pcAttackTargetConditionImmune, pcAttackTargetEvasion, pcAttackTargetSaveBonus } from "./pcAttackCore.js";
 import { PC_ATTACK_OUTCOME_LABELS, MAX_PC_ATTACK_EXTRAS, pcAttackPreview, pcAttackRiderOptions, pcAttackSelectionHint, pcAttackActivationOptions,
   pcAttackCantripDiceFor, pcAttackCantripIds, pcAttackResolvedAction, pcAttackOutcomesFor, pcAttackSaveLabel, pcAttackDamageFactor,
   pcAttackCantripPillLabels, pcAttackWeaponCantripOptions, pcAttackActionWeaponCantripIds, pcAttackQuiveringPalm,
@@ -793,7 +794,16 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         renderArea();renderState();
       }).catch(()=>{});
     }
-    const signature=presentation.targets.map(item=>item.id).join(",");
+    // A monster's action (fase 5, lotto 2): «Immune» beside the two outcomes; a creature immune to its only effect (no
+    // damage, a condition in its immunities) starts on Immune, which the GM may change.
+    const outcomes=pcAttackAreaOutcomes(attack),condition=attack.monster?.onFail?.condition || "";
+    if(attack.monster && !attack.components.length && condition) {
+      for(const item of presentation.targets) {
+        const member=draft.area.members[item.id];
+        if(member?.on && !member.outcome && pcAttackTargetConditionImmune(item,condition)) member.outcome="immune";
+      }
+    }
+    const signature=`${presentation.targets.map(item=>item.id).join(",")}|${outcomes.join(",")}`;
     if(areaList.dataset.signature!==signature) {
       areaList.dataset.signature=signature;
       areaList.replaceChildren(...presentation.targets.map(item=>{
@@ -804,8 +814,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         lead.append(box);
         const label=node("span","","area-name");label.dataset.areaField="name";
         const outcomesBox=node("div","","segmented mini");outcomesBox.setAttribute("role","group");outcomesBox.setAttribute("aria-label",`Tiro salvezza di ${item.name || item.id}`);
-        for(const outcome of ["failed","passed"]) {
-          const button=node("button",PC_ATTACK_OUTCOME_LABELS[outcome]);button.type="button";button.dataset.outcome=outcome;button.dataset.areaField=outcome;
+        for(const outcome of outcomes) {
+          const button=node("button",outcome==="immune"?"Immune":PC_ATTACK_OUTCOME_LABELS[outcome]);button.type="button";button.dataset.outcome=outcome;button.dataset.areaField=outcome;
           button.addEventListener("click",()=>{const member=draft.area.members[item.id] ||= {on:false,outcome:""};member.on=true;member.outcome=outcome;renderArea();renderState();});
           outcomesBox.append(button);
         }
@@ -821,7 +831,12 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       const box=row.querySelector('[data-area-field="on"]');box.checked=!!member.on;box.disabled=busy;
       const label=row.querySelector('[data-area-field="name"]');label.replaceChildren(node("span",item.name || item.id));
       if(Number.isFinite(meta.hp)) label.append(node("span",` · ${meta.hp}/${meta.hpMax} PF`,"area-hp"));
-      for(const outcome of ["failed","passed"]) {
+      // Its bonus to this save (the players and the GM roll, decision D2), its Evasion, a condition it is immune to.
+      const bonus=attack.monster?pcAttackTargetSaveBonus(item,attack.save):null;
+      if(bonus!==null) label.append(node("span",` · TS ${bonus>=0?"+":""}${bonus}`,"area-hp"));
+      if(pcAttackTargetEvasion(attack,item)) label.append(node("span"," · Elusione","area-hp"));
+      if(condition && pcAttackTargetConditionImmune(item,condition)) label.append(node("span",` · immune a ${condition.toLowerCase()}`,"area-hp"));
+      for(const outcome of outcomes) {
         const button=row.querySelector(`[data-area-field="${outcome}"]`);
         button.setAttribute("aria-pressed",String(!!member.on && member.outcome===outcome));button.disabled=busy;
       }
@@ -2001,7 +2016,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     render();
   });
   const setAllOutcomes=outcome=>{
-    for(const member of Object.values(draft.area.members)) if(member.on) member.outcome=outcome;
+    // A creature already marked Immune stays so: the buttons are for the saves rolled.
+    for(const member of Object.values(draft.area.members)) if(member.on && member.outcome!=="immune") member.outcome=outcome;
     renderArea();renderState();
   };
   areaAllFailed?.addEventListener("click",()=>setAllOutcomes("failed"));

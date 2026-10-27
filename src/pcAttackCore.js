@@ -20,7 +20,8 @@ import { bossDefendedDamage } from "./bossActionsViewCore.js";
 import { getSpellDefinition, getSpellEffects, getSpellSummaryParts } from "./spells-srd.js";
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import { spellEffectThemeFor } from "./spellColorCore.js";
-import { damageDefensesForItem, damageTypeLabel, relevantDamageDefenses } from "./damageDefensesCore.js";
+import { actorHasEvasion, damageDefensesForItem, damageTypeLabel, evasionFactor, relevantDamageDefenses } from "./damageDefensesCore.js";
+import { MONSTER_PROFILE_FIELD } from "./monsterProfileCore.js";
 import { CLASS_FEATURE_RESOURCE_POOL_BY_ID, getClassFeatureDefinition, getClassFeatureResourcePool, getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import {
   CLASS_FEATURE_STATE_FIELD, classFeatureConditionInstancesForActivation, classFeatureResourceEntries, normalizeClassFeatureState,
@@ -56,6 +57,38 @@ const ATTACK_ROLL_OUTCOMES = new Set(["hit", "critical", "miss"]);
 // The save that replaces the attack roll: a saving throw cantrip's, or an arrow's without attack roll (3C).
 export function pcAttackSave(attack) {
   return attack?.cantrip?.save || attack?.save || "";
+}
+
+// A monster's save action has a third outcome (fase 5, lotto 2): «Immune», not affected at all (no damage, no condition).
+export const PC_ATTACK_MONSTER_SAVE_OUTCOMES = Object.freeze(["failed", "passed", "immune"]);
+export function pcAttackAreaOutcomes(attack) {
+  return attack?.monster ? PC_ATTACK_MONSTER_SAVE_OUTCOMES : PC_ATTACK_SAVE_OUTCOMES;
+}
+
+// A target's bonus to this save, shown beside its outcome (the dice stay the table's, decision D2): the sheet's saving
+// throw, else, for an NPC's monster card, its ability modifier (a monster without proficiency); null when unknown.
+export function pcAttackTargetSaveBonus(item, ability) {
+  const meta = item?.metadata?.[META_KEY] || {};
+  const card = meta.initiativeCard || {};
+  const save = Number(card.savingThrows?.[ability]);
+  if (card.savingThrows?.[ability] !== null && card.savingThrows?.[ability] !== undefined && Number.isFinite(save)) return Math.trunc(save);
+  const modifier = Number(card.abilityModifiers?.[ability]);
+  const npc = String(meta.attitude || "").trim().toLowerCase() !== "pc" && !!card[MONSTER_PROFILE_FIELD];
+  return npc && card.abilityModifiers?.[ability] !== null && card.abilityModifiers?.[ability] !== undefined && Number.isFinite(modifier) ? Math.trunc(modifier) : null;
+}
+
+// The conditions of a monster's action a target is immune to (its monster card's immunities, D3).
+export function pcAttackTargetConditionImmune(item, condition) {
+  const immunities = item?.metadata?.[META_KEY]?.initiativeCard?.[MONSTER_PROFILE_FIELD]?.conditionImmunities;
+  return !!condition && Array.isArray(immunities) && immunities.includes(String(condition).trim().toLocaleLowerCase("it"));
+}
+
+// Evasion on a monster's Dexterity save that halves (fase 5, lotto 2): a rogue of 7th level, or a monster with the
+// trait. Nothing on a success, half on a failure.
+export function pcAttackTargetEvasion(attack, item) {
+  if (!attack?.monster || pcAttackSave(attack) !== "dex" || !attack.saveHalf) return false;
+  const card = item?.metadata?.[META_KEY]?.initiativeCard || {};
+  return actorHasEvasion(card) || card[MONSTER_PROFILE_FIELD]?.evasion === true;
 }
 
 // What this outcome deals: the full damage on a hit, a critical or a failed save; half on a passed save when the
@@ -354,7 +387,8 @@ function pcAttackSaveDC(attack, card = {}) {
   return Number.isFinite(dc) && dc > 0 ? dc : null;
 }
 
-export const PC_ATTACK_OUTCOME_LABELS = Object.freeze({ hit: "Colpito", critical: "Critico", miss: "Mancato", failed: "TS fallito", passed: "TS superato" });
+export const PC_ATTACK_OUTCOME_LABELS = Object.freeze({ hit: "Colpito", critical: "Critico", miss: "Mancato", failed: "TS fallito", passed: "TS superato",
+  immune: "Immune" });
 
 export function pcAttackSelectionHint(status) {
   return {
@@ -1620,9 +1654,11 @@ function areaTargetLimitText(attack) {
   return attack.area.maxTargets === 1 ? `${name}: un solo bersaglio.` : `${name}: al massimo ${attack.area.maxTargets} bersagli.`;
 }
 
-function areaFactor(attack, outcome, card) {
-  if (outcome === "failed") return "full";
-  return outcome === "passed" && (attack.saveHalf || (attack.cantrip && pcAttackHasPotentCantrip(card))) ? "half" : "zero";
+function areaFactor(attack, outcome, card, evasion = false) {
+  if (outcome === "immune") return "zero";
+  const base = outcome === "failed" ? "full"
+    : outcome === "passed" && (attack.saveHalf || (attack.cantrip && pcAttackHasPotentCantrip(card))) ? "half" : "zero";
+  return evasion ? evasionFactor(base) : base;
 }
 
 // The roll's components: the cantrip's (or the weapon's), the casters' riders, the arrow's extra die, the extras.
@@ -1654,15 +1690,19 @@ export function pcAttackAreaPreview({
   const components = areaComponents(attack, riders, chosenExtras, modeOption);
   const inputs = areaInputs(attack, { amounts, riders, extras: chosenExtras, modeOption, modeAmount });
   const amountsReady = Object.values(inputs).every(validAmount);
+  const outcomes = pcAttackAreaOutcomes(attack);
   const rows = chosen.map((member) => {
-    const factor = areaFactor(attack, member.outcome, card);
+    const evasion = pcAttackTargetEvasion(attack, member.item);
+    const factor = areaFactor(attack, member.outcome, card, evasion);
     const meta = member.item.metadata?.[META_KEY] || {};
     const profileDefenses = damageDefensesForItem(member.item, META_KEY);
     const total = member.outcome && factor !== "zero" && amountsReady
       ? bossDefendedDamage(components, inputs, factor === "half" ? "passed" : "hit", profileDefenses, []) : 0;
     const hp = Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
       ? { before: meta.hp, after: calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax }).afterHP, hpMax: meta.hpMax } : null;
-    return { id: member.item.id, name: member.item.name || member.item.id, outcome: member.outcome || "", factor, total, hp, profileDefenses };
+    const conditionImmune = attack.monster?.onFail ? pcAttackTargetConditionImmune(member.item, attack.monster.onFail.condition) : false;
+    return { id: member.item.id, name: member.item.name || member.item.id, outcome: member.outcome || "", factor, total, hp, profileDefenses,
+      ...(evasion ? { evasion: true } : {}), ...(conditionImmune ? { conditionImmune: true } : {}) };
   });
   const options = riders.length && sourceItem ? riderOptionsFor(attack, { sourceItem, targetItem: null, turnState }) : [];
   const riderBlock = riders.map((rider) => {
@@ -1677,8 +1717,9 @@ export function pcAttackAreaPreview({
     : attack.area.maxTargets && chosen.length > attack.area.maxTargets ? areaTargetLimitText(attack)
     : modeOption && !modeOption.available ? `${modeOption.label}: ${modeOption.reason}`
     : breathOption && !breathOption.available ? `${attack.breath.name}: ${breathOption.reason}`
-    : rows.some((row) => !PC_ATTACK_SAVE_OUTCOMES.includes(row.outcome)) ? "Scegli l'esito del tiro salvezza di ogni creatura."
-    : attack.components.some((component) => !validAmount(amounts?.[component.id])) ? "Inserisci il danno."
+    : rows.some((row) => !outcomes.includes(row.outcome)) ? "Scegli l'esito del tiro salvezza di ogni creatura."
+    // Every creature immune: nothing to roll.
+    : rows.some((row) => row.outcome !== "immune") && attack.components.some((component) => !validAmount(amounts?.[component.id])) ? "Inserisci il danno."
     : riderBlock ? riderBlock
     : chosenExtras.some((extra) => !damageTypeSet.has(extra.type)) ? "Scegli il tipo di ogni componente extra."
     : [...riders, ...chosenExtras].some((entry) => !validAmount(entry.amount)) ? "Inserisci il danno di ogni extra."
@@ -1704,7 +1745,7 @@ export function buildPcAttackAreaMutation({
   for (const member of list) {
     if (!isBossActionTargetItem(member?.item)) throw new Error("Una creatura dell'area non è più nella scena.");
     if (member.item.id === sourceItem.id) throw new Error("L'attaccante non è tra le creature colpite dalla sua area.");
-    if (!PC_ATTACK_SAVE_OUTCOMES.includes(member.outcome)) throw new Error("Scegli l'esito del tiro salvezza di ogni creatura.");
+    if (!pcAttackAreaOutcomes(attack).includes(member.outcome)) throw new Error("Scegli l'esito del tiro salvezza di ogni creatura.");
   }
   const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
   const card = sourceMeta.initiativeCard || {};
@@ -1732,8 +1773,11 @@ export function buildPcAttackAreaMutation({
   const modeOption = spend ? { ...spend.option } : null;
   const components = areaComponents(attack, chosenRiders, chosenExtras, modeOption);
   const amounts = componentAmounts && typeof componentAmounts === "object" ? componentAmounts : {};
+  // Every creature immune (a monster's action, fase 5, lotto 2): no damage to roll.
+  const allImmune = list.every((member) => member.outcome === "immune");
+  const unrolled = (value) => value === "" || value === null || value === undefined;
   const inputs = Object.fromEntries([
-    ...attack.components.map((component) => [component.id, damageAmount(amounts[component.id])]),
+    ...attack.components.map((component) => [component.id, allImmune && unrolled(amounts[component.id]) ? 0 : damageAmount(amounts[component.id])]),
     ...chosenRiders.map((rider) => [`r:${rider.id}`, rider.amount]),
     ...chosenExtras.map((extra, index) => [`x${index + 1}`, extra.amount]),
     ...(modeOption ? [[`a:${modeOption.id}`, damageAmount(modeAmount)]] : []),
@@ -1742,10 +1786,12 @@ export function buildPcAttackAreaMutation({
     const meta = member.item.metadata?.[META_KEY] || {};
     if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax) || meta.hp < 0 || meta.hpMax < 0)
       throw new Error(`${member.item.name || member.item.id} non ha HP canonici validi.`);
-    const factor = areaFactor(attack, member.outcome, card);
+    const evasion = pcAttackTargetEvasion(attack, member.item);
+    const factor = areaFactor(attack, member.outcome, card, evasion);
     const damageComponents = defendedComponents(components, inputs, factor, member.item, [], expectedDefenses?.[member.item.id]);
     const requested = damageComponents.reduce((sum, component) => sum + component.amount, 0);
-    return { item: member.item, meta, outcome: member.outcome, factor, damageComponents,
+    return { item: member.item, meta, outcome: member.outcome, factor, damageComponents, evasion,
+      conditionImmune: attack.monster?.onFail ? pcAttackTargetConditionImmune(member.item, attack.monster.onFail.condition) : false,
       change: calculateQuickHPChange({ value: requested, hp: meta.hp, hpMax: meta.hpMax, deathSaveDamage: takesDeathSaveDamage(meta) }) };
   });
   const newUses = [
@@ -1793,14 +1839,16 @@ export function buildPcAttackAreaMutation({
       type: modeOption.types[0], typeLabel: damageTypeLabel(modeOption.types[0]), inputAmount: inputs[`a:${modeOption.id}`],
       ...(spend.spent.length ? { spent: spend.spent } : {}) }] } : {}),
     targets: rows.map((row) => ({ id: row.item.id, name: row.item.name || row.item.id, outcome: row.outcome,
-      requestedDamage: row.change.requested, appliedHpDelta: row.change.delta, damageComponents: structuredClone(row.damageComponents) })),
+      requestedDamage: row.change.requested, appliedHpDelta: row.change.delta, damageComponents: structuredClone(row.damageComponents),
+      ...(row.evasion ? { evasion: "applied" } : {}), ...(row.conditionImmune ? { conditionImmune: true } : {}) })),
   };
   const changed = rows.filter((row) => row.change.changed);
   // The metallic breath: its condition on each creature that failed the save, ending with the dragonborn's turn when
   // the option says so (Incapacitato), else removed by hand (Prono). A monster's condition is removed by hand.
   const onFail = attack.breath?.onFail || attack.monster?.onFail || null;
   const appliedAt = bossConditionAppliedAt(turnState);
-  const conditionOperations = onFail ? rows.filter((row) => row.outcome === "failed").map((row) => ({
+  // Never on a creature immune to the condition (its monster card's immunities, fase 5, lotto 2).
+  const conditionOperations = onFail ? rows.filter((row) => row.outcome === "failed" && !row.conditionImmune).map((row) => ({
     type: "condition:add", targetIds: [row.item.id], conditionName: onFail.condition,
     instanceIds: { [row.item.id]: bossGroupConditionInstanceId(`${attackInstanceId}:${attack.monster ? "monster" : "breath"}`, onFail.condition, row.item.id) },
     options: { sourceId: sourceItem.id, sourceName, parentEffectId: "", type: "automatic", manualRemoval: !onFail.expiry,

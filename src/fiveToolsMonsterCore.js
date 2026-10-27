@@ -560,6 +560,9 @@ export function fiveToolsMonsterToStatblock(input, { pool = [] } = {}) {
     ...(armorClass ? { armorClass } : {}),
     ...spellcasting,
     ...(legendary ? { legendary } : {}),
+    // The console's «Immune» and Evasion (fase 5, lotto 2): the conditions it is immune to, an Evasion trait.
+    ...(conditionImmune.length ? { conditionImmunities: conditionImmune } : {}),
+    ...(traits.some((name) => /^Evasion$/i.test(name)) ? { evasion: true } : {}),
     ...(Number.isFinite(monster.hp?.average) ? { hitPoints: { average: monster.hp.average, ...(monster.hp.formula ? { formula: monster.hp.formula } : {}) } } : {}),
     ...(Number.isFinite(walk) && walk > 0 ? { speed: `${walk} ft` } : {}),
     ...(Object.keys(abilities).length ? { abilities } : {}),
