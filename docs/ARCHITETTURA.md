@@ -95,6 +95,8 @@ Altre chiavi di scena:
 | `com.thebigpicture.initiative/history` | Journal delle azioni annullabili |
 | `com.thebigpicture.initiative/combat-log-state` | Sessione corrente del log |
 
+La build locale (`npm run dev`) usa per Cronologia, journal di recupero e sessione del log le stesse chiavi con il suffisso `-locale`: i loro dati stanno nell'IndexedDB di una sola origine, e così le due build non si sovrascrivono i puntatori nella stessa scena ([ARCH-009](ARCH-009-HISTORY-LOCAL-STORE.md#44-casi-limite)).
+
 Le geometrie persistenti sono item della scena con metadata dedicati:
 
 | Chiave item | Scopo |

@@ -27,6 +27,13 @@ export {
   topOwnedRoomMetadataKeys,
 } from "./roomMetadataBudget.js";
 
+// Solo `npm run dev` («Take Initiative! (LOCALE)»): Cronologia, journal di recupero
+// e sessione del Combat Log puntano a dati nell'IndexedDB di una sola origine del
+// plugin, e la build locale ha un'origine sua. Con chiavi proprie non sposta i
+// puntatori della build online (né quella online i suoi) quando il GM le usa
+// entrambe nella stessa scena. La build di produzione tiene le chiavi di sempre.
+const LOCAL_BUILD_KEY_SUFFIX = import.meta.env?.DEV ? "-locale" : "";
+
 // Contratti dei domini metadata condivisi tra runtime/iframe. Un writer può
 // aggiornare soltanto il valore della chiave del proprio contratto.
 export const METADATA_OWNERSHIP = Object.freeze({
@@ -36,12 +43,12 @@ export const METADATA_OWNERSHIP = Object.freeze({
     owners: Object.freeze(["initiativeStateGateway.js"]),
   }),
   HISTORY: Object.freeze({
-    key: `${ID}/history`,
+    key: `${ID}/history${LOCAL_BUILD_KEY_SUFFIX}`,
     domain: "history",
     owners: Object.freeze(["historyOwner.js"]),
   }),
   EFFECTS_RECOVERY: Object.freeze({
-    key: `${ID}/effects-recovery-v1`,
+    key: `${ID}/effects-recovery-v1${LOCAL_BUILD_KEY_SUFFIX}`,
     domain: "effects-recovery",
     owners: Object.freeze(["effectsRecovery.js"]),
   }),
@@ -51,7 +58,7 @@ export const METADATA_OWNERSHIP = Object.freeze({
     owners: Object.freeze(["clocks.js"]),
   }),
   COMBAT_LOG_SESSION: Object.freeze({
-    key: `${ID}/combat-log-state`,
+    key: `${ID}/combat-log-state${LOCAL_BUILD_KEY_SUFFIX}`,
     domain: "combat-log-session",
     owners: Object.freeze(["combatLog.js"]),
   }),

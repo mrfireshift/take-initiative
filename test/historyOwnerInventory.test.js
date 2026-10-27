@@ -20,7 +20,9 @@ test("la chiave History ha un solo writer produttivo e i writer applicativi pass
     const source = readFileSync(path, "utf8");
     return /writeSceneMetadataKey\(/u.test(source)
       && (/com\.thebigpicture\.initiative\/history/u.test(source)
-        || /HISTORY_KEY\s*=\s*`\$\{ID\}\/history`/u.test(source));
+        || /HISTORY_KEY\s*=\s*`\$\{ID\}\/history`/u.test(source)
+        // The key from its ownership contract, which gives the local build a key of its own.
+        || /METADATA_OWNERSHIP\.HISTORY\b/u.test(source));
   });
   assert.deepEqual(
     directHistoryWriters.map((path) => path.replaceAll("\\", "/")).sort(),

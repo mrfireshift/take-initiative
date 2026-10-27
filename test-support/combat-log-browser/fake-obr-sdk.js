@@ -1,4 +1,5 @@
 import { createPerformanceObr } from "../performanceObr.js";
+import { METADATA_OWNERSHIP } from "../../src/metadataKeyScoped.js";
 
 const ID = "com.thebigpicture.initiative";
 const DB_NAME = `${ID}.combat-log`;
@@ -451,13 +452,14 @@ IDBDatabase.prototype.transaction = function (...args) {
 };
 
 const metadata = {
-  [`${ID}/combat-log-state`]: {
+  // The keys of the build in use: the fixture runs in Vite's dev server, where the local build has keys of its own.
+  [METADATA_OWNERSHIP.COMBAT_LOG_SESSION.key]: {
     version: 1,
     sessionId: SESSION_ID,
     name: sessionFixtures[0].name,
     startedAt: sessionFixtures[0].startedAt,
   },
-  [`${ID}/history`]: { version: 1, entries: [] },
+  [METADATA_OWNERSHIP.HISTORY.key]: { version: 1, entries: [] },
   [`${ID}/state`]: { round: 5, current: 0, order: ["arannis", "__LAIR__"] },
 };
 

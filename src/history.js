@@ -29,7 +29,6 @@ import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSince } from 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
 const CONC_META_KEY = `${ID}/concentration`;
-const HISTORY_KEY = `${ID}/history`;
 const HISTORY_CONTROL_CHANNEL = `${ID}/history-control`;
 const HISTORY_CONTROL_ACK_CHANNEL = `${ID}/history-control-ack`;
 const CONCENTRATION_WARNING_CHANNEL = `${ID}/concentration-warning`;

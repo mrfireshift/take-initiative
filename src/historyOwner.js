@@ -30,7 +30,7 @@ import {
   normalizeHistoryState,
 } from "./historyOwnerCore.js";
 
-const HISTORY_KEY = `${ID}/history`;
+const HISTORY_KEY = METADATA_OWNERSHIP.HISTORY.key;
 const HISTORY_CHANGE_CHANNEL = `${ID}/history-change`;
 const HISTORY_OWNER_TRANSPORT_TIMEOUT_MS = 8000;
 
