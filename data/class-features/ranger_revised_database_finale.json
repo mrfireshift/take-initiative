@@ -552,7 +552,6 @@
       ],
       "pagina": 2,
       "pagina_pdf": 2,
-      "descrizione": "A partire dal 1° livello, il ranger possiede una notevole esperienza nello studiare, seguire le tracce, dare la caccia e perfino parlare con un tipo di nemico che si incontra comunemente nelle terre selvagge.\n\nIl ranger sceglie un tipo di nemico prescelto tra bestie, folletti, umanoidi, mostruosità o non morti. Ottiene un bonus di +2 ai tiri per i danni degli attacchi con un'arma contro le creature del tipo scelto. Dispone inoltre di vantaggio alle prove di Saggezza (Sopravvivenza) effettuate per seguirne le tracce e alle prove di Intelligenza effettuate per ricordare informazioni su di esse.\n\nQuando ottiene questo privilegio, il ranger apprende anche un linguaggio a sua scelta, normalmente parlato dal nemico prescelto o da creature a esso associate; può tuttavia scegliere liberamente qualsiasi linguaggio.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "scelte_strutturate": {
         "tipo_nemico": [
@@ -578,7 +577,6 @@
       ],
       "pagina": 3,
       "pagina_pdf": 3,
-      "descrizione": "Il ranger è un maestro nell'attraversare il mondo naturale e reagisce con rapidità e decisione quando viene attaccato. Ignora il terreno difficile, dispone di vantaggio ai tiri di iniziativa e, nel suo primo turno di ogni combattimento, dispone di vantaggio ai tiri per colpire contro le creature che non hanno ancora agito.\n\nQuando viaggia per almeno un'ora, il terreno difficile non rallenta il gruppo; il gruppo non può perdersi se non per mezzi magici; il ranger rimane all'erta anche mentre svolge un'altra attività; se viaggia da solo può muoversi furtivamente a passo normale; quando foraggia trova il doppio del cibo; quando segue le tracce di altre creature ne apprende anche il numero esatto, la taglia e da quanto tempo sono passate nell'area.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -593,7 +591,6 @@
       ],
       "pagina": 3,
       "pagina_pdf": 3,
-      "descrizione": "Al 2° livello, il ranger adotta uno stile di combattimento particolare come propria specialità. Sceglie una delle opzioni disponibili. Non può scegliere la stessa opzione più di una volta, anche qualora ottenga in seguito la possibilità di scegliere nuovamente uno stile di combattimento.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "opzioni": [
         "ranger-revised-stile-di-combattimento-tiro",
@@ -614,7 +611,6 @@
       ],
       "pagina": 3,
       "pagina_pdf": 3,
-      "descrizione": "Quando raggiunge il 2° livello, il ranger impara a usare l'essenza magica della natura per lanciare incantesimi, in modo analogo a un druido.\n\nLa tabella del Ranger (Revised) indica quanti slot incantesimo possiede e quanti incantesimi da ranger conosce. Per lanciare un incantesimo di 1° livello o superiore, deve spendere uno slot di livello pari o superiore al livello dell'incantesimo. Recupera tutti gli slot spesi quando completa un riposo lungo.\n\nIl ranger conosce due incantesimi da ranger di 1° livello a sua scelta al 2° livello e apprende ulteriori incantesimi secondo la progressione della classe. Ogni volta che acquisisce un livello in questa classe, può sostituire un incantesimo da ranger conosciuto con un altro incantesimo della lista da ranger di un livello per cui possiede slot.\n\nSaggezza è la caratteristica da incantatore del ranger. La CD del tiro salvezza degli incantesimi è pari a 8 + il bonus di competenza + il modificatore di Saggezza; il modificatore di attacco degli incantesimi è pari al bonus di competenza + il modificatore di Saggezza.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "caratteristica_da_incantatore": "Saggezza",
       "formula_cd": "8 + bonus_competenza + modificatore_saggezza",
@@ -632,7 +628,6 @@
       ],
       "pagina": 4,
       "pagina_pdf": 4,
-      "descrizione": "A partire dal 3° livello, la padronanza delle conoscenze da ranger permette al personaggio di stabilire un potente legame con le bestie e con il territorio circostante.\n\nIl ranger possiede una capacità innata di comunicare con le bestie, che lo riconoscono come uno spirito affine. Come azione, attraverso suoni e gesti può comunicare idee semplici a una bestia e comprenderne l'umore e le intenzioni di base. Apprende il suo stato emotivo, se è soggetta a qualche forma di magia, i suoi bisogni immediati e quali azioni potrebbero convincerla a non attaccare. Non può usare questa capacità su una creatura che abbia attaccato nei 10 minuti precedenti.\n\nInoltre, il ranger può concentrare i propri sensi per determinare se nelle vicinanze si trovano suoi nemici prescelti. Dopo 1 minuto ininterrotto di concentrazione, come se si concentrasse su un incantesimo, percepisce la presenza entro 5 miglia di qualsiasi tipo di nemico prescelto. Apprende quali nemici sono presenti, il loro numero e, in termini generali, la direzione e la distanza in miglia di ciascun gruppo.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "modalita": [
         "comunicazione_con_bestie",
@@ -652,7 +647,6 @@
       ],
       "pagina": 4,
       "pagina_pdf": 4,
-      "descrizione": "Al 3° livello, il ranger sceglie di emulare gli ideali e l'addestramento di un conclave ranger: il Conclave della Bestia, il Conclave del Cacciatore o il Conclave del Cacciatore delle Profondità. La scelta conferisce privilegi al 3° livello e poi di nuovo al 5°, 7°, 11° e 15° livello.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -686,7 +680,6 @@
       ],
       "pagina": 4,
       "pagina_pdf": 4,
-      "descrizione": "Al 6° livello, il ranger è pronto a dare la caccia a prede ancora più letali. Sceglie un tipo di nemico prescelto migliorato tra aberrazioni, celestiali, costrutti, draghi, elementali, giganti o immondi. Contro il tipo scelto ottiene tutti i benefici di Nemico Prescelto, incluso un linguaggio aggiuntivo.\n\nIl bonus ai tiri per i danni contro tutti i suoi nemici prescelti aumenta a +4. Inoltre, il ranger dispone di vantaggio ai tiri salvezza contro gli incantesimi e le capacità usate da un suo nemico prescelto migliorato.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "scelte_strutturate": {
         "tipo_nemico": [
@@ -714,7 +707,6 @@
       ],
       "pagina": 4,
       "pagina_pdf": 4,
-      "descrizione": "A partire dall'8° livello, il ranger può usare l'azione Scattare come azione bonus nel proprio turno.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -729,7 +721,6 @@
       ],
       "pagina": 4,
       "pagina_pdf": 4,
-      "descrizione": "A partire dal 10° livello, il ranger può rimanere perfettamente immobile per lunghi periodi allo scopo di preparare un'imboscata.\n\nQuando tenta di nascondersi nel proprio turno, può scegliere di non muoversi in quel turno. Se rimane immobile, le creature che tentano di individuarlo subiscono una penalità di -10 alle prove di Saggezza (Percezione) fino all'inizio del turno successivo del ranger. Il beneficio termina se il ranger si muove o cade prono, volontariamente o per un effetto esterno. Il ranger viene comunque individuato automaticamente se un effetto o un'azione fa sì che non sia più nascosto.\n\nSe all'inizio del turno successivo è ancora nascosto, può continuare a rimanere immobile e conservare il beneficio finché non viene individuato.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -744,7 +735,6 @@
       ],
       "pagina": 5,
       "pagina_pdf": 5,
-      "descrizione": "A partire dal 14° livello, il ranger può usare l'azione Nascondersi come azione bonus nel proprio turno. Inoltre, non può essere seguito tramite mezzi non magici, a meno che non scelga di lasciare una pista.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -759,7 +749,6 @@
       ],
       "pagina": 5,
       "pagina_pdf": 5,
-      "descrizione": "Al 18° livello, il ranger ottiene sensi preternaturali che lo aiutano a combattere le creature che non è in grado di vedere. Quando attacca una creatura che non vede, la sua incapacità di vederla non gli impone svantaggio ai tiri per colpire contro di essa.\n\nIl ranger è inoltre consapevole della posizione di ogni creatura invisibile entro 9 metri da lui, purché la creatura non sia nascosta e il ranger non sia accecato o assordato.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -774,7 +763,6 @@
       ],
       "pagina": 5,
       "pagina_pdf": 5,
-      "descrizione": "Al 20° livello, il ranger diventa un cacciatore senza pari. Una volta in ogni suo turno, può aggiungere il proprio modificatore di Saggezza al tiro per colpire o al tiro per i danni di un attacco da lui effettuato. Può decidere di usare questo privilegio prima o dopo il tiro, ma prima che gli effetti del tiro vengano applicati.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -789,7 +777,6 @@
       ],
       "pagina": 5,
       "pagina_pdf": 5,
-      "descrizione": "Al 3° livello, il ranger impara a usare la magia per creare un potente legame con una creatura del mondo naturale.\n\nDedicando 8 ore di lavoro e spendendo 50 mo in erbe rare e cibo pregiato, il ranger richiama dalle terre selvagge un animale che diventa il suo fedele compagno. Normalmente sceglie tra scimmia, orso nero, cinghiale, tasso gigante, donnola gigante, mulo, pantera o lupo; il DM può invece scegliere una creatura appropriata al territorio circostante. Al termine delle 8 ore, il compagno compare e ottiene tutti i benefici di Legame del Compagno. Il ranger può avere un solo compagno animale alla volta.\n\nSe il compagno muore, il legame magico permette al ranger di riportarlo in vita. Dedicando 8 ore di lavoro e spendendo 25 mo in erbe rare e cibo pregiato, richiama lo spirito del compagno e gli crea magicamente un nuovo corpo, anche senza possederne alcun resto. Se usa questa capacità per riportare in vita un vecchio compagno mentre ne possiede già uno, il compagno attuale lo lascia ed è sostituito da quello restaurato.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "compagni_predefiniti": [
         "scimmia",
@@ -829,7 +816,6 @@
       ],
       "pagina": 5,
       "pagina_pdf": 5,
-      "descrizione": "Finché è legato al ranger, il compagno animale ottiene vari benefici. Perde l'azione Multiattacco, se la possiede. Obbedisce ai comandi del ranger al meglio delle proprie capacità, tira l'iniziativa come qualsiasi altra creatura e il ranger ne determina azioni, decisioni e atteggiamenti; se il ranger è incapacitato o assente, il compagno agisce autonomamente. Quando il ranger usa Esploratore Nato, entrambi possono muoversi furtivamente a passo normale.\n\nIl compagno usa il bonus di competenza del ranger al posto del proprio. Oltre agli usi normali, aggiunge tale bonus alla CA e ai tiri per i danni. Ottiene competenza in due abilità a scelta e in tutti i tiri salvezza. Per ogni livello da ranger acquisito dopo il 3°, ottiene un Dado Vita aggiuntivo e aumenta di conseguenza i propri punti ferita. Ogni volta che il ranger ottiene Aumento dei Punteggi di Caratteristica, anche il compagno può aumentare di 2 un punteggio o di 1 due punteggi, senza superare 20 salvo diversa indicazione nella sua descrizione.\n\nIl compagno condivide l'allineamento e l'ideale del ranger. Ottiene un tratto della personalità e un difetto; il suo legame è sempre: «Il ranger che viaggia con me è un compagno amato per il quale darei volentieri la vita».\n\nIl compagno beneficia inoltre di Nemico Prescelto e, dal 6° livello, di Nemico Prescelto Migliorato, usando i tipi scelti dal ranger.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "tratti_personalita_d6": [
         "Sono impavido di fronte alle avversità.",
@@ -860,7 +846,6 @@
       ],
       "pagina": 6,
       "pagina_pdf": 6,
-      "descrizione": "A partire dal 5° livello, il ranger e il suo compagno animale formano una squadra di combattimento più efficace. Quando il ranger usa l'azione Attaccare nel proprio turno, se il compagno è in grado di vederlo, il compagno può usare la propria reazione per effettuare un attacco in mischia.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -875,7 +860,6 @@
       ],
       "pagina": 6,
       "pagina_pdf": 6,
-      "descrizione": "Al 7° livello, finché il compagno animale è in grado di vedere il ranger, dispone di vantaggio a tutti i tiri salvezza.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -890,7 +874,6 @@
       ],
       "pagina": 6,
       "pagina_pdf": 6,
-      "descrizione": "All'11° livello, il compagno animale può usare la propria azione per effettuare un attacco in mischia contro ogni creatura a sua scelta entro 1,5 metri da lui, effettuando un tiro per colpire separato per ogni bersaglio.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -905,7 +888,6 @@
       ],
       "pagina": 7,
       "pagina_pdf": 7,
-      "descrizione": "Al 15° livello, quando un attaccante che il compagno animale è in grado di vedere lo colpisce con un attacco, il compagno può usare la propria reazione per dimezzare i danni dell'attacco contro di sé.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -920,7 +902,6 @@
       ],
       "pagina": 7,
       "pagina_pdf": 7,
-      "descrizione": "Al 3° livello, il ranger sceglie una delle opzioni seguenti, che rappresenta una tecnica specializzata per affrontare le minacce delle terre selvagge.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "opzioni": [
         "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-sterminatore-di-colossi",
@@ -940,7 +921,6 @@
       ],
       "pagina": 7,
       "pagina_pdf": 7,
-      "descrizione": "A partire dal 5° livello, il ranger può attaccare due volte anziché una ogni volta che effettua l'azione Attaccare nel proprio turno.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -955,7 +935,6 @@
       ],
       "pagina": 7,
       "pagina_pdf": 7,
-      "descrizione": "Al 7° livello, il ranger sceglie una delle opzioni difensive seguenti.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "opzioni": [
         "ranger-revised-conclave-del-cacciatore-tattiche-difensive-sfuggire-all-orda",
@@ -975,7 +954,6 @@
       ],
       "pagina": 7,
       "pagina_pdf": 7,
-      "descrizione": "All'11° livello, il ranger sceglie una delle opzioni di multiattacco seguenti.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "opzioni": [
         "ranger-revised-conclave-del-cacciatore-multiattacco-raffica",
@@ -994,7 +972,6 @@
       ],
       "pagina": 7,
       "pagina_pdf": 7,
-      "descrizione": "Al 15° livello, il ranger sceglie una delle opzioni difensive superiori seguenti.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "opzioni": [
         "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-elusione",
@@ -1014,7 +991,6 @@
       ],
       "pagina": 8,
       "pagina_pdf": 8,
-      "descrizione": "Al 3° livello, il ranger padroneggia l'arte dell'imboscata. Nel suo primo turno di ogni combattimento, la sua velocità aumenta di 3 metri e, se usa l'azione Attaccare, può effettuare un attacco aggiuntivo.\n\nIl ranger è inoltre esperto nell'eludere le creature che si affidano alla scurovisione. Tali creature non traggono alcun beneficio dalla scurovisione quando tentano di individuarlo in condizioni di luce fioca o oscurità. Inoltre, quando il DM determina se il ranger può nascondersi da una creatura, la scurovisione di quella creatura non fornisce alcun beneficio.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -1029,7 +1005,6 @@
       ],
       "pagina": 8,
       "pagina_pdf": 8,
-      "descrizione": "Al 3° livello, il ranger ottiene scurovisione entro 27 metri. Se possiede già scurovisione, la sua portata aumenta di 9 metri.\n\nOttiene inoltre accesso a incantesimi aggiuntivi ai livelli indicati nella tabella. Quando ottiene un incantesimo del Cacciatore delle Profondità, esso conta come incantesimo da ranger per lui ma non viene conteggiato nel numero di incantesimi da ranger che conosce.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
       "incantesimi_aggiuntivi": {
         "3": "camuffare se stesso",
@@ -1052,7 +1027,6 @@
       ],
       "pagina": 8,
       "pagina_pdf": 8,
-      "descrizione": "A partire dal 5° livello, il ranger può attaccare due volte anziché una ogni volta che effettua l'azione Attaccare nel proprio turno.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -1067,7 +1041,6 @@
       ],
       "pagina": 8,
       "pagina_pdf": 8,
-      "descrizione": "Al 7° livello, il ranger ottiene competenza nei tiri salvezza su Saggezza.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -1082,7 +1055,6 @@
       ],
       "pagina": 8,
       "pagina_pdf": 8,
-      "descrizione": "A partire dall'11° livello, una volta in ogni suo turno, quando manca con un attacco, il ranger può effettuare un altro attacco.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     },
     {
@@ -1097,7 +1069,6 @@
       ],
       "pagina": 8,
       "pagina_pdf": 8,
-      "descrizione": "Al 15° livello, quando una creatura attacca il ranger senza disporre di vantaggio, il ranger può usare la propria reazione per imporre svantaggio al tiro per colpire della creatura contro di lui. Può usare questo privilegio prima o dopo che il tiro per colpire sia stato effettuato, ma deve farlo prima che l'esito del tiro venga determinato.",
       "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
     }
   ],
@@ -1118,7 +1089,6 @@
       "parent_id": "ranger-revised-stile-di-combattimento",
       "nome": "Difesa",
       "nome_originale": "Defense",
-      "descrizione": "Quando indossa un'armatura, il ranger ottiene un bonus di +1 alla CA.",
       "livello_minimo": 2,
       "pagina": 3,
       "pagina_pdf": 3,
@@ -1129,7 +1099,6 @@
       "parent_id": "ranger-revised-stile-di-combattimento",
       "nome": "Duellare",
       "nome_originale": "Dueling",
-      "descrizione": "Quando impugna un'arma da mischia in una mano e nessun'altra arma, il ranger ottiene un bonus di +2 ai tiri per i danni effettuati con quell'arma.",
       "livello_minimo": 2,
       "pagina": 3,
       "pagina_pdf": 3,
@@ -1140,7 +1109,6 @@
       "parent_id": "ranger-revised-stile-di-combattimento",
       "nome": "Combattere con Due Armi",
       "nome_originale": "Two-Weapon Fighting",
-      "descrizione": "Quando combatte con due armi, il ranger può aggiungere il proprio modificatore di caratteristica ai danni del secondo attacco.",
       "livello_minimo": 2,
       "pagina": 3,
       "pagina_pdf": 3,
@@ -1151,7 +1119,6 @@
       "parent_id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
       "nome": "Sterminatore di Colossi",
       "nome_originale": "Colossus Slayer",
-      "descrizione": "Quando il ranger colpisce una creatura con un attacco con un'arma, la creatura subisce 1d8 danni extra se possiede meno punti ferita del suo massimo. Il ranger può infliggere questi danni extra soltanto una volta per turno.",
       "livello_minimo": 3,
       "pagina": 7,
       "pagina_pdf": 7,
@@ -1162,7 +1129,6 @@
       "parent_id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
       "nome": "Uccisore di Giganti",
       "nome_originale": "Giant Killer",
-      "descrizione": "Quando una creatura di taglia Grande o superiore entro 1,5 metri dal ranger lo colpisce o lo manca con un attacco, il ranger può usare la propria reazione per attaccare quella creatura immediatamente dopo il suo attacco, purché sia in grado di vederla.",
       "livello_minimo": 3,
       "pagina": 7,
       "pagina_pdf": 7,
@@ -1173,7 +1139,6 @@
       "parent_id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
       "nome": "Devastatore dell'Orda",
       "nome_originale": "Horde Breaker",
-      "descrizione": "Una volta in ogni suo turno, quando effettua un attacco con un'arma, il ranger può effettuare un altro attacco con la stessa arma contro una creatura diversa situata entro 1,5 metri dal bersaglio originale e entro la gittata dell'arma.",
       "livello_minimo": 3,
       "pagina": 7,
       "pagina_pdf": 7,
@@ -1184,7 +1149,6 @@
       "parent_id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
       "nome": "Sfuggire all'Orda",
       "nome_originale": "Escape the Horde",
-      "descrizione": "Gli attacchi di opportunità effettuati contro il ranger subiscono svantaggio.",
       "livello_minimo": 7,
       "pagina": 7,
       "pagina_pdf": 7,
@@ -1206,7 +1170,6 @@
       "parent_id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
       "nome": "Volontà di Acciaio",
       "nome_originale": "Steel Will",
-      "descrizione": "Il ranger dispone di vantaggio ai tiri salvezza contro la condizione di spaventato.",
       "livello_minimo": 7,
       "pagina": 7,
       "pagina_pdf": 7,
@@ -1217,7 +1180,6 @@
       "parent_id": "ranger-revised-conclave-del-cacciatore-multiattacco",
       "nome": "Raffica",
       "nome_originale": "Volley",
-      "descrizione": "Il ranger può usare la propria azione per effettuare un attacco a distanza contro un qualsiasi numero di creature entro 3 metri da un punto che egli sia in grado di vedere e che si trovi entro la gittata dell'arma. Deve possedere munizioni sufficienti per ogni bersaglio ed effettua un tiro per colpire separato per ciascuno.",
       "livello_minimo": 11,
       "pagina": 7,
       "pagina_pdf": 7,
@@ -1228,7 +1190,6 @@
       "parent_id": "ranger-revised-conclave-del-cacciatore-multiattacco",
       "nome": "Attacco Turbinante",
       "nome_originale": "Whirlwind Attack",
-      "descrizione": "Il ranger può usare la propria azione per effettuare attacchi in mischia contro un qualsiasi numero di creature entro 1,5 metri da lui, effettuando un tiro per colpire separato per ogni bersaglio.",
       "livello_minimo": 11,
       "pagina": 7,
       "pagina_pdf": 7,
@@ -1250,7 +1211,6 @@
       "parent_id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
       "nome": "Opporsi alla Marea",
       "nome_originale": "Stand Against the Tide",
-      "descrizione": "Quando una creatura ostile manca il ranger con un attacco in mischia, il ranger può usare la propria reazione per costringere quella creatura a ripetere lo stesso attacco contro un'altra creatura a sua scelta, diversa dall'attaccante stesso.",
       "livello_minimo": 15,
       "pagina": 7,
       "pagina_pdf": 7,
@@ -1261,7 +1221,6 @@
       "parent_id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
       "nome": "Schivata Prodigiosa",
       "nome_originale": "Uncanny Dodge",
-      "descrizione": "Quando un attaccante che il ranger è in grado di vedere lo colpisce con un attacco, il ranger può usare la propria reazione per dimezzare i danni dell'attacco contro di sé.",
       "livello_minimo": 15,
       "pagina": 7,
       "pagina_pdf": 7,

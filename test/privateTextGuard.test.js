@@ -47,3 +47,17 @@ test("senza pacchetto la scheda mostra i fatti di un incantesimo di Xanathar e d
   // An SRD spell never asks for a pack.
   assert.equal(spellbookSpellDetails("fireball").missingText, "");
 });
+
+test("nei database delle capacità restano solo i testi SRD, gli stessi che la scheda carica", async () => {
+  const descriptions = JSON.parse(fs.readFileSync(new URL("../src/class-features-descriptions.json", import.meta.url), "utf8"));
+  const withText = [];
+  for (const file of ["phb2014_classi_database_finale", "xanathar_sottoclassi_database_finale", "tasha_sottoclassi_database_finale", "ranger_revised_database_finale"]) {
+    const database = JSON.parse(fs.readFileSync(new URL(`../data/class-features/${file}.json`, import.meta.url), "utf8"));
+    for (const record of [...(database.privilegi || []), ...(database.opzioni || [])]) {
+      if (typeof record.descrizione === "string") withText.push(record.id);
+    }
+  }
+  assert.deepEqual(withText.sort(), Object.keys(descriptions).sort());
+  assert.ok(withText.length < 100, `${withText.length} testi: troppi per essere solo SRD`);
+  assert.equal(fs.existsSync(new URL("../docs/class-features/raw/", import.meta.url)), false);
+});

@@ -61,7 +61,7 @@ import {
   loadSpellbookSpellReference,
 } from "./spellbookCatalog.js";
 import { subclassGrantedSpells, subclassSuggestedSpells } from "./subclassSpellsCatalog.js";
-import { classFeatureDescription, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
+import { classFeatureDescription, classFeatureMissingText, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { spellSlotStatus } from "./spellSlotCore.js";
 import {
   SHEET_IMPORT_LIST_SECTIONS,
@@ -3061,6 +3061,9 @@ function renderClassFeatures() {
           const description = rulesTextBlock(descriptionText, { className: "class-feature-description" });
           description.title = descriptionText;
           card.appendChild(description);
+        } else if (classFeatureMissingText(feature)) {
+          const note = rulesTextBlock(privateTextMissingNote(classFeatureMissingText(feature)), { className: "class-feature-description" });
+          card.appendChild(note);
         }
         if (featureControls) card.appendChild(featureControls);
         if (feature.id.endsWith("-incantesimi")) {

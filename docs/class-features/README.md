@@ -18,7 +18,9 @@ per correggere una regola: aggiornare la sorgente o l'overlay e rigenerare.
 ## Sottocartelle
 
 - `catalog/`: estratti e matrici di catalogazione;
-- `raw/`: materiale grezzo e import utilizzati nella preparazione dei dati;
+- il materiale grezzo (import dai manuali e capitolo delle classi) non sta più nel repo: è nella cartella privata
+  del GM (`scripts/privateSources.mjs`, `sorgenti/capacita/raw/`), come i testi delle capacità che non sono SRD
+  (`testi/<manuale>/capacita.json`), che arrivano nella scheda con i pacchetti privati;
 - `audits/`: analisi e roadmap storiche o di lavorazione;
 - `tickets/`: note di pianificazione.
 

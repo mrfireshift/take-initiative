@@ -6,13 +6,18 @@ import { rulesTextBlock, rulesTextNodes } from "../src/rulesTextView.js";
 import { CONDITION_REFERENCE } from "../src/referenceData.js";
 import { classFeatureDescription, loadClassFeatureDescriptions } from "../src/classFeatureDescriptions.js";
 import { loadSpellbookSpellReference, spellbookSpellDetails } from "../src/spellbookCatalog.js";
-import { readPrivateSpellTexts } from "../scripts/privateSources.mjs";
+import { readPrivateFeatureTexts, readPrivateSpellTexts } from "../scripts/privateSources.mjs";
 
 // The texts of the Xanathar and Tasha spells are in the GM's private folder (compendio delle regole, fase 2).
 const supplementTexts = readPrivateSpellTexts("xanathar") && readPrivateSpellTexts("tasha")
   ? { ...readPrivateSpellTexts("xanathar"), ...readPrivateSpellTexts("tasha") }
   : null;
 const noSupplementTexts = !supplementTexts && "testi privati assenti";
+// The class features whose text is not SRD, likewise: the SRD text from the sheet's file, the others from the folder.
+const featureBooks = ["phb2014", "xanathar", "tasha", "ranger-revised"].map(readPrivateFeatureTexts);
+const privateFeatureTexts = featureBooks.every(Boolean) ? Object.assign({}, ...featureBooks) : null;
+const noFeatureTexts = !privateFeatureTexts && "testi privati assenti";
+const featureText = (feature) => classFeatureDescription(feature) || privateFeatureTexts?.[feature.id] || "";
 
 function createTestDocument() {
   const makeNode = (tagName) => ({
@@ -118,11 +123,11 @@ test("Forma Selvatica ha la tabella delle forme bestiali e l'elenco delle regole
   assert.equal(blocks[6].items.length, 5);
 });
 
-test("le capacità con un elenco in linea lo hanno su righe proprie, un prodotto resta testo", async () => {
+test("le capacità con un elenco in linea lo hanno su righe proprie, un prodotto resta testo", { skip: noFeatureTexts }, async () => {
   await loadClassFeatureDescriptions();
-  const stone = rulesTextBlocks(classFeatureDescription({ id: "mago-scuola-di-trasmutazione-pietra-del-trasmutatore" }));
+  const stone = rulesTextBlocks(featureText({ id: "mago-scuola-di-trasmutazione-pietra-del-trasmutatore" }));
   assert.equal(stone.find((block) => block.kind === "list").items.length, 4);
-  const blades = classFeatureDescription({ id: "ladro-lama-spirituale-lame-dell-anima" });
+  const blades = featureText({ id: "ladro-lama-spirituale-lame-dell-anima" });
   assert.match(blades, /3 metri \* il risultato del dado/);
   assert.ok(!rulesTextBlocks(blades).some((block) => block.kind === "list"));
 });
@@ -162,11 +167,11 @@ test("Controllare tempo atmosferico e Creazione hanno le loro tabelle, come nel 
   assert.equal(creation.at(-1).kind, "paragraph");
 });
 
-test("le capacità di Xanathar e Tasha hanno i paragrafi e gli elenchi del manuale", async () => {
+test("le capacità di Xanathar e Tasha hanno i paragrafi e gli elenchi del manuale", { skip: noFeatureTexts }, async () => {
   await loadClassFeatureDescriptions();
-  const kinds = (id) => rulesTextBlocks(classFeatureDescription({ id })).map((block) => block.kind);
+  const kinds = (id) => rulesTextBlocks(featureText({ id })).map((block) => block.kind);
   assert.deepEqual(kinds("stregone-anima-meccanica-cavalleria-meccanica"), ["paragraph", "paragraph", "list", "paragraph"]);
-  assert.equal(rulesTextBlocks(classFeatureDescription({ id: "stregone-anima-meccanica-cavalleria-meccanica" }))
+  assert.equal(rulesTextBlocks(featureText({ id: "stregone-anima-meccanica-cavalleria-meccanica" }))
     .find((block) => block.kind === "list").items.length, 3);
   assert.deepEqual(kinds("guerriero-samurai-forza-di-fronte-alla-morte"), ["paragraph", "paragraph"]);
   assert.deepEqual(kinds("ladro-lama-spirituale-lame-psichiche"), ["paragraph", "paragraph"]);
@@ -184,9 +189,9 @@ test("gli incantesimi di Xanathar corretti come nel PDF, Sudario spirituale rest
   assert.match(spell("tasha-sudario-spirituale").description, /inizia il suo turno entro 3 metri da lui/u);
 });
 
-test("le quattro capacità di Tasha riscritte hanno i paragrafi del libro e gli errori corretti", async () => {
+test("le quattro capacità di Tasha riscritte hanno i paragrafi del libro e gli errori corretti", { skip: noFeatureTexts }, async () => {
   await loadClassFeatureDescriptions();
-  const text = (id) => classFeatureDescription({ id });
+  const text = (id) => featureText({ id });
   const kinds = (id) => rulesTextBlocks(text(id)).map((block) => block.kind);
   const bond = "chierico-dominio-della-pace-legame-incoraggiante";
   assert.deepEqual(kinds(bond), ["paragraph", "paragraph"]);

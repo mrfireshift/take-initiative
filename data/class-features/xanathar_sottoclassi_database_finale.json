@@ -1223,7 +1223,6 @@
       ],
       "pagina": 10,
       "pagina_pdf": 11,
-      "descrizione": "A partire da quando sceglie questo cammino al 3° livello, il barbaro si circonda di guerrieri spettrali quando entra in ira. Mentre è in ira, la prima creatura che colpisce con un attacco nel suo turno diventa il bersaglio dei guerrieri, che ostacolano i suoi attacchi. Fino all'inizio del turno successivo del barbaro, quel bersaglio subisce svantaggio a qualsiasi tiro per colpire che non effettui contro il barbaro; inoltre, quando il bersaglio colpisce una creatura che non sia il barbaro con un attacco, quella creatura ottiene resistenza ai danni inflitti dall'attacco. L'effetto sul bersaglio termina in anticipo se l'ira del barbaro termina.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1239,7 +1238,6 @@
       ],
       "pagina": 10,
       "pagina_pdf": 11,
-      "descrizione": "A partire dal 6° livello, gli spiriti guardiani che aiutano il barbaro possono fornire una protezione soprannaturale a coloro che egli difende. Se il barbaro è in ira e un'altra creatura situata entro 9 metri da lui e che egli sia in grado di vedere subisce danni, il barbaro può usare la sua reazione per ridurre quei danni di 2d6.\n\nQuando il barbaro raggiunge livelli superiori in questa classe, può ridurre i danni di un ammontare maggiore: 3d6 al 10° livello e 4d6 al 14° livello.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1253,7 +1251,6 @@
       ],
       "pagina": 10,
       "pagina_pdf": 11,
-      "descrizione": "Al 10° livello, il barbaro ottiene la capacità di consultarsi con i suoi spiriti ancestrali. Quando lo fa, lancia l'incantesimo presagio o chiaroveggenza, senza usare uno slot incantesimo o alcuna componente materiale. Anziché creare un sensore sferico, questo uso di chiaroveggenza evoca invisibilmente uno degli spiriti ancestrali del barbaro nel luogo scelto. La caratteristica da incantatore del barbaro per questi incantesimi è Saggezza.\n\nDopo che il barbaro ha lanciato uno dei due incantesimi in questo modo, non può usare di nuovo questo privilegio finché non completa un riposo breve o lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1267,7 +1264,6 @@
       ],
       "pagina": 10,
       "pagina_pdf": 11,
-      "descrizione": "Al 14° livello, gli spiriti ancestrali del barbaro diventano abbastanza potenti da contrattaccare. Quando il barbaro usa Spiriti Protettori per ridurre i danni di un attacco, l'attaccante subisce un ammontare di danni da forza pari ai danni prevenuti dagli Spiriti Protettori del barbaro.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1281,7 +1277,6 @@
       ],
       "pagina": 10,
       "pagina_pdf": 11,
-      "descrizione": "A partire dal 3° livello, il barbaro emana un'aura magica tempestosa mentre è in ira. L'aura si estende da lui per 3 metri in ogni direzione, ma non attraverso le coperture totali.\n\nL'aura del barbaro ha un effetto che si attiva quando questi entra in ira; il barbaro può inoltre attivare l'effetto di nuovo in ogni suo turno come azione bonus. Il barbaro deve scegliere tra deserto, mare e tundra: l'effetto della sua aura dipende dall'ambiente scelto, come descritto di seguito. Può cambiare l'ambiente scelto ogni volta che acquisisce un livello in questa classe.\n\nSe gli effetti dell'aura del barbaro richiedono un tiro salvezza, la CD è pari a 8 + il bonus di competenza del barbaro + il modificatore di Costituzione del barbaro.\n\nDeserto. Quando questo effetto è attivato, tutte le altre creature entro l'aura del barbaro subiscono 2 danni da fuoco a testa. I danni aumentano quando il barbaro raggiunge livelli superiori in questa classe: 3 al 5° livello, 4 al 10° livello, 5 al 15° livello e 6 al 20° livello.\n\nMare. Quando questo effetto è attivato, il barbaro può scegliere un'altra creatura situata entro la sua aura e che egli sia in grado di vedere. Il bersaglio deve effettuare un tiro salvezza su Destrezza; se lo fallisce, subisce 1d6 danni da fulmine, mentre se lo supera, subisce la metà di quei danni. I danni aumentano quando il barbaro raggiunge livelli superiori in questa classe: 2d6 al 10° livello, 3d6 al 15° livello e 4d6 al 20° livello.\n\nTundra. Quando questo effetto è attivato, ogni creatura a scelta del barbaro e situata entro la sua aura ottiene 2 punti ferita temporanei, grazie agli spiriti del ghiaccio che la immunizzano al dolore. I punti ferita temporanei aumentano quando il barbaro raggiunge livelli superiori in questa classe: 3 al 5° livello, 4 al 10° livello, 5 al 15° livello e 6 al 20° livello.",
       "fonte_descrizione": "manuale_verificato",
       "opzioni": [
         "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-deserto",
@@ -1300,7 +1295,6 @@
       ],
       "pagina": 10,
       "pagina_pdf": 11,
-      "descrizione": "Al 6° livello, la tempesta conferisce al barbaro i suoi benefici anche quando l'aura del barbaro non è attiva. I benefici sono basati sull'ambiente scelto dal barbaro per la sua Aura Tempestosa.\n\nDeserto. Il barbaro ottiene resistenza ai danni da fuoco e non subisce gli effetti del caldo estremo, come descritto nella Dungeon Master's Guide. Inoltre, con un'azione, può toccare un oggetto infiammabile che non sia indossato o trasportato da nessun altro e incendiarlo.\n\nMare. Il barbaro ottiene resistenza ai danni da fulmine e può respirare sott'acqua. Ottiene inoltre una velocità di nuotare pari a 9 metri.\n\nTundra. Il barbaro ottiene resistenza ai danni da freddo e non subisce gli effetti del freddo estremo, come descritto nella Dungeofl Master's Guide. Inoltre, con un'azione, può toccare l'acqua e trasformarne un cubo con spigolo di 1,5 metri in ghiaccio, che si scioglie dopo 1 minuto. Questa azione fallisce se una creatura si trova all'interno del cubo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1314,7 +1308,6 @@
       ],
       "pagina": 10,
       "pagina_pdf": 11,
-      "descrizione": "Al 10° livello, il barbaro impara a usare la sua padronanza della tempesta per proteggere gli altri. Ogni creatura a scelta del barbaro ottiene la resistenza ai danni che il barbaro ha ottenuto dal privilegio Anima Tempestosa, fintanto che quella creatura si trova entro l'Aura Tempestosa del barbaro.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1328,7 +1321,6 @@
       ],
       "pagina": 11,
       "pagina_pdf": 12,
-      "descrizione": "Al 14° livello, il potere della tempesta incanalata dal barbaro cresce ancora e sferza i suoi avversari. L'effetto è basato sull'ambiente scelto dal barbaro per la sua Aura Tempestosa.\n\nDeserto. Immediatamente dopo che una creatura nell'aura del barbaro lo ha colpito con un attacco, il barbaro può usare la sua reazione per obbligare quella creatura a effettuare in tiro salvezza su Destrezza. Se la creatura lo fallisce, subisce danni da fuoco pari alla metà del livello da barbaro del personaggio.\n\nMare. Quando il barbaro colpisce una creatura entro la propria aura con un attacco, può usare la sua reazione per obbligare quella creatura a effettuare in tiro salvezza su Forza. Se la creatura lo fallisce, cade a terra prona, come se fosse stata investita da un'onda.\n\nTundra. Ogni volta che l'effetto di Aura Tempestosa del barbaro si attiva, egli può scegliere una creatura situata entro l'aura e che egli sia in grado di vedere. Quella creatura deve superare un tiro salvezza su Forza, altrimenti la sua velocità è ridotta a O fino all'inizio del turno successivo del barbaro, a causa dello strato magico di gelo che la ricopre.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1342,7 +1334,6 @@
       ],
       "pagina": 11,
       "pagina_pdf": 12,
-      "descrizione": "A partire da quando sceglie questo cammino al 3° livello, il barbaro può incanalare la furia divina nei colpi che sferra con le armi. Mentre il barbaro è in ira, la prima creatura che colpisce in ogni suo turno con un attacco con le armi subisce danni extra pari a 1d6 + metà del livello da barbaro del personaggio. I danni extra sono necrotici o radiosi; il barbaro sceglie il tipo di danni quando ottiene questo privilegio.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1356,7 +1347,6 @@
       ],
       "pagina": 11,
       "pagina_pdf": 12,
-      "descrizione": "Al 3° livello, l'anima del barbaro viene marchiata per combattere in eterno. Se un incantesimo, come rianimare morti, ha l'unico effetto di riportare il barbaro in vita (ma non alla non morte), l'incantatore non ha bisogno di componenti materiali per lanciare l'incantesimo sul barbaro.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1370,7 +1360,6 @@
       ],
       "pagina": 11,
       "pagina_pdf": 12,
-      "descrizione": "A partire dal 6° livello, il potere divino che alimenta l'ira del barbaro è anche in grado di proteggerlo. Se il barbaro fallisce un tiro salvezza mentre è in ira, può ripetere quel tiro e deve usare il nuovo risultato. Il barbaro può usare questa capacità solo una volta per ira.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1384,7 +1373,6 @@
       ],
       "pagina": 11,
       "pagina_pdf": 12,
-      "descrizione": "Al 10° livello, il barbaro impara a incanalare il potere divino per ispirare zelo anche negli altri. Come azione bonus, il barbaro lancia un grido di battaglia infuso di energia divina. Fino ad altre dieci creature a sua scelta entro 18 metri da lui e in grado di sentirlo ottengono vantaggio ai tiri per colpire e ai tiri salvezza fino all'inizio del turno successivo del barbaro.\n\nUna volta usato questo privilegio, il barbaro non può più usarlo finché n-on completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1398,7 +1386,6 @@
       ],
       "pagina": 11,
       "pagina_pdf": 12,
-      "descrizione": "A partire dal 14° livello, il potere divino che alimenta l'ira del barbaro gli consente di riprendersi dai colpi fatali.\n\nMentre il barbaro è in ira, quando possiede 0 punti ferita non diventa privo di sensi. Deve comunque effettuare i tiri salvezza contro morte e subisce i normali effetti previsti per chi subisce danni quando è a 0 punti ferita. Tuttavia, se dovesse morire per avere fallito i tiri salvezza contro morte, non muore finché la sua ira non termina, e allora muore solo se ha ancora 0 punti ferita.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1412,7 +1399,6 @@
       ],
       "pagina": 14,
       "pagina_pdf": 15,
-      "descrizione": "Quando un bardo si unisce al Collegio dei Sussurri al 3° livello, ottiene la capacità di rendere i suoi attacchi con le armi magicamente tossici per la mente di una creatura.\n\nQuando il bardo colpisce una creatura con un attacco con le armi, può spendere un uso della sua Ispirazione Bardica per infliggere 2d6 danni psichici extra a quel bersaglio. Può farlo soltanto una volta per round nel suo turno.\n\nI danni psichici aumentano quando il bardo raggiunge livelli superiori in questa classe: 3d6 al 5° livello, 5d6 al 10° livello e 8d6 al 15° livello.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1426,7 +1412,6 @@
       ],
       "pagina": 14,
       "pagina_pdf": 15,
-      "descrizione": "Al 3° livello, il bardo impara a infondere nelle parole apparentemente innocenti una magia insidiosa che può ispirare terrore.\n\nSe il bardo parla con un umanoide da solo per almeno 1 minuto, può tentare di instillare la paranoia nella sua mente. Alla fine della conversazione, il bersaglio deve superare un tiro salvezza su Saggezza contro la CD del tiro salvezza degli incantesimi del bardo, altrimenti diventa spaventato dal bardo o da una creatura a scelta di quest'ultimo. Il bersaglio è spaventato in questo modo per 1 ora, finché non viene attaccato o danneggiato oppure finché non vede i suoi alleati essere attaccati o danneggiati.\n\nSe il bersaglio supera il tiro salvezza, non ha idea che il bardo abbia tentato di spaventarlo.\n\nUna volta che il bardo ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo breve o lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1440,7 +1425,6 @@
       ],
       "pagina": 14,
       "pagina_pdf": 15,
-      "descrizione": "Al 6° livello, il bardo ottiene la capacità di adottare l'identità di un umanoide. Quando un umanoide muore entro 9 metri da lui, il bardo può catturare magicamente la sua ombra usando la propria reazione. Il bardo mantiene quest'ombra finché non la usa o finché non completa un riposo lungo.\n\nIl bardo può usare l'ombra con un'azione. Quando lo fa, l'ombra svanisce e si trasforma magicamente in un travestimento che appare sul bardo. Ora il bardo sembra la persona defunta, ma viva e in salute. Questo travestimento dura 1 ora o finché il bardo non lo termina con un'azione bonus.\n\nFinché il bardo assume questo travestimento, ottiene accesso a tutte le informazioni che l'umanoide condividerebbe liberamente con un conoscente. Tali informazioni includono i dettagli generici del suo passato e della sua vita personale, ma non i segreti. Le informazioni sono sufficienti da consentire al bardo di spacciarsi per quella persona attingendo ai suoi ricordi.\n\nUn'altra creatura può capire che questo è un travestimento effettuando con successo una prova di Saggezza (Intuizione) contrapposta a una prova di Carisma (Inganno) del bardo. Il bardo ottiene un bonus di +5 alla sua prova.\n\nUna volta che il bardo ha catturato un'ombra con questo privilegio, non può catturarne un'altra finché non completa un riposo breve o lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1454,7 +1438,6 @@
       ],
       "pagina": 14,
       "pagina_pdf": 15,
-      "descrizione": "Al 14° livello, il bardo ottiene la capacità di intessere una magia oscura nelle sue parole e di fare leva sulle paure più profonde di una creatura.\n\nCon un'azione, il bardo sussurra magicamente una frase che solo una creatura a sua scelta e situata entro 9 metri da lui può udire. Il bersaglio deve effettuare un tiro salvezza su Saggezza contro la CD del tiro salvezza degli incantesimi del bardo. Ha successo automaticamente se non condivide un linguaggio con il bardo o se non può sentirlo. Se supera il tiro salvezza, il sussurro del bardo viene percepito come un borbottio inintelligibile e non ha alcun effetto.\n\nSe il bersaglio fallisce il tiro salvezza, è affascinato dal bardo per le 8 ore successive o finché il bardo o gli alleati di quest'ultimo non lo attaccano, non lo danneggiano o non lo costringono a effettuare un tiro salvezza. Il bersaglio interpreta i sussurri come una descrizione del suo segreto più mortificante. Il bardo non apprende questo segreto, ma il bersaglio è convinto che egli lo conosca.\n\nLa creatura affascinata obbedisce ai comandi del bardo nel timore che egli possa rivelare il suo segreto. Non rischierà la vita e non combatterà per il bardo, a meno che non fosse già incline a farlo. Concede al bardo favori e doni come se fosse un suo caro amico.\n\nQuando l'effetto termina, la creatura non ha idea del perché provasse una tale paura nei confronti del bardo.\n\nUna volta che il bardo ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1468,7 +1451,6 @@
       ],
       "pagina": 15,
       "pagina_pdf": 16,
-      "descrizione": "Quando un bardo si unisce al Collegio dell'Incanto al 3° livello, ottiene la capacità di intessere un canto di magia fatata che infonde nei suoi alleati grande vigore e velocità.\n\nCome azione bonus, il bardo può spendere un uso di Ispirazione Bardica per assumere un aspetto meraviglioso. Quando lo fa, sceglie un numero di creature pari al suo modificatore di Carisma (fino a un minimo di una), situate entro 18 metri da lui, che siano in grado di vederlo e che egli sia in grado di vedere. Ognuna di esse ottiene 5 punti ferita temporanei. Quando una creatura ottiene questi punti ferita temporanei, può immediatamente usare la sua reazione per muoversi fino alla sua velocità, senza provocare attacchi di opportunità.\n\nIl numero di punti ferita temporanei aumenta quando il bardo raggiunge livelli superiori in questa classe: 8 al 5° livello, 11 al 10° livello e 14 al 15° livello.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1482,7 +1464,6 @@
       ],
       "pagina": 15,
       "pagina_pdf": 16,
-      "descrizione": "A partire dal 3° livello, il bardo può infondere nella sua esibizione una seducente magia fatata.\n\nSe il bardo si esibisce per almeno 1 minuto, può tentare di ispirare meraviglia nel suo pubblico cantando, recitando un poema o danzando. Alla fine dell'esibizione, il bardo sceglie un numero di umanoidi pari al suo modificatore di Carisma (fino a un minimo di uno) situati entro 18 metri da lui e che abbiano visto e ascoltato tutta l'esibizione. Ogni bersaglio deve superare un tiro salvezza su Saggezza contro la CD del tiro salvezza degli incantesimi del bardo, altrimenti sarà affascinato da quest'ultimo. Mentre è affascinato in questo modo, il bersaglio idolatra il bardo, parla con toni entusiasti di lui a chiunque glielo nomini e contrasta chiunque si opponga al bardo, anche se evita la violenza, a meno che non fosse già propenso a combattere in suo nome. Questo effetto termina su un bersaglio dopo 1 ora, se il bersaglio subisce danni, se il bardo lo attacca o se il bersaglio vede il bardo attaccare o danneggiare un qualsiasi suo alleato.\n\nSe il bersaglio supera il suo tiro salvezza, non ha idea del fatto che il bardo abbia tentato di affascinarlo.\n\nUna volta che il bardo ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo lungo o breve.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1496,7 +1477,6 @@
       ],
       "pagina": 15,
       "pagina_pdf": 16,
-      "descrizione": "Al 6° livello, il bardo ottiene la capacità di ammantarsi di un una magia fatata che induce gli {Itri a volerlo servire. Come azione bonus, il bardo lancia comando, senza spendere uno slot incantesimo, e si ammanta di una bellezza ultraterrena per 1 minuto o finché la sua concentrazione non termina (come se si stesse concentrando su un incantesimo). Durante questo periodo, il bardo può lanciare comando come azione bonus in ogni suo turno, senza spendere uno slot incantesimo.\n\nOgni creatura affascinata dal bardo fallisce automaticamente il suo tiro salvezza contro il comando da lui lanciato tramite questo privilegio.\n\nUna volta che il bardo ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1510,7 +1490,6 @@
       ],
       "pagina": 15,
       "pagina_pdf": 16,
-      "descrizione": "Al 14° livello, le fattezze del bardo assumono permanentemente un aspetto ultraterreno che lo fa apparire più adorabile e fiero.\n\nInoltre, come azione bonus, il bardo può assumere magicamente una presenza maestosa per 1 minuto o finché non diventa incapacitato. Per quella durata, ogni volta che una qualsiasi creatura tenta di attaccarlo per la prima volta in un turno, l'attaccante deve effettuare un tiro salvezza su Carisma contro la CD del tiro salvezza degli incantesimi del bardo. Se lo fallisce, non può attaccare il bardo in questo turno e deve scegliere un nuovo bersaglio per il suo attacco, altrimenti l'attacco va sprecato. Se lo supera, può attaccare il bardo in questo turno, ma subisce svantaggio a ogni tiro salvezza che effettua contro gli incantesimi del bardo nel turno successivo di quest'ultimo.\n\nUna volta che il bardo ha assunto questa presenza maestosa, non può farlo di nuovo finché non completa un riposo breve o lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1524,7 +1503,6 @@
       ],
       "pagina": 16,
       "pagina_pdf": 17,
-      "descrizione": "Quando un bardo si unisce al Collegio delle Spade al 3° livello, ottiene competenza nelle armature medie e nella scimitarra.\n\nSe il bardo è competente in un'arma da mischia semplice o da guerra, può usarla come focus da incantatore per i suoi incantesimi da bardo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1538,7 +1516,6 @@
       ],
       "pagina": 16,
       "pagina_pdf": 17,
-      "descrizione": "Al 3° livello, il bardo adotta uno stile di combattimento come sua specialità e sceglie una delle opzioni seguenti. Non può prendere un'opzione di Stile di Combattimento più di una volta, nemmeno se qualche effetto di gioco gli permette di scegliere di nuovo. Duellare. Quando il bardo impugna un'arma da mischia in una mano e nessun'altra arma, ottiene un bonus di +2 ai tiri per i danni con quell'arma.\n\nCombattere con Due Armi. Quando il bardo impegna un nemico combattendo con due armi, può aggiungere il suo modificatore di caratteristica ai danni del secondo attacco.",
       "fonte_descrizione": "manuale_verificato",
       "opzioni": [
         "bardo-collegio-delle-spade-stile-di-combattimento-duellare",
@@ -1556,7 +1533,6 @@
       ],
       "pagina": 16,
       "pagina_pdf": 17,
-      "descrizione": "Al 3° livello, il bardo impara a esibirsi in impressionanti sfoggi di potenza marziale e velocità.\n\nOgni volta che il bardo effettua l'azione di Attacco nel suo turno, la sua velocità base sul terreno aumenta di 3 metri fino alla fine del turno e, se un attacco con le armi da lui effettuato come parte di questa azione colpisce una creatura, il bardo può usare una delle seguenti opzioni di Virtuosismo della Lama a sua scelta. Il bardo può usare solo un'opzione di Virtuosismo della Lama per turno.\n\nVirtuosismo Difensivo. Il bardo può spendere un uso della sua Ispirazione Bardica per fare in modo che l'arma infligga danni extra al bersaglio che colpisce. I danni sono pari al risultato del tiro del dado di Ispirazione Bardica. Il bardo aggiunge inoltre quel risultato alla sua CA fino all'inizio del suo turno successivo.\n\nVirtuosismo Tagliente. Il bardo può spendere un uso della sua Ispirazione Bardica per fare in modo che l'arma infligga danni extra al bersaglio che colpisce e a qualsiasi altra creatura a sua scelta che si trovi entro 1,5 metri da lui e che egli sia in grado di vedere. I danni sono pari al risultato del tiro del dado di Ispirazione Bardica.\n\nVirtuosismo Mobile. Il bardo può spendere un uso della sua Ispirazione Bardica per fare in modo che l'arma infligga danni extra al bersaglio che colpisce. I danni sono pari al risultato del tiro del dado di Ispirazione Bardica. Il bardo può anche spingere il bersaglio lontano da sé di una distanza massima pari a 1,5 metri più 30 cm per il risultato ottenuto al tiro del dado. Poi può usare immediatamente la sua reazione per muoversi di un massimo pari alla sua velocità base sul terreno fino a uno spazio libero entro 1,5 metri dal bersaglio.",
       "fonte_descrizione": "manuale_verificato",
       "opzioni": [
         "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-difensivo",
@@ -1575,7 +1551,6 @@
       ],
       "pagina": 16,
       "pagina_pdf": 17,
-      "descrizione": "A partire dal 6° livello, il bardo può attaccare due volte, invece di una, ogni volta che effettua l'azione di Attacco nel suo turno.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1589,7 +1564,6 @@
       ],
       "pagina": 16,
       "pagina_pdf": 17,
-      "descrizione": "A partire dal 14° livello, ogni volta che il bardo usa un'opzione di Virtuosismo della Lama, può tirare un d6 e usarlo invece di spendere un dado di Ispirazione Bardica.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1603,7 +1577,6 @@
       ],
       "pagina": 19,
       "pagina_pdf": 20,
-      "descrizione": "Quando un chierico sceglie questo dominio al 1° livello, ottiene competenza nelle armature pesanti e negli strumenti da fabbro.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1617,7 +1590,6 @@
       ],
       "pagina": 19,
       "pagina_pdf": 20,
-      "descrizione": "Al 1° livello, il chierico ottiene la capacità di infondere la magia in un'arma o in un'armatura. Alla fine di un riposo lungo, può toccare un oggetto non magico che sia un'armatura o un'arma semplice o da guerra. Fino alla fine del suo riposo lungo successivo o finché non muore, l'oggetto diventa un oggetto magico, che conferisce un bonus di +1 alla CA se è un'armatura o un bonus di +1 ai tiri per colpire e per i danni se è un'arma.\n\nUna volta che il chierico ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1631,7 +1603,6 @@
       ],
       "pagina": 19,
       "pagina_pdf": 20,
-      "descrizione": "BENEDIZIONE DELL'ARTIGIANO A partire dal 2° livello, il chierico può usare Incanalare Divinità per creare dei semplici oggetti.\n\nIl chierico celebra un rituale lungo un'ora per fabbricare un oggetto non magico che includa del metallo: un'arma semplice o da guerra, un'armatura, dieci munizioni, un set di strumenti o un altro oggetto di metallo (vedi il capitolo 5, \"Equipaggiamento\", nel Player's Handbook per alcuni esempi di questi oggetti). La creazione viene completata alla fine dell'ora, materializzandosi in uno spazio libero a scelta del chierico su una superficie entro 1,5 metri da lui.\n\nL'oggetto creato può essere qualcosa di un valore pari o inferiore a 100 mo. Come parte di questo rituale, il chierico deve fornire una quantità di metallo (che può includere monete) del valore pari a quello della creazione. Il metallo si fonde in modo irrecuperabile e assume la forma della creazione alla fine del rituale, sviluppando magicamente anche le parti non metalliche della creazione.\n\nIl rituale può creare un duplicato di un oggetto non magico che contenga metallo, come per esempio una chiave, se il chierico possiede l'originale durante il rituale.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1645,7 +1616,6 @@
       ],
       "pagina": 19,
       "pagina_pdf": 20,
-      "descrizione": "A partire dal 6° livello, grazie alla sua maestria nella forgia, il chierico ottiene alcune capacità speciali:\n\nIl chierico ottiene resistenza ai danni da fuoco. Mentre indossa un'armatura pesante, il chierico ottiene un bonus di+ 1 alla CA.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1660,7 +1630,6 @@
       ],
       "pagina": 19,
       "pagina_pdf": 20,
-      "descrizione": "All'8° livello, il chierico ottiene la capacità di infondere il potere infuocato della forgia nei colpi della sua arma. Una volta in ogni suo turno, quando colpisce una creatura con un attacco con le armi, il chierico può fare in modo che l'attacco infligga 1d8 danni da fuoco extra al bersaglio. Quando il chierico raggiunge il 14° livello, i danni extra aumentano a 2d8.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1674,7 +1643,6 @@
       ],
       "pagina": 19,
       "pagina_pdf": 20,
-      "descrizione": "Al 17° livello, l'affinità benedetta del chierico per il fuoco e il metallo diventa più potente:\n\nIl chierico ottiene immunità ai danni da fuoco. Mentre indossa un'armatura pesante, il chierico possiede resistenza ai danni contundenti, perforanti e taglienti degli attacchi non magici.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1688,7 +1656,6 @@
       ],
       "pagina": 20,
       "pagina_pdf": 21,
-      "descrizione": "Al 1° livello, il chierico ottiene la capacità di manipolare la linea di separazione tra la vita e la morte. Quando normalmente dovrebbe tirare uno o più dadi per ripristinare con un incantesimo i punti ferita di una creatura a 0 punti ferita, usa invece il risultato più alto possibile per ogni dado.\n\nApprende inoltre il trucchetto salvare i morenti, che non conta al fine di determinare il numero di trucchetti da chierico che conosce. Per lui, il trucchetto ha una gittata di 9 metri e può essere lanciato come azione bonus.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1702,7 +1669,6 @@
       ],
       "pagina": 20,
       "pagina_pdf": 21,
-      "descrizione": "Al 1° livello, il chierico ottiene la capacità di percepire sporadicamente la presenza dei non morti, la cui esistenza è un insulto al ciclo naturale della vita. Con un'azione, il chierico può ampliare la sua percezione per individuare magicamente i non morti. Fino alla fine del suo turno successivo, il chierico conosce l'ubicazione di ogni non morto entro 18 metri da lui che non si trovi dietro copertura totale e che non sia protetto dalle magie di divinazione. Questa percezione non informa il chierico delle capacità o dell'identità di una creatura.\n\nIl chierico può usare questo privilegio un numero di volte pari al suo modificatore di Saggezza (per un minimo di una volta). Il chierico recupera tutti gli usi spesi quando completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1716,7 +1682,6 @@
       ],
       "pagina": 20,
       "pagina_pdf": 21,
-      "descrizione": "A partire dal 2° livello, il chierico può usare Incanalare Divinità per marchiare la forza vitale di un'altra creatura affinché sia terminata.\n\nCon un'azione, il chierico sceglie una creatura situata entro 9 metri da lui e che egli sia in grado di vedere e la maledice fino alla fine del proprio turno successivo. La prossima volta che il chierico o un suo alleato colpisce la creatura maledetta con un attacco, la creatura possiede vulnerabilità a tutti i danni di quell'attacco; poi la maledizione termina.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1730,7 +1695,6 @@
       ],
       "pagina": 20,
       "pagina_pdf": 21,
-      "descrizione": "Al 6° livello, il chierico ottiene la capacità di arrestare l'avanzata della morte. Come reazione, quando il chierico o una creatura situata entro 9 metri da lui e che egli sia in grado di vedere subisce un colpo critico, il chierico può trasformare quel colpo in un colpo normale. Ogni effetto innescato da un colpo critico viene annullato.\n\nIl chierico può usare questo privilegio un numero di volte pari al suo modificatore di Saggezza (fino a un minimo di una volta). Recupera tutti gli usi spesi quando completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1744,7 +1708,6 @@
       ],
       "pagina": 20,
       "pagina_pdf": 21,
-      "descrizione": "A partire dall'8° livello, il chierico aggiunge il suo modificatore di Saggezza ai danni che infligge con qualsiasi trucchetto da chierico.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1758,7 +1721,6 @@
       ],
       "pagina": 20,
       "pagina_pdf": 21,
-      "descrizione": "A partire dal 17° livello, il chierico può catturare una traccia di vitalità da un'anima morente e usarla per curare i viventi. Quando un nemico che il chierico è in grado di vedere muore entro 18 metri da lui, il chierico o una creatura a sua scelta situata entro 18 metri da lui recupera un numero di punti ferita pari al numero di Dadi Vita del nemico.\n\nIl chierico può usare questo privilegio di classe solo se non è incapacitato. Una volta che il chierico ha usato questo privilegio, non può usarlo di nuovo fino all'inizio del suo turno successivo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1772,7 +1734,6 @@
       ],
       "pagina": 22,
       "pagina_pdf": 23,
-      "descrizione": "Al 2° livello, il druido è pervaso dalle benedizioni della Corte dell'Estate e diventa una fonte di energia che offre sollievo dalle ferite. Il druido possiede una riserva di energia fatata rappresentata da un numero di d6 pari al suo livello da druido.\n\nCome azione bonus, il druido può scegliere una creatura, situata entro 36 metri da lui e che egli sia in grado di vedere, e spendere un numero di quei dadi pari o inferiore alla metà del suo livello da druido. Tira i dadi spesi e somma i risultati. Il bersaglio recupera un numero di punti ferita pari al totale. Il bersaglio ottiene anche 1 punto ferita temporaneo per ogni dado speso.\n\nIl druido recupera tutti i dadi spesi quando completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1786,7 +1747,6 @@
       ],
       "pagina": 22,
       "pagina_pdf": 23,
-      "descrizione": "Al 6° livello, il druido si sente a casa sua ovunque si trovi. Durante un riposo breve o lungo, può invocare il diafano potere della Corte del Crepuscolo affinché vegli sul suo riposo. All'inizio del riposo, il druido tocca un punto nello spazio e compare una sfera magica invisibile del raggio di 9 metri centrata su quel punto. Una copertura totale blocca la sfera.\n\nMentre si trovano in quella sfera, il druido e i suoi alleati ottengono un bonus di +5 alle prove di Destrezza (Furtività) e Saggezza (Percezione); inoltre, qualsiasi luce di una fiamma aperta all'interno della sfera (un fuoco da campo, una torcia e così via) non è visibile dall'esterno.\n\nLa sfera svanisce alla fine del riposo o quando il druido ne esce.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1800,7 +1760,6 @@
       ],
       "pagina": 23,
       "pagina_pdf": 24,
-      "descrizione": "A partire dal 10° livello, il druido può usare i sentieri magici nascosti che alcuni folletti usano per attraversare lo spazio in un batter d'occhio. Come azione bonus nel suo turno può teletrasportarsi di un massimo di 18 metri fino a uno spazio libero che egli sia in grado di vedere. In alternativa, può usare la sua azione per teletrasportare una creatura consenziente da lui toccata per un massimo di 9 metri fino a uno spazio libero che egli sia in grado di vedere.\n\nIl druido può usare questo privilegio un numero di volte pari al suo modificatore di Saggezza (fino a un minimo di una volta) e recupera tutti i suoi usi spesi quando completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1814,7 +1773,6 @@
       ],
       "pagina": 23,
       "pagina_pdf": 24,
-      "descrizione": "Al 14° livello, la magia della Selva Fatata conferisce al druido la capacità di viaggiare mentalmente o fisicamente nelle terre dei sogni.\n\nQuando il druido completa un riposo breve, può lanciare uno degli incantesimi seguenti, senza spendere uno slot incantesimo o richiedere componenti materiali: cerchio di teletrasporto, scrutare o sogno (con il druido come messaggero).\n\nQuesto uso di cerchio di teletrasporto è speciale. Anziché aprire un portale verso un cerchio di teletrasporto permanente, apre un portale verso l'ultimo luogo in cui il druido ha completato un riposo lungo sul suo piano d'esistenza attuale. Se non ha completato un riposo lungo sul suo piano d'esistenza attuale, l'incantesimo fallisce ma non è sprecato.\n\nUna volta che il druido ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1828,7 +1786,6 @@
       ],
       "pagina": 23,
       "pagina_pdf": 24,
-      "descrizione": "Al 2° livello, il druido ottiene la capacità di conversare con le bestie e con molti folletti.\n\nIl druido impara a parlare, leggere e scrivere il Silvano. Inoltre, le bestie capiscono le sue parole e il druido ottiene la capacità di decifrare i loro rumori e movimenti. Molte bestie non hanno un'intelligenza sufficiente a trasmettere o a capire i concetti più sofisticati, ma una bestia amichevole può riferire ciò che ha visto o udito in tempi recenti. Questa capacità non procura al druido l'amicizia delle bestie, ma il druido può sempre usarla congiuntamente a qualche dono per ottenere il loro favore, proprio come farebbe con qualsiasi altro personaggio non giocante.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1842,7 +1799,6 @@
       ],
       "pagina": 23,
       "pagina_pdf": 24,
-      "descrizione": "A partire dal 2° livello, un druido può chiamare a sé gli spiriti della natura per influenzare il mondo attorno a lui. Come azione bonus, il druido può evocare magicamente uno spirito incorporeo in un punto situato entro 18 metri da lui e che egli sia in grado di vedere. Lo spirito crea un'aura in un raggio di 9 metri attorno a quel punto. Non è considerato né una creatura né un oggetto, ma possiede l'aspetto spettrale della creatura che rappresenta.\n\nCome azione bonus, il druido può muovere lo spirito di un massimo di 18 metri fino a un punto che egli sia in grado di vedere.\n\nLo spirito permane per 1 minuto o finché il druido non diventa incapacitato.\n\nUna volta che il druido ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo breve o lungo.\n\nL'effetto dell'aura dello spirito dipende dal tipo di spirito evocato, scelto tra le opzioni sottostanti.\n\nSpirito Falco. Lo spirito falco è un cacciatore provetto, che aiuta il druido e i suoi alleati grazie alla sua vista acuta. Quando una creatura effettua un tiro per colpire contro un bersaglio nell'aura dello spirito, il druido può usare la sua reazione per concedere vantaggio a quel tiro per colpire.\n\nInoltre, il druido e i suoi alleati dispongono di vantaggio alle prove di Saggezza (Percezione) mentre si trovano nell'aura.\n\nSpirito Orso. Lo spirito orso conferisce al druido e ai suoi alleati la sua potenza e la sua resistenza. Ogni creatura a scelta del druido e situata nell'aura quando lo spirito compare ottiene un numero di punti ferita temporanei pari a 5 + il livello da druido del personaggio.\n\nInoltre, il druido e i suoi alleati dispongono di vantaggio alle prove di Forza e ai tiri salvezza su Forza mentre si trovano nell'aura.\n\nSpirito Unicorno. Lo spirito unicorno presta la sua protezione a chi gli è vicino. Il druido e i suoi alleati dispongono di vantaggio a tutte le prove di caratteristica effettuate per individuare creature nell'aura dello spirito. Inoltre, se il druido lancia un incantesimo usando uno slot incantesimo che ripristina i punti ferita di una qualsiasi creatura all'interno o all'esterno dell'aura, ogni creatura a scelta del druido all'interno dell'aura recupera anche un numero di punti ferita pari al livello da druido del personaggio.",
       "fonte_descrizione": "manuale_verificato",
       "opzioni": [
         "druido-circolo-del-pastore-totem-spirituale-spirito-falco",
@@ -1861,7 +1817,6 @@
       ],
       "pagina": 24,
       "pagina_pdf": 25,
-      "descrizione": "A partire dal 6° livello, le bestie e i folletti evocati dal druido sono più resistenti del normale. Qualsiasi bestia o folletto evocato o creato da un incantesimo lanciato dal druido ottiene i benefici seguenti:\n\nLa creatura compare con più punti ferita rispetto al normale: 2 punti ferita extra per ogni Dado Vita che possiede. I danni delle sue armi naturali sono considerati magici al fine di oltrepassare l'immunità e la resistenza agli attacchi e ai danni non magici.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1875,7 +1830,6 @@
       ],
       "pagina": 24,
       "pagina_pdf": 25,
-      "descrizione": "A partire dal 10\" li;ello, il Totem Spirituale del druido salvaguardia le bestie e i folletti che egli chiama a sé con la sua magia. Quando una bestia o un folletto evocato o creato dal druido tramite un incantesimo termina il proprio turno nell'aura del suo Totem Spirituale, quella creatura recupera un numero di punti ferita pari a metà del livello da druido del personaggio.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1889,7 +1843,6 @@
       ],
       "pagina": 24,
       "pagina_pdf": 25,
-      "descrizione": "A partire dal 14° livello, gli spiriti della natura con cui il druido entra in comunione lo proteggono quando è più indifeso. Se il druido scende a 0 punti ferita o diventa incapacitato contro la sua volontà, ottiene immediatamente i benefici di evoca animali come se l'avesse lanciato usando uno slot incantesimo di 9° livello. L'incantesimo evoca quattro bestie a scelta del druido con grado di sfida pari o inferiore a 2. Le bestie evocate compaiono entro 6 metri dal druido. Se non ricevono comandi dal druido, lo proteggono dai danni e attaccano i suoi avversari. L'incantesimo dura 1 ora, senza richiedere concentrazione, oppure finché il druido non lo congeda (senza richiedere un'azione).\n\nUna volta che il druido ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1903,7 +1856,6 @@
       ],
       "pagina": 28,
       "pagina_pdf": 29,
-      "descrizione": "Al 3° livello, il guerriero apprende una teoria magica o alcuni segreti della natura, tipici dei praticanti di questa tradizione marziale elfica. Sceglie di ottenere competenza nell'abilità Arcano o Natura e sceglie di apprendere il trucchetto prestidigitazione o artificio druidico.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1921,7 +1873,6 @@
       ],
       "pagina": 28,
       "pagina_pdf": 29,
-      "descrizione": "Al 3° livello, il guerriero impara a scatenare certi effetti magici con alcuni dei suoi tiri. Quando il guerriero ottiene questo privilegio, impara due opzioni di Tiro Arcano a sua scelta (vedi \"Opzioni di Tiro Arcano\" più sotto).\n\nUna volta per turno, quando il guerriero scaglia una freccia magica con un arco corto o un arco lungo come parte dell'azione di Attacco, può applicare una sua opzione di Tiro Arcano a quella freccia. Il guerriero decide di usare l'opzione quando la freccia colpisce una creatura, a meno che l'opzione non preveda un tiro per colpire. Il guerriero possiede due usi di questa capacità e recupera tutti gli usi spesi quando completa un riposo breve o lungo.\n\nIl guerriero ottiene un'opzione aggiuntiva di Tiro Arcano a sua scelta quando raggiunge livelli superiori in questa classe: al 7°, 10°, 15° e 18° livello. Inoltre, ogni opzione migliora quando il personaggio diventa un guerriero di 18° livello.",
       "fonte_descrizione": "manuale_verificato",
       "opzioni": [
         "guerriero-arciere-arcano-tiro-arcano-freccia-afferrante",
@@ -1945,7 +1896,6 @@
       ],
       "pagina": 28,
       "pagina_pdf": 29,
-      "descrizione": "Al 7° livello, il guerriero ottiene la capacità di infondere la magia nelle frecce. Ogni volta che scaglia una freccia non magica con un arco lungo o un arco corto, può renderla magica al fine di oltrepassare la resistenza e l'immunità agli attacchi e ai danni non magici. La magia scompare dalla freccia immediatamente dopo che ha colpito o mancato il bersaglio.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1959,7 +1909,6 @@
       ],
       "pagina": 28,
       "pagina_pdf": 29,
-      "descrizione": "Al 7° livello, il guerriero impara a indirizzare una freccia errante verso un nuovo bersaglio. Quando effettua un tiro per colpire con una freccia magica e manca, può usare un'azione bonus per ripetere il tiro per colpire co9tro un bersaglio diverso entro 18 metri dal bersaglio originale.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1973,7 +1922,6 @@
       ],
       "pagina": 28,
       "pagina_pdf": 29,
-      "descrizione": "A partire dal 15° livello, il guerriero può ricorrere alla magia del suo tiro con l'arco ogni volta che ha inizio una battaglia. Se tira per l'iniziativa e non gli resta alcun uso di Tiro Arcano, recupera un uso di esso.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -1987,7 +1935,6 @@
       ],
       "pagina": 30,
       "pagina_pdf": 31,
-      "descrizione": "Quando un guerriero sceglie questo archetipo al 3° livello, ottiene competenza in una delle seguenti abilità a sua scelta: Addestrare Animali, Intrattenere, Intuizione, Persuasione o Storia. In alternativa, apprende un linguaggio a sua scelta.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2001,7 +1948,6 @@
       ],
       "pagina": 30,
       "pagina_pdf": 31,
-      "descrizione": "A partire dal 3° livello, la maestria del guerriero come cavalcatore diventa evidente. Il guerriero dispone di vantaggio ai tiri salvezza effettuati per evitare di cadere dalla sua cavalcatura. Se il guerriero cade dalla sua cavalcatura ma non per più di 3 metri, può atterrare in piedi, se non è incapacitato.\n\nInfine, montare o smontare da una creatura gli costa solo 1,5 metri di movimento, anziché metà della sua velocità.\n\nI CAVALIERI ERRANTI, I SAMURAI E LA STORIA Sebbene sia i cavalieri erranti che i samurai siano esistiti nel mondo reale, l'ispirazione per entrambi questi archetipi di guerrieri nel gioco è tratta dalla cultura popolare (racconti, film e fumetti) e non dalla storia. Il nostro intento è quello di cogliere l'elemento cinematografico ed eroico di quelle figure nel gioco e non quello di fornire una rappresentazione storica accurata dell'una o dell'altra figura.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2015,7 +1961,6 @@
       ],
       "pagina": 30,
       "pagina_pdf": 31,
-      "descrizione": "A partire dal 3° livello, il guerriero può minacciare i suoi avversari, sventare i loro attacchi e punirli se fanno del male agli altri. Quando il guerriero colpisce una creatura con un attacco con le armi da mischia, può marchiare quella creatura fino alla fine del proprio turno successivo. Questo effetto termina anticipatamente se il guerriero è incapacitato o muore oppure se qualcun altro marchia la creatura.\n\nMentre si trova entro 1,5 metri dal guerriero, una creatura da lui marchiata subisce svantaggio a ogni tiro per colpire che non bersagli il guerriero.\n\nInoltre, se una creatura marchiata dal guerriero infligge danni a qualcuno che non sia il guerriero, quest'ultimo può effettuare un attacco speciale con le armi da mischia contro la creatura marchiata, come azione bonus nel proprio turno successivo. Il guerriero dispone di vantaggio al tiro per colpire e, se colpisce, l'attacco dell'arma infligge al bersaglio danni extra pari alla metà del livello da guerriero del personaggio.\n\nA prescindere dal numero di creature che marchia, il guerriero può effettuare questo attacco speciale un numero di volte pari al suo modificatore di Forza (fino a un minimo di una volta) e recupera tutti i suoi usi spesi quando completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2029,7 +1974,6 @@
       ],
       "pagina": 30,
       "pagina_pdf": 31,
-      "descrizione": "Al 7° livello, il guerriero impara a respingere i colpi diretti contro di lui, la sua cavalcatura o altre creature nelle vicinanze. Se il guerriero o una creatura situata entro 1,5 metri da lui e che egli sia in grado di vedere è colpito da un attacco, il guerriero può tirare 1d8 come reazione, se impugna un'arma da mischia o uno scudo. Il guerriero tira il dado e aggiunge il risultato ottenuto alla CA del bersaglio contro quell'attacco. Se l'attacco colpisce comunque, il bersaglio possiede resistenza contro i danni dell'attacco.\n\nIl guerriero può usare questo privilegio un numero di volte pari al suo modificatore di Costituzione (fino a un minimo di una volta) e recupera tutti i suoi usi spesi quando completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2043,7 +1987,6 @@
       ],
       "pagina": 30,
       "pagina_pdf": 31,
-      "descrizione": "Al 10° livello, il guerriero diventa esperto nel bloccare i nemici. Le creature provocano un attacco di opportunità dal gùerriero quando si muovono di 1,5 metri o più, mentre si trovano entro la sua portata, e se il guerriero colpisce una creatura con un attacco di opportunità, la velocità del bersaglio è ridotta a O fino alla fine del turno attuale.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2057,7 +2000,6 @@
       ],
       "pagina": 31,
       "pagina_pdf": 32,
-      "descrizione": "A partire dal 15° livello, il guerriero può travolgere i suoi avversari, che il guerriero sia in sella o meno. Se il guerriero si muove di almeno 3 metri in linea retta subito prima di attaccare una creatura e la colpisce con l'attacco, il bersaglio deve superare un tiro salvezza su Forza (CD 8 + il bonus di competenza del guerriero + il modificatore di Forza del guerriero), altrimenti cade a terra prono. Il guerriero può usare questo privilegio solo una volta in ogni suo turno.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2071,7 +2013,6 @@
       ],
       "pagina": 31,
       "pagina_pdf": 32,
-      "descrizione": "A partire dal 18° livello, il guerriero risponde al pericolo con una vigilanza straordinaria. In combattimento, ottiene una reazione speciale che può usare una volta per turno di ogni creatura, ad eccezione del proprio turno. Il guerriero può usare questa reazione speciale solo per effettuare un attacco di opportunità e non può usarla nello stesso turno in cui effettua la sua reazione normale.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2085,7 +2026,6 @@
       ],
       "pagina": 31,
       "pagina_pdf": 32,
-      "descrizione": "Quando un guerriero sceglie questo archetipo al 3° livello, ottiene competenza in una delle seguenti abilità a sua scelta: Intrattenere, Intuizione, Persuasione o Storia. In alternativa, apprende un linguaggio a sua scelta.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2099,7 +2039,6 @@
       ],
       "pagina": 31,
       "pagina_pdf": 32,
-      "descrizione": "A partire dal 3° livello, la foga in battaglia del guerriero può aiutarlo a proteggersi e a colpire con efficacia. Come azione bonus nel suo turno, il guerriero può fornire vantaggio a se stesso nei tiri per colpire con le armi fino alla fine del suo turno attuale. Quando lo fa, ottiene anche 5 punti ferita temporanei. Il numero dei punti ferita temporanei aumenta quando il guerriero raggiunge livelli superiori in questa classe: 10 al 10° livello e 15 al 15° livello.\n\nIl guerriero può usare questo privilegio tre volte e recupera tutti i suoi usi spesi quando completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2113,7 +2052,6 @@
       ],
       "pagina": 31,
       "pagina_pdf": 32,
-      "descrizione": "A partire dal 7° livello, la disciplina e l'attenzione ai dettagli del guerriero gli permettono di eccellere nelle situazioni sociali. Ogni volta che il guerriero effettua una prova di Carisma (Persuasione), ottiene un bonus alla prova pari al suo modificatore di Saggezza.\n\nIl suo autocontrollo gli consente anche di ottenere competenza nei tiri salvezza su Saggezza. Se possiede già questa competenza, ottiene invece competenza nei tiri salvezza su Intelligenza o su Carisma (a sua scelta).",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2127,7 +2065,6 @@
       ],
       "pagina": 31,
       "pagina_pdf": 32,
-      "descrizione": "A partire dal 10° livello, quando il guerriero tira per l'iniziativa e non gli resta alcun uso di Spirito Combattivo, recupera un uso di quel privilegio.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2141,7 +2078,6 @@
       ],
       "pagina": 31,
       "pagina_pdf": 32,
-      "descrizione": "A partire dal 15° livello, il guerriero impara a rinunciare alla precisione per velocizzare i suoi colpi. Se nel suo turno effettua l'azione di Attacco e dispone di vantaggio al tiro per colpire contro uno dei bersagli, può rinunciare al vantaggio di quel tiro per effettuare un attacco con le armi aggiuntivo contro quel bersaglio, come parte della stessa azione. Non può farlo più di una volta per turno.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2155,7 +2091,6 @@
       ],
       "pagina": 31,
       "pagina_pdf": 32,
-      "descrizione": "A partire dal 18° livello, lo spirito combattivo del guerriero può tenere a bada la morte. Se il guerriero subisce danni che lo porterebbero a 0 punti ferita ma non lo uccidono sul colpo, può usare la sua reazione per ritardare il cadere privo di sensi e può effettuare immediatamente un turno extra, interrompendo il turno attuale. Mentre il guerriero ha 0 punti ferita durante quel turno extra, i danni subiti provocano il fallimento dei tiri salvezza contro morte come di consueto e il fallimento di tre tiri salvezza contro morte può comunque ucciderlo. Quando il turno extra termina il guerriero cade privo di sensi se ha ancora 0 punti ferita.'\n\nUna volta che il guerriero ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2169,7 +2104,6 @@
       ],
       "pagina": 33,
       "pagina_pdf": 34,
-      "descrizione": "A partire dal 3° livello, un ladro diventa difficile da bloccare durante un combattimento. Il ladro può muoversi fino a metà della sua velocità come reazione quando un nemico termina il suo turno entro 1,5 metri da lui. Questo movimento non provoca attacchi di opportunità.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2183,7 +2117,6 @@
       ],
       "pagina": 34,
       "pagina_pdf": 35,
-      "descrizione": "Quando il ladro sceglie questo archetipo al 3° livello, ottiene competenza nelle abilità Natura e Sopravvivenza, se già non le possedeva. Il suo bonus di competenza raddoppia per qualsiasi prova di caratteristica da lui effettuata che usi una di quelle competenze.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2197,7 +2130,6 @@
       ],
       "pagina": 34,
       "pagina_pdf": 35,
-      "descrizione": "Al 9° livello, la velocità base sul terreno del ladro aumenta di 3 metri. Se il ladro possiede una velocità di scalare o nuotare, questo incremento si applica anche a quella velocità.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2211,7 +2143,6 @@
       ],
       "pagina": 34,
       "pagina_pdf": 35,
-      "descrizione": "A partire dal 13° livello, il ladro eccelle nel tendere imboscate e nell'agire per primo in un combattimento.\n\nIl ladro dispone di vantaggio ai tiri per l'iniziativa. Inoltre, la prima creatura che il ladro colpisce durante il primo round di un combattimento diventa più facile da colpire sia per lui che per gli altri; i tiri per colpire contro quella creatura dispongono di vantaggio fino all'inizio del turno successivo del ladro.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2225,7 +2156,6 @@
       ],
       "pagina": 34,
       "pagina_pdf": 35,
-      "descrizione": "A partire dal 17° livello, il ladro può colpire a una velocità letale. Se il ladro effettua l'azione di Attacco nel suo turno, può effettuare un attacco aggiuntivo come azione bonus. Questo attacco può beneficiare del suo Attacco Furtivo anche se il ladro l'ha già usato in questo turno, ma il ladro non può usare il suo Attacco Furtivo contro lo stesso bersaglio più di una volta in un turno.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2239,7 +2169,6 @@
       ],
       "pagina": 34,
       "pagina_pdf": 35,
-      "descrizione": "Quando un ladro sceglie questo archetipo al 3° livello, sviluppa una particolare dote per discernere le bugie. Ogni volta che effettua una prova di Saggezza (Intuizione) per determinare se una creatura mente, i risultati pari o inferiori a 7 del tiro del d20 sono considerati un 8.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2253,7 +2182,6 @@
       ],
       "pagina": 34,
       "pagina_pdf": 35,
-      "descrizione": "A partire dal 3° livello, il ladro può usare un'azione bonus per effettuare una prova di Saggezza (Percezione) per notare una creatura o un oggetto nascosto oppure per effettuare una prova di Intelligenza (Indagare) per scoprire o decifrare indizi.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2267,7 +2195,6 @@
       ],
       "pagina": 34,
       "pagina_pdf": 35,
-      "descrizione": "Al 3° livello, il ladro ottiene la capacità di decifrare le tattiche di un avversario e di sviluppare un modo per contrastarle. Come azione bonus, può effettuare una prova di Saggezza (Intuizione) contrapposta alla prova di Carisma (Inganno) di una creatura che egli sia in grado di vedere e che non sia incapacitata. Se ha successo, può usare il suo Attacco Furtivo contro quel bersaglio anche se non dispone di vantaggio al tiro per colpire, ma non se subisce svantaggio contro di esso.\n\nQuesto beneficio dura per 1 minuto o finché il ladro non usa con successo questo privilegio contro un bersaglio diverso.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2281,7 +2208,6 @@
       ],
       "pagina": 34,
       "pagina_pdf": 35,
-      "descrizione": "A partire dal 13° livello, i sensi del ladro diventano pressoché impossibili da ingannare. Con un'azione, il ladro percepisce la presenza delle illusioni, dei mutaforma in una forma diversa da quella originale e di qualsiasi altra magia concepita per ingannare i sensi entro 9 metri da lui, purché non sia accecato o assordato. Il ladro percepisce che un effetto sta tentando di ingannarlo, ma non ottiene alcuna rivelazione su ciò che è celato o sulla sua vera natura.\n\nIl ladro può usare questo privilegio un numero di volte pari al suo modificatore di Saggezza (fino a un minimo di una volta) e ne recupera tutti gli usi spesi quando completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2295,7 +2221,6 @@
       ],
       "pagina": 34,
       "pagina_pdf": 35,
-      "descrizione": "A partire dal 9° livello, il ladro ottiene vantaggio a qualsiasi prova di Saggezza (Percezione) o Intelligenza (Indagare) se non si muove di più di metà della sua velocità nello stesso turno.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2309,7 +2234,6 @@
       ],
       "pagina": 34,
       "pagina_pdf": 35,
-      "descrizione": "Al 17° livello, il ladro impara a sfruttare le debolezze di una creatura studiando attentamente le sue tattiche e i suoi movimenti. Mentre il suo privilegio Combattimento Intuitivo si applica a una creatura, i danni del suo Attacco Furtivo contro quella creatura aumentano di 3d6.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2323,7 +2247,6 @@
       ],
       "pagina": 34,
       "pagina_pdf": 35,
-      "descrizione": "Quando un ladro sceglie questo archetipo al 3° livello, ottiene competenza nei trucchi per il camuffamento, negli arnesi da falsario e in un gioco a sua scelta. Apprende inoltre due linguaggi a sua scelta.\n\nIn aggiunta, può imitare infallibilmente il modo di parlare e l'accento di una creatura che abbia sentito parlare almeno per 1 minuto, spacciandosi così per un madre lingua di una particolare terra, purché conosca quel linguaggio.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2337,7 +2260,6 @@
       ],
       "pagina": 35,
       "pagina_pdf": 36,
-      "descrizione": "° livello, il ladro può usare l'azione di A partire dal 3 Aiuto come azione bonus. Inoltre, quando usa l'azione di Aiuto per aiutare un alleato ad attaccare una creatura, il bersaglio di quell'attacco può trovarsi entro 9 metri dal ladro, anziché entro 1,5 metri dal ladro, purché esso sia in grado di vedere o di sentire il ladro.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2351,7 +2273,6 @@
       ],
       "pagina": 35,
       "pagina_pdf": 36,
-      "descrizione": "A partire dal 9° livello, se il ladro trascorre almeno 1 minuto a osservare un'altra creatura o a interagire con essa al di fuori del combattimento, apprende alcune informazioni riguardo alle capacità di quella creatura in confronto alle proprie. Il DM rivela al ladro se la creatura gli è pari, superiore o inferiore relativamente a due delle seguenti caratteristiche a scelta del ladro:\n\nPunteggio di Intelligenza\n• Punteggio di Saggezza\n• Punteggio di Carisma\n\nLivelli di classe (se ne possiede)\n\nA discrezione del DM, il ladro può anche scoprire di conoscere una parte della storia della creatura o uno dei suoi tratti caratteriali, se ne possiede.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2365,7 +2286,6 @@
       ],
       "pagina": 35,
       "pagina_pdf": 36,
-      "descrizione": "A partire dal 13° livello, il ladro a volte può fare in modo che un'altra creatura subisca un attacco destinato a lui. Quando il ladro è bersagliato da un attacco mentre una creatura situata entro 1,5 metri da lui gli fornisce copertura contro quell'attacco, il ladro può usare la sua reazione per far sì che l'attacco bersagli quella creatura anziché lui.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2379,7 +2299,6 @@
       ],
       "pagina": 35,
       "pagina_pdf": 36,
-      "descrizione": "A partire dal 17° livello, i pensieri del ladro non possono essere letti attraverso la telepatia o altri mezzi, a meno che il ladro non lo consenta. Il ladro può proiettare falsi pensieri effettuando una prova di Carisma (Inganno) contrapposta a una prova di Saggezza (Intuizione) di chi tenta di leggere i suoi pensieri.\n\nInoltre, a prescindere da ciò che il ladro dice, le magie che normalmente determinerebbero se sta mentendo oppure no affermano sempre che il ladro dice la verità, se egli così desidera. Infine, il ladro non può essere obbligato a dire la verità tramite la magia.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2393,7 +2312,6 @@
       ],
       "pagina": 35,
       "pagina_pdf": 36,
-      "descrizione": "Quando il ladro sceglie questo archetipo al 3° livello, impara a sferrare un colpo e ad allontanarsi senza temere rappresaglie. Durante il suo turno, se il ladro effettua un attacco in mischia contro una creatura, quella creatura non può effettuare attacchi di opportunità contro di lui per il resto del turno del ladro.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2407,7 +2325,6 @@
       ],
       "pagina": 35,
       "pagina_pdf": 36,
-      "descrizione": "A partire dal 3° livello, il ladro si lascia guidare in battaglia dalla sua inconfondibile sicurezza. Il ladro può aggiungere il suo modificatore di Carisma ai suoi tiri per l'iniziativa.\n\nInoltre, il ladro non ha bisogno di vantaggio al suo tiro per colpire per usare il suo Attacco Furtivo se nessuna creatura oltre al suo bersaglio si trova entro 1,5 metri da lui. Tutte le altre regole relative al privilegio di classe Attacco Furtivo si applicano comunque al ladro.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2421,7 +2338,6 @@
       ],
       "pagina": 35,
       "pagina_pdf": 36,
-      "descrizione": "Al 9° livello, il fascino del ladro diventa ammaliante e irresistibile. Con un'azione, il ladro può effettuare una prova di Carisma (Persuasione) contrapposta a una prova di Saggezza (Intuizione) di una creatura. La creatura deve essere in grado di sentire il ladro e i due devono condividere un linguaggio.\n\nSe il ladro supera la prova e la creatura gli è ostile, essa subisce svantaggio ai tiri per colpire contro i bersagli diversi dal ladro e non può effettuare attacchi di opportunità contro nessun bersaglio diverso da lui. Questo effetto dura per 1 minuto, finché un compagno del ladro non attacca il bersaglio o non lo influenza con un incantesimo, o finché il ladro e il bersaglio non si trovano a più di 18 metri di distanza.\n\nSe il ladro supera la prova e la creatura non gli è ostile, essa è affascinata dal ladro per 1 minuto. Finché la creatura è affascinata, considera il ladro una conoscenza amichevole. Questo effetto termina immediatamente se il ladro o i suoi compagni fanno qualcosa di dannoso nei confronti della creatura.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2435,7 +2351,6 @@
       ],
       "pagina": 35,
       "pagina_pdf": 36,
-      "descrizione": "A partire dal 13° livello, il ladro può usare un'azione bonus nel suo turno per disporre di vantaggio alla successiva prova di Destrezza (Acrobazia) o Forza (Atletica) che il ladro effettua durante lo stesso turno.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2449,7 +2364,6 @@
       ],
       "pagina": 35,
       "pagina_pdf": 36,
-      "descrizione": "A partire dal 17° livello, grazie alla sua maestria nell'uso della lama, il ladro può trasformare un fallimento in successo durante un combattimento. Se il ladro manca con un tiro per colpire, può ripetere il tiro disponendo di vantaggio. Quando lo fa, non può usare di nuovo questo privilegio finché non completa un riposo lungo o breve.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2463,7 +2377,6 @@
       ],
       "pagina": 37,
       "pagina_pdf": 38,
-      "descrizione": "Al 2° livello, il mago impara a intessere la magia per fortificarsi contro i danni. Quando è colpito da un attacco o fallisce un tiro salvezza, il mago può usare la sua reazione per ottenere un bonus di +2 alla sua CA contro quell'attacco o un bonus di +4 a quel tiro salvezza.\n\nQuando il mago usa questo privilegio, può lanciare solo trucchetti fino alla fine del suo turno successivo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2477,7 +2390,6 @@
       ],
       "pagina": 38,
       "pagina_pdf": 39,
-      "descrizione": "A partire dal 2° livello, la sopraffina capacità del mago nel valutare le situazioni tattiche gli permette di agire rapidamente in battaglia. Il mago può assegnare a se stesso un bonus ai suoi tiri per l'iniziativa pari al suo modificatore di Intelligenza.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2491,7 +2403,6 @@
       ],
       "pagina": 38,
       "pagina_pdf": 39,
-      "descrizione": "A partire dal 6° livello, il mago può custodire l'energia magica dentro di sé, per poi potenziare i suoi incantesimi danneggianti successivamente. Nella sua forma immagazzinata, questa energia è chiamata impulso di potere.\n\nIl mago può immagazzinare un numero massimo di impulsi di potere pari al suo modificatore di Intelligenza (fino a un minimo di uno). Ogni volta che il mago completa un riposo lungo, il suo numero di impulsi di potere torna a uno. Ogni volta che il mago termina con successo un incantesimo, usando dissolvi magie o controincantesimo, Ltiene un impulso di potere, come se rubasse la magia dall'incantesimo che ha sventato. Se il mago completa un riposo breve senza impulsi di potere, ottiene un impulso di potere.\n\nUna volta per turno, quando il mago infligge danni a una creatura o a un oggetto con un incantesimo da mago, può spendere un impulso di potere per infliggere danni da forza extra a quel bersaglio. I danni extra sono pari alla metà del livello da mago del personaggio.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2505,7 +2416,6 @@
       ],
       "pagina": 38,
       "pagina_pdf": 39,
-      "descrizione": "A partire dal 10° livello, la magia incanalata aiuta il mago a respingere i danni. Finché il mago mantiene la concentrazione su un incantesimo, possiede un bonus di +2 alla CA e a tutti i tiri salvezza.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2519,7 +2429,6 @@
       ],
       "pagina": 38,
       "pagina_pdf": 39,
-      "descrizione": "Al 14° livello, la Deviazione Arcana del mago è pervasa da una magia letale. Quando il mago usa il suo privilegio Deviazione Arcana, può fare in modo che una scarica di energia magica si sprigioni da lui. Fino a tre creature a sua scelta, situate entro 18 metri da lui e che egli sia in grado di vedere, subiscono un ammontare di danni da forza a testa pari alla metà del livello da mago del personaggio.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2533,7 +2442,6 @@
       ],
       "pagina": 41,
       "pagina_pdf": 42,
-      "descrizione": "Quando un monaco sceglie questa tradizione al 3° livello, il suo addestramento speciale nelle arti marziali gli permette di padroneggiare l'uso di certe armi. Questo cammino include anche un'istruzione nell'arte della calligrafia o della pittura a colpi di pennello guizzanti. Il monaco ottiene i seguenti benefici.\n\nArmi da Kensei. Il monaco sceglie due tipi di armi che saranno le sue armi da kensei: un'arma da mischia e un'arma a distanza. Ognuna di queste armi può essere una qualsiasi arma semplice o da guerra priva delle proprietà pesante e speciale. Anche l'arco lungo è una scelta valida. Il monaco ottiene competenza in queste armi se non la possedeva già. Le armi dei tipi scelti per il monaco sono armi da monaco. Molti privilegi di questa tradizione funzionano solo con le armi da kensei del monaco. Quando il monaco raggiunge il 6°, 11° e 17° livello in questa classe, può scegliere un ulteriore tipo di arma (da mischia o a distanza) che sia per lui un'arma da kensei, rispettando i criteri soprastanti.\n\nParata Agile. Se il monaco effettua un colpo senz'armi come parte dell'azione di Attacco nel suo turno e impugna un'arma da kensei, può usarla per difendersi se si tratta di un'arma da mischia. Il monaco ottiene un bonus di +2 alla CA fino all'inizio del suo turno successivo, mentre impugna quell'arma e non è incapacitato.\n\nTiro del Kensei. Il monaco può usare un'azione bonus nel suo turno per rendere più letali i suoi attacchi a distanza con un'arma da kensei. Quando lo fa, qualsiasi bersaglio da lui colpito con un attacco a distanza usando un'arma da kensei subisce 1d4 danni extra del tipo dell'arma. Il monaco mantiene questo beneficio fino alla fine del suo turno attuale.\n\nVia del Pennello. Il monaco ottiene una competenza a sua scelta nelle scorte da calligrafo o negli strumenti da pittore.",
       "fonte_descrizione": "manuale_verificato",
       "opzioni": [
         "monaco-via-del-kensei-cammino-del-kensei-armi-da-kensei",
@@ -2553,7 +2461,6 @@
       ],
       "pagina": 41,
       "pagina_pdf": 42,
-      "descrizione": "Al 6° livello, il monaco proietta il suo ki nelle sue armi da kensei e ottiene i benefici seguenti.\n\nArmi da Kensei Magiche. Gli attacchi del monaco con le sue armi da kensei sono considerati magici al fine di oltrepassare la resistenza e l'immunità agli attacchi e ai danni non magici.\n\nColpo Abile. Quando il monaco colpisce un bersaglio con un'arma da kensei, può spendere 1 punto ki per fare in modo che l'arma infligga al bersaglio un ammontare di danni extra pari al suo dado di Arti Marziali. Il monaco può usare questo privilegio soltanto una volta in ogni suo turno.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2567,7 +2474,6 @@
       ],
       "pagina": 41,
       "pagina_pdf": 42,
-      "descrizione": "All'11° livello, il monaco ottiene la capacità di potenziare ulteriormente le sue armi tramite il ki. Come azione bonus, il monaco può spendere fino a 3 punti ki per conferire a un'arma da kensei con cui sia in contatto un bonus ai tiri per colpire e ai tiri per i danni quando attacca con quell'arma. Il bonus è pari al numero di punti ki spesi e dura per 1 minuto o finché il monaco non usa di nuovo questo privilegio. Questo privilegio non ha effetto su un'arma magica che possieda già un bonus ai tiri per colpire e ai tiri per i danni.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2581,7 +2487,6 @@
       ],
       "pagina": 41,
       "pagina_pdf": 42,
-      "descrizione": "Al 17° livello, il monaco raggiunge una maestria nell'uso delle armi che gli conferisce una precisione straordinaria. Se il monaco manca con un tiro per colpire usando un'arma da monaco nel suo turno, può ripetere il tiro. Può usare questo privilegio soltanto una volta in ogni suo turno.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2595,7 +2500,6 @@
       ],
       "pagina": 41,
       "pagina_pdf": 42,
-      "descrizione": "Quando un monaco sceglie questa tradizione al 3° livello, ottiene competenza nell'abilità Intrattenere, se non la possedeva già.,La sua tecnica di arti marziali mescola l'addestramento da combattimento con la precisione di un danzatore e le bizzarrie di un giullare. Il monaco ottiene inoltre competenza nelle scorte da mescitore, se non la possiede già.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2609,7 +2513,6 @@
       ],
       "pagina": 41,
       "pagina_pdf": 42,
-      "descrizione": "Al 3° livello, il monaco impara a voltarsi e girarsi in modo fulmineo come parte della sua Raffica di Colpi. Ogni volta che usa la Raffica di Colpi, ottiene il beneficio dell'azione di Disimpegno e la sua velocità base sul terreno aumenta di 3 metri fino alla fine del turno attuale.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2623,7 +2526,6 @@
       ],
       "pagina": 42,
       "pagina_pdf": 43,
-      "descrizione": "A partire dal 6° livello, il monaco può muoversi in modo improvviso e ondeggiante. Ottiene i benefici seguenti.\n\nBalzare in Piedi, Quando il monaco è prono, può alzarsi in piedi spendendo 1,5 metri di movimento, anziché metà del suo movimento.\n\nRidirigere Attacco. Quando una creatura manca il monaco con un tiro per colpire in mischia, il monaco può spendere 1 punto ki come reazione per fare in modo che quell'attacco colpisca una creatura a scelta del monaco, che non sia l'attaccante, situata entro 1,5 metri dal monaco e che questi sia in grado di vedere.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2637,7 +2539,6 @@
       ],
       "pagina": 42,
       "pagina_pdf": 43,
-      "descrizione": "A partire dall'l10 livello, il monaco sembra sempre baciato dalla fortuna nel momento più opportuno. Quando il monaco effettua una prova di caratteristica, un tiro per colpire o un tiro salvezza e subisce svantaggio a quel tiro, può spendere 2 punti ki per annullare lo svantaggio a quel tiro.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2651,7 +2552,6 @@
       ],
       "pagina": 42,
       "pagina_pdf": 43,
-      "descrizione": "Al 17° livello, il monaco ottiene la capacità di effettuare un soverchiante numero di attacchi contro un gruppo di nemici. Quando il monaco usa la sua Raffica di Colpi, può effettuare fino a tre attacchi aggiuntivi con essa (fino a un totale di cinque attacchi di Raffica di Colpi), purché ogni attacco di Raffica di Colpi bersagli una creatura diversa in questo turno.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2665,7 +2565,6 @@
       ],
       "pagina": 42,
       "pagina_pdf": 43,
-      "descrizione": "A partire da quando sceglie questa tradizione al 3° livello, un monaco può scagliare dei dardi incandescenti di energia magica radiosa.\n\nIl monaco ottiene una nuova opzione di attacco che può usare con l'azione di Attacco. Questo attacco speciale è un attacco con incantesimo a distanza, con una gittata di 9 metri. Il monaco è competente in questo attacco e può aggiungere il proprio modificatore di Destrezza al suo tiro per colpire e al suo tiro per i danni. L'attacco infligge danni radiosi e il suo dado dei danni è un d4. Questo dado cambia man mano che il personaggio acquisisce livelli da monaco, come mostrato nella colonna Arti Marziali della tabella \"Monaco\" nel Player's Handbook.\n\nQuando il monaco usa l'azione di Attacco nel suo turno per compiere questo attacco speciale, può spendere 1 punto ki per effettuare due volte l'attacco speciale come azione bonus.\n\nQuando il monaco ottiene il privilegio Attacco Extra, questo attacco speciale può essere usato per qualsiasi attacco che il monaco effettui come parte dell'azione di Attacco.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2679,7 +2578,6 @@
       ],
       "pagina": 42,
       "pagina_pdf": 43,
-      "descrizione": "Al 6° livello, il monaco ottiene la capacità di incanalare il suo ki in ondate di energia incandescente. Subito dopo avere effettuato l'azione di Attacco nel suo turno, il monaco può spendere 2 punti ki per lanciare l'incantesimo mani brucianti come azione bonus.\n\nIl monaco può spendere ulteriori punti ki per lanciare mani brucianti come incantesimo di livello più alto. Ogni punto ki aggiuntivo speso dal monaco aumenta di 1 il livello dell'incantesimo. Il numero massimo di punti ki (2 più eventuali punti aggiuntivi) che il monaco può spendere per l'incantesimo è pari alla metà del livello da monaco del personaggio.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2693,7 +2591,6 @@
       ],
       "pagina": 42,
       "pagina_pdf": 43,
-      "descrizione": "All'11° livello, il monaco ottiene la capacità di creare un globo di luce che genera un'esplosione devastante. Con un'azione, il monaco crea magicamente un globo e lo scaglia fino a un punto a sua scelta entro 45 metri, dove esplode in una sfera di luce radiosa per un breve ma letale istante.\n\nOgni creatura entro quella sfera del raggio di 6 metri deve superare un tiro salvezza su Costituzione, altrimenti subisce 2d6 danni radiosi. Una creatura non ha bisogno di effettuare il tiro salvezza se si trova dietro una copertura totale opaca.\n\nIl monaco può incrementare i danni della sfera spendendo punti ki. Per ogni punto speso, fino a un massimo di 3, i danni aumentano di 2d6.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2707,7 +2604,6 @@
       ],
       "pagina": 42,
       "pagina_pdf": 43,
-      "descrizione": "Al 17° livello, il monaco è avvolto da un'aura magica luminosa. Il monaco proietta luce intensa in un raggio di 9 metri e luce fioca per altri 9 metri. Può estinguere o ripristinare la luce con un'azione bonus.\n\nSe una creatura colpisce il monaco con un attacco in mischia mentre questa luce splende, il monaco può usare la sua reazione per infliggere alla creatura danni radiosi pari a 5 + il modificatore di Saggezza del monaco.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2721,7 +2617,6 @@
       ],
       "pagina": 45,
       "pagina_pdf": 46,
-      "descrizione": "Quando un paladino formula questo giuramento al 3° livello, ottiene le seguenti due opzioni di Incanalare Divinità. Vedi il privilegio di classe Giuramento Sacro per il funzionamento di Incanalare Divinità.\n\nColpo Guidato. Il paladino può usare Incanalare Divinità per colpire con precisione soprannaturale. Quando effettua un tiro per colpire, può usare Incanalare Divinità per ottenere un bonus di +10 al tiro. Il paladino prende questa decisione dopo avere visto il risultato del tiro, ma prima che il DM dichiari se l'attacco colpisce o va a vuoto.\n\nPresenza Conquistatrice. Il paladino può usare Incanalare Divinità per emanare una presenza terrificante. Con un'azione, può costringere ogni creatura a sua scelta che si trovi entro 9 metri da lui e che egli sia in grado di vedere a effettuare un tiro salvezza su Saggezza. Se lo fallisce, una creatura diventa spaventata dal paladino per 1 minuto. La creatura spaventata può ripetere questo tiro salvezza alla fine di ogni suo turno; in caso di successo, l'effetto per lei termina.",
       "fonte_descrizione": "manuale_verificato",
       "opzioni": [
         "paladino-giuramento-di-conquista-incanalare-divinita-colpo-guidato",
@@ -2740,7 +2635,6 @@
       ],
       "pagina": 45,
       "pagina_pdf": 46,
-      "descrizione": "A partire dal 7° livello, il paladino emana costantemente un'aura minacciosa fintanto che non è incapacitato. L'aura si estende dal paladino per 3 metri in ogni direzione, ma non attraverso la copertura totale.\n\nSe una creatura è spaventata dal paladino, la sua velocità è ridotta a O finché si trova entro l'aura e subisce danni psichici pari alla metà del livello da paladino del personaggio se inizia il suo turno entro l'aura. Al 18° livello, la gittata di quest'aura aumenta a 9 metri.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2754,7 +2648,6 @@
       ],
       "pagina": 45,
       "pagina_pdf": 46,
-      "descrizione": "A partire dal 15° livello, chi osa colpire il paladino viene fisicamente punito per la sua audacia. Ogni volta che una creatura colpisce il paladino con un attacco, quella creatura subisce danni psichici pari al modificatore di Carisma del paladino (fino a un minimo di 1), se quest'ultimo non è incapacitato.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2768,7 +2661,6 @@
       ],
       "pagina": 45,
       "pagina_pdf": 46,
-      "descrizione": "Al 20° livello, il paladino ottiene la capacità di imbrigliare una straordinaria potenza marziale. Con un'azione, il paladino può diventare magicamente un avatar della conquista, ottenendo i benefici seguenti per 1 minuto:\n\nIl paladino possiede resistenza a tutti i danni. Quando il paladino effettua l'azione di Attacco nel suo turno, può effettuare un attacco aggiuntivo come parte di quell'azione. Gli attacchi con le armi da mischia del paladino mettono a segno un colpo critico con un risultato di 19 o 20 al tiro del d20.\n\nUna volta che il paladino ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2782,7 +2674,6 @@
       ],
       "pagina": 46,
       "pagina_pdf": 47,
-      "descrizione": "Quando un paladino formula questo giuramento al 3° livello, ottiene le seguenti due opzioni di Incanalare Divinità.\n\nEmissario di Pace. Il paladino può usare Incanalare Divinità per incrementare la sua presenza con il potere divino. Con un'azione bonus, può conferire a se stesso un bonus di +5 alle prove di Carisma (Persuasione) per i 10 minuti successivi.\n\nIntimorire i Violenti. Il paladino può usare Incanalare Divinità per intimorire coloro che usano la violenza. Immediatamente dopo che un attaccante entro 9 metri dal paladino ha inflitto danni con un attacco a una creatura diversa da lui, il paladino può usare la sua reazione per obbligare l'attaccante a effettuare un tiro salvezza su Saggezza; se lo fallisce, subisce danni radiosi pari ai danni che ha appena inflitto, mentre se lo supera, subisce la metà di quei danni.",
       "fonte_descrizione": "manuale_verificato",
       "opzioni": [
         "paladino-giuramento-di-redenzione-incanalare-divinita-emissario-di-pace",
@@ -2801,7 +2692,6 @@
       ],
       "pagina": 46,
       "pagina_pdf": 47,
-      "descrizione": "A partire dal 7° livello, il paladino può proteggere gli altri dai danni a discapito della propria incolumità. Quando una creatura entro 3 metri dal paladino subisce danni, quest'ultimo può usare la sua reazione per subire magicamente quei danni al posto della creatura. Questo privilegio non trasferisce nessun altro effetto che potrebbe accompagnare i danni e questi danni non possono essere ridotti in alcun modo.\n\nAl 18° livello, la gittata di quest'aura aumenta a 9 metri.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2815,7 +2705,6 @@
       ],
       "pagina": 46,
       "pagina_pdf": 47,
-      "descrizione": "A partire dal 15° livello, una presenza sacra risana le ferite del paladino in battaglia. Il paladino recupera un ammontare di punti ferita pari a 1d6 + la metà del livello da paladino del personaggio, se termina il suo turno in combattimento con meno della metà dei suoi punti ferita rimanenti e non è incapacitato.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2829,7 +2718,6 @@
       ],
       "pagina": 46,
       "pagina_pdf": 47,
-      "descrizione": "Al 20° livello, il paladino diventa un avatar della pace e riceve due benefici:\n\nPossiede resistenza a tutti i danni inflitti dalle altre creature (i loro attacchi, i loro incantesimi e gli altri loro effetti). Ogni volta che colpisce il paladino con un attacco, una creatura subisce danni radiosi pari alla metà dei danni che il paladino ha subito dall'attacco.\n\nSe il paladino attacca una creatura, lancia un incantesimo su di essa o le infligge danni in qualsiasi modo che non sia questo privilegio, nessuno dei due benefici funziona contro quella creatura finché il paladino non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2843,7 +2731,6 @@
       ],
       "pagina": 49,
       "pagina_pdf": 50,
-      "descrizione": "Al 3° livello, il ranger padroneggia l'arte dell'imboscata e può conferire a se stesso un bonus ai tiri per l'iniziativa pari al suo modificatore di Saggezza.\n\nAll'inizio del suo primo turno in ogni combattimento, la velocità base sul terreno del ranger aumenta di 3 metri e rimane tale fino alla fine di quel turno. Se il ranger effettua l'azione di Attacco in quel turno, può effettuare un attacco aggiuntivo con le armi come parte di quell'azione. Se quell'attacco colpisce, il bersaglio subisce 1d8 danni extra del tipo di danno dell'arma.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2857,7 +2744,6 @@
       ],
       "pagina": 49,
       "pagina_pdf": 50,
-      "descrizione": "Al 3° livello, il ranger ottiene scurovisione entro una gittata di 18 metri. Se possiede già scurovisione grazie alla razza di appartenenza, la gittata della sua scurovisione aumenta di 9 metri.\n\nIl ranger riesce inoltre a sfuggire abilmente alle creature che si affidano alla scurovisione. Mentre si trova nell'oscurità, è invisibile a qualsiasi creatura che si affidi alla scurovisione per vedere nell'oscurità.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2871,7 +2757,6 @@
       ],
       "pagina": 49,
       "pagina_pdf": 50,
-      "descrizione": "Arrivato al 7° livello, il ranger ha affinato la sua capacità di resistere ai poteri di alterazione mentale della sua preda e ottiene competenza nei tiri salvezza su Saggezza. Se possiede già questa competenza, ottiene invece competenza nei tiri salvezza su Intelligenza o su Carisma (a sua scelta).",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2885,7 +2770,6 @@
       ],
       "pagina": 49,
       "pagina_pdf": 50,
-      "descrizione": "All'11° livello, il ranger impara ad attaccare con una tale velocità inaspettata da poter trasformare un attacco mancato in un altro colpo. Per una volta in ogni suo turno in cui manca con un attacco con le armi, può effettuare un altro attacco con le armi come parte della stessa azione.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2899,7 +2783,6 @@
       ],
       "pagina": 49,
       "pagina_pdf": 50,
-      "descrizione": "A partire dal 15° livello, il ranger può schivare in modi inaspettati, celato da sbuffi d'ombra soprannaturale che lo circondano. Ogni volta che una creatura effettua un tiro per colpire contro il ranger e non dispone di vantaggio a quel tiro, il ranger può usare la sua reazione per imporre svantaggio a quel tiro. Il ranger deve usare questo privilegio prima di sapere l'esito del tiro per colpire.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2913,7 +2796,6 @@
       ],
       "pagina": 49,
       "pagina_pdf": 50,
-      "descrizione": "Al 3° livello, il ranger ottiene la capacità di esaminare una creatura e discernere come infliggerle più danni possibile. Con un'azione, il ranger sceglie una creatura situata entro 18 metri da lui e che egli sia in grado di vedere. Apprende immediatamente se la creatura possiede eventuali resistenze, immunità o vulnerabilità ai danni e quali sono. Se la creatura è celata alle magie di divinazione, il ranger percepisce che non possiede immunità, resistenze o vulnerabilità.\n\nIl ranger può usare questo privilegio un numero di volte pari al suo modificatore di Saggezza (fino a un minimo di una volta). Recupera tutti i suoi usi spesi quando completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2927,7 +2809,6 @@
       ],
       "pagina": 49,
       "pagina_pdf": 50,
-      "descrizione": "A partire dal 3° livello, il ranger può concentrare la sua ira su un avversario, incrementando i danni che gli infligge. Con un'azione bonus, il ranger designa una creatura situata entro 18 metri da lui e che egli sia in grado di vedere come bersaglio di questo privilegio. La prima volta in ogni turno che il ranger colpisce quel bersaglio con un attacco con le armi, quel bersaglio subisce 1d6 danni extra dall'arma.\n\nQuesto beneficio dura finché il ranger non completa un riposo breve o lungo. Termina anticipatamente se il ranger designa una creatura diversa.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2941,7 +2822,6 @@
       ],
       "pagina": 50,
       "pagina_pdf": 51,
-      "descrizione": "Al 7° livello, il ranger sviluppa una resilienza aggiuntiva contro gli assalti della preda contro il suo corpo e la sua mente. Ogni volta che il bersaglio della sua Preda dell'Uccisore lo costringe a effettuare un tiro salvezza e ogni volta che il ranger effettua una prova di caratteristica per sfuggire alla lotta con quel bersaglio, il ranger aggiunge 1d6 al suo tiro.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2955,7 +2835,6 @@
       ],
       "pagina": 50,
       "pagina_pdf": 51,
-      "descrizione": "All'11° livello, il ranger ottiene la capacità di sventare le magie altrui. Quando il ranger vede una creatura che lancia un incantesimo o si teletrasporta entro 18 metri da lui, può usare la sua reazione per tentare di contrastarlo magicamente. La creatura deve superare un tiro salvezza su Saggezza contro la CD del tiro salvezza degli incantesimi del ranger, altrimenti l'incantesimo o il teletrasporto fallisce ed è sprecato.\n\nUna volta che il ranger ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo breve o lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2969,7 +2848,6 @@
       ],
       "pagina": 50,
       "pagina_pdf": 51,
-      "descrizione": "Al 15° livello, il ranger ottiene la capacità di contrattaccare quando la sua preda tenta di sabotarlo. Se il bersaglio della sua Preda dell'Uccisore costringe il ranger a effettuare un tiro salvezza, quest'ultimo può usare la sua reazione per effettuare un attacco con le armi contro la preda. Effettua questo attacco immediatamente prima di effettuare il tiro salvezza. Se l'attacco colpisce, il ranger supera automaticamente il tiro salvezza, oltre ad applicare i normali effetti dell'attacco.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2983,7 +2861,6 @@
       ],
       "pagina": 50,
       "pagina_pdf": 51,
-      "descrizione": "Al 3° livello, il ranger ottiene la capacità di percepire magicamente la presenza di un portale planare. Con un'azione, individua la distanza e la direzione del portale planare più vicino entro 1,5 km da lui.\n\nUna volta che il ranger ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo breve o lungo.\n\nVedi la sezione \"Viaggi Planari\" nel capitolo 2 della Dungeon Master's Guide per alcuni esempi di portali planari.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -2997,7 +2874,6 @@
       ],
       "pagina": 50,
       "pagina_pdf": 51,
-      "descrizione": "Al 3° livello, il ranger impara ad attingere all'energia del multiverso per potenziare i suoi attacchi.\n\nCome azione bonus, il ranger sceglie una creatura situata entro 9 metri da lui e che egli sia in grado di vedere. La volta successiva che colpisce quella creatura in questo turno con un attacco con le armi, tutti i danni inflitti dall'attacco diventano danni da forza e la creatura subisce 1d8 danni da forza extra dall'attacco. Quando il ranger raggiunge 1'11° livello in questa classe, i danni extra aumentano a 2d8.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3011,7 +2887,6 @@
       ],
       "pagina": 50,
       "pagina_pdf": 51,
-      "descrizione": "Al 7° livello, il ranger impara a traslare sul Piano Etereo. Come azione bonus, può lanciare l'incantesimo forma eterea tramite questo privilegio e senza spendere uno slot incantesimo, ma l'incantesimo termina alla fine del suo turno attuale.\n\nUna volta che il ranger ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo breve o lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3025,7 +2900,6 @@
       ],
       "pagina": 50,
       "pagina_pdf": 51,
-      "descrizione": "All'll' livello, il ranger ottiene la capacità di passare da un piano all'altro in un batter d'occhio. Quando effettua l'azione di Attacco, può teletrasportarsi prima di ogni attacco di-un massimo di 3 metri fino a uno spazio libero che sia in grado di vedere.\n\nSe il ranger attacca almeno due creature diverse con l'azione, può effettuare un attacco aggiuntivo con la stessa azione contro una terza creatura.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3039,7 +2913,6 @@
       ],
       "pagina": 50,
       "pagina_pdf": 51,
-      "descrizione": "Al 15° livello, grazie alla sua capacità di spostarsi tra i piani, il ranger può sgusciare oltre i confini planari per ridurre i danni che subisce in battaglia. Quando subisce danni da un attacco, può usare la sua reazione per conferire a se stesso resistenza a tutti i danni di quell'attacco in questo turno.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3053,7 +2926,6 @@
       ],
       "pagina": 53,
       "pagina_pdf": 54,
-      "descrizione": "Grazie al suo legame con il divino, lo stregone può apprendere gli incantesimi della classe del chierico. Quando il suo privilegio Incantesimi gli consente di imparare o sostituire un trucchetto da stregone o un incantesimo da stregone di livello pari o superiore al 1°, lo stregone può scegliere il nuovo incantesimo dalla lista degli incantesimi da chierico o dalla lista degli incantesimi da stregone. Al di là di questo, deve comunque rispettare tutte le restrizioni di selezione dell'incantesimo, che diventa per lui un incantesimo da stregone.\n\nDeve inoltre scegliere un'affinità per la fonte del suo potere divino: bene, male, legge, caos o neutralità. Lo stregone apprende un incantesimo aggiuntivo basato su quell'affinità, come indicato di seguito. Quell'incantesimo è considerato un incantesimo da stregone per lui, ma non conta al fine di determinare il numero di incantesimi da stregone da lui conosciuti. Se successivamente lo stregone sostituisce questo incantesimo, deve sostituirlo con un incantesimo tratto dalla lista degli incantesimi da chierico. Incantesimo Affinità Bene cura ferite Male infliggi ferite Legge benedizione Caos anatema Neutralità protezione dal bene e dal male",
       "fonte_descrizione": "manuale_verificato",
       "opzioni": [
         "stregone-anima-divina-magia-divina-bene",
@@ -3074,7 +2946,6 @@
       ],
       "pagina": 53,
       "pagina_pdf": 54,
-      "descrizione": "A partire dal 1° livello, il destino dello stregone è salvaguardato dal suo potere divino. Se lo stregone fallisce un tiro salvezza o manca con un tiro per colpire, può tirare 2d4 e aggiungerli al totale, cambiando forse l'esito del tiro. Una volta che lo stregone ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo breve o lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3088,7 +2959,6 @@
       ],
       "pagina": 53,
       "pagina_pdf": 54,
-      "descrizione": "A partire dal 6° livello, l'energia divina che fluisce nello stregone può potenziare gli incantesimi di guarigione. Ogni volta che lo stregone o un alleato entro 1,5 metri da lui tira i dadi per determinare il numero di punti ferita ripristinati da un incantesimo, lo stregone può spendere 1 punto stregoneria per ripetere il tiro di un qualsiasi numero di quei dadi una volta, purché non sia incapacitato. Lo stregone può usare questo privilegio soltanto una volta per turno.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3102,7 +2972,6 @@
       ],
       "pagina": 53,
       "pagina_pdf": 54,
-      "descrizione": "A partire dal 14° livello, lo stregone può usare un'azione bonus per sviluppare un paio di ali spettrali sulla schiena. Mentre le ali sono presenti, lo stregone possiede una velocità di volare pari a 9 metri. Le ali permangono finché lo stregone non diventa incapacitato, non muore o non le congeda con un'azione bonus.\n\nL'affinità che lo stregone ha scelto per il suo privilegio Magia Divina determina l'aspetto delle ali spettrali: ali d'aquila per il bene o la legge, ali da pipistrello per il male o il caos e ali da libellula per la neutralità.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3116,7 +2985,6 @@
       ],
       "pagina": 53,
       "pagina_pdf": 54,
-      "descrizione": "Al 18° livello, lo stregone ottiene la capacità di riprendersi dalle ferite più gravi. Con un'azione bonus, quando gli rimane meno della metà dei suoi punti ferita, può recuperare un numero di punti ferita pari alla metà del suo massimo dei punti ferita.\n\nUna volta che lo stregone ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3130,7 +2998,6 @@
       ],
       "pagina": 54,
       "pagina_pdf": 55,
-      "descrizione": "A partire dal 1° livello, lo stregone possiede scurovisione entro una gittata di 36 metri.\n\nQuando lo stregone raggiunge il 3° livello in questa classe, apprende l'incantesimo oscurità, che non conta al fine di determinare il numero di incantesimi da stregone che conosce. Può inoltre lanciarlo spendendo 2 punti stregoneria o spendendo 1 slot incantesimo. Se lo lancia usando i punti stregoneria, può vedere attraverso l'oscurità creata dall'incantesimo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3144,7 +3011,6 @@
       ],
       "pagina": 54,
       "pagina_pdf": 55,
-      "descrizione": "A partire dal 1° livello, lo stregone esiste in uno stato crepuscolare a metà strada tra la vita e la morte che lo rende difficile da sconfiggere. Quando i danni portano lo stregone a 0 punti ferita, quest'ultimo può effettuare un tiro salvezza su Carisma (CD 5 + i danni subiti). Se lo supera, scende invece a 1 punto ferita. Lo stregone non può usare questo privilegio se scende a 0 punti ferita a causa di danni radiosi o di un colpo critico.\n\nDopo che ha superato il tiro salvezza, lo stregone non può usare di nuovo questo privilegio finché non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3158,7 +3024,6 @@
       ],
       "pagina": 54,
       "pagina_pdf": 55,
-      "descrizione": "Al 6° livello, lo stregone ottiene la capacità di chiamare a sé una creatura ululante dell'oscurità che assale i suoi avversari. Con un'azione bonus, lo stregone può spendere 3 punti stregoneria per evocare magicamente un segugio dei presagi nefasti che bersagli una creatura situata entro 36 metri da lui e che egli sia in grado di vedere. Il segugio usa le statistiche del lupo feroce (vedi il Monster Manual o l'appendice D nel Player's Handbook), con i cambiamenti seguenti:\n\nLa taglia del segugio è Media, non Grande, e il segugio è considerato una mostruosità, non una bestia. Il segugio compare con un numero di punti ferita temporanei pari alla metà del suo livello da stregone. Il segugio può muoversi attraverso le altre creature e gli oggetti come se fossero terreno difficile. Il segugio subisce 5 danni da forza se termina il proprio turno all'interno di un oggetto. All'inizio del suo turno, il segugio conosce automaticamente l'ubicazione del suo bersaglio. Se il bersaglio era nascosto, non è più nascosto per il segugio.\n\nIl segugio compare in uno spazio libero a scelta dello stregone entro 9 metri dal bersaglio. Il DM tira per l'iniziativa del segugio. Nel suo turno, il segugio può muoversi soltanto verso il suo bersaglio lungo il percorso più diretto e può usare la sua azione soltanto per attaccare il suo bersaglio. Il segugio può effettuare attacchi di opportunità, ma solo contro il suo bersaglio. Inoltre, mentre il segugio si trova entro 1,5 metri dal bersaglio, quest'ultimo subisce svantaggio ai tiri salvezza contro ogni incantesimo lanciato dallo stregone. Il segugio scompare se scende a 0 punti ferita, se il suo bersaglio scende a 0 punti ferita o dopo 5 minuti.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3172,7 +3037,6 @@
       ],
       "pagina": 54,
       "pagina_pdf": 55,
-      "descrizione": "Al 14° livello, lo stregone ottiene la capacità di spostarsi da un'ombra all'altra. Quando lo stregone si trova nella luce fioca o nell'oscurità, come azione bonus, può teletrasportarsi magicamente di un massimo di 36 metri fino a uno spazio libero che egli sia in grado di vedere e che si trovi a sua volta nella luce fioca o nell'oscurità.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3186,7 +3050,6 @@
       ],
       "pagina": 54,
       "pagina_pdf": 55,
-      "descrizione": "A partire dal 18° livello, lo stregone può spendere 6 punti stre_goneria con un'azione bonus per trasformarsi magicamente e assumere una forma d'ombra. In questa forma, possiede resistenza a tutti i danni tranne i danni radiosi e da forza e può muoversi attraverso le altre creature e gli oggetti come se fossero terreno difficile. Lo stregone subisce 5 danni da forza se termina il suo turno all'interno di un oggetto.\n\nLo stregone rimane in questa forma per 1 minuto. L'effetto termina in anticipo se lo stregone diventa incapacitato, muore o lo congeda con un'azione bonus.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3200,7 +3063,6 @@
       ],
       "pagina": 55,
       "pagina_pdf": 56,
-      "descrizione": "La magia arcana che lo stregone comanda è generata dall'aria elementale. Lo stregone sa parlare, leggere e scrivere il Primordiale (la conoscenza di questo linguaggio gli permette di capire e di farsi capire da coloro che parlano i relativi dialetti: Aquan, Auran, Ignan e Terran).",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3214,7 +3076,6 @@
       ],
       "pagina": 55,
       "pagina_pdf": 56,
-      "descrizione": "A partire dal 1° livello, lo stregone può usare un'azione bonus nel suo turno per circondarsi fugacemente di piccoli vortici di aria elementale, subito prima o dopo avere lanciato un incantesimo di 1° livello o superiore. Questo gli consente di volare per un massimo di 3 metri senza provocare attacchi di opportunità.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3228,7 +3089,6 @@
       ],
       "pagina": 55,
       "pagina_pdf": 56,
-      "descrizione": "Al 6° livello, lo stregone ottiene resistenza ai danni da fulmine e da tuono. Inoltre, ogni volta che inizia a lanciare un incantesimo di 1° livello o superiore che infligge danni da fulmine o da tuono, un flusso di magia tempestosa si diffonde dalla sua persona. Questa eruzione fa in modo che le creature a sua scelta situate entro 3 metri da lui e che egli sia in grado di vedere subiscano danni da fulmine o da tuono (lo stregone sceglie ogni volta che questa capacità si attiva) pari a metà del suo livello da stregone.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3242,7 +3102,6 @@
       ],
       "pagina": 55,
       "pagina_pdf": 56,
-      "descrizione": "Al 6° livello, lo stregone ottiene la capacità di controllare leggermente il tempo atmosferico attorno a sé.\n\nSe piove, può usare un'azione per interrompere la caduta della pioggia in una sfera del raggio di 6 metri centrata su di lui. Può terminare questo effetto con un'azione bonus.\n\nSe c'è vento, può usare un'azione bonus ogni round per scegliere la direzione in cui soffia il vento all'interno di una sfera del raggio di 30 metri centrata su di lui. Il vento soffia in quella direzione fino alla fine del turno successivo dello stregone. Questo privilegio non altera la velocità del vento.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3256,7 +3115,6 @@
       ],
       "pagina": 55,
       "pagina_pdf": 56,
-      "descrizione": "A partire dal 14° livello, quando lo stregone è colpito da un attacco in mischia, può usare la sua reazione per infliggere danni da fulmine all'attaccante. Quei danni sono pari al suo livello da stregone. L'attaccante deve anche effettuare un tiro salvezza su Forza contro la CD del tiro salvezza degli incantesimi dello stregone. Se lo fallisce, viene spinto in linea retta di un massimo di 6 metri allontanandosi dallo stregone.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3270,7 +3128,6 @@
       ],
       "pagina": 55,
       "pagina_pdf": 56,
-      "descrizione": "Al 18° livello, lo stregone ottiene immunità ai danni da fulmine e da tuono.\n\nLo stregone ottiene anche una velocità magica di volare pari a 18 metri. Con un'azione, lo stregone può ridurre la sua velocità di volare a 9 metri per 1 ora e scegliere un numero di creature situate entro 9 metri da lui pari a 3 + il suo modificatore di Carisma. Le creature scelte ottengono una velocità magica di volare pari a 9 metri per 1 ora. Una volta ridotta la sua velocità di volare in questo modo, lo stregone non può più rifarlo finché non completa un riposo breve o lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3284,7 +3141,6 @@
       ],
       "pagina": 57,
       "pagina_pdf": 58,
-      "descrizione": "Al 1° livello, il warlock apprende i trucchetti fiamma sacra e luce. Per lui sono considerati trucchetti da warlock, ma non contano al fine di determinare il suo numero di trucchetti da warlock conosciuti.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3298,7 +3154,6 @@
       ],
       "pagina": 57,
       "pagina_pdf": 58,
-      "descrizione": "Al 1° livello, il warlock ottiene la capacità di incanalare l'energia celestiale per curare le ferite e possiede una riserva di d6 che può spendere per alimentare questa guarigione. Il numero di dadi nella riserva è pari a 1 + il livello da warlock del personaggio.\n\nCon un'azione bonus, il warlock può curare una creatura situata entro 18 metri da lui e che egli sia in grado di vedere, spendendo i dadi della riserva. Il numero massimo di dadi che il warlock può spendere in una volta è pari al suo modificatore di Carisma (fino a un minimo di un dado). Il warlock tira i dadi che spende, somma i risultati e ripristina un numero di punti ferita pari al totale.\n\nLa riserva recupera tutti i dadi spesi quando il warlock completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3312,7 +3167,6 @@
       ],
       "pagina": 58,
       "pagina_pdf": 59,
-      "descrizione": "A partire dal 6° livello, il legame con il Celestiale consente al warlock di fungere da condotto di energia radiosa. Il warlock possiede resistenza ai danni radiosi e, quando lancia un incantesimo che infligge danni radiosi o da fuoco, può aggiungere il suo modificatore di Carisma a un tiro per i danni radiosi o da fuoco di quell'incantesimo contro uno dei suoi bersagli.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3326,7 +3180,6 @@
       ],
       "pagina": 58,
       "pagina_pdf": 59,
-      "descrizione": "A partire dal 10° livello, il warlock ottiene punti ferita temporanei ogni volta che completa un riposo breve o lungo. Questi punti ferita temporanei sono pari al suo livello da warlock + il suo modificatore di Carisma. Può inoltre scegliere fino a cinque creature che egli sia in grado di vedere alla fine del riposo. Quelle creature ottengono ciascuna un ammontare di punti ferita temporanei pari alla metà del suo livello da warlock + il suo modificatore di Carisma.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3340,7 +3193,6 @@
       ],
       "pagina": 58,
       "pagina_pdf": 59,
-      "descrizione": "A partire dal 14° livello, l'energia radiosa incanalata consente al warlock di resistere alla morte. Quando il warlock deve effettuare un tiro salvezza contro morte all'inizio del suo turno, può invece rialzarsi in piedi in un'esplosione di energia radiosa. Il warlock recupera un ammontare di punti ferita pari alla metà del suo massimo dei punti ferita e poi può rialzarsi in piedi, se lo desidera. Ogni creatura a sua scelta che si trovi entro 9 metri da lui subisce danni radiosi pari a 2d8 + il modificatore di Carisma del warlock ed è accecata fino alla fine del turno attuale.\n\nUna volta che il warlock ha usato questo privilegio, non può usarlo di nuovo finché non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3354,7 +3206,6 @@
       ],
       "pagina": 58,
       "pagina_pdf": 59,
-      "descrizione": "A partire dal 1° livello, un warlock ottiene la capacità di scagliare una maledizione funesta su qualcuno. Con un'azione bonus, il warlock sceglie una creatura situata entro 9 metri da lui e che egli sia in grado di vedere. Il bersaglio è maledetto per 1 minuto. La maledizione termina in anticipo se il bersaglio muore, il warlock muore o il warlock diventa incapacitato. Finché la maledizione non termina, il warlock ottiene i benefici seguenti:\n\nIl warlock ottiene un bonus pari al suo bonus di competenza da applicare ai tiri per i danni contro il bersaglio maledetto. Ogni tiro per colpire che il warlock effettua contro il bersaglio maledetto è un colpo critico con un risultato di 19 o 20 al tiro del d20. Se il bersaglio maledetto muore, il warlock recupera un ammontare di punti ferita pari al suo livello da warlock + il suo modificatore di Carisma (fino a un minimo di 1 punto ferita).\n\nIl warlock non può usare di nuovo questo privilegio finché non completa un riposo breve o lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3368,7 +3219,6 @@
       ],
       "pagina": 58,
       "pagina_pdf": 59,
-      "descrizione": "Al 10 livello, il warlock sviluppa l'addestramento necessario per armarsi con efficacia per la battaglia e ottiene competenza nelle armature medie, negli scudi e nelle armi da guerra.\n\nL'influenza del patrono consente inoltre al warlock di incanalare misticamente la sua volontà attraverso un'arma particolare. Ogni volta che il warlock completa un riposo lungo, può toccare un'arma in cui sia competente e che sia priva della proprietà a due mani. Quando il warlock attacca con quest'arma, può usare il suo modificatore di Carisma, anziché di Forza o di Destrezza, sia per i tiri per colpire, sia per i tiri per i danni. Questo beneficio dura finché il warlock non ha completato un riposo lungo. Se in seguito il warlock ottiene il privilegio Patto della Lama, questo beneficio si estende a ogni arma del patto evocata dal warlock con quel privilegio, a prescindere dal tipo dell'arma.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3382,7 +3232,6 @@
       ],
       "pagina": 59,
       "pagina_pdf": 60,
-      "descrizione": "° livello, il warlock può maledire l'anima di A partire dal 6 una persona da lui uccisa, vincolandola temporaneamente al suo servizio. Quando il warlock uccide un umanoide, può fare in modo che il suo spirito emerga dal cadavere come uno spettro, le cui statistiche sono contenute nel Monster Manual. Quando lo spettro compare, ottiene un ammontare di punti ferita temporanei pari alla metà del livello da warlock del personaggio. Il DM tira per l'iniziativa dello spettro, che agisce nei suoi turni personali. Lo spettro obbedisce ai comandi verbali del warlock e ottiene un bonus speciale ai suoi tiri per colpire pari al modificatore di Carisma del warlock (fino a un minimo di +O).\n\nLo spettro rimane al servizio del warlock fino alla fine del suo riposo lungo successivo, quando svanisce per raggiungere l'oltretomba.\n\nUna volta che il warlock ha vincolato uno spettro con questo privilegio, non può usare di nuovo il privilegio finché non completa un riposo lungo.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3396,7 +3245,6 @@
       ],
       "pagina": 59,
       "pagina_pdf": 60,
-      "descrizione": "Al 10° livello, il sortilegio del warlock si fa più potente. Se il bersaglio maledetto dalla sua Maledizione della Lama del Sortilegio colpisce il warlock con un tiro per colpire, il warlock può usare la sua reazione per tirare un d6. Con un risultato pari o superiore a 4, l'attacco invece manca il warlock, a prescindere dal tiro per colpire.",
       "fonte_descrizione": "manuale_verificato"
     },
     {
@@ -3410,7 +3258,6 @@
       ],
       "pagina": 59,
       "pagina_pdf": 60,
-      "descrizione": "° livello, il warlock può estendere la sua A partire dal 14 Maledizione della Lama del Sortilegio da una creatura uccisa a un'altra creatura. Quando la creatura maledetta dalla Maledizione della Lama del Sortilegio del warlock muore, il warlock può applicare la maledizione a una creatura diversa situata entro 9 metri da lui e che egli sia in grado di vedere, purché non sia incapacitato. Quando il warlock applica la maledizione in questo modo, non recupera punti ferita dalla morte della precedente creatura maledetta.",
       "fonte_descrizione": "manuale_verificato"
     }
   ],
@@ -3419,7 +3266,6 @@
       "id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-deserto",
       "parent_id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa",
       "nome": "Deserto",
-      "descrizione": "Quando questo effetto è attivato, tutte le altre creature entro l'aura del barbaro subiscono 2 danni da fuoco a testa. I danni aumentano quando il barbaro raggiunge livelli superiori in questa classe: 3 al 5° livello, 4 al 10° livello, 5 al 15° livello e 6 al 20° livello.",
       "livello_minimo": 3,
       "pagina": 10,
       "pagina_pdf": 11,
@@ -3429,7 +3275,6 @@
       "id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-mare",
       "parent_id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa",
       "nome": "Mare",
-      "descrizione": "Quando questo effetto è attivato, il barbaro può scegliere un'altra creatura situata entro la sua aura e che egli sia in grado di vedere. Il bersaglio deve effettuare un tiro salvezza su Destrezza; se lo fallisce, subisce 1d6 danni da fulmine, mentre se lo supera, subisce la metà di quei danni. I danni aumentano quando il barbaro raggiunge livelli superiori in questa classe: 2d6 al 10° livello, 3d6 al 15° livello e 4d6 al 20° livello.",
       "livello_minimo": 3,
       "pagina": 10,
       "pagina_pdf": 11,
@@ -3439,7 +3284,6 @@
       "id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-tundra",
       "parent_id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa",
       "nome": "Tundra",
-      "descrizione": "Quando questo effetto è attivato, ogni creatura a scelta del barbaro e situata entro la sua aura ottiene 2 punti ferita temporanei, grazie agli spiriti del ghiaccio che la immunizzano al dolore. I punti ferita temporanei aumentano quando il barbaro raggiunge livelli superiori in questa classe: 3 al 5° livello, 4 al 10° livello, 5 al 15° livello e 6 al 20° livello.",
       "livello_minimo": 3,
       "pagina": 10,
       "pagina_pdf": 11,
@@ -3449,7 +3293,6 @@
       "id": "druido-circolo-del-pastore-totem-spirituale-spirito-falco",
       "parent_id": "druido-circolo-del-pastore-totem-spirituale",
       "nome": "Spirito Falco",
-      "descrizione": "Lo spirito falco è un cacciatore provetto, che aiuta il druido e i suoi alleati grazie alla sua vista acuta. Quando una creatura effettua un tiro per colpire contro un bersaglio nell'aura dello spirito, il druido può usare la sua reazione per concedere vantaggio a quel tiro per colpire.\n\nInoltre, il druido e i suoi alleati dispongono di vantaggio alle prove di Saggezza (Percezione) mentre si trovano nell'aura.",
       "livello_minimo": 2,
       "pagina": 23,
       "pagina_pdf": 24,
@@ -3459,7 +3302,6 @@
       "id": "druido-circolo-del-pastore-totem-spirituale-spirito-orso",
       "parent_id": "druido-circolo-del-pastore-totem-spirituale",
       "nome": "Spirito Orso",
-      "descrizione": "Lo spirito orso conferisce al druido e ai suoi alleati la sua potenza e la sua resistenza. Ogni creatura a scelta del druido e situata nell'aura quando lo spirito compare ottiene un numero di punti ferita temporanei pari a 5 + il livello da druido del personaggio. Inoltre, il druido e i suoi alleati dispongono di vantaggio alle prove di Forza e ai tiri salvezza su Forza mentre si trovano nell'aura.",
       "livello_minimo": 2,
       "pagina": 23,
       "pagina_pdf": 24,
@@ -3469,7 +3311,6 @@
       "id": "druido-circolo-del-pastore-totem-spirituale-spirito-unicorno",
       "parent_id": "druido-circolo-del-pastore-totem-spirituale",
       "nome": "Spirito Unicorno",
-      "descrizione": "Lo spirito unicorno presta la sua protezione a chi gli è vicino. Il druido e i suoi alleati dispongono di vantaggio a tutte le prove di caratteristica effettuate per individuare creature nell'aura dello spirito. Inoltre, se il druido lancia un incantesimo usando uno slot incantesimo che ripristina i punti ferita di una qualsiasi creatura all'interno o all'esterno dell'aura, ogni creatura a scelta del druido all'interno dell'aura recupera anche un numero di punti ferita pari al livello da druido del personaggio.",
       "livello_minimo": 2,
       "pagina": 23,
       "pagina_pdf": 24,
@@ -3479,7 +3320,6 @@
       "id": "bardo-collegio-delle-spade-stile-di-combattimento-duellare",
       "parent_id": "bardo-collegio-delle-spade-stile-di-combattimento",
       "nome": "Duellare",
-      "descrizione": "Quando il bardo impugna un'arma da mischia in una mano e nessun'altra arma, ottiene un bonus di +2 ai tiri per i danni con quell'arma.",
       "livello_minimo": 3,
       "pagina": 16,
       "pagina_pdf": 17,
@@ -3489,7 +3329,6 @@
       "id": "bardo-collegio-delle-spade-stile-di-combattimento-combattere-con-due-armi",
       "parent_id": "bardo-collegio-delle-spade-stile-di-combattimento",
       "nome": "Combattere con Due Armi",
-      "descrizione": "Quando il bardo impegna un nemico combattendo con due armi, può aggiungere il suo modificatore di caratteristica ai danni del secondo attacco.",
       "livello_minimo": 3,
       "pagina": 16,
       "pagina_pdf": 17,
@@ -3499,7 +3338,6 @@
       "id": "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-difensivo",
       "parent_id": "bardo-collegio-delle-spade-virtuosismo-della-lama",
       "nome": "Virtuosismo Difensivo",
-      "descrizione": "Il bardo può spendere un uso della sua Ispirazione Bardica per fare in modo che l'arma infligga danni extra al bersaglio che colpisce. I danni sono pari al risultato del tiro del dado di Ispirazione Bardica. Il bardo aggiunge inoltre quel risultato alla sua CA fino all'inizio del suo turno successivo.",
       "livello_minimo": 3,
       "pagina": 16,
       "pagina_pdf": 17,
@@ -3509,7 +3347,6 @@
       "id": "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-tagliente",
       "parent_id": "bardo-collegio-delle-spade-virtuosismo-della-lama",
       "nome": "Virtuosismo Tagliente",
-      "descrizione": "Il bardo può spendere un uso della sua Ispirazione Bardica per fare in modo che l'arma infligga danni extra al bersaglio che colpisce e a qualsiasi altra creatura a sua scelta che si trovi entro 1,5 metri da lui e che egli sia in grado di vedere. I danni sono pari al risultato del tiro del dado di Ispirazione Bardica.",
       "livello_minimo": 3,
       "pagina": 16,
       "pagina_pdf": 17,
@@ -3519,7 +3356,6 @@
       "id": "bardo-collegio-delle-spade-virtuosismo-della-lama-virtuosismo-mobile",
       "parent_id": "bardo-collegio-delle-spade-virtuosismo-della-lama",
       "nome": "Virtuosismo Mobile",
-      "descrizione": "Il bardo può spendere un uso della sua Ispirazione Bardica per fare in modo che l'arma infligga danni extra al bersaglio che colpisce. I danni sono pari al risultato del tiro del dado di Ispirazione Bardica. Il bardo può anche spingere il bersaglio lontano da sé di una distanza massima pari a 1,5 metri più 30 cm per il risultato ottenuto al tiro del dado. Poi può usare immediatamente la sua reazione per muoversi di un massimo pari alla sua velocità base sul terreno fino a uno spazio libero entro 1,5 metri dal bersaglio.",
       "livello_minimo": 3,
       "pagina": 16,
       "pagina_pdf": 17,
@@ -3529,7 +3365,6 @@
       "id": "monaco-via-del-kensei-cammino-del-kensei-armi-da-kensei",
       "parent_id": "monaco-via-del-kensei-cammino-del-kensei",
       "nome": "Armi da Kensei",
-      "descrizione": "Il monaco sceglie due tipi di armi che saranno le sue armi da kensei: un'arma da mischia e un'arma a distanza. Ognuna di queste armi può essere una qualsiasi arma semplice o da guerra priva delle proprietà pesante e speciale. Anche l'arco lungo è una scelta valida. Il monaco ottiene competenza in queste armi se non la possedeva già. Le armi dei tipi scelti per il monaco sono armi da monaco. Molti privilegi di questa tradizione funzionano solo con le armi da kensei del monaco. Quando il monaco raggiunge il 6°, 11° e 17° livello in questa classe, può scegliere un ulteriore tipo di arma (da mischia o a distanza) che sia per lui un'arma da kensei, rispettando i criteri soprastanti.",
       "livello_minimo": 3,
       "pagina": 41,
       "pagina_pdf": 42,
@@ -3539,7 +3374,6 @@
       "id": "monaco-via-del-kensei-cammino-del-kensei-parata-agile",
       "parent_id": "monaco-via-del-kensei-cammino-del-kensei",
       "nome": "Parata Agile",
-      "descrizione": "Se il monaco effettua un colpo senz'armi come parte dell'azione di Attacco nel suo turno e impugna un'arma da kensei, può usarla per difendersi se si tratta di un'arma da mischia. Il monaco ottiene un bonus di +2 alla CA fino all'inizio del suo turno successivo, mentre impugna quell'arma e non è incapacitato.",
       "livello_minimo": 3,
       "pagina": 41,
       "pagina_pdf": 42,
@@ -3549,7 +3383,6 @@
       "id": "monaco-via-del-kensei-cammino-del-kensei-tiro-del-kensei",
       "parent_id": "monaco-via-del-kensei-cammino-del-kensei",
       "nome": "Tiro del Kensei",
-      "descrizione": "Il monaco può usare un'azione bonus nel suo turno per rendere più letali i suoi attacchi a distanza con un'arma da kensei. Quando lo fa, qualsiasi bersaglio da lui colpito con un attacco a distanza usando un'arma da kensei subisce 1d4 danni extra del tipo dell'arma. Il monaco mantiene questo beneficio fino alla fine del suo turno attuale.",
       "livello_minimo": 3,
       "pagina": 41,
       "pagina_pdf": 42,
@@ -3559,7 +3392,6 @@
       "id": "monaco-via-del-kensei-cammino-del-kensei-via-del-pennello",
       "parent_id": "monaco-via-del-kensei-cammino-del-kensei",
       "nome": "Via del Pennello",
-      "descrizione": "Il monaco ottiene una competenza a sua scelta nelle scorte da calligrafo o negli strumenti da pittore.",
       "livello_minimo": 3,
       "pagina": 41,
       "pagina_pdf": 42,
@@ -3569,7 +3401,6 @@
       "id": "paladino-giuramento-di-conquista-incanalare-divinita-colpo-guidato",
       "parent_id": "paladino-giuramento-di-conquista-incanalare-divinita",
       "nome": "Colpo Guidato",
-      "descrizione": "Il paladino può usare Incanalare Divinità per colpire con precisione soprannaturale. Quando effettua un tiro per colpire, può usare Incanalare Divinità per ottenere un bonus di +10 al tiro. Il paladino prende questa decisione dopo avere visto il risultato del tiro, ma prima che il DM dichiari se l'attacco colpisce o va a vuoto.",
       "livello_minimo": 3,
       "pagina": 45,
       "pagina_pdf": 46,
@@ -3579,7 +3410,6 @@
       "id": "paladino-giuramento-di-conquista-incanalare-divinita-presenza-conquistatrice",
       "parent_id": "paladino-giuramento-di-conquista-incanalare-divinita",
       "nome": "Presenza Conquistatrice",
-      "descrizione": "Il paladino può usare Incanalare Divinità per emanare una presenza terrificante. Con un'azione, può costringere ogni creatura a sua scelta che si trovi entro 9 metri da lui e che egli sia in grado di vedere a effettuare un tiro salvezza su Saggezza. Se lo fallisce, una creatura diventa spaventata dal paladino per 1 minuto. La creatura spaventata può ripetere questo tiro salvezza alla fine di ogni suo turno; in caso di successo, l'effetto per lei termina.",
       "livello_minimo": 3,
       "pagina": 45,
       "pagina_pdf": 46,
@@ -3589,7 +3419,6 @@
       "id": "paladino-giuramento-di-redenzione-incanalare-divinita-emissario-di-pace",
       "parent_id": "paladino-giuramento-di-redenzione-incanalare-divinita",
       "nome": "Emissario di Pace",
-      "descrizione": "Il paladino può usare Incanalare Divinità per incrementare la sua presenza con il potere divino. Con un'azione bonus, può conferire a se stesso un bonus di +5 alle prove di Carisma (Persuasione) per i 10 minuti successivi.",
       "livello_minimo": 3,
       "pagina": 46,
       "pagina_pdf": 47,
@@ -3599,7 +3428,6 @@
       "id": "paladino-giuramento-di-redenzione-incanalare-divinita-intimorire-i-violenti",
       "parent_id": "paladino-giuramento-di-redenzione-incanalare-divinita",
       "nome": "Intimorire i Violenti",
-      "descrizione": "Il paladino può usare Incanalare Divinità per intimorire coloro che usano la violenza. Immediatamente dopo che un attaccante entro 9 metri dal paladino ha inflitto danni con un attacco a una creatura diversa da lui, il paladino può usare la sua reazione per obbligare l'attaccante a effettuare un tiro salvezza su Saggezza; se lo fallisce, subisce danni radiosi pari ai danni che ha appena inflitto, mentre se lo supera, subisce la metà di quei danni.",
       "livello_minimo": 3,
       "pagina": 46,
       "pagina_pdf": 47,
@@ -3609,7 +3437,6 @@
       "id": "stregone-anima-divina-magia-divina-bene",
       "parent_id": "stregone-anima-divina-magia-divina",
       "nome": "Bene",
-      "descrizione": "L'affinità bene conferisce l'incantesimo Cura Ferite, secondo la tabella del privilegio Magia Divina.",
       "livello_minimo": 1,
       "pagina": 53,
       "pagina_pdf": 54,
@@ -3619,7 +3446,6 @@
       "id": "stregone-anima-divina-magia-divina-male",
       "parent_id": "stregone-anima-divina-magia-divina",
       "nome": "Male",
-      "descrizione": "L'affinità male conferisce l'incantesimo Infliggi Ferite, secondo la tabella del privilegio Magia Divina.",
       "livello_minimo": 1,
       "pagina": 53,
       "pagina_pdf": 54,
@@ -3629,7 +3455,6 @@
       "id": "stregone-anima-divina-magia-divina-legge",
       "parent_id": "stregone-anima-divina-magia-divina",
       "nome": "Legge",
-      "descrizione": "L'affinità legge conferisce l'incantesimo Benedizione, secondo la tabella del privilegio Magia Divina.",
       "livello_minimo": 1,
       "pagina": 53,
       "pagina_pdf": 54,
@@ -3639,7 +3464,6 @@
       "id": "stregone-anima-divina-magia-divina-caos",
       "parent_id": "stregone-anima-divina-magia-divina",
       "nome": "Caos",
-      "descrizione": "L'affinità caos conferisce l'incantesimo Anatema, secondo la tabella del privilegio Magia Divina.",
       "livello_minimo": 1,
       "pagina": 53,
       "pagina_pdf": 54,
@@ -3649,7 +3473,6 @@
       "id": "stregone-anima-divina-magia-divina-neutralita",
       "parent_id": "stregone-anima-divina-magia-divina",
       "nome": "Neutralità",
-      "descrizione": "L'affinità neutralità conferisce l'incantesimo Protezione dal Bene e dal Male, secondo la tabella del privilegio Magia Divina.",
       "livello_minimo": 1,
       "pagina": 53,
       "pagina_pdf": 54,
@@ -3659,7 +3482,6 @@
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-afferrante",
       "parent_id": "guerriero-arciere-arcano-tiro-arcano",
       "nome": "Freccia Afferrante",
-      "descrizione": "Quando questa freccia colpisce il suo bersaglio, la magia di evocazione crea dei rovi afferranti e velenosi che si avviluppano attorno al bersaglio. La creatura colpita dalla freccia subisce 2d6 danni da veleno extra, subisce 2d6 danni taglienti la prima volta in ogni turno che si muove di 30 cm o più senza teletrasportarsi e la sua velocità è ridotta di 3 metri. Il bersaglio o qualsiasi creatura che abbia portata fino ad esso può usare la sua azione per rimuovere i rovi effettuando con successo una prova di Forza (Atletica) contro la CD del tiro salvezza del Tiro Arcano del guerriero. Altrimenti, i rovi permangono per 1 minuto o finché il guerriero non usa di nuovo questa opzione.\n\nSia i danni da veleno che i danni taglienti aumentano a 4d6 quando il guerriero raggiunge il 18° livello in questa classe.",
       "livello_minimo": 3,
       "pagina": 29,
       "pagina_pdf": 30,
@@ -3669,7 +3491,6 @@
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-ammaliante",
       "parent_id": "guerriero-arciere-arcano-tiro-arcano",
       "nome": "Freccia Ammaliante",
-      "descrizione": "La magia di ammaliamento del guerriero fa in modo che questa freccia affascini temporaneamente il bersaglio. La creatura colpita dalla freccia subisce 2d6 danni psichici extra e sceglie un alleato del guerriero entro 9 metri dal bersaglio. Il bersaglio deve superare un tiro salvezza su Saggezza, altrimenti è affascinato dall'alleato scelto fino all'inizio del turno successivo del guerriero. Questo effetto termina anticipatamente se l'alleato scelto attacca il bersaglio affascinato, gli infligge danni o lo costringe a effettuare un tiro salvezza.\n\nI danni psichici aumentano a 4d6 quando il guerriero raggiunge il 18° livello in questa classe.",
       "livello_minimo": 3,
       "pagina": 29,
       "pagina_pdf": 30,
@@ -3679,7 +3500,6 @@
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-cercatrice",
       "parent_id": "guerriero-arciere-arcano-tiro-arcano",
       "nome": "Freccia Cercatrice",
-      "descrizione": "Usando la magia di divinazione, il guerriero impartisce alla freccia la capacità di cercare un bersaglio. Quando il guerriero usa questa opzione, non effettua un tiro per colpire per l'attacco. Sceglie invece una creatura che abbia visto nell'ultimo minuto. La freccia vola verso quella creatura, svoltando gli angoli se necessario e ignorando la mezza copertura e i tre quarti di copertura. Se il bersaglio si trova entro la gittata dell'arma e c'è un percorso abbastanza largo che la freccia possa seguire fino al bersaglio, quest'ultimo deve effettuare un tiro salvezza su Destrezza. Altrimenti, la freccia scompare dopo essere giunta più lontano possibile. In caso di tiro salvezza fallito, il bersaglio subisce danni come se fosse stato colpito dalla freccia, più 1d6 danni da forza extra, e il guerriero apprende l'ubicazione attuale del bersaglio. In caso di tiro salvezza superato, il bersaglio subisce la metà di quei danni e il guerriero non apprende la sua ubicazione.\n\nI danni da forza aumentano a 2d6 quando il guerriero raggiunge il 18° livello in questa classe.",
       "livello_minimo": 3,
       "pagina": 29,
       "pagina_pdf": 30,
@@ -3689,7 +3509,6 @@
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-d-ombra",
       "parent_id": "guerriero-arciere-arcano-tiro-arcano",
       "nome": "Freccia d'Ombra",
-      "descrizione": "Il guerriero intesse una magia d'illusione nella sua freccia, occludendo la visione dell'avversario con una cortina di ombre. La creatura colpita dalla freccia subisce 2d6 danni psichici extra e deve superare un tiro salvezza su Saggezza, altrimenti non potrà vedere oltre 1,5 metri da sé fino all'inizio del turno successivo del guerriero.\n\nI danni psichici aumentano a 4d6 quando il guerriero raggiunge il 18° livello in questa classe.",
       "livello_minimo": 3,
       "pagina": 29,
       "pagina_pdf": 30,
@@ -3699,7 +3518,6 @@
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-esiliante",
       "parent_id": "guerriero-arciere-arcano-tiro-arcano",
       "nome": "Freccia Esiliante",
-      "descrizione": "Il guerriero usa la magia di abiurazione per tentare di esiliare temporaneamente il suo bersaglio in un'area innocua della Selva Fatata. La creatura colpita dalla freccia deve anche superare un tiro salvezza su Carisma o sarà esiliata. Mentre il bersaglio è esiliato in questo modo, è incapacitato e la sua velocità è pari a 0. Alla fine del suo turno successivo, il bersaglio ricompare nello spazio che ha lasciato vuoto o nello spazio libero più vicino, se quello originale è occupato.\n\nDopo che il guerriero ha raggiunto il 18° livello in questa classe, il bersaglio subisce anche 2d6 danni da forza quando la freccia lo colpisce.",
       "livello_minimo": 3,
       "pagina": 29,
       "pagina_pdf": 30,
@@ -3709,7 +3527,6 @@
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-esplosiva",
       "parent_id": "guerriero-arciere-arcano-tiro-arcano",
       "nome": "Freccia Esplosiva",
-      "descrizione": "Il guerriero infonde nella sua freccia un flusso energetico di forza tratto dalla scuola di invocazione. L'energia detona dopo il suo attacco. Immediatamente dopo che la freccia ha colpito la creatura, il bersaglio e tutte le altre creature entro 3 metri da esso subiscono 2d6 danni da forza ciascuno.\n\nI danni da forza aumentano a 4d6 quando il guerriero raggiunge il 18° livello in questa classe.",
       "livello_minimo": 3,
       "pagina": 29,
       "pagina_pdf": 30,
@@ -3719,7 +3536,6 @@
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-indebolente",
       "parent_id": "guerriero-arciere-arcano-tiro-arcano",
       "nome": "Freccia Indebolente",
-      "descrizione": "Il guerriero infonde un flusso di magia necromantica nella sua freccia. La creatura colpita dalla freccia subisce 2d6 danni necrotici extra. Il bersaglio deve anche superare un tiro salvezza su Costituzione, altrimenti i danni inflitti dai suoi attacchi con le armi sono dimezzati fino all'inizio del turno successivo del guerriero.\n\nI danni necrotici aumentano a 4d6 quando il guerriero raggiunge il 18° livello in questa classe.",
       "livello_minimo": 3,
       "pagina": 30,
       "pagina_pdf": 31,
@@ -3729,7 +3545,6 @@
       "id": "guerriero-arciere-arcano-tiro-arcano-freccia-perforante",
       "parent_id": "guerriero-arciere-arcano-tiro-arcano",
       "nome": "Freccia Perforante",
-      "descrizione": "Il guerriero usa la magia di trasmutazione per conferire alla sua freccia una qualità eterea. Quando usa questa opzione, non effettua un tiro per colpire per l'attacco. La freccia invece avanza lungo una linea, larga 30 cm e lunga 9 metri, prima di scomparire. La freccia passa senza fare danni attraverso gli oggetti, ignorando la copertura. Ogni creatura su quella linea deve effettuare un tiro salvezza su Destrezza. Se lo fallisce, una creatura subisce danni come se fosse stata colpita dalla freccia, più 1d6 danni perforanti extra. In caso di tiro salvezza superato, il bersaglio subisce la metà dei danni.\n\nI danni perforanti aumentano a 2d6 quando il guerriero raggiunge il 18° livello in questa classe.",
       "livello_minimo": 3,
       "pagina": 30,
       "pagina_pdf": 31,
@@ -3739,7 +3554,6 @@
       "id": "warlock-suppliche-occulte-arma-del-patto-migliorata",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Arma del Patto Migliorata",
-      "descrizione": "Il warlock può usare una qualsiasi arma da lui evocata tramite il suo privilegio Patto della Lama come focus da incantatore per i suoi incantesimi da warlock. Inoltre, l'arma ottiene un bonus di +1 ai suoi tiri per colpire e ai suoi tiri per i danni, a meno che non sia un'arma magica che possiede già un bonus a quei tiri.\n\nInfine, l'arma evocata dal warlock può essere un arco corto, un arco lungo, una balestra leggera o una balestra pesante.",
       "livello_minimo": 2,
       "pagina": 59,
       "pagina_pdf": 60,
@@ -3753,7 +3567,6 @@
       "id": "warlock-suppliche-occulte-aspetto-della-luna",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Aspetto della Luna",
-      "descrizione": "Il warlock non ha più bisogno di dormire e non può essere costretto a dormire in alcun modo. Per ottenere i benefici di un riposo lungo, può trascorrere tutte le 8 ore a svolgere attività leggere, come leggere il proprio Libro delle Ombre e fare la guardia.",
       "livello_minimo": 2,
       "pagina": 59,
       "pagina_pdf": 60,
@@ -3767,7 +3580,6 @@
       "id": "warlock-suppliche-occulte-dono-degli-imperituri",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Dono degli Imperituri",
-      "descrizione": "Ogni volta che il warlock recupera punti ferita mentre il suo famiglia si trova entro 30 metri da lui, considera tutti i dadi tirati per determinare i punti ferita che recupera come se avessero ottenuto il loro risultato massimo per lui.",
       "livello_minimo": 2,
       "pagina": 59,
       "pagina_pdf": 60,
@@ -3781,7 +3593,6 @@
       "id": "warlock-suppliche-occulte-dono-delle-profondita",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Dono delle Profondità",
-      "descrizione": "Il warlock può respirare sott'acqua e ottiene una velocità di nuotare pari alla sua velocità base sul terreno.\n\nPuò inoltre lanciare respirare sott'acqua una volta, senza spendere uno slot incantesimo. Il warlock recupera la capacità di farlo quando completa un riposo lungo.",
       "livello_minimo": 5,
       "pagina": 59,
       "pagina_pdf": 60,
@@ -3795,7 +3606,6 @@
       "id": "warlock-suppliche-occulte-fuga-dell-ingannatore",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Fuga dell'Ingannatore",
-      "descrizione": "Il warlock può lanciare libertà di movimento una volta su se stesso senza spendere uno slot incantesimo. Recupera la capacità di farlo quando completa un riposo lungo.",
       "livello_minimo": 7,
       "pagina": 60,
       "pagina_pdf": 61,
@@ -3809,7 +3619,6 @@
       "id": "warlock-suppliche-occulte-lancia-della-letargia",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Lancia della Letargia",
-      "descrizione": "Una volta per ogni suo turno, quando colpisce una creatura con la sua deflagrazione occulta, il warlock può ridurre la velocità di quella creatura di 3 metri fino alla fine del proprio turno successivo.",
       "livello_minimo": 2,
       "pagina": 60,
       "pagina_pdf": 61,
@@ -3823,7 +3632,6 @@
       "id": "warlock-suppliche-occulte-mantello-di-mosche",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Mantello di Mosche",
-      "descrizione": "Con un'azione bonus, il warlock può circondarsi di un'aura magica simile a un nugolo di mosche ronzanti. L'aura si estende per 1,5 metri da lui in ogni direzione, ma non attraverso la copertura totale. Dura finché il warlock non diventa incapacitato o non la congeda con un'azione bonus.\n\nL'aura conferisce al warlock vantaggio alle prove di Carisma (Intimidire), ma svantaggio a tutte le altre prove di Carisma. Ogni altra creatura che inizi il proprio turno nell'aura subisce danni da veleno pari al modificatore di Carisma del warlock (fino a un minimo di 0 danni).\n\nUna volta che il warlock ha usato questa supplica, non può più usarla finché non completa un riposo breve o lungo.",
       "livello_minimo": 5,
       "pagina": 60,
       "pagina_pdf": 61,
@@ -3837,7 +3645,6 @@
       "id": "warlock-suppliche-occulte-punizione-occulta",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Punizione Occulta",
-      "descrizione": "Una volta per turno, quando il warlock colpisce una creatura con la sua arma del patto, può spendere uno slot incantesimo da warlock per infliggere 1d8 danni da forza extra al bersaglio, più un altro 1d8 per livello dello slot incantesimo, e può buttare a terra prono il bersaglio, qualora quest'ultimo sia di taglia Enorme o inferiore.",
       "livello_minimo": 5,
       "pagina": 60,
       "pagina_pdf": 61,
@@ -3851,7 +3658,6 @@
       "id": "warlock-suppliche-occulte-sguardo-fantasma",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Sguardo Fantasma",
-      "descrizione": "Con un'azione, il warlock ottiene la capacità di vedere attraverso gli oggetti solidi fino a una gittata di 9 metri. Entro quella gittata, il warlock possiede scurovisione, se già non la possedeva. Questa vista speciale dura per 1 minuto o finché la concentrazione del warlock non termina (come se si concentrasse su un incantesimo). Durante quel periodo, il warlock percepisce gli oggetti come immagini spettrali e trasparenti.\n\nUna volta che il warlock ha usato questa supplica, non può più usarla finché non completa un riposo breve o lungo.",
       "livello_minimo": 7,
       "pagina": 60,
       "pagina_pdf": 61,
@@ -3865,7 +3671,6 @@
       "id": "warlock-suppliche-occulte-sortilegio-della-pazzia",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Sortilegio della Pazzia",
-      "descrizione": "Con un'azione bonus, il warlock può generare un'interferenza psichica attorno al bersaglio maledetto dal suo incantesimo sortilegio o da un suo privilegio da warlock, come la Maledizione della Lama del Sortilegio o il Presagio di Sventura. Quando lo fa, infligge danni psichici al bersaglio maledetto e a ogni creatura a sua scelta che il warlock sia in grado di vedere entro 1,5 metri dal bersaglio. I danni psichici sono pari al modificatore di Carisma del warlock (fino a un minimo di 1 danno). Per usare questa supplica, il warlock deve essere in grado di vedere il bersaglio maledetto e deve trovarsi entro 9 metri da lui.",
       "livello_minimo": 5,
       "pagina": 60,
       "pagina_pdf": 61,
@@ -3879,7 +3684,6 @@
       "id": "warlock-suppliche-occulte-sortilegio-implacabile",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Sortilegio Implacabile",
-      "descrizione": "La maledizione del warlock crea un legame temporaneo tra lui e il suo bersaglio. Con un'azione bonus, il warlock può teletrasportarsi magicamente fino a un massimo di 9 metri in uno spazio libero che egli sia in grado di vedere e che si trovi entro 1,5 metri dal bersaglio maledetto dal suo incantesimo sortilegio o da un suo privilegio da warlock, come la Maledizione della Lama del Sortilegio o il Presagio di Sventura. Per teletrasportarsi in questo modo, il warlock deve essere in grado di vedere il bersaglio maledetto.",
       "livello_minimo": 7,
       "pagina": 60,
       "pagina_pdf": 61,
@@ -3893,7 +3697,6 @@
       "id": "warlock-suppliche-occulte-stretta-di-hadar",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Stretta di Hadar",
-      "descrizione": "Una volta per ogni suo turno, quando colpisce una creatura con la sua deflagrazione occulta, il warlock può muovere quella creatura in linea retta avvicinandola a sé di 3 metri.",
       "livello_minimo": 2,
       "pagina": 60,
       "pagina_pdf": 61,
@@ -3907,7 +3710,6 @@
       "id": "warlock-suppliche-occulte-sudario-delle-ombre",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Sudario delle Ombre",
-      "descrizione": "Il warlock può lanciare invisibilità a volontà, senza spendere uno slot incantesimo.",
       "livello_minimo": 15,
       "pagina": 60,
       "pagina_pdf": 61,
@@ -3921,7 +3723,6 @@
       "id": "warlock-suppliche-occulte-tomba-di-levistus",
       "parent_id": "warlock-suppliche-occulte",
       "nome": "Tomba di Levistus",
-      "descrizione": "Come reazione, quando il warlock subisce danni, può rinchiudersi in una tomba di ghiaccio, che scompare sciogliendosi alla fine del suo turno successivo. Il warlock ottiene 10 punti ferita temporanei per ogni livello da warlock, che subiscono il maggiore ammontare possibile dei danni innescanti. Subito dopo avere subito i danni, il warlock ottiene vulnerabilità ai danni da fuoco, la sua velocità è ridotta a O e diventa incapacitato. Questi effetti, inclusi gli eventuali punti ferita temporanei rimanenti, terminano tutti quando il ghiaccio si scioglie.\n\nUna volta che il warlock ha usato questa supplica, non può più usarla finché non completa un riposo breve o lungo.",
       "livello_minimo": 5,
       "pagina": 60,
       "pagina_pdf": 61,

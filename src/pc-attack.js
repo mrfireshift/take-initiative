@@ -32,7 +32,7 @@ import { pcAttackFeatureForm, pcAttackFeatureRequest } from "./pcAttackFeatureFo
 import { getSpellCatalog } from "./spells-srd.js";
 import { hasReactionUsed, isOffTurn, isReactionClassFeature } from "./reactionTrackerCore.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
-import { classFeatureDescription, classFeatureDescriptionsLoaded, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
+import { classFeatureDescription, classFeatureDescriptionsLoaded, classFeatureMissingText, loadClassFeatureDescriptions } from "./classFeatureDescriptions.js";
 import { pcAttackPickerDefault, pcAttackPickerEntries, pcAttackPickerEntryFor, pcAttackPickerTabs } from "./pcAttackPickerCore.js";
 import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUVER_OUTCOME_LABELS, PC_SHOVE_EFFECTS, PC_SHOVE_EFFECT_LABELS,
   pcAttackManeuverEntries, pcGrappleHolds, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
@@ -1380,8 +1380,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!classFeatureDescriptionsLoaded()) {
       void loadClassFeatureDescriptions().then(()=>{launchSignature="";if(launching())renderLaunch();}).catch(()=>{});
     }
-    const text=classFeatureDescription(getClassFeatureDefinition(entry.featureId));
-    return [text?rulesTextBlock(text,{document:documentRef,className:"spell-rules",paragraphClass:"spell-text"}):node("p",classFeatureDescriptionsLoaded()?"Testo non disponibile.":"Caricamento del testo…","launch-details")];
+    const feature=getClassFeatureDefinition(entry.featureId);
+    const text=classFeatureDescription(feature);
+    const missing=classFeatureMissingText(feature);
+    return [text?rulesTextBlock(text,{document:documentRef,className:"spell-rules",paragraphClass:"spell-text"}):node("p",missing?privateTextMissingNote(missing):classFeatureDescriptionsLoaded()?"Testo non disponibile.":"Caricamento del testo…","launch-details")];
   }
   // The spell's details under an accordion ("Dettagli"): tags, casting time, range, components, duration, then the
   // text of the spell and its higher levels. One open state for every accordion of the console: open stays open.

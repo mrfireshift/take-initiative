@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { readPrivateFeatureTexts } from "./privateSources.mjs";
+
 const ROOT_DIR = path.resolve(".");
 const SOURCE_DIR = path.join(ROOT_DIR, "data", "class-features");
 const RUNTIME_CATALOG_PATH = path.join(ROOT_DIR, "src", "class-features-runtime.json");
@@ -652,10 +654,23 @@ function markdownTable(rows) {
   ].join("\n");
 }
 
+// The databases keep the SRD texts only (compendio delle regole, fase 2): the others come back from the GM's private
+// folder, by record id, so the textual signals of the audit stay the same. Without the folder those records have no
+// text.
+function withPrivateTexts(catalogData, sourceId) {
+  const texts = readPrivateFeatureTexts(sourceId) || {};
+  for (const collection of ["privilegi", "opzioni"]) {
+    for (const record of catalogData?.[collection] || []) {
+      if (typeof record.descrizione !== "string" && texts[record.id]) record.descrizione = texts[record.id];
+    }
+  }
+  return catalogData;
+}
+
 // Load sources and runtime
 const loaded = SOURCE_CONFIGS.map((source) => ({
   ...source,
-  catalogData: readJson(path.join(SOURCE_DIR, source.catalog)),
+  catalogData: withPrivateTexts(readJson(path.join(SOURCE_DIR, source.catalog)), source.id),
   mechanicData: readJson(path.join(SOURCE_DIR, source.mechanics)),
 }));
 const runtime = readJson(RUNTIME_CATALOG_PATH);

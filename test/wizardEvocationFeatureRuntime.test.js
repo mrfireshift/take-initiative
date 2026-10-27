@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import FEATURE_DESCRIPTIONS from "../src/class-features-descriptions.json" with { type: "json" };
+import { readPrivateFeatureTexts } from "../scripts/privateSources.mjs";
+
+// The PHB texts that are not SRD are in the GM's private folder (compendio delle regole, fase 2).
+const PHB_PRIVATE_TEXTS = readPrivateFeatureTexts("phb2014");
 import {
   CLASS_FEATURE_BY_ID,
   CLASS_FEATURE_RESOURCE_POOL_BY_ID,
@@ -130,7 +134,7 @@ test("Recupero Arcano conserva il pool condiviso senza trasformarlo in un'azione
   }), []);
 });
 
-test("i reminder conservano i trigger e i limiti distintivi del testo PHB", () => {
+test("i reminder conservano i trigger e i limiti distintivi del testo PHB", { skip: !PHB_PRIVATE_TEXTS && "testi privati assenti" }, () => {
   const expected = {
     "mago-incantesimi": [/libro degli incantesimi/i, /riposo lungo/i, /rituale/i, /focus arcano/i],
     "mago-recupero-arcano": [/riposo breve/i, /una volta al giorno/i, /metà/i, /6° livello/i],
@@ -145,7 +149,7 @@ test("i reminder conservano i trigger e i limiti distintivi del testo PHB", () =
     "mago-scuola-di-invocazione-saturazione-magica": [/1° e il 5°/i, /massimo dei danni/i, /prima volta/i, /2d12/i, /riposo lungo/i],
   };
   for (const [id, patterns] of Object.entries(expected)) {
-    const description = FEATURE_DESCRIPTIONS[id];
+    const description = FEATURE_DESCRIPTIONS[id] || PHB_PRIVATE_TEXTS[id];
     for (const pattern of patterns) assert.match(description, pattern, id);
   }
 });

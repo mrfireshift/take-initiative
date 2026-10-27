@@ -2,7 +2,9 @@
 // never in the repository. TAKE_INITIATIVE_PRIVATE_DIR overrides the default folder.
 //
 //   <dir>/sorgenti/incantesimi/   the raw spell files the catalog generators read
+//   <dir>/sorgenti/capacita/   the class-feature databases with every text, as they were before the split
 //   <dir>/testi/<book>/incantesimi.json   { book, spells: { [spellId]: { description, higherLevels } } }
+//   <dir>/testi/<book>/capacita.json   { book, features: { [featureId]: text } }: the features whose text is not SRD
 //   <dir>/pacchetti/<book>.private-pack.json   what the GM imports in the encyclopedia (build-private-packs.mjs)
 //
 // The scripts and the tests that need a text read it from here; without the folder (a fresh clone, the CI) the tests
@@ -38,6 +40,31 @@ export function readPrivateSpellTexts(book) {
   const texts = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")).spells || {} : null;
   spellTextsByBook.set(book, texts);
   return texts;
+}
+
+export function privateFeatureTextsPath(book) {
+  return path.join(privateDir(), "testi", book, "capacita.json");
+}
+
+// { [featureId]: text } of a book's class features that are not SRD text, or null without the file. Read once per
+// process, like the spells'.
+const featureTextsByBook = new Map();
+
+export function readPrivateFeatureTexts(book) {
+  if (featureTextsByBook.has(book)) return featureTextsByBook.get(book);
+  const file = privateFeatureTextsPath(book);
+  const texts = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")).features || {} : null;
+  featureTextsByBook.set(book, texts);
+  return texts;
+}
+
+export function writePrivateFeatureTexts(book, features) {
+  const file = privateFeatureTextsPath(book);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const sorted = Object.fromEntries(Object.entries(features).sort(([left], [right]) => left.localeCompare(right)));
+  fs.writeFileSync(file, `${JSON.stringify({ book, features: sorted }, null, 2)}\n`, "utf8");
+  featureTextsByBook.set(book, sorted);
+  return file;
 }
 
 // Writes the texts of a book's spells, sorted by id, for build-private-packs.mjs.
