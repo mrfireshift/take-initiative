@@ -1,6 +1,6 @@
 # Attacchi dei mostri — fase 3: archivio online (piano)
 
-Stato: **approvato il 26/10/2026**.
+Stato: **lotti 1–4 fatti; lotto 6 pianificato il 27/10/2026, in attesa delle decisioni; lotto 5 (documentazione) dopo.**
 
 Decisioni confermate: campo dell'indirizzo vuoto, con l'indirizzo nella guida (D1); basi dei derivati scaricate da sole (D2); aggiornamento solo con **Aggiorna** (D3); Open5e fuori (D4). In più l'utente apre la possibilità **opzionale** di importare statblock delle regole 2024 (lotto 6). Va fatta prima del lotto 4
 della [fase 2](PIANO_ATTACCHI_MOSTRI_FASE_2.md) (richiesta del 26/10/2026);
@@ -89,22 +89,70 @@ l'indirizzo è un'opzione, e **Carica file** della fase 2 resta il ripiego.
 - Rete solo quando il GM aggiunge o aggiorna un libro; mai durante il turno,
   mai dai giocatori.
 
-### Lotto 6 — statblock 2024 opzionali
+### Lotto 6 — statblock 2024 opzionali (piano dettagliato del 27/10/2026)
 
-- Opzione locale **Statblock 2024**, spenta di default: accesa, l'adapter
-  legge anche i mostri 2024 e l'elenco li mostra con «· 2024».
-- Lettore 2024 accanto a quello 2014 (verificato sul Monster Manual 2025):
-  attacchi `{@atkr m|r|m,r} {@hit N}, reach … / range …`; azioni a tiro
-  salvezza `{@actSave dex} {@dc 21}, … {@actSaveFail} … {@actSaveSuccess} Half
-  damage.`; condizioni «has the {@condition Paralyzed|XPHB} condition»; aree
-  «60-foot Cone», «Emanation» (sfera attorno al mostro); tipi di danno con la
-  maiuscola.
-- I danni extra condizionati («plus 2 (1d4) Slashing damage if the attack roll
-  had Advantage») non entrano nelle componenti: vanno nella nota.
-- Il rapporto aggiunge: «regole 2024: condizioni e regole del tracker restano
-  quelle del 2014».
-- La copertura sul Monster Manual 2025 si misura all'inizio del lotto, come
-  per il 2014.
+Stato: **piano, in attesa delle decisioni dell'utente**. Riscritto dopo le fasi 4 e 5: oltre ad attacchi e azioni a
+TS, un mostro 2024 deve passare anche da incantesimi, leggendarie, testo dello statblock ed effetti letti ad euristica.
+
+Il principio non cambia: il plugin gioca con le regole del 2014 (condizioni, indebolimento, riposi, incantesimi del
+catalogo SRD). Un mostro 2024, a opzione accesa, si importa e si esegue con quelle regole; l'import lo dice.
+
+#### Misure sul Monster Manual 2025 (`XMM`, 503 mostri, 1132 azioni)
+
+| Cosa | Quante |
+| --- | --- |
+| Azioni lette oggi dall'adapter, se si togliesse solo il rifiuto | 0 su 1168 (tutte «al tavolo») |
+| Attacchi `{@atkr m\|r\|m,r} {@hit N}, reach … / range …` (senza «to hit») | 651 |
+| Azioni a TS `{@actSave dex} {@dc 21}, … {@actSaveFail} … {@actSaveSuccess} Half damage.` | 284 |
+| Condizioni scritte «has the {@condition Poisoned\|XPHB} condition» | 281 |
+| Aree «Emanation originating from the …» (sfera attorno al mostro) | 32 |
+| Danni extra condizionati («plus 2 (1d4) Slashing damage if the attack roll had Advantage») | 4 |
+| Tiri ripetuti «repeats the save at the end of each of its turns» | 29 (49 «repeats the save» in tutto) |
+| Mostri con incantesimi / blocchi con slot | 132 / 0: solo «at will» e «X/Day», anche come azione bonus (32) o reazione (15) |
+| Incantesimi distinti / non nel catalogo SRD | 154 / 12 (Mind Spike, Ice Knife, Elementalism…; Melf's Acid Arrow con l'alias) |
+| Leggendarie | 43 mostri; «Legendary Resistance (3/Day, or 4/Day in Lair)», `legendaryActionsLair: 4` |
+
+Il formato 2024 è più regolare del 2014 (i tag dicono da soli cos'è un fallimento e cos'è un successo): il lettore è
+un adattatore dei tag verso gli stessi campi del 2014, non un secondo motore. Console, scheda ed esecuzione restano
+quelle delle fasi 1–5.
+
+#### Lotti
+
+1. **Opzione e sblocco.** Opzione locale **Statblock 2024** (Opzioni → Console attacchi, spenta). Accesa: l'elenco
+   dell'import mostra i mostri 2024 con «· 2024», l'archivio abilita i libri 2024, i derivati da una base 2024 si
+   risolvono. Spenta: tutto come oggi. Lo script di copertura prende `--2024`.
+2. **Testo in chiaro 2024.** `fiveToolsPlainText` e il lettore ad euristica rendono i tag nuovi come li stampa il libro
+   («Melee Attack Roll:», «Dexterity Saving Throw:», «Failure:», «Success:», «Trigger:», «Response:»), i tipi di danno in
+   minuscolo, `{@variantrule Cone [Area of Effect]|XPHB|Cone}` come «Cone». Serve allo statblock originale, alle note e
+   alle regole.
+3. **Attacchi 2024.** `{@atkr …} {@hit N}, reach/range` → attacco con bonus, portata, gittata; i danni extra
+   condizionati restano nella nota; gli effetti al colpo («has the Grappled condition (escape DC 13)», un `{@actSave}`
+   dentro il colpo) dalle regole della fase 5, estese a «has the X condition».
+4. **Azioni a TS 2024.** `{@actSave ability} {@dc N}` → TS e CD; il testo di `{@actSaveFail}` → danni e condizioni del
+   fallimento, `{@actSaveSuccess} Half damage.` → metà, un successo che dice altro resta nella nota; area (Cone, Line,
+   Cube, Sphere, Emanation dal mostro), durata e tiro ripetuto dalle regole della fase 5; `{@actSaveFail 2}` (secondo
+   fallimento, la pietrificazione) nella nota.
+5. **Incantesimi e leggendarie 2024.** Ogni incantesimo diventa un'azione rapida ⚡ come gli innati del 2014 (a
+   volontà gratuita, X/Day con usi propri; un trucchetto a volontà nel libro); «(level 4 version)» → livello dello
+   slot dell'azione rapida; nomi cercati nel catalogo SRD 2014 (vedi D3). Leggendarie e resistenze con i numeri fuori
+   dalla tana (vedi D5). Tratti, reazioni e leggendarie nella scheda Capacità, come per il 2014.
+6. **Misura e documentazione.** Copertura sul Monster Manual 2025 (obiettivo: le stesse quote del 2014), guida e
+   formato.
+
+#### Decisioni da confermare
+
+1. **D1 — attivazione.** Un'opzione locale, spenta, per tutto il browser del GM (raccomandato), oppure una casella
+   nel pannello Importa a ogni mostro.
+2. **D2 — regole.** Il mostro 2024 si esegue con le regole 2014 del plugin (condizioni, indebolimento, riposi),
+   segnalato nel rapporto «regole 2024: condizioni e regole del tracker restano quelle del 2014» (raccomandato), oppure
+   si rifiutano i mostri le cui azioni dipendono da regole che cambiano (troppi per essere utile).
+3. **D3 — incantesimi 2024.** Cercati per nome nel catalogo SRD 2014 (142 su 154 si trovano; il testo e
+   l'automazione sono quelli 2014, segnalato) e quelli che mancano in rosso (raccomandato), oppure tutti solo come
+   testo nello statblock.
+4. **D4 — danni condizionati.** Solo nella nota, mai sommati (raccomandato: 4 casi, e la condizione la decide il
+   tavolo), oppure una componente extra spenta da accendere a mano.
+5. **D5 — la tana.** Azioni e resistenze leggendarie con i numeri fuori dalla tana, quelli nella tana nel rapporto
+   (raccomandato: si cambiano dal tracker), oppure una casella «nella tana» nell'import.
 
 ### Lotto 5 — documentazione
 
