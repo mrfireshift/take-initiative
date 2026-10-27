@@ -141,7 +141,11 @@ export function resultSummary(result) {
   const second=result?.secondary?` ${result.secondary.name}: PF ${result.secondary.before} → ${result.secondary.after}.`:"";
   const conditions=(result?.conditions || []).length?` ${name}: ${result.conditions.join(", ")}.`:"";
   const tempHp=(result?.tempHp || []).length?` PF temporanei: ${result.tempHp.map(row=>`${row.name} ${row.before} → ${row.after}`).join(", ")}.`:"";
-  return `Registrato: ${outcome}, ${damage} danni a ${name}.${hp}${extras.length?` Extra: ${extras.join(", ")}.`:""}${second}${conditions}${tempHp}`;
+  // Vampiric Bite: the attacker's healing, or its bonus pill.
+  const bite=result?.vampiricBite;
+  const biteText=!bite?"":bite.mode==="heal"?` Morso vampirico: recuperi ${bite.amount} PF${Number.isFinite(bite.before)?` (${bite.before} → ${bite.after})`:""}.`
+    :` Morso vampirico: bonus +${bite.amount} alla prossima prova o tiro per colpire.`;
+  return `Registrato: ${outcome}, ${damage} danni a ${name}.${hp}${extras.length?` Extra: ${extras.join(", ")}.`:""}${second}${conditions}${tempHp}${biteText}`;
 }
 
 // Quivering Palm, ended: the save outcome and what it did.

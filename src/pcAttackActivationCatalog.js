@@ -279,8 +279,8 @@ export function pcAttackActivationEffect(activation, spec = activation?.effect) 
   }
   if (effect.condition) return { kind: "condition", label: effect.condition, ...(effect.expiry ? { expiry: { ...effect.expiry } } : {}) };
   // Vampiric Bite: the attacker regains the damage dealt (of that type), or keeps it as a bonus pill (pcAttackCore.js).
-  if (effect.casterHeal) return { kind: "caster-heal", label: "Recuperi PF pari ai danni perforanti inflitti", damageType: effect.casterHeal };
-  if (effect.selfBonus) return { kind: "self-bonus", label: "Bonus pari ai danni perforanti alla prossima prova o tiro per colpire",
+  if (effect.casterHeal) return { kind: "caster-heal", label: "Recuperi PF pari ai danni perforanti inflitti.", damageType: effect.casterHeal };
+  if (effect.selfBonus) return { kind: "self-bonus", label: "Bonus pari ai danni perforanti alla prossima prova o tiro per colpire.",
     damageType: effect.selfBonus };
   return effect.note ? { kind: "note", label: effect.note } : null;
 }

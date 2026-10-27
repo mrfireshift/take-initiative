@@ -285,6 +285,7 @@ export function createPcAttackRuntime({
       draft.result={...result,attackInstanceId,outcome:request.outcome,damageComponents:plan.damageComponents,warnings,
         riders:structuredClone(plan.causality.riders || []),extras:structuredClone(plan.causality.extras || []),
         activations:structuredClone(plan.causality.activations || []),
+        ...(plan.causality.vampiricBite?{vampiricBite:{...plan.causality.vampiricBite}}:{}),
         tempHp:(plan.tempHpChanges || []).map(row=>({id:row.item.id,name:row.item.name || row.item.id,before:row.change.hp,after:row.change.afterHP})),
         followUps:[...(plan.followUps || [])],cantrip:plan.causality.cantrip ? structuredClone(plan.causality.cantrip) : null,
         spell:plan.causality.spell ? structuredClone(plan.causality.spell) : null,

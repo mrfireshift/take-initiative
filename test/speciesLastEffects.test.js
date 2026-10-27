@@ -50,12 +50,14 @@ test("Vampiric Bite: the piercing damage dealt heals the dhampir, or becomes its
     activations: [{ id: "specie-dhampir-morso-vampirico-potenziamento", choice }] });
   const heal = attack("cura");
   assert.deepEqual([heal.casterHealChange.change.hp, heal.casterHealChange.change.afterHP], [20, 26]);
+  assert.deepEqual(heal.causality.vampiricBite, { mode: "heal", amount: 6, before: 20, after: 26 });
   assert.equal(heal.options.metadataPatches[0].fields[CLASS_FEATURE_STATE_FIELD].value.resources["specie-dhampir-morso-vampirico-usi"].current, 2);
   const resistant = { resistances: ["piercing"], immunities: [], vulnerabilities: [] };
   const halved = attack("cura", orc(resistant), resistant);
   assert.equal(halved.casterHealChange.change.afterHP, 23, "the damage dealt after the resistance: 3");
   const bonus = attack("bonus");
   assert.equal(bonus.casterHealChange, undefined);
+  assert.deepEqual(bonus.causality.vampiricBite, { mode: "bonus", amount: 6 });
   const pill = bonus.operations.find((operation) => operation.type === "condition:add" && operation.targetIds[0] === "dh");
   assert.equal(pill.options.displayLabel, "Bonus del morso +6");
   assert.ok(bonus.labelTargetIds.includes("dh"));

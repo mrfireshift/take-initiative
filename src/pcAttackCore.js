@@ -1343,7 +1343,8 @@ export function buildPcAttackMutation({
       displayLabel: `Bonus del morso +${biteDamage}`,
       effectDetail: `+${biteDamage} alla prossima prova di caratteristica o al prossimo tiro per colpire (Morso vampirico): togli la pill dopo quel tiro.` },
   }] : [];
-  if (bite && biteDamage > 0) causality.vampiricBite = { mode: bite.effect.kind === "caster-heal" ? "heal" : "bonus", amount: biteDamage };
+  if (bite && biteDamage > 0) causality.vampiricBite = { mode: bite.effect.kind === "caster-heal" ? "heal" : "bonus", amount: biteDamage,
+    ...(biteHeal > 0 && casterHealChange ? { before: casterHealChange.hp, after: casterHealChange.afterHP } : {}) };
   const activationPillOperations = Object.keys(activationPlan.instancesByTarget).length
     ? [{ type: "condition:add-instances", instancesByTarget: activationPlan.instancesByTarget }] : [];
   // CAP-LINK: Invisibility and Compelled Duel ended by this attack, in its own command (one Undo brings them back).

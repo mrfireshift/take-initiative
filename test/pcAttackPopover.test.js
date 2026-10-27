@@ -243,6 +243,12 @@ test("extras appear on a hit: the attacker's riders with dice (doubled on a crit
   assert.equal(resultSummary({ outcome: "hit", target: { name: "Ghoul" }, damageComponents: [{ amount: 24 }], hpChange: { before: 30, after: 6 },
     riders: [{ name: "Attacco Furtivo" }], extras: [{ label: "Lama Roboante" }, { typeLabel: "fuoco" }] }),
     "Registrato: Colpito, 24 danni a Ghoul. PF 30 → 6. Extra: Attacco Furtivo, Lama Roboante, fuoco.");
+  // Vampiric Bite: the dhampir's healing, or its bonus.
+  const bite = { outcome: "hit", target: { name: "Orco" }, damageComponents: [{ amount: 6 }], hpChange: { before: 30, after: 24 } };
+  assert.equal(resultSummary({ ...bite, vampiricBite: { mode: "heal", amount: 6, before: 30, after: 36 } }),
+    "Registrato: Colpito, 6 danni a Orco. PF 30 → 24. Morso vampirico: recuperi 6 PF (30 → 36).");
+  assert.equal(resultSummary({ ...bite, vampiricBite: { mode: "bonus", amount: 6 } }),
+    "Registrato: Colpito, 6 danni a Orco. PF 30 → 24. Morso vampirico: bonus +6 alla prossima prova o tiro per colpire.");
 });
 
 test("a rider already used this turn is disabled with its reason; a miss sends no extras", async () => {

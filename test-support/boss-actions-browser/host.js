@@ -589,6 +589,31 @@ const scenarios = {
       anchorReference: "POSITION", anchorPosition: { left: 20, top: 60 }, anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
       transformOrigin: { horizontal: "LEFT", vertical: "TOP" }, hidePaper: true });
   },
+  // Vampiric Bite from the PC attack console: Mira is a dhampir (rogue 5, 30 of 45 HP) with the bite from her trait.
+  async "pc-bite"() {
+    const mira = fakeHost.state.items.find((item) => item.id === "mira");
+    const { SPECIES_FEATURES } = await import("/src/speciesTraitCore.js");
+    const { speciesNaturalWeaponAction } = await import("/src/speciesNaturalWeaponCore.js");
+    const card = { characterBuild: [{ classId: "ladro", level: 5 }], abilityModifiers: { str: 0, dex: 3, con: 2, int: 1, wis: 1, cha: 0 },
+      species: { id: "dhampir", ancestryId: "" } };
+    const bite = speciesNaturalWeaponAction(SPECIES_FEATURES.find((entry) => entry.id === "specie-dhampir-morso-vampirico"), card);
+    mira.metadata[META].hp = 30;
+    mira.metadata[META].initiativeCard = { ...card, quickActions: [bite] };
+    fakeHost.setItems([...fakeHost.state.items]);
+    fakeHost.setSelection(["dars"]);
+    const { openPcAttackPopover } = await import("/src/pcAttackLauncher.js");
+    await openPcAttackPopover("mira", bite.id);
+  },
+  // Radiant Consumption from the card: Mira is a scourge aasimar of Volo (paladin 5).
+  async "pc-consumption"() {
+    const mira = fakeHost.state.items.find((item) => item.id === "mira");
+    mira.metadata[META].initiativeCard = { characterBuild: [{ classId: "paladino", level: 5 }], abilityModifiers: { str: 3, dex: 0, con: 2, int: 0, wis: 1, cha: 3 },
+      species: { id: "aasimar", ancestryId: "flagello" }, quickActions: [] };
+    fakeHost.setItems([...fakeHost.state.items]);
+    await OBR.popover.open({ id: "com.thebigpicture.initiative/initiative-card-modal", url: "/initiative-card-modal.html?source=mira", width: 440, height: 560,
+      anchorReference: "POSITION", anchorPosition: { left: 20, top: 60 }, anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" }, hidePaper: true });
+  },
   async compare() { document.getElementById("open-hp").click(); await sleep(600); fakeHost.setSelection(["dars"]); await openBossActionsPopover("auril"); await sleep(400);
     const frame = bossFrame(); fakeHost.state.popovers.get("com.thebigpicture.initiative/boss-actions").anchorPosition = { left: 600, top: 60 }; frame.style.left = "600px"; frame.style.top = "60px";
     (await row("Icekiss +2")).click(); await sleep(200); await press('[data-outcome="hit"]'); },
