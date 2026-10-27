@@ -206,7 +206,9 @@ const isNext = e.__groupMembers
 
     // A halo pulsing in the faction colour marks the active turn (the GM view has no ⚔️ badge). It is a child of
     // its own: the selection adds its glow to the card's box-shadow, and the halo only animates its opacity
-    // (index.html, tbp-active-turn-pulse). The delay keeps the pulse in phase when the card is rebuilt.
+    // (index.html, tbp-active-turn-pulse). Its markup stays the same from one render to the next, so the tracker keeps
+    // the live card instead of rebuilding it (portrait and listeners) on every render; a card that is rebuilt keeps
+    // the pulse in phase by starting its animation at the document's time origin, like every other halo of the page.
     const halo = document.createElement("div");
     halo.dataset.activeTurnHalo = "1";
     Object.assign(halo.style, {
@@ -216,8 +218,10 @@ const isNext = e.__groupMembers
       pointerEvents: "none",
       boxShadow: `0 0 0 2px ${c.border}, 0 0 26px 8px ${rgba(c.base, .78)}`,
       animation: "tbp-active-turn-pulse 1.6s ease-in-out infinite alternate",
-      animationDelay: `-${Date.now() % 3200}ms`,
     });
+    halo.addEventListener("animationstart", () => {
+      for (const animation of halo.getAnimations?.() || []) animation.startTime = 0;
+    }, { once: true });
     card.insertBefore(halo, card.firstChild);
 {
 

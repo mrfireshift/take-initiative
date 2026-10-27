@@ -18,6 +18,8 @@ Lotti fatti, tutti il 27/10:
 
 - **T3**: il reset delle azioni leggendarie salta la chiamata quando lo snapshot completo dice che la creatura non ne ha. Per un boss leggendario la lettura resta fresca, e se è già pieno non riscrive il `meta`. Nel banco: in 15 turni un solo `updateItems` sul token attivo, per il boss leggendario, che torna da 2/3 a 3/3. Il limite al solo GM (D4) resta per dopo.
 
+- **V2**: l'alone della card attiva (vista classica) non scrive più `Date.now()` nel proprio stile, quindi il suo HTML resta uguale da un render all'altro. Una card ricostruita mantiene la fase della pulsazione partendo dall'origine del documento. Nel banco la card attiva resta lo stesso nodo DOM quando cambiano i PF di un'altra creatura.
+
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.
