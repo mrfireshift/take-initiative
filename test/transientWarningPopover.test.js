@@ -61,7 +61,9 @@ test("la concentrazione usa i controlli reminder senza timer per il GM", () => {
   assert.match(concentrationHost, /spellName: String\(warning\?\.spellName/);
   assert.match(concentrationHost, /notice: warning\?\.notice && typeof warning\.notice === "object"/);
   assert.match(concentrationHost, /JSON\.stringify\(\{ warnings \}\)/);
-  assert.match(concentration, /import \{ resolveReminder \} from "\.\/reminderResolution\.js"/);
+  // reminderResolution.js is loaded on the first click (lazyModule), not before the warning's first paint.
+  assert.match(concentration, /const loadReminderResolution = lazyModule\(\(\) => import\("\.\/reminderResolution\.js"\)\)/);
+  assert.match(concentration, /const \{ resolveReminder \} = await loadReminderResolution\(\);/);
   assert.match(concentration, /\["passed", "Superato"\]/);
   assert.match(concentration, /\["failed", "Fallito"\]/);
   assert.match(concentration, /if \(!canResolve\) \{/);

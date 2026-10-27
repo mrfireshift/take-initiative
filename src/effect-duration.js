@@ -3,7 +3,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { describeEffectDurationTarget, planEffectDurationOverride } from "./effectDurationOverrideCore.js";
 import { refreshConditionLabels } from "./conditions.js";
-import { requireAppliedEffectsMutation, runEffectsMutation } from "./effectsMutations.js";
+import { lazyModule } from "./lazyModule.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 export const EFFECT_DURATION_POPOVER_ID = `${ID}/effect-duration`;
@@ -15,6 +15,8 @@ const request = {
   spellInstanceId: params.get("spellInstanceId") || "",
 };
 const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
+// The Applica button only: not needed before the popup's first paint.
+const loadEffectsMutations = lazyModule(() => import("./effectsMutations.js"));
 const $ = (id) => document.getElementById(id);
 let target = null;
 
@@ -76,6 +78,7 @@ async function apply() {
   }
   $("apply").disabled = true;
   try {
+    const { requireAppliedEffectsMutation, runEffectsMutation } = await loadEffectsMutations();
     const mutation = await runEffectsMutation(plan.operations, {
       kind: "condition",
       label: plan.label,

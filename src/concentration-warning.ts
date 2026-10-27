@@ -1,9 +1,11 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
-import { resolveReminder } from "./reminderResolution.js";
+import { lazyModule } from "./lazyModule.js";
 import { perfBootPage } from "./perfProbe.js";
 
 perfBootPage(OBR);
+// The Superato / Fallito buttons only: not needed before the warning's first paint.
+const loadReminderResolution = lazyModule(() => import("./reminderResolution.js"));
 
 const POPOVER_ID = ID + "/concentration-warning-modal";
 const UI_CHANNEL = ID + "/concentration-warning/ui";
@@ -222,6 +224,7 @@ function render(role: string, warnings: Warning[] = warningsFromURL()) {
         if (buttons.some((button) => button.disabled)) return;
         for (const button of buttons) button.disabled = true;
         try {
+          const { resolveReminder } = await loadReminderResolution();
           const result = await resolveReminder({
             notice: warning.notice,
             outcome,

@@ -8,12 +8,14 @@ import {
   isStableByDeathSaves,
   readDeathSaves,
 } from "./deathSaveCore.js";
-import { resolveReminder } from "./reminderResolution.js";
+import { lazyModule } from "./lazyModule.js";
 import { normalizeReminderResolution } from "./reminderResolutionCore.js";
 import { currentSceneEpoch } from "./sceneEpoch.js";
 import { perfBootPage } from "./perfProbe.js";
 
 perfBootPage(OBR);
+// The GM's outcome buttons only: not needed before the notice's first paint.
+const loadReminderResolution = lazyModule(() => import("./reminderResolution.js"));
 
 // The death save of the PC at 0 HP whose turn starts (deathSaveNoticeHost.js): its tally read live from the token,
 // the GM's four outcomes through the same reminder resolution as the other reminders, the same card without buttons
@@ -109,6 +111,7 @@ async function resolve(outcome) {
   for (const button of document.querySelectorAll("#outcomes button")) button.disabled = true;
   $("status").textContent = "Registrazione…";
   try {
+    const { resolveReminder } = await loadReminderResolution();
     const result = await resolveReminder({
       notice: {
         activationId,

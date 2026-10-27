@@ -28,7 +28,7 @@ import {
   resolveTurbineSaveChain,
   turbineSizeFromToken,
 } from "./xanatharTurbineCore.js";
-import { resolveReminder } from "./reminderResolution.js";
+import { lazyModule } from "./lazyModule.js";
 import { DEATH_SAVE_OUTCOME_LABELS, DEATH_SAVE_RESOLUTION_MODE } from "./deathSaveCore.js";
 import {
   createSpellAreaPlacementRequestId,
@@ -45,6 +45,8 @@ import { CUSTOM_AURA_META_KEY } from "./customAuraCore.js";
 import { perfBootPage } from "./perfProbe.js";
 
 perfBootPage(OBR);
+// The reminder's outcome buttons only: not needed before the notice's first paint.
+const loadReminderResolution = lazyModule(() => import("./reminderResolution.js"));
 
 const CHANNEL = ID + "/turn-notice";
 const READY_CHANNEL = CHANNEL + "/ready";
@@ -680,6 +682,7 @@ function buildBlinkReturnResolutionControls(line: HTMLElement, row: any, activat
       },
     };
     try {
+      const { resolveReminder } = await loadReminderResolution();
       const result = await resolveReminder({
         notice: {
           activationId,
@@ -868,6 +871,7 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     }
     resolutionStatusNode(line, "Risoluzione in corso…");
     try {
+      const { resolveReminder } = await loadReminderResolution();
       const result = await resolveReminder({
         notice: {
           activationId,

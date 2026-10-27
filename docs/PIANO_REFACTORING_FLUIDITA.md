@@ -8,6 +8,8 @@ Lotti fatti, tutti il 27/10:
 
 - **S1**: l'Event Hub riconosce un item identico dalla sua stringa JSON grezza e ne riusa le firme. Misurato su 92 item da 128 KB clonati come fa l'SDK: lo snapshot passa da 1,70 a 0,38 ms per evento in ogni iframe in ascolto, con firme identiche in tutti i record.
 
+- **F2**: le azioni degli avvisi si caricano al primo clic (`src/lazyModule.js`), con prefetch a pagina quieta. JS all'avvio, build di produzione: avviso di turno 1197 → 682 KB, tiro contro la morte 1157 → 408 KB, durata effetto 1092 → 402 KB, concentrazione 1159 → 84 KB.
+
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.
