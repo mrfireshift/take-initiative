@@ -1,6 +1,8 @@
 # Fluidità e prestazioni — refactoring senza cambi di funzionalità (piano)
 
-Stato: **fase 1 (misure e analisi) chiusa il 27/10/2026.** Le decisioni D1–D8 e l'ordine dei lotti sono stati approvati il 27/10, così come raccomandati. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
+Stato: **fase 1 (misure e analisi) chiusa il 27/10/2026.** Le decisioni D1–D8 e l'ordine dei lotti sono stati approvati il 27/10, così come raccomandati.
+
+Lotti fatti: **S2** (27/10). La Cronologia scritta dal background va al proprio owner senza passare da OBR. Il guadagno in millisecondi va misurato in stanza: `perf-harness` non passa da quel trasporto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
 
 Richiesta dell'utente: un ultimo passaggio di refactoring su Take Initiative, mentre la fase 2 del compendio porta i testi non SRD nei pacchetti privati. Lo scopo è migliorare responsività, fluidità, prestazioni e look and feel, con priorità a questi fattori. Non deve creare codice sporco e non deve cambiare le funzionalità.
 

@@ -13,6 +13,7 @@ function deferred() {
 }
 
 const HISTORY_KEY = "com.thebigpicture.initiative/history";
+const HISTORY_OWNER_COMMAND_CHANNEL = "com.thebigpicture.initiative/history-owner-command";
 const HISTORY_OWNER_RESULT_CHANNEL = "com.thebigpicture.initiative/history-owner-result";
 const listeners = new Set();
 const broadcastListeners = new Map();
@@ -79,6 +80,8 @@ const {
   requestHistoryOwnerAppend,
   unmountHistoryOwner,
 } = await import("../src/historyOwner.js");
+// A client in another page (a popup) has no owner of its own: its commands and the answers travel by broadcast.
+const clientRealm = await import("../src/historyOwner.js?client-realm");
 
 function prepareInitialRead() {
   pendingInitialRead = deferred();
@@ -244,7 +247,7 @@ test("una risposta con scene identity obsoleta viene rifiutata subito e non scad
 
   try {
     await assert.rejects(
-      requestHistoryOwnerAppend(entry("stale-response"), {
+      clientRealm.requestHistoryOwnerAppend(entry("stale-response"), {
         sceneEpoch: currentSceneEpoch(),
         sceneIdentity: first.identity,
         commandId: "history-owner-stale-response",
@@ -274,8 +277,10 @@ test("an entry over Owlbear's 16 kB broadcast limit reaches the owner of the sam
   const first = await mountReadyOwner();
   const originalSendMessage = sdkStub.broadcast.sendMessage;
   const refused = [];
+  const sent = [];
   // Owlbear refuses a broadcast over 16 kB, with an object and no message.
   sdkStub.broadcast.sendMessage = async (channel, data, options) => {
+    sent.push(channel);
     if (new TextEncoder().encode(JSON.stringify(data)).length > 16 * 1024) {
       refused.push(channel);
       throw { error: "message too large" };
@@ -296,10 +301,23 @@ test("an entry over Owlbear's 16 kB broadcast limit reaches the owner of the sam
     assert.deepEqual(refused, [], "no broadcast was even tried");
     const stored = await readHistoryValue();
     assert.ok(stored.entries.some((value) => value.id === "blinding-gleam"));
-    // A small entry still travels by broadcast, with its checks.
+    // A small entry from this page reaches the owner directly too: a broadcast to itself would wait behind the
+    // scene's item events. The owner still tells the other pages that the History changed.
+    sent.length = 0;
     assert.equal((await requestHistoryOwnerAppend(entry("small"), {
       sceneEpoch: currentSceneEpoch(), sceneIdentity: first.identity, commandId: "history-owner-small-entry",
     })).status, "appended");
+    assert.deepEqual(
+      sent.filter((channel) => channel === HISTORY_OWNER_COMMAND_CHANNEL || channel === HISTORY_OWNER_RESULT_CHANNEL),
+      [],
+      "no broadcast on the owner's channels",
+    );
+    assert.ok(sent.includes("com.thebigpicture.initiative/history-change"), "the change is still announced");
+    // A client in another page still sends by broadcast, with its checks.
+    assert.equal((await clientRealm.requestHistoryOwnerAppend(entry("small-popup"), {
+      sceneEpoch: currentSceneEpoch(), sceneIdentity: first.identity, commandId: "history-owner-popup-entry",
+    })).status, "appended");
+    assert.ok(sent.includes(HISTORY_OWNER_COMMAND_CHANNEL), "the popup's command went by broadcast");
   } finally {
     sdkStub.broadcast.sendMessage = originalSendMessage;
   }

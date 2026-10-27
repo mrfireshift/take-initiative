@@ -59,13 +59,6 @@ function normalizeOwnerHistory(value) {
   });
 }
 
-// Owlbear's broadcast limit (effectsMutationTransportCore.js), with room for the transport's own fields.
-const HISTORY_OWNER_BROADCAST_MAX_BYTES = 15 * 1024;
-
-function jsonBytes(value) {
-  try { return new TextEncoder().encode(JSON.stringify(value)).length; } catch { return Infinity; }
-}
-
 function errorDetails(error) {
   return {
     name: String(error?.name || "Error"),
@@ -286,6 +279,18 @@ function createOwnerBroker() {
   return ownerBroker;
 }
 
+// Perf probe only: one owner command, timed until its answer left by broadcast or reached a client of this page.
+function recordOwnerCommandProbe(command, startedAt, handledMs, result) {
+  if (!perfProbeEnabled()) return;
+  perfRecord("history-owner-command", {
+    kind: command.kind,
+    commandId: String(command.requestId),
+    status: result?.status || null,
+    handledMs,
+    totalMs: perfSince(startedAt),
+  });
+}
+
 function respondToOwnerCommand(requestId, result) {
   return OBR.broadcast.sendMessage(
     HISTORY_OWNER_RESULT_CHANNEL,
@@ -315,16 +320,7 @@ export async function mountHistoryOwner() {
           if (!data?.requestId || !["context", "append", "remove", "clear"].includes(data.kind)) return;
           const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
           let probeHandledMs = null;
-          const probeRecordResponse = (result) => {
-            if (!perfProbeEnabled()) return;
-            perfRecord("history-owner-command", {
-              kind: data.kind,
-              commandId: String(data.requestId),
-              status: result?.status || null,
-              handledMs: probeHandledMs,
-              totalMs: perfSince(probeStartedAt),
-            });
-          };
+          const probeRecordResponse = (result) => recordOwnerCommandProbe(data, probeStartedAt, probeHandledMs, result);
           void broker.handle(data).then((result) => {
             if (perfProbeEnabled()) probeHandledMs = perfSince(probeStartedAt);
             return respondToOwnerCommand(data.requestId, result).then(() => probeRecordResponse(result));
@@ -515,12 +511,13 @@ function sendOwnerRequest(payload, { sceneEpoch = currentSceneEpoch() } = {}) {
       entryId: payload.entry?.id || null,
     });
     const command = { ...payload, requestId };
-    // An Owlbear broadcast refuses messages over 16 kB: an entry with many effects on several targets (Blinding
-    // Gleam on four characters, about 90 kB) could never reach the owner, and its answer, which repeats the entry,
-    // could never come back. The owner of this very page (the GM background, where the Effects coordinator appends
-    // its History) takes it directly; its answer goes through the same checks as a broadcast one.
-    if (ownerBroker && ownerCommandUnsubscribe && jsonBytes(command) > HISTORY_OWNER_BROADCAST_MAX_BYTES) {
+    // The owner of this very page (the GM background, where the Effects coordinator and its recovery append their
+    // History) takes every command directly. A broadcast to itself waits behind the scene's item events (433–777 ms
+    // per turn tick in the 24/10 room runs), and one over Owlbear's 16 kB limit (Blinding Gleam on four characters,
+    // about 90 kB) could not travel at all. The answer goes through the same checks as a broadcast one.
+    if (ownerBroker && ownerCommandUnsubscribe) {
       const broker = ownerBroker;
+      const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
       void broker.handle(clone(command))
         .catch((error) => ({
           requestId,
@@ -530,7 +527,10 @@ function sendOwnerRequest(payload, { sceneEpoch = currentSceneEpoch() } = {}) {
           changed: false,
           error: errorDetails(error),
         }))
-        .then((result) => receiveOwnerResult({ requestId, result }));
+        .then((result) => {
+          recordOwnerCommandProbe(command, probeStartedAt, perfProbeEnabled() ? perfSince(probeStartedAt) : null, result);
+          receiveOwnerResult({ requestId, result });
+        });
       return;
     }
     void OBR.broadcast.sendMessage(
