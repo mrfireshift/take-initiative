@@ -6535,7 +6535,17 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
       card.__selectionItemIds?.includes(String(itemId)));
 
   if (!IS_GM && cards.some((card) => (card.__hpMode || "hidden") !== "exact")) {
-    void renderAll("hp-projection");
+    // Only this creature's cards are rebuilt, and renderTrack projects their HP again with the options' view; the
+    // request merges with the item event's own. A card that cannot be rebuilt alone falls back to the full render.
+    void __requestIncrementalTrackerItems(
+      { sceneEpoch: currentSceneEpoch(), revision: __latestSceneItemEventRevision },
+      { mode: "cards", itemIds: [String(itemId)] },
+      "hp-projection",
+    ).then((scheduled) => (scheduled ? null : renderAll("hp-projection")))
+      .catch((error) => {
+        console.warn("[initiative] hp projection render:", error?.message || error);
+        return renderAll("hp-projection");
+      });
     return;
   }
 
