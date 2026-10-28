@@ -1798,8 +1798,17 @@ async function buildPlan(command, runtime) {
   const breaksExistingConcentration = effectOperations.some((operation) => (
     operation?.type === "concentration:break"
   ));
+  // concentration:break comes with every concentration cast, also when the caster holds nothing: it ends the zones
+  // and the board tokens of the spell the caster concentrates on, never those it keeps without concentration
+  // (Guardian of Faith, Grease, a Glyph, Spiritual Weapon).
+  const concentratedInstanceIds = new Set(Object.values(itemMeta(caster)[CONCENTRATION_KEY] || {})
+    .map((entry) => text(entry?.instanceId))
+    .filter(Boolean));
+  const heldByConcentration = (metadataKey) => (item) => (
+    concentratedInstanceIds.has(text(item?.metadata?.[metadataKey]?.instanceId))
+  );
   const previousBoardTokenItems = breaksExistingConcentration
-    ? await runtime.getBoardTokenItems({ casterId })
+    ? (await runtime.getBoardTokenItems({ casterId })).filter(heldByConcentration(SPELL_BOARD_TOKEN_META_KEY))
     : boardToken
       ? await runtime.getBoardTokenItems({ instanceId: spellInstanceId })
       : [];
@@ -1854,7 +1863,7 @@ async function buildPlan(command, runtime) {
   const previousStaticZoneItems = terminalResolutionRequest
     ? await runtime.getStaticZoneItems({ instanceId: spellInstanceId })
     : breaksExistingConcentration
-    ? await runtime.getStaticZoneItems({ casterId })
+    ? (await runtime.getStaticZoneItems({ casterId })).filter(heldByConcentration(SPELL_STATIC_ZONE_META_KEY))
     : (committedStaticZonePlacement || cloudPlacement)
       ? await runtime.getStaticZoneItems({ instanceId: spellInstanceId })
       : [];
@@ -1986,6 +1995,20 @@ async function buildPlan(command, runtime) {
     type: "spell-board-token:remove",
     itemId,
   })));
+  // Mano arcana at 0 HP: its spell ends with the caster's concentration, as with an HP write (the coordinator's
+  // planZeroHpSpellBoardToken), not only its token.
+  for (const entry of entries) {
+    if (!zeroHPBoardTokenIds.includes(entry.item.id)) continue;
+    const boardTokenMeta = entry.item.metadata?.[SPELL_BOARD_TOKEN_META_KEY];
+    const handCasterId = text(boardTokenMeta?.casterId);
+    const handInstanceId = text(boardTokenMeta?.instanceId);
+    if (text(boardTokenMeta?.spellId) !== "arcane-hand" || !handCasterId || !handInstanceId) continue;
+    effectOperations.push(
+      { type: "concentration:break", casterIds: [handCasterId], reference: handInstanceId },
+      { type: "spell:remove-instance", targetIds: [handCasterId], instanceId: handInstanceId },
+    );
+    effectSubjectIds.push(handCasterId);
+  }
   const requestedZoneTrigger = trigger ? (rawTrigger || trigger) : null;
   const triggerRootItems = requestedZoneTrigger
     ? await runtime.zoneTriggerRootItems(requestedZoneTrigger, runtime)

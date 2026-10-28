@@ -22,6 +22,10 @@ Lotti fatti:
   - Il × sulla pill di un bersaglio toglie l'incantesimo e i suoi effetti solo a quel bersaglio. Gli effetti sugli altri token finiscono solo quando l'incantesimo non è più su nessuno (`spellsNoLongerHeld` in `effectsMutationCore.js`, per `spell:remove-instance` e `spell:remove-name-source`).
   - Nel pannello Incantesimi un secondo clic, mentre il lancio legge scena, concentrazione e slot, non lancia più una seconda volta (`commitPreparing`, per `commit` e `commitArea`).
   - Lo fissano `test/spellRemoveOneTarget.test.js` (Suggestione di massa; l'ultimo bersaglio pulisce ancora ovunque) e un test del controller del pannello. Entrambi falliscono senza la patch. Il doppio clic dopo il piazzamento di un'area (Palla di fuoco) è verificato con la riproduzione dell'analisi.
+- **L24** (28/10): console ad area, zone del caster e Mano arcana (MP-01, MP-05).
+  - Un incantesimo a concentrazione toglie prima del commit solo le zone e le pedine dell'incantesimo su cui il caster si concentra (per `instanceId`), non quelle senza concentrazione: Guardiano della fede, Unto, un Glifo, Arma spirituale.
+  - La Mano arcana portata a 0 PF da un'area chiude anche incantesimo e concentrazione, come già con una scrittura dei PF.
+  - Lo fissa `test/spellAreaConcentrationZones.test.js`, con tre casi: Unto più Anatema; Ragnatela, la cui zona finisce ancora; la Mano. I due bug falliscono senza la patch.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 
