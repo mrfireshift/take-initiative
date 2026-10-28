@@ -219,6 +219,8 @@ async function writeMetadataKey(
     logger = console,
     // Room only: no write when the value to persist equals the stored one (a read-through that changes nothing).
     skipUnchanged = false,
+    // Room only: the room metadata the caller has just read, so the budget plan does not read them again.
+    metadataSnapshot: providedMetadataSnapshot = null,
   } = {},
 ) {
   const domain = String(contract?.domain || "unknown-domain");
@@ -242,8 +244,9 @@ async function writeMetadataKey(
   let probeWriteStartedAt = 0;
   try {
     let valueToWrite = value;
-    if (scope === "room" && typeof api.getMetadata === "function") {
-      metadataSnapshot = await api.getMetadata();
+    const snapshotProvided = !!providedMetadataSnapshot && typeof providedMetadataSnapshot === "object";
+    if (scope === "room" && (snapshotProvided || typeof api.getMetadata === "function")) {
+      metadataSnapshot = snapshotProvided ? providedMetadataSnapshot : await api.getMetadata();
       roomPlan = planRoomMetadataWrite(
         metadataSnapshot,
         key,

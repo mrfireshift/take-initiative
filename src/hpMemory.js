@@ -156,7 +156,8 @@ async function writeRoomHPMap(
   if (!isCurrent(sceneEpoch)) return {};
   const write = async () => {
     if (!isCurrent(sceneEpoch)) return {};
-    const md = await OBR.room.getMetadata().catch(() => ({}));
+    // A failed read gives no snapshot: the writer then reads the room for its budget, as before.
+    const md = await OBR.room.getMetadata().catch(() => null);
     if (!isCurrent(sceneEpoch)) return {};
     const prev = mergeHPMaps(readLocalHPMap(), md?.[ROOM_HP_KEY]);
     const next = (typeof updater === "function") ? updater({ ...prev }) : { ...prev, ...(updater || {}) };
@@ -175,6 +176,7 @@ async function writeRoomHPMap(
         normalizedNext,
         {
           runtime: "hpMemory",
+          metadataSnapshot: md,
           roomBudget: {
             domainMaxBytes: ROOM_HP_MAX_BYTES,
             retain: retainHPMapWithinByteBudget,

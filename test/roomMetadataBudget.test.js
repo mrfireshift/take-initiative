@@ -318,6 +318,28 @@ test("ROOM-BUDGET: una write potata emette una sola diagnostica senza contenuto 
   assert.doesNotMatch(JSON.stringify(warnings), /actor-259/);
 });
 
+test("ROOM-BUDGET: la lettura appena fatta dal chiamante sostituisce quella del writer, con lo stesso budget", async () => {
+  const metadata = {
+    [KEYS.actorVitals]: actorVitalsFixture(260),
+    [KEYS.hpMemory]: retainHPMapWithinByteBudget(hpMemoryFixture(70)),
+  };
+  let reads = 0;
+  const written = [];
+  const api = {
+    async getMetadata() { reads += 1; return structuredClone(metadata); },
+    async setMetadata(update) { written.push(structuredClone(update)); Object.assign(metadata, structuredClone(update)); },
+  };
+  const options = { runtime: "budget-snapshot-test", roomBudget: { retain: retainActorVitalsRegistryWithinByteBudget }, logger: { warn() {} } };
+
+  await writeRoomMetadataKey(api, METADATA_OWNERSHIP.ACTOR_VITALS, actorVitalsFixture(260), options);
+  assert.equal(reads, 1, "without a snapshot the writer reads the room");
+  await writeRoomMetadataKey(api, METADATA_OWNERSHIP.ACTOR_VITALS, actorVitalsFixture(260), {
+    ...options, metadataSnapshot: structuredClone(metadata),
+  });
+  assert.equal(reads, 1, "with the caller's snapshot it does not read again");
+  assert.deepEqual(written[1], written[0], "the same value is persisted, pruned to the same budget");
+});
+
 test("ROOM-BUDGET-I: scritture ripetute tra cache diverse convergono senza oscillazione", () => {
   let metadata = {};
   const writes = [

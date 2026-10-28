@@ -260,7 +260,9 @@ export function createActorVitalsStore({
     const write = async () => {
       if (!canWrite() || stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
       const local = getLocal();
-      const metadata = await api?.getMetadata?.().catch?.(() => ({})) || {};
+      // A failed read gives no snapshot: the writer then reads the room for its budget, as before.
+      const roomSnapshot = await api?.getMetadata?.().catch?.(() => null) || null;
+      const metadata = roomSnapshot || {};
       if (!canWrite() || stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
       const previous = mergeActorVitalsRegistries(local, metadata?.[roomKey]);
       const next = normalizeActorVitalsRegistry(
@@ -281,6 +283,7 @@ export function createActorVitalsStore({
           next,
           {
             runtime: "actorVitalsStore",
+            metadataSnapshot: roomSnapshot,
             roomBudget: {
               domainMaxBytes: roomMaxBytes,
               retain: retainActorVitalsRegistryWithinByteBudget,
