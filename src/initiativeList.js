@@ -4162,15 +4162,23 @@ async function buildBiasedBBox(bounds, gridDpi, gridSpan = FOCUS_GRID_SPAN, minP
 async function centerOnItem(itemId, expectedNavigationRevision = null, sceneEpoch = currentSceneEpoch()) {
   if (!itemId || !__isCurrentSceneOperation(sceneEpoch, "viewport-focus")) return false;
   try {
-    const items = await OBR.scene.items.getItems([itemId]);
+    // A complete Event Hub snapshot already says whether the token exists; otherwise it is read as before.
+    const snapshot = readSceneItemsSnapshot(sceneEpoch);
+    const exists = snapshot.complete
+      ? snapshot.items.some((item) => item?.id === itemId)
+      : ((await OBR.scene.items.getItems([itemId])) || []).length > 0;
     if (!__isCurrentSceneOperation(sceneEpoch, "viewport-focus")) return false;
-    if (!items || items.length === 0) return false;
+    if (!exists) return false;
 
-    const [raw, gridDpi] = await Promise.all([
+    // The grid DPI is the scene's, cached with the active-turn label's and cleared when the grid changes.
+    const cachedDpi = __activeTurnLabelDpi;
+    const [raw, readDpi] = await Promise.all([
       OBR.scene.items.getItemBounds([itemId]),
-      OBR.scene.grid.getDpi().catch(() => FOCUS_FALLBACK_DPI),
+      cachedDpi ?? OBR.scene.grid.getDpi().catch(() => null),
     ]);
     if (!__isCurrentSceneOperation(sceneEpoch, "viewport-focus")) return false;
+    if (cachedDpi == null && Number(readDpi) > 0) __activeTurnLabelDpi = readDpi;
+    const gridDpi = readDpi ?? FOCUS_FALLBACK_DPI;
     if (!raw) return false;
 
     const biased = await buildBiasedBBox(raw, gridDpi);
@@ -10798,7 +10806,19 @@ async function __renderIncrementalTrackerItemIdsFromScene(
 ) {
   const ids = Array.from(new Set((itemIds || []).filter(Boolean)));
   if (!ids.length) return true;
-  const items = await OBR.scene.items.getItems(ids);
+  // The full render's rule: the Event Hub snapshot holds these items when it is complete and at least as recent as
+  // the request; otherwise they are read from the scene as before.
+  const itemRead = await readFullRenderItemSnapshot({
+    snapshot: readSceneItemsSnapshot(sceneEpoch),
+    sceneEpoch,
+    sourceRevision: schedulerRequest?.sourceRevision,
+    sourceGeneration: schedulerRequest?.sourceGeneration,
+    readItems: () => OBR.scene.items.getItems(ids),
+  });
+  const wantedIds = new Set(ids);
+  const items = itemRead.reused
+    ? itemRead.items.filter((item) => wantedIds.has(item?.id))
+    : itemRead.items;
   if (!__isCurrentSceneOperation(sceneEpoch, "incremental-render-read", { reason })) return false;
   if (items.length !== ids.length) return false;
   return __renderIncrementalTrackerItems(
@@ -11544,6 +11564,11 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
     console.warn("[initiative] auto-collapse on turn change:", e?.message || e);
   }
 }
+
+// A grid change (its DPI included) clears the cached DPI of the active-turn label and of the viewport focus.
+OBR.scene.grid.onChange(() => {
+  __activeTurnLabelDpi = null;
+});
 
 OBR.scene.onMetadataChange((meta) => {
   const sceneEpoch = currentSceneEpoch();

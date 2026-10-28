@@ -61,6 +61,8 @@ Lotti fatti, tutti il 27/10:
 
 - **T5**: una card tenuta perché il suo contenuto non cambia conserva l'altezza già misurata per le chip, se altezza base, posizione delle chip e larghezza sono le stesse; altrimenti la rimisura come prima. La passata prima del disegno misura ancora tutte le card. Nel banco (vista classica, 10 card): da 18 a 9 letture di `offsetHeight` per turno, da 52 a 26 al cambio di round; una misura da zero dopo ogni turno non cambia nessuna altezza.
 
+- **T7**: il render di singole card prende i token dallo snapshot dell'Event Hub con la regola del render completo (completo, stessa scena, revisione almeno pari alla richiesta), altrimenti li legge come prima. La messa a fuoco controlla dallo snapshot che il token esista e usa la DPI in cache per scena, la stessa dell'etichetta del turno; un cambio di griglia ora svuota quella cache, anche per l'etichetta. Nel banco: una modifica dei PF passa da 1 lettura di token a 0; tre turni da 2 letture di token e 1 della DPI a 0. Il valore dei PF nella card resta quello del token.
+
 Lotto saltato: **V4** (tipografia), per scelta dell'utente il 28/10: le dimensioni attuali dei testi vanno bene al tavolo. Il commit `7e480cc` è stato annullato da `d87abd1`.
 
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.
