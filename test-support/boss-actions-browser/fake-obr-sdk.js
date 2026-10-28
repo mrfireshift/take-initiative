@@ -116,13 +116,28 @@ function facade(target) {
 }
 export const fakeHost = host;
 export default (window === top ? host.sdk : facade(host.sdk));
-// Every setter is recorded on the item (id, layer, position, metadata, …); the first argument of buildImage is
-// its image and the second its grid.
-const builder = (image, grid) => {
-  const item = { id: "built-" + Math.random().toString(36).slice(2), metadata: {}, ...(image ? { type: "IMAGE", image, grid } : {}) };
-  const b = new Proxy({}, { get: (t, k) => (k === "build" ? () => item : (value) => { item[k] = value; return b; }) });
+// Every setter is recorded on the item as the SDK's builders lay it out: each builder gives its type, the style
+// setters go to style (to text.style for a text or a label), the text setters to text, anything else (id, layer,
+// position, metadata, …) on the item itself. The first argument of buildImage is its image and the second its grid.
+const STYLE_SETTERS = new Set(["fillColor", "fillOpacity", "strokeColor", "strokeOpacity", "strokeWidth", "strokeDash",
+  "fontFamily", "fontSize", "fontWeight", "textAlign", "textAlignVertical", "lineHeight", "padding",
+  "backgroundColor", "backgroundOpacity", "cornerRadius", "pointerDirection", "pointerWidth", "pointerHeight", "maxViewScale", "minViewScale"]);
+const TEXT_SETTERS = { plainText: "plainText", richText: "richText", textType: "type" };
+const builder = (type) => (image, grid) => {
+  const textual = type === "TEXT" || type === "LABEL";
+  const item = { id: "built-" + Math.random().toString(36).slice(2), type, metadata: {},
+    ...(type === "IMAGE" ? { image, grid } : {}),
+    ...(textual ? { text: { type: "PLAIN", plainText: "", style: {} } } : { style: {} }) };
+  const b = new Proxy({}, { get: (t, k) => (k === "build" ? () => item : (value) => {
+    if (textual && TEXT_SETTERS[k]) item.text[TEXT_SETTERS[k]] = value;
+    else if (textual && (k === "width" || k === "height")) item.text[k] = value;
+    else if (STYLE_SETTERS.has(k) && type !== "IMAGE") (textual ? item.text.style : item.style)[k] = value;
+    else item[k] = value;
+    return b;
+  }) });
   return b;
 };
-export const buildLabel = builder, buildImage = builder, buildText = builder, buildPath = builder, buildShape = builder;
+export const buildLabel = builder("LABEL"), buildImage = builder("IMAGE"), buildText = builder("TEXT"),
+  buildPath = builder("PATH"), buildShape = builder("SHAPE");
 export class Command {}
 export const typeTheme = {};
