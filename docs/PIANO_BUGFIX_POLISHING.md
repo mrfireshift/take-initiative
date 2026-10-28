@@ -57,6 +57,12 @@ Lotti fatti:
   - Lo schermo del tavolo segue di nuovo la selezione del GM dopo che il GM ricarica OBR: la revisione si azzera quando cambia la pagina del GM.
   - Le etichette della quota le scrive solo il GM; il GM toglie la seconda etichetta di uno stesso token.
   - Test: `syncOpenTableReload`, `effectsSelectionFollow` ed `elevationLabelRoles`, che falliscono senza la patch.
+- **L8** (28/10): concentrazione e morte (AV-03, AV-06), con la decisione D4.
+  - Una creatura portata a 0 PF perde la concentrazione: un PG (anche ucciso sul colpo, con «Morto») e un mostro. Vale per le scritture dei PF dal coordinatore (`planZeroHpConcentrationBreak` in `effectsMutations.js`) e per la console ad area, che scrive i PF da sé. Con la concentrazione finiscono zone e aure collegate.
+  - A 0 PF non parte l'avviso del TS di concentrazione.
+  - La console ad area rilegge i token dopo il commit per gli avvisi di concentrazione.
+  - Test: mostro e PG concentrati portati a 0 PF dall'area, scrittura `hp:set` a 0 PF, nessun avviso a 0 PF. Tutti falliscono senza la patch.
+  - Un test esistente (30 danni → CD 15) ora usa un bersaglio a 40 PF, perché a 0 PF l'avviso non c'è più per scelta.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

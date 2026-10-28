@@ -884,6 +884,15 @@ function planZeroHpSpellBoardToken(item, metadata, hpOperations, zeroHpBoardToke
   );
 }
 
+// A creature brought to 0 HP loses its concentration (decision D4 of the bugfix pass): a character falls unconscious
+// or dies, a monster dies. Privo di sensi breaks it too, but only for a character, and Morto never did.
+function planZeroHpConcentrationBreak(item, beforeHP, afterHP, hpOperations) {
+  const concentration = item?.metadata?.[META_KEY]?.[CONC_META_KEY];
+  if (!(Number(beforeHP) > 0) || !(Number(afterHP) <= 0)) return;
+  if (!concentration || typeof concentration !== "object" || !Object.keys(concentration).length) return;
+  hpOperations.push({ type: "concentration:break", casterIds: [item.id] });
+}
+
 function sceneItemMetadataSnapshot(item, field) {
   return metadataFieldSnapshot(item?.metadata || {}, field);
 }
@@ -1290,6 +1299,7 @@ export async function prepareEffectsMutation(operations = [], {
           .map((instanceId) => ({ itemId: item.id, instanceId }));
         if (removals.length) hpOperations.push({ type: "condition:remove-instances", removals });
       }
+      if (!boardToken) planZeroHpConcentrationBreak(item, meta.hp, update.hp, hpOperations);
       item.metadata[META_KEY] = { ...meta, hp: update.hp, hpMax: update.hpMax };
       if (!boardToken) hpOperations.push({ type: "condition:reconcile-zero-hp", targetIds: [item.id] });
     }
@@ -1309,6 +1319,7 @@ export async function prepareEffectsMutation(operations = [], {
     const deathSaveFields = planDeathSaveHpWrite(item, { hp, hpMax, hpIntent: patch.hpIntent, hpIntents: patch.hpIntents },
       hpOperations, instantDeathIds);
     if (Object.keys(deathSaveFields).length) hpPatches.push({ id: patch.id, fields: deathSaveFields });
+    planZeroHpConcentrationBreak(item, meta.hp, hp, hpOperations);
   }
   // Instant death: Morto, not Privo di sensi (neither the coordinator's nor one a writer adds with its HP, as a
   // reminder's damage does).

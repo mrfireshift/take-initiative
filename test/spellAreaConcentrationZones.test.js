@@ -321,3 +321,56 @@ test("L24: la Mano arcana portata a 0 PF da un'area chiude incantesimo e concent
   assert.deepEqual(meta(CASTER)[SPELLS_KEY] || [], []);
   assert.deepEqual(Object.keys(meta(CASTER)[CONCENTRATION_KEY] || {}), []);
 });
+
+// Lot L8 of the bugfix pass (AV-03, decision D4): a creature brought to 0 HP loses its concentration. Privo di sensi
+// broke it only for a character; a monster at 0 HP kept concentrating, and Morto (instant death) never broke it.
+test("L8: un mostro concentrato portato a 0 PF perde la concentrazione", async () => {
+  const bane = { spellId: "bane", instanceId: "bane-1", casterId: "cleric", name: "Anatema", conc: true, turns: 10 };
+  await resetScene([
+    token(CASTER, 30, 30, { attitude: "pc" }),
+    token("cleric", 8, 30, {
+      attitude: "enemy",
+      [SPELLS_KEY]: [bane],
+      [CONCENTRATION_KEY]: { anatema: { ...bane, targets: ["cleric"] } },
+    }),
+  ]);
+  await cast("blight", 4, "cleric", { outcome: "failed", amount: 20 });
+  assert.equal(meta("cleric").hp, 0);
+  assert.deepEqual(Object.keys(meta("cleric")[CONCENTRATION_KEY] || {}), []);
+  assert.deepEqual(meta("cleric")[SPELLS_KEY] || [], []);
+});
+
+test("L8: un PG concentrato ucciso sul colpo (danno massiccio) perde la concentrazione", async () => {
+  const bless = { spellId: "bless", instanceId: "bless-1", casterId: "aria", name: "Benedizione", conc: true, turns: 10 };
+  await resetScene([
+    token(CASTER, 30, 30, { attitude: "pc" }),
+    token("aria", 12, 20, {
+      attitude: "pc",
+      [SPELLS_KEY]: [bless],
+      [CONCENTRATION_KEY]: { benedizione: { ...bless, targets: ["aria"] } },
+    }),
+  ]);
+  await cast("blight", 8, "aria", { outcome: "failed", amount: 35 });
+  assert.equal(meta("aria").hp, 0);
+  assert.ok(pills("aria").includes("Morto"), JSON.stringify(pills("aria")));
+  assert.deepEqual(Object.keys(meta("aria")[CONCENTRATION_KEY] || {}), []);
+});
+
+test("L8: anche una scrittura dei PF dal coordinatore (console PF, console Boss) a 0 PF rompe la concentrazione", async () => {
+  const bane = { spellId: "bane", instanceId: "bane-2", casterId: "cleric", name: "Anatema", conc: true, turns: 10 };
+  await resetScene([
+    token(CASTER, 30, 30, { attitude: "pc" }),
+    token("cleric", 8, 30, {
+      attitude: "enemy",
+      [SPELLS_KEY]: [bane],
+      [CONCENTRATION_KEY]: { anatema: { ...bane, targets: ["cleric"] } },
+    }),
+  ]);
+  const result = await clientEffects.runEffectsMutation([{
+    type: "hp:set", updates: [{ itemId: "cleric", hp: 0, hpMax: 30 }],
+  }], { kind: "hp", label: "Danno", targetIds: ["cleric"], history: false });
+  assert.equal(result.status, "applied", JSON.stringify(result));
+  await convergeDeferredEffectsHistory();
+  assert.equal(meta("cleric").hp, 0);
+  assert.deepEqual(Object.keys(meta("cleric")[CONCENTRATION_KEY] || {}), []);
+});

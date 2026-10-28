@@ -123,3 +123,19 @@ test("Fallito non interrompe una concentrazione sostituita dopo il danno", () =>
   assert.equal(failed.status, "stale");
   assert.deepEqual(failed.operations, undefined);
 });
+
+// Lot L8 of the bugfix pass (decision D4): at 0 HP there is no concentration save.
+test("L8: nessun avviso di concentrazione per una creatura a 0 PF", async () => {
+  const { concentrationSaveWarningsForItems } = await import("../src/concentrationSaveReminderCore.js");
+  const META_KEY = "com.thebigpicture.initiative/meta";
+  const CONC_KEY = "com.thebigpicture.initiative/concentration";
+  const caster = (id, hp) => ({ id, name: id, metadata: { [META_KEY]: {
+    hp, hpMax: 30, attitude: "enemy", [CONC_KEY]: { anatema: { name: "Anatema", instanceId: `bane-${id}` } },
+  } } });
+  const warnings = concentrationSaveWarningsForItems({
+    items: [caster("down", 0), caster("standing", 4)],
+    changes: [{ itemId: "down", damage: 12 }, { itemId: "standing", damage: 12 }],
+    eventId: "l8",
+  });
+  assert.deepEqual(warnings.map((warning) => warning.name), ["standing"]);
+});

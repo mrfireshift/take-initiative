@@ -788,7 +788,6 @@ let areaConcentrationWarningSequence = 0;
 async function defaultConcentrationWarnings(entries = [], _plan = {}, { sceneEpoch, causeHistoryEntryId = "" } = {}) {
   const damaged = (Array.isArray(entries) ? entries : [])
     .filter((entry) => entry?.item?.id && entry.change?.mode === QUICK_HP_MODES.DAMAGE);
-  const items = damaged.map((entry) => entry.item);
   const baseEventId = `area-${Date.now()}-${++areaConcentrationWarningSequence}`;
   const waves = [];
   const darts = Math.max(0, ...damaged.map((entry) => entry.change.magicMissile?.darts || 0));
@@ -801,8 +800,9 @@ async function defaultConcentrationWarnings(entries = [], _plan = {}, { sceneEpo
     .map((entry) => ({ itemId: entry.item.id, damage: entry.change.requested }));
   if (whole.length) waves.unshift(whole);
   for (const [index, changes] of waves.entries()) {
+    // The tokens as the commit left them, read again: a concentration the hit already ended (0 HP, Privo di
+    // sensi) asks for no save.
     await broadcastConcentrationSaveWarnings(changes, {
-      items,
       sceneEpoch,
       causeHistoryEntryId,
       eventId: `${baseEventId}:${index + 1}`,
@@ -2008,6 +2008,16 @@ async function buildPlan(command, runtime) {
       { type: "spell:remove-instance", targetIds: [handCasterId], instanceId: handInstanceId },
     );
     effectSubjectIds.push(handCasterId);
+  }
+  // A creature the area brings to 0 HP loses its concentration (decision D4 of the bugfix pass), as with an HP write
+  // through the coordinator: Privo di sensi broke it only for a character, and Morto never did.
+  for (const entry of entries) {
+    if (zeroHPBoardTokenIds.includes(entry.item.id)) continue;
+    if (!(Number(entry.change?.hp) > 0) || !(Number(entry.change?.afterHP) <= 0)) continue;
+    const concentration = itemMeta(entry.item)[CONCENTRATION_KEY];
+    if (!concentration || typeof concentration !== "object" || !Object.keys(concentration).length) continue;
+    effectOperations.push({ type: "concentration:break", casterIds: [entry.item.id] });
+    effectSubjectIds.push(entry.item.id);
   }
   const requestedZoneTrigger = trigger ? (rawTrigger || trigger) : null;
   const triggerRootItems = requestedZoneTrigger

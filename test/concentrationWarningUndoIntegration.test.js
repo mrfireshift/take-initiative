@@ -454,8 +454,9 @@ for (const [damage, expectedDc] of [[8, 10], [30, 15]]) {
     });
     try {
       if (damage === 30) {
-        sceneState.items[0].metadata[META_KEY].hp = 30;
-        sceneState.items[0].metadata[META_KEY].hpMax = 30;
+        // Still standing after the hit: at 0 HP the concentration ends with no save (decision D4 of the bugfix pass).
+        sceneState.items[0].metadata[META_KEY].hp = 40;
+        sceneState.items[0].metadata[META_KEY].hpMax = 40;
       }
       const result = await reminderResolution.resolveReminder({
         notice: damageReminderNotice(),

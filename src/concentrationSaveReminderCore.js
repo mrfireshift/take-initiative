@@ -128,6 +128,8 @@ export function concentrationSaveWarningsForItems({
     const damage = damageById.get(text(item?.id)) || 0;
     if (damage <= 0) continue;
     const meta = item?.metadata?.[META_KEY] || {};
+    // At 0 HP there is no save: the concentration ends with the creature's fall (decision D4 of the bugfix pass).
+    if (Number(meta.hpMax) > 0 && Number(meta.hp) <= 0) continue;
     const warning = buildConcentrationSaveWarning({
       casterId: item.id,
       casterName: item.name || "Token",
