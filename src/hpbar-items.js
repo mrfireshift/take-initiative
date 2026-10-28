@@ -311,6 +311,36 @@ async function computeBarLayout(tokenId, tokenSnapshot = null){
   return { barW, barH, leftX, topY, tokenZ };
 }
 
+// Whether the flush's update would change this bar or label: the same fields, with the same rules, as its updater.
+// An item already in that state stays out of the write, which would otherwise reach every client as a change.
+function hpBarUpdateChangesItem(it, u) {
+  if (it.locked !== true || it.disableHit !== true) return true;
+  if (u.position && (it.position?.x !== u.position.x || it.position?.y !== u.position.y)) return true;
+  if (u.zIndex !== undefined && it.zIndex !== u.zIndex) return true;
+  if (u.visible !== undefined && it.visible !== !!u.visible) return true;
+  if (u.plainText !== undefined && (it.text?.type !== "PLAIN" || it.text?.plainText !== u.plainText)) return true;
+  if (!it.text) {
+    if (u.width !== undefined && it.width !== u.width) return true;
+    if (u.height !== undefined && it.height !== u.height) return true;
+    if (!u.fillColor && u.fillOpacity === undefined) return false;
+    const style = it.style || {};
+    return (!!u.fillColor && style.fillColor !== u.fillColor)
+      || (u.fillOpacity !== undefined && style.fillOpacity !== u.fillOpacity)
+      || (u.strokeColor !== undefined && style.strokeColor !== u.strokeColor)
+      || (u.strokeWidth !== undefined && style.strokeWidth !== u.strokeWidth);
+  }
+  const style = it.text.style || {};
+  return (u.fontFamily !== undefined && style.fontFamily !== u.fontFamily)
+    || (u.fontSize !== undefined && style.fontSize !== u.fontSize)
+    || (u.fontWeight !== undefined && style.fontWeight !== u.fontWeight)
+    || style.lineHeight !== 1
+    || style.textAlign !== "CENTER"
+    || style.textAlignVertical !== "MIDDLE"
+    || (u.fillColor !== undefined && style.fillColor !== u.fillColor)
+    || (u.strokeColor !== undefined && style.strokeColor !== u.strokeColor)
+    || (u.strokeWidth !== undefined && style.strokeWidth !== u.strokeWidth);
+}
+
 /* ========= Creazione & ricerca shape ========= */
 
 function hpBarIdentity(tokenId, kind) {
@@ -574,7 +604,13 @@ async function flushQueued(){
         const finalItems = current.filter((item, index, list) => (
           finalIdSet.has(item?.id) && list.findIndex((other) => other?.id === item.id) === index
         ));
-        await OBR.scene.items.updateItems(finalItems, (items) => {
+        // Only the items whose values differ are written; with none, there is nothing to send. The others are
+        // already as wanted, so they count as updated for the cache below.
+        const changedItems = finalItems.filter((item) => {
+          const update = updatesById.get(item.id);
+          return !!update && hpBarUpdateChangesItem(item, update);
+        });
+        if (changedItems.length) await OBR.scene.items.updateItems(changedItems, (items) => {
           for (const it of items) {
             const u = updatesById.get(it.id);
             if (!u) { continue; }
@@ -1022,7 +1058,11 @@ export async function syncHPTextBatchNow(updates = []) {
   for (const item of sceneItems) {
     const targetId = item.metadata?.[HPTEXT_META_FLAG]?.targetId;
     if (!valuesByToken.has(targetId)) continue;
-    textIds.push(item.id);
+    // A label that already shows this value is not written again.
+    const value = valuesByToken.get(targetId);
+    if (item.text?.type !== "PLAIN" || item.text?.plainText !== hpTextValue(value.hp, value.hpMax)) {
+      textIds.push(item.id);
+    }
     foundTargets.add(targetId);
     textCountsByTarget.set(targetId, (textCountsByTarget.get(targetId) || 0) + 1);
     rememberHPTextRef(targetId, item.id);
