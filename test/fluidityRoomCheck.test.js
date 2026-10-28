@@ -34,6 +34,8 @@ test("the map widgets check counts, text and fill width", () => {
 test("notice names, order and the table screen's log", () => {
   assert.equal(noticeNamesActor("Turno di Goblin A", "Goblin A"), true);
   assert.equal(noticeNamesActor("Turno di Mira", "Goblin A"), false);
+  assert.equal(noticeNamesActor("Turno di Berserker", "(1) Berserker"), true, "the tracker's \"(1) \" prefix is ignored");
+  assert.equal(noticeNamesActor("Turno di (2) Berserker", "(2) Berserker"), true);
   assert.deepEqual(evaluateNoticeOrder([{ noticeId: 3 }, { noticeId: 5 }, { noticeId: 4 }]).outOfOrder, 1);
   assert.equal(evaluateNoticeOrder([{ noticeId: 3 }, { noticeId: 5 }], 5).ok, true);
   const samples = [0, 1000, 2000, 3000].map((at) => ({ at, activeName: "Mira", noticeTitle: "Turno di Goblin" }));
@@ -63,7 +65,11 @@ function fakeRoom() {
   const uiListeners = [];
   let noticeId = 0;
   const noticeTitle = fakeElement();
-  const noticeDocument = { querySelectorAll: (selector) => (selector === ".notice" && noticeTitle.textContent ? [fakeElement({ children: { ".title": noticeTitle } })] : []) };
+  // A save reminder panel after the turn's one, with the same class, as on a turn with effects.
+  const reminderTitle = fakeElement({ textContent: "Tiro salvezza su Saggezza" });
+  const noticeDocument = { querySelectorAll: (selector) => (selector === ".notice" && noticeTitle.textContent
+    ? [fakeElement({ children: { ".title": noticeTitle } }), fakeElement({ children: { ".title": reminderTitle } })]
+    : []) };
   const showNotice = () => {
     noticeTitle.textContent = `Turno di ${names[order[state.current]]}`;
     for (const listener of uiListeners) listener({ data: { type: "show-turn-notice", noticeId: ++noticeId, currentName: names[order[state.current]] } });

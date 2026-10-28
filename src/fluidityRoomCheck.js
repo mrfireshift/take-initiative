@@ -49,9 +49,11 @@ export function evaluateHpWidgets(items, tokenId, hp, hpMax) {
 }
 
 // The notice names the creature whose turn it is: "Turno di <name>".
+// The "(2) " the tracker puts before creatures with the same name is ignored on both sides.
 export function noticeNamesActor(title, actorName) {
-  const shown = String(title || "").replace(/^Turno di\s+/i, "").trim().toLocaleLowerCase("it");
-  const wanted = String(actorName || "").trim().toLocaleLowerCase("it");
+  const bare = (value) => String(value || "").replace(/^\(\d+\)\s*/, "").trim().toLocaleLowerCase("it");
+  const shown = bare(String(title || "").replace(/^Turno di\s+/i, ""));
+  const wanted = bare(actorName);
   return !!shown && !!wanted && (shown === wanted || shown.startsWith(wanted) || wanted.startsWith(shown));
 }
 
@@ -161,19 +163,26 @@ export function installFluidityCheckRemote({
           const cards = Array.from(documentRef.querySelectorAll("[data-chip-dock-card='1']"));
           if (!cards.length) return reply(data.id, { ...base, cards: 0, changed: 0 });
           const { syncChipDockCardHeight } = await import("./initiativeChipOverflow.js");
-          let changed = 0;
-          for (const card of cards) {
+          // Two passes: the first corrects what was stale, the second says whether the measure itself is stable.
+          const pass = () => cards.map((card) => {
             const before = card.style.height;
             syncChipDockCardHeight(card);
-            if (card.style.height !== before) changed += 1;
-          }
-          return reply(data.id, { ...base, cards: cards.length, changed });
+            return { itemId: card.dataset.itemId || "", active: card.dataset.active === "1", before, after: card.style.height };
+          }).filter((entry) => entry.before !== entry.after);
+          const first = pass();
+          await new Promise((resolve) => (windowRef.requestAnimationFrame || ((callback) => setTimeout(callback, 16)))(resolve));
+          const second = pass();
+          return reply(data.id, { ...base, cards: cards.length, changed: first.length, details: first, unstable: second.length });
         }
       }
       if (realm === "turn-notice" && data.command === "snapshot") {
-        const panels = Array.from(documentRef.querySelectorAll(".notice"));
-        const visible = panels.filter((panel) => panel.classList.contains("is-visible"));
-        return reply(data.id, { ...base, title: text(visible.at(-1)?.querySelector(".title")), visiblePanels: visible.length, received: [...received] });
+        // The turn's panel among the page's panels (save and zone reminders use the same class).
+        const panels = Array.from(documentRef.querySelectorAll(".notice")).map((panel) => ({
+          visible: panel.classList.contains("is-visible"),
+          title: text(panel.querySelector(".title")),
+        }));
+        const turnPanel = panels.filter((panel) => panel.visible && /^Turno di\s/i.test(panel.title)).at(-1);
+        return reply(data.id, { ...base, title: turnPanel?.title || "", panels, received: [...received] });
       }
       if (realm === "boss-actions") {
         if (data.command === "snapshot") {
@@ -323,11 +332,13 @@ export async function runFluidityCheck({
         }, { timeoutMs: 4000, wait, now });
         if (!tracker) problems.push(`turno ${index + 1}: il tracker non mostra attivo ${actor.name || actor.id}`);
         if (actor.virtual) continue;
+        const seen = new Set();
         const notice = await waitFor(async () => {
           const snapshot = await client.tryRequest("turn-notice", "snapshot", {}, { timeout: 800 });
+          for (const panel of snapshot?.panels || []) if (panel.title) seen.add(panel.title);
           return snapshot && noticeNamesActor(snapshot.title, actor.name) ? snapshot : null;
         }, { timeoutMs: 6000, wait, now });
-        if (!notice) problems.push(`turno ${index + 1}: nessun avviso per ${actor.name}`);
+        if (!notice) problems.push(`turno ${index + 1}: nessun avviso per ${actor.name}${seen.size ? ` (pannelli visti: ${[...seen].join(" | ")})` : " (pagina dell'avviso senza pannelli)"}`);
         else latencies.push(now() - startedAt);
         await wait(settleMs);
       }
@@ -340,9 +351,16 @@ export async function runFluidityCheck({
     // P4b: three turns in a row; the notice left on screen is the latest one.
     {
       for (let index = 0; index < 3; index += 1) { await turnOnce(1); movedTurns += 1; await wait(150); }
-      await wait(4000);
+      // The notice closes by itself after 4.5 s: it is read while it is on screen, and the last one read counts.
+      let notice = null;
+      const until = now() + 4000;
+      while (now() < until) {
+        const snapshot = await client.tryRequest("turn-notice", "snapshot", {}, { timeout: 800 });
+        if (snapshot?.title) notice = snapshot;
+        else if (snapshot && !notice) notice = { ...snapshot, title: "" };
+        await wait(250);
+      }
       const actor = await activeActor(obr);
-      const notice = await client.tryRequest("turn-notice", "snapshot", {}, { timeout: 800 });
       const order = evaluateNoticeOrder(notice?.received || []);
       // A virtual turn (Lair, Epic Action) has no creature name to compare: only the order is checked then.
       const named = actor.virtual || noticeNamesActor(notice?.title, actor.name);
@@ -356,7 +374,12 @@ export async function runFluidityCheck({
       const answer = await client.tryRequest("index", "chip-check");
       if (!answer?.ok) row("Altezza delle chip (T5)", "saltata", answer?.error || "tracker non raggiungibile");
       else if (!answer.cards) row("Altezza delle chip (T5)", "saltata", "nessuna card con chip nella vista attuale (serve la vista classica con condizioni)");
-      else row("Altezza delle chip (T5)", answer.changed ? "ATTENZIONE" : "ok", `${answer.cards} card con chip, ${answer.changed} con un'altezza diversa da una misura nuova`);
+      else {
+        const details = (answer.details || []).map((entry) => `${entry.itemId}${entry.active ? " (attiva)" : ""} ${entry.before || "-"} → ${entry.after}`).join(", ");
+        row("Altezza delle chip (T5)", answer.changed ? "ATTENZIONE" : "ok",
+          `${answer.cards} card con chip, ${answer.changed} con un'altezza diversa da una misura nuova${details ? `: ${details}` : ""}`
+          + (answer.changed ? `; alla seconda misura ${answer.unstable ? `${answer.unstable} cambiano ancora (misura instabile)` : "stabili"}` : ""));
+      }
     }
 
     // S6, S7: one HP change reaches the tracker and the map widgets, then the HP goes back.
@@ -477,7 +500,10 @@ export async function watchFluidity({
     return names.get(id);
   };
   while (now() < until) {
-    const [tracker, notice] = await Promise.all([client.tryRequest("index", "snapshot"), client.tryRequest("turn-notice", "snapshot")]);
+    const [tracker, notice] = await Promise.all([
+      client.tryRequest("index", "snapshot"),
+      client.tryRequest("turn-notice", "snapshot", {}, { timeout: 400 }),
+    ]);
     if (notice?.received) lastReceived = notice.received;
     const active = tracker?.active || null;
     samples.push({
@@ -486,6 +512,9 @@ export async function watchFluidity({
       activeVirtual: !!active && (active.itemId.startsWith("__") || active.itemId.includes("::")),
       activeName: active ? await nameOf(active.itemId) : "",
       noticeTitle: notice?.title || "",
+      // Whether the notice page answered at all, and its panels (title and visibility) when it has no turn title.
+      noticePage: !!notice,
+      ...(notice && !notice.title && notice.panels?.length ? { noticePanels: notice.panels } : {}),
       enemyHp: (tracker?.cards || []).filter((card) => card.hpMode && card.hpMode !== "exact").map((card) => `${card.itemId}:${card.hpText}${card.knockedOut ? ":KO" : ""}`).join(" "),
     });
     await wait(stepMs);
@@ -493,7 +522,13 @@ export async function watchFluidity({
   const anomalies = evaluateWatchLog(samples);
   const order = evaluateNoticeOrder(lastReceived);
   if (order.outOfOrder) anomalies.push({ kind: "avvisi-fuori-ordine", count: order.outOfOrder });
-  await save({ name: "proiettore-verifica-fluidita", content: JSON.stringify({ label: "proiettore-verifica-fluidita", samples, anomalies, noticeOrder: order }, null, 2) });
+  const noticeSeen = {
+    pageAnswered: samples.filter((sample) => sample.noticePage).length,
+    withTurnTitle: samples.filter((sample) => sample.noticeTitle).length,
+    withPanelsOnly: samples.filter((sample) => sample.noticePanels).length,
+  };
+  if (!noticeSeen.withTurnTitle) anomalies.push({ kind: "nessun-avviso-letto", ...noticeSeen });
+  await save({ name: "proiettore-verifica-fluidita", content: JSON.stringify({ label: "proiettore-verifica-fluidita", samples, anomalies, noticeOrder: order, noticeSeen }, null, 2) });
   await save({ name: "proiettore-turni-fluidita", content: probe.export("proiettore-turni-fluidita") });
   log(anomalies.length ? `[verifica] ${anomalies.length} anomalie sullo schermo del tavolo:` : "[verifica] schermo del tavolo: nessuna anomalia.");
   if (anomalies.length) console.table?.(anomalies);
