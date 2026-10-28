@@ -346,10 +346,17 @@ export async function runFluidityCheck({
       await wait(1200);
       const back = await waitFor(() => client.tryRequest("index", "ping", {}, { timeout: 800 }), { timeoutMs: 10000, wait, now });
       const backKept = back?.mark === token;
-      const backSized = !!back && !!before && Math.abs(back.size.width - before.size.width) <= 2 && Math.abs(back.size.height - before.size.height) <= 2;
+      // The size V1 asks is computed again from the window as it is now (it may differ from the start if the window
+      // changed): the page must have the size OBR now gives the popover.
+      const [obrWidth, obrHeight] = await Promise.all([
+        obr.popover.getWidth(TRACKER_POPOVER_ID).catch(() => null),
+        obr.popover.getHeight(TRACKER_POPOVER_ID).catch(() => null),
+      ]);
+      const backSized = !!back && Number.isFinite(Number(obrWidth)) && Number.isFinite(Number(obrHeight))
+        && Math.abs(back.size.width - Number(obrWidth)) <= 2 && Math.abs(back.size.height - Number(obrHeight)) <= 2;
       row("V1 · tracker rimesso al suo posto senza chiuderlo", backKept && backSized ? "ok" : "ATTENZIONE",
         !back ? "il tracker non risponde più"
-          : `${backKept ? "stessa pagina" : "pagina ricaricata"}; misura ${back.size.width}×${back.size.height} (quella di partenza ${before?.size?.width ?? "?"}×${before?.size?.height ?? "?"}). Controlla a occhio che sia tornato al suo posto.`);
+          : `${backKept ? "stessa pagina" : "pagina ricaricata"}; misura ${back.size.width}×${back.size.height}, quella del popover ${obrWidth ?? "?"}×${obrHeight ?? "?"} (all'inizio ${before?.size?.width ?? "?"}×${before?.size?.height ?? "?"}). Controlla a occhio che sia tornato al suo posto.`);
       await wait(800);
     }
 
