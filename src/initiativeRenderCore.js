@@ -18,6 +18,9 @@ export function advanceInitiativeState(state, direction) {
   if (!order.length) return state;
   const step = direction < 0 ? -1 : 1;
   const current = Math.max(0, Math.min(order.length - 1, Math.floor(Number(state?.current) || 0)));
+  // Before the first turn of round 1 there is no turn: ◀ there stays put (it went to the last creature, and the next
+  // ▶ counted a round that never passed).
+  if (step < 0 && current === 0 && Math.floor(Number(state?.round) || 1) <= 1) return state;
   const nextCurrent = (current + step + order.length) % order.length;
   const wrappedForward = step > 0 && nextCurrent === 0;
   const wrappedBackward = step < 0 && nextCurrent === order.length - 1;

@@ -7,6 +7,7 @@ import {
   _indexName,
   _parseIndexedName,
   compactEntriesForRender,
+  currentAfterOrderChange,
   expandParagonEntries,
   reorderBlockWithinSameInitiativeState,
   reorderWithinSameInitiativeState,
@@ -194,4 +195,31 @@ test("anche spostando un gruppo collassato le Azioni epiche restano dopo le loro
   const result = reorderBlockWithinSameInitiativeState(state, entries, ["g1", "g2"], "pc", true);
   assert.deepEqual(result.order, ["g1", "g2", "pc", epic("pc")]);
   assert.equal(result.order[result.current], "pc");
+});
+
+// Lot L6 of the bugfix pass (TR-01, decision D3): the creature in turn removed or deleted.
+test("L6: rimossa la creatura di turno, il turno passa alla successiva ancora presente", () => {
+  const previous = ["a", "b", "c", "d", "e"];
+  assert.deepEqual(currentAfterOrderChange(previous, 3, ["a", "b", "c", "e"], 2), { current: 3, round: 2 }, "D leaves: E");
+  assert.deepEqual(currentAfterOrderChange(previous, 2, ["a", "b", "d", "e"], 2), { current: 2, round: 2 }, "C leaves: D");
+  assert.deepEqual(currentAfterOrderChange(previous, 1, ["a", "e"], 2), { current: 1, round: 2 }, "B, C, D leave: E");
+  assert.deepEqual(currentAfterOrderChange(previous, 4, ["a", "b", "c", "d"], 2), { current: 0, round: 3 }, "the last leaves: A, next round");
+  assert.deepEqual(currentAfterOrderChange(previous, 3, ["e", "a", "b", "c", "d"], 2), { current: 4, round: 2 }, "the creature in turn keeps it");
+  assert.deepEqual(currentAfterOrderChange([], 0, ["a"], 1), { current: 0, round: 1 }, "a new combat starts from the first");
+});
+
+test("L6: gli ID virtuali di Tana, Paragon ed Epic passano il turno come le creature", () => {
+  const previous = ["boss", "pc", "__LAIR__", "boss::p1", "goblin"];
+  assert.deepEqual(currentAfterOrderChange(previous, 2, ["boss", "pc", "boss::p1", "goblin"], 1), { current: 2, round: 1 }, "Lair off");
+  assert.deepEqual(currentAfterOrderChange(previous, 3, ["boss", "pc", "__LAIR__", "goblin"], 1), { current: 3, round: 1 }, "Paragon turn off");
+  const epic = ["pc", "__EPIC__::boss::after::pc", "boss"];
+  assert.deepEqual(currentAfterOrderChange(epic, 1, ["pc", "boss"], 4), { current: 1, round: 4 }, "Epic off");
+});
+
+// Lot L6 of the bugfix pass (TR-07): the tie handle of a Paragon's extra turn did nothing.
+test("L6: il riordino a pari iniziativa conosce i turni Paragon aggiuntivi", () => {
+  const state = { order: ["boss", "boss::p1", "pc"], current: 0, paragonInits: { boss: [15, 12] } };
+  const entries = expandParagonEntries([{ ...actor("boss", "Boss", 15), paragonActions: 2 }, actor("pc", "PG", 12)], state);
+  const result = reorderWithinSameInitiativeState(state, entries, "pc", "boss::p1", true);
+  assert.deepEqual(result.order, ["boss", "pc", "boss::p1"]);
 });

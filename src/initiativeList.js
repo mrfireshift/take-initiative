@@ -123,6 +123,7 @@ import {
   _indexName,
   _parseIndexedName,
   compactEntriesForRender,
+  currentAfterOrderChange,
   expandParagonEntries,
   reorderBlockWithinSameInitiativeState,
   reorderWithinSameInitiativeState,
@@ -5098,7 +5099,8 @@ async function readEntries(items = null) {
 // Unisce entries reali + lair (se attiva a stato)
 async function getEntriesWithLair(state, items = null) {
   const base = await readEntries(items);
-  if (state?.lairEnabled) base.push(makeLairEntry());
+  // The Lair has a turn only beside creatures: alone it kept «Svuota iniziativa» from emptying the order.
+  if (state?.lairEnabled && base.length) base.push(makeLairEntry());
   return base;
 }
 
@@ -10617,22 +10619,23 @@ async function reconcileStateWithItems(sceneEpoch = currentSceneEpoch()) {
   newOrder = injected;
 }
 
-  let newCurrent = 0;
-  const activeId = state?.order?.[state.current];
-  if (activeId) {
-    const idx = newOrder.indexOf(activeId);
-    if (idx >= 0) newCurrent = idx;
-  }
+  // The creature in turn keeps it; one that left the order hands it to the next one (decision D3).
+  const { current: newCurrent, round } = currentAfterOrderChange(
+    state?.order,
+    state?.current,
+    newOrder,
+    state?.round,
+  );
 
   if (state &&
       state.current === newCurrent &&
+      Math.max(1, state.round || 1) === round &&
       state.order &&
       state.order.length === newOrder.length &&
       state.order.every((id, i) => id === newOrder[i])) {
     return false;
   }
 
-  const round = Math.max(1, state?.round || 1);
   await setSceneState({ order: newOrder, current: newCurrent, round }, sceneEpoch, {
     kind: "reconcile-order",
     ownedFields: ["order", "current", "round"],
@@ -10643,7 +10646,9 @@ async function reconcileStateWithItems(sceneEpoch = currentSceneEpoch()) {
 // --- DnD helper: sposta sourceId prima/dopo targetId ma SOLO fra pari iniziativa
 async function _reorderWithinSameInitiative(sourceId, targetId, placeBefore, sceneEpoch = currentSceneEpoch()) {
   if (!__isCurrentSceneOperation(sceneEpoch, "reorder-same-init")) return;
-  const [st, entries] = await Promise.all([getSceneState(), readEntries()]);
+  const [st, baseEntries] = await Promise.all([getSceneState(), readEntries()]);
+  // A Paragon's extra turns (`boss::p1`) are cards of their own, with a handle: the reorder knows them.
+  const entries = expandParagonEntries(baseEntries, st);
   if (!__isCurrentSceneOperation(sceneEpoch, "reorder-same-init")) return;
   const next = reorderWithinSameInitiativeState(
     st,
@@ -10664,7 +10669,9 @@ async function _reorderWithinSameInitiative(sourceId, targetId, placeBefore, sce
 
 async function _reorderBlockWithinSameInitiative(sourceIds, targetId, placeBefore, sceneEpoch = currentSceneEpoch()) {
   if (!__isCurrentSceneOperation(sceneEpoch, "reorder-block-same-init")) return;
-  const [st, entries] = await Promise.all([getSceneState(), readEntries()]);
+  const [st, baseEntries] = await Promise.all([getSceneState(), readEntries()]);
+  // A Paragon's extra turns (`boss::p1`) are cards of their own, with a handle: the reorder knows them.
+  const entries = expandParagonEntries(baseEntries, st);
   if (!__isCurrentSceneOperation(sceneEpoch, "reorder-block-same-init")) return;
   const next = reorderBlockWithinSameInitiativeState(
     st,
@@ -11083,6 +11090,9 @@ __activeLabelEntriesById = byId;
     if (!__isCurrentSceneOperation(sceneEpoch, "render-commit", { reason, renderRevision })) return;
     zoomChk.checked = isAutoFocusEnabled(stateClean);
     setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
+    // The Lair box follows the scene shown (sanitizeState drops lairEnabled: read it from the raw state).
+    lairChk.checked = !!stateRaw?.lairEnabled;
+    setCompactToggleVisual(lairToggleWrap, lairChk.checked);
     try {
       __writeRoundLabel(document.getElementById("tbp-round-label"), stateClean.round);
     } catch {}
@@ -11562,6 +11572,8 @@ async function __processInitiativeMetadata(
   await renderCapability("metadata"); // ridisegna UI
   if (!__isCurrentSceneOperation(sceneEpoch, "metadata-render", { metadataRevision })) return;
   if (!st || !Array.isArray(st.order) || st.order.length === 0) {
+    // A new combat's first turn is a turn change even for the creature that was in turn when the order was emptied.
+    __lastActiveId = null;
     return;
   }
 
@@ -11840,6 +11852,7 @@ try {
     if (!__isCurrentSceneOperation(sceneEpoch, "navigation-click")) return;
     if (!st || !st.order || st.order.length === 0) return;
     const nextBase = advanceInitiativeState(st, -1);
+    if (nextBase === st) return;
     const prevIdx = nextBase.current;
     const nextRound = nextBase.round;
     const cachedEntries = Array.from(__activeLabelEntriesById.values());

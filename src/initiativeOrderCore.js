@@ -342,3 +342,23 @@ export function reorderBlockWithinSameInitiativeState(
   filtered.splice(insertAt, 0, ...moving);
   return reorderedStateSlice(state, block, units.layout(filtered));
 }
+
+// The turn after a reconcile that rebuilt the order (decision D3 of the bugfix pass): the creature in turn when it is
+// still there. When it left the order (removed from initiative, its token deleted, the Lair or a Paragon or Epic turn
+// switched off) the turn goes to the first one after it in the previous order still there, as ▶ would; past the end
+// of the previous order, to the first of the new one with the round after.
+export function currentAfterOrderChange(previousOrder, previousCurrent, nextOrder, round = 1) {
+  const previous = Array.isArray(previousOrder) ? previousOrder : [];
+  const next = Array.isArray(nextOrder) ? nextOrder : [];
+  const currentRound = Math.max(1, Math.floor(Number(round) || 1));
+  const index = Math.max(0, Math.floor(Number(previousCurrent) || 0));
+  const activeId = previous[index];
+  if (!next.length || !activeId) return { current: 0, round: currentRound };
+  const kept = next.indexOf(activeId);
+  if (kept >= 0) return { current: kept, round: currentRound };
+  for (let cursor = index + 1; cursor < previous.length; cursor += 1) {
+    const found = next.indexOf(previous[cursor]);
+    if (found >= 0) return { current: found, round: currentRound };
+  }
+  return { current: 0, round: currentRound + 1 };
+}

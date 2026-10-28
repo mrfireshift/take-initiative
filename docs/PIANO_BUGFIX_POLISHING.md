@@ -39,6 +39,13 @@ Lotti fatti:
   - Un «Afferrato» con fonte la creatura stessa non finisce quando questa è incapacitata.
   - L'Incapacitato derivato ha il proprio nome e tipo, e la sua pill non ha più una × che non toglieva nulla.
   - Test in `test/effectsMutationCore.test.js` e `test/conditionRulesCore.test.js`: quattro falliscono senza la patch, uno fissa la sostituzione oltre la terza personalizzata.
+- **L6** (28/10): turno attivo e ordine (TR-01, TR-03, TR-04, TR-11, TR-07, TR-08).
+  - Con la decisione D3: se la creatura di turno esce dall'ordine (tolta, token cancellato, Tana, Paragon o Epic spenti), il turno va alla successiva ancora presente; se era l'ultima, alla prima con il round dopo (`currentAfterOrderChange` in `initiativeOrderCore.js`, usata da `reconcileStateWithItems`).
+  - ◀ al primo turno del round 1 non fa nulla.
+  - La Tana entra nell'ordine solo accanto a creature: «Svuota» lascia l'ordine vuoto e il suo Annulla funziona.
+  - A ordine vuoto si dimentica l'ultima creatura attiva, così il primo turno del combattimento dopo conta.
+  - Il riordino a pari iniziativa conosce i turni Paragon aggiuntivi; la casella Tana segue la scena mostrata.
+  - Test di core (turno dopo la rimozione, anche con ID virtuali; ◀ al round 1; riordino con un Paragon) e di contratto. La riproduzione dell'analisi sul sorgente vero ora dà E come nuovo attivo, come `sanitizeState`.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

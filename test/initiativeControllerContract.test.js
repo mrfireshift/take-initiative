@@ -797,3 +797,23 @@ test("L27: un giocatore non vede i PF delle evocazioni di un nemico, né sulla p
   assert.equal(companionsFor(false)(pc, new Map())[0].hp, 9);
   assert.equal(companionsFor(true)(enemy, new Map())[0].hp, 9);
 });
+
+// Lot L6 of the bugfix pass: turn and order in initiativeList.js.
+test("L6: la riconciliazione passa il turno della creatura uscita alla successiva (D3)", () => {
+  const section = sourceSection("async function reconcileStateWithItems(", "async function _reorderWithinSameInitiative(");
+  assert.ok(section.includes("currentAfterOrderChange("));
+  assert.ok(!section.includes("let newCurrent = 0;"));
+  assert.ok(section.includes("await setSceneState({ order: newOrder, current: newCurrent, round }, sceneEpoch, {"));
+});
+
+test("L6: Tana solo accanto a creature, ◀ fermo al primo turno, attivo dimenticato a ordine vuoto", () => {
+  assert.ok(source.includes("if (state?.lairEnabled && base.length) base.push(makeLairEntry());"));
+  assert.ok(source.includes("    const nextBase = advanceInitiativeState(st, -1);\n    if (nextBase === st) return;"));
+  const metadataSection = sourceSection("await renderCapability(\"metadata\");", "const activeId = st.order[st.current];");
+  assert.ok(metadataSection.includes("__lastActiveId = null;"));
+});
+
+test("L6: riordino con i turni Paragon e casella Tana della scena mostrata", () => {
+  assert.equal(source.split("const entries = expandParagonEntries(baseEntries, st);").length - 1, 2);
+  assert.ok(source.includes("lairChk.checked = !!stateRaw?.lairEnabled;"));
+});

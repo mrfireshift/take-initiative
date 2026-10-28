@@ -87,3 +87,12 @@ test("la revisione render accetta solamente la richiesta corrente", () => {
   assert.equal(isCurrentRenderRevision(7, 7), true);
   assert.equal(isCurrentRenderRevision(6, 7), false);
 });
+
+// Lot L6 of the bugfix pass (TR-03): ◀ at the first turn of round 1 went to the last creature, and the next ▶ counted
+// a round that never passed.
+test("L6: ◀ al primo turno del round 1 resta dov'è", () => {
+  const state = { order: ["a", "b", "c"], current: 0, round: 1 };
+  assert.equal(advanceInitiativeState(state, -1), state);
+  assert.deepEqual(advanceInitiativeState({ ...state, round: 2 }, -1), { order: ["a", "b", "c"], current: 2, round: 1 });
+  assert.deepEqual(advanceInitiativeState({ ...state, current: 1 }, -1), { order: ["a", "b", "c"], current: 0, round: 1 });
+});
