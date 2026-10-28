@@ -33,6 +33,12 @@ Lotti fatti:
   - La sincronizzazione immediata dei PF salta la pill dell'evocazione e quella dei PF condivisi.
   - Un salvataggio dell'iniziativa rifiutato chiude l'editor e rimette il valore.
   - Test: editor reale con una card Paragon e con un salvataggio rifiutato (entrambi falliscono senza la patch), funzione vera del cassetto, contratti della card classica. Due contratti esistenti seguono i nuovi ID e il nuovo selettore.
+- **L5** (28/10): condizioni (EF-02, EF-05, EF-07, EF-08).
+  - Le condizioni personalizzate nascono con `type: "custom"`. Solo loro (e le legacy `legacy:custom:`) contano per il limite di tre: gli effetti di incantesimi e capacità e «Reazione usata» non vengono più sostituiti.
+  - «Rimuovi condizioni» conserva l'Indebolimento della scheda (`type: "initiative-card"`).
+  - Un «Afferrato» con fonte la creatura stessa non finisce quando questa è incapacitata.
+  - L'Incapacitato derivato ha il proprio nome e tipo, e la sua pill non ha più una × che non toglieva nulla.
+  - Test in `test/effectsMutationCore.test.js` e `test/conditionRulesCore.test.js`: quattro falliscono senza la patch, uno fissa la sostituzione oltre la terza personalizzata.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

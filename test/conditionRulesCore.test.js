@@ -59,3 +59,12 @@ test("Prono non e una derivazione continua e resta indipendente da Privo di sens
   const effective = getEffectiveConditionInstances([condition("Privo di sensi")]);
   assert.equal(hasEffectiveCondition(effective, "Prono"), false);
 });
+
+// Lot L5 of the bugfix pass (EF-08): the derived Incapacitato copied its parent's label and kind.
+test("L5: l'Incapacitato derivato ha il proprio nome, non l'etichetta del genitore", () => {
+  const stunned = condition("Stordito", "stun", { displayLabel: "Stordito · Colpo Stordente", type: "class-feature", effectKind: "debuff" });
+  const derived = getEffectiveConditionInstances([stunned]).find((instance) => instance.derived === true);
+  assert.equal(derived.condition, "Incapacitato");
+  assert.equal(derived.displayLabel, undefined);
+  assert.equal(derived.type, undefined);
+});

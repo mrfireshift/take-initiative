@@ -1427,10 +1427,13 @@ function applyConditionAutomation(states, subjectIds, context = {}, operation = 
     const pending = breakConcentration(states, casterId, null, context, operation);
     if (pending) return pending;
   }
+  // A grapple ends when its grappler is incapacitated, never because the grappled creature is (a grapple whose source
+  // is the creature itself, the condition panel's default source).
   for (const state of states.values()) {
     state.conditions = state.conditions.filter((instance) =>
       conditionKey(instance) !== "afferrato" ||
-      !incapacitated.has(String(instance?.sourceId || ""))
+      !incapacitated.has(String(instance?.sourceId || "")) ||
+      String(instance?.sourceId || "") === String(state.id || "")
     );
   }
   return null;
@@ -1845,18 +1848,26 @@ function applyOperation(states, operation, options = {}, context = {}) {
       break;
     }
     case "condition:add-custom": {
+      // Only the GM's custom conditions count for the limit: the effects of spells and class features, «Reazione
+      // usata» and the other named instances outside the catalogue are never the one replaced.
       const known = new Set((options.knownConditionNames || []).map(conditionKey));
       const maxCustom = Math.max(1, Number(options.maxCustomConditions) || 3);
+      const customOperation = { ...operation, options: { ...(operation.options || {}), type: "custom" } };
       for (const targetId of targetIds) {
         const state = states.get(targetId);
         if (!state) continue;
         const customIndexes = state.conditions
-          .map((instance, index) => known.has(conditionKey(instance)) ? -1 : index)
+          .map((instance, index) => (
+            !known.has(conditionKey(instance))
+            && (instance?.type === "custom" || String(instance?.id || "").startsWith("legacy:custom:"))
+              ? index
+              : -1
+          ))
           .filter((index) => index >= 0);
         if (customIndexes.length >= maxCustom) {
           state.conditions.splice(customIndexes[customIndexes.length - 1], 1);
         }
-        appendCondition(state, operation, targetId);
+        appendCondition(state, customOperation, targetId);
       }
       break;
     }
@@ -2002,9 +2013,10 @@ function applyOperation(states, operation, options = {}, context = {}) {
       }
       break;
     case "condition:clear":
+      // The exhaustion the character sheet keeps (type initiative-card) stays: the sheet and the token stay in step.
       for (const targetId of targetIds) {
         const state = states.get(targetId);
-        if (state) state.conditions = [];
+        if (state) state.conditions = state.conditions.filter((instance) => instance?.type === "initiative-card");
       }
       break;
     case "condition:automate":

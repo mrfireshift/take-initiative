@@ -1427,3 +1427,52 @@ test("a turn boundary does not rewrite a concentration whose cast context only d
   } } }], [{ type: "effects:tick-boundaries", targetIds: ["alane"], boundaries: [{ phase: "start", actorId: "edelbrand" }] }]);
   assert.equal(state(changed, "alane").concentrations["mano arcana"].castContext.slotLevel, 5, "a real difference is still synced");
 });
+
+// Lot L5 of the bugfix pass (EF-02, EF-05, EF-07).
+const manual = (id, condition, extra = {}) => ({ id, condition, active: true, targetId: "pc", expiry: { mode: "manual" }, ...extra });
+
+test("L5: una condizione personalizzata non toglie effetti di incantesimi, capacità o la reazione usata", () => {
+  const items = [token("pc", { conditions: [
+    manual("bless-child", "Benedizione", { parentEffectId: "bless-1" }),
+    manual("dodge", "Schivata", { type: "class-feature" }),
+    manual("reaction", "Reazione usata"),
+  ] })];
+  const plan = buildEffectsMutationPlan(items, [{
+    type: "condition:add-custom", targetIds: ["pc"], conditionName: "Santuario del Crepuscolo", instanceIds: { pc: "custom-1" },
+  }], { knownConditionNames: ["Prono"], maxCustomConditions: 3 });
+  assert.deepEqual(state(plan, "pc").conditions.map((entry) => entry.condition),
+    ["Benedizione", "Schivata", "Reazione usata", "Santuario del Crepuscolo"]);
+  assert.equal(state(plan, "pc").conditions.at(-1).type, "custom");
+});
+
+test("L5: oltre tre personalizzate la nuova sostituisce l'ultima personalizzata", () => {
+  const items = [token("pc", { conditions: [
+    manual("c1", "Marchiato", { type: "custom" }),
+    manual("reaction", "Reazione usata"),
+    manual("c2", "In fiamme", { type: "custom" }),
+    manual("legacy:custom:0:Bagnato", "Bagnato"),
+  ] })];
+  const plan = buildEffectsMutationPlan(items, [{
+    type: "condition:add-custom", targetIds: ["pc"], conditionName: "Nuova", instanceIds: { pc: "custom-new" },
+  }], { knownConditionNames: ["Prono"], maxCustomConditions: 3 });
+  assert.deepEqual(state(plan, "pc").conditions.map((entry) => entry.id), ["c1", "reaction", "c2", "custom-new"]);
+});
+
+test("L5: «Rimuovi condizioni» conserva l'Indebolimento della scheda", () => {
+  const items = [token("pc", { conditions: [
+    manual("exhaustion", "Indebolimento", { type: "initiative-card", level: 2 }),
+    manual("prone", "Prono"),
+  ] })];
+  const plan = buildEffectsMutationPlan(items, [{ type: "condition:clear", targetIds: ["pc"] }]);
+  assert.deepEqual(state(plan, "pc").conditions.map((entry) => entry.id), ["exhaustion"]);
+});
+
+test("L5: Afferrato con fonte la creatura stessa resta quando questa va a 0 PF", () => {
+  const items = [token("goblin", { conditions: [
+    manual("self-grapple", "Afferrato", { targetId: "goblin", sourceId: "goblin" }),
+    manual("ko", "Privo di sensi", { targetId: "goblin" }),
+  ] }), token("pc", { conditions: [manual("grappled-by-goblin", "Afferrato", { sourceId: "goblin" })] })];
+  const plan = buildEffectsMutationPlan(items, [{ type: "condition:automate", subjectIds: ["goblin"] }]);
+  assert.ok(state(plan, "goblin").conditions.some((entry) => entry.id === "self-grapple"), "the goblin is still grappled");
+  assert.deepEqual(state(plan, "pc").conditions, [], "the goblin's own grapple ends");
+});

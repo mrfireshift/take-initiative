@@ -62,6 +62,11 @@ export function getEffectiveConditionInstances(instances = []) {
         derivedFromInstanceIds: parentId ? [parentId] : [],
       };
       delete derived.legacy;
+      // Its own name and kind: not the parent's label («Stordito · Colpo Stordente» twice on the token).
+      delete derived.displayLabel;
+      delete derived.summaryParts;
+      delete derived.effectKind;
+      delete derived.type;
       derivedByKey.set(childKey, derived);
       effective.push(derived);
       queue.push(derived);

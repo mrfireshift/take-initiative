@@ -1579,7 +1579,9 @@ export function buildConditionChips(cond = {}, opts = {}) {
     const hasClassFeatureInstance = group.instances.some((instance) =>
       instance?.type === "class-feature" || instance?.type === "class-feature-area"
     );
+    // A derived condition (Incapacitato from Stordito) ends with its parent: its × removed nothing.
     const canRemoveCondition = !hasClassFeatureInstance
+      && !group.instances.every((instance) => instance?.derived === true)
       && typeof opts.onRemove === "function";
     if (canTerminateClassFeature || canRemoveCondition) {
       const terminate = document.createElement("button");
