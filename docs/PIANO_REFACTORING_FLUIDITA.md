@@ -77,6 +77,8 @@ Lotti fatti, tutti il 27/10:
 
 - **P4** (parte b, D5): con il popup chiuso, il primo avviso di turno viaggia nell'URL del popup (fino a 6000 caratteri; gli altri avvisi e quelli più lunghi passano dall'handshake come prima). La pagina lo disegna con lo stesso gestore dei messaggi, dopo opzioni e ruolo e prima di dire che è pronta; l'host lo toglie dalla coda solo ad apertura riuscita, e se nel frattempo è arrivato un turno nuovo, quello segue dopo l'handshake e vince per il suo `noticeId`. L'attesa del disegno (1,8 s) parte quando la pagina è pronta. Dal codice: due passaggi via OBR in meno prima del primo disegno, su ogni client a ogni turno. Lo fissa `test/turnNoticeUrlPayload.test.js`; il banco non avvia il background, quindi va visto in stanza.
 
+Prova in stanza dei lotti: verifica guidata in [PROVA_STANZA_FLUIDITA.md](PROVA_STANZA_FLUIDITA.md) (`__tbpPerf.runFluidityCheck()` sul GM, `__tbpPerf.watchFluidity()` sullo schermo del tavolo).
+
 Lotto saltato: **V4** (tipografia), per scelta dell'utente il 28/10: le dimensioni attuali dei testi vanno bene al tavolo. Il commit `7e480cc` è stato annullato da `d87abd1`.
 
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.

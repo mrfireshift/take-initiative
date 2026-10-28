@@ -228,6 +228,10 @@ export function perfBootPage(obr, { observeTraffic = false, observeSdk = false }
   // The measurement session's tracker side (src/perfSessionRunner.js): it acts only on an explicit command from the
   // background's console, never by itself.
   if (realm === "index") void import("./perfSessionRunner.js").then((module) => module.installPerfRunnerRemote()).catch(() => {});
+  // The room check of the fluidity lots (src/fluidityRoomCheck.js): these pages answer its snapshots and commands.
+  if (["index", "turn-notice", "boss-actions"].includes(realm)) {
+    void import("./fluidityRoomCheck.js").then((module) => module.installFluidityCheckRemote({ realm, obr })).catch(() => {});
+  }
   if (observeSdk && obr) observeSdkCalls(obr);
   perfRecord("boot", { stage: "module", sinceNavigationMs: round(perfNow()) });
   recordBootResources();
@@ -497,6 +501,18 @@ globalThis.__tbpPerf = {
     if (realm !== "background") return "Esegui dal contesto background.html della Console.";
     const { runMonsterSession } = await import("./perfSessionRunner.js");
     return runMonsterSession({ probe: globalThis.__tbpPerf, obr: obrRef, ...options });
+  },
+  // Dev tool (docs/PROVA_STANZA_FLUIDITA.md): the GM's guided room check, from the background's console.
+  async runFluidityCheck(options = {}) {
+    if (realm !== "background") return "Esegui dal contesto background.html della Console.";
+    const { runFluidityCheck } = await import("./fluidityRoomCheck.js");
+    return runFluidityCheck({ probe: globalThis.__tbpPerf, obr: obrRef, ...options });
+  },
+  // The table screen's side of the same check, started there before the GM's run.
+  async watchFluidity(options = {}) {
+    if (realm !== "background") return "Esegui dal contesto background.html della Console.";
+    const { watchFluidity } = await import("./fluidityRoomCheck.js");
+    return watchFluidity({ probe: globalThis.__tbpPerf, obr: obrRef, ...options });
   },
   async stopSession() {
     const { stopPerfSession } = await import("./perfSessionRunner.js");
