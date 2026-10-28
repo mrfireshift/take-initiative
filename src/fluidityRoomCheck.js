@@ -547,7 +547,13 @@ export async function watchFluidity({
     hiddenWhileFramesRun: samples.filter((sample) => sample.noticeFramesRun === true).length,
     hiddenWithoutFrames: samples.filter((sample) => sample.noticeFramesRun === false).length,
   };
-  if (noticeSeen.hiddenWhileFramesRun) anomalies.push({ kind: "avviso-nascosto-con-fotogrammi", count: noticeSeen.hiddenWhileFramesRun });
+  // A panel is hidden for a moment as it enters and as it fades out: only a turn never seen on screen is one.
+  const shownTitles = new Set(samples.map((sample) => sample.noticeTitle).filter(Boolean));
+  const neverShown = [...new Set(samples.filter((sample) => sample.noticeFramesRun === true)
+    .flatMap((sample) => (sample.noticePanels || []).map((panel) => panel.title))
+    .filter((title) => /^Turno di\s/i.test(title) && !shownTitles.has(title)))];
+  noticeSeen.neverShown = neverShown;
+  if (neverShown.length) anomalies.push({ kind: "avviso-mai-visibile-con-fotogrammi", titles: neverShown });
   if (noticeSeen.hiddenWithoutFrames) anomalies.push({ kind: "pagina-senza-fotogrammi", count: noticeSeen.hiddenWithoutFrames,
     note: "il browser non disegna questa finestra (coperta, ridotta o in un'altra scheda): gli avvisi non si vedono" });
   if (!noticeSeen.withTurnTitle) anomalies.push({ kind: "nessun-avviso-letto", ...noticeSeen });
