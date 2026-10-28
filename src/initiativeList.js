@@ -4412,6 +4412,17 @@ function __resolveAnchorForActive(activeId) {
 }
 
 // Trova la label attiva esistente (identificata dal nostro metadata)
+// The turn label follows its token's position and goes with it when the token is deleted, but it never turns, scales
+// or is copied with it: a token turned to show Prono turned the text too, and a copy carried a second label.
+const ACTIVE_LABEL_DETACHED_BEHAVIORS = Object.freeze(["ROTATION", "SCALE", "COPY"]);
+
+function __activeTurnLabelBehaviors(current) {
+  return [...new Set([
+    ...(Array.isArray(current) ? current : []).filter((behavior) => behavior !== "POSITION"),
+    ...ACTIVE_LABEL_DETACHED_BEHAVIORS,
+  ])];
+}
+
 async function __findExistingActiveLabel(sceneEpoch = currentSceneEpoch()) {
   if (!__isCurrentSceneOperation(sceneEpoch, "active-label")) return null;
   if (__activeTurnLabelInitialized) return __activeTurnLabel;
@@ -4548,6 +4559,7 @@ async function upsertActiveTurnLabel(
         .layer("TEXT")
         .position(pos)
         .attachedTo(anchorId)
+        .disableAttachmentBehavior([...ACTIVE_LABEL_DETACHED_BEHAVIORS])
         .locked(true)
         .disableHit(true)
         .style({
@@ -4576,9 +4588,11 @@ async function upsertActiveTurnLabel(
   __mutatingActiveLabel++;
   try {
     // Attachment e posizione cambiano insieme, ricostruendo il legame col token.
+    let labelFound = false;
     await OBR.scene.items.updateItems([existing.id], (list) => {
       const item = list[0];
       if (!item) return;
+      labelFound = true;
       item.attachedTo = anchorId;
       item.position = pos;
       item.visible = true;
@@ -4586,15 +4600,16 @@ async function upsertActiveTurnLabel(
       item.locked = true;
       item.disableHit = true;
       __setActiveTurnLabelText(item, textStr);
-      item.disableAttachmentBehavior = (item.disableAttachmentBehavior || [])
-        .filter((behavior) => behavior !== "POSITION");
+      item.disableAttachmentBehavior = __activeTurnLabelBehaviors(item.disableAttachmentBehavior);
     });
+    // The label went with the token it was attached to (deleted): the error clears the cache and the pump's retry
+    // makes a new one, instead of marking a label that no longer exists as shown.
+    if (!labelFound) throw new Error("active-turn-label-missing");
     if (!__isCurrentSceneOperation(sceneEpoch, "active-label") || revision !== __activeTurnLabelRevision) return;
     existing.attachedTo = anchorId;
     existing.position = pos;
     existing.visible = true;
-    existing.disableAttachmentBehavior = (existing.disableAttachmentBehavior || [])
-      .filter((behavior) => behavior !== "POSITION");
+    existing.disableAttachmentBehavior = __activeTurnLabelBehaviors(existing.disableAttachmentBehavior);
     __setActiveTurnLabelText(existing, textStr);
     __activeTurnLabel = existing;
   } catch (err) {

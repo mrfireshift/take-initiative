@@ -63,6 +63,10 @@ Lotti fatti:
   - La console ad area rilegge i token dopo il commit per gli avvisi di concentrazione.
   - Test: mostro e PG concentrati portati a 0 PF dall'area, scrittura `hp:set` a 0 PF, nessun avviso a 0 PF. Tutti falliscono senza la patch.
   - Un test esistente (30 danni → CD 15) ora usa un bersaglio a 40 PF, perché a 0 PF l'avviso non c'è più per scelta.
+- **L10** (28/10): etichetta «Turno di…» (TR-02, TR-10, rifinitura sulla rotazione).
+  - Se il token a cui era agganciata viene cancellato, l'etichetta rinasce al turno dopo: l'aggiornamento di un'etichetta che non c'è più azzera la cache, e il nuovo tentativo del pump la ricrea.
+  - L'etichetta segue la posizione del token e sparisce con lui, ma non ruota, non scala e non si copia con lui (`ROTATION`, `SCALE`, `COPY` disattivati, anche sulle etichette esistenti al primo aggiornamento).
+  - Lo fissa `test/activeTurnLabelLifecycle.test.js` sulle funzioni vere dell'etichetta con una scena finta.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 
