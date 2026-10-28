@@ -146,6 +146,12 @@ export function installFluidityCheckRemote({
     stopSampling = () => windowRef.clearInterval?.(timer);
   }
   const reply = (id, payload) => channel.postMessage({ to: "fluidity-runner", from: realm, id, ...payload });
+  // Whether this page draws frames now: the notice shows its panel and the chips are measured in a frame, and a page
+  // the browser does not paint (a covered or minimised window) runs none.
+  const nextFrame = (timeoutMs) => new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), timeoutMs);
+    (windowRef.requestAnimationFrame || ((callback) => setTimeout(callback, 0)))(() => { clearTimeout(timer); resolve(true); });
+  });
   channel.onmessage = async (message) => {
     const data = message?.data;
     if (!data || data.to !== realm || !data.id) return;
@@ -170,9 +176,10 @@ export function installFluidityCheckRemote({
             return { itemId: card.dataset.itemId || "", active: card.dataset.active === "1", before, after: card.style.height };
           }).filter((entry) => entry.before !== entry.after);
           const first = pass();
-          await new Promise((resolve) => (windowRef.requestAnimationFrame || ((callback) => setTimeout(callback, 16)))(resolve));
+          const framesRun = await nextFrame(300);
           const second = pass();
-          return reply(data.id, { ...base, cards: cards.length, changed: first.length, details: first, unstable: second.length });
+          return reply(data.id, { ...base, cards: cards.length, changed: first.length, details: first, unstable: second.length, framesRun,
+            visibility: String(documentRef.visibilityState || "") });
         }
       }
       if (realm === "turn-notice" && data.command === "snapshot") {
@@ -182,7 +189,11 @@ export function installFluidityCheckRemote({
           title: text(panel.querySelector(".title")),
         }));
         const turnPanel = panels.filter((panel) => panel.visible && /^Turno di\s/i.test(panel.title)).at(-1);
-        return reply(data.id, { ...base, title: turnPanel?.title || "", panels, received: [...received] });
+        // A turn panel drawn but never shown: only a frame adds its visible class, so say whether frames run here.
+        const hiddenTurnPanel = !turnPanel && panels.some((panel) => /^Turno di\s/i.test(panel.title));
+        const framesRun = hiddenTurnPanel ? await nextFrame(250) : null;
+        return reply(data.id, { ...base, title: turnPanel?.title || "", panels, received: [...received],
+          visibility: String(documentRef.visibilityState || ""), framesRun });
       }
       if (realm === "boss-actions") {
         if (data.command === "snapshot") {
@@ -357,16 +368,19 @@ export async function runFluidityCheck({
       while (now() < until) {
         const snapshot = await client.tryRequest("turn-notice", "snapshot", {}, { timeout: 800 });
         if (snapshot?.title) notice = snapshot;
-        else if (snapshot && !notice) notice = { ...snapshot, title: "" };
+        else if (snapshot && !notice?.title) notice = { ...snapshot, title: "" };
         await wait(250);
       }
       const actor = await activeActor(obr);
       const order = evaluateNoticeOrder(notice?.received || []);
       // A virtual turn (Lair, Epic Action) has no creature name to compare: only the order is checked then.
       const named = actor.virtual || noticeNamesActor(notice?.title, actor.name);
+      const drawnTitles = (notice?.panels || []).map((panel) => `${panel.title}${panel.visible ? "" : " (non visibile)"}`).join(" | ");
+      const frames = notice?.framesRun === false ? "; la pagina non disegna fotogrammi (finestra coperta o ridotta?)"
+        : notice?.framesRun === true ? "; la pagina disegna fotogrammi" : "";
       row("Tre turni di fila: vince l'ultimo (P4b)", notice && order.received && named && order.outOfOrder === 0 ? "ok" : "ATTENZIONE",
         !notice ? "la pagina dell'avviso non risponde"
-          : `sullo schermo «${notice.title || "nessun avviso"}», attivo ${actor.name || actor.id}${actor.virtual ? " (turno virtuale: solo l'ordine)" : ""}; ${order.received} avvisi ricevuti, ${order.outOfOrder} fuori ordine`);
+          : `sullo schermo «${notice.title || "nessun avviso"}», attivo ${actor.name || actor.id}${actor.virtual ? " (turno virtuale: solo l'ordine)" : ""}; ${order.received} avvisi ricevuti, ${order.outOfOrder} fuori ordine${!notice.title && drawnTitles ? `; pannelli: ${drawnTitles}` : ""}${frames}`);
     }
 
     // T5: the chip heights the tracker kept are the ones a fresh measure gives.
@@ -378,7 +392,8 @@ export async function runFluidityCheck({
         const details = (answer.details || []).map((entry) => `${entry.itemId}${entry.active ? " (attiva)" : ""} ${entry.before || "-"} → ${entry.after}`).join(", ");
         row("Altezza delle chip (T5)", answer.changed ? "ATTENZIONE" : "ok",
           `${answer.cards} card con chip, ${answer.changed} con un'altezza diversa da una misura nuova${details ? `: ${details}` : ""}`
-          + (answer.changed ? `; alla seconda misura ${answer.unstable ? `${answer.unstable} cambiano ancora (misura instabile)` : "stabili"}` : ""));
+          + (answer.changed ? `; alla seconda misura ${answer.unstable ? `${answer.unstable} cambiano ancora (misura instabile)` : "stabili"}` : "")
+          + (answer.framesRun === false ? "; il tracker non disegna fotogrammi (finestra coperta o ridotta?)" : ""));
       }
     }
 
@@ -515,6 +530,8 @@ export async function watchFluidity({
       // Whether the notice page answered at all, and its panels (title and visibility) when it has no turn title.
       noticePage: !!notice,
       ...(notice && !notice.title && notice.panels?.length ? { noticePanels: notice.panels } : {}),
+      ...(notice?.framesRun !== null && notice?.framesRun !== undefined ? { noticeFramesRun: notice.framesRun } : {}),
+      ...(notice?.visibility ? { noticeVisibility: notice.visibility } : {}),
       enemyHp: (tracker?.cards || []).filter((card) => card.hpMode && card.hpMode !== "exact").map((card) => `${card.itemId}:${card.hpText}${card.knockedOut ? ":KO" : ""}`).join(" "),
     });
     await wait(stepMs);
@@ -526,7 +543,13 @@ export async function watchFluidity({
     pageAnswered: samples.filter((sample) => sample.noticePage).length,
     withTurnTitle: samples.filter((sample) => sample.noticeTitle).length,
     withPanelsOnly: samples.filter((sample) => sample.noticePanels).length,
+    // A turn panel not shown while the page draws frames is the plugin's problem; without frames, the window's.
+    hiddenWhileFramesRun: samples.filter((sample) => sample.noticeFramesRun === true).length,
+    hiddenWithoutFrames: samples.filter((sample) => sample.noticeFramesRun === false).length,
   };
+  if (noticeSeen.hiddenWhileFramesRun) anomalies.push({ kind: "avviso-nascosto-con-fotogrammi", count: noticeSeen.hiddenWhileFramesRun });
+  if (noticeSeen.hiddenWithoutFrames) anomalies.push({ kind: "pagina-senza-fotogrammi", count: noticeSeen.hiddenWithoutFrames,
+    note: "il browser non disegna questa finestra (coperta, ridotta o in un'altra scheda): gli avvisi non si vedono" });
   if (!noticeSeen.withTurnTitle) anomalies.push({ kind: "nessun-avviso-letto", ...noticeSeen });
   await save({ name: "proiettore-verifica-fluidita", content: JSON.stringify({ label: "proiettore-verifica-fluidita", samples, anomalies, noticeOrder: order, noticeSeen }, null, 2) });
   await save({ name: "proiettore-turni-fluidita", content: probe.export("proiettore-turni-fluidita") });
