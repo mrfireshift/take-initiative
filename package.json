@@ -27,6 +27,7 @@
     "audit:barbaro": "node scripts/audit-barbaro-features.mjs",
     "audit:spells": "node scripts/audit-spell-automation.mjs",
     "perf:harness": "node --experimental-test-module-mocks scripts/perf-harness.mjs",
+    "perf:bundle": "node scripts/perf-bundle.mjs",
     "check:spells": "node scripts/check-spell-catalog.mjs",
     "preview": "vite preview"
   },
