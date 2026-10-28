@@ -12,6 +12,12 @@ Lotti fatti:
   - L'ID dei comandi temporali contiene un identificativo creato una volta per pagina (`__temporalRuntimeId`), quindi una pagina nuova non riusa gli ID che il background ricorda dalla precedente.
   - I ritentativi della stessa pagina tengono lo stesso ID.
   - Lo fissa `test/initiativeTemporalCommandId.test.js`, con broker e coda veri: due pagine sulla stessa scena, cinque passaggi applicati. Il test fallisce senza la patch.
+- **L3** (28/10): i messaggi oltre i 16 kB viaggiano a frammenti anche dalle pagine verso il background (HI-01, HI-02).
+  - Coordinatore degli effetti: un Annulla di più voci (o di una voce grande) da Cronologia, tracker o console; il background ricompone il comando prima del broker.
+  - Gestore della Cronologia: la voce da registrare e la risposta che la riporta indietro, nei due sensi.
+  - Stesso formato e stesso assemblatore delle risposte, resi generici in `effectsMutationTransportCore.js`. Un frammento respinto per «Too many requests» aspetta e riparte.
+  - Sotto il limite i messaggi viaggiano come prima.
+  - Lo fissano due test d'integrazione (background vero; owner e seconda pagina), entrambi falliscono senza la patch, e due test unitari. Verdi anche `npm run test:local-store`.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

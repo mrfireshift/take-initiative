@@ -82,9 +82,12 @@ import { suppressElevationHistory, suppressMovementHistory } from "./history.js"
 import { compactBackgroundReminderTransportResult } from "./effectsReminderTransportCore.js";
 import { perfJsonBytes, perfNow, perfProbeEnabled, perfRecord, perfSetContext, perfSince } from "./perfProbe.js";
 import {
+  buildEffectsMutationCommandMessages,
   buildEffectsMutationResultMessages,
+  createEffectsMutationCommandAssembler,
   createEffectsMutationResultAssembler,
   effectsMutationTransportJsonBytes,
+  sendChunkedTransportMessages,
 } from "./effectsMutationTransportCore.js";
 import {
   elevationInputToCanonical,
@@ -609,11 +612,11 @@ function requestBackgroundMutation(
         ));
       }, Math.max(100, Number(timeoutMs) || BACKGROUND_TRANSPORT_TIMEOUT_MS));
       backgroundPendingRequests.set(requestId, { resolve, timer, commandId });
-      void OBR.broadcast.sendMessage(
-        EFFECTS_MUTATION_COMMAND_CHANNEL,
-        { requestId, kind, ...payload },
-        { destination: "LOCAL" },
-      ).catch((error) => {
+      // An Undo of several History entries (7–15 kB each) does not fit one broadcast: it travels in chunks.
+      void Promise.resolve().then(() => sendChunkedTransportMessages(
+        (message) => OBR.broadcast.sendMessage(EFFECTS_MUTATION_COMMAND_CHANNEL, message, { destination: "LOCAL" }),
+        buildEffectsMutationCommandMessages(requestId, { kind, ...payload }),
+      )).catch((error) => {
         const request = backgroundPendingRequests.get(requestId);
         if (!request) return;
         backgroundPendingRequests.delete(requestId);
@@ -2180,6 +2183,8 @@ let backgroundServiceMounted = false;
 let backgroundSceneIdentity = null;
 const backgroundPendingRequests = new Map();
 const backgroundResultAssembler = createEffectsMutationResultAssembler();
+// The background's side: a command a client page sent in chunks (an Undo of large History entries).
+const backgroundCommandAssembler = createEffectsMutationCommandAssembler();
 const pendingHistoryRecords = new Map();
 const pendingSideEffectRecords = new Map();
 const recoveredPostCommitResults = new Map();
@@ -4438,7 +4443,13 @@ export async function mountEffectsMutationCoordinatorService() {
   backgroundServiceUnsubscribe = OBR.broadcast.onMessage(
     EFFECTS_MUTATION_COMMAND_CHANNEL,
     (event) => {
-      const data = event?.data;
+      const joined = backgroundCommandAssembler.push(event?.data);
+      if (!joined.complete) return;
+      if (joined.error) {
+        console.warn("[effects-coordinator] chunked command:", joined.requestId, joined.error);
+        return;
+      }
+      const data = joined.result;
       if (!data?.requestId || !["context", "apply", "undo"].includes(data.kind)) return;
       void (async () => {
         const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
@@ -4597,6 +4608,7 @@ export function unmountEffectsMutationCoordinatorService() {
   backgroundResultUnsubscribe?.();
   backgroundResultUnsubscribe = null;
   backgroundResultAssembler.clearAll();
+  backgroundCommandAssembler.clearAll();
   backgroundServiceMounted = false;
   effectsMutationCoordinator = null;
   backgroundSceneIdentity = null;

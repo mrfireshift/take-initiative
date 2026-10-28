@@ -93,3 +93,46 @@ test("la frammentazione di un ACK da 190 KB resta sotto i 120 ms", () => {
   assert.ok(messages.length > 30);
   assert.ok(elapsed < 120, `chunking took ${elapsed.toFixed(1)} ms`);
 });
+
+// Lot L3 of the bugfix pass: commands from a page to the background travel in chunks too.
+test("L3: un comando oltre 15 kB viene spezzato e ricomposto con il suo requestId", async () => {
+  const { buildEffectsMutationCommandMessages, createEffectsMutationCommandAssembler } =
+    await import("../src/effectsMutationTransportCore.js");
+  const small = { kind: "undo", entry: { id: "small" }, options: { commandId: "c-small" } };
+  assert.deepEqual(buildEffectsMutationCommandMessages("r-small", small), [{ requestId: "r-small", ...small }]);
+
+  const large = { kind: "undo", entry: [{ id: "e1", note: "à".repeat(9000) }, { id: "e2", note: "x".repeat(9000) }], options: { commandId: "c-large" } };
+  const messages = buildEffectsMutationCommandMessages("r-large", large);
+  assert.ok(messages.length > 1);
+  assert.ok(messages.every((message) => new TextEncoder().encode(JSON.stringify(message)).length <= 16 * 1024));
+  const assembler = createEffectsMutationCommandAssembler();
+  let joined = null;
+  for (const message of [...messages].reverse()) {
+    const step = assembler.push(message);
+    if (step.complete) joined = step;
+  }
+  assert.deepEqual(joined.result, { ...large, requestId: "r-large" });
+  assert.deepEqual(assembler.push({ requestId: "r-small", ...small }).result, { requestId: "r-small", ...small });
+});
+
+test("L3: un frammento rifiutato per troppe richieste aspetta e riparte, un altro errore si ferma", async () => {
+  const { sendChunkedTransportMessages } = await import("../src/effectsMutationTransportCore.js");
+  const sent = [];
+  let refusals = 1;
+  const waits = [];
+  await sendChunkedTransportMessages(async (message) => {
+    if (message === "b" && refusals > 0) {
+      refusals -= 1;
+      const error = new Error("[object Object]");
+      error.error = { message: "Too many requests" };
+      throw error;
+    }
+    sent.push(message);
+  }, ["a", "b", "c"], { wait: async (ms) => { waits.push(ms); } });
+  assert.deepEqual(sent, ["a", "b", "c"]);
+  assert.deepEqual(waits, [250]);
+  await assert.rejects(
+    sendChunkedTransportMessages(async () => { throw new Error("message too large"); }, ["a"], { wait: async () => {} }),
+    /message too large/,
+  );
+});

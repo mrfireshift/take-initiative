@@ -20,6 +20,7 @@ const transport = {
   itemWrites: 0,
   failItemWrites: false,
   rateLimitedResults: 0,
+  maxCommandBytes: Infinity,
 };
 
 function tracePoint(point, fields = {}) {
@@ -80,6 +81,9 @@ const sdkStub = {
     },
     async sendMessage(channel, data) {
       const bytes = new TextEncoder().encode(JSON.stringify(data)).length;
+      if (channel === COMMAND_CHANNEL && bytes > transport.maxCommandBytes) {
+        throw new Error("injected-broadcast-payload-too-large");
+      }
       if (channel === COMMAND_CHANNEL) {
         tracePoint("T0 send", { requestId: data.requestId, kind: data.kind });
         tracePoint("T1 background-receive", { requestId: data.requestId, kind: data.kind });
@@ -197,6 +201,7 @@ function reset() {
     itemWrites: 0,
     failItemWrites: false,
     rateLimitedResults: 0,
+    maxCommandBytes: Infinity,
   });
 }
 
@@ -636,5 +641,38 @@ test("D1: un omonimo di un mostro non eredita l'actorProfileId della sua scheda 
     await stopRuntime(runtime);
     if (previousStorage === undefined) delete globalThis.localStorage;
     else globalThis.localStorage = previousStorage;
+  }
+});
+
+// Lot L3 of the bugfix pass (HI-01): a command over Owlbear's 16 kB limit, from a page to the background coordinator,
+// travels in chunks that the real background joins before its broker. An Undo of several History entries is the case
+// at the table; a spell with a large cast context is one here.
+test("L3: un comando oltre 16 kB arriva al background a frammenti e viene applicato", async () => {
+  reset();
+  transport.maxCommandBytes = 16 * 1024;
+  const runtime = await startRuntime();
+  try {
+    const operation = {
+      type: "spell:upsert",
+      targetIds: ["hero"],
+      name: "Scudo",
+      turns: 1,
+      source: "hero",
+      instanceId: "l3-large-command",
+      spellId: "shield",
+      castContext: { summary: "x".repeat(9000), presentation: "y".repeat(9000) },
+    };
+    assert.ok(new TextEncoder().encode(JSON.stringify(operation)).length > 16 * 1024, "the command is over the limit");
+    const result = await runtime.client.runEffectsMutation([operation], {
+      kind: "spell",
+      label: "Incantesimo: Scudo",
+      targetIds: ["hero"],
+      commandId: "l3-large-command",
+      transportTimeoutMs: 1000,
+    });
+    assert.equal(result.status, "applied");
+    assert.ok(scene.items[0].metadata[META_KEY][SPELLS_META_KEY].some((spell) => spell.instanceId === "l3-large-command"));
+  } finally {
+    await stopRuntime(runtime);
   }
 });

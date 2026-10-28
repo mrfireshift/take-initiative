@@ -29,10 +29,27 @@ import {
   HISTORY_OWNER_STATUS,
   normalizeHistoryState,
 } from "./historyOwnerCore.js";
+import {
+  buildChunkedTransportMessages,
+  createChunkedTransportAssembler,
+  sendChunkedTransportMessages,
+} from "./effectsMutationTransportCore.js";
 
 const HISTORY_KEY = METADATA_OWNERSHIP.HISTORY.key;
 const HISTORY_CHANGE_CHANNEL = `${ID}/history-change`;
 const HISTORY_OWNER_TRANSPORT_TIMEOUT_MS = 8000;
+// A command or an answer over Owlbear's 16 kB broadcast limit (an entry for tokens removed with their sheets, or the
+// entry the owner sends back) travels in chunks, joined on arrival.
+const HISTORY_OWNER_COMMAND_CHUNK_TYPE = "history-owner-command-chunk-v1";
+const HISTORY_OWNER_RESULT_CHUNK_TYPE = "history-owner-result-chunk-v1";
+const ownerCommandAssembler = createChunkedTransportAssembler(HISTORY_OWNER_COMMAND_CHUNK_TYPE, {
+  assembled: (command, requestId) => ({ ...command, requestId }),
+  maxOpen: 16,
+});
+const clientResultAssembler = createChunkedTransportAssembler(HISTORY_OWNER_RESULT_CHUNK_TYPE, {
+  assembled: (result, requestId) => ({ requestId, result }),
+  maxOpen: 16,
+});
 
 function clone(value) {
   if (value === undefined) return undefined;
@@ -295,11 +312,10 @@ function recordOwnerCommandProbe(command, startedAt, handledMs, result) {
 }
 
 function respondToOwnerCommand(requestId, result) {
-  return OBR.broadcast.sendMessage(
-    HISTORY_OWNER_RESULT_CHANNEL,
-    { requestId, result },
-    { destination: "LOCAL" },
-  );
+  return Promise.resolve().then(() => sendChunkedTransportMessages(
+    (message) => OBR.broadcast.sendMessage(HISTORY_OWNER_RESULT_CHANNEL, message, { destination: "LOCAL" }),
+    buildChunkedTransportMessages(requestId, { requestId, result }, result, HISTORY_OWNER_RESULT_CHUNK_TYPE),
+  ));
 }
 
 export async function mountHistoryOwner() {
@@ -319,7 +335,13 @@ export async function mountHistoryOwner() {
       ownerCommandUnsubscribe = OBR.broadcast.onMessage(
         HISTORY_OWNER_COMMAND_CHANNEL,
         (event) => {
-          const data = event?.data;
+          const joined = ownerCommandAssembler.push(event?.data);
+          if (!joined.complete) return;
+          if (joined.error) {
+            console.warn("[history-owner] chunked command:", joined.requestId, joined.error);
+            return;
+          }
+          const data = joined.result;
           if (!data?.requestId || !["context", "append", "remove", "clear"].includes(data.kind)) return;
           const probeStartedAt = perfProbeEnabled() ? perfNow() : 0;
           let probeHandledMs = null;
@@ -420,6 +442,18 @@ function rejectPendingRequest(requestId, pending, message, code, result = null) 
 }
 
 // One owner answer, from the broadcast or from the owner of this page: the same scene and identity checks.
+// Every page of this client hears every answer: only the chunks of its own pending requests are joined.
+function receiveOwnerMessage(data) {
+  if (!clientPendingRequests.has(data?.requestId)) return;
+  const joined = clientResultAssembler.push(data);
+  if (!joined.complete) return;
+  if (joined.error) {
+    rejectPendingRequest(data.requestId, clientPendingRequests.get(data.requestId), joined.error, "history-owner-transport");
+    return;
+  }
+  receiveOwnerResult(joined.result);
+}
+
 function receiveOwnerResult(data) {
   const pending = clientPendingRequests.get(data?.requestId);
   if (!pending) return;
@@ -457,7 +491,7 @@ function ensureClientTransport() {
   if (clientResultUnsubscribe || typeof OBR?.broadcast?.onMessage !== "function") return;
   clientResultUnsubscribe = OBR.broadcast.onMessage(
     HISTORY_OWNER_RESULT_CHANNEL,
-    (event) => receiveOwnerResult(event?.data),
+    (event) => receiveOwnerMessage(event?.data),
   );
   clientSceneEpochUnsubscribe = subscribeSceneEpoch(({ phase }) => {
     if (phase !== "unload") return;
@@ -536,11 +570,10 @@ function sendOwnerRequest(payload, { sceneEpoch = currentSceneEpoch() } = {}) {
         });
       return;
     }
-    void OBR.broadcast.sendMessage(
-      HISTORY_OWNER_COMMAND_CHANNEL,
-      command,
-      { destination: "LOCAL" },
-    ).catch((error) => {
+    void Promise.resolve().then(() => sendChunkedTransportMessages(
+      (message) => OBR.broadcast.sendMessage(HISTORY_OWNER_COMMAND_CHANNEL, message, { destination: "LOCAL" }),
+      buildChunkedTransportMessages(requestId, command, command, HISTORY_OWNER_COMMAND_CHUNK_TYPE),
+    )).catch((error) => {
       const pending = clientPendingRequests.get(requestId);
       if (!pending) return;
       clientPendingRequests.delete(requestId);

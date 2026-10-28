@@ -322,3 +322,35 @@ test("an entry over Owlbear's 16 kB broadcast limit reaches the owner of the sam
     sdkStub.broadcast.sendMessage = originalSendMessage;
   }
 });
+
+// Lot L3 of the bugfix pass (HI-02): a page that is not the owner's (the tracker, a popup) sends by broadcast. An entry
+// over 16 kB (tokens removed with their sheets) and the owner's answer, which carries the entry back, travel in chunks.
+test("L3: an entry over 16 kB from another page reaches the owner in chunks, and its answer comes back", async () => {
+  const first = await mountReadyOwner();
+  const originalSendMessage = sdkStub.broadcast.sendMessage;
+  const sizes = [];
+  sdkStub.broadcast.sendMessage = async (channel, data, options) => {
+    const bytes = new TextEncoder().encode(JSON.stringify(data)).length;
+    if (channel === HISTORY_OWNER_COMMAND_CHANNEL || channel === HISTORY_OWNER_RESULT_CHANNEL) sizes.push({ channel, bytes });
+    if (bytes > 16 * 1024) throw { error: "message too large" };
+    return originalSendMessage(channel, data, options);
+  };
+  try {
+    const large = entry("removed-with-sheets");
+    large.changes = Array.from({ length: 4 }, (_, index) => ({
+      id: `token-${index}`, before: { conditions: "x".repeat(12000) }, after: { conditions: "y".repeat(12000) },
+    }));
+    const result = await clientRealm.requestHistoryOwnerAppend(large, {
+      sceneEpoch: currentSceneEpoch(),
+      sceneIdentity: first.identity,
+      commandId: "history-owner-large-popup-entry",
+    });
+    assert.equal(result.status, "appended");
+    const stored = await readHistoryValue();
+    assert.ok(stored.entries.some((value) => value.id === "removed-with-sheets"));
+    assert.ok(sizes.filter(({ channel }) => channel === HISTORY_OWNER_COMMAND_CHANNEL).length > 1, "the command went in chunks");
+    assert.ok(sizes.every(({ bytes }) => bytes <= 16 * 1024), "no message over the limit");
+  } finally {
+    sdkStub.broadcast.sendMessage = originalSendMessage;
+  }
+});
