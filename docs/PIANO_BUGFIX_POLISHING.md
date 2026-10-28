@@ -73,6 +73,7 @@ Lotti fatti:
   - L'editor dei PF confronta il token con i valori che mostra (`baseHP`/`baseHPMax`), non con la card da cui è nato.
   - Con una rinomina aperta il render completo aspetta e riparte quando la rinomina si chiude (evento `TRACKER_RENAME_FINISHED_EVENT`). Prima l'input veniva distrutto e il nome digitato andava perso.
   - Test: `trackerFullRenderReconcile.test.js` e due casi in `initiativeEditors.test.js`; falliscono senza la patch. Il contratto della guardia degli editor in `initiativeControllerContract.test.js` include la rinomina.
+  - **Regressione corretta dopo L26**: il listener della rinomina era registrato in `mountInitiativeList` prima di `const track`. Il montaggio si fermava con «Cannot access 'track' before initialization» e il tracker non mostrava nessuna card. Ora è registrato dopo la creazione di `track`. Lo controlla `initiativeMountTemporalDeadZone.test.js`, che percorre il montaggio con il parser di Rollup e fallisce su qualunque const o let letta prima della sua riga.
 - **L11** (28/10): console attacchi e Boss (AT-01, AT-02, AT-04, AT-05, AT-06, AT-07, AT-08).
   - Le creature di un attacco ad area e della Freccia esplosiva sono lette con le difese del Rimebound Link come il bersaglio singolo, e vanno in `bossLinkResisted`. Prima un'area con la Mano del Titano era sempre rifiutata.
   - Se il personaggio della console passa dal proprio turno a fuori turno con un attacco già scelto, la casella della reazione compare spenta.

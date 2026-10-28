@@ -1195,8 +1195,6 @@ const EPIC_TAG_CFG = {
 
     if (container.__initiativeMounted) return;   // ← evita montaggi doppi
     container.__initiativeMounted = true;
-    // A full render waits while a card is being renamed (it would destroy the input): it runs once the rename closes.
-    track.addEventListener(TRACKER_RENAME_FINISHED_EVENT, () => __scheduleEditorDirtyFlush());
     const __activeTurnLabelLifecycle = createOptionalRuntimeLifecycle({
       name: "active-turn-map-label",
       mount: () => { __activeTurnLabelRuntimeEnabled = true; },
@@ -2665,6 +2663,9 @@ track.style.gap = "6px";
 track.style.paddingTop = "8px";
 track.style.paddingBottom = "8px";
 trackWrap.appendChild(track);
+// A full render waits while a card is being renamed (it would destroy the input): it runs once the rename closes.
+// Registered here, after track exists: earlier in mountInitiativeList it is still in its temporal dead zone.
+track.addEventListener(TRACKER_RENAME_FINISHED_EVENT, () => __scheduleEditorDirtyFlush());
 
 function updateActiveCardMovementIndicator() {
   track.querySelector('[data-speed-card-indicator="1"]')?.remove();
