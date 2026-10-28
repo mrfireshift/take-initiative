@@ -48,6 +48,14 @@
     /* Mirror Image on the target: the d20 to aim at a duplicate, and the button that destroys one. */
     .mirror-image { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid rgba(167, 139, 250, .5); border-radius: var(--obrt-radius-md); background: rgba(124, 58, 237, .16); }
     .mirror-image-note { margin: 0; min-width: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
+    /* CAP-REACTION: the target's Sanctuary, the retaliation of its shield and the reactions it can still cast. */
+    .attack-reactions { display: grid; gap: 4px; }
+    .attack-reactions[hidden] { display: none; }
+    .attack-reaction { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid rgba(251, 146, 60, .45); border-radius: var(--obrt-radius-md); background: rgba(194, 65, 12, .14); }
+    .attack-reaction-note { margin: 0; flex: 1 1 auto; min-width: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
+    .attack-reactions > .attack-reaction-note { padding: 5px 8px; border: 1px solid rgba(96, 165, 250, .45); border-radius: var(--obrt-radius-md); background: rgba(37, 99, 235, .14); }
+    .attack-reaction-amount { flex: 0 0 52px; width: 52px; min-height: 24px; padding: 2px 4px; border: 1px solid var(--line, rgba(148,163,184,.35)); border-radius: var(--obrt-radius-md); background: var(--surface, rgba(0,0,0,.3)); color: inherit; }
+    .attack-reaction .small { flex: 0 0 auto; }
     .target-name { flex: 1 1 auto; min-width: 0; overflow: hidden; font-weight: var(--obrt-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
     .target-name.is-empty { color: #fde68a; font-weight: var(--obrt-weight-regular); white-space: normal; overflow-wrap: anywhere; }
     .target-hp { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -124,68 +132,71 @@
     .effect-name { font-weight: var(--obrt-weight-semibold); }
     .effect-detail { color: var(--muted); font-size: var(--obrt-type-caption); }
   </style>
-  <script type="module" crossorigin src="/assets/bossActions-zu0H-H-8.js"></script>
+  <script type="module" crossorigin src="/assets/bossActions-Bv0nLBwz.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
   <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
   <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
   <link rel="modulepreload" crossorigin href="/assets/quickHpCore-_ISyYHK9.js">
   <link rel="modulepreload" crossorigin href="/assets/sharedHpCore-ROlU6j7p.js">
   <link rel="modulepreload" crossorigin href="/assets/bossLinkResistanceCore-BEeUqVid.js">
-  <link rel="modulepreload" crossorigin href="/assets/perfProbe-k_u0y5c8.js">
-  <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-BQeQ0vF6.js">
+  <link rel="modulepreload" crossorigin href="/assets/perfProbe-CcEP2tal.js">
+  <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-D8g-_25X.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneEpoch-B8A8dIDk.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneItemEvents-B-VeJ99_.js">
   <link rel="modulepreload" crossorigin href="/assets/deathSaveCore-CcXkOiQb.js">
   <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
   <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-B9tJvyre.js">
-  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-CzGiFp3p.js">
+  <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-D27c9w3o.js">
   <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-gGdnlg7u.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3dCore-DlG3XiK9.js">
-  <link rel="modulepreload" crossorigin href="/assets/history-DySzihxl.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-DRalITB9.js">
+  <link rel="modulepreload" crossorigin href="/assets/history-ColvNezM.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsRecovery-Do98g9Uk.js">
   <link rel="modulepreload" crossorigin href="/assets/blinkRules-BuZ4q_b5.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-BakIaJ9o.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCore-Do06pZDD.js">
   <link rel="modulepreload" crossorigin href="/assets/effectLabelCore-BxJURo7r.js">
-  <link rel="modulepreload" crossorigin href="/assets/conditions-CsKT8I5w.js">
+  <link rel="modulepreload" crossorigin href="/assets/conditions-SQkOpCRR.js">
   <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-DsIMVUil.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellEffectCore-B-XQmijL.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellEffectCore-BpKJzXIM.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-9uFdcy3T.js">
   <link rel="modulepreload" crossorigin href="/assets/aoeStyle-CUzjg6Rv.js">
   <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-D2zfFjnK.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-QNPSAQJ4.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-3vfucJeP.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellAreaRules-Dod3QHGU.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-mOkcZX8z.js">
   <link rel="modulepreload" crossorigin href="/assets/customAuraCore-Dbfwa1Fb.js">
-  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-C4qWa4MI.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-D52H_ULh.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureAuraCore-BvNh1vQk.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellZoneTriggerCore-DnwUUpzi.js">
   <link rel="modulepreload" crossorigin href="/assets/distance3d-naPLYM3W.js">
-  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-mm_C6Xf2.js">
+  <link rel="modulepreload" crossorigin href="/assets/effectsMutations-CKKDaVqU.js">
   <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenTrackerCore-DUQFe-HA.js">
   <link rel="modulepreload" crossorigin href="/assets/sharedHpViewCore-CePtk_pB.js">
   <link rel="modulepreload" crossorigin href="/assets/sharedHpControls-C9rGDIcd.js">
   <link rel="modulepreload" crossorigin href="/assets/bossActionProfileCore-nCPHIKmT.js">
   <link rel="modulepreload" crossorigin href="/assets/bossActionProfileStore-Bih8FHeR.js">
   <link rel="modulepreload" crossorigin href="/assets/speedCheckCore-CJ-dHtGF.js">
-  <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-C6cwDHT3.js">
+  <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BVKGJkVf.js">
   <link rel="modulepreload" crossorigin href="/assets/quickActionsCore-CIqvmuzQ.js">
   <link rel="modulepreload" crossorigin href="/assets/spellbookCore-B67x6sIA.js">
-  <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-Bw9cj-z1.js">
-  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-DnsB2pww.js">
-  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-jWnEYb8X.js">
+  <link rel="modulepreload" crossorigin href="/assets/actorIdentityCore-CsSBrkHY.js">
+  <link rel="modulepreload" crossorigin href="/assets/damageDefensesCore-Cb9B41Zi.js">
+  <link rel="modulepreload" crossorigin href="/assets/initiativeCards-Brp06uOL.js">
   <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionRules-DkBHxQ03.js">
-  <link rel="modulepreload" crossorigin href="/assets/spells-srd-Daq2zwzG.js">
-  <link rel="modulepreload" crossorigin href="/assets/monsterActionContextCore-B6moVkEF.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-UYQ2pK3B.js">
+  <link rel="modulepreload" crossorigin href="/assets/spells-srd-NxSSuMLg.js">
+  <link rel="modulepreload" crossorigin href="/assets/monsterActionContextCore-azPxYKI_.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionExecutionCore-cs_q1ygS.js">
   <link rel="modulepreload" crossorigin href="/assets/bossCollapseCore-BpWnXKe6.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-JrtFZjdv.js">
-  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-vOr8qLfy.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelCore-CQe66Gte.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellUnifiedPanelRoutingCore-CEmtMqnZ.js">
   <link rel="modulepreload" crossorigin href="/assets/bossAuraCore-C5ltoZ_M.js">
-  <link rel="modulepreload" crossorigin href="/assets/mirrorImageCore-C3yFHYAX.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-u3b6G_G0.js">
+  <link rel="modulepreload" crossorigin href="/assets/reactionTrackerCore-C7E5aTk-.js">
+  <link rel="modulepreload" crossorigin href="/assets/classFeatureCatalog-WMvPzx9y.js">
+  <link rel="modulepreload" crossorigin href="/assets/spellbookCatalog-qfmp_Rj5.js">
+  <link rel="modulepreload" crossorigin href="/assets/attackReactionsView-C33iLk7u.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionsViewCore-TkpZn9dc.js">
   <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-5hUM_IHG.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BShgVb6O.js">
   <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-qAgbAyQi.js">
-  <link rel="modulepreload" crossorigin href="/assets/bossActionsLauncher-BNg47j5j.js">
+  <link rel="modulepreload" crossorigin href="/assets/bossActionsLauncher-B_QjuwjS.js">
 </head>
 <body>
   <script>
