@@ -1135,6 +1135,8 @@ test("token:teleport: side-effect in mutazione composita -> Undo PASS", () => {
   const restored = result.finalItems.find((e) => e.id === "wizard")?.item;
   assert.equal(restored.metadata[META].hp, 25, "HP reverted");
   assert.deepEqual(restored.position, { x: 100, y: 100 }, "Position reverted");
+  // Lot L26 (MP-02): the position put back is a teleport's, which the speed check gives no movement back for.
+  assert.equal(result.changes.find((change) => change.id === "wizard")?.relocation, true);
 });
 
 

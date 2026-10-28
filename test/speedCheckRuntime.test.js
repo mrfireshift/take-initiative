@@ -650,3 +650,29 @@ test("Mano arcana: the movement limit rolls the hand back past its 18 m, and ano
   assert.equal(env.items.find((item) => item.id === "hand-ally").position.x, 70, "not the turn's caster: untracked");
   assert.equal(speedWarnings().length, 1);
 });
+
+// Lot L26 of the bugfix pass (MP-02): a teleport and its Undo gave movement back as if the creature had walked back.
+test("L26: un teletrasporto e il suo Annulla non danno né tolgono movimento; il passo dopo parte da dove è atterrato", async () => {
+  const api = await runtime();
+  await ready();
+  await move(api, 0, 2);
+  assert.equal(env.snapshot.totalMeters, 3);
+  await move(api, 2, 6, { relocation: true });
+  assert.equal(env.snapshot.totalMeters, 3, "Passo velato: nothing charged, nothing given back");
+  await move(api, 6, 7);
+  assert.equal(env.snapshot.totalMeters, 4.5, "the next step is measured from the landing cell");
+  await move(api, 7, 3, { relocation: true });
+  assert.equal(env.snapshot.totalMeters, 4.5, "the teleport's Undo gives nothing back either");
+  await move(api, 3, 2, { undo: true });
+  assert.equal(env.snapshot.totalMeters, 3, "an Undo of a walk still gives its movement back");
+});
+
+// Lot L26 of the bugfix pass (MP-08): climbing multiplied the other costs instead of adding to them.
+test("L26: Prono e scalata si sommano: 1,5 m costano 4,5 m, non 6", async () => {
+  const hero = token();
+  Object.assign(hero.metadata[META_KEY], { climbing: true, conditions: { instances: [{ id: "prone", condition: "Prono", active: true }] } });
+  const api = await runtime({ items: [hero, token("ally")] });
+  await ready();
+  await move(api, 0, 1);
+  assert.equal(env.snapshot.totalMeters, 4.5);
+});

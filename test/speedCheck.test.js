@@ -454,3 +454,17 @@ test("requires an explicit undo signal before retreating movement", () => {
   assert.equal(shouldRetreatSpeedMovement(0, { undo: true }), true);
   assert.equal(shouldRetreatSpeedMovement(-1, {}), false);
 });
+
+// Lot L26 of the bugfix pass (MP-08): Prone and climbing add a foot per foot to difficult terrain (PHB), as
+// docs/MOVEMENT_MECHANICS.md says; difficult terrain still does not stack with itself.
+test("L26: i costi si sommano: Prono nella Cucitura 12, scalata nella Ragnatela 12, due terreni difficili 8", () => {
+  const seam = [{ costMultiplier: 2, area: { cells: [{ x: -10, y: -10, width: 1000, height: 20 }] } }];
+  const step = { movedCells: 4, beforePosition: { x: 0, y: 0 }, afterPosition: { x: 600, y: 0 } };
+  assert.equal(movementCostForSegment({ ...step, baseMultiplier: 1, extraCost: 1, terrainModifiers: seam }).chargedCells, 12,
+    "crawling in the boss's seam: 1 + 1 + 1");
+  assert.equal(movementCostForSegment({ ...step, baseMultiplier: 2, extraCost: 1 }).chargedCells, 12,
+    "climbing in a web: 1 + 1 + 1");
+  assert.equal(movementCostForSegment({ ...step, baseMultiplier: 2, terrainModifiers: seam }).chargedCells, 8,
+    "a web inside the seam: difficult terrain once");
+  assert.equal(movementCostForSegment({ ...step, baseMultiplier: 1 }).chargedCells, 4);
+});

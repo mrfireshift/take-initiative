@@ -332,8 +332,11 @@ export function movementCostForSegment({
   directionalModifiers = [],
   // Areas of difficult terrain on the map (the seam of a boss): only the part of the step inside one costs more.
   terrainModifiers = [],
+  // Costs that add to difficult terrain instead of competing with it (Prone, climbing): a foot more per foot each.
+  extraCost = 0,
 } = {}) {
   const cells = Math.max(0, Number(movedCells) || 0);
+  const extra = Math.max(0, Number(extraCost) || 0);
   const before = beforePosition && Number.isFinite(Number(beforePosition.x))
     && Number.isFinite(Number(beforePosition.y))
     ? { x: Number(beforePosition.x), y: Number(beforePosition.y) }
@@ -342,7 +345,7 @@ export function movementCostForSegment({
     && Number.isFinite(Number(afterPosition.y))
     ? { x: Number(afterPosition.x), y: Number(afterPosition.y) }
     : null;
-  const baseCost = cells * Math.max(1, Number(baseMultiplier) || 1);
+  const baseCost = cells * (Math.max(1, Number(baseMultiplier) || 1) + extra);
   if (!cells || !before || !after) {
     return {
       chargedCells: baseCost,
@@ -424,6 +427,7 @@ export function movementCostForSegment({
       terrainCells += cells * (end - start);
       if (!appliedModifiers.includes(modifier)) appliedModifiers.push(modifier);
     }
+    segmentBase += extra;
     let multiplier = segmentBase;
     let segmentDirectional = false;
     for (const modifier of modifiers) {

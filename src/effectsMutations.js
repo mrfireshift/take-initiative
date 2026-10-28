@@ -1649,6 +1649,7 @@ function historyPlanMovementSuppression(plan) {
 async function broadcastHistoryUndoSuppression({
   ids,
   positions,
+  relocations = [],
   until,
   sceneEpoch = currentSceneEpoch(),
   sceneIdentity = null,
@@ -1675,6 +1676,7 @@ async function broadcastHistoryUndoSuppression({
       type: "suppress-history-undo",
       ids,
       positions,
+      ...(relocations.length ? { relocations } : {}),
       until,
       ...(Number.isSafeInteger(sceneEpoch) ? { sceneEpoch } : {}),
       ...(sceneIdentity ? { sceneIdentity } : {}),
@@ -2024,10 +2026,13 @@ async function commitHistoryUndoPlan(plan, { isCurrent }) {
   if (suppressionIds.length) {
     const until = Date.now() + HISTORY_UNDO_SUPPRESSION_MS;
     const positions = historyPlanMovementSuppression(plan);
+    const relocations = (Array.isArray(plan?.changes) ? plan.changes : [])
+      .filter((change) => change?.relocation === true && positions[change.id]).map((change) => change.id);
     try {
       await broadcastHistoryUndoSuppression({
         ids: suppressionIds,
         positions,
+        relocations,
         until,
         sceneEpoch: currentSceneEpoch(),
         sceneIdentity: backgroundSceneIdentity,
@@ -3295,7 +3300,7 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     const [actual] = await OBR.scene.items.getItems([targetId]);
     if (!actual) throw new Error("token-teleport-target-missing");
     if (!isCurrent()) throw new Error("stale-before-token-teleport");
-    suppressMovementHistory(targetId, afterPosition, 5000);
+    suppressMovementHistory(targetId, afterPosition, 5000, { relocation: true });
     const skipAnimation = sideEffect.skipAnimation === true;
     const operationId = String(sideEffect.operationId || "").trim();
     cancelActiveTeleportAnimation(targetId);
@@ -3316,7 +3321,7 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       animation.timers.push(setTimeout(async () => {
         try {
           if (!isCurrent() || !teleportAnimationIsActive(targetId, operationId)) return;
-          suppressMovementHistory(targetId, afterPosition, 5000);
+          suppressMovementHistory(targetId, afterPosition, 5000, { relocation: true });
           await OBR.scene.items.updateItems([targetId], (drafts) => {
             if (!teleportAnimationIsActive(targetId, operationId)) return;
             for (const draft of drafts) {
@@ -3842,7 +3847,7 @@ async function applyUndoSideEffect(sideEffect, isCurrent) {
       throw new Error("undo-side-effect-conflict");
     }
     if (!isCurrent()) throw new Error("stale-before-undo-token-teleport");
-    suppressMovementHistory(sideEffect.id, sideEffect.restorePosition, 5000);
+    suppressMovementHistory(sideEffect.id, sideEffect.restorePosition, 5000, { relocation: true });
     await OBR.scene.items.updateItems([sideEffect.id], (drafts) => {
       for (const draft of drafts) {
         if (draft.id !== sideEffect.id) continue;

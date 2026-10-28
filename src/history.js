@@ -1334,7 +1334,9 @@ export function subscribeMovementSegments(handler) {
   return () => __movementSegmentListeners.delete(handler);
 }
 
-export function suppressMovementHistory(itemId, expectedPosition, durationMs = 5000) {
+// relocation: the token is moved by an effect (a teleport, or its Undo), not walked: the speed check neither charges nor
+// gives back movement for it, it only takes the new position as the start of the next step.
+export function suppressMovementHistory(itemId, expectedPosition, durationMs = 5000, { relocation = false } = {}) {
   const id = String(itemId || "");
   const position = itemPosition({ position: expectedPosition });
   if (!id || !position) return;
@@ -1343,11 +1345,13 @@ export function suppressMovementHistory(itemId, expectedPosition, durationMs = 5
   __suppressedMovements.set(id, {
     until,
     positions: [position],
+    ...(relocation ? { relocation: true } : {}),
   });
   void OBR.broadcast.sendMessage(HISTORY_CONTROL_CHANNEL, {
     type: "suppress-movement",
     ids: [id],
     positions: { [id]: [position] },
+    ...(relocation ? { relocations: [id] } : {}),
     until,
   }, { destination: "LOCAL" }).catch(() => {});
 }
@@ -1550,7 +1554,7 @@ export async function mountMovementHistoryWatcher() {
     if (!Array.isArray(data?.ids)) return;
     if (data.type === "suppress-history-undo") {
       markHistoryRestoreSuppressed(data.ids, data.until);
-      installMovementSuppressions(data.ids, data.positions, data.until);
+      installMovementSuppressions(data.ids, data.positions, data.until, data.relocations);
       // An Undo that gives a height back is not a new move either.
       const elevationUntil = Math.max(Date.now() + 500, Number(data.until) || 0);
       for (const id of data.ids) if (id) __suppressedElevations.set(String(id), elevationUntil);
@@ -1574,7 +1578,7 @@ export async function mountMovementHistoryWatcher() {
       return;
     }
     if (data.type !== "suppress-movement") return;
-    installMovementSuppressions(data.ids, data.positions, data.until);
+    installMovementSuppressions(data.ids, data.positions, data.until, data.relocations);
   });
 
   const initialEpoch = currentSceneEpoch();
@@ -1658,7 +1662,7 @@ export async function mountMovementHistoryWatcher() {
               name: String(item.name || "").trim() || "Token",
               beforePosition: previous,
               afterPosition: next,
-              undo: true,
+              ...(suppression.relocation ? { relocation: true } : { undo: true }),
             }]);
           }
           suppression.positions.splice(0, expectedIndex + 1);
@@ -2477,15 +2481,16 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
   });
 }
 
-function installMovementSuppressions(ids, positionsById, requestedUntil = 0) {
+function installMovementSuppressions(ids, positionsById, requestedUntil = 0, relocations = []) {
   const until = Math.max(Date.now() + 500, Number(requestedUntil) || 0);
+  const relocated = new Set(Array.isArray(relocations) ? relocations : []);
   for (const id of Array.isArray(ids) ? ids : []) {
     const positions = Array.isArray(positionsById?.[id])
       ? positionsById[id]
         .map((position) => itemPosition({ position }))
         .filter(Boolean)
       : [];
-    if (id && positions.length) __suppressedMovements.set(id, { until, positions });
+    if (id && positions.length) __suppressedMovements.set(id, { until, positions, ...(relocated.has(id) ? { relocation: true } : {}) });
   }
 }
 

@@ -1132,7 +1132,7 @@ async function processSpeedCheckMovement(movement, turn) {
   if (verticalMovement && verticalMode === "climb" && state.climbing !== true) return;
   // History may deliver the first segment after the initial item read completed.
   // Only a fresh turn can adopt that segment's origin; restored turns keep theirs.
-  if (state.awaitingFirstMovement && !verticalMovement && movement?.undo !== true
+  if (state.awaitingFirstMovement && !verticalMovement && movement?.undo !== true && movement?.relocation !== true
     && validPoint(movement?.beforeCell) && validPoint(movement?.beforePosition)) {
     state.awaitingFirstMovement = false;
     if (!samePosition(state.startCell, movement.beforeCell)) {
@@ -1148,6 +1148,13 @@ async function processSpeedCheckMovement(movement, turn) {
   const rawBefore = validPoint(movement?.beforePosition);
   const rawAfter = verticalMovement ? rawBefore : validPoint(movement?.afterPosition);
   if (!beforeCell || !afterCell || !rawBefore || !rawAfter) return;
+  // A teleport (or its Undo) is not walked: nothing charged or given back, the next step starts where it landed.
+  if (movement?.relocation === true && !verticalMovement) {
+    state.lastCell = afterCell;
+    notifyMovementState();
+    await persistMovementState(state);
+    return;
+  }
 
   const sample = { ...movement, beforeCell, afterCell };
   let movedCells;
@@ -1199,10 +1206,11 @@ async function processSpeedCheckMovement(movement, turn) {
     movedCells,
     beforePosition: rawBefore,
     afterPosition: rawAfter,
-    baseMultiplier: Math.max(1, Number(state.movementCostMultiplier) || 1)
-      * (climbingMovement
-        ? climbingMovementCostMultiplier(state.climbing, state.movementModes)
-        : 1),
+    // PHB: each extra cost adds a foot per foot. The profile's difficult terrain does not stack with the map's (the
+    // higher one); Prone (crawling) and climbing add to either.
+    baseMultiplier: Math.max(1, (Number(state.movementCostMultiplier) || 1) - (state.prone === true ? 1 : 0)),
+    extraCost: (state.prone === true ? 1 : 0)
+      + (climbingMovement ? climbingMovementCostMultiplier(state.climbing, state.movementModes) - 1 : 0),
     directionalModifiers,
     terrainModifiers,
   });

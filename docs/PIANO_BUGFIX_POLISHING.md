@@ -82,6 +82,11 @@ Lotti fatti:
   - Svuota fissa le aree di Hand Slam allo stadio che hanno (`settled`): non tornano incrinate al round 1. Il ◀ in combattimento le riporta incrinate come prima (`docs/boss-hand-slam-collapse.md`).
   - Dopo un conflitto il Palmo tremante prende una nuova identità, come le manovre.
   - Test in `bossLinkResistancePcAttack`, `pcAttackPopover` (la fixture ora segue il turno dai metadata di scena), `pcAttackExecutionIntegration`, `bossCollapseCore` e `bossCollapseController`. Falliscono senza la patch.
+- **L26** (28/10): movimento (MP-02, MP-08).
+  - Un teletrasporto e il suo Annulla arrivano al controllo della velocità come «ricollocazione» (`relocation`), non come Annulla di un passo. Non consumano e non restituiscono movimento; il passo dopo si misura dalla casella d'arrivo.
+  - Il segno parte da `suppressMovementHistory(..., { relocation: true })` per il teletrasporto e per l'Annulla del coordinatore. Nell'Annulla dalla Cronologia lo porta `change.relocation` del piano (`historyUndoCore`).
+  - Prono e scalata si sommano al terreno difficile (+1,5 m per casella ciascuno), come dicono il PHB e `MOVEMENT_MECHANICS.md`: Prono nella Cucitura 12, scalata nella Ragnatela 12. Il terreno difficile continua a non sommarsi con se stesso (`extraCost` in `movementCostForSegment`).
+  - Test in `speedCheck`, `speedCheckRuntime`, `historyMovementUndoIntegration` e `historyUndoCore`. Falliscono senza la patch.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

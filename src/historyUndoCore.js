@@ -1402,6 +1402,7 @@ function processChange({
       });
     } else {
       touch.position = true;
+      touch.walked = true;
       item.position = clone(movement.before);
     }
   }
@@ -1731,6 +1732,7 @@ function processTokenTeleport({
     return;
   }
   touch.position = true;
+  touch.relocation = true;
   item.position = clone(beforePosition);
   item.visible = true;
 }
@@ -1963,6 +1965,8 @@ export function buildHistoryUndoPlan({
       change.position = true;
       change.beforePosition = clone(beforeItem.position);
       change.afterPosition = clone(afterItem.position);
+      // Only a teleport (or a forced move) put back: the speed check gives no movement back for it.
+      if (touch.relocation && !touch.walked) change.relocation = true;
     }
     if (touch.commands) {
       change.commands = true;

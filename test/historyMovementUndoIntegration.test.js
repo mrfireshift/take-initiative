@@ -324,3 +324,31 @@ test("a change of elevation is recorded as a move and its Undo gives the height 
   assert.ok(correction);
   assert.deepEqual([correction.targets[0].fromElevation, correction.targets[0].toElevation, correction.targets[0].verticalMeters], [9, 0, -9]);
 });
+
+// Lot L26 of the bugfix pass (MP-02): a teleport (or its Undo) was handed to the speed check as an Undo of a walk,
+// which gave movement back: 9 m walked became 6, then 3.
+test("L26: lo spostamento di un teletrasporto arriva al controllo della velocità come ricollocazione, non come Annulla", async () => {
+  const segments = [];
+  const unsubscribe = history.subscribeMovementSegments((changes) => { segments.push(...clone(changes)); });
+  try {
+    const origin = clone(sceneState.items[0].position);
+    const landing = { x: origin.x + 6, y: origin.y };
+    history.suppressMovementHistory("token-movement", landing, 5000, { relocation: true });
+    await sdkStub.scene.items.updateItems(["token-movement"], (drafts) => { drafts[0].position = clone(landing); });
+    await wait(450);
+    assert.equal(segments.length, 1);
+    assert.equal(segments[0].relocation, true);
+    assert.equal(segments[0].undo, undefined);
+    assert.deepEqual(await history.getHistoryEntries(), [], "not a move of its own");
+
+    // A restore that is an Undo of a walk keeps the undo mark.
+    history.suppressMovementHistory("token-movement", origin, 5000);
+    await sdkStub.scene.items.updateItems(["token-movement"], (drafts) => { drafts[0].position = clone(origin); });
+    await wait(450);
+    assert.equal(segments.length, 2);
+    assert.equal(segments[1].undo, true);
+    assert.equal(segments[1].relocation, undefined);
+  } finally {
+    unsubscribe();
+  }
+});
