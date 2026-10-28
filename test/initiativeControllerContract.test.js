@@ -372,7 +372,7 @@ test("il background apre il turn notice on demand e lo chiude quando è invisibi
   assert.doesNotMatch(sender, /__lastTurnNoticeDeliveryKey = deliveryKey/);
   assert.match(backgroundSource, /mountTurnNoticeHost\(\)/);
   assert.match(turnNoticeHostSource, /enqueueTurnNoticeHostPayload\(pendingPayloads, payload\)/);
-  assert.match(turnNoticeHostSource, /await openTurnNoticePopover\(pendingPayloads\[0\]\)/);
+  assert.match(turnNoticeHostSource, /const first = pendingPayloads\[0\];\s*if \(await openTurnNoticePopover\(first\)\)/);
   const receiveNotice = sourceSectionIn(
     turnNoticeHostSource,
     "function receiveNoticePayload(payload)",

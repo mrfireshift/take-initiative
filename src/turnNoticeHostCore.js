@@ -20,6 +20,17 @@ export function enqueueTurnNoticeHostPayload(
   return next;
 }
 
+// The first turn notice of a closed popup rides in its URL, as the death save and the boss link do; any other
+// payload, or one too long for a URL, goes through the ready handshake. Empty when it does not ride.
+export const TURN_NOTICE_URL_PAYLOAD_MAX_CHARS = 6000;
+
+export function turnNoticeUrlPayload(payload, maxChars = TURN_NOTICE_URL_PAYLOAD_MAX_CHARS) {
+  if (!isTurnNoticePayload(payload)) return "";
+  let encoded = "";
+  try { encoded = encodeURIComponent(JSON.stringify(payload)); } catch { return ""; }
+  return encoded.length <= maxChars ? encoded : "";
+}
+
 export function shouldSuppressTurnNoticeBroadcast({
   enabled = TURN_NOTICE_SPAM_GUARD_ENABLED,
   flushRevision = 0,

@@ -10,6 +10,7 @@ import {
   enqueueTurnNoticeHostPayload,
   shouldCloseTurnNoticeFromHiddenLayout,
   shouldHonorTurnNoticeCloseRequest,
+  turnNoticeUrlPayload,
 } from "./turnNoticeHostCore.js";
 import { receiveDeathSaveNotices, splitDeathSaveNotices, withdrawHistoryReplayDeathSaves } from "./deathSaveNoticeHost.js";
 
@@ -114,8 +115,9 @@ function initialPopoverHeight(payload) {
   return 158;
 }
 
+// True when the payload rode in the popup's URL: the page draws it before announcing that it is ready.
 async function openTurnNoticePopover(payload) {
-  if (popoverOpen) return;
+  if (popoverOpen) return false;
   let viewportWidth = 1200;
   let viewportHeight = 800;
   const [reportedWidth, reportedHeight] = await Promise.all([
@@ -128,9 +130,10 @@ async function openTurnNoticePopover(payload) {
   const width = cardWidth + TURN_NOTICE_FRAME_GUTTER * 2;
   const top = Math.max(12, Math.round(viewportHeight * TURN_NOTICE_POPOVER_TOP_RATIO));
   const anchorTop = Math.max(8, top - TURN_NOTICE_FRAME_GUTTER);
+  const urlPayload = turnNoticeUrlPayload(payload);
   await OBR.popover.open({
     id: TURN_NOTICE_POPOVER_ID,
-    url: "/turn-notice.html",
+    url: urlPayload ? `/turn-notice.html?payload=${urlPayload}` : "/turn-notice.html",
     width,
     height: initialPopoverHeight(payload),
     anchorReference: "POSITION",
@@ -146,6 +149,7 @@ async function openTurnNoticePopover(payload) {
   awaitingVisibleLayout = false;
   latestLayoutRevision = 0;
   clearLayoutAckTimer();
+  return !!urlPayload;
 }
 
 async function requestReadySceneEpoch() {
@@ -183,7 +187,14 @@ function scheduleNoticePump() {
   noticePumpQueued = true;
   let completed = true;
   void enqueueHostTask(async () => {
-    await openTurnNoticePopover(pendingPayloads[0]);
+    const first = pendingPayloads[0];
+    if (await openTurnNoticePopover(first)) {
+      // Delivered with the page: out of the queue, unless a newer turn already took its place (that one follows
+      // after the handshake and wins by its noticeId). Its visible layout is awaited as for a flushed payload; the
+      // timeout starts once the page is ready, since the page draws it before announcing that.
+      if (pendingPayloads[0] === first) pendingPayloads.shift();
+      awaitingVisibleLayout = true;
+    }
     if (readySceneEpoch !== requestedSceneEpoch) {
       noticeAwaitingReady = true;
       try {
@@ -233,6 +244,8 @@ function receiveReadyMessage(payload) {
     clearReadyRetry();
     noticeAwaitingReady = false;
     readySceneEpoch = sceneEpoch;
+    // A notice delivered in the URL and not yet shown: the page is up, so its layout now has the usual time.
+    if (awaitingVisibleLayout && layoutAckTimer === null && !pendingPayloads.length) scheduleLayoutAckTimeout();
     await flushPendingPayloads();
   }).catch(() => {
     completed = false;

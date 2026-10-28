@@ -1661,6 +1661,41 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+// The notices the host sends on the UI channel; the first turn notice of a closed popup arrives in the URL instead
+// (turnNoticeHost.js) and goes through the same checks.
+function receiveUiPayload(data: any) {
+  if (
+    data?.type === "show-turn-notice"
+    && reminderProjectionPolicy.popup
+    && isTurnNoticeForScene(data, noticeSceneEpoch, noticeSceneReady)
+  ) {
+    showNotice(data);
+    return;
+  }
+  if (data?.type === "show-turn-notice") {
+    announceNoticeLayout({ force: true });
+    return;
+  }
+  if (data?.type === "show-effect-save-notices") {
+    showEffectSaveNotices(data);
+    announceNoticeLayout({ force: true });
+    return;
+  }
+  if (data?.type === "show-zone-trigger-notices") {
+    showZoneNotices(data);
+    announceNoticeLayout({ force: true });
+  }
+}
+
+const urlTurnNotice = (() => {
+  try {
+    const payload = JSON.parse(new URLSearchParams(window.location.search).get("payload") || "null");
+    return payload?.type === "show-turn-notice" ? payload : null;
+  } catch {
+    return null;
+  }
+})();
+
 OBR.onReady(async () => {
   // The options and the role at once (one round trip instead of two on every client, every turn); the role is
   // still set once both have answered, as before.
@@ -1685,30 +1720,14 @@ OBR.onReady(async () => {
     },
     { emitCurrent: false },
   );
-  unsubscribeUiBroadcast = OBR.broadcast.onMessage(UI_CHANNEL, (event) => {
-    const data = event?.data;
-    if (
-      data?.type === "show-turn-notice"
-      && reminderProjectionPolicy.popup
-      && isTurnNoticeForScene(data, noticeSceneEpoch, noticeSceneReady)
-    ) {
-      showNotice(data);
-      return;
-    }
-    if (data?.type === "show-turn-notice") {
-      announceNoticeLayout({ force: true });
-      return;
-    }
-    if (data?.type === "show-effect-save-notices") {
-      showEffectSaveNotices(data);
-      announceNoticeLayout({ force: true });
-      return;
-    }
-    if (data?.type === "show-zone-trigger-notices") {
-      showZoneNotices(data);
-      announceNoticeLayout({ force: true });
-    }
-  });
+  unsubscribeUiBroadcast = OBR.broadcast.onMessage(UI_CHANNEL, (event) => receiveUiPayload(event?.data));
+  // The notice in the URL is drawn before this page says it is ready, so every notice the host sends afterwards
+  // comes later and wins by its noticeId. Its scene epoch is the one the host's ready request would carry.
+  if (urlTurnNotice) {
+    const urlEpoch = Number(urlTurnNotice.sceneEpoch);
+    if (Number.isFinite(urlEpoch) && urlEpoch >= 0) noticeSceneEpoch = Math.floor(urlEpoch);
+    receiveUiPayload(urlTurnNotice);
+  }
   unsubscribeHistoryUndoReminders = OBR.broadcast.onMessage(
     REMINDER_HISTORY_REARM_CHANNEL,
     (event) => withdrawHistoryReplayReminders(event?.data),

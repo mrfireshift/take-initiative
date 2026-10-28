@@ -53,7 +53,7 @@ Lotti fatti, tutti il 27/10:
   - La cornice dei boss è ridotta a 400×399 PNG senza perdita (860 → 154 KB): basta fino al 200% su uno schermo 1,5×.
   - Confronto visivo affiancato, a figura intera e al 100%, senza differenze visibili.
 
-- **P4** (parte a): all'avvio l'avviso di turno legge opzioni e ruolo insieme, con un passaggio in meno su ogni client a ogni turno. Il primo contenuto nell'URL (parte b, D5) resta da fare.
+- **P4** (parte a): all'avvio l'avviso di turno legge opzioni e ruolo insieme, con un passaggio in meno su ogni client a ogni turno. Il primo contenuto nell'URL è la parte b, più sotto.
 
 - **P5**: gli host del tiro contro la morte e del Legame del boss chiudono il popup precedente mentre leggono le misure dello schermo; il popup del tiro legge il token mentre chiede il ruolo. La console PF rapida legge ordine e token insieme e riusa lo stato appena letto per la fonte delle condizioni. Dal codice: da 4 a 2 RT in fila prima dell'apertura del tiro contro la morte, da 3 a 2 per il Legame, da 2 a 1 per il token nel popup, e da 3 a 1 per caricare la console PF (all'avvio, dopo un'applicazione e dopo un Annulla).
 
@@ -74,6 +74,8 @@ Lotti fatti, tutti il 27/10:
 - **F5**: `npm run perf:bundle` (dopo una build; `-- --dist <cartella>` per un'altra uscita, `--json` per i dati) stampa per ogni pagina il JavaScript caricato all'avvio, minificato e gzip: lo script del modulo più i moduli precaricati, senza gli import dinamici. I popup che si aprono da soli durante il gioco hanno un tetto di circa il 10% sopra la misura del 28/10 (`scripts/perfBundleCore.mjs`); se uno lo supera, o manca dalla build, il comando esce con errore. Oggi: avviso di turno 682 KB su 750, zona 557 su 620, tiro contro la morte 408 su 450, durata effetto 402 su 450, concentrazione 84 su 100, Legame 70 su 90, velocità 66 su 90, Controincantesimo 1438 su 1590, Impulso di magia selvaggia 2719 su 2990.
 
 - **V3**: la console Boss ridotta prima della chiusura si riapre ridotta senza mostrare il pannello. Poche righe all'inizio del `<body>` di `boss-actions.html` leggono lo stesso stato di sessione e piegano la pagina prima del primo disegno; la console imposta l'altezza ridotta all'avvio, prima delle letture della scena, e non più dopo. Ripristinata, torna all'altezza con cui si era aperta. Nel banco, riaperta a 500 px: prima il pannello restava visibile fino a ~150 ms (in stanza per tutte le 9–11 letture), ora mai. Lo fissa `test/bossActionsMinimizedRestore.test.js`.
+
+- **P4** (parte b, D5): con il popup chiuso, il primo avviso di turno viaggia nell'URL del popup (fino a 6000 caratteri; gli altri avvisi e quelli più lunghi passano dall'handshake come prima). La pagina lo disegna con lo stesso gestore dei messaggi, dopo opzioni e ruolo e prima di dire che è pronta; l'host lo toglie dalla coda solo ad apertura riuscita, e se nel frattempo è arrivato un turno nuovo, quello segue dopo l'handshake e vince per il suo `noticeId`. L'attesa del disegno (1,8 s) parte quando la pagina è pronta. Dal codice: due passaggi via OBR in meno prima del primo disegno, su ogni client a ogni turno. Lo fissa `test/turnNoticeUrlPayload.test.js`; il banco non avvia il background, quindi va visto in stanza.
 
 Lotto saltato: **V4** (tipografia), per scelta dell'utente il 28/10: le dimensioni attuali dei testi vanno bene al tavolo. Il commit `7e480cc` è stato annullato da `d87abd1`.
 
