@@ -1656,3 +1656,31 @@ test("Lentezza: a map selection while the area is drawn never replaces the other
   assert.deepEqual(panel.state.session.targetIds, ["enemy-a"], "the enemy in the cube, never the stray caster selection");
   await panel.destroy();
 });
+
+// Lot L4 of the bugfix pass (SP-3): two clicks before the commit takes the busy state (while it reads its scene
+// context, the concentration and the slot) cast the spell twice, with two slots.
+test("L4: un doppio clic su Registra lancio o su Applica esegue una volta sola", async () => {
+  for (const [spellId, target] of [["remove-curse", null], ["bless", "target-a"]]) {
+    const requests = [];
+    const { root, panel } = boot({
+      provider: createProvider(),
+      broadcast: new FakeBroadcast(),
+      route: { status: "ready", spellId, session: { casterId: "caster-a" } },
+      lifecycleExecutor: async (request) => {
+        requests.push(request);
+        return target ? [target] : [];
+      },
+    });
+    await settle();
+    if (target) {
+      const input = targetInput(root, target);
+      input.checked = true;
+      await input.emit("change");
+    }
+    const primary = requiredNode(root, "[data-primary-action=\"apply\"]");
+    await Promise.all([primary.click(), primary.click()]);
+    await settle(10);
+    assert.equal(requests.length, 1, spellId);
+    await panel.destroy();
+  }
+});

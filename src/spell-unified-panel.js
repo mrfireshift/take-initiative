@@ -1782,31 +1782,41 @@ export function bootSpellUnifiedPanel(
     }
   };
 
+  // A click while the commit still reads its scene context, the concentration and the slot (before state.committing):
+  // a double click on Applica cast twice, with two slots and the damage twice.
+  let commitPreparing = false;
   const commitArea = async () => {
     if (state.session.monsterActionContext && state.session.monsterActionCompleted) return;
     if (!sceneAvailable()
+      || commitPreparing
       || state.committing
       || state.session.commitState.state === "committing") return;
     const operation = captureSceneOperation("spell-panel-area-commit");
     if (!sceneLifecycle.isCurrent(operation)) return;
     let ownerSceneContext = null;
-    if (!runtimeOverrides.areaExecutor) {
-      try {
-        ownerSceneContext = await getEffectsMutationSceneContext({
-          commandId: operation.operationId,
-        });
-      } catch (error) {
-        if (sceneLifecycle.isCurrent(operation)) {
-          patchSession({
-            feedback: { state: "error", message: "La scena non è disponibile per la mutazione." },
-          }, { clearFeedback: false });
+    let slotSpend = null;
+    commitPreparing = true;
+    try {
+      if (!runtimeOverrides.areaExecutor) {
+        try {
+          ownerSceneContext = await getEffectsMutationSceneContext({
+            commandId: operation.operationId,
+          });
+        } catch (error) {
+          if (sceneLifecycle.isCurrent(operation)) {
+            patchSession({
+              feedback: { state: "error", message: "La scena non è disponibile per la mutazione." },
+            }, { clearFeedback: false });
+          }
+          return;
         }
-        return;
+        if (!sceneLifecycle.isCurrent(operation)) return;
       }
-      if (!sceneLifecycle.isCurrent(operation)) return;
+      if (!await confirmConcentrationReplacement(operation)) return;
+      slotSpend = await prepareSpellSlotSpend(operation);
+    } finally {
+      commitPreparing = false;
     }
-    if (!await confirmConcentrationReplacement(operation)) return;
-    const slotSpend = await prepareSpellSlotSpend(operation);
     if (!slotSpend) return;
     state.committing = true;
     const runtime = {
@@ -2766,6 +2776,7 @@ export function bootSpellUnifiedPanel(
 
   const commit = async () => {
     if (!sceneAvailable()
+      || commitPreparing
       || state.committing
       || state.session.commitState.state === "committing") return;
     const operation = captureSceneOperation("spell-panel-lifecycle-commit");
@@ -2805,23 +2816,29 @@ export function bootSpellUnifiedPanel(
       return;
     }
     let ownerSceneContext = null;
-    if (!runtimeOverrides.lifecycleExecutor) {
-      try {
-        ownerSceneContext = await getEffectsMutationSceneContext({
-          commandId: operation.operationId,
-        });
-      } catch (error) {
-        if (sceneLifecycle.isCurrent(operation)) {
-          patchSession({
-            feedback: { state: "error", message: "La scena non è disponibile per la mutazione." },
-          }, { clearFeedback: false });
+    let slotSpend = null;
+    commitPreparing = true;
+    try {
+      if (!runtimeOverrides.lifecycleExecutor) {
+        try {
+          ownerSceneContext = await getEffectsMutationSceneContext({
+            commandId: operation.operationId,
+          });
+        } catch (error) {
+          if (sceneLifecycle.isCurrent(operation)) {
+            patchSession({
+              feedback: { state: "error", message: "La scena non è disponibile per la mutazione." },
+            }, { clearFeedback: false });
+          }
+          return;
         }
-        return;
+        if (!sceneLifecycle.isCurrent(operation)) return;
       }
-      if (!sceneLifecycle.isCurrent(operation)) return;
+      if (!await confirmConcentrationReplacement(operation)) return;
+      slotSpend = await prepareSpellSlotSpend(operation);
+    } finally {
+      commitPreparing = false;
     }
-    if (!await confirmConcentrationReplacement(operation)) return;
-    const slotSpend = await prepareSpellSlotSpend(operation);
     if (!slotSpend) return;
     state.committing = true;
     // A spell the plugin does not automate: the cast is recorded with what it spends (spellCastRecord.js).

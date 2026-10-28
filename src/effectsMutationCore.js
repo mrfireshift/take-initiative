@@ -605,6 +605,18 @@ function cleanupRemovedSpellLinksFromAllStates(states, removedSpells = []) {
   }
 }
 
+// A spell removed from one of its targets (the × on that target's pill) still holds the others: its effects on the
+// other tokens end only with the last one (Mass Suggestion on A, B and C). The removed target's own effects already
+// went with removeSpells.
+function spellsNoLongerHeld(states, removedSpells = []) {
+  return (Array.isArray(removedSpells) ? removedSpells : []).filter((spell) => {
+    const instanceId = String(spell?.instanceId || "").trim();
+    return !instanceId || ![...states.values()].some((state) => (state.spells || []).some((held) => (
+      String(held?.instanceId || "").trim() === instanceId
+    )));
+  });
+}
+
 function concentrationMatchesReference(entry, key, reference) {
   const wanted = String(reference || "").trim();
   if (!wanted) return true;
@@ -1615,7 +1627,7 @@ function applyOperation(states, operation, options = {}, context = {}) {
         );
         if (pending) return { pendingTermination: pending, deferOperation: true };
         const removedSpells = removeSpellByInstance(state, operation.instanceId);
-        cleanupRemovedSpellLinksFromAllStates(states, removedSpells);
+        cleanupRemovedSpellLinksFromAllStates(states, spellsNoLongerHeld(states, removedSpells));
       }
       break;
     case "spell:remove-name-source":
@@ -1636,7 +1648,7 @@ function applyOperation(states, operation, options = {}, context = {}) {
         );
         if (pending) return { pendingTermination: pending, deferOperation: true };
         const removedSpells = removeSpellByNameAndSource(state, operation.name, operation.casterId);
-        cleanupRemovedSpellLinksFromAllStates(states, removedSpells);
+        cleanupRemovedSpellLinksFromAllStates(states, spellsNoLongerHeld(states, removedSpells));
       }
       break;
     case "spell:clear-non-concentration":

@@ -18,6 +18,10 @@ Lotti fatti:
   - Stesso formato e stesso assemblatore delle risposte, resi generici in `effectsMutationTransportCore.js`. Un frammento respinto per «Too many requests» aspetta e riparte.
   - Sotto il limite i messaggi viaggiano come prima.
   - Lo fissano due test d'integrazione (background vero; owner e seconda pagina), entrambi falliscono senza la patch, e due test unitari. Verdi anche `npm run test:local-store`.
+- **L4** (28/10): incantesimi su più bersagli e doppio clic (SP-5, SP-3).
+  - Il × sulla pill di un bersaglio toglie l'incantesimo e i suoi effetti solo a quel bersaglio. Gli effetti sugli altri token finiscono solo quando l'incantesimo non è più su nessuno (`spellsNoLongerHeld` in `effectsMutationCore.js`, per `spell:remove-instance` e `spell:remove-name-source`).
+  - Nel pannello Incantesimi un secondo clic, mentre il lancio legge scena, concentrazione e slot, non lancia più una seconda volta (`commitPreparing`, per `commit` e `commitArea`).
+  - Lo fissano `test/spellRemoveOneTarget.test.js` (Suggestione di massa; l'ultimo bersaglio pulisce ancora ovunque) e un test del controller del pannello. Entrambi falliscono senza la patch. Il doppio clic dopo il piazzamento di un'area (Palla di fuoco) è verificato con la riproduzione dell'analisi.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 
