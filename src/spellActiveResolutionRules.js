@@ -707,6 +707,29 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       concentrationAction: "dismiss",
     },
   ],
+  // CAP-RESOURCE (2014): a creature uses its action to eat a berry and regains 1 hit point; the last one ends it.
+  "goodberry": [
+    {
+      id: "goodberry-eat",
+      label: "Mangia una bacca",
+      buttonLabel: "Mangia una bacca",
+      detail: "Azione della creatura che la mangia: recupera 1 punto ferita. Le bacche perdono il potere dopo 24 ore.",
+      economy: "action",
+      showInOverview: true,
+      repeatableThisTurn: true,
+      resolutionKind: "single-heal",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      rangeOrigin: "caster",
+      maxTargets: 1,
+      // Any creature on the scene: whoever holds the berry eats it.
+      anyCreature: true,
+      healing: { formula: "1", baseSlot: 0, additionalPerSlotAbove: 0 },
+      resource: { key: "berries", consume: 1, endSpellAtZero: true },
+    },
+  ],
   "phb2014-aura-di-vitalita": [
     {
       id: "aura-of-vitality-heal",

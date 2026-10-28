@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "1f74abab2659233b",
+  "fingerprint": "5ccbfff053e67a7d",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -18,9 +18,9 @@
     },
     "currentAutomationLevel": {
       "FULL": 66,
-      "MANUAL": 67,
-      "PARTIAL": 220,
-      "TRACK_ONLY": 124
+      "MANUAL": 66,
+      "PARTIAL": 222,
+      "TRACK_ONLY": 123
     },
     "coverageStatus": {
       "ACCEPTED": 72,
@@ -41,8 +41,8 @@
     "targetUiExposure": {
       "UNIFIED": 477
     },
-    "trackableOptions": 361,
-    "trackable": 358,
+    "trackableOptions": 362,
+    "trackable": 359,
     "withAreaRules": 139,
     "areaRuleEntries": 144,
     "openRows": 11,
@@ -59,7 +59,7 @@
       "P2": 1
     },
     "byAssessment": {
-      "coperto": 285,
+      "coperto": 286,
       "escluso: casting time": 70,
       "escluso: decisione curata": 11,
       "escluso: evocazione": 19,
@@ -67,7 +67,7 @@
       "manuale intenzionale": 3,
       "parziale: revisione curata": 10,
       "revisione: testo mancante": 1,
-      "riferimento/utilità": 21
+      "riferimento/utilità": 20
     },
     "bySaveScope": {
       "—": 285,
@@ -99,18 +99,18 @@
       "CAST_NO_MUTATIONS": 3
     },
     "smokeCategories": {
-      "ACTIVE_ACTION": 46,
+      "ACTIVE_ACTION": 48,
       "AREA_GEOMETRY": 139,
       "CAST": 258,
       "CLEANUP": 116,
       "CONCENTRATION": 218,
-      "PERSISTENCE": 358,
+      "PERSISTENCE": 359,
       "TURN_TRIGGER": 96
     },
     "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
     "integrationFragile": 0,
-    "runtimeSmokeRequired": 406,
+    "runtimeSmokeRequired": 407,
     "releaseReady": false
   },
   "rows": [
@@ -4006,20 +4006,26 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "MANUAL",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
-      "smokeCategories": [],
+      "smokeCategories": [
+        "ACTIVE_ACTION",
+        "PERSISTENCE"
+      ],
       "verificationEvidence": [
         "STRUCTURAL"
       ],
       "reviewBasis": "screening testuale conservativo",
       "scope": "utilità/riferimento",
       "signals": [],
-      "coverage": [],
-      "assessment": "riferimento/utilità",
+      "coverage": [
+        "tracking",
+        "fasi/azioni"
+      ],
+      "assessment": "coperto",
       "priority": "—",
       "gaps": [],
       "conditions": {
@@ -4027,17 +4033,22 @@
         "implemented": []
       },
       "runtime": {
-        "trackable": false,
+        "trackable": true,
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "goodberry-eat"
+        ],
         "phaseOptions": [],
         "movementMechanics": false,
-        "smokeCategories": []
+        "smokeCategories": [
+          "ACTIVE_ACTION",
+          "PERSISTENCE"
+        ]
       },
       "integration": {
         "status": "reachable",
@@ -4046,17 +4057,16 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "cast-record"
+            "legacy-spells-panel"
           ]
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -4069,19 +4079,26 @@
           "errors": []
         },
         "persistence": {
-          "required": false,
+          "required": true,
           "declared": true,
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "goodberry-eat"
+          ],
+          "panelActionIds": [
+            "goodberry-eat"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
-        "smokeRequired": false,
-        "smokeCategories": []
+        "smokeRequired": true,
+        "smokeCategories": [
+          "ACTIVE_ACTION",
+          "PERSISTENCE"
+        ]
       },
       "evidence": {
         "area": [],
@@ -23967,12 +23984,13 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -23982,7 +24000,8 @@
       "scope": "combattimento",
       "signals": [],
       "coverage": [
-        "tracking"
+        "tracking",
+        "fasi/azioni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -23999,10 +24018,13 @@
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "mirror-image-duplicate-destroyed"
+        ],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "PERSISTENCE"
         ]
       },
@@ -24035,19 +24057,24 @@
           "errors": []
         },
         "persistence": {
-          "required": false,
+          "required": true,
           "declared": true,
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "mirror-image-duplicate-destroyed"
+          ],
+          "panelActionIds": [
+            "mirror-image-duplicate-destroyed"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "PERSISTENCE"
         ]
       },

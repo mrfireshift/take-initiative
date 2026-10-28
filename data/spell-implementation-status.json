@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 251,
-      "PARTIAL": 50,
+      "COMPLETE / CURRENT": 255,
+      "PARTIAL": 47,
       "NO AUTOMATION REQUIRED": 144,
-      "MISSING": 17,
+      "MISSING": 16,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 67,
+    "implementableBacklog": 63,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 56,
-        "percent": 83.5820895522388
+        "count": 52,
+        "percent": 82.53968253968253
       },
       "RED": {
         "count": 11,
-        "percent": 16.417910447761194
+        "percent": 17.46031746031746
       }
     },
     "scenarios": [
@@ -19995,13 +19995,17 @@
       "id": "goodberry",
       "spell": "Bacche benefiche",
       "level": 1,
-      "status": "MISSING",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "NONE: catalog only"
+        "src/spells-srd.js",
+        "src/spellApplicationPlanCore.js",
+        "src/spellActiveResolutionRules.js",
+        "src/spellActiveResolutionValidation.js",
+        "src/spell-active-resolution.js"
       ],
       "mechanicsRequired": [
-        "Cura finale riusabile; oggetti/beneficiario e contatore bacche da consumare con lo stesso comando, non una cura illimitata."
+        "CAP-RESOURCE: tracciato 24 ore sul caster con 10 bacche; «Mangia una bacca» (single-heal anyCreature) cura 1 PF a una creatura qualsiasi e consuma una bacca, l'ultima termina l'incantesimo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -20013,9 +20017,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-RESOURCE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Required: shared Effects/History, command identity, no local writer",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -20052,8 +20054,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "RESOURCE-HEAL",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-RESOURCE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "goodberry",
@@ -20062,6 +20064,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellResources.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -20490,17 +20493,15 @@
       "id": "guardian-of-faith",
       "spell": "Guardiano della fede",
       "level": 4,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/spells-srd.js",
+        "src/zoneResourceCore.js",
         "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Tracking/trigger esistono; budget immagini/munizioni/danno aggregato e consumo terminale devono collegarsi al resolver generico, non solo active resource.consume costante.",
+        "CAP-RESOURCE: 60 danni sull'istanza proprietaria; ogni trigger di zona consuma il danno inflitto (zoneResourceCore.js), l'ultimo per intero; a 60 il guardiano svanisce con la zona.",
         "Damage type: radiant"
       ],
       "existingReusableCapabilities": [
@@ -20518,9 +20519,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-RESOURCE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Derived area reconciliation; durable recovery does NOT cover every scene side effect",
@@ -20585,8 +20584,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "RESOURCE-TRIGGER",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-RESOURCE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "guardian-of-faith",
@@ -20595,6 +20594,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellResources.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -27936,14 +27936,15 @@
       "id": "mirror-image",
       "spell": "Immagine speculare",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellApplicationPlanCore.js",
+        "src/spellActiveResolutionCore.js"
       ],
       "mechanicsRequired": [
-        "Tracking/trigger esistono; budget immagini/munizioni/danno aggregato e consumo terminale devono collegarsi al resolver generico, non solo active resource.consume costante."
+        "CAP-RESOURCE: tre duplicati in castContext.uses al lancio; l'azione «Duplicato colpito» ne consuma uno, l'ultimo termina l'incantesimo. Soglie d20 (6/8/11) nel dettaglio dell'azione."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -27955,9 +27956,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-RESOURCE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -27994,8 +27993,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "RESOURCE-TRIGGER",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-RESOURCE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "mirror-image",
@@ -28004,6 +28003,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellResources.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -59451,17 +59451,15 @@
       "id": "phb2014-cordone-di-frecce",
       "spell": "Cordone di Frecce",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
-        "src/phb2014SpellRules.js",
+        "src/zoneResourceCore.js",
         "src/spellApplicationPlanCore.js",
-        "src/spellAreaRules.js",
-        "src/spellStaticZone.js",
         "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "Tracking/trigger esistono; budget immagini/munizioni/danno aggregato e consumo terminale devono collegarsi al resolver generico, non solo active resource.consume costante."
+        "CAP-RESOURCE: 4 munizioni +2 per slot sopra il 2° sull'istanza proprietaria; ogni trigger di zona ne consuma una per creatura, anche col TS superato (zoneResourceCore.js); l'ultima termina l'incantesimo e toglie la zona."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -59478,9 +59476,7 @@
         "C-MEMBERSHIP",
         "C-TRIGGERS"
       ],
-      "missingCapabilities": [
-        "CAP-RESOURCE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects + composite scene side effects; Undo restore of owned geometry/trigger required",
       "recoveryImplications": "Derived area reconciliation; durable recovery does NOT cover every scene side effect",
@@ -59545,8 +59541,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "RESOURCE-TRIGGER",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-RESOURCE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-phb2014-extra.json",
         "spellId": "phb2014-cordone-di-frecce",
@@ -59555,6 +59551,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/spellResources.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",

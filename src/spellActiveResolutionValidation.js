@@ -723,6 +723,10 @@ async function validateSingleHeal({ payload, targetIds, damageRoll, allItems }) 
   )) {
     errors.push("target-hp-required");
   }
+  // anyCreature (Goodberry): any creature on the scene may be healed, no aura to be inside.
+  if (payload?.action?.anyCreature === true) {
+    return { valid: errors.length === 0, errors: [...new Set(errors)] };
+  }
 
   const membership = payload?.action?.membership;
   const membershipRuleId = String(membership?.ruleId || "").trim();

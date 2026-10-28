@@ -51,8 +51,8 @@ function bookAction(spellId, overrides = {}) {
 
 // 75 since lotto L2: the discrete heals, four saves with damage and Awaken left the recording; 71 since
 // Disintegrate, Finger of Death, Power Word Kill and Feeblemind resolve in the area command (CAP-HP-BRANCH); 67 with
-// Heal, Power Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE); 66 with Magic Missile (its darts).
-test("the plugin only records the instantaneous spells it neither tracks nor places: 66 of the catalog", () => {
+// Heal, Power Word Heal, Lesser Restoration and Dispel Magic (CAP-CLEANSE); 66 with Magic Missile (its darts); 65 with Goodberry (CAP-RESOURCE).
+test("the plugin only records the instantaneous spells it neither tracks nor places: 65 of the catalog", () => {
   const catalog = getSpellCatalog();
   const tracked = new Set(getTrackableSpellOptions().map((option) => option.id));
   const expected = catalog
@@ -61,7 +61,7 @@ test("the plugin only records the instantaneous spells it neither tracks nor pla
     .map((spell) => spell.id);
   const recorded = getRecordOnlySpellOptions().map((option) => option.id);
   assert.deepEqual(recorded, expected);
-  assert.equal(recorded.length, 66);
+  assert.equal(recorded.length, 65);
   for (const id of ["counterspell", "remove-curse", "wish", "scorching-ray", "mending", "identify"]) {
     assert.equal(isSpellCastRecordOnly(id), true, id);
   }
@@ -77,7 +77,7 @@ test("the plugin only records the instantaneous spells it neither tracks nor pla
 test("every spell of the catalog is a quick action option, the recorded ones flagged", () => {
   const options = getQuickActionSpellOptions();
   assert.equal(options.length, getSpellCatalog().length);
-  assert.equal(options.filter((option) => option.recordOnly).length, 66);
+  assert.equal(options.filter((option) => option.recordOnly).length, 65);
   assert.equal(options.find((option) => option.id === "counterspell").recordOnly, true);
   assert.equal(options.find((option) => option.id === "fireball").recordOnly, false);
 });

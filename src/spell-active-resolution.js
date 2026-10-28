@@ -647,7 +647,10 @@ function renderContext() {
   const singleHeal = isSingleHeal();
   const fixedRadius = fixedCasterRadiusConfig();
   const childLabel = childKindLabel(child?.childKind);
-  $("eyebrow").textContent = singleHeal ? "Aura Attiva" : "";
+  // A heal without an aura (Goodberry's anyCreature) is an active spell, not an aura.
+  $("eyebrow").textContent = singleHeal
+    ? payload?.action?.anyCreature === true ? "Incantesimo attivo" : "Aura Attiva"
+    : "";
   $("eyebrow").hidden = !$("eyebrow").textContent;
   $("saveTitle").hidden = callLightning || true;
   $("saveTitle").textContent = callLightning
@@ -1142,6 +1145,8 @@ async function singleHealTargetData() {
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId("single-heal-read") });
   if (!sceneLifecycle.isCurrent(operation)) return [];
   const caster = sceneItems.find((item) => item.id === payload?.casterId);
+  // anyCreature (Goodberry): every creature on the scene, no aura to read them from.
+  if (payload?.action?.anyCreature === true) return caster ? characters() : [];
   const rule = getMobileAuraRule(payload?.spellId);
   if (!caster || !rule) return [];
   const [dpi, scale, casterBounds] = await Promise.all([
@@ -1214,7 +1219,9 @@ async function renderSingleHeal() {
   $("healAmountLabel").textContent = healingFormula
     ? `Cura ${healingFormula}`
     : "Cura";
-  $("healAmount").value = $("healAmount").dataset.value || "";
+  // A fixed healing (Goodberry's 1 hit point) needs no roll: the field starts with it.
+  $("healAmount").value = $("healAmount").dataset.value
+    || (/^\d+$/u.test(String(healingFormula || "").trim()) ? String(healingFormula).trim() : "");
   $("healAmount").disabled = busy || !selectedHealTarget;
   const healingReady = String($("healAmount").value || "").trim() !== "";
   const canResolve = sceneLifecycle.isReady()

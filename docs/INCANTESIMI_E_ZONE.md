@@ -175,6 +175,16 @@ danno massiccio dalla somma), e gli avvisi di concentrazione partono uno per
 dardo, col suo danno. Il
 pannello blocca il lancio finché «Dardi assegnati X/Y» non torna pari.
 
+CAP-RESOURCE usa il contatore `castContext.uses` dell'istanza: lo imposta al
+lancio `initialSpellUses` (`src/spellApplicationPlanCore.js`), la pill mostra
+quanti ne restano e a zero l'incantesimo termina. Immagine speculare e Bacche
+benefiche lo consumano con un'azione attiva (`resource`); per Bacche
+benefiche è una cura `single-heal` con `anyCreature`, senza aura. Cordone di
+frecce e Guardiano della fede lo tengono sull'istanza proprietaria della zona:
+`src/zoneResourceCore.js` lo scala a ogni trigger nel comando ad area (una
+munizione per creatura, il danno inflitto) e a zero toglie anche la zona con
+`static-zone:remove-ended`, nella stessa voce della Cronologia.
+
 Gli avvisi di concentrazione della console ad area partono dopo il commit
 (`defaultConcentrationWarnings`), con la voce della Cronologia come causa:
 prima il gancio `onConcentrationWarnings` era vuoto e i danni del pannello non

@@ -643,10 +643,10 @@ da questo audit.
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
-- Opzioni trackable del runtime: **361**; definizioni con tracking persistente verificate dall'audit: **358**; definizioni con regole d'area: **139** (144 regole).
-- Workflow che richiedono smoke test runtime: **406**.
+- Opzioni trackable del runtime: **362**; definizioni con tracking persistente verificate dall'audit: **359**; definizioni con regole d'area: **139** (144 regole).
+- Workflow che richiedono smoke test runtime: **407**.
 - Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `1f74abab2659233b`.
+- Impronta deterministica: `5ccbfff053e67a7d`.
 
 ## Decisioni di prodotto chiuse
 
@@ -659,9 +659,9 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 67 |
-| PARTIAL | 220 |
-| TRACK_ONLY | 124 |
+| MANUAL | 66 |
+| PARTIAL | 222 |
+| TRACK_ONLY | 123 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -700,12 +700,12 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 46 |
+| ACTIVE_ACTION | 48 |
 | AREA_GEOMETRY | 139 |
 | CAST | 258 |
 | CLEANUP | 116 |
 | CONCENTRATION | 218 |
-| PERSISTENCE | 358 |
+| PERSISTENCE | 359 |
 | TURN_TRIGGER | 96 |
 
 ### Stato di integrazione console unificata
@@ -792,7 +792,7 @@ Nessuna voce.
 | Aura di Vitalità | `phb2014-aura-di-vitalita` | PHB 2014 / 3 | FULL | CLOSED | FULL | UNIFIED | reachable | — | — |
 | Aura magica dell'arcanista | `arcanists-magic-aura` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Aura sacra | `holy-aura` | SRD 5.1 / 8 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
-| Bacche benefiche | `goodberry` | SRD 5.1 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Bacche benefiche | `goodberry` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Bagliore lunare | `moonbeam` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Bagliore solare | `sunbeam` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Banchetto degli eroi | `heroes-feast` | SRD 5.1 / 6 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -960,7 +960,7 @@ Nessuna voce.
 | Immagine maggiore | `major-image` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Immagine proiettata | `project-image` | SRD 5.1 / 7 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Immagine silenziosa | `silent-image` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Immagine speculare | `mirror-image` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Immagine speculare | `mirror-image` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Immolazione | `xanathar-immolazione` | Xanathar / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Imprigionare | `imprisonment` | SRD 5.1 / 9 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Inaridire | `blight` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

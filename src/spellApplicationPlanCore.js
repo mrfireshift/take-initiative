@@ -66,9 +66,39 @@ const INITIAL_SPELL_USE_RULES = Object.freeze({
     baseUses: 12,
     usesPerSlot: 2,
   }),
+  // CAP-RESOURCE (PHB 2014): a counter each use consumes, the spell ends at zero.
+  "mirror-image": Object.freeze({
+    key: "duplicates",
+    label: "duplicati",
+    baseSlot: 2,
+    baseUses: 3,
+    usesPerSlot: 0,
+  }),
+  "goodberry": Object.freeze({
+    key: "berries",
+    label: "bacche",
+    baseSlot: 1,
+    baseUses: 10,
+    usesPerSlot: 0,
+  }),
+  // The zone triggers consume them (zoneResourceCore.js): a piece of ammunition per creature, the damage dealt.
+  "phb2014-cordone-di-frecce": Object.freeze({
+    key: "ammunition",
+    label: "munizioni",
+    baseSlot: 2,
+    baseUses: 4,
+    usesPerSlot: 2,
+  }),
+  "guardian-of-faith": Object.freeze({
+    key: "damage",
+    label: "danni",
+    baseSlot: 4,
+    baseUses: 60,
+    usesPerSlot: 0,
+  }),
 });
 
-function initialSpellUses(spell, castContext = {}) {
+export function initialSpellUses(spell, castContext = {}) {
   const context = castContext && typeof castContext === "object" ? { ...castContext } : {};
   const rule = INITIAL_SPELL_USE_RULES[spell?.id];
   if (!rule) return context;

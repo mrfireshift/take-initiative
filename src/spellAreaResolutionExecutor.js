@@ -43,6 +43,8 @@ import {
   SAVE_SPELL_OUTCOMES,
 } from "./saveSpellCore.js";
 import { CLEANSE_SPELL_ID_SET, planCleanseTarget } from "./cleanseSpellRules.js";
+import { initialSpellUses } from "./spellApplicationPlanCore.js";
+import { ZONE_RESOURCE_SPENDS, zoneTriggerResourceSpend } from "./zoneResourceCore.js";
 import {
   MAGIC_MISSILE_SPELL_ID,
   magicMissileAllocationText,
@@ -635,6 +637,15 @@ function planAreaDeathSaves(entries) {
 }
 
 function castContextFor({ spell, resolution, command, mobileAura, boardToken, placement, caster }) {
+  // CAP-RESOURCE: the counter its zone triggers consume, on the owner instance (zoneResourceCore.js).
+  if (ZONE_RESOURCE_SPENDS[text(spell?.id)] && command?.source?.kind === "cast") {
+    return initialSpellUses(spell, {
+      ...(command?.spell?.castContext && typeof command.spell.castContext === "object"
+        ? clone(command.spell.castContext)
+        : {}),
+      slotLevel: command?.spell?.slotLevel,
+    });
+  }
   const monsterActionSaveDC = command?.monsterActionContext?.spellcasting?.saveDC;
   const hasActiveResolution = Array.isArray(spell?.activeActions)
     && spell.activeActions.some((action) => action?.resolutionKind);
@@ -1985,6 +1996,23 @@ async function buildPlan(command, runtime) {
       errors: [{ code: "zone-trigger-unavailable", message: "L'attivazione della zona non è più disponibile." }],
     };
   }
+  // CAP-RESOURCE: the trigger consumes the counter of the spell on the caster; at zero the spell ends with its zone.
+  const zoneResource = requestedZoneTrigger && caster
+    ? zoneTriggerResourceSpend({
+      spellId: spell.id,
+      spellName: spell.displayName || spell.name,
+      ownerEntry: (Array.isArray(itemMeta(caster)[SPELLS_KEY]) ? itemMeta(caster)[SPELLS_KEY] : [])
+        .find((entry) => text(entry?.instanceId) === spellInstanceId) || null,
+      casterId,
+      targetIds,
+      damages: entries.filter((entry) => entry.change?.mode === QUICK_HP_MODES.DAMAGE)
+        .map((entry) => entry.change.requested),
+    })
+    : null;
+  if (zoneResource) {
+    effectOperations.push(...zoneResource.operations);
+    effectSubjectIds.push(casterId);
+  }
   const ids = entries.map((entry) => entry.item.id);
   const affectedIds = uniqueIds([
     ...ids,
@@ -2045,8 +2073,10 @@ async function buildPlan(command, runtime) {
     matchedVisualContext,
     prismaticSprayPlan: resolution.prismaticSpray || null,
     // CAP-CLEANSE: what the GM still has to do (Dispel Magic's spells above its limit, a construct Heal leaves).
+    zoneResourceSideEffects: zoneResource?.sideEffects || [],
     notes: [
       ...(cleanse?.notes || []),
+      ...(zoneResource?.note ? [zoneResource.note] : []),
       // Every target of the darts, those Shield protects included (no HP change, so no entry).
       ...(magicMissileAllocation ? liveItems.filter((item) => magicMissileAllocation.byTarget[item.id] > 0)
         .map((item) => `${item.name || "Bersaglio"}: ${magicMissileTargetText(
@@ -2597,6 +2627,7 @@ export async function executeSpellAreaResolution(
         const coordinatedSideEffects = [
           ...spellBoardTokenSideEffects,
           ...zoneTriggerSideEffects,
+          ...(plan.zoneResourceSideEffects || []),
         ];
         const commitCoordinatedEffects = async () => {
           if (!operations.length && !coordinatedSideEffects.length && !plan.bossActionUse?.metadataPatches.length) return true;

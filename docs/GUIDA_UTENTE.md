@@ -209,6 +209,15 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   è in concentrazione fa un TS per dardo e un PG a 0 PF segna un fallimento
   per dardo. In alternativa la console attacchi registra
   un dardo alla volta.
+- Alcuni incantesimi hanno un contatore, che la loro pill mostra al posto dei
+  round e che a zero termina l'incantesimo. Immagine speculare parte con 3
+  duplicati: quando un attacco colpisce un duplicato premi **Duplicato
+  colpito** (il dettaglio ricorda le soglie del d20: 6, 8 o 11). Bacche
+  benefiche resta 24 ore sul caster con 10 bacche: **Mangia una bacca** cura
+  1 PF alla creatura scelta, chiunque sia. Cordone di frecce (4 munizioni, +2
+  per slot sopra il 2°) ne spende una per ogni creatura del trigger, anche se
+  supera il TS; il Guardiano della fede scala dai suoi 60 danni quelli che
+  infligge, e svanisce con la zona quando li ha finiti.
 - Il danno dei lanci nel pannello incantesimi (Palla di fuoco, Dardo
   incantato…) mostra l'avviso di concentrazione sui bersagli che si
   concentrano, come la Console effetti ad area.

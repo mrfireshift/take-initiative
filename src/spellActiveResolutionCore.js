@@ -343,7 +343,8 @@ export function validateSpellActiveResolutionAction(action) {
     if (healingBaseSlot < 0 || healingPerSlot < 0) {
       errors.push("action-healing-scaling-invalid");
     }
-    if (!String(action?.membership?.ruleId || "").trim()) {
+    // anyCreature (Goodberry): any creature on the scene, no aura to read it from.
+    if (action?.anyCreature !== true && !String(action?.membership?.ruleId || "").trim()) {
       errors.push("action-healing-membership-required");
     }
   }

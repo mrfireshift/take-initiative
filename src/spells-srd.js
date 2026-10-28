@@ -371,6 +371,20 @@ const AUTOMATION = Object.freeze({
 });
 
 const SRD_ACTIVE_ACTIONS = Object.freeze({
+  // CAP-RESOURCE (2014): an attack that hits a duplicate destroys it; the spell ends with the last one.
+  "mirror-image": Object.freeze([
+    Object.freeze({
+      id: "mirror-image-duplicate-destroyed",
+      label: "Duplicato distrutto",
+      buttonLabel: "Duplicato colpito",
+      detail: "Quando una creatura attacca il caster, tira un d20: con 3 duplicati serve 6 o più, con 2 serve 8 o più, con 1 serve 11 o più perché l'attacco bersagli un duplicato (CA 10 + mod. Destrezza del caster). Se l'attacco lo colpisce, il duplicato è distrutto.",
+      economy: "gm",
+      subjectMode: "none",
+      repeatableThisTurn: true,
+      showInOverview: true,
+      resource: Object.freeze({ key: "duplicates", consume: 1, endSpellAtZero: true }),
+    }),
+  ]),
   // CAP-LINK (2014): the mark moves to a new creature once the marked one drops to 0 hit points. The new target gets
   // the spell instance and the pills of the cast; the old one leaves the concentration.
   "hunters-mark": Object.freeze([
@@ -476,6 +490,8 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "phb2014-aura-di-purezza": "self",
   "phb2014-aura-di-vita": "self",
   "phb2014-aura-di-vitalita": "self",
+  // CAP-RESOURCE: the berries appear in the caster's hand, the pill counts them.
+  "goodberry": "self",
 });
 
 const TARGETING_OVERRIDES = Object.freeze({
@@ -2026,6 +2042,8 @@ const SPELL_TRACKING_OVERRIDES = Object.freeze({
   "ice-storm": Object.freeze({ trackable: true, defaultTurns: 1 }),
   // Instantaneous, but its charm lasts 30 days (lotto L2).
   "awaken": Object.freeze({ trackable: true, defaultTurns: 30 * 14400 }),
+  // Instantaneous, but its berries keep their potency for 24 hours (CAP-RESOURCE).
+  "goodberry": Object.freeze({ trackable: true, defaultTurns: 14400 }),
 });
 const ITALIAN_NAMES = italianData?.names && typeof italianData.names === "object"
   ? italianData.names
