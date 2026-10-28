@@ -70,6 +70,11 @@ function createLocalStoreConnection(indexedDB) {
           try { db.close(); } catch {}
           if (dbPromise === promise) dbPromise = null;
         };
+        // Closed by the browser (site data cleared, storage pressure): the next call opens a new connection instead
+        // of failing on this one until the page is reloaded.
+        db.onclose = () => {
+          if (dbPromise === promise) dbPromise = null;
+        };
         resolve(db);
       };
       request.onerror = () => reject(request.error || new Error("history-local-store-open-failed"));
@@ -82,23 +87,35 @@ function createLocalStoreConnection(indexedDB) {
     return promise;
   }
 
+  // A connection closed under us (its close event may come after the call) throws InvalidStateError on transaction():
+  // it is forgotten and the transaction asked once more on a new one.
+  async function transaction(storeNames, mode, options = undefined) {
+    for (let attempt = 0; ; attempt += 1) {
+      const pending = open();
+      const db = await pending;
+      try {
+        return options ? db.transaction(storeNames, mode, options) : db.transaction(storeNames, mode);
+      } catch (error) {
+        if (attempt > 0 || error?.name !== "InvalidStateError") throw error;
+        if (dbPromise === pending) dbPromise = null;
+      }
+    }
+  }
+
   return Object.freeze({
     async get(storeName, key) {
-      const db = await open();
-      const tx = db.transaction([storeName], "readonly");
+      const tx = await transaction([storeName], "readonly");
       return requestResult(tx.objectStore(storeName).get(key));
     },
     async put(storeName, record, options = undefined) {
-      const db = await open();
-      const tx = options ? db.transaction([storeName], "readwrite", options) : db.transaction([storeName], "readwrite");
+      const tx = await transaction([storeName], "readwrite", options);
       const done = transactionDone(tx);
       tx.objectStore(storeName).put(record);
       await done;
     },
     // Deletes, in one transaction, the records shouldDelete picks; returns their keys.
     async prune(storeName, keyOf, shouldDelete) {
-      const db = await open();
-      const tx = db.transaction([storeName], "readwrite");
+      const tx = await transaction([storeName], "readwrite");
       const done = transactionDone(tx);
       const store = tx.objectStore(storeName);
       const removed = [];

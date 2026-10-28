@@ -101,6 +101,15 @@ Lotti fatti:
   - Una bozza delle Opzioni presa in un'altra scena non si salva: «Scena cambiata: riapri il pannello Opzioni».
   - Salva scrive solo i campi cambiati nel pannello; per gli altri vale il valore attuale (`rebaseOptionsPanelDraft`). Layout, Segui, apertura automatica della console e tracker dei giocatori cambiati dal tracker a pannello aperto non vengono riscritti.
   - Test in `elevationWriteSelection` e `optionsPanel`. Falliscono senza la patch.
+- **L14** (28/10): Registro e store locale (HI-03, HI-04, HI-05, HI-07, HI-08).
+  - La nota in scrittura e il suo focus sopravvivono alla ricostruzione del Registro. Il focus non salta più sul Cerca se era altrove. I banner «Svuota» ed «Elimina registro» restano aperti sul loro registro.
+  - Eliminare il registro attivo lascia la scena senza registro (il prossimo evento ne apre uno), invece di agganciarla a un archivio importato o al registro di un'altra scena.
+  - I registri a cui una scena scrive sono segnati (`attached`) e «Conservazione…» non li tocca. Il segno si mette a ogni evento e quando una scena aggancia il registro, si toglie quando la scena passa a un altro; gli archivi importati non lo hanno.
+  - Una connessione IndexedDB chiusa dal browser si riapre alla chiamata dopo (`onclose`, e un nuovo tentativo su `InvalidStateError`).
+  - Il primo registro della scena è uno solo anche se tracker e background lo aprono insieme: prenotazione in `localStorage` per 5 s e scrittura «solo se assente» in un'unica transazione.
+  - «Carica eventi precedenti» resta spento quando la lista è completa.
+  - Test in `historyModalRebuildState`, `combatLogImplicitSessionRace`, `combatLogPaginationBehavior` e `historyLocalStore`. Falliscono senza la patch.
+  - `teleportUndoIntegration` ora aspetta l'evento nel Registro: la Cronologia lo scrive dopo la risposta (`awaitWrite: false`), e il test passava solo per i tempi.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

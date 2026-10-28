@@ -103,3 +103,19 @@ test("la paginazione combat log conserva tre pagine, stato controlli e append co
   assert.equal(timelineWindow.events.at(-1).id, "event-5000");
   assert.equal(new Set(timelineWindow.events.map((item) => item.id)).size, 250);
 });
+
+// Lot L14 of the bugfix pass (HI-08): with every event loaded, a live refresh of the latest page (which has older
+// events of its own) brought «Carica eventi precedenti» back.
+test("L14: a lista completa, l'aggiornamento dell'ultima pagina non riaccende «Carica eventi precedenti»", () => {
+  const state = createCombatLogPageState();
+  mergeCombatLogPageState(state, session, page(51, 100, 100));
+  assert.equal(getCombatLogPageControlState(state).loadOlderDisabled, false);
+  mergeCombatLogPageState(state, session, page(1, 50, 100));
+  assert.equal(getCombatLogPageControlState(state).loadOlderDisabled, true, "the first page reached");
+  mergeCombatLogPageState(state, session, page(51, 100, 100));
+  assert.equal(state.events.size, 100);
+  assert.equal(getCombatLogPageControlState(state).loadOlderDisabled, true, "still complete after the live refresh");
+  mergeCombatLogPageState(state, session, page(52, 101, 101));
+  assert.equal(state.events.size, 101);
+  assert.equal(getCombatLogPageControlState(state).loadOlderDisabled, true, "a new event appended: still complete");
+});

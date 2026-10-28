@@ -330,6 +330,8 @@ export function planCombatLogRetention(sessions, {
     .filter((session) => !roomId || asText(session.roomId) === asText(roomId))
     .filter((session) => asText(session.id) !== asText(activeSessionId))
     .filter((session) => session.active !== true)
+    // The active registry of another scene (combatLog.js marks it): its metadata cannot be read from this one.
+    .filter((session) => session.attached !== true)
     .filter((session) => includeImported || session.imported !== true)
     .sort((left, right) => sessionSortKey(right) - sessionSortKey(left));
   const candidates = new Map();

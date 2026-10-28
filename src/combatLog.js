@@ -206,6 +206,44 @@ async function putStoredSession(session, { sceneEpoch = currentSceneEpoch() } = 
   return isSceneEpochCurrent(sceneEpoch);
 }
 
+// The first event of a scene may reach the tracker and the background at once: each found no registry and made one.
+// The page that starts the implicit registry claims its id here (localStorage: shared at once by the pages of this
+// browser), and a page that finds a fresh claim for the room uses that registry instead. One scene is open at a time.
+const IMPLICIT_SESSION_CLAIM_KEY = `${ID}/combat-log-implicit-session`;
+const IMPLICIT_SESSION_CLAIM_MS = 5000;
+function claimImplicitSessionId(sessionId, now = Date.now()) {
+  try {
+    const roomId = String(OBR.room.id || "");
+    const claim = JSON.parse(globalThis.localStorage?.getItem(IMPLICIT_SESSION_CLAIM_KEY) || "null");
+    if (claim?.roomId === roomId && claim.sessionId && now - Number(claim.at) >= 0
+      && now - Number(claim.at) < IMPLICIT_SESSION_CLAIM_MS) return String(claim.sessionId);
+    globalThis.localStorage?.setItem(IMPLICIT_SESSION_CLAIM_KEY, JSON.stringify({ roomId, sessionId, at: now }));
+  } catch {}
+  return sessionId;
+}
+
+// Writes the session only when no record has its id (one transaction: another page may write the same claimed id);
+// returns the stored one.
+async function putStoredSessionIfAbsent(session, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
+  const db = await openDatabase();
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
+  const tx = db.transaction(SESSION_STORE, "readwrite");
+  const store = tx.objectStore(SESSION_STORE);
+  let stored = session;
+  const read = store.get(session.id);
+  read.onsuccess = () => {
+    if (read.result) stored = read.result;
+    else store.put(session);
+  };
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(storageFailure(tx.error, "Salvataggio sessione fallito."));
+    tx.onabort = () => reject(storageFailure(tx.error, "Salvataggio sessione annullato."));
+  });
+  return isSceneEpochCurrent(sceneEpoch) ? normalizeCombatLogSessionV3(stored) : null;
+}
+
 async function getSessionState({ sceneEpoch = currentSceneEpoch() } = {}) {
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
   const metadata = await OBR.scene.getMetadata();
@@ -213,7 +251,32 @@ async function getSessionState({ sceneEpoch = currentSceneEpoch() } = {}) {
   return normalizeSessionState(metadata?.[SESSION_STATE_KEY]);
 }
 
+// attached: a scene points to this registry (the current one or another, whose metadata this page cannot read).
+// «Conservazione…» never deletes such a registry; the mark goes when its scene moves to another one.
+async function markSessionAttached(sessionId, attached, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!sessionId || !isSceneEpochCurrent(sceneEpoch)) return;
+  try {
+    const db = await openDatabase();
+    if (!isSceneEpochCurrent(sceneEpoch)) return;
+    const tx = db.transaction(SESSION_STORE, "readwrite");
+    const store = tx.objectStore(SESSION_STORE);
+    const read = store.get(sessionId);
+    read.onsuccess = () => {
+      if (read.result && (read.result.attached === true) !== attached) store.put({ ...read.result, attached });
+    };
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } catch (error) {
+    console.warn("[combat-log] attachment mark:", error?.message || error);
+  }
+}
+
 async function setSessionState(session, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return false;
+  const previous = await getSessionState({ sceneEpoch });
   if (!isSceneEpochCurrent(sceneEpoch)) return false;
   const state = {
     version: 1,
@@ -228,17 +291,22 @@ async function setSessionState(session, { sceneEpoch = currentSceneEpoch() } = {
     state,
     { runtime: "combatLog" },
   );
+  if (!isSceneEpochCurrent(sceneEpoch)) return false;
+  if (previous?.sessionId && previous.sessionId !== session.id) await markSessionAttached(previous.sessionId, false, { sceneEpoch });
+  await markSessionAttached(session.id, true, { sceneEpoch });
   return isSceneEpochCurrent(sceneEpoch);
 }
 
-export async function startCombatLogSession(name = "", { sceneEpoch = currentSceneEpoch() } = {}) {
+// implicit: the registry the first event of a scene starts (ensureCombatLogSession), shared by the pages that race
+// for it; an explicit one (the GM's "Nuovo registro") is always new.
+export async function startCombatLogSession(name = "", { sceneEpoch = currentSceneEpoch(), implicit = false } = {}) {
   if (!eventSinkEnabled) throw new Error("Registro combattimento disattivato nelle opzioni.");
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
   if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM può creare un registro.");
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
   const now = Date.now();
-  const session = {
-    id: createId(),
+  let session = {
+    id: implicit ? claimImplicitSessionId(createId(), now) : createId(),
     version: 3,
     roomId: String(OBR.room.id || ""),
     name: String(name || "").trim() || defaultSessionName(),
@@ -249,7 +317,10 @@ export async function startCombatLogSession(name = "", { sceneEpoch = currentSce
     lastTurnKey: "",
     roster: { initial: null, atExport: null },
   };
-  if (!await putStoredSession(session, { sceneEpoch })) return null;
+  if (implicit) {
+    session = await putStoredSessionIfAbsent(session, { sceneEpoch });
+    if (!session) return null;
+  } else if (!await putStoredSession(session, { sceneEpoch })) return null;
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
   if (!await setSessionState(session, { sceneEpoch })) return null;
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
@@ -288,7 +359,7 @@ export async function ensureCombatLogSession({
     return isSceneEpochCurrent(sceneEpoch) ? recovered : null;
   }
   if (peek) return null;
-  return startCombatLogSession("", { sceneEpoch });
+  return startCombatLogSession("", { sceneEpoch, implicit: true });
 }
 
 function stableEventValue(value, seen = new Set()) {
@@ -415,6 +486,8 @@ async function appendEventsNow(
             roster: nextRoster,
             nextSequence: sequence,
             updatedAt: Date.now(),
+            // The registry a scene writes to (also marks the registries made before the mark existed).
+            attached: true,
           });
           return;
         }
@@ -1286,22 +1359,17 @@ export async function deleteCombatLogSession(
     const state = await getSessionState({ sceneEpoch });
     if (!isSceneEpochCurrent(sceneEpoch)) return false;
     if (state?.sessionId === sessionId) {
-      const remaining = await listCombatLogSessions({ sceneEpoch });
+      // The scene is left without a registry (the next event starts one). The registries left in this browser may be
+      // imported archives or another scene's active one: none of them is this scene's to take.
+      // L'SDK non documenta una cancellazione fisica key-scoped: null è il
+      // tombstone JSON-safe che rappresenta semanticamente nessuna sessione.
       if (!isSceneEpochCurrent(sceneEpoch)) return false;
-      const next = remaining[0] || null;
-      if (next) {
-        if (!await setSessionState(next, { sceneEpoch })) return false;
-      } else {
-        // L'SDK non documenta una cancellazione fisica key-scoped: null è il
-        // tombstone JSON-safe che rappresenta semanticamente nessuna sessione.
-        if (!isSceneEpochCurrent(sceneEpoch)) return false;
-        await clearSceneMetadataKey(
-          OBR.scene,
-          METADATA_OWNERSHIP.COMBAT_LOG_SESSION,
-          { runtime: "combatLog" },
-        );
-        if (!isSceneEpochCurrent(sceneEpoch)) return false;
-      }
+      await clearSceneMetadataKey(
+        OBR.scene,
+        METADATA_OWNERSHIP.COMBAT_LOG_SESSION,
+        { runtime: "combatLog" },
+      );
+      if (!isSceneEpochCurrent(sceneEpoch)) return false;
     }
     if (!isSceneEpochCurrent(sceneEpoch)) return false;
     await notifyChange("delete", sessionId, { sceneEpoch });
@@ -1555,6 +1623,8 @@ export async function importCombatLogBundle(
           imported: true,
           archived: true,
           active: false,
+          // An archive: no scene writes to it (the export may come from a registry that was in use).
+          attached: false,
           importedAt: now,
           importFingerprint: plan.fingerprint,
           sourceSessionId: plan.sourceSessionId,

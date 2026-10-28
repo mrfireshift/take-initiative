@@ -418,8 +418,17 @@ test("Combat Log integration: il Combat Log traccia l'evento di lancio e l'event
   assert.equal(entries.length, 1);
   const targetEntryId = entries[0].id;
 
-  const logDataBeforeUndo = await combatLog.getActiveCombatLogData({ sceneEpoch: currentSceneEpoch() });
-  const spellEvent = logDataBeforeUndo.events.find((e) => e.payload?.causality?.spellId === "misty-step");
+  // The History owner writes the Combat Log after its answer (awaitWrite: false): the event lands a moment later.
+  const logEvent = async (predicate) => {
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      const data = await combatLog.getActiveCombatLogData({ sceneEpoch: currentSceneEpoch() });
+      const found = data.events.find(predicate);
+      if (found) return found;
+      await sleep(20);
+    }
+    return null;
+  };
+  const spellEvent = await logEvent((e) => e.payload?.causality?.spellId === "misty-step");
   assert.ok(spellEvent, "L'evento di lancio deve essere presente nel Combat Log");
 
   const undone = await history.undoHistoryThrough(targetEntryId, {
@@ -428,8 +437,7 @@ test("Combat Log integration: il Combat Log traccia l'evento di lancio e l'event
   const outcome = normalizeHistoryUndoResult(undone);
   assert.equal(outcome.outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
 
-  const logDataAfterUndo = await combatLog.getActiveCombatLogData({ sceneEpoch: currentSceneEpoch() });
-  const undoEvent = logDataAfterUndo.events.find((e) => e.kind === "undo" && e.payload?.historyEntryIds?.includes(targetEntryId));
+  const undoEvent = await logEvent((e) => e.kind === "undo" && e.payload?.historyEntryIds?.includes(targetEntryId));
   assert.ok(undoEvent, "L'evento di Undo deve essere registrato con riferimento alla History entry originale");
 });
 

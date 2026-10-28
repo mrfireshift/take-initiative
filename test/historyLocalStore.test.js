@@ -487,3 +487,44 @@ test("pulizia su un database appena creato o senza IndexedDB: nessun errore inat
   assert.deepEqual(empty, { historyRemoved: [], recoveryRemoved: [] });
   await assert.rejects(pruneLocalStores({ indexedDB: null }), /history-local-store-unavailable/u);
 });
+
+// Lot L14 of the bugfix pass (HI-05): a connection the browser closes (site data cleared, storage pressure) kept
+// failing every History and journal call until the page was reloaded.
+function closableIndexedDB() {
+  const base = createVersionedIndexedDB();
+  const connections = [];
+  return {
+    connections,
+    indexedDB: {
+      open(name, version) {
+        const request = base.open(name, version);
+        let onsuccess = null;
+        Object.defineProperty(request, "onsuccess", {
+          set(listener) { onsuccess = listener; },
+          get() { return onsuccess && ((event) => { connections.push(request.result); return onsuccess(event); }); },
+        });
+        return request;
+      },
+    },
+  };
+}
+const closedError = () => Object.assign(new Error("The database connection is closing."), { name: "InvalidStateError" });
+
+test("L14: dopo una chiusura forzata la connessione locale si riapre, con o senza l'evento close", async () => {
+  const fake = closableIndexedDB();
+  const database = createLocalHistoryDatabase({ indexedDB: fake.indexedDB });
+  await database.put({ storeId: "store-1", entries: [] });
+  assert.equal(fake.connections.length, 1);
+
+  // Closed under us, the close event not delivered yet: transaction() throws InvalidStateError.
+  fake.connections[0].transaction = () => { throw closedError(); };
+  assert.deepEqual(await database.get("store-1"), { storeId: "store-1", entries: [] });
+  assert.equal(fake.connections.length, 2, "a new connection");
+
+  // Closed with its close event: the next call opens again.
+  fake.connections[1].transaction = () => { throw closedError(); };
+  fake.connections[1].onclose();
+  await database.put({ storeId: "store-2", entries: [] });
+  assert.equal(fake.connections.length, 3);
+  assert.deepEqual(await database.get("store-2"), { storeId: "store-2", entries: [] });
+});

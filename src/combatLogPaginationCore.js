@@ -46,6 +46,9 @@ export function mergeCombatLogPageState(
     } else if (page.hasOlder === true) {
       state.hasOlder = true;
     }
+    // Every event of the session is already here (the GM loaded them all, then a live refresh brought the latest page
+    // back, which has older ones of its own): nothing older is left to load.
+    if (state.totalCount > 0 && state.events.size >= state.totalCount) state.hasOlder = false;
     state.hasNewer = page.hasNewer === true;
   }
   return [...state.events.values()]

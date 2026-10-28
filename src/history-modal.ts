@@ -122,6 +122,11 @@ const combatLogUiState = {
   // Open delete confirmations survive the re-renders a scene change triggers.
   confirmDeleteEventId: "",
   confirmingSelectionDelete: false,
+  // The registry whose «Svuota» or «Elimina registro» banner is open, and the note being typed: an item change rebuilds
+  // the panel, and they must outlive it.
+  confirmingClearSessionId: "",
+  confirmingDeleteSessionId: "",
+  noteDraft: "",
   timelineScrollTop: 0,
   focusControl: "",
   selectionStart: null as number | null,
@@ -206,7 +211,11 @@ function captureCombatLogUiState(app: HTMLElement) {
 }
 
 function rememberCombatLogFocus(active: Element | null = document.activeElement) {
-  if (!(active instanceof HTMLElement) || !active.dataset.combatLogControl) return;
+  // Focus elsewhere: nothing to give it back to (not the control focused some time before, such as the search).
+  if (!(active instanceof HTMLElement) || !active.dataset.combatLogControl) {
+    combatLogUiState.focusControl = "";
+    return;
+  }
   combatLogUiState.focusControl = active.dataset.combatLogControl;
   if (active instanceof HTMLInputElement) {
     combatLogUiState.selectionStart = active.selectionStart;
@@ -1436,14 +1445,18 @@ async function render(
   const confirmClear = button("Cancella definitivamente", "danger");
   clearActions.append(cancelClear, confirmClear);
   clearConfirmation.append(clearQuestion, clearActions);
+  const showClearConfirmation = (open: boolean) => {
+    combatLogUiState.confirmingClearSessionId = open ? String(session?.id || "") : "";
+    clearConfirmation.style.display = open ? "flex" : "none";
+    clearLog.disabled = open;
+  };
+  if (session?.id && combatLogUiState.confirmingClearSessionId === String(session.id) && !clearLog.disabled) showClearConfirmation(true);
   clearLog.addEventListener("click", () => {
     if (!sceneLifecycle.isReady()) return;
-    clearConfirmation.style.display = "flex";
-    clearLog.disabled = true;
+    showClearConfirmation(true);
   });
   cancelClear.addEventListener("click", () => {
-    clearConfirmation.style.display = "none";
-    clearLog.disabled = false;
+    showClearConfirmation(false);
   });
   confirmClear.addEventListener("click", async () => {
     if (!sceneLifecycle.isReady()) return;
@@ -1451,6 +1464,7 @@ async function render(
     if (!sceneLifecycle.isCurrent(operation)) return;
     confirmClear.disabled = true;
     cancelClear.disabled = true;
+    combatLogUiState.confirmingClearSessionId = "";
     try {
       await clearCombatLogSession(session?.id, { sceneEpoch: operation.epoch });
       if (!sceneLifecycle.isCurrent(operation)) return;
@@ -1471,14 +1485,18 @@ async function render(
   const confirmDelete = button("Elimina registro", "danger");
   deleteActions.append(cancelDelete, confirmDelete);
   deleteConfirmation.append(deleteQuestion, deleteActions);
+  const showDeleteConfirmation = (open: boolean) => {
+    combatLogUiState.confirmingDeleteSessionId = open ? String(session?.id || "") : "";
+    deleteConfirmation.style.display = open ? "flex" : "none";
+    deleteLog.disabled = open;
+  };
+  if (session?.id && combatLogUiState.confirmingDeleteSessionId === String(session.id) && !deleteLog.disabled) showDeleteConfirmation(true);
   deleteLog.addEventListener("click", () => {
     if (!sceneLifecycle.isReady()) return;
-    deleteConfirmation.style.display = "flex";
-    deleteLog.disabled = true;
+    showDeleteConfirmation(true);
   });
   cancelDelete.addEventListener("click", () => {
-    deleteConfirmation.style.display = "none";
-    deleteLog.disabled = false;
+    showDeleteConfirmation(false);
   });
   confirmDelete.addEventListener("click", async () => {
     if (!sceneLifecycle.isReady()) return;
@@ -1486,6 +1504,7 @@ async function render(
     if (!sceneLifecycle.isCurrent(operation)) return;
     confirmDelete.disabled = true;
     cancelDelete.disabled = true;
+    combatLogUiState.confirmingDeleteSessionId = "";
     try {
       await deleteCombatLogSession(session?.id, { sceneEpoch: operation.epoch });
       if (!sceneLifecycle.isCurrent(operation)) return;
@@ -1569,6 +1588,10 @@ async function render(
   note.type = "text";
   note.disabled = !combatLogEnabled || !sceneLifecycle.isReady();
   note.placeholder = "Aggiungi una nota manuale al combattimento…";
+  // The note being typed and its focus outlive the rebuilds an item change triggers.
+  note.dataset.combatLogControl = "note";
+  note.value = combatLogUiState.noteDraft;
+  note.addEventListener("input", () => { combatLogUiState.noteDraft = note.value; });
   const addNote = button("Aggiungi nota", "primary", "log-note.svg");
   addNote.disabled = !combatLogEnabled || !sceneLifecycle.isReady();
   noteForm.append(note, addNote);
@@ -1585,6 +1608,7 @@ async function render(
     if (!sceneLifecycle.isCurrent(operation)) return;
     const created = await addCombatLogNote(note.value, { sceneEpoch: operation.epoch });
     if (!sceneLifecycle.isCurrent(operation)) return;
+    if (created.length) combatLogUiState.noteDraft = "";
     await scheduleRender(created.length ? "Nota aggiunta." : "Registro combattimento disattivato: nota non registrata.");
   });
 
