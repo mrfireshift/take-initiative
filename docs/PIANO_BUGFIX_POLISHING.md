@@ -46,6 +46,12 @@ Lotti fatti:
   - A ordine vuoto si dimentica l'ultima creatura attiva, così il primo turno del combattimento dopo conta.
   - Il riordino a pari iniziativa conosce i turni Paragon aggiuntivi; la casella Tana segue la scena mostrata.
   - Test di core (turno dopo la rimozione, anche con ID virtuali; ◀ al round 1; riordino con un Paragon) e di contratto. La riproduzione dell'analisi sul sorgente vero ora dà E come nuovo attivo, come `sanitizeState`.
+- **L7** (28/10): PF (HP-03, HP-04, HP-05, HP-07).
+  - I PF temporanei dati a 0 PF non cambiano nulla (D6): niente PG risvegliato. La console PF lo scrive nell'anteprima.
+  - Il ripristino dei PF da un'altra scena sopra 0 chiude il conteggio dei TS contro la morte. Dopo ogni ripristino si riallinea «Privo di sensi», come fa la memoria PF.
+  - Un nuovo membro del gruppo senza PF entra con i PF massimi.
+  - «Crit» della console PF si spegne dopo un'applicazione riuscita.
+  - Quattro test nuovi, tutti falliscono senza la patch. Resta com'è la pill «Stabile» manuale dopo un ripristino sopra 0, rara.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

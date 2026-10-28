@@ -52,14 +52,17 @@ export function calculateQuickHPChange({
       ? beforeHP
       : Math.min(maxHP, beforeHP + requested);
   } else if (mode === QUICK_HP_MODES.TEMP) {
+    // At 0 HP temporary hit points would read as hit points regained (the part above hpMax is the temporary one): a
+    // dying character would wake up. They change nothing, as the species traits already refuse them (decision D6).
     const baseHP = Math.min(beforeHP, maxHP);
     const existingTempHP = Math.max(0, beforeHP - maxHP);
-    afterHP = baseHP + Math.max(existingTempHP, requested);
+    afterHP = beforeHP <= 0 ? beforeHP : baseHP + Math.max(existingTempHP, requested);
   } else {
     afterHP = Math.max(0, beforeHP - requested);
   }
 
   const delta = afterHP - beforeHP;
+  const tempAtZeroHP = mode === QUICK_HP_MODES.TEMP && beforeHP <= 0 && requested > 0;
   // A PC already at 0 HP (takesDeathSaveDamage): the HP stay at 0, but the hit counts on its death saves,
   // so the change goes on to the coordinator.
   const deathSaveHit = deathSaveDamage === true && mode === QUICK_HP_MODES.DAMAGE && beforeHP <= 0 && requested > 0;
@@ -73,6 +76,7 @@ export function calculateQuickHPChange({
     delta,
     changed: delta !== 0 || deathSaveHit,
     ...(deathSaveHit ? { deathSaveDamage: true } : {}),
+    ...(tempAtZeroHP ? { tempAtZeroHP: true } : {}),
   };
 }
 

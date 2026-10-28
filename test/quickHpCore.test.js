@@ -164,3 +164,14 @@ test("Ctrl+Z usa l'undo atomico della Console HP solo quando disponibile", () =>
     hasHistoryEntry: true,
   }), false);
 });
+
+// Lot L7 of the bugfix pass (HP-03, decision D6): temporary hit points given at 0 HP read as hit points regained.
+test("L7: i PF temporanei a 0 PF non cambiano nulla e lo dicono", () => {
+  const atZero = calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 6, hp: 0, hpMax: 20 });
+  assert.equal(atZero.afterHP, 0);
+  assert.equal(atZero.changed, false);
+  assert.equal(atZero.tempAtZeroHP, true);
+  const awake = calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 6, hp: 12, hpMax: 20 });
+  assert.equal(awake.afterHP, 18);
+  assert.equal(awake.tempAtZeroHP, undefined);
+});

@@ -5516,7 +5516,9 @@ async function trySeedGroupHP(itemId, hp, hpMax, onMutation = () => {}) {
 
   const nHP  = Math.max(0, Math.floor(Number(hp)    || 0));
   const nMax = Math.max(0, Math.floor(Number(hpMax) || 0));
-  const nHPclamped = nMax > 0 ? Math.min(nHP, nMax) : nHP;
+  // A new member enters whole: its hit points are the maximum, never the edited member's current ones (a goblin
+  // added mid-fight took the 2/7 of the one just hit).
+  const nHPclamped = nMax > 0 ? nMax : nHP;
 
   const mutation = await runEffectsMutation([{
     type: "hp:set", damageEnds: false,

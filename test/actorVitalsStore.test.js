@@ -925,3 +925,27 @@ test("D1: un PG con uno statblock e un boss nemico senza statblock vengono ancor
     harness.store.stop();
   }
 });
+
+// Lot L7 of the bugfix pass (HP-04): a restore from another scene wrote only hp and hpMax: Privo di sensi and the
+// death save tally of the scene where the character was dying stayed.
+test("L7: il ripristino tra scene sopra 0 PF chiude il conteggio dei TS contro la morte e riallinea Privo di sensi", async () => {
+  const room = new RoomHarness(actorRegistry(12, 27));
+  const item = actorToken("aria", 0, 27);
+  Object.assign(item.metadata["com.thebigpicture.initiative/meta"], { attitude: "pc", deathSaves: { successes: 1, failures: 2 } });
+  const reconciled = [];
+  const store = createActorVitalsStore({
+    api: room.api(),
+    itemsApi: { getItems: async () => [item], updateItems: async (_ids, updater) => updater([item]) },
+    storage: new Storage(),
+    getSceneEpoch: () => 2,
+    isSceneEpochCurrent: alwaysCurrent,
+    subscribeItems: () => () => {},
+    subscribeEpoch: () => () => {},
+    reconcileZeroHP: async (ids, options) => { reconciled.push({ ids, sceneEpoch: options.sceneEpoch }); },
+  });
+  await store.reconcileCurrentScene(2);
+  const meta = item.metadata["com.thebigpicture.initiative/meta"];
+  assert.equal(meta.hp, 12);
+  assert.equal(meta.deathSaves, undefined);
+  assert.deepEqual(reconciled, [{ ids: ["aria"], sceneEpoch: 2 }]);
+});

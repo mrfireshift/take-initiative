@@ -817,3 +817,34 @@ test("L6: riordino con i turni Paragon e casella Tana della scena mostrata", () 
   assert.equal(source.split("const entries = expandParagonEntries(baseEntries, st);").length - 1, 2);
   assert.ok(source.includes("lairChk.checked = !!stateRaw?.lairEnabled;"));
 });
+
+// Lot L7 of the bugfix pass (HP-05): a new member of a group took the edited member's current hit points.
+test("L7: un nuovo membro del gruppo entra con i PF massimi, non con quelli del membro appena colpito", async () => {
+  const META_KEY = "com.thebigpicture.initiative/meta";
+  const seedSource = sourceSection("async function trySeedGroupHP(", "/**\n * Aggiorna la label visibile dei token rinominati.");
+  const writes = [];
+  const items = [
+    { id: "g1", metadata: { [META_KEY]: { hp: 2, hpMax: 7 } } },
+    { id: "g4", metadata: { [META_KEY]: {} } },
+  ];
+  const trySeedGroupHP = new Function("deps", `const { getSceneState, _getGroupForItemId, OBR, runEffectsMutation,
+    requireAppliedEffectsMutation, syncTrackerHPNow, setSceneState, META_KEY } = deps; ${seedSource}; return trySeedGroupHP;`)({
+    META_KEY,
+    getSceneState: async () => ({ order: [], current: 0, round: 1, seededGroups: { goblin: { hp: true } } }),
+    _getGroupForItemId: async () => ({ key: "goblin", members: ["g1", "g4"] }),
+    OBR: { scene: { items: { getItems: async () => items } } },
+    runEffectsMutation: async (operations) => { writes.push(...operations); return { status: "applied" }; },
+    requireAppliedEffectsMutation: () => {},
+    syncTrackerHPNow: () => {},
+    setSceneState: async () => {},
+  });
+  await trySeedGroupHP("g1", 2, 7);
+  assert.deepEqual(writes[0].updates, [{ itemId: "g4", hp: 7, hpMax: 7 }]);
+});
+
+// Lot L7 of the bugfix pass (HP-07): «Crit» stayed on after Applica, and the next hit at 0 HP counted twice.
+test("L7: la console PF spegne «Crit» dopo un'applicazione riuscita", () => {
+  const consoleSource = readFileSync(new URL("../src/quick-hp-modal.js", import.meta.url), "utf8");
+  const applied = sourceSectionIn(consoleSource, "sharedHpSelection = { policy: \"once\", chosenTargetIds: {} };\n    //", "await refreshConditionSourceOptions(");
+  assert.ok(applied.includes("criticalIds = new Set();"));
+});

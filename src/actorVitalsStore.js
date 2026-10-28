@@ -27,6 +27,7 @@ import {
   subscribeSceneEpoch,
 } from "./sceneEpoch.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { DEATH_SAVES_FIELD } from "./deathSaveCore.js";
 
 export const ACTOR_VITALS_ROOM_KEY = `${ID}/actorVitals`;
 export const ACTOR_VITALS_LOCAL_KEY = `${ID}/actorVitals/local`;
@@ -129,13 +130,17 @@ function metadataWithCanonicalHP(item, hp, hpMax) {
   const previous = item?.metadata?.[metaKey] && typeof item.metadata[metaKey] === "object"
     ? item.metadata[metaKey]
     : {};
+  const next = {
+    ...previous,
+    hp,
+    hpMax,
+  };
+  // Hit points above 0 brought from another scene: the creature is no longer dying, its death save tally ends, as
+  // with any heal from 0 (deathSaveCore).
+  if (hp > 0) delete next[DEATH_SAVES_FIELD];
   return {
     ...(item?.metadata || {}),
-    [metaKey]: {
-      ...previous,
-      hp,
-      hpMax,
-    },
+    [metaKey]: next,
   };
 }
 
@@ -217,6 +222,8 @@ export function createActorVitalsStore({
   subscribeItems = null,
   subscribeEpoch = null,
   logger = console,
+  // After a restore, the automatic Privo di sensi follows the restored hit points (null: nothing, as in most tests).
+  reconcileZeroHP = null,
 } = {}) {
   let runtimeAuthority = normalizeAuthority(authority);
   let stopped = false;
@@ -526,6 +533,7 @@ export function createActorVitalsStore({
       const sharedSafeRestores = sharedHpHydrationTargets(liveItems, [...safeRestoreById].map(([id, update]) => ({ id, ...update })));
       safeRestoreById.clear();
       for (const { id, ...update } of sharedSafeRestores) safeRestoreById.set(id, update);
+      const restoredIds = [];
       if (safeRestoreById.size) {
         await itemsApi.updateItems([...safeRestoreById.keys()], (drafts) => {
           if (stopped || !isSceneEpochCurrent(sceneEpoch)) return;
@@ -546,7 +554,13 @@ export function createActorVitalsStore({
             item.metadata = update.absent
               ? metadataWithoutCanonicalHP(item)
               : metadataWithCanonicalHP(item, update.hp, update.hpMax);
+            if (!update.absent) restoredIds.push(item.id);
           }
+        });
+      }
+      if (restoredIds.length && typeof reconcileZeroHP === "function" && isSceneEpochCurrent(sceneEpoch)) {
+        await reconcileZeroHP(restoredIds, { sceneEpoch }).catch((error) => {
+          logger?.warn?.("[actorVitals] zero HP conditions:", error?.message || error);
         });
       }
       for (const [actorProfileId, hp] of changedCanonicalByActor) {
@@ -740,7 +754,13 @@ export function createActorVitalsStore({
   };
 }
 
-export const actorVitalsStore = createActorVitalsStore();
+// The automatic Privo di sensi after a restore, as the HP memory does (hpMemory.js): loaded with the coordinator.
+async function reconcileZeroHPAfterRestore(itemIds, options) {
+  const { reconcileZeroHPConditionsForItems } = await import("./hpConditionAutomation.js");
+  return reconcileZeroHPConditionsForItems(itemIds, options);
+}
+
+export const actorVitalsStore = createActorVitalsStore({ reconcileZeroHP: reconcileZeroHPAfterRestore });
 
 export async function startActorVitalsRuntime(options = {}) {
   return actorVitalsStore.start(options);

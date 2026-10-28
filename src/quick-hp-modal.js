@@ -512,6 +512,12 @@ function renderTargets() {
         delta.className = `delta ${mode === QUICK_HP_MODES.SAVE ? QUICK_HP_MODES.DAMAGE : mode}`;
         delta.textContent = ` (${signed(result.delta)})`;
         preview.append(before, after, delta);
+        if (result.tempAtZeroHP) {
+          const note = document.createElement("span");
+          note.className = "delta";
+          note.textContent = " · a 0 PF i PF temporanei non si danno";
+          preview.append(note);
+        }
         if (result.deathSaveDamage) {
           const deathSave = document.createElement("span");
           deathSave.className = "delta damage";
@@ -911,6 +917,8 @@ async function applyOperation() {
       : `Applicato a ${entries.length} bersagli.`;
     if (coordinatedMutation.historyPending) status.textContent += " Cronologia in recupero; non ripetere l'azione.";
     sharedHpSelection = { policy: "once", chosenTargetIds: {} };
+    // «Crit» belongs to the hit just applied: the next one at 0 HP counts once unless chosen again.
+    criticalIds = new Set();
     await refreshConditionSourceOptions(await loadTargets() || null);
     if (!sceneLifecycle.isCurrent(operation)) return;
   } catch (error) {
