@@ -11,7 +11,8 @@ test("le pill condizioni della card classica espongono la X solo tramite callbac
   assert.match(conditionsSource, /const canRemoveCondition = !hasClassFeatureInstance/);
   assert.match(conditionsSource, /opts\.onRemove\(group\)/);
   assert.match(cardSource, /onRemove: IS_GM && !isLairId\(e\.id\) && !isEpicActionId\(e\.id\)/);
-  assert.match(cardSource, /__removeConditionOnTrackerCard\(e\.id, group\)/);
+  // A Paragon's extra card removes from its token (lot L27 of the bugfix pass).
+  assert.match(cardSource, /__removeConditionOnTrackerCard\(cardTokenId, group\)/);
 });
 
 test("la rimozione dalla pill usa la lane effects e gli ID delle istanze", () => {

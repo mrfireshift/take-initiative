@@ -31,6 +31,8 @@ import { extendHitArea } from "./hitAreaCore.js";
 import { hasReactionUsed } from "./reactionTrackerCore.js";
 
 export function buildClassicTrackerCard(e, context) {
+  // A Paragon's extra turn (`boss::p1`) is a card of the same token: what the card writes goes to the token.
+  const cardTokenId = e.__paragonBaseId || e.id;
   const {
     state,
     showEffectSummaryParts = true,
@@ -456,7 +458,10 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
     getOriginalName: () => e.name,
     borderColor: c.border,
     dragAllowed: DRAG_OK,
-    saveName: (nextName) => saveClassicTrackerEntryName(e, nextName),
+    saveName: async (nextName) => {
+      await saveClassicTrackerEntryName({ ...e, id: cardTokenId }, nextName);
+      e.name = nextName;
+    },
     onError: (error) => {
       console.warn("[initiative] rename token:", error?.message || error);
     },
@@ -701,7 +706,8 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
   // badge iniziativa (ancorato a destra, centrato verticalmente)
   const badge = document.createElement("div");
   badge.textContent = String(e.initiative);
-  badge.title = "Click per modificare l'iniziativa";
+  // Only the GM edits the initiative, in both views (the compact card's badge already is the GM's alone).
+  badge.title = IS_GM ? "Click per modificare l'iniziativa" : "Iniziativa";
   Object.assign(badge.style, {
   position: "absolute",
   right: BADGE_RIGHT + "px",
@@ -721,7 +727,7 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
   border: `1px solid ${rgba(c.border, .88)}`,
   borderRadius: "50%",
   boxShadow: `0 4px 12px rgba(0,0,0,.42), inset 0 0 0 1px ${rgba(c.base, .18)}`,
-  cursor: "text",
+  cursor: IS_GM ? "text" : "default",
 });
 
 // --- Dock per condizioni
@@ -755,10 +761,10 @@ if (hasAny) {
     compact: true,
     showEffectSummaryParts,
     onRemove: IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)
-      ? (group) => __removeConditionOnTrackerCard(e.id, group)
+      ? (group) => __removeConditionOnTrackerCard(cardTokenId, group)
       : null,
     onTerminateClassFeature: IS_GM
-      ? (instance) => __terminateClassFeatureOnTrackerCard(e.id, instance)
+      ? (instance) => __terminateClassFeatureOnTrackerCard(cardTokenId, instance)
       : null,
   });
   if (fragCond) fragAll.appendChild(fragCond);
@@ -773,14 +779,15 @@ if (trackerSpells.length) {
       ? __findSpellBoardToken(boardTokenItems, e.id, spell)
       : null;
     const spellChipOptions = canTerminate && !spell.trackerConcentrationOnly
-      ? { onTerminate: (entry) => __terminateSpellOnTrackerCard(e.id, entry) }
+      ? { onTerminate: (entry) => __terminateSpellOnTrackerCard(cardTokenId, entry) }
       : {};
     // The ⚡ of a spell with active actions: they run from the pill, without the spell panel.
     if (canTerminate && !spell.trackerConcentrationOnly && spell.instanceId
       && typeof __openSpellPillActions === "function" && spellPillHasActions(spell)) {
       spellChipOptions.onActions = (entry, event) => __openSpellPillActions(e, entry, event);
     }
-    if (boardToken?.state?.hpMax > 0) {
+    // A player sees a summon's hit points only where the card shows its caster's exact ones (an enemy's are hidden).
+    if (boardToken?.state?.hpMax > 0 && (IS_GM || (e.hpDisclosure?.mode || "exact") === "exact")) {
       spellChipOptions.boardTokenHP = {
         itemId: boardToken.itemId,
         hp: boardToken.state.hp,
@@ -830,7 +837,7 @@ if (e.__groupCollapsed) {
   badge.__initNormalBorder = badge.style.border;
   badge.__initNormalShadow = badge.style.boxShadow;
 
-bindInitiativeEditorForEntry(badge, e);
+if (IS_GM) bindInitiativeEditorForEntry(badge, e);
 
 if (e.__groupCollapsed) {
   const chev = document.createElement("div");
@@ -916,17 +923,17 @@ const legendaryResourceDock = buildClassicLegendaryResourceDock(e, {
   defaultResistances: DEFAULT_LEGENDARY_RESISTANCES,
   onActionCurrent: async (nextCurrent) => {
     if (!IS_GM) return;
-    try { await setLegendaryCurrent(e.id, nextCurrent); } catch {}
+    try { await setLegendaryCurrent(cardTokenId, nextCurrent); } catch {}
   },
-  onActionMax: (nextMax) => setLegendaryMax(e.id, nextMax),
+  onActionMax: (nextMax) => setLegendaryMax(cardTokenId, nextMax),
   onResistanceCurrent: async (nextCurrent) => {
     if (!IS_GM) return;
     try {
-      await setLegendaryResistanceCurrent(e.id, nextCurrent);
+      await setLegendaryResistanceCurrent(cardTokenId, nextCurrent);
     } catch {}
   },
   onResistanceMax: (nextMax) =>
-    setLegendaryResistanceMax(e.id, nextMax),
+    setLegendaryResistanceMax(cardTokenId, nextMax),
 });
 if (legendaryResourceDock) header.appendChild(legendaryResourceDock);
 

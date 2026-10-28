@@ -696,7 +696,8 @@ test("il renderer classico delega la costruzione completa al builder estratto", 
 
 test("lotto 6.4: il GM modifica gli HP dal compatto con l'editor del classico, e il sync non chiude l'editor", () => {
   const syncSection = sourceSection("function syncTrackerHPNow(", "const fill = card.querySelector(\"[data-hp-fill='1']\");");
-  assert.ok(syncSection.includes(`querySelector("[data-badge='hp']:not([data-card-hp-text='1'])")`));
+  // The card's own HP: never a summon's or a shared-HP badge in the header (lot L27 of the bugfix pass).
+  assert.ok(syncSection.includes("\"[data-badge='hp']:not([data-card-hp-text='1']):not([data-spell-board-token-hp='1']):not([data-shared-hp-badge='1'])\""));
   assert.ok(syncSection.includes(`if (hpText && hpText.dataset.hpEditing !== "1")`));
 
   const compactSection = sourceSection("} = buildCompactCardHP(entry, {", "const name = buildCompactCardName(entry, { active, boss });");
@@ -757,4 +758,42 @@ test("barra compatta: il testo HP in modifica resta al suo posto, tutto bianco a
     .map((part) => part.slice(0, part.indexOf("}")));
   assert.ok(hpEditingRules.length > 0);
   assert.ok(hpEditingRules.every((rule) => !rule.includes("background") && !rule.includes("outline")));
+});
+
+// Lot L27 of the bugfix pass: what a player's classic card shows and lets do.
+test("L27: il badge dell'iniziativa si modifica solo dal GM, nella vista classica come nella compatta", () => {
+  assert.ok(classicBuilderSource.includes(`badge.title = IS_GM ? "Click per modificare l'iniziativa" : "Iniziativa";`));
+  assert.ok(classicBuilderSource.includes(`cursor: IS_GM ? "text" : "default",`));
+  assert.ok(classicBuilderSource.includes("if (IS_GM) bindInitiativeEditorForEntry(badge, e);"));
+  assert.ok(!classicBuilderSource.includes("\nbindInitiativeEditorForEntry(badge, e);"));
+});
+
+test("L27: la seconda card di un Paragon scrive condizioni, incantesimi, leggendarie e nome sul token", () => {
+  assert.ok(classicBuilderSource.includes("const cardTokenId = e.__paragonBaseId || e.id;"));
+  for (const call of [
+    "__removeConditionOnTrackerCard(cardTokenId, group)",
+    "__terminateClassFeatureOnTrackerCard(cardTokenId, instance)",
+    "__terminateSpellOnTrackerCard(cardTokenId, entry)",
+    "setLegendaryCurrent(cardTokenId, nextCurrent)",
+    "setLegendaryMax(cardTokenId, nextMax)",
+    "setLegendaryResistanceCurrent(cardTokenId, nextCurrent)",
+    "setLegendaryResistanceMax(cardTokenId, nextMax)",
+    "saveClassicTrackerEntryName({ ...e, id: cardTokenId }, nextName)",
+  ]) assert.ok(classicBuilderSource.includes(call), call);
+});
+
+test("L27: un giocatore non vede i PF delle evocazioni di un nemico, né sulla pill né nel cassetto", () => {
+  assert.ok(classicBuilderSource.includes(
+    `if (boardToken?.state?.hpMax > 0 && (IS_GM || (e.hpDisclosure?.mode || "exact") === "exact")) {`,
+  ));
+  const helper = sourceSection("function __trackerCompanionsForEntry(", "async function saveClassicTrackerEntryName(");
+  const companionsFor = (isGM) => new Function("IS_GM", "spellBoardTokenCompanionsForEntry", `${helper}; return __trackerCompanionsForEntry;`)(
+    isGM,
+    () => [{ itemId: "object-1", label: "Oggetto", hp: 9, hpMax: 25 }],
+  );
+  const enemy = { id: "boss", hpDisclosure: { mode: "hidden" } };
+  const pc = { id: "wizard", hpDisclosure: { mode: "exact" } };
+  assert.equal(companionsFor(false)(enemy, new Map())[0].hp, undefined);
+  assert.equal(companionsFor(false)(pc, new Map())[0].hp, 9);
+  assert.equal(companionsFor(true)(enemy, new Map())[0].hp, 9);
 });

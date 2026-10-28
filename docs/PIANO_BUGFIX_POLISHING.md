@@ -26,6 +26,13 @@ Lotti fatti:
   - Un incantesimo a concentrazione toglie prima del commit solo le zone e le pedine dell'incantesimo su cui il caster si concentra (per `instanceId`), non quelle senza concentrazione: Guardiano della fede, Unto, un Glifo, Arma spirituale.
   - La Mano arcana portata a 0 PF da un'area chiude anche incantesimo e concentrazione, come già con una scrittura dei PF.
   - Lo fissa `test/spellAreaConcentrationZones.test.js`, con tre casi: Unto più Anatema; Ragnatela, la cui zona finisce ancora; la Mano. I due bug falliscono senza la patch.
+- **L27** (28/10): card del tracker (RN-01, RN-04, RN-05, RN-06, RN-08).
+  - Seconda card di un boss Paragon (`boss::p1`): PF inline, × di condizioni, incantesimi e capacità, pip leggendari e rinomina scrivono sul token (`__paragonBaseId`). `entry.id` resta l'identità dell'editor.
+  - Per i giocatori, i PF di un'evocazione (pill e cassetto) solo dove la card mostra esatti quelli del caster.
+  - Nella vista classica il badge dell'iniziativa si modifica solo dal GM; per i giocatori tooltip «Iniziativa» e cursore normale.
+  - La sincronizzazione immediata dei PF salta la pill dell'evocazione e quella dei PF condivisi.
+  - Un salvataggio dell'iniziativa rifiutato chiude l'editor e rimette il valore.
+  - Test: editor reale con una card Paragon e con un salvataggio rifiutato (entrambi falliscono senza la patch), funzione vera del cassetto, contratti della card classica. Due contratti esistenti seguono i nuovi ID e il nuovo selettore.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

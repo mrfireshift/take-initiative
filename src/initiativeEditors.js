@@ -147,9 +147,19 @@ export function bindClassicInitiativeEditor({
         ? old
         : String(Math.floor(Number(value) || 0));
       badge.textContent = normalized;
-      await saveValue(normalized);
-      cleanup();
-      await afterCommit(normalized);
+      // A refused save puts the old value back and still closes the editor: left open, it stopped every full render
+      // until the scene changed.
+      let saved = false;
+      try {
+        await saveValue(normalized);
+        saved = true;
+      } catch (error) {
+        badge.textContent = old;
+        console.warn("[initiative] editor commit:", error?.message || error);
+      } finally {
+        cleanup();
+      }
+      if (saved) await afterCommit(normalized);
     };
 
     const cancel = async (options = {}) => {

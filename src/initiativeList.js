@@ -6567,7 +6567,10 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
     card.style.opacity = knockedOut ? ".84" : "1";
 
     // The compact HP text carries data-badge="hp" for its editor (lot 6.4) but keeps its own format, written below.
-    const pill = card.querySelector("[data-badge='hp']:not([data-card-hp-text='1'])");
+    // The card's own HP, not a summon's or a shared-HP badge that may stand before it (the spell chip in the header).
+    const pill = card.querySelector(
+      "[data-badge='hp']:not([data-card-hp-text='1']):not([data-spell-board-token-hp='1']):not([data-shared-hp-badge='1'])",
+    );
     if (pill && pill.dataset.hpEditing !== "1") {
       pill.innerHTML = formatHPHTML(nHP, nHPMax);
       pill.style.color = knockedOut ? "rgba(255,255,255,.58)" : "#fff";
@@ -6795,6 +6798,8 @@ function bindHPEditorForEntry(
   entry,
   options = {},
 ) {
+  // A Paragon's extra turn (`boss::p1`) edits its token's hit points: entry.id stays the card's editor identity.
+  const tokenId = entry.__paragonBaseId || entry.id;
   const customSaveValues = typeof options.saveValues === "function"
     ? options.saveValues
     : null;
@@ -6856,7 +6861,7 @@ function bindHPEditorForEntry(
       const operationSceneEpoch = editorSceneEpoch;
       if (!isCurrentHPEditorOperation()) return values;
       try {
-        const [live] = await OBR.scene.items.getItems([entry.id]);
+        const [live] = await OBR.scene.items.getItems([tokenId]);
         if (!isCurrentSceneEpoch(operationSceneEpoch)) return values;
         const meta = live?.metadata?.[META_KEY] || {};
         if (Number.isFinite(meta.hp)) values.hp = meta.hp;
@@ -6877,9 +6882,9 @@ function bindHPEditorForEntry(
     },
     syncRecoveredValues: ({ hp, hpMax }) => {
       if (!isCurrentHPEditorOperation()) return;
-      syncHPBarNow(entry.id, hp, hpMax);
-      void syncHPTextNow(entry.id, hp, hpMax);
-      syncTrackerHPNow(entry.id, hp, hpMax);
+      syncHPBarNow(tokenId, hp, hpMax);
+      void syncHPTextNow(tokenId, hp, hpMax);
+      syncTrackerHPNow(tokenId, hp, hpMax);
     },
     parseRelativeDelta: parseRelativeHPDelta,
     setDeltaButtonActive: setHPDeltaButtonActive,
@@ -6893,11 +6898,11 @@ function bindHPEditorForEntry(
     }) => {
       concentrationWarningSceneEpoch = currentSceneEpoch();
       const operationSceneEpoch = concentrationWarningSceneEpoch;
-      let historyIds = [entry.id];
+      let historyIds = [tokenId];
       try {
-        const group = await _getGroupForItemId(entry.id);
+        const group = await _getGroupForItemId(tokenId);
         historyIds = Array.from(new Set([
-          entry.id,
+          tokenId,
           ...(group?.members || []),
         ]));
       } catch {}
@@ -6929,9 +6934,9 @@ function bindHPEditorForEntry(
         sceneEpoch: operationSceneEpoch,
         isCurrent: (candidateEpoch) => isCurrentSceneEpoch(candidateEpoch),
       }, async () => {
-        hpMutations.push(await updateHP(entry.id, nextHP, nextHPMax, { hp: entry.hp, hpMax: entry.hpMax }));
+        hpMutations.push(await updateHP(tokenId, nextHP, nextHPMax, { hp: entry.hp, hpMax: entry.hpMax }));
         if (options.seedGroupHP !== false) {
-          await trySeedGroupHP(entry.id, nextHP, nextHPMax, (mutation) => hpMutations.push(mutation));
+          await trySeedGroupHP(tokenId, nextHP, nextHPMax, (mutation) => hpMutations.push(mutation));
         }
       });
       if (historyResult?.partial) {
@@ -6948,7 +6953,7 @@ function bindHPEditorForEntry(
       if (!Number.isSafeInteger(sceneEpoch) || !isCurrentSceneEpoch(sceneEpoch)) return;
       try {
         await showConcentrationDamageWarning([{
-          itemId: entry.id,
+          itemId: tokenId,
           damage: concentrationDamage,
         }], {
           causeHistoryEntryId: concentrationCauseHistoryEntryId,
@@ -7098,7 +7103,12 @@ function bindSpellBoardTokenCompanionHPEditor(pill, companion) {
 }
 
 function __trackerCompanionsForEntry(entry, companionMap) {
-  const companions = spellBoardTokenCompanionsForEntry(entry, companionMap);
+  const summons = spellBoardTokenCompanionsForEntry(entry, companionMap);
+  // A player sees a summon's hit points only where the card shows its caster's exact ones (an enemy's are hidden),
+  // as for the shared-HP children, which the projection already hides.
+  const companions = IS_GM || (entry?.hpDisclosure?.mode || "exact") === "exact"
+    ? summons
+    : summons.map((companion) => ({ ...companion, hp: undefined, hpMax: undefined }));
   if (entry?.__groupCollapsed || (entry?.__paragonIndex !== undefined && Number(entry.__paragonIndex) > 0)) return companions;
   return [...companions, ...(entry.sharedHpChildren || [])];
 }
@@ -10208,7 +10218,7 @@ function renderCompactTrack(
       effectsPopoverOpen,
       spellColor: __spellColor,
       onTerminateClassFeature: IS_GM
-        ? (instance) => __terminateClassFeatureOnTrackerCard(entry.id, instance)
+        ? (instance) => __terminateClassFeatureOnTrackerCard(entry.__paragonBaseId || entry.id, instance)
         : null,
       onSpellActions: IS_GM && !virtual
         ? (spell, event) => __openSpellPillActions(entry, spell, event)
@@ -10231,7 +10241,7 @@ function renderCompactTrack(
       "action",
       async (nextCurrent) => {
         if (!IS_GM) return;
-        try { await setLegendaryCurrent(entry.id, nextCurrent); } catch {}
+        try { await setLegendaryCurrent(entry.__paragonBaseId || entry.id, nextCurrent); } catch {}
       },
       "Azioni leggendarie",
     );
@@ -10240,7 +10250,7 @@ function renderCompactTrack(
       "resistance",
       async (nextCurrent) => {
         if (!IS_GM) return;
-        try { await setLegendaryResistanceCurrent(entry.id, nextCurrent); } catch {}
+        try { await setLegendaryResistanceCurrent(entry.__paragonBaseId || entry.id, nextCurrent); } catch {}
       },
       "Resistenze leggendarie",
     );
@@ -10256,7 +10266,7 @@ function renderCompactTrack(
       const effectsDrawer = appendCompactEffectsDrawer(card, compactEffects.slice(1), {
         spellColor: __spellColor,
         onTerminateClassFeature: IS_GM
-          ? (instance) => __terminateClassFeatureOnTrackerCard(entry.id, instance)
+          ? (instance) => __terminateClassFeatureOnTrackerCard(entry.__paragonBaseId || entry.id, instance)
           : null,
         onSpellActions: IS_GM && !virtual
           ? (spell, event) => __openSpellPillActions(entry, spell, event)

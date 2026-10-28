@@ -151,7 +151,7 @@ function flushAsyncEvents() {
 
 // Exercise the tracker callbacks together with the real editor: the standalone
 // editor tests do not model the tracker epoch being cleared during cleanup.
-function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDuringSave = false } = {}) {
+function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDuringSave = false, paragonCard = false } = {}) {
   const source = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
   const start = source.indexOf("function bindHPEditorForEntry(");
   const end = source.indexOf("function bindSpellBoardTokenHPEditor(", start);
@@ -229,7 +229,10 @@ function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDur
     ${source.slice(start, end)}
     bindHPEditorForEntry(pill, null, () => {}, entry);
   `);
-  bind(dependencies, pill, { id: token.id, hp: 40, hpMax: 40 });
+  // A Paragon's extra turn: its card has a virtual id, its hit points are the token's.
+  bind(dependencies, pill, paragonCard
+    ? { id: `${token.id}::p1`, __paragonBaseId: token.id, hp: 40, hpMax: 40 }
+    : { id: token.id, hp: 40, hpMax: 40 });
   return {
     pill,
     warnings,
@@ -706,4 +709,42 @@ test("il rename classico mantiene stile, dataset e persistenza iniettata", async
   assert.equal(name.title, "Hobgoblin");
   assert.equal(card.dataset.renaming, undefined);
   assert.equal(card.draggable, true);
+});
+
+// Lot L27 of the bugfix pass (RN-01): the HP editor of a Paragon's extra card wrote to its virtual id (`boss::p1`):
+// the coordinator refused it, and the damage was dropped with no message.
+test("L27: dalla seconda card di un Paragon il danno inline arriva al token e al suo avviso di concentrazione", async () => {
+  const harness = createTrackerHPConcentrationHarness({ paragonCard: true });
+  assert.equal(await harness.damage("-10"), true);
+  assert.equal(harness.meta.hp, 30);
+  assert.equal(harness.warnings.length, 1);
+  assert.equal(harness.warnings[0].damage, 10);
+});
+
+// Lot L27 of the bugfix pass (RN-08): a refused initiative save left the editor open, and every full render of the
+// tracker waited on it until the scene changed.
+test("L27: un salvataggio dell'iniziativa rifiutato chiude l'editor e rimette il valore", async () => {
+  const documentRef = createTestDocument();
+  const badge = documentRef.createElement("div");
+  badge.textContent = "14";
+  const calls = [];
+  bindClassicInitiativeEditor({
+    badge, isEditable: () => true, armClickIgnore: () => {},
+    beginEdit: async () => calls.push("begin"), readValue: async () => 14, editorReady: () => {},
+    cleanupEdit: () => calls.push("cleanup"),
+    saveValue: async () => { throw new Error("updateItems rejected"); },
+    afterCommit: async () => calls.push("after"), afterCancel: async () => calls.push("cancel"),
+    isFillMode: () => false, finishFillMode: async () => {}, openFillNeighbor: async () => {},
+    commitAndOpenNeighbor: async ({ commit }) => commit(),
+    documentRef, requestAnimationFrameRef: (callback) => callback(), setTimeoutRef: (callback) => callback(),
+  });
+  await badge.dispatch("pointerdown", createTestEvent());
+  const input = badge.children[0];
+  input.value = "18";
+  const warn = console.warn;
+  console.warn = () => {};
+  try { await badge.__commitFn(); } finally { console.warn = warn; }
+  assert.equal(badge.dataset.editing, undefined);
+  assert.equal(badge.textContent, "14");
+  assert.deepEqual(calls, ["begin", "cleanup"]);
 });
