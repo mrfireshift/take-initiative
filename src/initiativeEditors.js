@@ -503,11 +503,15 @@ export function bindClassicHPEditor({
       const concentrationDamage = hpDelta !== null && hpDelta < 0
         ? Math.abs(hpDelta)
         : Math.max(0, hp - nextHP);
+      // baseHP/baseHPMax are the values the editor opened on (live when it could read them): the save checks the
+      // token against them, not against the card snapshot that may predate a change made by another client.
       const result = {
         nextHP,
         nextHPMax,
         recalibratesMax,
         concentrationDamage,
+        baseHP: hp,
+        baseHPMax: hpMax,
       };
       let saved = false;
       try {
@@ -714,6 +718,9 @@ export function bindGroupHPDeltaEditor({
   return button;
 }
 
+// Fired on the card (it bubbles to the tracker) when an inline rename closes, saved or not.
+export const TRACKER_RENAME_FINISHED_EVENT = "tbp-tracker-rename-finished";
+
 export function enableInlineNameEditor({
   card,
   trigger,
@@ -756,6 +763,9 @@ export function enableInlineNameEditor({
       if (input.isConnected) input.replaceWith(trigger);
       delete card.dataset.renaming;
       card.draggable = dragAllowed;
+      if (typeof CustomEvent === "function") {
+        card.dispatchEvent?.(new CustomEvent(TRACKER_RENAME_FINISHED_EVENT, { bubbles: true }));
+      }
     };
 
     input.addEventListener("pointerdown", (inputEvent) => inputEvent.stopPropagation());

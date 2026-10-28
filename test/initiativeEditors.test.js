@@ -11,6 +11,7 @@ import {
   normalizeInitiativeInput,
   normalizeSignedIntegerInput,
   parseInlineMath,
+  TRACKER_RENAME_FINISHED_EVENT,
 } from "../src/initiativeEditors.js";
 
 function createTestDocument() {
@@ -151,7 +152,7 @@ function flushAsyncEvents() {
 
 // Exercise the tracker callbacks together with the real editor: the standalone
 // editor tests do not model the tracker epoch being cleared during cleanup.
-function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDuringSave = false, paragonCard = false } = {}) {
+function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDuringSave = false, paragonCard = false, entryHP = 40 } = {}) {
   const source = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
   const start = source.indexOf("function bindHPEditorForEntry(");
   const end = source.indexOf("function bindSpellBoardTokenHPEditor(", start);
@@ -173,6 +174,7 @@ function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDur
   };
   let sceneEpoch = 7;
   const warnings = [];
+  const expectedValues = [];
   const noop = () => {};
   const dependencies = {
     bindClassicHPEditor: (options) => bindClassicHPEditor({
@@ -206,8 +208,9 @@ function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDur
       options.onRecorded(entry);
       return {};
     },
-    updateHP: async (id, hp, hpMax) => {
+    updateHP: async (id, hp, hpMax, expected) => {
       assert.equal(id, token.id);
+      expectedValues.push(expected);
       if (saveFails) throw new Error("injected-hp-save-failure");
       Object.assign(token.metadata[META_KEY], { hp, hpMax });
       if (changeSceneDuringSave) sceneEpoch += 1;
@@ -231,11 +234,12 @@ function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDur
   `);
   // A Paragon's extra turn: its card has a virtual id, its hit points are the token's.
   bind(dependencies, pill, paragonCard
-    ? { id: `${token.id}::p1`, __paragonBaseId: token.id, hp: 40, hpMax: 40 }
-    : { id: token.id, hp: 40, hpMax: 40 });
+    ? { id: `${token.id}::p1`, __paragonBaseId: token.id, hp: entryHP, hpMax: entryHP }
+    : { id: token.id, hp: entryHP, hpMax: entryHP });
   return {
     pill,
     warnings,
+    expectedValues,
     meta: token.metadata[META_KEY],
     async damage(input) {
       await pill.dispatch("pointerdown", createTestEvent({ clientX: 5 }));
@@ -415,6 +419,8 @@ test("il wiring HP conserva delta, anteprima e callback di persistenza", async (
     nextHPMax: 20,
     recalibratesMax: false,
     concentrationDamage: 5,
+    baseHP: 12,
+    baseHPMax: 20,
   };
   assert.equal(pill.innerHTML, "7/20");
   assert.equal(hpFill.style.width, "35%");
@@ -678,6 +684,8 @@ test("il rename classico mantiene stile, dataset e persistenza iniettata", async
   card.appendChild(name);
   card.draggable = true;
   const saved = [];
+  const events = [];
+  card.dispatchEvent = (event) => events.push([event.type, event.bubbles]);
 
   enableClassicCardRename({
     card,
@@ -709,6 +717,8 @@ test("il rename classico mantiene stile, dataset e persistenza iniettata", async
   assert.equal(name.title, "Hobgoblin");
   assert.equal(card.dataset.renaming, undefined);
   assert.equal(card.draggable, true);
+  // Lot L28 (RN-07): the tracker runs the full render it held back while the input was open.
+  assert.deepEqual(events, [[TRACKER_RENAME_FINISHED_EVENT, true]]);
 });
 
 // Lot L27 of the bugfix pass (RN-01): the HP editor of a Paragon's extra card wrote to its virtual id (`boss::p1`):
@@ -747,4 +757,14 @@ test("L27: un salvataggio dell'iniziativa rifiutato chiude l'editor e rimette il
   assert.equal(badge.dataset.editing, undefined);
   assert.equal(badge.textContent, "14");
   assert.deepEqual(calls, ["begin", "cleanup"]);
+});
+
+// Lot L28 of the bugfix pass (RN-03): the HP editor checked the token against the card it was built from. A card kept
+// through a turn change shows the live 40 but carries 45: the save was refused as a conflict and the damage dropped.
+test("L28: l'editor dei PF confronta il token con i valori che mostra, non con la card di prima", async () => {
+  const harness = createTrackerHPConcentrationHarness({ entryHP: 45 });
+  const committed = await harness.damage("-10");
+  assert.equal(committed, true);
+  assert.deepEqual(harness.expectedValues, [{ hp: 40, hpMax: 40 }]);
+  assert.equal(harness.meta.hp, 30);
 });

@@ -237,6 +237,7 @@ function __loadClassFeatureRuntime() {
 import {
   bindClassicHPEditor,
   bindClassicInitiativeEditor,
+  TRACKER_RENAME_FINISHED_EVENT,
 } from "./initiativeEditors.js";
 import {
   applyToolbarLayoutPresentation as applyToolbarLayoutPresentationView,
@@ -1194,6 +1195,8 @@ const EPIC_TAG_CFG = {
 
     if (container.__initiativeMounted) return;   // ← evita montaggi doppi
     container.__initiativeMounted = true;
+    // A full render waits while a card is being renamed (it would destroy the input): it runs once the rename closes.
+    track.addEventListener(TRACKER_RENAME_FINISHED_EVENT, () => __scheduleEditorDirtyFlush());
     const __activeTurnLabelLifecycle = createOptionalRuntimeLifecycle({
       name: "active-turn-map-label",
       mount: () => { __activeTurnLabelRuntimeEnabled = true; },
@@ -6914,6 +6917,8 @@ function bindHPEditorForEntry(
       nextHP,
       nextHPMax,
       recalibratesMax,
+      baseHP,
+      baseHPMax,
     }) => {
       concentrationWarningSceneEpoch = currentSceneEpoch();
       const operationSceneEpoch = concentrationWarningSceneEpoch;
@@ -6953,7 +6958,7 @@ function bindHPEditorForEntry(
         sceneEpoch: operationSceneEpoch,
         isCurrent: (candidateEpoch) => isCurrentSceneEpoch(candidateEpoch),
       }, async () => {
-        hpMutations.push(await updateHP(tokenId, nextHP, nextHPMax, { hp: entry.hp, hpMax: entry.hpMax }));
+        hpMutations.push(await updateHP(tokenId, nextHP, nextHPMax, { hp: baseHP ?? entry.hp, hpMax: baseHPMax ?? entry.hpMax }));
         if (options.seedGroupHP !== false) {
           await trySeedGroupHP(tokenId, nextHP, nextHPMax, (mutation) => hpMutations.push(mutation));
         }
@@ -9495,6 +9500,20 @@ function __replaceTrackCardsIncremental(nextNodes) {
   return true;
 }
 
+// What a card's listeners read from its entry, in their closures. A card kept because its HTML did not change keeps
+// its listeners too: ⚡ shows only a count, so a quick action edited in the sheet ran the old one. A change of these
+// replaces the card.
+function __trackerEntryListenerSignature(entry) {
+  try {
+    return JSON.stringify([
+      entry?.id, entry?.name, entry?.initiative, entry?.hp, entry?.hpMax,
+      entry?.quickActions || null, entry?.spellbookMenu || null, entry?.classFeatures || null,
+    ]);
+  } catch {
+    return "";
+  }
+}
+
 function __reconcileTrackCardsById(nextNodes) {
   const nextCards = nextNodes.filter(
     (node) => node instanceof HTMLElement && node.dataset.trackerCard === "1"
@@ -9511,7 +9530,7 @@ function __reconcileTrackCardsById(nextNodes) {
   for (let index = 0; index < liveCards.length; index++) {
     const liveCard = liveCards[index];
     const nextCard = nextCards[index];
-    if (liveCard.innerHTML !== nextCard.innerHTML) {
+    if (liveCard.innerHTML !== nextCard.innerHTML || liveCard.__entrySignature !== nextCard.__entrySignature) {
       liveCard.replaceWith(nextCard);
       replaced += 1;
       continue;
@@ -10322,6 +10341,7 @@ function renderCompactTrack(
     }
     if (active) card.dataset.active = "1";
     __applyTrackerSelectionState(card);
+    card.__entrySignature = __trackerEntryListenerSignature(entry);
     return card;
   });
 
@@ -10516,6 +10536,7 @@ for (const e of entries) {
           selectedIds: __selectedSceneItemIds,
         },
       );
+      card.__entrySignature = __trackerEntryListenerSignature(entry);
       return card;
     });
 
@@ -11008,6 +11029,9 @@ async function __executeFullRenderRequest(request) {
   // Gli snapshot intermedi di una raffica di click non devono ridisegnare
   // lista, fumetto o selezione sopra lo stato ottimistico più recente.
   if (__isStaleNavigationState(stateRaw)) {
+    // What this render carried (a hit point change, a new card) is not on screen yet: the render that acknowledges
+    // the optimistic turn must draw the tracker instead of keeping the optimistic DOM.
+    __fullRenderDirty = true;
     __initiativeDiag("render:skipped-stale-navigation", {
       renderRevision,
       reason,
@@ -11092,7 +11116,7 @@ __activeLabelEntriesById = byId;
       });
       return;
     }
-    if (__editingInitForId || __editingHPForId) {
+    if (__editingInitForId || __editingHPForId || track.querySelector("[data-renaming='1']")) {
       __fullRenderDirty = true;
       __initiativeDiag("render:skipped-editor", {
         renderRevision,
@@ -11121,7 +11145,7 @@ try {
 }
 
     const cleanDigest = initiativeStateDigest(stateClean);
-    if (reason === "metadata" && cleanDigest === __optimisticNavigationDigest) {
+    if (reason === "metadata" && cleanDigest === __optimisticNavigationDigest && !__fullRenderDirty) {
       __optimisticNavigationDigest = null;
       __prevActiveId = activeIdNow;
       __initiativeDiag("render:optimistic-acknowledged", {

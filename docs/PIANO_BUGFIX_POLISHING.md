@@ -67,6 +67,12 @@ Lotti fatti:
   - Se il token a cui era agganciata viene cancellato, l'etichetta rinasce al turno dopo: l'aggiornamento di un'etichetta che non c'è più azzera la cache, e il nuovo tentativo del pump la ricrea.
   - L'etichetta segue la posizione del token e sparisce con lui, ma non ruota, non scala e non si copia con lui (`ROTATION`, `SCALE`, `COPY` disattivati, anche sulle etichette esistenti al primo aggiornamento).
   - Lo fissa `test/activeTurnLabelLifecycle.test.js` sulle funzioni vere dell'etichetta con una scena finta.
+- **L28** (28/10): render completo del tracker (RN-02, RN-03, RN-07).
+  - Una card con lo stesso HTML viene tenuta solo se anche i dati letti dai suoi listener sono uguali. Sono nome, iniziativa, PF, azioni rapide, menu degli incantesimi e capacità: la firma è `__trackerEntryListenerSignature`. Prima ⚡ e le azioni rapide restavano quelle vecchie.
+  - Un render scartato perché il turno stava cambiando lascia il tracker da ridisegnare. Il render che conferma il turno ottimistico non salta più quella modifica.
+  - L'editor dei PF confronta il token con i valori che mostra (`baseHP`/`baseHPMax`), non con la card da cui è nato.
+  - Con una rinomina aperta il render completo aspetta e riparte quando la rinomina si chiude (evento `TRACKER_RENAME_FINISHED_EVENT`). Prima l'input veniva distrutto e il nome digitato andava perso.
+  - Test: `trackerFullRenderReconcile.test.js` e due casi in `initiativeEditors.test.js`; falliscono senza la patch. Il contratto della guardia degli editor in `initiativeControllerContract.test.js` include la rinomina.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

@@ -659,7 +659,7 @@ test("il render reale conserva revisioni stale e guard degli editor", () => {
   assertOrdered(section, [
     "const renderRevision = ++__renderRequestRevision;",
     "isCurrentRenderRevision(renderRevision, __latestAcceptedRenderRevision)",
-    "if (__editingInitForId || __editingHPForId)",
+    "if (__editingInitForId || __editingHPForId || track.querySelector(\"[data-renaming='1']\"))",
     "renderTrack(ordered, stateClean",
     "__initiativeDiag(\"render:committed\"",
   ]);
