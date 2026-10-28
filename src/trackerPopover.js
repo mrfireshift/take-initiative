@@ -98,7 +98,7 @@ async function refreshCompactTrackerPopoverAtStoredPosition() {
     OBR.popover.getHeight(TRACKER_POPOVER_ID).catch(() => undefined),
   ]);
   await openTrackerPopover({
-    refresh: true,
+    reposition: true,
     compactSize: { width, height },
   });
 }
@@ -189,13 +189,13 @@ export async function moveClassicTrackerPopover(deltaX, deltaY) {
   const width = getClassicTrackerScaledFrame(scale, { viewportWidth, viewportHeight }).width;
   storeClassicTrackerPlacement(moveTrackerPlacement(getClassicTrackerPlacement(), deltaX, deltaY,
     { width, viewportWidth, viewportHeight }));
-  await openTrackerPopover({ refresh: true });
+  await openTrackerPopover({ reposition: true });
 }
 
 // A click on the handle of the extended tracker: the other side of the screen.
 export async function toggleClassicTrackerSide() {
   storeClassicTrackerPlacement(toggleTrackerSide(getClassicTrackerPlacement()));
-  await openTrackerPopover({ refresh: true });
+  await openTrackerPopover({ reposition: true });
 }
 
 // Where a side panel (spells, references, effects) opens next to the extended tracker.
@@ -280,11 +280,15 @@ export async function syncCompactTrackerCompanionParts(width, height, scale = 1)
   ]);
 }
 
-export async function openTrackerPopover({ refresh = false, compactSize = null } = {}) {
-  if (isTrackerPopoverOpen() && !refresh) return;
-  if (refresh) {
+// refresh: the tracker and its parts close, then the tracker opens again as a new page. reposition: the same without
+// closing an open tracker: opened again with its own id and URL, OBR moves and resizes the same page (room check D6),
+// so it never shows empty; its parts close and open again as with refresh. A closed tracker just opens.
+export async function openTrackerPopover({ refresh = false, reposition = false, compactSize = null } = {}) {
+  const inPlace = reposition && !refresh && isTrackerPopoverOpen();
+  if (isTrackerPopoverOpen() && !refresh && !inPlace) return;
+  if (refresh || inPlace) {
     await Promise.all([
-      OBR.popover.close(TRACKER_POPOVER_ID).catch(() => {}),
+      inPlace ? null : OBR.popover.close(TRACKER_POPOVER_ID).catch(() => {}),
       OBR.popover.close(COMPACT_ROUND_TAB_POPOVER_ID).catch(() => {}),
       OBR.popover.close(COMPACT_SPEED_READOUT_POPOVER_ID).catch(() => {}),
       OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {}),

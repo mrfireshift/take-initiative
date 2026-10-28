@@ -101,7 +101,12 @@ function fakeRoom() {
     player: { getRole: async () => "GM" },
     popover: {
       getWidth: async () => 420, getHeight: async () => 600, close: async () => {},
-      open: async (options) => { opened.push(options); if (room.reloadOnOpen) delete room.trackerWindow.__fluidityCheckMark; },
+      open: async (options) => {
+        opened.push(options);
+        // OBR applies the new size to the same page (room check D6); a reload drops the page's mark.
+        if (options.id === `${ID}/tracker-popover`) Object.assign(room.trackerWindow, { innerWidth: options.width, innerHeight: options.height });
+        if (room.reloadOnOpen) delete room.trackerWindow.__fluidityCheckMark;
+      },
     },
     broadcast: { onMessage: (channel, listener) => { if (channel.endsWith("/turn-notice/ui")) uiListeners.push(listener); return () => {}; } },
     scene: {
@@ -122,7 +127,9 @@ function fakeRoom() {
       },
     },
   };
-  room.trackerWindow = { location: { search: "?surface=tracker" } };
+  room.trackerWindow = { location: { search: "?surface=tracker" }, innerWidth: 420, innerHeight: 600 };
+  // V1's reposition: the tracker back at its stored size, the same page.
+  room.openTrackerPopover = async () => Object.assign(room.trackerWindow, { innerWidth: 420, innerHeight: 600 });
   return Object.assign(room, { obr, state, opened, trackerDocument, noticeDocument, items: () => items });
 }
 
@@ -147,12 +154,13 @@ test("a whole GM run against a fake room: each step checked, the turn and the HP
     save: async (entry) => { saved.push(entry.name); return { saved: true, file: `perf-runs/${entry.name}.json` }; },
     wait: () => new Promise((resolve) => setTimeout(resolve, 1)),
     log: () => {},
-    importTrackerPopover: async () => ({ openTrackerPopover: async () => {} }),
+    importTrackerPopover: async () => ({ openTrackerPopover: room.openTrackerPopover }),
     importBossLauncher: async () => ({ openBossActionsPopover: async () => {} }),
   });
   const outcome = Object.fromEntries(rows.map((row) => [row.verifica, row.esito]));
   assert.deepEqual(outcome, {
     "D6 · tracker riaperto senza chiuderlo": "ok",
+    "V1 · tracker rimesso al suo posto senza chiuderlo": "ok",
     "Turno e avviso (P4b, T1, T7)": "ok",
     "Tre turni di fila: vince l'ultimo (P4b)": "ok",
     "Altezza delle chip (T5)": "saltata",
@@ -183,7 +191,7 @@ test("a reloaded tracker and bars that do not follow the HP are reported, and th
     wait: () => new Promise((resolve) => setTimeout(resolve, 1)),
     now: (() => { let clock = Date.now(); return () => (clock += 50); })(),
     log: () => {},
-    importTrackerPopover: async () => ({ openTrackerPopover: async () => {} }),
+    importTrackerPopover: async () => ({ openTrackerPopover: room.openTrackerPopover }),
     importBossLauncher: async () => ({ openBossActionsPopover: async () => {} }),
   });
   const byName = Object.fromEntries(rows.map((row) => [row.verifica, row]));

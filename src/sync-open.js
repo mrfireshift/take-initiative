@@ -67,6 +67,8 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
       const state = metadata?.[UI_KEY];
       if (!state || role === "GM") return;
       let redraw = false;
+      // A new position, side or scale moves the open tracker in place; a new layout (extended/compact) is a new page.
+      let layoutChanged = false;
       if (state.view && runtimeOptionsService.get(selectTrackerPlacementSyncEnabled)) {
         const result = await storeSharedTrackerView(state.view);
         if (result.layoutChanged) {
@@ -77,12 +79,14 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
           })).catch((error) => console.warn("[tracker-sync] layout locale non salvato:", error?.message || error));
         }
         redraw = result.changed;
+        layoutChanged = !!result.layoutChanged;
       }
+      const redrawOptions = layoutChanged ? { refresh: true } : { reposition: true };
       if (runtimeOptionsService.get(selectTrackerOpenSyncEnabled)) {
-        if (state.open && redraw && isTrackerPopoverOpen()) await openTrackerPopover({ refresh: true });
+        if (state.open && redraw && isTrackerPopoverOpen()) await openTrackerPopover(redrawOptions);
         else await setTrackerPopoverOpen(!!state.open);
       } else if (redraw && isTrackerPopoverOpen()) {
-        await openTrackerPopover({ refresh: true });
+        await openTrackerPopover(redrawOptions);
       }
     };
     // One application at a time: bursts of room metadata changes never redraw twice in parallel.
@@ -112,12 +116,12 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
     // Players' table screen: a new tracker scale redraws the open tracker at the new size.
     runtimeOptionsService.subscribe(selectPlayerTrackerScale, () => {
       if (role !== "PLAYER" || !isTrackerPopoverOpen()) return;
-      void setTrackerPopoverOpen(true, { refresh: true });
+      void setTrackerPopoverOpen(true, { reposition: true });
     }, { emitCurrent: false });
     // The GM's screen: a new local tracker scale (this browser) redraws the open tracker at the new size.
     runtimeOptionsService.subscribe(selectGmTrackerScale, () => {
       if (role !== "GM" || !isTrackerPopoverOpen()) return;
-      void setTrackerPopoverOpen(true, { refresh: true });
+      void setTrackerPopoverOpen(true, { reposition: true });
     }, { emitCurrent: false });
 
     if (role === "GM") {

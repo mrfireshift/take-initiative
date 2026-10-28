@@ -156,7 +156,8 @@ export function installFluidityCheckRemote({
     const data = message?.data;
     if (!data || data.to !== realm || !data.id) return;
     try {
-      const base = { ok: true, installedAt, mark: windowRef.__fluidityCheckMark ?? null, search: String(windowRef.location?.search || "") };
+      const base = { ok: true, installedAt, mark: windowRef.__fluidityCheckMark ?? null, search: String(windowRef.location?.search || ""),
+        size: { width: Number(windowRef.innerWidth) || 0, height: Number(windowRef.innerHeight) || 0 } };
       if (data.command === "ping") return reply(data.id, base);
       if (data.command === "mark") { windowRef.__fluidityCheckMark = data.token; return reply(data.id, { ...base, mark: data.token }); }
       if (realm === "index") {
@@ -305,21 +306,33 @@ export async function runFluidityCheck({
         obr.popover.getWidth(TRACKER_POPOVER_ID).catch(() => 420),
         obr.popover.getHeight(TRACKER_POPOVER_ID).catch(() => 600),
       ]);
+      const before = await client.tryRequest("index", "ping", {}, { timeout: 800 });
+      // Another place and another size: OBR must apply both to the same page.
+      const asked = { width: Math.max(320, width - 60), height: Math.max(300, height - 80) };
       const startedAt = now();
+      log("[verifica] D6: il tracker salta in alto a sinistra, più piccolo, poi torna al suo posto. Guardalo.");
       await obr.popover.open({
-        id: TRACKER_POPOVER_ID, url: "/?surface=tracker", width, height, anchorReference: "POSITION",
+        id: TRACKER_POPOVER_ID, url: "/?surface=tracker", ...asked, anchorReference: "POSITION",
         anchorPosition: { left: 300, top: 80 }, anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
         transformOrigin: { horizontal: "LEFT", vertical: "TOP" }, disableClickAway: true, marginThreshold: 12, hidePaper: true,
       });
       await wait(1200);
       const answer = await waitFor(() => client.tryRequest("index", "ping", {}, { timeout: 800 }), { timeoutMs: 10000, wait, now });
       const kept = answer?.mark === token;
-      row("D6 · tracker riaperto senza chiuderlo", kept ? "ok" : "ATTENZIONE",
-        kept ? "stessa pagina, nessun ricaricamento: V1 si può fare"
-          : answer ? `pagina ricaricata (pronta dopo ${now() - startedAt} ms): V1 non serve` : "il tracker non risponde più");
+      const resized = !!answer && Math.abs(answer.size.width - asked.width) <= 2 && Math.abs(answer.size.height - asked.height) <= 2;
+      row("D6 · tracker riaperto senza chiuderlo", kept && resized ? "ok" : "ATTENZIONE",
+        kept ? `stessa pagina, nessun ricaricamento; misura ${answer.size.width}×${answer.size.height} (chiesta ${asked.width}×${asked.height}, prima ${before?.size?.width ?? "?"}×${before?.size?.height ?? "?"})${resized ? "" : ": OBR non ha applicato la misura"}`
+          : answer ? `pagina ricaricata (pronta dopo ${now() - startedAt} ms)` : "il tracker non risponde più");
+      // V1's own path puts it back: the tracker's place and size from the stored placement, the page kept.
       const { openTrackerPopover } = await importTrackerPopover();
-      await openTrackerPopover({ refresh: true });
-      await waitFor(() => client.tryRequest("index", "ping", {}, { timeout: 800 }), { timeoutMs: 10000, wait, now });
+      await openTrackerPopover({ reposition: true });
+      await wait(1200);
+      const back = await waitFor(() => client.tryRequest("index", "ping", {}, { timeout: 800 }), { timeoutMs: 10000, wait, now });
+      const backKept = back?.mark === token;
+      const backSized = !!back && !!before && Math.abs(back.size.width - before.size.width) <= 2 && Math.abs(back.size.height - before.size.height) <= 2;
+      row("V1 · tracker rimesso al suo posto senza chiuderlo", backKept && backSized ? "ok" : "ATTENZIONE",
+        !back ? "il tracker non risponde più"
+          : `${backKept ? "stessa pagina" : "pagina ricaricata"}; misura ${back.size.width}×${back.size.height} (quella di partenza ${before?.size?.width ?? "?"}×${before?.size?.height ?? "?"}). Controlla a occhio che sia tornato al suo posto.`);
       await wait(800);
     }
 
