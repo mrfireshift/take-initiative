@@ -600,3 +600,41 @@ test("Owlbear rate limit on the answer's chunks: the background waits and resend
     await stopRuntime(runtime);
   }
 });
+
+// Decision D1 of the bugfix pass: a monster's card stays in the GM's local registry, where its namesakes find it by
+// name. They share the stat block, never the actor identity (ActorVitals would give them the same hit points).
+test("D1: un omonimo di un mostro non eredita l'actorProfileId della sua scheda né al salvataggio né all'apertura", async () => {
+  reset();
+  const goblin = (id, name, hp) => ({
+    id, name, layer: "CHARACTER",
+    metadata: { [META_KEY]: { attitude: "enemy", inInitiative: true, hp, hpMax: 7 } },
+  });
+  scene.items = [goblin("g1", "(1) Goblin", 7), goblin("g2", "(2) Goblin", 3), goblin("g3", "(3) Goblin", 0)];
+  const local = new Map();
+  const previousStorage = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (key) => local.has(key) ? local.get(key) : null,
+    setItem: (key, value) => { local.set(key, String(value)); },
+    removeItem: (key) => { local.delete(key); },
+  };
+  const runtime = await startRuntime();
+  const actorOf = (id) => scene.items.find((item) => item.id === id).metadata[META_KEY].actorProfileId || "";
+  try {
+    const statblock = { monster: { source: "manual" }, armorClass: 15 };
+    await runtime.cards.saveInitiativeCard("g1", "(1) Goblin", statblock, { commandId: "d1-save-g1", transportTimeoutMs: 100 });
+    assert.ok(actorOf("g1"), "the saved monster keeps an identity of its own");
+    assert.ok(local.get(`${ID}/initiativeCards/local`)?.includes(actorOf("g1")), "its card is in the local registry");
+
+    await runtime.cards.saveInitiativeCard("g2", "(2) Goblin", statblock, { commandId: "d1-save-g2", transportTimeoutMs: 100 });
+    assert.notEqual(actorOf("g2"), actorOf("g1"), "the namesake's save does not take (1)'s identity");
+
+    const profile = await runtime.cards.loadInitiativeCard(clone(scene.items[2]), { hydrate: true });
+    assert.notEqual(profile.actorProfileId || "", actorOf("g1"), "the namesake's opening does not take it either");
+    assert.notEqual(actorOf("g3"), actorOf("g1"));
+    assert.deepEqual(scene.items.map((item) => item.metadata[META_KEY].hp), [7, 3, 0], "no hit points move");
+  } finally {
+    await stopRuntime(runtime);
+    if (previousStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousStorage;
+  }
+});

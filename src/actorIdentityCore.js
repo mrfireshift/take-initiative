@@ -1,5 +1,6 @@
 import { ID } from "./constants.js";
 import { canonicalImageUrl, normalizedItemName } from "./factionRegistryCore.js";
+import { isMonsterProfileCard } from "./monsterProfileCore.js";
 
 export const ACTOR_PROFILE_ID_FIELD = "actorProfileId";
 export const ACTOR_PROFILE_ID_PREFIX = "actor_";
@@ -101,6 +102,14 @@ export function legacyActorAttitude(item) {
 export function isLegacyActorMigrationEligible(item) {
   const attitude = legacyActorAttitude(item);
   return attitude === "pc" || attitude === "ally";
+}
+
+// A monster's card (an imported stat block) that is not a PC's is never an actor (decision D1 of the bugfix pass): its
+// namesakes share the stat block, never an identity or the hit points. A boss without a stat block (Auril and its
+// shared hit points) stays one, as a character does. card: the card being saved or read (default: the token's).
+export function isActorIdentityCandidate(item, card = item?.metadata?.[ACTOR_META_KEY]?.initiativeCard) {
+  const attitude = String(item?.metadata?.[ACTOR_META_KEY]?.attitude || "").trim().toLowerCase();
+  return attitude === "pc" || !isMonsterProfileCard(card);
 }
 
 export function isValidActorIdentityItem(item) {

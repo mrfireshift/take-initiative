@@ -876,3 +876,52 @@ test("un evento di una scena precedente viene scartato dall'epoch guard", async 
   await save;
   assert.equal(store.getSnapshot().actors["actor-current"].hp, 8);
 });
+
+// Decision D1 of the bugfix pass: a monster's card (an imported stat block) that is not a PC's is never an ActorVitals
+// actor, even when namesakes already share an actorProfileId.
+const MONSTER_CARD = { monster: { source: "manual" } };
+function monsterToken(id, hp, { attitude = "enemy", card = MONSTER_CARD } = {}) {
+  const token = actorToken(id, hp, 7);
+  Object.assign(token.metadata["com.thebigpicture.initiative/meta"], {
+    attitude,
+    ...(card ? { initiativeCard: card } : {}),
+  });
+  return token;
+}
+
+test("D1: i mostri omonimi con lo stesso actorProfileId tengono i propri PF al cambio scena e al collegamento", async () => {
+  const sceneItems = [
+    monsterToken("goblin-1", 7),
+    monsterToken("goblin-2", 3),
+    monsterToken("goblin-3", 0, { attitude: "neutral" }),
+    monsterToken("wolf-ally", 5, { attitude: "ally" }),
+  ];
+  const harness = await createEventHarness({ sceneItems, roomMetadata: actorRegistry(0, 7) });
+  await harness.store.reconcileCurrentScene(1);
+  const hp = () => harness.getItems().map((item) => item.metadata["com.thebigpicture.initiative/meta"].hp);
+  assert.deepEqual(hp(), [7, 3, 0, 5], "the record of actor-a writes none of them");
+
+  const before = structuredClone(harness.getItems());
+  const linked = [...before.map((item) => structuredClone(item)), monsterToken("goblin-4", 2)];
+  harness.setItems(linked);
+  await harness.dispatch({
+    ...classifySceneItemChanges(before, linked),
+    sceneEpoch: 1,
+    revision: 2,
+    allItems: linked,
+    items: [linked[4]],
+  });
+  assert.equal(linked[4].metadata["com.thebigpicture.initiative/meta"].hp, 2, "an added namesake keeps its own");
+  assert.equal(harness.updateCalls(), 0);
+  assert.equal(harness.room.setCalls.length, 0, "no record is written for a monster");
+  harness.store.stop();
+});
+
+test("D1: un PG con uno statblock e un boss nemico senza statblock vengono ancora idratati dal loro record", async () => {
+  for (const token of [monsterToken("pc-1", 3, { attitude: "pc" }), monsterToken("boss-1", 3, { card: null })]) {
+    const harness = await createEventHarness({ sceneItems: [token], roomMetadata: actorRegistry(6, 7) });
+    await harness.store.reconcileCurrentScene(1);
+    assert.equal(harness.getItems()[0].metadata["com.thebigpicture.initiative/meta"].hp, 6, token.id);
+    harness.store.stop();
+  }
+});

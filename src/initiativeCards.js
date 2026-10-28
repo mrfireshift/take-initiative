@@ -33,6 +33,7 @@ import {
   actorProfileIdFromProfile,
   actorProfileIdFromRegistryEntry,
   createActorProfileId,
+  isActorIdentityCandidate,
   isLegacyActorMigrationEligible,
   normalizeActorProfileId,
 } from "./actorIdentityCore.js";
@@ -530,10 +531,13 @@ export async function loadInitiativeCard(item, { hydrate = false, registry, defe
   const hasTokenProfile = !!(tokenRaw && typeof tokenRaw === "object");
   const tokenUpdatedAt = Math.max(0, Number(tokenRaw?.updatedAt) || 0);
   const legacyActorMatch = resolveInitiativeCardActorMatch(resolvedRegistry, item);
+  // A monster's namesake finds the same registry entry by name: the identity comes from the registry only for an actor.
+  const inheritsRegistryIdentity = isActorIdentityCandidate(item, tokenRaw) && isActorIdentityCandidate(item, roomProfile);
   let actorProfileId = actorProfileIdFromItem(item)
     || actorProfileIdFromProfile(tokenRaw)
-    || actorProfileIdFromRegistryEntry(roomEntry)
-    || legacyActorMatch.actorProfileId;
+    || (inheritsRegistryIdentity
+      ? actorProfileIdFromRegistryEntry(roomEntry) || legacyActorMatch.actorProfileId
+      : "");
   const roomHasValues = !roomDeleted && !!roomProfile &&
     hasInitiativeCardValues(sanitizeInitiativeCard(roomProfile));
   const tokenHasValues = hasTokenProfile &&
@@ -792,7 +796,8 @@ export async function saveInitiativeCard(
     item: sourceItem,
     existingProfile: sourceRawProfile,
     value,
-    registryMatch: legacyMatch,
+    // A monster's namesake (the shared stat block) never takes the identity of the card it was found by.
+    registryMatch: isActorIdentityCandidate(sourceItem || {}, profile) ? legacyMatch : null,
     create: createActorProfileId,
   });
   profile[ACTOR_PROFILE_ID_FIELD] = actorProfileId;

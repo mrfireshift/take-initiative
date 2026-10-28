@@ -2,7 +2,8 @@ import OBR from "@owlbear-rodeo/sdk";
 import { sharedHpHydrationTargets, canApplySharedHpHydration } from "./sharedHpHydrationCore.js";
 import { ID } from "./constants.js";
 import {
-  actorProfileIdFromItem,
+  actorProfileIdFromItem as tokenActorProfileId,
+  isActorIdentityCandidate,
   normalizeActorProfileId,
 } from "./actorIdentityCore.js";
 import {
@@ -99,6 +100,12 @@ function canonicalHPPropertiesAbsent(item) {
 
 function itemId(item) {
   return String(item?.id || "").trim();
+}
+
+// The actor whose hit points this token carries across scenes: none for a monster's card that is not a PC's, even when
+// its namesakes already share an actorProfileId (decision D1 of the bugfix pass).
+function actorProfileIdFromItem(item) {
+  return isActorIdentityCandidate(item) ? tokenActorProfileId(item) : "";
 }
 
 function sortItems(items) {

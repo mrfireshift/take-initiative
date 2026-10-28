@@ -2,7 +2,12 @@
 
 Stato: **fase 1 (analisi) chiusa il 28/10/2026**. Il piano e le decisioni D1–D10 sono stati approvati dall'utente il 28/10, così come raccomandati. La fase 2 procede un lotto alla volta, nell'ordine della sezione 6.
 
-Lotti fatti: nessuno.
+Lotti fatti:
+- **L1** (28/10): i mostri omonimi non condividono più i PF (HP-01).
+  - Una scheda da mostro (statblock importato) su un token che non è un PG non eredita più l'`actorProfileId` dal registro delle schede, né al salvataggio (anche quello dello statblock condiviso) né all'apertura.
+  - ActorVitals ignora quei token anche quando hanno già un ID condiviso.
+  - Rispetto a D1 il filtro è più stretto: nemici e neutrali senza statblock restano attori. `test/sharedHpPersistenceIntegration.test.js` fissa infatti come voluti i PF del boss Auril e della sua Mano tra le scene (`fb4061b2`).
+  - Lo fissano tre test nuovi in `test/actorVitalsStore.test.js` e `test/initiativeCardSaveTransportRegression.test.js`. Il test della scheda fallisce senza la patch.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 
@@ -339,7 +344,7 @@ Ogni lotto: spiegazione della patch, test aggiunti o adeguati, `npm test`, `npm 
 
 | # | Decisione | Raccomandazione |
 |---|---|---|
-| D1 | Mostri e PF tra scene (HP-01): i mostri devono avere PF che persistono tra le scene? | No, come dice già la documentazione: niente ID ereditato per le schede dei mostri, e ActorVitals ignora nemici e neutrali. Gli ID già scritti restano, ma non vengono più usati per i PF |
+| D1 | Mostri e PF tra scene (HP-01): i mostri devono avere PF che persistono tra le scene? | No, come dice già la documentazione: niente ID ereditato per le schede dei mostri, e ActorVitals ignora nemici e neutrali. Gli ID già scritti restano, ma non vengono più usati per i PF. **Applicata in L1 in forma più stretta**: solo le schede da mostro, perché i boss senza statblock (Auril) conservano i PF tra le scene per scelta |
 | D2 | Token nascosti e schermo del tavolo (HP-02, AV-07, OP-02) | (a) barre e aure seguono la visibilità del token: sì, nel lotto L16; (b) card, avviso di turno e inquadratura dei token nascosti per i giocatori: sì, ma come secondo passo dello stesso lotto, perché tocca il tracker del giocatore |
 | D3 | Creatura di turno rimossa (TR-01) | turno alla creatura successiva; se era l'ultima, la prima con round + 1, come con ▶. Alternativa: indice 0 nello stesso round, come oggi in tutti i casi |
 | D4 | Concentrazione a 0 PF (AV-03) | si rompe per ogni creatura che arriva a 0 PF, e a 0 PF non compare l'avviso del TS. La morte istantanea dei PG la rompe comunque: è un bug |
