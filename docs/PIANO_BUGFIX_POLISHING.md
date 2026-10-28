@@ -96,6 +96,11 @@ Lotti fatti:
   - L'import legge «5°», «15 (cuoio)», «18 (+4)» e «30ft», e rifiuta ancora «1d8». Conserva i segni «Aggiunto manualmente» degli incantesimi rimasti.
   - D9: quando il budget della stanza scarta un profilo, il GM vede un avviso con i nomi, una volta per insieme.
   - Test in `initiativeCardSaveTransportRegression`, `deferredSpellWorkflow`, `characterSheetImport`, `initiativeCardRegistryCore` e `initiativeCardModalExhaustion`. Falliscono senza la patch.
+- **L13** (28/10): quota e Opzioni (OP-03, OP-04, OP-05).
+  - «Imposta quota…» su token con quote diverse: un campo lasciato vuoto tiene la quota di ciascuno, la casella «Sta scalando» indeterminata tiene la scalata di ciascuno. Con una quota sola il campo vuoto vale ancora 0.
+  - Una bozza delle Opzioni presa in un'altra scena non si salva: «Scena cambiata: riapri il pannello Opzioni».
+  - Salva scrive solo i campi cambiati nel pannello; per gli altri vale il valore attuale (`rebaseOptionsPanelDraft`). Layout, Segui, apertura automatica della console e tracker dei giocatori cambiati dal tracker a pannello aperto non vengono riscritti.
+  - Test in `elevationWriteSelection` e `optionsPanel`. Falliscono senza la patch.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

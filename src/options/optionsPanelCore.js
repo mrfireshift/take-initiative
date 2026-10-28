@@ -129,6 +129,21 @@ function roomValueForFamily(room, family) {
   return room.uiSync.showEffectSummaryParts;
 }
 
+// What Salva writes: the fields the GM changed in the panel, and for every other field its current value. The
+// tracker changes some of them on its own while the panel is open (layout, Segui, the console opening by itself, the
+// players' tracker open and placed): the draft's copy, taken when the panel opened, must not write them back.
+// baseline: the draft as the panel loaded it; current: the options as they are now.
+export function rebaseOptionsPanelDraft(draft, baseline, current) {
+  const wanted = normalizeOptionsPanelDraft(draft);
+  if (!baseline || !current) return wanted;
+  const base = normalizeOptionsPanelDraft(baseline);
+  const now = normalizeOptionsPanelDraft(current);
+  const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+  const merge = (scope) => Object.fromEntries(Object.keys(wanted[scope]).map((key) => [key,
+    same(wanted[scope][key], base[scope][key]) ? clone(now[scope][key]) : clone(wanted[scope][key])]));
+  return normalizeOptionsPanelDraft({ local: merge("local"), room: merge("room"), scene: merge("scene") });
+}
+
 export function buildOptionsPanelPatches(draft) {
   const normalized = normalizeOptionsPanelDraft(draft);
   return {

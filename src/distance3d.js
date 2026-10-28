@@ -45,16 +45,19 @@ export async function writeElevation(itemId, elevation, { isCurrent = () => true
   return value;
 }
 
+// elevation null: each token keeps its own (a selection with different heights, the field left empty); climbing not
+// a boolean: each keeps its own too (the box left indeterminate).
 export async function writeElevationForItems(itemIds, elevation, climbing, { isCurrent = () => true } = {}) {
-  if (!isCurrent()) return normalizeElevation(elevation);
+  const keepElevation = elevation === null || elevation === undefined;
+  if (!isCurrent()) return keepElevation ? null : normalizeElevation(elevation);
   const ids = Array.from(new Set((itemIds || []).filter(Boolean)));
-  const value = normalizeElevation(elevation);
-  if (!ids.length) return value;
+  const value = keepElevation ? null : normalizeElevation(elevation);
+  if (!ids.length || (keepElevation && typeof climbing !== "boolean")) return value;
   if (!isCurrent()) return value;
   await OBR.scene.items.updateItems(ids, (items) => {
     for (const item of items) {
       const tokenMeta = { ...(item.metadata?.[TOKEN_META_KEY] || {}) };
-      tokenMeta[ELEVATION_FIELD] = value;
+      if (!keepElevation) tokenMeta[ELEVATION_FIELD] = value;
       if (typeof climbing === "boolean") tokenMeta[CLIMBING_FIELD] = climbing;
       item.metadata = {
         ...(item.metadata || {}),

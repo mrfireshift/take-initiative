@@ -12,6 +12,8 @@ const climbingInput = document.querySelector("#climbing");
 const unitLabel = document.querySelector("#unit");
 let ids = [];
 let step = 1;
+// The selection had different heights: an empty field keeps each token's own.
+let mixedElevation = false;
 const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 
 function closeSoon() {
@@ -22,7 +24,10 @@ function closeSoon() {
 async function apply() {
   const operation = sceneLifecycle.capture({ operationId: `ctx-elevation:${Date.now().toString(36)}` });
   if (!sceneLifecycle.isCurrent(operation)) return;
-  await writeElevationForItems(ids, input.value || 0, climbingInput.checked, {
+  const typed = input.value.trim();
+  // An indeterminate box (different climbing states, left untouched) keeps each token's own.
+  await writeElevationForItems(ids, typed === "" ? mixedElevation ? null : 0 : typed,
+    climbingInput.indeterminate ? null : climbingInput.checked, {
     isCurrent: () => sceneLifecycle.isCurrent(operation),
   });
   if (!sceneLifecycle.isCurrent(operation)) return;
@@ -55,6 +60,7 @@ OBR.onReady(async () => {
   step = Math.max(0.01, Number(scale?.parsed?.multiplier) || 1);
   const values = items.map(readElevation);
   const same = values.length && values.every((value) => value === values[0]);
+  mixedElevation = !same && values.length > 1;
   input.value = same ? String(values[0]) : "";
   input.placeholder = same ? "0" : "Valori diversi";
   input.step = String(step);

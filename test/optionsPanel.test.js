@@ -365,3 +365,36 @@ test("OPTIONS-003: la conferma richiede due letture persistite consecutive", asy
   assert.equal(reads, 4);
   assert.equal(persisted.room.popup, false);
 });
+
+// Lot L13 of the bugfix pass (OP-05): Salva wrote back the draft's copy of the options the tracker changes on its own
+// while the panel is open (layout, Segui, the console's auto-open, the players' tracker open).
+test("L13: Salva scrive solo i campi cambiati nel pannello; gli altri prendono il valore attuale", async () => {
+  const { rebaseOptionsPanelDraft } = await import("../src/options/optionsPanelCore.js");
+  const baseline = normalizeOptionsPanelDraft({ local: { layout: "classic", followActiveTurn: true, pcAttackAutoOpen: false, combatLog: true },
+    room: { popup: true, trackerOpen: true }, scene: { popup: { mode: "inherit" } } });
+  // The GM changed the Combat Log and the popup's scene override in the panel.
+  const draft = normalizeOptionsPanelDraft({ ...baseline, local: { ...baseline.local, combatLog: false },
+    scene: { ...baseline.scene, popup: { mode: "override", value: false } } });
+  // Meanwhile the tracker switched layout, stopped following and closed the players' tracker.
+  const current = normalizeOptionsPanelDraft({ ...baseline, local: { ...baseline.local, layout: "compact", followActiveTurn: false, pcAttackAutoOpen: true },
+    room: { ...baseline.room, trackerOpen: false } });
+  const rebased = rebaseOptionsPanelDraft(draft, baseline, current);
+  assert.equal(rebased.local.combatLog, false, "the GM's change");
+  assert.deepEqual(rebased.scene.popup, { mode: "override", value: false }, "the GM's scene override");
+  assert.equal(rebased.local.layout, "compact");
+  assert.equal(rebased.local.followActiveTurn, false);
+  assert.equal(rebased.local.pcAttackAutoOpen, true);
+  assert.equal(rebased.room.trackerOpen, false);
+  assert.deepEqual(rebaseOptionsPanelDraft(draft, null, current), draft, "without a baseline: the draft as it is");
+});
+
+// Lot L13 of the bugfix pass (OP-04): a draft opened in scene A and saved after the scene changed wrote A's overrides
+// into scene B.
+test("L13: una bozza presa in un'altra scena non viene salvata; Salva usa la bozza riallineata", () => {
+  const source = readFileSync(new URL("../src/options-modal.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const save = source.slice(source.indexOf("async function save() {"), source.indexOf("  try {\n    await saveOptionsPanelDraft("));
+  assert.match(save, /if \(!draftOperation \|\| !sceneLifecycle\.isCurrent\(draftOperation\)\) \{/);
+  assert.match(save, /rebaseOptionsPanelDraft\(draft, draftBaseline,/);
+  assert.match(source, /function adoptDraftBaseline\(\) \{\n  draftBaseline = normalizeOptionsPanelDraft\(draft\);\n  draftOperation = sceneLifecycle\.capture/);
+  assert.equal((source.match(/adoptDraftBaseline\(\);/g) || []).length, 3, "on load, on a refresh of a clean draft, after a save");
+});

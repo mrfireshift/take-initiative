@@ -5,6 +5,7 @@ import { openTrackedPopover } from "./popoverDragHost.js";
 import {
   effectiveOptionsPanelShared,
   normalizeOptionsPanelDraft,
+  rebaseOptionsPanelDraft,
   saveOptionsPanelDraft,
   verifyOptionsPanelDraft,
 } from "./options/optionsPanelCore.js";
@@ -52,9 +53,18 @@ let dirty = false;
 let saving = false;
 let cleaning = false;
 let savedLayout = "classic";
+// The draft as the panel loaded it, and the scene it was loaded in: Salva writes only what the GM changed since, and
+// only in that scene.
+let draftBaseline = null;
+let draftOperation = null;
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function adoptDraftBaseline() {
+  draftBaseline = normalizeOptionsPanelDraft(draft);
+  draftOperation = sceneLifecycle.capture({ operationId: "options-draft" });
 }
 
 function typedValue(control) {
@@ -322,8 +332,18 @@ async function save() {
   saveButton.disabled = true;
   errorNode.hidden = true;
   statusNode.textContent = "Salvataggio in corso…";
-  const layout = draft.local.layout;
-  const requestedDraft = normalizeOptionsPanelDraft(draft);
+  // A draft taken in another scene: its scene overrides belong to that scene, never to this one.
+  if (!draftOperation || !sceneLifecycle.isCurrent(draftOperation)) {
+    saving = false;
+    errorNode.hidden = false;
+    errorNode.textContent = "Scena cambiata: riapri il pannello Opzioni.";
+    statusNode.textContent = "Scena cambiata: riapri il pannello Opzioni.";
+    return;
+  }
+  // Only what the GM changed here: the rest takes its current value (the tracker may have changed it meanwhile).
+  const requestedDraft = rebaseOptionsPanelDraft(draft, draftBaseline,
+    runtimeOptionsService.get(selectOptionsPanelModel));
+  const layout = requestedDraft.local.layout;
   try {
     await saveOptionsPanelDraft(runtimeOptionsService, requestedDraft, {
       isCurrent: () => sceneLifecycle.isCurrent(operation),
@@ -331,6 +351,7 @@ async function save() {
     if (!sceneLifecycle.isCurrent(operation)) throw new Error("scene-stale-after-options-save");
     draft = await verifyOptionsPanelDraft(runtimeOptionsService, requestedDraft);
     if (!sceneLifecycle.isCurrent(operation)) throw new Error("scene-stale-after-options-verify");
+    adoptDraftBaseline();
     await broadcastRuntimeOptionsInvalidation("options-panel-save").catch((error) => {
       console.warn("[options-panel] invalidation broadcast:", error?.message || error);
     });
@@ -514,10 +535,12 @@ OBR.onReady(async () => {
     await startRuntimeOptions();
     if (!sceneLifecycle.isReady()) return;
     draft = normalizeOptionsPanelDraft(runtimeOptionsService.get(selectOptionsPanelModel));
+    adoptDraftBaseline();
     savedLayout = draft.local.layout;
     runtimeOptionsService.subscribe(selectOptionsPanelModel, (model) => {
       if (dirty || saving) return;
       draft = normalizeOptionsPanelDraft(model);
+      adoptDraftBaseline();
       render();
     }, { emitCurrent: false });
     render();
