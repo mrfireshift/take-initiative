@@ -51,13 +51,13 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
   // metas: more metadata for the ghoul and the imp (their cards, for the off-turn actions).
   const items = [creature("aria", "Aria", 40, attacker), creature("ghoul", "Ghoul", 30, { ...(defenses ? { initiativeCard: { damageDefenses: defenses } } : {}), ...metas.ghoul }),
     creature("imp", "Imp", 10, metas.imp || {})];
-  const listeners = { player: new Set(), items: new Set() };
+  const listeners = { player: new Set(), items: new Set(), metadata: new Set() };
   const subscribe = (set, listener) => { set.add(listener); return () => set.delete(listener); };
   let selection = [];
   const calls = [], undoCalls = [], nearbyCalls = [], loads = [], sources = [], closed = [];
   const api = {
     player: { getRole: async () => "GM", getSelection: async () => selection, onChange: (listener) => subscribe(listeners.player, listener) },
-    scene: { isReady: async () => true, onReadyChange: () => () => {},
+    scene: { isReady: async () => true, onReadyChange: () => () => {}, onMetadataChange: (listener) => subscribe(listeners.metadata, listener),
       items: { getItems: async (ids) => Array.isArray(ids) ? items.filter((item) => ids.includes(item.id)) : items, onChange: (listener) => subscribe(listeners.items, listener) } },
     popover: { close: async (id) => { closed.push(id); } },
     ...(broadcast ? { broadcast } : {}),
@@ -112,6 +112,8 @@ function fixture({ defenses = null, attacker = {}, turnState = null, action = sw
     await tick();
   };
   return { $, controller, calls, undoCalls, nearbyCalls, loads, sources, closed, runtime, items, documentRef, keydown,
+    // The turn moves on in the scene: the next presentation reads it.
+    turn: async (next) => { turnState = next; for (const listener of listeners.metadata) listener({ "com.thebigpicture.initiative/state": next }); await tick(); await tick(); },
     select: async (ids) => { selection = ids; for (const listener of listeners.player) listener({ selection: ids }); await tick(); },
     outcome: (value) => $("pc-attack-outcomes").querySelector(`[data-outcome="${value}"]`),
     inputs: () => $("pc-attack-damage").querySelectorAll("input"),
@@ -589,6 +591,31 @@ test("Quivering Palm in the console: a target with the monk's vibrations shows �
   assert.equal(f.$("pc-attack-palm").hidden, true, "another target has no vibrations");
 });
 
+// Lot L11 of the bugfix pass (AT-08): after a conflict the palm kept its identity, and every click replayed the plan
+// the runtime had stored for it.
+test("L11: dopo un conflitto il Palmo tremante riprova con una nuova identità", async () => {
+  const f = fixture({ attacker: openHandCard, turnState: ownTurn });
+  f.items[1].metadata[META].conditions = [{ id: "palm-pill", condition: "Palmo Tremante", active: true, sourceId: "aria" }];
+  const ids = [];
+  let refuse = true;
+  const end = f.runtime.endQuiveringPalm;
+  f.runtime.endQuiveringPalm = async (request) => {
+    ids.push(request.attackInstanceId);
+    if (refuse) throw Object.assign(new Error("Lo stato è cambiato prima del commit."), { status: "conflict", result: { committed: false } });
+    return end(request);
+  };
+  await f.controller.ready;
+  await f.select(["ghoul"]);
+  await f.$("pc-attack-palm-outcomes").querySelector('[data-outcome="failed"]').click();
+  await f.$("pc-attack-palm-apply").click(); await tick();
+  assert.match(f.$("pc-attack-status").textContent, /Lo stato è cambiato/);
+  refuse = false;
+  await f.$("pc-attack-palm-apply").click(); await tick();
+  assert.equal(ids.length, 2);
+  assert.notEqual(ids[1], ids[0], "the retry plans again");
+  assert.match(f.$("pc-attack-status").textContent, /^Registrato: Palmo Tremante su Ghoul/);
+});
+
 test("Inspiring Smite in the console: the total and its distribution among other creatures are sent", async () => {
   const card = { initiativeCard: { characterBuild: [{ classId: "paladino", level: 7, subclassId: "paladino-giuramento-di-gloria" }],
     abilityModifiers: { str: 4, dex: 0, con: 2, int: 0, wis: 1, cha: 3 }, classFeaturesConfigured: true,
@@ -651,6 +678,24 @@ test("an area cantrip: the creatures near the caster proposed, a save for each, 
   assert.equal(f.$("pc-attack-status").dataset.kind, "ok", "a registration reads as done");
   assert.equal(f.$("pc-attack-apply").textContent, "Registra", "and Registra is back once saved");
   assert.equal(areaSummary({ rows: [] }, "Rombo di Tuono"), "Registrato: Rombo di Tuono su 0 creature.");
+});
+
+// Lot L11 of the bugfix pass (AT-04): the saves of an area attack were not decisions: Esc, ⇄ or a turn change dropped
+// them without asking.
+test("L11: gli esiti di un attacco ad area trattengono la console come le altre scelte", async () => {
+  const action = sanitizeQuickAction({ id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip", spellIds: ["tasha-turbine-di-spade"] } });
+  const bus = followBroadcast();
+  const asked = [];
+  const f = fixture({ action, attacker: { initiativeCard: { characterBuild: [{ classId: "mago", level: 5 }], spellSaveDC: 14 } }, turnState: ownTurn,
+    nearby: () => ["ghoul"], broadcast: bus.broadcast, confirm: (message) => { asked.push(message); return false; } });
+  await f.controller.ready; await tick();
+  await areaField(areaRow(f, "ghoul"), "failed").click();
+  await bus.follow("imp", "Imp");
+  assert.equal(f.sources.includes("imp"), false, "the turn change waits for the GM");
+  assert.match(textOf(f.$("pc-attack-follow")), /È il turno di Imp./);
+  await f.keydown("Escape");
+  assert.deepEqual(asked, ["Chiudere la console? Le scelte non registrate andranno perse."]);
+  assert.deepEqual(f.closed, [], "declined: the console stays open");
 });
 
 test("the arrows of the Arcane Archer: Seeking replaces the roll with a save; Piercing turns the target into a line", async () => {
@@ -964,6 +1009,27 @@ test("a clean console follows the turn: the new actor in place, a fresh attack, 
   assert.equal(f.$("pc-attack-status").textContent, "Turno di Imp.");
   await bus.follow("imp", "Imp");
   assert.equal(f.sources.filter((id) => id === "imp").length, 1, "the same actor again changes nothing");
+});
+
+// Lot L11 of the bugfix pass (AT-06): a turn change during a load was set aside like one that waits for the GM, and a
+// clean console stayed on the previous actor.
+test("L11: un cambio turno arrivato mentre la console carica la sposta sul nuovo personaggio a fine caricamento", async () => {
+  const bus = followBroadcast();
+  const f = fixture({ broadcast: bus.broadcast, turnState: { order: ["aria", "imp"], current: 0, round: 2 } }); await f.controller.ready; await tick();
+  const load = f.runtime.getPcAttackPresentation;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  f.runtime.getPcAttackPresentation = async (...args) => { await gate; return load(...args); };
+  // The turn moves to the imp: the console loads it (a load in progress)…
+  await bus.follow("imp", "Imp");
+  assert.equal(f.sources.includes("imp"), false, "still loading the imp");
+  // …and the turn moves on again before the load ends.
+  await bus.follow("ghoul", "Ghoul");
+  f.runtime.getPcAttackPresentation = load;
+  release(); await tick(); await tick(); await tick();
+  assert.equal(f.sources.at(-1), "ghoul");
+  assert.equal(f.$("pc-attack-title").textContent, "Ghoul");
+  assert.equal(f.$("pc-attack-follow").hidden, true);
 });
 
 test("a console holding decisions waits: the bar offers the move, after a confirmation", async () => {
@@ -1459,6 +1525,27 @@ test("off turn the attack offers the reaction, on by default: Registra sends it;
   const own = fixture({ turnState: { order: ["aria", "ghoul"], current: 0, round: 2 } });
   await own.controller.ready; await tick();
   assert.equal(own.$("pc-attack-reaction").hidden, true);
+});
+
+// Lot L11 of the bugfix pass (AT-02): an attack chosen on its own turn and registered after the turn moved on spent
+// the reaction, since the box appeared ticked.
+test("L11: un attacco scelto nel proprio turno e registrato dopo il cambio turno non segna la reazione", async () => {
+  const f = fixture({ turnState: { order: ["aria", "ghoul"], current: 0, round: 2 } });
+  await f.controller.ready; await tick();
+  await f.select(["ghoul"]); await f.outcome("hit").click();
+  assert.equal(f.$("pc-attack-reaction").hidden, true);
+  await f.turn({ order: ["aria", "ghoul"], current: 1, round: 2 });
+  const row = f.$("pc-attack-reaction");
+  assert.equal(row.hidden, false, "off turn now: the box is there");
+  assert.equal(row.querySelector("input").checked, false, "but unticked");
+  await typeAmounts(f, ["8", "9"]);
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.equal(f.calls.at(-1).useReaction, undefined);
+  const box = f.$("pc-attack-reaction").querySelector("input");
+  box.checked = true; await box.emit("change"); await tick();
+  await f.outcome("miss").click();
+  await f.$("pc-attack-apply").click(); await tick();
+  assert.equal(f.calls.at(-1).useReaction, true, "the GM can still tick it");
 });
 
 test("off turn with the reaction already used: a warning instead of the checkbox, and the attack asks for nothing", async () => {

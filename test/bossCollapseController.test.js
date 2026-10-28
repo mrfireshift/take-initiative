@@ -75,3 +75,31 @@ test("un'immagine già allo stadio giusto non viene riscritta, e senza snapshot 
   assert.deepEqual(writes, [], "already collapsed: no write");
   unmountBossCollapseController();
 });
+
+// Lot L11 of the bugfix pass (AT-07): Svuota writes round 1, and the collapsed area came back cracked.
+test("L11: dopo Svuota l'area crollata resta crollata, anche nel combattimento dopo; il ◀ in combattimento la riporta incrinata", async () => {
+  sceneItems = [marker()];
+  writes.length = 0;
+  snapshotComplete = true;
+  assert.equal(await mountBossCollapseController(), true);
+  await settle();
+  metadataListener({ [STATE_KEY]: { round: 3, current: 0, order: ["auril"] } });
+  await settle();
+  metadataListener({ [STATE_KEY]: { round: 2, current: 0, order: ["auril"] } });
+  await settle();
+  assert.deepEqual(writes, [["collapsed"], ["cracked"]], "«Turno precedente» in the combat: back to cracked, as documented");
+  metadataListener({ [STATE_KEY]: { round: 3, current: 0, order: ["auril"] } });
+  await settle();
+  writes.length = 0;
+  metadataListener({ [STATE_KEY]: { round: 1, current: 0, order: [] } });
+  await settle();
+  assert.deepEqual(writes, [["collapsed"]], "Svuota settles the area at its stage");
+  assert.equal(sceneItems[0].metadata[KEY].settled, true);
+  assert.equal(sceneItems[0].image.url, "http://localhost/boss-auril-hand-slam-collapsed.webp");
+  metadataListener({ [STATE_KEY]: { round: 1, current: 0, order: ["goblin"] } });
+  await settle();
+  metadataListener({ [STATE_KEY]: { round: 2, current: 0, order: ["goblin"] } });
+  await settle();
+  assert.deepEqual(writes, [["collapsed"]], "a new combat at round 1 and 2 leaves it collapsed");
+  unmountBossCollapseController();
+});

@@ -34,7 +34,10 @@ async function reconcileBossCollapseMarkers() {
       : OBR.scene.items.getItems(isMarker).catch(() => []),
   ]);
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
-  const updates = bossCollapseUpdates(items, metadata?.[STATE_KEY]?.round);
+  // Out of combat only when the state says so (Svuota writes an empty order): a failed read changes nothing.
+  const state = metadata?.[STATE_KEY];
+  const inCombat = !(state && Array.isArray(state.order) && state.order.length === 0);
+  const updates = bossCollapseUpdates(items, state?.round, { inCombat });
   if (!updates.length) return;
   const origin = String(globalThis.location?.origin || "http://localhost");
   const byId = new Map(updates.map((update) => [update.id, update]));
@@ -45,10 +48,11 @@ async function reconcileBossCollapseMarkers() {
       if (!update || !record || !draft.image) continue;
       const url = new URL(update.asset, origin).href;
       // Already at this stage (a snapshot a moment behind our own last write): nothing to write.
-      if (record.stage === update.stage && draft.image.url === url) continue;
+      if (record.stage === update.stage && draft.image.url === url && (!update.settled || record.settled === true)) continue;
       draft.image.url = url;
-      // Metadata merged: only the stage of this image changes.
-      draft.metadata = { ...draft.metadata, [BOSS_COLLAPSE_ITEM_KEY]: { ...record, stage: update.stage } };
+      // Metadata merged: only the stage of this image changes (and, once the combat is cleared, that it is settled).
+      draft.metadata = { ...draft.metadata, [BOSS_COLLAPSE_ITEM_KEY]: {
+        ...record, stage: update.stage, ...(update.settled ? { settled: true } : {}) } };
     }
   });
 }

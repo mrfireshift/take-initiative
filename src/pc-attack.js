@@ -84,7 +84,9 @@ export function defaultCantripId(action,sourceItem) {
 }
 // The map selection drives the target until the GM has decided something for this attack.
 const draftLocked=draft=>!!draft.outcome || Object.values(draft.amounts).some(value=>value!=="")
-  || Object.values(draft.riders).some(rider=>rider.on && !rider.auto) || Object.values(draft.activations || {}).some(activation=>activation.on) || draft.extras.length>0;
+  || Object.values(draft.riders).some(rider=>rider.on && !rider.auto) || Object.values(draft.activations || {}).some(activation=>activation.on) || draft.extras.length>0
+  // An area attack's saves (Immune is the console's own, not the GM's).
+  || Object.values(draft.area?.members || {}).some(member=>member.on && member.outcome && member.outcome!=="immune");
 // The outcomes that deal damage: a hit, a critical, a failed save (a miss and a passed save deal none).
 const hits=outcome=>outcome==="hit" || outcome==="critical" || outcome==="failed";
 // Riders and extra components only exist on a hit; a miss sends neither.
@@ -231,7 +233,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   let maneuverDraft={kind:"",targetId:"",outcome:"",effect:"",id:newAttackId()},grappleSignature="",maneuverSignature="";
   const applyRow=$("pc-attack-apply-row");
   const reactionRow=$("pc-attack-reaction");
-  let useReaction=true,reactionSignature="";
+  // ownTurnSeen: the console showed this actor on its own turn. An attack chosen there and registered after the turn
+  // moved on is not an opportunity attack: the reaction box then starts unticked.
+  let useReaction=true,reactionSignature="",ownTurnSeen=false;
   const cantripRow=$("pc-attack-cantrip-row"),cantripSelect=$("pc-attack-cantrip"),cantripNote=$("pc-attack-cantrip-note");
   const spellControls=$("pc-attack-spell-controls");
   const picker=$("pc-attack-picker"),pickerTabs=$("pc-attack-picker-tabs"),pickerSelect=$("pc-attack-picker-select"),pickerList=$("pc-attack-picker-list");
@@ -1886,7 +1890,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   function renderReaction() {
     if(!reactionRow) return;
+    if(presentation?.turnState?.order?.length && !isOffTurn(presentation.turnState,sourceId)) ownTurnSeen=true;
     const reaction=attackReaction();
+    if(reaction && ownTurnSeen){ownTurnSeen=false;useReaction=false;reactionSignature="";}
     reactionRow.hidden=!reaction;
     if(!reaction){reactionSignature="";return;}
     const signature=JSON.stringify([reaction.used,useReaction,busy]);
@@ -2052,7 +2058,11 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         setStatus(String(error?.message || error),"error");
       }
     }
-    finally {busy=false;committing=false;render();}
+    finally {
+      busy=false;committing=false;render();
+      const follow=pendingFollow;
+      if(follow?.afterLoad) followTurn(follow.sourceId,follow.name);
+    }
   }
   async function refresh(operation) {
     const asked=actionId,askedSource=sourceId;
@@ -2321,9 +2331,16 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   palmApply?.addEventListener("click",()=>perform(async operation=>{
     const target=targetById(palmDraft.targetId);
     if(!target || !palmDraft.outcome) return;
-    const result=await runtime.endQuiveringPalm({sourceId,targetId:target.id,outcome:palmDraft.outcome,
-      ...(palmDraft.outcome==="passed"?{amount:Number(palmDraft.amount),expectedDefenses:damageDefensesForItem(target,META_KEY)}:{}),
-      attackInstanceId:palmDraft.id,sceneIdentity:presentation.sceneIdentity});
+    let result;
+    try {
+      result=await runtime.endQuiveringPalm({sourceId,targetId:target.id,outcome:palmDraft.outcome,
+        ...(palmDraft.outcome==="passed"?{amount:Number(palmDraft.amount),expectedDefenses:damageDefensesForItem(target,META_KEY)}:{}),
+        attackInstanceId:palmDraft.id,sceneIdentity:presentation.sceneIdentity});
+    } catch(error) {
+      // A definitive rejection needs a new identity (the next click plans again); an uncertain acknowledgement keeps it.
+      if(["conflict","rejected"].includes(error?.status) && error.result?.committed!==true) palmDraft.id=newAttackId();
+      throw error;
+    }
     if(!lifecycle.isCurrent(operation)) return;
     showUndo(result);
     setStatus([quiveringPalmSummary(result),...(result.warnings || [])].join("\n"),"ok");
@@ -2358,7 +2375,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     void setMinimized(false);
     pendingFollow=null;pendingReady=false;renderFollow();
     sourceId=next;actionId="";requestedSpellId="";launchKey="";launchSignature="";
-    presentation=null;draft=null;liveSignature="";useReaction=true;reactionSignature="";
+    presentation=null;draft=null;liveSignature="";useReaction=true;reactionSignature="";ownTurnSeen=false;
     beamTally={spellId:"",count:0};palmDraft={targetId:"",outcome:"",amount:"",id:newAttackId()};
     maneuverDraft={kind:"",targetId:"",outcome:"",effect:"",id:newAttackId()};grappleSignature="";maneuverSignature="";
     selection={status:"none",target:null,candidates:[]};selectedItems=[];
@@ -2372,7 +2389,9 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   function followTurn(next,name="") {
     if(invalidated) return;
     if(next===sourceId){pendingFollow=null;pendingReady=false;renderFollow();return;}
-    if(busy || launchBusy || palmDraft.outcome || maneuverDraft.outcome || (draft && draftLocked(draft))){pendingFollow={sourceId:next,name};pendingReady=false;renderFollow();return;}
+    const held=!!(palmDraft.outcome || maneuverDraft.outcome || (draft && draftLocked(draft)));
+    // afterLoad: only a load was running (no decision, no registration): the console follows once it ends.
+    if(busy || launchBusy || held){pendingFollow={sourceId:next,name,...(busy && !committing && !launchBusy && !held?{afterLoad:true}:{})};pendingReady=false;renderFollow();return;}
     if(!next){closeConsole();return;}
     switchActor(next,name);
   }

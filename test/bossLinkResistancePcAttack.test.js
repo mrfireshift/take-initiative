@@ -135,3 +135,21 @@ test("a hit on Auril is full damage and breaks the link; the next hit on the Tit
   const { result } = await attack("hand");
   assert.equal(result.hpChange.after, 266, "no resistance for the rest of the round");
 });
+
+// Lot L11 of the bugfix pass (AT-01): an area (or a Bursting Arrow) reading the Titan without its link was always
+// refused, since the console expected the link's resistance.
+test("L11: un trucchetto ad area che prende la Mano del Titano dimezza col link invece di essere rifiutato", async () => {
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "mago", level: 5 }], spellSaveDC: 14,
+    quickActions: [sword, { id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip" } }] });
+  const presentation = await runtime.getPcAttackPresentation("aria", "cantrip");
+  const hand = presentation.targets.find((item) => item.id === "hand");
+  const result = await runtime.executePcAttackArea({ sourceId: "aria", actionId: "cantrip", spellId: "tasha-turbine-di-spade",
+    expectedAction: presentation.action, sceneIdentity: presentation.sceneIdentity, members: [{ targetId: "hand", outcome: "failed" }],
+    componentAmounts: { c1: 8 }, expectedDefenses: { hand: damageDefensesForItem(hand, META_KEY) }, attackInstanceId: "whirl-link" });
+  assert.deepEqual(result.rows.map((row) => [row.id, row.damage, row.after]), [["hand", 4, 296]]);
+  assert.deepEqual([meta("auril").hp, meta("hand").hp], [296, 296]);
+  assert.equal(meta("hand").conditions, undefined);
+  await settle();
+  assert.deepEqual(notices.map((card) => card.lines[0].strong + card.lines[0].text),
+    ["Mano del Titano: Resistenza a tutti i danni, danno già dimezzato."]);
+});

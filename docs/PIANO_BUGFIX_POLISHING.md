@@ -73,6 +73,15 @@ Lotti fatti:
   - L'editor dei PF confronta il token con i valori che mostra (`baseHP`/`baseHPMax`), non con la card da cui è nato.
   - Con una rinomina aperta il render completo aspetta e riparte quando la rinomina si chiude (evento `TRACKER_RENAME_FINISHED_EVENT`). Prima l'input veniva distrutto e il nome digitato andava perso.
   - Test: `trackerFullRenderReconcile.test.js` e due casi in `initiativeEditors.test.js`; falliscono senza la patch. Il contratto della guardia degli editor in `initiativeControllerContract.test.js` include la rinomina.
+- **L11** (28/10): console attacchi e Boss (AT-01, AT-02, AT-04, AT-05, AT-06, AT-07, AT-08).
+  - Le creature di un attacco ad area e della Freccia esplosiva sono lette con le difese del Rimebound Link come il bersaglio singolo, e vanno in `bossLinkResisted`. Prima un'area con la Mano del Titano era sempre rifiutata.
+  - Se il personaggio della console passa dal proprio turno a fuori turno con un attacco già scelto, la casella della reazione compare spenta.
+  - Gli esiti dei TS di un'area contano come scelte: Esc, ⇄ e il cambio turno chiedono o aspettano.
+  - Il TS «Al colpo» di un mostro (`hitEffect`) entra nella chiave delle decisioni.
+  - Un cambio turno arrivato mentre la console carica viene seguito a fine caricamento, se la console non ha scelte in sospeso.
+  - Svuota fissa le aree di Hand Slam allo stadio che hanno (`settled`): non tornano incrinate al round 1. Il ◀ in combattimento le riporta incrinate come prima (`docs/boss-hand-slam-collapse.md`).
+  - Dopo un conflitto il Palmo tremante prende una nuova identità, come le manovre.
+  - Test in `bossLinkResistancePcAttack`, `pcAttackPopover` (la fixture ora segue il turno dai metadata di scena), `pcAttackExecutionIntegration`, `bossCollapseCore` e `bossCollapseController`. Falliscono senza la patch.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

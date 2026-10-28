@@ -11,6 +11,7 @@ successivo, l'immagine viene sostituita da quella dell'area crollata.
 | Commit di Hand Slam nel round N | area incrinata (`/boss-auril-hand-slam-cracked.webp`) | livello Props, bloccata, al centro del cerchio disegnato, 10 caselle di diametro (raggio di 20 ft = 8 caselle, più una casella di bordo per lato) |
 | Fine del round N + 1, cioè dal round N + 2 | area crollata (`/boss-auril-hand-slam-collapsed.webp`) | stessa posizione, stesso elemento: cambiano solo l'immagine e lo stadio |
 | Round riportato indietro con «Turno precedente» | torna incrinata | lo stadio è calcolato dal round, non registrato una volta per tutte |
+| «Svuota iniziativa» | resta allo stadio che ha | l'area viene fissata (`settled`): il round 1 di Svuota o di un nuovo combattimento non la fa tornare incrinata |
 
 - **ID dell'immagine**: deriva dall'azione (`<actionInstanceId>:collapse`).
   Un nuovo invio della stessa azione non aggiunge una seconda immagine.

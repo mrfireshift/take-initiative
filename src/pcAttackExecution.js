@@ -205,8 +205,6 @@ export function createPcAttackRuntime({
         || (Array.isArray(request.activations)?request.activations:[]).find(activation=>activation?.secondaryTargetId)?.secondaryTargetId || "";
       const [rawSecondaryItem]=secondaryId?await api.scene.items.getItems([secondaryId]):[];
       const secondaryItem=await withLinkDefenses(rawSecondaryItem,scope.turnState?.round);
-      // The coordinator's Rimebound Link notice says the damage was already halved for these tokens.
-      const bossLinkResisted=[[targetItem,rawTargetItem],[secondaryItem,rawSecondaryItem]].filter(([item,raw])=>item && item!==raw).map(([item])=>item.id);
       if(secondaryId && !secondaryItem) throw new Error("La seconda creatura non è più presente nella scena.");
       // Inspiring Smite: the creatures that receive temporary hit points, read like the target.
       const tempHpIds=[...new Set((Array.isArray(request.activations)?request.activations:[])
@@ -215,7 +213,11 @@ export function createPcAttackRuntime({
       // Bursting Arrow: the creatures around the target, read like the target.
       const burstIds=[...new Set((Array.isArray(request.activations)?request.activations:[])
         .flatMap(activation=>Array.isArray(activation?.burstTargetIds)?activation.burstTargetIds:[]).filter(Boolean))];
-      const burstItems=burstIds.length?await api.scene.items.getItems(burstIds):[];
+      const rawBurstItems=burstIds.length?await api.scene.items.getItems(burstIds):[];
+      const burstItems=await Promise.all(rawBurstItems.map(item=>withLinkDefenses(item,scope.turnState?.round)));
+      // The coordinator's Rimebound Link notice says the damage was already halved for these tokens.
+      const bossLinkResisted=[[targetItem,rawTargetItem],[secondaryItem,rawSecondaryItem],...burstItems.map((item,index)=>[item,rawBurstItems[index]])]
+        .filter(([item,raw])=>item && item!==raw).map(([item])=>item.id);
       // CAP-LINK: the creatures whose links this attack may end (a Compelled Duel on another creature).
       const linkItems=(await api.scene.items.getItems()).filter(item=>isBossActionCreature(item));
       if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri l'attacco.");
@@ -228,7 +230,7 @@ export function createPcAttackRuntime({
         activations:request.activations ?? null,attackMode:request.attackMode || "",modeAmount:request.modeAmount ?? null,
         expectedBurstDefenses:request.expectedBurstDefenses ?? null,castWithoutSlot:request.castWithoutSlot===true,
         useReaction:request.useReaction===true,
-        spellCast:request.spellCast ?? null});
+        spellCast:request.spellCast ?? null,hitEffect:request.hitEffect ?? null});
       let draft=drafts.get(attackInstanceId);
       if(draft && (draft.decisionKey!==decisionKey || draft.options.sceneIdentity!==scope.scene.sceneIdentity))
         throw new Error("Le decisioni o la scena dell'attacco sono cambiate: riapri l'attacco.");
@@ -335,7 +337,10 @@ export function createPcAttackRuntime({
         throw new Error("L'azione è cambiata nel profilo: riapri l'attacco.");
       const wanted=Array.isArray(request.members)?request.members:[];
       const ids=wanted.map(member=>member?.targetId).filter(Boolean);
-      const items=ids.length?await api.scene.items.getItems(ids):[];
+      const rawItems=ids.length?await api.scene.items.getItems(ids):[];
+      // Read like the single target: a token linked to its boss (Rimebound Link) resists as the console showed it.
+      const items=await Promise.all(rawItems.map(item=>withLinkDefenses(item,scope.turnState?.round)));
+      const bossLinkResisted=items.filter((item,index)=>item!==rawItems[index]).map(item=>item.id);
       const members=wanted.map(member=>{
         const item=items.find(candidate=>candidate.id===member?.targetId);
         if(!item) throw new Error("Una creatura dell'area non è più presente nella scena.");
@@ -354,7 +359,8 @@ export function createPcAttackRuntime({
         const plan=buildPcAttackAreaMutation({action,spellId:request.spellId || "",attackMode:request.attackMode || "",sourceItem:scope.item,members,
           componentAmounts:request.componentAmounts || {},riders:request.riders || [],extras:request.extras || [],modeAmount:request.modeAmount ?? null,
           attackInstanceId,expectedDefenses:request.expectedDefenses || {},turnState:scope.turnState});
-        draft={decisionKey,plan,options:{...plan.options,sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
+        draft={decisionKey,plan,options:{...plan.options,...(bossLinkResisted.length?{bossLinkResisted}:{}),
+          sceneIdentity:request.sceneIdentity || scope.scene.sceneIdentity,sceneEpoch:scope.epoch}};
         drafts.set(attackInstanceId,draft);
       }
       const plan=draft.plan;

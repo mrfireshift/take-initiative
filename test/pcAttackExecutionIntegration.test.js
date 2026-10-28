@@ -205,6 +205,8 @@ test("a retry with the same identity returns the stored result; different decisi
   assert.equal(meta("ghoul").hp, 13);
   assert.deepEqual(posted, [17]);
   await assert.rejects(() => attack({ attackInstanceId: "retry", componentAmounts: { c1: 1, c2: 1 } }), /decisioni/);
+  // Lot L11 (AT-05): a monster's save on a hit is a decision too: a retry with another outcome does not run the old plan.
+  await assert.rejects(() => attack({ attackInstanceId: "retry", hitEffect: { saveOutcome: "passed", amounts: {} } }), /decisioni/);
 });
 
 test("only the GM records; a changed action or a missing target is rejected before any mutation", async () => {

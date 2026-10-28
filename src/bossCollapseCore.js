@@ -47,7 +47,10 @@ export function bossCollapseItemId(actionInstanceId) {
 
 // L'area crolla alla fine del round successivo: con Hand Slam nel round N, dal round N + 2 in poi.
 // Senza round (fuori combattimento) l'area resta incrinata finché il GM non la rimuove.
+// Un'area fissata (settled: il combattimento è stato svuotato) resta allo stadio che aveva: il round 1 di Svuota o di
+// un nuovo combattimento non la fa tornare incrinata. «Turno precedente» durante il combattimento sì.
 export function bossCollapseStage(record, round) {
+  if (record?.settled === true && BOSS_COLLAPSE_STAGES.includes(record.stage)) return record.stage;
   const castRound = roundNumber(record?.round);
   const current = roundNumber(round);
   const after = Math.max(0, Math.floor(Number(record?.collapseAfterRounds) || 0));
@@ -87,11 +90,18 @@ export function bossCollapseAsset(record, stage) {
 }
 
 // Le immagini da aggiornare per il round corrente: solo quelle il cui stadio è cambiato.
-export function bossCollapseUpdates(items, round) {
+// inCombat false (ordine svuotato): ogni area non ancora fissata viene fissata allo stadio che ha.
+export function bossCollapseUpdates(items, round, { inCombat = true } = {}) {
   const updates = [];
   for (const item of Array.isArray(items) ? items : []) {
     const record = item?.metadata?.[BOSS_COLLAPSE_ITEM_KEY];
     if (!item?.id || !record || typeof record !== "object") continue;
+    if (!inCombat) {
+      const stage = BOSS_COLLAPSE_STAGES.includes(record.stage) ? record.stage : "cracked";
+      const asset = bossCollapseAsset(record, stage);
+      if (asset && record.settled !== true) updates.push({ id: item.id, stage, asset, settled: true });
+      continue;
+    }
     const stage = bossCollapseStage(record, round);
     const asset = bossCollapseAsset(record, stage);
     if (!asset || record.stage === stage) continue;

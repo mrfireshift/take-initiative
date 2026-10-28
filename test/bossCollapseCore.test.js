@@ -71,3 +71,14 @@ test("gli aggiornamenti riguardano solo le immagini il cui stadio cambia", () =>
   assert.deepEqual(bossCollapseUpdates([item("a", 1, "collapsed")], 3), [], "già crollata");
   assert.deepEqual(bossCollapseUpdates([item("c", 1, "collapsed")], 2), [{ id: "c", stage: "cracked", asset: CRACKED }]);
 });
+
+// Lot L11 of the bugfix pass (AT-07): an area settled when the combat was cleared keeps its stage.
+test("L11: un'area fissata a combattimento svuotato resta allo stadio che aveva", () => {
+  const record = { bossDefinitionId: "auril", actionId: "hand-slam", round: 3, collapseAfterRounds: 1, stage: "collapsed" };
+  assert.deepEqual(bossCollapseUpdates([{ id: "a", metadata: { [BOSS_COLLAPSE_ITEM_KEY]: record } }], 1, { inCombat: false }),
+    [{ id: "a", stage: "collapsed", asset: COLLAPSED, settled: true }]);
+  assert.equal(bossCollapseStage({ ...record, settled: true }, 1), "collapsed");
+  assert.equal(bossCollapseStage({ ...record, stage: "cracked", settled: true }, 9), "cracked");
+  assert.deepEqual(bossCollapseUpdates([{ id: "a", metadata: { [BOSS_COLLAPSE_ITEM_KEY]: { ...record, settled: true } } }], 1, { inCombat: false }), [],
+    "already settled: nothing to write");
+});
