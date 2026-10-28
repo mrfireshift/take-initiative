@@ -8,6 +8,10 @@ Lotti fatti:
   - ActorVitals ignora quei token anche quando hanno già un ID condiviso.
   - Rispetto a D1 il filtro è più stretto: nemici e neutrali senza statblock restano attori. `test/sharedHpPersistenceIntegration.test.js` fissa infatti come voluti i PF del boss Auril e della sua Mano tra le scene (`fb4061b2`).
   - Lo fissano tre test nuovi in `test/actorVitalsStore.test.js` e `test/initiativeCardSaveTransportRegression.test.js`. Il test della scheda fallisce senza la patch.
+- **L2** (28/10): le scadenze di turno e di round non si bloccano più dopo una riapertura del tracker (EF-01).
+  - L'ID dei comandi temporali contiene un identificativo creato una volta per pagina (`__temporalRuntimeId`), quindi una pagina nuova non riusa gli ID che il background ricorda dalla precedente.
+  - I ritentativi della stessa pagina tengono lo stesso ID.
+  - Lo fissa `test/initiativeTemporalCommandId.test.js`, con broker e coda veri: due pagine sulla stessa scena, cinque passaggi applicati. Il test fallisce senza la patch.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

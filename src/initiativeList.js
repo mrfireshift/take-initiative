@@ -406,6 +406,10 @@ let __temporalTransitionSequence = 0;
 let __temporalSceneIdentity = "";
 let __temporalSceneIdentityPromise = null;
 let __temporalLaneGeneration = 0;
+// This page's own part of the temporal command ids: a tracker opened again counts its transitions from 0 while the
+// background keeps the previous page's ids for the same scene, and an id seen with another payload is refused.
+const __temporalRuntimeId = globalThis.crypto?.randomUUID?.()
+  || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 // A round and its boundary descriptor may be queued together.  The boundary
 // must be skipped only when the preceding round mutation really advanced a
 // terminal accumulator; otherwise a failed/no-op round must not swallow the
@@ -626,7 +630,7 @@ function __temporalCommandId(descriptor, mutationType) {
   const kind = mutationType === "effects:tick-round" ? "round" : "boundaries";
   const scope = String(descriptor?.sceneIdentity || "").trim()
     || `epoch-${descriptor?.sceneEpoch}`;
-  return `initiative-temporal:${scope}:${descriptor?.transitionSeq}:${kind}`;
+  return `initiative-temporal:${scope}:${__temporalRuntimeId}:${descriptor?.transitionSeq}:${kind}`;
 }
 
 async function __applyInitiativeTemporalDescriptor(descriptor) {
