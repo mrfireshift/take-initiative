@@ -173,8 +173,13 @@ test("le varianti difensive dichiarano summaryParts per ogni scelta persistente"
       { id: "holy-weapon-magical", label: "Arma magica" },
       { id: "holy-weapon-radiant-damage", label: "+2d8 radiosi" },
     ]],
+    // CAP-REACTION: the five resistances its mechanics declare, each once.
     ["xanathar-interdizione-primordiale", "", [
-      { id: "elemental-resistances-five-types", label: "Res. 5 elementi" },
+      { id: "damage-defense-resistance-acid", label: "Res. acido" },
+      { id: "damage-defense-resistance-cold", label: "Res. freddo" },
+      { id: "damage-defense-resistance-fire", label: "Res. fuoco" },
+      { id: "damage-defense-resistance-lightning", label: "Res. fulmine" },
+      { id: "damage-defense-resistance-thunder", label: "Res. tuono" },
       { id: "elemental-resistances-reaction-immunity", label: "Reaz.: Imm. tipo" },
     ]],
     ["tasha-fortezza-della-mente", "", [

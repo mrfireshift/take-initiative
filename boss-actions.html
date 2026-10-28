@@ -48,6 +48,14 @@
     /* Mirror Image on the target: the d20 to aim at a duplicate, and the button that destroys one. */
     .mirror-image { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid rgba(167, 139, 250, .5); border-radius: var(--obrt-radius-md); background: rgba(124, 58, 237, .16); }
     .mirror-image-note { margin: 0; min-width: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
+    /* CAP-REACTION: the target's Sanctuary, the retaliation of its shield and the reactions it can still cast. */
+    .attack-reactions { display: grid; gap: 4px; }
+    .attack-reactions[hidden] { display: none; }
+    .attack-reaction { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid rgba(251, 146, 60, .45); border-radius: var(--obrt-radius-md); background: rgba(194, 65, 12, .14); }
+    .attack-reaction-note { margin: 0; flex: 1 1 auto; min-width: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
+    .attack-reactions > .attack-reaction-note { padding: 5px 8px; border: 1px solid rgba(96, 165, 250, .45); border-radius: var(--obrt-radius-md); background: rgba(37, 99, 235, .14); }
+    .attack-reaction-amount { flex: 0 0 52px; width: 52px; min-height: 24px; padding: 2px 4px; border: 1px solid var(--line, rgba(148,163,184,.35)); border-radius: var(--obrt-radius-md); background: var(--surface, rgba(0,0,0,.3)); color: inherit; }
+    .attack-reaction .small { flex: 0 0 auto; }
     .target-name { flex: 1 1 auto; min-width: 0; overflow: hidden; font-weight: var(--obrt-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
     .target-name.is-empty { color: #fde68a; font-weight: var(--obrt-weight-regular); white-space: normal; overflow-wrap: anywhere; }
     .target-hp { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }

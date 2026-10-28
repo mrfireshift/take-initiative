@@ -581,6 +581,28 @@ duplicato (10 + Destrezza del caster, dalla sua scheda). Se il tiro bersaglia
 un duplicato e lo colpisce, premi **Duplicato colpito**: il duplicato è
 distrutto e non registri l'attacco sul caster.
 
+Nello stesso punto le console mostrano le difese e le reazioni del bersaglio:
+
+- **Santuario**: chi attacca il protetto tira prima un TS Saggezza, con la CD
+  del caster dalla sua scheda. Se il protetto attacca dalla console, il
+  Santuario finisce.
+- **Scudo di fuoco** (Ardente o Gelido, scelto al lancio) e **Ombra di Moil**:
+  dopo un colpo (in mischia per lo Scudo, entro 3 m per l'Ombra) scrivi i 2d8
+  tirati e premi **Applica**: l'attaccante subisce il danno, con le sue
+  resistenze, in una voce sua della Cronologia.
+- Le **reazioni** che il bersaglio può ancora lanciare (nel libro preparato,
+  tra le azioni rapide o dai tratti di specie, con la Reazione libera):
+  **Lancia Scudo** dopo un colpo lo lancia subito (slot e Reazione); se il
+  tiro non arriva alla CA + 5 segna Mancato. **Assorbire elementi ›** su un
+  danno da acido, freddo, fuoco, fulmine o tuono e **Intimorire infernale ›**
+  dopo un danno aprono il pannello incantesimi già pronto.
+
+Le resistenze di Scudo di fuoco, Ombra di Moil, Interdizione primordiale,
+Vincolo di interdizione e Assorbire elementi valgono davvero nelle console.
+Interdizione primordiale ha nel ⚡ le cinque **Immunità: tipo**: la reazione
+toglie le resistenze e dà l'immunità al tipo scelto fino alla fine del
+prossimo turno del caster, poi l'incantesimo termina.
+
 ### Concentrazione e pulizia
 
 Un incantatore in concentrazione mostra una `C` sulla card e sul token.

@@ -752,6 +752,40 @@ const SPELL_END_CONSEQUENCES = Object.freeze({
 });
 
 const SPELL_EFFECTS = Object.freeze({
+  // CAP-REACTION (2014): an attacker of the warded creature saves on Wisdom first (the consoles show it); the spell
+  // ends when the warded creature attacks.
+  "sanctuary": Object.freeze([
+    Object.freeze({
+      id: "sanctuary-ward",
+      kind: "buff",
+      label: "Santuario",
+      detail: "Chi lo bersaglia con un attacco o un incantesimo che infligge danni fa prima un TS Saggezza: se fallisce, sceglie un altro bersaglio o perde l'attacco. Termina se il protetto attacca o lancia un incantesimo su un nemico.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "sanctuary-wisdom-save", label: "TS Sag per attaccarlo" }),
+      ]),
+      mechanics: Object.freeze({ sanctuary: true }),
+      endsParentOnRemoval: true,
+    }),
+  ]),
+  // CAP-REACTION (2014): within 18 m of the caster, +1 AC and saves and resistance to all damage; the caster takes the
+  // same damage (lotto 2).
+  "warding-bond": Object.freeze([
+    Object.freeze({
+      id: "warding-bond-ward",
+      kind: "buff",
+      label: "Vincolo di interdizione · +1 CA e TS · Res. tutti",
+      detail: "Entro 18 m dal caster: +1 alla CA e ai tiri salvezza, resistenza a tutti i danni. Ogni danno subito lo subisce anche il caster.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "warding-bond-armor-class", label: "+1 CA e TS" }),
+        Object.freeze({ id: "damage-defense-resistance-all", label: "Res. tutti i danni" }),
+        Object.freeze({ id: "warding-bond-shared-damage", label: "Danni anche al caster" }),
+      ]),
+      mechanics: Object.freeze({
+        armorClass: Object.freeze({ bonus: 1 }),
+        damageDefenses: Object.freeze({ resistances: Object.freeze(["acid", "bludgeoning", "cold", "fire", "force", "lightning", "necrotic", "piercing", "poison", "psychic", "radiant", "slashing", "thunder"]) }),
+      }),
+    }),
+  ]),
   "freedom-of-movement": Object.freeze([
     Object.freeze({
       id: "freedom-of-movement-immunities",
@@ -1473,7 +1507,35 @@ const SPELL_SUMMARY_DEFINITIONS = Object.freeze({
   ...SUPPLEMENT_SUMMARY_DEFINITIONS,
 });
 
+// Absorb Elements: the Italian label of its choice and the damage type of the resistance.
+const ABSORB_ELEMENTS_TYPE_IDS = Object.freeze({
+  acido: "acid", freddo: "cold", fulmine: "lightning", fuoco: "fire", tuono: "thunder",
+});
+// CAP-REACTION (2014): the attacker within reach that hits the creature takes the damage (the consoles offer it).
+const fireShieldChoice = (id, label, resistance, damageType, damageLabel) => Object.freeze({
+  id,
+  label,
+  effects: Object.freeze([Object.freeze({
+    id: `fire-shield-${id}`,
+    kind: "buff",
+    label: `${label} · Res. ${resistance.label}`,
+    detail: `Resistenza ai danni da ${resistance.label}; chi lo colpisce con un attacco in mischia entro 1,5 m subisce 2d8 danni da ${damageLabel}.`,
+    summaryParts: Object.freeze([
+      Object.freeze({ id: `damage-defense-resistance-${resistance.id}`, label: `Res. ${resistance.label}` }),
+      Object.freeze({ id: `fire-shield-${id}-retaliation`, label: `Ritorsione 2d8 ${damageLabel}` }),
+    ]),
+    mechanics: Object.freeze({
+      damageDefenses: Object.freeze({ resistances: Object.freeze([resistance.id]) }),
+      retaliation: Object.freeze({ dice: "2d8", type: damageType, meleeOnly: true, reachMeters: 1.5, label: "Scudo di fuoco" }),
+    }),
+  })]),
+});
+
 const SPELL_EFFECT_CHOICES = Object.freeze({
+  "fire-shield": Object.freeze([
+    fireShieldChoice("warm", "Scudo ardente", { id: "cold", label: "freddo" }, "fire", "fuoco"),
+    fireShieldChoice("chill", "Scudo gelido", { id: "fire", label: "fuoco" }, "cold", "freddo"),
+  ]),
   "acid-arrow": Object.freeze([
     Object.freeze({ id: "hit", label: "Colpito" }),
     Object.freeze({ id: "miss", label: "Mancato" }),
@@ -1541,8 +1603,12 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
           label: `Res. ${type}`,
           detail: `Resistenza ai danni da ${type} fino all'inizio del prossimo turno del caster.`,
           summaryParts: Object.freeze([
-            Object.freeze({ id: `absorb-elements-resistance-${type}`, label: `Res. ${type}` }),
+            Object.freeze({ id: `damage-defense-resistance-${ABSORB_ELEMENTS_TYPE_IDS[type]}`, label: `Res. ${type}` }),
           ]),
+          // CAP-REACTION: a real resistance, applied by the attack consoles to the triggering damage too.
+          mechanics: Object.freeze({
+            damageDefenses: Object.freeze({ resistances: Object.freeze([ABSORB_ELEMENTS_TYPE_IDS[type]]) }),
+          }),
           expiry: Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
         }),
         Object.freeze({

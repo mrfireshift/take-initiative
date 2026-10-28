@@ -62,6 +62,14 @@
     .mirror-image[hidden] { display: none; }
     .mirror-image-note { margin: 0; min-width: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
     .mirror-image .mini-button { flex: 0 0 auto; }
+    /* CAP-REACTION: the target's Sanctuary, the retaliation of its shield and the reactions it can still cast. */
+    .attack-reactions { display: grid; gap: 4px; }
+    .attack-reactions[hidden] { display: none; }
+    .attack-reaction { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid rgba(251, 146, 60, .45); border-radius: var(--obrt-radius-md); background: rgba(194, 65, 12, .14); }
+    .attack-reaction-note { margin: 0; flex: 1 1 auto; min-width: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
+    .attack-reactions > .attack-reaction-note { padding: 5px 8px; border: 1px solid rgba(96, 165, 250, .45); border-radius: var(--obrt-radius-md); background: rgba(37, 99, 235, .14); }
+    .attack-reaction-amount { flex: 0 0 52px; width: 52px; min-height: 24px; padding: 2px 4px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); color: inherit; }
+    .attack-reaction .mini-button { flex: 0 0 auto; }
     /* The picker: weapon attacks, cantrips and attack spells of the actor, one tab each, then the entry. */
     .picker { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; }
     /* The list gives way down to its 132 px, never under the card below it: the tabs, the search and that much stay. */
@@ -328,6 +336,7 @@
             <p class="mirror-image-note" id="pc-attack-mirror-image-note"></p>
             <button class="mini-button" id="pc-attack-mirror-image-hit" type="button">Duplicato colpito</button>
           </div>
+          <div class="attack-reactions" id="pc-attack-reactions" hidden></div>
           <div class="palm" id="pc-attack-palm" hidden>
             <div class="palm-head"><span class="palm-title">Palmo Tremante</span><span class="card-note" id="pc-attack-palm-note"></span></div>
             <div class="segmented mini" id="pc-attack-palm-outcomes" role="group" aria-label="Fine delle vibrazioni"></div>

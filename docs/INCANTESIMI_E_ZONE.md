@@ -185,6 +185,17 @@ frecce e Guardiano della fede lo tengono sull'istanza proprietaria della zona:
 munizione per creatura, il danno inflitto) e a zero toglie anche la zona con
 `static-zone:remove-ended`, nella stessa voce della Cronologia.
 
+CAP-REACTION (lotto 1) mette difese vere nelle pill (`mechanics.damageDefenses`)
+e due marcatori letti dalle console attacchi e Boss: `mechanics.retaliation`
+(Scudo di fuoco, Ombra di Moil: i 2d8 sull'attaccante dopo un colpo) e
+`mechanics.sanctuary` (il TS Saggezza di chi attacca il protetto).
+`src/attackReactionsCore.js` costruisce gli avvisi sotto il bersaglio, compreso
+quali reazioni il bersaglio può ancora lanciare (Scudo, Assorbire elementi,
+Intimorire infernale); `src/attackReactionsRuntime.js` applica la ritorsione
+in un comando suo e lancia Scudo come il libro degli incantesimi. Le azioni di
+un incantesimo possono spendere la Reazione con `spendsReaction`
+(Interdizione primordiale).
+
 Gli avvisi di concentrazione della console ad area partono dopo il commit
 (`defaultConcentrationWarnings`), con la voce della Cronologia come causa:
 prima il gancio `onConcentrationWarnings` era vuoto e i danni del pannello non

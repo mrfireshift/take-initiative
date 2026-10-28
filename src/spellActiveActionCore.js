@@ -7,6 +7,7 @@ import {
   spellPreparedResolutionAvailable,
 } from "./spellCastPhaseCore.js";
 import { buildSpellActiveResolutionResourceOperations } from "./spellActiveResolutionCore.js";
+import { NEXT_OWN_TURN_START_EXPIRY, REACTION_USED_CONDITION } from "./reactionTrackerCore.js";
 import { resolveTargetingCapacity } from "./spellTargetingCapacityCore.js";
 import { blinkStateFromCastContext } from "./blinkRules.js";
 import {
@@ -556,10 +557,23 @@ export function buildSpellActiveActionPlan({
       }, parentInstanceId),
     });
   }
+  // spendsReaction (Primordial Ward's immunity): the caster's reaction goes in the same command, back at the start of
+  // its turn (reactionTrackerCore.js).
+  if (action.spendsReaction === true && casterId) {
+    operations.push({
+      type: "condition:add",
+      targetIds: [casterId],
+      conditionName: REACTION_USED_CONDITION,
+      options: {
+        ...(appliedAt ? { appliedAt: clone(appliedAt) } : {}),
+        expiry: { ...NEXT_OWN_TURN_START_EXPIRY },
+      },
+    });
+  }
   if (operations.some((operation) => operation.type === "condition:add")) {
     operations.push({
       type: "condition:automate",
-      subjectIds,
+      subjectIds: uniqueIds([...subjectIds, ...(action.spendsReaction === true && casterId ? [casterId] : [])]),
     });
   }
   if (action.rememberTargets === true && action.subjectMode !== "none") {

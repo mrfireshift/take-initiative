@@ -27,6 +27,8 @@ import { bossSeamDrawingIds,bossSeamPortalSpecs,bossSeamChainPortalSpecs,BOSS_SE
 import "./popoverDrag.js";
 import { BOSS_ACTIONS_CONSOLE_CHANNEL } from "./bossActionsLauncher.js";
 import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageState } from "./mirrorImageCore.js";
+import { renderAttackReactions } from "./attackReactionsView.js";
+import { hasReactionUsed } from "./reactionTrackerCore.js";
 import { perfBootPage } from "./perfProbe.js";
 
 perfBootPage(OBR);
@@ -719,6 +721,42 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(explicit)lockDraft();
     renderTargetBox();renderDecisions();persistDraft();
   }
+  let reactionsBusy=false;
+  function renderBossTargetReactions() {
+    const box=resolution.querySelector?.("#boss-target-reactions");
+    if(!box || !draft) return;
+    const target=targetById(draft.targetId),execution=draft.action.execution;
+    const mode=draft.mode || execution.attack?.modes?.[0] || "";
+    renderAttackReactions(box,{
+      target,attacker:presentation?.item || null,items:[...targets,...(presentation?.item?[presentation.item]:[])],
+      attack:{roll:draft.kind==="attack-damage",melee:mode==="melee",outcome:outcomeChoice(),
+        damageTypes:bossActionDamageComponents(draft.action).map(component=>component.type)},
+    },{busy:busy || reactionsBusy,retaliate:retaliateOnBoss,cast:castTargetReaction,buttonClass:"small"});
+  }
+  async function retaliateOnBoss(row,amount) {
+    if(reactionsBusy || !presentation?.item) return;
+    reactionsBusy=true;renderBossTargetReactions();
+    try {
+      const {applyRetaliationDamage}=await import("./attackReactionsRuntime.js");
+      const result=await applyRetaliationDamage({attackerId:presentation.item.id,amount,type:row.type,label:row.label});
+      setStatus(result.message);
+    } catch(error) {setStatus(String(error?.message || error));}
+    finally {reactionsBusy=false;renderBossTargetReactions();}
+  }
+  async function castTargetReaction(offer) {
+    const targetId=draft?.targetId;
+    if(reactionsBusy || !targetId) return;
+    reactionsBusy=true;renderBossTargetReactions();
+    try {
+      const {castReactionSpell,openReactionSpellPanel}=await import("./attackReactionsRuntime.js");
+      if(offer.direct) {
+        const result=await castReactionSpell({spellId:offer.spellId,casterId:targetId});
+        setStatus(result.ok?"Scudo lanciato: +5 CA. Se il tiro non arriva alla CA + 5, segna Mancato.":result.message);
+        targets=bossActionTargets(await api.scene.items.getItems(),sourceId);
+      } else await openReactionSpellPanel({spellId:offer.spellId,casterId:targetId,targetIds:offer.targetIds || [],variant:offer.variant || ""});
+    } catch(error) {setStatus(String(error?.message || error));}
+    finally {reactionsBusy=false;renderTargetBox();}
+  }
   let mirrorBusy=false;
   async function destroyMirrorDuplicate(instanceId) {
     if(!instanceId || mirrorBusy || busy) return;
@@ -765,6 +803,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
       const hit=button("Duplicato colpito");hit.id="boss-target-mirror-image-hit";hit.disabled=busy || mirrorBusy;
       hit.addEventListener("click",()=>void destroyMirrorDuplicate(mirror.instanceId));
       row.append(node("p",mirrorImageNotice(mirror),"mirror-image-note"),hit);box.appendChild(row);
+    }
+    // CAP-REACTION: the target's Sanctuary, its shield's retaliation and the reactions it can still cast.
+    if(target && ["attack-damage","save-damage"].includes(draft.kind)) {
+      const reactions=node("div","","attack-reactions");reactions.id="boss-target-reactions";reactions.hidden=true;
+      box.appendChild(reactions);renderBossTargetReactions();
     }
     const choices=draft.picker?targets:draft.candidates?.length?draft.candidates:[];
     if(draft.suggestion && !draft.picker) {
@@ -819,6 +862,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   function renderDraftState() {
     if(!draft || view!=="resolve") return;
     if(draft.kind==="group-save") return renderGroupState();
+    renderBossTargetReactions();
     if(["throw","effect-end","seam"].includes(draft.kind)) return renderSpecialState();
     const total=$("boss-total");
     if(total && ["attack-damage","save-damage"].includes(draft.kind)) {
@@ -1822,8 +1866,11 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const boss=items.find(item=>item.id===sourceId)?.metadata?.[META_KEY] || {};
     // The boss's own effects feed Epic Resistance's list, so they refresh the console too.
     return JSON.stringify([boss.bossActionState ?? null,boss.initiativeCard?.bossActionBinding ?? null,boss.hp ?? null,boss.conditions ?? null,boss[ID+"/spells"] ?? null,
+      // A target's reaction and its active spells' counters (Mirror Image, Shield): the reactions box under it (CAP-REACTION).
       bossActionTargets(items,sourceId).map(item=>[item.id,item.name,item.metadata?.[META_KEY]?.hp,item.metadata?.[META_KEY]?.hpMax,
-        damageDefensesForItem(item,META_KEY),immunityKeys(item)]),bossGrappledIds(items,sourceId)]);
+        damageDefensesForItem(item,META_KEY),immunityKeys(item),hasReactionUsed(item.metadata?.[META_KEY]?.conditions),
+        (Array.isArray(item.metadata?.[META_KEY]?.[ID+"/spells"])?item.metadata[META_KEY][ID+"/spells"]:[])
+          .map(spell=>[spell?.spellId || "",spell?.castContext?.uses?.remaining ?? null])]),bossGrappledIds(items,sourceId)]);
   }
   function scheduleRefresh() {
     refreshPending=true;

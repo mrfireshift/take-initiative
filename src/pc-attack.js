@@ -39,6 +39,7 @@ import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUV
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
 import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageState } from "./mirrorImageCore.js";
+import { renderAttackReactions } from "./attackReactionsView.js";
 import { pcBreathAreaRuleId, pcMonsterAreaRuleId } from "./pcAttackBreathId.js";
 import "./popoverDrag.js";
 import { perfBootPage } from "./perfProbe.js";
@@ -308,6 +309,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const setStatus=(message,kind="")=>{status.textContent=message;status.dataset.kind=message?kind:"";};
   const mirrorBox=$("pc-attack-mirror-image"),mirrorNote=$("pc-attack-mirror-image-note"),mirrorHit=$("pc-attack-mirror-image-hit");
   let mirrorBusy=false;
+  const reactionsBox=$("pc-attack-reactions");
+  let reactionsBusy=false;
   const targetById=id=>presentation?.targets.find(item=>item.id===id) || null;
   // Any tracked creature, the attacker included (temporary hit points, Bursting Arrow's creatures).
   const creatureById=id=>id===presentation?.item?.id?presentation.item:targetById(id);
@@ -1759,6 +1762,39 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       scheduleRefresh();
     }
   });
+  // CAP-REACTION: the target's Sanctuary, the retaliation of its shield on a hit, the reactions it can still cast.
+  function renderTargetReactions() {
+    if(!reactionsBox) return;
+    const attack=typedAttack(),target=!isArea() && draft?.targetId?targetById(draft.targetId):null;
+    renderAttackReactions(reactionsBox,{
+      target,attacker:presentation?.item || null,items:[...(presentation?.targets || []),...(presentation?.item?[presentation.item]:[])],
+      attack:{roll:pcAttackOutcomesFor(resolved()).includes("hit"),melee:resolved()?.range==="melee",outcome:draft?.outcome || "",
+        damageTypes:(attack?.components || []).map(component=>component.type)},
+    },{busy:busy || reactionsBusy,retaliate:retaliateOnAttacker,cast:castTargetReaction});
+  }
+  async function retaliateOnAttacker(row,amount) {
+    if(reactionsBusy || !presentation?.item) return;
+    reactionsBusy=true;renderTargetReactions();
+    try {
+      const {applyRetaliationDamage}=await import("./attackReactionsRuntime.js");
+      const result=await applyRetaliationDamage({attackerId:presentation.item.id,amount,type:row.type,label:row.label});
+      setStatus(result.message,result.ok?"ok":"error");
+    } catch(error) {setStatus(String(error?.message || error),"error");}
+    finally {reactionsBusy=false;renderTargetReactions();scheduleRefresh();}
+  }
+  async function castTargetReaction(offer) {
+    const targetId=draft?.targetId;
+    if(reactionsBusy || !targetId) return;
+    reactionsBusy=true;renderTargetReactions();
+    try {
+      const {castReactionSpell,openReactionSpellPanel}=await import("./attackReactionsRuntime.js");
+      if(offer.direct) {
+        const result=await castReactionSpell({spellId:offer.spellId,casterId:targetId});
+        setStatus(result.ok?"Scudo lanciato: +5 CA. Se il tiro non arriva alla CA + 5, segna Mancato.":result.message,result.ok?"ok":"warn");
+      } else await openReactionSpellPanel({spellId:offer.spellId,casterId:targetId,targetIds:offer.targetIds || [],variant:offer.variant || ""});
+    } catch(error) {setStatus(String(error?.message || error),"error");}
+    finally {reactionsBusy=false;renderTargetReactions();scheduleRefresh();}
+  }
   function renderTarget() {
     // An area attack replaces the target with the creatures of its area.
     const area=isArea();
@@ -1766,6 +1802,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     targetSelect.hidden=area;
     renderArea();
     renderMirrorImage();
+    renderTargetReactions();
     if(area){hint.hidden=true;return;}
     const options=[node("option","— Scegli il bersaglio —")];options[0].value="";
     for(const item of presentation.targets){const option=node("option",bossTargetLabel(item));option.value=item.id;options.push(option);}
@@ -1864,6 +1901,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   }
   function renderState() {
     renderReaction();
+    renderTargetReactions();
     // The hit effect follows the outcome, which a click changes without a full render (fase 5, lotto 4).
     renderHitEffect();
     if(isArea()) return renderAreaState();
@@ -2055,7 +2093,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     return JSON.stringify([source.initiativeCard ?? null,source.classFeatureState ?? null,source.conditions ?? null,source.pcAttackState ?? null,
       source.hp ?? null,source[`${ID}/concentration`] ?? null,
       bossActionTargets(items,sourceId).map(item=>[item.id,item.name,item.metadata?.[META_KEY]?.hp,item.metadata?.[META_KEY]?.hpMax,
-        item.metadata?.[META_KEY]?.initiativeCard?.damageDefenses ?? null,item.metadata?.[META_KEY]?.conditions ?? null])]);
+        item.metadata?.[META_KEY]?.initiativeCard?.damageDefenses ?? null,item.metadata?.[META_KEY]?.conditions ?? null,
+        // Its active spells' counters (Mirror Image): the notices under the target (CAP-REACTION).
+        (Array.isArray(item.metadata?.[META_KEY]?.[ID+"/spells"])?item.metadata[META_KEY][ID+"/spells"]:[])
+          .map(spell=>[spell?.spellId || "",spell?.castContext?.uses?.remaining ?? null])])]);
   }
   async function readSelection(ids) {
     if(invalidated || !lifecycle.isReady() || !presentation) return;

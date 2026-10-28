@@ -646,7 +646,7 @@ da questo audit.
 - Opzioni trackable del runtime: **362**; definizioni con tracking persistente verificate dall'audit: **359**; definizioni con regole d'area: **139** (144 regole).
 - Workflow che richiedono smoke test runtime: **407**.
 - Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `5ccbfff053e67a7d`.
+- Impronta deterministica: `f63c055056bd3c6c`.
 
 ## Decisioni di prodotto chiuse
 
@@ -660,8 +660,8 @@ da questo audit.
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 66 |
-| PARTIAL | 222 |
-| TRACK_ONLY | 123 |
+| PARTIAL | 225 |
+| TRACK_ONLY | 120 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -700,13 +700,13 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 48 |
+| ACTIVE_ACTION | 49 |
 | AREA_GEOMETRY | 139 |
-| CAST | 258 |
+| CAST | 260 |
 | CLEANUP | 116 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 359 |
-| TURN_TRIGGER | 96 |
+| TURN_TRIGGER | 97 |
 
 ### Stato di integrazione console unificata
 
@@ -1138,7 +1138,7 @@ Nessuna voce.
 | Saltare | `jump` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Salvare i morenti | `spare-the-dying` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Santificare | `hallow` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Santuario | `sanctuary` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Santuario | `sanctuary` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Santuario privato | `private-sanctum` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Scagliare maledizione | `bestow-curse` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Scassinare | `knock` | SRD 5.1 / 2 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1157,7 +1157,7 @@ Nessuna voce.
 | Scudiscio Mentale di Tasha | `legacy-tashas-mind-whip` | Legacy / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Scudo | `shield` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Scudo della fede | `shield-of-faith` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Scudo di fuoco | `fire-shield` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Scudo di fuoco | `fire-shield` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Scurovisione | `darkvision` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Segugio fedele | `faithful-hound` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sembrare | `seeming` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1231,7 +1231,7 @@ Nessuna voce.
 | Vento di Interdizione | `xanathar-vento-di-interdizione` | Xanathar / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Vigilanza e interdizione | `guards-and-wards` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Vincolo della Terra | `xanathar-vincolo-della-terra` | Xanathar / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Vincolo di interdizione | `warding-bond` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Vincolo di interdizione | `warding-bond` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Visione del vero | `true-seeing` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Vita falsata | `false-life` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Volare | `fly` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

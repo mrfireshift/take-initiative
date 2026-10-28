@@ -263,7 +263,41 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
   }),
 });
 
+// CAP-REACTION (Xanathar 2014): taking damage of one of its five types, the caster may use its reaction to be
+// immune to that type, the triggering damage included; the resistances end, the immunity lasts until the end of its
+// next turn and the spell ends with it. One action per type: one click from the pill's ⚡.
+const primordialWardImmunity = (type, label) => Object.freeze({
+  id: `primordial-ward-immunity-${type}`,
+  label: `Immunità: ${label}`,
+  buttonLabel: `Immunità: ${label}`,
+  detail: `Reazione, quando subisce danni da ${label}: immunità a quel tipo, anche contro il danno che l'ha innescata, fino alla fine del suo prossimo turno; le resistenze finiscono e l'incantesimo termina con l'immunità.`,
+  subjectMode: "caster",
+  showInOverview: true,
+  repeatableThisTurn: true,
+  spendsReaction: true,
+  consumesEffectIds: Object.freeze(["elemental-resistances"]),
+  effects: Object.freeze([Object.freeze({
+    id: `primordial-ward-immunity-${type}`,
+    kind: "buff",
+    label: `Imm. ${label}`,
+    detail: `Immune ai danni da ${label} fino alla fine del prossimo turno del caster; poi Interdizione primordiale termina.`,
+    summaryParts: Object.freeze([
+      Object.freeze({ id: `primordial-ward-immunity-${type}`, label: `Imm. ${label}` }),
+    ]),
+    mechanics: Object.freeze({ damageDefenses: Object.freeze({ immunities: Object.freeze([type]) }) }),
+    endsParentOnRemoval: true,
+    expiry: nextTurn("turn-end"),
+  })]),
+});
+
 export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({
+  "xanathar-interdizione-primordiale": Object.freeze([
+    primordialWardImmunity("acid", "acido"),
+    primordialWardImmunity("cold", "freddo"),
+    primordialWardImmunity("fire", "fuoco"),
+    primordialWardImmunity("lightning", "fulmine"),
+    primordialWardImmunity("thunder", "tuono"),
+  ]),
   "tasha-sudario-spirituale": Object.freeze([Object.freeze({
     id: "spirit-shroud-mark-hit",
     label: "Segna bersaglio colpito",
@@ -598,9 +632,16 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     label: "Res. acido/freddo/fulmine/fuoco/tuono",
     detail: "Resistenza ai cinque tipi di danno elementale finché non viene attivata l'immunità con una reazione.",
     summaryParts: Object.freeze([
-      Object.freeze({ id: "elemental-resistances-five-types", label: "Res. 5 elementi" }),
+      ...["acid", "cold", "fire", "lightning", "thunder"].map((type) => Object.freeze({
+        id: `damage-defense-resistance-${type}`,
+        label: `Res. ${{ acid: "acido", cold: "freddo", fire: "fuoco", lightning: "fulmine", thunder: "tuono" }[type]}`,
+      })),
       Object.freeze({ id: "elemental-resistances-reaction-immunity", label: "Reaz.: Imm. tipo" }),
     ]),
+    // CAP-REACTION: real resistances, read by the attack consoles.
+    mechanics: Object.freeze({
+      damageDefenses: Object.freeze({ resistances: Object.freeze(["acid", "cold", "fire", "lightning", "thunder"]) }),
+    }),
   })]),
   "xanathar-investitura-del-ghiaccio": Object.freeze([Object.freeze({
     id: "ice-investiture",
@@ -697,9 +738,14 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     detail: "Il caster è pesantemente oscurato, resiste ai radiosi e danneggia chi lo colpisce in mischia.",
     summaryParts: Object.freeze([
       Object.freeze({ id: "shadow-of-moil-obscured", label: "Oscurato" }),
-      Object.freeze({ id: "shadow-of-moil-radiant-resistance", label: "Res. radiosi" }),
+      Object.freeze({ id: "damage-defense-resistance-radiant", label: "Res. radiosi" }),
       Object.freeze({ id: "shadow-of-moil-melee-retaliation", label: "Ritorsione mischia" }),
     ]),
+    // CAP-REACTION: a real resistance; an attacker within 3 m that hits takes 2d8 necrotic (offered by the consoles).
+    mechanics: Object.freeze({
+      damageDefenses: Object.freeze({ resistances: Object.freeze(["radiant"]) }),
+      retaliation: Object.freeze({ dice: "2d8", type: "necrotic", meleeOnly: false, reachMeters: 3, label: "Ombra di Moil" }),
+    }),
   })]),
   "xanathar-parola-del-potere-dolore": Object.freeze([Object.freeze({
     id: "power-word-pain",

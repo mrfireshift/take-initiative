@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 255,
-      "PARTIAL": 47,
+      "COMPLETE / CURRENT": 259,
+      "PARTIAL": 43,
       "NO AUTOMATION REQUIRED": 144,
       "MISSING": 16,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 63,
+    "implementableBacklog": 59,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 52,
-        "percent": 82.53968253968253
+        "count": 48,
+        "percent": 81.35593220338984
       },
       "RED": {
         "count": 11,
-        "percent": 17.46031746031746
+        "percent": 18.64406779661017
       }
     },
     "scenarios": [
@@ -12115,7 +12115,7 @@
         "src/spellApplicationPlanCore.js"
       ],
       "mechanicsRequired": [
-        "Tracking presente; trigger danno/attacco e consumo/trasferimento/ritorsione assistiti richiedono evento condiviso."
+        "CAP-REACTION lotto 2: il primo danno che porta a 0 PF lascia a 1 PF e termina l'interdizione, nei due punti dei TS contro la morte; annulla le morti istantanee senza danno."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -17146,14 +17146,16 @@
       "id": "fire-shield",
       "spell": "Scudo di fuoco",
       "level": 4,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/attackReactionsCore.js",
+        "src/attackReactionsRuntime.js",
+        "src/attackReactionsView.js"
       ],
       "mechanicsRequired": [
-        "Tracking presente; trigger danno/attacco e consumo/trasferimento/ritorsione assistiti richiedono evento condiviso.",
+        "CAP-REACTION lotto 1: scelta Ardente/Gelido al lancio con la resistenza vera (freddo o fuoco); dopo un colpo in mischia la console attacchi o Boss propone la ritorsione 2d8 sull'attaccante, con la sua difesa e una voce in Cronologia.",
         "Damage type: fire"
       ],
       "existingReusableCapabilities": [
@@ -17166,9 +17168,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-REACTION"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -17205,8 +17205,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "DAMAGE-REACTION",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-REACTION",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "fire-shield",
@@ -17215,6 +17215,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/attackReactions.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -33288,14 +33289,15 @@
       "id": "sanctuary",
       "spell": "Santuario",
       "level": 1,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/attackReactionsCore.js",
+        "src/pcAttackCore.js"
       ],
       "mechanicsRequired": [
-        "Tracking presente; trigger danno/attacco e consumo/trasferimento/ritorsione assistiti richiedono evento condiviso."
+        "CAP-REACTION lotto 1: pill Santuario sul protetto; la console attacchi o Boss ricorda il TS Saggezza con la CD del caster; l'attacco del protetto dalla console lo termina."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -33307,9 +33309,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-REACTION"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -33346,8 +33346,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "DAMAGE-REACTION",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-REACTION",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "sanctuary",
@@ -33356,6 +33356,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/attackReactions.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -40541,7 +40542,7 @@
         "src/spellApplicationPlanCore.js"
       ],
       "mechanicsRequired": [
-        "Tracking presente; trigger danno/attacco e consumo/trasferimento/ritorsione assistiti richiedono evento condiviso."
+        "CAP-REACTION: lotto 1 fatto (pill sul bersaglio con +1 CA e TS e resistenza vera a tutti i danni); resta il lotto 2, il danno condiviso col caster nello stesso comando."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -47126,14 +47127,14 @@
       "id": "xanathar-interdizione-primordiale",
       "spell": "Interdizione Primordiale",
       "level": 6,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellActiveActionCore.js"
       ],
       "mechanicsRequired": [
-        "Effect iniziale presente; reazione condizionale con transizione e expiry breve non è ancora un descriptor completo."
+        "CAP-REACTION lotto 1: resistenze vere ai cinque elementi; la reazione «Immunità: tipo» (una azione per tipo, dal ⚡) spende la Reazione, toglie le resistenze e dà l'immunità fino alla fine del prossimo turno, con cui l'incantesimo termina."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -47146,9 +47147,7 @@
         "C-HISTORY",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "CAP-REACTION"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -47185,8 +47184,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "DAMAGE-REACTION",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-REACTION",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-interdizione-primordiale",
@@ -47195,6 +47194,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/attackReactions.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -49460,14 +49460,16 @@
       "id": "xanathar-ombra-di-moil",
       "spell": "Ombra di Moil",
       "level": 4,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/supplementSpellRules.js",
-        "src/spellApplicationPlanCore.js"
+        "src/attackReactionsCore.js",
+        "src/attackReactionsRuntime.js",
+        "src/attackReactionsView.js"
       ],
       "mechanicsRequired": [
-        "Effect iniziale presente; reazione condizionale con transizione e expiry breve non è ancora un descriptor completo."
+        "CAP-REACTION lotto 1: resistenza vera ai radiosi; dopo un colpo entro 3 m la console propone la ritorsione 2d8 necrotici sull'attaccante."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -49480,9 +49482,7 @@
         "C-HISTORY",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "CAP-REACTION"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -49519,8 +49519,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "DAMAGE-REACTION",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-REACTION",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spells-supplements-runtime.json",
         "spellId": "xanathar-ombra-di-moil",
@@ -49529,6 +49529,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/attackReactions.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",

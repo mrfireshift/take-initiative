@@ -138,7 +138,8 @@ test("la tranche 1 dichiara summaryParts esatte e mantiene detail/reminder", () 
     getSpellEffects("Ombra di Moil")[0].summaryParts,
     [
       { id: "shadow-of-moil-obscured", label: "Oscurato" },
-      { id: "shadow-of-moil-radiant-resistance", label: "Res. radiosi" },
+      // CAP-REACTION: the id of the resistance its mechanics declare, so it shows once.
+      { id: "damage-defense-resistance-radiant", label: "Res. radiosi" },
       { id: "shadow-of-moil-melee-retaliation", label: "Ritorsione mischia" },
     ],
   );

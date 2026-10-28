@@ -1527,11 +1527,14 @@ function attitudeSide(item) {
   const attitude = String(item?.metadata?.[META_KEY]?.attitude || "neutral").toLocaleLowerCase("it");
   return attitude === "enemy" ? "enemy" : attitude === "pc" || attitude === "ally" ? "friendly" : "neutral";
 }
-// Invisibility ends for its bearer who attacks or casts (any registration of the console); Compelled Duel ends when
+// Invisibility and Sanctuary end for their bearer who attacks or casts (any registration of the console); Compelled Duel ends when
 // its caster attacks another creature, or when a creature friendly to the caster damages the duel's target.
 export function pcAttackLinkEnds({ sourceItem, targetItem, linkItems = [], damaged = false } = {}) {
   const ends = linkedSpellPills(sourceItem, "invisibility").map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id,
     spellId: "invisibility", reason: "Ha attaccato o lanciato un incantesimo." }));
+  // Sanctuary (CAP-REACTION) ends when the warded creature attacks or casts a spell on an enemy.
+  ends.push(...linkedSpellPills(sourceItem, "sanctuary").map((instance) => ({ itemId: sourceItem.id, instanceId: instance.id,
+    spellId: "sanctuary", reason: "Ha attaccato." })));
   // A species trait's pill that ends when its bearer attacks (Hidden Step, speciesTraitCore.js).
   for (const instance of conditionInstancesOf(sourceItem)) {
     if (instance?.active === false || !instance?.id || !getClassFeatureDefinition(instance.effectId)?.endsOnAttack) continue;
