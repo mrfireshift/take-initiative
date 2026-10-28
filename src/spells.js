@@ -229,6 +229,7 @@ export function buildSpellChips(spells, options = {}) {
   const frag = document.createDocumentFragment();
   const list = Array.isArray(spells) ? spells : [];
   const onTerminate = typeof options.onTerminate === "function" ? options.onTerminate : null;
+  const onActions = typeof options.onActions === "function" ? options.onActions : null;
   for (const spell of list) {
     const displayName = spell?.displayName || spell?.name || "";
     const chip = document.createElement("span");
@@ -284,7 +285,7 @@ export function buildSpellChips(spells, options = {}) {
     Object.assign(chip.style, {
       display: "inline-flex",
       alignItems: "center",
-      gap: options.concentrating || onTerminate || boardTokenHP?.itemId ? "3px" : "0",
+      gap: options.concentrating || onTerminate || onActions || boardTokenHP?.itemId ? "3px" : "0",
       padding: "2px 6px",
       borderRadius: "999px",
       background: color.solid,
@@ -297,6 +298,42 @@ export function buildSpellChips(spells, options = {}) {
       whiteSpace: "nowrap",
       cursor: "pointer",
     });
+    // The ⚡ opens the spell's active actions next to the pill (spell-pill-actions.js).
+    if (onActions) {
+      const actions = document.createElement("button");
+      actions.type = "button";
+      actions.textContent = "⚡";
+      actions.dataset.cardSelectionIgnore = "1";
+      actions.dataset.spellPillActions = "1";
+      actions.title = `Azioni di ${displayName}`;
+      actions.setAttribute("aria-label", actions.title);
+      Object.assign(actions.style, {
+        minWidth: "12px",
+        width: "12px",
+        height: "12px",
+        padding: "0",
+        border: "0",
+        borderRadius: "50%",
+        background: "rgba(0,0,0,.28)",
+        color: "inherit",
+        font: "inherit",
+        fontSize: "8px",
+        lineHeight: "12px",
+        cursor: "pointer",
+      });
+      actions.addEventListener("mouseenter", () => {
+        actions.style.background = "rgba(37,99,235,.8)";
+      });
+      actions.addEventListener("mouseleave", () => {
+        actions.style.background = "rgba(0,0,0,.28)";
+      });
+      actions.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onActions(spell, event);
+      });
+      chip.appendChild(actions);
+    }
     if (onTerminate) {
       const terminate = document.createElement("button");
       terminate.type = "button";

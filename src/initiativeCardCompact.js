@@ -7,6 +7,7 @@ import { CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS } from "./classFeatureCore.js
 import { effectSummaryPartsFor } from "./effectLabelCore.js";
 import { buildEffectSummaryContainer } from "./effectSummaryViewCore.js";
 import { getSpellSummaryParts } from "./spells-srd.js";
+import { spellPillHasActions } from "./spellPillActionsCore.js";
 import { COMPACT_CARD_WIDTH } from "./constants.js";
 import { HIT_AREA_MIN_SIZE, extendHitArea } from "./hitAreaCore.js";
 import { CARD_ICON_BUTTON_SIZE, buildCardIconGlyph, styleCardIconButton } from "./cardIconButton.js";
@@ -157,6 +158,10 @@ export function __compactEffectItems(
       kind: "spell",
       key: spellKey(spell?.name),
       ...(spellInstanceId ? { spellInstanceId } : {}),
+      // The ⚡ of a spell with active actions (spell-pill-actions.js).
+      ...(spellInstanceId && spellPillHasActions(spell)
+        ? { actionsSpell: { instanceId: spellInstanceId, spellId: String(spell?.spellId || ""), name: spellName } }
+        : {}),
       label: counter ? `${spellName} (${counter})` : spellName,
       title: [
         `${spellName} · ${spellExpiryDescription(spell)}${spell?.conc ? " · concentrazione" : ""}`,
@@ -230,6 +235,7 @@ export function __buildCompactEffectPill(
     documentRef = globalThis.document,
     spellColor = null,
     onTerminateClassFeature = null,
+    onSpellActions = null,
   } = {},
 ) {
   const pill = compactDocument(documentRef).createElement("span");
@@ -294,6 +300,49 @@ export function __buildCompactEffectPill(
     whiteSpace: "nowrap",
     boxShadow: "0 1px 4px rgba(0,0,0,.45)",
   });
+  if (effect.kind === "spell" && effect.actionsSpell && typeof onSpellActions === "function") {
+    const actions = compactDocument(documentRef).createElement("button");
+    actions.type = "button";
+    actions.textContent = "⚡";
+    actions.dataset.cardSelectionIgnore = "1";
+    actions.dataset.spellPillActions = "1";
+    actions.title = `Azioni di ${effect.actionsSpell.name || effect.label}`;
+    actions.setAttribute("aria-label", actions.title);
+    // Pinned to the right edge like the × of a class feature, so a long label is cut before it.
+    pill.style.paddingRight = "14px";
+    pill.style.overflow = "clip";
+    pill.style.overflowClipMargin = "8px";
+    Object.assign(actions.style, {
+      position: "absolute",
+      right: "2px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      minWidth: "11px",
+      width: "11px",
+      height: "11px",
+      padding: "0",
+      border: "0",
+      borderRadius: "50%",
+      background: "rgba(0,0,0,.28)",
+      color: "inherit",
+      font: "inherit",
+      fontSize: "7px",
+      lineHeight: "11px",
+      cursor: "pointer",
+    });
+    actions.addEventListener("mouseenter", () => {
+      actions.style.background = "rgba(37,99,235,.8)";
+    });
+    actions.addEventListener("mouseleave", () => {
+      actions.style.background = "rgba(0,0,0,.28)";
+    });
+    actions.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onSpellActions(effect.actionsSpell, event);
+    });
+    pill.appendChild(actions);
+  }
   if (effect.kind === "class-feature" && effect.classFeatureInstance &&
       typeof onTerminateClassFeature === "function") {
     const terminate = compactDocument(documentRef).createElement("button");
@@ -855,6 +904,7 @@ export function appendCompactEffectsDrawer(
   {
     spellColor = null,
     onTerminateClassFeature = null,
+    onSpellActions = null,
     documentRef = globalThis.document,
   } = {},
 ) {
@@ -894,7 +944,7 @@ export function appendCompactEffectsDrawer(
     });
     for (const effect of columnEffects) {
       // The card's pill (preview): same height, text and width as the one on the card.
-      const pill = __buildCompactEffectPill(effect, true, { documentRef, spellColor, onTerminateClassFeature });
+      const pill = __buildCompactEffectPill(effect, true, { documentRef, spellColor, onTerminateClassFeature, onSpellActions });
       Object.assign(pill.style, { display: "block", width: "100%" });
       column.appendChild(buildEffectSummaryContainer(effect, pill, { documentRef, preview: true }));
     }
@@ -1146,6 +1196,7 @@ export function buildCompactCardStatus(
     effectsPopoverOpen = false,
     spellColor = null,
     onTerminateClassFeature = null,
+    onSpellActions = null,
     documentRef = globalThis.document,
   } = {},
 ) {
@@ -1194,6 +1245,7 @@ export function buildCompactCardStatus(
     previewPill = __buildCompactEffectPill(previewEffect, true, {
       spellColor,
       onTerminateClassFeature,
+      onSpellActions,
       documentRef,
     });
     previewPill.style.flex = "1 1 100%";

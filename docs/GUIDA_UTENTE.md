@@ -548,6 +548,39 @@ una variante di Controllare Venti o applicare un esito di Sguardo penetrante.
 Gli incantesimi preparati restano sul caster. Quando devono essere risolti, il
 plugin chiede bersagli e variante senza creare una seconda concentrazione.
 
+### Azioni dalla pill sulla card
+
+Sulla card del tracker, la pill di un incantesimo con azioni (Immagine
+speculare, Bacche benefiche, Marchio del cacciatore, Invocare il fulmine…)
+mostra un **⚡**, solo per il GM. Il ⚡ apre accanto alla pill le sue azioni,
+con il contatore quando c'è («2/3 duplicati»):
+
+- un'azione che non chiede altro, come **Duplicato colpito**, si esegue con un
+  clic; il menu resta aperto con il contatore aggiornato e **Annulla** per
+  tornare indietro;
+- un'azione con un tiro o una scelta, come **Mangia una bacca**, apre subito
+  il suo popup;
+- un'azione che chiede una creatura (Sposta il marchio) la prende dalla
+  selezione sulla mappa: seleziona il token, poi premi;
+- un'azione con una scelta o una zona da spostare (Cambia direzione) porta il
+  segno **›** e apre il pannello incantesimi già sull'azione;
+- **Apri nel pannello** porta al pannello incantesimi per tutto il resto.
+
+Il clic sulla pill apre sempre la scheda nell'Enciclopedia DM, il clic destro
+la durata, la × termina l'incantesimo.
+
+Anche nel registro degli incantesimi attivi del pannello un'azione senza
+niente da compilare parte al primo clic (con **Annulla** subito dopo), o apre
+direttamente il suo popup; quelle che chiedono bersagli o una scelta si
+selezionano e si confermano come prima.
+
+Quando la console attacchi o la console Boss registra un attacco con tiro per
+colpire contro una creatura con **Immagine speculare**, sotto il bersaglio
+compare quanti duplicati restano, la soglia del d20 (6, 8 o 11) e la CA del
+duplicato (10 + Destrezza del caster, dalla sua scheda). Se il tiro bersaglia
+un duplicato e lo colpisce, premi **Duplicato colpito**: il duplicato è
+distrutto e non registri l'attacco sul caster.
+
 ### Concentrazione e pulizia
 
 Un incantatore in concentrazione mostra una `C` sulla card e sul token.

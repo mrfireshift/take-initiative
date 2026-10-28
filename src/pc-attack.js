@@ -38,6 +38,7 @@ import { PC_MANEUVER_CONTEST, PC_MANEUVER_NOTES, PC_MANEUVER_OUTCOMES, PC_MANEUV
   pcAttackManeuverEntries, pcGrappleHolds, pcGrapplesOn, pcManeuverBlocker, pcManeuverLabel } from "./pcAttackManeuverCore.js";
 import { isEpicActionId, isLairId, splitParagonId } from "./initiativeSelectionProjectionCore.js";
 import { requestSpellAreaPlacement, cancelSpellAreaPlacementRequest, createSpellAreaPlacementRequestId } from "./spellAreaPlacementClient.js";
+import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageState } from "./mirrorImageCore.js";
 import { pcBreathAreaRuleId, pcMonsterAreaRuleId } from "./pcAttackBreathId.js";
 import "./popoverDrag.js";
 import { perfBootPage } from "./perfProbe.js";
@@ -305,6 +306,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
   const node=(tag,text="",className="")=>{const element=documentRef.createElement(tag);element.textContent=text;if(className)element.className=className;return element;};
   // kind: "ok" (done), "warn" (cancelled, nothing done), "error"; none for plain information. The text is unchanged.
   const setStatus=(message,kind="")=>{status.textContent=message;status.dataset.kind=message?kind:"";};
+  const mirrorBox=$("pc-attack-mirror-image"),mirrorNote=$("pc-attack-mirror-image-note"),mirrorHit=$("pc-attack-mirror-image-hit");
+  let mirrorBusy=false;
   const targetById=id=>presentation?.targets.find(item=>item.id===id) || null;
   // Any tracked creature, the attacker included (temporary hit points, Bursting Arrow's creatures).
   const creatureById=id=>id===presentation?.item?.id?presentation.item:targetById(id);
@@ -1726,12 +1729,43 @@ export function bootPcAttack(documentRef=document,overrides={}) {
       ...pcAttackMonsterTags(attack,presentation?.item?.metadata?.[META_KEY]?.classFeatureState?.resources || {})].filter(Boolean);
     $("pc-attack-subtitle").textContent=presentation?parts.join(" · "):"";
   }
+  // Mirror Image on the target of an attack roll (lotto C): the d20 to aim at a duplicate; a hit on one destroys it
+  // with the spell's own action, and the attack is not recorded on the caster.
+  function renderMirrorImage() {
+    if(!mirrorBox) return;
+    const roll=!!draft && !isArea() && pcAttackOutcomesFor(resolved()).includes("hit");
+    const state=roll && draft.targetId?mirrorImageState(targetById(draft.targetId)):null;
+    mirrorBox.hidden=!state;
+    if(!state) return;
+    mirrorNote.textContent=mirrorImageNotice(state);
+    mirrorHit.disabled=busy || mirrorBusy;
+    mirrorHit.dataset.instanceId=state.instanceId;
+  }
+  mirrorHit?.addEventListener("click",async()=>{
+    const instanceId=mirrorHit.dataset.instanceId || "";
+    if(!instanceId || mirrorBusy) return;
+    mirrorBusy=true;renderMirrorImage();
+    const operation=lifecycle.capture();
+    try {
+      const {runSpellInstanceAction}=await import("./spellInstanceActionRunner.js");
+      const result=await runSpellInstanceAction({instanceId,actionId:MIRROR_IMAGE_DESTROY_ACTION_ID,operation,isCurrent:()=>lifecycle.isCurrent(operation)});
+      if(!lifecycle.isCurrent(operation)) return;
+      if(result.status==="executed") setStatus("Duplicato distrutto: il caster non subisce l'attacco. Annulla dalla Cronologia.","ok");
+      else setStatus(String(result.errors?.[0]?.message || "Duplicato non registrato."),"error");
+    } catch(error) {
+      if(lifecycle.isCurrent(operation)) setStatus(String(error?.message || error),"error");
+    } finally {
+      mirrorBusy=false;
+      scheduleRefresh();
+    }
+  });
   function renderTarget() {
     // An area attack replaces the target with the creatures of its area.
     const area=isArea();
     if(targetCaption) targetCaption.textContent=area?"Creature colpite":"Bersaglio";
     targetSelect.hidden=area;
     renderArea();
+    renderMirrorImage();
     if(area){hint.hidden=true;return;}
     const options=[node("option","— Scegli il bersaglio —")];options[0].value="";
     for(const item of presentation.targets){const option=node("option",bossTargetLabel(item));option.value=item.id;options.push(option);}
@@ -2069,7 +2103,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     lifecycle.dispose();
   }
 
-  targetSelect.addEventListener("change",()=>{draft.targetId=targetSelect.value || null;draft.ignored=[];renderLive();});
+  targetSelect.addEventListener("change",()=>{draft.targetId=targetSelect.value || null;draft.ignored=[];renderLive();renderMirrorImage();});
   // Another cantrip: other damage (fresh amount), range and notes; the target, outcome and extras stay.
   function selectSpell(spellId) {
     draft.spellId=spellId;

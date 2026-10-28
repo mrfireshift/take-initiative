@@ -26,6 +26,7 @@ import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
 import { bossSeamDrawingIds,bossSeamPortalSpecs,bossSeamChainPortalSpecs,BOSS_SEAM_PORTAL_ASSET,BOSS_SEAM_PORTAL_PIXELS,BOSS_SEAM_PORTAL_CELLS } from "./bossSeamPortalCore.js";
 import "./popoverDrag.js";
 import { BOSS_ACTIONS_CONSOLE_CHANNEL } from "./bossActionsLauncher.js";
+import { MIRROR_IMAGE_DESTROY_ACTION_ID, mirrorImageNotice, mirrorImageState } from "./mirrorImageCore.js";
 import { perfBootPage } from "./perfProbe.js";
 
 perfBootPage(OBR);
@@ -718,6 +719,25 @@ export function bootBossActions(documentRef=document, overrides={}) {
     if(explicit)lockDraft();
     renderTargetBox();renderDecisions();persistDraft();
   }
+  let mirrorBusy=false;
+  async function destroyMirrorDuplicate(instanceId) {
+    if(!instanceId || mirrorBusy || busy) return;
+    mirrorBusy=true;renderTargetBox();
+    const operation=lifecycle.capture();
+    try {
+      const {runSpellInstanceAction}=await import("./spellInstanceActionRunner.js");
+      const result=await runSpellInstanceAction({instanceId,actionId:MIRROR_IMAGE_DESTROY_ACTION_ID,operation,isCurrent:()=>lifecycle.isCurrent(operation)});
+      if(!lifecycle.isCurrent(operation)) return;
+      setStatus(result.status==="executed"?"Duplicato distrutto: il caster non subisce l’attacco. Annulla dalla Cronologia."
+        :String(result.errors?.[0]?.message || "Duplicato non registrato."));
+      targets=bossActionTargets(await api.scene.items.getItems(),sourceId);
+    } catch(error) {
+      if(lifecycle.isCurrent(operation)) setStatus(String(error?.message || error));
+    } finally {
+      mirrorBusy=false;
+      if(lifecycle.isCurrent(operation)) renderTargetBox();
+    }
+  }
   function renderTargetBox() {
     if(draft?.kind==="group-save") return renderGroupTargets();
     const box=resolution.querySelector?.("#boss-target-box");
@@ -738,6 +758,14 @@ export function bootBossActions(documentRef=document, overrides={}) {
     change.addEventListener("click",()=>{if(!draft || busy)return;draft.picker=!draft.picker;renderTargetBox();});
     line.appendChild(change);box.appendChild(line);
     if(chips){const defenses=node("div","","target-line");defenses.id="boss-target-defenses";defenses.append(node("span","Difese","caption"),chips);box.appendChild(defenses);}
+    // Mirror Image on the target of an attack roll (lotto C): a hit on a duplicate destroys it, the caster takes nothing.
+    const mirror=target && draft.kind==="attack-damage"?mirrorImageState(target):null;
+    if(mirror) {
+      const row=node("div","","mirror-image");row.id="boss-target-mirror-image";
+      const hit=button("Duplicato colpito");hit.id="boss-target-mirror-image-hit";hit.disabled=busy || mirrorBusy;
+      hit.addEventListener("click",()=>void destroyMirrorDuplicate(mirror.instanceId));
+      row.append(node("p",mirrorImageNotice(mirror),"mirror-image-note"),hit);box.appendChild(row);
+    }
     const choices=draft.picker?targets:draft.candidates?.length?draft.candidates:[];
     if(draft.suggestion && !draft.picker) {
       const offer=node("div","","target-line");offer.appendChild(node("span",`Selezione mappa: ${draft.suggestion.name || draft.suggestion.id}`,"muted"));

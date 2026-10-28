@@ -9131,6 +9131,37 @@ function __openEffectDurationPopover(sourceEntry, pill, event) {
   return true;
 }
 
+// The ⚡ of a spell pill (GM): its active actions in one click (spell-pill-actions.js), next to the pill.
+const SPELL_PILL_ACTIONS_POPOVER_ID = `${ID}/spell-pill-actions`;
+function __openSpellPillActions(sourceEntry, spell, event) {
+  const itemId = splitParagonId(sourceEntry?.id).baseId;
+  const spellInstanceId = String(spell?.instanceId || "").trim();
+  if (!IS_GM || !itemId || !spellInstanceId || isLairId(itemId) || isEpicActionId(itemId)) return false;
+  const sceneEpoch = currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "spell-pill-actions-open")) return false;
+  const query = new URLSearchParams({ itemId, spellInstanceId });
+  void (async () => {
+    await __closeInitiativeCardContextMenu();
+    const placement = await __getInitiativeCardContextMenuPlacement(event);
+    if (!__isCurrentSceneOperation(sceneEpoch, "spell-pill-actions-open")) return;
+    await OBR.popover.open({
+      id: SPELL_PILL_ACTIONS_POPOVER_ID,
+      url: `/spell-pill-actions.html?${query.toString()}`,
+      width: 236,
+      height: 160,
+      anchorReference: "POSITION",
+      anchorPosition: placement.anchorPosition,
+      anchorOrigin: placement.anchorOrigin,
+      transformOrigin: placement.transformOrigin,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+  })().catch((error) => {
+    console.warn("[spell-pill-actions] popover open error:", error?.message || error);
+  });
+  return true;
+}
+
     // ===== Render card
 let __lastCompactPopoverSize = "";
 let __compactPopoverResizeRevision = 0;
@@ -10175,6 +10206,9 @@ function renderCompactTrack(
       onTerminateClassFeature: IS_GM
         ? (instance) => __terminateClassFeatureOnTrackerCard(entry.id, instance)
         : null,
+      onSpellActions: IS_GM && !virtual
+        ? (spell, event) => __openSpellPillActions(entry, spell, event)
+        : null,
     });
 
     bindReferenceChips(status);
@@ -10219,6 +10253,9 @@ function renderCompactTrack(
         spellColor: __spellColor,
         onTerminateClassFeature: IS_GM
           ? (instance) => __terminateClassFeatureOnTrackerCard(entry.id, instance)
+          : null,
+        onSpellActions: IS_GM && !virtual
+          ? (spell, event) => __openSpellPillActions(entry, spell, event)
           : null,
       });
       if (effectsDrawer) bindReferenceChips(effectsDrawer);
@@ -10327,6 +10364,7 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
       __spellKey,
       __terminateClassFeatureOnTrackerCard,
       __terminateSpellOnTrackerCard,
+      __openSpellPillActions,
       applyGroupHPMaxDeltaWithRenderLock,
       armDocClickIgnore,
       bindHPEditorForEntry,

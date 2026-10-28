@@ -45,6 +45,9 @@
     .target-box { display: grid; gap: 5px; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--obrt-radius-lg); background: var(--surface-soft); }
     .target-box > * { min-width: 0; }
     .target-line { display: flex; align-items: center; gap: var(--obrt-space-sm); min-height: 24px; }
+    /* Mirror Image on the target: the d20 to aim at a duplicate, and the button that destroys one. */
+    .mirror-image { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid rgba(167, 139, 250, .5); border-radius: var(--obrt-radius-md); background: rgba(124, 58, 237, .16); }
+    .mirror-image-note { margin: 0; min-width: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
     .target-name { flex: 1 1 auto; min-width: 0; overflow: hidden; font-weight: var(--obrt-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
     .target-name.is-empty { color: #fde68a; font-weight: var(--obrt-weight-regular); white-space: normal; overflow-wrap: anywhere; }
     .target-hp { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }

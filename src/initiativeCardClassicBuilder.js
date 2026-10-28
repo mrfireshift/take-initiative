@@ -1,4 +1,5 @@
 import { buildSpellChips } from "./spells.js";
+import { spellPillHasActions } from "./spellPillActionsCore.js";
 import {
   applyClassicCardFrame,
   buildClassicCardShell,
@@ -67,6 +68,7 @@ export function buildClassicTrackerCard(e, context) {
       __removeConditionOnTrackerCard,
       __terminateClassFeatureOnTrackerCard,
       __terminateSpellOnTrackerCard,
+      __openSpellPillActions,
       applyGroupHPMaxDeltaWithRenderLock,
       armDocClickIgnore,
       bindHPEditorForEntry,
@@ -773,6 +775,11 @@ if (trackerSpells.length) {
     const spellChipOptions = canTerminate && !spell.trackerConcentrationOnly
       ? { onTerminate: (entry) => __terminateSpellOnTrackerCard(e.id, entry) }
       : {};
+    // The ⚡ of a spell with active actions: they run from the pill, without the spell panel.
+    if (canTerminate && !spell.trackerConcentrationOnly && spell.instanceId
+      && typeof __openSpellPillActions === "function" && spellPillHasActions(spell)) {
+      spellChipOptions.onActions = (entry, event) => __openSpellPillActions(e, entry, event);
+    }
     if (boardToken?.state?.hpMax > 0) {
       spellChipOptions.boardTokenHP = {
         itemId: boardToken.itemId,

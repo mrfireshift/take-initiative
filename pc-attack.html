@@ -57,6 +57,11 @@
     .target-card > :not(.caption):not(.target-select) { grid-column: 1 / -1; }
     .target-select { width: 100%; min-height: var(--obrt-h-control-md); padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--obrt-radius-md); background: var(--surface); }
     .hint { margin: 0; color: var(--warn-text); font-size: var(--obrt-type-secondary); }
+    /* Mirror Image on the target: the d20 to aim at a duplicate, and the button that destroys one. */
+    .mirror-image { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid rgba(167, 139, 250, .5); border-radius: var(--obrt-radius-md); background: rgba(124, 58, 237, .16); }
+    .mirror-image[hidden] { display: none; }
+    .mirror-image-note { margin: 0; min-width: 0; font-size: var(--obrt-type-secondary); line-height: 1.35; }
+    .mirror-image .mini-button { flex: 0 0 auto; }
     /* The picker: weapon attacks, cantrips and attack spells of the actor, one tab each, then the entry. */
     .picker { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; }
     /* The list gives way down to its 132 px, never under the card below it: the tabs, the search and that much stay. */
@@ -319,6 +324,10 @@
             <div class="area-list" id="pc-attack-area-list"></div>
           </div>
           <p class="hint" id="pc-attack-target-hint" hidden></p>
+          <div class="mirror-image" id="pc-attack-mirror-image" hidden>
+            <p class="mirror-image-note" id="pc-attack-mirror-image-note"></p>
+            <button class="mini-button" id="pc-attack-mirror-image-hit" type="button">Duplicato colpito</button>
+          </div>
           <div class="palm" id="pc-attack-palm" hidden>
             <div class="palm-head"><span class="palm-title">Palmo Tremante</span><span class="card-note" id="pc-attack-palm-note"></span></div>
             <div class="segmented mini" id="pc-attack-palm-outcomes" role="group" aria-label="Fine delle vibrazioni"></div>

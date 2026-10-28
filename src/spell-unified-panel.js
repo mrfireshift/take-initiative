@@ -37,6 +37,7 @@ import {
   SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS,
   SPELL_UNIFIED_ACTIVE_STATUS,
 } from "./spellUnifiedActiveAdapter.js";
+import { spellActionRunsDirectly } from "./spellPillActionsCore.js";
 import {
   routeSpellUnifiedPanelOpenRequest,
   spellUnifiedPanelShouldAutoStartPlacement,
@@ -3381,6 +3382,9 @@ export function bootSpellUnifiedPanel(
           && ["prismatic-wall-traversal", "prismatic-wall-layers"]
             .includes(String(action.resolutionKind || "").trim())
         ) {
+          await executeActiveAction();
+        } else if (spellActionRunsDirectly(action)) {
+          // Lotto B: an action with nothing to fill here runs at once (its popup asks the rest), Annulla after.
           await executeActiveAction();
         }
         return;
