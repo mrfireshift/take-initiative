@@ -209,3 +209,24 @@ test("an imported spell marked prepared: false stays in the book as unprepared",
   assert.deepEqual(mergeImportedSpellbook(current, { ...imported, unpreparedIds: ["shield"] }, "replace"),
     { spellIds: ["fireball", "shield"], pinnedIds: [], unpreparedIds: ["shield"] });
 });
+
+// Lot L12 of the bugfix pass (SC-06): an ordinal mark, a note in brackets or feet written next to the number were lost
+// or misread in silence ("30ft" became 30 m).
+test("L12: «5°», «15 (cuoio)», «18 (+4)» e «30ft» vengono letti", () => {
+  assert.deepEqual(read({ class: "Bardo", level: "5°" }).sections.classes, [{ classId: "bardo", level: 5, subclassId: "" }]);
+  assert.equal(read({ armorClass: "15 (cuoio)" }).sections.stats.armorClass, 15);
+  assert.equal(read({ abilities: { str: "18 (+4)" } }).sections.abilities.str, 4);
+  assert.equal(read({ speed: "30ft" }).sections.stats.speed, 9);
+  assert.equal(read({ speed: "30 ft" }).sections.stats.speed, 9);
+  assert.equal(read({ speed: "9 m" }).sections.stats.speed, 9);
+  assert.equal(read({ armorClass: "1d8", notes: "x" }).sections.stats, undefined, "a dice formula is not a number");
+});
+
+// Lot L12 of the bugfix pass (SC-07): the import rebuilt the book without the "Aggiunto manualmente" marks.
+test("L12: l'import degli incantesimi conserva i segni «Aggiunto manualmente» degli incantesimi rimasti", () => {
+  const current = { spellIds: ["shield", "bless", "misty-step"], pinnedIds: [], manualIds: ["misty-step", "bless"] };
+  const imported = { spellIds: ["fireball", "misty-step"], pinnedIds: [] };
+  assert.deepEqual(mergeImportedSpellbook(current, imported, "add").manualIds, ["misty-step", "bless"]);
+  assert.deepEqual(mergeImportedSpellbook(current, imported, "replace").manualIds, ["misty-step"],
+    "replaced: only the marks of the spells still in the book");
+});

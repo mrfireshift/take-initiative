@@ -8,6 +8,7 @@ import {
   getInitiativeCard,
   loadInitiativeCard,
   hasInitiativeCardValues,
+  initiativeCardBaseExhaustion,
   saveInitiativeCard,
 } from "./initiativeCards.js";
 import {
@@ -3842,7 +3843,8 @@ async function shareMonsterStatblock(source, card, { isCurrent = () => true, sce
   for (const target of targets) {
     if (!isCurrent()) break;
     try {
-      await saveInitiativeCard(target.id, target.name, statblock, { isCurrent, sceneIdentity });
+      // A partial update: the namesake keeps its own exhaustion base (its contributions are not taken off it).
+      await saveInitiativeCard(target.id, target.name, statblock, { isCurrent, sceneIdentity, preserveExhaustion: true });
     } catch (error) {
       failed.push(`${target.name || target.id} (${error?.message || error})`);
     }
@@ -4945,8 +4947,12 @@ function setEditing(active) {
 async function adjustExhaustion(delta) {
   const operation = sceneLifecycle.capture({ operationId: `initiative-exhaustion:${Date.now().toString(36)}` });
   if (!sceneLifecycle.isCurrent(operation) || !isGM || !item || exhaustionSaving) return;
+  // The step moves the stored base: the effective level (base plus the levels of Frenzy and the like, capped at 5) is
+  // what the sheet shows, and taking a step from it could move the base by two.
+  const base = initiativeCardBaseExhaustion(item);
+  const nextBase = Math.max(0, Math.min(5, base + delta));
+  if (nextBase === base) return;
   const next = Math.max(0, Math.min(5, Number(profile.exhaustion || 0) + delta));
-  if (next === profile.exhaustion) return;
   exhaustionSaving = true;
   exhaustionPending = next;
   renderView();
@@ -4954,6 +4960,7 @@ async function adjustExhaustion(delta) {
     const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
     if (!sceneLifecycle.isCurrent(operation)) return;
     await saveInitiativeCard(item.id, item.name, { ...profile, exhaustion: next }, {
+      baseExhaustion: nextBase,
       isCurrent: () => sceneLifecycle.isCurrent(operation),
       commandId: ownerSceneContext.commandId,
       sceneIdentity: ownerSceneContext.sceneIdentity,

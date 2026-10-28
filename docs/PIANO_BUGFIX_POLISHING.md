@@ -88,6 +88,14 @@ Lotti fatti:
   - Il segno parte da `suppressMovementHistory(..., { relocation: true })` per il teletrasporto e per l'Annulla del coordinatore. Nell'Annulla dalla Cronologia lo porta `change.relocation` del piano (`historyUndoCore`).
   - Prono e scalata si sommano al terreno difficile (+1,5 m per casella ciascuno), come dicono il PHB e `MOVEMENT_MECHANICS.md`: Prono nella Cucitura 12, scalata nella Ragnatela 12. Il terreno difficile continua a non sommarsi con se stesso (`extraCost` in `movementCostForSegment`).
   - Test in `speedCheck`, `speedCheckRuntime`, `historyMovementUndoIntegration` e `historyUndoCore`. Falliscono senza la patch.
+- **L12** (28/10): scheda e import (EF-06, SC-02, SC-03, SC-05, SC-06, SC-07, SC-08).
+  - «−» e «+» dell'Indebolimento spostano la base salvata di un livello (`initiativeCardBaseExhaustion`, opzione `baseExhaustion` di `saveInitiativeCard`). Prima, con i contributi oltre il tetto di 5, un clic toglieva due livelli.
+  - Il TS fallito di Tenser parte dalla base senza i contributi e aggiorna anche la base nella scheda, con un `updatedAt` nuovo. All'apertura della scheda il livello resta.
+  - Lo statblock condiviso con gli omonimi conserva la loro base (`preserveExhaustion`).
+  - All'apertura della scheda decide la copia vincente delle azioni rapide, anche se è vuota: le azioni cancellate non tornano da un token vecchio di un'altra scena.
+  - L'import legge «5°», «15 (cuoio)», «18 (+4)» e «30ft», e rifiuta ancora «1d8». Conserva i segni «Aggiunto manualmente» degli incantesimi rimasti.
+  - D9: quando il budget della stanza scarta un profilo, il GM vede un avviso con i nomi, una volta per insieme.
+  - Test in `initiativeCardSaveTransportRegression`, `deferredSpellWorkflow`, `characterSheetImport`, `initiativeCardRegistryCore` e `initiativeCardModalExhaustion`. Falliscono senza la patch.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

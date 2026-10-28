@@ -224,6 +224,33 @@ test("Tenser crea un TS immediato indipendente e il fallimento usa l'operazione 
   ]);
 });
 
+// Lot L12 of the bugfix pass (SC-02): the level Tenser's Transformation adds went away when the sheet was opened (the
+// sheet realigns the condition to its stored base), and the base was read with Frenzy's level in it.
+test("L12: il TS fallito di Tenser alza la base dell'Indebolimento anche nella scheda, senza contare i contributi", () => {
+  const spell = getSpellDefinition("Trasformazione di Tenser");
+  const intent = buildSpellApplicationIntent({ spell, enteredName: spell.displayName, turns: 100, casterId: "caster",
+    targetIds: ["caster"], requestedConcentration: true });
+  const application = buildSpellApplicationPlan({ intent, instanceId: "tenser-instance",
+    appliedAt: { round: 1, actorId: "caster", turnKey: "1:0:caster" }, casterName: "Mago" });
+  const applied = buildEffectsMutationPlan([plainToken("caster")], application.operations);
+  const ended = buildEffectsMutationPlan(applied.states, [{ type: "concentration:break", casterIds: ["caster"], reference: "tenser-instance" }]);
+  const item = sceneItem({ ...ended.states[0], conditions: [
+    ...ended.states[0].conditions,
+    { id: "base", condition: "Indebolimento", level: 1, active: true },
+    { id: "frenzy", condition: "Indebolimento", level: 1, active: true, exhaustionContribution: true },
+  ] });
+  const card = { exhaustion: 1, speed: 9, updatedAt: 10 };
+  item.metadata[META_KEY].initiativeCard = card;
+  const notice = planEffectSaveReminderNotices({ items: [item], initiativeState: null, previousInitiativeState: null })[0];
+  const resolution = buildReminderResolutionPlan({ notice, items: [item], outcome: "failed", now: 500 });
+  assert.equal(resolution.status, "ready");
+  assert.equal(resolution.operations.find((operation) => operation.type === "condition:reconcile-exhaustion").level, 2,
+    "base 1 + 1, not the effective 2 + 1");
+  const cardPatch = resolution.metadataPatches.find((patch) => patch.fields?.initiativeCard);
+  assert.deepEqual(cardPatch.fields.initiativeCard, { expected: { present: true, value: card },
+    value: { exhaustion: 2, speed: 9, updatedAt: 500 } });
+});
+
 test("Freccia acida usa risoluzione assistita, scaling slot e nessuna spell persistente", () => {
   const spell = getSpellDefinition("Freccia acida");
   const baseHit = getSpellAttackResolution(spell, "hit", { slotLevel: 2 });

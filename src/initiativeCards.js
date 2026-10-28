@@ -24,6 +24,7 @@ import {
   mergeInitiativeCardRegistries,
   normalizeInitiativeCardRegistry,
   retainInitiativeCardRegistryWithinByteBudget,
+  droppedInitiativeCardRegistryNames,
   resolveInitiativeCardActorMatch,
 } from "./initiativeCardRegistryCore.js";
 import {
@@ -352,6 +353,16 @@ function storageQuickActionsForHydration(...profiles) {
   return explicitEmpty ? sanitizeQuickActions(explicitEmpty.quickActions) : [];
 }
 
+// Opening a sheet: the winning copy (the newer one) decides its quick actions when it carries them, an empty list
+// included. That list is a deletion: an older copy (a token left in another scene) must not bring the actions back.
+function winnerQuickActionsForHydration(winner, tokenRaw, roomProfile) {
+  if (winner && typeof winner === "object" && Object.hasOwn(winner, "quickActions")
+    && !hasLegacyQuickActionStorage(winner)) {
+    return sanitizeQuickActions(winner.quickActions);
+  }
+  return storageQuickActionsForHydration(winner, tokenRaw, roomProfile);
+}
+
 function writeLocalInitiativeCards(registry) {
   try {
     if (typeof localStorage === "undefined") return false;
@@ -385,6 +396,19 @@ async function readInitiativeCardRegistry() {
   };
 }
 
+// D9: the characters the Room budget left out, told to the GM once per set (every sheet opening writes the registry).
+let lastDroppedRoomCardsNotice = "";
+async function noticeDroppedRoomCards(names) {
+  const signature = JSON.stringify(names);
+  if (!names.length) { lastDroppedRoomCardsNotice = ""; return; }
+  if (signature === lastDroppedRoomCardsNotice) return;
+  lastDroppedRoomCardsNotice = signature;
+  try {
+    if (await OBR.player.getRole() !== "GM") return;
+    await OBR.notification.show(`Registro delle schede pieno: ${names.join(", ")} ${names.length === 1 ? "resta" : "restano"} solo in questo browser (non nella stanza).`, "WARNING");
+  } catch {}
+}
+
 async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
   const write = async () => {
     if (!isCurrent()) return null;
@@ -397,6 +421,7 @@ async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
     );
     const next = normalizeInitiativeCardRegistry(updater({ ...previous }) || previous);
     const localWritten = writeLocalInitiativeCards(next);
+    let droppedNames = [];
     try {
       if (!isCurrent()) return next;
       await writeRoomMetadataKey(
@@ -406,7 +431,12 @@ async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
         {
           runtime: "initiativeCards",
           roomBudget: {
-            retain: retainInitiativeCardRegistryWithinByteBudget,
+            // The last pass decides what the Room keeps (a safe budget first, a hard one after).
+            retain: (value, maxBytes) => {
+              const retained = retainInitiativeCardRegistryWithinByteBudget(value, maxBytes);
+              droppedNames = droppedInitiativeCardRegistryNames(value, retained);
+              return retained;
+            },
           },
           // A read-through that finds the Room already aligned writes nothing (every GM sheet opening).
           skipUnchanged: true,
@@ -415,6 +445,7 @@ async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
     } catch (error) {
       if (!localWritten) throw error;
     }
+    void noticeDroppedRoomCards(droppedNames);
     return next;
   };
   initiativeCardWriteQueue = initiativeCardWriteQueue.then(write, write);
@@ -564,7 +595,7 @@ export async function loadInitiativeCard(item, { hydrate = false, registry, defe
   if (actorProfileId) profile[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
   const hydrationQuickActions = roomWins && roomDeleted
     ? []
-    : storageQuickActionsForHydration(winner, tokenRaw, roomProfile);
+    : winnerQuickActionsForHydration(winner, tokenRaw, roomProfile);
   if (hydrationQuickActions.length) {
     profile.quickActions = sanitizeQuickActions(hydrationQuickActions);
   }
@@ -586,7 +617,7 @@ export async function loadInitiativeCard(item, { hydrate = false, registry, defe
     const cleanWinner = sanitizeInitiativeCard(
       profileForStorage(item?.name, winnerWithIdentity, tokenConditions)
     );
-    const storedQuickActions = storageQuickActionsForHydration(
+    const storedQuickActions = winnerQuickActionsForHydration(
       winner,
       tokenRaw,
       roomProfile,
@@ -769,6 +800,16 @@ export function hasInitiativeCardValues(profile) {
     SAVE_KEYS.some((key) => profile?.savingThrows?.[key] !== null);
 }
 
+// The exhaustion base the sheet stores: without the levels other effects add (Frenzy, Sickening Radiance), which the
+// effective level shown by getInitiativeCard includes (capped at 5).
+export function initiativeCardBaseExhaustion(item) {
+  const raw = item?.metadata?.[META_KEY]?.[INITIATIVE_CARD_FIELD];
+  return Object.hasOwn(raw || {}, "exhaustion")
+    ? sanitizeInitiativeCard(raw).exhaustion
+    : getExhaustionLevel({ instances: getConditionInstances(item?.metadata?.[META_KEY]?.conditions)
+      .filter(instance => instance.exhaustionContribution !== true) });
+}
+
 export async function saveInitiativeCard(
   itemId,
   name,
@@ -779,6 +820,8 @@ export async function saveInitiativeCard(
     sceneIdentity = null,
     transportTimeoutMs = undefined,
     preserveExhaustion = false,
+    // The exhaustion base to store as it is (the sheet's − and +), instead of the effective level minus contributions.
+    baseExhaustion = undefined,
   } = {},
 ) {
   if (!isCurrent()) throw new Error("scene-stale-before-card-save");
@@ -808,12 +851,11 @@ export async function saveInitiativeCard(
     ...profile,
     // A partial profile update can preserve the stored base, even when effective
     // exhaustion has reached its cap or contributions changed during the workflow.
-    exhaustion: preserveExhaustion
-      ? Object.hasOwn(sourceRawProfile || {}, "exhaustion")
-        ? sanitizeInitiativeCard(sourceRawProfile).exhaustion
-        : getExhaustionLevel({ instances: getConditionInstances(sourceItem?.metadata?.[META_KEY]?.conditions)
-          .filter(instance => instance.exhaustionContribution !== true) })
-      : Math.max(0, Number(profile.exhaustion || 0) - contributionLevel),
+    exhaustion: Number.isFinite(Number(baseExhaustion)) && baseExhaustion !== null && baseExhaustion !== ""
+      ? Math.max(0, Math.min(5, Math.floor(Number(baseExhaustion))))
+      : preserveExhaustion
+        ? initiativeCardBaseExhaustion(sourceItem)
+        : Math.max(0, Number(profile.exhaustion || 0) - contributionLevel),
   };
   const identity = sourceItem || { name };
   const keys = initiativeCardRegistryKeys(identity);

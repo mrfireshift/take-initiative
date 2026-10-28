@@ -63,10 +63,12 @@ function text(value) {
   return typeof value === "string" || typeof value === "number" ? String(value).trim() : "";
 }
 
-// "+7", "7", 7 -> 7; anything else -> null.
+// "+7", "7", 7 -> 7; an ordinal mark or a note in brackets after the number is read past ("5°", "5th", "15 (cuoio)",
+// "18 (+4)"); anything else ("1d8", "dieci") -> null.
 function integer(value) {
   if (typeof value === "number") return Number.isFinite(value) ? Math.round(value) : null;
-  const match = text(value).replace(",", ".").match(/^([+\-−]?)\s*(\d+(?:\.\d+)?)$/);
+  const match = text(value).replace(",", ".")
+    .match(/^([+\-−]?)\s*(\d+(?:\.\d+)?)\s*(?:°|º|ª|st|nd|rd|th)?\s*(?:\([^)]*\))?$/i);
   if (!match) return null;
   const number = Math.round(Number(match[2]));
   return match[1] === "-" || match[1] === "−" ? -number : number;
@@ -130,7 +132,8 @@ function importedSpeed(value) {
   const match = source.match(/(\d+(?:[.,]\d+)?)/);
   if (!match) return null;
   const number = Number(match[1].replace(",", "."));
-  const feet = /\b(ft|feet|foot|piedi|piede)\b|'/.test(source);
+  // The unit may follow the number at once ("30ft").
+  const feet = /(?:^|[\d\s.,])(ft|feet|foot|piedi|piede)\b|'/.test(source);
   return normalizeSpeedMeters(feet ? number * 0.3 : number);
 }
 
@@ -519,11 +522,15 @@ export function sheetImportSectionSummary(id, section, { classNameOf = (classId)
 export function mergeImportedSpellbook(current, imported, mode = "add") {
   const base = sanitizeSpellbook(current);
   const incoming = sanitizeSpellbook(imported);
+  // The "Aggiunto manualmente" marks survive like favourites: on a spell still in the book (sanitizeSpellbook drops
+  // the others).
+  const manualIds = [...(incoming.manualIds || []), ...(base.manualIds || [])];
   if (mode === "replace") {
     return sanitizeSpellbook({
       spellIds: incoming.spellIds,
       pinnedIds: [...incoming.pinnedIds, ...base.pinnedIds],
       unpreparedIds: incoming.unpreparedIds || [],
+      manualIds,
     });
   }
   const importedIds = new Set(incoming.spellIds);
@@ -531,5 +538,6 @@ export function mergeImportedSpellbook(current, imported, mode = "add") {
     spellIds: [...base.spellIds, ...incoming.spellIds],
     pinnedIds: [...base.pinnedIds, ...incoming.pinnedIds],
     unpreparedIds: [...(base.unpreparedIds || []).filter((id) => !importedIds.has(id)), ...(incoming.unpreparedIds || [])],
+    manualIds,
   });
 }

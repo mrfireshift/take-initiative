@@ -499,3 +499,15 @@ test("registro locale e Room: la scheda del mostro si ritrova dalla copia locale
   const stale = { goblin: { name: "Goblin", profile: { armorClass: 12 }, updatedAt: 100 } };
   assert.deepEqual(mergeInitiativeCardRegistries(local, stale).goblin, goblin);
 });
+
+// Lot L12 of the bugfix pass (SC-03, D9): the names of the profiles the Room budget leaves out, for the GM's warning.
+test("L12: i profili scartati dal budget della stanza sono elencati per nome, senza alias né cancellazioni", async () => {
+  const { droppedInitiativeCardRegistryNames } = await import("../src/initiativeCardRegistryCore.js");
+  const requested = {
+    aria: { name: "Aria", profile: {}, updatedAt: 3 },
+    borin: { name: "Borin", profile: {}, updatedAt: 2 },
+    gone: { name: "Gone", deleted: true, updatedAt: 1 },
+  };
+  assert.deepEqual(droppedInitiativeCardRegistryNames(requested, { aria: requested.aria }), ["Borin"]);
+  assert.deepEqual(droppedInitiativeCardRegistryNames(requested, requested), []);
+});

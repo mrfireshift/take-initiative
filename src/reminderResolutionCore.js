@@ -1268,7 +1268,7 @@ function outcomeActions(resolution, outcome) {
   return Array.isArray(value?.actions) ? value.actions : [];
 }
 
-function actionOperations({ action, targetId, itemsById, sceneMetadata = null }) {
+function actionOperations({ action, targetId, itemsById, sceneMetadata = null, now = Date.now() }) {
   const resolvedTargetId = actionTargetId(action, targetId);
   const targetItem = itemsById.get(resolvedTargetId);
   if (!resolvedTargetId || !targetItem) {
@@ -1361,16 +1361,28 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
     const options = action?.options && typeof action.options === "object"
       ? action.options
       : {};
-    const currentLevel = exhaustionLevelFromInstances(conditionInstances(targetItem));
-    const requestedLevel = options.level === undefined
+    // The base level (the one the reconcile writes): without the levels other effects add (Frenzy, Sickening Radiance).
+    const currentLevel = exhaustionLevelFromInstances(conditionInstances(targetItem)
+      .filter((entry) => entry?.exhaustionContribution !== true));
+    const level = normalizeExhaustionLevel(options.level === undefined
       ? currentLevel + (Number(options.delta) || 1)
-      : Number(options.level);
+      : Number(options.level));
+    // A character sheet that stores its exhaustion base takes the new level too: opening the sheet realigns the
+    // condition to that base, which would take the level away again (Tenser's Transformation).
+    const card = targetItem.metadata?.[META_KEY]?.initiativeCard;
+    const cardPatch = card && typeof card === "object" && Object.hasOwn(card, "exhaustion") && Number(card.exhaustion) !== level
+      ? [{ id: resolvedTargetId, fields: { initiativeCard: {
+        expected: { present: true, value: clone(card) },
+        value: { ...clone(card), exhaustion: level, updatedAt: Math.max(0, Math.floor(Number(now) || Date.now())) },
+      } } }]
+      : [];
     return {
       operations: [{
         type: "condition:reconcile-exhaustion",
         targetIds: [resolvedTargetId],
-        level: normalizeExhaustionLevel(requestedLevel),
+        level,
       }],
+      ...(cardPatch.length ? { metadataPatches: cardPatch } : {}),
     };
   }
   if (kind === "condition" && type === "remove-name") {
@@ -1796,7 +1808,7 @@ export function buildReminderResolutionPlan({
   const actionSideEffects = [];
   const actionMetadataPatches = [];
   for (const action of turbine ? [] : outcomeActions(resolution, normalizedOutcome)) {
-    const result = actionOperations({ action, targetId, itemsById, sceneMetadata });
+    const result = actionOperations({ action, targetId, itemsById, sceneMetadata, now });
     if (result.error) return { status: "stale", message: result.error };
     operations.push(...result.operations);
     actionSideEffects.push(...(result.sideEffects || []));

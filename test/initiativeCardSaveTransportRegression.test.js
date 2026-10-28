@@ -33,6 +33,7 @@ function emit(channel, data) {
   }
 }
 
+const notices = [];
 const sdkStub = {
   onReady() {},
   player: { getRole: async () => "GM", getId: async () => "card-save-gm" },
@@ -111,7 +112,7 @@ const sdkStub = {
       if (channel === RESULT_CHANNEL) tracePoint("T5 caller-receive", { requestId: data.requestId });
     },
   },
-  notification: { show: async () => {} },
+  notification: { show: async (message, variant) => { notices.push([message, variant]); } },
 };
 
 mock.module("@owlbear-rodeo/sdk", {
@@ -672,6 +673,77 @@ test("L3: un comando oltre 16 kB arriva al background a frammenti e viene applic
     });
     assert.equal(result.status, "applied");
     assert.ok(scene.items[0].metadata[META_KEY][SPELLS_META_KEY].some((spell) => spell.instanceId === "l3-large-command"));
+  } finally {
+    await stopRuntime(runtime);
+  }
+});
+
+// Lot L12 of the bugfix pass (EF-06): with Frenzy's levels active the sheet shows the effective level, capped at 5;
+// its − saved that level minus one, less the contributions: two levels of base gone in one click.
+test("L12: il − dell'Indebolimento con contributi attivi toglie un solo livello di base", async () => {
+  reset();
+  Object.assign(scene.items[0].metadata[META_KEY], {
+    conditions: { version: 2, instances: [
+      { id: "base", condition: "Indebolimento", level: 4, active: true },
+      { id: "frenzy", condition: "Indebolimento", level: 2, active: true, exhaustionContribution: true },
+    ] },
+  });
+  scene.items[0].metadata[META_KEY].initiativeCard.exhaustion = 4;
+  const runtime = await startRuntime();
+  try {
+    const { getInitiativeCard, initiativeCardBaseExhaustion, saveInitiativeCard } = runtime.cards;
+    assert.equal(getInitiativeCard(scene.items[0]).exhaustion, 5, "4 + 2, capped");
+    assert.equal(initiativeCardBaseExhaustion(scene.items[0]), 4);
+    await saveInitiativeCard("hero", "Hero", { ...getInitiativeCard(scene.items[0]), exhaustion: 4 }, {
+      baseExhaustion: 3, commandId: "exhaustion-down", transportTimeoutMs: 200 });
+    assert.equal(storedProfile().exhaustion, 3);
+    const levels = scene.items[0].metadata[META_KEY].conditions.instances
+      .filter((instance) => instance.condition === "Indebolimento").map((instance) => [instance.level, !!instance.exhaustionContribution]);
+    assert.deepEqual(levels.sort(), [[2, true], [3, false]]);
+  } finally {
+    await stopRuntime(runtime);
+  }
+});
+
+// Lot L12 of the bugfix pass (SC-05): the quick actions deleted on the sheet came back from a token left in another
+// scene: the hydration took the first copy with a non-empty list, whatever the newer copy said.
+test("L12: le azioni rapide cancellate non tornano da un token vecchio di un'altra scena", async () => {
+  reset();
+  room.metadata[ROOM_CARD_KEY] = {
+    hero: {
+      actorProfileId: "actor-hero",
+      name: "Hero",
+      profile: { actorProfileId: "actor-hero", armorClass: 16, quickActions: [] },
+      updatedAt: 50,
+    },
+  };
+  // The token of this scene still carries the actions of before the deletion (updatedAt 1).
+  assert.ok(storedProfile().quickActions.length > 0);
+  const runtime = await startRuntime();
+  try {
+    const profile = await runtime.cards.loadInitiativeCard(clone(scene.items[0]), { hydrate: true });
+    assert.equal(profile.armorClass, 16);
+    assert.deepEqual(profile.quickActions, []);
+    assert.deepEqual(storedProfile().quickActions, [], "the old token is realigned to the deletion");
+  } finally {
+    await stopRuntime(runtime);
+  }
+});
+
+// Lot L12 of the bugfix pass (SC-03, decision D9): a profile the Room budget leaves out disappeared without a word.
+test("L12: il GM viene avvisato quando il registro della stanza scarta un profilo, una volta sola", async () => {
+  reset();
+  notices.length = 0;
+  const runtime = await startRuntime();
+  try {
+    // The harness's huge quick actions alone exceed the Room budget.
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 18 }, { commandId: "budget-1", transportTimeoutMs: 200 });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(room.metadata[ROOM_CARD_KEY]?.hero, undefined, "the Room could not keep the profile");
+    assert.deepEqual(notices, [["Registro delle schede pieno: Hero resta solo in questo browser (non nella stanza).", "WARNING"]]);
+    await runtime.cards.saveInitiativeCard("hero", "Hero", { armorClass: 19 }, { commandId: "budget-2", transportTimeoutMs: 200 });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(notices.length, 1, "the same set is told once");
   } finally {
     await stopRuntime(runtime);
   }

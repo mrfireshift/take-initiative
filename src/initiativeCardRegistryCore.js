@@ -99,6 +99,20 @@ export function retainInitiativeCardRegistryWithinByteBudget(
   return retained;
 }
 
+// The characters whose profile the budget left out of the Room (aliases and deletions are not profiles): their sheet
+// stays only in this browser. [] when nothing was dropped.
+export function droppedInitiativeCardRegistryNames(requested, retained) {
+  const source = normalizeInitiativeCardRegistry(requested);
+  const kept = normalizeInitiativeCardRegistry(retained);
+  const names = [];
+  for (const [key, entry] of Object.entries(source)) {
+    if (Object.hasOwn(kept, key) || entry?.deleted === true || resolvedRoomCardAliasTarget(source, entry) !== null) continue;
+    const name = String(entry?.name || key).trim();
+    if (name && !names.includes(name)) names.push(name);
+  }
+  return names;
+}
+
 export function mergeInitiativeCardRegistries(...sources) {
   const merged = {};
   for (const source of sources) {
