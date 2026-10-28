@@ -61,6 +61,8 @@ let selectionSyncRevision = 0;
 let effectsRole = "PLAYER";
 let remoteGMSelectionActive = false;
 let remoteGMSelectionRevision = 0;
+// The GM page the revisions come from: a GM who reloads OBR counts again from 1.
+let remoteGMSelectionSource = "";
 let gmSelectionRevision = 0;
 
 const queue = createEffectsReconcileQueue({
@@ -167,6 +169,11 @@ function handleEffectsSelectionMessage(event) {
   if (data.type !== "gm-selection" || effectsRole !== "PLAYER") return;
   if (data.targetInstanceId && data.targetInstanceId !== EFFECTS_SELECTION_INSTANCE_ID) return;
   const revision = Number(data.revision) || 0;
+  const source = String(data.sourceInstanceId || "");
+  if (source !== remoteGMSelectionSource) {
+    remoteGMSelectionSource = source;
+    remoteGMSelectionRevision = 0;
+  }
   if (!data.requestId && revision < remoteGMSelectionRevision) return;
   remoteGMSelectionActive = true;
   remoteGMSelectionRevision = Math.max(remoteGMSelectionRevision, revision);
@@ -396,6 +403,7 @@ export async function unmountEffectsReconciler() {
   effectsRole = "PLAYER";
   remoteGMSelectionActive = false;
   remoteGMSelectionRevision = 0;
+  remoteGMSelectionSource = "";
   gmSelectionRevision = 0;
   await queue.idle();
   expandedTargetIds = new Set();

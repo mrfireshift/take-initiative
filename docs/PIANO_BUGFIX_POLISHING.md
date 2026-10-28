@@ -52,6 +52,11 @@ Lotti fatti:
   - Un nuovo membro del gruppo senza PF entra con i PF massimi.
   - «Crit» della console PF si spegne dopo un'applicazione riuscita.
   - Quattro test nuovi, tutti falliscono senza la patch. Resta com'è la pill «Stabile» manuale dopo un ripristino sopra 0, rara.
+- **L9** (28/10): schermo del tavolo (OP-01, EF-03, OP-06).
+  - Dopo una ricarica (F5) della finestra dei giocatori il tracker si riapre: al primo avvio `sync-open` controlla con `popover.getHeight`, come l'icona, che il tracker segnato aperto ci sia davvero (`forgetStaleTrackerOpenFlag`). Se OBR non risponde entro 750 ms, vale lo stato salvato.
+  - Lo schermo del tavolo segue di nuovo la selezione del GM dopo che il GM ricarica OBR: la revisione si azzera quando cambia la pagina del GM.
+  - Le etichette della quota le scrive solo il GM; il GM toglie la seconda etichetta di uno stesso token.
+  - Test: `syncOpenTableReload`, `effectsSelectionFollow` ed `elevationLabelRoles`, che falliscono senza la patch.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

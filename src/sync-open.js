@@ -3,8 +3,10 @@ import { ID } from "./constants.js";
 import {
   TRACKER_LAYOUT_CHANNEL,
   TRACKER_LAYOUT_COMPACT,
+  TRACKER_POPOVER_ID,
   getTrackerLayout,
   isTrackerPopoverOpen,
+  markTrackerPopoverClosed,
   moveClassicTrackerPopover,
   moveCompactTrackerPopover,
   openTrackerPopover,
@@ -19,6 +21,27 @@ import { selectGmTrackerScale, selectPlayerTrackerScale, selectTrackerOpenSyncEn
 import { METADATA_OWNERSHIP, writeRoomMetadataKey } from "./metadataKeyScoped.js";
 
 const UI_KEY = `${ID}/ui`;
+const TRACKER_POPOVER_PROBE_TIMEOUT_MS = 750;
+const TRACKER_POPOVER_PROBE_TIMED_OUT = Symbol("tracker-popover-probe-timed-out");
+
+// After a reload of the window the tracker's popover is gone, but the flag its page stored says "open": the table
+// screen's tracker stayed closed until the GM closed and opened theirs. Probed like the extension's icon does: an
+// OBR that does not answer in time keeps the stored state.
+export async function forgetStaleTrackerOpenFlag({
+  obr = OBR,
+  timeoutMs = TRACKER_POPOVER_PROBE_TIMEOUT_MS,
+} = {}) {
+  if (!isTrackerPopoverOpen() || typeof obr.popover?.getHeight !== "function") return false;
+  let timer = null;
+  const height = await Promise.race([
+    Promise.resolve().then(() => obr.popover.getHeight(TRACKER_POPOVER_ID)).catch(() => null),
+    new Promise((resolve) => { timer = setTimeout(() => resolve(TRACKER_POPOVER_PROBE_TIMED_OUT), timeoutMs); }),
+  ]);
+  clearTimeout(timer);
+  if (height === TRACKER_POPOVER_PROBE_TIMED_OUT || Number(height) > 0) return false;
+  markTrackerPopoverClosed();
+  return true;
+}
 
 if (!window.__TBP_SYNC_OPEN_MOUNTED) {
   window.__TBP_SYNC_OPEN_MOUNTED = true;
@@ -129,6 +152,7 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
       await publishTrackerView({ onlyIfMissing: true }).catch(() => {});
       return;
     }
+    await forgetStaleTrackerOpenFlag();
     const metadata = await OBR.room.getMetadata();
     await applyTrackerOpenState(metadata);
   });

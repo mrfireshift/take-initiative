@@ -119,7 +119,9 @@ async function reconcileElevationLabels() {
 
     for (const label of labels) {
       const token = tokensById.get(label.metadata?.[LABEL_OWNER_META]);
-      if (!token || readElevation(token) === 0) removeIds.push(label.id);
+      // One label per token: a second one (made by an older player client) kept its old text.
+      const extra = labelsByOwner.get(label.metadata?.[LABEL_OWNER_META]) !== label;
+      if (!token || readElevation(token) === 0 || extra) removeIds.push(label.id);
     }
 
     for (const token of tokens) {
@@ -243,7 +245,12 @@ export async function mountElevationLabelWatcher() {
   if (mounted) return true;
   mounted = true;
   const role = await OBR.player.getRole().catch(() => "PLAYER");
-  if (!mounted || role !== "GM") return false;
+  if (!mounted) return false;
+  // The labels are the GM's to write: a player client left mounted reconciled them too, twice with the GM.
+  if (role !== "GM") {
+    mounted = false;
+    return false;
+  }
   unsubscribeItems = subscribeSceneItemChanges(scheduleElevationLabels, {
     domains: ["elevation"],
     immediate: true,
