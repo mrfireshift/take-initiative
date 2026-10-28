@@ -209,3 +209,34 @@ test("un'ancora sostituita in scena da fuori viene riscritta al comando successi
   await runCommand(recovery, "cmd-3");
   assert.equal(obr.state.updates.length, updatesBefore, "an anchor in place costs no scene write");
 });
+
+test("il controllo dell'ancora corre insieme alla scrittura in IndexedDB; se fallisce, la scrittura fallisce come prima", async () => {
+  const indexedDB = createVersionedIndexedDB();
+  const obr = fakeObr();
+  const base = createLocalRecoveryDatabase({ indexedDB });
+  const events = [];
+  const database = { ...base, put: async (record) => { events.push("put"); return base.put(record); } };
+  const recovery = recoveryFor(obr, { database });
+  await recovery.load(() => true);
+  await runCommand(recovery, "cmd-1");
+
+  // The next command's anchor check waits on the scene; the IndexedDB write does not wait for it.
+  const read = obr.scene.getMetadata;
+  let release;
+  obr.scene.getMetadata = () => {
+    events.push("anchor-check");
+    return new Promise((resolve) => { release = () => resolve(read()); });
+  };
+  events.length = 0;
+  const pending = runCommand(recovery, "cmd-2");
+  while (!release) await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.deepEqual(events.slice(0, 2).sort(), ["anchor-check", "put"], "both started before the scene answered");
+  release();
+  await pending;
+  assert.ok(localRecords(indexedDB).length > 0);
+
+  // A failed check fails the write of a new command, as when it ran first.
+  obr.scene.getMetadata = async () => { throw new Error("scene-unavailable"); };
+  await assert.rejects(runCommand(recovery, "cmd-3"), /scene-unavailable/);
+});

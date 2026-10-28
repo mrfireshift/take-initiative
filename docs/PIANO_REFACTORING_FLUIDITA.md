@@ -69,6 +69,8 @@ Lotti fatti, tutti il 27/10:
 
 - **S8** (parte R3): la memoria dei PF e le statistiche delle creature passano al writer dei metadata della stanza la lettura appena fatta, che il controllo dello spazio usa invece di rileggere: da 3 a 2 chiamate per scrittura. Se la loro lettura fallisce, il writer legge come prima. Le parti del giocatore di S8 restano fuori: il servizio spaziale all'avvio solo ascolta, e `sync-open` salta già una vista invariata.
 
+- **S8** (parte J1): per un nuovo comando degli effetti, il controllo dell'ancora del journal nella scena e la scrittura in IndexedDB partono insieme, e le decisioni si prendono nello stesso ordine di prima quando sono finite entrambe: un'ancora cambiata viene riscritta, IndexedDB non disponibile riporta il journal in scena. Un controllo fallito fa fallire la scrittura come prima, anche se la copia locale è già salvata: è il caso della scrittura incerta, che rilegge il journal. Lo fissa un test in `effectsRecoveryLocalStore.test.js`. Guadagno atteso: una chiamata in fila in meno, 20–100 ms, per comando sul GM.
+
 Lotto saltato: **V4** (tipografia), per scelta dell'utente il 28/10: le dimensioni attuali dei testi vanno bene al tavolo. Il commit `7e480cc` è stato annullato da `d87abd1`.
 
 Il guadagno in millisecondi di S2 e S3 va misurato in stanza, perché `perf-harness` non passa da quei percorsi. Nel probe la fase `combat-log` ora comprende solo la lettura del contesto. A parte, ma già committata (`6f71e7d`), la correzione delle chiavi di scena della build LOCALE.

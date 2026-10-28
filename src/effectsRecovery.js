@@ -80,19 +80,25 @@ export function createLocalEffectsRecoveryStorage({
     const scopeId = value?.scopeId;
     const records = Object.keys(value?.records || {}).length;
     // A new pending command: check once that the scene still holds this journal's anchor (another plugin version or
-    // GM window may have rewritten the key meanwhile); the later writes of the same command trust that check.
-    if (records > knownRecords && anchorScopeId === scopeId) {
-      const current = (await obr.scene.getMetadata())[EFFECTS_RECOVERY_KEY];
+    // GM window may have rewritten the key meanwhile); the later writes of the same command trust that check. The
+    // check and the IndexedDB write run together and are judged in the same order once both are done; a failed
+    // check fails the write as before, even though the local copy may already be stored (an uncertain write).
+    const checksAnchor = records > knownRecords && anchorScopeId === scopeId;
+    const [anchorRead, stored] = await Promise.allSettled([
+      checksAnchor ? obr.scene.getMetadata() : null,
+      database.put({ scopeId, roomId: currentRoomId(), store: value, touchedAt: now() }),
+    ]);
+    if (checksAnchor) {
+      if (anchorRead.status === "rejected") throw anchorRead.reason;
+      const current = anchorRead.value?.[EFFECTS_RECOVERY_KEY];
       if (!isLocalRecoveryAnchor(current) || current.scopeId !== scopeId) anchorScopeId = null;
     }
     knownRecords = records;
-    try {
-      await database.put({ scopeId, roomId: currentRoomId(), store: value, touchedAt: now() });
-    } catch (error) {
+    if (stored.status === "rejected") {
       // D3: no usable IndexedDB while the journal is still in the scene keeps it there; once the scene holds an
       // anchor the error stands, as any failed journal write.
-      if (anchorScopeId) throw error;
-      onLocalStoreFailed(error);
+      if (anchorScopeId) throw stored.reason;
+      onLocalStoreFailed(stored.reason);
       return writeScene(value);
     }
     if (anchorScopeId !== scopeId) {
