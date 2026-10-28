@@ -162,6 +162,16 @@ export function installFluidityCheckRemote({
       if (data.command === "mark") { windowRef.__fluidityCheckMark = data.token; return reply(data.id, { ...base, mark: data.token }); }
       if (realm === "index") {
         if (data.command === "snapshot") return reply(data.id, { ...base, ...trackerSnapshot(documentRef) });
+        // The tracker's own diagnostic log (initiativeList.js), on for the length of the check: when each metadata event
+        // is processed and each render runs. Its times are this page's, so the page's time origin goes with them.
+        if (data.command === "diagnostics") {
+          const api = windowRef.__tbpInitiativeDiagnostics;
+          if (!api) return reply(data.id, { ...base, ok: false, error: "diagnostica del tracker non disponibile" });
+          if (data.action === "start") { api.enable(); api.clear(); return reply(data.id, base); }
+          const events = api.dump();
+          api.disable();
+          return reply(data.id, { ...base, timeOrigin: Number(windowRef.performance?.timeOrigin) || 0, events });
+        }
         if (data.command === "turn") {
           const pressed = pressTrackerButton(documentRef, data.direction < 0 ? "Turno precedente" : "Turno successivo");
           return reply(data.id, { ...base, ok: pressed, error: pressed ? "" : "pulsante del turno non trovato o disattivato" });
@@ -254,6 +264,12 @@ function hasTickSince(events, since) {
     && (TICK_PATTERN.test(String(event.commandKind || "")) || TICK_PATTERN.test(String(event.kind || ""))));
 }
 
+// The tracker's diagnostic events on the shared clock (epoch ms), to line them up with the other exports.
+function trackerDiagnosticsOf(answer) {
+  if (!answer?.ok || !Array.isArray(answer.events)) return null;
+  return answer.events.map((event) => ({ ...event, at: Math.round(answer.timeOrigin + Number(event.ms || 0)) }));
+}
+
 async function waitFor(check, { timeoutMs, stepMs = 150, wait = sleep, now = () => Date.now() }) {
   const deadline = now() + timeoutMs;
   for (;;) {
@@ -297,6 +313,7 @@ export async function runFluidityCheck({
   };
   let movedTurns = 0;
   let hpRestore = null;
+  let trackerDiagnostics = null;
   try {
     // D6 (V1): the tracker reopened with its own id and URL, without closing it first.
     {
@@ -470,6 +487,7 @@ export async function runFluidityCheck({
     // The measurement block, as on 24/10: the probe's export after measureTurns turns, each waiting for its tick.
     if (measureTurns > 0) {
       probe.reset();
+      await client.tryRequest("index", "diagnostics", { action: "start" });
       const missed = [];
       for (let index = 1; index <= measureTurns; index += 1) {
         const since = now() - 50;
@@ -479,6 +497,7 @@ export async function runFluidityCheck({
         if (!ticked) missed.push(index);
         await wait(settleMs);
       }
+      trackerDiagnostics = trackerDiagnosticsOf(await client.tryRequest("index", "diagnostics", { action: "stop" }));
       const content = probe.export("turni-fluidita");
       const { file } = await save({ name: "gm-turni-fluidita", content });
       const summary = blockSummary(content);
@@ -501,7 +520,7 @@ export async function runFluidityCheck({
     }
   }
   console.table?.(rows);
-  await save({ name: "verifica-fluidita", content: JSON.stringify({ label: "verifica-fluidita", at: new Date(now()).toISOString(), rows }, null, 2) });
+  await save({ name: "verifica-fluidita", content: JSON.stringify({ label: "verifica-fluidita", at: new Date(now()).toISOString(), rows, trackerDiagnostics }, null, 2) });
   log("[verifica] fine. Da guardare a occhio: tracker che non si svuota spostandolo, alone e chip senza scatti, tiro contro la morte, Cronologia e Combat Log.");
   client.close?.();
   return rows;
@@ -517,6 +536,7 @@ export async function watchFluidity({
 } = {}) {
   if (!probe?.enabled) throw new Error("Accendi prima il probe: __tbpPerf.enable() e ricarica Owlbear.");
   probe.reset();
+  await client.tryRequest("index", "diagnostics", { action: "start" });
   log(`[verifica] osservo tracker e avvisi di questo schermo per ${Math.round(durationMs / 1000)} s: ora avvia la verifica sul GM.`);
   const samples = [];
   const until = now() + durationMs;
@@ -549,6 +569,7 @@ export async function watchFluidity({
     });
     await wait(stepMs);
   }
+  const trackerDiagnostics = trackerDiagnosticsOf(await client.tryRequest("index", "diagnostics", { action: "stop" }, { timeout: 2000 }));
   const anomalies = evaluateWatchLog(samples);
   const order = evaluateNoticeOrder(lastReceived);
   if (order.outOfOrder) anomalies.push({ kind: "avvisi-fuori-ordine", count: order.outOfOrder });
@@ -570,7 +591,7 @@ export async function watchFluidity({
   if (noticeSeen.hiddenWithoutFrames) anomalies.push({ kind: "pagina-senza-fotogrammi", count: noticeSeen.hiddenWithoutFrames,
     note: "il browser non disegna questa finestra (coperta, ridotta o in un'altra scheda): gli avvisi non si vedono" });
   if (!noticeSeen.withTurnTitle) anomalies.push({ kind: "nessun-avviso-letto", ...noticeSeen });
-  await save({ name: "proiettore-verifica-fluidita", content: JSON.stringify({ label: "proiettore-verifica-fluidita", samples, anomalies, noticeOrder: order, noticeSeen }, null, 2) });
+  await save({ name: "proiettore-verifica-fluidita", content: JSON.stringify({ label: "proiettore-verifica-fluidita", samples, anomalies, noticeOrder: order, noticeSeen, trackerDiagnostics }, null, 2) });
   await save({ name: "proiettore-turni-fluidita", content: probe.export("proiettore-turni-fluidita") });
   log(anomalies.length ? `[verifica] ${anomalies.length} anomalie sullo schermo del tavolo:` : "[verifica] schermo del tavolo: nessuna anomalia.");
   if (anomalies.length) console.table?.(anomalies);
