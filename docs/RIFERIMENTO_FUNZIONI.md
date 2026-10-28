@@ -349,21 +349,40 @@ piè di pagina, lo scarto tra pagine del PDF e del libro, il prefisso degli id
 (`xge-`), le correzioni degli errori di OCR (espressioni regolari, che possono
 anche dividere una riga) e le intestazioni delle tabelle da ricostruire dalle
 celle (`autoTables`: due colonne una cella per riga, come "Attività / CD", o
-tabelle a dado con l'intestazione su una riga, come "d100 Effetto"). Quando
-l'OCR spezza le parole (Tasha), `scripts/repair-ocr-text.mjs` ripara prima il
-testo (`<manuale>-pdf.txt` → `<manuale>.txt`): unisce frammenti vicini che
-insieme formano una parola nota e scrive ogni unione in
-`<manuale>-riparazioni.txt`.
+tabelle a dado con l'intestazione su una riga, come "d100 Effetto"). Prima,
+`scripts/repair-ocr-text.mjs` ripara gli errori dell'OCR nel testo
+(`<manuale>-pdf.txt` → `<manuale>.txt`) e scrive ogni riparazione in
+`<manuale>-riparazioni.txt`, da rileggere. Nell'ordine:
+
+- toglie gli spazi intorno all'apostrofo e dentro le preposizioni articolate
+  ("dell 'esperienza", "a ll'inizio", "a i giocatori");
+- unisce i frammenti vicini, anche a cavallo di due righe, che insieme formano
+  una parola nota ("d ivertono", "pe" / "rsonaggio");
+- corregge le lettere scambiate ("nemnici", "egii", "LiveJlo");
+- separa due parole incollate ("lepergamene", "delFuoco").
+
+Le parole note vengono da tre fonti: l'elenco di parole del modello italiano di
+Tesseract (`tessdata/ita-words.txt` nella cartella privata, estratto con
+`combine_tessdata -u` e `dawg2wordlist`), i testi SRD e i testi privati di
+incantesimi e capacità. L'elenco di Tesseract contiene anche parole straniere,
+pezzi di parole e parole incollate. Per questo conta solo le parole che finiscono
+in vocale e cominciano come una parola italiana. Non unisce mai due parole vere
+se una è un articolo o una preposizione ("lo stregone", "con i"), né pezzi di
+maiuscolo e minuscolo ("Medio Evo"). Non cambia la prima lettera dei nomi
+propri. Gli scambi tipici di Tesseract (t o f letti al posto di l) valgono solo
+con `--tesseract`: sul livello di testo dei PDF di Xanathar e Tasha
+cambierebbero parole giuste ("partano" in "parlano").
 
 Il PDF italiano del Manuale del Giocatore ha un livello di testo illeggibile:
 il suo testo viene dall'OCR. Le pagine si rasterizzano con l'API PDF di Windows
 e si leggono con Tesseract e il modello italiano (`tessdata/ita.traineddata`
 nella cartella privata), una colonna alla volta, tagliando sulla canalina
 centrale, così le tabelle a destra non si mescolano al testo a sinistra.
-`sorgenti/regole/phb2014-pulizia.cjs` pulisce il risultato
-(`phb2014-pdf.txt` → `phb2014.txt`): toglie piè di pagina, filigrana e le righe
-lette nelle illustrazioni, e ricostruisce elenchi puntati e frasi spezzate. La
-riparazione delle parole non serve, perché Tesseract non spezza le parole. Le
+`sorgenti/regole/join-phb.cjs` mette insieme le pagine (`phb2014-ocr.txt`) e
+`phb2014-pulizia.cjs` pulisce il risultato (`phb2014-ocr.txt` →
+`phb2014-pdf.txt`): toglie piè di pagina, filigrana e le righe lette nelle
+illustrazioni, e ricostruisce elenchi puntati e frasi spezzate. Poi
+`repair:ocr` con `--tesseract` corregge le lettere scambiate (`phb2014.txt`). Le
 correzioni si scrivono come espressioni regolari in `phb2014-correzioni.cjs`,
 che produce il JSON letto dall'indice, e `phb2014-bozza-indice.cjs` scrive
 l'indice dai titoli in maiuscolo. L'indice copre solo le parti che il
@@ -379,9 +398,11 @@ La cartella privata contiene `sorgenti/` (file grezzi e database completi),
 ```text
 npm run generate:supplement-spells
 npm run generate:class-features
+npm run repair:ocr -- --book=xanathar
 npm run generate:private-rules -- --book=xanathar
 npm run repair:ocr -- --book=tasha
 npm run generate:private-rules -- --book=tasha
+npm run repair:ocr -- --book=phb2014 --tesseract
 npm run generate:private-rules -- --book=phb2014
 npm run packs:build
 npm run check:private-texts -- --dist=dist

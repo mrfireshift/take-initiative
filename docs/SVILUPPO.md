@@ -34,7 +34,7 @@ Lo sviluppo usa Vite. Installa il manifest esposto dal server locale nella room 
 | `npm run audit:class-features` | Rigenera audit JSON e Markdown delle capacità |
 | `npm run audit:barbaro` | Genera l'audit mirato delle capacità del Barbaro |
 | `npm run generate:rules-reference -- --pdf-text=srd-it.txt` | Rigenera il compendio delle regole SRD dell'Enciclopedia |
-| `npm run repair:ocr -- --book=tasha` | Ripara le parole spezzate dall'OCR nel testo di un manuale privato, con il registro delle unioni |
+| `npm run repair:ocr -- --book=tasha` | Ripara gli errori dell'OCR nel testo di un manuale privato (parole spezzate o incollate, lettere scambiate, apostrofi), con il registro delle riparazioni; `--tesseract` per un testo letto da Tesseract (Manuale) |
 | `npm run generate:private-rules -- --book=xanathar --preview` | Costruisce le regole di un manuale privato dal testo del suo PDF e dal suo indice, nella cartella privata |
 | `npm run packs:build` | Costruisce i pacchetti privati dei manuali nella cartella privata (vedi [Riferimento](RIFERIMENTO_FUNZIONI.md#pacchetti-privati)) |
 | `npm run check:private-texts -- --dist=dist` | Cerca i testi dei manuali non SRD nel repo e nella build |

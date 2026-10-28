@@ -212,3 +212,40 @@ test("la riparazione dell'OCR unisce i frammenti che formano una parola nota, ma
   assert.deepEqual(mendLine("svolge r e", known)[0], "svolgere");
   assert.deepEqual(mendLine("di prova", known), ["di prova", []]);
 });
+
+test("la riparazione non incolla dadi, parole in casi diversi o una parola a cui segue un'unione più lunga", async () => {
+  const { mendLine, vocabularyOf } = await import("../scripts/repair-ocr-text.mjs");
+  const known = vocabularyOf(["und di mettere ape perseguire medio evo tipi reame coni"]);
+  assert.equal(mendLine("tira un d20", known)[0], "tira un d20");
+  assert.equal(mendLine("nel Medio Evo", known)[0], "nel Medio Evo");
+  assert.equal(mendLine("di me ttere", known)[0], "di mettere");
+  assert.equal(mendLine("a pe rseguire", known)[0], "a perseguire");
+  // Two words join only when together they make a word of five letters or more of the sure texts, and none is a
+  // function word: "REA ME" is "REAME", "con i" stays.
+  const sure = vocabularyOf(["reame coni"]);
+  assert.equal(mendLine("DEL REA ME REMOTO", known, vocabularyOf(["rea me del remoto"]), sure)[0], "DEL REAME REMOTO");
+  assert.equal(mendLine("con i mostri", known, vocabularyOf(["con mostri"]), sure)[0], "con i mostri");
+});
+
+test("la riparazione toglie gli spazi dell'apostrofo e delle preposizioni articolate e unisce le righe", async () => {
+  const { mendAcrossLines, mendElisions, vocabularyOf } = await import("../scripts/repair-ocr-text.mjs");
+  assert.deepEqual(mendElisions("discutere dell 'esperienza a ll'inizio"), ["discutere dell'esperienza all'inizio", [["dell '", "dell'"], ["a ll", "all"]]]);
+  assert.equal(mendElisions("unirsi a i giocatori, Da i loro")[0], "unirsi ai giocatori, Dai loro");
+  assert.equal(mendElisions("disse 'vai via' e poi")[0], "disse 'vai via' e poi");
+  const known = vocabularyOf(["il personaggio può"]);
+  assert.deepEqual(mendAcrossLines(["Il pe", "rsonaggio può", "\fpe", "rsonaggio"], known)[0], ["Il personaggio", "può", "\fpe", "rsonaggio"]);
+});
+
+test("la riparazione corregge le lettere scambiate dall'OCR e separa le parole incollate, non i nomi", async () => {
+  const { fixLetters, TESSERACT_CONFUSIONS, vocabularyOf } = await import("../scripts/repair-ocr-text.mjs");
+  const known = vocabularyOf(["egli nemici templi livello nobile pergamene causato ottenere fiala"]);
+  assert.equal(fixLetters("egii vide i nemnici nei ternpli", known)[0], "egli vide i nemici nei templi");
+  assert.equal(fixLetters("il LiveJlo", known)[0], "il Livello");
+  // A name keeps its first letter, a pronoun glued to a verb is a word.
+  assert.equal(fixLetters("Jiala e ottenerle", known)[0], "Jiala e ottenerle");
+  // The confusions of Tesseract only when asked.
+  assert.equal(fixLetters("il nobite", known)[0], "il nobite");
+  assert.equal(fixLetters("il nobite", known, known, TESSERACT_CONFUSIONS)[0], "il nobile");
+  assert.equal(fixLetters("lepergamene causatoda delFuoco", known)[0], "le pergamene causato da del Fuoco");
+  assert.equal(fixLetters("inviolato", known)[0], "inviolato");
+});
