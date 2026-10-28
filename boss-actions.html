@@ -123,6 +123,11 @@
   </style>
 </head>
 <body>
+  <script>
+    // A console reduced before it was closed shows only its header from the first paint; boss-actions.js then
+    // sets the popover height. The key is boss-actions.js's MINIMIZED_STORAGE_KEY.
+    try { if (sessionStorage.getItem("com.thebigpicture.initiative/boss-actions-minimized") === "true") document.body.dataset.minimized = "true"; } catch {}
+  </script>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/boss-actions">
     <header class="header" data-drag-handle draggable="true" title="Trascina per spostare">
       <div class="header-text"><h1 class="title" id="boss-name">Boss Actions</h1><div class="subtitle" id="boss-phase"></div></div>

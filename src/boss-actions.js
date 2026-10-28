@@ -1958,12 +1958,14 @@ export function bootBossActions(documentRef=document, overrides={}) {
     }
   });
   setView("list");showUndo(null);
+  // A console reduced before it was closed comes back reduced: folded before its first paint, not after the reads.
+  const restoreMinimized=readSession(MINIMIZED_STORAGE_KEY)===true ? setMinimized(true) : Promise.resolve();
   const ready=lifecycle.mount().then(()=>perform(async operation=>{
     if(await api.player.getRole()!=="GM"){invalidated=true;throw new Error("Solo il GM può usare Boss Actions.");}
     await refresh(operation);
     if(!presentation?.binding || !presentation?.profile){renderLibrary(presentation?.profile);setView("manage");}
     mountLiveUpdates();
-    if(readSession(MINIMIZED_STORAGE_KEY)===true)await setMinimized(true);
+    await restoreMinimized;
   })).then(async()=>{
     if(invalidated) return;
     await readSelection();
