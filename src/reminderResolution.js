@@ -42,7 +42,7 @@ function resolutionIsCurrent(sceneEpoch, generation) {
 function staleResolutionResult() {
   return {
     status: "stale",
-    message: "La scena è cambiata: il promemoria non è più corrente. Puoi chiuderlo.",
+    message: "La scena è cambiata: il promemoria non è più corrente.",
   };
 }
 
@@ -208,9 +208,9 @@ function createResolutionAttemptId() {
 function staleMessage(result) {
   const reason = String(result?.reason || result?.conflicts?.[0]?.reason || "");
   if (reason.includes("scene") || reason.includes("epoch")) {
-    return "La scena o il turno sono cambiati: il promemoria non è più corrente. Puoi chiuderlo.";
+    return "La scena o il turno sono cambiati: il promemoria non è più corrente.";
   }
-  return "Il promemoria non è più corrente. Nessuna conseguenza è stata applicata; puoi chiuderlo.";
+  return "Il promemoria non è più corrente. Nessuna conseguenza è stata applicata.";
 }
 
 function reminderDamageFactor(value) {

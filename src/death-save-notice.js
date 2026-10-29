@@ -21,6 +21,9 @@ const loadReminderResolution = lazyModule(() => import("./reminderResolution.js"
 // the GM's four outcomes through the same reminder resolution as the other reminders, the same card without buttons
 // on the table screen. It closes on its own once the roll is written.
 const POPOVER_ID = `${ID}/death-save-notice`;
+// The GM's × closes the same death save on the table screen too (lot L20): left there, it waited for a roll the GM
+// had decided not to record.
+const DISMISS_CHANNEL = `${ID}/death-save-notice-dismiss`;
 const META_KEY = `${ID}/meta`;
 const RESOLVED_CLOSE_MS = 3500;
 const $ = (id) => document.getElementById(id);
@@ -38,6 +41,7 @@ const OUTCOME_HINTS = Object.freeze({
 });
 let resolving = false;
 let closing = false;
+let pageRole = "PLAYER";
 
 function close() {
   if (closing) return;
@@ -152,7 +156,12 @@ function renderOutcomes() {
   $("rule").hidden = true;
 }
 
-$("close").addEventListener("click", close);
+$("close").addEventListener("click", () => {
+  if (pageRole === "GM" && activationId) {
+    void OBR.broadcast.sendMessage(DISMISS_CHANNEL, { activationId }, { destination: "REMOTE" }).catch(() => {});
+  }
+  close();
+});
 $("name").textContent = String(target?.name || "Personaggio");
 if (target?.portrait) $("portrait").src = target.portrait;
 else $("portrait").closest(".portrait").hidden = true;
@@ -163,7 +172,11 @@ OBR.onReady(async () => {
   if (!activationId || !target?.id) { close(); return; }
   // The token is read while the role is asked; the outcome buttons still appear as soon as the role is known.
   const itemRead = OBR.scene.items.getItems([target.id]).catch(() => []);
+  OBR.broadcast.onMessage(DISMISS_CHANNEL, (event) => {
+    if (String(event?.data?.activationId || "") === activationId) close();
+  });
   const role = await OBR.player.getRole().catch(() => "PLAYER");
+  pageRole = role;
   // The GM records the roll; the table screen (and a GM in informational mode, without a resolution) only watches.
   if (role === "GM" && notice.resolution) renderOutcomes();
   const [item] = await itemRead;

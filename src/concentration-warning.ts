@@ -277,6 +277,22 @@ function render(role: string, warnings: Warning[] = warningsFromURL()) {
   }
 
   panel.append(portrait, copy, saveBadge, list);
+  // With Superato / Fallito it has no timer: the × closes it without recording the roll (lot L20). The
+  // concentration stays as it is.
+  if (canResolve) {
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "close";
+    close.textContent = "×";
+    close.title = "Chiudi senza registrare il tiro";
+    close.setAttribute("aria-label", close.title);
+    close.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closePopover();
+    });
+    panel.classList.add("has-close");
+    panel.appendChild(close);
+  }
   if (!canResolve) {
     const timer = document.createElement("div");
     timer.className = "timer";

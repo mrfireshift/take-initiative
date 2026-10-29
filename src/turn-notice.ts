@@ -435,6 +435,9 @@ function resolutionStatusNode(line: HTMLElement, message: string) {
   line.appendChild(status);
 }
 
+// How long a reminder no longer current shows why before it goes away.
+const STALE_REMINDER_CLOSE_MS = 3500;
+
 function dismissResolvedReminder(activationId: string, { zone = false } = {}) {
   // Il sender può avere già accodato un payload precedente alla mutation. Lo
   // dreniamo nella stessa transizione del pannello: lasciarlo al timer
@@ -908,15 +911,22 @@ function buildResolutionControls(line: HTMLElement, row: any) {
         dismissResolvedReminder(activationId, {
           zone: row?.resolution?.activation?.kind === "zone",
         });
+      } else if (result.status === "stale") {
+        // A reminder no longer current has nothing left to resolve and no × to close it (removed in August): it says
+        // why and goes away by itself (lot L20).
+        resolutionStatusNode(line, `${result.message || "Il promemoria non è più corrente."} Si chiude da solo.`);
+        window.setTimeout(() => dismissResolvedReminder(activationId, {
+          zone: row?.resolution?.activation?.kind === "zone",
+        }), STALE_REMINDER_CLOSE_MS);
       } else {
-        resolutionStatusNode(line, result.message || "Promemoria non più corrente; puoi chiuderlo.");
+        resolutionStatusNode(line, result.message || "Registrazione non riuscita: riprova.");
         for (const button of Array.from(controls.querySelectorAll("button, input"))) {
           (button as HTMLButtonElement | HTMLInputElement).disabled = false;
         }
         refreshSelection();
       }
     } catch (error) {
-      resolutionStatusNode(line, String((error as any)?.message || "Risoluzione non riuscita; puoi chiudere il promemoria."));
+      resolutionStatusNode(line, String((error as any)?.message || "Registrazione non riuscita: riprova."));
       for (const button of Array.from(controls.querySelectorAll("button, input"))) {
         (button as HTMLButtonElement | HTMLInputElement).disabled = false;
       }

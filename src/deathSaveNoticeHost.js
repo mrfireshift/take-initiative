@@ -40,7 +40,8 @@ async function openDeathSavePopover(notice) {
     width: POPOVER_WIDTH,
     height: POPOVER_HEIGHT,
     anchorReference: "POSITION",
-    anchorPosition: { left: viewportWidth / 2, top: Math.max(12, Math.round(viewportHeight * 0.18)) },
+    // Below the turn notice that opens with it (9% from the top, 122 px tall: turnNoticeHost.js), not under it (lot L20).
+    anchorPosition: { left: viewportWidth / 2, top: Math.max(12, Math.round(viewportHeight * 0.09)) + 122 + 12 },
     anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
     transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
     hidePaper: true,
