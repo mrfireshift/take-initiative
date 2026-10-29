@@ -80,6 +80,9 @@ let unsubscribeCombatLogOption: (() => void) | null = null;
 let unsubscribeHistoryChange: (() => void) | null = null;
 let unsubscribeUndoSceneItems: (() => void) | null = null;
 let combatLogStorageAction = false;
+// The registro the two exports write (lot L20): the current one, or an archived one exported without becoming the
+// active registro (the session picker makes it active, and the new events then went into it).
+let combatLogExportSessionId = "";
 let combatLogPageLoading = false;
 let combatLogPageOperationToken = 0;
 const COMBAT_LOG_TIMELINE_BATCH_SIZE = 250;
@@ -405,7 +408,7 @@ function setButtonLabel(control: HTMLButtonElement, label: string) {
   else control.textContent = label;
 }
 
-function toolbarMenu(label: string, iconPath: string, controls: HTMLButtonElement[]) {
+function toolbarMenu(label: string, iconPath: string, controls: HTMLElement[]) {
   const wrap = document.createElement("div");
   wrap.className = "toolbar-menu-wrap";
   const trigger = button(label, "default", iconPath, true);
@@ -423,6 +426,10 @@ function toolbarMenu(label: string, iconPath: string, controls: HTMLButtonElemen
   };
   trigger.addEventListener("click", () => setOpen(menu.style.display === "none"));
   for (const control of controls) {
+    if (control.tagName !== "BUTTON") {
+      menu.appendChild(control);
+      continue;
+    }
     control.setAttribute("role", "menuitem");
     Object.assign(control.style, { width: "100%", justifyContent: "flex-start" });
     control.addEventListener("click", () => setOpen(false));
@@ -1272,21 +1279,54 @@ async function render(
   }
   clearLog.title = "Rimuove gli eventi ma mantiene il registro nella lista";
   deleteLog.title = "Elimina definitivamente il registro selezionato";
-  exportText.disabled = !session?.id || combatLogPageState.totalCount < 1 || combatLogStorageAction;
-  exportJson.disabled = !session?.id || combatLogPageState.totalCount < 1 || combatLogStorageAction;
+  const exportCandidates = session?.id && !sessions.some((candidate: any) => candidate.id === session.id)
+    ? [session, ...sessions]
+    : sessions;
+  if (!exportCandidates.some((candidate: any) => candidate.id === combatLogExportSessionId)) {
+    combatLogExportSessionId = session?.id || "";
+  }
+  const exportTarget = document.createElement("select");
+  exportTarget.className = "session-select";
+  exportTarget.title = "Il registro da esportare: quello corrente o uno archiviato, senza riprenderlo";
+  exportTarget.setAttribute("aria-label", "Registro da esportare");
+  for (const candidate of exportCandidates) {
+    const option = document.createElement("option");
+    option.value = candidate.id;
+    option.textContent = candidate.id === session?.id ? `${candidate.name} (corrente)` : candidate.name;
+    option.selected = candidate.id === combatLogExportSessionId;
+    exportTarget.appendChild(option);
+  }
+  exportTarget.disabled = !exportCandidates.length || combatLogStorageAction;
+  const exportTargetField = document.createElement("label");
+  Object.assign(exportTargetField.style, { display: "grid", gap: "2px", fontSize: "10px", color: "var(--obrt-muted)" });
+  exportTargetField.append(document.createTextNode("Da esportare"), exportTarget);
+  const exportSession = () => exportCandidates.find((candidate: any) => candidate.id === combatLogExportSessionId) || session;
+  // The current registro is exported once it has events; an archived one whenever it is chosen.
+  const syncExportButtons = () => {
+    const current = !combatLogExportSessionId || combatLogExportSessionId === session?.id;
+    const blocked = !exportSession()?.id || combatLogStorageAction || (current && combatLogPageState.totalCount < 1);
+    exportText.disabled = blocked;
+    exportJson.disabled = blocked;
+  };
+  exportTarget.addEventListener("change", () => {
+    combatLogExportSessionId = exportTarget.value;
+    syncExportButtons();
+  });
+  syncExportButtons();
   importJson.disabled = combatLogStorageAction || !sceneLifecycle.isReady();
   storageStats.disabled = combatLogStorageAction || !sceneLifecycle.isReady();
   retention.disabled = combatLogStorageAction || !sceneLifecycle.isReady();
   clearLog.disabled = !session?.id || !events.length || !sceneLifecycle.isReady();
   deleteLog.disabled = !session?.id || !sceneLifecycle.isReady();
   exportText.addEventListener("click", async () => {
-    if (combatLogStorageAction || !session?.id) return;
+    const target = exportSession();
+    if (combatLogStorageAction || !target?.id) return;
     combatLogStorageAction = true;
     try {
-      const data = await getCombatLogExportData(session.id, { sceneEpoch: operation.epoch });
+      const data = await getCombatLogExportData(target.id, { sceneEpoch: operation.epoch });
       if (!data) return;
       download(
-        `${safeFileName(session.name)}.txt`,
+        `${safeFileName(target.name)}.txt`,
         serializeCombatLogPresentationText(data.session, buildCombatLogPresentation(data.session, data.events)),
         "text/plain;charset=utf-8",
       );
@@ -1297,11 +1337,12 @@ async function render(
     }
   });
   exportJson.addEventListener("click", async () => {
-    if (combatLogStorageAction || !session?.id) return;
+    const target = exportSession();
+    if (combatLogStorageAction || !target?.id) return;
     combatLogStorageAction = true;
     try {
-      const content = await exportCombatLogJSONFromStorage(session.id, { sceneEpoch: operation.epoch });
-      if (content) download(`${safeFileName(session.name)}.json`, content, "application/json;charset=utf-8");
+      const content = await exportCombatLogJSONFromStorage(target.id, { sceneEpoch: operation.epoch });
+      if (content) download(`${safeFileName(target.name)}.json`, content, "application/json;charset=utf-8");
     } catch (error: any) {
       await renderAfterStorageAction(`Esportazione fallita: ${error?.message || error}`);
     } finally {
@@ -1389,8 +1430,12 @@ async function render(
     combatLogStorageAction = true;
     try {
       const stats = await getCombatLogStorageStats({ sceneEpoch: operation.epoch });
-      if (!stats) return;
-      await scheduleRender(`Archivio locale: ${countText(stats.sessionCount, "registro", "registri")}, ${countText(stats.eventCount, "evento", "eventi")} (${countText(stats.importedSessionCount, "importato", "importati")}).`);
+      // The action ends before its result is drawn (lot L20): drawn while it was running, every button stayed disabled.
+      if (!stats) {
+        await renderAfterStorageAction("Statistiche dell'archivio non disponibili.");
+        return;
+      }
+      await renderAfterStorageAction(`Archivio locale: ${countText(stats.sessionCount, "registro", "registri")}, ${countText(stats.eventCount, "evento", "eventi")} (${countText(stats.importedSessionCount, "importato", "importati")}).`);
     } catch (error: any) {
       await renderAfterStorageAction(`Statistiche dell'archivio non disponibili: ${error?.message || error}`);
     } finally {
@@ -1464,7 +1509,7 @@ async function render(
   sessionBarActions.append(
     newSession,
     toolbarMenu("Snapshot del combattimento", "log-snapshot.svg", [snapshotJson, snapshotPng, snapshotSvg]),
-    toolbarMenu("Esporta/importa", "log-export.svg", [exportText, exportJson, importJson]),
+    toolbarMenu("Esporta/importa", "log-export.svg", [exportTargetField, exportText, exportJson, importJson]),
     toolbarMenu("Gestisci registro", "log-more.svg", [clearLog, deleteLog, storageStats, retention]),
     importFile,
   );
