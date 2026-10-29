@@ -8,6 +8,7 @@ import { spellAreaGridCells } from "./spellAreaPlacementCore.js";
 import {
   CLASS_FEATURE_AURA_META_KEY,
   classFeatureAuraEndsOnSourceCondition,
+  classFeatureAuraIsPassive,
   classFeatureAuraMembershipPlan,
   classFeatureAuraTargetIds,
   collectActiveClassFeatureAuras,
@@ -309,12 +310,19 @@ async function reconcileClassFeatureAuras({ reason = "event", force = false } = 
     characterBuildBySourceId,
   });
   const byId = new Map(items.map((item) => [item.id, item]));
-  const endedAuras = collectedAuras.filter((aura) => (
+  const stoppedByCondition = collectedAuras.filter((aura) => (
     classFeatureAuraEndsOnSourceCondition(
       aura,
       getConditionInstances(byId.get(aura.sourceId)?.metadata?.[META_KEY]?.conditions),
     )
   ));
+  // A passive aura (the Paladin's, always on while conscious) is suspended, not ended: it gives nothing while its
+  // source is unconscious and comes back by itself when it stands up. Ending it wrote a History entry each time, and
+  // undoing that entry while the source was still unconscious ended it again: Undo never got past it.
+  const suspendedInstanceIds = new Set(stoppedByCondition
+    .filter(classFeatureAuraIsPassive)
+    .map((aura) => aura.instanceId));
+  const endedAuras = stoppedByCondition.filter((aura) => !suspendedInstanceIds.has(aura.instanceId));
   if (endedAuras.length) {
     for (const aura of endedAuras) {
       if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
@@ -396,7 +404,7 @@ async function reconcileClassFeatureAuras({ reason = "event", force = false } = 
         metaKey: META_KEY,
       }).operations);
     };
-    if (!caster || !center || !aura.radiusMeters) {
+    if (suspendedInstanceIds.has(aura.instanceId) || !caster || !center || !aura.radiusMeters) {
       cleanupAuraMembership();
       continue;
     }

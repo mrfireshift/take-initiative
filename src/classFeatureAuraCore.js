@@ -41,6 +41,15 @@ export function classFeatureAuraEndsOnSourceCondition(
     .some((conditionName) => hasEffectiveCondition(conditionInstances, conditionName));
 }
 
+// An aura always on while its source can keep it (the Paladin's five): no duration in rounds and no action to start it
+// (passive, or "innesco" for the Aura of Alacrity). An aura started with an action or lasting a minute (Spirit Totem)
+// is not: it ends.
+export function classFeatureAuraIsPassive(aura = null) {
+  const feature = aura?.feature;
+  if (!feature || (feature.duration?.rounds !== null && feature.duration?.rounds !== undefined)) return false;
+  return ["passiva", "innesco"].includes(String(feature.activation?.primary || "").trim().toLowerCase());
+}
+
 function auraRule(aura) {
   const targetEffects = Array.isArray(aura?.targetEffects) && aura.targetEffects.length
     ? aura.targetEffects

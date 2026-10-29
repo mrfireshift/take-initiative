@@ -410,3 +410,30 @@ test("la riconciliazione migra una pill area senza tema al tema della Feature", 
   assert.equal(plan.operations[1].options.theme.background, "#312e81");
   assert.equal(plan.operations[1].options.theme.accent, "#a78bfa");
 });
+
+// The Paladin's auras are passive: always on while the Paladin is conscious. Ended at 0 HP, they wrote a History entry
+// that an Undo restored while the Paladin was still unconscious, and the controller ended them again: Undo never got
+// past them, and healing the Paladin did not bring them back. They are suspended instead (classFeatureAuraController).
+test("le aure passive del Paladino si sospendono da Privo di sensi; quelle a tempo finiscono ancora", async () => {
+  const { classFeatureAuraIsPassive } = await import("../src/classFeatureAuraCore.js");
+  const byId = (id) => CLASS_FEATURE_CATALOG.features.find((entry) => entry.id === id);
+  const unconscious = [{ id: "ko", condition: "Privo di sensi", active: true }];
+  for (const id of ["paladino-aura-di-protezione", "paladino-aura-di-coraggio", "paladino-giuramento-delle-sentinelle-aura-della-sentinella",
+    "paladino-giuramento-di-gloria-aura-di-alacrita", "paladino-giuramento-degli-antichi-aura-di-interdizione"]) {
+    const aura = { feature: byId(id) };
+    assert.ok(aura.feature, id);
+    assert.equal(classFeatureAuraEndsOnSourceCondition(aura, unconscious), true, id);
+    assert.equal(classFeatureAuraIsPassive(aura), true, `${id}: suspended, not ended`);
+  }
+  const totem = { feature: byId("druido-circolo-del-pastore-totem-spirituale") };
+  assert.equal(classFeatureAuraIsPassive(totem), false, "a bonus action aura for 1 minute still ends");
+  assert.equal(classFeatureAuraIsPassive({ feature: byId("warlock-suppliche-occulte-mantello-di-mosche") }), false,
+    "no duration but started with a bonus action: it ends");
+  assert.equal(classFeatureAuraIsPassive(null), false);
+
+  const controller = (await import("node:fs")).readFileSync(new URL("../src/classFeatureAuraController.js", import.meta.url), "utf8")
+    .replace(/\r\n/g, "\n");
+  assert.match(controller, /const suspendedInstanceIds = new Set\(stoppedByCondition\n\s+\.filter\(classFeatureAuraIsPassive\)/);
+  assert.match(controller, /const endedAuras = stoppedByCondition\.filter\(\(aura\) => !suspendedInstanceIds\.has\(aura\.instanceId\)\);/);
+  assert.match(controller, /if \(suspendedInstanceIds\.has\(aura\.instanceId\) \|\| !caster \|\| !center \|\| !aura\.radiusMeters\) \{\n\s+cleanupAuraMembership\(\);/);
+});
