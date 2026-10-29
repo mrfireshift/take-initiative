@@ -167,3 +167,9 @@ test("la fine automatica di una capacità è segnata come conseguenza", async ()
   assert.match(read("../src/classFeatureAuraController.js"), /await deactivateClassFeature\(aura\.sourceId, aura\.instanceId, \{ automatic: true \}\);/);
   assert.match(read("../src/classFeatureRuntime.js"), /history: \{ kind: "class-feature", label: "Capacità terminata", payload: \{ automaticConsequence: true \} \},/);
 });
+
+test("anche l'aggiornamento dei membri di un'aura, scritto dopo un movimento, è una conseguenza automatica", async () => {
+  const { readFileSync } = await import("node:fs");
+  const controller = readFileSync(new URL("../src/classFeatureAuraController.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(controller, /label: "Aggiornata membership aura",\n.*\n\s+history: \{ kind: "class-feature", label: "Aggiornata membership aura", payload: \{ automaticConsequence: true \} \},/);
+});

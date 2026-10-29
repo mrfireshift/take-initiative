@@ -250,6 +250,8 @@ async function clearStaleSuppressions(plans, isCurrent = () => true) {
   const mutation = await runEffectsMutation(operations, {
     kind: "class-feature",
     label: "Aggiornata membership aura",
+    // Written by the controller after a token moved: undone with that move, or it would be written again at once.
+    history: { kind: "class-feature", label: "Aggiornata membership aura", payload: { automaticConsequence: true } },
     targetIds: sourceIds,
     sceneEpoch: currentSceneEpoch(),
   });
