@@ -254,7 +254,7 @@ export function buildBossActionsLauncher({
   if (!documentRef) return null;
   const button = documentRef.createElement("button");
   button.type = "button";
-  button.title = bound ? "Boss Actions" : "Boss Actions: collega un profilo";
+  button.title = bound ? "Console Boss" : "Console Boss: collega un profilo";
   button.setAttribute("aria-label", button.title);
   button.dataset.cardSelectionIgnore = "1";
   button.dataset.bossActionsLauncher = bound ? "bound" : "unbound";

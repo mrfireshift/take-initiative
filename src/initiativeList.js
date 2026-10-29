@@ -1264,7 +1264,7 @@ const btnNext = mkBtn("\u25BC");
 
 // pill “Turno N”
 const roundPill = document.createElement("div");
-roundPill.title = "Numero di turni (scatta quando l'iniziativa avanza e ritorna all'inizio)";
+roundPill.title = "Round del combattimento: avanza quando l'iniziativa torna all'inizio";
 Object.assign(roundPill.style, {
   alignSelf: "center",
   width: "calc(100% - 16px)",
@@ -1695,7 +1695,7 @@ function makeAddAllInitiativeBtn() {
       if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
       const pending = items.filter((item) => item.metadata?.[META_KEY]?.inInitiative !== true && !isSharedHpInitiativeExcluded(item));
       if (!pending.length) {
-        await OBR.notification.show("Tutti i token sono gia nell'iniziativa.", "INFO");
+        await OBR.notification.show("Tutti i token sono già nell'iniziativa.", "INFO");
         return;
       }
 

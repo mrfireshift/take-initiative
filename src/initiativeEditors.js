@@ -799,7 +799,8 @@ export function enableClassicCardRename({
   onError = () => {},
   documentRef = globalThis.document,
 }) {
-  nameLabel.title = "Doppio clic per rinominare il token";
+  // The full name first: on a truncated name the tooltip is the only place to read it.
+  nameLabel.title = `${String(nameLabel.textContent || "").trim()}\nDoppio clic per rinominare il token`.trim();
   nameLabel.style.cursor = "text";
   enableInlineNameEditor({
     card,

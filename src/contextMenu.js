@@ -270,7 +270,7 @@ async function toggleEpicBossOn(ids) {
       id: `${ID}/boss-actions`,
       group: MENU_GROUP,
       // Only an Epic boss (Abilita Epic Boss) has the console of its actions.
-      icons: [{ icon: ICON_BOSS, label: "Boss Actions", filter: { roles: ["GM"], every: [
+      icons: [{ icon: ICON_BOSS, label: "Console Boss", filter: { roles: ["GM"], every: [
         isCharacter(), { key: "type", value: "IMAGE" },
         { key: ["metadata", META_KEY, "epic"], operator: "!=", value: undefined },
       ] } }],

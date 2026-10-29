@@ -481,7 +481,7 @@ export async function mountCallLightningTurnPromptController() {
               && String(candidate?.casterId || "").trim() === String(payload.casterId || "").trim()
             ));
             const spell = getSpellDefinition(payload.spellId);
-            if (!group || !spell) throw new Error("L'istanza di Controllare Venti non è più disponibile.");
+            if (!group || !spell) throw new Error(`L'istanza di ${spell?.displayName || "questo incantesimo"} non è più disponibile.`);
             const commandId = `turn-prompt:${String(data.instanceId || "").trim()}:${String(data.actionId || "").trim()}:${Date.now().toString(36)}`;
             const sceneContext = await getEffectsMutationSceneContext({ commandId });
             await executeSpellActiveAction({

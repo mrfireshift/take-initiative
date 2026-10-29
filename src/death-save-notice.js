@@ -69,7 +69,7 @@ function renderToken(item) {
   const resolved = !!meta.reminderResolutions && Object.prototype.hasOwnProperty.call(meta.reminderResolutions, activationId);
   if (resolved || result) {
     $("status").textContent = dead ? "Tre fallimenti: è morto." : stable ? "Tre successi: è stabile."
-      : revived ? "20 naturale: torna a 1 PF." : `Tirato · Successi ${successes}/3 · Fallimenti ${failures}/3`;
+      : revived ? "Di nuovo sopra 0 PF: è cosciente." : `Tirato · Successi ${successes}/3 · Fallimenti ${failures}/3`;
     for (const button of document.querySelectorAll("#outcomes button")) button.disabled = true;
     window.setTimeout(close, RESOLVED_CLOSE_MS);
   }

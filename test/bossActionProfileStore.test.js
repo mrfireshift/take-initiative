@@ -63,7 +63,7 @@ test("storage read, quota, and unavailable storage errors surface to the caller"
   assert.throws(() => readFailure.list(), /read denied/);
   const quota = createBossActionProfileStore({ storage: { getItem() { return null; }, setItem() { throw new Error("quota exceeded"); } } });
   assert.throws(() => quota.put(profile), /quota exceeded/);
-  assert.throws(() => createBossActionProfileStore({ storage: null }).put(profile), /storage|unavailable/i);
+  assert.throws(() => createBossActionProfileStore({ storage: null }).put(profile), /libreria dei profili boss|non è disponibile/i);
   const corrupt = storageHarness();
   corrupt.setItem("com.thebigpicture.initiative/bossActionProfiles/v1", "{truncated");
   assert.throws(() => createBossActionProfileStore({ storage: corrupt }).list(), /JSON|json/i);

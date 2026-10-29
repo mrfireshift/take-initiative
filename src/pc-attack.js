@@ -2224,7 +2224,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     const ruleId=areaRuleId(attack);
     if(!ruleId || drawing || busy || !draft) return;
     const requestId=createSpellAreaPlacementRequestId(),active=draft;
-    const shape={line:"la linea",cone:"il cono",cube:"il cubo"}[attack.area.shape] || "la sfera";
+    const shape={line:"la linea",cone:"il cono",cube:"il cubo",cylinder:"il cilindro"}[attack.area.shape] || "la sfera";
     const where=attack.area.shape==="sphere" && attack.area.origin!=="self"?"sul punto scelto":`dal token di ${presentation.item?.name || "l'attaccante"}`;
     drawing=requestId;renderArea();renderMinimized();
     setStatus(`Disegna ${shape} ${where}, poi conferma la sagoma. Esc annulla.`);
@@ -2243,7 +2243,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         member.on=ids.has(item.id);
       }
       const listed=presentation.targets.filter(item=>ids.has(item.id)).length,untracked=ids.size-listed;
-      setStatus(`${{line:"Sulla linea",cone:"Nel cono",cube:"Nel cubo"}[attack.area.shape] || "Nella sfera"}: ${listed} ${listed===1?"creatura":"creature"}`
+      setStatus(`${{line:"Sulla linea",cone:"Nel cono",cube:"Nel cubo",cylinder:"Nel cilindro"}[attack.area.shape] || "Nella sfera"}: ${listed} ${listed===1?"creatura":"creature"}`
         +`${untracked>0?` (${untracked} senza PF tracciati, escluse)`:""}. Segna i tiri salvezza.`,"ok");
     } else setStatus(result?.status==="cancelled"?"Disegno annullato.":`Disegno non riuscito${result?.error?`: ${result.error}`:""}.`,result?.status==="cancelled"?"warn":"error");
     renderArea();renderState();

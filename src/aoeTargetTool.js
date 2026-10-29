@@ -293,7 +293,7 @@ async function fixAreaBatchShape(state, area) {
     // It stays the active shape: the next drag replaces it and the confirmation refuses it.
     state.finishing = false;
     await OBR.notification.show(
-      `Troppo vicina all'esplosione ${areaBatch.shapes[close].ordinal}: i centri devono distare almeno ${formatMeasure(areaBatch.minDistanceFeet)} ft. Ridisegnala.`,
+      `Troppo vicina all'esplosione ${areaBatch.shapes[close].ordinal}: i centri devono distare almeno ${formatMeasure(areaBatch.minDistanceFeet / 5 * 1.5)} m. Ridisegnala.`,
       "WARNING",
     );
     return;

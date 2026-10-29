@@ -12,7 +12,7 @@ const menus = source.split("OBR.contextMenu.create(").slice(1).map((block) => ({
 const menuFor = (label) => menus.find((menu) => menu.labels.includes(label));
 
 test("on a player's client the initiative and boss entries never show", () => {
-  for (const label of ["Boss Actions", "Segna come…", "Rimuovi dall’iniziativa", "Aggiungi all’iniziativa…",
+  for (const label of ["Console Boss", "Segna come…", "Rimuovi dall’iniziativa", "Aggiungi all’iniziativa…",
     "Abilita Azioni Leggendarie", "Disabilita Azioni Leggendarie", "Abilita Epic Boss", "Disabilita Epic Boss",
     "Abilita Paragon Boss", "Disabilita Paragon Boss", "Condizioni…", "HP condivisi"]) {
     assert.ok(menuFor(label), `${label} is registered`);
@@ -30,6 +30,6 @@ test("a player sets the height of a player character only; the GM that of any cr
 });
 
 test("Boss Actions shows only on an Epic boss", () => {
-  const block = source.split("OBR.contextMenu.create(").find((entry) => entry.includes('label: "Boss Actions"'));
+  const block = source.split("OBR.contextMenu.create(").find((entry) => entry.includes('label: "Console Boss"'));
   assert.match(block, /key: \["metadata", META_KEY, "epic"\], operator: "!=", value: undefined/u);
 });

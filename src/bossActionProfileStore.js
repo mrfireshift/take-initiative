@@ -9,11 +9,11 @@ export function latestRevision(profileId, profiles = []) {
 
 export function createBossActionProfileStore({ storage = globalThis.localStorage } = {}) {
   function read() {
-    if (!storage || typeof storage.getItem !== "function" || typeof storage.setItem !== "function") throw new Error("Boss action profile local storage is unavailable");
+    if (!storage || typeof storage.getItem !== "function" || typeof storage.setItem !== "function") throw new Error("La libreria dei profili boss di questo browser non è disponibile.");
     const raw = storage.getItem(BOSS_ACTION_PROFILE_STORAGE_KEY);
     if (raw === null || raw === undefined) return [];
     const envelope = JSON.parse(raw);
-    if (!envelope || envelope.version !== 1 || !Array.isArray(envelope.profiles) || Object.keys(envelope).some((key) => !["version", "profiles"].includes(key))) throw new Error("Invalid boss action profile storage envelope");
+    if (!envelope || envelope.version !== 1 || !Array.isArray(envelope.profiles) || Object.keys(envelope).some((key) => !["version", "profiles"].includes(key))) throw new Error("La libreria dei profili boss di questo browser è illeggibile.");
     const profiles = envelope.profiles.map(validateBossActionProfile);
     const keys = new Set();
     for (const profile of profiles) {

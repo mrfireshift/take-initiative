@@ -1000,7 +1000,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
 
   const pill = document.createElement("div");
   pill.title = IS_GM
-    ? "Click: modifica HP. +N/-N sui token selezionati; ± modifica anche gli HP massimi"
+    ? "Clic: modifica i PF. +N/-N su questo token e sul suo gruppo; ± modifica anche i PF massimi"
     : _hpMode === "status" ? "Stato HP" : "Barra HP";
   pill.style.position = "relative";
   pill.style.marginRight = "0";

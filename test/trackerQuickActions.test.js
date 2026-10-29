@@ -151,8 +151,8 @@ test("Boss Actions: icona tonda nello slot delle azioni rapide, rossa se collega
   const opened = [];
   const button = buildBossActionsLauncher({ bound: true, iconUrl: "/boss.svg", documentRef, onOpen: () => opened.push(true) });
   assert.equal(button.tagName, "BUTTON");
-  assert.equal(button.title, "Boss Actions");
-  assert.equal(button.attributes["aria-label"], "Boss Actions");
+  assert.equal(button.title, "Console Boss");
+  assert.equal(button.attributes["aria-label"], "Console Boss");
   assert.equal(button.dataset.bossActionsLauncher, "bound");
   assert.equal(button.dataset.cardSelectionIgnore, "1");
   assert.equal(button.style.position, "absolute");
@@ -170,7 +170,7 @@ test("Boss Actions: icona tonda nello slot delle azioni rapide, rossa se collega
   assert.equal(stopped, 1, "the click never selects the card");
 
   const unbound = buildBossActionsLauncher({ bound: false, documentRef });
-  assert.equal(unbound.title, "Boss Actions: collega un profilo");
+  assert.equal(unbound.title, "Console Boss: collega un profilo");
   assert.equal(unbound.dataset.bossActionsLauncher, "unbound");
   assert.equal(unbound.style.border, "2px solid rgba(248,113,113,.45)");
 

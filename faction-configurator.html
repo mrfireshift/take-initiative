@@ -24,6 +24,7 @@
       .dot { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 999px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .28); }
       .pc { background: #38a9ff; }
       .ally { background: #2bd576; }
+      .neutral { background: #eab308; }
       .enemy { background: #ff575f; }
       .count { margin: 4px 0 0 18px; color: rgba(248, 250, 252, .65); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }
       .choose, .secondary, .danger { border: 1px solid rgba(255, 255, 255, .18); border-radius: 999px; color: #fff; cursor: pointer; min-height: 34px; padding: 0 14px; font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-semibold); }
@@ -41,7 +42,7 @@
         <h1>Fazioni automatiche</h1>
         <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
       </div>
-      <p class="intro">Trascina i token dalle cartelle sulla mappa, selezionali e assegna la fazione. Potrai poi cancellarli: il riconoscimento restera memorizzato.</p>
+      <p class="intro">Trascina i token dalle cartelle sulla mappa, selezionali e assegna la fazione. Potrai poi cancellarli: il riconoscimento resterà memorizzato.</p>
       <section class="factions" aria-label="Registri fazione">
         <div class="faction">
           <div class="identity"><div class="name"><span class="dot pc"></span>Personaggi</div><div class="count" data-count="pc">0 asset</div></div>
@@ -52,14 +53,18 @@
           <button class="choose" type="button" data-register="ally">Assegna selezione</button>
         </div>
         <div class="faction">
-          <div class="identity"><div class="name"><span class="dot enemy"></span>Mostri</div><div class="count" data-count="enemy">0 asset</div></div>
+          <div class="identity"><div class="name"><span class="dot neutral"></span>Neutrali</div><div class="count" data-count="neutral">0 asset</div></div>
+          <button class="choose" type="button" data-register="neutral">Assegna selezione</button>
+        </div>
+        <div class="faction">
+          <div class="identity"><div class="name"><span class="dot enemy"></span>Nemici</div><div class="count" data-count="enemy">0 asset</div></div>
           <button class="choose" type="button" data-register="enemy">Assegna selezione</button>
         </div>
       </section>
-      <p class="note">Le assegnazioni manuali future aggiornano il registro. I token sconosciuti vengono aggiunti come ostili.</p>
+      <p class="note">Le assegnazioni manuali future aggiornano il registro. I token sconosciuti vengono aggiunti come nemici.</p>
       <div class="footer">
         <button class="secondary" type="button" data-import-scene>Importa dalla scena</button>
-        <button class="danger" type="button" data-clear>Reset registro</button>
+        <button class="danger" type="button" data-clear>Azzera registro</button>
       </div>
     </main>
     <script type="module" src="/src/popoverDrag.js"></script>

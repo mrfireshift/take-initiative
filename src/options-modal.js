@@ -324,6 +324,17 @@ async function openFactionConfigurator() {
   }
 }
 
+// The store's codes (sceneOptionsStore.js) in words; any other error keeps its own message.
+const OPTIONS_SAVE_ERROR_TEXT = Object.freeze({
+  "scene-options-changed-during-write": "le opzioni della scena sono cambiate durante il salvataggio. Riapri il pannello e riprova.",
+  "scene-stale-after-options-layout": "la scena è cambiata durante il salvataggio. Riapri il pannello Opzioni.",
+});
+
+function optionsSaveErrorText(error) {
+  const message = String(error?.message || error || "");
+  return OPTIONS_SAVE_ERROR_TEXT[message] || message;
+}
+
 async function save() {
   if (saving || !draft) return;
   const operation = sceneLifecycle.capture({ operationId: `options-save:${Date.now().toString(36)}` });
@@ -388,7 +399,7 @@ async function save() {
           + (largest ? `; chiavi maggiori: ${largest}.` : ".");
       }
     }
-    const message = `Impossibile salvare le opzioni: ${error?.message || error}${details}`;
+    const message = `Impossibile salvare le opzioni: ${optionsSaveErrorText(error)}${details}`;
     errorNode.textContent = message;
     errorNode.hidden = false;
     statusNode.textContent = message;

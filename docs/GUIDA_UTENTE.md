@@ -40,7 +40,7 @@ Se lo stesso nome è stato usato per fazioni diverse, il plugin non sceglie in
 modo automatico: usa la fazione del token o chiede una correzione al GM.
 
 Il configuratore è condiviso nella stanza e dispone di un fallback locale per il
-browser. **Azzera registry** rimuove le associazioni salvate, non cambia le
+browser. **Azzera registro** rimuove le associazioni salvate, non cambia le
 fazioni già scritte sui token.
 
 ## 2. Aprire e configurare il tracker

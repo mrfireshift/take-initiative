@@ -120,11 +120,11 @@ export function createBossActionRuntime({
     // boss token, metadata), so the same error wins, and a non-GM fails without waiting for the others.
     const [role,sceneRead,sourceRead,metadataRead]=quietReads([api.player.getRole(),getSceneContext(),
       readSource(sourceId),api.scene.getMetadata()]);
-    if(await role!=="GM") throw new Error("Solo il GM può usare Boss Actions.");
+    if(await role!=="GM") throw new Error("Solo il GM può usare la console Boss.");
     const scene=await sceneRead;
     const item=await sourceRead;
     const metadata=await metadataRead;
-    if(!isCurrentEpoch(epoch)) throw new Error("Scena cambiata: riapri Boss Actions.");
+    if(!isCurrentEpoch(epoch)) throw new Error("Scena cambiata: riapri la console Boss.");
     return {item,epoch,scene,round:metadata?.[ID+"/state"]?.round,turnState:metadata?.[ID+"/state"] || null,isCurrent:()=>isCurrentEpoch(epoch)};
   }
   // v19: the Epic Action slot of the round, read from the initiative order and the player characters in it.
@@ -190,7 +190,7 @@ export function createBossActionRuntime({
     const before=normalizeCustomAuras(scope.item.metadata?.[META_KEY]?.[CUSTOM_AURAS_FIELD]);
     const planned=change(before);
     if(JSON.stringify(planned.auras)===JSON.stringify(before)) return {...planned,changed:false};
-    if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri Boss Actions.");
+    if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri la console Boss.");
     let result=planned;
     await api.scene.items.updateItems([scope.item.id],drafts=>{
       for(const draft of drafts) {
@@ -210,7 +210,7 @@ export function createBossActionRuntime({
     const before=scope.item.metadata?.[META_KEY]?.[BOSS_LINK_RESISTANCE_FIELD];
     const wanted=profile?bossLinkResistanceRecord(profile,before):null;
     if(JSON.stringify(wanted ?? null)===JSON.stringify(before ?? null)) return;
-    if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri Boss Actions.");
+    if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri la console Boss.");
     await api.scene.items.updateItems([scope.item.id],drafts=>{
       for(const draft of drafts) {
         if(draft?.id!==scope.item.id) continue;
@@ -311,7 +311,7 @@ export function createBossActionRuntime({
       const effectEnd=!manualRegistration && action?.execution?.kind==="effect-end";
       const seamAction=!manualRegistration && action?.execution?.kind==="seam";
       const [targetItem]=manualRegistration || group || effectEnd || seamAction ? [] : await api.scene.items.getItems([targetId]);
-      if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri Boss Actions.");
+      if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri la console Boss.");
       const actionInstanceId=request.actionInstanceId || newId();
       const decisionKey=JSON.stringify({sourceId,actionId,targetId,targetIds,binding,mode:request.mode || "",
         sharedHp:request.sharedHp || null,
@@ -334,7 +334,7 @@ export function createBossActionRuntime({
         const spent=action?bossActionUsageAvailability(action,bossRuntimeStateForItem(scope.item,profile),{phaseId:profile.phaseId,round:scope.round}).available===false:false;
         if(!spent && action?.sequence?.slot==="last" && bossProfileUsesSequence(profile)) {
           const warning=bossSequenceWarning(action,await epicSlotFor(scope));
-          if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri Boss Actions.");
+          if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri la console Boss.");
           if(warning && request.sequenceConfirmed!==true) throw new Error(`Conferma che è l’ultima Azione Epica del round. ${warning}`);
         }
         let plan;
@@ -369,7 +369,7 @@ export function createBossActionRuntime({
           // Scagliare: the creature it is thrown against, read like the target.
           const [collisionItem]=request.collisionTargetId?await api.scene.items.getItems([request.collisionTargetId]):[];
           if(request.collisionTargetId && !collisionItem) throw new Error("La creatura colpita non è più nella scena: riapri l’azione.");
-          if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri Boss Actions.");
+          if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri la console Boss.");
           plan=buildBossThrowMutation({profile,action,sourceItem:scope.item,targetItem,distance:request.distance,damage:request.damage,landing:request.landing,
             actionInstanceId,round:scope.round,grappledIds,ignoredDefenses:request.ignoredDefenses || [],expectedDefenses:request.expectedDefenses,
             collisionItem:collisionItem || null,collisionOutcome:request.collisionOutcome || "",
@@ -377,7 +377,7 @@ export function createBossActionRuntime({
         } else {
           // The grapple rule reads who the boss holds now, across the whole scene.
           const grappledIds=action?.execution?.grapple || action?.execution?.onHit?bossGrappledIds(await api.scene.items.getItems(),scope.item.id):[];
-          if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri Boss Actions.");
+          if(!scope.isCurrent()) throw new Error("Scena cambiata: riapri la console Boss.");
           plan=buildBossActionMutation({...request,profile,action,sourceItem:scope.item,targetItem,actionInstanceId,round:scope.round,
             turnState:scope.turnState,grappledIds});
         }

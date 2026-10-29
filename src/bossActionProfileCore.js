@@ -114,7 +114,8 @@ function sourceHash(text) {
   return hash.map((value) => value.toString(16).padStart(8, "0")).join("");
 }
 
-function fail(message) { throw new Error(`Invalid boss action profile: ${message}`); }
+// The detail after the colon stays the validator's own (a field and its rule).
+function fail(message) { throw new Error(`Profilo boss non valido: ${message}`); }
 function object(value, allowed, label) {
   if (!value || typeof value !== "object" || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) fail(`${label} must be a plain object`);
   if (Object.getOwnPropertySymbols(value).length) fail(`${label} has unexpected symbols`);

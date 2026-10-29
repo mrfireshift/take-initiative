@@ -70,5 +70,5 @@ test("Boss Actions: chi non è GM riceve subito l'errore del ruolo, con le altre
   await Promise.resolve();
   assert.ok(["role", "scene", "item", "metadata"].every((read) => fixture.started.includes(read)));
   fixture.gates.role.resolve();
-  await assert.rejects(presentation, /Solo il GM può usare Boss Actions/);
+  await assert.rejects(presentation, /Solo il GM può usare la console Boss/);
 });

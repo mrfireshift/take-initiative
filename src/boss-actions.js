@@ -145,7 +145,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
   // ---- header / minimize ----
   function renderHeader() {
     const profile=presentation?.profile;
-    $("boss-name").textContent=presentation?.item?.name || profile?.name || "Boss Actions";
+    $("boss-name").textContent=presentation?.item?.name || profile?.name || "Console Boss";
     const parts=[];
     if(profile)parts.push(profile.name+" · "+bossPhaseLabel(profile.phaseId));
     if(Number.isSafeInteger(presentation?.round))parts.push("Round "+presentation.round);
@@ -2029,14 +2029,14 @@ export function bootBossActions(documentRef=document, overrides={}) {
   const unsubscribe=lifecycle.subscribe(event=>{
     if(event.phase==="unavailable"){
       invalidated=true;presentation=null;draft=null;unmountLiveUpdates();clear(abilities);clear(resolution);setView("list");showUndo(null);
-      setStatus("Scena cambiata: chiudi e riapri Boss Actions.");toolbarState();
+      setStatus("Scena cambiata: chiudi e riapri la console Boss.");toolbarState();
     }
   });
   setView("list");showUndo(null);
   // A console reduced before it was closed comes back reduced: folded before its first paint, not after the reads.
   const restoreMinimized=readSession(MINIMIZED_STORAGE_KEY)===true ? setMinimized(true) : Promise.resolve();
   const ready=lifecycle.mount().then(()=>perform(async operation=>{
-    if(await api.player.getRole()!=="GM"){invalidated=true;throw new Error("Solo il GM può usare Boss Actions.");}
+    if(await api.player.getRole()!=="GM"){invalidated=true;throw new Error("Solo il GM può usare la console Boss.");}
     await refresh(operation);
     if(!presentation?.binding || !presentation?.profile){renderLibrary(presentation?.profile);setView("manage");}
     mountLiveUpdates();

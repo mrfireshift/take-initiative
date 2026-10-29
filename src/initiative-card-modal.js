@@ -165,6 +165,7 @@ import { requestSpellAreaPlacement } from "./spellAreaPlacementClient.js";
 import { spellTeleportDestinationPosition } from "./spellTeleportCore.js";
 import { speciesTeleportInfo, speciesTeleportRuleId } from "./speciesTeleportCore.js";
 import { speciesNaturalWeaponAction, speciesNaturalWeaponState } from "./speciesNaturalWeaponCore.js";
+import { readableResourceExpression } from "./resourceExpressionText.js";
 
 const META_KEY = `${ID}/meta`;
 const MODAL_ID = `${ID}/initiative-card-modal`;
@@ -959,7 +960,7 @@ function renderQuickActionList(list, actions, emptyText) {
     label.textContent = action.label;
     const summary = document.createElement("small");
     summary.textContent = featureSupport && !featureSupport.ready
-      ? `${quickActionSummary(action)} Â· non automatizzata`
+      ? `${quickActionSummary(action)} · non automatizzata`
       : quickActionSummary(action);
     copy.append(label, summary);
     button.append(icon, copy);
@@ -1612,7 +1613,7 @@ function buildClassFeatureResourceRow(entry) {
   const expression = String(entry.pool.capacity?.expression || "").trim();
   if (expression) {
     const maximum = document.createElement("small");
-    maximum.textContent = `Massimo: ${expression}`;
+    maximum.textContent = `Massimo: ${readableResourceExpression(expression)}`;
     copy.insertBefore(maximum, refresh);
   }
   const special = classFeatureSpecialRefresh(

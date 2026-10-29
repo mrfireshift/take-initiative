@@ -93,7 +93,7 @@ test("version 5 validation accepts only the closed single-save and group-effect 
   ]) {
     const invalid = structuredClone(profile);
     mutate(ability(invalid, name));
-    assert.throws(() => validateBossActionProfile(invalid), /invalid|unsupported|unexpected|PARTIAL|manual/i, name);
+    assert.throws(() => validateBossActionProfile(invalid), /non valido|unsupported|unexpected|PARTIAL|manual/i, name);
   }
 });
 

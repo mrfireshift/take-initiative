@@ -57,7 +57,7 @@ export function zoneTriggerResourceSpend({
     note: ended
       ? ZONE_RESOURCE_SPENDS[text(spellId)] === "damage"
         ? `${name}: ha inflitto ${total} danni e svanisce.`
-        : `${name}: ultima ${text(uses.label) || "risorsa"} usata, l'incantesimo termina.`
+        : `${name}: 0/${total} ${text(uses.label) || "risorse"}, l'incantesimo termina.`
       : `${name}: ${plan.remaining}/${total} ${text(uses.label)}.`,
   };
 }
