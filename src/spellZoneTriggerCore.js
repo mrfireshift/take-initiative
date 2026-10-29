@@ -1,4 +1,9 @@
-import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
+import {
+  currentInitiativeTurnKey,
+  initiativeTurnKeyAtOrdinal,
+  initiativeTurnMark,
+  initiativeTurnMarkOrdinal,
+} from "./turnBoundaryCore.js";
 import { CLASS_FEATURE_AURA_META_KEY } from "./classFeatureAuraCore.js";
 import { CUSTOM_AURA_META_KEY } from "./customAuraCore.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
@@ -96,6 +101,22 @@ function normalizedPending(value) {
   }).filter(Boolean);
 }
 
+function normalizedTurnMark(value) {
+  if (!value || typeof value !== "object") return null;
+  const actorId = String(value.actorId || "").trim();
+  const round = Math.floor(Number(value.round));
+  const index = Math.floor(Number(value.index));
+  return actorId && round >= 1 && index >= 0 ? { round, actorId, index } : null;
+}
+
+// A runtime written before the mark: its last turn key ("round:index:entry") stands for it. A key without its entry
+// takes the one at that position in the current order.
+function turnMarkFromKey(turnKey, order = []) {
+  const [round, index, ...rest] = String(turnKey || "").split(":");
+  const actorId = rest.join(":") || String((Array.isArray(order) ? order : [])[Math.floor(Number(index))] || "");
+  return normalizedTurnMark({ round, index, actorId });
+}
+
 export function normalizeSpellZoneTriggerRuntime(value = {}) {
   const source = value && typeof value === "object" ? value : {};
   return {
@@ -106,6 +127,8 @@ export function normalizeSpellZoneTriggerRuntime(value = {}) {
     memberPositions: normalizedMemberPositions(source.memberPositions),
     evaluatedTurnKey: String(source.evaluatedTurnKey || "").trim(),
     evaluatedActorId: String(source.evaluatedActorId || "").trim(),
+    // The furthest turn the zone has counted (turnBoundaryCore.js, lot L15); null before the first.
+    turnMark: normalizedTurnMark(source.turnMark),
     areaPosition: normalizedPoint(source.areaPosition),
     areaMoveTargetIds: normalizedTargetIdsByTrigger(source.areaMoveTargetIds),
     handledKeys: uniqueIds(source.handledKeys),
@@ -289,10 +312,60 @@ export function planSpellZoneTriggers({
   );
   const currentTurnKey = currentInitiativeTurnKey(initiativeState);
   const activeActorId = initiativeActorId(initiativeState);
+  // Lot L15 (AV-01): a turn changes when the initiative goes past the furthest turn the zone counted. The same turn
+  // with its entry moved (a creature removed before it), ◀, and ▶ back to a turn already counted change nothing.
+  const order = Array.isArray(initiativeState?.order) ? initiativeState.order : [];
+  const currentMark = initiativeTurnMark(initiativeState);
+  const evaluatedMark = turnMarkFromKey(previous.evaluatedTurnKey, order);
+  const previousMark = previous.turnMark || evaluatedMark;
+  const markOrdinal = initiativeTurnMarkOrdinal(previousMark, order);
+  const evaluatedOrdinal = initiativeTurnMarkOrdinal(evaluatedMark, order);
+  const currentOrdinal = initiativeTurnMarkOrdinal(currentMark, order);
   const turnChanged = previous.initialized
-    && !!previous.evaluatedTurnKey
-    && !!currentTurnKey
-    && previous.evaluatedTurnKey !== currentTurnKey;
+    && !!previousMark
+    && !!currentMark
+    && currentOrdinal > markOrdinal;
+  // The mark after this turn: forward moves it, a single step back (◀) keeps it, any other jump back (Reset round, a
+  // new combat) starts it again here.
+  const nextTurnMark = !currentMark
+    ? null
+    : !previousMark || currentOrdinal > markOrdinal
+      ? currentMark
+      : currentOrdinal === markOrdinal || evaluatedOrdinal - currentOrdinal === 1
+        ? previousMark
+        : currentMark;
+  // Lot L15 (AV-04): the turns the initiative went through at once (two ▶ written together) each start and end.
+  const startOrdinal = Math.max(markOrdinal, evaluatedOrdinal);
+  const turnAt = (ordinal) => ({
+    actorId: initiativeActorId({
+      order,
+      current: ordinal % order.length,
+      round: Math.floor(ordinal / order.length) + 1,
+    }),
+    turnKey: initiativeTurnKeyAtOrdinal(order, ordinal),
+  });
+  const turnSteps = turnChanged
+    && (currentOrdinal - startOrdinal > 1 || evaluatedOrdinal !== startOrdinal)
+    && currentOrdinal - startOrdinal <= 1000
+    ? Array.from({ length: currentOrdinal - startOrdinal }, (_, offset) => {
+      const from = turnAt(startOrdinal + offset);
+      const to = turnAt(startOrdinal + offset + 1);
+      return {
+        turnChanged: true,
+        previousActorId: from.actorId,
+        previousTurnKey: from.turnKey,
+        activeActorId: to.actorId,
+        currentTurnKey: to.turnKey,
+      };
+    })
+    : [{
+      turnChanged,
+      previousActorId: previous.evaluatedActorId,
+      previousTurnKey: previous.evaluatedTurnKey,
+      activeActorId,
+      currentTurnKey,
+    }];
+  const finalStep = turnSteps[turnSteps.length - 1];
   const nextAreaPosition = normalizedPoint(areaPosition);
   const zoneMoved = previous.initialized
     && !samePoint(previous.areaPosition, nextAreaPosition);
@@ -350,7 +423,11 @@ export function planSpellZoneTriggers({
   const newActivations = [];
   let sequence = previous.sequence;
 
-  for (const trigger of triggers) {
+  // Turn triggers run once per turn step; the others once, on the turn now.
+  const triggerSteps = triggers.flatMap((trigger) => (
+    ["turn-start", "turn-end"].includes(String(trigger?.event || "").trim()) ? turnSteps : [finalStep]
+  ).map((step) => [trigger, step]));
+  for (const [trigger, step] of triggerSteps) {
     if (
       trigger?.requiresChildZone === true
       && zoneMetadata?.role === "root"
@@ -366,8 +443,8 @@ export function planSpellZoneTriggers({
     }
     const turnKey = activationTurnKey(
       trigger,
-      currentTurnKey,
-      previous.evaluatedTurnKey,
+      step.currentTurnKey,
+      step.previousTurnKey,
     );
     const suppressed = new Set(uniqueIds(
       suppressedTargetIdsByTrigger?.[trigger.id],
@@ -408,9 +485,9 @@ export function planSpellZoneTriggers({
         ),
       ),
       previousMembers: triggerPreviousMembers,
-      turnChanged,
-      activeActorId,
-      previousActorId: previous.evaluatedActorId,
+      turnChanged: step.turnChanged,
+      activeActorId: step.activeActorId,
+      previousActorId: step.previousActorId,
       areaMoveTargetIds: previous.areaMoveTargetIds,
       crossing: crossingIdsByTrigger[triggerId] || [],
     }).filter((targetId) => !suppressed.has(targetId));
@@ -483,7 +560,7 @@ export function planSpellZoneTriggers({
         : {}),
       targetIds: eligible,
       turnKey,
-      noticeTurnKey: currentTurnKey || turnKey,
+      noticeTurnKey: step.currentTurnKey || turnKey,
       createdAt: Math.max(0, Math.floor(Number(now) || Date.now())),
       ...(String(trigger.ruleChoice || "").trim()
         ? { ruleChoice: String(trigger.ruleChoice).trim() }
@@ -558,6 +635,7 @@ export function planSpellZoneTriggers({
       memberPositions: currentMemberPositions,
       evaluatedTurnKey: currentTurnKey,
       evaluatedActorId: activeActorId,
+      turnMark: nextTurnMark,
       areaPosition: nextAreaPosition,
       areaMoveTargetIds: {},
       handledKeys,

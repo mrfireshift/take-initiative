@@ -20,6 +20,7 @@ import {
   subscribeSceneItemChanges,
 } from "./sceneItemEvents.js";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
+import { initiativeTurnMark, initiativeTurnMarkOrdinal, nextInitiativeTurnMark } from "./turnBoundaryCore.js";
 import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 
 const STATE_KEY = `${ID}/state`;
@@ -29,6 +30,9 @@ const pendingHistoryReplays = new Map();
 let mounted = false;
 let sceneReady = false;
 let previousInitiativeState = null;
+// The furthest turn already reached (lot L15): ◀ then ▶, or a creature removed before the active one, never brings a
+// turn's saving throws back. It moves with previousInitiativeState (kept on this page only).
+let turnMark = null;
 // The turn the initiative reached last, and when: the HP write that drops a PC to 0 goes through the effects
 // coordinator and can land a moment after the GM moves to that PC's turn; its death save still comes.
 const DEATH_SAVE_LATE_HP_GRACE_MS = 5000;
@@ -65,6 +69,7 @@ function snapshot(state) {
 function resetRuntimeState() {
   runtimeCacheRevision += 1;
   previousInitiativeState = null;
+  turnMark = null;
   recentDeathSaveTurn = null;
   announcedActivationIds.clear();
   rearmableActivationIds.clear();
@@ -124,7 +129,10 @@ async function reconcileEffectSaveReminders(
     return;
   }
   const previousState = previousInitiativeState;
-  const reachedDeathSaveTurnKey = previousState !== null ? deathSaveTurnStartKey(previousState, initiativeState) : "";
+  const currentMark = initiativeTurnMark(initiativeState);
+  const reachedPastMark = !turnMark || !currentMark
+    || initiativeTurnMarkOrdinal(currentMark, initiativeState?.order) > initiativeTurnMarkOrdinal(turnMark, initiativeState?.order);
+  const reachedDeathSaveTurnKey = previousState !== null && reachedPastMark ? deathSaveTurnStartKey(previousState, initiativeState) : "";
   if (reachedDeathSaveTurnKey && reachedDeathSaveTurnKey !== recentDeathSaveTurn?.turnKey) {
     recentDeathSaveTurn = { turnKey: reachedDeathSaveTurnKey, at: Date.now() };
   }
@@ -138,6 +146,7 @@ async function reconcileEffectSaveReminders(
     initiativeState,
     includeCurrentTurnStart: previousState !== null,
     recentDeathSaveTurnKey,
+    turnMark,
   });
   const replayNotices = [];
   for (const [activationId, replay] of [...pendingHistoryReplays]) {
@@ -201,6 +210,7 @@ async function reconcileEffectSaveReminders(
     return;
   }
   if (!notices.length) {
+    turnMark = previousState === null ? initiativeTurnMark(initiativeState) : nextInitiativeTurnMark(turnMark, previousState, initiativeState);
     previousInitiativeState = initiativeState;
     completedReconcileKey = reconcileKey;
     return;
@@ -245,6 +255,7 @@ async function reconcileEffectSaveReminders(
     announcedActivationIds.clear();
     for (const activationId of recent) announcedActivationIds.add(activationId);
   }
+  turnMark = previousState === null ? initiativeTurnMark(initiativeState) : nextInitiativeTurnMark(turnMark, previousState, initiativeState);
   previousInitiativeState = initiativeState;
   completedReconcileKey = reconcileKey;
 }

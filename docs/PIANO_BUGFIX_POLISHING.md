@@ -119,6 +119,14 @@ Lotti fatti:
   - «Aspetto area» non tocca le zone degli incantesimi.
   - La guida ora descrive la regola vera di cerchio e cono.
   - Test in `areaGeometryFixes`, `aoeGeometryCore` e `spellAreaPlacementCore`; quello della conversione in piedi è adeguato alla decisione D-C.
+- **L15** (29/10): turni che slittano (AV-01, AV-02, AV-04, EF-04).
+  - In `turnBoundaryCore.js` c'è ora un «segno» del turno più avanzato raggiunto (round + voce dell'ordine), riletto sull'ordine attuale. Un confine di turno conta solo oltre il segno. Il ◀ lo lascia dov'è; ogni altro salto indietro (Reset round, nuovo combattimento) lo fa ripartire.
+  - Durate (EF-04): `__forwardConditionTurnBoundaries` parte dal segno, quindi ◀ seguito da ▶ non conta più due volte la stessa fine turno.
+  - TS degli effetti (AV-02): i confini e l'inizio del turno corrente contano solo oltre il segno. Il recupero dell'inizio del turno corrente resta per il turno del segno sotto la sua chiave; lo stesso turno con la chiave spostata (una creatura tolta prima) non si richiede.
+  - Trigger di zona (AV-01, AV-04): il segno sta nel runtime della zona. Il turno cambia solo oltre il segno; un salto di più turni fa partire inizio e fine turno di ciascuno.
+  - Limiti accettati: il segno di durate e TS vive nella pagina del GM (dopo un ricaricamento un ◀▶ può contare come prima). Annullare dalla Cronologia una «Scadenza effetti di turno» e poi fare ◀▶ non la riconta.
+  - Residuo: la quota della Turbine di Xanathar (`spellStaticZone.js`) usa ancora il vecchio confronto delle chiavi.
+  - Test: `turnMarkBoundaries` (fallisce senza la patch). Adeguati due test che descrivevano un ◀ o un salto di turni come un ▶ semplice (`spellAuraReminderCore`, `spellStaticZoneReminderCore`), e la sandbox del baseline in `initiativeControllerContract`.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

@@ -170,6 +170,8 @@ test("il lifecycle baseline usa gli helper di stato nello scope modulo", async (
     let __lastRoundSeen = null;
     let __lastRoundSeenConfirmed = null;
     let __lastConditionTurnState = null;
+    let __conditionTurnMark = null;
+    const initiativeTurnMark = (state) => state ? { round: state.round, actorId: state.order[state.current], index: state.current } : null;
     let __lastConditionTurnStateConfirmed = null;
     let __conditionNavigationHint = null;
     const STATE_KEY = "state";
@@ -253,6 +255,8 @@ test("il baseline metadata precoce attende la capability render senza perdere l'
     let __lastRoundSeen = null;
     let __lastRoundSeenConfirmed = null;
     let __lastConditionTurnState = null;
+    let __conditionTurnMark = null;
+    const initiativeTurnMark = (state) => state ? { round: state.round, actorId: state.order[state.current], index: state.current } : null;
     let __lastConditionTurnStateConfirmed = null;
     let __conditionNavigationHint = null;
     let releaseRender;

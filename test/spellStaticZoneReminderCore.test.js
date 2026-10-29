@@ -280,12 +280,13 @@ test("una activation static-zone restaurata resta pending dopo reconcile ripetut
   consume(item, activationId);
   item.metadata[SPELL_STATIC_ZONE_META_KEY].triggerRuntime = triggered.runtime;
 
-  for (const [current, round] of [[0, 2], [1, 2], [0, 3]]) {
-    const update = reconcile(item, current, round, 300 + round, [activationId]);
-    assert.equal(update.notices.length, 0);
-    assert.deepEqual(
-      item.metadata[SPELL_STATIC_ZONE_META_KEY].triggerRuntime.pending.map((entry) => entry.id),
-      [activationId],
+  // Real ▶ steps (lot L15: a jump that skips turns now starts the skipped members' turns too, AV-04): the restored
+  // activation is never announced again and stays pending whatever else the later turns bring.
+  for (const [current, round] of [[2, 1], [3, 1], [0, 2], [1, 2]]) {
+    const update = reconcile(item, current, round, 300 + (round * 10) + current, [activationId]);
+    assert.equal(update.notices.some((notice) => notice.activationId === activationId), false);
+    assert.ok(
+      item.metadata[SPELL_STATIC_ZONE_META_KEY].triggerRuntime.pending.some((entry) => entry.id === activationId),
     );
   }
   assert.equal(

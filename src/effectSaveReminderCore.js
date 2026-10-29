@@ -1,5 +1,5 @@
 import { ID } from "./constants.js";
-import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
+import { initiativeTurnKeyAtOrdinal, initiativeTurnMarkOrdinal } from "./turnBoundaryCore.js";
 import { fleshToStoneReminderForInstance } from "./fleshToStoneRules.js";
 import { contagionReminderForInstance } from "./contagionRules.js";
 import { prismaticSprayIndigoReminderForInstance } from "./prismaticSprayRules.js";
@@ -868,19 +868,41 @@ export function planEffectSaveReminderNotices({
   // The turn reached a moment ago (effectSaveReminderController.js): the HP write that dropped its PC to 0 can land
   // just after the turn change.
   recentDeathSaveTurnKey = "",
+  // The furthest turn already reached (turnBoundaryCore.js, lot L15): a boundary at or before it was already asked
+  // for (◀ then ▶, a creature removed before the active one). null: no mark, every boundary counts.
+  turnMark = null,
 } = {}) {
   const list = Array.isArray(items) ? items : [];
   const itemsById = new Map(list.map((item) => [String(item?.id || ""), item]));
+  const markOrdinal = turnMark ? initiativeTurnMarkOrdinal(turnMark, stateSnapshot(initiativeState)?.order || []) : -1;
+  const orderLength = stateSnapshot(initiativeState)?.order.length || 0;
+  const boundaryOrdinal = (turnKey) => {
+    const [round, index] = String(turnKey || "").split(":").map(Number);
+    return Number.isInteger(round) && Number.isInteger(index) ? ((round - 1) * orderLength) + index : -1;
+  };
+  // A turn end at the mark is new (the mark's own turn ends now); a turn start must be past it.
+  const beyondMark = (boundary) => markOrdinal < 0 || (boundary.timing === "turn-end"
+    ? boundaryOrdinal(boundary.turnKey) >= markOrdinal
+    : boundaryOrdinal(boundary.turnKey) > markOrdinal);
   const boundaries = effectSaveReminderBoundaries(
     previousInitiativeState,
     initiativeState,
-  );
+  ).filter(beyondMark);
   const currentStart = currentTurnStartBoundary(initiativeState);
+  // The current turn's start is offered again on every pass (an effect can land just after the turn change; the
+  // controller's announced activations drop the repeats). Not behind the mark (◀), and not for the mark's own turn
+  // under a shifted key (a creature removed before it): that turn was already asked under its first key.
+  const currentStartIsNew = !!currentStart && (() => {
+    if (markOrdinal < 0) return true;
+    const ordinal = boundaryOrdinal(currentStart.turnKey);
+    if (ordinal !== markOrdinal) return ordinal > markOrdinal;
+    return currentStart.turnKey === `${turnMark.round}:${turnMark.index}:${turnMark.actorId}`;
+  })();
   // A death save comes only when the turn of the PC at 0 HP really starts (deathSaveTurnStartKey).
-  const deathSaveTurnKey = deathSaveTurnStartKey(previousInitiativeState, initiativeState)
+  const deathSaveTurnKey = (currentStartIsNew ? deathSaveTurnStartKey(previousInitiativeState, initiativeState) : "")
     || (recentDeathSaveTurnKey && currentStart?.turnKey === recentDeathSaveTurnKey ? recentDeathSaveTurnKey : "");
   if (includeCurrentTurnStart) {
-    if (currentStart) boundaries.push(currentStart);
+    if (currentStartIsNew) boundaries.push(currentStart);
   }
   const uniqueBoundaries = new Map(boundaries.map((boundary) => [
     `${boundary.timing}:${boundary.actorId}:${boundary.turnKey}`,

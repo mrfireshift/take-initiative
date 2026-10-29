@@ -50,7 +50,12 @@ import {
   updateSpellBoardTokenSnapshot,
 } from "./spellBoardTokenTrackerCore.js";
 import { readFullRenderItemSnapshot } from "./initiativeFullRenderSnapshotCore.js";
-import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
+import {
+  initiativeTurnKeyAtOrdinal,
+  initiativeTurnMark,
+  initiativeTurnMarkOrdinal,
+  nextInitiativeTurnMark,
+} from "./turnBoundaryCore.js";
 import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js";
 import {
   conditionMutationOperations,
@@ -402,6 +407,8 @@ let __optimisticNavigationDigest = null;
 let __lastActiveId = null;
 let __lastTurnNoticeActiveId = null;
 let __lastConditionTurnState = null;
+// The furthest turn whose boundaries were counted (turnBoundaryCore.js): ◀ then ▶ never counts a boundary twice.
+let __conditionTurnMark = null;
 let __lastConditionTurnStateConfirmed = null;
 let __conditionNavigationHint = null;
 let __temporalTransitionSequence = 0;
@@ -796,6 +803,7 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __lastTurnNoticeDeliveryKey = "";
   __turnNoticeDelivery.reset(reason || "scene-reset");
   __lastConditionTurnState = null;
+  __conditionTurnMark = null;
   __lastConditionTurnStateConfirmed = null;
   __conditionNavigationHint = null;
   __roundTerminalAccumulationTransitions.clear();
@@ -841,6 +849,7 @@ async function __adoptInitiativeSceneBaseline(
   __lastRoundSeen = Math.max(1, Number(st?.round || 1));
   __lastRoundSeenConfirmed = __lastRoundSeen;
   __lastConditionTurnState = __immutableConditionTurnState(st);
+  __conditionTurnMark = initiativeTurnMark(__lastConditionTurnState);
   __lastConditionTurnStateConfirmed = __lastConditionTurnState;
   __conditionNavigationHint = null;
   syncSpeedCheckTurn(st);
@@ -4856,13 +4865,17 @@ function __conditionActorId(id) {
   return splitParagonId(id).baseId || null;
 }
 
-function __forwardConditionTurnBoundaries(previous, next, directionHint = 0) {
+function __forwardConditionTurnBoundaries(previous, next, directionHint = 0, mark = null) {
   if (directionHint < 0 || !previous || !next) return [];
   if (previous.order.length !== next.order.length) return [];
   if (previous.order.some((id, index) => id !== next.order[index])) return [];
 
   const length = next.order.length;
-  const previousOrdinal = ((previous.round - 1) * length) + previous.current;
+  // From the furthest turn already reached: after ◀, the ▶ that comes back does not count the same ends again.
+  const previousOrdinal = Math.max(
+    ((previous.round - 1) * length) + previous.current,
+    initiativeTurnMarkOrdinal(mark, next.order),
+  );
   const nextOrdinal = ((next.round - 1) * length) + next.current;
   const distance = nextOrdinal - previousOrdinal;
   if (distance <= 0 || distance > 1000) return [];
@@ -11486,11 +11499,13 @@ async function __processInitiativeMetadata(
     const previousTurnState = __lastConditionTurnState;
     const nextTurnState = __immutableConditionTurnState(st);
     const directionHint = __conditionDirectionHintFor(st);
-    const boundaries = __forwardConditionTurnBoundaries(previousTurnState, nextTurnState, directionHint);
+    const boundaries = __forwardConditionTurnBoundaries(previousTurnState, nextTurnState, directionHint, __conditionTurnMark);
+    __conditionTurnMark = nextInitiativeTurnMark(__conditionTurnMark, previousTurnState, nextTurnState, { stepBack: directionHint < 0 });
     __lastConditionTurnState = nextTurnState;
     conditionTransition = { previousTurnState, nextTurnState, boundaries };
   } else {
     __lastConditionTurnState = null;
+    __conditionTurnMark = null;
     __lastConditionTurnStateConfirmed = null;
     __conditionNavigationHint = null;
   }
