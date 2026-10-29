@@ -70,3 +70,26 @@ test("L18: nessun «Â·» (UTF-8 letto due volte) nei sorgenti", () => {
   const broken = sources.filter((name) => read(`../src/${name}`).includes("Â·"));
   assert.deepEqual(broken, []);
 });
+
+test("L18: il Registro accorda i conteggi e parla di voci, registro, archivio e PF", () => {
+  const modal = read("../src/history-modal.ts");
+  assert.match(modal, /function countText\(count: number, one: string, many: string\) \{\n\s+return `\$\{count\} \$\{count === 1 \? one : many\}`;/);
+  assert.match(modal, /countText\(sessionSummary\.turnCount, "turno", "turni"\)/);
+  assert.match(modal, /countText\(visibleTurns\.length, "turno", "turni"\)/);
+  assert.match(modal, /"1 operazione precedente non è più annullabile\."/);
+  const visible = modal.split("\n").filter((line) => !/^\s*\/\//.test(line)).join("\n");
+  assert.doesNotMatch(visible, /"[^"\n]*\b(entry|storage|Storage)\b[^"\n]*"|`[^`\n]*\b(entry incomplete|Storage locale|dal log)\b[^`\n]*`/);
+  assert.doesNotMatch(visible, /"[^"\n]*\bdal log\b[^"\n]*"/);
+  assert.match(read("../src/history.js"), /\(\+\$\{labels\.length - 1\} \$\{labels\.length === 2 \? "evento" : "eventi"\}\)/);
+  const presentation = read("../src/combatLogPresentationCore.js");
+  assert.doesNotMatch(presentation, /[`"][^`"\n]*\bHP\b[^`"\n]*[`"]/, "PF in the Combat Log");
+  assert.match(presentation, /`Archivio: \$\{summary\.localStorageLabel\}`/);
+});
+
+test("L18: il motivo di un annullamento bloccato è in parole, senza id del token né codici", () => {
+  const modal = read("../src/history-modal.ts");
+  assert.match(modal, /"current-value-mismatch": "è cambiato dopo l'operazione"/);
+  assert.match(modal, /return \[\.\.\.new Set\(conflicts\.map\(undoConflictText\)\)\]\.slice\(0, 3\)\.join\(" · "\);/);
+  assert.doesNotMatch(modal, /conflict\?\.itemId \|\| conflict\?\.id,/);
+  assert.match(modal, /reason && !\/\^\[a-z\]\+\(-\[a-z\]\+\)\+\$\/\.test\(reason\) \? reason : undoReadinessLabel\(row\)/);
+});

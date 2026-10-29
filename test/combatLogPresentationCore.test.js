@@ -109,8 +109,8 @@ test("la facet HP mostra HP, massimi e delta con segno", () => {
     facets: { hp: { targets: [{ ...hpTarget(), hpMaxDelta: -2 }] } },
   })]);
   const projected = model.events[0];
-  assert.match(projected.summary, /Goblin: 12\/20 → 0\/20 \(-12 HP\)/u);
-  assert.match(projected.details.flatMap((section) => section.lines).join(" "), /HP max -2/u);
+  assert.match(projected.summary, /Goblin: 12\/20 → 0\/20 \(-12 PF\)/u);
+  assert.match(projected.details.flatMap((section) => section.lines).join(" "), /PF max -2/u);
 });
 
 test("la facet HP legacy usa i target dell'evento", () => {
@@ -611,7 +611,7 @@ test("il TXT usa tutta la sessione in ordine Round e Turno", () => {
   const output = serializeCombatLogPresentationText({ id: "s", name: "Assalto", startedAt: 100 }, model);
   assert.ok(output.indexOf("ROUND 1") < output.indexOf("ROUND 2"));
   assert.ok(output.indexOf("Primo") < output.indexOf("Secondo"));
-  assert.match(output, /Storage: Locale a questo browser GM/u);
+  assert.match(output, /Archivio: Locale a questo browser GM/u);
 });
 
 test("il TXT di sessione vuota dichiara l'assenza di eventi", () => {
@@ -656,7 +656,7 @@ test("la causalità spell arricchisce card, partecipanti, outcome e TXT senza at
   assert.match(details, /Incantatore: Arannis/u);
   assert.match(details, /Livello slot: 3/u);
   assert.match(details, /Tiro del danno: 28/u);
-  assert.match(details, /-14 HP applicati/u);
+  assert.match(details, /-14 PF applicati/u);
   assert.match(details, /Immune/u);
   assert.doesNotMatch(details, /Fonte: non tracciata/u);
   assert.equal(filterCombatLogPresentation(model, { participant: "Arannis" }).events.length, 1);

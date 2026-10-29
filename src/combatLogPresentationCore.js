@@ -23,7 +23,7 @@ export const COMBAT_LOG_CATEGORY_ORDER = Object.freeze([
 ]);
 
 const CATEGORY_META = Object.freeze({
-  hp: Object.freeze({ label: "HP", tone: "#ef4444" }),
+  hp: Object.freeze({ label: "PF", tone: "#ef4444" }),
   attack: Object.freeze({ label: "Attacco", tone: "#f43f5e" }),
   spell: Object.freeze({ label: "Incantesimo", tone: "#a855f7" }),
   save: Object.freeze({ label: "Tiro salvezza", tone: "#f97316" }),
@@ -311,10 +311,10 @@ function hpTargetLine(target) {
     ?? (beforeHpMax !== null && afterHpMax !== null ? afterHpMax - beforeHpMax : null);
   const name = targetName(target);
   const deltaText = delta === null ? "?" : signedNumber(delta);
-  const line = `${name}: ${numberText(before.hp)}/${numberText(before.hpMax)} → ${numberText(after.hp)}/${numberText(after.hpMax)} (${deltaText} HP)`;
+  const line = `${name}: ${numberText(before.hp)}/${numberText(before.hpMax)} → ${numberText(after.hp)}/${numberText(after.hpMax)} (${deltaText} PF)`;
   return hpMaxDelta === null || hpMaxDelta === 0
     ? line
-    : `${line}; HP max ${signedNumber(hpMaxDelta)}`;
+    : `${line}; PF max ${signedNumber(hpMaxDelta)}`;
 }
 
 function hpTargets(event) {
@@ -574,7 +574,7 @@ function explicitDamageLines(event) {
     ) {
       lines.push(`${name}: ${numberText(requested)} danni richiesti`);
     }
-    if (applied !== null && applied !== 0) lines.push(`${name}: ${signedNumber(applied)} HP applicati`);
+    if (applied !== null && applied !== 0) lines.push(`${name}: ${signedNumber(applied)} PF applicati`);
   }
   return [...new Set(lines)];
 }
@@ -832,7 +832,7 @@ function causalityDetailLines(event) {
       targetLines.push(`${numberText(target.requestedDamage)} richiesti`);
     }
     if (finiteNumber(target.appliedHpDelta) !== null && target.appliedHpDelta !== 0) {
-      targetLines.push(`${signedNumber(target.appliedHpDelta)} HP applicati`);
+      targetLines.push(`${signedNumber(target.appliedHpDelta)} PF applicati`);
     }
     if (finiteNumber(target.damageFactor) !== null && target.damageFactor > 0) {
       targetLines.push(`fattore ${numberText(target.damageFactor)}`);
@@ -879,7 +879,7 @@ function eventSummary(event, targets, outcomes) {
   }
   if (category === "hp") {
     const lines = [...hpLines, ...facetLines];
-    return lines.join(" · ") || "Variazione HP registrata";
+    return lines.join(" · ") || "Variazione PF registrata";
   }
   if (category === "movement") {
     const facetTargets = Array.isArray(event?.facets?.movement?.targets) ? event.facets.movement.targets : [];
@@ -914,9 +914,9 @@ function eventSummary(event, targets, outcomes) {
 function detailSections(event, targets, outcomes, turnName) {
   const sections = [];
   const sharedHpLines = sharedHpSummaryLines(event);
-  if (sharedHpLines.length) sections.push({ label: "HP condivisi", lines: sharedHpLines });
+  if (sharedHpLines.length) sections.push({ label: "PF condivisi", lines: sharedHpLines });
   const hpLines = hpTargets(event).map(hpTargetLine);
-  if (hpLines.length) sections.push({ label: "HP", lines: hpLines });
+  if (hpLines.length) sections.push({ label: "PF", lines: hpLines });
   for (const [field, label] of [
     ["conditions", "Condizioni"],
     ["spells", "Incantesimi"],
@@ -1352,7 +1352,7 @@ export function serializeCombatLogPresentationText(session, presentation) {
   const summary = model.sessionSummary;
   const lines = [
     `Registro combattimento: ${summary.sessionName}`,
-    `Storage: ${summary.localStorageLabel}`,
+    `Archivio: ${summary.localStorageLabel}`,
     `Inizio: ${formatCombatLogTimestamp(summary.startedAt)}`,
     `Intervallo: ${formatInterval(summary)}`,
     `Eventi: ${summary.totalEvents}`,

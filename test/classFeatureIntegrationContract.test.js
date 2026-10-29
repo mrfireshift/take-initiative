@@ -782,7 +782,7 @@ test("CF-B01A.4: Combat Log summary for damage shows HP delta AND endsOnDamage c
   const presentation = buildCombatLogPresentation({}, [rawEvent]);
   assert.equal(presentation.events.length, 1, "Must generate exactly 1 combat log event");
   const event = presentation.events[0];
-  assert.ok(event.summary.includes("-10 HP"), `Expected -10 HP in summary: ${event.summary}`);
+  assert.ok(event.summary.includes("-10 PF"), `Expected -10 PF in summary: ${event.summary}`);
   assert.ok(
     event.summary.includes("Spaventato · Velocità 0") || event.summary.includes("Spaventato"),
     `Expected condition removal in summary: ${event.summary}`,
@@ -829,7 +829,7 @@ test("CF-B01A.5: Combat Log summary for damage shows HP delta AND endsOnDamage e
   const presentation = buildCombatLogPresentation({}, [rawEvent]);
   assert.equal(presentation.events.length, 1, "Must generate exactly 1 combat log event");
   const event = presentation.events[0];
-  assert.ok(event.summary.includes("-10 HP"), `Expected -10 HP in summary: ${event.summary}`);
+  assert.ok(event.summary.includes("-10 PF"), `Expected -10 PF in summary: ${event.summary}`);
   assert.ok(
     event.summary.includes("Velocità dimezzata"),
     `Expected effect removal in summary: ${event.summary}`,

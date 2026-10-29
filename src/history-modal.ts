@@ -135,6 +135,11 @@ const combatLogUiState = {
 
 const combatLogPageState = createCombatLogPageState();
 
+// "1 evento", "2 eventi": the counts of the Registro agree with their noun (lot L18).
+function countText(count: number, one: string, many: string) {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
 function resetCombatLogPageState(sessionId = "") {
   resetCombatLogPageStateCore(combatLogPageState, sessionId);
   combatLogTimelineVisibleLimit = COMBAT_LOG_TIMELINE_BATCH_SIZE;
@@ -581,16 +586,16 @@ function makeEventRow(event: any, onDelete: (event: any) => Promise<void>, selec
   }
 
   // Delete: the trash button turns into a compact inline confirmation on the same line (Elimina · ✕, Esc cancels).
-  const remove = button("Elimina evento dal log", "danger", "log-delete.svg", true);
+  const remove = button("Elimina evento dal registro", "danger", "log-delete.svg", true);
   remove.dataset.combatLogControl = "delete-event";
-  remove.title = "Elimina questa voce dal log";
+  remove.title = "Elimina questa voce dal registro";
   remove.disabled = combatLogStorageAction || combatLogPageLoading || !sceneLifecycle.isReady();
   Object.assign(remove.style, { minHeight: "24px", height: "24px", width: "24px", minWidth: "24px", flex: "0 0 auto", borderRadius: "7px" });
   const confirmation = document.createElement("span");
   confirmation.dataset.combatLogDeleteConfirmation = String(event?.id || "");
   confirmation.setAttribute("role", "group");
-  confirmation.setAttribute("aria-label", "Eliminare definitivamente questa voce dal log?");
-  confirmation.title = "Eliminare definitivamente questa voce dal log?";
+  confirmation.setAttribute("aria-label", "Eliminare definitivamente questa voce dal registro?");
+  confirmation.title = "Eliminare definitivamente questa voce dal registro?";
   Object.assign(confirmation.style, { display: "none", alignItems: "center", gap: "4px", flex: "0 0 auto" });
   const cancel = button("Annulla", "default", "", true);
   cancel.textContent = "✕";
@@ -705,21 +710,38 @@ function makeEventRow(event: any, onDelete: (event: any) => Promise<void>, selec
 function undoReadinessLabel(row: any) {
   if (row?.status === HISTORY_UNDO_READINESS_STATUS.UNDOABLE) return "Annullabile";
   if (row?.status === HISTORY_UNDO_READINESS_STATUS.CONFLICT) return "Bloccata: stato cambiato";
-  if (row?.status === HISTORY_UNDO_READINESS_STATUS.INVALID) return "Entry incompleta";
+  if (row?.status === HISTORY_UNDO_READINESS_STATUS.INVALID) return "Voce incompleta";
   if (row?.status === HISTORY_UNDO_READINESS_STATUS.NOOP) return "Nessuna modifica reversibile";
   return "Verifica non disponibile";
+}
+
+// Why an action can no longer be undone, in words (lot L18): no token id, no internal code.
+const UNDO_CONFLICT_REASON_TEXT: Record<string, string> = {
+  "current-value-mismatch": "è cambiato dopo l'operazione",
+  "missing-item": "il token non è più nella scena",
+  "scene-item-snapshot-mismatch": "il token è cambiato dopo l'operazione",
+  "scene-item-not-absent": "il token è di nuovo nella scena",
+};
+const UNDO_CONFLICT_FIELD_TEXT: Record<string, string> = {
+  hp: "PF", hpMax: "PF massimi", tempHp: "PF temporanei", conditions: "condizioni", spells: "incantesimi",
+  concentration: "concentrazione", initiative: "iniziativa", position: "posizione", name: "nome",
+  "owned-fields": "dati del token", item: "token", "scene-item": "token", commands: "comandi",
+};
+
+function undoConflictText(conflict: any) {
+  const field = String(conflict?.field || "").split("/").pop() || "";
+  const fieldText = UNDO_CONFLICT_FIELD_TEXT[field] || "";
+  const reasonText = UNDO_CONFLICT_REASON_TEXT[String(conflict?.reason || "")] || "stato non compatibile";
+  return fieldText && !reasonText.startsWith("il token") ? `${fieldText}: ${reasonText}` : reasonText;
 }
 
 function undoReadinessTitle(row: any) {
   const conflicts = Array.isArray(row?.conflicts) ? row.conflicts : [];
   if (conflicts.length) {
-    return conflicts.slice(0, 3).map((conflict: any) => [
-      conflict?.itemId || conflict?.id,
-      conflict?.field,
-      conflict?.reason,
-    ].filter(Boolean).join(" · ")).join(" | ");
+    return [...new Set(conflicts.map(undoConflictText))].slice(0, 3).join(" · ");
   }
-  return String(row?.reason || undoReadinessLabel(row));
+  const reason = String(row?.reason || "");
+  return reason && !/^[a-z]+(-[a-z]+)+$/.test(reason) ? reason : undoReadinessLabel(row);
 }
 
 function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void>) {
@@ -768,13 +790,17 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       });
       const summaryText = document.createElement("span");
       summaryText.textContent = undoRows.undoable.length
-        ? `${undoRows.nonUndoable.length} operazioni precedenti non sono più annullabili.`
-        : `Nessuna operazione annullabile · ${undoRows.nonUndoable.length} operazioni precedenti non sono più compatibili con lo stato attuale.`;
+        ? (undoRows.nonUndoable.length === 1
+          ? "1 operazione precedente non è più annullabile."
+          : `${undoRows.nonUndoable.length} operazioni precedenti non sono più annullabili.`)
+        : `Nessuna operazione annullabile · ${undoRows.nonUndoable.length === 1
+          ? "1 operazione precedente non è più compatibile"
+          : `${undoRows.nonUndoable.length} operazioni precedenti non sono più compatibili`} con lo stato attuale.`;
       const toggleHistory = button(showNonUndoableHistory ? "Nascondi" : "Mostra");
       toggleHistory.classList.add("undo-hidden-history-toggle");
       toggleHistory.title = showNonUndoableHistory
-        ? "Nasconde le entry non più annullabili"
-        : "Mostra le entry conservate per diagnosi ma non più annullabili";
+        ? "Nasconde le voci non più annullabili"
+        : "Mostra le voci conservate per diagnosi ma non più annullabili";
       toggleHistory.addEventListener("click", () => {
         showNonUndoableHistory = !showNonUndoableHistory;
         void onDone("");
@@ -786,8 +812,8 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
     let selectedDepth = newest[0]?.undoable === true ? 1 : 0;
     const rows: Array<{ checkbox: HTMLInputElement; row: HTMLLabelElement }> = [];
     const undo = button("Annulla l'ultima", "primary", "history.svg");
-    const cleanup = button("Pulisci entry incomplete");
-    cleanup.title = "Rimuove solo le entry incomplete; i conflitti restano visibili nella cronologia";
+    const cleanup = button("Pulisci voci incomplete");
+    cleanup.title = "Rimuove solo le voci incomplete; i conflitti restano visibili nella cronologia";
     const resetHistory = button("Azzera la cronologia", "danger");
     resetHistory.title = "Cancella l'intera cronologia senza modificare la scena o il registro combattimento";
     const refresh = () => {
@@ -998,12 +1024,12 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
           );
           if (!sceneLifecycle.isCurrent(operation)) return;
           await onDone(removed
-            ? `Pulizia completata: rimosse ${result.removedIds.length} entry incomplete.`
+            ? `Pulizia completata: ${result.removedIds.length === 1 ? "rimossa 1 voce incompleta" : `rimosse ${result.removedIds.length} voci incomplete`}.`
             : "Pulizia inviata: la cronologia non si è ancora aggiornata; riprova tra poco.");
         } else if (result?.pendingIds?.length) {
           await onDone("Pulizia non completata: gestore della cronologia non disponibile; riprova tra poco.");
         } else {
-          await onDone("Nessuna entry incompleta da rimuovere.");
+          await onDone("Nessuna voce incompleta da rimuovere.");
         }
       } catch (error: any) {
         if (!sceneLifecycle.isCurrent(operation)) return;
@@ -1218,7 +1244,7 @@ async function render(
   const exportText = button("Esporta TXT", "default", "log-export.svg");
   const exportJson = button("Esporta JSON", "default", "log-export.svg");
   const importJson = button("Importa JSON");
-  const storageStats = button("Statistiche storage");
+  const storageStats = button("Statistiche archivio");
   const retention = button("Conservazione…");
   const newSession = button("Nuovo registro", "default", "log-new.svg", true);
   const clearLog = button("Svuota eventi", "default", "log-clear.svg");
@@ -1357,9 +1383,9 @@ async function render(
     try {
       const stats = await getCombatLogStorageStats({ sceneEpoch: operation.epoch });
       if (!stats) return;
-      await scheduleRender(`Storage locale: ${stats.sessionCount} registri, ${stats.eventCount} eventi (${stats.importedSessionCount} importati).`);
+      await scheduleRender(`Archivio locale: ${countText(stats.sessionCount, "registro", "registri")}, ${countText(stats.eventCount, "evento", "eventi")} (${countText(stats.importedSessionCount, "importato", "importati")}).`);
     } catch (error: any) {
-      await renderAfterStorageAction(`Statistiche storage fallite: ${error?.message || error}`);
+      await renderAfterStorageAction(`Statistiche dell'archivio non disponibili: ${error?.message || error}`);
     } finally {
       combatLogStorageAction = false;
     }
@@ -1384,7 +1410,7 @@ async function render(
         return;
       }
       const confirmed = window.confirm(
-        `Anteprima conservazione: eliminare ${preview.sessionCount} registri e ${preview.eventCount} eventi? Questa azione è definitiva.`,
+        `Anteprima conservazione: eliminare ${countText(preview.sessionCount, "registro", "registri")} e ${countText(preview.eventCount, "evento", "eventi")}? Questa azione è definitiva.`,
       );
       if (!confirmed) {
         await renderAfterStorageAction("Conservazione annullata: nessun registro eliminato.");
@@ -1394,7 +1420,7 @@ async function render(
       if (!sceneLifecycle.isCurrent(retentionOperation)) return;
       await renderAfterStorageAction(result?.failed?.length
         ? `Conservazione parziale: eliminati ${result.deletedIds.length}, falliti ${result.failed.length}.`
-        : `Conservazione completata: eliminati ${result?.deletedIds?.length || 0} registri.`);
+        : `Conservazione completata: ${(result?.deletedIds?.length || 0) === 1 ? "eliminato 1 registro" : `eliminati ${result?.deletedIds?.length || 0} registri`}.`);
     } catch (error: any) {
       await renderAfterStorageAction(`Conservazione fallita: ${error?.message || error}`);
     } finally {
@@ -1438,7 +1464,7 @@ async function render(
   clearConfirmation.className = "history-confirmation-banner";
   clearConfirmation.style.display = "none";
   const clearQuestion = document.createElement("strong");
-  clearQuestion.textContent = "Cancellare definitivamente tutte le voci del log corrente?";
+  clearQuestion.textContent = "Cancellare definitivamente tutte le voci del registro corrente?";
   const clearActions = document.createElement("div");
   Object.assign(clearActions.style, { display: "flex", flex: "0 0 auto", gap: "5px" });
   const cancelClear = button("Annulla");
@@ -1904,10 +1930,10 @@ async function render(
       ? ` · ${visibleEvents.length} più recenti`
       : "";
     projectionSummary.textContent = [
-      `${filteredPresentation.events.length} eventi${filterSuffix}${visibleSuffix}${loadedSuffix}`,
+      `${countText(filteredPresentation.events.length, "evento", "eventi")}${filterSuffix}${visibleSuffix}${loadedSuffix}`,
       `${sessionSummary.roundCount} round`,
-      `${sessionSummary.turnCount} turni`,
-      `${sessionSummary.participantCount} partecipanti`,
+      countText(sessionSummary.turnCount, "turno", "turni"),
+      countText(sessionSummary.participantCount, "partecipante", "partecipanti"),
     ].join(" · ");
 
     if (!filteredPresentation.events.length) {
@@ -1947,7 +1973,7 @@ async function render(
         roundDetails.querySelector("summary")?.setAttribute("aria-expanded", String(roundDetails.open));
       });
       const roundSummary = document.createElement("summary");
-      roundSummary.textContent = `Round ${round.round} · ${visibleTurns.reduce((total, turn) => total + turn.events.length, 0)} eventi · ${visibleTurns.length} turni`;
+      roundSummary.textContent = `Round ${round.round} · ${countText(visibleTurns.reduce((total, turn) => total + turn.events.length, 0), "evento", "eventi")} · ${countText(visibleTurns.length, "turno", "turni")}`;
       roundSummary.setAttribute("aria-label", roundSummary.textContent);
       roundSummary.setAttribute("aria-expanded", String(roundDetails.open));
       Object.assign(roundSummary.style, {

@@ -496,7 +496,7 @@ async function appendSceneHistoryChanges(changes, sceneEpoch = currentSceneEpoch
   const kinds = new Set(changes.map((change) => change.kind));
   const label = labels.length === 1
     ? labels[0]
-    : `${labels[0]} (+${labels.length - 1} eventi)`;
+    : `${labels[0]} (+${labels.length - 1} ${labels.length === 2 ? "evento" : "eventi"})`;
   const entry = {
     id: createEntryId(),
     version: HISTORY_VERSION,

@@ -18,7 +18,7 @@ test("secondary damage records the actual target separately from shared HP mirro
   const presentation = buildCombatLogPresentation(null, [event]);
   const displayed = presentation.events[0];
   assert.match(displayed.summary, /Bersaglio: Titano hand/);
-  assert.match(displayed.summary, /Riserva Auril: 300\/400 → 275\/400 \(-25 HP\)/);
+  assert.match(displayed.summary, /Riserva Auril: 300\/400 → 275\/400 \(-25 PF\)/);
   assert.doesNotMatch(displayed.summary, /Bersaglio:.*Titano (body|head)/);
   assert.match(serializeCombatLogPresentationText(null, presentation), /Bersaglio: Titano hand/);
   assert.equal((await effects.undoEffectsMutation(entry, { transport: "background" })).status, "applied");
@@ -41,7 +41,7 @@ test("independent HP entries retain their existing presentation and payload", as
   const [entry] = await history.getHistoryEntries();
   assert.equal(entry.payload?.sharedHp, undefined);
   const displayed = buildCombatLogPresentation(null, [combatEventFromHistoryEntry(entry)]).events[0];
-  assert.equal(displayed.summary, "single: 300/— → 275/— (-25 HP)");
+  assert.equal(displayed.summary, "single: 300/— → 275/— (-25 PF)");
 });
 
 test("composite history also retains the actual shared target and the outer payload", async () => {
