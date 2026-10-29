@@ -505,13 +505,15 @@ export function bindClassicHPEditor({
         : Math.max(0, hp - nextHP);
       // baseHP/baseHPMax are the values the editor opened on (live when it could read them): the save checks the
       // token against them, not against the card snapshot that may predate a change made by another client.
+      // A field the token does not have yet (a token just imported, shown 0/0) has no base: no check, the first
+      // values are written. The 0 of the pill would expect a value the token lacks, and the save was refused.
       const result = {
         nextHP,
         nextHPMax,
         recalibratesMax,
         concentrationDamage,
-        baseHP: hp,
-        baseHPMax: hpMax,
+        baseHP: Number.isFinite(liveValues?.hp) ? liveValues.hp : null,
+        baseHPMax: Number.isFinite(liveValues?.hpMax) ? liveValues.hpMax : null,
       };
       let saved = false;
       try {

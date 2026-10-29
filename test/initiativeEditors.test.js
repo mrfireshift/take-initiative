@@ -152,23 +152,22 @@ function flushAsyncEvents() {
 
 // Exercise the tracker callbacks together with the real editor: the standalone
 // editor tests do not model the tracker epoch being cleared during cleanup.
-function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDuringSave = false, paragonCard = false, entryHP = 40 } = {}) {
+function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDuringSave = false, paragonCard = false, entryHP = 40, freshToken = false } = {}) {
   const source = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
   const start = source.indexOf("function bindHPEditorForEntry(");
   const end = source.indexOf("function bindSpellBoardTokenHPEditor(", start);
   assert.ok(start >= 0 && end > start);
   const documentRef = createTestDocument();
   const pill = documentRef.createElement("div");
-  pill.textContent = "40/40";
-  pill.innerHTML = "40/40";
+  pill.textContent = freshToken ? "0/0" : "40/40";
+  pill.innerHTML = pill.textContent;
   const META_KEY = "com.thebigpicture.initiative/meta";
   const CONC_META_KEY = "com.thebigpicture.initiative/concentration";
   const token = {
     id: "concentrating-caster",
     name: "Caster",
     metadata: { [META_KEY]: {
-      hp: 40,
-      hpMax: 40,
+      ...(freshToken ? {} : { hp: 40, hpMax: 40 }),
       [CONC_META_KEY]: { web: { instanceId: "web-1", name: "Ragnatela" } },
     } },
   };
@@ -235,7 +234,7 @@ function createTrackerHPConcentrationHarness({ saveFails = false, changeSceneDur
   // A Paragon's extra turn: its card has a virtual id, its hit points are the token's.
   bind(dependencies, pill, paragonCard
     ? { id: `${token.id}::p1`, __paragonBaseId: token.id, hp: entryHP, hpMax: entryHP }
-    : { id: token.id, hp: entryHP, hpMax: entryHP });
+    : { id: token.id, hp: freshToken ? null : entryHP, hpMax: freshToken ? null : entryHP });
   return {
     pill,
     warnings,
@@ -767,4 +766,17 @@ test("L28: l'editor dei PF confronta il token con i valori che mostra, non con l
   assert.equal(committed, true);
   assert.deepEqual(harness.expectedValues, [{ hp: 40, hpMax: 40 }]);
   assert.equal(harness.meta.hp, 30);
+});
+
+// A token just imported has no hit points yet and its card shows 0/0. The editor sent that 0 as the value to expect:
+// the token has no hp field, the mutation was refused as a conflict, and the card fell back to 0/0 without its bar.
+test("L28: i primi PF di un token appena importato si salvano", async () => {
+  const harness = createTrackerHPConcentrationHarness({ freshToken: true });
+  const committed = await harness.damage("15");
+  assert.equal(committed, true);
+  assert.deepEqual(harness.expectedValues, [{ hp: null, hpMax: null }], "no field to check yet");
+  assert.equal(harness.meta.hp, 15);
+  assert.equal(harness.meta.hpMax, 15);
+  const tracker = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
+  assert.match(tracker, /\.\.\.\(Number\.isFinite\(expectedValues\?\.hp\) \? \{ expectedHP: \{ present: true, value: expectedValues\.hp \} \} : \{\}\),/);
 });
