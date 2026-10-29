@@ -489,7 +489,9 @@ export async function mountCallLightningTurnPromptController() {
               actionId: payload.actionId,
               group,
               selectedTargetIds: selectedTargetId ? [selectedTargetId] : [],
-              appliedAt: group.appliedAt,
+              // No appliedAt: the effects a turn prompt's action creates start on this turn, read by the executor
+              // (lot L17, SP-4). The cast's turn made "until the end of its next turn" end one turn early.
+              appliedAt: undefined,
               casterName: group.casterName,
               sceneEpoch: actionSceneEpoch,
               sceneIdentity: sceneContext?.sceneIdentity || null,

@@ -93,3 +93,10 @@ test("L18: il motivo di un annullamento bloccato è in parole, senza id del toke
   assert.doesNotMatch(modal, /conflict\?\.itemId \|\| conflict\?\.id,/);
   assert.match(modal, /reason && !\/\^\[a-z\]\+\(-\[a-z\]\+\)\+\$\/\.test\(reason\) \? reason : undoReadinessLabel\(row\)/);
 });
+
+// Lot L17 (SP-4), the turn prompt too: its actions' new effects start on the turn they are used, as in the spell panel.
+test("L17: il prompt di turno non passa all'esecutore il turno del lancio", () => {
+  const controller = read("../src/callLightningTurnPromptController.js");
+  assert.match(controller, /await executeSpellActiveAction\(\{[\s\S]{0,400}\n(\s+\/\/.*\n)+\s+appliedAt: undefined,/);
+  assert.doesNotMatch(controller, /appliedAt: group\.appliedAt,/);
+});
