@@ -10283,7 +10283,7 @@ function renderCompactTrack(
       bindHPEditorForEntry(hpText, hpFill, () => {}, entry, { formatHP: compactHPTextHTML });
     }
 
-    const name = buildCompactCardName(entry, { active, boss });
+    const name = buildCompactCardName(entry, { active, boss, isGM: IS_GM });
     const virtualTurnLabel = virtual
       ? buildCompactVirtualTurnLabel(entry, { isLair: isLairId(entry.id), faction, rgba })
       : null;

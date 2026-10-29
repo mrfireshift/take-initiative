@@ -704,7 +704,7 @@ test("lotto 6.4: il GM modifica gli HP dal compatto con l'editor del classico, e
   assert.ok(syncSection.includes("\"[data-badge='hp']:not([data-card-hp-text='1']):not([data-spell-board-token-hp='1']):not([data-shared-hp-badge='1'])\""));
   assert.ok(syncSection.includes(`if (hpText && hpText.dataset.hpEditing !== "1")`));
 
-  const compactSection = sourceSection("} = buildCompactCardHP(entry, {", "const name = buildCompactCardName(entry, { active, boss });");
+  const compactSection = sourceSection("} = buildCompactCardHP(entry, {", "const name = buildCompactCardName(entry, { active, boss, isGM: IS_GM });");
   assert.ok(compactSection.includes("IS_GM && showHP && !virtual && !entry.__groupCollapsed"));
   assert.ok(compactSection.includes("!isLairId(entry.id) && !isEpicActionId(entry.id)"));
   assert.ok(compactSection.includes("bindHPEditorForEntry(hpText, hpFill, () => {}, entry, { formatHP: compactHPTextHTML })"));

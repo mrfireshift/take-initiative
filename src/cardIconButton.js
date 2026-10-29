@@ -45,6 +45,23 @@ export function buildCardIconGlyph(name, size = 11, documentRef = globalThis.doc
   return glyph;
 }
 
+// The GM's sign that the players do not see this token (lot L16): an eye struck through, beside the name. The players'
+// tracker never draws a hidden token, so only the GM's cards carry it.
+export function buildHiddenTokenMark(size = 11, documentRef = globalThis.document) {
+  const mark = buildCardIconGlyph("hidden-token.svg", size, documentRef);
+  mark.dataset.hiddenTokenMark = "1";
+  mark.removeAttribute("aria-hidden");
+  mark.setAttribute("role", "img");
+  mark.title = "Token nascosto: i giocatori non lo vedono";
+  mark.setAttribute("aria-label", mark.title);
+  Object.assign(mark.style, {
+    flex: "0 0 auto",
+    color: "rgba(255,255,255,.82)",
+    pointerEvents: "auto",
+  });
+  return mark;
+}
+
 export function styleCardIconButton(node, tone) {
   Object.assign(node.style, CARD_ICON_BUTTON_STYLE, CARD_ICON_BUTTON_TONES[tone] || {});
   return node;

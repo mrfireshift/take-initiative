@@ -10,7 +10,7 @@ import { getSpellSummaryParts } from "./spells-srd.js";
 import { spellPillHasActions } from "./spellPillActionsCore.js";
 import { COMPACT_CARD_WIDTH } from "./constants.js";
 import { HIT_AREA_MIN_SIZE, extendHitArea } from "./hitAreaCore.js";
-import { CARD_ICON_BUTTON_SIZE, buildCardIconGlyph, styleCardIconButton } from "./cardIconButton.js";
+import { CARD_ICON_BUTTON_SIZE, buildCardIconGlyph, buildHiddenTokenMark, styleCardIconButton } from "./cardIconButton.js";
 import { canOpenInitiativeCardSheet } from "./initiativeCardSheetAccessCore.js";
 
 export { COMPACT_CARD_WIDTH };
@@ -700,6 +700,7 @@ export function buildCompactCardName(
   {
     active,
     boss = false,
+    isGM = false,
     documentRef = globalThis.document,
   },
 ) {
@@ -725,6 +726,13 @@ export function buildCompactCardName(
     whiteSpace: "nowrap",
     textShadow: "0 1px 3px #000",
   });
+  // A token the GM keeps hidden: the eye struck through before its name (GM only, the players never see the card).
+  if (isGM && entry.hiddenToken === true) {
+    const mark = buildHiddenTokenMark(10, compactDocument(documentRef));
+    Object.assign(mark.style, { display: "inline-block", verticalAlign: "-1px", marginRight: "3px" });
+    name.prepend(mark);
+    name.title = `${name.title} · Token nascosto: i giocatori non lo vedono`;
+  }
   return name;
 }
 

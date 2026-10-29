@@ -25,6 +25,7 @@ import {
   CARD_ICON_BUTTON_SIZE,
   CARD_ICON_LIFT,
   buildCardIconGlyph,
+  buildHiddenTokenMark,
   styleCardIconButton,
 } from "./cardIconButton.js";
 import { extendHitArea } from "./hitAreaCore.js";
@@ -466,6 +467,12 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
       console.warn("[initiative] rename token:", error?.message || error);
     },
   });
+}
+// A token the GM keeps hidden: the eye struck through before its name (GM only, the players never see the card).
+if (IS_GM && e.hiddenToken === true) {
+  const hiddenMark = buildHiddenTokenMark(13);
+  hiddenMark.style.marginRight = "5px";
+  name.appendChild(hiddenMark);
 }
 name.appendChild(nameLabel);
 

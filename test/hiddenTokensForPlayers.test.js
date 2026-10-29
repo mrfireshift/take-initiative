@@ -142,3 +142,36 @@ test("L16 (OP-08): un token senza attitudine si mostra neutrale; le chiavi dei g
   assert.ok(__groupKey({ name: "Goblin", attitude: "neutral", groupAttitude: "ally" }).startsWith("ally"));
   assert.match(tracker, /return `\$\{e\.groupAttitude \|\| e\.attitude \|\| "ally"\}\$\{__GROUP_SEP\}\$\{base\}`;/);
 });
+
+// The GM's mark on a hidden token's card: an eye struck through before the name, in both layouts. The players never
+// draw that card, so it never reaches them.
+test("L16: sulla card del GM un token nascosto ha l'occhio barrato accanto al nome", async () => {
+  const { buildCompactCardName } = await import("../src/initiativeCardCompact.js");
+  const documentRef = {
+    createElement(tagName) {
+      return {
+        tagName: String(tagName).toUpperCase(), style: {}, dataset: {}, attributes: {}, children: [], textContent: "", title: "",
+        setAttribute(name, value) { this.attributes[name] = String(value); },
+        removeAttribute(name) { delete this.attributes[name]; },
+        appendChild(child) { this.children.push(child); return child; },
+        prepend(child) { this.children.unshift(child); },
+      };
+    },
+  };
+  const hidden = buildCompactCardName({ name: "Ombra", hiddenToken: true }, { active: false, isGM: true, documentRef });
+  const [mark] = hidden.children;
+  assert.equal(mark?.dataset.hiddenTokenMark, "1");
+  assert.equal(mark.title, "Token nascosto: i giocatori non lo vedono");
+  assert.match(mark.style.mask, /hidden-token\.svg/);
+  assert.equal(hidden.textContent, "Ombra", "the name stays the name");
+  assert.match(hidden.title, /Token nascosto/);
+  assert.equal(buildCompactCardName({ name: "Orco" }, { active: false, isGM: true, documentRef }).children.length, 0);
+  assert.equal(buildCompactCardName({ name: "Ombra", hiddenToken: true }, { active: false, documentRef }).children.length, 0,
+    "a player's card never carries it");
+
+  const classic = read("../src/initiativeCardClassicBuilder.js");
+  assert.match(classic, /if \(IS_GM && e\.hiddenToken === true\) \{\n\s+const hiddenMark = buildHiddenTokenMark\(13\);[\s\S]{0,80}name\.appendChild\(hiddenMark\);\n\}\nname\.appendChild\(nameLabel\);/);
+  assert.match(tracker, /buildCompactCardName\(entry, \{ active, boss, isGM: IS_GM \}\)/);
+  const svg = read("../public/hidden-token.svg");
+  assert.match(svg, /<mask id="hidden-token-cut"/);
+});
