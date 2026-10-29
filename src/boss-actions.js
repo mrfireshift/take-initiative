@@ -839,8 +839,19 @@ export function bootBossActions(documentRef=document, overrides={}) {
   }
   // The outcome button pressed: a critical hit is a hit with its own button (Critico), as in the PC console.
   function outcomeChoice() {return draft?.outcome==="hit" && draft.critical===true?"critical":draft?.outcome || "";}
+  // A critical hit doubles the dice, never the flat bonus (the PC console's pcAttackCriticalDice): on Critico each damage
+  // row shows the dice the GM rolls, "2d8+4 · critico 4d8+4" (lot L20). Its text only: the amount fields stay as typed.
+  const criticalDice=formula=>String(formula || "").replace(/(\d+)d(\d+)/gu,(match,count,sides)=>`${Number(count)*2}d${sides}`);
+  function renderCriticalDice() {
+    const critical=draft?.kind==="attack-damage" && outcomeChoice()==="critical";
+    for(const formula of resolution.querySelectorAll?.("[data-damage-formula]") || []) {
+      const base=formula.dataset.damageFormula,average=formula.dataset.damageAverage;
+      formula.textContent=critical && /\d+d\d+/u.test(base)?`${base} · critico ${criticalDice(base)}`:`${base} · ${average}`;
+    }
+  }
   function renderDecisions() {
     if(!draft) return;
+    renderCriticalDice();
     if(draft.kind==="group-save") return renderGroupState();
     if(["throw","effect-end","seam"].includes(draft.kind)) return renderSpecialState();
     for(const group of resolution.querySelectorAll(".segmented")) {
@@ -1090,8 +1101,10 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const damage=node("div","","damage-list");damage.id="boss-damage";
     for(const component of bossActionDamageComponents(action)) {
       const row=node("label","","damage-row");
-      row.append(node("span",capitalize(bossDamageTypeLabel(component.type)),"damage-type"),
-        node("span",`${component.formula} · ${component.printedAverage!==undefined?"media "+component.printedAverage:"calc. "+component.average}`,"damage-formula"));
+      const formula=node("span",`${component.formula} · ${component.printedAverage!==undefined?"media "+component.printedAverage:"calc. "+component.average}`,"damage-formula");
+      formula.dataset.damageFormula=component.formula;
+      formula.dataset.damageAverage=component.printedAverage!==undefined?"media "+component.printedAverage:"calc. "+component.average;
+      row.append(node("span",capitalize(bossDamageTypeLabel(component.type)),"damage-type"),formula);
       const input=node("input");input.type="number";input.min="0";input.max="1000000";input.step="1";input.inputMode="numeric";
       input.value=draft.amounts[component.id] ?? "";input.dataset.componentId=component.id;
       input.setAttribute("aria-label",`Danni ${bossDamageTypeLabel(component.type)}`);

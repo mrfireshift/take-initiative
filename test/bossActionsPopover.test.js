@@ -1254,3 +1254,23 @@ test("asked to close at the end of the boss's turn, Boss Actions closes only whe
   await idle.ask();
   assert.deepEqual(idle.closed,["com.thebigpicture.initiative/boss-actions"],"the list of actions, nothing pending: closes");
 });
+
+// Lot L20 of the bugfix pass: on Critico the damage rows showed the printed dice only; the GM rolls them doubled.
+test("L20: con Critico le righe dei danni mostrano i dadi raddoppiati, il bonus fisso no",async()=>{
+  const f=fixture({selection:["dars"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
+  await open(f,"Icekiss +2");
+  const formulas=()=>f.$("boss-damage").querySelectorAll("[data-damage-formula]").map(node=>node.textContent);
+  const before=formulas();
+  assert.ok(before.length>=1);
+  assert.ok(before.every(text=>!/critico/.test(text)));
+  await outcome(f,"critical").click();await tick();
+  const critical=formulas();
+  for(const [index,text] of critical.entries()) {
+    const base=f.$("boss-damage").querySelectorAll("[data-damage-formula]")[index].dataset.damageFormula;
+    const doubled=base.replace(/(\d+)d(\d+)/gu,(match,count,sides)=>`${Number(count)*2}d${sides}`);
+    assert.equal(text,`${base} · critico ${doubled}`);
+  }
+  await outcome(f,"hit").click();await tick();
+  assert.deepEqual(formulas(),before,"back to the printed dice and average");
+  f.controller.destroy();
+});

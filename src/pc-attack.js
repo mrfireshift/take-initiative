@@ -1987,6 +1987,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     if(!presentation || (!draft && !launchBox)){form.hidden=true;if(applyRow)applyRow.hidden=true;return;}
     renderPicker();renderCaster();renderMonster();renderGrapple();
     if(launching()){renderLaunch();return;}
+    // The header too: a monster's recharge and uses come from the actor's resources, which an Undo puts back (lot L20).
+    renderHeader();
     renderTarget();renderPalm();updateDamageMeta();updateWoven();updateRiders();updateActivations();renderState();
   }
   // What a monster's weapon attack adds on a hit (fase 5, lotto 4): the target's second save (its bonus beside it, the
