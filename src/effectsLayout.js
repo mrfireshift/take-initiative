@@ -15,6 +15,7 @@ import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { readSceneItemsSnapshot } from "./sceneItemEvents.js";
 import { projectSceneItemEffects } from "./options/optionsProjection.js";
+import { attachmentBehaviorsWith, hasAttachmentBehaviors } from "./tokenFootprintCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
@@ -223,6 +224,8 @@ function commonLabelNeedsUpdate(item, spec) {
     item.layer !== "TEXT" ||
     item.locked !== true ||
     item.disableHit !== true ||
+    !hasAttachmentBehaviors(item, "ROTATION") ||
+    (Number(item.rotation) || 0) !== 0 ||
     item.position?.x !== spec.x ||
     item.position?.y !== spec.y ||
     text.width !== spec.width ||
@@ -258,6 +261,8 @@ function widgetNeedsUpdate(item, spec) {
       item.layer !== "TEXT" ||
       item.locked !== true ||
       item.disableHit !== true ||
+      !hasAttachmentBehaviors(item, "ROTATION") ||
+      (Number(item.rotation) || 0) !== 0 ||
       item.metadata?.[CONC_WIDGET_KEY] !== spec.key ||
       item.style?.backgroundColor !== spec.backgroundColor ||
       item.style?.backgroundOpacity !== 1 ||
@@ -327,6 +332,8 @@ function buildWidget(spec) {
     .pointerDirection(spec.pointerDirection)
     .maxViewScale(spec.maxViewScale)
     .attachedTo(spec.targetId)
+    // A pill stays upright when its token turns (a token turned to show Prono turned its pills too) (lot L20).
+    .disableAttachmentBehavior(["ROTATION"])
     .layer("TEXT")
     .name(nameForSpec(spec))
     .metadata(metadataForSpec(spec))
@@ -341,6 +348,8 @@ function applySpec(item, spec) {
   item.locked = true;
   item.disableHit = true;
   item.attachedTo = spec.targetId;
+  item.disableAttachmentBehavior = attachmentBehaviorsWith(item.disableAttachmentBehavior, "ROTATION");
+  item.rotation = 0;
   item.layer = "TEXT";
   item.zIndex = spec.zIndex;
   item.metadata = { ...(item.metadata || {}), ...metadataForSpec(spec) };

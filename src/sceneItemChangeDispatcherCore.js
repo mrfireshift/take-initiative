@@ -250,6 +250,7 @@ function createFlags() {
     activeTurnLabelOnly: false,
     trackerStructure: false,
     visibility: false,
+    tokenScale: false,
     attitude: false,
     aura: false,
     zone: false,
@@ -267,6 +268,11 @@ function mergeFlags(target, source) {
     }
   }
   return target;
+}
+
+function tokenScaleSignature(item) {
+  return JSON.stringify([item?.scale?.x ?? null, item?.scale?.y ?? null, item?.image?.width ?? null,
+    item?.image?.height ?? null, item?.grid?.dpi ?? null]);
 }
 
 function markPluginTokenChange(flags, before, after, lifecycleChange) {
@@ -301,6 +307,9 @@ function markPluginTokenChange(flags, before, after, lifecycleChange) {
   flags.tracker ||= nameChanged || imageChanged || metaChanged;
   flags.trackerStructure ||= trackerStructureChanged || visibilityChanged;
   flags.visibility ||= visibilityChanged;
+  // Scaled by the GM (lot L20): the map HP bar is measured again on the token's new size. Its rotation is not here:
+  // the bar never turns with the token.
+  flags.tokenScale ||= !lifecycleChange && tokenScaleSignature(before?.item) !== tokenScaleSignature(after?.item);
   flags.hpBars ||= hpChanged || attitudeChanged || visibilityChanged;
   flags.attitude ||= attitudeChanged;
   flags.hpMemory ||= nameChanged || imageChanged || attitudeChanged;

@@ -5,6 +5,7 @@ import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { mapHpDisclosure } from "./options/optionsProjection.js";
+import { unrotatedTokenBounds } from "./tokenFootprintCore.js";
 
 /* ========= Chiavi metadata ========= */
 const META_KEY         = `${ID}/meta`;    // nei token: { hp, hpMax, ... }
@@ -295,6 +296,11 @@ async function computeBarLayout(tokenId, tokenSnapshot = null){
   catch { return null; }
   if (!b) return null;
 
+  const tokenItem = tokenSnapshot || await getItemById(tokenId);
+  // Measured on the token as if it were not rotated (lot L20): the bar follows its scale, never its rotation.
+  const sceneDpi = await Promise.resolve().then(() => OBR.scene.grid.getDpi()).catch(() => null);
+  b = unrotatedTokenBounds(b, tokenItem, sceneDpi);
+
   const { barW, barH } = computeBarSizeByToken(b);
 
   // sotto al token: 2% di distacco e 6% di sovrapposizione al bordo
@@ -305,7 +311,6 @@ async function computeBarLayout(tokenId, tokenSnapshot = null){
   const leftX = Math.round(cx - barW / 2);
   const topY  = Math.round(b.max.y - overlap + gap);
 
-  const tokenItem = tokenSnapshot || await getItemById(tokenId);
   const tokenZ    = tokenItem?.zIndex ?? 0;
 
   return { barW, barH, leftX, topY, tokenZ };
@@ -825,7 +830,7 @@ export async function mountHPBars(){
         if (!hasCanonicalHP(m)) continue;
         queueToken(cur.id, Number(m.hp)||0, Number(m.hpMax)||0);
       }
-    }, { filter: (event) => event.flags.hpBars });
+    }, { filter: (event) => event.flags.hpBars || event.flags.tokenScale });
   }
   return IS_GM;
 }
