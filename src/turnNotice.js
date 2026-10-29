@@ -20,6 +20,20 @@ function entryName(id, entriesById) {
   return "Creatura";
 }
 
+// Lot L16: a hidden creature the players have not met (it has not had its turn) is not named to them as "next":
+// the next creature they know.
+function unknownToPlayers(entry) {
+  return entry?.hiddenToken === true && entry?.revealedInCombat !== true;
+}
+
+function nextKnownName(order, current, entriesById) {
+  for (let step = 1; step <= order.length; step += 1) {
+    const id = order[(current + step) % order.length];
+    if (!unknownToPlayers(entryForId(id, entriesById))) return entryName(id, entriesById);
+  }
+  return "";
+}
+
 export function buildTurnNoticePayload(state, entriesById) {
   const order = Array.isArray(state?.order) ? state.order.filter(Boolean) : [];
   if (!order.length) return null;
@@ -34,6 +48,9 @@ export function buildTurnNoticePayload(state, entriesById) {
     nextId,
     currentName: entryName(currentId, entriesById),
     nextName: entryName(nextId, entriesById),
+    ...(unknownToPlayers(entryForId(nextId, entriesById))
+      ? { nextPlayerName: nextKnownName(order, current, entriesById) }
+      : {}),
     currentPortrait: portrait.length <= 2048 ? portrait : "",
     currentAttitude: String(currentEntry?.attitude || "neutral").trim().toLowerCase(),
     round,

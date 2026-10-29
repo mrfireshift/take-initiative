@@ -293,11 +293,13 @@ function markPluginTokenChange(flags, before, after, lifecycleChange) {
     || [...changedKeys].some((key) => !TRACKER_LOCAL_METADATA_KEYS.has(key));
 
   const movementChanged = !lifecycleChange && before?.positionSignature !== after?.positionSignature;
+  // Hidden or shown by the GM (lot L16): the players' HP bar, auras and tracker card follow the token.
+  const visibilityChanged = !lifecycleChange && (before?.item?.visible !== false) !== (after?.item?.visible !== false);
   flags.movement ||= movementChanged;
   flags.speedCheck ||= speedCheckChanged;
   flags.tracker ||= nameChanged || imageChanged || metaChanged;
-  flags.trackerStructure ||= trackerStructureChanged;
-  flags.hpBars ||= hpChanged || attitudeChanged;
+  flags.trackerStructure ||= trackerStructureChanged || visibilityChanged;
+  flags.hpBars ||= hpChanged || attitudeChanged || visibilityChanged;
   flags.attitude ||= attitudeChanged;
   flags.hpMemory ||= nameChanged || imageChanged || attitudeChanged;
   const quickActionCandidate = after?.isCharacter
@@ -331,6 +333,7 @@ function markPluginTokenChange(flags, before, after, lifecycleChange) {
   flags.concentration ||= spellsChanged || concentrationChanged;
   flags.reminderResolutions ||= changedKeys.has(REMINDER_RESOLUTIONS_META_FIELD);
   flags.aura ||= lifecycleChange
+    || visibilityChanged
     || movementChanged
     || spellsChanged
     || concentrationChanged

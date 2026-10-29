@@ -1832,6 +1832,8 @@ function makeClearInitiativeBtn() {
           for (const it of drafts) {
             const me = { ...(it.metadata?.[META_KEY] || {}) };
             delete me.inInitiative;
+            // A new combat: no hidden creature is known yet (lot L16).
+            delete me.revealedInCombat;
             it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
           }
         });
@@ -4362,7 +4364,9 @@ function queueSelectAndFocus(itemId, autoFocus = true) {
       navigationRevision: __navigationRevision,
     });
   }
-  if (autoFocus) {
+  // Lot L16: a player's view never follows a hidden token (its position stays the GM's secret, met or not).
+  const hiddenFromPlayerView = !IS_GM && __activeLabelEntriesById.get(anchorId)?.hiddenToken === true;
+  if (autoFocus && !hiddenFromPlayerView) {
     __scheduleViewportFocus(anchorId, __navigationRevision, sceneEpoch);
   } else {
     __viewportFocusDesired = null;
@@ -5036,7 +5040,13 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
     initiative: (meta.epic ? LAIR_INITIATIVE : (Number(meta.initiative) || 0)),
     initTouched: meta.initTouched === true,
     portrait: getTokenImageUrl(it),
-    attitude: meta.attitude || "ally",
+    // Lot L16 (D10): one fallback for what is shown, "neutral" as on the map and in the players' projection. The
+    // group key keeps the old "ally" one (groupAttitude): the groups already seeded in the scene state use it.
+    attitude: meta.attitude || "neutral",
+    groupAttitude: meta.attitude || "ally",
+    // Lot L16: a hidden token, and whether the players met it (its turn came: revealedInCombat).
+    hiddenToken: it.visible === false,
+    revealedInCombat: meta.revealedInCombat === true,
     hp: (meta.hp ?? null),
     hpMax: (meta.hpMax ?? null),
     isEpic: !!meta.epic,
@@ -5334,7 +5344,7 @@ function _mkSlateParagraph(text) {
 // --- Grouping per propagazione: identico alle tab visive ---
 function _groupKeyFromEntry(e) {
   const { base } = _parseIndexedName(e.name || "");
-  return `${e.attitude || "ally"}${__GROUP_SEP}${base}`;
+  return `${e.groupAttitude || e.attitude || "ally"}${__GROUP_SEP}${base}`;
 }
 
 async function _getGroupForItemId(itemId) {
@@ -6360,6 +6370,31 @@ async function broadcastTurnNotice(
   const notice = buildTurnNoticePayload(state, __activeLabelEntriesById);
   if (!notice || !__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
   return __turnNoticeDelivery.request(notice, sceneEpoch, { source });
+}
+
+// Lot L16: a hidden creature whose turn starts has acted, and the players know it exists from then on: its token
+// gets revealedInCombat (players see its card and its name in the turn notices; its map visuals stay hidden with the
+// token). Written once per creature, by the GM; «Svuota iniziativa» clears it.
+let __revealCheckedTurnKey = "";
+async function __revealActiveHiddenCreature(state, sceneEpoch = currentSceneEpoch()) {
+  if (!IS_GM) return;
+  const activeId = __activeIdForState(state);
+  if (!activeId || isLairId(activeId) || isEpicActionId(activeId)) return;
+  const turnKey = `${Math.max(1, Math.floor(Number(state?.round) || 1))}:${state?.current}:${activeId}`;
+  if (turnKey === __revealCheckedTurnKey) return;
+  __revealCheckedTurnKey = turnKey;
+  const tokenId = splitParagonId(activeId).baseId;
+  const [item] = await OBR.scene.items.getItems([tokenId]);
+  if (!__isCurrentSceneOperation(sceneEpoch, "turn-reveal")) return;
+  const meta = item?.metadata?.[META_KEY];
+  if (!item || item.visible !== false || !meta || meta.revealedInCombat === true) return;
+  await OBR.scene.items.updateItems([tokenId], (drafts) => {
+    for (const draft of drafts) {
+      const current = draft.metadata?.[META_KEY];
+      if (!current || current.revealedInCombat === true) continue;
+      draft.metadata = { ...draft.metadata, [META_KEY]: { ...current, revealedInCombat: true } };
+    }
+  });
 }
 
 async function showConcentrationDamageWarning(
@@ -9465,6 +9500,14 @@ function __entryMatchesTrackerItemIds(entry, itemIds) {
   return __selectionIdsForEntry(entry).some((id) => itemIds.has(id));
 }
 
+// Lot L16: the players do not see the card of a hidden creature they have not met (its turn has not come). From its
+// turn on (revealedInCombat, or it is the one acting now) the card shows; its map visuals stay hidden with the token.
+function __hiddenFromPlayers(entry, activeId) {
+  if (IS_GM || entry?.hiddenToken !== true || entry?.revealedInCombat === true) return false;
+  const activeBaseId = activeId ? splitParagonId(activeId).baseId : "";
+  return entry.id !== activeId && (entry.__paragonBaseId || entry.id) !== activeBaseId;
+}
+
 function __trackerCardHasOpenEditor(card) {
   if (!(card instanceof HTMLElement)) return false;
   if (card.dataset.renaming === "1") return true;
@@ -11140,8 +11183,9 @@ __activeLabelEntriesById = byId;
       return;
     }
     // costruisci la lista rispettando l’ordine pulito
-    const ordered = stateClean.order.map((id) => byId.get(id)).filter(Boolean);
     const activeIdNow = stateClean.order[stateClean.current];
+    const ordered = stateClean.order.map((id) => byId.get(id)).filter(Boolean)
+      .filter((entry) => !__hiddenFromPlayers(entry, activeIdNow));
     if (!__isCurrentSceneOperation(sceneEpoch, "render-commit", { reason, renderRevision })) return;
     zoomChk.checked = isAutoFocusEnabled(stateClean);
     setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
@@ -11614,6 +11658,11 @@ async function __processInitiativeMetadata(
   ) {
     void broadcastTurnNotice(st, sceneEpoch, { source: "metadata" }).catch((err) => {
       console.warn("[turn-notice] broadcast error:", err?.message || err);
+    });
+  }
+  if (IS_GM && noticeActiveId && !staleNavigationState) {
+    void __revealActiveHiddenCreature(st, sceneEpoch).catch((err) => {
+      console.warn("[turn-reveal] write error:", err?.message || err);
     });
   }
 

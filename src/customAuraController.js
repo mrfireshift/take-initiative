@@ -182,7 +182,8 @@ function buildAuraVisual({
     .disableHit(true)
     .layer("DRAWING")
     .disableAttachmentBehavior(["ROTATION", "VISIBLE", "COPY", "SCALE"])
-    .visible(true)
+    // Hidden with its token (lot L16, AV-07): the GM still sees it, the players do not.
+    .visible(source?.visible !== false)
     .zIndex((Number(source?.zIndex) || 0) - 1)
     .metadata({ [CUSTOM_AURA_META_KEY]: metadata })
     .name(`Aura personalizzata: ${aura.name}`)
@@ -216,6 +217,7 @@ function auraVisualIsCompatible(item, desired) {
 }
 
 function auraVisualNeedsUpdate(item, desired) {
+  if ((item?.visible !== false) !== (desired.source?.visible !== false)) return true;
   if (!desired.reminderUpdate?.changed) return false;
   const metadata = item?.metadata?.[CUSTOM_AURA_META_KEY] || {};
   const merged = mergeCustomAuraReminderMetadata(
@@ -255,6 +257,8 @@ async function reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot = null)
           const desired = byId.get(item.id);
           const metadata = item.metadata?.[CUSTOM_AURA_META_KEY];
           if (!desired || !metadata) continue;
+          item.visible = desired.source?.visible !== false;
+          if (!desired.reminderUpdate?.changed) continue;
           item.metadata = {
             ...(item.metadata || {}),
             [CUSTOM_AURA_META_KEY]: mergeCustomAuraReminderMetadata(

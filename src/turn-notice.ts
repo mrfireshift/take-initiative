@@ -62,6 +62,8 @@ const ATTITUDES = new Set(["pc", "ally", "enemy", "neutral"]);
 type TurnNotice = {
   currentName: string;
   nextName: string;
+  // The next creature the players know (lot L16), when the next one is hidden and not met yet.
+  nextPlayerName?: string;
   currentPortrait: string;
   currentAttitude: string;
   round: number;
@@ -99,12 +101,14 @@ type ZoneTriggerNotice = {
 function normalizeNotice(parsed: any): TurnNotice | null {
   const currentName = String(parsed?.currentName || "").trim().slice(0, 100);
   const nextName = String(parsed?.nextName || "").trim().slice(0, 100);
+  const nextPlayerName = String(parsed?.nextPlayerName || "").trim().slice(0, 100);
   const currentPortrait = String(parsed?.currentPortrait || "").trim().slice(0, 2048);
   const attitude = String(parsed?.currentAttitude || "neutral").trim().toLowerCase();
   if (!currentName) return null;
   return {
     currentName,
     nextName: nextName || "Nessuno",
+    ...(Object.hasOwn(parsed || {}, "nextPlayerName") ? { nextPlayerName: nextPlayerName || "Nessuno" } : {}),
     currentPortrait,
     currentAttitude: ATTITUDES.has(attitude) ? attitude : "neutral",
     round: Math.max(1, Math.floor(Number(parsed?.round) || 1)),
@@ -254,7 +258,8 @@ function buildPanel(notice: TurnNotice) {
   panel.className = "notice";
   panel.dataset.attitude = notice.currentAttitude;
   panel.setAttribute("role", "status");
-  panel.setAttribute("aria-label", "Turno di " + notice.currentName + ". Prossimo: " + notice.nextName);
+  const shownNextName = noticeRole !== "GM" && notice.nextPlayerName ? notice.nextPlayerName : notice.nextName;
+  panel.setAttribute("aria-label", "Turno di " + notice.currentName + ". Prossimo: " + shownNextName);
 
   const portrait = document.createElement("div");
   portrait.className = "portrait";
@@ -294,7 +299,7 @@ function buildPanel(notice: TurnNotice) {
   const nextLabel = document.createElement("span");
   nextLabel.textContent = "A seguire";
   const nextName = document.createElement("strong");
-  nextName.textContent = notice.nextName;
+  nextName.textContent = shownNextName;
   next.append(nextLabel, nextName);
 
   const timer = document.createElement("div");

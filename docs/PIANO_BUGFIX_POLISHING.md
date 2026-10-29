@@ -127,6 +127,14 @@ Lotti fatti:
   - Limiti accettati: il segno di durate e TS vive nella pagina del GM (dopo un ricaricamento un ◀▶ può contare come prima). Annullare dalla Cronologia una «Scadenza effetti di turno» e poi fare ◀▶ non la riconta.
   - Residuo: la quota della Turbine di Xanathar (`spellStaticZone.js`) usa ancora il vecchio confronto delle chiavi.
   - Test: `turnMarkBoundaries` (fallisce senza la patch). Adeguati due test che descrivevano un ◀ o un salto di turni come un ▶ semplice (`spellAuraReminderCore`, `spellStaticZoneReminderCore`), e la sandbox del baseline in `initiativeControllerContract`.
+- **L16** (29/10): token nascosti e giocatori (HP-02, AV-07, OP-02), ripiego dell'attitudine (OP-08); decisioni D2 e D10. L'utente ha chiesto di distinguere le creature nascoste mai viste da quelle che hanno già agito: soluzione con un segno sul token.
+  - Barre e numero dei PF di un token nascosto restano al solo GM. Le tre aure prendono la visibilità del token e la aggiornano senza ricrearsi (l'aura degli incantesimi conserva lo stato dei promemoria). Nascondere o mostrare un token ricalcola barre, aure e tracker.
+  - Segno `revealedInCombat`: il GM lo scrive sul token nascosto quando inizia il suo turno; Svuota lo toglie.
+  - Ai giocatori la card di una creatura nascosta compare dal suo turno in poi.
+  - L'avviso di turno ai giocatori indica come «prossimo» la prossima creatura nota, mai una nascosta mai vista.
+  - La vista dei giocatori non segue un token nascosto.
+  - Un token senza attitudine si mostra «neutrale» (card e PF ai giocatori, come su mappa e proiezione). Le chiavi interne restano «alleato»: gruppi seminati e compressi nello stato (`groupAttitude`) e memoria PF.
+  - Test: `hiddenTokensForPlayers` (fallisce senza la patch).
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

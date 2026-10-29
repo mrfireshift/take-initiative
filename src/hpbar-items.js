@@ -500,8 +500,11 @@ async function flushQueued(){
         ? disclosure.ratio
         : canonicalPct;
       const color = hpColorByPct(pct);
-      const playerBarVisible = disclosure.mode !== "hidden";
-      const playerTextVisible = disclosure.mode === "exact";
+      // A hidden token (the GM's choice) shows the players nothing of its hit points, whatever the policy allows
+      // (lot L16, HP-02). The GM still sees the bar: OBR shows hidden items to the GM.
+      const tokenVisible = item.visible !== false;
+      const playerBarVisible = disclosure.mode !== "hidden" && tokenVisible;
+      const playerTextVisible = disclosure.mode === "exact" && tokenVisible;
 
       // Firma di dedup (include hp/hpMax)
       const sig = {
@@ -980,7 +983,7 @@ async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
       text: textStr,
       position: pos,
       zIndex: z,
-      visible: disclosure.mode === "exact",
+      visible: disclosure.mode === "exact" && token.visible !== false,
     }, sceneEpoch, all.filter((item) => (
       item.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId
     )));

@@ -46,7 +46,8 @@ export function __groupKey(entry) {
     return `PARAGON${INITIATIVE_GROUP_SEPARATOR}${entry.id}`;
   }
   const { base } = _parseIndexedName(entry.name);
-  return `${entry.attitude || "ally"}${INITIATIVE_GROUP_SEPARATOR}${base}`;
+  // groupAttitude: the key the scene state already uses (an entry without attitude shows as neutral since lot L16).
+  return `${entry.groupAttitude || entry.attitude || "ally"}${INITIATIVE_GROUP_SEPARATOR}${base}`;
 }
 
 export function __buildGroups(entries) {
