@@ -143,10 +143,10 @@ test("L16 (OP-08): un token senza attitudine si mostra neutrale; le chiavi dei g
   assert.match(tracker, /return `\$\{e\.groupAttitude \|\| e\.attitude \|\| "ally"\}\$\{__GROUP_SEP\}\$\{base\}`;/);
 });
 
-// The GM's mark on a hidden token's card: an eye struck through before the name, in both layouts. The players never
-// draw that card, so it never reaches them.
-test("L16: sulla card del GM un token nascosto ha l'occhio barrato accanto al nome", async () => {
-  const { buildCompactCardName } = await import("../src/initiativeCardCompact.js");
+// The GM's mark on a hidden token's card: its portrait dimmed, as Owlbear shows it on the map, with a large eye struck
+// through in the middle, in both layouts. The players never draw that card, so it never reaches them.
+test("L16: sulla card del GM il ritratto di un token nascosto è oscurato con l'occhio barrato al centro", async () => {
+  const { buildCompactCardPortrait, buildCompactCardName } = await import("../src/initiativeCardCompact.js");
   const documentRef = {
     createElement(tagName) {
       return {
@@ -154,25 +154,31 @@ test("L16: sulla card del GM un token nascosto ha l'occhio barrato accanto al no
         setAttribute(name, value) { this.attributes[name] = String(value); },
         removeAttribute(name) { delete this.attributes[name]; },
         appendChild(child) { this.children.push(child); return child; },
-        prepend(child) { this.children.unshift(child); },
       };
     },
   };
-  const hidden = buildCompactCardName({ name: "Ombra", hiddenToken: true }, { active: false, isGM: true, documentRef });
-  const [mark] = hidden.children;
-  assert.equal(mark?.dataset.hiddenTokenMark, "1");
-  assert.equal(mark.title, "Token nascosto: i giocatori non lo vedono");
+  const options = { active: false, boss: false, portraitSize: 48, faction: { border: "#f00", base: "#f00" }, rgba: () => "rgba(0,0,0,0)", documentRef };
+  const { portrait } = buildCompactCardPortrait({ name: "Ombra", portrait: "ombra.png", hiddenToken: true }, { ...options, isGM: true });
+  const [image, overlay] = portrait.children;
+  assert.equal(portrait.dataset.hiddenToken, "1");
+  assert.equal(image.style.opacity, ".42", "dimmed");
+  assert.equal(image.style.filter, "grayscale(.65)");
+  assert.equal(overlay.dataset.hiddenTokenOverlay, "1");
+  assert.equal(overlay.style.pointerEvents, "none", "the card still opens, drags and selects");
+  const [mark] = overlay.children;
   assert.match(mark.style.mask, /hidden-token\.svg/);
-  assert.equal(mark.style.width, "14px", "as tall as the compact name's line");
-  assert.equal(hidden.textContent, "Ombra", "the name stays the name");
-  assert.match(hidden.title, /Token nascosto/);
-  assert.equal(buildCompactCardName({ name: "Orco" }, { active: false, isGM: true, documentRef }).children.length, 0);
-  assert.equal(buildCompactCardName({ name: "Ombra", hiddenToken: true }, { active: false, documentRef }).children.length, 0,
+  assert.equal(mark.style.width, "26px", "about half the portrait");
+  assert.equal(portrait.title, "Token nascosto: i giocatori non lo vedono");
+  assert.equal(buildCompactCardPortrait({ name: "Ombra", portrait: "ombra.png", hiddenToken: true }, options).portrait.children.length, 1,
     "a player's card never carries it");
+  assert.equal(buildCompactCardPortrait({ name: "Orco", portrait: "orco.png" }, { ...options, isGM: true }).portrait.children.length, 1);
+  assert.equal(buildCompactCardName({ name: "Ombra", hiddenToken: true }, { active: false, documentRef }).children.length, 0,
+    "nothing beside the name any more");
 
   const classic = read("../src/initiativeCardClassicBuilder.js");
-  assert.match(classic, /if \(IS_GM && e\.hiddenToken === true\) \{\n\s+const hiddenMark = buildHiddenTokenMark\(19\);[\s\S]{0,80}name\.appendChild\(hiddenMark\);\n\}\nname\.appendChild\(nameLabel\);/);
-  assert.match(tracker, /buildCompactCardName\(entry, \{ active, boss, isGM: IS_GM \}\)/);
-  const svg = read("../public/hidden-token.svg");
-  assert.match(svg, /<mask id="hidden-token-cut"/);
+  assert.match(classic, /avatarWrap\.appendChild\(avatarInner\);\n.*\nif \(IS_GM && e\.hiddenToken === true\) markHiddenTokenPortrait\(avatarWrap, avatarInner, AVA\);/);
+  assert.doesNotMatch(classic, /buildHiddenTokenMark/);
+  assert.match(tracker, /bossFrameMask: BOSS_PORTRAIT_FRAME_MASK,\n\s+isGM: IS_GM,\n\s+\}\);/);
+  assert.match(read("../public/hidden-token.svg"), /<mask id="hidden-token-cut"/);
 });
+

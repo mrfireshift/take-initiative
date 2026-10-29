@@ -10227,6 +10227,7 @@ function renderCompactTrack(
       bossFrameSrc: BOSS_PORTRAIT_FRAME_SRC,
       bossFrameScale: BOSS_PORTRAIT_FRAME_SCALE_COMPACT,
       bossFrameMask: BOSS_PORTRAIT_FRAME_MASK,
+      isGM: IS_GM,
     });
     if (bossFrame) card.appendChild(bossFrame);
 
@@ -10283,7 +10284,7 @@ function renderCompactTrack(
       bindHPEditorForEntry(hpText, hpFill, () => {}, entry, { formatHP: compactHPTextHTML });
     }
 
-    const name = buildCompactCardName(entry, { active, boss, isGM: IS_GM });
+    const name = buildCompactCardName(entry, { active, boss });
     const virtualTurnLabel = virtual
       ? buildCompactVirtualTurnLabel(entry, { isLair: isLairId(entry.id), faction, rgba })
       : null;

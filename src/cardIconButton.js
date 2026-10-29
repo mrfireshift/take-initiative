@@ -62,6 +62,31 @@ export function buildHiddenTokenMark(size = 11, documentRef = globalThis.documen
   return mark;
 }
 
+// The portrait of a token the GM keeps hidden: dimmed, as Owlbear shows it on the map, with the eye struck through
+// in its middle. It catches no click: the card opens, drags and selects as before.
+export function markHiddenTokenPortrait(portrait, inner, size, documentRef = globalThis.document) {
+  if (!portrait || !inner) return null;
+  portrait.dataset.hiddenToken = "1";
+  Object.assign(inner.style, { opacity: ".42", filter: "grayscale(.65)" });
+  const overlay = documentRef.createElement("div");
+  overlay.dataset.hiddenTokenOverlay = "1";
+  Object.assign(overlay.style, {
+    position: "absolute",
+    inset: "0",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+    zIndex: "1",
+  });
+  const mark = buildHiddenTokenMark(Math.round(size * 0.54), documentRef);
+  Object.assign(mark.style, { pointerEvents: "none", filter: "drop-shadow(0 1px 3px rgba(0,0,0,.9))" });
+  overlay.appendChild(mark);
+  portrait.appendChild(overlay);
+  if (!portrait.title) portrait.title = mark.title;
+  return overlay;
+}
+
 export function styleCardIconButton(node, tone) {
   Object.assign(node.style, CARD_ICON_BUTTON_STYLE, CARD_ICON_BUTTON_TONES[tone] || {});
   return node;
