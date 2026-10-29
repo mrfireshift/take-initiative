@@ -439,6 +439,8 @@ if (requestId && payload) {
   mountResizeObserver();
   requestMenuResize();
 }
+// A resize asked before the SDK is ready can be lost: ask again once it is.
+if (!OBR.isReady) OBR.onReady(() => requestMenuResize());
 
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") sendAfterExit("close");

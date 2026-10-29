@@ -8008,6 +8008,10 @@ const TRACKER_QUICK_ACTIONS_WIDTH = 248;
 const TRACKER_QUICK_ACTIONS_INITIAL_HEIGHT = 520;
 
 let __initiativeCardContextMenu = null;
+// The last height the open menus asked for: applied again once the popover is open (a resize that arrives while
+// OBR is still creating the popover is lost, and the menu stays at its initial height with its last items cut).
+let __initiativeCardContextMenuHeight = 0;
+let __trackerQuickActionsHeight = 0;
 let __initiativeCardContextMenuRequestId = "";
 let __initiativeCardContextMenuContext = null;
 let __initiativeCardContextMenuRevision = 0;
@@ -8030,6 +8034,7 @@ function __closeInitiativeCardContextMenu() {
   }
   const closePromise = OBR.popover.close(INITIATIVE_CARD_CONTEXT_MENU_ID).catch(() => {});
   __initiativeCardContextMenu = null;
+  __initiativeCardContextMenuHeight = 0;
   __initiativeCardContextMenuRequestId = "";
   __initiativeCardContextMenuContext = null;
   __initiativeCardContextMenuRevision += 1;
@@ -8048,6 +8053,7 @@ function __closeTrackerQuickActionsPopover() {
     __trackerQuickActionsButton.setAttribute("aria-expanded", "false");
   }
   const closePromise = OBR.popover.close(TRACKER_QUICK_ACTIONS_POPOVER_ID).catch(() => {});
+  __trackerQuickActionsHeight = 0;
   __trackerQuickActionsPopover = null;
   __trackerQuickActionsRequestId = "";
   __trackerQuickActionsContext = null;
@@ -8893,6 +8899,7 @@ function mountInitiativeCardContextMenuListener() {
     }
     if (data.type === "resize") {
       const height = Math.max(120, Math.round(Number(data.height) || 0));
+      __initiativeCardContextMenuHeight = height;
       void OBR.popover.setHeight(INITIATIVE_CARD_CONTEXT_MENU_ID, height).catch(() => {});
       return;
     }
@@ -8935,6 +8942,7 @@ function mountTrackerQuickActionsPopoverListener() {
     }
     if (data.type === "resize") {
       const height = Math.max(88, Math.round(Number(data.height) || 0));
+      __trackerQuickActionsHeight = height;
       void OBR.popover.setHeight(TRACKER_QUICK_ACTIONS_POPOVER_ID, height).catch(() => {});
       return;
     }
@@ -9085,6 +9093,9 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event, group = 
       return;
     }
     __trackerQuickActionsPopover = true;
+    if (__trackerQuickActionsHeight) {
+      void OBR.popover.setHeight(TRACKER_QUICK_ACTIONS_POPOVER_ID, __trackerQuickActionsHeight).catch(() => {});
+    }
   })().catch((error) => {
     console.warn("[tracker-quick-actions] popover open error:", error?.message || error);
     __closeTrackerQuickActionsPopover();
@@ -9169,6 +9180,9 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
       return;
     }
     __initiativeCardContextMenu = true;
+    if (__initiativeCardContextMenuHeight) {
+      void OBR.popover.setHeight(INITIATIVE_CARD_CONTEXT_MENU_ID, __initiativeCardContextMenuHeight).catch(() => {});
+    }
   })().catch((error) => {
     console.warn("[initiative-card-context-menu] popover open error:", error?.message || error);
     __closeInitiativeCardContextMenu();
