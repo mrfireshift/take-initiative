@@ -168,6 +168,9 @@ Lotti fatti:
   - Console PF: il comando raggiunge solo i bersagli selezionati che il filtro mostra; quelli nascosti sono segnalati come esclusi.
   - Tracker: un'iniziativa lasciata com'era non viene riscritta né segnata come compilata a mano.
   - Test: `errorsAndConfirmationsR2` (nuovo), `initiativeEditors` (i due casi dell'editor falliscono senza la patch).
+- **L20** (29/10, in corso, un blocco di R3 alla volta scelto con l'utente).
+  - Avvisi e TS contro la morte (`1dcec3e9`): la × del GM chiude la stessa carta del TS sul tavolo (canale `death-save-notice-dismiss`); un promemoria non più corrente dice perché e si chiude da solo dopo 3,5 s (la × resta tolta), un errore di registrazione dice «riprova»; l'avviso di concentrazione del GM con Superato/Fallito ha la ×; avvisi di concentrazione e del Legame del boss in basso al centro, carta del TS contro la morte sotto l'avviso di turno. Posizioni da verificare in stanza, anche sullo schermo HDMI. Test: `noticesR3`.
+  - Restano: card del tracker, etichetta del turno e barra dei PF (⚠), console Boss, clock, menu ⚡, Registro, aree libere, console PF.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 
