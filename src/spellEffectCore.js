@@ -71,6 +71,7 @@ export function spellEffectConditionOptions(effect, conditionOptions = {}, paren
       : {}),
     manualRemoval: effect?.manualRemoval === true,
     ...(effect?.endsParentOnRemoval === true ? { endsParentOnRemoval: true } : {}),
+    ...(effect?.endsParentOnExpiry === true ? { endsParentOnExpiry: true } : {}),
     ...(effect?.parentRemoval === "target" || effect?.parentRemoval === "spell"
       ? { parentRemoval: effect.parentRemoval }
       : {}),

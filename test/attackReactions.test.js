@@ -107,3 +107,61 @@ test("the reactions the attacked creature can still cast: Shield on a hit, Absor
   assert.deepEqual(offers(creature("tiefling", { initiativeCard: { quickActions: [{ kind: "spell", spellId: "hellish-rebuke" }] } }),
     { roll: true, outcome: "hit", damageTypes: ["piercing"] }).map(([id]) => id), ["hellish-rebuke"], "from a quick action too");
 });
+
+// Lot L17 of the bugfix pass (SP-4): the immunity ran out but the spell and its concentration stayed, and used on the
+// druid's own turn it ended that same turn, because its effects took the turn of the cast.
+test("L17: Primordial Ward ends with its immunity, at the end of the druid's next turn even when used on its own turn", async () => {
+  const { buildEffectsMutationPlan } = await import("../src/effectsMutationCore.js");
+  const { readFileSync } = await import("node:fs");
+  const spell = getSpellDefinition("xanathar-interdizione-primordiale");
+  const castAt = { round: 1, actorId: "druid", phase: "turn", turnKey: "1:0:druid" };
+  const reactAt = { round: 3, actorId: "druid", phase: "turn", turnKey: "3:0:druid" };
+  const states = [
+    { id: "druid", name: "Druido", conditions: [{ id: "res-1", condition: "Res. elementali", parentEffectId: "pw-1", effectId: "elemental-resistances", sourceId: "druid", active: true }],
+      spells: [{ id: "pw-entry", name: spell.displayName, spellId: spell.id, instanceId: "pw-1", casterId: "druid", turns: 8, conc: true, appliedAt: castAt }],
+      concentrations: { [spell.displayName]: { name: spell.displayName, spellId: spell.id, instanceId: "pw-1", targets: ["druid"] } } },
+    { id: "orc", name: "Orco", spells: [], concentrations: {}, conditions: [] },
+  ];
+  const group = { instanceId: "pw-1", casterId: "druid", name: spell.displayName, castContext: {}, appliedAt: castAt,
+    effectInstances: [{ itemId: "druid", instanceId: "res-1", effectId: "elemental-resistances", active: true }] };
+  const plan = buildSpellActiveActionPlan({ spell, actionId: "primordial-ward-immunity-fire", group, appliedAt: reactAt });
+  const immunity = plan.operations.find((operation) => operation.conditionName === "Imm. fuoco");
+  assert.equal(immunity.options.endsParentOnExpiry, true);
+  // The ids the runtime gives each new pill before the core applies the command (effectsMutations.js).
+  const prepared = plan.operations.map((operation, index) => operation.type === "condition:add"
+    ? { ...operation, operationId: `op-${index}`, createdAt: index,
+      instanceIds: Object.fromEntries(operation.targetIds.map((id) => [id, `${operation.conditionName}-${id}`])) }
+    : operation);
+  let current = buildEffectsMutationPlan(states, prepared).states;
+  const tick = (boundaries) => { current = buildEffectsMutationPlan(current, [{ type: "effects:tick-boundaries", targetIds: ["druid", "orc"], boundaries }]).states; };
+  const druid = () => current.find((state) => state.id === "druid");
+  const immune = () => druid().conditions.some((condition) => condition.condition === "Imm. fuoco");
+  tick([{ phase: "end", actorId: "druid", turnKey: "3:0:druid" }, { phase: "start", actorId: "orc", turnKey: "3:1:orc" }]);
+  assert.equal(immune(), true, "the end of the turn it was used on does not count");
+  assert.equal(druid().spells.length, 1);
+  tick([{ phase: "end", actorId: "orc", turnKey: "3:1:orc" }, { phase: "start", actorId: "druid", turnKey: "4:0:druid" }]);
+  assert.equal(immune(), true);
+  tick([{ phase: "end", actorId: "druid", turnKey: "4:0:druid" }]);
+  assert.equal(immune(), false, "until the end of its next turn");
+  assert.deepEqual(druid().spells, [], "the spell ends with the immunity");
+  assert.deepEqual(druid().concentrations, {}, "and its concentration");
+
+  const adapter = readFileSync(new URL("../src/spellUnifiedActiveAdapter.js", import.meta.url), "utf8");
+  assert.match(adapter, /selectedTargetIds: uniqueIds\(selectedTargetIds\),\n(\s+\/\/.*\n)+\s+appliedAt: undefined,/,
+    "the action's effects take the turn they are used on (the executor reads it)");
+});
+
+test("L17: a per-turn effect of a concentration spell that runs out leaves the spell, removed by hand or not", async () => {
+  const { buildEffectsMutationPlan } = await import("../src/effectsMutationCore.js");
+  const appliedAt = { round: 1, actorId: "cleric", phase: "turn", turnKey: "1:0:cleric" };
+  const states = [
+    { id: "cleric", name: "Chierico", conditions: [], spells: [{ id: "bane-entry", name: "Anatema", instanceId: "bane-1", casterId: "cleric", turns: 10, conc: true, appliedAt }],
+      concentrations: { Anatema: { name: "Anatema", instanceId: "bane-1", targets: ["orc"] } } },
+    { id: "orc", name: "Orco", spells: [], concentrations: {}, conditions: [{ id: "penalty", condition: "Penalità", parentEffectId: "bane-1", sourceId: "cleric",
+      active: true, endsParentOnRemoval: true, appliedAt, expiry: { mode: "turn-end", actor: "target", remaining: 1 } }] },
+  ];
+  const next = buildEffectsMutationPlan(states, [{ type: "effects:tick-boundaries", targetIds: ["cleric", "orc"],
+    boundaries: [{ phase: "end", actorId: "orc", turnKey: "1:1:orc" }] }]).states;
+  assert.deepEqual(next.find((state) => state.id === "orc").conditions, []);
+  assert.equal(next.find((state) => state.id === "cleric").spells.length, 1, "the concentration goes on");
+});

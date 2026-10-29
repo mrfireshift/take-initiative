@@ -367,6 +367,7 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
   if (options.manualRemoval === true) instance.manualRemoval = true;
   if (options.mapVisible === false) instance.mapVisible = false;
   if (options.endsParentOnRemoval === true) instance.endsParentOnRemoval = true;
+  if (options.endsParentOnExpiry === true) instance.endsParentOnExpiry = true;
   if (options.parentRemoval === "target" || options.parentRemoval === "spell") {
     instance.parentRemoval = options.parentRemoval;
   }
@@ -1294,9 +1295,11 @@ function applySpellBoundaryAdjustment(states, operation, context = {}) {
   return pendingTerminations[0] || null;
 }
 
+// Returns the spells whose effect ran out with endsParentOnExpiry (endParentsOfExpiredConditions).
 function applyConditionBoundaryAdjustment(states, operation) {
   const boundaries = normalizedBoundaries(operation?.boundaries);
-  if (!boundaries.length) return;
+  const endedParents = [];
+  if (!boundaries.length) return endedParents;
   for (const targetId of uniqueIds(operation?.targetIds)) {
     const state = states.get(targetId);
     if (!state?.conditions.length) continue;
@@ -1328,11 +1331,38 @@ function applyConditionBoundaryAdjustment(states, operation) {
       const matches = boundaryMatchCount(expiry, actorId, instance?.appliedAt, boundaries);
       const remaining = Math.max(1, Math.floor(Number(expiry.remaining) || 1));
       const nextRemaining = remaining - matches;
-      return nextRemaining > 0
-        ? [{ ...instance, expiry: { ...expiry, remaining: nextRemaining } }]
-        : [];
+      if (nextRemaining > 0) return [{ ...instance, expiry: { ...expiry, remaining: nextRemaining } }];
+      const parentId = String(instance?.parentEffectId || "").trim();
+      if (instance?.endsParentOnExpiry === true && parentId) {
+        endedParents.push({ parentId, sourceId: String(instance?.sourceId || "").trim() });
+      }
+      return [];
     });
   }
+  return endedParents;
+}
+
+// An effect that ends its spell when it runs out (endsParentOnExpiry, lot L17: Primordial Ward's immunity, until the
+// end of the druid's next turn, then the spell ends). Its expiry at a turn boundary ends the spell, its concentration
+// with it. endsParentOnRemoval alone stays for a removal by hand: the per-turn effects of many concentration spells
+// carry it, and their running out must not end the whole spell.
+function endParentsOfExpiredConditions(states, endedParents, options, context) {
+  const seen = new Set();
+  for (const { parentId, sourceId } of endedParents || []) {
+    if (seen.has(parentId)) continue;
+    seen.add(parentId);
+    const holders = [...states.values()].filter((state) => state.spells.some((spell) => (
+      String(spell?.instanceId || "").trim() === parentId
+    )));
+    if (!holders.length) continue;
+    const spell = holders[0].spells.find((candidate) => String(candidate?.instanceId || "").trim() === parentId);
+    const casterId = String(spell?.casterId || sourceId || holders[0].id).trim();
+    const result = spell?.conc === true
+      ? applyOperation(states, { type: "concentration:break", casterIds: [casterId], reference: parentId, reason: "expiry" }, options, context)
+      : applyOperation(states, { type: "spell:remove-instance", targetIds: holders.map((state) => state.id), instanceId: parentId, reason: "expiry" }, options, context);
+    if (result?.pendingTermination) return result;
+  }
+  return null;
 }
 
 function applyConditionAdjustment(states, operation) {
@@ -1696,10 +1726,16 @@ function applyOperation(states, operation, options = {}, context = {}) {
         const pending = applySpellBoundaryAdjustment(states, operation, context);
         if (pending) return { pendingTermination: pending };
       }
-      applyConditionBoundaryAdjustment(states, operation);
+      {
+        const ended = endParentsOfExpiredConditions(states, applyConditionBoundaryAdjustment(states, operation), options, context);
+        if (ended) return ended;
+      }
       break;
     case "condition:tick-boundaries":
-      applyConditionBoundaryAdjustment(states, operation);
+      {
+        const ended = endParentsOfExpiredConditions(states, applyConditionBoundaryAdjustment(states, operation), options, context);
+        if (ended) return ended;
+      }
       break;
     case "concentration:register": {
       const caster = states.get(String(operation.casterId || "").trim());

@@ -286,6 +286,8 @@ const primordialWardImmunity = (type, label) => Object.freeze({
     ]),
     mechanics: Object.freeze({ damageDefenses: Object.freeze({ immunities: Object.freeze([type]) }) }),
     endsParentOnRemoval: true,
+    // Lot L17 (SP-4): the spell ends with the immunity, removed by hand or run out at the end of the next turn.
+    endsParentOnExpiry: true,
     expiry: nextTurn("turn-end"),
   })]),
 });

@@ -978,7 +978,10 @@ export async function executeSpellUnifiedActiveAction({
       actionId: normalized.id,
       group,
       selectedTargetIds: uniqueIds(selectedTargetIds),
-      appliedAt: context.appliedAt,
+      // No appliedAt: the effects an action creates start on the turn it is used, read by the executor (lot L17,
+      // SP-4). The cast's turn made "until the end of its next turn" (Primordial Ward's immunity, used on the
+      // druid's own turn) end one turn early. The spell's own appliedAt still travels with the group.
+      appliedAt: undefined,
       casterName: context.casterName,
       sceneEpoch: runtime.sceneEpoch ?? validation.sceneEpoch,
       sceneIdentity: sceneContext?.sceneIdentity || runtime.sceneIdentity || null,
