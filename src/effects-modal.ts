@@ -187,6 +187,14 @@ function cell(label: string, el: HTMLElement) {
   return wrap;
 }
 
+// A refused command (a conflict, the scene changed) said nothing and left its button disabled (lot L19): a notice says
+// it, the button comes back.
+function notifyEffectsError(action: string, error: any) {
+  console.warn(`[effects] ${action}:`, error?.message || error);
+  void OBR.notification.show(`${action} non riuscita: il token è cambiato nel frattempo o la scena è cambiata. Riprova.`, "WARNING")
+    .catch(() => {});
+}
+
 function commandButton(text: string, tone: "neutral" | "primary" | "danger" = "neutral") {
   const button = document.createElement("button");
   button.type = "button";
@@ -720,12 +728,40 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       void updateSceneTargetSelection([id], control.checkbox.checked);
     });
   }
+  const removeRowsSafely = async (rows: ReturnType<typeof conditionRows>, button: HTMLButtonElement) => {
+    setButtonEnabled(button, false);
+    try {
+      await removeRows(rows);
+    } catch (error: any) {
+      notifyEffectsError("Rimozione", error);
+      setButtonEnabled(button, true);
+    }
+  };
   removeSelectedButton.addEventListener("click", () => {
     const rows = visibleEffectRows.filter((row) => selectedEffectRows.has(`${row.targetId}\u0000${row.id}`));
-    void removeRows(rows);
+    void removeRowsSafely(rows, removeSelectedButton);
   });
+  // Rimuovi Tutto empties every token of the list, not only the targets above: a second click within a few seconds
+  // confirms it, and the label says how many tokens it reaches (lot L19).
+  let removeAllArmedUntil = 0;
   removeAllButton.addEventListener("click", () => {
-    void removeRows(visibleEffectRows);
+    const rows = visibleEffectRows.filter((row) => !row.managed);
+    const tokenCount = new Set(rows.map((row) => row.targetId)).size;
+    if (Date.now() > removeAllArmedUntil) {
+      removeAllArmedUntil = Date.now() + 4000;
+      removeAllButton.textContent = tokenCount === 1 ? "Conferma: 1 token" : `Conferma: ${tokenCount} token`;
+      removeAllButton.title = "Rimuove gli effetti di tutti i token della lista, non solo dei bersagli selezionati. Clicca di nuovo per confermare.";
+      setTimeout(() => {
+        if (Date.now() < removeAllArmedUntil) return;
+        removeAllButton.textContent = "Rimuovi Tutto";
+        removeAllButton.title = "";
+      }, 4100);
+      return;
+    }
+    removeAllArmedUntil = 0;
+    removeAllButton.textContent = "Rimuovi Tutto";
+    removeAllButton.title = "";
+    void removeRowsSafely(rows, removeAllButton);
   });
 
   const syncExpiryControls = () => {
@@ -807,6 +843,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       await render(sourceId, ids);
       return;
     }
+    try {
     await executeConditionApplication({
       conditionName: buffPlan?.ok ? buffPlan.conditionName : effectName,
       targetIds: ids,
@@ -825,6 +862,11 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       sceneIdentity: ownerSceneContext.sceneIdentity,
       commandId: buffPlan?.spell ? `${ownerSceneContext.commandId}:pill` : ownerSceneContext.commandId,
     });
+    } catch (error: any) {
+      notifyEffectsError("Applicazione", error);
+      setButtonEnabled(addButton, true);
+      return;
+    }
     if (!sceneLifecycle.isCurrent(operation)) return;
     await render(sourceId, ids);
   });

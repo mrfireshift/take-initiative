@@ -6938,6 +6938,11 @@ function bindHPEditorForEntry(
     shouldIgnoreDocumentClick: () => Date.now() < __ignoreDocClickUntil,
     formatHP: options.formatHP || formatHPHTML,
     hpColorByPct,
+    // A refused HP save goes back to the token's values: the GM is told (lot L19).
+    onSaveError: () => {
+      void OBR.notification.show("PF non salvati: il token è cambiato nel frattempo. Riapri il valore e riprova.", "WARNING")
+        .catch(() => {});
+    },
     saveValues: customSaveValues || (async ({
       nextHP,
       nextHPMax,

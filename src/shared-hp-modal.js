@@ -101,8 +101,24 @@ async function act(kind, ids) {
     if (result.status !== "applied") throw new Error(result.conflicts?.[0]?.reason || result.reason || "Collegamento non applicato");
     setStatus(result.historyPending ? "Modifica applicata; registrazione nella cronologia in corso." : "Modifica applicata.", "success");
     await load();
-  } catch { setStatus("Modifica non applicata. Aggiorna il pannello e verifica il principale e i token selezionati.", "error"); }
+  } catch (error) { setStatus(sharedHpErrorText(error), "error"); }
   finally { busy = false; renderPreview(); }
+}
+// The reasons of a refused change in words (lot L19); an unknown one keeps the general advice.
+const SHARED_HP_ERROR_TEXT = Object.freeze({
+  "shared-hp-incompatible-values": "i PF del principale sono cambiati o non sono compatibili con i token collegati.",
+  "shared-hp-broken-link": "il principale non è più nella scena o non ha PF.",
+  "shared-hp-invalid-link": "il collegamento non è valido per i token scelti.",
+  "shared-hp-selection-required": "seleziona i token da collegare.",
+  "shared-hp-gm-only": "solo il GM può collegare i PF.",
+  "shared-hp-busy": "un'altra modifica è in corso: riprova tra un attimo.",
+  "shared-hp-stale-scene": "la scena è cambiata: riapri il pannello.",
+  "current-value-mismatch": "un token è cambiato nel frattempo.",
+});
+function sharedHpErrorText(error) {
+  const reason = String(error?.message || "");
+  const text = SHARED_HP_ERROR_TEXT[reason];
+  return text ? `Modifica non applicata: ${text}` : "Modifica non applicata. Aggiorna il pannello e verifica il principale e i token selezionati.";
 }
 $("source").addEventListener("change", renderPreview);
 $("tracker-visibility").addEventListener("change", () => act("visibility", [$("tracker-visibility").value]));

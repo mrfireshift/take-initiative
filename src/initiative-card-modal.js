@@ -172,7 +172,10 @@ const MODAL_ID = `${ID}/initiative-card-modal`;
 const TRACKER_POPOVER_TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
 const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 
+// Changes typed in the editor and not saved (lot L19): closing asks first instead of dropping them.
+let editorChanged = false;
 function closeInitiativeCardPopover() {
+  if (editing && editorChanged && !window.confirm("Chiudere la scheda? Le modifiche non salvate andranno perse.")) return;
   void OBR.broadcast.sendMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, {
     type: "closed",
     id: MODAL_ID,
@@ -4908,6 +4911,7 @@ function collectDamageDefenses() {
 
 function setEditing(active) {
   editing = !!active;
+  editorChanged = false;
   // The editor writes the whole book: a preparation in progress is left as stored.
   spellPreparationDraft = null;
   if (!editing) {
@@ -5102,6 +5106,23 @@ $("sheetImportFile").addEventListener("change", () => {
   void loadSheetImportFiles(files).finally(() => { $("sheetImportFile").value = ""; });
 });
 $("sheetImportSearch").addEventListener("input", () => renderFiveToolsPicker());
+// Enter in the search moves to the list of monsters: it submitted the whole sheet and dropped the loaded files
+// (lot L19).
+$("sheetImportSearch").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.isComposing) return;
+  event.preventDefault();
+  renderFiveToolsPicker();
+  $("sheetImportMonster")?.focus?.();
+});
+for (const type of ["input", "change"]) {
+  $("form").addEventListener(type, () => { if (editing) editorChanged = true; });
+}
+// The editor's own buttons (add a quick action, a spell, a defense…) change the draft too; the tabs do not.
+$("form").addEventListener("click", (event) => {
+  const button = event.target?.closest?.("button");
+  if (!editing || !button || button.type === "submit" || button.id === "cancel" || /Tab$/.test(button.id || "")) return;
+  editorChanged = true;
+});
 // The archive's list of books is read when the GM opens "Archivio online", not before.
 $("sheetImportArchive").addEventListener("toggle", () => {
   if ($("sheetImportArchive").open && archivePanel().hasBase()) void archivePanel().loadIndex();

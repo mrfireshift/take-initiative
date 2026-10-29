@@ -335,8 +335,29 @@ function optionsSaveErrorText(error) {
   return OPTIONS_SAVE_ERROR_TEXT[message] || message;
 }
 
+// A 5eTools address that is not https (or a local http), or carries credentials, was replaced in silence by the
+// empty default when saved (lot L19): the save stops and says which field.
+async function invalidFiveToolsFields() {
+  const { normalizeFiveToolsArchiveBase, normalizeFiveToolsImagesBase } = await import("./fiveToolsArchiveCore.js");
+  return [
+    ["fiveToolsArchiveInput", "Archivio 5eTools", normalizeFiveToolsArchiveBase],
+    ["fiveToolsImagesInput", "Immagini 5eTools", normalizeFiveToolsImagesBase],
+  ].filter(([id, , normalize]) => {
+    const value = String(document.getElementById(id)?.value || "").trim();
+    return value && !normalize(value);
+  }).map(([, label]) => label);
+}
+
 async function save() {
   if (saving || !draft) return;
+  const invalidUrls = await invalidFiveToolsFields().catch(() => []);
+  if (invalidUrls.length) {
+    const message = `Indirizzo non valido in «${invalidUrls.join("» e «")}»: serve un indirizzo https completo, senza nome utente né password.`;
+    errorNode.textContent = message;
+    errorNode.hidden = false;
+    statusNode.textContent = message;
+    return;
+  }
   const operation = sceneLifecycle.capture({ operationId: `options-save:${Date.now().toString(36)}` });
   if (!sceneLifecycle.isCurrent(operation)) return;
   saving = true;

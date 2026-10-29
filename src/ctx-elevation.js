@@ -26,10 +26,17 @@ async function apply() {
   if (!sceneLifecycle.isCurrent(operation)) return;
   const typed = input.value.trim();
   // An indeterminate box (different climbing states, left untouched) keeps each token's own.
-  await writeElevationForItems(ids, typed === "" ? mixedElevation ? null : 0 : typed,
-    climbingInput.indeterminate ? null : climbingInput.checked, {
-    isCurrent: () => sceneLifecycle.isCurrent(operation),
-  });
+  try {
+    await writeElevationForItems(ids, typed === "" ? mixedElevation ? null : 0 : typed,
+      climbingInput.indeterminate ? null : climbingInput.checked, {
+      isCurrent: () => sceneLifecycle.isCurrent(operation),
+    });
+  } catch (error) {
+    // A refused write said nothing (lot L19): the field stays open with a notice.
+    console.warn("[ctx-elevation] quota:", error?.message || error);
+    void OBR.notification.show("Quota non salvata: il token è cambiato nel frattempo. Riprova.", "WARNING").catch(() => {});
+    return;
+  }
   if (!sceneLifecycle.isCurrent(operation)) return;
   closeSoon();
 }

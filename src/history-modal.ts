@@ -1434,7 +1434,10 @@ async function render(
       return;
     }
     if (events.length && !window.confirm("Creare un nuovo registro? Quello corrente resterà archiviato nel browser.")) return;
-    const name = window.prompt("Nome del nuovo combattimento:", "") || "";
+    // Annulla on the name creates nothing (lot L19): it archived the current registro all the same.
+    const typedName = window.prompt("Nome del nuovo combattimento:", "");
+    if (typedName === null) return;
+    const name = typedName;
     const operation = sceneLifecycle.capture({ operationId: sceneOperationId("new-session") });
     if (!sceneLifecycle.isCurrent(operation)) return;
     try {

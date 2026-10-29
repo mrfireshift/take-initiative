@@ -294,6 +294,7 @@ OBR.onReady(() => {
     if (rules.status !== "ready") return;
     void packStore.all().then((list) => {
       setRulesCatalog(mergeRulesCatalogs(rules.srd, list));
+      if (packs.open) renderPacks();
       if (activeTab === "rules" && !packs.open) renderResults();
     });
   }
@@ -529,6 +530,17 @@ OBR.onReady(() => {
     add.addEventListener("click", () => file.click());
     actions.append(add, file);
     const nodes = [intro, list, actions];
+    // A pack entry whose id is taken, or whose topic is unknown, is left out (privatePackCore.js): said, not silent
+    // (lot L19).
+    const skipped = Number(rules.merged?.skipped) || 0;
+    if (skipped > 0) {
+      const note = document.createElement("p");
+      note.className = "packs-message";
+      note.textContent = skipped === 1
+        ? "1 voce dei pacchetti non è mostrata: il suo id è già usato o il suo argomento non esiste."
+        : `${skipped} voci dei pacchetti non sono mostrate: il loro id è già usato o il loro argomento non esiste.`;
+      nodes.push(note);
+    }
     if (packs.message.text) {
       const message = document.createElement("p");
       message.className = `packs-message ${packs.message.tone}`.trim();

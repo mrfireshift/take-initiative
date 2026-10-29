@@ -248,8 +248,17 @@ function saveOutcomeRequired() {
   );
 }
 
+// The filters of the target list (faction, name). A selected target they hide received the damage or the healing
+// all the same (lot L19): the command reaches only the selected targets in view.
+function targetMatchesFilters(item) {
+  const query = text(targetNameFilter.value).toLocaleLowerCase("it");
+  const factionMatch = activeFactionFilters.size === 0 || activeFactionFilters.has(factionKey(item));
+  const nameMatch = !query || displayName(item).toLocaleLowerCase("it").includes(query);
+  return factionMatch && nameMatch;
+}
+
 function selectedTargetItems() {
-  return targets.filter((item) => selectedIds.has(item.id));
+  return targets.filter((item) => selectedIds.has(item.id) && targetMatchesFilters(item));
 }
 
 function targetSelectable(item) {
@@ -452,13 +461,16 @@ function renderTargets() {
     updateControls();
     return;
   }
-  const query = text(targetNameFilter.value).toLocaleLowerCase("it");
-  const visible = orderedTargets().filter((item) => {
-    const factionMatch = activeFactionFilters.size === 0
-      || activeFactionFilters.has(factionKey(item));
-    const nameMatch = !query || displayName(item).toLocaleLowerCase("it").includes(query);
-    return factionMatch && nameMatch;
-  });
+  const visible = orderedTargets().filter(targetMatchesFilters);
+  const hiddenSelected = targets.filter((item) => selectedIds.has(item.id) && !targetMatchesFilters(item)).length;
+  if (hiddenSelected) {
+    const note = document.createElement("div");
+    note.className = "empty";
+    note.textContent = hiddenSelected === 1
+      ? "1 bersaglio selezionato è nascosto dal filtro: resta escluso."
+      : `${hiddenSelected} bersagli selezionati sono nascosti dal filtro: restano esclusi.`;
+    targetList.appendChild(note);
+  }
   if (!visible.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
@@ -766,7 +778,8 @@ async function applyOperation() {
 
   const operationSceneEpoch = operation.epoch;
   const liveSceneItems = await OBR.scene.items.getItems();
-  const liveItems = liveSceneItems.filter(item => selectedIds.has(item.id));
+  const selectedInView = new Set(selected.map((item) => item.id));
+  const liveItems = liveSceneItems.filter(item => selectedInView.has(item.id));
   sharedHpItems = liveSceneItems;
   if (!sceneLifecycle.isCurrent(operation)) {
     status.textContent = "Scena cambiata: riapri la console HP.";

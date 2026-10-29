@@ -147,6 +147,13 @@ export function bindClassicInitiativeEditor({
         ? old
         : String(Math.floor(Number(value) || 0));
       badge.textContent = normalized;
+      // Unchanged (an empty field, the same number): nothing is written, so the token is not marked as typed by hand
+      // (lot L19). The fill mode still moves on.
+      if (normalized === String(old)) {
+        cleanup();
+        await afterCommit(normalized);
+        return;
+      }
       // A refused save puts the old value back and still closes the editor: left open, it stopped every full render
       // until the scene changed.
       let saved = false;
@@ -237,6 +244,7 @@ export function bindClassicHPEditor({
   editorReady,
   cleanupEdit,
   syncRecoveredValues = null,
+  onSaveError = () => {},
   parseRelativeDelta,
   setDeltaButtonActive,
   shouldIgnoreDocumentClick,
@@ -522,6 +530,8 @@ export function bindClassicHPEditor({
       } catch (error) {
         console.warn("[hp] editor commit:", error?.message || error);
         await recoverProjection();
+        // It went back to the old value without a word (lot L19).
+        try { onSaveError(error); } catch {}
       } finally {
         cleanup();
       }

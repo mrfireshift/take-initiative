@@ -132,6 +132,8 @@ async function toggle(conditionName: string) {
     await refreshConditionLabels(plan.targetIds);
   } catch (error) {
     console.warn("[ctx-conditions] condizione rapida:", (error as Error)?.message || error);
+    // Said only in the console before (lot L19).
+    void OBR.notification.show("Condizione non applicata: il token è cambiato nel frattempo. Riprova.", "WARNING").catch(() => {});
   } finally {
     busy = false;
     queueRefresh();

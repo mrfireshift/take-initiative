@@ -752,7 +752,7 @@ export function bootPcAttack(documentRef=document,overrides={}) {
           if(state.burst.targetId!==targetId) return;
           state.burst={targetId,ids:ids.filter(id=>id!==targetId && creatureById(id))};
           updateActivations();renderState();
-        }).catch(()=>{if(state.burst.targetId===targetId)state.burst.pending=false;});
+        }).catch(()=>{if(state.burst.targetId===targetId){state.burst.pending=false;setStatus("Creature vicine non lette dalla mappa: spuntale a mano.");}});
     }
     const candidates=[presentation.item,...presentation.targets].filter(item=>item.id!==draft.targetId && item.id!==secondaryTargetId());
     state.burst.ids=state.burst.ids.filter(id=>candidates.some(item=>item.id===id));
@@ -809,7 +809,10 @@ export function bootPcAttack(documentRef=document,overrides={}) {
         if(draft?.area?.proposalKey!==key) return;
         for(const item of presentation.targets) draft.area.members[item.id]={on:ids.includes(item.id),outcome:draft.area.members[item.id]?.outcome || ""};
         renderArea();renderState();
-      }).catch(()=>{});
+      }).catch(()=>{
+        // Said nothing before (lot L19): the GM ticks the creatures by hand.
+        if(draft?.area?.proposalKey===key) setStatus("Creature vicine non lette dalla mappa: spuntale a mano.");
+      });
     }
     // A monster's action (fase 5, lotto 2): «Immune» beside the two outcomes; a creature immune to its only effect (no
     // damage, a condition in its immunities) starts on Immune, which the GM may change.

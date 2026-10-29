@@ -780,3 +780,66 @@ test("L28: i primi PF di un token appena importato si salvano", async () => {
   const tracker = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
   assert.match(tracker, /\.\.\.\(Number\.isFinite\(expectedValues\?\.hp\) \? \{ expectedHP: \{ present: true, value: expectedValues\.hp \} \} : \{\}\),/);
 });
+
+// Lot L19 of the bugfix pass: a click on the initiative badge that changed nothing wrote the value again and marked the
+// token as typed by hand.
+test("L19: un'iniziativa lasciata com'era non viene riscritta", async () => {
+  for (const typed of ["14", " 14 ", ""]) {
+    const documentRef = createTestDocument();
+    const badge = documentRef.createElement("div");
+    badge.textContent = "14";
+    const calls = [];
+    bindClassicInitiativeEditor({
+      badge, isEditable: () => true, armClickIgnore: () => {},
+      beginEdit: async () => {}, readValue: async () => 14, editorReady: () => {},
+      cleanupEdit: () => calls.push("cleanup"),
+      saveValue: async (value) => calls.push(["save", value]),
+      afterCommit: async (value) => calls.push(["after", value]), afterCancel: async () => calls.push("cancel"),
+      isFillMode: () => false, finishFillMode: async () => {}, openFillNeighbor: async () => {},
+      commitAndOpenNeighbor: async ({ commit }) => commit(),
+      documentRef, requestAnimationFrameRef: (callback) => callback(), setTimeoutRef: (callback) => callback(),
+    });
+    await badge.dispatch("pointerdown", createTestEvent());
+    badge.children[0].value = typed;
+    await badge.__commitFn();
+    assert.deepEqual(calls, ["cleanup", ["after", "14"]], `typed ${JSON.stringify(typed)}`);
+    assert.equal(badge.textContent, "14");
+  }
+});
+
+// Lot L19: a refused inline HP save went back to the old value without a word.
+test("L19: un salvataggio dei PF rifiutato lo dice", async () => {
+  const documentRef = createTestDocument();
+  const card = documentRef.createElement("article");
+  const pill = documentRef.createElement("div");
+  pill.textContent = "12/20";
+  pill.innerHTML = "12/20";
+  card.appendChild(pill);
+  let editingItemId = null;
+  const errors = [];
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    bindClassicHPEditor({
+      pill, itemId: "goblin-1", snapshotHP: 12, snapshotHPMax: 20, hpFill: null,
+      getEditingItemId: () => editingItemId, isCurrentEditor: () => editingItemId === "goblin-1",
+      armClickIgnore: () => {}, handoffEditor: async () => {}, beginEdit: async () => { editingItemId = "goblin-1"; },
+      readLiveValues: async () => ({ hp: 12, hpMax: 20 }), editorReady: () => {}, cleanupEdit: () => { editingItemId = null; },
+      onSaveError: (error) => errors.push(error.message),
+      parseRelativeDelta: () => null, setDeltaButtonActive: () => {}, shouldIgnoreDocumentClick: () => false,
+      formatHP: (hp, hpMax) => `${hp}/${hpMax}`, hpColorByPct: () => "#yellow",
+      saveValues: async () => { throw new Error("conflict"); }, afterCommit: async () => {},
+      commitAndOpenNeighbor: async ({ commit }) => commit(),
+      documentRef, requestAnimationFrameRef: (callback) => callback(), setTimeoutRef: (callback) => callback(),
+    });
+    await pill.dispatch("pointerdown", createTestEvent({ clientX: 5 }));
+    pill.__iHP.value = "5";
+    assert.equal(await pill.__commitFn(), false);
+  } finally {
+    console.warn = warn;
+  }
+  assert.deepEqual(errors, ["conflict"]);
+  assert.equal(pill.innerHTML, "12/20", "back to the token's values");
+  const tracker = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(tracker, /onSaveError: \(\) => \{\n\s+void OBR\.notification\.show\("PF non salvati: il token è cambiato nel frattempo\./);
+});
