@@ -169,3 +169,12 @@ export function shouldHandleQuickHPUndoShortcut({
     && busy !== true
     && hasHistoryEntry === true;
 }
+
+// The line after a command (lot L20): the targets it changed, not every target it reached (a heal on full HP changes
+// nothing), with the unchanged ones said apart.
+export function quickHPAppliedMessage({ save = false, changedCount = 0, unchangedCount = 0 } = {}) {
+  const targets = (count) => `${count} ${count === 1 ? "bersaglio" : "bersagli"}`;
+  const head = save ? `Risoluzione applicata a ${targets(changedCount)}` : `Applicato a ${targets(changedCount)}`;
+  const unchanged = Math.max(0, Math.floor(Number(unchangedCount) || 0));
+  return `${head}${unchanged ? ` (${unchanged === 1 ? "1 invariato" : `${unchanged} invariati`})` : ""}.`;
+}

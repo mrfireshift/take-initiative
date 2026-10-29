@@ -19,6 +19,7 @@ import {
   calculateQuickHPChange,
   createQuickHPVisualTransaction,
   isQuickHPDamageChange,
+  quickHPAppliedMessage,
   quickHPModeFromQuery,
   quickHPVisualUpdates,
   shouldHandleQuickHPUndoShortcut,
@@ -925,9 +926,15 @@ async function applyOperation() {
       return;
     }
     lastEntryId = recordedEntry?.id || "";
-    status.textContent = mode === QUICK_HP_MODES.SAVE
-      ? `Risoluzione applicata a ${affectedIds.length} bersagli.`
-      : `Applicato a ${entries.length} bersagli.`;
+    // Only the targets the command changed are counted (lot L20); a heal on full HP is said apart.
+    const changedHPIds = entries.filter((entry) => entry.change?.changed).map((entry) => entry.item.id);
+    const changedIds = mode === QUICK_HP_MODES.SAVE ? uniqueIds([...changedHPIds, ...failedIds]) : changedHPIds;
+    const reachedCount = mode === QUICK_HP_MODES.SAVE ? affectedIds.length : entries.length;
+    status.textContent = quickHPAppliedMessage({
+      save: mode === QUICK_HP_MODES.SAVE,
+      changedCount: changedIds.length,
+      unchangedCount: reachedCount - changedIds.length,
+    });
     if (coordinatedMutation.historyPending) status.textContent += " Cronologia in recupero; non ripetere l'azione.";
     sharedHpSelection = { policy: "once", chosenTargetIds: {} };
     // «Crit» belongs to the hit just applied: the next one at 0 HP counts once unless chosen again.
