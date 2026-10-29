@@ -158,6 +158,15 @@ Lotti fatti:
   - Parte 2: conteggi accordati nel Registro («1 evento», «1 turno»…); «PF» nel Combat Log; «voci», «registro», «archivio» nella Cronologia; motivo di un annullamento bloccato in parole, senza id né codici.
   - Fuori dal lotto: «HP» resta nelle etichette create altrove (menu «HP condivisi», «Modifica HP» nelle voci della Cronologia, «Aggiorna HP»): è il termine di tutto il plugin, da decidere a parte.
   - Test: `textPolishR1` (nuovo); adeguati i test che leggevano i vecchi testi.
+- **L19** (29/10, `91a526ff`): rifiniture R2, tutte le voci.
+  - Errori con messaggio: pannello Condizioni (Aggiungi e Rimuovi, il pulsante torna attivo), menu Condizioni, «Imposta quota…», proposta delle creature nella console attacchi, PF condivisi (motivo in parole), salvataggio inline dei PF rifiutato (`onSaveError` dell'editor).
+  - «Rimuovi Tutto» vuole un secondo clic entro 4 secondi e dice quanti token raggiunge (tutti quelli della lista, non solo i bersagli).
+  - Un indirizzo 5eTools non valido ferma il salvataggio delle opzioni e dice quale campo; le voci scartate dei pacchetti privati si contano nel pannello Pacchetti.
+  - Scheda: Invio nella ricerca dei mostri porta alla lista invece di salvare; chiudere con modifiche non salvate chiede conferma.
+  - Registro: «Annulla» sul nome del nuovo registro non crea nulla.
+  - Console PF: il comando raggiunge solo i bersagli selezionati che il filtro mostra; quelli nascosti sono segnalati come esclusi.
+  - Tracker: un'iniziativa lasciata com'era non viene riscritta né segnata come compilata a mano.
+  - Test: `errorsAndConfirmationsR2` (nuovo), `initiativeEditors` (i due casi dell'editor falliscono senza la patch).
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 
