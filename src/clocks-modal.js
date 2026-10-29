@@ -73,6 +73,7 @@ function createMarkup() {
     <button class="primary-button" type="submit">Crea</button>
     <div class="clock-color-row"><span class="field-label">Colore</span>${colorsMarkup(CLOCK_COLOR_OPTIONS[0])}</div>
     <input type="hidden" name="color" value="${CLOCK_COLOR_OPTIONS[0]}" />
+    <label class="clock-visible-new"><input type="checkbox" name="visible" /> Visibile ai giocatori</label>
   </form>`;
 }
 
@@ -140,6 +141,54 @@ async function resizePopover() {
   }, { destination: "LOCAL" }).catch(() => {});
 }
 
+// What a render must not take away from the GM (lot L20): the "Gestisci" menus open, the create form being filled in
+// (name, segments, colour, visibility) and the caret in its name.
+function captureClocksPanelDraft(root) {
+  const form = root.querySelector?.("[data-create-form]");
+  const name = form?.querySelector?.("[name=name]");
+  return {
+    openSettingsIds: [...(root.querySelectorAll?.("details.clock-settings[open]") || [])]
+      .map((details) => details.closest?.("[data-clock-id]")?.dataset?.clockId)
+      .filter(Boolean),
+    form: form ? {
+      name: name?.value || "",
+      segments: form.querySelector?.("[name=segments]")?.value || "",
+      color: form.querySelector?.("[name=color]")?.value || "",
+      visible: form.querySelector?.("[name=visible]")?.checked === true,
+      focused: !!name && document.activeElement === name,
+      selection: name ? [name.selectionStart, name.selectionEnd] : null,
+    } : null,
+  };
+}
+
+function restoreClocksPanelDraft(root, draft) {
+  for (const id of draft?.openSettingsIds || []) {
+    const card = [...(root.querySelectorAll?.("[data-clock-id]") || [])].find((node) => node.dataset?.clockId === id);
+    const details = card?.querySelector?.("details.clock-settings");
+    if (details) details.open = true;
+  }
+  const saved = draft?.form;
+  const form = root.querySelector?.("[data-create-form]");
+  if (!saved || !form) return;
+  const name = form.querySelector?.("[name=name]");
+  if (name) name.value = saved.name;
+  const segments = form.querySelector?.("[name=segments]");
+  if (segments && saved.segments) segments.value = saved.segments;
+  const color = form.querySelector?.("[name=color]");
+  if (color && saved.color) {
+    color.value = saved.color;
+    form.querySelectorAll?.(".color-choice").forEach((choice) => (
+      choice.setAttribute("aria-pressed", String(choice.dataset.color === saved.color))
+    ));
+  }
+  const visible = form.querySelector?.("[name=visible]");
+  if (visible) visible.checked = saved.visible;
+  if (saved.focused && name) {
+    name.focus({ preventScroll: true });
+    if (saved.selection) try { name.setSelectionRange(saved.selection[0], saved.selection[1]); } catch {}
+  }
+}
+
 function render() {
   if (!sceneLifecycle.isReady()) return;
   if (renderQueued) return;
@@ -149,6 +198,7 @@ function render() {
     document.body.dataset.compact = String(compact);
     document.body.dataset.player = String(!isGM);
     const visibleClocks = isGM ? state.clocks : state.clocks.filter((clock) => clock.visible);
+    const draft = captureClocksPanelDraft(app);
     app.innerHTML = `<header class="clock-header" data-drag-handle draggable="true" title="Trascina per spostare">
       <span class="clock-header-spacer"></span>
       <button type="button" class="icon-button" data-action="toggle-compact" aria-label="${compact ? "Espandi" : "Compatta"}" title="${compact ? "Espandi" : "Compatta"}">${compact ? "+" : "−"}</button>
@@ -157,6 +207,7 @@ function render() {
     <section class="clock-list">
       ${visibleClocks.length ? visibleClocks.map((clock) => cardMarkup(clock, state.clocks.findIndex((entry) => entry.id === clock.id))).join("") : `<div class="clock-empty">${isGM ? "Crea il primo clock per questa scena." : "Nessun clock visibile in questa scena."}</div>`}
     </section>`;
+    restoreClocksPanelDraft(app, draft);
     void resizePopover();
   });
 }
@@ -246,7 +297,9 @@ app.addEventListener("submit", async (event) => {
     segments: Number(data.get("segments")) || 6,
     value: 0,
     color: String(data.get("color") || CLOCK_COLOR_OPTIONS[0]),
-    visible: true,
+    // Hidden from the players unless the GM ticks the box (lot L20): it reached the table screen at once, with its
+    // working name too.
+    visible: data.get("visible") === "on",
     createdAt: now,
     updatedAt: now,
   };
@@ -345,7 +398,11 @@ OBR.onReady(async () => {
 
   OBR.scene.onMetadataChange((metadata) => {
     if (!sceneLifecycle.isReady()) return;
-    state = normalizeClocksState(metadata?.[CLOCKS_KEY]);
+    const next = normalizeClocksState(metadata?.[CLOCKS_KEY]);
+    // Only the clocks redraw the panel (lot L20): a turn, a History entry or an aura change the scene's metadata
+    // too, and each closed "Gestisci" and erased the name being typed.
+    if (JSON.stringify(next) === JSON.stringify(state)) return;
+    state = next;
     render();
   });
 });
