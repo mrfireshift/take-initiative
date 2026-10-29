@@ -171,6 +171,11 @@ Lotti fatti:
 - **L20** (29/10, in corso, un blocco di R3 alla volta scelto con l'utente).
   - Avvisi e TS contro la morte (`1dcec3e9`): la × del GM chiude la stessa carta del TS sul tavolo (canale `death-save-notice-dismiss`); un promemoria non più corrente dice perché e si chiude da solo dopo 3,5 s (la × resta tolta), un errore di registrazione dice «riprova»; l'avviso di concentrazione del GM con Superato/Fallito ha la × (cliccabile da `74d0342d`); avviso di concentrazione rimasto in alto (in basso «cozza col resto del plugin», riportato su), anche il Legame del boss di nuovo in alto (`c429f0c7`), carta del TS contro la morte sotto l'avviso di turno. Posizioni da verificare in stanza, anche sullo schermo HDMI. Test: `noticesR3`.
   - Restano: card del tracker, etichetta del turno e barra dei PF (⚠), console Boss, clock, menu ⚡, Registro, aree libere, console PF.
+- **Loop dell'Annulla con le aure** (29/10, segnalato dall'utente: Paladino a 0 PF, «Capacità terminata» ×2 a ogni Annulla).
+  - Causa: il controller delle aure delle capacità di classe termina da solo una capacità quando la fonte riceve una condizione di fine (Privo di sensi) e scrive una voce sua nella Cronologia; annullata da sola, la capacità tornava mentre la fonte era ancora Privo di sensi e il controller la terminava di nuovo.
+  - `2d8729d8`: le aure sempre attive (senza durata in round e senza azione per attivarle: le 5 del Paladino) sono sospese, non terminate: niente area né effetti mentre la fonte è Privo di sensi, tornano da sole quando si rialza, nessuna voce nella Cronologia.
+  - `57a52fc6`, `e88d1353`: le voci scritte da sole in reazione a un'altra («Capacità terminata» del controller, «Aggiornata membership aura») hanno `payload.automaticConsequence`; un Annulla che si fermerebbe su di loro prosegue fino alla voce precedente (`history.js`), e nel pannello selezionarle seleziona la causa (`historyUndoDepthWithCauses`).
+  - Test: `classFeatureAuraCore`, `automaticConsequenceUndoIntegration` (nuovo, con la Cronologia vera).
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 
