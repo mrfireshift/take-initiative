@@ -1355,7 +1355,8 @@ export function deriveCompactCardPresentation(
   const hpMax = disclosure && disclosure.mode !== "exact"
     ? (disclosure.mode === "hidden" ? 0 : 1)
     : Number(entry?.hpMax);
-  const hasHP = !virtual && Number.isFinite(hpMax) && hpMax > 0;
+  // A collapsed group shows no HP, as the classic card (lot L20): they were its first member's, read as the group's.
+  const hasHP = !virtual && !entry?.__groupCollapsed && Number.isFinite(hpMax) && hpMax > 0;
   const showHP = canSeeHP && hasHP;
   const safeHP = hasHP && Number.isFinite(hp) ? Math.max(0, hp) : 0;
   const hpPercent = hasHP ? Math.max(0, Math.min(1, safeHP / hpMax)) : 0;

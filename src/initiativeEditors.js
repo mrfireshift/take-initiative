@@ -228,6 +228,13 @@ export function bindClassicInitiativeEditor({
   return badge;
 }
 
+// The width of an inline HP field for its value: 22 px for up to three characters, as before, wider for "-120" or
+// "1200" (lot L20).
+export function inlineHPInputWidth(value) {
+  const length = String(value ?? "").length;
+  return length <= 3 ? "22px" : `max(22px, ${length + 0.5}ch)`;
+}
+
 export function bindClassicHPEditor({
   pill,
   itemId,
@@ -359,6 +366,7 @@ export function bindClassicHPEditor({
       });
       input.addEventListener("input", () => {
         input.value = normalizeSignedIntegerInput(input.value);
+        input.style.width = inlineHPInputWidth(input.value);
       });
       input.addEventListener("click", (clickEvent) => {
         clickEvent.stopPropagation();
@@ -366,6 +374,7 @@ export function bindClassicHPEditor({
     }
     hpInput.value = String(Number.isFinite(hp) ? hp : 0);
     hpMaxInput.value = String(Number.isFinite(hpMax) ? hpMax : 0);
+    for (const input of [hpInput, hpMaxInput]) input.style.width = inlineHPInputWidth(input.value);
 
     let linkedHPMaxDelta = false;
     const syncLinkedHPMaxDelta = () => {
@@ -374,6 +383,7 @@ export function bindClassicHPEditor({
       hpMaxInput.value = relative === null
         ? String(hpMax)
         : hpInput.value.trim();
+      hpMaxInput.style.width = inlineHPInputWidth(hpMaxInput.value);
     };
     const setLinkedHPMaxDelta = (enabled) => {
       linkedHPMaxDelta = !!enabled;
@@ -383,6 +393,7 @@ export function bindClassicHPEditor({
       hpMaxInput.style.opacity = linkedHPMaxDelta || !editableHPMax ? ".72" : "1";
       if (linkedHPMaxDelta) syncLinkedHPMaxDelta();
       else hpMaxInput.value = String(hpMax);
+      hpMaxInput.style.width = inlineHPInputWidth(hpMaxInput.value);
     };
     hpInput.addEventListener("input", syncLinkedHPMaxDelta);
 

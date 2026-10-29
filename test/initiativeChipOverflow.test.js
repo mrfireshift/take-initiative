@@ -294,3 +294,30 @@ test("the open \"…\" list grows the card, so it pushes the next card down inst
   syncChipDockCardHeight(card);
   assert.equal(card.style.height, "76px", "closed again");
 });
+
+// Lot L20: the open "…" list closed at every rebuild of its card (an HP change, a turn): it opens again on the card's
+// next build, until a click closes it.
+test("L20: il «…» aperto resta aperto quando la card viene ricostruita", () => {
+  const documentRef = createTestDocument();
+  const build = (memoryKey = "orc") => {
+    const owner = documentRef.createElement("article");
+    owner.dataset.trackerCard = "1";
+    const dock = documentRef.createElement("div");
+    owner.appendChild(dock);
+    const fragment = documentRef.createDocumentFragment();
+    fragment.append(...["A", "B", "C", "D"].map((label) => chip(documentRef, label)));
+    mountChipsWithOverflow(dock, fragment, { limit: 2, memoryKey, documentRef });
+    const [row1, row2] = dock.children;
+    return { row2, more: row1.children[2] };
+  };
+  const first = build();
+  assert.equal(first.row2.style.display, "none");
+  first.more.dispatch("click", { stopPropagation() {} });
+  const rebuilt = build();
+  assert.equal(rebuilt.row2.style.display, "flex", "the rebuilt card opens it again");
+  assert.equal(rebuilt.more.textContent, "−");
+  assert.equal(rebuilt.more.attributes["aria-expanded"], "true");
+  assert.equal(build("goblin").row2.style.display, "none", "another card keeps its own");
+  rebuilt.more.dispatch("click", { stopPropagation() {} });
+  assert.equal(build().row2.style.display, "none", "closed by a click, it stays closed");
+});

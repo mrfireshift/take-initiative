@@ -52,12 +52,17 @@ export function collectChipsDeep(fragment, { documentRef = globalThis.document }
   return chips;
 }
 
+// The cards whose "…" list the GM opened (by memoryKey): a card rebuilt by a render (an HP change, a turn) opens it
+// again instead of closing it under the GM's eyes (lot L20). Only a click closes it.
+const expandedChipDocks = new Set();
+
 export function mountChipsWithOverflow(
   dock,
   fragment,
   {
     compact = true,
     limit = MAX_VISIBLE_CHIPS,
+    memoryKey = "",
     documentRef = globalThis.document,
   } = {},
 ) {
@@ -100,6 +105,7 @@ export function mountChipsWithOverflow(
     });
   }
   if (chips.length <= limit) {
+    if (memoryKey) expandedChipDocks.delete(memoryKey);
     row1.append(...chips);
     dock.append(row1);
     return;
@@ -131,9 +137,7 @@ export function mountChipsWithOverflow(
   more.title = `Mostra altri ${hidden.length} effetti`;
   let expanded = false;
 
-  more.addEventListener("click", (event) => {
-    event.stopPropagation();
-    expanded = !expanded;
+  const applyExpanded = () => {
     row2.style.display = expanded ? "flex" : "none";
     more.setAttribute("aria-expanded", expanded ? "true" : "false");
     more.setAttribute(
@@ -143,12 +147,26 @@ export function mountChipsWithOverflow(
     more.textContent = expanded ? "−" : "…";
     more.style.background = expanded ? "rgba(59,130,246,.64)" : "rgba(0,0,0,.72)";
     more.title = expanded ? "Comprimi effetti" : `Mostra altri ${hidden.length} effetti`;
+  };
+  more.addEventListener("click", (event) => {
+    event.stopPropagation();
+    expanded = !expanded;
+    if (memoryKey) {
+      if (expanded) expandedChipDocks.add(memoryKey);
+      else expandedChipDocks.delete(memoryKey);
+    }
+    applyExpanded();
     const ownerCard = dock.closest('[data-tracker-card="1"]');
     const ownerZIndex = ownerCard?.style.zIndex || "";
     if (ownerCard) ownerCard.style.zIndex = expanded ? "30" : ownerZIndex;
     // The open list takes room in the card, so it pushes the next cards down instead of covering them.
     if (ownerCard) syncChipDockCardHeight(ownerCard);
   });
+
+  if (memoryKey && expandedChipDocks.has(memoryKey)) {
+    expanded = true;
+    applyExpanded();
+  }
 
   row1.appendChild(more);
   dock.append(row1, row2);

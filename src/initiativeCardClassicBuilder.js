@@ -824,7 +824,7 @@ if (trackerSpells.length) {
 
 // 3) Monta TUTTO assieme: affiancate finché ci stanno, poi a capo; 3 visibili, poi "…"
 condDock.style.gap = CHIP_GAP_PX + "px";
-mountChipsWithOverflow(condDock, fragAll, { compact: true, limit: 3 });
+mountChipsWithOverflow(condDock, fragAll, { compact: true, limit: 3, memoryKey: e.id });
 bindReferenceChips(condDock);
 
 if (e.__groupCollapsed) {

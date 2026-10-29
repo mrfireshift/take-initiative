@@ -1523,6 +1523,14 @@ export function buildConditionChips(cond = {}, opts = {}) {
     if (group.instances[0]?.id) chip.dataset.conditionInstanceId = String(group.instances[0].id);
     const chipLabel = document.createElement("span");
     chipLabel.textContent = group.label;
+    // A long name shortens with an ellipsis; the full one is in the pill's tooltip (lot L20).
+    Object.assign(chipLabel.style, {
+      minWidth: "0",
+      flex: "0 1 auto",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+    });
+    if (!chip.title) chip.title = String(group.label || "");
     chip.appendChild(chipLabel);
     // A defense granted by the effect (Imm. freddo…) and a composed buff's notes are micropills inside the pill.
     if (opts.showEffectSummaryParts !== false) {
@@ -1542,6 +1550,7 @@ export function buildConditionChips(cond = {}, opts = {}) {
           fontSize: compact ? "8px" : "9px",
           fontWeight: "700",
           lineHeight: "1",
+          flex: "0 0 auto",
         });
         chip.appendChild(micro);
       }
@@ -1565,6 +1574,10 @@ export function buildConditionChips(cond = {}, opts = {}) {
       border: `2px solid ${borderCol}`,
       lineHeight: "1",
       whiteSpace: "nowrap",
+      maxWidth: "100%",
+      minWidth: "0",
+      boxSizing: "border-box",
+      overflow: "hidden",
       userSelect: "none",
       pointerEvents: "auto",
       cursor: "pointer",
@@ -1605,6 +1618,7 @@ export function buildConditionChips(cond = {}, opts = {}) {
         fontSize: compact ? "10px" : "11px",
         fontWeight: "800",
         lineHeight: compact ? "10px" : "12px",
+        flex: "0 0 auto",
         cursor: "pointer",
       });
       terminate.addEventListener("mouseenter", () => {
