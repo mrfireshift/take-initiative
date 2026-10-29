@@ -6019,12 +6019,10 @@ async function openConcentrationWarningModal(
       url,
       width,
       height,
-      // At the bottom of the screen (lot L20): it comes during an attack, while the turn's reminder may still be open
-      // at the top, where it covered it.
       anchorReference: "POSITION",
-      anchorPosition: { left: viewportWidth / 2, top: Math.max(top + height, viewportHeight - 16) },
-      anchorOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
-      transformOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
+      anchorPosition: { left: viewportWidth / 2, top: Math.max(8, top - 4) },
+      anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
+      transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
       hidePaper: true,
       disableClickAway: true,
       marginThreshold: 12,

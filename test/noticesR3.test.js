@@ -31,11 +31,16 @@ test("L20: l'avviso di concentrazione del GM con Superato e Fallito ha la ×", (
   const page = read("../concentration-warning.html");
   assert.match(page, /\.warning\.has-close \.save-badge \{ right: 40px; \}/);
   assert.match(page, /\n\s+\.close \{\n\s+position: absolute;/);
+  // The page lets no click through but its buttons (body: pointer-events none): the × needs its own, or it is dead.
+  assert.match(page, /body \{[^}]*pointer-events: none;/);
+  assert.match(page, /\n\s+\.close \{[^}]*pointer-events: auto;[^}]*\}/);
 });
 
-test("L20: gli avvisi non si coprono: il turno in alto, il TS contro la morte sotto, quelli dell'attacco in basso", () => {
+test("L20: gli avvisi non si coprono: il turno in alto, il TS contro la morte sotto, il Legame del boss in basso", () => {
+  // The concentration warning stays at the top, where the plugin's notices are: the user found the bottom of the
+  // screen out of place.
   const tracker = read("../src/initiativeList.js");
-  assert.match(tracker, /anchorPosition: \{ left: viewportWidth \/ 2, top: Math\.max\(top \+ height, viewportHeight - 16\) \},\n\s+anchorOrigin: \{ horizontal: "CENTER", vertical: "BOTTOM" \},\n\s+transformOrigin: \{ horizontal: "CENTER", vertical: "BOTTOM" \},/);
+  assert.match(tracker, /url,\n\s+width,\n\s+height,\n\s+anchorReference: "POSITION",\n\s+anchorPosition: \{ left: viewportWidth \/ 2, top: Math\.max\(8, top - 4\) \},\n\s+anchorOrigin: \{ horizontal: "CENTER", vertical: "TOP" \},/);
   const bossLink = read("../src/bossLinkNoticeHost.js");
   assert.match(bossLink, /anchorPosition: \{ left: viewportWidth \/ 2, top: Math\.max\(top, viewportHeight - 16\) \},\n\s+anchorOrigin: \{ horizontal: "CENTER", vertical: "BOTTOM" \},\n\s+transformOrigin: \{ horizontal: "CENTER", vertical: "BOTTOM" \},/);
   const deathSave = read("../src/deathSaveNoticeHost.js");
