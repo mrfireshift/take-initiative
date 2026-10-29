@@ -106,6 +106,12 @@ function maximumTargets(action, options = {}) {
   return Number.isInteger(maximum) && maximum > 0 ? maximum : 0;
 }
 
+function recordedGroupTurns(group) {
+  return Array.isArray(group?.turns)
+    ? group.turns.map((value) => Math.floor(Number(value) || 0)).filter((value) => value > 0)
+    : [];
+}
+
 function groupTargetIds(group) {
   const targets = group?.targets;
   if (targets instanceof Map) return uniqueIds([...targets.keys()]);
@@ -434,13 +440,15 @@ export function buildSpellActiveActionPlan({
         casterName: group?.casterName || casterName,
         spellId: spell?.id || group?.spellId,
         name: group?.name || spell?.displayName || spell?.name,
+        // The rounds the spell has left; its full duration only when none is recorded (lot L17: a duplicate of
+        // Mirror Image destroyed put the spell back to 10 rounds).
         turns: Math.max(
           1,
-          ...(Array.isArray(group?.turns)
-            ? group.turns.map((value) => Math.floor(Number(value) || 0)).filter((value) => value > 0)
-            : []),
-          Math.floor(Number(spell?.defaultTurns) || 1),
+          ...(recordedGroupTurns(group).length
+            ? recordedGroupTurns(group)
+            : [Math.floor(Number(spell?.defaultTurns) || 1)]),
         ),
+        ...(Array.isArray(group?.holders) && group.holders.length ? { holders: group.holders } : {}),
         conc: spell?.concentration === true,
         appliedAt: group?.appliedAt,
         castContext: group?.castContext || {},

@@ -802,6 +802,17 @@ export function buildSpellActiveResolutionResourceOperations({
   }
 
   const nextRemaining = Math.max(0, remaining - consume);
+  // The tokens that hold the instance (spellEntry.holders, read live), with the rounds each one has left: a spell
+  // cast on another creature (Flame Arrows) is updated there, not copied onto the caster (lot L17). Without them,
+  // the caster's own entry.
+  const holders = (Array.isArray(spellEntry.holders) ? spellEntry.holders : [])
+    .map((holder) => ({
+      itemId: String(holder?.itemId || "").trim(),
+      turns: holder?.turns === null || holder?.turns === undefined || holder?.turns === "" ? null : integer(holder.turns, null),
+    }))
+    .filter((holder) => holder.itemId);
+  const fallbackTargetId = String(payload?.casterId || spellEntry?.casterId || "").trim();
+  const holderIds = holders.length ? holders.map((holder) => holder.itemId) : [fallbackTargetId];
   if (nextRemaining === 0 && resource.endSpellAtZero === true) {
     const casterId = String(payload?.casterId || spellEntry?.casterId || "").trim();
     if (resource.endConcentrationAtZero === true && spellEntry.conc === true && casterId) {
@@ -820,7 +831,7 @@ export function buildSpellActiveResolutionResourceOperations({
       remaining: nextRemaining,
       operations: Object.freeze([{
         type: "spell:remove-instance",
-        targetIds: [String(payload?.casterId || spellEntry?.casterId || "").trim()],
+        targetIds: holderIds,
         instanceId,
       }]),
     };
@@ -830,12 +841,32 @@ export function buildSpellActiveResolutionResourceOperations({
     ...(spellEntry.castContext && typeof spellEntry.castContext === "object" ? clone(spellEntry.castContext) : {}),
     uses: { ...clone(uses), remaining: nextRemaining },
   };
+  const upsert = (targetId, turns) => ({
+    type: "spell:upsert",
+    targetIds: [targetId],
+    name: String(spellEntry.name || payload?.spellName || payload?.spellId || "").trim(),
+    turns: Math.max(1, integer(turns, 1)),
+    conc: spellEntry.conc === true,
+    source: String(spellEntry.casterId || payload?.casterId || "").trim(),
+    ...(spellEntry.casterName ? { casterName: String(spellEntry.casterName) } : {}),
+    instanceId,
+    spellId: String(spellEntry.spellId || payload?.spellId || "").trim(),
+    ...(spellEntry.appliedAt ? { appliedAt: clone(spellEntry.appliedAt) } : {}),
+    castContext: clone(nextCastContext),
+  });
+  if (holders.length) {
+    return {
+      valid: true,
+      remaining: nextRemaining,
+      operations: Object.freeze(holders.map((holder) => upsert(holder.itemId, holder.turns ?? spellEntry.turns))),
+    };
+  }
   return {
     valid: true,
     remaining: nextRemaining,
     operations: Object.freeze([{
       type: "spell:upsert",
-      targetIds: [String(payload?.casterId || spellEntry?.casterId || "").trim()],
+      targetIds: [fallbackTargetId],
       name: String(spellEntry.name || payload?.spellName || payload?.spellId || "").trim(),
       turns: Math.max(1, integer(spellEntry.turns, 1)),
       conc: spellEntry.conc === true,

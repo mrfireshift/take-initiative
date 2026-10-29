@@ -37,6 +37,14 @@ export function renderAttackReactions(box, context = {}, {
     button.addEventListener("click", () => {
       if (typeof retaliate === "function") void retaliate(row, input.value);
     });
+    // Enter in the amount applies this retaliation only (lot L17, AT-03): it does not reach the console's own Enter
+    // (the PC console's main button) nor submit the Boss console's form with its average damage.
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.isComposing) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!button.disabled) button.click();
+    });
     line.append(element(documentRef, "p", row.text, "attack-reaction-note"), input, button);
     rows.push(line);
   }

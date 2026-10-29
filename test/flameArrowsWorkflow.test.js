@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { getSpellDefinition } from "../src/spells-srd.js";
 import {
@@ -189,4 +190,32 @@ test("l'ultima munizione chiude spell e concentrazione tramite il parent instanc
   assert.deepEqual(next.spells, []);
   assert.deepEqual(next.concentrations, {});
   assert.deepEqual(next.conditions, []);
+});
+
+// Lot L17 of the bugfix pass (SP-2): cast on another creature, the arrow spent from the panel was written onto the
+// caster as a new copy of the spell, and the counter on the creature that holds the quiver stayed at 12.
+test("L17: Frecce Infuocate su un'altra creatura consuma la munizione sul token che ha l'incantesimo", () => {
+  const definition = spell();
+  const onAlly = { ...activeSpell({ remaining: 12 }), turns: 580 };
+  const group = { ...onAlly, turns: [580], holders: [{ itemId: "ally", turns: 580 }] };
+  const plan = buildSpellActiveActionPlan({ spell: definition, actionId: "flame-arrows-consume", group });
+  assert.equal(plan.valid, true, plan.errors?.join(", "));
+  assert.deepEqual(plan.operations.map((operation) => [operation.type, operation.targetIds, operation.turns]),
+    [["spell:upsert", ["ally"], 580]]);
+  const mutation = buildEffectsMutationPlan([
+    { id: "caster", name: "Mago", spells: [], concentrations: {}, conditions: [] },
+    { id: "ally", name: "Ranger", spells: [onAlly], concentrations: {}, conditions: [] },
+  ], plan.operations);
+  const byId = new Map(mutation.states.map((state) => [state.id, state]));
+  assert.deepEqual(byId.get("caster").spells, [], "no copy on the caster");
+  assert.equal(byId.get("ally").spells[0].castContext.uses.remaining, 11);
+  assert.equal(byId.get("ally").spells[0].turns, 580);
+
+  const last = buildSpellActiveActionPlan({ spell: definition, actionId: "flame-arrows-consume",
+    group: { ...group, castContext: activeSpell({ remaining: 1 }).castContext } });
+  assert.equal(last.operations[0].type, "concentration:break", "the last arrow ends the concentration");
+
+  const executor = readFileSync(new URL("../src/spellApplicationExecutor.js", import.meta.url), "utf8");
+  assert.match(executor, /if \(actionPlan\.valid && actionPlan\.action\?\.resource\) \{\n\s+const holders = await spellInstanceHolders\(group\?\.instanceId\);/);
+  assert.match(executor, /targetIds: \[\.\.\.new Set\(\[String\(group\?\.casterId \|\| ""\)\.trim\(\), \.\.\.selectedTargetIds, \.\.\.holderIds\]/);
 });

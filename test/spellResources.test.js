@@ -75,6 +75,20 @@ test("Mirror Image: three duplicates; each hit destroys one, the spell ends with
   assert.deepEqual(last.operations, [{ type: "spell:remove-instance", targetIds: ["caster"], instanceId: "mirror-image-1" }]);
 });
 
+// Lot L17 of the bugfix pass (SP-1): a duplicate destroyed wrote the spell's full minute back (10 rounds) instead of
+// the rounds it had left.
+test("L17: Duplicato colpito conserva i round rimasti di Immagine speculare", () => {
+  const spell = getSpellDefinition("mirror-image");
+  const action = getSpellActiveAction(spell, "mirror-image-duplicate-destroyed");
+  const group = { ...entry("mirror-image", 3, 3, "duplicates"), turns: [4] };
+  const hit = buildSpellActiveActionPlan({ spell, actionId: action.id, group });
+  assert.equal(hit.operations[0].turns, 4, "4 rounds left, not the 10 of a new cast");
+  const holders = buildSpellActiveActionPlan({ spell, actionId: action.id, group: { ...group, holders: [{ itemId: "caster", turns: 4 }] } });
+  assert.deepEqual(holders.operations.map((operation) => [operation.targetIds, operation.turns]), [[["caster"], 4]]);
+  const unrecorded = buildSpellActiveActionPlan({ spell, actionId: action.id, group: { ...group, turns: [] } });
+  assert.equal(unrecorded.operations[0].turns, spell.defaultTurns, "no recorded rounds: the spell's duration");
+});
+
 test("Goodberry: ten berries on the caster for 24 hours; eating one heals any creature by 1 hit point", () => {
   assert.equal(isSpellCastRecordOnly("goodberry"), false);
   assert.ok(getTrackableSpellOptions().some((option) => option.id === "goodberry"));

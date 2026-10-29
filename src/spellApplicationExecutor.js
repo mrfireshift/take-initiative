@@ -305,6 +305,21 @@ export async function getCurrentSpellAppliedAt() {
   }
 }
 
+// The tokens that hold a spell instance, with the rounds each one has left (lot L17): a resource spent from the spell
+// panel updates them, a spell cast on another creature included (Flame Arrows), with its own remaining rounds.
+async function spellInstanceHolders(instanceId) {
+  const wanted = String(instanceId || "").trim();
+  if (!wanted) return [];
+  const items = await OBR.scene.items.getItems();
+  return items.flatMap((item) => {
+    const spells = item?.metadata?.[`${ID}/meta`]?.[`${ID}/spells`];
+    const entry = Array.isArray(spells)
+      ? spells.find((spell) => String(spell?.instanceId || "").trim() === wanted)
+      : null;
+    return entry ? [{ itemId: item.id, turns: entry.turns ?? null }] : [];
+  });
+}
+
 export async function executeSpellActiveAction({
   spell = null,
   actionId = "",
@@ -327,15 +342,27 @@ export async function executeSpellActiveAction({
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
     throw new Error("scene-epoch-stale-before-active-action");
   }
-  const actionPlan = buildSpellActiveActionPlan({
+  const planFor = (planGroup) => buildSpellActiveActionPlan({
     spell,
     actionId,
-    group,
+    group: planGroup,
     selectedTargetIds,
     appliedAt: resolvedAppliedAt,
     casterName,
     ignoreTargetLimit,
   });
+  let actionPlan = planFor(group);
+  let holderIds = [];
+  if (actionPlan.valid && actionPlan.action?.resource) {
+    const holders = await spellInstanceHolders(group?.instanceId);
+    if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+      throw new Error("scene-epoch-stale-before-active-action");
+    }
+    if (holders.length) {
+      actionPlan = planFor({ ...group, holders });
+      holderIds = holders.map((holder) => holder.itemId);
+    }
+  }
   if (!actionPlan.valid) {
     throw new Error("Invalid active spell action: " + actionPlan.errors.join(", "));
   }
@@ -370,7 +397,7 @@ export async function executeSpellActiveAction({
   const mutation = await runEffectsMutation(actionPlan.operations, {
     kind: "spell",
     label: actionPlan.historyLabel,
-    targetIds: [String(group?.casterId || "").trim(), ...selectedTargetIds].filter(Boolean),
+    targetIds: [...new Set([String(group?.casterId || "").trim(), ...selectedTargetIds, ...holderIds].filter(Boolean))],
     sideEffects,
     history: {
       kind: "spell",
