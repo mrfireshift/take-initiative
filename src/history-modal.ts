@@ -38,6 +38,8 @@ import {
 import { HISTORY_UNDO_READINESS_STATUS } from "./historyUndoCleanupCore.js";
 import { requestHistoryOwnerClear } from "./historyOwner.js";
 import {
+  historyUndoDepthWithCauses,
+  isAutomaticConsequenceEntry,
   partitionHistoryUndoRows,
   shouldAutoRefreshHistoryUndoReadiness,
   shouldHandleHistoryUndoShortcut,
@@ -809,7 +811,8 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       list.appendChild(hiddenSummary);
     }
 
-    let selectedDepth = newest[0]?.undoable === true ? 1 : 0;
+    // An automatic consequence comes with the entry that caused it (historyUndoDepthWithCauses).
+    let selectedDepth = newest[0]?.undoable === true ? historyUndoDepthWithCauses(newest, 1) : 0;
     const rows: Array<{ checkbox: HTMLInputElement; row: HTMLLabelElement }> = [];
     const undo = button("Annulla l'ultima", "primary", "history.svg");
     const cleanup = button("Pulisci voci incomplete");
@@ -846,7 +849,9 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       const row = document.createElement("label");
       row.className = "undo-row-item";
       row.hidden = readiness?.undoable !== true && !showNonUndoableHistory;
-      row.title = undoReadinessTitle(readiness);
+      row.title = isAutomaticConsequenceEntry(entry)
+        ? `${undoReadinessTitle(readiness)} · Automatica: si annulla insieme all'azione che l'ha causata.`
+        : undoReadinessTitle(readiness);
       Object.assign(row.style, { display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", gap: "7px", padding: "6px 8px", borderRadius: "7px" });
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
@@ -875,7 +880,9 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       });
       checkbox.addEventListener("change", () => {
         if (readiness?.undoable !== true) return;
-        selectedDepth = checkbox.checked ? index + 1 : index;
+        selectedDepth = checkbox.checked
+          ? historyUndoDepthWithCauses(newest, index + 1)
+          : historyUndoDepthWithCauses(newest, index, { extend: false });
         refresh();
       });
       row.append(checkbox, text, state);

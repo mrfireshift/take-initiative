@@ -1731,7 +1731,9 @@ export async function activateClassFeature({
   };
 }
 
-export async function deactivateClassFeature(sourceId, instanceId) {
+// automatic: ended by the plugin in reaction to another entry (classFeatureAuraController.js), not by the GM. Its History
+// entry is undone with the one before it (history.js).
+export async function deactivateClassFeature(sourceId, instanceId, { automatic = false } = {}) {
   const [sourceItem] = await OBR.scene.items.getItems([sourceId]);
   if (!sourceItem) throw classFeatureError("source-not-found");
   const currentState = getClassFeatureState(sourceItem);
@@ -1776,6 +1778,9 @@ export async function deactivateClassFeature(sourceId, instanceId) {
   const mutation = await runEffectsMutation(operations, {
     kind: "class-feature",
     label: "Capacità terminata",
+    ...(automatic ? {
+      history: { kind: "class-feature", label: "Capacità terminata", payload: { automaticConsequence: true } },
+    } : {}),
     targetIds: itemIds,
     metadataPatches: [{
       id: sourceId,

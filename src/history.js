@@ -2299,11 +2299,16 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
     return decorateUndoResult([], undoResult("noop", "history-empty"));
   }
 
-  const targetIndex = entryId
+  let targetIndex = entryId
     ? history.entries.findIndex((entry) => entry?.id === entryId)
     : history.entries.length - 1;
   if (targetIndex < 0) {
     return decorateUndoResult([], undoResult("rejected", "history-entry-not-found"));
+  }
+  // An automatic consequence (a class feature the aura controller ended because its source fell unconscious) is undone
+  // with the entry before it, which caused it: undone alone, the controller wrote it again at once.
+  while (through && targetIndex > 0 && history.entries[targetIndex]?.payload?.automaticConsequence === true) {
+    targetIndex -= 1;
   }
 
   const selected = through

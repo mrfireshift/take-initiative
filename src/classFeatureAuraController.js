@@ -326,7 +326,7 @@ async function reconcileClassFeatureAuras({ reason = "event", force = false } = 
   if (endedAuras.length) {
     for (const aura of endedAuras) {
       if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
-      await deactivateClassFeature(aura.sourceId, aura.instanceId);
+      await deactivateClassFeature(aura.sourceId, aura.instanceId, { automatic: true });
     }
     if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
     // La mutazione sopra innesca normalmente onChange; mantenere comunque
