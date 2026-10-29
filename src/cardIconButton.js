@@ -56,7 +56,7 @@ export function buildHiddenTokenMark(size = 11, documentRef = globalThis.documen
   mark.setAttribute("aria-label", mark.title);
   Object.assign(mark.style, {
     flex: "0 0 auto",
-    color: "rgba(255,255,255,.82)",
+    color: "rgba(255,255,255,.94)",
     pointerEvents: "auto",
   });
   return mark;

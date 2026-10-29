@@ -728,8 +728,8 @@ export function buildCompactCardName(
   });
   // A token the GM keeps hidden: the eye struck through before its name (GM only, the players never see the card).
   if (isGM && entry.hiddenToken === true) {
-    const mark = buildHiddenTokenMark(10, compactDocument(documentRef));
-    Object.assign(mark.style, { display: "inline-block", verticalAlign: "-1px", marginRight: "3px" });
+    const mark = buildHiddenTokenMark(14, compactDocument(documentRef));
+    Object.assign(mark.style, { display: "inline-block", verticalAlign: "-3px", marginRight: "4px" });
     name.prepend(mark);
     name.title = `${name.title} · Token nascosto: i giocatori non lo vedono`;
   }

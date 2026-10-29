@@ -163,6 +163,7 @@ test("L16: sulla card del GM un token nascosto ha l'occhio barrato accanto al no
   assert.equal(mark?.dataset.hiddenTokenMark, "1");
   assert.equal(mark.title, "Token nascosto: i giocatori non lo vedono");
   assert.match(mark.style.mask, /hidden-token\.svg/);
+  assert.equal(mark.style.width, "14px", "as tall as the compact name's line");
   assert.equal(hidden.textContent, "Ombra", "the name stays the name");
   assert.match(hidden.title, /Token nascosto/);
   assert.equal(buildCompactCardName({ name: "Orco" }, { active: false, isGM: true, documentRef }).children.length, 0);
@@ -170,7 +171,7 @@ test("L16: sulla card del GM un token nascosto ha l'occhio barrato accanto al no
     "a player's card never carries it");
 
   const classic = read("../src/initiativeCardClassicBuilder.js");
-  assert.match(classic, /if \(IS_GM && e\.hiddenToken === true\) \{\n\s+const hiddenMark = buildHiddenTokenMark\(13\);[\s\S]{0,80}name\.appendChild\(hiddenMark\);\n\}\nname\.appendChild\(nameLabel\);/);
+  assert.match(classic, /if \(IS_GM && e\.hiddenToken === true\) \{\n\s+const hiddenMark = buildHiddenTokenMark\(19\);[\s\S]{0,80}name\.appendChild\(hiddenMark\);\n\}\nname\.appendChild\(nameLabel\);/);
   assert.match(tracker, /buildCompactCardName\(entry, \{ active, boss, isGM: IS_GM \}\)/);
   const svg = read("../public/hidden-token.svg");
   assert.match(svg, /<mask id="hidden-token-cut"/);

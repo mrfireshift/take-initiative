@@ -470,8 +470,8 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
 }
 // A token the GM keeps hidden: the eye struck through before its name (GM only, the players never see the card).
 if (IS_GM && e.hiddenToken === true) {
-  const hiddenMark = buildHiddenTokenMark(13);
-  hiddenMark.style.marginRight = "5px";
+  const hiddenMark = buildHiddenTokenMark(19);
+  hiddenMark.style.marginRight = "6px";
   name.appendChild(hiddenMark);
 }
 name.appendChild(nameLabel);
