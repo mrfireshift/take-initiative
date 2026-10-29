@@ -135,6 +135,14 @@ Lotti fatti:
   - La vista dei giocatori non segue un token nascosto.
   - Un token senza attitudine si mostra «neutrale» (card e PF ai giocatori, come su mappa e proiezione). Le chiavi interne restano «alleato»: gruppi seminati e compressi nello stato (`groupAttitude`) e memoria PF.
   - Test: `hiddenTokensForPlayers` (fallisce senza la patch).
+- **L16, rifatto** (29/10): l'utente ha ripensato la regola. Finché il GM tiene nascosto un token, ai giocatori non arriva nulla di quel token. Il segno `revealedInCombat` non si scrive più; Svuota toglie ancora quello delle versioni precedenti.
+  - Tracker dei giocatori: nessuna card del token nascosto. Durante il suo turno resta accesa l'ultima card attiva visibile; cambia solo il disegno, non lo stato del turno. Mostrato di nuovo, il token torna da solo.
+  - Avviso di turno: il turno di una creatura nascosta resta al GM (`LOCAL`). Come «prossimo» i giocatori leggono la prossima creatura visibile.
+  - Promemoria proiettati ai giocatori: scartati quelli che partono da un token nascosto o lo colpiscono; dai bersagli multipli si toglie solo il token nascosto.
+  - Avvisi di concentrazione di una creatura nascosta: solo al GM.
+  - Selezione del GM inviata allo schermo del tavolo: senza i token nascosti. La revisione si prende prima della lettura degli item, così un invio lento non scavalca una selezione più nuova.
+  - Animazioni (visuali matched e Palla di fuoco) con caster o bersaglio nascosto: solo sullo schermo del GM (`hiddenTokenBroadcast.js`). Il vecchio `emitFireballVisual` di `embersBridge.js` non ha chiamanti e resta com'è.
+  - Test: `hiddenTokensForPlayers` riscritto ed `effectsSelectionFollow` esteso (falliscono senza la patch); adeguato il contratto di `concentrationSaveReminderRuntime`.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

@@ -125,12 +125,28 @@ function selectionRequestId() {
   return `${EFFECTS_SELECTION_INSTANCE_ID}:${Date.now()}:${Math.random().toString(16).slice(2)}`;
 }
 
+// A token the GM keeps hidden never reaches the players' screens, its selection either (lot L16).
+async function withoutHiddenTokens(selection) {
+  const ids = [...normalizeSelection(selection)];
+  if (!ids.length) return ids;
+  try {
+    const items = await OBR.scene.items.getItems(ids);
+    const hidden = new Set(items.filter((item) => item?.visible === false).map((item) => item.id));
+    return ids.filter((id) => !hidden.has(id));
+  } catch {
+    return ids;
+  }
+}
+
 async function publishGMSelection(selection, { requestId = "", targetInstanceId = "" } = {}) {
   if (!mounted || !writer || effectsRole !== "GM") return;
+  // The revision is taken before the read, so a slower earlier send cannot overwrite a newer selection.
+  const revision = ++gmSelectionRevision;
+  const shown = await withoutHiddenTokens(selection);
   const payload = {
     type: "gm-selection",
-    selection: [...normalizeSelection(selection)],
-    revision: ++gmSelectionRevision,
+    selection: shown,
+    revision,
     sourceInstanceId: EFFECTS_SELECTION_INSTANCE_ID,
   };
   if (requestId) payload.requestId = requestId;

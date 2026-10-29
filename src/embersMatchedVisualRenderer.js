@@ -1,6 +1,7 @@
 import OBR, { buildImage } from "@owlbear-rodeo/sdk";
 import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import { getCasterCenter } from "./embersBridge.js";
+import { broadcastDestinationForTokens } from "./hiddenTokenBroadcast.js";
 import { embersItemGeometry } from "./embersGeometryCore.js";
 import {
   EMBERS_MATCHED_VISUAL_CHANNEL,
@@ -797,10 +798,12 @@ async function emitVisual({
   }
   if (partial) event.partial = true;
   try {
+    // A hidden caster or target: only the GM sees the animation (lot L16).
+    const destination = await broadcastDestinationForTokens([casterId, ...(Array.isArray(targetIds) ? targetIds : [])]);
     await OBR.broadcast.sendMessage(
       EMBERS_MATCHED_VISUAL_CHANNEL,
       event,
-      { destination: "ALL" },
+      { destination },
     );
     // ALL reaches this client's background renderer. A popover (spell panel, attack console) drawing its own copy
     // put two clips on the GM's screen, offset by the broadcast, and left that copy's cleanup to the popover's timers.

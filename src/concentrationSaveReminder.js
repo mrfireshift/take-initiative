@@ -51,6 +51,19 @@ export async function broadcastConcentrationSaveWarnings(changes = [], options =
   return broadcastConcentrationWarnings(warnings, { ...options, eventId, now });
 }
 
+async function hiddenConcentratorIds(warnings, knownItems = null) {
+  const ids = [...new Set(warnings.map((warning) => String(warning?.targetId || "")).filter(Boolean))];
+  if (!ids.length) return new Set();
+  try {
+    const items = Array.isArray(knownItems) && ids.every((id) => knownItems.some((item) => item?.id === id))
+      ? knownItems
+      : await OBR.scene.items.getItems(ids);
+    return new Set(items.filter((item) => item?.visible === false).map((item) => String(item.id)));
+  } catch {
+    return new Set();
+  }
+}
+
 // Already built warnings (e.g. an aura's concentration save, without damage) on the same channel.
 export async function broadcastConcentrationWarnings(warnings = [], options = {}) {
   if (!Array.isArray(warnings) || !warnings.length) return [];
@@ -65,12 +78,21 @@ export async function broadcastConcentrationWarnings(warnings = [], options = {}
 
   const sendMessage = options.sendMessage
     || ((channel, payload, delivery) => OBR.broadcast.sendMessage(channel, payload, delivery));
-  await sendMessage(CONCENTRATION_WARNING_CHANNEL, {
-    type: "show-concentration-warning",
-    warnings: scopedWarnings,
-    createdAt: now,
-    sceneEpoch,
-    ...(warningRuntimeScope ? { warningRuntimeScope } : {}),
-  }, { destination: "ALL" });
+  // Lot L16: the warning of a creature the GM keeps hidden stays with the GM (this client); the others go to all.
+  const hiddenIds = await hiddenConcentratorIds(scopedWarnings, options.items);
+  const groups = [
+    [scopedWarnings.filter((warning) => !hiddenIds.has(String(warning?.targetId || ""))), "ALL"],
+    [scopedWarnings.filter((warning) => hiddenIds.has(String(warning?.targetId || ""))), "LOCAL"],
+  ];
+  for (const [group, destination] of groups) {
+    if (!group.length) continue;
+    await sendMessage(CONCENTRATION_WARNING_CHANNEL, {
+      type: "show-concentration-warning",
+      warnings: group,
+      createdAt: now,
+      sceneEpoch,
+      ...(warningRuntimeScope ? { warningRuntimeScope } : {}),
+    }, { destination });
+  }
   return scopedWarnings;
 }

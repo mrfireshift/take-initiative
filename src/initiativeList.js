@@ -804,6 +804,7 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __turnNoticeDelivery.reset(reason || "scene-reset");
   __lastConditionTurnState = null;
   __conditionTurnMark = null;
+  __playerLastVisibleActiveId = "";
   __lastConditionTurnStateConfirmed = null;
   __conditionNavigationHint = null;
   __roundTerminalAccumulationTransitions.clear();
@@ -1832,7 +1833,7 @@ function makeClearInitiativeBtn() {
           for (const it of drafts) {
             const me = { ...(it.metadata?.[META_KEY] || {}) };
             delete me.inInitiative;
-            // A new combat: no hidden creature is known yet (lot L16).
+            // The mark of an earlier version of the hidden tokens (lot L16), no longer written.
             delete me.revealedInCombat;
             it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
           }
@@ -5044,9 +5045,8 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
     // group key keeps the old "ally" one (groupAttitude): the groups already seeded in the scene state use it.
     attitude: meta.attitude || "neutral",
     groupAttitude: meta.attitude || "ally",
-    // Lot L16: a hidden token, and whether the players met it (its turn came: revealedInCombat).
+    // Lot L16: a token the GM keeps hidden, which the players never see in the tracker.
     hiddenToken: it.visible === false,
-    revealedInCombat: meta.revealedInCombat === true,
     hp: (meta.hp ?? null),
     hpMax: (meta.hpMax ?? null),
     isEpic: !!meta.epic,
@@ -6326,12 +6326,13 @@ let __lastTurnNoticeDeliveryKey = "";
 
 async function __sendTurnNoticePayload(notice, sceneEpoch) {
   if (!__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
+  // Lot L16: a hidden creature's turn is announced to the GM only (this client); the players get nothing.
   await OBR.broadcast.sendMessage(TURN_NOTICE_CHANNEL, {
     type: "show-turn-notice",
     sceneEpoch,
     ...notice,
     noticeId: (Date.now() * 1000) + (++__turnNoticeSequence % 1000),
-  }, { destination: "ALL" });
+  }, { destination: notice?.currentHidden ? "LOCAL" : "ALL" });
   return __isCurrentSceneOperation(sceneEpoch, "turn-notice");
 }
 
@@ -6370,31 +6371,6 @@ async function broadcastTurnNotice(
   const notice = buildTurnNoticePayload(state, __activeLabelEntriesById);
   if (!notice || !__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
   return __turnNoticeDelivery.request(notice, sceneEpoch, { source });
-}
-
-// Lot L16: a hidden creature whose turn starts has acted, and the players know it exists from then on: its token
-// gets revealedInCombat (players see its card and its name in the turn notices; its map visuals stay hidden with the
-// token). Written once per creature, by the GM; «Svuota iniziativa» clears it.
-let __revealCheckedTurnKey = "";
-async function __revealActiveHiddenCreature(state, sceneEpoch = currentSceneEpoch()) {
-  if (!IS_GM) return;
-  const activeId = __activeIdForState(state);
-  if (!activeId || isLairId(activeId) || isEpicActionId(activeId)) return;
-  const turnKey = `${Math.max(1, Math.floor(Number(state?.round) || 1))}:${state?.current}:${activeId}`;
-  if (turnKey === __revealCheckedTurnKey) return;
-  __revealCheckedTurnKey = turnKey;
-  const tokenId = splitParagonId(activeId).baseId;
-  const [item] = await OBR.scene.items.getItems([tokenId]);
-  if (!__isCurrentSceneOperation(sceneEpoch, "turn-reveal")) return;
-  const meta = item?.metadata?.[META_KEY];
-  if (!item || item.visible !== false || !meta || meta.revealedInCombat === true) return;
-  await OBR.scene.items.updateItems([tokenId], (drafts) => {
-    for (const draft of drafts) {
-      const current = draft.metadata?.[META_KEY];
-      if (!current || current.revealedInCombat === true) continue;
-      draft.metadata = { ...draft.metadata, [META_KEY]: { ...current, revealedInCombat: true } };
-    }
-  });
 }
 
 async function showConcentrationDamageWarning(
@@ -9514,12 +9490,26 @@ function __entryMatchesTrackerItemIds(entry, itemIds) {
   return __selectionIdsForEntry(entry).some((id) => itemIds.has(id));
 }
 
-// Lot L16: the players do not see the card of a hidden creature they have not met (its turn has not come). From its
-// turn on (revealedInCombat, or it is the one acting now) the card shows; its map visuals stay hidden with the token.
-function __hiddenFromPlayers(entry, activeId) {
-  if (IS_GM || entry?.hiddenToken !== true || entry?.revealedInCombat === true) return false;
-  const activeBaseId = activeId ? splitParagonId(activeId).baseId : "";
-  return entry.id !== activeId && (entry.__paragonBaseId || entry.id) !== activeBaseId;
+// Lot L16: while the GM keeps a token hidden, the players see nothing of it in the tracker: no card, and during its
+// turn the last visible active card stays lit (__playerTrackState). Shown again, it comes back by itself.
+function __hiddenFromPlayers(entry) {
+  return !IS_GM && entry?.hiddenToken === true;
+}
+
+let __playerLastVisibleActiveId = "";
+// The state a player's tracker draws: the real one, except during a hidden creature's turn, when the current turn stays
+// on the last visible active entry. Only the drawing changes: the turn state and its navigation stay as they are.
+function __playerTrackState(state, entries) {
+  if (IS_GM || !Array.isArray(state?.order) || !state.order.length) return state;
+  const activeId = state.order[state.current];
+  const activeEntry = (Array.isArray(entries) ? entries : []).find((entry) => entry?.id === activeId)
+    || __activeLabelEntriesById.get(activeId);
+  if (!activeEntry || !__hiddenFromPlayers(activeEntry)) {
+    __playerLastVisibleActiveId = activeId;
+    return state;
+  }
+  const index = __playerLastVisibleActiveId ? state.order.indexOf(__playerLastVisibleActiveId) : -1;
+  return index >= 0 ? { ...state, current: index } : state;
 }
 
 function __trackerCardHasOpenEditor(card) {
@@ -10521,6 +10511,11 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
 
     function renderTrack(entries, state, opts = {}) {
     if (__suspendRenders) return;
+    // Lot L16: a player's tracker draws no hidden token, and keeps the last visible active card during its turn.
+    if (!IS_GM) {
+      state = __playerTrackState(state, entries);
+      entries = entries.filter((entry) => !__hiddenFromPlayers(entry));
+    }
     const animateActive = !!opts.animateActive;
     const compactLayout = isCompactTrackerLayout();
     const projectionPolicy = runtimeOptionsService.get(selectTrackerProjectionPolicy);
@@ -11197,9 +11192,8 @@ __activeLabelEntriesById = byId;
       return;
     }
     // costruisci la lista rispettando l’ordine pulito
+    const ordered = stateClean.order.map((id) => byId.get(id)).filter(Boolean);
     const activeIdNow = stateClean.order[stateClean.current];
-    const ordered = stateClean.order.map((id) => byId.get(id)).filter(Boolean)
-      .filter((entry) => !__hiddenFromPlayers(entry, activeIdNow));
     if (!__isCurrentSceneOperation(sceneEpoch, "render-commit", { reason, renderRevision })) return;
     zoomChk.checked = isAutoFocusEnabled(stateClean);
     setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
@@ -11672,11 +11666,6 @@ async function __processInitiativeMetadata(
   ) {
     void broadcastTurnNotice(st, sceneEpoch, { source: "metadata" }).catch((err) => {
       console.warn("[turn-notice] broadcast error:", err?.message || err);
-    });
-  }
-  if (IS_GM && noticeActiveId && !staleNavigationState) {
-    void __revealActiveHiddenCreature(st, sceneEpoch).catch((err) => {
-      console.warn("[turn-reveal] write error:", err?.message || err);
     });
   }
 

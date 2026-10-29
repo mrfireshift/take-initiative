@@ -73,7 +73,8 @@ test("tutti gli ingressi di danno usano il dispatcher condiviso", () => {
   const reminder = fs.readFileSync(new URL("../src/reminderResolution.js", import.meta.url), "utf8");
 
   assert.match(runtime, /await getItems\(\[\.\.\.damageById\.keys\(\)\]\)/);
-  assert.match(runtime, /type: "show-concentration-warning"[\s\S]*destination: "ALL"/);
+  // Lot L16: to all, except the warnings of a creature the GM keeps hidden (this client only).
+  assert.match(runtime, /hiddenConcentratorIds\(scopedWarnings, options\.items\)[\s\S]*"ALL"\],[\s\S]*"LOCAL"\],[\s\S]*type: "show-concentration-warning"[\s\S]*\}, \{ destination \}\);/);
   assert.match(quickHP, /async function showConcentrationWarnings\([\s\S]*?causeHistoryEntryId[\s\S]*?broadcastConcentrationSaveWarnings\(damage/);
   assert.match(initiative, /showConcentrationDamageWarning[\s\S]*broadcastConcentrationSaveWarnings\(/);
   assert.match(reminder, /plan\.hpChange\.after < plan\.hpChange\.before[\s\S]*broadcastConcentrationSaveWarnings\(/);

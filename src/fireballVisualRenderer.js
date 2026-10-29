@@ -1,6 +1,7 @@
 import OBR, { buildImage, buildPath, Command } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { getCasterCenter } from "./embersBridge.js";
+import { broadcastDestinationForTokens } from "./hiddenTokenBroadcast.js";
 import { isEmbersFireballItem } from "./embersFireballCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import {
@@ -525,10 +526,12 @@ export async function emitFireballVisual({
 
   try {
     const visualEvent = { ...event, embersExistingItemIds, sceneEpoch: originEpoch };
+    // A hidden caster: only the GM sees the ray (lot L16).
+    const destination = await broadcastDestinationForTokens(casterId);
     await OBR.broadcast.sendMessage(
       FIREBALL_VISUAL_CHANNEL,
       visualEvent,
-      { destination: "ALL" },
+      { destination },
     );
     // ALL normalmente include il mittente, ma il render locale esplicito evita
     // di dipendere da questa semantica quando OBR consegna solo ai remoti.

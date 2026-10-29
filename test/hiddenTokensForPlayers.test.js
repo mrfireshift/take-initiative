@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { mock } from "node:test";
 import { readFileSync } from "node:fs";
 
 import { classifySceneItemSnapshots, createSceneItemsSnapshot } from "../src/sceneItemChangeDispatcherCore.js";
 import { buildTurnNoticePayload } from "../src/turnNotice.js";
 import { __groupKey } from "../src/initiativeOrderCore.js";
+
+mock.module("@owlbear-rodeo/sdk", { defaultExport: {} });
+const { withoutHiddenTokenNotices } = await import("../src/options/reminderProjectionBroadcast.js");
 
 // Lot L16 of the bugfix pass: hidden tokens and the players (decision D2), the attitude fallback (D10).
 const META_KEY = "com.thebigpicture.initiative/meta";
@@ -36,43 +39,95 @@ test("L16 (AV-07): le tre aure prendono la visibilità del token e la aggiornano
   }
 });
 
-test("L16 (OP-02): ai giocatori la card di una creatura nascosta compare dal suo turno in poi", () => {
+function playerTracker(isGM, labelEntries = new Map()) {
   const body = tracker.slice(tracker.indexOf("function __hiddenFromPlayers("), tracker.indexOf("function __trackerCardHasOpenEditor("));
-  const hidden = new Function("IS_GM", "splitParagonId", `${body} return __hiddenFromPlayers;`)(false,
-    (id) => ({ baseId: String(id).split("::p")[0] }));
-  const lurker = { id: "lurker", hiddenToken: true };
-  assert.equal(hidden(lurker, "orc"), true, "hidden, not met yet: no card");
-  assert.equal(hidden(lurker, "lurker"), false, "its turn: it acts, the card shows");
-  assert.equal(hidden({ ...lurker, revealedInCombat: true }, "orc"), false, "met: the card stays");
-  assert.equal(hidden({ id: "lurker::p1", __paragonBaseId: "lurker", hiddenToken: true }, "lurker"), false, "its Paragon turn too");
-  assert.equal(hidden({ id: "orc" }, "lurker"), false, "a visible token");
-  const asGM = new Function("IS_GM", "splitParagonId", `${body} return __hiddenFromPlayers;`)(true, () => ({ baseId: "" }));
-  assert.equal(asGM(lurker, "orc"), false, "the GM sees every card");
-  assert.match(tracker, /\.filter\(\(entry\) => !__hiddenFromPlayers\(entry, activeIdNow\)\);/);
+  return new Function("IS_GM", "__activeLabelEntriesById",
+    `${body} return { hidden: __hiddenFromPlayers, trackState: __playerTrackState };`)(isGM, labelEntries);
+}
+
+test("L16 (OP-02): finché il GM tiene nascosto un token, i giocatori non ne vedono la card", () => {
+  const player = playerTracker(false);
+  assert.equal(player.hidden({ id: "lurker", hiddenToken: true }), true);
+  assert.equal(player.hidden({ id: "lurker::p1", hiddenToken: true }), true, "its Paragon entry too");
+  assert.equal(player.hidden({ id: "orc" }), false, "a visible token");
+  assert.equal(playerTracker(true).hidden({ id: "lurker", hiddenToken: true }), false, "the GM sees every card");
+  assert.match(tracker, /if \(!IS_GM\) \{\n\s+state = __playerTrackState\(state, entries\);\n\s+entries = entries\.filter\(\(entry\) => !__hiddenFromPlayers\(entry\)\);/);
+  assert.doesNotMatch(tracker, /__revealActiveHiddenCreature|revealedInCombat: true/, "no mark on the token any more");
+  assert.match(tracker, /delete me\.inInitiative;\n\s+\/\/ The mark of an earlier version of the hidden tokens \(lot L16\), no longer written\.\n\s+delete me\.revealedInCombat;/);
 });
 
-test("L16 (OP-02): il segno revealedInCombat si scrive al turno di una creatura nascosta e Svuota lo toglie", () => {
-  const reveal = tracker.slice(tracker.indexOf("async function __revealActiveHiddenCreature("), tracker.indexOf("async function showConcentrationDamageWarning("));
-  assert.match(reveal, /if \(!item \|\| item\.visible !== false \|\| !meta \|\| meta\.revealedInCombat === true\) return;/);
-  assert.match(reveal, /\[META_KEY\]: \{ \.\.\.current, revealedInCombat: true \}/);
-  assert.match(tracker, /void __revealActiveHiddenCreature\(st, sceneEpoch\)/);
-  assert.match(tracker, /delete me\.inInitiative;\n\s+\/\/ A new combat: no hidden creature is known yet \(lot L16\)\.\n\s+delete me\.revealedInCombat;/);
+test("L16 (OP-02): durante il turno di una creatura nascosta i giocatori vedono ancora l'ultima card attiva", () => {
+  const player = playerTracker(false);
+  const entries = [{ id: "pc" }, { id: "lurker", hiddenToken: true }, { id: "ghost", hiddenToken: true }, { id: "orc" }];
+  const state = (current) => ({ order: ["pc", "lurker", "ghost", "orc"], current, round: 2 });
+  assert.equal(player.trackState(state(0), entries).current, 0);
+  assert.equal(player.trackState(state(1), entries).current, 0, "the hidden turn keeps the last visible card lit");
+  assert.equal(player.trackState(state(2), entries).current, 0, "two hidden turns in a row as well");
+  const real = state(2);
+  player.trackState(real, entries);
+  assert.equal(real.current, 2, "the real state is not touched");
+  assert.equal(player.trackState(state(3), entries).current, 3, "a visible turn moves on");
+  const fresh = playerTracker(false);
+  assert.equal(fresh.trackState(state(1), entries).current, 1, "no visible turn seen yet: nothing to keep");
+  const gm = playerTracker(true);
+  assert.equal(gm.trackState(state(1), entries).current, 1, "the GM follows the real turn");
+  assert.match(tracker, /__conditionTurnMark = null;[\s\S]{0,400}__playerLastVisibleActiveId = "";/);
 });
 
-test("L16 (OP-02): l'avviso di turno non nomina ai giocatori la prossima creatura nascosta mai vista", () => {
+test("L16 (OP-02): il turno di una creatura nascosta non manda avvisi ai giocatori, e la prossima nascosta non è nominata", () => {
   const entries = new Map([
     ["pc", { name: "Aria" }],
     ["lurker", { name: "Ombra", hiddenToken: true }],
     ["orc", { name: "Orco" }],
   ]);
-  const state = { order: ["pc", "lurker", "orc"], current: 0, round: 1 };
-  const notice = buildTurnNoticePayload(state, entries);
+  const notice = buildTurnNoticePayload({ order: ["pc", "lurker", "orc"], current: 0, round: 1 }, entries);
   assert.equal(notice.nextName, "Ombra", "the GM sees it");
-  assert.equal(notice.nextPlayerName, "Orco", "the players see the next creature they know");
-  entries.set("lurker", { name: "Ombra", hiddenToken: true, revealedInCombat: true });
-  assert.equal(Object.hasOwn(buildTurnNoticePayload(state, entries), "nextPlayerName"), false, "met: named");
+  assert.equal(notice.nextPlayerName, "Orco", "the players see the next visible creature");
+  assert.equal(Object.hasOwn(notice, "currentHidden"), false);
+  const hiddenTurn = buildTurnNoticePayload({ order: ["pc", "lurker", "orc"], current: 1, round: 1 }, entries);
+  assert.equal(hiddenTurn.currentHidden, true);
+  assert.match(tracker, /TURN_NOTICE_CHANNEL, \{[\s\S]{0,200}\}, \{ destination: notice\?\.currentHidden \? "LOCAL" : "ALL" \}\);/);
   const page = read("../src/turn-notice.ts");
   assert.match(page, /const shownNextName = noticeRole !== "GM" && notice\.nextPlayerName \? notice\.nextPlayerName : notice\.nextName;/);
+});
+
+test("L16 (OP-02): i promemoria proiettati ai giocatori scartano i token nascosti", () => {
+  const notices = [
+    { id: "a", sourceId: "lurker" },
+    { id: "b", casterId: "lurker" },
+    { id: "c", target: { id: "lurker" } },
+    { id: "d", targets: [{ id: "lurker" }, { id: "pc" }] },
+    { id: "e", targets: [{ id: "lurker" }] },
+    { id: "f", sourceId: "pc", targets: [{ id: "orc" }] },
+  ];
+  const shown = withoutHiddenTokenNotices(notices, new Set(["lurker"]));
+  assert.deepEqual(shown.map((notice) => notice.id), ["d", "f"]);
+  assert.deepEqual(shown[0].targets, [{ id: "pc" }]);
+  assert.equal(shown[1], notices[5], "an untouched notice stays the same object");
+  assert.equal(withoutHiddenTokenNotices(notices, new Set()), notices);
+});
+
+test("L16 (OP-02): la concentrazione di una creatura nascosta resta al GM", () => {
+  const runtime = read("../src/concentrationSaveReminder.js");
+  assert.match(runtime, /function hiddenConcentratorIds\(/);
+  assert.match(runtime, /\[scopedWarnings\.filter\(\(warning\) => !hiddenIds\.has\(String\(warning\?\.targetId \|\| ""\)\)\), "ALL"\],\n\s+\[scopedWarnings\.filter\(\(warning\) => hiddenIds\.has\(String\(warning\?\.targetId \|\| ""\)\)\), "LOCAL"\],/);
+});
+
+test("L16 (OP-02): le animazioni con un caster o un bersaglio nascosto restano sullo schermo del GM", async () => {
+  const visible = { orc: true, pc: true, lurker: false };
+  const sceneOBR = { scene: { items: { getItems: async (ids) => ids.filter((id) => id in visible).map((id) => ({ id, visible: visible[id] })) } } };
+  const source = read("../src/hiddenTokenBroadcast.js").replace(/^import .*\n/m, "").replace("export async function", "async function");
+  const load = (OBR) => new Function("OBR", `${source} return broadcastDestinationForTokens;`)(OBR);
+  const pick = load(sceneOBR);
+  const destinations = [];
+  for (const ids of [["pc", "orc"], ["lurker"], ["pc", "lurker"], [], "orc", ["", null]]) destinations.push(await pick(ids));
+  assert.deepEqual(destinations, ["ALL", "LOCAL", "LOCAL", "ALL", "ALL", "ALL"]);
+  const failing = load({ scene: { items: { getItems: async () => { throw new Error("offline"); } } } });
+  assert.equal(await failing(["orc"]), "ALL");
+  assert.match(read("../src/embersMatchedVisualRenderer.js"),
+    /broadcastDestinationForTokens\(\[casterId, \.\.\.\(Array\.isArray\(targetIds\) \? targetIds : \[\]\)\]\);\n\s+await OBR\.broadcast\.sendMessage\(\n\s+EMBERS_MATCHED_VISUAL_CHANNEL,\n\s+event,\n\s+\{ destination \},/);
+  assert.match(read("../src/fireballVisualRenderer.js"),
+    /broadcastDestinationForTokens\(casterId\);\n\s+await OBR\.broadcast\.sendMessage\(\n\s+FIREBALL_VISUAL_CHANNEL,\n\s+visualEvent,\n\s+\{ destination \},/);
 });
 
 test("L16 (OP-02): la vista di un giocatore non segue un token nascosto", () => {

@@ -20,10 +20,10 @@ function entryName(id, entriesById) {
   return "Creatura";
 }
 
-// Lot L16: a hidden creature the players have not met (it has not had its turn) is not named to them as "next":
-// the next creature they know.
+// Lot L16: a token the GM keeps hidden is never named to the players: not as the creature of the turn (that notice
+// stays with the GM), not as the next one (the next visible creature instead).
 function unknownToPlayers(entry) {
-  return entry?.hiddenToken === true && entry?.revealedInCombat !== true;
+  return entry?.hiddenToken === true;
 }
 
 function nextKnownName(order, current, entriesById) {
@@ -51,6 +51,7 @@ export function buildTurnNoticePayload(state, entriesById) {
     ...(unknownToPlayers(entryForId(nextId, entriesById))
       ? { nextPlayerName: nextKnownName(order, current, entriesById) }
       : {}),
+    ...(unknownToPlayers(currentEntry) ? { currentHidden: true } : {}),
     currentPortrait: portrait.length <= 2048 ? portrait : "",
     currentAttitude: String(currentEntry?.attitude || "neutral").trim().toLowerCase(),
     round,
