@@ -36,13 +36,13 @@ test("L20: l'avviso di concentrazione del GM con Superato e Fallito ha la ×", (
   assert.match(page, /\n\s+\.close \{[^}]*pointer-events: auto;[^}]*\}/);
 });
 
-test("L20: gli avvisi non si coprono: il turno in alto, il TS contro la morte sotto, il Legame del boss in basso", () => {
-  // The concentration warning stays at the top, where the plugin's notices are: the user found the bottom of the
+test("L20: gli avvisi restano in alto; il TS contro la morte si apre sotto l'avviso di turno", () => {
+  // The concentration and boss link warnings stay at the top, where the plugin's notices are: the user found the bottom of the
   // screen out of place.
   const tracker = read("../src/initiativeList.js");
   assert.match(tracker, /url,\n\s+width,\n\s+height,\n\s+anchorReference: "POSITION",\n\s+anchorPosition: \{ left: viewportWidth \/ 2, top: Math\.max\(8, top - 4\) \},\n\s+anchorOrigin: \{ horizontal: "CENTER", vertical: "TOP" \},/);
   const bossLink = read("../src/bossLinkNoticeHost.js");
-  assert.match(bossLink, /anchorPosition: \{ left: viewportWidth \/ 2, top: Math\.max\(top, viewportHeight - 16\) \},\n\s+anchorOrigin: \{ horizontal: "CENTER", vertical: "BOTTOM" \},\n\s+transformOrigin: \{ horizontal: "CENTER", vertical: "BOTTOM" \},/);
+  assert.match(bossLink, /anchorPosition: \{ left: viewportWidth \/ 2, top: Math\.max\(8, top - 4\) \},\n\s+anchorOrigin: \{ horizontal: "CENTER", vertical: "TOP" \},\n\s+transformOrigin: \{ horizontal: "CENTER", vertical: "TOP" \},/);
   const deathSave = read("../src/deathSaveNoticeHost.js");
   assert.match(deathSave, /top: Math\.max\(12, Math\.round\(viewportHeight \* 0\.09\)\) \+ 122 \+ 12 \}/);
   const turn = read("../src/turnNoticeHost.js");
