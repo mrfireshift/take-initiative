@@ -9237,6 +9237,8 @@ function __openSpellPillActions(sourceEntry, spell, event) {
       transformOrigin: placement.transformOrigin,
       marginThreshold: 12,
       hidePaper: true,
+      // It asks to select the creature on the map: a click there closed it (lot L20). Its × or Esc close it.
+      disableClickAway: true,
     });
   })().catch((error) => {
     console.warn("[spell-pill-actions] popover open error:", error?.message || error);

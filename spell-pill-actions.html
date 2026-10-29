@@ -29,6 +29,8 @@
       .status:empty { display: none; }
       .footer { display: flex; justify-content: space-between; gap: 6px; }
       .footer button { height: 24px; font-size: 10px; }
+      .head .close { flex: 0 0 auto; width: 22px; height: 22px; padding: 0; border: 0; background: transparent; color: rgba(255,255,255,.78); font-size: 15px; line-height: 20px; }
+      .head .close:hover { background: rgba(255,255,255,.1); color: #fff; }
       [hidden] { display: none !important; }
     </style>
   </head>
@@ -38,6 +40,7 @@
         <div class="head">
           <h1 id="title">Incantesimo</h1>
           <span id="counter" class="counter"></span>
+          <button id="close" class="close" type="button" aria-label="Chiudi" title="Chiudi">×</button>
         </div>
         <div id="meta" class="meta"></div>
       </header>

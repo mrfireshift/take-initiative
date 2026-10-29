@@ -58,6 +58,8 @@ function render() {
     fitHeight();
     return;
   }
+  // Back with the spell, after an Undo of its end (lot L20): hidden above, nothing showed it again.
+  $("panel").hidden = false;
   $("title").textContent = view.title;
   $("title").title = view.title;
   $("counter").textContent = view.counter;
@@ -101,15 +103,17 @@ async function run(actionId) {
   if (!action || (!spellActionRunsDirectly(action) && !spellPillActionNeedsTargets(action))) return;
   const operation = sceneLifecycle.capture({ operationId: `spell-pill-action:${Date.now().toString(36)}` });
   if (!sceneLifecycle.isCurrent(operation)) return;
+  // Busy before the map selection is read (lot L20): a double click ran the action twice while it was being read.
+  busy = true;
   const selectedTargetIds = spellPillActionNeedsTargets(action)
     ? await Promise.resolve(OBR.player.getSelection()).then((ids) => (Array.isArray(ids) ? ids : [])).catch(() => [])
     : [];
   if (spellPillActionNeedsTargets(action) && !selectedTargetIds.length) {
+    busy = false;
     setStatus("Seleziona prima sulla mappa la creatura dell'azione.", true);
     fitHeight();
     return;
   }
-  busy = true;
   setStatus("");
   render();
   try {
@@ -191,6 +195,7 @@ async function openPanel(actionId = "") {
   close();
 }
 
+$("close").addEventListener("click", close);
 $("undo").addEventListener("click", () => { void undo(); });
 $("panel").addEventListener("click", () => { void openPanel("").catch((error) => console.warn("[spell-pill-actions] panel", error)); });
 document.addEventListener("keydown", (event) => {
