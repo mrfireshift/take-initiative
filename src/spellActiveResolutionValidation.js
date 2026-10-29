@@ -354,6 +354,7 @@ function placementArea(placement, { parentArea = null, childKind = "" } = {}) {
     {
       widthSquares: placement.widthSquares,
       widthAnchor: placement.widthAnchor,
+      ...(placement.metric === "grid" ? { metric: "grid", footprint: placement.footprint } : {}),
     },
   );
   if (String(childKind || "").trim() === "fissure") {

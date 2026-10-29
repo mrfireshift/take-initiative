@@ -683,8 +683,26 @@ export function validateSpellAreaRule(rule) {
   };
 }
 
+// Instant areas the 2014 texts write "each creature within N feet of you" (or "within range" of a Self range): a range,
+// counted in cells from the caster's space with diagonals in, not a circle (docs/AREE_SU_GRIGLIA.md, D-B). Auras and
+// zones that move or persist keep their circle for now: their membership is recomputed elsewhere.
+const WITHIN_DISTANCE_RULE_IDS = new Set([
+  "divine-word:cast",
+  "phb2014-braccia-di-hadar:cast",
+  "phb2014-onda-distruttiva:cast",
+  "xanathar-parola-radiosa:cast",
+  "xanathar-rombo-di-tuono:cast",
+  "xanathar-passo-del-tuono:cast",
+  "tasha-turbine-di-spade:cast",
+]);
+
+function withGridMetric(rule) {
+  if (!WITHIN_DISTANCE_RULE_IDS.has(rule?.id) || rule?.geometry?.shape !== "circle") return rule;
+  return { ...rule, geometry: { ...rule.geometry, metric: "grid" } };
+}
+
 function defineRule(rule) {
-  const nextRule = withReminderResolutionData(rule);
+  const nextRule = withReminderResolutionData(withGridMetric(rule));
   const validation = validateSpellAreaRule(nextRule);
   if (!validation.valid) {
     throw new Error(`Invalid spell area rule "${nextRule?.id || "unknown"}": ${validation.errors.join(", ")}`);
@@ -3717,7 +3735,8 @@ export function getPcMonsterAreaRuleById(ruleId) {
       cube: { geometry: { shape: "rectangle", size: meters(feetToMetres(feet), "length"), width: meters(feetToMetres(feet), "width") }, placement: fromToken },
       sphere: { geometry: { shape: "circle", size: meters(feetToMetres(feet), "radius") },
         placement: { origin: "point", direction: "none", anchor: "world", range: null } },
-      emanation: { geometry: { shape: "circle", size: meters(feetToMetres(feet), "radius") },
+      // A monster's "each creature within N feet of it": counted in cells from its space, like the console's proposal.
+      emanation: { geometry: { shape: "circle", size: meters(feetToMetres(feet), "radius"), metric: "grid" },
         placement: { origin: "caster", direction: "none", anchor: "caster", range: null } },
     }[shape];
     PC_MONSTER_AREA_RULES.set(id, defineRule({

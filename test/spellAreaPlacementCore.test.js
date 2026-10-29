@@ -67,9 +67,8 @@ test("Invocare il fulmine deriva la nube da 18 m dal punto della scarica", () =>
 test("converte la portata massima in celle senza arrotondarla", () => {
   const range = { value: 18, unit: "m", measure: "range" };
   assert.equal(spellAreaRangeCells(range, { multiplier: 1.5, unit: "m" }), 12);
-  assert.ok(Math.abs(
-    spellAreaRangeCells(range, { multiplier: 5, unit: "ft" }) - 18 / 1.524,
-  ) < 1e-9);
+  // Lot L25 (MP-09): a "5 ft" cell is D&D's 1,5 m square, so 18 m (60 ft) is 12 cells, not 11.8.
+  assert.ok(Math.abs(spellAreaRangeCells(range, { multiplier: 5, unit: "ft" }) - 12) < 1e-9);
   assert.equal(spellAreaRangeCells({ value: 2, unit: "m" }, { multiplier: 1.5, unit: "m" }), 2 / 1.5);
   assert.equal(spellAreaRangeCells(null, { multiplier: 1.5, unit: "m" }), 0);
 });

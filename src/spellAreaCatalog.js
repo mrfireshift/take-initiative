@@ -168,6 +168,13 @@ const DECLARATIVE_ZONE_MOVEMENTS = Object.freeze({
 // Override curati per record senza geometria strutturata o per campi SRD che
 // descrivono l'altezza/estensione massima invece del raggio utile sulla mappa.
 const AREA_OVERRIDES = Object.freeze({
+  // A 15-foot cube that starts from the caster: a face touches the caster's token and the cube goes the way the GM
+  // points, as a monster's cube (spellAreaRules.js). Centred on a vertex of the caster it always took the caster in.
+  thunderwave: {
+    shape: "rectangle",
+    widthMeters: 4.5,
+    origin: "caster-adjacent",
+  },
   // Zones of lotto L3 (2014 texts).
   "xanathar-muro-di-sabbia": {
     shape: "line",

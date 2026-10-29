@@ -273,10 +273,10 @@ La distanza planare non è centro-centro: viene calcolata tra le caselle occupat
 
 | Forma | Misura mostrata | Regola di inclusione |
 | --- | --- | --- |
-| Cerchio | raggio | Caselle toccate dal template |
+| Cerchio | raggio | Centro della casella entro il raggio (circa metà coperta, Guida del DM) |
 | Quadrato | lato | Caselle comprese nel quadrato |
-| Cono | lunghezza | Template di Xanathar, rotazione libera |
-| Linea | lunghezza | Caselle attraversate dalla linea |
+| Cono | lunghezza | Sagoma oltre il 15% della casella, dalla mediana del lato; rotazione libera |
+| Linea | lunghezza | Centro della casella nella fascia, dalla prima casella alla lunghezza esclusa |
 | Rettangolo | lunghezza × larghezza | Soglia prossima al 50% per le geometrie spell dedicate |
 
 La selezione considera l'intersezione tra l'area e l'ingombro del token, inclusi i token grandi. Ogni area persistente conserva geometria e stile nei propri metadata.

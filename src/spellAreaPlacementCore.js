@@ -13,15 +13,17 @@ export function spellAreaPlacementParentUnavailable(
 
 const DEFAULT_METERS_PER_CELL = 1.5;
 const CALL_LIGHTNING_CLOUD_RADIUS_RATIO = 18 / 1.5;
+// Feet as D&D counts them (5 ft = 1,5 m), not the international foot: a "5 ft" cell is the 1,5 m square the rules and
+// the rule geometry use. With 0.3048 a 150 ft range (45 m) was 29.5 cells (docs/AREE_SU_GRIGLIA.md, MP-09).
 const UNIT_METERS = Object.freeze({
   m: 1,
   meter: 1,
   meters: 1,
   metro: 1,
   metri: 1,
-  ft: 0.3048,
-  foot: 0.3048,
-  feet: 0.3048,
+  ft: 0.3,
+  foot: 0.3,
+  feet: 0.3,
   cm: 0.01,
   km: 1000,
 });
@@ -298,7 +300,8 @@ export function spellAreaOriginWithinRange({
   if (!origin || !casterOrigin) return false;
   const point = finitePoint(origin);
   const caster = finitePoint(casterOrigin);
-  const distanceCells = Math.hypot(point.x - caster.x, point.y - caster.y)
+  // Counted in cells as the grid variant of the PHB does: a diagonal step is one cell, like a straight one.
+  const distanceCells = Math.max(Math.abs(point.x - caster.x), Math.abs(point.y - caster.y))
     / Math.max(1, Number(dpi) || 1);
   return distanceCells * gridMetersPerCell(scale) <= rangeMeters + 1e-9;
 }
@@ -371,6 +374,16 @@ export function reviewSpellAreaPlacement(session, preview) {
         : {}),
       ...(type === "circle" && Number.isFinite(radius) && radius > 0
         ? { radius }
+        : {}),
+      // "Within N feet": counted from the caster's space (aoeGeometryCore.buildWithinDistanceArea).
+      ...(type === "circle" && preview.metric === "grid"
+        ? {
+          metric: "grid",
+          footprint: {
+            widthCells: Math.max(1, Math.round(Number(preview.footprint?.widthCells) || 1)),
+            heightCells: Math.max(1, Math.round(Number(preview.footprint?.heightCells) || 1)),
+          },
+        }
         : {}),
       ...(Number(preview.widthSquares) > 0
         ? {

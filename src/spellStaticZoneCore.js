@@ -55,6 +55,7 @@ export function translatedZoneArea(item, positionOverride = null) {
     {
       widthSquares: metadata.widthSquares,
       widthAnchor: metadata.widthAnchor,
+      ...(metadata.metric === "grid" ? { metric: "grid", footprint: metadata.footprint } : {}),
       ...(metadata.ring === true
         ? { ring: true, ringInnerSquares: metadata.ringInnerSquares }
         : {}),

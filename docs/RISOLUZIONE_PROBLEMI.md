@@ -219,7 +219,7 @@ Per token grandi la misura parte dal bordo occupato più vicino. Un token visiva
 
 ## Un'area AoE seleziona caselle inattese
 
-Il metodo Template include ogni casella coperta anche parzialmente. Perciò il risultato può essere più ampio di un metodo basato sul centro della casella.
+Ogni forma ha la sua regola di inclusione (`docs/AREE_SU_GRIGLIA.md`). Il cerchio include una casella quando il suo centro è dentro il raggio. Il cono la include quando la sagoma ne copre più del 15%, quindi può prendere caselle toccate solo in parte.
 
 I rettangoli specifici degli incantesimi, come Folata di Vento, usano una
 soglia prossima al 50% della casella. Se il rettangolo straborda, annota anche

@@ -479,3 +479,28 @@ test("l'emanazione da un token grande non dipende da dove sta l'origine della gr
   assert.deepEqual(far.cells.map(key).sort(), near.cells.map(key).sort());
   assert.ok(far.cells.length > geometry.buildCircleArea({ x: 770, y: 280 }, { x: 770 + 6 * dpi, y: 280 }, dpi).cells.length, "a 2x2 token reaches more cells than its centre circle");
 });
+
+// Lot L25 of the bugfix pass (MP-03): a line one cell wide took a cell too many along it (Lightning Bolt 21×1 from a
+// cell centre) or, from a vertex or across an edge, two rows (Wall of Fire 12×2).
+test("L25: linee e muri larghi una casella: 20 caselle in lunghezza, una sola riga da un vertice o da un bordo", () => {
+  const rows = (area) => new Set(area.cells.map((cell) => Math.round(cell.y / 100)));
+  const columns = (area) => new Set(area.cells.map((cell) => Math.round(cell.x / 100)));
+  // Lightning Bolt (100 ft = 20 cells) starts from the centre of the cell next to the caster (cell 0): columns 1 to 20,
+  // no gap next to the caster and no 21st cell (docs/AREE_SU_GRIGLIA.md).
+  const bolt = buildLineArea({ x: 150, y: 50 }, { x: 2150, y: 50 }, 100, { x: 0, y: 0 }, 1);
+  assert.deepEqual(bolt.cells.map((cell) => cell.x / 100).sort((a, b) => a - b), Array.from({ length: 20 }, (_, index) => index + 1));
+  assert.equal(rows(bolt).size, 1);
+  // A wall drawn from a vertex, horizontally and vertically: one row, one column.
+  const wall = buildLineArea({ x: 0, y: 0 }, { x: 1200, y: 0 }, 100, { x: 0, y: 0 }, 1);
+  assert.equal(rows(wall).size, 1);
+  assert.equal(wall.cells.length, 12);
+  const upright = buildLineArea({ x: 0, y: 0 }, { x: 0, y: 1200 }, 100, { x: 0, y: 0 }, 1);
+  assert.equal(columns(upright).size, 1);
+  assert.equal(upright.cells.length, 12);
+  // From the middle of a vertical edge, going down along that edge.
+  const down = buildLineArea({ x: 0, y: 50 }, { x: 0, y: 1250 }, 100, { x: 0, y: 0 }, 1);
+  assert.equal(columns(down).size, 1);
+  // A line two cells wide still runs on a grid line: two rows.
+  const wide = buildLineArea({ x: 0, y: 0 }, { x: 1200, y: 0 }, 100, { x: 0, y: 0 }, 2);
+  assert.equal(rows(wide).size, 2);
+});

@@ -218,6 +218,52 @@ export function buildFootprintEmanationArea(center, footprint, squares, dpi, gri
   };
 }
 
+// "Each creature within N feet of you": a distance counted in cells from the token's space, a diagonal step worth one
+// as in the grid variant of the PHB (docs/AREE_SU_GRIGLIA.md, D-B). A cell is inside when it is at most N cells from
+// the nearest cell the token occupies: a square around the token, diagonals included. The token's own cells are in.
+export function buildWithinDistanceArea(center, footprint, squares, dpi, gridOrigin = center) {
+  const origin = finitePoint(center);
+  const safeDpi = Math.max(1, Number(dpi) || 1);
+  const outer = Math.max(1, Math.round(Number(squares) || 1));
+  const widthCells = Math.max(1, Math.round(Number(footprint?.widthCells) || 1));
+  const heightCells = Math.max(1, Math.round(Number(footprint?.heightCells) || 1));
+  const cellsOrigin = finitePoint(gridOrigin);
+  const halfWidth = ((widthCells - 1) / 2) * safeDpi;
+  const halfHeight = ((heightCells - 1) / 2) * safeDpi;
+  const radius = outer * safeDpi;
+  const reachX = outer + Math.ceil(widthCells / 2) + 2;
+  const reachY = outer + Math.ceil(heightCells / 2) + 2;
+  const baseColumn = Math.floor((origin.x - cellsOrigin.x) / safeDpi);
+  const baseRow = Math.floor((origin.y - cellsOrigin.y) / safeDpi);
+  const cells = [];
+  for (let column = baseColumn - reachX; column <= baseColumn + reachX; column += 1) {
+    for (let row = baseRow - reachY; row <= baseRow + reachY; row += 1) {
+      const cell = cellRect(cellsOrigin, column, row, safeDpi);
+      const point = cellCenter(cell);
+      const dx = Math.max(0, Math.abs(point.x - origin.x) - halfWidth);
+      const dy = Math.max(0, Math.abs(point.y - origin.y) - halfHeight);
+      if (Math.max(dx, dy) <= radius + EPSILON) cells.push(cell);
+    }
+  }
+  const outerX = halfWidth + radius + safeDpi / 2;
+  const outerY = halfHeight + radius + safeDpi / 2;
+  return {
+    type: "circle",
+    metric: "grid",
+    origin,
+    radius,
+    squares: outer,
+    cells,
+    footprint: { widthCells, heightCells, halfWidth, halfHeight },
+    points: [
+      { x: origin.x - outerX, y: origin.y - outerY },
+      { x: origin.x + outerX, y: origin.y - outerY },
+      { x: origin.x + outerX, y: origin.y + outerY },
+      { x: origin.x - outerX, y: origin.y + outerY },
+    ],
+  };
+}
+
 export function buildCircleBandArea(
   start,
   end,
@@ -441,11 +487,18 @@ export function buildLineArea(
   const relativeOriginY = (origin.y - cellsOrigin.y) / safeDpi;
   const isCorner = Math.abs(relativeOriginX - Math.round(relativeOriginX)) < EPSILON
     && Math.abs(relativeOriginY - Math.round(relativeOriginY)) < EPSILON;
-  const alignmentOffset = safeWidthSquares % 2 === 0
-    ? (isCorner ? 0 : safeDpi / 2)
-    : 0;
+  // The centre line runs on a grid line for an even width and through cell centres for an odd one. Along the grid
+  // axes it is the origin's coordinate across the line that says where it starts: from a vertex (or from an edge, across
+  // it) a one-cell line sat between two rows and took both. A diagonal keeps the vertex rule.
   const halfWidth = safeWidthSquares * safeDpi / 2;
   const edgeOffset = widthAnchor === "edge" ? halfWidth : 0;
+  const axisAligned = Math.abs(direction.x) < EPSILON || Math.abs(direction.y) < EPSILON;
+  // Where the centre line would run (an "edge" anchor puts the origin on the wall's side, half a width away).
+  const centreAcross = relativeOriginX * perpendicular.x + relativeOriginY * perpendicular.y + edgeOffset / safeDpi;
+  const centreOnGridLine = Math.abs(centreAcross - Math.round(centreAcross)) < EPSILON;
+  const alignmentOffset = axisAligned
+    ? ((safeWidthSquares % 2 === 0) !== centreOnGridLine ? safeDpi / 2 : 0)
+    : (safeWidthSquares % 2 === 0 && !isCorner ? safeDpi / 2 : 0);
   const centerOrigin = {
     x: origin.x + perpendicular.x * (alignmentOffset + edgeOffset),
     y: origin.y + perpendicular.y * (alignmentOffset + edgeOffset),
@@ -470,7 +523,9 @@ export function buildLineArea(
       const along = relativeOrigin.x * direction.x + relativeOrigin.y * direction.y;
       const relativeCenter = { x: center.x - centerOrigin.x, y: center.y - centerOrigin.y };
       const across = Math.abs(relativeCenter.x * perpendicular.x + relativeCenter.y * perpendicular.y);
-      if (along >= -EPSILON && along <= distance + EPSILON && across <= halfWidth + EPSILON) cells.push(cell);
+      // Half-open along the line, [0, length): from the cell next to the caster (the origin is its centre) a 30 m line
+      // takes 20 cells, not the one at the exact length too (docs/AREE_SU_GRIGLIA.md).
+      if (along >= -EPSILON && along < distance - EPSILON && across <= halfWidth + EPSILON) cells.push(cell);
     }
   }
   return {
@@ -585,7 +640,7 @@ export function buildLineSideBandArea(
       const signedAcross = across * side;
       if (
         along >= -EPSILON
-        && along <= body.distance + EPSILON
+        && along < body.distance - EPSILON
         && signedAcross >= body.halfWidth - EPSILON
         && signedAcross <= outerHalfWidth + EPSILON
       ) {
@@ -738,6 +793,10 @@ export function buildArea(
       ...options.band,
       ringInnerSquares: options?.ringInnerSquares,
     });
+  }
+  // An area written "within N feet of you" (rule geometry metric "grid"), measured from the caster's space.
+  if (options?.metric === "grid" && !options?.ring) {
+    return buildWithinDistanceArea(start, options.footprint, snappedAreaLength(start, end, dpi), dpi, gridOrigin);
   }
   return buildCircleArea(start, end, dpi, gridOrigin, options);
 }

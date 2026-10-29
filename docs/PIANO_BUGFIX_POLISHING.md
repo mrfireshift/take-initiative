@@ -110,6 +110,15 @@ Lotti fatti:
   - «Carica eventi precedenti» resta spento quando la lista è completa.
   - Test in `historyModalRebuildState`, `combatLogImplicitSessionRace`, `combatLogPaginationBehavior` e `historyLocalStore`. Falliscono senza la patch.
   - `teleportUndoIntegration` ora aspetta l'evento nel Registro: la Cronologia lo scrive dopo la risposta (`awaitWrite: false`), e il test passava solo per i tempi.
+- **L25** (29/10): geometria delle aree (MP-03, MP-04, MP-07, MP-09, MP-10), dopo la ricerca sulle regole delle aree su griglia (`docs/AREE_SU_GRIGLIA.md`, decisioni D-A, D-B, D-C).
+  - MP-06 è ritirato: l'origine dei coni dalla mediana del lato è voluta (commit `e47131c3`).
+  - Linee: 20 caselle dalla prima accanto al caster, una sola fila da un vertice.
+  - Onda tonante: cubo con una faccia sul caster.
+  - Aree istantanee «entro N metri» ed emanazioni dei mostri: caselle contate dall'impronta del token, diagonali comprese.
+  - Gittata in caselle, con i piedi a 1,5 m ogni 5.
+  - «Aspetto area» non tocca le zone degli incantesimi.
+  - La guida ora descrive la regola vera di cerchio e cono.
+  - Test in `areaGeometryFixes`, `aoeGeometryCore` e `spellAreaPlacementCore`; quello della conversione in piedi è adeguato alla decisione D-C.
 
 Richiesta dell'utente: un passaggio generale di bugfix su tutti i sistemi e sottosistemi del plugin, più il polishing. Prima il piano; poi un lotto alla volta, ciascuno con test, `npm test`, `npm run build` e `npm run perf:bundle` entro i tetti, e un commit per lotto. Bundle di produzione e push solo su richiesta.
 

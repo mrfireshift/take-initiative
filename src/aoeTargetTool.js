@@ -760,6 +760,13 @@ function geometryCommands(area) {
   if (area?.clippedToParent || area?.ring || area?.areaRole === "side-band") {
     return boundaryCommands(area.cells);
   }
+  // "Within N feet": the square the cell count reaches, drawn from its corners.
+  if (area?.type === "circle" && area.metric === "grid" && Array.isArray(area.points)) {
+    const commands = [[Command.MOVE, area.points[0].x, area.points[0].y]];
+    for (const corner of area.points.slice(1)) commands.push([Command.LINE, corner.x, corner.y]);
+    commands.push([Command.CLOSE]);
+    return commands;
+  }
   if (area?.type === "circle" && (area.footprint?.halfWidth > 0 || area.footprint?.halfHeight > 0)) {
     return footprintEmanationCommands(area);
   }
@@ -813,8 +820,17 @@ function footprintEmanationCommands(area) {
   ];
 }
 
+// An area written "within N feet" (rule geometry metric "grid"): counted from the caster's space. The metric and the
+// caster's footprint travel with the area (placement, stored metadata) so every rebuild finds the same cells.
+function areaMetricFields(rule, state = {}) {
+  return rule?.geometry?.metric === "grid"
+    ? { metric: "grid", footprint: gridFootprintCells(state.casterBounds, state.dpi) }
+    : {};
+}
+
 function spellAreaGeometryOptions(rule, state = {}) {
   return {
+    ...areaMetricFields(rule, state),
     widthSquares: state.widthCells,
     widthAnchor: rule?.geometry?.widthAnchor,
     ...(rule?.geometry?.ring === true
@@ -859,11 +875,14 @@ function spellRangePreviewPath(origin, radius, strokeWidth) {
     "#ef4444",
     "#ef4444",
   );
-  preview.commands = geometryCommands({
-    type: "circle",
-    origin,
-    radius,
-  });
+  // The range is counted in cells with a diagonal worth one (spellAreaOriginWithinRange): what it reaches is a square.
+  preview.commands = [
+    [Command.MOVE, origin.x - radius, origin.y - radius],
+    [Command.LINE, origin.x + radius, origin.y - radius],
+    [Command.LINE, origin.x + radius, origin.y + radius],
+    [Command.LINE, origin.x - radius, origin.y + radius],
+    [Command.CLOSE],
+  ];
   return preview;
 }
 
@@ -1466,6 +1485,7 @@ function persistentAreaMetadata(state) {
       }
       : {}),
     ...(state.rule?.geometry?.widthAnchor === "edge" ? { widthAnchor: "edge" } : {}),
+    ...areaMetricFields(state.rule, state),
   };
 }
 
@@ -1506,6 +1526,7 @@ function translatedAreaFromItem(item) {
     {
       widthSquares: metadata.widthSquares,
       widthAnchor: metadata.widthAnchor,
+      ...(metadata.metric === "grid" ? { metric: "grid", footprint: metadata.footprint } : {}),
       ...(metadata.ring === true
         ? { ring: true, ringInnerSquares: metadata.ringInnerSquares }
         : {}),
@@ -1517,6 +1538,8 @@ async function applyStyleToExistingAreas(style) {
   await OBR.scene.items.updateItems(
     (item) => {
       const metadata = item?.metadata?.[AREA_META_KEY];
+      // A spell's zone (Moonbeam, Wall of Fire) keeps its own theme: «Aspetto area» is for the areas drawn by hand.
+      if (item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]) return false;
       return (!!metadata?.type || !!metadata?.parentId) && metadata?.fixedStyle !== true;
     },
     (items) => {
@@ -1751,6 +1774,7 @@ async function finishDrag(state) {
           start: state.start,
           end: state.end,
           ...(area.type === "circle" ? { radius: area.radius } : {}),
+          ...areaMetricFields(state.rule, state),
           dpi: state.dpi,
           gridOrigin: state.gridOrigin,
           widthSquares: state.widthCells,
@@ -1786,6 +1810,7 @@ async function finishDrag(state) {
         start: state.start,
         end: state.end,
         ...(area.type === "circle" ? { radius: area.radius } : {}),
+        ...areaMetricFields(state.rule, state),
         dpi: state.dpi,
         gridOrigin: state.gridOrigin,
         widthSquares: state.widthCells,
@@ -2087,6 +2112,7 @@ async function confirmSpellPlacement() {
     start: state.start,
     end: state.end,
     ...(area.type === "circle" ? { radius: area.radius } : {}),
+    ...areaMetricFields(state.rule, state),
     dpi: state.dpi,
     gridOrigin: state.gridOrigin,
     widthSquares: state.widthCells,

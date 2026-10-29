@@ -767,7 +767,7 @@ Lo strumento **Targeting area** è disponibile al GM nella toolbar destra e incl
 
 Durante il trascinamento compare la misura in metri. Origine e dimensioni possono agganciarsi al centro o ai vertici delle caselle. Le forme restano sulla scena dopo la creazione e continuano a selezionare i token intersecati quando vengono spostate.
 
-Il cerchio e il cono usano il metodo **Template** di Xanathar: una casella è inclusa quando il modello la copre anche solo parzialmente. La forma sagomata segue quindi il contorno delle caselle incluse, mentre una silhouette geometrica interna rende leggibile la geometria originaria.
+Il cerchio segue la regola della Guida del DM: una casella è inclusa quando il suo centro cade dentro il raggio, cioè quando il cerchio ne copre circa la metà. Il cono include una casella quando la sagoma ne copre più del 15%. Il cono parte dalla mediana del lato della casella scelta accanto al caster, anche in diagonale. La forma sagomata segue il contorno delle caselle incluse, mentre una silhouette geometrica interna rende leggibile la geometria originaria. Regole e scelte sono raccolte in `docs/AREE_SU_GRIGLIA.md`.
 
 Le geometrie rettangolari specifiche degli incantesimi usano invece una soglia
 di copertura prossima alla metà della casella. Folata di Vento produce così un
@@ -789,7 +789,7 @@ qualsiasi creatura; **Riposiziona area** la ridisegna. Nel registro e nella
 Cronologia un lancio senza TS (una cura, Parola del potere uccidere, Dissolvi
 magie) compare come incantesimo, non come tiro salvezza.
 
-**Aspetto area** permette di scegliere colore del riempimento, colore del contorno, opacità e spessore. Lo stile è una preferenza locale usata per le nuove aree. Dal menu contestuale di un'area puoi scegliere **Riseleziona bersagli**.
+**Aspetto area** permette di scegliere colore del riempimento, colore del contorno, opacità e spessore. Lo stile è una preferenza locale: vale per le nuove aree e ricolora le aree disegnate a mano già sulla mappa, mentre le zone degli incantesimi (Raggio lunare, Muro di fuoco) conservano il loro tema. Dal menu contestuale di un'area puoi scegliere **Riseleziona bersagli**.
 
 ## 14. Etichette sulla mappa
 
