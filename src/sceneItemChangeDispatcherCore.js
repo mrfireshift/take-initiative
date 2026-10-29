@@ -249,6 +249,7 @@ function createFlags() {
     widgets: false,
     activeTurnLabelOnly: false,
     trackerStructure: false,
+    visibility: false,
     attitude: false,
     aura: false,
     zone: false,
@@ -299,6 +300,7 @@ function markPluginTokenChange(flags, before, after, lifecycleChange) {
   flags.speedCheck ||= speedCheckChanged;
   flags.tracker ||= nameChanged || imageChanged || metaChanged;
   flags.trackerStructure ||= trackerStructureChanged || visibilityChanged;
+  flags.visibility ||= visibilityChanged;
   flags.hpBars ||= hpChanged || attitudeChanged || visibilityChanged;
   flags.attitude ||= attitudeChanged;
   flags.hpMemory ||= nameChanged || imageChanged || attitudeChanged;

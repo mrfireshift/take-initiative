@@ -11931,7 +11931,7 @@ OBR.scene.onMetadataChange((meta) => {
     if (addedInitiativeActors && __isCurrentSceneOperation(sceneEpoch, "item-dispatch")) {
       await startInitiativeFillMode({ silent: true, sceneEpoch });
     }
-  }, { filter: (event) => event.flags.tracker });
+  }, { filter: (event) => event.flags.tracker || event.flags.visibility });
 
   // ——— Auto-ripristino HP quando cambia qualcosa tra gli item della scena
 // (nuovi token, nome/ritratto cambiati, metadata azzerati, ecc.)

@@ -103,3 +103,32 @@ test("shared HP child changes invalidate their principal, including unlink and d
     assert.equal(plan([source, child], [source, ...after]).mode, "full");
   }
 });
+
+// Lot L16: a token shown or hidden by the GM changes no tracker field, and the card stayed as it was until the next
+// render (a turn change). Its card now enters or leaves the players' tracker at once.
+test("L16: mostrare o nascondere un token in iniziativa ridisegna subito il tracker", () => {
+  const shown = token({ visible: true });
+  const hidden = token({ visible: false });
+  const showEvent = classifySceneItemChanges([hidden], [shown]);
+  assert.equal(showEvent.flags.visibility, true);
+  assert.equal(showEvent.flags.tracker, false, "the other tracker listeners (History, speed check) stay quiet");
+  assert.deepEqual(plan([hidden], [shown]), { mode: "full", itemIds: [] });
+  assert.deepEqual(plan([shown], [hidden]), { mode: "full", itemIds: [] });
+});
+
+test("L16: la visibilità di un token fuori dall'iniziativa o un semplice movimento non ridisegnano nulla", () => {
+  const outside = (visible) => token({ visible, metadata: { [META_KEY]: { inInitiative: false, hp: 5, hpMax: 5 } } });
+  assert.deepEqual(plan([outside(false)], [outside(true)]), { mode: "none", itemIds: [] });
+  const moved = classifySceneItemChanges([token()], [token({ position: { x: 150, y: 0 } })]);
+  assert.equal(moved.flags.visibility, false);
+  assert.deepEqual(planIncrementalTrackerItemRender(moved), { mode: "none", itemIds: [] });
+  // A batch with a visibility change elsewhere does not patch the cards of tokens that only moved.
+  const ids = (items) => items.map((item, index) => ({ ...item, id: `token-${index + 1}` }));
+  const batch = classifySceneItemChanges(
+    ids([token(), outside(false)]),
+    ids([token({ position: { x: 150, y: 0 } }), outside(true)]),
+  );
+  assert.equal(batch.flags.visibility, true);
+  assert.equal(batch.flags.tracker, false);
+  assert.deepEqual(planIncrementalTrackerItemRender(batch), { mode: "none", itemIds: [] });
+});

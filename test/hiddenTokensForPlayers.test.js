@@ -21,6 +21,9 @@ test("L16 (HP-02, AV-07): nascondere o mostrare un token ricalcola barre, aure e
   assert.equal(flags.hpBars, true);
   assert.equal(flags.aura, true);
   assert.equal(flags.trackerStructure, true);
+  assert.equal(flags.visibility, true);
+  assert.match(tracker, /\}, \{ filter: \(event\) => event\.flags\.tracker \|\| event\.flags\.visibility \}\);/,
+    "the tracker redraws at once when a token is shown or hidden");
 });
 
 test("L16 (HP-02): barra e numero dei PF di un token nascosto restano al solo GM", () => {

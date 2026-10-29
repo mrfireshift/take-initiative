@@ -7,7 +7,8 @@ import {
 const META_KEY = `${ID}/meta`;
 
 export function planIncrementalTrackerItemRender(event) {
-  if (!event?.flags?.tracker) return { mode: "none", itemIds: [] };
+  const trackerChanged = event?.flags?.tracker === true;
+  if (!trackerChanged && event?.flags?.visibility !== true) return { mode: "none", itemIds: [] };
 
   const itemIds = new Set();
   for (const record of event.changedRecords || []) {
@@ -17,6 +18,13 @@ export function planIncrementalTrackerItemRender(event) {
     const afterMeta = afterItem?.metadata?.[META_KEY];
     const wasTracked = beforeMeta?.inInitiative === true;
     const isTracked = afterMeta?.inInitiative === true;
+
+    // Shown or hidden by the GM (lot L16): the card enters or leaves the players' tracker at once.
+    if ((wasTracked || isTracked) && beforeItem && afterItem
+        && (beforeItem.visible !== false) !== (afterItem.visible !== false)) {
+      return { mode: "full", itemIds: [] };
+    }
+    if (!trackerChanged) continue;
 
     if (beforeMeta?.sharedHpSourceId || afterMeta?.sharedHpSourceId) {
       const changedKeys = changedSceneItemMetadataKeys(record?.before, record?.after);
