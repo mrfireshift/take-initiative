@@ -175,7 +175,8 @@ Lotti fatti:
   - Clock (`587444d5`): un clock nuovo nasce nascosto, con la casella «Visibile ai giocatori» spenta nel modulo (scelta dell'utente); il pannello si ridisegna solo quando cambiano i clock e conserva «Gestisci» aperti, modulo di creazione e cursore. Test: `clocksPanelR3`.
   - Menu ⚡ degli incantesimi (`aef37c71`): resta aperto mentre si seleziona sulla mappa (`disableClickAway`) e si chiude con la × o Esc; occupato prima di leggere la selezione, così un doppio clic non esegue due volte; «Apri nel pannello» torna dopo l'Annulla della fine dell'incantesimo. Test: `spellPillMenuR3`.
   - Registro (`ecf4db0f`): menu «Da esportare» nel menu Esporta/importa, che esporta un registro archiviato senza renderlo attivo (scelta dell'utente); «Statistiche archivio» chiude l'operazione prima di mostrare il risultato, così i pulsanti non restano disabilitati. Test: `registroR3`.
-  - Restano: etichetta del turno e barra dei PF (⚠), aree libere, console PF.
+  - Console PF (`79da7db1`): «Applicato a N bersagli» conta solo i bersagli cambiati, al singolare quando serve, e dice a parte gli invariati. Test: `quickHpR3`.
+  - Restano: etichetta del turno e barra dei PF (⚠), aree libere (da vedere in stanza).
 - **Loop dell'Annulla con le aure** (29/10, segnalato dall'utente: Paladino a 0 PF, «Capacità terminata» ×2 a ogni Annulla).
   - Causa: il controller delle aure delle capacità di classe termina da solo una capacità quando la fonte riceve una condizione di fine (Privo di sensi) e scrive una voce sua nella Cronologia; annullata da sola, la capacità tornava mentre la fonte era ancora Privo di sensi e il controller la terminava di nuovo.
   - `2d8729d8`: le aure sempre attive (senza durata in round e senza azione per attivarle: le 5 del Paladino) sono sospese, non terminate: niente area né effetti mentre la fonte è Privo di sensi, tornano da sole quando si rialza, nessuna voce nella Cronologia.
