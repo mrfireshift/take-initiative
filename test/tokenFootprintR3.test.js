@@ -37,30 +37,39 @@ test("L20: scalare un token ridisegna la sua barra; ruotarlo o muoverlo no", () 
   assert.equal(change({ position: { x: 150, y: 0 } }).tokenScale, false, "a move: the bar goes with it, nothing to measure");
 });
 
-test("L20: le pill degli effetti restano dritte quando il token ruota", () => {
-  assert.deepEqual(attachmentBehaviorsWith(["COPY"], "ROTATION"), ["COPY", "ROTATION"]);
+test("L20: le pill degli effetti non ruotano né si ingrandiscono col token, e si ridispongono quando cambia la scala", () => {
+  assert.deepEqual(attachmentBehaviorsWith(["COPY"], "ROTATION", "SCALE"), ["COPY", "ROTATION", "SCALE"]);
   assert.deepEqual(attachmentBehaviorsWith(undefined, "ROTATION"), ["ROTATION"]);
-  assert.equal(hasAttachmentBehaviors({ disableAttachmentBehavior: ["ROTATION"] }, "ROTATION"), true);
-  assert.equal(hasAttachmentBehaviors({}, "ROTATION"), false);
+  assert.equal(hasAttachmentBehaviors({ disableAttachmentBehavior: ["ROTATION", "SCALE"] }, "ROTATION", "SCALE"), true);
+  assert.equal(hasAttachmentBehaviors({ disableAttachmentBehavior: ["ROTATION"] }, "ROTATION", "SCALE"), false);
   const layout = read("../src/effectsLayout.js");
-  assert.match(layout, /\.attachedTo\(spec\.targetId\)\n(\s+\/\/.*\n)+\s+\.disableAttachmentBehavior\(\["ROTATION"\]\)/, "a new pill");
-  assert.match(layout, /item\.disableAttachmentBehavior = attachmentBehaviorsWith\(item\.disableAttachmentBehavior, "ROTATION"\);\n\s+item\.rotation = 0;/, "a pill on the map is put right");
-  assert.equal(layout.split(`!hasAttachmentBehaviors(item, "ROTATION") ||`).length - 1, 2, "both kinds of pill are updated when they still turn");
-  assert.doesNotMatch(layout, /disableAttachmentBehavior\(\[[^\]]*"SCALE"/, "their size stays as it is");
+  assert.match(layout, /\.attachedTo\(spec\.targetId\)\n(\s+\/\/.*\n)+\s+\.disableAttachmentBehavior\(\["ROTATION", "SCALE"\]\)/, "a new pill");
+  assert.match(layout, /item\.disableAttachmentBehavior = attachmentBehaviorsWith\(item\.disableAttachmentBehavior, "ROTATION", "SCALE"\);\n\s+item\.rotation = 0;\n\s+item\.scale = \{ x: 1, y: 1 \};/,
+    "a pill on the map is put right, back to its own size");
+  assert.equal(layout.split(`!hasAttachmentBehaviors(item, "ROTATION", "SCALE") ||`).length - 1, 2, "both kinds of pill");
+  assert.equal(layout.split("!hasUnitScale(item) ||").length - 1, 2);
+  // A scaled token reaches the effects layout on its own domain; its badge, never moved once made, is made again.
+  assert.match(read("../src/sceneItemChangeDispatcherCore.js"), /if \(flags\.tokenScale\) domains\.add\("token-scale"\);/);
+  assert.match(read("../src/effectsReconciler.js"), /domains: \["effects", "movement", "token-scale"\],/);
+  assert.match(read("../src/effectsReconcilerCore.js"), /if \(recordFlags\.conditions \|\| recordFlags\.tokenScale\) conditions\.add\(item\.id\);/);
+  assert.match(read("../src/effectsLayoutCore.js"), /identity: `dot\|\$\{token\.id\}\|\$\{footprint\}`,/);
+  assert.match(layout, /identity: targetId \? `dot\|\$\{targetId\}\|\$\{String\(item\.metadata\?\.\[CONC_DOT_FOOTPRINT_KEY\] \|\| ""\)\}` : null,/);
 });
 
-test("L20: durante un'Azione epica l'etichetta del turno va sul boss; selezione e vista non cambiano", () => {
+test("L20: un'Azione epica porta etichetta del turno, selezione e vista sul boss", () => {
   const tracker = read("../src/initiativeList.js");
   const body = tracker.slice(tracker.indexOf("function __resolveAnchorForActive("), tracker.indexOf("// Trova la label attiva esistente"));
   const entries = new Map([["__EPIC__::auril::after::pc", { epicBossId: "auril" }]]);
-  const { label, shared } = new Function("isEpicActionId", "isLairId", "splitParagonId", "__activeLabelEntriesById",
-    `${body} return { label: __resolveLabelAnchorForActive, shared: __resolveAnchorForActive };`)(
+  const anchor = new Function("isEpicActionId", "isLairId", "splitParagonId", "__activeLabelEntriesById",
+    `${body} return __resolveAnchorForActive;`)(
     (id) => String(id).startsWith("__EPIC__"), (id) => id === "__LAIR__",
     (id) => ({ baseId: String(id).split("::p")[0] }), entries);
-  assert.equal(label("__EPIC__::auril::after::pc"), "auril");
-  assert.equal(label("__EPIC__::boss-2::after::pc"), "boss-2", "from its id when the entry is not known");
-  assert.equal(label("orc::p1"), "orc");
-  assert.equal(label("__LAIR__"), null, "the lair has no token");
-  assert.equal(shared("__EPIC__::auril::after::pc"), null, "the selection and the view are left as they were");
-  assert.match(tracker, /function syncActiveTurnLabel\(activeId\) \{\n\s+if \(!IS_GM \|\| !__activeTurnLabelRuntimeEnabled\) return;\n\s+const anchorId = __resolveLabelAnchorForActive\(activeId\);/);
+  assert.equal(anchor("__EPIC__::auril::after::pc"), "auril");
+  assert.equal(anchor("__EPIC__::boss-2::after::pc"), "boss-2", "from its id when the entry is not known");
+  assert.equal(anchor("orc::p1"), "orc");
+  assert.equal(anchor("__LAIR__"), null, "the lair has no token");
+  // One rule for the label, the selection and the view.
+  assert.doesNotMatch(tracker, /__resolveLabelAnchorForActive/);
+  assert.match(tracker, /const anchorId = __resolveAnchorForActive\(itemId\);\n\s+if \(!anchorId\) return;/, "selection and view");
+  assert.match(tracker, /function syncActiveTurnLabel\(activeId\) \{\n\s+if \(!IS_GM \|\| !__activeTurnLabelRuntimeEnabled\) return;\n\s+const anchorId = __resolveAnchorForActive\(activeId\);/);
 });

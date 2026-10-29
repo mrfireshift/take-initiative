@@ -367,7 +367,8 @@ export async function mountEffectsReconciler() {
     });
   }, {
     immediate: true,
-    domains: ["effects", "movement"],
+    // A scaled token too (lot L20): its pills keep their size and are laid out again on its new edge.
+    domains: ["effects", "movement", "token-scale"],
     filter: (event) => !event?.derived?.output,
   });
 

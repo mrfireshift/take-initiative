@@ -4421,22 +4421,17 @@ function queueSelectAndFocus(itemId, autoFocus = true) {
 }
 
 // Restituisce l'ID del token reale a cui ancorare la label (null se virtuale)
+// An Epic Action is its boss's turn (lot L20): the label, the selection and the view go on the boss. They vanished for
+// the whole Epic Action.
 function __resolveAnchorForActive(activeId) {
   if (!activeId) return null;
-  if (isEpicActionId && isEpicActionId(activeId)) return null; // voce virtuale
-  if (isLairId && isLairId(activeId)) return null;             // Tana è virtuale
-  const { baseId } = splitParagonId(activeId);                  // paragon -> base
-  return baseId || activeId;
-}
-
-// The token the turn label goes on: the active token's, and during an Epic Action its boss (lot L20): the label
-// vanished for the whole Epic Action. Only the label: the selection and the view keep __resolveAnchorForActive.
-function __resolveLabelAnchorForActive(activeId) {
-  if (activeId && isEpicActionId && isEpicActionId(activeId)) {
+  if (isEpicActionId && isEpicActionId(activeId)) {
     const bossId = __activeLabelEntriesById.get(activeId)?.epicBossId || String(activeId).split("::")[1] || "";
     return bossId || null;
   }
-  return __resolveAnchorForActive(activeId);
+  if (isLairId && isLairId(activeId)) return null;             // Tana è virtuale
+  const { baseId } = splitParagonId(activeId);                  // paragon -> base
+  return baseId || activeId;
 }
 
 // Trova la label attiva esistente (identificata dal nostro metadata)
@@ -4719,7 +4714,7 @@ function __startActiveTurnLabelPump() {
 
 function syncActiveTurnLabel(activeId) {
   if (!IS_GM || !__activeTurnLabelRuntimeEnabled) return;
-  const anchorId = __resolveLabelAnchorForActive(activeId);
+  const anchorId = __resolveAnchorForActive(activeId);
   const activeEntry =
     __activeLabelEntriesById.get(activeId) ||
     __activeLabelEntriesById.get(anchorId);

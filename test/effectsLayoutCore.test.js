@@ -747,7 +747,7 @@ test("durata, larghezza e badge concentrazione sono calcolati nello stesso piano
   const dot = desired.find((entry) => entry.kind === "dot");
   const spell = desired.find((entry) => entry.kind === "spell");
 
-  assert.equal(dot.identity, "dot|caster");
+  assert.equal(dot.identity, "dot|caster|1x1", "the cells it sits in are part of what it is (lot L20)");
   assert.equal(dot.backgroundColor, "#663399");
   assert.equal(spell.text, "Trama Ipnotica (8)");
   assert.equal(spell.width, 204);

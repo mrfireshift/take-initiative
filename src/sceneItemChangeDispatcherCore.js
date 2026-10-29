@@ -392,6 +392,7 @@ function deriveEventDomains(flags) {
   if (flags.conditions || flags.concentration || flags.reminderResolutions) domains.add("effects");
   if (flags.widgets) domains.add("effects-widgets");
   if (flags.movement) domains.add("movement");
+  if (flags.tokenScale) domains.add("token-scale");
   if (flags.elevation) domains.add("elevation");
   if (flags.activeTurnLabelOnly) domains.add("active-label");
 

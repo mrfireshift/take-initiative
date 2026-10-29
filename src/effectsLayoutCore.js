@@ -370,11 +370,17 @@ function planDot(token, assignments, config, sceneDpi) {
   // whole cells around the token's centre, so an image larger than its cells does not push the badge out.
   const box = visualTokenBox(token, sceneDpi);
   const cell = Math.max(1, Number(sceneDpi) || 70);
-  const cellLeft = (Number(token?.position?.x) || 0) - Math.max(1, Math.round(box.width / cell)) * cell / 2;
-  const cellTop = (Number(token?.position?.y) || 0) - Math.max(1, Math.round(box.height / cell)) * cell / 2;
+  const cellsWide = Math.max(1, Math.round(box.width / cell));
+  const cellsHigh = Math.max(1, Math.round(box.height / cell));
+  const cellLeft = (Number(token?.position?.x) || 0) - cellsWide * cell / 2;
+  const cellTop = (Number(token?.position?.y) || 0) - cellsHigh * cell / 2;
+  // The badge is never moved once made (effectsLayout.js): the cells it sits in are part of what it is, so a token
+  // scaled over more or fewer cells gets a new badge in its new corner (lot L20).
+  const footprint = `${cellsWide}x${cellsHigh}`;
   const inset = Math.max(2, cell * 0.04);
   return {
-    identity: `dot|${token.id}`,
+    identity: `dot|${token.id}|${footprint}`,
+    footprint,
     kind: "dot",
     targetId: token.id,
     casterId: token.id,

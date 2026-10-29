@@ -262,7 +262,9 @@ export function collectEffectsInvalidation(event, {
       const recordItems = [record?.before?.item, record?.after?.item].filter(Boolean);
       const item = recordItems.at(-1);
       if (!item?.id) continue;
-      if (recordFlags.conditions) conditions.add(item.id);
+      if (recordFlags.conditions || recordFlags.tokenScale) conditions.add(item.id);
+      // A scaled token: its concentration badge goes on its new top-left cell (lot L20).
+      if (recordFlags.tokenScale) concentration.add(item.id);
       if (recordFlags.concentration) {
         concentration.add(item.id);
         for (const recordItem of recordItems) {

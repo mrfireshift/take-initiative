@@ -31,6 +31,7 @@ const CONC_WIDGET_KEY = `${ID}/concWidgetKey`;
 const CONC_WIDGET_CASTER = `${ID}/concWidgetCaster`;
 const CONC_LABEL_HASHKEY = `${ID}/concLabelHash`;
 const CONC_DOT_LAYOUT_KEY = `${ID}/concDotLayout`;
+const CONC_DOT_FOOTPRINT_KEY = `${ID}/concDotFootprint`;
 const CONC_DOT_LAYOUT_VERSION = 11;
 const CONC_LABEL_LAYOUT_KEY = `${ID}/concLabelLayout`;
 const CONC_LABEL_LAYOUT_VERSION = 2;
@@ -186,7 +187,7 @@ function classifyExistingWidget(item) {
   if (!casterId && (item.name === DOT_BG_NAME || item.name === DOT_TEXT_NAME)) {
     return {
       item,
-      identity: targetId ? `dot|${targetId}` : null,
+      identity: targetId ? `dot|${targetId}|${String(item.metadata?.[CONC_DOT_FOOTPRINT_KEY] || "")}` : null,
       valid: !!targetId && item.type === "LABEL" && item.name === DOT_TEXT_NAME &&
         item.text?.plainText === "C" &&
         item.metadata?.[CONC_DOT_LAYOUT_KEY] === CONC_DOT_LAYOUT_VERSION,
@@ -224,8 +225,9 @@ function commonLabelNeedsUpdate(item, spec) {
     item.layer !== "TEXT" ||
     item.locked !== true ||
     item.disableHit !== true ||
-    !hasAttachmentBehaviors(item, "ROTATION") ||
+    !hasAttachmentBehaviors(item, "ROTATION", "SCALE") ||
     (Number(item.rotation) || 0) !== 0 ||
+    !hasUnitScale(item) ||
     item.position?.x !== spec.x ||
     item.position?.y !== spec.y ||
     text.width !== spec.width ||
@@ -253,6 +255,11 @@ function commonLabelNeedsUpdate(item, spec) {
     item.zIndex !== spec.zIndex;
 }
 
+// A pill grown by its token before lot L20 goes back to its own size.
+function hasUnitScale(item) {
+  return (item?.scale?.x ?? 1) === 1 && (item?.scale?.y ?? 1) === 1;
+}
+
 function widgetNeedsUpdate(item, spec) {
   if (spec.kind === "dot") {
     // Le coordinate del badge sono relative all'attachment dopo la creazione.
@@ -261,8 +268,9 @@ function widgetNeedsUpdate(item, spec) {
       item.layer !== "TEXT" ||
       item.locked !== true ||
       item.disableHit !== true ||
-      !hasAttachmentBehaviors(item, "ROTATION") ||
+      !hasAttachmentBehaviors(item, "ROTATION", "SCALE") ||
       (Number(item.rotation) || 0) !== 0 ||
+      !hasUnitScale(item) ||
       item.metadata?.[CONC_WIDGET_KEY] !== spec.key ||
       item.style?.backgroundColor !== spec.backgroundColor ||
       item.style?.backgroundOpacity !== 1 ||
@@ -289,6 +297,7 @@ function metadataForSpec(spec) {
       [CONC_WIDGET_META]: spec.targetId,
       [CONC_WIDGET_KEY]: spec.key,
       [CONC_DOT_LAYOUT_KEY]: CONC_DOT_LAYOUT_VERSION,
+      [CONC_DOT_FOOTPRINT_KEY]: spec.footprint || "",
     };
   }
   return {
@@ -332,8 +341,9 @@ function buildWidget(spec) {
     .pointerDirection(spec.pointerDirection)
     .maxViewScale(spec.maxViewScale)
     .attachedTo(spec.targetId)
-    // A pill stays upright when its token turns (a token turned to show Prono turned its pills too) (lot L20).
-    .disableAttachmentBehavior(["ROTATION"])
+    // A pill stays upright and keeps its size when its token turns or grows (lot L20): a token turned to show Prono
+    // turned its pills, a token made larger made them larger. The layout puts them on the token's new edge.
+    .disableAttachmentBehavior(["ROTATION", "SCALE"])
     .layer("TEXT")
     .name(nameForSpec(spec))
     .metadata(metadataForSpec(spec))
@@ -348,8 +358,9 @@ function applySpec(item, spec) {
   item.locked = true;
   item.disableHit = true;
   item.attachedTo = spec.targetId;
-  item.disableAttachmentBehavior = attachmentBehaviorsWith(item.disableAttachmentBehavior, "ROTATION");
+  item.disableAttachmentBehavior = attachmentBehaviorsWith(item.disableAttachmentBehavior, "ROTATION", "SCALE");
   item.rotation = 0;
+  item.scale = { x: 1, y: 1 };
   item.layer = "TEXT";
   item.zIndex = spec.zIndex;
   item.metadata = { ...(item.metadata || {}), ...metadataForSpec(spec) };
