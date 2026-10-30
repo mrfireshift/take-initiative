@@ -23,6 +23,23 @@
         height: 100vh;
       }
 
+      /* The tracker is a set of controls, never text to select: fast clicks (▲/▼, a card) selected the whole document,
+         painted blue, html and body included. The fields typed in (initiative, HP, a rename) keep their selection;
+         initiativeList.js also stops any selection that starts outside them (selectstart). */
+      html,
+      body,
+      #app {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      #app input,
+      #app textarea,
+      #app [contenteditable="true"] {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+
       .tbp-loading {
         box-sizing: border-box;
         display: grid;

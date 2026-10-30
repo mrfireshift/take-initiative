@@ -1237,6 +1237,15 @@ container.classList.add("tbp-root");
 container.style.height = "100%";
 container.style.overflow = "hidden";
 
+// No selection starts outside a field (lot L20): a double or triple click on ▲/▼ or a card selected the whole document,
+// html and body included, and painted the tracker blue. Clicks, a double click to rename and a card's drag are left
+// as they are: only the browser's text selection is refused.
+document.addEventListener("selectstart", (e) => {
+  const t = e.target instanceof Element ? e.target : e.target?.parentElement;
+  if (t?.closest?.("input, textarea, [contenteditable='true']")) return;
+  e.preventDefault();
+}, { capture: true });
+
 container.addEventListener("mousedown", (e) => {
   if (__editingHPForId || __editingInitForId) return;
 
