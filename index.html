@@ -33,7 +33,10 @@
         user-select: none;
       }
 
-      #app input,
+      #app input:not([type]),
+      #app input[type="text"],
+      #app input[type="number"],
+      #app input[type="search"],
       #app textarea,
       #app [contenteditable="true"] {
         -webkit-user-select: text;

@@ -1226,7 +1226,7 @@ styleTag.textContent = `
   .tbp-root button, .tbp-root input, .tbp-root textarea, .tbp-root select {
     font-family: inherit;
   }
-  .tbp-root, .tbp-root *:not(input):not(textarea):not([contenteditable="true"]) {
+  .tbp-root, .tbp-root *:not(input[type="text"]):not(input[type="number"]):not(input[type="search"]):not(textarea):not([contenteditable="true"]) {
     -webkit-user-select: none;
     user-select: none;
   }
@@ -1237,14 +1237,27 @@ container.classList.add("tbp-root");
 container.style.height = "100%";
 container.style.overflow = "hidden";
 
-// No selection starts outside a field (lot L20): a double or triple click on ▲/▼ or a card selected the whole document,
-// html and body included, and painted the tracker blue. Clicks, a double click to rename and a card's drag are left
-// as they are: only the browser's text selection is refused.
+// No text selection outside a text field (lot L20): fast clicks on ▲/▼ or a card painted the whole tracker blue.
+// Three guards, whatever starts it: no selection starts outside a text field (the checkboxes, menus and buttons are
+// not text fields), a double or triple click there does not select by word or paragraph (the click and the double
+// click to rename still arrive), and a selection that appears anyway is cleared at once unless a field is being typed in.
+const TRACKER_TEXT_FIELD = 'input:not([type]), input[type="text"], input[type="number"], input[type="search"], textarea, [contenteditable="true"]';
+function __inTrackerTextField(node) {
+  const element = node instanceof Element ? node : node?.parentElement;
+  return !!element?.closest?.(TRACKER_TEXT_FIELD);
+}
 document.addEventListener("selectstart", (e) => {
-  const t = e.target instanceof Element ? e.target : e.target?.parentElement;
-  if (t?.closest?.("input, textarea, [contenteditable='true']")) return;
-  e.preventDefault();
+  if (!__inTrackerTextField(e.target)) e.preventDefault();
 }, { capture: true });
+document.addEventListener("mousedown", (e) => {
+  if (e.detail >= 2 && !__inTrackerTextField(e.target)) e.preventDefault();
+}, { capture: true });
+document.addEventListener("selectionchange", () => {
+  const selection = window.getSelection?.();
+  if (!selection || selection.isCollapsed || !selection.rangeCount) return;
+  if (__inTrackerTextField(document.activeElement)) return;
+  try { selection.removeAllRanges(); } catch {}
+});
 
 container.addEventListener("mousedown", (e) => {
   if (__editingHPForId || __editingInitForId) return;
