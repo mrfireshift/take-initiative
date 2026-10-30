@@ -19,6 +19,7 @@ import { mountPcAttackTurnController } from "./pcAttackTurnController.js";
 import { mountBossCollapseController } from "./bossCollapseController.js";
 import { mountEffectsMutationCoordinatorService, runEffectsMutation } from "./effectsMutations.js";
 import { mountTurnNoticeHost } from "./turnNoticeHost.js";
+import { mountDiceRollHost } from "./diceRollHost.js";
 import { createTableOrientationBridge } from "./tableOrientationBridge.js";
 import "./sync-open.js";
 import "./speedMoveTool.js";
@@ -286,6 +287,8 @@ OBR.onReady(async () => {
   void startRuntimeOptions().catch(() => {});
   mountCombatLogEventSink();
   mountTurnNoticeHost();
+  // Online room profile: the others' dice rolls (lot D-4).
+  mountDiceRollHost();
   // Silent until the table browser's userscript says hello (public/table-rotation.user.js).
   const tableOrientationBridge = createTableOrientationBridge({ obr: OBR, subscribeItems: subscribeSceneItemChanges });
   tableOrientationBridge.mount();

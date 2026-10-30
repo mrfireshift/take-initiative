@@ -1,6 +1,19 @@
 // The dice tray's form (docs/PIANO_DADI_ONLINE.md, lot D-3): the dice buttons edit the formula written in the field,
 // and the history of this browser's session. Pure: no SDK, no DOM.
-import { DICE_ROLL_HISTORY_LIMIT, diceRollHistoryWith, formatDiceFormula, parseDiceFormula } from "./diceCore.js";
+import {
+  DICE_ROLL_HISTORY_LIMIT,
+  diceRollHistoryWith,
+  formatDiceFormula,
+  normalizeDiceRollRecord,
+  parseDiceFormula,
+} from "./diceCore.js";
+import { ID } from "./constants.js";
+
+// Lot D-4: a roll goes to the other screens on this channel; the roller's latest one also stays in the roller's
+// player metadata, where a screen that opens later reads it (Owlbear Rodeo Dice does the same).
+export const DICE_ROLL_CHANNEL = `${ID}/dice/roll`;
+export const DICE_NOTICE_DONE_CHANNEL = `${ID}/dice/notice-done`;
+export const DICE_LAST_ROLL_KEY = `${ID}/dice/last-roll`;
 
 const EMPTY = Object.freeze({ ok: true, groups: [], modifier: 0 });
 
@@ -55,4 +68,28 @@ export function rememberDiceRoll(record, storage = globalThis.sessionStorage) {
 // "Mario · Eroe" — who rolled, and the character when one is assigned.
 export function diceRollAuthor(record) {
   return [record?.playerName, record?.character].filter(Boolean).join(" · ") || "Tiro";
+}
+
+// The latest roll of each player in the room (their player metadata), checked, newest first.
+export function lastRollsFromParty(players) {
+  return (Array.isArray(players) ? players : [])
+    .map((player) => normalizeDiceRollRecord(player?.metadata?.[DICE_LAST_ROLL_KEY]))
+    .filter((record) => record && !record.hidden)
+    .sort((left, right) => right.at - left.at);
+}
+
+// The character a player plays in this scene (lot O3): the name of a token assigned to them, if any.
+export function assignedCharacterName(items, playerId, metaKey = `${ID}/meta`) {
+  if (!playerId) return "";
+  const token = (Array.isArray(items) ? items : []).find((item) => item?.metadata?.[metaKey]?.assignedPlayer?.id === playerId);
+  return String(token?.name || "").trim();
+}
+
+// The others' rolls waiting for the replay window: one each, oldest first, the newest few only (a burst of rolls
+// would otherwise keep the window open for minutes).
+export const DICE_NOTICE_QUEUE_LIMIT = 4;
+
+export function diceNoticeQueueWith(queue, record, limit = DICE_NOTICE_QUEUE_LIMIT) {
+  const current = (Array.isArray(queue) ? queue : []).filter((entry) => entry?.id !== record?.id);
+  return (record?.id ? [...current, record] : current).slice(-limit);
 }

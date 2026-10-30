@@ -3,6 +3,8 @@
 // of every physical die, and broadcasts the record; the other clients only check it and show it. The 3D tray then
 // makes each die land on the value drawn here: the physics never decides a result.
 
+import { normalizeDiceStyle } from "./diceStyles.js";
+
 export const DICE_SIDES = Object.freeze([4, 6, 8, 10, 12, 20, 100]);
 export const DICE_MAX_COUNT = 30;
 export const DICE_MAX_MODIFIER = 999;
@@ -230,14 +232,16 @@ function cleanVector(value, keys, limit) {
   return Object.fromEntries(keys.map((key) => [key, finite(value?.[key], -limit, limit)]));
 }
 
-// The record a roll travels as. `hidden` is the GM's own roll: it never leaves the GM's browser.
-export function createDiceRollRecord({ id, result, throws, player = {}, character = "", at = Date.now(), hidden = false }) {
+// The record a roll travels as. `hidden` is the GM's own roll: it never leaves the GM's browser. `style` is the
+// roller's dice style: the others see the dice in it.
+export function createDiceRollRecord({ id, result, throws, player = {}, character = "", style = "", at = Date.now(), hidden = false }) {
   return {
     id: String(id || ""),
     playerId: String(player.id || ""),
     connectionId: String(player.connectionId || ""),
     playerName: cleanText(player.name, 60),
     character: cleanText(character, 60),
+    style: normalizeDiceStyle(style),
     formula: result.formula,
     groups: result.groups,
     modifier: result.modifier,
@@ -290,6 +294,7 @@ export function normalizeDiceRollRecord(raw) {
     connectionId: ID_PATTERN.test(connectionId) ? connectionId : "",
     playerName: cleanText(raw.playerName, 60),
     character: cleanText(raw.character, 60),
+    style: normalizeDiceStyle(raw.style),
     formula: cleanText(raw.formula, DICE_FORMULA_MAX_LENGTH),
     groups,
     modifier,

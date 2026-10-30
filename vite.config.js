@@ -82,6 +82,7 @@ export default defineConfig(() => {
         compactAdminMenu: path.resolve(process.cwd(), "compact-admin-menu.html"),
         playerScreen: path.resolve(process.cwd(), "player-screen.html"),
         diceTray: path.resolve(process.cwd(), "dice-tray.html"),
+        diceNotice: path.resolve(process.cwd(), "dice-notice.html"),
         compactRoundTab: path.resolve(process.cwd(), "compact-round-tab.html"),
         preparedSpellResolution: path.resolve(process.cwd(), "prepared-spell-resolution.html"),
         spellActiveResolution: path.resolve(process.cwd(), "spell-active-resolution.html"),

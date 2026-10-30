@@ -59,3 +59,50 @@ test("il 🎲 compare solo nel profilo Online, per GM e giocatori; la testata de
   assert.match(page, /hiddenToggle\.hidden = !isGm;/, "the hidden roll is the GM's alone");
   assert.match(page, /await import\("\.\/diceScene\.js"\)/, "the 3D code loads with the tray only");
 });
+
+// Lot D-4: the rolls reach the other screens, the latest one of each player stays in their player metadata.
+test("i tiri condivisi portano stile e personaggio, e chi entra dopo legge l'ultimo di ciascuno", async () => {
+  const { createDiceRollRecord, normalizeDiceRollRecord, parseDiceFormula, rollDiceFormula } = await import("../src/diceCore.js");
+  const { DICE_LAST_ROLL_KEY, assignedCharacterName, diceNoticeQueueWith, lastRollsFromParty } = await import("../src/diceTrayCore.js");
+  const result = rollDiceFormula(parseDiceFormula("1d20+2"));
+  const make = (id, at, extra = {}) => createDiceRollRecord({
+    id, result, throws: [], player: { id: "p-1", name: "Mario" }, style: "galaxy", at, ...extra,
+  });
+  const first = make("11111111-1111-4111-8111-111111111111", 10);
+  assert.equal(normalizeDiceRollRecord(first).style, "galaxy");
+  assert.equal(normalizeDiceRollRecord({ ...first, style: "boh" }).style, DEFAULT_DICE_STYLE);
+  const later = make("22222222-2222-4222-8222-222222222222", 20);
+  const hidden = make("33333333-3333-4333-8333-333333333333", 30, { hidden: true });
+  const party = [
+    { metadata: { [DICE_LAST_ROLL_KEY]: first } },
+    { metadata: { [DICE_LAST_ROLL_KEY]: later } },
+    { metadata: { [DICE_LAST_ROLL_KEY]: hidden } },
+    { metadata: { [DICE_LAST_ROLL_KEY]: { id: "x" } } },
+    { metadata: {} },
+  ];
+  assert.deepEqual(lastRollsFromParty(party).map((record) => record.id), [later.id, first.id]);
+  const items = [
+    { name: "Goblin", metadata: {} },
+    { name: "Eroe", metadata: { "com.thebigpicture.initiative/meta": { assignedPlayer: { id: "p-1", name: "Mario" } } } },
+  ];
+  assert.equal(assignedCharacterName(items, "p-1"), "Eroe");
+  assert.equal(assignedCharacterName(items, "p-2"), "");
+  let queue = [];
+  for (const id of ["a", "b", "c", "d", "e", "c"]) queue = diceNoticeQueueWith(queue, { id });
+  assert.deepEqual(queue.map((entry) => entry.id), ["b", "d", "e", "c"], "four at most, a repeated roll once");
+});
+
+test("il vassoio condivide solo i tiri non nascosti; l'host vive solo nel profilo Online", () => {
+  const tray = readFileSync(new URL("../src/dice-tray.js", import.meta.url), "utf8");
+  assert.match(tray, /async function shareRoll\(record\) \{\n  if \(record\.hidden\) return;/);
+  assert.match(tray, /OBR\.broadcast\.sendMessage\(DICE_ROLL_CHANNEL, record, \{ destination: "REMOTE" \}\)/);
+  assert.match(tray, /OBR\.player\.setMetadata\(\{ \[DICE_LAST_ROLL_KEY\]: record \}\)/);
+  const host = readFileSync(new URL("../src/diceRollHost.js", import.meta.url), "utf8");
+  assert.match(host, /service\.subscribe\(selectOnlineRoomProfile, \(online\) => \(online === true \? start\(\) : stop\(\)\)\)/);
+  assert.match(host, /if \(!record \|\| record\.hidden\) return;/);
+  assert.match(host, /record\.connectionId === ownConnectionId\) return;/);
+  const background = readFileSync(new URL("../src/background.js", import.meta.url), "utf8");
+  assert.match(background, /mountDiceRollHost\(\);/);
+  const config = readFileSync(new URL("../vite.config.js", import.meta.url), "utf8");
+  assert.match(config, /diceNotice: path\.resolve\(process\.cwd\(\), "dice-notice\.html"\)/);
+});

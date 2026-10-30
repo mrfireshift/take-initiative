@@ -1,12 +1,15 @@
 // The Online dice tray (docs/PIANO_DADI_ONLINE.md, lot D-3): a popover opened by the 🎲 of the tracker, Online room
 // profile only. The roller's browser draws the values (diceCore.js), the 3D tray shows them (diceScene.js). The
-// GM's hidden roll stays on this screen. Sharing the rolls with the others comes with lot D-4.
+// GM's hidden roll stays on this screen. Every other roll goes to the other screens (lot D-4, diceRollHost.js) and
+// stays as this player's latest roll in their player metadata.
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import {
   createDiceRollRecord,
   diceRollDetail,
+  diceRollHistoryWith,
   diceThrowParameters,
+  normalizeDiceRollRecord,
   parseDiceFormula,
   physicalDiceOf,
   rollDiceFormula,
@@ -14,6 +17,9 @@ import {
 } from "./diceCore.js";
 import { DICE_STYLE_KEYS, normalizeDiceStyle } from "./diceStyles.js";
 import {
+  DICE_LAST_ROLL_KEY,
+  DICE_ROLL_CHANNEL,
+  assignedCharacterName,
   diceCountsOf,
   diceRollAuthor,
   formulaWithDie,
@@ -93,9 +99,12 @@ function setMode(button) {
   }
 }
 
-function renderHistory() {
+// The session's rolls, this screen's and the others' (the background's host keeps them). `arrived` is a roll just
+// received, which the host may not have written yet.
+function renderHistory(arrived = null) {
   const list = $("historyList");
-  list.replaceChildren(...readDiceSessionHistory().map((record) => {
+  const history = arrived ? diceRollHistoryWith(readDiceSessionHistory(), arrived) : readDiceSessionHistory();
+  list.replaceChildren(...history.map((record) => {
     const item = document.createElement("li");
     const who = document.createElement("span");
     who.className = "who";
@@ -116,6 +125,19 @@ function renderHistory() {
   }
 }
 
+async function characterName() {
+  try { return assignedCharacterName(await OBR.scene.items.getItems(), player.id); } catch { return ""; }
+}
+
+// The others see the roll while this tray plays it; a screen that opens later finds it in the player metadata.
+async function shareRoll(record) {
+  if (record.hidden) return;
+  await Promise.all([
+    OBR.broadcast.sendMessage(DICE_ROLL_CHANNEL, record, { destination: "REMOTE" }),
+    OBR.player.setMetadata({ [DICE_LAST_ROLL_KEY]: record }),
+  ]).catch((error) => console.warn("[dice-tray] tiro non condiviso:", error?.message || error));
+}
+
 async function roll() {
   if (rolling || !tray) return;
   const mode = advantage.getAttribute("aria-pressed") === "true"
@@ -127,22 +149,26 @@ async function roll() {
     total.textContent = "";
     return;
   }
+  rolling = true;
+  rollButton.disabled = true;
   const result = rollDiceFormula(parsed);
+  const style = normalizeDiceStyle(styleSelect.value);
   const record = createDiceRollRecord({
     id: globalThis.crypto.randomUUID(),
     result,
     throws: diceThrowParameters(physicalDiceOf(result).length),
     player,
+    character: await characterName(),
+    style,
     hidden: isGm && hiddenToggle.getAttribute("aria-pressed") === "true",
   });
-  rolling = true;
-  rollButton.disabled = true;
+  void shareRoll(record);
   total.textContent = "…";
   setDetail(result.formula);
   historyPanel.hidden = true;
   historyToggle.setAttribute("aria-pressed", "false");
   try {
-    await tray.roll(record, { style: normalizeDiceStyle(styleSelect.value) });
+    await tray.roll(record, { style });
     total.textContent = String(result.total);
     setDetail(diceRollDetail(result));
     rememberDiceRoll(record);
@@ -198,6 +224,10 @@ OBR.onReady(async () => {
   isGm = role === "GM";
   hiddenToggle.hidden = !isGm;
   player = { id: String(OBR.player.id || ""), connectionId: String(connectionId || ""), name: String(name || "") };
+  OBR.broadcast.onMessage(DICE_ROLL_CHANNEL, (event) => {
+    const record = normalizeDiceRollRecord(event?.data);
+    if (record && !historyPanel.hidden) renderHistory(record);
+  });
   // The 3D code and the assets load with the tray only (three.js, cannon-es and the Dice's models).
   const { createDiceTray } = await import("./diceScene.js");
   const canvas = $("tray");

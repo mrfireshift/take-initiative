@@ -129,9 +129,11 @@ Un lotto per commit, con test, `npm test`, `npm run build`, `npm run perf:bundle
 | Licenza | `d8a157e1` | Plugin in GPLv3, three.js e cannon-es come dipendenze |
 | D-1 | `2e016492` | `src/diceCore.js` |
 | D-2 | `b63689db` | Asset della Dice in `public/dice/` (import con `scripts/import-owlbear-dice-assets.mjs`), `src/diceFaceCore.js`, `src/diceScene.js`, banco in `test-support/dice-bench/` |
+| D-3 | `d2b4c5f8` | `dice-tray.html`, `src/dice-tray.js`, `src/diceTrayCore.js`, 🎲 nel tracker solo in Online; correzione dell'animazione bloccata al primo fotogramma in `9b962e0b` |
+| D-4 | (questo lotto) | Broadcast `…/dice/roll` agli altri schermi, ultimo tiro in `…/dice/last-roll` nei metadata del giocatore, `src/diceRollHost.js` nel background (solo Online), riquadro `dice-notice.html` in basso a sinistra, al massimo 4 in coda |
 
 Pesi misurati: codice 3D 153 KB (brotli); per tiro al primo uso modelli usati
 (~15 KB l'uno), vassoio 540 KB, uno stile 330–940 KB, mappa di luce 1,6 MB.
 Il bundle di produzione dovrà includere `dist/dice/` (con `git add -f`).
-Idea da adottare in D-4 (dalla Dice): l'ultimo tiro di ogni giocatore nei
-metadata di quel giocatore, letto da tutti con `OBR.party`.
+L'ultimo tiro di ogni giocatore sta nei metadata di quel giocatore (idea della
+Dice): chi entra o ricarica lo trova nello storico, senza riquadro.
