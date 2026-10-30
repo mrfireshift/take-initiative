@@ -386,12 +386,17 @@ export function buildBossActionMutation({
     instanceIds:{[targetItem.id]:entry.instanceId},
     options:{sourceId:sourceItem.id,sourceName:sourceItem.name || profile.name,parentEffectId:"",type:"automatic",manualRemoval:true,
       expiry:clone(entry.expiry),...(appliedAt?{appliedAt}:{})}}));
+  // A critical hit (its dice already doubled by the GM): two death save failures on a PC at 0 HP.
+  const criticalHit = attack && outcome === "hit" && critical === true;
+  // The History and the Combat Log record it as the PC console does: «Critico», not «Colpito».
+  const recordedOutcome = criticalHit ? "critical" : outcome;
   const causality = {
     ...use.context,resources:use.resources,
-    targets:[{id:targetItem.id,name:targetItem.name,outcome,requestedDamage,
+    ...(attack ? {action:{id:action.id,label:action.name,attackOutcome:recordedOutcome}} : {}),
+    targets:[{id:targetItem.id,name:targetItem.name,outcome:recordedOutcome,requestedDamage,
       ...(change?{appliedHpDelta:change.delta}:{}),damageComponents:clone(damageComponents),
       ...(conditions.length?{conditions:clone(conditions)}:{}),...(evasion?{evasion:evasionUsed?"applied":"ignored"}:{})}],
-    ...(attack ? {attack:{...clone(execution.attack),mode,outcome}}
+    ...(attack ? {attack:{...clone(execution.attack),mode,outcome:recordedOutcome}}
       : {save:{...clone(execution.save),outcome,damageFactor:miss?"zero":factor,success:execution.success}}),
     ...(conditions.length?{conditionsApplied:conditions.map((entry)=>({targetId:targetItem.id,...clone(entry),...(appliedAt?{appliedAt}:{})}))}:{}),
     ...(execution.grapple?{grapple:{rule:execution.grapple,heldBefore:clone(grappledIds)}}:{}),
@@ -403,8 +408,6 @@ export function buildBossActionMutation({
     ...(destination?{teleport:{range:execution.teleport.range,from:placementPoint(sourceItem.position),to:destination}}:{}),
   };
   Object.assign(use.runtimeState.lastAction,{targetId:targetItem.id,outcome,...(attack?{mode}:{})});
-  // A critical hit (its dice already doubled by the GM): two death save failures on a PC at 0 HP.
-  const criticalHit = attack && outcome === "hit" && critical === true;
   const label = `${sourceItem.name || profile.name}: ${action.name} → ${targetItem.name || targetItem.id}${criticalHit ? " (critico)" : ""}`;
   return {
     change,damageComponents,manualText,causality,conditions,drain:causality.drain || null,

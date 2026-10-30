@@ -47,6 +47,14 @@ test("a critical hit on a PC at 0 HP carries two death save failures; on a stand
   assert.equal(plan({targetItem:dying()}).operations[0].updates[0].hpIntent.critical,undefined);
   assert.equal(plan({critical:true}).operations[0].updates[0].hpIntent.critical,undefined,"HP above 0: the doubled dice are the whole critical");
   assert.deepEqual(plan({outcome:"miss",componentAmounts:{},critical:true}).operations,[]);
+  // The History and the Combat Log record «Critico» as the PC console does, not a plain hit with "(critico)" in the title.
+  const recorded = (result) => {
+    const causality = result.options.history.payload.causality;
+    return [causality.action?.attackOutcome, causality.attack.outcome, causality.targets[0].outcome];
+  };
+  assert.deepEqual(recorded(plan({critical:true})), ["critical","critical","critical"]);
+  assert.deepEqual(recorded(plan()), ["hit","hit","hit"]);
+  assert.equal(plan({critical:true}).options.history.payload.causality.action.label, "Icekiss +2");
 });
 test("miss records execution without HP mutation or invented damage",()=>{
   const result=plan({outcome:"miss",componentAmounts:{}});
