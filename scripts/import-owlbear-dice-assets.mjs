@@ -1,7 +1,7 @@
 // Imports the 3D dice assets of Owlbear Rodeo Dice (GNU GPLv3, https://github.com/owlbear-rodeo/dice) for the Online
 // dice tray (docs/PIANO_DADI_ONLINE.md, lot D-2). Usage: node scripts/import-owlbear-dice-assets.mjs <dice checkout>
-// It copies the rounded dice meshes, the tray, the eight dice styles, the light map and the dice's impact sounds (lot
-// D-5) into public/dice/, and reads
+// It copies the rounded dice meshes, the tray, the eight dice styles, the light map, the dice's impact sounds (lot
+// D-5) and their pictures into public/dice/, and reads
 // from the checkout's sources (as text, nothing is executed) each die's number locators, mesh rotation and collider
 // into src/diceAssets.json.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -117,6 +117,11 @@ for (const [style, definition] of Object.entries({ ...STYLES, tray: { material: 
 }
 copy(source("environment.hdr"), path.join(publicDir, "environment.hdr"));
 
+// The pictures of each die in each style, for the tray's dice column (dice/previews/<style>/<die>.png).
+for (const style of Object.keys(STYLES)) {
+  for (const die of DICE) copy(source("previews", style, `${die}.png`), path.join(publicDir, "previews", style, `${die}.png`));
+}
+
 // The impact sounds by the die's weight and what it hits: another die, the leather floor, the wooden walls. The
 // Dice's "shake" sounds go with holding the dice before a throw, which this tray does not do.
 const sounds = {};
@@ -141,7 +146,7 @@ const assets = {
 writeFileSync(path.join(root, "src", "diceAssets.json"), `${JSON.stringify(assets, null, 2)}\n`);
 writeFileSync(path.join(publicDir, "NOTICE.md"), `# Asset dei dadi 3D
 
-Modelli, materiali, vassoio, mappa di luce e suoni vengono da Owlbear Rodeo Dice
+Modelli, materiali, vassoio, mappa di luce, suoni e anteprime vengono da Owlbear Rodeo Dice
 (https://github.com/owlbear-rodeo/dice${commit ? `, commit ${commit}` : ""}),
 Copyright (C) 2023 Owlbear Rodeo, distribuiti secondo la GNU GPLv3
 (vedi LICENSE nella radice del repository). Importati con

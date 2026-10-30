@@ -18,8 +18,10 @@
         box-sizing: border-box;
         color: #fff;
         font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
-        font-size: 12px;
+        font-size: var(--obrt-type-body, 12px);
+        line-height: var(--obrt-leading-snug, 1.25);
       }
+      button, input { font: inherit; color: inherit; }
       .glass-shell {
         box-sizing: border-box;
         width: 100%;
@@ -30,50 +32,95 @@
         display: flex;
         flex-direction: column;
       }
+      svg { display: block; pointer-events: none; }
+
+      /* Header: the handle that moves the panel (popoverDrag.js). */
       header {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 8px 8px 6px 12px;
+        padding: 6px 6px 4px 12px;
+        cursor: grab;
+        user-select: none;
       }
-      h1 { margin: 0; font-size: 13px; font-weight: 750; flex: 1 1 auto; }
-      select, input[type="text"] {
-        box-sizing: border-box;
-        padding: 4px 6px;
-        border: 1px solid rgba(148, 163, 184, .35);
-        border-radius: 7px;
-        background: rgba(0, 0, 0, .35);
-        color: #fff;
-        font: inherit;
+      header.is-dragging { cursor: grabbing; }
+      h1 {
+        margin: 0;
+        flex: 1 1 auto;
+        font-size: var(--obrt-type-card-title, 14px);
+        font-weight: var(--obrt-weight-bold, 700);
+        letter-spacing: var(--obrt-tracking-tight, -.01em);
       }
-      .close, .icon-button {
+      .icon-button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         flex: 0 0 auto;
-        width: var(--obrt-close-size, 28px);
-        height: var(--obrt-close-size, 28px);
+        width: 30px;
+        height: 30px;
         padding: 0;
         border: 1px solid transparent;
-        border-radius: var(--obrt-close-radius, 8px);
+        border-radius: 8px;
         background: transparent;
-        color: inherit;
-        font-size: var(--obrt-close-font, 18px);
-        line-height: 1;
+        color: rgba(255, 255, 255, .86);
         cursor: pointer;
       }
-      .close:hover, .icon-button:hover { background: rgba(255, 255, 255, .08); }
-      #soundToggle { font-size: 14px; }
-      #soundToggle[aria-pressed="false"] { opacity: .55; }
-      #stage {
-        position: relative;
-        flex: 1 1 auto;
-        min-height: 0;
-        margin: 0 8px;
-        border-radius: 10px;
-        overflow: hidden;
-        background: rgba(0, 0, 0, .25);
+      .icon-button:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+      .icon-button[aria-pressed="true"] { background: rgba(255, 255, 255, .16); color: #fff; }
+
+      #body { flex: 1 1 auto; min-height: 0; display: flex; }
+
+      /* The dice column, as in Owlbear Rodeo Dice: the style, then the seven dice. */
+      #sidebar {
+        flex: 0 0 52px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 0 10px 6px;
+        overflow-y: auto;
+        scrollbar-width: none;
       }
+      #sidebar::-webkit-scrollbar { display: none; }
+      .divider { flex: 0 0 1px; width: 28px; margin: 3px 0; background: rgba(255, 255, 255, .16); }
+      .picture-button {
+        position: relative;
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        cursor: pointer;
+      }
+      .picture-button:hover { background: rgba(255, 255, 255, .1); }
+      .picture-button img { width: 36px; height: 36px; pointer-events: none; }
+      #styleButton { background: rgba(255, 255, 255, .14); }
+      #styleButton[aria-expanded="true"] { border-color: rgba(255, 255, 255, .5); }
+      .count {
+        position: absolute;
+        top: 0;
+        right: -1px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        box-sizing: border-box;
+        border-radius: 999px;
+        background: #fff;
+        color: #0b1220;
+        font-size: var(--obrt-type-caption, 10px);
+        font-weight: var(--obrt-weight-heavy, 800);
+        line-height: 16px;
+        text-align: center;
+        pointer-events: none;
+      }
+      #sidebarTools { display: grid; gap: 2px; justify-items: center; margin-top: auto; padding-top: 4px; }
+
+      #main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; padding: 0 8px 10px 4px; }
+      #stage { position: relative; flex: 1 1 auto; min-height: 0; }
       #tray { display: block; width: 100%; height: 100%; }
       #loading {
         position: absolute;
@@ -81,118 +128,195 @@
         display: grid;
         place-items: center;
         color: rgba(255, 255, 255, .7);
+        font-size: var(--obrt-type-secondary, 11px);
       }
-      #history {
+      .overlay {
         position: absolute;
         inset: 0;
         overflow: auto;
-        padding: 8px 10px;
-        background: rgba(8, 12, 21, .88);
+        padding: 10px;
+        border-radius: 10px;
+        background: rgba(10, 14, 24, .9);
+        scrollbar-width: thin;
       }
-      #history ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-      #history li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; }
-      #history .who { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      #history .total { font-size: 15px; font-weight: 800; grid-row: span 2; align-self: center; }
-      #history .formula { color: rgba(255, 255, 255, .62); font-size: var(--obrt-type-micro, 10px); }
-      #result {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
+      .overlay h2 {
+        margin: 0 0 8px;
+        color: rgba(255, 255, 255, .62);
+        font-size: var(--obrt-type-caption, 10px);
+        font-weight: var(--obrt-weight-bold, 700);
+        letter-spacing: var(--obrt-tracking-wider, .08em);
+        text-transform: uppercase;
+      }
+      #styleList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+      .style-choice {
+        display: flex;
         align-items: center;
-        gap: 10px;
-        min-height: 40px;
-        padding: 6px 12px 0;
-      }
-      #total { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
-      #detail { color: rgba(255, 255, 255, .72); font-size: 11px; overflow-wrap: anywhere; }
-      #detail[data-tone="error"] { color: #fecaca; }
-      #controls { display: grid; gap: 6px; padding: 6px 8px 10px; }
-      #dice { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-      .die {
-        position: relative;
-        min-height: 30px;
-        padding: 0;
-        border: 1px solid rgba(148, 163, 184, .3);
-        border-radius: 8px;
-        background: rgba(0, 0, 0, .3);
-        color: #fff;
-        font: inherit;
-        font-weight: 700;
+        gap: 6px;
+        padding: 4px 8px 4px 4px;
+        border: 1px solid rgba(255, 255, 255, .12);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, .04);
+        font-size: var(--obrt-type-secondary, 11px);
+        font-weight: var(--obrt-weight-semibold, 600);
+        text-align: left;
         cursor: pointer;
       }
-      .die:hover { background: rgba(255, 255, 255, .1); }
-      .die .count {
-        position: absolute;
-        top: -6px;
-        right: -4px;
-        min-width: 15px;
-        height: 15px;
-        padding: 0 3px;
-        box-sizing: border-box;
-        border-radius: 999px;
-        background: #fff;
-        color: #0b1220;
-        font-size: 10px;
-        line-height: 15px;
+      .style-choice:hover { background: rgba(255, 255, 255, .1); }
+      .style-choice[aria-checked="true"] { border-color: #fff; background: rgba(255, 255, 255, .14); }
+      .style-choice img { width: 32px; height: 32px; flex: 0 0 auto; }
+      #historyList { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+      #historyList li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 8px; }
+      #historyList li.empty { display: block; color: rgba(255, 255, 255, .62); }
+      #historyList .who {
+        overflow: hidden;
+        font-weight: var(--obrt-weight-bold, 700);
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
+      #historyList .total {
+        grid-row: span 2;
+        align-self: center;
+        font-size: var(--obrt-type-card-title, 14px);
+        font-weight: var(--obrt-weight-heavy, 800);
+        font-variant-numeric: tabular-nums;
+      }
+      #historyList .formula { color: rgba(255, 255, 255, .62); font-size: var(--obrt-type-caption, 10px); }
+
+      #result {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        min-height: 34px;
+        padding: 4px 2px 2px;
+      }
+      #total {
+        flex: 0 0 auto;
+        font-size: 26px;
+        font-weight: var(--obrt-weight-heavy, 800);
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+      #total:empty { display: none; }
+      #detail {
+        min-width: 0;
+        color: rgba(255, 255, 255, .72);
+        font-size: var(--obrt-type-secondary, 11px);
+        overflow-wrap: anywhere;
+      }
+      #detail[data-tone="error"] { color: #fecaca; }
+      #controls { display: grid; gap: 6px; }
       .row { display: flex; gap: 6px; align-items: center; }
-      #formula { flex: 1 1 auto; min-width: 0; }
+      .field {
+        flex: 1 1 auto;
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        border: 1px solid rgba(255, 255, 255, .18);
+        border-radius: 9px;
+        background: rgba(0, 0, 0, .3);
+      }
+      .field:focus-within { border-color: rgba(255, 255, 255, .55); }
+      #formula {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 6px 8px;
+        border: 0;
+        outline: none;
+        background: transparent;
+        font-family: var(--obrt-font-mono, monospace);
+        font-size: var(--obrt-type-body, 12px);
+      }
+      #formula::placeholder { color: rgba(255, 255, 255, .4); }
+      #clear { width: 28px; height: 28px; }
       .toggle {
-        padding: 4px 8px;
-        border: 1px solid rgba(148, 163, 184, .3);
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 5px 4px;
+        border: 1px solid rgba(255, 255, 255, .18);
         border-radius: 999px;
         background: transparent;
-        color: rgba(255, 255, 255, .85);
-        font: inherit;
+        color: rgba(255, 255, 255, .86);
+        font-size: var(--obrt-type-secondary, 11px);
+        font-weight: var(--obrt-weight-semibold, 600);
         cursor: pointer;
       }
-      .toggle[aria-pressed="true"] { background: #fff; color: #0b1220; border-color: #fff; font-weight: 700; }
+      .toggle:hover { background: rgba(255, 255, 255, .08); }
+      .toggle[aria-pressed="true"] { border-color: #fff; background: #fff; color: #0b1220; }
       #roll {
         flex: 1 1 auto;
-        min-height: 32px;
-        border: 1px solid rgba(255, 255, 255, .85);
-        border-radius: 9px;
-        background: rgba(255, 255, 255, .92);
+        min-height: 34px;
+        border: 0;
+        border-radius: 10px;
+        background: #fff;
         color: #0b1220;
-        font: inherit;
-        font-size: 13px;
-        font-weight: 800;
+        font-size: var(--obrt-type-card-title, 14px);
+        font-weight: var(--obrt-weight-heavy, 800);
+        letter-spacing: var(--obrt-tracking-tight, -.01em);
         cursor: pointer;
       }
-      #roll:disabled { opacity: .55; cursor: default; }
-      button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid rgba(147, 197, 253, .9); outline-offset: 1px; }
+      #roll:hover { background: rgba(255, 255, 255, .88); }
+      #roll:disabled { opacity: .5; cursor: default; }
+      button:focus-visible, input:focus-visible { outline: 2px solid rgba(147, 197, 253, .9); outline-offset: 1px; }
     </style>
   </head>
   <body>
     <div id="shell" class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/dice-tray">
-      <header>
+      <header data-drag-handle="1" title="Trascina per spostare">
         <h1>Dadi</h1>
-        <select id="diceStyle" aria-label="Stile dei dadi"></select>
-        <button id="soundToggle" class="icon-button" type="button" aria-pressed="true" title="Suoni dei dadi" aria-label="Suoni dei dadi">🔊</button>
-        <button id="historyToggle" class="icon-button" type="button" aria-pressed="false" title="Storico dei tiri" aria-label="Storico dei tiri">☰</button>
-        <button id="close" class="close" type="button" aria-label="Chiudi" title="Chiudi">×</button>
+        <button id="close" class="icon-button" type="button" aria-label="Chiudi" title="Chiudi">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
       </header>
-      <div id="stage">
-        <canvas id="tray" aria-label="Vassoio dei dadi"></canvas>
-        <div id="loading">Preparazione del vassoio…</div>
-        <div id="history" hidden><ol id="historyList"></ol></div>
-      </div>
-      <div id="result" aria-live="polite">
-        <div id="total"></div>
-        <div id="detail">Scegli i dadi e tira.</div>
-      </div>
-      <div id="controls">
-        <div id="dice" role="group" aria-label="Aggiungi un dado (clic destro per toglierlo)"></div>
-        <div class="row">
-          <input id="formula" type="text" spellcheck="false" autocomplete="off" placeholder="es. 1d20+5" aria-label="Formula del tiro" />
-          <button id="clear" class="icon-button" type="button" title="Svuota" aria-label="Svuota la formula">⌫</button>
-        </div>
-        <div class="row">
-          <button id="advantage" class="toggle" type="button" aria-pressed="false">Vantaggio</button>
-          <button id="disadvantage" class="toggle" type="button" aria-pressed="false">Svantaggio</button>
-          <button id="hidden" class="toggle" type="button" aria-pressed="false" hidden title="Il tiro resta solo sul tuo schermo">Nascosto</button>
-        </div>
-        <div class="row">
-          <button id="roll" type="button">Tira</button>
+      <div id="body">
+        <nav id="sidebar" aria-label="Dadi">
+          <button id="styleButton" class="picture-button" type="button" aria-haspopup="true" aria-expanded="false" title="Stile dei dadi">
+            <img id="styleImage" alt="" />
+          </button>
+          <div class="divider" aria-hidden="true"></div>
+          <div id="dice" role="group" aria-label="Aggiungi un dado (clic destro per toglierlo)" style="display:contents"></div>
+          <div id="sidebarTools">
+            <div class="divider" aria-hidden="true"></div>
+            <button id="historyToggle" class="icon-button" type="button" aria-pressed="false" title="Storico dei tiri" aria-label="Storico dei tiri">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v3.7h3.7M12 8v4.3l2.8 1.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button id="soundToggle" class="icon-button" type="button" aria-pressed="true" title="Suoni dei dadi: attivi" aria-label="Suoni dei dadi">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path class="sound-on" d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path class="sound-off" d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" display="none"/></svg>
+            </button>
+          </div>
+        </nav>
+        <div id="main">
+          <div id="stage">
+            <canvas id="tray" aria-label="Vassoio dei dadi"></canvas>
+            <div id="loading">Preparazione del vassoio…</div>
+            <div id="styleMenu" class="overlay" hidden>
+              <h2>Stile dei dadi</h2>
+              <div id="styleList" role="radiogroup" aria-label="Stile dei dadi"></div>
+            </div>
+            <div id="history" class="overlay" hidden>
+              <h2>Tiri della sessione</h2>
+              <ol id="historyList"></ol>
+            </div>
+          </div>
+          <div id="result" aria-live="polite">
+            <div id="total"></div>
+            <div id="detail">Scegli i dadi e tira.</div>
+          </div>
+          <div id="controls">
+            <div class="field">
+              <input id="formula" type="text" spellcheck="false" autocomplete="off" placeholder="es. 1d20+5" aria-label="Formula del tiro" />
+              <button id="clear" class="icon-button" type="button" title="Svuota" aria-label="Svuota la formula">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 5.5h10.5v13H9L3.5 12z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M11.5 9.5l5 5M16.5 9.5l-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+            <div class="row">
+              <button id="advantage" class="toggle" type="button" aria-pressed="false">Vantaggio</button>
+              <button id="disadvantage" class="toggle" type="button" aria-pressed="false">Svantaggio</button>
+              <button id="hidden" class="toggle" type="button" aria-pressed="false" hidden title="Il tiro resta solo sul tuo schermo">Nascosto</button>
+            </div>
+            <div class="row">
+              <button id="roll" type="button">Tira</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -28,6 +28,8 @@ import {
 } from "./diceTrayCore.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
 import { selectDiceSoundsEnabled, selectDiceStyle } from "./options/optionsSelectors.js";
+// The header moves the panel, as in the other panels of the plugin (the tracker opens it with openTrackedPopover).
+import "./popoverDrag.js";
 
 const POPOVER_ID = `${ID}/dice-tray`;
 const DIE_BUTTONS = [4, 6, 8, 10, 12, 20, 100];
@@ -44,7 +46,8 @@ const rollButton = $("roll");
 const advantage = $("advantage");
 const disadvantage = $("disadvantage");
 const hiddenToggle = $("hidden");
-const styleSelect = $("diceStyle");
+const styleButton = $("styleButton");
+const styleMenu = $("styleMenu");
 const historyPanel = $("history");
 const historyToggle = $("historyToggle");
 const soundToggle = $("soundToggle");
@@ -54,15 +57,39 @@ let sound = null;
 let rolling = false;
 let player = { id: "", connectionId: "", name: "" };
 let isGm = false;
+let currentStyle = normalizeDiceStyle(null);
 
-for (const key of DICE_STYLE_KEYS) styleSelect.append(new Option(STYLE_LABELS[key] || key, key));
+// The pictures of Owlbear Rodeo Dice (public/dice/previews): each die in each style.
+const BASE = String(import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
+const previewUrl = (style, sides) => `${BASE}dice/previews/${style}/d${sides}.png`;
+
+const styleChoices = new Map(DICE_STYLE_KEYS.map((key) => {
+  const choice = document.createElement("button");
+  choice.type = "button";
+  choice.className = "style-choice";
+  choice.setAttribute("role", "radio");
+  const picture = document.createElement("img");
+  picture.alt = "";
+  picture.loading = "lazy";
+  picture.src = previewUrl(key, 20);
+  choice.append(picture, document.createTextNode(STYLE_LABELS[key] || key));
+  choice.addEventListener("click", () => {
+    chooseStyle(key);
+    showStyleMenu(false);
+  });
+  $("styleList").append(choice);
+  return [key, choice];
+}));
 
 const dieButtons = new Map(DIE_BUTTONS.map((sides) => {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "die";
-  button.textContent = `d${sides}`;
-  button.title = `Aggiungi un d${sides} (clic destro per toglierlo)`;
+  button.className = "picture-button";
+  button.title = `d${sides}: clic per aggiungerlo, clic destro per toglierlo`;
+  button.setAttribute("aria-label", `d${sides}`);
+  const picture = document.createElement("img");
+  picture.alt = "";
+  button.append(picture);
   button.addEventListener("click", () => editFormula(formulaWithDie(formula.value, sides, 1)));
   button.addEventListener("contextmenu", (event) => {
     event.preventDefault();
@@ -71,6 +98,37 @@ const dieButtons = new Map(DIE_BUTTONS.map((sides) => {
   $("dice").append(button);
   return [sides, button];
 }));
+renderStyle();
+
+function renderStyle() {
+  $("styleImage").src = previewUrl(currentStyle, 20);
+  styleButton.title = `Stile dei dadi: ${STYLE_LABELS[currentStyle] || currentStyle}`;
+  for (const [sides, button] of dieButtons) button.querySelector("img").src = previewUrl(currentStyle, sides);
+  for (const [key, choice] of styleChoices) choice.setAttribute("aria-checked", String(key === currentStyle));
+}
+
+function chooseStyle(key) {
+  currentStyle = normalizeDiceStyle(key);
+  renderStyle();
+  void runtimeOptionsService.updateLocal((current) => ({
+    ...current,
+    tools: { ...(current.tools || {}), diceStyle: currentStyle },
+  })).catch((error) => console.warn("[dice-tray] stile non salvato:", error?.message || error));
+}
+
+// The style menu and the history share the tray's space: one at a time.
+function showStyleMenu(show) {
+  styleMenu.hidden = !show;
+  styleButton.setAttribute("aria-expanded", String(show));
+  if (show) showHistory(false);
+}
+
+function showHistory(show) {
+  if (show) renderHistory();
+  historyPanel.hidden = !show;
+  historyToggle.setAttribute("aria-pressed", String(show));
+  if (show) showStyleMenu(false);
+}
 
 function renderCounts() {
   const counts = diceCountsOf(formula.value);
@@ -122,6 +180,7 @@ function renderHistory(arrived = null) {
   }));
   if (!list.children.length) {
     const empty = document.createElement("li");
+    empty.className = "empty";
     empty.textContent = "Nessun tiro in questa sessione.";
     list.append(empty);
   }
@@ -152,7 +211,8 @@ function soundHooks() {
 
 function renderSoundToggle(on) {
   soundToggle.setAttribute("aria-pressed", String(on));
-  soundToggle.textContent = on ? "🔊" : "🔇";
+  soundToggle.querySelector(".sound-on").setAttribute("display", on ? "inline" : "none");
+  soundToggle.querySelector(".sound-off").setAttribute("display", on ? "none" : "inline");
   soundToggle.title = on ? "Suoni dei dadi: attivi" : "Suoni dei dadi: spenti";
 }
 
@@ -171,7 +231,7 @@ async function roll() {
   rolling = true;
   rollButton.disabled = true;
   const result = rollDiceFormula(parsed);
-  const style = normalizeDiceStyle(styleSelect.value);
+  const style = currentStyle;
   const record = createDiceRollRecord({
     id: globalThis.crypto.randomUUID(),
     result,
@@ -184,8 +244,8 @@ async function roll() {
   void shareRoll(record);
   total.textContent = "…";
   setDetail(result.formula);
-  historyPanel.hidden = true;
-  historyToggle.setAttribute("aria-pressed", "false");
+  showHistory(false);
+  showStyleMenu(false);
   try {
     await tray.roll(record, { style, ...soundHooks() });
     total.textContent = String(result.total);
@@ -214,12 +274,8 @@ hiddenToggle.addEventListener("click", () => {
   hiddenToggle.setAttribute("aria-pressed", String(hiddenToggle.getAttribute("aria-pressed") !== "true"));
 });
 rollButton.addEventListener("click", () => void roll());
-historyToggle.addEventListener("click", () => {
-  const show = historyPanel.hidden;
-  if (show) renderHistory();
-  historyPanel.hidden = !show;
-  historyToggle.setAttribute("aria-pressed", String(show));
-});
+historyToggle.addEventListener("click", () => showHistory(historyPanel.hidden));
+styleButton.addEventListener("click", () => showStyleMenu(styleMenu.hidden));
 soundToggle.addEventListener("click", () => {
   const on = !soundsOn();
   renderSoundToggle(on);
@@ -229,21 +285,20 @@ soundToggle.addEventListener("click", () => {
     tools: { ...(current.tools || {}), diceSounds: on },
   })).catch((error) => console.warn("[dice-tray] suoni non salvati:", error?.message || error));
 });
-styleSelect.addEventListener("change", () => {
-  void runtimeOptionsService.updateLocal((current) => ({
-    ...current,
-    tools: { ...(current.tools || {}), diceStyle: normalizeDiceStyle(styleSelect.value) },
-  })).catch((error) => console.warn("[dice-tray] stile non salvato:", error?.message || error));
-});
 const close = () => void OBR.popover.close(POPOVER_ID).catch(() => {});
 $("close").addEventListener("click", close);
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && event.target !== formula) close();
+  if (event.key !== "Escape") return;
+  if (!styleMenu.hidden || !historyPanel.hidden) {
+    showStyleMenu(false);
+    showHistory(false);
+  } else if (event.target !== formula) close();
 });
 
 OBR.onReady(async () => {
   await startRuntimeOptions().catch(() => {});
-  try { styleSelect.value = normalizeDiceStyle(runtimeOptionsService.get(selectDiceStyle)); } catch {}
+  try { currentStyle = normalizeDiceStyle(runtimeOptionsService.get(selectDiceStyle)); } catch {}
+  renderStyle();
   try { renderSoundToggle(runtimeOptionsService.get(selectDiceSoundsEnabled) !== false); } catch {}
   const [role, name, connectionId] = await Promise.all([
     OBR.player.getRole().catch(() => "PLAYER"),

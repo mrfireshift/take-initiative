@@ -1616,14 +1616,22 @@ diceTrayButton.addEventListener("click", (event) => {
   void (async () => {
     let viewportHeight = 800;
     try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+    const height = Math.max(420, Math.min(680, viewportHeight - 100));
     const placement = await __playerScreenPlacement(diceTrayButton, DICE_TRAY_POPOVER_WIDTH);
-    await OBR.popover.open({
+    // The tray moves like the other panels (popoverDragHost.js), which keep a top-left corner: the compact
+    // placement (beside the button, bottom-aligned) becomes one. A tray moved before opens where it was left.
+    const { anchorPosition, anchorOrigin } = placement;
+    const left = anchorOrigin.horizontal === "RIGHT" ? anchorPosition.left - DICE_TRAY_POPOVER_WIDTH : anchorPosition.left;
+    const top = anchorOrigin.vertical === "BOTTOM" ? anchorPosition.top - height : anchorPosition.top;
+    await openTrackedPopover({
       id: DICE_TRAY_POPOVER_ID,
       url: "/dice-tray.html",
       width: DICE_TRAY_POPOVER_WIDTH,
-      height: Math.max(420, Math.min(680, viewportHeight - 100)),
+      height,
       anchorReference: "POSITION",
-      ...placement,
+      anchorPosition: { left: Math.max(12, Math.round(left)), top: Math.max(12, Math.round(top)) },
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
       marginThreshold: 12,
       hidePaper: true,
     });

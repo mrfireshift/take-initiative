@@ -106,3 +106,22 @@ test("il vassoio condivide solo i tiri non nascosti; l'host vive solo nel profil
   const config = readFileSync(new URL("../vite.config.js", import.meta.url), "utf8");
   assert.match(config, /diceNotice: path\.resolve\(process\.cwd\(\), "dice-notice\.html"\)/);
 });
+
+// The tray moves like the other panels and shows the dice as Owlbear Rodeo Dice does (pictures in a column).
+test("il vassoio si sposta come gli altri pannelli e mostra i dadi in immagine", async () => {
+  const { existsSync } = await import("node:fs");
+  const list = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
+  assert.match(list, /await openTrackedPopover\(\{\n      id: DICE_TRAY_POPOVER_ID,/);
+  assert.match(list, /anchorPosition: \{ left: Math\.max\(12, Math\.round\(left\)\), top: Math\.max\(12, Math\.round\(top\)\) \},\n      anchorOrigin: \{ horizontal: "LEFT", vertical: "TOP" \},/);
+  const tray = readFileSync(new URL("../src/dice-tray.js", import.meta.url), "utf8");
+  assert.match(tray, /import "\.\/popoverDrag\.js";/);
+  assert.match(tray, /dice\/previews\/\$\{style\}\/d\$\{sides\}\.png/);
+  const page = readFileSync(new URL("../dice-tray.html", import.meta.url), "utf8");
+  assert.match(page, /<header data-drag-handle="1"/);
+  assert.doesNotMatch(page, /[🔊🔇☰⌫]/u, "SVG icons, no emoji");
+  for (const style of DICE_STYLE_KEYS) {
+    for (const sides of [4, 6, 8, 10, 12, 20, 100]) {
+      assert.ok(existsSync(new URL(`../public/dice/previews/${style}/d${sides}.png`, import.meta.url)), `${style} d${sides}`);
+    }
+  }
+});
