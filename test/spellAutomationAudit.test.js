@@ -5,6 +5,10 @@ import {
   buildSpellAutomationAudit,
   renderSpellAutomationMarkdown,
 } from "../scripts/audit-spell-automation.mjs";
+import { hasPrivateDir } from "../scripts/privateSources.mjs";
+
+// The audit reads the non-SRD spell texts from the private folder, which CI does not have.
+const PRIVATE_TEXTS = { skip: !hasPrivateDir() && "sorgenti private assenti" };
 
 test("l'audit copre l'intero catalogo e conserva le evidenze disponibili", () => {
   const audit = buildSpellAutomationAudit();
@@ -68,7 +72,7 @@ test("Haste include la meccanica di movimento ed e ACCEPTED tramite review curat
   assert.equal(haste.targetAutomationLevel, "FULL");
 });
 
-test("Gabbia dell'Anima è accettata come tracking-only", () => {
+test("Gabbia dell'Anima è accettata come tracking-only", PRIVATE_TEXTS, () => {
   const audit = buildSpellAutomationAudit();
   const soulCage = audit.rows.find((row) => row.id === "xanathar-gabbia-dellanima");
   assert.ok(soulCage);
@@ -81,7 +85,7 @@ test("Gabbia dell'Anima è accettata come tracking-only", () => {
   assert.match(soulCage.curatedNote || "", /^PASS:/u);
 });
 
-test("Lama Infuocata e Lama d'Ombra sono CLOSED come tracking-only", () => {
+test("Lama Infuocata e Lama d'Ombra sono CLOSED come tracking-only", PRIVATE_TEXTS, () => {
   const audit = buildSpellAutomationAudit();
   for (const id of ["flame-blade", "xanathar-lama-dombra"]) {
     const spell = audit.rows.find((row) => row.id === id);
@@ -96,7 +100,7 @@ test("Lama Infuocata e Lama d'Ombra sono CLOSED come tracking-only", () => {
   }
 });
 
-test("Aura di Vitalità e Aura di Vita sono CLOSED dopo la verifica del workflow", () => {
+test("Aura di Vitalità e Aura di Vita sono CLOSED dopo la verifica del workflow", PRIVATE_TEXTS, () => {
   const audit = buildSpellAutomationAudit();
   const vitality = audit.rows.find((row) => row.id === "phb2014-aura-di-vitalita");
   const life = audit.rows.find((row) => row.id === "phb2014-aura-di-vita");
@@ -114,7 +118,7 @@ test("Aura di Vitalità e Aura di Vita sono CLOSED dopo la verifica del workflow
   assert.match(life?.curatedNote || "", /PARTIAL\/CLOSED/u);
 });
 
-test("Compulsione, Aura Sacra e Sudario Spirituale sono PARTIAL/CLOSED con boundary manuale esplicita", () => {
+test("Compulsione, Aura Sacra e Sudario Spirituale sono PARTIAL/CLOSED con boundary manuale esplicita", PRIVATE_TEXTS, () => {
   const audit = buildSpellAutomationAudit();
   const compulsion = audit.rows.find((row) => row.id === "compulsion");
   const holyAura = audit.rows.find((row) => row.id === "holy-aura");
@@ -275,7 +279,7 @@ test("Muro di Fuoco è completo dopo l'audit del workflow persistente", () => {
   assert.deepEqual(wall.gaps, []);
 });
 
-test("Investitura del Vento e Investitura della Pietra sono accettate", () => {
+test("Investitura del Vento e Investitura della Pietra sono accettate", PRIVATE_TEXTS, () => {
   const audit = buildSpellAutomationAudit();
   for (const id of ["xanathar-investitura-del-vento", "xanathar-investitura-della-pietra"]) {
     const spell = audit.rows.find((row) => row.id === id);
@@ -325,7 +329,7 @@ test("le lacune curate restano separate dalle candidate testuali", () => {
   assert.deepEqual(enhanceAbility?.gaps, []);
 });
 
-test("il TS iniziale richiede un workflow soltanto per aree o bersagli multipli", () => {
+test("il TS iniziale richiede un workflow soltanto per aree o bersagli multipli", PRIVATE_TEXTS, () => {
   const audit = buildSpellAutomationAudit();
   const immolation = audit.rows.find((row) => row.id === "xanathar-immolazione");
   const command = audit.rows.find((row) => row.id === "command");
@@ -386,7 +390,7 @@ test("Catena di fulmini e Gabbia di forza hanno workflow distinti e coperti", ()
   assert.ok(!forcecage?.gaps.some((entry) => entry.code === "BOUNDARY_REJECTION"));
 });
 
-test("Lotto I copre le attivazioni offensive ripetibili", () => {
+test("Lotto I copre le attivazioni offensive ripetibili", PRIVATE_TEXTS, () => {
   const audit = buildSpellAutomationAudit();
   const gust = audit.rows.find((row) => row.id === "gust-of-wind");
   const freedom = audit.rows.find((row) => row.id === "freedom-of-movement");
@@ -406,7 +410,7 @@ test("Lotto I copre le attivazioni offensive ripetibili", () => {
   assert.ok(!stormSphere?.gaps.some((entry) => entry.code === "TURN_EFFECT_MISSING"));
 });
 
-test("il report espone metodo, priorità e matrice completa", () => {
+test("il report espone metodo, priorità e matrice completa", PRIVATE_TEXTS, () => {
   const markdown = renderSpellAutomationMarkdown(buildSpellAutomationAudit());
   assert.match(markdown, /P1 — lacune confermate sul testo RAW/);
   assert.match(markdown, /\| Muro di fuoco \|/);
@@ -472,7 +476,7 @@ test("Animate Objects ha un cast sintetico valido tramite contract composition e
   assert.equal(anim.targetAutomationLevel, "UNREVIEWED");
 });
 
-test("Modellare Acqua e Modellare Terra non hanno falsi RAW gaps e restano MANUAL/UNREVIEWED", () => {
+test("Modellare Acqua e Modellare Terra non hanno falsi RAW gaps e restano MANUAL/UNREVIEWED", PRIVATE_TEXTS, () => {
   const audit = buildSpellAutomationAudit();
   const moldWater = audit.rows.find((row) => row.id === "xanathar-modellare-acqua");
   const moldEarth = audit.rows.find((row) => row.id === "xanathar-modellare-terra");
@@ -492,7 +496,7 @@ test("Modellare Acqua e Modellare Terra non hanno falsi RAW gaps e restano MANUA
   assert.equal(moldEarth.integration.issues.some((issue) => issue.code === "CAST_NO_MUTATIONS" && issue.severity === "P0"), false);
 });
 
-test("le spell già lavorate nella tranche corrente sono ACCEPTED", () => {
+test("le spell già lavorate nella tranche corrente sono ACCEPTED", PRIVATE_TEXTS, () => {
   const audit = buildSpellAutomationAudit();
   const immolation = audit.rows.find((row) => row.id === "xanathar-immolazione");
   const flame = audit.rows.find((row) => row.id === "xanathar-investitura-della-fiamma");
@@ -531,7 +535,7 @@ test("runtimeSmokeRequired resta coerente con smokeCategories e l'audit e determ
   assert.deepEqual(audit1, audit2);
 });
 
-test("Turbine è FULL/ACCEPTED, raggiungibile e senza gap residui", () => {
+test("Turbine è FULL/ACCEPTED, raggiungibile e senza gap residui", PRIVATE_TEXTS, () => {
   const audit = buildSpellAutomationAudit();
   const turbine = audit.rows.find((row) => row.id === "xanathar-turbine");
 

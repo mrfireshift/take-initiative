@@ -13,6 +13,10 @@ import { buildEffectsMutationPlan } from "../src/effectsMutationCore.js";
 import { __compactEffectItems } from "../src/initiativeCardCompact.js";
 import { planEffectsLayout } from "../src/effectsLayoutCore.js";
 import { buildSpellAutomationAudit } from "../scripts/audit-spell-automation.mjs";
+import { hasPrivateDir } from "../scripts/privateSources.mjs";
+
+// The audit reads the non-SRD spell texts from the private folder, which CI does not have.
+const PRIVATE_TEXTS = { skip: !hasPrivateDir() && "sorgenti private assenti" };
 
 const BLADE_CASES = [
   {
@@ -190,7 +194,7 @@ test("summaryParts resta presentation-only nella card e nel layout", () => {
   assert.ok(rows.some((row) => row.kind === "spell" && row.text === "3d6 fuoco" && row.summaryPart === true));
 });
 
-test("l'audit chiude entrambe come TRACK_ONLY senza REPEATED_ACTION P1", () => {
+test("l'audit chiude entrambe come TRACK_ONLY senza REPEATED_ACTION P1", PRIVATE_TEXTS, () => {
   const audit = buildSpellAutomationAudit();
   for (const { id } of BLADE_CASES) {
     const row = audit.rows.find((entry) => entry.id === id);
