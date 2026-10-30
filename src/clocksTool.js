@@ -145,7 +145,8 @@ export async function reconcileClocksTool() {
   try { await OBR.tool.remove(CLOCKS_TOOL_ID); } catch {}
   await OBR.tool.create({
     id: CLOCKS_TOOL_ID,
-    icons: [{ icon: "/clock.svg", label: "Clock" }],
+    // The GM's tool: the players never see it, at the table or online.
+    icons: [{ icon: "/clock.svg", label: "Clock", filter: { roles: ["GM"] } }],
     onClick: () => void trackRuntimeOperation(toggleClocksPopover()),
   });
   return true;
