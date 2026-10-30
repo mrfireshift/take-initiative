@@ -346,7 +346,7 @@ I gruppi omonimi, le azioni di tana, i turni Paragon e le azioni epiche possono 
 
 **Svuota iniziativa** e **Reset round** agiscono subito, senza conferma: in basso nel tracker compare per 8 secondi un avviso con **Annulla**, che rimette ordine, turno attivo, round e token in iniziativa (per Svuota) o il round precedente (per Reset round). Se nel frattempo è iniziato un altro combattimento, o il round è già cambiato, l'annullamento non sovrascrive niente e lo segnala.
 
-**Reset round** riporta il round a 1 senza cambiare ordine né turno attivo. Le durate in round degli effetti attivi oggi si allungano di quanti round si torna indietro, e l'Annulla le riaccorcia.
+**Reset round** riporta il round a 1 senza cambiare ordine né turno attivo. Le durate in round seguono il contatore: ogni effetto conta dal round in cui è stato applicato. Tornando indietro (Reset round, o ◀ oltre l'inizio di un round) recupera solo i round che aveva già consumato, mai più della sua durata; andando avanti, o annullando il reset, li consuma di nuovo. Un effetto lanciato al round 4 per 10 round ne ha 9 al round 5, 10 dopo il reset e di nuovo 9 dopo l'Annulla. Un effetto già scaduto non ricompare tornando indietro: per quello c'è l'Annulla della Cronologia.
 
 ### Tasti per il turno
 
