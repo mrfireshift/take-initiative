@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Schermo</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/popover-glass.css" />
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: auto;
+        min-height: 0;
+        overflow: hidden;
+        background: transparent !important;
+      }
+      body {
+        box-sizing: border-box;
+        color: #fff;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
+        font-size: 12px;
+      }
+      .glass-shell {
+        box-sizing: border-box;
+        width: 100%;
+        height: 100vh;
+        min-height: 100vh !important;
+        overflow: hidden;
+        outline: none;
+      }
+      main {
+        box-sizing: border-box;
+        display: grid;
+        gap: 10px;
+        padding: 12px 14px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 750;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 28px;
+      }
+      .row span { display: grid; gap: 2px; }
+      .row small { color: rgba(255, 255, 255, .62); font-size: var(--obrt-type-micro, 10px); }
+      input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: #93c5fd; cursor: pointer; }
+      select {
+        min-width: 112px;
+        padding: 4px 6px;
+        border: 1px solid rgba(148, 163, 184, .35);
+        border-radius: 7px;
+        background: rgba(0, 0, 0, .35);
+        color: #fff;
+        font: inherit;
+      }
+      input:focus-visible, select:focus-visible { outline: 2px solid rgba(147, 197, 253, .9); outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <div
+      id="shell"
+      class="glass-shell"
+      data-glass-popover="1"
+      data-popover-id="com.thebigpicture.initiative/player-screen"
+    >
+      <main aria-label="Il mio schermo">
+        <h1>Il mio schermo</h1>
+        <label class="row" for="playerScreenFollow">
+          <span>Segui il turno<small>La vista va sul token di turno</small></span>
+          <input id="playerScreenFollow" type="checkbox" />
+        </label>
+        <label class="row" for="playerScreenScale">
+          <span>Dimensione tracker</span>
+          <select id="playerScreenScale"></select>
+        </label>
+        <label class="row" for="playerScreenAnimations">
+          <span>Animazioni degli incantesimi<small>Solo su questo schermo</small></span>
+          <input id="playerScreenAnimations" type="checkbox" />
+        </label>
+      </main>
+    </div>
+    <script type="module" src="/src/player-screen.js"></script>
+  </body>
+</html>

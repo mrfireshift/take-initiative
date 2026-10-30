@@ -1524,6 +1524,46 @@ layoutToggleButton.addEventListener("click", (event) => {
 
 roundPill.appendChild(layoutToggleButton);
 updateLayoutToggleButton();
+
+// The menu «Schermo» of a player: their own Segui, tracker size and animations, in the Online room profile only
+// (audit online, lot O2b). Hidden for the GM and in the Table profile.
+const PLAYER_SCREEN_POPOVER_ID = `${ID}/player-screen`;
+const PLAYER_SCREEN_POPOVER_WIDTH = 260;
+const PLAYER_SCREEN_POPOVER_HEIGHT = 168;
+const playerScreenButton = document.createElement("button");
+playerScreenButton.type = "button";
+playerScreenButton.dataset.playerScreen = "1";
+playerScreenButton.style.cssText = layoutToggleButton.style.cssText;
+playerScreenButton.style.display = "none";
+playerScreenButton.textContent = "⚙";
+playerScreenButton.title = "Il mio schermo: Segui, dimensione del tracker, animazioni";
+playerScreenButton.setAttribute("aria-label", playerScreenButton.title);
+playerScreenButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  void (async () => {
+    let width = 1200;
+    let height = 800;
+    try { width = Number(await OBR.viewport.getWidth()) || width; } catch {}
+    try { height = Number(await OBR.viewport.getHeight()) || height; } catch {}
+    await OBR.popover.open({
+      id: PLAYER_SCREEN_POPOVER_ID,
+      url: "/player-screen.html",
+      width: PLAYER_SCREEN_POPOVER_WIDTH,
+      height: PLAYER_SCREEN_POPOVER_HEIGHT,
+      anchorReference: "POSITION",
+      anchorPosition: { left: Math.round(width / 2), top: Math.round(height / 2) },
+      anchorOrigin: { horizontal: "CENTER", vertical: "CENTER" },
+      transformOrigin: { horizontal: "CENTER", vertical: "CENTER" },
+      hidePaper: true,
+    });
+  })().catch((error) => console.warn("[player-screen] apertura fallita:", error?.message || error));
+});
+
+function __syncPlayerScreenButton() {
+  let online = false;
+  try { online = runtimeOptionsService.get(selectOnlineRoomProfile) === true; } catch {}
+  playerScreenButton.style.display = !IS_GM && online ? "inline-flex" : "none";
+}
 const roundActions = document.createElement("div");
 roundActions.dataset.roundActions = "1";
 Object.assign(roundActions.style, {
@@ -3654,7 +3694,7 @@ function mountCompactSideControls() {
     compactBottomControls.replaceChildren(layoutToggleButton, compactMoreButton);
   } else {
     compactAdminMenu.replaceChildren();
-    compactBottomControls.replaceChildren(layoutToggleButton);
+    compactBottomControls.replaceChildren(layoutToggleButton, playerScreenButton);
   }
   // The round sits in the column, between the drag handle and the buttons: part of the bar, for GM and players.
   compactRoundControls.replaceChildren(trackerDragHandle, roundStatus, compactBottomControls);
@@ -3673,7 +3713,7 @@ function restoreClassicHeader() {
     layoutToggleButton,
     roundActions,
     roundHistorySlot,
-  ] : [roundStatus, layoutToggleButton]));
+  ] : [roundStatus, layoutToggleButton, playerScreenButton]));
   topRow.replaceChildren(roundPill, viewOptionsRow, movementReadout);
 }
 function applyTrackerLayout() {
@@ -9300,6 +9340,7 @@ const COMPACT_TRACKER_RESIZE_DURATION_MS = 240;
 let __trackerViewScale = 1;
 let __trackerViewScaleUnsubscribe = null;
 let __trackerViewGmScaleUnsubscribe = null;
+let __playerScreenProfileUnsubscribe = null;
 
 function __setTrackerViewZoom(scale) {
   document.documentElement.style.zoom = scale !== 1 ? String(scale) : "";
@@ -11395,6 +11436,12 @@ try {
         onTrackerViewScaleChange,
         { emitCurrent: false },
       );
+      __playerScreenProfileUnsubscribe ||= runtimeOptionsService.subscribe(
+        selectOnlineRoomProfile,
+        __syncPlayerScreenButton,
+        { emitCurrent: false },
+      );
+      __syncPlayerScreenButton();
       viewOptionsRow.style.display = IS_GM ? "flex" : "none";
       globalPanelsWrap.style.display = IS_GM ? "inline-flex" : "none";
       zoomToggleWrap.style.display = IS_GM ? "flex" : "none";

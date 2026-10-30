@@ -50,6 +50,8 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
     // A player's own "follow the turn" in the Online room profile: off, the turn never moves their view. The Table
     // profile ignores it, the table screen follows the GM's Segui (audit online, O2a).
     playerFollowActiveTurn: false,
+    // A player's own tracker size in the Online profile (menu «Schermo»): null follows the room's playerView.trackerScale.
+    playerScale: null,
   },
   windows: {
     clocksCompact: false,
@@ -70,6 +72,8 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
   },
   runtime: {
     combatLog: true,
+    // Off: a player turns the spell animations off on their own screen, in the Online profile only (menu «Schermo»).
+    playerAnimations: true,
   },
 });
 

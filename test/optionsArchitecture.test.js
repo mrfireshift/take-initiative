@@ -41,10 +41,11 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
       effectsDisplayMode: "selected",
       scale: 1,
       playerFollowActiveTurn: false,
+      playerScale: null,
     },
     windows: { clocksCompact: false, pcAttackAutoOpen: false, pcAttackAutoOpenMonsters: null },
     tools: { distance3d: true, reference: true, fiveToolsArchive: "", fiveToolsImages: "", fiveTools2024: false },
-    runtime: { combatLog: true },
+    runtime: { combatLog: true, playerAnimations: true },
   });
   assert.deepEqual(room.playerView.hp.trackerClassic, {
     pc: "exact", ally: "exact", neutral: "hidden", enemy: "hidden",

@@ -140,6 +140,9 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
         ? normalizeTrackerScale(tracker.scale)
         : defaults.tracker.scale,
       playerFollowActiveTurn: booleanOr(tracker.playerFollowActiveTurn, defaults.tracker.playerFollowActiveTurn),
+      playerScale: tracker.playerScale === null || tracker.playerScale === undefined
+        ? defaults.tracker.playerScale
+        : normalizeTrackerScale(tracker.playerScale),
     },
     windows: {
       ...windows,
@@ -192,6 +195,7 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
         "combatLog",
         defaults.runtime.combatLog,
       ),
+      playerAnimations: booleanOr(runtime.playerAnimations, defaults.runtime.playerAnimations),
     },
   };
 }

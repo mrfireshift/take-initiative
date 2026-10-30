@@ -145,7 +145,10 @@ export function selectKnownFactionAssignmentEnabled(options) {
 }
 
 export function selectEmbersAnimationsEnabled(options) {
-  return resolved(options).shared.integrations.embersAnimations;
+  const value = resolved(options);
+  // Online profile: a player may turn them off on their own screen (menu «Schermo»). The Table profile reads the room only.
+  if (value.shared.profile === "online" && value.local.runtime.playerAnimations === false) return false;
+  return value.shared.integrations.embersAnimations;
 }
 
 export function selectTrackerOpenSyncEnabled(options) {
@@ -157,7 +160,10 @@ export function selectTrackerPlacementSyncEnabled(options) {
 }
 
 export function selectPlayerTrackerScale(options) {
-  return resolved(options).shared.playerView.trackerScale;
+  const value = resolved(options);
+  // Online profile: a player's own size (menu «Schermo») wins over the room's. The Table profile reads the room only.
+  if (value.shared.profile === "online" && value.local.tracker.playerScale !== null) return value.local.tracker.playerScale;
+  return value.shared.playerView.trackerScale;
 }
 
 // The room profile (audit online): only "online" changes what the players' screens do; "table" is the default.
@@ -168,6 +174,16 @@ export function selectOnlineRoomProfile(options) {
 // A player's own Segui, read only in the Online profile.
 export function selectPlayerFollowActiveTurn(options) {
   return resolved(options).local.tracker.playerFollowActiveTurn;
+}
+
+// The menu «Schermo» of a player: their own choices as stored in this browser.
+export function selectPlayerScreenPreferences(options) {
+  const value = resolved(options);
+  return {
+    follow: value.local.tracker.playerFollowActiveTurn === true,
+    scale: value.local.tracker.playerScale,
+    animations: value.local.runtime.playerAnimations !== false,
+  };
 }
 
 export function selectSceneOverriddenPaths(options) {
