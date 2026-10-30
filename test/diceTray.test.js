@@ -57,7 +57,7 @@ test("il 🎲 compare solo nel profilo Online, per GM e giocatori; la testata de
   assert.match(tracker, /compactBottomControls\.replaceChildren\(layoutToggleButton, diceTrayButton, compactMoreButton\);/);
   const page = readFileSync(new URL("../src/dice-tray.js", import.meta.url), "utf8");
   assert.match(page, /hiddenToggle\.hidden = !isGm;/, "the hidden roll is the GM's alone");
-  assert.match(page, /await import\("\.\/diceScene\.js"\)/, "the 3D code loads with the tray only");
+  assert.match(page, /import\("\.\/diceScene\.js"\)/, "the 3D code loads with the tray only");
 });
 
 // Lot D-4: the rolls reach the other screens, the latest one of each player stays in their player metadata.

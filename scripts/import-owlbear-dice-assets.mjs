@@ -1,6 +1,7 @@
 // Imports the 3D dice assets of Owlbear Rodeo Dice (GNU GPLv3, https://github.com/owlbear-rodeo/dice) for the Online
 // dice tray (docs/PIANO_DADI_ONLINE.md, lot D-2). Usage: node scripts/import-owlbear-dice-assets.mjs <dice checkout>
-// It copies the rounded dice meshes, the tray, the eight dice styles and the light map into public/dice/, and reads
+// It copies the rounded dice meshes, the tray, the eight dice styles, the light map and the dice's impact sounds (lot
+// D-5) into public/dice/, and reads
 // from the checkout's sources (as text, nothing is executed) each die's number locators, mesh rotation and collider
 // into src/diceAssets.json.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -116,17 +117,31 @@ for (const [style, definition] of Object.entries({ ...STYLES, tray: { material: 
 }
 copy(source("environment.hdr"), path.join(publicDir, "environment.hdr"));
 
+// The impact sounds by the die's weight and what it hits: another die, the leather floor, the wooden walls. The
+// Dice's "shake" sounds go with holding the dice before a throw, which this tray does not do.
+const sounds = {};
+for (const weight of ["light", "medium", "heavy"]) {
+  sounds[weight] = {};
+  for (const surface of ["dice", "leather", "wood"]) {
+    sounds[weight][surface] = ["01", "02", "03", "04"].map((name) => {
+      copy(source("audio", weight, surface, `${name}.mp3`), path.join(publicDir, "sounds", weight, surface, `${name}.mp3`));
+      return `dice/sounds/${weight}/${surface}/${name}.mp3`;
+    });
+  }
+}
+
 const assets = {
   source: { repository: "https://github.com/owlbear-rodeo/dice", commit, license: "GPL-3.0" },
   dice,
   tray: { mesh: "dice/meshes/tray.glb", scale: 0.1, offsetY: -0.33, material: "tray" },
   styles,
   environment: "dice/environment.hdr",
+  sounds,
 };
 writeFileSync(path.join(root, "src", "diceAssets.json"), `${JSON.stringify(assets, null, 2)}\n`);
 writeFileSync(path.join(publicDir, "NOTICE.md"), `# Asset dei dadi 3D
 
-Modelli, materiali, vassoio e mappa di luce vengono da Owlbear Rodeo Dice
+Modelli, materiali, vassoio, mappa di luce e suoni vengono da Owlbear Rodeo Dice
 (https://github.com/owlbear-rodeo/dice${commit ? `, commit ${commit}` : ""}),
 Copyright (C) 2023 Owlbear Rodeo, distribuiti secondo la GNU GPLv3
 (vedi LICENSE nella radice del repository). Importati con

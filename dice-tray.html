@@ -63,6 +63,8 @@
         cursor: pointer;
       }
       .close:hover, .icon-button:hover { background: rgba(255, 255, 255, .08); }
+      #soundToggle { font-size: 14px; }
+      #soundToggle[aria-pressed="false"] { opacity: .55; }
       #stage {
         position: relative;
         flex: 1 1 auto;
@@ -165,6 +167,7 @@
       <header>
         <h1>Dadi</h1>
         <select id="diceStyle" aria-label="Stile dei dadi"></select>
+        <button id="soundToggle" class="icon-button" type="button" aria-pressed="true" title="Suoni dei dadi" aria-label="Suoni dei dadi">🔊</button>
         <button id="historyToggle" class="icon-button" type="button" aria-pressed="false" title="Storico dei tiri" aria-label="Storico dei tiri">☰</button>
         <button id="close" class="close" type="button" aria-label="Chiudi" title="Chiudi">×</button>
       </header>

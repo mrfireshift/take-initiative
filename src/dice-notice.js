@@ -4,6 +4,8 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { diceRollDetail, normalizeDiceRollRecord } from "./diceCore.js";
 import { DICE_NOTICE_DONE_CHANNEL, diceRollAuthor } from "./diceTrayCore.js";
+import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
+import { selectDiceSoundsEnabled } from "./options/optionsSelectors.js";
 
 // How long the result stays on screen once the dice stop.
 const RESULT_HOLD_MS = 3500;
@@ -30,12 +32,23 @@ $("shell").addEventListener("click", done);
 OBR.onReady(async () => {
   if (!record) return done();
   try {
-    const { createDiceTray } = await import("./diceScene.js");
+    await startRuntimeOptions().catch(() => {});
+    let soundsOn = true;
+    try { soundsOn = runtimeOptionsService.get(selectDiceSoundsEnabled) !== false; } catch {}
+    const [{ createDiceTray }, sound] = await Promise.all([
+      import("./diceScene.js"),
+      // Lot D-5: the others' dice sound too. The browser may keep this window quiet, as nobody clicked in it.
+      soundsOn ? import("./diceSound.js").then(({ createDiceSound }) => createDiceSound({ base: import.meta.env.BASE_URL || "/" })) : null,
+    ]);
+    sound?.unlock();
     const canvas = $("tray");
     // A hidden Owlbear tab draws no animation frames: the dice go straight to where they stop.
     const tray = await createDiceTray({ canvas, base: import.meta.env.BASE_URL || "/", reducedMotion: document.hidden ? true : null });
     tray.resize(canvas.clientWidth, canvas.clientHeight);
-    await tray.roll(record, { style: record.style });
+    await tray.roll(record, {
+      style: record.style,
+      ...(sound ? { onPrepare: (sounds) => sound.prepare(sounds), onImpact: (impact) => void sound.play(impact) } : {}),
+    });
   } catch (error) {
     console.warn("[dice-notice] riproduzione:", error?.message || error);
   }

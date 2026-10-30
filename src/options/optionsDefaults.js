@@ -71,6 +71,8 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
     fiveTools2024: false,
     // The dice style of this browser in the Online dice tray (diceStyles.js); the others see your dice in it.
     diceStyle: "iron",
+    // The dice's impact sounds in this browser (lot D-5), the tray's 🔊.
+    diceSounds: true,
   },
   runtime: {
     combatLog: true,

@@ -297,3 +297,8 @@ export function selectOptionsPanelModel(options) {
 export function selectDiceStyle(options) {
   return resolved(options).local.tools.diceStyle;
 }
+
+// The dice's impact sounds in this browser (lot D-5).
+export function selectDiceSoundsEnabled(options) {
+  return resolved(options).local.tools.diceSounds !== false;
+}

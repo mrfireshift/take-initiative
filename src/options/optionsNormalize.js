@@ -188,6 +188,7 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
       // The 2024 stat blocks (fase 3, lotto 6, decision D1): off unless the GM turns them on in this browser.
       fiveTools2024: tools.fiveTools2024 === true,
       diceStyle: normalizeDiceStyle(tools.diceStyle ?? defaults.tools.diceStyle),
+      diceSounds: tools.diceSounds !== false,
     },
     runtime: {
       ...runtime,

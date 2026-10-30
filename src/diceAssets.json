@@ -1147,5 +1147,67 @@
       "params": {}
     }
   },
-  "environment": "dice/environment.hdr"
+  "environment": "dice/environment.hdr",
+  "sounds": {
+    "light": {
+      "dice": [
+        "dice/sounds/light/dice/01.mp3",
+        "dice/sounds/light/dice/02.mp3",
+        "dice/sounds/light/dice/03.mp3",
+        "dice/sounds/light/dice/04.mp3"
+      ],
+      "leather": [
+        "dice/sounds/light/leather/01.mp3",
+        "dice/sounds/light/leather/02.mp3",
+        "dice/sounds/light/leather/03.mp3",
+        "dice/sounds/light/leather/04.mp3"
+      ],
+      "wood": [
+        "dice/sounds/light/wood/01.mp3",
+        "dice/sounds/light/wood/02.mp3",
+        "dice/sounds/light/wood/03.mp3",
+        "dice/sounds/light/wood/04.mp3"
+      ]
+    },
+    "medium": {
+      "dice": [
+        "dice/sounds/medium/dice/01.mp3",
+        "dice/sounds/medium/dice/02.mp3",
+        "dice/sounds/medium/dice/03.mp3",
+        "dice/sounds/medium/dice/04.mp3"
+      ],
+      "leather": [
+        "dice/sounds/medium/leather/01.mp3",
+        "dice/sounds/medium/leather/02.mp3",
+        "dice/sounds/medium/leather/03.mp3",
+        "dice/sounds/medium/leather/04.mp3"
+      ],
+      "wood": [
+        "dice/sounds/medium/wood/01.mp3",
+        "dice/sounds/medium/wood/02.mp3",
+        "dice/sounds/medium/wood/03.mp3",
+        "dice/sounds/medium/wood/04.mp3"
+      ]
+    },
+    "heavy": {
+      "dice": [
+        "dice/sounds/heavy/dice/01.mp3",
+        "dice/sounds/heavy/dice/02.mp3",
+        "dice/sounds/heavy/dice/03.mp3",
+        "dice/sounds/heavy/dice/04.mp3"
+      ],
+      "leather": [
+        "dice/sounds/heavy/leather/01.mp3",
+        "dice/sounds/heavy/leather/02.mp3",
+        "dice/sounds/heavy/leather/03.mp3",
+        "dice/sounds/heavy/leather/04.mp3"
+      ],
+      "wood": [
+        "dice/sounds/heavy/wood/01.mp3",
+        "dice/sounds/heavy/wood/02.mp3",
+        "dice/sounds/heavy/wood/03.mp3",
+        "dice/sounds/heavy/wood/04.mp3"
+      ]
+    }
+  }
 }

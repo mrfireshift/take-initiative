@@ -27,7 +27,7 @@ import {
   rememberDiceRoll,
 } from "./diceTrayCore.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
-import { selectDiceStyle } from "./options/optionsSelectors.js";
+import { selectDiceSoundsEnabled, selectDiceStyle } from "./options/optionsSelectors.js";
 
 const POPOVER_ID = `${ID}/dice-tray`;
 const DIE_BUTTONS = [4, 6, 8, 10, 12, 20, 100];
@@ -47,8 +47,10 @@ const hiddenToggle = $("hidden");
 const styleSelect = $("diceStyle");
 const historyPanel = $("history");
 const historyToggle = $("historyToggle");
+const soundToggle = $("soundToggle");
 
 let tray = null;
+let sound = null;
 let rolling = false;
 let player = { id: "", connectionId: "", name: "" };
 let isGm = false;
@@ -138,8 +140,25 @@ async function shareRoll(record) {
   ]).catch((error) => console.warn("[dice-tray] tiro non condiviso:", error?.message || error));
 }
 
+// Lot D-5: the impact sounds, unless this browser turned them off.
+function soundsOn() {
+  return soundToggle.getAttribute("aria-pressed") === "true";
+}
+
+function soundHooks() {
+  if (!sound || !soundsOn()) return {};
+  return { onPrepare: (sounds) => sound.prepare(sounds), onImpact: (impact) => void sound.play(impact) };
+}
+
+function renderSoundToggle(on) {
+  soundToggle.setAttribute("aria-pressed", String(on));
+  soundToggle.textContent = on ? "🔊" : "🔇";
+  soundToggle.title = on ? "Suoni dei dadi: attivi" : "Suoni dei dadi: spenti";
+}
+
 async function roll() {
   if (rolling || !tray) return;
+  sound?.unlock();
   const mode = advantage.getAttribute("aria-pressed") === "true"
     ? "advantage"
     : disadvantage.getAttribute("aria-pressed") === "true" ? "disadvantage" : null;
@@ -168,7 +187,7 @@ async function roll() {
   historyPanel.hidden = true;
   historyToggle.setAttribute("aria-pressed", "false");
   try {
-    await tray.roll(record, { style });
+    await tray.roll(record, { style, ...soundHooks() });
     total.textContent = String(result.total);
     setDetail(diceRollDetail(result));
     rememberDiceRoll(record);
@@ -201,6 +220,15 @@ historyToggle.addEventListener("click", () => {
   historyPanel.hidden = !show;
   historyToggle.setAttribute("aria-pressed", String(show));
 });
+soundToggle.addEventListener("click", () => {
+  const on = !soundsOn();
+  renderSoundToggle(on);
+  if (on) sound?.unlock();
+  void runtimeOptionsService.updateLocal((current) => ({
+    ...current,
+    tools: { ...(current.tools || {}), diceSounds: on },
+  })).catch((error) => console.warn("[dice-tray] suoni non salvati:", error?.message || error));
+});
 styleSelect.addEventListener("change", () => {
   void runtimeOptionsService.updateLocal((current) => ({
     ...current,
@@ -216,6 +244,7 @@ window.addEventListener("keydown", (event) => {
 OBR.onReady(async () => {
   await startRuntimeOptions().catch(() => {});
   try { styleSelect.value = normalizeDiceStyle(runtimeOptionsService.get(selectDiceStyle)); } catch {}
+  try { renderSoundToggle(runtimeOptionsService.get(selectDiceSoundsEnabled) !== false); } catch {}
   const [role, name, connectionId] = await Promise.all([
     OBR.player.getRole().catch(() => "PLAYER"),
     OBR.player.getName().catch(() => ""),
@@ -229,8 +258,9 @@ OBR.onReady(async () => {
     if (record && !historyPanel.hidden) renderHistory(record);
   });
   // The 3D code and the assets load with the tray only (three.js, cannon-es and the Dice's models).
-  const { createDiceTray } = await import("./diceScene.js");
+  const [{ createDiceTray }, { createDiceSound }] = await Promise.all([import("./diceScene.js"), import("./diceSound.js")]);
   const canvas = $("tray");
+  sound = createDiceSound({ base: import.meta.env.BASE_URL || "/" });
   tray = await createDiceTray({ canvas, base: import.meta.env.BASE_URL || "/" });
   const fit = () => tray.resize(canvas.clientWidth, canvas.clientHeight);
   new ResizeObserver(fit).observe(canvas);

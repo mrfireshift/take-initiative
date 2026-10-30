@@ -104,7 +104,7 @@ Un lotto per commit, con test, `npm test`, `npm run build`, `npm run perf:bundle
 | D-2 | Dadi 3D: geometrie dei sette dadi, numeri, fisica, assegnazione del valore alla faccia in alto, scena del vassoio | Prova visiva nel banco; misura del peso |
 | D-3 | Vassoio: pagina, pulsante 🎲 nel tracker (solo Online), tiro nascosto del GM, storico locale | Pagina nuova nel bundle |
 | D-4 | Condivisione: broadcast, raccolta nel background, riquadro 3D dei tiri altrui, recupero per chi rientra | Background di ogni client, solo in Online |
-| D-5 | Facoltativo: suoni | Da decidere dopo |
+| D-5 | Suoni degli urti della Dice, spegnibili dal 🔊 del vassoio | Asset in `public/dice/sounds/` |
 
 ## Decisioni
 
@@ -130,7 +130,8 @@ Un lotto per commit, con test, `npm test`, `npm run build`, `npm run perf:bundle
 | D-1 | `2e016492` | `src/diceCore.js` |
 | D-2 | `b63689db` | Asset della Dice in `public/dice/` (import con `scripts/import-owlbear-dice-assets.mjs`), `src/diceFaceCore.js`, `src/diceScene.js`, banco in `test-support/dice-bench/` |
 | D-3 | `d2b4c5f8` | `dice-tray.html`, `src/dice-tray.js`, `src/diceTrayCore.js`, 🎲 nel tracker solo in Online; correzione dell'animazione bloccata al primo fotogramma in `9b962e0b` |
-| D-4 | (questo lotto) | Broadcast `…/dice/roll` agli altri schermi, ultimo tiro in `…/dice/last-roll` nei metadata del giocatore, `src/diceRollHost.js` nel background (solo Online), riquadro `dice-notice.html` in basso a sinistra, al massimo 4 in coda |
+| D-4 | `2ad34884` | Broadcast `…/dice/roll` agli altri schermi, ultimo tiro in `…/dice/last-roll` nei metadata del giocatore, `src/diceRollHost.js` nel background (solo Online), riquadro `dice-notice.html` in basso a sinistra, al massimo 4 in coda |
+| D-5 | (questo lotto) | Suoni della Dice (244 KB, per peso del dado e superficie: dado, cuoio, legno), urti registrati nella simulazione e suonati in riproduzione, volume = velocità / 5, 200 ms per dado; opzione locale `tools.diceSounds`; niente scuotimento |
 
 Pesi misurati: codice 3D 153 KB (brotli); per tiro al primo uso modelli usati
 (~15 KB l'uno), vassoio 540 KB, uno stile 330–940 KB, mappa di luce 1,6 MB.

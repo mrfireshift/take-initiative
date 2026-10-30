@@ -3,6 +3,7 @@
 import { createDiceTray, DICE_STYLES } from "../../src/diceScene.js";
 import { createDiceRollRecord, diceThrowParameters, parseDiceFormula, physicalDiceOf, rollDiceFormula } from "../../src/diceCore.js";
 import { physicalDieAsset } from "../../src/diceFaceCore.js";
+import { createDiceSound } from "../../src/diceSound.js";
 
 const canvas = document.getElementById("tray");
 const log = document.getElementById("log");
@@ -13,6 +14,9 @@ for (const entry of DICE_STYLES) style.append(new Option(entry.label, entry.key,
 const instant = new URLSearchParams(location.search).get("instant") === "1";
 const tray = await createDiceTray({ canvas, base: "/", reducedMotion: instant ? true : null });
 tray.resize(canvas.clientWidth, canvas.clientHeight);
+// Lot D-5: the impact sounds (heard after a click on the page, as the browser asks).
+const sound = createDiceSound({ base: "/" });
+document.addEventListener("click", () => sound.unlock());
 
 async function roll(formula = document.getElementById("formula").value, styleKey = style.value) {
   const parsed = parseDiceFormula(formula);
@@ -21,11 +25,18 @@ async function roll(formula = document.getElementById("formula").value, styleKey
   const physical = physicalDiceOf(result);
   const record = createDiceRollRecord({ id: `bench-${Date.now()}`, result, throws: diceThrowParameters(physical.length) });
   const started = performance.now();
-  const shown = await tray.roll(record, { style: styleKey });
+  const impacts = [];
+  const shown = await tray.roll(record, {
+    style: styleKey,
+    onPrepare: (sounds) => sound.prepare(sounds),
+    onImpact: (impact) => { impacts.push(impact); void sound.play(impact); },
+  });
   const wanted = physical.map((die) => physicalDieAsset(die).value);
   const ok = shown && shown.every((value, index) => value === wanted[index]);
   log.textContent = `${result.formula} = ${result.total}\nestratti: ${wanted.join(", ")}\nmostrati: ${shown?.join(", ")}\n${ok ? "OK" : "DIVERSI"} · ${Math.round(performance.now() - started)} ms`;
-  return { ok, wanted, shown };
+  log.textContent += `
+urti con suono: ${impacts.length}`;
+  return { ok, wanted, shown, impacts };
 }
 
 document.getElementById("roll").addEventListener("click", () => void roll());

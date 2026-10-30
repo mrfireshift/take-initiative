@@ -35,6 +35,7 @@ import {
 import assets from "./diceAssets.json";
 import { physicalDiceOf } from "./diceCore.js";
 import { dieCentroid, faceSymmetry, multiplyQuaternions, physicalDieAsset, upFaceValue } from "./diceFaceCore.js";
+import { audibleImpacts, dieWeightClass, impactPan } from "./diceSoundCore.js";
 
 export const DICE_STYLES = Object.freeze(Object.entries(assets.styles)
   .filter(([key]) => key !== "tray")
@@ -128,7 +129,8 @@ function dieShape(key) {
   return shape;
 }
 
-// Plays the physics of a throw in advance: the pose of every die at 60 frames a second until all of them rest.
+// Plays the physics of a throw in advance: the pose of every die at 60 frames a second until all of them rest, and
+// every time a die starts touching another die, the floor or a wall (lot D-5: the impact sounds).
 function simulate(dice, throws) {
   const world = new World({ gravity: new Vec3(0, -9.81 * 2, 0), allowSleep: false });
   world.solver.iterations = 12;
@@ -139,14 +141,16 @@ function simulate(dice, throws) {
   world.addContactMaterial(new ContactMaterial(diceMaterial, floorMaterial, { friction: 5.05, restitution: 0.25 }));
   world.addContactMaterial(new ContactMaterial(diceMaterial, wallMaterial, { friction: 0.55, restitution: 0.45 }));
   world.addContactMaterial(new ContactMaterial(diceMaterial, diceMaterial, { friction: 0.1, restitution: 0 }));
-  const wall = (position, axis, angle, material) => {
+  const surfaces = new Map();
+  const wall = (position, axis, angle, material, surface = "wood") => {
     const body = new Body({ mass: 0, material, shape: new Plane() });
+    surfaces.set(body, surface);
     body.position.set(...position);
     body.quaternion.setFromAxisAngle(new Vec3(...axis), angle);
     world.addBody(body);
   };
-  wall([0, 0, 0], [1, 0, 0], -Math.PI / 2, floorMaterial);
-  wall([0, TRAY.roof, 0], [1, 0, 0], Math.PI / 2, wallMaterial);
+  wall([0, 0, 0], [1, 0, 0], -Math.PI / 2, floorMaterial, "leather");
+  wall([0, TRAY.roof, 0], [1, 0, 0], Math.PI / 2, wallMaterial, null);
   wall([TRAY.halfWidth, 0, 0], [0, 1, 0], -Math.PI / 2, wallMaterial);
   wall([-TRAY.halfWidth, 0, 0], [0, 1, 0], Math.PI / 2, wallMaterial);
   wall([0, 0, TRAY.halfDepth], [0, 1, 0], Math.PI, wallMaterial);
@@ -166,6 +170,20 @@ function simulate(dice, throws) {
     return body;
   });
 
+  const indexOf = new Map(bodies.map((body, index) => [body, index]));
+  const impacts = [];
+  const impact = (body, other) => {
+    const die = indexOf.get(body);
+    if (die === undefined) return;
+    const surface = indexOf.has(other) ? "dice" : surfaces.get(other);
+    if (!surface) return;
+    impacts.push({ die, surface, frame: frames.length, time: frames.length / 60, speed: body.velocity.length(), x: body.position.x });
+  };
+  world.addEventListener("beginContact", ({ bodyA, bodyB }) => {
+    impact(bodyA, bodyB);
+    impact(bodyB, bodyA);
+  });
+
   const frames = [];
   const record = () => frames.push(bodies.map((body) => ({
     position: [body.position.x, body.position.y, body.position.z],
@@ -180,7 +198,7 @@ function simulate(dice, throws) {
     const resting = bodies.every((body) => body.velocity.length() + body.angularVelocity.length() < REST_SPEED * 20);
     restingFrames = resting ? restingFrames + 1 : 0;
   }
-  return frames;
+  return { frames, impacts };
 }
 
 // The tray drawn in `canvas`. roll(record, { style }) throws the record's dice and resolves with the values shown.
@@ -262,7 +280,8 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
     return { body, pivot };
   }
 
-  async function roll(record, { style = DEFAULT_DICE_STYLE } = {}) {
+  // onImpact({ weight, surface, volume, pan }) is called as each audible impact plays (diceSound.js plays it).
+  async function roll(record, { style = DEFAULT_DICE_STYLE, onImpact = null, onPrepare = null } = {}) {
     const revision = ++rollRevision;
     cancelAnimationFrame(frameRequest);
     const physical = physicalDiceOf(record);
@@ -278,7 +297,7 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
     diceGroup.clear();
     for (const object of objects) diceGroup.add(object.body);
 
-    const frames = simulate(dice, throws);
+    const { frames, impacts } = simulate(dice, throws);
     const last = frames.at(-1);
     // Each die shows the value drawn: the symmetry that takes it where the physics left the top number.
     const shown = dice.map((die, index) => {
@@ -300,6 +319,23 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
       pose(last);
       return shown;
     }
+    const sounds = typeof onImpact === "function"
+      ? audibleImpacts(impacts).map((entry) => ({
+        frame: entry.frame,
+        weight: dieWeightClass(dice[entry.die].key, style),
+        surface: entry.surface,
+        volume: entry.volume,
+        pan: impactPan(entry.x, TRAY.halfWidth),
+      }))
+      : [];
+    if (sounds.length && typeof onPrepare === "function") {
+      await Promise.race([
+        Promise.resolve(onPrepare(sounds)).catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
+      if (revision !== rollRevision) return null;
+    }
+    let nextSound = 0;
     await new Promise((resolve) => {
       // The clock starts at the first frame: an animation frame's time can come before a performance.now() taken
       // just earlier, and a negative index stopped the roll.
@@ -309,6 +345,10 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
         start ??= now;
         const index = Math.max(0, Math.min(frames.length - 1, Math.floor(((now - start) / 1000) * 60)));
         pose(frames[index]);
+        while (nextSound < sounds.length && sounds[nextSound].frame <= index) {
+          try { onImpact(sounds[nextSound]); } catch {}
+          nextSound += 1;
+        }
         if (index >= frames.length - 1) return resolve();
         frameRequest = requestAnimationFrame(tick);
       };
