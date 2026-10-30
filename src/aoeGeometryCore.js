@@ -1013,3 +1013,19 @@ export function areaIntersectsSweptSegment(area, start, end, bounds) {
   const distanceSquared = squaredDistanceSegmentToRect(segmentStart, segmentEnd, rect);
   return distanceSquared < radiusSquared - EPSILON * Math.max(1, radiusSquared);
 }
+
+// Where a point of a drawn area is now (lot L20): the area was saved where it was drawn (position 0,0, no rotation,
+// scale 1), so the item's current position, rotation (degrees) and scale carry it exactly, however the GM moved,
+// turned or resized it on the map. The reselection used the move alone: a turned cone kept its first direction.
+export function transformedAreaPoint(point, { position = null, rotation = 0, scale = null } = {}) {
+  const local = finitePoint(point);
+  const origin = finitePoint(position || { x: 0, y: 0 });
+  const radians = (Number(rotation) || 0) * Math.PI / 180;
+  const scaleX = Number(scale?.x) || 1;
+  const scaleY = Number(scale?.y) || 1;
+  const x = local.x * scaleX;
+  const y = local.y * scaleY;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return { x: origin.x + x * cos - y * sin, y: origin.y + x * sin + y * cos };
+}

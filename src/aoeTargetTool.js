@@ -8,6 +8,7 @@ import {
   buildCellBoundaryLoops,
   buildFootprintEmanationArea,
   nearestGridSnap,
+  transformedAreaPoint,
 } from "./aoeGeometryCore.js";
 import {
   AOE_SETTINGS_POPOVER_ID,
@@ -1517,12 +1518,22 @@ function translatedAreaFromItem(item) {
   const base = point(metadata.basePosition) || { x: 0, y: 0 };
   const delta = { x: position.x - base.x, y: position.y - base.y };
   const translate = (entry) => ({ x: Number(entry.x) + delta.x, y: Number(entry.y) + delta.y });
+  // Turned or resized on the map, not only moved (lot L20): its points follow the item's whole transform. The world's
+  // grid never turns, so the cells stay on it; a square turned off the right angles stays the square of cells it covers.
+  const rotation = Number(item.rotation) || 0;
+  const scale = { x: Number(item?.scale?.x) || 1, y: Number(item?.scale?.y) || 1 };
+  const transformed = rotation % 360 !== 0 || scale.x !== 1 || scale.y !== 1;
+  const place = (entry) => transformedAreaPoint(
+    { x: Number(entry.x) - base.x, y: Number(entry.y) - base.y },
+    { position, rotation, scale },
+  );
+  const gridOrigin = metadata.gridOrigin || metadata.start;
   return buildArea(
     metadata.type,
-    translate(metadata.start),
-    translate(metadata.end),
+    place(metadata.start),
+    place(metadata.end),
     metadata.dpi,
-    translate(metadata.gridOrigin || metadata.start),
+    transformed ? { x: Number(gridOrigin.x), y: Number(gridOrigin.y) } : translate(gridOrigin),
     {
       widthSquares: metadata.widthSquares,
       widthAnchor: metadata.widthAnchor,
