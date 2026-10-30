@@ -25,20 +25,20 @@
       .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; position: relative; }
       * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.55) transparent; }
     </style>
-    <script type="module" crossorigin src="/assets/optionsModal-BOS4Wou_.js"></script>
+    <script type="module" crossorigin src="/assets/optionsModal-D1uAe9SU.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDrag-BnDt_jrR.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
-    <link rel="modulepreload" crossorigin href="/assets/perfProbe-Dy5mfQ8J.js">
-    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-rdDaQTBJ.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-rNb0Tsqw.js">
-    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-cYSxqb7D.js">
+    <link rel="modulepreload" crossorigin href="/assets/perfProbe-DFOrjpqq.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-C86y72-9.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistryCore-BpJAUqSw.js">
+    <link rel="modulepreload" crossorigin href="/assets/factionRegistry-42zTfdkw.js">
     <link rel="modulepreload" crossorigin href="/assets/popoverDragHost-92LkL4XF.js">
     <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
-    <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-Dq4VIxZD.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-D6Yb2lb5.js">
-    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-Bs_L8TKp.js">
+    <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-D27kjyro.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-DNSvtj0F.js">
+    <link rel="modulepreload" crossorigin href="/assets/trackerPopover-I-HSM14C.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeGeometryCore-DC3uIRuW.js">
     <link rel="modulepreload" crossorigin href="/assets/aoeStyle-BBl-cwqV.js">
     <link rel="modulepreload" crossorigin href="/assets/spellStaticZoneCore-DmQm2ryn.js">
@@ -135,6 +135,13 @@
 
           <article class="option-card room-only" data-room-only>
             <div class="option-card-heading">
+              <div><h3>Modalità di gioco</h3><p>Tavolo: lo schermo dei giocatori segue il GM, come sempre. Online: ogni giocatore muove la propria vista, sceglie posizione e dimensione del tracker (menu ⚙ nel suo tracker) e può chiuderlo; si riapre quando lo riapri tu o inizia un combattimento.</p></div>
+            </div>
+            <label class="option-field"><span>Modalità</span><select data-room="profile"><option value="table">Tavolo</option><option value="online">Online</option></select></label>
+          </article>
+
+          <article class="option-card room-only" data-room-only>
+            <div class="option-card-heading">
               <div><h3>Apertura tracker</h3><p>I giocatori seguono apertura e chiusura del GM.</p></div>
             </div>
             <label class="option-toggle compact">
@@ -142,7 +149,7 @@
             </label>
           </article>
 
-          <article class="option-card room-only" data-room-only>
+          <article class="option-card room-only" data-room-only data-table-profile-only>
             <div class="option-card-heading">
               <div><h3>Vista e posizione del tracker</h3><p>I giocatori seguono la vista estesa o compatta e la posizione del GM, in proporzione al loro schermo.</p></div>
             </div>
@@ -151,7 +158,7 @@
             </label>
           </article>
 
-          <article class="option-card room-only" data-room-only>
+          <article class="option-card room-only" data-room-only data-table-profile-only>
             <div class="option-card-heading">
               <div><h3>Dimensione tracker</h3><p>Rimpicciolisce o ingrandisce il tracker dei giocatori (dal 50% al 200%), ad esempio per lo schermo del tavolo letto a distanza. La finestra del tracker segue la scala.</p></div>
             </div>

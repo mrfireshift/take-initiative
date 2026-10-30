@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tiro</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/popover-glass.css" />
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent !important;
+      }
+      body {
+        box-sizing: border-box;
+        color: #fff;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
+        font-size: 12px;
+      }
+      .glass-shell {
+        box-sizing: border-box;
+        width: 100%;
+        height: 100vh;
+        min-height: 100vh !important;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        cursor: pointer;
+      }
+      #stage {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+        margin: 6px 6px 0;
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(0, 0, 0, .25);
+      }
+      #tray { display: block; width: 100%; height: 100%; }
+      #result {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0 8px;
+        padding: 6px 10px 8px;
+      }
+      #who { font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #formula { grid-column: 1; color: rgba(255, 255, 255, .62); font-size: var(--obrt-type-micro, 10px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #total { grid-column: 2; grid-row: 1 / span 2; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    </style>
+    <script type="module" crossorigin src="/assets/diceNotice-YcQZvmgm.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
+    <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
+    <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
+    <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
+    <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-D27kjyro.js">
+    <link rel="modulepreload" crossorigin href="/assets/diceTrayCore-CHG611A4.js">
+    <link rel="modulepreload" crossorigin href="/assets/perfProbe-DFOrjpqq.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-C86y72-9.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-DNSvtj0F.js">
+  </head>
+  <body>
+    <div id="shell" class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/dice-notice" title="Clic per chiudere">
+      <div id="stage"><canvas id="tray" aria-hidden="true"></canvas></div>
+      <div id="result" aria-live="polite">
+        <div id="who"></div>
+        <div id="formula"></div>
+        <div id="total"></div>
+      </div>
+    </div>
+  </body>
+</html>

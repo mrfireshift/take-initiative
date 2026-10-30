@@ -203,6 +203,52 @@
         transform-origin: left;
         animation: expire 4.5s linear forwards;
       }
+      /* Online room profile (lot O4a): the turn of this player's own creature. A white spotlight, never a faction
+         colour (red, green, blue and amber already say enemy, ally, character and neutral). The popup is only 4 px
+         wider than the card, so the white glow shines inside the border, where it cannot be cut off. */
+      .notice.mine {
+        box-shadow:
+          0 0 0 2px var(--accent),
+          0 0 0 4px rgba(255, 255, 255, .95),
+          0 18px 48px rgba(0, 0, 0, .68),
+          inset 0 0 0 1px rgba(255, 255, 255, .5),
+          inset 0 0 22px 4px rgba(255, 255, 255, .34),
+          inset 0 -28px 44px rgba(0, 0, 0, .25);
+        animation: your-turn-glow 2.2s ease-in-out infinite;
+      }
+      @keyframes your-turn-glow {
+        0%, 100% {
+          box-shadow:
+            0 0 0 2px var(--accent),
+            0 0 0 4px rgba(255, 255, 255, .95),
+            0 18px 48px rgba(0, 0, 0, .68),
+            inset 0 0 0 1px rgba(255, 255, 255, .5),
+            inset 0 0 22px 4px rgba(255, 255, 255, .34),
+            inset 0 -28px 44px rgba(0, 0, 0, .25);
+        }
+        50% {
+          box-shadow:
+            0 0 0 2px var(--accent),
+            0 0 0 4px rgba(255, 255, 255, 1),
+            0 18px 48px rgba(0, 0, 0, .68),
+            inset 0 0 0 1px rgba(255, 255, 255, .75),
+            inset 0 0 34px 10px rgba(255, 255, 255, .52),
+            inset 0 -28px 44px rgba(0, 0, 0, .25);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) { .notice.mine { animation: none; } }
+      .notice.mine .eyebrow {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #fff;
+        color: #0b1220;
+        font-size: 11px;
+        letter-spacing: 1px;
+      }
+      .notice.mine .timer::after { background: #fff; box-shadow: 0 0 8px rgba(255, 255, 255, .8); }
+      .notice.mine .portrait { box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px rgba(255, 255, 255, .92), 0 0 16px 4px rgba(255, 255, 255, .25); }
+      .next.is-you strong { color: #fff; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
       .zone-notice {
         --accent: #fb923c;
         --accent-soft: rgba(251, 146, 60, .42);
@@ -510,7 +556,7 @@
         .zone-title { font-size: 14px; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/turnNotice-Dtp4JK-S.js"></script>
+    <script type="module" crossorigin src="/assets/turnNotice-QqS1qTbj.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
@@ -534,13 +580,13 @@
     <link rel="modulepreload" crossorigin href="/assets/lazyModule-BEU7KMxf.js">
     <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementCore-B2mcMlr6.js">
     <link rel="modulepreload" crossorigin href="/assets/spellAreaPlacementClient-mmATsE0t.js">
-    <link rel="modulepreload" crossorigin href="/assets/turnNotice-DZit0Osr.js">
+    <link rel="modulepreload" crossorigin href="/assets/turnNotice-BIDK-JRW.js">
     <link rel="modulepreload" crossorigin href="/assets/fiveToolsArchiveCore-tLcUxIcx.js">
-    <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-Dq4VIxZD.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsProjection-DVVrcODH.js">
-    <link rel="modulepreload" crossorigin href="/assets/perfProbe-Dy5mfQ8J.js">
-    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-rdDaQTBJ.js">
-    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-D6Yb2lb5.js">
+    <link rel="modulepreload" crossorigin href="/assets/localOptionsStore-D27kjyro.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsProjection-CzwELcSV.js">
+    <link rel="modulepreload" crossorigin href="/assets/perfProbe-DFOrjpqq.js">
+    <link rel="modulepreload" crossorigin href="/assets/metadataKeyScoped-C86y72-9.js">
+    <link rel="modulepreload" crossorigin href="/assets/optionsRuntime-DNSvtj0F.js">
   </head>
   <body>
     <div id="notice-stack">
