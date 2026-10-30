@@ -98,9 +98,9 @@ function fakeObr({ refuseOwner = false, permissions = [] } = {}) {
 }
 
 test("lo scrittore conserva il resto del meta e rende il giocatore proprietario", async () => {
-  const obr = fakeObr({ permissions: ["CHARACTER_OWNER_ONLY"] });
+  const obr = fakeObr({ permissions: ["CHARACTER_OWNER_ONLY", "CHARACTER_UPDATE"] });
   const result = await writePlayerAssignment(["hero"], mario, { obr, fallbackOwnerId: "user-gm" });
-  assert.deepEqual(result, { written: true, owner: true, ownerOnly: true });
+  assert.deepEqual(result, { written: true, owner: true, ownerOnly: true, canUpdate: true });
   assert.equal(obr.items[0].createdUserId, "user-mario");
   assert.equal(obr.items[0].metadata[META_KEY].hp, 12);
   assert.equal(obr.items[0].metadata[META_KEY].assignedPlayer.id, "user-mario");
@@ -114,7 +114,7 @@ test("lo scrittore conserva il resto del meta e rende il giocatore proprietario"
 test("se Owlbear rifiuta il proprietario l'assegnazione resta e lo scrittore lo dice", async () => {
   const obr = fakeObr({ refuseOwner: true });
   const result = await writePlayerAssignment(["hero"], mario, { obr, fallbackOwnerId: "user-gm" });
-  assert.deepEqual(result, { written: true, owner: false, ownerOnly: false });
+  assert.deepEqual(result, { written: true, owner: false, ownerOnly: false, canUpdate: false });
   assert.equal(obr.items[0].metadata[META_KEY].assignedPlayer.name, "Mario");
   assert.equal(obr.items[0].createdUserId, "user-gm");
 });

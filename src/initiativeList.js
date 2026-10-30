@@ -195,6 +195,7 @@ import {
   PLAYER_ASSIGNMENT_NONE,
 } from "./playerAssignmentCore.js";
 import { writePlayerAssignment } from "./playerAssignmentWriter.js";
+import { rememberPlayerAssignment } from "./playerAssignmentMemory.js";
 import { buildLegendaryResourcePips } from "./initiativeCardBossClassic.js";
 import { buildClassicTrackerCard } from "./initiativeCardClassicBuilder.js";
 import {
@@ -1632,15 +1633,24 @@ async function __setCardPlayer(entry, playerId, sceneEpoch = currentSceneEpoch()
     isCurrent: () => __isCurrentSceneOperation(sceneEpoch, "set-card-player"),
     fallbackOwnerId: __selfPlayerId(),
   });
-  if (!result.written || !player) return;
+  if (!result.written) return;
+  // Remembered in the room: the character's token gets the same player in every scene.
+  const item = readSceneItemsSnapshot(sceneEpoch)?.items?.find((candidate) => candidate?.id === entry.id)
+    || (await OBR.scene.items.getItems([entry.id]).catch(() => []))[0];
+  if (item) {
+    await rememberPlayerAssignment(item, player).catch((error) => {
+      console.warn("[player-assignment] memoria non salvata:", error?.message || error);
+    });
+  }
+  if (!player) return;
   if (!result.owner) {
     void OBR.notification.show(
       `${player.name || "Il giocatore"} è assegnato, ma Owlbear non ha cambiato il proprietario del token: usa il menu Owner di Owlbear.`,
       "WARNING",
     ).catch(() => {});
-  } else if (!result.ownerOnly) {
+  } else if (!result.ownerOnly || !result.canUpdate) {
     void OBR.notification.show(
-      "Per far muovere a ogni giocatore solo il proprio token, accendi «Owner Only» nei permessi dei giocatori di Owlbear.",
+      "Per far muovere a ogni giocatore solo il proprio token, accendi «Update» e «Owner Only» nella sezione Character dei permessi dei giocatori di Owlbear.",
       "INFO",
     ).catch(() => {});
   }

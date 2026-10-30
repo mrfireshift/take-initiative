@@ -18,6 +18,8 @@ export const ROOM_METADATA_DOMAIN_MAX_BYTES = Object.freeze({
   "options-room": 1_200,
   "shared-ui": 350,
   "speed-check-control": 350,
+  // Which player plays which character, remembered across scenes (audit online, lot O3): short keys only.
+  "player-assignments": 390,
 });
 
 export const ROOM_METADATA_DOMAIN_MAX_BY_KEY = Object.freeze({
@@ -28,6 +30,7 @@ export const ROOM_METADATA_DOMAIN_MAX_BY_KEY = Object.freeze({
   [`${ID}/options-room`]: ROOM_METADATA_DOMAIN_MAX_BYTES["options-room"],
   [`${ID}/ui`]: ROOM_METADATA_DOMAIN_MAX_BYTES["shared-ui"],
   [`${ID}/speed-check-control`]: ROOM_METADATA_DOMAIN_MAX_BYTES["speed-check-control"],
+  [`${ID}/playerAssignments`]: ROOM_METADATA_DOMAIN_MAX_BYTES["player-assignments"],
 });
 
 export const TAKE_INITIATIVE_ROOM_METADATA_KEYS = Object.freeze([
@@ -38,6 +41,7 @@ export const TAKE_INITIATIVE_ROOM_METADATA_KEYS = Object.freeze([
   `${ID}/options-room`,
   `${ID}/ui`,
   `${ID}/speed-check-control`,
+  `${ID}/playerAssignments`,
 ]);
 
 const textEncoder = new TextEncoder();

@@ -9,6 +9,8 @@ const META_KEY = `${ID}/meta`;
 export const PLAYER_ASSIGNMENT_FIELD = "assignedPlayer";
 export const PLAYER_ASSIGNMENT_NONE = "none";
 export const OWNER_ONLY_PERMISSION = "CHARACTER_OWNER_ONLY";
+// Without it a player cannot move any character, theirs included (found in the room test of 30/10).
+export const CHARACTER_UPDATE_PERMISSION = "CHARACTER_UPDATE";
 const PLAYER_ID_PATTERN = /^[A-Za-z0-9:_-]{1,128}$/;
 
 export function isPlayerAssignmentValue(value) {

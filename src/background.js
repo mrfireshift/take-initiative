@@ -91,8 +91,10 @@ import { retainHPMapWithinByteBudget } from "./hpMemoryRetention.js";
 import { retainFactionRegistryWithinByteBudget } from "./factionRegistryCore.js";
 import { retainInitiativeCardRegistryWithinByteBudget } from "./initiativeCardRegistryCore.js";
 import { retainActorVitalsRegistryWithinByteBudget } from "./actorVitalsCore.js";
+import { retainPlayerAssignmentMemoryWithinByteBudget } from "./playerAssignmentMemoryCore.js";
 import { perfBootPage } from "./perfProbe.js";
 import { mountSecondGmWarning } from "./secondGmWarning.js";
+import { mountPlayerAssignmentMemory } from "./playerAssignmentMemory.js";
 
 perfBootPage(OBR, { observeTraffic: true, observeSdk: true });
 
@@ -123,6 +125,10 @@ async function reconcileRoomMetadataBudget() {
     { key: METADATA_OWNERSHIP.ROOM_OPTIONS.key },
     { key: METADATA_OWNERSHIP.SHARED_UI.key },
     { key: METADATA_OWNERSHIP.SPEED_CHECK_CONTROL.key },
+    {
+      key: METADATA_OWNERSHIP.PLAYER_ASSIGNMENTS.key,
+      retain: retainPlayerAssignmentMemoryWithinByteBudget,
+    },
   ], { runtime: "background-room-metadata-budget" });
 }
 
@@ -289,7 +295,12 @@ OBR.onReady(async () => {
   });
   void bootstrapActorVitalsRuntime();
   void OBR.player.getRole().then((role) => {
-    if (role === "GM") mountSecondGmWarning();
+    if (role !== "GM") return;
+    mountSecondGmWarning();
+    // Online room profile: remembered players go back to their characters' tokens (lot O3).
+    void startRuntimeOptions().then(() => mountPlayerAssignmentMemory()).catch((error) => {
+      console.warn("[player-assignment] memoria:", error?.message || error);
+    });
   }).catch(() => {});
   void mountEffectsMutationCoordinatorService().then(async () => {
     const hpBarsRuntime = mountHPBarsBackgroundRuntime({ service: runtimeOptionsService });

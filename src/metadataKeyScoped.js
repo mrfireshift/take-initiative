@@ -88,6 +88,11 @@ export const METADATA_OWNERSHIP = Object.freeze({
     domain: "initiative-cards",
     owners: Object.freeze(["initiativeCards.js"]),
   }),
+  PLAYER_ASSIGNMENTS: Object.freeze({
+    key: `${ID}/playerAssignments`,
+    domain: "player-assignments",
+    owners: Object.freeze(["playerAssignmentMemory.js"]),
+  }),
   ROOM_OPTIONS: Object.freeze({
     key: `${ID}/options-room`,
     domain: "options-room",
