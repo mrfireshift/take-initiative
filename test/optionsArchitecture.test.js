@@ -44,7 +44,7 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
       playerScale: null,
     },
     windows: { clocksCompact: false, pcAttackAutoOpen: false, pcAttackAutoOpenMonsters: null },
-    tools: { distance3d: true, reference: true, fiveToolsArchive: "", fiveToolsImages: "", fiveTools2024: false },
+    tools: { distance3d: true, reference: true, fiveToolsArchive: "", fiveToolsImages: "", fiveTools2024: false, diceStyle: "iron" },
     runtime: { combatLog: true, playerAnimations: true, playerRemindersMineOnly: false },
   });
   assert.deepEqual(room.playerView.hp.trackerClassic, {

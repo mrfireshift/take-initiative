@@ -69,6 +69,8 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
     fiveToolsArchive: "",
     fiveToolsImages: "",
     fiveTools2024: false,
+    // The dice style of this browser in the Online dice tray (diceStyles.js); the others see your dice in it.
+    diceStyle: "iron",
   },
   runtime: {
     combatLog: true,

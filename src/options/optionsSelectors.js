@@ -292,3 +292,8 @@ export function selectOptionsPanelModel(options) {
     },
   });
 }
+
+// The dice style of this browser in the Online dice tray.
+export function selectDiceStyle(options) {
+  return resolved(options).local.tools.diceStyle;
+}

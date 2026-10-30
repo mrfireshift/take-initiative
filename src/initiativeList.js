@@ -1555,9 +1555,9 @@ playerScreenButton.append(playerScreenIcon);
 
 // Extended tracker: beside it, on its free side, level with the header, like the other side panels. Compact bar:
 // above the button, like the GM's "…" menu.
-async function __playerScreenPlacement() {
+async function __playerScreenPlacement(button = playerScreenButton, panelWidth = PLAYER_SCREEN_POPOVER_WIDTH) {
   if (!isCompactTrackerLayout()) {
-    const anchor = await getTrackerSidePanelAnchor({ panelWidth: PLAYER_SCREEN_POPOVER_WIDTH });
+    const anchor = await getTrackerSidePanelAnchor({ panelWidth });
     return {
       anchorPosition: anchor,
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
@@ -1567,8 +1567,8 @@ async function __playerScreenPlacement() {
   let viewportWidth = 1200;
   try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
   const origin = __compactTrackerFrameOrigin(await getCompactTrackerPopoverAnchor());
-  const rect = playerScreenButton.getBoundingClientRect();
-  const openRight = origin.left + rect.right + 8 + PLAYER_SCREEN_POPOVER_WIDTH <= viewportWidth - 12;
+  const rect = button.getBoundingClientRect();
+  const openRight = origin.left + rect.right + 8 + panelWidth <= viewportWidth - 12;
   const side = openRight ? "LEFT" : "RIGHT";
   return {
     anchorPosition: {
@@ -1596,6 +1596,43 @@ playerScreenButton.addEventListener("click", (event) => {
     });
   })().catch((error) => console.warn("[player-screen] apertura fallita:", error?.message || error));
 });
+
+// The 🎲 of the Online dice tray (docs/PIANO_DADI_ONLINE.md, lot D-3): GM and players, Online room profile only.
+const DICE_TRAY_POPOVER_ID = `${ID}/dice-tray`;
+const DICE_TRAY_POPOVER_WIDTH = 320;
+const diceTrayButton = document.createElement("button");
+diceTrayButton.type = "button";
+diceTrayButton.dataset.diceTray = "1";
+diceTrayButton.style.cssText = layoutToggleButton.style.cssText;
+diceTrayButton.style.display = "none";
+diceTrayButton.title = "Dadi";
+diceTrayButton.setAttribute("aria-label", "Apri il vassoio dei dadi");
+diceTrayButton.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" style="display:block;pointer-events:none">'
+  + '<rect x="3.5" y="3.5" width="17" height="17" rx="3.5" fill="none" stroke="#fff" stroke-width="1.8"/>'
+  + '<circle cx="8.5" cy="8.5" r="1.6" fill="#fff"/><circle cx="12" cy="12" r="1.6" fill="#fff"/>'
+  + '<circle cx="15.5" cy="15.5" r="1.6" fill="#fff"/></svg>';
+diceTrayButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  void (async () => {
+    let viewportHeight = 800;
+    try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+    const placement = await __playerScreenPlacement(diceTrayButton, DICE_TRAY_POPOVER_WIDTH);
+    await OBR.popover.open({
+      id: DICE_TRAY_POPOVER_ID,
+      url: "/dice-tray.html",
+      width: DICE_TRAY_POPOVER_WIDTH,
+      height: Math.max(420, Math.min(680, viewportHeight - 100)),
+      anchorReference: "POSITION",
+      ...placement,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+  })().catch((error) => console.warn("[dice-tray] apertura fallita:", error?.message || error));
+});
+
+function __syncDiceTrayButton() {
+  diceTrayButton.style.display = __onlineRoomProfile() ? "inline-flex" : "none";
+}
 
 function __onlineRoomProfile() {
   try { return runtimeOptionsService.get(selectOnlineRoomProfile) === true; } catch { return false; }
@@ -3648,7 +3685,11 @@ function applyHeaderLayoutPresentation(compact) {
   const classic = !compact;
   const playerClassic = classic && !IS_GM;
   roundPill.style.display = playerClassic ? "grid" : "inline-flex";
-  roundPill.style.gridTemplateColumns = playerClassic ? "28px minmax(0, 1fr) 28px" : "";
+  // Online room profile: the players' ⚙ and 🎲 share the left column; the Table profile keeps the narrow one.
+  const playerOnlineTools = playerClassic && __onlineRoomProfile();
+  roundPill.style.gridTemplateColumns = playerClassic
+    ? (playerOnlineTools ? "60px minmax(0, 1fr) 60px" : "28px minmax(0, 1fr) 28px")
+    : "";
   roundPill.style.gap = classic ? "3px" : "4px";
   roundPill.style.overflow = classic ? "hidden" : "visible";
   roundStatus.style.flex = classic ? "1 1 72px" : "0 0 auto";
@@ -3762,7 +3803,25 @@ function applyHeaderLayoutPresentation(compact) {
     padding: "0",
     margin: "0",
     alignSelf: "center",
-    justifySelf: "center",
+    justifySelf: playerOnlineTools ? "start" : "center",
+    boxSizing: "border-box",
+    border: classic ? "1px solid rgba(148,163,184,.28)" : "1px solid rgba(148,163,184,.24)",
+    background: classic ? "rgba(0,0,0,.34)" : "rgba(8,12,21,.72)",
+    borderRadius: classic ? "10px" : "9px",
+  });
+  // The 🎲 (Online): the GM's beside the layout toggle, the players' at the end of the ⚙'s column.
+  Object.assign(diceTrayButton.style, {
+    gridColumn: playerClassic ? "1" : "",
+    gridRow: playerClassic ? "1" : "",
+    width: classic ? "28px" : "26px",
+    minWidth: classic ? "28px" : "26px",
+    height: classic ? "28px" : "26px",
+    padding: "0",
+    margin: "0",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    justifySelf: playerClassic ? "end" : "center",
     boxSizing: "border-box",
     border: classic ? "1px solid rgba(148,163,184,.28)" : "1px solid rgba(148,163,184,.24)",
     background: classic ? "rgba(0,0,0,.34)" : "rgba(8,12,21,.72)",
@@ -3805,10 +3864,10 @@ function mountCompactSideControls() {
   compactHeaderRow.replaceChildren();
   if (IS_GM) {
     compactAdminMenu.replaceChildren(roundResetSlot, roundHistorySlot, roundActions, mapLabelsCycleButton);
-    compactBottomControls.replaceChildren(layoutToggleButton, compactMoreButton);
+    compactBottomControls.replaceChildren(layoutToggleButton, diceTrayButton, compactMoreButton);
   } else {
     compactAdminMenu.replaceChildren();
-    compactBottomControls.replaceChildren(layoutToggleButton, playerScreenButton);
+    compactBottomControls.replaceChildren(layoutToggleButton, playerScreenButton, diceTrayButton);
   }
   // The round sits in the column, between the drag handle and the buttons: part of the bar, for GM and players.
   compactRoundControls.replaceChildren(trackerDragHandle, roundStatus, compactBottomControls);
@@ -3825,9 +3884,10 @@ function restoreClassicHeader() {
     roundResetSlot,
     roundStatus,
     layoutToggleButton,
+    diceTrayButton,
     roundActions,
     roundHistorySlot,
-  ] : [roundStatus, layoutToggleButton, playerScreenButton]));
+  ] : [roundStatus, layoutToggleButton, playerScreenButton, diceTrayButton]));
   topRow.replaceChildren(roundPill, viewOptionsRow, movementReadout);
 }
 function applyTrackerLayout() {
@@ -11587,6 +11647,8 @@ try {
         selectOnlineRoomProfile,
         () => {
           __syncPlayerScreenButton();
+          __syncDiceTrayButton();
+          applyHeaderLayoutPresentation(isCompactTrackerLayout());
           __syncPartyPlayers();
           // The cards show (Online) or drop (Table) the players assigned to them.
           void renderAll("room-profile");
@@ -11594,6 +11656,8 @@ try {
         { emitCurrent: false },
       );
       __syncPlayerScreenButton();
+      __syncDiceTrayButton();
+      applyHeaderLayoutPresentation(isCompactTrackerLayout());
       __syncPartyPlayers();
       viewOptionsRow.style.display = IS_GM ? "flex" : "none";
       globalPanelsWrap.style.display = IS_GM ? "inline-flex" : "none";

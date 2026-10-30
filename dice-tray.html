@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dadi</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/popover-glass.css" />
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent !important;
+      }
+      body {
+        box-sizing: border-box;
+        color: #fff;
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
+        font-size: 12px;
+      }
+      .glass-shell {
+        box-sizing: border-box;
+        width: 100%;
+        height: 100vh;
+        min-height: 100vh !important;
+        overflow: hidden;
+        outline: none;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 8px 6px 12px;
+      }
+      h1 { margin: 0; font-size: 13px; font-weight: 750; flex: 1 1 auto; }
+      select, input[type="text"] {
+        box-sizing: border-box;
+        padding: 4px 6px;
+        border: 1px solid rgba(148, 163, 184, .35);
+        border-radius: 7px;
+        background: rgba(0, 0, 0, .35);
+        color: #fff;
+        font: inherit;
+      }
+      .close, .icon-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        width: var(--obrt-close-size, 28px);
+        height: var(--obrt-close-size, 28px);
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: var(--obrt-close-radius, 8px);
+        background: transparent;
+        color: inherit;
+        font-size: var(--obrt-close-font, 18px);
+        line-height: 1;
+        cursor: pointer;
+      }
+      .close:hover, .icon-button:hover { background: rgba(255, 255, 255, .08); }
+      #stage {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+        margin: 0 8px;
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(0, 0, 0, .25);
+      }
+      #tray { display: block; width: 100%; height: 100%; }
+      #loading {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: rgba(255, 255, 255, .7);
+      }
+      #history {
+        position: absolute;
+        inset: 0;
+        overflow: auto;
+        padding: 8px 10px;
+        background: rgba(8, 12, 21, .88);
+      }
+      #history ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+      #history li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; }
+      #history .who { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #history .total { font-size: 15px; font-weight: 800; grid-row: span 2; align-self: center; }
+      #history .formula { color: rgba(255, 255, 255, .62); font-size: var(--obrt-type-micro, 10px); }
+      #result {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+        min-height: 40px;
+        padding: 6px 12px 0;
+      }
+      #total { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+      #detail { color: rgba(255, 255, 255, .72); font-size: 11px; overflow-wrap: anywhere; }
+      #detail[data-tone="error"] { color: #fecaca; }
+      #controls { display: grid; gap: 6px; padding: 6px 8px 10px; }
+      #dice { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+      .die {
+        position: relative;
+        min-height: 30px;
+        padding: 0;
+        border: 1px solid rgba(148, 163, 184, .3);
+        border-radius: 8px;
+        background: rgba(0, 0, 0, .3);
+        color: #fff;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .die:hover { background: rgba(255, 255, 255, .1); }
+      .die .count {
+        position: absolute;
+        top: -6px;
+        right: -4px;
+        min-width: 15px;
+        height: 15px;
+        padding: 0 3px;
+        box-sizing: border-box;
+        border-radius: 999px;
+        background: #fff;
+        color: #0b1220;
+        font-size: 10px;
+        line-height: 15px;
+      }
+      .row { display: flex; gap: 6px; align-items: center; }
+      #formula { flex: 1 1 auto; min-width: 0; }
+      .toggle {
+        padding: 4px 8px;
+        border: 1px solid rgba(148, 163, 184, .3);
+        border-radius: 999px;
+        background: transparent;
+        color: rgba(255, 255, 255, .85);
+        font: inherit;
+        cursor: pointer;
+      }
+      .toggle[aria-pressed="true"] { background: #fff; color: #0b1220; border-color: #fff; font-weight: 700; }
+      #roll {
+        flex: 1 1 auto;
+        min-height: 32px;
+        border: 1px solid rgba(255, 255, 255, .85);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, .92);
+        color: #0b1220;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      #roll:disabled { opacity: .55; cursor: default; }
+      button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid rgba(147, 197, 253, .9); outline-offset: 1px; }
+    </style>
+  </head>
+  <body>
+    <div id="shell" class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/dice-tray">
+      <header>
+        <h1>Dadi</h1>
+        <select id="diceStyle" aria-label="Stile dei dadi"></select>
+        <button id="historyToggle" class="icon-button" type="button" aria-pressed="false" title="Storico dei tiri" aria-label="Storico dei tiri">☰</button>
+        <button id="close" class="close" type="button" aria-label="Chiudi" title="Chiudi">×</button>
+      </header>
+      <div id="stage">
+        <canvas id="tray" aria-label="Vassoio dei dadi"></canvas>
+        <div id="loading">Preparazione del vassoio…</div>
+        <div id="history" hidden><ol id="historyList"></ol></div>
+      </div>
+      <div id="result" aria-live="polite">
+        <div id="total"></div>
+        <div id="detail">Scegli i dadi e tira.</div>
+      </div>
+      <div id="controls">
+        <div id="dice" role="group" aria-label="Aggiungi un dado (clic destro per toglierlo)"></div>
+        <div class="row">
+          <input id="formula" type="text" spellcheck="false" autocomplete="off" placeholder="es. 1d20+5" aria-label="Formula del tiro" />
+          <button id="clear" class="icon-button" type="button" title="Svuota" aria-label="Svuota la formula">⌫</button>
+        </div>
+        <div class="row">
+          <button id="advantage" class="toggle" type="button" aria-pressed="false">Vantaggio</button>
+          <button id="disadvantage" class="toggle" type="button" aria-pressed="false">Svantaggio</button>
+          <button id="hidden" class="toggle" type="button" aria-pressed="false" hidden title="Il tiro resta solo sul tuo schermo">Nascosto</button>
+        </div>
+        <div class="row">
+          <button id="roll" type="button">Tira</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/dice-tray.js"></script>
+  </body>
+</html>

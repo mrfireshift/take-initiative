@@ -81,6 +81,7 @@ export default defineConfig(() => {
         trackerQuickActions: path.resolve(process.cwd(), "tracker-quick-actions.html"),
         compactAdminMenu: path.resolve(process.cwd(), "compact-admin-menu.html"),
         playerScreen: path.resolve(process.cwd(), "player-screen.html"),
+        diceTray: path.resolve(process.cwd(), "dice-tray.html"),
         compactRoundTab: path.resolve(process.cwd(), "compact-round-tab.html"),
         preparedSpellResolution: path.resolve(process.cwd(), "prepared-spell-resolution.html"),
         spellActiveResolution: path.resolve(process.cwd(), "spell-active-resolution.html"),

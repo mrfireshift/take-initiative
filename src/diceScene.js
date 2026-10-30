@@ -39,7 +39,8 @@ import { dieCentroid, faceSymmetry, multiplyQuaternions, physicalDieAsset, upFac
 export const DICE_STYLES = Object.freeze(Object.entries(assets.styles)
   .filter(([key]) => key !== "tray")
   .map(([key, style]) => ({ key, label: style.label })));
-export const DEFAULT_DICE_STYLE = "iron";
+export { DEFAULT_DICE_STYLE } from "./diceStyles.js";
+import { DEFAULT_DICE_STYLE } from "./diceStyles.js";
 
 // The tray of Owlbear Rodeo Dice: walls at ±0.46 and ±0.96, a roof at 1.5; gravity doubled for the small dice.
 const TRAY = Object.freeze({ halfWidth: 0.46, halfDepth: 0.96, roof: 1.5 });
@@ -228,9 +229,12 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
   let rollRevision = 0;
 
   const render = () => renderer.render(scene, camera);
+  // The camera looks straight down from just high enough to frame the whole tray, whatever the canvas proportions.
   const resize = (width, height) => {
     renderer.setSize(width, height, false);
     camera.aspect = width / Math.max(1, height);
+    const tan = Math.tan((camera.fov * Math.PI) / 360);
+    camera.position.y = Math.max((TRAY.halfDepth + 0.09) / tan, (TRAY.halfWidth + 0.09) / (tan * camera.aspect));
     camera.updateProjectionMatrix();
     render();
   };

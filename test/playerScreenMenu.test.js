@@ -60,7 +60,7 @@ test("il pulsante «Schermo» compare solo ai giocatori nel profilo Online", () 
   const source = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
   assert.match(source, /playerScreenButton\.style\.display = "none";/);
   assert.match(source, /playerScreenButton\.style\.display = !IS_GM && online \? "inline-flex" : "none";/);
-  assert.match(source, /compactBottomControls\.replaceChildren\(layoutToggleButton, playerScreenButton\);/);
+  assert.match(source, /compactBottomControls\.replaceChildren\(layoutToggleButton, playerScreenButton, diceTrayButton\);/);
   // Extended layout: the empty column left of the round, on the header's single row (it wrapped to a second one).
   assert.match(source, /gridColumn: playerClassic \? "1" : "",\s*gridRow: playerClassic \? "1" : "",/);
 });
