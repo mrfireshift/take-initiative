@@ -73,7 +73,6 @@ type TurnNotice = {
   // Online room profile (lot O4a), set by this screen's host: the turn is this player's ("current") or the next one
   // is ("next").
   forYou?: "current" | "next";
-  currentPlayerColor?: string;
 };
 
 type ZoneNoticeTarget = {
@@ -120,9 +119,6 @@ function normalizeNotice(parsed: any): TurnNotice | null {
     turnKey: String(parsed?.turnKey || "").trim().slice(0, 300),
     sceneEpoch: Math.max(0, Math.floor(Number(parsed?.sceneEpoch) || 0)),
     ...(parsed?.forYou === "current" || parsed?.forYou === "next" ? { forYou: parsed.forYou } : {}),
-    ...(/^#[0-9a-fA-F]{3,8}$/.test(String(parsed?.currentPlayerColor || ""))
-      ? { currentPlayerColor: String(parsed.currentPlayerColor) }
-      : {}),
   };
 }
 
@@ -290,10 +286,7 @@ function buildPanel(notice: TurnNotice) {
   eyebrow.className = "eyebrow";
   const mine = notice.forYou === "current";
   eyebrow.textContent = mine ? "Tocca a te" : "Iniziativa";
-  if (mine) {
-    panel.classList.add("mine");
-    if (notice.currentPlayerColor) panel.style.setProperty("--player", notice.currentPlayerColor);
-  }
+  if (mine) panel.classList.add("mine");
   const title = document.createElement("div");
   title.className = "title";
   title.textContent = "Turno di " + notice.currentName;

@@ -471,21 +471,33 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
     },
   });
 }
-// Online room profile (lot O3): the player who plays it, as a dot of their Owlbear colour before the name.
+// Online room profile (lot O3): the player who plays it, as a small neutral tag before the name: their initial, or
+// «Tu» on the player's own character. Never their Owlbear colour, which can read as a faction (red is the enemies').
 if (e.assignedPlayer && !e.__groupCollapsed) {
-  const playerDot = document.createElement("span");
-  playerDot.dataset.cardPlayer = e.assignedPlayer.mine ? "mine" : "assigned";
-  playerDot.title = cardPlayerAssignmentTitle(e.assignedPlayer);
-  playerDot.setAttribute("aria-label", playerDot.title);
-  Object.assign(playerDot.style, {
+  const playerTag = document.createElement("span");
+  const mine = e.assignedPlayer.mine === true;
+  playerTag.dataset.cardPlayer = mine ? "mine" : "assigned";
+  playerTag.textContent = mine ? "Tu" : (String(e.assignedPlayer.name || "?").trim().slice(0, 1).toUpperCase() || "?");
+  playerTag.title = cardPlayerAssignmentTitle(e.assignedPlayer);
+  playerTag.setAttribute("aria-label", playerTag.title);
+  Object.assign(playerTag.style, {
     flex: "0 0 auto",
-    width: e.assignedPlayer.mine ? "10px" : "8px",
-    height: e.assignedPlayer.mine ? "10px" : "8px",
-    borderRadius: "50%",
-    background: e.assignedPlayer.color || "#93c5fd",
-    boxShadow: e.assignedPlayer.mine ? "0 0 0 2px rgba(255,255,255,.85)" : "0 0 0 1px rgba(0,0,0,.45)",
+    minWidth: "18px",
+    height: "18px",
+    padding: mine ? "0 6px" : "0",
+    boxSizing: "border-box",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,.75)",
+    background: mine ? "#fff" : "rgba(8,12,21,.6)",
+    color: mine ? "#0b1220" : "#fff",
+    fontSize: "10px",
+    fontWeight: "800",
+    lineHeight: "1",
   });
-  name.appendChild(playerDot);
+  name.appendChild(playerTag);
 }
 name.appendChild(nameLabel);
 

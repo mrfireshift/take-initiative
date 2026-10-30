@@ -16,7 +16,7 @@ const entries = new Map([
 test("il payload porta chi gioca il turno e il successivo solo se assegnati", () => {
   const first = buildTurnNoticePayload({ order: ["hero", "orc", "mage"], current: 0, round: 1 }, entries);
   assert.equal(first.currentPlayerId, "user-mario");
-  assert.equal(first.currentPlayerColor, "#ef4444");
+  assert.equal(first.currentPlayerColor, undefined, "no player colour: it could read as a faction");
   assert.equal(first.nextPlayerId, undefined, "the orc has no player");
   const second = buildTurnNoticePayload({ order: ["hero", "orc", "mage"], current: 1, round: 1 }, entries);
   assert.equal(second.currentPlayerId, undefined);

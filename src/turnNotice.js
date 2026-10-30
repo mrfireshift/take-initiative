@@ -65,10 +65,7 @@ export function buildTurnNoticePayload(state, entriesById) {
     ...(unknownToPlayers(currentEntry) ? { currentHidden: true } : {}),
     // Online room profile (lot O4a): who plays this turn and the next known one, so each player's screen can say
     // «Tocca a te» or «Sei il prossimo». Absent in the Table profile.
-    ...(assignedPlayerOf(currentEntry) ? {
-      currentPlayerId: assignedPlayerOf(currentEntry).id,
-      ...(assignedPlayerOf(currentEntry).color ? { currentPlayerColor: assignedPlayerOf(currentEntry).color } : {}),
-    } : {}),
+    ...(assignedPlayerOf(currentEntry) ? { currentPlayerId: assignedPlayerOf(currentEntry).id } : {}),
     ...(assignedPlayerOf(entryForId(nextKnownId(order, current, entriesById), entriesById))
       ? { nextPlayerId: assignedPlayerOf(entryForId(nextKnownId(order, current, entriesById), entriesById)).id }
       : {}),

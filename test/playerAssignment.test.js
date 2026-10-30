@@ -119,15 +119,19 @@ test("se Owlbear rifiuta il proprietario l'assegnazione resta e lo scrittore lo 
   assert.equal(obr.items[0].createdUserId, "user-gm");
 });
 
-test("la card compatta sottolinea il nome nel colore del giocatore", () => {
+test("la card compatta sottolinea il nome in bianco, mai nel colore del giocatore", () => {
   const element = () => ({ style: {}, dataset: {}, title: "", textContent: "" });
   const documentRef = { createElement: element };
   const name = buildCompactCardName({ name: "Eroe", assignedPlayer: { name: "Mario", color: "#ef4444", mine: false } },
     { active: false, documentRef });
   assert.equal(name.dataset.cardPlayer, "assigned");
-  assert.equal(name.style.boxShadow, "inset 0 -1px 0 #ef4444");
+  assert.equal(name.style.textDecoration, "underline dotted rgba(255,255,255,.75)");
+  assert.doesNotMatch(JSON.stringify(name.style), /#ef4444/);
   assert.match(name.title, /Giocatore: Mario/);
-  assert.equal(buildCompactCardName({ name: "Eroe" }, { active: false, documentRef }).style.boxShadow, undefined);
+  const mine = buildCompactCardName({ name: "Eroe", assignedPlayer: { name: "Mario", color: "#ef4444", mine: true } },
+    { active: false, documentRef });
+  assert.equal(mine.style.textDecoration, "underline solid #fff");
+  assert.equal(buildCompactCardName({ name: "Eroe" }, { active: false, documentRef }).style.textDecoration, undefined);
 });
 
 test("la card estesa e il tracker mostrano il giocatore solo nel profilo Online", () => {
@@ -136,4 +140,6 @@ test("la card estesa e il tracker mostrano il giocatore solo nel profilo Online"
   assert.match(tracker, /assignedPlayer: __onlineRoomProfile\(\)\s*\? cardPlayerAssignment\(/);
   assert.match(tracker, /\.\.\.\(__onlineRoomProfile\(\) && IS_GM && sourceItem \? \{\s*playerChoices:/);
   assert.match(classic, /if \(e\.assignedPlayer && !e\.__groupCollapsed\) \{/);
+  assert.match(classic, /playerTag\.textContent = mine \? "Tu" :/);
+  assert.doesNotMatch(classic, /assignedPlayer\.color/);
 });

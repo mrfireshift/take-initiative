@@ -731,11 +731,15 @@ export function buildCompactCardName(
     whiteSpace: "nowrap",
     textShadow: "0 1px 3px #000",
   });
-  // Online room profile (lot O3): the player who plays it, underlined in their Owlbear colour.
+  // Online room profile (lot O3): the player who plays it, as a white underline (dotted; solid on the player's own
+  // character). Never their Owlbear colour, which can read as a faction.
   if (entry.assignedPlayer && !entry.__groupCollapsed) {
-    name.dataset.cardPlayer = entry.assignedPlayer.mine ? "mine" : "assigned";
+    const mine = entry.assignedPlayer.mine === true;
+    name.dataset.cardPlayer = mine ? "mine" : "assigned";
     name.title = `${name.title} · ${cardPlayerAssignmentTitle(entry.assignedPlayer)}`;
-    name.style.boxShadow = `inset 0 -${entry.assignedPlayer.mine ? 2 : 1}px 0 ${entry.assignedPlayer.color || "#93c5fd"}`;
+    name.style.textDecoration = mine ? "underline solid #fff" : "underline dotted rgba(255,255,255,.75)";
+    name.style.textDecorationThickness = mine ? "2px" : "1px";
+    name.style.textUnderlineOffset = "2px";
   }
   return name;
 }
