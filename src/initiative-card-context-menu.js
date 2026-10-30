@@ -396,6 +396,22 @@ function render(payload) {
     })));
   }
 
+  if (payload.showPlayerMenu && Array.isArray(payload.playerChoices)) {
+    // Online room profile (lot O3): the connected player who plays this creature; with Owlbear's Owner Only they
+    // move this token alone.
+    addSubmenu(root, "Giocatore", "character-sheet.svg", payload.playerChoices.map((player) => ({
+      label: player.name,
+      icon: "character-sheet.svg",
+      action: "assign-player",
+      options: {
+        value: player.id,
+        ...(player.color ? { color: player.color } : {}),
+        current: payload.playerId === player.id,
+        trailing: payload.playerId === player.id ? "Attivo" : "",
+      },
+    })));
+  }
+
   if (payload.showBossMenu) {
     const modes = [
       { value: "none", label: "Nessuno", icon: "boss-remove.svg" },

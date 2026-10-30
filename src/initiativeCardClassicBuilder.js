@@ -19,6 +19,7 @@ import {
 } from "./initiativeEditors.js";
 import { compactStatusBadge } from "./initiativeCardCompact.js";
 import { canOpenInitiativeCardSheet } from "./initiativeCardSheetAccessCore.js";
+import { cardPlayerAssignmentTitle } from "./playerAssignmentCore.js";
 import { fitCardToChipDock } from "./initiativeChipOverflow.js";
 import { buildReactionIndicator } from "./reactionIndicator.js";
 import {
@@ -469,6 +470,22 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
       console.warn("[initiative] rename token:", error?.message || error);
     },
   });
+}
+// Online room profile (lot O3): the player who plays it, as a dot of their Owlbear colour before the name.
+if (e.assignedPlayer && !e.__groupCollapsed) {
+  const playerDot = document.createElement("span");
+  playerDot.dataset.cardPlayer = e.assignedPlayer.mine ? "mine" : "assigned";
+  playerDot.title = cardPlayerAssignmentTitle(e.assignedPlayer);
+  playerDot.setAttribute("aria-label", playerDot.title);
+  Object.assign(playerDot.style, {
+    flex: "0 0 auto",
+    width: e.assignedPlayer.mine ? "10px" : "8px",
+    height: e.assignedPlayer.mine ? "10px" : "8px",
+    borderRadius: "50%",
+    background: e.assignedPlayer.color || "#93c5fd",
+    boxShadow: e.assignedPlayer.mine ? "0 0 0 2px rgba(255,255,255,.85)" : "0 0 0 1px rgba(0,0,0,.45)",
+  });
+  name.appendChild(playerDot);
 }
 name.appendChild(nameLabel);
 

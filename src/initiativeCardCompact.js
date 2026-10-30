@@ -9,6 +9,7 @@ import { buildEffectSummaryContainer } from "./effectSummaryViewCore.js";
 import { getSpellSummaryParts } from "./spells-srd.js";
 import { spellPillHasActions } from "./spellPillActionsCore.js";
 import { COMPACT_CARD_WIDTH } from "./constants.js";
+import { cardPlayerAssignmentTitle } from "./playerAssignmentCore.js";
 import { HIT_AREA_MIN_SIZE, extendHitArea } from "./hitAreaCore.js";
 import { CARD_ICON_BUTTON_SIZE, buildCardIconGlyph, markHiddenTokenPortrait, styleCardIconButton } from "./cardIconButton.js";
 import { canOpenInitiativeCardSheet } from "./initiativeCardSheetAccessCore.js";
@@ -730,6 +731,12 @@ export function buildCompactCardName(
     whiteSpace: "nowrap",
     textShadow: "0 1px 3px #000",
   });
+  // Online room profile (lot O3): the player who plays it, underlined in their Owlbear colour.
+  if (entry.assignedPlayer && !entry.__groupCollapsed) {
+    name.dataset.cardPlayer = entry.assignedPlayer.mine ? "mine" : "assigned";
+    name.title = `${name.title} · ${cardPlayerAssignmentTitle(entry.assignedPlayer)}`;
+    name.style.boxShadow = `inset 0 -${entry.assignedPlayer.mine ? 2 : 1}px 0 ${entry.assignedPlayer.color || "#93c5fd"}`;
+  }
   return name;
 }
 

@@ -1,4 +1,5 @@
 import { isQuickCondition } from "./quickConditionsCore.js";
+import { isPlayerAssignmentValue } from "./playerAssignmentCore.js";
 
 export const COMPACT_ADMIN_MENU_ACTIONS = Object.freeze([
   "reset-round",
@@ -24,6 +25,7 @@ export const INITIATIVE_CARD_MENU_ACTIONS = Object.freeze([
   "attitude",
   "boss-mode",
   "table-side",
+  "assign-player",
   "readied-action",
   "readied-action-trigger",
   "remove",
@@ -58,6 +60,7 @@ const INITIATIVE_CARD_SIMPLE_ACTION_SET = new Set(
     action !== "attitude"
       && action !== "boss-mode"
       && action !== "table-side"
+      && action !== "assign-player"
       && action !== "class-feature-activate"
       && action !== "class-feature-deactivate"
       && action !== "toggle-condition"
@@ -160,6 +163,10 @@ export function isAllowedInitiativeCardMenuAction(action, value = "") {
   }
   if (normalizedAction === "table-side") {
     return INITIATIVE_CARD_TABLE_SIDE_SET.has(normalizedValue);
+  }
+  // The player of a token (playerAssignmentCore.js, Online room profile): an Owlbear user id, or "none".
+  if (normalizedAction === "assign-player") {
+    return isPlayerAssignmentValue(normalizedValue);
   }
   // Quick conditions (quickConditionsCore.js): only the names the menu offers.
   if (normalizedAction === "toggle-condition") {

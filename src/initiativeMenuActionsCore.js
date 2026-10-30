@@ -37,6 +37,10 @@ export function buildInitiativeCardContextMenuPayload({
   tableSide = undefined,
   // Quick conditions with their state over the scope (quickConditionMenuEntries).
   quickConditions = null,
+  // Online room profile only (lot O3): the players to choose from (playerAssignmentMenuChoices) and the current one.
+  // Null in the Table profile: no «Giocatore» menu.
+  playerChoices = null,
+  playerId = null,
 } = {}) {
   const normalizedScopeIds = Array.isArray(scopeIds) ? scopeIds : [];
   const isBulkScope = normalizedScopeIds.length > 1;
@@ -73,6 +77,9 @@ export function buildInitiativeCardContextMenuPayload({
       ? { showTableSideMenu: true, ...(tableSide !== undefined ? { tableSide: tableSide || "none" } : {}) }
       : {}),
     ...(Array.isArray(quickConditions) && quickConditions.length ? { quickConditions } : {}),
+    ...(showTableSideMenu && Array.isArray(playerChoices)
+      ? { showPlayerMenu: true, playerChoices: playerChoices.slice(0, 24), playerId: playerId || "none" }
+      : {}),
     // Readied action (reactionTrackerCore.js), one creature at a time.
     ...(!isBulkScope && !sourceEntry?.__groupCollapsed
       ? { showReadiedActionMenu: true, hasReadiedAction: hasReadiedAction(sourceEntry?.conditions) }
@@ -137,6 +144,9 @@ export async function routeInitiativeCardContextMenuAction(
   }
   if (action === "table-side") {
     return invoke("setTableSide", sourceEntry, value === "none" ? null : value);
+  }
+  if (action === "assign-player") {
+    return invoke("setPlayer", sourceEntry, value);
   }
   if (action === "readied-action") {
     return invoke("toggleReadiedAction", sourceEntry);

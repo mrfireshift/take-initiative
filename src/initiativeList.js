@@ -188,6 +188,13 @@ import {
 } from "./initiativeMenuActionsCore.js";
 import { tableSideOfItem } from "./tableOrientationCore.js";
 import { writeTableSide } from "./tableSideWriter.js";
+import {
+  cardPlayerAssignment,
+  playerAssignmentMenuChoices,
+  playerAssignmentOfItem,
+  PLAYER_ASSIGNMENT_NONE,
+} from "./playerAssignmentCore.js";
+import { writePlayerAssignment } from "./playerAssignmentWriter.js";
 import { buildLegendaryResourcePips } from "./initiativeCardBossClassic.js";
 import { buildClassicTrackerCard } from "./initiativeCardClassicBuilder.js";
 import {
@@ -1588,6 +1595,56 @@ playerScreenButton.addEventListener("click", (event) => {
     });
   })().catch((error) => console.warn("[player-screen] apertura fallita:", error?.message || error));
 });
+
+function __onlineRoomProfile() {
+  try { return runtimeOptionsService.get(selectOnlineRoomProfile) === true; } catch { return false; }
+}
+
+function __selfPlayerId() {
+  try { return String(OBR.player.id || ""); } catch { return ""; }
+}
+
+// The connected players the GM can assign tokens to (lot O3), kept only in the Online room profile.
+let __partyPlayers = [];
+let __partyUnsubscribe = null;
+function __syncPartyPlayers() {
+  if (!IS_GM || !__onlineRoomProfile()) {
+    __partyUnsubscribe?.();
+    __partyUnsubscribe = null;
+    __partyPlayers = [];
+    return;
+  }
+  if (__partyUnsubscribe) return;
+  __partyUnsubscribe = OBR.party.onChange((players) => { __partyPlayers = Array.isArray(players) ? players : []; });
+  void OBR.party.getPlayers().then((players) => { __partyPlayers = Array.isArray(players) ? players : []; }, () => {});
+}
+
+async function __setCardPlayer(entry, playerId, sceneEpoch = currentSceneEpoch()) {
+  if (!IS_GM || !entry?.id || !__onlineRoomProfile()) return;
+  const id = String(playerId || "");
+  const player = id === PLAYER_ASSIGNMENT_NONE ? null : __partyPlayers.find((candidate) => candidate?.id === id)
+    || (() => {
+      const current = playerAssignmentOfItem(readSceneItemsSnapshot(sceneEpoch)?.items?.find((item) => item?.id === entry.id));
+      return current?.id === id ? current : null;
+    })();
+  if (id !== PLAYER_ASSIGNMENT_NONE && !player) return;
+  const result = await writePlayerAssignment([entry.id], player, {
+    isCurrent: () => __isCurrentSceneOperation(sceneEpoch, "set-card-player"),
+    fallbackOwnerId: __selfPlayerId(),
+  });
+  if (!result.written || !player) return;
+  if (!result.owner) {
+    void OBR.notification.show(
+      `${player.name || "Il giocatore"} è assegnato, ma Owlbear non ha cambiato il proprietario del token: usa il menu Owner di Owlbear.`,
+      "WARNING",
+    ).catch(() => {});
+  } else if (!result.ownerOnly) {
+    void OBR.notification.show(
+      "Per far muovere a ogni giocatore solo il proprio token, accendi «Owner Only» nei permessi dei giocatori di Owlbear.",
+      "INFO",
+    ).catch(() => {});
+  }
+}
 
 function __syncPlayerScreenButton() {
   let online = false;
@@ -5172,6 +5229,10 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
     groupAttitude: meta.attitude || "ally",
     // Lot L16: a token the GM keeps hidden, which the players never see in the tracker.
     hiddenToken: it.visible === false,
+    // Online room profile only (lot O3): the player who plays it, as the card shows it (null in the Table profile).
+    assignedPlayer: __onlineRoomProfile()
+      ? cardPlayerAssignment(meta.assignedPlayer, { selfId: __selfPlayerId(), isGm: IS_GM })
+      : null,
     hp: (meta.hp ?? null),
     hpMax: (meta.hpMax ?? null),
     isEpic: !!meta.epic,
@@ -8995,6 +9056,7 @@ async function __handleInitiativeCardContextMenuAction(context, data, sceneEpoch
     setTableSide: (entry, side) => writeTableSide([entry?.id], side, {
       isCurrent: () => __isCurrentSceneOperation(sceneEpoch, "set-card-table-side"),
     }),
+    setPlayer: (entry, playerId) => __setCardPlayer(entry, playerId, sceneEpoch),
     toggleReadiedAction: __toggleReadiedActionFromContext,
     triggerReadiedAction: __triggerReadiedActionFromContext,
     removeFromInitiative: (ids) => __removeCardFromInitiative(ids, sceneEpoch),
@@ -9254,6 +9316,11 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
     hasActiveConcentration,
     tableSide: sourceItem ? tableSideOfItem(sourceItem) : undefined,
     quickConditions: quickConditionMenuEntries(conditionScope, CONDITION_EMOJI),
+    // Online room profile only (lot O3): the «Giocatore» menu, from the connected players.
+    ...(__onlineRoomProfile() && IS_GM && sourceItem ? {
+      playerChoices: playerAssignmentMenuChoices(__partyPlayers, playerAssignmentOfItem(sourceItem)),
+      playerId: playerAssignmentOfItem(sourceItem)?.id || PLAYER_ASSIGNMENT_NONE,
+    } : {}),
   });
   if (!writeStoredMenuPayload(
     localStorage,
@@ -11485,10 +11552,16 @@ try {
       );
       __playerScreenProfileUnsubscribe ||= runtimeOptionsService.subscribe(
         selectOnlineRoomProfile,
-        __syncPlayerScreenButton,
+        () => {
+          __syncPlayerScreenButton();
+          __syncPartyPlayers();
+          // The cards show (Online) or drop (Table) the players assigned to them.
+          void renderAll("room-profile");
+        },
         { emitCurrent: false },
       );
       __syncPlayerScreenButton();
+      __syncPartyPlayers();
       viewOptionsRow.style.display = IS_GM ? "flex" : "none";
       globalPanelsWrap.style.display = IS_GM ? "inline-flex" : "none";
       zoomToggleWrap.style.display = IS_GM ? "flex" : "none";
