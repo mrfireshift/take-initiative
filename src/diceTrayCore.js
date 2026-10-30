@@ -14,7 +14,8 @@ import { ID } from "./constants.js";
 export const DICE_ROLL_CHANNEL = `${ID}/dice/roll`;
 export const DICE_NOTICE_DONE_CHANNEL = `${ID}/dice/notice-done`;
 export const DICE_LAST_ROLL_KEY = `${ID}/dice/last-roll`;
-// The tray page says when it opens and closes, for the toolbar's 🎲 that toggles it (diceTrayTool.js).
+// The toolbar's 🎲 asks whether the tray is open ("ping") and an open tray answers ("pong"): a remembered state got
+// lost whenever the tray closed without a word (diceTrayTool.js).
 export const DICE_TRAY_STATE_CHANNEL = `${ID}/dice-tray/state`;
 export const DICE_TRAY_POPOVER_ID = `${ID}/dice-tray`;
 export const DICE_TRAY_WIDTH = 320;

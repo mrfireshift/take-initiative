@@ -10,10 +10,33 @@ import { selectOnlineRoomProfile } from "./options/optionsSelectors.js";
 
 export const DICE_TOOL_ID = `${ID}/dice-tool`;
 
+// How long an open tray has to answer the toolbar's question.
+const PING_TIMEOUT_MS = 300;
+
 let mounted = false;
 let active = false;
-let trayOpen = false;
 let toggling = false;
+
+function trayIsOpen() {
+  return new Promise((resolve) => {
+    const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+    let settled = false;
+    let unsubscribe = null;
+    const finish = (open) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { unsubscribe?.(); } catch {}
+      resolve(open);
+    };
+    const timer = setTimeout(() => finish(false), PING_TIMEOUT_MS);
+    unsubscribe = OBR.broadcast.onMessage(DICE_TRAY_STATE_CHANNEL, (event) => {
+      if (event?.data?.type === "pong" && event.data.id === id) finish(true);
+    });
+    OBR.broadcast.sendMessage(DICE_TRAY_STATE_CHANNEL, { type: "ping", id }, { destination: "LOCAL" })
+      .catch(() => finish(false));
+  });
+}
 
 async function openTray() {
   const [width, height] = await Promise.all([
@@ -31,6 +54,8 @@ async function openTray() {
     transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
     marginThreshold: 12,
     hidePaper: true,
+    // The tray stays while the map is used; the ×, Esc and this 🎲 close it.
+    disableClickAway: true,
   });
 }
 
@@ -38,7 +63,7 @@ async function toggleTray() {
   if (toggling) return;
   toggling = true;
   try {
-    if (trayOpen) await OBR.popover.close(DICE_TRAY_POPOVER_ID);
+    if (await trayIsOpen()) await OBR.popover.close(DICE_TRAY_POPOVER_ID);
     else await openTray();
   } catch (error) {
     console.warn("[dice-tool] vassoio:", error?.message || error);
@@ -66,7 +91,6 @@ async function stop() {
 export function mountDiceTrayTool(service = runtimeOptionsService) {
   if (mounted) return;
   mounted = true;
-  OBR.broadcast.onMessage(DICE_TRAY_STATE_CHANNEL, (event) => { trayOpen = event?.data?.open === true; });
   void startRuntimeOptions().then(() => {
     service.subscribe(selectOnlineRoomProfile, (online) => void (online === true ? start() : stop()));
   }).catch((error) => console.warn("[dice-tool] avvio:", error?.message || error));

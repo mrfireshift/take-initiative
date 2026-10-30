@@ -303,13 +303,7 @@ soundToggle.addEventListener("click", () => {
     tools: { ...(current.tools || {}), diceSounds: on },
   })).catch((error) => console.warn("[dice-tray] suoni non salvati:", error?.message || error));
 });
-// The toolbar's 🎲 toggles the tray: it needs to know whether the tray is open.
-const sayOpen = (open) => void OBR.broadcast.sendMessage(DICE_TRAY_STATE_CHANNEL, { open }, { destination: "LOCAL" }).catch(() => {});
-window.addEventListener("pagehide", () => sayOpen(false));
-const close = () => {
-  sayOpen(false);
-  void OBR.popover.close(POPOVER_ID).catch(() => {});
-};
+const close = () => void OBR.popover.close(POPOVER_ID).catch(() => {});
 $("close").addEventListener("click", close);
 window.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
@@ -320,7 +314,11 @@ window.addEventListener("keydown", (event) => {
 });
 
 OBR.onReady(async () => {
-  sayOpen(true);
+  // The toolbar's 🎲 toggles the tray: it asks whether the tray is open, the tray answers.
+  OBR.broadcast.onMessage(DICE_TRAY_STATE_CHANNEL, (event) => {
+    if (event?.data?.type !== "ping" || !event.data.id) return;
+    void OBR.broadcast.sendMessage(DICE_TRAY_STATE_CHANNEL, { type: "pong", id: event.data.id }, { destination: "LOCAL" }).catch(() => {});
+  });
   await startRuntimeOptions().catch(() => {});
   try { currentStyle = normalizeDiceStyle(runtimeOptionsService.get(selectDiceStyle)); } catch {}
   renderStyle();

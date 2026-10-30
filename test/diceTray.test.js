@@ -130,11 +130,14 @@ test("il 🎲 nella barra di Owlbear apre il vassoio solo in Online; Clocks è d
   const tool = readFileSync(new URL("../src/diceTrayTool.js", import.meta.url), "utf8");
   assert.match(tool, /service\.subscribe\(selectOnlineRoomProfile, \(online\) => void \(online === true \? start\(\) : stop\(\)\)\)/);
   assert.match(tool, /icons: \[\{ icon: "\/dice-tool\.svg", label: "Dadi" \}\]/);
-  assert.match(tool, /if \(trayOpen\) await OBR\.popover\.close\(DICE_TRAY_POPOVER_ID\);/);
+  assert.match(tool, /if \(await trayIsOpen\(\)\) await OBR\.popover\.close\(DICE_TRAY_POPOVER_ID\);/);
+  assert.match(tool, /const timer = setTimeout\(\(\) => finish\(false\), PING_TIMEOUT_MS\);/, "no answer: the tray is closed");
+  assert.match(tool, /disableClickAway: true,/);
+  assert.match(readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8"), /hidePaper: true,\n      \/\/ The tray stays while the map is used; its × and Esc close it\.\n      disableClickAway: true,/);
   assert.match(readFileSync(new URL("../src/background.js", import.meta.url), "utf8"), /mountDiceTrayTool\(\);/);
   const tray = readFileSync(new URL("../src/dice-tray.js", import.meta.url), "utf8");
-  assert.match(tray, /OBR\.onReady\(async \(\) => \{\n  sayOpen\(true\);/);
-  assert.match(tray, /window\.addEventListener\("pagehide", \(\) => sayOpen\(false\)\);/);
+  assert.match(tray, /\{ type: "pong", id: event\.data\.id \}/);
+  assert.doesNotMatch(tray, /sayOpen/, "the tray no longer reports its state: it answers when asked");
   const clocks = readFileSync(new URL("../src/clocksTool.js", import.meta.url), "utf8");
   assert.match(clocks, /icons: \[\{ icon: "\/clock\.svg", label: "Clock", filter: \{ roles: \["GM"\] \} \}\]/);
 });

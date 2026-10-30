@@ -1635,6 +1635,8 @@ diceTrayButton.addEventListener("click", (event) => {
       transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
       marginThreshold: 12,
       hidePaper: true,
+      // The tray stays while the map is used; its × and Esc close it.
+      disableClickAway: true,
     });
   })().catch((error) => console.warn("[dice-tray] apertura fallita:", error?.message || error));
 });
