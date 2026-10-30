@@ -1,6 +1,6 @@
-// The 🎲 in Owlbear Rodeo's tool bar (docs/PIANO_DADI_ONLINE.md): it opens and closes the dice tray, as the 🎲 of
-// the tracker does, for the GM and the players, in the Online room profile only. The tray opens where it was last
-// moved (popoverDragHost.js keeps the position), else on the right of the screen.
+// The 🎲 in Owlbear Rodeo's tool bar (docs/PIANO_DADI_ONLINE.md), the dice tray's only door: it opens and closes
+// the tray, for the GM and the players, in the Online room profile only. The tray opens where it was last moved
+// (popoverDragHost.js keeps the position), else on the right of the screen.
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { DICE_TRAY_POPOVER_ID, DICE_TRAY_STATE_CHANNEL, DICE_TRAY_WIDTH, diceTrayHeight } from "./diceTrayCore.js";

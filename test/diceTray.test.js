@@ -49,12 +49,11 @@ test("lo stile dei dadi è una preferenza di questo browser, Ferro per default",
   assert.equal(normalizeDiceStyle(undefined), "iron");
 });
 
-test("il 🎲 compare solo nel profilo Online, per GM e giocatori; la testata del Tavolo non cambia", () => {
+test("il vassoio si apre solo dalla barra di Owlbear: la testata del tracker non ha il 🎲", () => {
   const tracker = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
-  assert.match(tracker, /diceTrayButton\.style\.display = "none";/);
-  assert.match(tracker, /diceTrayButton\.style\.display = __onlineRoomProfile\(\) \? "inline-flex" : "none";/);
-  assert.match(tracker, /playerOnlineTools \? "60px minmax\(0, 1fr\) 60px" : "28px minmax\(0, 1fr\) 28px"/);
-  assert.match(tracker, /compactBottomControls\.replaceChildren\(layoutToggleButton, diceTrayButton, compactMoreButton\);/);
+  assert.doesNotMatch(tracker, /diceTray|DICE_TRAY/, "no dice button in the tracker's header");
+  assert.match(tracker, /roundPill\.style\.gridTemplateColumns = playerClassic \? "28px minmax\(0, 1fr\) 28px" : "";/);
+  assert.match(tracker, /compactBottomControls\.replaceChildren\(layoutToggleButton, compactMoreButton\);/);
   const page = readFileSync(new URL("../src/dice-tray.js", import.meta.url), "utf8");
   assert.match(page, /hiddenToggle\.hidden = !isGm;/, "the hidden roll is the GM's alone");
   assert.match(page, /import\("\.\/diceScene\.js"\)/, "the 3D code loads with the tray only");
@@ -110,9 +109,9 @@ test("il vassoio condivide solo i tiri non nascosti; l'host vive solo nel profil
 // The tray moves like the other panels and shows the dice as Owlbear Rodeo Dice does (pictures in a column).
 test("il vassoio si sposta come gli altri pannelli e mostra i dadi in immagine", async () => {
   const { existsSync } = await import("node:fs");
-  const list = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
-  assert.match(list, /await openTrackedPopover\(\{\n      id: DICE_TRAY_POPOVER_ID,/);
-  assert.match(list, /anchorPosition: \{ left: Math\.max\(12, Math\.round\(left\)\), top: Math\.max\(12, Math\.round\(top\)\) \},\n      anchorOrigin: \{ horizontal: "LEFT", vertical: "TOP" \},/);
+  const tool = readFileSync(new URL("../src/diceTrayTool.js", import.meta.url), "utf8");
+  assert.match(tool, /await openTrackedPopover\(\{\n    id: DICE_TRAY_POPOVER_ID,/);
+  assert.match(tool, /anchorOrigin: \{ horizontal: "LEFT", vertical: "TOP" \},/);
   const tray = readFileSync(new URL("../src/dice-tray.js", import.meta.url), "utf8");
   assert.match(tray, /import "\.\/popoverDrag\.js";/);
   assert.match(tray, /dice\/previews\/\$\{style\}\/d\$\{sides\}\.png/);
@@ -133,7 +132,6 @@ test("il 🎲 nella barra di Owlbear apre il vassoio solo in Online; Clocks è d
   assert.match(tool, /if \(await trayIsOpen\(\)\) await OBR\.popover\.close\(DICE_TRAY_POPOVER_ID\);/);
   assert.match(tool, /const timer = setTimeout\(\(\) => finish\(false\), PING_TIMEOUT_MS\);/, "no answer: the tray is closed");
   assert.match(tool, /disableClickAway: true,/);
-  assert.match(readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8"), /hidePaper: true,\n      \/\/ The tray stays while the map is used; its × and Esc close it\.\n      disableClickAway: true,/);
   assert.match(readFileSync(new URL("../src/background.js", import.meta.url), "utf8"), /mountDiceTrayTool\(\);/);
   const tray = readFileSync(new URL("../src/dice-tray.js", import.meta.url), "utf8");
   assert.match(tray, /\{ type: "pong", id: event\.data\.id \}/);
