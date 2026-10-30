@@ -84,6 +84,10 @@ let speedCheckControlAuthority = false;
 let speedCheckControlUpdatedAt = 0;
 let speedCheckControlWriteQueue = Promise.resolve();
 let remoteMovementSnapshot = null;
+// The GM publishes the new turn's movement as soon as it changes the turn, which reaches the players before the turn
+// itself (metadata arrive ~1 s later). The latest snapshot for a turn not reached yet waits here, so a player does not
+// ask every client for it once the turn arrives (audit online, ON-13).
+let earlyRemoteMovementSnapshot = null;
 let movementPersistQueue = Promise.resolve();
 let movementGeneration = 0;
 let speedSceneListenerMounted = false;
@@ -109,6 +113,7 @@ function invalidateSpeedMovementRuntime({ clearTurn = false } = {}) {
   movementStatePromise = null;
   movementStatePrefetch = null;
   remoteMovementSnapshot = null;
+  earlyRemoteMovementSnapshot = null;
   pendingMovementOrigins.clear();
   boardTokenMovementState = null;
   boardTokenMovementPromise = null;
@@ -268,7 +273,12 @@ export function mountSpeedCheckStateBroadcast() {
     }
     if (data?.type !== "speed-state" || processorEnabled) return;
     const snapshotTurnKey = String(data.snapshot?.turnKey || "");
-    if (currentTurn?.turnKey && snapshotTurnKey !== currentTurn.turnKey) return;
+    if (currentTurn?.turnKey && snapshotTurnKey !== currentTurn.turnKey) {
+      if (snapshotTurnKey && data.snapshot && typeof data.snapshot === "object") {
+        earlyRemoteMovementSnapshot = { ...data.snapshot };
+      }
+      return;
+    }
     remoteMovementSnapshot = data.snapshot && typeof data.snapshot === "object"
       ? { ...data.snapshot }
       : null;
@@ -965,6 +975,13 @@ export function syncSpeedCheckTurn(state) {
       void ensureMovementState({ ...currentTurn }).catch(() => {});
     }
   } else if (changed) {
+    const early = earlyRemoteMovementSnapshot;
+    earlyRemoteMovementSnapshot = null;
+    if (early && currentTurn?.turnKey && early.turnKey === currentTurn.turnKey) {
+      remoteMovementSnapshot = early;
+      emitMovementSnapshot(early);
+      return;
+    }
     remoteMovementSnapshot = null;
     emitMovementSnapshot(buildSpeedCheckSnapshot(currentTurn, true, movementLimitEnabled));
     requestMovementSnapshot(currentTurn?.turnKey);

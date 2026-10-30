@@ -730,6 +730,9 @@ function quickActionSurface(action) {
 }
 
 async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surface = quickActionSurface(action)) {
+  // The commands go to the Effects coordinator, which only the GM's browser runs: a player's click waited 2 × 8 s
+  // for nothing (audit online, ON-09). The list stays readable, its buttons are off.
+  if (!isGM) return;
   const operation = sceneLifecycle.capture({ operationId: `initiative-quick-action:${action?.id || "unknown"}:${Date.now().toString(36)}` });
   if (!sceneLifecycle.isCurrent(operation) || !item || quickActionLaunching) return;
   quickActionLaunching = true;
@@ -740,7 +743,7 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
   };
   const setButtonsDisabled = (disabled) => {
     $(surface.listId).querySelectorAll("button").forEach((button) => {
-      button.disabled = disabled || button.dataset.unsupportedFeature === "1";
+      button.disabled = disabled || button.dataset.unsupportedFeature === "1" || button.dataset.gmOnly === "1";
     });
   };
   const sceneStillCurrent = () => {
@@ -949,6 +952,10 @@ function renderQuickActionList(list, actions, emptyText) {
       button.disabled = true;
       button.dataset.unsupportedFeature = "1";
       button.title = "Questa capacità non è ancora automatizzata";
+    } else if (!isGM) {
+      button.disabled = true;
+      button.dataset.gmOnly = "1";
+      button.title = "Le azioni rapide le usa il GM";
     }
     icon.textContent = action.kind === "condition"
       ? "C"

@@ -92,6 +92,7 @@ import { retainFactionRegistryWithinByteBudget } from "./factionRegistryCore.js"
 import { retainInitiativeCardRegistryWithinByteBudget } from "./initiativeCardRegistryCore.js";
 import { retainActorVitalsRegistryWithinByteBudget } from "./actorVitalsCore.js";
 import { perfBootPage } from "./perfProbe.js";
+import { mountSecondGmWarning } from "./secondGmWarning.js";
 
 perfBootPage(OBR, { observeTraffic: true, observeSdk: true });
 
@@ -287,6 +288,9 @@ OBR.onReady(async () => {
     console.warn("[room-metadata-budget] bootstrap:", error?.message || error);
   });
   void bootstrapActorVitalsRuntime();
+  void OBR.player.getRole().then((role) => {
+    if (role === "GM") mountSecondGmWarning();
+  }).catch(() => {});
   void mountEffectsMutationCoordinatorService().then(async () => {
     const hpBarsRuntime = mountHPBarsBackgroundRuntime({ service: runtimeOptionsService });
     window.addEventListener("pagehide", () => { void hpBarsRuntime.stop(); }, { once: true });

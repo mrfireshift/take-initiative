@@ -5426,6 +5426,8 @@ async function __gcSeededGroups(sceneEpoch = currentSceneEpoch()) {
 
 // Backfill di iniziativa per i gruppi già seedati quando compaiono nuovi membri
 async function __backfillInitiativeForSeededGroups(sceneEpoch = currentSceneEpoch()) {
+  // The GM's tracker writes the group's initiative on new members; players' trackers only read it (ON-11).
+  if (!IS_GM) return false;
   if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-backfill")) return false;
   const st = await getSceneState();
   if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-backfill")) return false;
@@ -5685,6 +5687,9 @@ async function _syncAttachedLabels(updates, sceneEpoch = currentSceneEpoch()) {
 // Rinomina solo i nuovi e mantiene stabili gli indici esistenti.
 // Inoltre sincronizza SEMPRE le label (anche se non c’è stato un rename).
 async function enforceUniqueNamePrefixes(sceneEpoch = currentSceneEpoch()) {
+  // Renames are the GM's (audit online, ON-11/ON-12): players' trackers raced on the same tokens, and with Owner Only
+  // their refused writes could stop the tracker's first render.
+  if (!IS_GM) return;
   if (!__isCurrentSceneOperation(sceneEpoch, "enforce-unique-prefixes")) return;
   const items   = await OBR.scene.items.getItems();
   if (!__isCurrentSceneOperation(sceneEpoch, "enforce-unique-prefixes")) return;
@@ -7541,7 +7546,9 @@ async function setLegendaryResistanceMax(itemId, nextMax) {
 
 // Reset al pieno a inizio turno della creatura attiva
 async function resetLegendaryIfAny(activeId) {
-  if (!activeId) return;
+  // Only the GM's tracker resets (audit online, ON-11): the turn changes from there, and every player's tracker
+  // wrote the same boss at once, from a copy up to a second old.
+  if (!IS_GM || !activeId) return;
   // Most turns belong to a creature without legendary actions (or to no token): the complete Event Hub snapshot says
   // so without an SDK call. A legendary one is always read fresh by updateItems, so an action spent just before its
   // turn is still reset.
