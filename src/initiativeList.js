@@ -689,6 +689,10 @@ async function __applyInitiativeTemporalDescriptor(descriptor) {
       type: mutationType,
       targetIds: descriptor.targetIds,
       delta: descriptor.roundDelta,
+      // The rounds of the change (lot L20): each effect counts from the round it was applied, back or forward.
+      ...(Number.isFinite(Number(descriptor.previousRound)) && Number.isFinite(Number(descriptor.nextRound))
+        ? { previousRound: Number(descriptor.previousRound), nextRound: Number(descriptor.nextRound) }
+        : {}),
       boundaries: descriptor.conditionBoundaries,
       previousState: descriptor.previousState,
       nextState: descriptor.nextState,

@@ -990,6 +990,27 @@ function applySpellUpsert(state, operation) {
   }
 }
 
+// The rounds a change of round takes from (or gives back to) one effect (lot L20, replacing decision D5): each effect
+// counts from the round it was applied. Forward, it spends only the rounds after that one; back (◀ over the start of
+// a round, Reset round), it gets back only the rounds it had spent, never more than its whole duration. So back,
+// forward, a reset and its Undo always agree, as if the duration were tied to the round counter: an effect cast at
+// round 4 for 10 rounds has 9 at round 5, 10 after a reset to round 1 (not 13), 9 again after its Undo. A step
+// forward from the effect's own round or later spends one round, as before. Without the rounds of the change (a
+// manual adjustment, an older command) or the effect's round, the change's delta as it is.
+export function roundAnchoredDelta(operation, appliedRound) {
+  const delta = Number(operation?.delta || 0);
+  const from = Number(operation?.previousRound);
+  const to = Number(operation?.nextRound);
+  const applied = Math.floor(Number(appliedRound));
+  if (!Number.isFinite(delta) || !Number.isFinite(from) || !Number.isFinite(to)
+    || !Number.isFinite(applied) || applied < 1) {
+    return Number.isFinite(delta) ? delta : 0;
+  }
+  if (to > from) return -Math.max(0, to - Math.max(from, applied)) || 0;
+  if (to < from) return Math.max(0, from - Math.max(to, applied));
+  return 0;
+}
+
 function applySpellAdjustment(states, operation, context = {}) {
   // Temporal descriptors normally carry raw `{ phase: "start" | "end" }`
   // boundaries.  Normalize them before applying per-instance terminal rules
@@ -1023,12 +1044,18 @@ function applySpellAdjustment(states, operation, context = {}) {
         next.push(spell);
         continue;
       }
+      const delta = roundAnchoredDelta(operation, spell?.appliedAt?.round);
+      // Nothing to spend or give back for this effect (applied after the rounds the change covers): left as it is.
+      if (delta === 0) {
+        next.push(spell);
+        continue;
+      }
       const current = Math.max(0, Number(spell?.turns || 0));
-      const turns = Math.max(0, current + Number(operation?.delta || 0));
+      const turns = Math.max(0, current + delta);
       if (turns > 0) next.push({ ...spell, turns });
       else {
         const deferred = current > 0
-          && Number(operation?.delta || 0) < 0
+          && delta < 0
           && operation?.boundaries
           ? deferSpellRoundExpiry(spell, state, boundaries, operation)
           : null;
@@ -1384,7 +1411,13 @@ function applyConditionAdjustment(states, operation) {
         next.push(instance);
         continue;
       }
-      const nextRemaining = Math.max(0, remaining + delta);
+      // Counted from the round the effect was applied, as the spells (roundAnchoredDelta).
+      const instanceDelta = roundAnchoredDelta(operation, instance?.appliedAt?.round);
+      if (instanceDelta === 0) {
+        next.push(instance);
+        continue;
+      }
+      const nextRemaining = Math.max(0, remaining + instanceDelta);
       if (nextRemaining > 0) {
         next.push({
           ...instance,
