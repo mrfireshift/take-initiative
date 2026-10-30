@@ -43,12 +43,21 @@ function save(change) {
 follow.addEventListener("change", () => save({ follow: follow.checked }));
 scale.addEventListener("change", () => save({ scale: scale.value }));
 animations.addEventListener("change", () => save({ animations: animations.checked }));
+const close = () => void OBR.popover.close(POPOVER_ID).catch(() => {});
+document.getElementById("playerScreenClose").addEventListener("click", close);
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") void OBR.popover.close(POPOVER_ID).catch(() => {});
+  if (event.key === "Escape") close();
 });
+
+// The popover takes the height of what it shows: no empty band under the last row.
+function fitHeight() {
+  const height = Math.ceil(document.querySelector("main")?.getBoundingClientRect().height || 0);
+  if (height > 0) void OBR.popover.setHeight(POPOVER_ID, height).catch(() => {});
+}
 
 OBR.onReady(async () => {
   await startRuntimeOptions().catch(() => {});
   runtimeOptionsService.subscribe(selectPlayerScreenPreferences, render);
+  fitHeight();
   follow.focus();
 });

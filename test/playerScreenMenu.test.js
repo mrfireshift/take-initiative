@@ -61,4 +61,14 @@ test("il pulsante «Schermo» compare solo ai giocatori nel profilo Online", () 
   assert.match(source, /playerScreenButton\.style\.display = "none";/);
   assert.match(source, /playerScreenButton\.style\.display = !IS_GM && online \? "inline-flex" : "none";/);
   assert.match(source, /compactBottomControls\.replaceChildren\(layoutToggleButton, playerScreenButton\);/);
+  // Extended layout: the empty column left of the round, on the header's single row (it wrapped to a second one).
+  assert.match(source, /gridColumn: playerClassic \? "1" : "",\s*gridRow: playerClassic \? "1" : "",/);
+});
+
+test("il pannello «Schermo» ha la × di chiusura e prende l'altezza del contenuto", () => {
+  const page = readFileSync(new URL("../player-screen.html", import.meta.url), "utf8");
+  const script = readFileSync(new URL("../src/player-screen.js", import.meta.url), "utf8");
+  assert.match(page, /<button id="playerScreenClose" class="close" type="button" aria-label="Chiudi"/);
+  assert.match(script, /getElementById\("playerScreenClose"\)\.addEventListener\("click", close\)/);
+  assert.match(script, /OBR\.popover\.setHeight\(POPOVER_ID, height\)/);
 });

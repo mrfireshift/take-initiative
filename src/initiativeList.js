@@ -1528,32 +1528,62 @@ updateLayoutToggleButton();
 // The menu «Schermo» of a player: their own Segui, tracker size and animations, in the Online room profile only
 // (audit online, lot O2b). Hidden for the GM and in the Table profile.
 const PLAYER_SCREEN_POPOVER_ID = `${ID}/player-screen`;
-const PLAYER_SCREEN_POPOVER_WIDTH = 260;
-const PLAYER_SCREEN_POPOVER_HEIGHT = 168;
+const PLAYER_SCREEN_POPOVER_WIDTH = 288;
+// The page fits its own height once drawn (player-screen.js); this is only the first frame.
+const PLAYER_SCREEN_POPOVER_HEIGHT = 190;
 const playerScreenButton = document.createElement("button");
 playerScreenButton.type = "button";
 playerScreenButton.dataset.playerScreen = "1";
 playerScreenButton.style.cssText = layoutToggleButton.style.cssText;
 playerScreenButton.style.display = "none";
-playerScreenButton.textContent = "⚙";
 playerScreenButton.title = "Il mio schermo: Segui, dimensione del tracker, animazioni";
 playerScreenButton.setAttribute("aria-label", playerScreenButton.title);
+const playerScreenIcon = document.createElement("img");
+playerScreenIcon.src = (import.meta.env.BASE_URL || "/") + "options.svg";
+playerScreenIcon.alt = "";
+playerScreenIcon.setAttribute("aria-hidden", "true");
+Object.assign(playerScreenIcon.style, { width: "16px", height: "16px", display: "block", pointerEvents: "none" });
+playerScreenButton.append(playerScreenIcon);
+
+// Extended tracker: beside it, on its free side, level with the header, like the other side panels. Compact bar:
+// above the button, like the GM's "…" menu.
+async function __playerScreenPlacement() {
+  if (!isCompactTrackerLayout()) {
+    const anchor = await getTrackerSidePanelAnchor({ panelWidth: PLAYER_SCREEN_POPOVER_WIDTH });
+    return {
+      anchorPosition: anchor,
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+    };
+  }
+  let viewportWidth = 1200;
+  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+  const origin = __compactTrackerFrameOrigin(await getCompactTrackerPopoverAnchor());
+  const rect = playerScreenButton.getBoundingClientRect();
+  const openRight = origin.left + rect.right + 8 + PLAYER_SCREEN_POPOVER_WIDTH <= viewportWidth - 12;
+  const side = openRight ? "LEFT" : "RIGHT";
+  return {
+    anchorPosition: {
+      left: Math.round(openRight ? origin.left + rect.right + 8 : origin.left + rect.left - 8),
+      top: Math.round(origin.top + rect.bottom),
+    },
+    anchorOrigin: { horizontal: side, vertical: "BOTTOM" },
+    transformOrigin: { horizontal: side, vertical: "BOTTOM" },
+  };
+}
+
 playerScreenButton.addEventListener("click", (event) => {
   event.stopPropagation();
   void (async () => {
-    let width = 1200;
-    let height = 800;
-    try { width = Number(await OBR.viewport.getWidth()) || width; } catch {}
-    try { height = Number(await OBR.viewport.getHeight()) || height; } catch {}
+    const placement = await __playerScreenPlacement();
     await OBR.popover.open({
       id: PLAYER_SCREEN_POPOVER_ID,
       url: "/player-screen.html",
       width: PLAYER_SCREEN_POPOVER_WIDTH,
       height: PLAYER_SCREEN_POPOVER_HEIGHT,
       anchorReference: "POSITION",
-      anchorPosition: { left: Math.round(width / 2), top: Math.round(height / 2) },
-      anchorOrigin: { horizontal: "CENTER", vertical: "CENTER" },
-      transformOrigin: { horizontal: "CENTER", vertical: "CENTER" },
+      ...placement,
+      marginThreshold: 12,
       hidePaper: true,
     });
   })().catch((error) => console.warn("[player-screen] apertura fallita:", error?.message || error));
@@ -3654,6 +3684,23 @@ function applyHeaderLayoutPresentation(compact) {
     fontSize: "9px",
   });
   layoutToggleButton.style.gridColumn = playerClassic ? "3" : "";
+  // The players' «Schermo» button (Online profile) takes the empty column left of the round, mirroring the layout
+  // toggle on the right, with the drag handle's neutral look.
+  Object.assign(playerScreenButton.style, {
+    gridColumn: playerClassic ? "1" : "",
+    gridRow: playerClassic ? "1" : "",
+    width: classic ? "28px" : "26px",
+    minWidth: classic ? "28px" : "26px",
+    height: classic ? "28px" : "26px",
+    padding: "0",
+    margin: "0",
+    alignSelf: "center",
+    justifySelf: "center",
+    boxSizing: "border-box",
+    border: classic ? "1px solid rgba(148,163,184,.28)" : "1px solid rgba(148,163,184,.24)",
+    background: classic ? "rgba(0,0,0,.34)" : "rgba(8,12,21,.72)",
+    borderRadius: classic ? "10px" : "9px",
+  });
   layoutToggleIcon.style.width = classic ? "16px" : "15px";
   layoutToggleIcon.style.height = classic ? "16px" : "15px";
   if (compact) {

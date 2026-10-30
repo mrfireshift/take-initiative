@@ -32,26 +32,51 @@
       main {
         box-sizing: border-box;
         display: grid;
-        gap: 10px;
-        padding: 12px 14px;
+        gap: 6px;
+        padding: 8px 10px 12px 14px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 2px;
       }
       h1 {
         margin: 0;
         font-size: 13px;
         font-weight: 750;
       }
-      .row {
-        display: flex;
+      .close {
+        display: inline-flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        min-height: 28px;
+        justify-content: center;
+        flex: 0 0 auto;
+        width: var(--obrt-close-size, 28px);
+        height: var(--obrt-close-size, 28px);
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: var(--obrt-close-radius, 8px);
+        background: transparent;
+        color: inherit;
+        font-size: var(--obrt-close-font, 18px);
+        line-height: 1;
+        cursor: pointer;
       }
-      .row span { display: grid; gap: 2px; }
+      .close:hover { background: var(--obrt-close-hover, rgba(255, 255, 255, .08)); }
+      .row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        min-height: 32px;
+        padding-right: 4px;
+      }
+      .row span { display: grid; gap: 2px; min-width: 0; white-space: nowrap; }
       .row small { color: rgba(255, 255, 255, .62); font-size: var(--obrt-type-micro, 10px); }
       input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: #93c5fd; cursor: pointer; }
       select {
-        min-width: 112px;
+        width: 136px;
         padding: 4px 6px;
         border: 1px solid rgba(148, 163, 184, .35);
         border-radius: 7px;
@@ -70,7 +95,10 @@
       data-popover-id="com.thebigpicture.initiative/player-screen"
     >
       <main aria-label="Il mio schermo">
-        <h1>Il mio schermo</h1>
+        <header>
+          <h1>Il mio schermo</h1>
+          <button id="playerScreenClose" class="close" type="button" aria-label="Chiudi" title="Chiudi">×</button>
+        </header>
         <label class="row" for="playerScreenFollow">
           <span>Segui il turno<small>La vista va sul token di turno</small></span>
           <input id="playerScreenFollow" type="checkbox" />
