@@ -70,8 +70,6 @@ const LIGHT_ENTRIES = [
   "quick-hp-modal.js",
   "concentration-warning.ts",
   "effect-duration.js",
-  "ctx-remove-condition.ts",
-  "zone-trigger-notice.ts",
   "effects-modal.ts",
   "shared-hp-modal.js",
   "action-launcher.js",

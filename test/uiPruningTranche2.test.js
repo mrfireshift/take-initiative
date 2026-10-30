@@ -18,7 +18,6 @@ const panelViewCore = source("src/spellUnifiedPanelViewCore.js");
 const effectsView = source("src/spellUnifiedPanelEffectsView.js");
 const turnNotice = source("src/turn-notice.ts");
 const conditionsModal = source("src/effects-modal.ts");
-const conditionRemoval = source("src/ctx-remove-condition.ts");
 
 function modelFor(spellId, sessionPatch = {}) {
   const contract = buildSpellUnifiedPanelContract({ spellId });
@@ -110,7 +109,4 @@ test("condizioni ed effetti usano label compatta con dettaglio accessibile", () 
   assert.match(conditionsModal, /label: compactSpellEffectLabel\(/);
   assert.match(conditionsModal, /detail: formatConditionInstance\(instance\)/);
   assert.match(conditionsModal, /text\.title = row\.detail/);
-  assert.match(conditionRemoval, /label: compactSpellEffectLabel\(/);
-  assert.match(conditionRemoval, /detail: formatConditionInstance\(instance\)/);
-  assert.match(conditionRemoval, /name\.title = row\.detail/);
 });

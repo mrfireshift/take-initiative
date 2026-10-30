@@ -20,7 +20,6 @@ test("gli stylesheet condivisi propagano la scrollbar a tutte le viste principal
   assert.match(typographyCss, /@import url\("\/ui-scrollbars\.css"\)/);
   assert.match(glassCss, /@import url\("\/ui-scrollbars\.css"\)/);
   for (const path of [
-    "../zone-trigger-notice.html",
     "../turn-notice.html",
     "../concentration-warning.html",
     "../background.html",

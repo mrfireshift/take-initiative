@@ -9,7 +9,6 @@ import { gzipSync } from "node:zlib";
 // them: a budget in KB of minified startup JavaScript, about 10% above their size on 28/10/2026 (lot F5).
 export const NOTICE_STARTUP_BUDGETS_KB = Object.freeze({
   "turn-notice.html": 750,
-  "zone-trigger-notice.html": 620,
   "death-save-notice.html": 450,
   "effect-duration.html": 450,
   "concentration-warning.html": 100,

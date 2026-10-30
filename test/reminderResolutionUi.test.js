@@ -10,10 +10,6 @@ const turnNoticeHtml = readFileSync(
   new URL("../turn-notice.html", import.meta.url),
   "utf8",
 );
-const legacyZoneNotice = readFileSync(
-  new URL("../src/zone-trigger-notice.ts", import.meta.url),
-  "utf8",
-);
 const historySource = readFileSync(
   new URL("../src/history.js", import.meta.url),
   "utf8",
@@ -132,12 +128,11 @@ test("i reminder con risposta GM restano aperti senza timer automatico", () => {
   assert.match(turnNotice, /clearZoneNotice\(\);/);
 });
 
-test("il TS di Muro Prismatico resta visibile anche nel notice legacy", () => {
+// The legacy zone-trigger-notice page, never opened, left the build in lot L22: the turn notice is the only one.
+test("il TS di Muro Prismatico resta visibile nel turn notice", () => {
   assert.match(turnNotice, /function reminderRowRequiresPersistentDisplay\(row: any\)/);
   assert.match(turnNotice, /row\?\.spellId === "prismatic-wall"/);
   assert.match(reminderRender, /hasPersistentPrismaticWallSave/);
-  assert.match(legacyZoneNotice, /notice\.spellId === "prismatic-wall"/);
-  assert.match(legacyZoneNotice, /notice\.resolution === "manual-save"/);
 });
 
 test("il turn notice non ridimensiona il popover durante il bootstrap", () => {
