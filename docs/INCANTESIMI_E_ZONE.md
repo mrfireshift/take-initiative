@@ -441,12 +441,11 @@ muoversi verso il caster dentro Folata di Vento, sono ancora in backlog.
 
 ### Zone mobili controllate
 
-Le zone mobili operative elencate nella tabella espongono l'azione comune `Sposta zona`, con la stessa
-economia dichiarata dall'incantesimo e una rivalidazione al momento della
-conferma. L'azione riusa il placement esistente, non apre una selezione di
-bersagli e aggiorna lo stesso root della zona; figli, metadata e sottozone sono
-riconciliati nella stessa transazione. Un trascinamento nativo diretto non
-aggira il controllo della posizione.
+Le zone mobili elencate nella tabella si spostano trascinando la zona sul
+tabellone, come Turbine: l'azione comune `Sposta zona` non c'è più. Il plugin
+ricalcola appartenenza e trigger dalla nuova posizione; l'economia e la distanza
+massima della tabella restano un riferimento per il tavolo (le politiche di
+movimento restano nei dati per l'audit, ma non bloccano il trascinamento).
 
 | Incantesimo | Economia e limite | Regola aggiuntiva |
 | --- | --- | --- |
@@ -455,11 +454,9 @@ aggira il controllo della posizione.
 | Spirito Guaritore | Azione bonus, 9 m | Lo spostamento non cura; cura manuale su ingresso/inizio turno |
 | Diavoletto di Polvere | Azione bonus, 9 m | Scelta opzionale per nube di detriti da 3 m |
 
-Il core rifiuta posizione iniziale obsoleta, coordinate non valide, distanza
-oltre il limite e scena cambiata tra preview e conferma. Per Sfera Infuocata
-un contatto ambiguo richiede una scelta esplicita del GM. I dadi, la spinta
-fisica del Diavoletto, il movimento delle creature e le interazioni con oggetti
-restano manuali.
+I dadi, l'arresto di Sfera Infuocata al primo contatto, la spinta fisica del
+Diavoletto, il movimento delle creature e le interazioni con oggetti restano
+manuali.
 
 ### Turbine — `xanathar-turbine`
 
@@ -584,10 +581,6 @@ attive per 26 definizioni.
 | Colpo dello Zefiro | Usa colpo |
 | Controllare Venti | Folate, Discendente, Ascendente, Sospendi venti |
 | Investitura del Ghiaccio | Cono gelido |
-| Bagliore Lunare | Sposta zona |
-| Sfera Infuocata | Sposta zona |
-| Spirito Guaritore | Sposta zona |
-| Diavoletto di Polvere | Sposta zona |
 | Turbine | Prova di fuga sul target Trattenuto |
 | Intermittenza | Ritorno sulla mappa; Termina Intermittenza (Azione) |
 | Arma spirituale | Riferimento attacco sulla pedina |

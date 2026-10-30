@@ -79,9 +79,10 @@ record `hp`/`hpMax`.
 
 `updatedAt` è il primo ordinamento di autorevolezza; `revision` risolve i
 pareggi. Record corrotti o parziali vengono ignorati o normalizzati senza
-interrompere il tracker. La retention Room è deterministica: entro 10.000
-byte conserva prima i record HP validi, poi quelli più recenti e infine usa
-l'ordinamento dell'ID. La copia locale può restare più completa.
+interrompere il tracker. La retention Room è deterministica: entro 2.500
+byte (il budget della chiave `actorVitals` in `src/roomMetadataBudget.js`, dentro i
+16 kB dei metadata della stanza) conserva prima i record HP validi, poi quelli più
+recenti e infine usa l'ordinamento dell'ID. La copia locale può restare più completa.
 
 `src/actorVitalsStore.js` usa il writer key-scoped, mantiene un fallback
 `com.thebigpicture.initiative/actorVitals/local`, serializza i read-modify-write

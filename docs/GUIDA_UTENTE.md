@@ -69,6 +69,8 @@ Il GM vede i controlli di incontro, tracker, modifica e strumenti. I giocatori v
 
 Nella vista giocatori gli HP dei PG restano visibili. La modalità estesa può mostrare anche gli HP degli alleati, mentre quella compatta privilegia i soli PG; neutrali e nemici non espongono i propri HP ai giocatori. Quando un valore non è visibile non viene lasciato un testo o una barra vuota. Gli strumenti di amministrazione non sono interattivi per i giocatori.
 
+Un token che il GM tiene nascosto non arriva ai giocatori in nessuna forma: niente card nel loro tracker, niente barra né aure sulla mappa, niente avviso di turno, promemoria, avvisi di concentrazione o animazioni che lo riguardano; la selezione del GM inviata al tavolo lo esclude. Durante il suo turno il tracker dei giocatori lascia evidenziata l'ultima card attiva visibile. Il GM lo riconosce dal ritratto oscurato con l'occhio barrato al centro. Quando il GM lo mostra, la sua card compare subito.
+
 ## 3. Impostare le card
 
 Ogni card può contenere:
@@ -344,6 +346,8 @@ I gruppi omonimi, le azioni di tana, i turni Paragon e le azioni epiche possono 
 
 **Svuota iniziativa** e **Reset round** agiscono subito, senza conferma: in basso nel tracker compare per 8 secondi un avviso con **Annulla**, che rimette ordine, turno attivo, round e token in iniziativa (per Svuota) o il round precedente (per Reset round). Se nel frattempo è iniziato un altro combattimento, o il round è già cambiato, l'annullamento non sovrascrive niente e lo segnala.
 
+**Reset round** riporta il round a 1 senza cambiare ordine né turno attivo. Le durate in round degli effetti attivi oggi si allungano di quanti round si torna indietro, e l'Annulla le riaccorcia.
+
 ### Tasti per il turno
 
 Quando il tracker ha il focus della tastiera (dopo un clic nel tracker, per esempio su una card), il GM può usare **Spazio** o **→** per il turno successivo e **←** per il precedente. Sono gli stessi comandi dei pulsanti. Non funzionano mentre scrivi in un campo, con un editor aperto o durante Compila iniziativa. Owlbear Rodeo non offre scorciatoie globali alle estensioni: dopo un clic sulla mappa i tasti tornano a Owlbear.
@@ -376,6 +380,10 @@ reazione del caster quando li lanci dal pannello incantesimi o da un'azione
 rapida, nello stesso passo annullabile dello slot. Succede solo in
 combattimento, con un ordine di iniziativa. Se la reazione è già usata, il
 plugin chiede conferma prima di lanciare.
+
+### Console attacchi fuori turno
+
+Quando sulla mappa è selezionata un'altra creatura, la console attacchi offre **⇄ Agisci con…**: la console passa a quella creatura per un'azione fuori turno (un attacco di opportunità, una reazione). L'intestazione dice **Fuori turno**. Un attacco fuori turno propone la casella **Usa la reazione (attacco di opportunità)**, spenta finché non la spunti; se la reazione è già usata nel round la console lo dice e l'attacco non la segna. Se la creatura della console torna al proprio turno con un attacco già scelto, la casella si spegne di nuovo. Gli esiti di un attacco ad area non ancora registrati vengono chiesti prima di cambiare creatura.
 
 ### Console attacchi per i mostri
 
@@ -471,11 +479,13 @@ Puoi modificare un singolo attore dalla sua card (clic sugli HP) oppure usare la
 6. Per ogni bersaglio scegli `×2`, `1`, `½` o `¼`.
 7. Controlla l'anteprima e applica.
 
-I bersagli selezionati salgono in cima alla lista. L'applicazione è atomica: un solo comando aggiorna tutti i token e crea un'unica voce annullabile. Se il danno colpisce creature in concentrazione, viene mostrato l'avviso relativo.
+I bersagli selezionati salgono in cima alla lista. L'applicazione è atomica: un solo comando aggiorna tutti i token e crea un'unica voce annullabile. Se il danno colpisce creature in concentrazione, viene mostrato l'avviso relativo. Il comando raggiunge solo i bersagli selezionati che i filtri mostrano: quelli nascosti da un filtro sono indicati come esclusi. Il messaggio finale conta i bersagli cambiati e dice a parte quelli rimasti invariati (una cura a chi ha già i PF pieni).
+
+Se il GM ha i pulsanti **Superato** / **Fallito** sull'avviso di concentrazione, la × in alto lo chiude senza registrare il tiro: la concentrazione resta com'è.
 
 ### TS contro la morte
 
-Un PG a 0 PF, né stabile né morto, riceve a inizio turno il promemoria **TS contro la morte**, con i successi e i fallimenti accumulati (●●○ / ✕○○). Il popup compare anche sullo schermo del tavolo, ma i pulsanti li ha solo il GM: dopo il tiro del d20 segna **Successo**, **Fallimento**, **1 naturale** (due fallimenti) o **20 naturale** (torna a 1 PF). Ogni tiro è una voce annullabile della Cronologia.
+Un PG a 0 PF, né stabile né morto, riceve a inizio turno il promemoria **TS contro la morte**, con i successi e i fallimenti accumulati (●●○ / ✕○○). Il popup compare anche sullo schermo del tavolo, ma i pulsanti li ha solo il GM: dopo il tiro del d20 segna **Successo**, **Fallimento**, **1 naturale** (due fallimenti) o **20 naturale** (torna a 1 PF). Ogni tiro è una voce annullabile della Cronologia. Se il GM chiude la sua carta con la × senza registrare, si chiude anche quella sullo schermo del tavolo.
 
 - Tre successi: l'etichetta **Stabile**; i tiri si fermano e il conteggio si azzera.
 - Tre fallimenti: l'etichetta **Morto** prende il posto di Privo di sensi. La toglie il GM.
@@ -496,7 +506,9 @@ Apri **Condizioni** dalla toolbar. La finestra permette di:
 
 Le condizioni supportano scadenza manuale, dopo un numero di round, all'inizio del turno, alla fine del turno o insieme alla concentrazione. Sono consentite fino a tre condizioni personalizzate per token.
 
-Nella card estesa compaiono le prime etichette e il pulsante `…` mostra le altre; nella card compatta compare la prima, e le altre si aprono nel cassetto laterale (vedi [La barra compatta](#la-barra-compatta)). Sulla mappa le condizioni compaiono come etichette bloccate e ancorate al token.
+**Rimuovi Tutto** toglie gli effetti di tutti i token della lista, non solo dei bersagli selezionati: il primo clic mostra quanti token raggiunge, un secondo clic entro qualche secondo conferma.
+
+Nella card estesa compaiono le prime etichette e il pulsante `…` mostra le altre (resta aperto finché non lo chiudi, anche quando la card si aggiorna); nella card compatta compare la prima, e le altre si aprono nel cassetto laterale (vedi [La barra compatta](#la-barra-compatta)). Sulla mappa le condizioni compaiono come etichette bloccate e ancorate al token: restano dritte e della stessa misura anche quando il token viene ruotato o ingrandito. La barra dei PF segue la scala del token, mai la rotazione.
 
 ### Condizioni rapide
 
@@ -711,7 +723,7 @@ Un boss Paragon riceve più turni nell'ordine. Le voci aggiuntive sono virtuali 
 
 ### Epic Boss
 
-Un Epic Boss opera a iniziativa 20 e genera voci **Azione Epica** nell'ordine. La card usa una cornice boss dedicata; le voci epiche non sono token duplicati.
+Un Epic Boss opera a iniziativa 20 e genera voci **Azione Epica** nell'ordine. La card usa una cornice boss dedicata; le voci epiche non sono token duplicati. Durante un'Azione Epica l'etichetta **Turno di…**, la selezione e la vista della mappa vanno sul boss.
 
 ## 10. Cronologia e registro combattimento
 
@@ -720,6 +732,8 @@ Il pannello separa due funzioni:
 - **Cronologia**: azioni annullabili, con possibilità di annullare una o più operazioni;
 - **Registro combattimento**: resoconto leggibile degli eventi.
 
+Alcune voci le scrive il plugin da solo in reazione a un'altra, per esempio **Capacità terminata** quando una capacità di classe finisce perché il personaggio è Privo di sensi. Non si annullano da sole: annullarle annulla anche l'azione che le ha causate, e nel pannello selezionarle seleziona anche la causa. Le aure del Paladino invece non finiscono a 0 PF: restano sospese mentre è Privo di sensi e tornano da sole quando si rialza.
+
 Il registro raggruppa gli eventi per round, accumula il movimento totale degli attori e registra gli annullamenti come nuovi eventi, senza riscrivere il passato. Puoi:
 
 - cercare per attore, bersaglio o evento;
@@ -727,7 +741,7 @@ Il registro raggruppa gli eventi per round, accumula il movimento totale degli a
 - aggiungere note manuali;
 - iniziare un nuovo registro;
 - cancellare il registro con conferma;
-- esportare in TXT o JSON.
+- esportare in TXT o JSON, anche un registro archiviato senza riprenderlo: nel menu **Esporta/importa** il campo **Da esportare** sceglie quale.
 
 Il registro è locale al browser GM e separato dalla Cronologia: per il contratto
 di storage, compatibilità ed export consulta [Registro combattimento](COMBAT-LOG.md).
@@ -739,7 +753,7 @@ Lo strumento **Clock** si trova nella toolbar destra di Owlbear Rodeo. I clock s
 - Segmenti disponibili: 4, 6, 8 e 12.
 - Colori disponibili: rosso, ambra, verde, azzurro, viola e rosa.
 - Ogni clock può essere incrementato, decrementato, azzerato, rinominato, riordinato o eliminato.
-- Il GM può nascondere un clock ai giocatori.
+- Un clock nuovo nasce nascosto ai giocatori (etichetta «Solo GM»), salvo la casella **Visibile ai giocatori** nel modulo di creazione; il GM lo mostra o lo nasconde da **Gestisci**.
 - La finestra dispone di modalità estesa e compatta, è trascinabile e si adatta al numero di clock visibili.
 
 ## 12. Quota e distanza 3D
@@ -765,7 +779,7 @@ Lo strumento **Targeting area** è disponibile al GM nella toolbar destra e incl
 - linea;
 - rettangolo per gli incantesimi che lo richiedono.
 
-Durante il trascinamento compare la misura in metri. Origine e dimensioni possono agganciarsi al centro o ai vertici delle caselle. Le forme restano sulla scena dopo la creazione e continuano a selezionare i token intersecati quando vengono spostate.
+Durante il trascinamento compare la misura in metri. Origine e dimensioni possono agganciarsi al centro o ai vertici delle caselle. Le forme restano sulla scena dopo la creazione. Quando le sposti, le ruoti o le ridimensioni sulla mappa riselezionano i token che occupano almeno una delle caselle incluse, nella loro nuova posizione e direzione; le caselle restano quelle della griglia.
 
 Il cerchio segue la regola della Guida del DM: una casella è inclusa quando il suo centro cade dentro il raggio, cioè quando il cerchio ne copre circa la metà. Il cono include una casella quando la sagoma ne copre più del 15%. Il cono parte dalla mediana del lato della casella scelta accanto al caster, anche in diagonale. La forma sagomata segue il contorno delle caselle incluse, mentre una silhouette geometrica interna rende leggibile la geometria originaria. Regole e scelte sono raccolte in `docs/AREE_SU_GRIGLIA.md`.
 
