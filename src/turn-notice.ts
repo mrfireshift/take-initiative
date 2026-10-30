@@ -310,18 +310,6 @@ function buildPanel(notice: TurnNotice) {
   if (notice.forYou === "next") next.classList.add("is-you");
   next.append(nextLabel, nextName);
 
-  if (mine) {
-    // The player's own turn stays until the next one: closed by hand, no countdown.
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "notice-close";
-    close.textContent = "×";
-    close.title = "Chiudi";
-    close.setAttribute("aria-label", "Chiudi");
-    close.addEventListener("click", () => hideCurrent());
-    panel.append(portrait, copy, roundBadge, next, close);
-    return panel;
-  }
   const timer = document.createElement("div");
   timer.className = "timer";
   panel.append(portrait, copy, roundBadge, next, timer);
@@ -413,8 +401,7 @@ function showNotice(raw: any) {
     previous.classList.add("is-leaving");
     window.setTimeout(() => previous.remove(), FADE_MS);
   }
-  // A player's own turn (lot O4a) stays until the next turn notice or the ×.
-  hideTimer = notice.forYou === "current" ? 0 : window.setTimeout(hideCurrent, AUTO_CLOSE_MS);
+  hideTimer = window.setTimeout(hideCurrent, AUTO_CLOSE_MS);
   announceNoticeLayout({ force: true });
 }
 

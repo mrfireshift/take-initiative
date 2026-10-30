@@ -40,13 +40,15 @@ test("ogni schermo capisce se il turno è suo o il prossimo; il GM mai", () => {
   assert.equal(turnNoticeForPlayer(payload, ""), "");
 });
 
-test("l'host segna l'avviso e non chiude il proprio turno a scheda nascosta; la pagina non lo fa scadere", () => {
+test("l'host segna l'avviso e non lo chiude a scheda nascosta; la pagina lo chiude con il solito timer", () => {
   const host = readFileSync(new URL("../src/turnNoticeHost.js", import.meta.url), "utf8");
   const page = readFileSync(new URL("../src/turn-notice.ts", import.meta.url), "utf8");
   assert.match(host, /const forYou = turnNoticeForPlayer\(payload, selfPlayerId\(\), hostRole\);/);
   assert.match(host, /currentNoticeSticky = forYou === "current";/);
   assert.match(host, /\|\| pendingPayloads\.length\s*\|\| currentNoticeSticky\s*\) return;/);
   assert.match(page, /eyebrow\.textContent = mine \? "Tocca a te" : "Iniziativa";/);
-  assert.match(page, /hideTimer = notice\.forYou === "current" \? 0 : window\.setTimeout\(hideCurrent, AUTO_CLOSE_MS\);/);
+  // The user's choice (30/10): «Tocca a te» closes on the usual countdown, no ×.
+  assert.match(page, /hideTimer = window\.setTimeout\(hideCurrent, AUTO_CLOSE_MS\);/);
+  assert.doesNotMatch(page, /notice-close/);
   assert.match(page, /nextName\.textContent = notice\.forYou === "next" \? `Tu · \$\{shownNextName\}` : shownNextName;/);
 });

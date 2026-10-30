@@ -204,20 +204,37 @@
         animation: expire 4.5s linear forwards;
       }
       /* Online room profile (lot O4a): the turn of this player's own creature. A white spotlight, never a faction
-         colour (red, green, blue and amber already say enemy, ally, character and neutral). */
+         colour (red, green, blue and amber already say enemy, ally, character and neutral). The popup is only 4 px
+         wider than the card, so the white glow shines inside the border, where it cannot be cut off. */
       .notice.mine {
         box-shadow:
           0 0 0 2px var(--accent),
-          0 0 0 4px rgba(255, 255, 255, .92),
-          0 0 26px 8px rgba(255, 255, 255, .28),
+          0 0 0 4px rgba(255, 255, 255, .95),
           0 18px 48px rgba(0, 0, 0, .68),
-          inset 0 0 0 1px rgba(255, 255, 255, .16),
+          inset 0 0 0 1px rgba(255, 255, 255, .5),
+          inset 0 0 22px 4px rgba(255, 255, 255, .34),
           inset 0 -28px 44px rgba(0, 0, 0, .25);
-        animation: your-turn-glow 2.4s ease-in-out infinite;
+        animation: your-turn-glow 2.2s ease-in-out infinite;
       }
       @keyframes your-turn-glow {
-        0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
-        50% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, .45)); }
+        0%, 100% {
+          box-shadow:
+            0 0 0 2px var(--accent),
+            0 0 0 4px rgba(255, 255, 255, .95),
+            0 18px 48px rgba(0, 0, 0, .68),
+            inset 0 0 0 1px rgba(255, 255, 255, .5),
+            inset 0 0 22px 4px rgba(255, 255, 255, .34),
+            inset 0 -28px 44px rgba(0, 0, 0, .25);
+        }
+        50% {
+          box-shadow:
+            0 0 0 2px var(--accent),
+            0 0 0 4px rgba(255, 255, 255, 1),
+            0 18px 48px rgba(0, 0, 0, .68),
+            inset 0 0 0 1px rgba(255, 255, 255, .75),
+            inset 0 0 34px 10px rgba(255, 255, 255, .52),
+            inset 0 -28px 44px rgba(0, 0, 0, .25);
+        }
       }
       @media (prefers-reduced-motion: reduce) { .notice.mine { animation: none; } }
       .notice.mine .eyebrow {
@@ -229,29 +246,9 @@
         font-size: 11px;
         letter-spacing: 1px;
       }
+      .notice.mine .timer::after { background: #fff; box-shadow: 0 0 8px rgba(255, 255, 255, .8); }
       .notice.mine .portrait { box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px rgba(255, 255, 255, .92), 0 0 16px 4px rgba(255, 255, 255, .25); }
       .next.is-you strong { color: #fff; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
-      .notice-close {
-        position: absolute;
-        right: 10px;
-        bottom: 8px;
-        width: 28px;
-        height: 28px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        border: 1px solid transparent;
-        border-radius: 8px;
-        background: transparent;
-        color: rgba(255, 255, 255, .82);
-        font-size: 18px;
-        line-height: 1;
-        cursor: pointer;
-        z-index: 2;
-      }
-      .notice-close:hover { background: rgba(255, 255, 255, .1); color: #fff; }
-      .notice-close:focus-visible { outline: 2px solid rgba(147, 197, 253, .9); outline-offset: 1px; }
       .zone-notice {
         --accent: #fb923c;
         --accent-soft: rgba(251, 146, 60, .42);

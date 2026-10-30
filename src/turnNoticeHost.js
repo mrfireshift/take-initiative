@@ -41,8 +41,8 @@ let readyRetryTimer = null;
 let layoutAckTimer = null;
 let layoutAckToken = 0;
 let latestLayoutRevision = 0;
-// Online room profile (lot O4a): the turn shown is this player's own («Tocca a te»). It stays until the next turn or
-// until the player closes it, also when the Owlbear tab is hidden and the page cannot confirm its layout in time.
+// Online room profile (lot O4a): the turn shown is this player's own («Tocca a te»). The host does not close it when
+// the page cannot confirm its layout in time (a hidden Owlbear tab): the page's own countdown does.
 let currentNoticeSticky = false;
 let hostRole = "";
 
