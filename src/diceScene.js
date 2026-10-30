@@ -11,7 +11,7 @@ import {
   LinearSRGBColorSpace,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
-  PCFSoftShadowMap,
+  PCFShadowMap,
   PerspectiveCamera,
   PMREMGenerator,
   Scene,
@@ -189,7 +189,7 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = PCFSoftShadowMap;
+  renderer.shadowMap.type = PCFShadowMap;
   renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
 
   const scene = new Scene();
@@ -301,10 +301,13 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
       return shown;
     }
     await new Promise((resolve) => {
-      const start = performance.now();
+      // The clock starts at the first frame: an animation frame's time can come before a performance.now() taken
+      // just earlier, and a negative index stopped the roll.
+      let start = null;
       const tick = (now) => {
         if (revision !== rollRevision) return resolve();
-        const index = Math.min(frames.length - 1, Math.floor(((now - start) / 1000) * 60));
+        start ??= now;
+        const index = Math.max(0, Math.min(frames.length - 1, Math.floor(((now - start) / 1000) * 60)));
         pose(frames[index]);
         if (index >= frames.length - 1) return resolve();
         frameRequest = requestAnimationFrame(tick);
