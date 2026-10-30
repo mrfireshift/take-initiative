@@ -11,6 +11,7 @@ import {
   TRACKER_PANEL_REQUEST_CHANNEL,
 } from "./constants.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
+import { diceTrayHeight } from "./diceTrayCore.js";
 import {
   cleanupOwnedHPWidgets,
   mountHPBars,
@@ -1616,7 +1617,7 @@ diceTrayButton.addEventListener("click", (event) => {
   void (async () => {
     let viewportHeight = 800;
     try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
-    const height = Math.max(420, Math.min(680, viewportHeight - 100));
+    const height = diceTrayHeight(viewportHeight);
     const placement = await __playerScreenPlacement(diceTrayButton, DICE_TRAY_POPOVER_WIDTH);
     // The tray moves like the other panels (popoverDragHost.js), which keep a top-left corner: the compact
     // placement (beside the button, bottom-aligned) becomes one. A tray moved before opens where it was left.

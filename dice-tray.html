@@ -182,21 +182,61 @@
       }
       #historyList .formula { color: rgba(255, 255, 255, .62); font-size: var(--obrt-type-caption, 10px); }
 
-      #result {
-        display: flex;
-        align-items: baseline;
-        gap: 10px;
-        min-height: 34px;
-        padding: 4px 2px 2px;
+      /* The result over the tray, as in Owlbear Rodeo Dice; the clear button in the tray's top corner. */
+      .score {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 10px;
+        width: fit-content;
+        margin: 0 auto;
+        box-sizing: border-box;
+        padding: 6px 14px 7px;
+        border: 1px solid rgba(255, 255, 255, .16);
+        border-radius: 12px;
+        background: rgba(10, 14, 24, .78);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+        text-align: center;
+        pointer-events: none;
       }
       #total {
-        flex: 0 0 auto;
-        font-size: 26px;
+        font-size: 30px;
         font-weight: var(--obrt-weight-heavy, 800);
         line-height: 1;
         font-variant-numeric: tabular-nums;
       }
-      #total:empty { display: none; }
+      #breakdown {
+        margin-top: 3px;
+        color: rgba(255, 255, 255, .72);
+        font-size: var(--obrt-type-caption, 10px);
+        overflow-wrap: anywhere;
+      }
+      /* A pill at the top of the tray, told apart from the panel's × that closes it. */
+      .tray-clear {
+        position: absolute;
+        top: 8px;
+        left: 12px;
+        right: 12px;
+        width: fit-content;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 11px 4px 9px;
+        border: 1px solid rgba(255, 255, 255, .18);
+        border-radius: 999px;
+        background: rgba(10, 14, 24, .74);
+        backdrop-filter: blur(8px);
+        color: rgba(255, 255, 255, .9);
+        font-size: var(--obrt-type-secondary, 11px);
+        font-weight: var(--obrt-weight-semibold, 600);
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .tray-clear[hidden] { display: none; }
+      .tray-clear:hover { background: rgba(30, 36, 50, .92); color: #fff; }
+      #result { min-height: 20px; padding: 6px 2px 4px; }
       #detail {
         min-width: 0;
         color: rgba(255, 255, 255, .72);
@@ -228,34 +268,37 @@
       }
       #formula::placeholder { color: rgba(255, 255, 255, .4); }
       #clear { width: 28px; height: 28px; }
+      /* The plugin's buttons (ui-typography.css): quiet toggles, the blue primary action. */
       .toggle {
         flex: 1 1 0;
         min-width: 0;
-        padding: 5px 4px;
-        border: 1px solid rgba(255, 255, 255, .18);
-        border-radius: 999px;
-        background: transparent;
+        min-height: 28px;
+        padding: 0 4px;
+        border: 1px solid var(--obrt-btn-border, rgba(148, 163, 184, .28));
+        border-radius: var(--obrt-btn-radius, 8px);
+        background: var(--obrt-btn-bg, rgba(255, 255, 255, .055));
         color: rgba(255, 255, 255, .86);
         font-size: var(--obrt-type-secondary, 11px);
         font-weight: var(--obrt-weight-semibold, 600);
         cursor: pointer;
       }
-      .toggle:hover { background: rgba(255, 255, 255, .08); }
-      .toggle[aria-pressed="true"] { border-color: #fff; background: #fff; color: #0b1220; }
+      .toggle:hover { background: var(--obrt-btn-bg-hover, rgba(255, 255, 255, .1)); }
+      .toggle[aria-pressed="true"] { border-color: rgba(255, 255, 255, .55); background: rgba(255, 255, 255, .18); color: #fff; }
       #roll {
         flex: 1 1 auto;
-        min-height: 34px;
-        border: 0;
-        border-radius: 10px;
-        background: #fff;
-        color: #0b1220;
-        font-size: var(--obrt-type-card-title, 14px);
-        font-weight: var(--obrt-weight-heavy, 800);
-        letter-spacing: var(--obrt-tracking-tight, -.01em);
+        min-height: var(--obrt-btn-height-lg, 36px);
+        padding: 0 14px;
+        border: 1px solid var(--obrt-btn-primary-border, rgba(255, 255, 255, .2));
+        border-radius: var(--obrt-btn-radius, 8px);
+        background: var(--obrt-btn-primary-bg, #2563eb);
+        color: #fff;
+        font-size: var(--obrt-type-body, 12px);
+        font-weight: var(--obrt-weight-bold, 700);
         cursor: pointer;
+        transition: background-color .12s ease;
       }
-      #roll:hover { background: rgba(255, 255, 255, .88); }
-      #roll:disabled { opacity: .5; cursor: default; }
+      #roll:hover:not(:disabled) { background: var(--obrt-btn-primary-bg-hover, #1d4ed8); }
+      #roll:disabled { opacity: var(--obrt-btn-disabled-opacity, .48); cursor: default; }
       button:focus-visible, input:focus-visible { outline: 2px solid rgba(147, 197, 253, .9); outline-offset: 1px; }
     </style>
   </head>
@@ -288,6 +331,14 @@
           <div id="stage">
             <canvas id="tray" aria-label="Vassoio dei dadi"></canvas>
             <div id="loading">Preparazione del vassoio…</div>
+            <div id="score" class="score" hidden>
+              <div id="total"></div>
+              <div id="breakdown"></div>
+            </div>
+            <button id="clearTray" class="tray-clear" type="button" hidden title="Toglie i dadi dal vassoio">
+              <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Svuota vassoio
+            </button>
             <div id="styleMenu" class="overlay" hidden>
               <h2>Stile dei dadi</h2>
               <div id="styleList" role="radiogroup" aria-label="Stile dei dadi"></div>
@@ -298,7 +349,6 @@
             </div>
           </div>
           <div id="result" aria-live="polite">
-            <div id="total"></div>
             <div id="detail">Scegli i dadi e tira.</div>
           </div>
           <div id="controls">

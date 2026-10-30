@@ -354,7 +354,16 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
       };
       frameRequest = requestAnimationFrame(tick);
     });
-    return shown;
+    // Cleared or thrown again meanwhile: these dice are gone.
+    return revision === rollRevision ? shown : null;
+  }
+
+  // An empty tray: the dice of the last throw go away.
+  function clear() {
+    rollRevision += 1;
+    cancelAnimationFrame(frameRequest);
+    diceGroup.clear();
+    render();
   }
 
   function dispose() {
@@ -366,5 +375,5 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
 
   await Promise.all([environment, tray]);
   render();
-  return { roll, resize, render, dispose };
+  return { roll, clear, resize, render, dispose };
 }

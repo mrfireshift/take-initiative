@@ -14,6 +14,15 @@ import { ID } from "./constants.js";
 export const DICE_ROLL_CHANNEL = `${ID}/dice/roll`;
 export const DICE_NOTICE_DONE_CHANNEL = `${ID}/dice/notice-done`;
 export const DICE_LAST_ROLL_KEY = `${ID}/dice/last-roll`;
+// The tray page says when it opens and closes, for the toolbar's 🎲 that toggles it (diceTrayTool.js).
+export const DICE_TRAY_STATE_CHANNEL = `${ID}/dice-tray/state`;
+export const DICE_TRAY_POPOVER_ID = `${ID}/dice-tray`;
+export const DICE_TRAY_WIDTH = 320;
+
+// The tray's height: tall enough for the dice column, never past the viewport.
+export function diceTrayHeight(viewportHeight) {
+  return Math.max(420, Math.min(680, (Number(viewportHeight) || 800) - 100));
+}
 
 const EMPTY = Object.freeze({ ok: true, groups: [], modifier: 0 });
 

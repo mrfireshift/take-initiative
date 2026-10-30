@@ -19,6 +19,7 @@ import { DICE_STYLE_KEYS, normalizeDiceStyle } from "./diceStyles.js";
 import {
   DICE_LAST_ROLL_KEY,
   DICE_ROLL_CHANNEL,
+  DICE_TRAY_STATE_CHANNEL,
   assignedCharacterName,
   diceCountsOf,
   diceRollAuthor,
@@ -50,6 +51,8 @@ const styleButton = $("styleButton");
 const styleMenu = $("styleMenu");
 const historyPanel = $("history");
 const historyToggle = $("historyToggle");
+const score = $("score");
+const clearTray = $("clearTray");
 const soundToggle = $("soundToggle");
 
 let tray = null;
@@ -148,6 +151,20 @@ function editFormula(text) {
   setDetail("");
 }
 
+// The result over the tray; the × empties the tray.
+function showScore(result) {
+  score.hidden = !result;
+  total.textContent = result ? String(result.total) : "";
+  $("breakdown").textContent = result ? diceRollDetail(result) : "";
+}
+
+function emptyTray() {
+  tray?.clear();
+  showScore(null);
+  clearTray.hidden = true;
+  setDetail("");
+}
+
 function setDetail(text, tone = "") {
   detail.textContent = text;
   detail.dataset.tone = tone;
@@ -225,7 +242,6 @@ async function roll() {
   const parsed = withAdvantage(parseDiceFormula(formula.value), mode);
   if (!parsed.ok) {
     setDetail(parsed.error, "error");
-    total.textContent = "";
     return;
   }
   rolling = true;
@@ -242,17 +258,18 @@ async function roll() {
     hidden: isGm && hiddenToggle.getAttribute("aria-pressed") === "true",
   });
   void shareRoll(record);
-  total.textContent = "…";
-  setDetail(result.formula);
+  showScore(null);
+  clearTray.hidden = false;
+  setDetail(`Tiro: ${result.formula}`);
   showHistory(false);
   showStyleMenu(false);
   try {
-    await tray.roll(record, { style, ...soundHooks() });
-    total.textContent = String(result.total);
-    setDetail(diceRollDetail(result));
+    const shown = await tray.roll(record, { style, ...soundHooks() });
     rememberDiceRoll(record);
+    // An emptied tray keeps its result off.
+    if (shown) showScore(result);
   } catch (error) {
-    total.textContent = "";
+    showScore(null);
     setDetail(`Tiro non riuscito: ${error?.message || error}`, "error");
   } finally {
     rolling = false;
@@ -268,6 +285,7 @@ formula.addEventListener("keydown", (event) => {
   }
 });
 $("clear").addEventListener("click", () => editFormula(""));
+clearTray.addEventListener("click", emptyTray);
 advantage.addEventListener("click", () => setMode(advantage));
 disadvantage.addEventListener("click", () => setMode(disadvantage));
 hiddenToggle.addEventListener("click", () => {
@@ -285,7 +303,13 @@ soundToggle.addEventListener("click", () => {
     tools: { ...(current.tools || {}), diceSounds: on },
   })).catch((error) => console.warn("[dice-tray] suoni non salvati:", error?.message || error));
 });
-const close = () => void OBR.popover.close(POPOVER_ID).catch(() => {});
+// The toolbar's 🎲 toggles the tray: it needs to know whether the tray is open.
+const sayOpen = (open) => void OBR.broadcast.sendMessage(DICE_TRAY_STATE_CHANNEL, { open }, { destination: "LOCAL" }).catch(() => {});
+window.addEventListener("pagehide", () => sayOpen(false));
+const close = () => {
+  sayOpen(false);
+  void OBR.popover.close(POPOVER_ID).catch(() => {});
+};
 $("close").addEventListener("click", close);
 window.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
@@ -296,6 +320,7 @@ window.addEventListener("keydown", (event) => {
 });
 
 OBR.onReady(async () => {
+  sayOpen(true);
   await startRuntimeOptions().catch(() => {});
   try { currentStyle = normalizeDiceStyle(runtimeOptionsService.get(selectDiceStyle)); } catch {}
   renderStyle();

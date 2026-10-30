@@ -125,3 +125,31 @@ test("il vassoio si sposta come gli altri pannelli e mostra i dadi in immagine",
     }
   }
 });
+
+test("il 🎲 nella barra di Owlbear apre il vassoio solo in Online; Clocks è del solo GM", () => {
+  const tool = readFileSync(new URL("../src/diceTrayTool.js", import.meta.url), "utf8");
+  assert.match(tool, /service\.subscribe\(selectOnlineRoomProfile, \(online\) => void \(online === true \? start\(\) : stop\(\)\)\)/);
+  assert.match(tool, /icons: \[\{ icon: "\/dice-tool\.svg", label: "Dadi" \}\]/);
+  assert.match(tool, /if \(trayOpen\) await OBR\.popover\.close\(DICE_TRAY_POPOVER_ID\);/);
+  assert.match(readFileSync(new URL("../src/background.js", import.meta.url), "utf8"), /mountDiceTrayTool\(\);/);
+  const tray = readFileSync(new URL("../src/dice-tray.js", import.meta.url), "utf8");
+  assert.match(tray, /OBR\.onReady\(async \(\) => \{\n  sayOpen\(true\);/);
+  assert.match(tray, /window\.addEventListener\("pagehide", \(\) => sayOpen\(false\)\);/);
+  const clocks = readFileSync(new URL("../src/clocksTool.js", import.meta.url), "utf8");
+  assert.match(clocks, /icons: \[\{ icon: "\/clock\.svg", label: "Clock", filter: \{ roles: \["GM"\] \} \}\]/);
+});
+
+test("il risultato sta sul vassoio, la × lo svuota, Tira è il pulsante principale del plugin", async () => {
+  const { diceTrayHeight } = await import("../src/diceTrayCore.js");
+  assert.equal(diceTrayHeight(1000), 680);
+  assert.equal(diceTrayHeight(600), 500);
+  assert.equal(diceTrayHeight(300), 420);
+  const page = readFileSync(new URL("../dice-tray.html", import.meta.url), "utf8");
+  assert.match(page, /<div id="stage">[\s\S]*<div id="score" class="score" hidden>[\s\S]*<button id="clearTray"/);
+  assert.match(page, /#roll \{[^}]*background: var\(--obrt-btn-primary-bg, #2563eb\);/);
+  const tray = readFileSync(new URL("../src/dice-tray.js", import.meta.url), "utf8");
+  assert.match(tray, /if \(shown\) showScore\(result\);/, "a tray emptied during the roll shows no result");
+  const scene = readFileSync(new URL("../src/diceScene.js", import.meta.url), "utf8");
+  assert.match(scene, /return revision === rollRevision \? shown : null;/);
+  assert.match(scene, /return \{ roll, clear, resize, render, dispose \};/);
+});
