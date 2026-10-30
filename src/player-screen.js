@@ -14,6 +14,7 @@ const POPOVER_ID = `${ID}/player-screen`;
 const follow = document.getElementById("playerScreenFollow");
 const scale = document.getElementById("playerScreenScale");
 const animations = document.getElementById("playerScreenAnimations");
+const reminders = document.getElementById("playerScreenReminders");
 
 for (const choice of playerScreenScaleChoices()) {
   const option = document.createElement("option");
@@ -25,6 +26,7 @@ for (const choice of playerScreenScaleChoices()) {
 function render(preferences) {
   follow.checked = preferences.follow;
   scale.value = playerScreenScaleValue(preferences.scale);
+  reminders.value = preferences.remindersMineOnly ? "mine" : "all";
   // The room's switch comes first: a player cannot turn on what the GM turned off.
   let roomAnimations = true;
   try { roomAnimations = runtimeOptionsService.get(selectOptionsPanelModel).room.embersAnimations !== false; } catch {}
@@ -43,6 +45,7 @@ function save(change) {
 follow.addEventListener("change", () => save({ follow: follow.checked }));
 scale.addEventListener("change", () => save({ scale: scale.value }));
 animations.addEventListener("change", () => save({ animations: animations.checked }));
+reminders.addEventListener("change", () => save({ remindersMineOnly: reminders.value === "mine" }));
 const close = () => void OBR.popover.close(POPOVER_ID).catch(() => {});
 document.getElementById("playerScreenClose").addEventListener("click", close);
 window.addEventListener("keydown", (event) => {

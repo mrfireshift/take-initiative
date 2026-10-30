@@ -183,7 +183,14 @@ export function selectPlayerScreenPreferences(options) {
     follow: value.local.tracker.playerFollowActiveTurn === true,
     scale: value.local.tracker.playerScale,
     animations: value.local.runtime.playerAnimations !== false,
+    remindersMineOnly: value.local.runtime.playerRemindersMineOnly === true,
   };
+}
+
+// «Promemoria: solo i miei» (menu «Schermo»), read only in the Online profile.
+export function selectPlayerRemindersMineOnly(options) {
+  const value = resolved(options);
+  return value.shared.profile === "online" && value.local.runtime.playerRemindersMineOnly === true;
 }
 
 export function selectSceneOverriddenPaths(options) {

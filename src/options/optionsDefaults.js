@@ -74,6 +74,8 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
     combatLog: true,
     // Off: a player turns the spell animations off on their own screen, in the Online profile only (menu «Schermo»).
     playerAnimations: true,
+    // On: a player sees only the reminders about their own characters, in the Online profile only (menu «Schermo»).
+    playerRemindersMineOnly: false,
   },
 });
 

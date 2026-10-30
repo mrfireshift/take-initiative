@@ -87,3 +87,32 @@ export function turnNoticeForPlayer(payload, selfId, role = "PLAYER") {
   if (String(payload?.nextPlayerId || "") === self) return "next";
   return "";
 }
+
+// Reminder notices (lot O4b), Online room profile: the GM's copy for the players names the players of the creatures
+// a notice is about (its target or targets, not its caster), so each screen can keep its own.
+function noticeTargetIds(notice) {
+  return [notice?.target?.id, ...(Array.isArray(notice?.targets) ? notice.targets.map((target) => target?.id) : [])]
+    .filter(Boolean)
+    .map(String);
+}
+
+export function withNoticeTargetPlayers(notices, playerIdsByTokenId) {
+  const byToken = playerIdsByTokenId instanceof Map ? playerIdsByTokenId : new Map();
+  if (!byToken.size) return notices;
+  return (Array.isArray(notices) ? notices : []).map((notice) => {
+    const playerIds = [...new Set(noticeTargetIds(notice).map((id) => byToken.get(id)).filter(Boolean))];
+    return playerIds.length ? { ...notice, targetPlayerIds: playerIds } : notice;
+  });
+}
+
+// Whether a notice reaches this player's screen. A death save goes to the player of the character alone (and to
+// the GM, whose copy is never filtered); with «solo i miei» every reminder does. A notice about no assigned creature
+// keeps going to everyone, except with «solo i miei».
+export function noticeReachesPlayer(notice, selfId, { role = "PLAYER", mineOnly = false, deathSave = false } = {}) {
+  if (String(role || "").toUpperCase() === "GM") return true;
+  const playerIds = Array.isArray(notice?.targetPlayerIds) ? notice.targetPlayerIds.map(String) : [];
+  const mine = !!selfId && playerIds.includes(String(selfId));
+  if (mineOnly) return mine;
+  if (deathSave && playerIds.length) return mine;
+  return true;
+}

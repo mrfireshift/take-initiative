@@ -6525,6 +6525,28 @@ let __turnNoticeSequence = 0;
 let __effectSaveDamageSequence = 0;
 let __lastTurnNoticeDeliveryKey = "";
 
+// Online room profile (lot O4b): a player whose screen opened during the combat asks for the turn in course; the GM's
+// tracker answers that screen alone (replayFor). Nothing for a hidden creature's turn, nothing in the Table profile.
+const TURN_NOTICE_REPLAY_CHANNEL = `${TURN_NOTICE_CHANNEL}/replay`;
+function __mountTurnNoticeReplayListener() {
+  if (!IS_GM) return;
+  OBR.broadcast.onMessage(TURN_NOTICE_REPLAY_CHANNEL, (event) => {
+    const connectionId = String(event?.data?.connectionId || "");
+    if (event?.data?.type !== "turn-notice-replay-request" || !connectionId || !__onlineRoomProfile()) return;
+    const sceneEpoch = currentSceneEpoch();
+    if (!__isCurrentSceneOperation(sceneEpoch, "turn-notice-replay")) return;
+    const notice = buildTurnNoticePayload(__latestInitiativeState, __activeLabelEntriesById);
+    if (!notice || notice.currentHidden) return;
+    void OBR.broadcast.sendMessage(TURN_NOTICE_CHANNEL, {
+      type: "show-turn-notice",
+      sceneEpoch,
+      ...notice,
+      noticeId: (Date.now() * 1000) + (++__turnNoticeSequence % 1000),
+      replayFor: connectionId,
+    }, { destination: "REMOTE" }).catch(() => {});
+  });
+}
+
 async function __sendTurnNoticePayload(notice, sceneEpoch) {
   if (!__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
   // Lot L16: a hidden creature's turn is announced to the GM only (this client); the players get nothing.
@@ -11481,6 +11503,7 @@ try {
       IS_GM = String(role).toUpperCase() === "GM";
       __mountHistoryUndoShortcut();
       __mountTurnShortcut();
+      __mountTurnNoticeReplayListener();
       await mountSpeedCheckEnabledSync({ authority: IS_GM });
       OBR.broadcast.onMessage(`${ID}/compact-speed-readout`, (event) => {
         if (!IS_GM || event?.data?.type !== "set-movement-limit") return;

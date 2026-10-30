@@ -16,7 +16,8 @@ export function playerScreenScaleValue(scale) {
   return scale === null || scale === undefined ? PLAYER_SCREEN_SCALE_ROOM : String(normalizeTrackerScale(scale));
 }
 
-// The local options document after one change of the menu: { follow }, { scale } or { animations }.
+// The local options document after one change of the menu: { follow }, { scale }, { animations } or
+// { remindersMineOnly }.
 export function applyPlayerScreenChange(current, change) {
   const local = current && typeof current === "object" ? current : {};
   const tracker = { ...(local.tracker || {}) };
@@ -28,5 +29,6 @@ export function applyPlayerScreenChange(current, change) {
       : normalizeTrackerScale(change.scale);
   }
   if (Object.hasOwn(change || {}, "animations")) runtime.playerAnimations = change.animations !== false;
+  if (Object.hasOwn(change || {}, "remindersMineOnly")) runtime.playerRemindersMineOnly = change.remindersMineOnly === true;
   return { ...local, tracker, runtime };
 }

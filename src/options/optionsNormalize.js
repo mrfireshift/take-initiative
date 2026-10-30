@@ -196,6 +196,7 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
         defaults.runtime.combatLog,
       ),
       playerAnimations: booleanOr(runtime.playerAnimations, defaults.runtime.playerAnimations),
+      playerRemindersMineOnly: booleanOr(runtime.playerRemindersMineOnly, defaults.runtime.playerRemindersMineOnly),
     },
   };
 }

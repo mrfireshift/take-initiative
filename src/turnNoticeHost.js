@@ -13,13 +13,18 @@ import {
   turnNoticeUrlPayload,
 } from "./turnNoticeHostCore.js";
 import { receiveDeathSaveNotices, splitDeathSaveNotices, withdrawHistoryReplayDeathSaves } from "./deathSaveNoticeHost.js";
-import { turnNoticeForPlayer } from "./playerAssignmentCore.js";
+import { noticeReachesPlayer, turnNoticeForPlayer } from "./playerAssignmentCore.js";
+import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
+import { selectOnlineRoomProfile, selectPlayerRemindersMineOnly } from "./options/optionsSelectors.js";
 
 const TURN_NOTICE_CHANNEL = `${ID}/turn-notice`;
 const TURN_NOTICE_READY_CHANNEL = `${TURN_NOTICE_CHANNEL}/ready`;
 const TURN_NOTICE_LAYOUT_CHANNEL = `${TURN_NOTICE_CHANNEL}/layout`;
 const TURN_NOTICE_UI_CHANNEL = `${TURN_NOTICE_CHANNEL}/ui`;
 const TURN_NOTICE_CONTROL_CHANNEL = `${TURN_NOTICE_CHANNEL}/control`;
+// Online room profile (lot O4b): a player who joins or reloads during a combat asks the GM for the turn notice.
+export const TURN_NOTICE_REPLAY_CHANNEL = `${TURN_NOTICE_CHANNEL}/replay`;
+const TURN_NOTICE_REPLAY_DELAY_MS = 1500;
 const TURN_NOTICE_POPOVER_ID = `${ID}/turn-notice-modal`;
 const TURN_NOTICE_CARD_WIDTH = 500;
 const TURN_NOTICE_FRAME_GUTTER = 4;
@@ -45,9 +50,23 @@ let latestLayoutRevision = 0;
 // the page cannot confirm its layout in time (a hidden Owlbear tab): the page's own countdown does.
 let currentNoticeSticky = false;
 let hostRole = "";
+let ownConnectionId = "";
 
 function selfPlayerId() {
   try { return String(OBR.player.id || ""); } catch { return ""; }
+}
+
+// Online room profile (lot O4b): the reminders this screen keeps. The GM's copy is never filtered.
+function remindersMineOnly() {
+  try { return runtimeOptionsService.get(selectPlayerRemindersMineOnly) === true; } catch { return false; }
+}
+
+function noticesForThisScreen(notices, { deathSave = false } = {}) {
+  const selfId = selfPlayerId();
+  const mineOnly = remindersMineOnly();
+  return (Array.isArray(notices) ? notices : []).filter((notice) => noticeReachesPlayer(notice, selfId, {
+    role: hostRole || "PLAYER", mineOnly, deathSave,
+  }));
 }
 
 function enqueueHostTask(task) {
@@ -348,21 +367,33 @@ export function mountTurnNoticeHost() {
     OBR.popover.close(TURN_NOTICE_POPOVER_ID).catch(() => {}),
   ]).then(() => {});
   OBR.broadcast.onMessage(TURN_NOTICE_CHANNEL, (event) => {
-    if (event?.data?.type === "show-turn-notice") receiveNoticePayload(event.data);
+    if (event?.data?.type !== "show-turn-notice") return;
+    // A replay answers one screen only (lot O4b): the others already saw that turn.
+    if (event.data.replayFor && event.data.replayFor !== ownConnectionId) return;
+    receiveNoticePayload(event.data);
   });
   OBR.broadcast.onMessage(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, (event) => {
     if (event?.data?.type !== "show-effect-save-notices") return;
     // The death saves have a popup of their own (deathSaveNoticeHost.js).
-    const { deathSaves, rest } = splitDeathSaveNotices(event.data);
+    const { deathSaves: allDeathSaves, rest: allRest } = splitDeathSaveNotices(event.data);
+    // Online: a death save reaches its character's player, and «solo i miei» keeps this player's reminders.
+    const deathSaves = noticesForThisScreen(allDeathSaves, { deathSave: true });
+    const restNotices = noticesForThisScreen(allRest.notices);
+    const rest = restNotices.length === (allRest.notices || []).length ? allRest : { ...allRest, notices: restNotices };
     if (deathSaves.length) void receiveDeathSaveNotices(deathSaves, event.data.rearmActivationIds);
-    if (!deathSaves.length || rest.notices.length) receiveNoticePayload(rest);
+    // As before: without death saves the payload always goes on, an empty one closes the previous reminders.
+    if (!allDeathSaves.length || rest.notices.length) receiveNoticePayload(rest);
   });
   // A History Undo closes the death save the previous Undo reopened (historyReminderReplayCore.js).
   OBR.broadcast.onMessage(REMINDER_HISTORY_REARM_CHANNEL, (event) => {
     void withdrawHistoryReplayDeathSaves(event?.data);
   });
   OBR.broadcast.onMessage(SPELL_ZONE_TRIGGER_NOTICE_CHANNEL, (event) => {
-    if (event?.data?.type === "show-zone-trigger-notices") receiveNoticePayload(event.data);
+    if (event?.data?.type !== "show-zone-trigger-notices") return;
+    const notices = Array.isArray(event.data.notices) ? event.data.notices : null;
+    const kept = notices ? noticesForThisScreen(notices) : null;
+    // An emptied payload still goes on: it closes the previous zone reminders, as an empty one always did.
+    receiveNoticePayload(kept && kept.length !== notices.length ? { ...event.data, notices: kept } : event.data);
   });
   OBR.broadcast.onMessage(TURN_NOTICE_READY_CHANNEL, (event) => {
     if (event?.data?.type === "turn-notice-ready") receiveReadyMessage(event.data);
@@ -370,4 +401,25 @@ export function mountTurnNoticeHost() {
   OBR.broadcast.onMessage(TURN_NOTICE_LAYOUT_CHANNEL, (event) => {
     if (event?.data?.type === "turn-notice-layout") receiveLayoutMessage(event.data);
   });
+  void requestTurnNoticeReplay();
+}
+
+// Online room profile (lot O4b): a player's screen that opens during a combat asks the GM's tracker for the turn in
+// course, once, after the room has settled. The Table profile never asks.
+async function requestTurnNoticeReplay() {
+  try {
+    const [role, connectionId] = await Promise.all([
+      OBR.player.getRole(),
+      OBR.player.getConnectionId(),
+      startRuntimeOptions(),
+    ]);
+    ownConnectionId = String(connectionId || "");
+    if (String(role || "").toUpperCase() !== "PLAYER" || !ownConnectionId) return;
+    if (runtimeOptionsService.get(selectOnlineRoomProfile) !== true) return;
+    await new Promise((resolve) => setTimeout(resolve, TURN_NOTICE_REPLAY_DELAY_MS));
+    await OBR.broadcast.sendMessage(TURN_NOTICE_REPLAY_CHANNEL, {
+      type: "turn-notice-replay-request",
+      connectionId: ownConnectionId,
+    }, { destination: "REMOTE" });
+  } catch {}
 }

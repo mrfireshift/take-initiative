@@ -1,7 +1,8 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { projectReminderNotices } from "./optionsProjection.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./optionsRuntime.js";
-import { selectReminderProjectionPolicy } from "./optionsSelectors.js";
+import { selectOnlineRoomProfile, selectReminderProjectionPolicy } from "./optionsSelectors.js";
+import { playerAssignmentOfItem, withNoticeTargetPlayers } from "../playerAssignmentCore.js";
 
 let reminderSenderIsGMPromise = null;
 
@@ -43,15 +44,21 @@ function noticeTokenIds(notices) {
   return [...ids];
 }
 
-async function hiddenTokenIds(notices) {
+// The tokens the notices name: which ones the GM keeps hidden and, in the Online room profile (lot O4b), the player
+// assigned to each.
+async function noticeTokenInfo(notices, { withPlayers = false } = {}) {
   const ids = noticeTokenIds(notices);
-  if (!ids.length) return new Set();
+  const info = { hidden: new Set(), playersByToken: new Map() };
+  if (!ids.length) return info;
   try {
     const items = await OBR.scene.items.getItems(ids);
-    return new Set(items.filter((item) => item?.visible === false).map((item) => item.id));
-  } catch {
-    return new Set();
-  }
+    for (const item of items) {
+      if (item?.visible === false) info.hidden.add(item.id);
+      const player = withPlayers ? playerAssignmentOfItem(item) : null;
+      if (player) info.playersByToken.set(item.id, player.id);
+    }
+  } catch {}
+  return info;
 }
 
 export async function sendProjectedReminderPayload(channel, payload = {}) {
@@ -74,8 +81,14 @@ export async function sendProjectedReminderPayload(channel, payload = {}) {
     policy: projection.player,
     directResolution: projection.directResolution,
   });
-  const playerNotices = projectedPlayerNotices.length
-    ? withoutHiddenTokenNotices(projectedPlayerNotices, await hiddenTokenIds(projectedPlayerNotices))
+  let online = false;
+  try { online = runtimeOptionsService.get(selectOnlineRoomProfile) === true; } catch {}
+  // The player copy keeps the target ids: the hidden ones go, and Online names each target's player.
+  const tokenInfo = projectedPlayerNotices.length
+    ? await noticeTokenInfo(rawNotices, { withPlayers: online })
+    : null;
+  const playerNotices = tokenInfo
+    ? withNoticeTargetPlayers(withoutHiddenTokenNotices(projectedPlayerNotices, tokenInfo.hidden), tokenInfo.playersByToken)
     : projectedPlayerNotices;
   const deliveries = [];
   if (gmNotices.length) {

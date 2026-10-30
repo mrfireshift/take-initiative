@@ -25,7 +25,7 @@ test("le preferenze del giocatore partono neutre e si normalizzano", () => {
   assert.equal(defaults.runtime.playerAnimations, true);
   assert.equal(normalizeLocalOptions({ tracker: { playerScale: 9 } }).tracker.playerScale, 2);
   assert.equal(normalizeLocalOptions({ tracker: { playerScale: null } }).tracker.playerScale, null);
-  assert.deepEqual(selectPlayerScreenPreferences(resolveOptions({ local })), { follow: false, scale: 0.75, animations: false });
+  assert.deepEqual(selectPlayerScreenPreferences(resolveOptions({ local })), { follow: false, scale: 0.75, animations: false, remindersMineOnly: false });
 });
 
 test("con il profilo Tavolo scala e animazioni restano quelle della stanza", () => {
