@@ -148,6 +148,10 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
     }, { emitCurrent: false });
 
     if (role === "GM") {
+      // A new Owlbear page has no tracker open, but the flag can still say "open" from the last time (Owlbear closed
+      // with the tracker on screen): the icon's first click then "closed" the missing tracker and only the second
+      // opened it. The GM's tracker never opens by itself, so the flag is cleared without a probe.
+      markTrackerPopoverClosed();
       // A room without a shared view yet receives the GM's current one.
       await publishTrackerView({ onlyIfMissing: true }).catch(() => {});
       return;

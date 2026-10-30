@@ -66,3 +66,16 @@ test("L9: dopo una ricarica della finestra del tavolo il tracker si riapre", asy
   await settle();
   assert.equal(env.opened.filter((options) => options.id === `${ID}/tracker-popover`).length, 1, "the tracker opens again");
 });
+
+// The GM opens a room whose browser still says the tracker is open (Owlbear closed with it on screen): the icon's
+// first click closed a tracker that was not there and only the second opened it.
+test("all'avvio del GM il tracker risulta chiuso, così il primo clic sull'icona lo apre", async () => {
+  memory.clear();
+  localStorage.setItem(`${ID}/tracker-popover-open`, "1");
+  env = { role: "GM", room: {}, opened: [], closed: [], roomListeners: [] };
+  delete globalThis.__TBP_SYNC_OPEN_MOUNTED;
+  await import(`${REPO}src/sync-open.js?gm-boot`);
+  await settle();
+  assert.equal(localStorage.getItem(`${ID}/tracker-popover-open`), "0");
+  assert.equal(env.opened.length, 0, "the GM's tracker does not open by itself");
+});
