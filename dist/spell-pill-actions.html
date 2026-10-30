@@ -29,24 +29,26 @@
       .status:empty { display: none; }
       .footer { display: flex; justify-content: space-between; gap: 6px; }
       .footer button { height: 24px; font-size: 10px; }
+      .head .close { flex: 0 0 auto; width: 22px; height: 22px; padding: 0; border: 0; background: transparent; color: rgba(255,255,255,.78); font-size: 15px; line-height: 20px; }
+      .head .close:hover { background: rgba(255,255,255,.1); color: #fff; }
       [hidden] { display: none !important; }
     </style>
-    <script type="module" crossorigin src="/assets/spellPillActions-DVqfKflk.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/constants-Cz421rMH.js">
+    <script type="module" crossorigin src="/assets/spellPillActions-oWD6DRWv.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/constants-Vbp0f9BE.js">
     <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
     <link rel="modulepreload" crossorigin href="/assets/index-C7oC19nY.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneEpoch-B8A8dIDk.js">
     <link rel="modulepreload" crossorigin href="/assets/sceneLifecycle-gGdnlg7u.js">
     <link rel="modulepreload" crossorigin href="/assets/lazyModule-BEU7KMxf.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellInstanceActionRunner-BP-zDSMF.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellInstanceActionRunner-Brr8Xfp8.js">
     <link rel="modulepreload" crossorigin href="/assets/effectLabelCore-BxJURo7r.js">
     <link rel="modulepreload" crossorigin href="/assets/spellMechanicsCore-DsIMVUil.js">
     <link rel="modulepreload" crossorigin href="/assets/distance3dCore-DlG3XiK9.js">
     <link rel="modulepreload" crossorigin href="/assets/blinkRules-BuZ4q_b5.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-QNPSAQJ4.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellBoardTokenCore-CbAD5AjK.js">
     <link rel="modulepreload" crossorigin href="/assets/spellActiveResolutionRules-DkBHxQ03.js">
-    <link rel="modulepreload" crossorigin href="/assets/spells-srd-NxSSuMLg.js">
-    <link rel="modulepreload" crossorigin href="/assets/spellPillActionsCore-BdLymxZU.js">
+    <link rel="modulepreload" crossorigin href="/assets/spells-srd-8RwVtpgf.js">
+    <link rel="modulepreload" crossorigin href="/assets/spellPillActionsCore-SF6LujMD.js">
   </head>
   <body>
     <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/spell-pill-actions">
@@ -54,6 +56,7 @@
         <div class="head">
           <h1 id="title">Incantesimo</h1>
           <span id="counter" class="counter"></span>
+          <button id="close" class="close" type="button" aria-label="Chiudi" title="Chiudi">×</button>
         </div>
         <div id="meta" class="meta"></div>
       </header>

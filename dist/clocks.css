@@ -92,6 +92,8 @@ button { color: inherit; }
 }
 .clock-input:focus, .clock-select:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(59,130,246,.2); }
 .clock-color-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; }
+.clock-visible-new { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; color: var(--clock-muted); font-size: 10px; cursor: pointer; }
+.clock-visible-new input { margin: 0; accent-color: #60a5fa; }
 .field-label { color: var(--clock-muted); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .color-choice {
   width: 21px; height: 21px; padding: 0; border: 2px solid transparent; border-radius: 50%; cursor: pointer;
