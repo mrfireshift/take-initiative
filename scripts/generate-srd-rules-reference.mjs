@@ -286,7 +286,9 @@ export function buildRulesReference(pdfText, outline) {
     const run = lines.slice(start, end + 1).map((line) => line.text).join("\n");
     if (!table.drop) {
       const rebuilt = tableBlocks(table).map((block) => [block.caption || "", ...block.rows.flat()].join(" ")).join(" ");
-      checkTableWords(table.label, run, rebuilt, table.omit);
+      // A table transcribed from the page's image, where the OCR garbled the cells beyond correcting ("lo" for "1°"),
+      // keeps the words of the transcription.
+      if (!table.transcribed) checkTableWords(table.label, run, rebuilt, table.omit);
       for (const block of tableBlocks(table)) {
         const widths = new Set(block.rows.map((row) => row.length));
         if (widths.size !== 1 || block.rows[0].length < 2) throw new Error(`Tabella "${table.label}": righe di lunghezza diversa`);

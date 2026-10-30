@@ -349,7 +349,20 @@ piè di pagina, lo scarto tra pagine del PDF e del libro, il prefisso degli id
 (`xge-`), le correzioni degli errori di OCR (espressioni regolari, che possono
 anche dividere una riga) e le intestazioni delle tabelle da ricostruire dalle
 celle (`autoTables`: due colonne una cella per riga, come "Attività / CD", o
-tabelle a dado con l'intestazione su una riga, come "d100 Effetto"). Prima,
+tabelle a dado con l'intestazione su una riga, come "d100 Effetto") o da
+sostituire alle righe che le spezzano (`tables`). Le `tables` dei manuali privati
+sono scritte da `sorgenti/regole/<manuale>-tabelle.cjs` con gli strumenti di
+`tabelle.cjs`:
+
+- le tabelle a dado le cui righe il PDF incolla in un'unica riga ("Codardo; …
+  2 Avido; …") si trovano da sole, prendendo i numeri di riga solo in sequenza;
+- per le altre il file indica la riga d'inizio e di fine e le righe della
+  tabella, ricavate dal testo con un parser o scritte a mano.
+
+Il generatore controlla che le celle abbiano le stesse parole delle righe che
+sostituiscono. Fa eccezione una tabella `transcribed`, trascritta
+dall'immagine della pagina perché l'OCR ne ha rovinato le celle ("lo" per 1°).
+Prima,
 `scripts/repair-ocr-text.mjs` ripara gli errori dell'OCR nel testo
 (`<manuale>-pdf.txt` → `<manuale>.txt`) e scrive ogni riparazione in
 `<manuale>-riparazioni.txt`, da rileggere. Nell'ordine:

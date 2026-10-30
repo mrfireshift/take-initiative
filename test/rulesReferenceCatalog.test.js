@@ -204,6 +204,25 @@ test("una tabella a dado con l'intestazione su una riga diventa una tabella, rig
   assert.equal(reference.entries[0].text, "Accade qualcosa.\n\nd100 | Effetto\n01-50 | Piove per un'ora.\n51-00 | Nevica.");
 });
 
+test("una tabella trascritta dall'immagine della pagina sostituisce celle che l'OCR ha rovinato", async () => {
+  const { buildRulesReference } = await import("../scripts/generate-srd-rules-reference.mjs");
+  const fixture = ["", "TABELLA FINTA", "Livello", "lo", "go", "Costo", "l mo 2 mo", "FINE"].join("\n");
+  const table = { label: "Finta", page: 1, first: "Livello", last: "l mo 2 mo", rows: [["Livello", "Costo"], ["1°", "1 mo"], ["9°", "2 mo"]] };
+  const outline = (tables) => ({
+    source: "manuale finto",
+    tables,
+    nodes: [
+      { kind: "topic", id: "avventura", name: "Avventura" },
+      { kind: "entry", heading: "TABELLA FINTA", page: 1, name: "Tabella finta" },
+      { kind: "end", heading: "FINE", page: 1 },
+    ],
+  });
+  // Checked against the PDF's words, the transcription fails; marked transcribed, it stands.
+  assert.throws(() => buildRulesReference(fixture, outline([table])), /parole/u);
+  const { reference } = buildRulesReference(fixture, outline([{ ...table, transcribed: true }]));
+  assert.equal(reference.entries[0].text, "Livello | Costo\n1° | 1 mo\n9° | 2 mo");
+});
+
 test("la riparazione dell'OCR unisce i frammenti che formano una parola nota, mai due parole vere", async () => {
   const { mendLine, vocabularyOf } = await import("../scripts/repair-ocr-text.mjs");
   const known = vocabularyOf(["il suo personaggio di prova svolgere una gilda"]);
