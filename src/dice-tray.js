@@ -258,6 +258,10 @@ async function roll() {
     hidden: isGm && hiddenToggle.getAttribute("aria-pressed") === "true",
   });
   void shareRoll(record);
+  // Each throw starts from empty dice, as in Owlbear Rodeo Dice; the GM's «Nascosto» stays (a mode, not a die).
+  formula.value = "";
+  renderCounts();
+  for (const toggle of [advantage, disadvantage]) toggle.setAttribute("aria-pressed", "false");
   showScore(null);
   clearTray.hidden = false;
   setDetail(`Tiro: ${result.formula}`);

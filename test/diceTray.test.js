@@ -155,4 +155,8 @@ test("il risultato sta sul vassoio, la × lo svuota, Tira è il pulsante princip
   const scene = readFileSync(new URL("../src/diceScene.js", import.meta.url), "utf8");
   assert.match(scene, /return revision === rollRevision \? shown : null;/);
   assert.match(scene, /return \{ roll, clear, resize, render, dispose \};/);
+  // Emptying the tray or a stall of the animation frames never leaves Tira disabled.
+  assert.match(scene, /function clear\(\) \{\n    rollRevision \+= 1;\n    cancelAnimationFrame\(frameRequest\);\n    stopPlayback\?\.\(\);/);
+  assert.match(scene, /\}, \(frames\.length \/ 60\) \* 1000 \+ 1500\);/);
+  assert.match(tray, /formula\.value = "";\n  renderCounts\(\);/, "every throw starts from empty dice");
 });

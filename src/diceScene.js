@@ -245,6 +245,8 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
   scene.add(diceGroup);
   let frameRequest = 0;
   let rollRevision = 0;
+  // Ends the playback in course: a cancelled animation frame alone left the roll waiting for ever.
+  let stopPlayback = null;
 
   const render = () => renderer.render(scene, camera);
   // The camera looks straight down from just high enough to frame the whole tray, whatever the canvas proportions.
@@ -284,6 +286,7 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
   async function roll(record, { style = DEFAULT_DICE_STYLE, onImpact = null, onPrepare = null } = {}) {
     const revision = ++rollRevision;
     cancelAnimationFrame(frameRequest);
+    stopPlayback?.();
     const physical = physicalDiceOf(record);
     const dice = physical.map((die) => ({ ...physicalDieAsset(die), style }));
     const throws = Array.isArray(record.throws) && record.throws.length === dice.length ? record.throws : null;
@@ -337,11 +340,25 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
     }
     let nextSound = 0;
     await new Promise((resolve) => {
+      let watchdog = null;
+      const finish = () => {
+        clearTimeout(watchdog);
+        if (stopPlayback === finish) stopPlayback = null;
+        resolve();
+      };
+      stopPlayback = finish;
+      // Frames that stop coming (a hidden or throttled page) never hold the roll: past the throw's length the dice
+      // go straight to where they stop.
+      watchdog = setTimeout(() => {
+        cancelAnimationFrame(frameRequest);
+        if (revision === rollRevision) pose(last);
+        finish();
+      }, (frames.length / 60) * 1000 + 1500);
       // The clock starts at the first frame: an animation frame's time can come before a performance.now() taken
       // just earlier, and a negative index stopped the roll.
       let start = null;
       const tick = (now) => {
-        if (revision !== rollRevision) return resolve();
+        if (revision !== rollRevision) return finish();
         start ??= now;
         const index = Math.max(0, Math.min(frames.length - 1, Math.floor(((now - start) / 1000) * 60)));
         pose(frames[index]);
@@ -349,7 +366,7 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
           try { onImpact(sounds[nextSound]); } catch {}
           nextSound += 1;
         }
-        if (index >= frames.length - 1) return resolve();
+        if (index >= frames.length - 1) return finish();
         frameRequest = requestAnimationFrame(tick);
       };
       frameRequest = requestAnimationFrame(tick);
@@ -362,6 +379,7 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
   function clear() {
     rollRevision += 1;
     cancelAnimationFrame(frameRequest);
+    stopPlayback?.();
     diceGroup.clear();
     render();
   }
@@ -369,6 +387,7 @@ export async function createDiceTray({ canvas, base = import.meta.env?.BASE_URL 
   function dispose() {
     rollRevision += 1;
     cancelAnimationFrame(frameRequest);
+    stopPlayback?.();
     pmrem.dispose();
     renderer.dispose();
   }
