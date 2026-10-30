@@ -1629,20 +1629,21 @@ async function __setCardPlayer(entry, playerId, sceneEpoch = currentSceneEpoch()
       return current?.id === id ? current : null;
     })();
   if (id !== PLAYER_ASSIGNMENT_NONE && !player) return;
-  const result = await writePlayerAssignment([entry.id], player, {
-    isCurrent: () => __isCurrentSceneOperation(sceneEpoch, "set-card-player"),
-    fallbackOwnerId: __selfPlayerId(),
-  });
-  if (!result.written) return;
-  // Remembered in the room: the character's token gets the same player in every scene.
+  // Remembered in the room first: the character's token gets the same player in every scene. Written after the token,
+  // «Nessuno» left the old player in the memory for a moment, and the GM's background gave them back to the token.
   const item = readSceneItemsSnapshot(sceneEpoch)?.items?.find((candidate) => candidate?.id === entry.id)
     || (await OBR.scene.items.getItems([entry.id]).catch(() => []))[0];
+  if (!__isCurrentSceneOperation(sceneEpoch, "set-card-player")) return;
   if (item) {
     await rememberPlayerAssignment(item, player).catch((error) => {
       console.warn("[player-assignment] memoria non salvata:", error?.message || error);
     });
   }
-  if (!player) return;
+  const result = await writePlayerAssignment([entry.id], player, {
+    isCurrent: () => __isCurrentSceneOperation(sceneEpoch, "set-card-player"),
+    fallbackOwnerId: __selfPlayerId(),
+  });
+  if (!result.written || !player) return;
   if (!result.owner) {
     void OBR.notification.show(
       `${player.name || "Il giocatore"} è assegnato, ma Owlbear non ha cambiato il proprietario del token: usa il menu Owner di Owlbear.`,
@@ -12167,7 +12168,9 @@ OBR.scene.onMetadataChange((meta) => {
     __latestSceneItemEventCorrelation = sceneItemEventCorrelation(event)
       || __latestSceneItemEventCorrelation;
     if (!__isCurrentSceneOperation(sceneEpoch, "item-dispatch")) return;
-    if (__mutatingActiveLabel > 0) return;
+    // No pause while the turn label is written: the filter below lets through plugin tokens only, never the label,
+    // and the pause dropped real token changes landing in that round trip (a player assigned from the card menu
+    // stayed off the card until a reload).
     const renderPlan = planIncrementalTrackerItemRender(event);
     const fillInterrupted = await interruptInitiativeFillForRemovedActor(event);
     if (!__isCurrentSceneOperation(sceneEpoch, "item-dispatch")) return;

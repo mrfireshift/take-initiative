@@ -33,7 +33,7 @@ function createHost(win) {
       onChange(listener) { state.listeners.player.add(listener); return () => state.listeners.player.delete(listener); },
       getConnectionId: async () => "gm-connection",
     }),
-    party: ns("party", { getPlayers: async () => [], onChange: () => () => {} }),
+    party: ns("party", { getPlayers: async () => clone(state.party || []), onChange: () => () => {} }),
     room: ns("room", {
       id: "preview-room",
       getMetadata: async () => clone(state.roomMetadata),
