@@ -64,7 +64,7 @@ voce), `[-]` non eseguita.
   all'iniziativa → PG / Alleati / Neutrali / Nemici. Atteso: la card compare
   sui due client con il colore della fazione.
 - [ ] **1.2 (MC)** Sul player, apri il menu contestuale di un token. Atteso:
-  nessuna voce riservata al GM (quota, aure, boss).
+  nessuna voce riservata al GM (aure, boss); **Imposta quota…** compare solo sui PG.
 - [ ] **1.3 (PERS)** Usa **Configura fazioni**:
   1. assegna le fazioni a più token;
   2. ricarica la pagina;

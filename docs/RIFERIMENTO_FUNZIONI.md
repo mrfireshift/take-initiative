@@ -18,8 +18,8 @@
 | Vedere aree persistenti | Sì | Sì |
 | Creare e gestire clock | Sì | No |
 | Vedere clock dichiarati visibili | Sì | Sì |
-| Impostare quota | Sì | No |
-| Usare Distanza 3D | Sì | No |
+| Impostare quota | Sì | Sì, sui PG |
+| Usare Distanza 3D | Sì | Sì |
 | Aprire Enciclopedia DM | Sì | No |
 | Configurare il registry automatico delle fazioni | Sì | No |
 | Vedere capacità e reminder configurati | Sì | Sì |

@@ -767,7 +767,7 @@ Lo strumento **Distanza 3D** nella toolbar destra:
 3. per token 2×2 o superiori misura dal bordo più vicino, non dal centro;
 4. combina distanza planare e dislivello con il teorema di Pitagora.
 
-La distanza planare segue la distanza minima tra le caselle occupate dai token. Ogni casella vale 1,5 m.
+La distanza planare segue la distanza minima tra le caselle occupate dai token. Ogni casella vale quanto dice la scala della scena (di solito 1,5 m).
 
 ## 13. Targeting geometrico AoE
 

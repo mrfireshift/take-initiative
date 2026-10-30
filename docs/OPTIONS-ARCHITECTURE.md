@@ -192,9 +192,9 @@ continua inoltre ad aggiornare `com.thebigpicture.initiative/tracker-layout`
 come ponte compatibile per il ridimensionamento del popover esistente; la nuova
 chiave resta la fonte per il selector locale.
 
-Il toggle Follow ora scrive `options-local`. `state.ui.autoFocus` resta un
-fallback di sola lettura quando la nuova preferenza non esiste e non viene più
-modificato dal controllo del tracker.
+Il toggle Follow (Segui, nel tracker) scrive `options-local` e anche
+`state.ui.autoFocus` nella scena. In lettura `state.ui.autoFocus` viene prima: la
+preferenza locale vale solo quando la scena non ne ha una.
 
 Per Room e scena:
 
@@ -251,25 +251,24 @@ le projection boundary descritte sopra.
 ### OPTIONS-003 — Pannello Opzioni
 
 Completata. Il pulsante `Opzioni` è disponibile al GM nella fascia Incontro e apre un
-popover dedicato. Il pannello espone dodici famiglie:
+popover dedicato. Il pannello espone dieci famiglie (layout e Follow non ci sono:
+si cambiano dai controlli del tracker, che scrivono lo scope locale):
 
-1. layout tracker locale;
-2. Follow locale del turno attivo;
-3. registrazione Combat Log locale;
-4. sincronizzazione apertura tracker Player (Room);
-5. matrice HP Player per superficie e fazione (Room/scena);
-6. condizioni, spell e concentrazione Player (Room/scena);
-7. dettaglio reminder, CD e caster Player (Room/scena);
-8. popup cambio turno (Room/scena);
-9. risoluzione reminder assistita o informativa (Room/scena);
-10. label del turno attivo sulla mappa (Room/scena).
-11. assegnazione automatica delle fazioni note (Room), con accesso al registry.
-12. animazioni Embers/JB2A delle spell abbinate (Room).
+1. registrazione Combat Log locale;
+2. sincronizzazione apertura tracker Player (Room);
+3. matrice HP Player per superficie e fazione (Room/scena);
+4. condizioni, spell e concentrazione Player (Room/scena);
+5. dettaglio reminder, CD e caster Player (Room/scena);
+6. popup cambio turno (Room/scena);
+7. risoluzione reminder assistita o informativa (Room/scena);
+8. label del turno attivo sulla mappa (Room/scena);
+9. assegnazione automatica delle fazioni note (Room), con accesso al registry;
+10. animazioni Embers/JB2A delle spell abbinate (Room).
 
 La vista `Questa scena` usa `Eredita` o un override esplicito. L'anteprima
 `Cosa vedranno i Player` risolve Room e scena senza leggere metadata grezzi.
 Il salvataggio passa solo dai writer del servizio, conserva proprietà unknown
-anche nelle entry override e non modifica opzioni fuori dalle dodici famiglie.
+anche nelle entry override e non modifica opzioni fuori dalle sue famiglie.
 
 La sincronizzazione apertura tracker Player è collegata al relativo selector.
 Layout e Follow sono collegati allo scope locale. Le policy HP, effetti,
