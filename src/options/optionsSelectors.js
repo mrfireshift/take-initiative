@@ -156,13 +156,17 @@ export function selectTrackerOpenSyncEnabled(options) {
 }
 
 export function selectTrackerPlacementSyncEnabled(options) {
-  return resolved(options).shared.uiSync.trackerPlacement;
+  const value = resolved(options);
+  // Online profile (lot O5): every player keeps their own tracker view and place; the room switch is the table's.
+  if (value.shared.profile === "online") return false;
+  return value.shared.uiSync.trackerPlacement;
 }
 
 export function selectPlayerTrackerScale(options) {
   const value = resolved(options);
-  // Online profile: a player's own size (menu «Schermo») wins over the room's. The Table profile reads the room only.
-  if (value.shared.profile === "online" && value.local.tracker.playerScale !== null) return value.local.tracker.playerScale;
+  // Online profile: a player's own size (menu «Schermo»), else 100% (lot O5): the room's size is the table screen's,
+  // read from a distance. The Table profile reads the room only.
+  if (value.shared.profile === "online") return value.local.tracker.playerScale ?? 1;
   return value.shared.playerView.trackerScale;
 }
 

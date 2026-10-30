@@ -252,6 +252,13 @@ function render() {
   for (const control of document.querySelectorAll("[data-room]")) {
     setControlValue(control, draft.room[control.dataset.room]);
   }
+  // Online profile (lot O5): the tracker's shared place and size are the table screen's; each player chooses theirs.
+  const onlineProfile = draft.room.profile === "online";
+  for (const card of document.querySelectorAll("[data-table-profile-only]")) {
+    card.classList.toggle("is-profile-inactive", onlineProfile);
+    card.title = onlineProfile ? "In modalità Online ogni giocatore sceglie da sé, dal menu ⚙ del suo tracker." : "";
+    for (const control of card.querySelectorAll("input, select")) control.disabled = onlineProfile;
+  }
   for (const control of document.querySelectorAll("[data-scene-mode]")) {
     setControlValue(control, draft.scene[control.dataset.sceneMode].mode);
   }

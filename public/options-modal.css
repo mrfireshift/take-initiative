@@ -43,6 +43,8 @@ select:disabled { opacity: .6; cursor: not-allowed; }
 .option-toggle.compact { min-height: 34px; padding: 5px 8px; font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-medium); }
 .option-toggle.reminder-toggle { align-self: end; min-height: 32px; height: 32px; padding: 4px 8px; }
 .option-toggle.is-disabled { opacity: .55; }
+/* Online room profile (lot O5): the table screen's tracker place and size do not apply. */
+.option-card.is-profile-inactive { opacity: .5; }
 .option-toggle strong, .option-toggle small { display: block; }
 .option-toggle strong { font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-semibold); }
 .option-toggle small { margin-top: 3px; color: var(--obrt-muted); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); line-height: 1.25; }

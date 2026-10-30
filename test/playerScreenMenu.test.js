@@ -39,7 +39,7 @@ test("con il profilo Online valgono le scelte del giocatore, mai più della stan
   assert.equal(selectPlayerTrackerScale(online), 0.75);
   assert.equal(selectEmbersAnimationsEnabled(online), false);
   const roomScale = resolveOptions({ room: { profile: "online", playerView: { trackerScale: 1.5 } } });
-  assert.equal(selectPlayerTrackerScale(roomScale), 1.5, "«Come la stanza» keeps the room's size");
+  assert.equal(selectPlayerTrackerScale(roomScale), 1, "Online: 100% until the player chooses (the room's size is the table's)");
   const roomOff = resolveOptions({ room: { profile: "online", integrations: { embersAnimations: false } } });
   assert.equal(selectEmbersAnimationsEnabled(roomOff), false, "the player cannot turn on what the room turned off");
 });
