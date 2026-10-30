@@ -38,12 +38,14 @@ const sdk = {
 };
 mock.module(`${REPO}node_modules/@owlbear-rodeo/sdk/lib/index.js`, { exports: { default: sdk } });
 const stub = (path, namedExports) => mock.module(`${REPO}${path}`, { exports: namedExports });
-const selectors = { selectTrackerOpenSyncEnabled() {}, selectTrackerPlacementSyncEnabled() {}, selectPlayerTrackerScale() {}, selectGmTrackerScale() {} };
+const selectors = { selectTrackerOpenSyncEnabled() {}, selectOnlineRoomProfile() {}, selectTrackerPlacementSyncEnabled() {}, selectPlayerTrackerScale() {}, selectGmTrackerScale() {} };
 stub("src/options/optionsSelectors.js", selectors);
 stub("src/options/optionsRuntime.js", {
   startRuntimeOptions: async () => {},
   runtimeOptionsService: {
-    get: (selector) => (selector === selectors.selectPlayerTrackerScale || selector === selectors.selectGmTrackerScale ? 1 : true),
+    // The table screen plays the Table room profile.
+    get: (selector) => (selector === selectors.selectOnlineRoomProfile ? false
+      : selector === selectors.selectPlayerTrackerScale || selector === selectors.selectGmTrackerScale ? 1 : true),
     subscribe: () => () => {},
     updateLocal: async () => {},
   },

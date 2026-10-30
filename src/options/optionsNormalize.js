@@ -3,6 +3,7 @@ import {
   createDefaultRoomOptions,
   createDefaultSceneOptions,
   OPTIONS_SCHEMA_VERSION,
+  ROOM_PROFILES,
   SCENE_OVERRIDE_PATHS,
 } from "./optionsDefaults.js";
 import { normalizeTrackerScale } from "../trackerScaleCore.js";
@@ -138,6 +139,7 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
       scale: Object.hasOwn(tracker, "scale")
         ? normalizeTrackerScale(tracker.scale)
         : defaults.tracker.scale,
+      playerFollowActiveTurn: booleanOr(tracker.playerFollowActiveTurn, defaults.tracker.playerFollowActiveTurn),
     },
     windows: {
       ...windows,
@@ -256,6 +258,7 @@ export function normalizeRoomOptions(value) {
     ...source,
     version: normalizedVersion(source.version),
     updatedAt: normalizedUpdatedAt(source.updatedAt),
+    profile: enumOr(source.profile, ROOM_PROFILES, defaults.profile),
     playerView: {
       ...playerView,
       hp: normalizeHpPolicy(playerView.hp, defaults.playerView.hp),

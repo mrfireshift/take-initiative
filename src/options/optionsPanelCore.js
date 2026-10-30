@@ -45,6 +45,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
     },
   });
   const room = normalizeRoomOptions({
+    profile: roomInput.profile,
     playerView: {
       hp: roomInput.hp,
       effects: roomInput.effects,
@@ -92,6 +93,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
       fiveTools2024: local.tools.fiveTools2024,
     },
     room: {
+      profile: room.profile,
       trackerOpen: room.uiSync.trackerOpen,
       trackerPlacement: room.uiSync.trackerPlacement,
       trackerScale: room.playerView.trackerScale,
@@ -169,6 +171,7 @@ export function buildOptionsPanelPatches(draft) {
       },
     },
     room: {
+      profile: normalized.room.profile,
       playerView: {
         hp: clone(normalized.room.hp),
         effects: clone(normalized.room.effects),
@@ -216,6 +219,7 @@ export async function saveOptionsPanelDraft(service, draft, { isCurrent = () => 
   if (!isCurrent()) throw new Error("scene-stale-after-local-options-save");
   await service.updateRoom((current) => ({
     ...current,
+    profile: patches.room.profile,
     playerView: { ...current.playerView, ...patches.room.playerView },
     turn: { ...current.turn, ...patches.room.turn },
     map: { ...current.map, ...patches.room.map },

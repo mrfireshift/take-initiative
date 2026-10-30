@@ -40,6 +40,7 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
       toolbarPreset: "full",
       effectsDisplayMode: "selected",
       scale: 1,
+      playerFollowActiveTurn: false,
     },
     windows: { clocksCompact: false, pcAttackAutoOpen: false, pcAttackAutoOpenMonsters: null },
     tools: { distance3d: true, reference: true, fiveToolsArchive: "", fiveToolsImages: "", fiveTools2024: false },
@@ -60,6 +61,7 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
   assert.deepEqual(room.playerView.reminders, {
     visibility: "full", showDc: true, showCaster: true, showDeathSaves: true,
   });
+  assert.equal(room.profile, "table");
   assert.equal(room.playerView.bossDetails, "full");
   assert.deepEqual(room.turn, {
     popup: true,

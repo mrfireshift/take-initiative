@@ -47,6 +47,9 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
     effectsDisplayMode: "selected",
     // GM's tracker size on this browser: 1 = 100%, from 0.5 to 2 (players use playerView.trackerScale).
     scale: 1,
+    // A player's own "follow the turn" in the Online room profile: off, the turn never moves their view. The Table
+    // profile ignores it, the table screen follows the GM's Segui (audit online, O2a).
+    playerFollowActiveTurn: false,
   },
   windows: {
     clocksCompact: false,
@@ -77,9 +80,14 @@ const DEFAULT_HP_SURFACE = Object.freeze({
   enemy: "hidden",
 });
 
+export const ROOM_PROFILES = Object.freeze(["table", "online"]);
+
 export const DEFAULT_ROOM_OPTIONS = deepFreeze({
   version: OPTIONS_SCHEMA_VERSION,
   updatedAt: 0,
+  // How the room is played (audit online): "table" keeps the table screen's behaviour exactly as it was; "online" lets
+  // every player keep their own view (camera, tracker closed). Nothing else reads it in the Table profile.
+  profile: "table",
   playerView: {
     hp: {
       trackerClassic: {

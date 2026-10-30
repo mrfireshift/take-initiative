@@ -16,8 +16,20 @@ import {
   toggleClassicTrackerSide,
 } from "./trackerPopover.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
-import { selectGmTrackerScale, selectPlayerTrackerScale, selectTrackerOpenSyncEnabled, selectTrackerPlacementSyncEnabled } from "./options/optionsSelectors.js";
+import {
+  selectGmTrackerScale,
+  selectOnlineRoomProfile,
+  selectPlayerTrackerScale,
+  selectTrackerOpenSyncEnabled,
+  selectTrackerPlacementSyncEnabled,
+} from "./options/optionsSelectors.js";
 import { METADATA_OWNERSHIP, writeRoomMetadataKey } from "./metadataKeyScoped.js";
+import {
+  combatStarted,
+  keepsTrackerDismissed,
+  readTrackerDismissal,
+  writeTrackerDismissal,
+} from "./trackerDismissalCore.js";
 
 const UI_KEY = `${ID}/ui`;
 
@@ -90,8 +102,13 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
       }
       const redrawOptions = layoutChanged ? { refresh: true } : { reposition: true };
       if (runtimeOptionsService.get(selectTrackerOpenSyncEnabled)) {
+        // Online room profile only (audit online, O2a): a tracker the player closed stays closed until the GM opens
+        // it again. The Table profile never reads the closing: the table screen follows the GM as always.
+        const online = runtimeOptionsService.get(selectOnlineRoomProfile);
+        const dismissed = online && keepsTrackerDismissed({ online, dismissal: readTrackerDismissal(), sharedUi: state });
+        if (online && !dismissed && state.open) writeTrackerDismissal(null);
         if (state.open && redraw && isTrackerPopoverOpen()) await openTrackerPopover(redrawOptions);
-        else await setTrackerPopoverOpen(!!state.open);
+        else if (!dismissed) await setTrackerPopoverOpen(!!state.open);
       } else if (redraw && isTrackerPopoverOpen()) {
         await openTrackerPopover(redrawOptions);
       }
@@ -136,6 +153,29 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
       await publishTrackerView({ onlyIfMissing: true }).catch(() => {});
       return;
     }
+
+    // Online room profile: a new combat (the initiative order going from empty to not empty) forgets the player's
+    // closing and reopens the GM's open tracker. Not listened to in the Table profile.
+    let unsubscribeCombatStart = null;
+    let previousOrderLength = null;
+    runtimeOptionsService.subscribe(selectOnlineRoomProfile, (online) => {
+      if (!online) {
+        unsubscribeCombatStart?.();
+        unsubscribeCombatStart = null;
+        previousOrderLength = null;
+        return;
+      }
+      if (unsubscribeCombatStart) return;
+      unsubscribeCombatStart = OBR.scene.onMetadataChange((sceneMetadata) => {
+        const order = sceneMetadata?.[`${ID}/state`]?.order;
+        const orderLength = Array.isArray(order) ? order.length : 0;
+        const started = combatStarted(previousOrderLength, orderLength);
+        previousOrderLength = orderLength;
+        if (!started || !readTrackerDismissal()) return;
+        writeTrackerDismissal(null);
+        void OBR.room.getMetadata().then(applyTrackerOpenState).catch(() => {});
+      });
+    });
     const metadata = await OBR.room.getMetadata();
     await applyTrackerOpenState(metadata);
   });

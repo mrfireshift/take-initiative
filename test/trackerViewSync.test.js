@@ -41,7 +41,7 @@ const sdk = {
 };
 mock.module("@owlbear-rodeo/sdk", { defaultExport: sdk });
 const stub = (path, namedExports) => mock.module(new URL(path, import.meta.url).href, { namedExports });
-const selectors = { selectTrackerOpenSyncEnabled() {}, selectTrackerPlacementSyncEnabled() {}, selectPlayerTrackerScale() {},
+const selectors = { selectTrackerOpenSyncEnabled() {}, selectOnlineRoomProfile() {}, selectTrackerPlacementSyncEnabled() {}, selectPlayerTrackerScale() {},
   selectGmTrackerScale() {} };
 stub("../src/options/optionsSelectors.js", selectors);
 stub("../src/options/optionsRuntime.js", {
@@ -49,6 +49,7 @@ stub("../src/options/optionsRuntime.js", {
   runtimeOptionsService: {
     get: (selector) => {
       if (selector === selectors.selectPlayerTrackerScale || selector === selectors.selectGmTrackerScale) return 1;
+      if (selector === selectors.selectOnlineRoomProfile) return env.online === true;
       return selector === selectors.selectTrackerOpenSyncEnabled ? env.openSync : env.placementSync;
     },
     subscribe: () => () => {},
@@ -63,10 +64,10 @@ stub("../src/popoverDragHost.js", { openTrackedPopover: (options) => sdk.popover
 stub("../src/trackerCompactSizingCore.js", { compactTrackerViewportWidth: (width) => width });
 
 let sequence = 0;
-async function boot({ role, room = {}, viewportWidth = 2000, viewportHeight = 1000, openSync = true, placementSync = true } = {}) {
+async function boot({ role, room = {}, viewportWidth = 2000, viewportHeight = 1000, openSync = true, placementSync = true, online = false } = {}) {
   memory.clear();
   delete globalThis.__TBP_SYNC_OPEN_MOUNTED;
-  env = { role, room: clone(room), viewportWidth, viewportHeight, openSync, placementSync, opened: [], closed: [], writes: [],
+  env = { role, room: clone(room), viewportWidth, viewportHeight, openSync, placementSync, online, opened: [], closed: [], writes: [],
     roomListeners: [], channels: new Map(), local: { tracker: { layout: "classic" } } };
   await import(new URL(`../src/sync-open.js?sync=${++sequence}`, import.meta.url).href);
   await settle();
@@ -127,4 +128,33 @@ test("player: a closed tracker takes the GM's view without opening; with the opt
   assert.equal(memory.get(`${ID}/tracker-classic-placement`), undefined);
   assert.equal(trackerOpens().length, 1);
   assert.deepEqual(trackerOpens()[0].anchorPosition, { left: 22, top: 52 }, "the player's own (default) place");
+});
+
+// Audit online, lot O2a: a player who closes the tracker keeps it closed in the Online room profile until the GM opens
+// it again; in the Table profile the table screen still reopens it at every room change, as before.
+const { setTrackerPopoverOpen } = await import("../src/trackerPopover.js");
+const DISMISSAL_KEY = `${ID}/tracker-player-dismissed`;
+async function playerClosesTracker(gmOpenAt) {
+  await setTrackerPopoverOpen(false);
+  memory.set(DISMISSAL_KEY, JSON.stringify({ gmOpenAt }));
+  await settle();
+}
+
+test("player, Online: a tracker closed by hand stays closed until the GM opens it again", async () => {
+  await boot({ role: "PLAYER", online: true, room: { [UI_KEY]: { open: true, at: 1 } } });
+  assert.equal(trackerOpens().length, 1);
+  await playerClosesTracker(1);
+  await changeRoom({ [`${ID}/hpMemory`]: { any: 1 } });
+  assert.equal(trackerOpens().length, 1, "a room change does not reopen it");
+  await changeRoom({ [UI_KEY]: { open: true, at: 2 } });
+  assert.equal(trackerOpens().length, 2, "the GM's new opening reopens it");
+  assert.equal(memory.get(DISMISSAL_KEY), undefined, "and forgets the closing");
+});
+
+test("player, Table: the closing is ignored and the tracker follows the GM as always", async () => {
+  await boot({ role: "PLAYER", online: false, room: { [UI_KEY]: { open: true, at: 1 } } });
+  await playerClosesTracker(1);
+  await changeRoom({ [`${ID}/hpMemory`]: { any: 1 } });
+  assert.equal(trackerOpens().length, 2, "reopened at the next room change");
+  assert.equal(memory.get(DISMISSAL_KEY), JSON.stringify({ gmOpenAt: 1 }), "the Table profile does not even touch it");
 });

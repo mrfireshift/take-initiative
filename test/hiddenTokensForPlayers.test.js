@@ -134,7 +134,9 @@ test("L16 (OP-02): le animazioni con un caster o un bersaglio nascosto restano s
 });
 
 test("L16 (OP-02): la vista di un giocatore non segue un token nascosto", () => {
-  assert.match(tracker, /const hiddenFromPlayerView = !IS_GM && __activeLabelEntriesById\.get\(anchorId\)\?\.hiddenToken === true;\n\s+if \(autoFocus && !hiddenFromPlayerView\) \{/);
+  // The Online room profile (lot O2a) decides whether the view follows at all; a hidden token never moves it.
+  assert.match(tracker, /const hiddenFromPlayerView = !IS_GM && __activeLabelEntriesById\.get\(anchorId\)\?\.hiddenToken === true;/);
+  assert.match(tracker, /if \(followsTurn && !hiddenFromPlayerView\) \{/);
 });
 
 test("L16 (OP-08): un token senza attitudine si mostra neutrale; le chiavi dei gruppi restano quelle salvate", () => {

@@ -300,6 +300,8 @@ import {
   selectKnownFactionAssignmentEnabled,
   selectGmTrackerScale,
   selectMapHpBarsEnabled,
+  selectOnlineRoomProfile,
+  selectPlayerFollowActiveTurn,
   selectPlayerTrackerScale,
   selectTrackerLayout,
   selectTrackerProjectionPolicy,
@@ -4393,7 +4395,12 @@ function queueSelectAndFocus(itemId, autoFocus = true) {
   }
   // Lot L16: a player's view never follows a hidden token (its position stays the GM's secret, met or not).
   const hiddenFromPlayerView = !IS_GM && __activeLabelEntriesById.get(anchorId)?.hiddenToken === true;
-  if (autoFocus && !hiddenFromPlayerView) {
+  // Online room profile (audit online, O2a): a player's view follows the turn when that player's own Segui is on,
+  // whatever the GM's. The Table profile keeps the table screen on the GM's Segui, as always.
+  const followsTurn = !IS_GM && runtimeOptionsService.get(selectOnlineRoomProfile)
+    ? runtimeOptionsService.get(selectPlayerFollowActiveTurn) === true
+    : autoFocus;
+  if (followsTurn && !hiddenFromPlayerView) {
     __scheduleViewportFocus(anchorId, __navigationRevision, sceneEpoch);
   } else {
     __viewportFocusDesired = null;

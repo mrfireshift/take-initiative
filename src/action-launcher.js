@@ -12,6 +12,7 @@ import {
 } from "./metadataKeyScoped.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { createActionLauncherReadinessCoordinator } from "./actionLauncherReadinessCore.js";
+import { trackerDismissalFor, writeTrackerDismissal } from "./trackerDismissalCore.js";
 
 const UI_KEY = `${ID}/ui`;
 let handling = false;
@@ -73,6 +74,11 @@ async function toggleTracker() {
         { ...(previous && typeof previous === "object" ? previous : {}), open: nextOpen, at: Date.now() },
         { runtime: "action-launcher" },
       );
+    } else {
+      // A player closing the tracker: in the Online profile sync-open keeps it closed until the GM opens it again or a
+      // combat starts (trackerDismissalCore.js). Opening it by hand forgets the closing.
+      const shared = nextOpen ? null : (await OBR.room.getMetadata().catch(() => ({})))?.[UI_KEY];
+      writeTrackerDismissal(nextOpen ? null : trackerDismissalFor(shared));
     }
     return true;
   } finally {

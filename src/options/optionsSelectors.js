@@ -160,6 +160,16 @@ export function selectPlayerTrackerScale(options) {
   return resolved(options).shared.playerView.trackerScale;
 }
 
+// The room profile (audit online): only "online" changes what the players' screens do; "table" is the default.
+export function selectOnlineRoomProfile(options) {
+  return resolved(options).shared.profile === "online";
+}
+
+// A player's own Segui, read only in the Online profile.
+export function selectPlayerFollowActiveTurn(options) {
+  return resolved(options).local.tracker.playerFollowActiveTurn;
+}
+
 export function selectSceneOverriddenPaths(options) {
   return [...resolved(options).source.overriddenPaths];
 }
@@ -212,6 +222,7 @@ export function selectOptionsPanelModel(options) {
       fiveTools2024: value.local.tools.fiveTools2024 === true,
     },
     room: {
+      profile: room.profile,
       trackerOpen: room.uiSync.trackerOpen,
       trackerPlacement: room.uiSync.trackerPlacement,
       trackerScale: room.playerView.trackerScale,
