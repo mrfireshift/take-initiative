@@ -203,6 +203,39 @@
         transform-origin: left;
         animation: expire 4.5s linear forwards;
       }
+      /* Online room profile (lot O4a): the turn of this player's own creature. */
+      .notice.mine {
+        box-shadow:
+          0 0 0 3px var(--player, var(--accent)),
+          0 0 30px 9px var(--accent-soft),
+          0 18px 48px rgba(0, 0, 0, .68),
+          inset 0 0 0 1px rgba(255, 255, 255, .16),
+          inset 0 -28px 44px rgba(0, 0, 0, .25);
+      }
+      .notice.mine .eyebrow { color: #fff; font-size: 12px; letter-spacing: 1.2px; }
+      .notice.mine .portrait { box-shadow: 0 0 0 3px var(--player, var(--accent)), 0 0 18px 5px var(--accent-soft); }
+      .next.is-you strong { color: var(--accent); }
+      .notice-close {
+        position: absolute;
+        right: 10px;
+        bottom: 8px;
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: rgba(255, 255, 255, .82);
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .notice-close:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+      .notice-close:focus-visible { outline: 2px solid rgba(147, 197, 253, .9); outline-offset: 1px; }
       .zone-notice {
         --accent: #fb923c;
         --accent-soft: rgba(251, 146, 60, .42);

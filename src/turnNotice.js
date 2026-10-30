@@ -26,12 +26,23 @@ function unknownToPlayers(entry) {
   return entry?.hiddenToken === true;
 }
 
-function nextKnownName(order, current, entriesById) {
+function nextKnownId(order, current, entriesById) {
   for (let step = 1; step <= order.length; step += 1) {
     const id = order[(current + step) % order.length];
-    if (!unknownToPlayers(entryForId(id, entriesById))) return entryName(id, entriesById);
+    if (!unknownToPlayers(entryForId(id, entriesById))) return id;
   }
   return "";
+}
+
+function nextKnownName(order, current, entriesById) {
+  const id = nextKnownId(order, current, entriesById);
+  return id ? entryName(id, entriesById) : "";
+}
+
+// The player who plays an entry (lot O3), only in the Online room profile: the entries carry it there alone.
+function assignedPlayerOf(entry) {
+  const player = entry?.assignedPlayer;
+  return player && typeof player.id === "string" && player.id ? player : null;
 }
 
 export function buildTurnNoticePayload(state, entriesById) {
@@ -52,6 +63,15 @@ export function buildTurnNoticePayload(state, entriesById) {
       ? { nextPlayerName: nextKnownName(order, current, entriesById) }
       : {}),
     ...(unknownToPlayers(currentEntry) ? { currentHidden: true } : {}),
+    // Online room profile (lot O4a): who plays this turn and the next known one, so each player's screen can say
+    // «Tocca a te» or «Sei il prossimo». Absent in the Table profile.
+    ...(assignedPlayerOf(currentEntry) ? {
+      currentPlayerId: assignedPlayerOf(currentEntry).id,
+      ...(assignedPlayerOf(currentEntry).color ? { currentPlayerColor: assignedPlayerOf(currentEntry).color } : {}),
+    } : {}),
+    ...(assignedPlayerOf(entryForId(nextKnownId(order, current, entriesById), entriesById))
+      ? { nextPlayerId: assignedPlayerOf(entryForId(nextKnownId(order, current, entriesById), entriesById)).id }
+      : {}),
     currentPortrait: portrait.length <= 2048 ? portrait : "",
     currentAttitude: String(currentEntry?.attitude || "neutral").trim().toLowerCase(),
     round,

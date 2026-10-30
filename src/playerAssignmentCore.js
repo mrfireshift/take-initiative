@@ -70,10 +70,20 @@ export function cardPlayerAssignment(player, { selfId = "", isGm = false } = {})
   const normalized = normalizePlayerAssignment(player);
   if (!normalized) return null;
   const mine = !isGm && !!selfId && normalized.id === String(selfId);
-  return { name: normalized.name, color: normalized.color, mine };
+  return { id: normalized.id, name: normalized.name, color: normalized.color, mine };
 }
 
 export function cardPlayerAssignmentTitle(assignment) {
   if (!assignment) return "";
   return assignment.mine ? "Il tuo personaggio" : `Giocatore: ${assignment.name || "assegnato"}`;
+}
+
+// The turn notice of one player's screen (lot O4a): "current" when the creature of the turn is theirs, "next" when the
+// following one is, "" otherwise. Never for the GM, whose notice stays the usual one.
+export function turnNoticeForPlayer(payload, selfId, role = "PLAYER") {
+  const self = String(selfId || "");
+  if (!self || String(role || "").toUpperCase() === "GM") return "";
+  if (String(payload?.currentPlayerId || "") === self) return "current";
+  if (String(payload?.nextPlayerId || "") === self) return "next";
+  return "";
 }

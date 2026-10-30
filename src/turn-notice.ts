@@ -70,6 +70,10 @@ type TurnNotice = {
   noticeId: number;
   turnKey: string;
   sceneEpoch: number;
+  // Online room profile (lot O4a), set by this screen's host: the turn is this player's ("current") or the next one
+  // is ("next").
+  forYou?: "current" | "next";
+  currentPlayerColor?: string;
 };
 
 type ZoneNoticeTarget = {
@@ -115,6 +119,10 @@ function normalizeNotice(parsed: any): TurnNotice | null {
     noticeId: Math.max(0, Math.floor(Number(parsed?.noticeId) || 0)),
     turnKey: String(parsed?.turnKey || "").trim().slice(0, 300),
     sceneEpoch: Math.max(0, Math.floor(Number(parsed?.sceneEpoch) || 0)),
+    ...(parsed?.forYou === "current" || parsed?.forYou === "next" ? { forYou: parsed.forYou } : {}),
+    ...(/^#[0-9a-fA-F]{3,8}$/.test(String(parsed?.currentPlayerColor || ""))
+      ? { currentPlayerColor: String(parsed.currentPlayerColor) }
+      : {}),
   };
 }
 
@@ -280,7 +288,12 @@ function buildPanel(notice: TurnNotice) {
   copy.className = "copy";
   const eyebrow = document.createElement("div");
   eyebrow.className = "eyebrow";
-  eyebrow.textContent = "Iniziativa";
+  const mine = notice.forYou === "current";
+  eyebrow.textContent = mine ? "Tocca a te" : "Iniziativa";
+  if (mine) {
+    panel.classList.add("mine");
+    if (notice.currentPlayerColor) panel.style.setProperty("--player", notice.currentPlayerColor);
+  }
   const title = document.createElement("div");
   title.className = "title";
   title.textContent = "Turno di " + notice.currentName;
@@ -299,9 +312,23 @@ function buildPanel(notice: TurnNotice) {
   const nextLabel = document.createElement("span");
   nextLabel.textContent = "A seguire";
   const nextName = document.createElement("strong");
-  nextName.textContent = shownNextName;
+  // Online room profile (lot O4a): the player whose creature comes next reads «Tu» before its name.
+  nextName.textContent = notice.forYou === "next" ? `Tu · ${shownNextName}` : shownNextName;
+  if (notice.forYou === "next") next.classList.add("is-you");
   next.append(nextLabel, nextName);
 
+  if (mine) {
+    // The player's own turn stays until the next one: closed by hand, no countdown.
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "notice-close";
+    close.textContent = "×";
+    close.title = "Chiudi";
+    close.setAttribute("aria-label", "Chiudi");
+    close.addEventListener("click", () => hideCurrent());
+    panel.append(portrait, copy, roundBadge, next, close);
+    return panel;
+  }
   const timer = document.createElement("div");
   timer.className = "timer";
   panel.append(portrait, copy, roundBadge, next, timer);
@@ -393,7 +420,8 @@ function showNotice(raw: any) {
     previous.classList.add("is-leaving");
     window.setTimeout(() => previous.remove(), FADE_MS);
   }
-  hideTimer = window.setTimeout(hideCurrent, AUTO_CLOSE_MS);
+  // A player's own turn (lot O4a) stays until the next turn notice or the ×.
+  hideTimer = notice.forYou === "current" ? 0 : window.setTimeout(hideCurrent, AUTO_CLOSE_MS);
   announceNoticeLayout({ force: true });
 }
 

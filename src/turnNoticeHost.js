@@ -13,6 +13,7 @@ import {
   turnNoticeUrlPayload,
 } from "./turnNoticeHostCore.js";
 import { receiveDeathSaveNotices, splitDeathSaveNotices, withdrawHistoryReplayDeathSaves } from "./deathSaveNoticeHost.js";
+import { turnNoticeForPlayer } from "./playerAssignmentCore.js";
 
 const TURN_NOTICE_CHANNEL = `${ID}/turn-notice`;
 const TURN_NOTICE_READY_CHANNEL = `${TURN_NOTICE_CHANNEL}/ready`;
@@ -40,6 +41,14 @@ let readyRetryTimer = null;
 let layoutAckTimer = null;
 let layoutAckToken = 0;
 let latestLayoutRevision = 0;
+// Online room profile (lot O4a): the turn shown is this player's own («Tocca a te»). It stays until the next turn or
+// until the player closes it, also when the Owlbear tab is hidden and the page cannot confirm its layout in time.
+let currentNoticeSticky = false;
+let hostRole = "";
+
+function selfPlayerId() {
+  try { return String(OBR.player.id || ""); } catch { return ""; }
+}
 
 function enqueueHostTask(task) {
   hostQueue = hostQueue.then(task, task);
@@ -69,6 +78,7 @@ function scheduleLayoutAckTimeout() {
       || !awaitingVisibleLayout
       || revision !== activityRevision
       || pendingPayloads.length
+      || currentNoticeSticky
     ) return;
     awaitingVisibleLayout = false;
     void enqueueHostTask(async () => {
@@ -216,6 +226,11 @@ function scheduleNoticePump() {
 }
 
 function receiveNoticePayload(payload) {
+  if (payload?.type === "show-turn-notice") {
+    const forYou = turnNoticeForPlayer(payload, selfPlayerId(), hostRole);
+    if (forYou) payload = { ...payload, forYou };
+    currentNoticeSticky = forYou === "current";
+  }
   activityRevision += 1;
   const sceneEpoch = payloadSceneEpoch(payload);
   if (sceneEpoch !== null) requestedSceneEpoch = sceneEpoch;
@@ -327,6 +342,7 @@ function receiveLayoutMessage(payload) {
 export function mountTurnNoticeHost() {
   if (mounted) return;
   mounted = true;
+  void Promise.resolve().then(() => OBR.player.getRole()).then((role) => { hostRole = String(role || ""); }, () => {});
   hostQueue = Promise.all([
     OBR.modal.close(TURN_NOTICE_POPOVER_ID).catch(() => {}),
     OBR.popover.close(TURN_NOTICE_POPOVER_ID).catch(() => {}),

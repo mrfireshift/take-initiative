@@ -46,7 +46,7 @@ test("il menu offre i giocatori collegati, quello assegnato anche se non c'è, p
 
 test("la card mostra il giocatore al GM e «il tuo personaggio» al giocatore stesso", () => {
   const assigned = { id: "user-mario", name: "Mario", color: "#ef4444" };
-  assert.deepEqual(cardPlayerAssignment(assigned, { isGm: true, selfId: "user-gm" }), { name: "Mario", color: "#ef4444", mine: false });
+  assert.deepEqual(cardPlayerAssignment(assigned, { isGm: true, selfId: "user-gm" }), { id: "user-mario", name: "Mario", color: "#ef4444", mine: false });
   assert.equal(cardPlayerAssignment(assigned, { isGm: false, selfId: "user-mario" }).mine, true);
   assert.equal(cardPlayerAssignment(null), null);
   assert.equal(cardPlayerAssignmentTitle({ name: "Mario", mine: false }), "Giocatore: Mario");
