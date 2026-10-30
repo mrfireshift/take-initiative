@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { classifySceneItemSnapshots, createSceneItemsSnapshot } from "../src/sceneItemChangeDispatcherCore.js";
 import { buildTurnNoticePayload } from "../src/turnNotice.js";
 import { __groupKey } from "../src/initiativeOrderCore.js";
+import { collectEffectsInvalidation } from "../src/effectsReconcilerCore.js";
 
 mock.module("@owlbear-rodeo/sdk", { defaultExport: {} });
 const { withoutHiddenTokenNotices } = await import("../src/options/reminderProjectionBroadcast.js");
@@ -184,3 +185,15 @@ test("L16: sulla card del GM il ritratto di un token nascosto è oscurato con l'
   assert.match(read("../public/hidden-token.svg"), /<mask id="hidden-token-cut"/);
 });
 
+
+// The condition and effect pills of a hidden token: each screen draws its own, and the players' one did not look at
+// the token's visibility.
+test("le pill di un token nascosto non compaiono sullo schermo dei giocatori e si ridisegnano quando si mostra", () => {
+  const token = (visible) => ({ id: "orc", type: "IMAGE", layer: "CHARACTER", visible, position: { x: 0, y: 0 },
+    metadata: { [META_KEY]: { inInitiative: true, conditions: { instances: [] } } } });
+  const event = classifySceneItemSnapshots(createSceneItemsSnapshot([token(true)]), createSceneItemsSnapshot([token(false)]));
+  const invalidation = collectEffectsInvalidation(event, { metaKey: META_KEY });
+  assert.deepEqual([invalidation.conditions, invalidation.concentration], [["orc"], ["orc"]]);
+  assert.match(read("../src/effectsLayout.js"),
+    /if \(effectsProjection\.role !== "GM" && item\.visible === false\) return null;\n\s+const spells = getSpellWidgetLayoutData\(projectedItem\);/);
+});

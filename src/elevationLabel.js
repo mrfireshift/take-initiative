@@ -75,7 +75,8 @@ function differs(label, spec, tokenId) {
     label.text?.plainText !== spec.text ||
     label.text?.width !== spec.width || label.text?.height !== LABEL_HEIGHT ||
     label.style?.backgroundColor !== spec.color ||
-    label.metadata?.[LABEL_LAYOUT_META] !== LABEL_LAYOUT_VERSION;
+    label.metadata?.[LABEL_LAYOUT_META] !== LABEL_LAYOUT_VERSION ||
+    (label.visible !== false) !== spec.visible;
 }
 
 export function elevationLabelTokens(items = []) {
@@ -127,7 +128,8 @@ async function reconcileElevationLabels() {
     for (const token of tokens) {
       const elevation = readElevation(token);
       if (elevation === 0) continue;
-      const spec = labelSpec(token, elevation, unit, hpBarsByOwner.get(token.id));
+      // OBR does not hide an attachment with its token: a token hidden from the players hides its label too.
+      const spec = { ...labelSpec(token, elevation, unit, hpBarsByOwner.get(token.id)), visible: token.visible !== false };
       const current = labelsByOwner.get(token.id);
       if (!current) {
         const label = buildLabel()
@@ -143,6 +145,7 @@ async function reconcileElevationLabels() {
           .cornerRadius(LABEL_HEIGHT / 2).pointerWidth(0).pointerHeight(0)
           .pointerDirection("LEFT").maxViewScale(MAX_VIEW_SCALE)
           .attachedTo(token.id).layer("TEXT")
+          .visible(spec.visible)
           .name(`Quota: ${token.name || "Token"}`)
           .metadata({
             [LABEL_OWNER_META]: token.id,
@@ -168,6 +171,7 @@ async function reconcileElevationLabels() {
           const { tokenId, spec } = next;
           label.attachedTo = tokenId;
           label.position = { x: spec.x, y: spec.y };
+          label.visible = spec.visible;
           label.locked = true;
           label.disableHit = true;
           label.layer = "TEXT";

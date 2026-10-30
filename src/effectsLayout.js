@@ -152,6 +152,8 @@ function normalizeToken(item) {
   });
   const pluginMeta = projectedItem?.metadata?.[META_KEY];
   if (!item?.id || !pluginMeta || typeof pluginMeta !== "object") return null;
+  // A token the GM keeps hidden shows no widget on the players' screens.
+  if (effectsProjection.role !== "GM" && item.visible === false) return null;
   const spells = getSpellWidgetLayoutData(projectedItem);
   return {
     id: item.id,

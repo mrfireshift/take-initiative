@@ -13,6 +13,7 @@ function builder() {
   const proxy = new Proxy({}, { get: (_target, key) => (key === "build" ? () => item : (value) => {
     if (key === "metadata") item.metadata = value;
     if (key === "attachedTo") item.attachedTo = value;
+    if (key === "visible") item.visible = value;
     return proxy;
   }) });
   return proxy;
@@ -25,7 +26,12 @@ const sdk = {
       getItems: async (filter) => (typeof filter === "function" ? items.filter(filter) : items.slice()),
       addItems: async (list) => { calls.add.push(...list); },
       deleteItems: async (ids) => { calls.del.push(...ids); },
-      updateItems: async (ids) => { calls.upd.push(...ids); },
+      updateItems: async (ids, update) => {
+        calls.upd.push(...ids);
+        const drafts = structuredClone(items.filter((item) => ids.includes(item.id)));
+        update?.(drafts);
+        calls.drafts = drafts;
+      },
     },
     grid: { getScale: async () => ({ parsed: { unit: "m" } }), onChange: () => () => {} },
   },
@@ -63,5 +69,23 @@ test("L9: il GM toglie la seconda etichetta della quota di uno stesso token", as
   await lifecycle().setEnabled(true, { reason: "initial" });
   assert.equal(calls.add.length, 0);
   assert.deepEqual(calls.del, ["label-a"], "one of the two goes");
+  await label.unmountElevationLabelWatcher();
+});
+
+// OBR does not hide an attachment with its token: the elevation of a hidden token showed on the players' screen.
+test("l'etichetta della quota di un token nascosto è nascosta ai giocatori", async () => {
+  role = "GM";
+  const hidden = { ...token, visible: false };
+  items = [hidden];
+  Object.assign(calls, { add: [], del: [], upd: [] });
+  await lifecycle().setEnabled(true, { reason: "initial" });
+  assert.deepEqual(calls.add.map((item) => item.visible), [false], "a new label on a hidden token");
+  await label.unmountElevationLabelWatcher();
+
+  const shown = { id: "label-a", type: "LABEL", visible: true, metadata: { [LABEL_OWNER]: "pc-1" } };
+  items = [hidden, shown];
+  Object.assign(calls, { add: [], del: [], upd: [] });
+  await lifecycle().setEnabled(true, { reason: "initial" });
+  assert.deepEqual(calls.drafts.map((item) => item.visible), [false], "the token was hidden after its label was made");
   await label.unmountElevationLabelWatcher();
 });

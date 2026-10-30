@@ -265,6 +265,11 @@ export function collectEffectsInvalidation(event, {
       if (recordFlags.conditions || recordFlags.tokenScale) conditions.add(item.id);
       // A scaled token: its concentration badge goes on its new top-left cell (lot L20).
       if (recordFlags.tokenScale) concentration.add(item.id);
+      // Shown or hidden by the GM: the players' screens draw or drop its widgets.
+      if (recordFlags.visibility) {
+        conditions.add(item.id);
+        concentration.add(item.id);
+      }
       if (recordFlags.concentration) {
         concentration.add(item.id);
         for (const recordItem of recordItems) {

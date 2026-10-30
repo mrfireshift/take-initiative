@@ -62,6 +62,7 @@ const buildLabel = () => {
         else if (key === "metadata") item.metadata = value;
         else if (key === "plainText") item.text.plainText = value;
         else if (key === "disableAttachmentBehavior") item.disableAttachmentBehavior = value;
+        else if (key === "visible") item.visible = value;
         return b;
       };
     },
@@ -93,4 +94,22 @@ test("L10: cancellato il token dell'etichetta, l'etichetta del turno rinasce sul
   await runtime.upsertActiveTurnLabel("orc", "Turno di Orc"); // the pump's retry
   assert.deepEqual(labels().map((label) => label.attachedTo), ["orc"]);
   assert.deepEqual(labels()[0].disableAttachmentBehavior, ["ROTATION", "SCALE", "COPY"], "never turned, scaled or copied with its token");
+});
+
+// OBR does not hide an attachment with its token: "Turno di Goblin" showed on the players' screen above a hidden goblin.
+test("l'etichetta del turno di un token nascosto è nascosta ai giocatori e torna quando il token si mostra", async () => {
+  items = [
+    { id: "goblin", type: "IMAGE", visible: false, position: { x: 0, y: 0 }, metadata: {} },
+    { id: "orc", type: "IMAGE", position: { x: 300, y: 0 }, metadata: {} },
+  ];
+  const runtime = factory({ OBR, buildLabel, ACTIVE_LABEL_META: META, IS_GM: true });
+  const label = () => items.find((item) => item.metadata?.[META]);
+  await runtime.upsertActiveTurnLabel("goblin", "Turno di Goblin");
+  assert.equal(label().visible, false, "a new label on a hidden token");
+  await runtime.upsertActiveTurnLabel("orc", "Turno di Orc");
+  assert.equal(label().visible, true);
+  await runtime.upsertActiveTurnLabel("goblin", "Turno di Goblin", null, 0, 1, true);
+  assert.equal(label().visible, false, "the tracker's entry says hidden");
+  await runtime.upsertActiveTurnLabel("goblin", "Turno di Goblin", { id: "goblin", position: { x: 0, y: 0 }, hiddenToken: false }, 0, 1, false);
+  assert.equal(label().visible, true, "shown again during its turn");
 });

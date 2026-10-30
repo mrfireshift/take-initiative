@@ -4708,6 +4708,7 @@ async function upsertActiveTurnLabel(
   anchorSnapshot = null,
   revision = __activeTurnLabelRevision,
   sceneEpoch = currentSceneEpoch(),
+  anchorHidden = null,
 ) {
   if (!__isCurrentSceneOperation(sceneEpoch, "active-label")) return;
   const textStr = String(displayText ?? "");
@@ -4741,6 +4742,9 @@ async function upsertActiveTurnLabel(
     __activeTurnLabelLatestKey = null;
     return;
   }
+  // OBR does not hide an attachment with its token: the label of a token hidden from the players is hidden too (the
+  // GM still sees it faded, as the token).
+  const labelVisible = !(anchorHidden ?? (anchor.visible === false || anchor.hiddenToken === true));
 
   let anchorBounds = null;
   try { anchorBounds = await OBR.scene.items.getItemBounds([anchorId]); } catch {}
@@ -4783,6 +4787,7 @@ async function upsertActiveTurnLabel(
         })
         .metadata({ [ACTIVE_LABEL_META]: { enabled: true } })
         .name("Turno attuale")
+        .visible(labelVisible)
         .build();
       await OBR.scene.items.addItems([item]);
       if (!__isCurrentSceneOperation(sceneEpoch, "active-label") || revision !== __activeTurnLabelRevision) return;
@@ -4805,7 +4810,7 @@ async function upsertActiveTurnLabel(
       labelFound = true;
       item.attachedTo = anchorId;
       item.position = pos;
-      item.visible = true;
+      item.visible = labelVisible;
       item.layer = "TEXT";
       item.locked = true;
       item.disableHit = true;
@@ -4818,7 +4823,7 @@ async function upsertActiveTurnLabel(
     if (!__isCurrentSceneOperation(sceneEpoch, "active-label") || revision !== __activeTurnLabelRevision) return;
     existing.attachedTo = anchorId;
     existing.position = pos;
-    existing.visible = true;
+    existing.visible = labelVisible;
     existing.disableAttachmentBehavior = __activeTurnLabelBehaviors(existing.disableAttachmentBehavior);
     __setActiveTurnLabelText(existing, textStr);
     __activeTurnLabel = existing;
@@ -4862,6 +4867,7 @@ async function __pumpActiveTurnLabel() {
         desired.anchor,
         desired.revision,
         desired.sceneEpoch,
+        desired.anchorHidden,
       );
       __initiativeDiag("label:update-complete", {
         anchorId: desired.anchorId,
@@ -4910,14 +4916,19 @@ function syncActiveTurnLabel(activeId) {
     : "Turno";
   const text = ACTIVE_LABEL_TEXT_FMT(labelName);
   const key = `${anchorId || ""}\u0000${text}`;
-  if (__activeTurnLabelLatestKey === key) return;
+  // A token shown or hidden during its turn shows or hides its label: the render after the change comes back here.
+  const anchorEntry = __activeLabelEntriesById.get(anchorId) || activeEntry;
+  const anchorHidden = anchorEntry ? anchorEntry.hiddenToken === true : null;
+  const labelKey = anchorHidden ? `${key}|hidden` : key;
+  if (__activeTurnLabelLatestKey === labelKey) return;
 
-  __activeTurnLabelLatestKey = key;
+  __activeTurnLabelLatestKey = labelKey;
   const revision = ++__activeTurnLabelRevision;
   __activeTurnLabelDesired = {
     anchorId,
     text,
     anchor: activeEntry?.position ? activeEntry : null,
+    anchorHidden,
     revision,
     navigationRevision: __navigationRevision,
     sceneEpoch: currentSceneEpoch(),
