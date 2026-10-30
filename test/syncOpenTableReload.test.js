@@ -31,7 +31,8 @@ const sdk = {
     open: async (options) => { env.opened.push(clone(options)); },
     close: async (id) => { env.closed.push(id); },
     getWidth: async () => undefined,
-    getHeight: async () => undefined,
+    // Owlbear in the room gives no answer in time for a popover that does not exist (found on 30/10).
+    getHeight: () => (env.silentProbe ? new Promise(() => {}) : Promise.resolve(undefined)),
   },
   broadcast: { onMessage: () => () => {}, sendMessage: async () => {} },
 };
@@ -63,6 +64,16 @@ test("L9: dopo una ricarica della finestra del tavolo il tracker si riapre", asy
   env = { role: "PLAYER", room: { [UI_KEY]: { open: true, at: 1, view } }, opened: [], closed: [], roomListeners: [] };
   delete globalThis.__TBP_SYNC_OPEN_MOUNTED;
   await import(`${REPO}src/sync-open.js?reload`);
+  await settle();
+  assert.equal(env.opened.filter((options) => options.id === `${ID}/tracker-popover`).length, 1, "the tracker opens again");
+});
+
+test("L9: il tracker del tavolo si riapre dopo F5 anche se OBR non risponde alla sonda", async () => {
+  memory.clear();
+  localStorage.setItem(`${ID}/tracker-popover-open`, "1");
+  env = { role: "PLAYER", silentProbe: true, room: { [UI_KEY]: { open: true, at: 1 } }, opened: [], closed: [], roomListeners: [] };
+  delete globalThis.__TBP_SYNC_OPEN_MOUNTED;
+  await import(`${REPO}src/sync-open.js?silent-probe`);
   await settle();
   assert.equal(env.opened.filter((options) => options.id === `${ID}/tracker-popover`).length, 1, "the tracker opens again");
 });
