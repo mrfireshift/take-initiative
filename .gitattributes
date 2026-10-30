@@ -1,2 +1,4 @@
 # Preserve generated production artifacts byte-for-byte, including checksums.
 dist/** -text
+# The 3D dice assets of Owlbear Rodeo Dice, byte-for-byte.
+public/dice/** -text

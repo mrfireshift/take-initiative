@@ -54,3 +54,12 @@ Physics of the Online dice tray.
 
 - Package: `cannon-es` 0.20.0, https://github.com/pmndrs/cannon-es
 - License: MIT. Copyright (c) 2015 cannon.js Authors, Copyright (c) 2020 pmndrs.
+
+## Owlbear Rodeo Dice
+
+The 3D dice of the Online dice tray (meshes, colliders, number locators, the eight dice styles, the tray and the
+light map in `public/dice/`, and the data read from them in `src/diceAssets.json`) come from Owlbear Rodeo Dice,
+imported with `scripts/import-owlbear-dice-assets.mjs`. The throw ranges follow its `DiceThrower`.
+
+- Source: https://github.com/owlbear-rodeo/dice (commit ccc32beceee0888c0a48129fbb23f4a636c710ee)
+- License: GNU General Public License v3. Copyright (C) 2023 Owlbear Rodeo.

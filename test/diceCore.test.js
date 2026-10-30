@@ -99,7 +99,8 @@ test("i parametri del lancio sono numeri piccoli, uno per dado fisico", () => {
   const throws = diceThrowParameters(3);
   assert.equal(throws.length, 3);
   for (const entry of throws) {
-    assert.ok(entry.position.y >= 1.5 && entry.position.y <= 2.5);
+    assert.ok(entry.position.y >= 1 && entry.position.y <= 1.2 && Math.abs(entry.position.x) <= 0.3);
+    assert.equal(entry.velocity.y, 0, "a push toward the middle, along the tray");
     assert.ok(Math.abs(Math.hypot(entry.rotation.x, entry.rotation.y, entry.rotation.z, entry.rotation.w) - 1) < 0.001);
   }
   assert.ok(JSON.stringify(diceThrowParameters(2 * DICE_MAX_COUNT)).length < 16_000, "a whole roll fits a broadcast");

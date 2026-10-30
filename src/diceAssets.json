@@ -1,0 +1,1151 @@
+{
+  "source": {
+    "repository": "https://github.com/owlbear-rodeo/dice",
+    "commit": "ccc32beceee0888c0a48129fbb23f4a636c710ee",
+    "license": "GPL-3.0"
+  },
+  "dice": {
+    "d4": {
+      "mesh": "dice/meshes/d4.glb",
+      "scale": 0.1,
+      "meshRotation": [
+        0,
+        0,
+        0
+      ],
+      "locators": [
+        {
+          "value": 1,
+          "position": [
+            0,
+            -0.61,
+            -1.27
+          ]
+        },
+        {
+          "value": 2,
+          "position": [
+            -1.1,
+            -0.61,
+            0.63
+          ]
+        },
+        {
+          "value": 3,
+          "position": [
+            1.1,
+            -0.61,
+            0.63
+          ]
+        },
+        {
+          "value": 4,
+          "position": [
+            0,
+            1.18,
+            0
+          ]
+        }
+      ],
+      "collider": [
+        [
+          0,
+          -0.063583,
+          -0.126977
+        ],
+        [
+          0,
+          0.115962,
+          0
+        ],
+        [
+          0.109965,
+          -0.063583,
+          0.063488
+        ],
+        [
+          -0.109965,
+          -0.063583,
+          0.063488
+        ]
+      ]
+    },
+    "d6": {
+      "mesh": "dice/meshes/d6.glb",
+      "scale": 0.1,
+      "meshRotation": [
+        0,
+        0,
+        0
+      ],
+      "locators": [
+        {
+          "value": 1,
+          "position": [
+            0,
+            -0.77,
+            0
+          ]
+        },
+        {
+          "value": 2,
+          "position": [
+            -0.77,
+            0,
+            0
+          ]
+        },
+        {
+          "value": 3,
+          "position": [
+            0,
+            0,
+            0.77
+          ]
+        },
+        {
+          "value": 4,
+          "position": [
+            0,
+            0,
+            -0.77
+          ]
+        },
+        {
+          "value": 5,
+          "position": [
+            0.77,
+            0,
+            0
+          ]
+        },
+        {
+          "value": 6,
+          "position": [
+            0,
+            0.77,
+            0
+          ]
+        }
+      ],
+      "collider": [
+        [
+          -0.08,
+          -0.08,
+          0.08
+        ],
+        [
+          -0.08,
+          0.08,
+          0.08
+        ],
+        [
+          -0.08,
+          -0.08,
+          -0.08
+        ],
+        [
+          -0.08,
+          0.08,
+          -0.08
+        ],
+        [
+          0.08,
+          -0.08,
+          0.08
+        ],
+        [
+          0.08,
+          0.08,
+          0.08
+        ],
+        [
+          0.08,
+          -0.08,
+          -0.08
+        ],
+        [
+          0.08,
+          0.08,
+          -0.08
+        ]
+      ]
+    },
+    "d8": {
+      "mesh": "dice/meshes/d8.glb",
+      "scale": 0.1,
+      "meshRotation": [
+        0,
+        0,
+        0
+      ],
+      "locators": [
+        {
+          "value": 1,
+          "position": [
+            0.42,
+            0.52,
+            0.43
+          ]
+        },
+        {
+          "value": 2,
+          "position": [
+            -0.47,
+            -0.46,
+            -0.45
+          ]
+        },
+        {
+          "value": 3,
+          "position": [
+            0.45,
+            -0.46,
+            -0.47
+          ]
+        },
+        {
+          "value": 4,
+          "position": [
+            -0.43,
+            0.52,
+            0.42
+          ]
+        },
+        {
+          "value": 5,
+          "position": [
+            -0.42,
+            0.52,
+            -0.43
+          ]
+        },
+        {
+          "value": 6,
+          "position": [
+            0.47,
+            -0.46,
+            0.45
+          ]
+        },
+        {
+          "value": 7,
+          "position": [
+            -0.45,
+            -0.46,
+            0.47
+          ]
+        },
+        {
+          "value": 8,
+          "position": [
+            0.43,
+            0.52,
+            -0.42
+          ]
+        }
+      ],
+      "collider": [
+        [
+          -0.137188,
+          0,
+          0
+        ],
+        [
+          0,
+          -0.137188,
+          0
+        ],
+        [
+          0,
+          0.137188,
+          0
+        ],
+        [
+          0,
+          0,
+          0.137188
+        ],
+        [
+          0.137188,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          -0.137188
+        ]
+      ]
+    },
+    "d10": {
+      "mesh": "dice/meshes/d10.glb",
+      "scale": 0.1,
+      "meshRotation": [
+        0,
+        0,
+        0
+      ],
+      "locators": [
+        {
+          "value": 0,
+          "position": [
+            0.4,
+            0.42,
+            -0.56
+          ]
+        },
+        {
+          "value": 1,
+          "position": [
+            -0.7,
+            -0.37,
+            -0.22
+          ]
+        },
+        {
+          "value": 2,
+          "position": [
+            0.01,
+            0.42,
+            0.69
+          ]
+        },
+        {
+          "value": 3,
+          "position": [
+            0.69,
+            -0.37,
+            -0.23
+          ]
+        },
+        {
+          "value": 4,
+          "position": [
+            -0.41,
+            0.42,
+            -0.55
+          ]
+        },
+        {
+          "value": 5,
+          "position": [
+            0.44,
+            -0.37,
+            0.59
+          ]
+        },
+        {
+          "value": 6,
+          "position": [
+            -0.65,
+            0.42,
+            0.22
+          ]
+        },
+        {
+          "value": 7,
+          "position": [
+            -0.01,
+            -0.37,
+            -0.73
+          ]
+        },
+        {
+          "value": 8,
+          "position": [
+            0.66,
+            0.42,
+            0.21
+          ]
+        },
+        {
+          "value": 9,
+          "position": [
+            -0.42,
+            -0.37,
+            0.6
+          ]
+        }
+      ],
+      "collider": [
+        [
+          0,
+          -0.117275,
+          0
+        ],
+        [
+          0,
+          0.117275,
+          0
+        ],
+        [
+          0.11223,
+          -0.012381,
+          0.036466
+        ],
+        [
+          0.069362,
+          0.012381,
+          0.095469
+        ],
+        [
+          0,
+          -0.012381,
+          0.118006
+        ],
+        [
+          0.069362,
+          -0.012381,
+          -0.095469
+        ],
+        [
+          0.11223,
+          0.012381,
+          -0.036466
+        ],
+        [
+          0,
+          0.012381,
+          -0.118006
+        ],
+        [
+          -0.069362,
+          -0.012381,
+          -0.095469
+        ],
+        [
+          -0.11223,
+          -0.012381,
+          0.036466
+        ],
+        [
+          -0.11223,
+          0.012381,
+          -0.036466
+        ],
+        [
+          -0.069362,
+          0.012381,
+          0.095469
+        ]
+      ]
+    },
+    "d12": {
+      "mesh": "dice/meshes/d12.glb",
+      "scale": 0.1,
+      "meshRotation": [
+        0,
+        0,
+        0
+      ],
+      "locators": [
+        {
+          "value": 1,
+          "position": [
+            0,
+            -0.93,
+            0
+          ]
+        },
+        {
+          "value": 10,
+          "position": [
+            0.68,
+            -0.41,
+            -0.48
+          ]
+        },
+        {
+          "value": 11,
+          "position": [
+            0.27,
+            0.44,
+            0.79
+          ]
+        },
+        {
+          "value": 12,
+          "position": [
+            0,
+            0.96,
+            0
+          ]
+        },
+        {
+          "value": 2,
+          "position": [
+            -0.25,
+            -0.41,
+            -0.8
+          ]
+        },
+        {
+          "value": 3,
+          "position": [
+            -0.67,
+            0.44,
+            0.5
+          ]
+        },
+        {
+          "value": 4,
+          "position": [
+            -0.84,
+            -0.41,
+            -0.01
+          ]
+        },
+        {
+          "value": 5,
+          "position": [
+            0.67,
+            -0.41,
+            0.5
+          ]
+        },
+        {
+          "value": 6,
+          "position": [
+            -0.27,
+            -0.41,
+            0.79
+          ]
+        },
+        {
+          "value": 7,
+          "position": [
+            0.25,
+            0.44,
+            -0.8
+          ]
+        },
+        {
+          "value": 8,
+          "position": [
+            -0.68,
+            0.44,
+            -0.48
+          ]
+        },
+        {
+          "value": 9,
+          "position": [
+            0.84,
+            0.44,
+            -0.01
+          ]
+        }
+      ],
+      "collider": [
+        [
+          -0.05855,
+          -0.094702,
+          0.042539
+        ],
+        [
+          -0.05855,
+          -0.094702,
+          -0.042539
+        ],
+        [
+          0.036161,
+          -0.022349,
+          0.11135
+        ],
+        [
+          0.022339,
+          -0.094722,
+          0.068811
+        ],
+        [
+          -0.094705,
+          -0.022349,
+          0.068829
+        ],
+        [
+          0.022375,
+          -0.094722,
+          -0.068799
+        ],
+        [
+          -0.094726,
+          -0.022349,
+          -0.0688
+        ],
+        [
+          0.117076,
+          -0.022349,
+          0.000019
+        ],
+        [
+          0.072347,
+          -0.094722,
+          0.000019
+        ],
+        [
+          0.036161,
+          -0.022349,
+          -0.11135
+        ],
+        [
+          -0.036195,
+          0.022349,
+          0.111339
+        ],
+        [
+          -0.03616,
+          0.022349,
+          -0.11135
+        ],
+        [
+          -0.117075,
+          0.022349,
+          0.000019
+        ],
+        [
+          -0.072347,
+          0.094722,
+          0.000019
+        ],
+        [
+          -0.022374,
+          0.094722,
+          -0.068799
+        ],
+        [
+          0.05854,
+          0.094722,
+          -0.042509
+        ],
+        [
+          0.094705,
+          0.022349,
+          0.068829
+        ],
+        [
+          0.094705,
+          0.022349,
+          -0.068829
+        ],
+        [
+          -0.022365,
+          0.094702,
+          0.06883
+        ],
+        [
+          0.05855,
+          0.094702,
+          0.042539
+        ]
+      ]
+    },
+    "d20": {
+      "mesh": "dice/meshes/d20.glb",
+      "scale": 0.1,
+      "meshRotation": [
+        0,
+        0,
+        -1.38
+      ],
+      "locators": [
+        {
+          "value": 1,
+          "position": [
+            1.08,
+            -0.21,
+            0
+          ]
+        },
+        {
+          "value": 10,
+          "position": [
+            -0.21,
+            0.88,
+            0.62
+          ]
+        },
+        {
+          "value": 11,
+          "position": [
+            0.21,
+            -0.9,
+            -0.6
+          ]
+        },
+        {
+          "value": 12,
+          "position": [
+            -0.35,
+            0.19,
+            1.02
+          ]
+        },
+        {
+          "value": 13,
+          "position": [
+            0.67,
+            -0.88,
+            0
+          ]
+        },
+        {
+          "value": 14,
+          "position": [
+            -0.87,
+            -0.21,
+            -0.64
+          ]
+        },
+        {
+          "value": 15,
+          "position": [
+            0.36,
+            -0.19,
+            1.02
+          ]
+        },
+        {
+          "value": 16,
+          "position": [
+            -0.2,
+            0.9,
+            -0.6
+          ]
+        },
+        {
+          "value": 17,
+          "position": [
+            0.53,
+            0.89,
+            0.38
+          ]
+        },
+        {
+          "value": 18,
+          "position": [
+            -0.52,
+            -0.89,
+            0.38
+          ]
+        },
+        {
+          "value": 19,
+          "position": [
+            0.88,
+            0.21,
+            -0.64
+          ]
+        },
+        {
+          "value": 2,
+          "position": [
+            -0.87,
+            -0.2,
+            0.64
+          ]
+        },
+        {
+          "value": 20,
+          "position": [
+            -1.07,
+            0.21,
+            0
+          ]
+        },
+        {
+          "value": 3,
+          "position": [
+            0.57,
+            0.86,
+            -0.39
+          ]
+        },
+        {
+          "value": 4,
+          "position": [
+            -0.56,
+            -0.86,
+            -0.39
+          ]
+        },
+        {
+          "value": 5,
+          "position": [
+            0.22,
+            -0.88,
+            0.62
+          ]
+        },
+        {
+          "value": 6,
+          "position": [
+            -0.34,
+            0.23,
+            -1.02
+          ]
+        },
+        {
+          "value": 7,
+          "position": [
+            0.88,
+            0.2,
+            0.64
+          ]
+        },
+        {
+          "value": 8,
+          "position": [
+            -0.66,
+            0.88,
+            0
+          ]
+        },
+        {
+          "value": 9,
+          "position": [
+            0.35,
+            -0.24,
+            -1.02
+          ]
+        }
+      ],
+      "collider": [
+        [
+          -0.135524,
+          -0.026286,
+          0
+        ],
+        [
+          -0.041588,
+          -0.109821,
+          0.072576
+        ],
+        [
+          -0.067874,
+          0.025701,
+          0.117431
+        ],
+        [
+          -0.08412,
+          0.109461,
+          0
+        ],
+        [
+          -0.067874,
+          0.025701,
+          -0.117431
+        ],
+        [
+          -0.041588,
+          -0.109821,
+          -0.072576
+        ],
+        [
+          0.067874,
+          -0.025701,
+          0.117431
+        ],
+        [
+          0.041588,
+          0.109821,
+          0.072576
+        ],
+        [
+          0.041588,
+          0.109821,
+          -0.072576
+        ],
+        [
+          0.067874,
+          -0.025701,
+          -0.117431
+        ],
+        [
+          0.08412,
+          -0.109461,
+          0
+        ],
+        [
+          0.135524,
+          0.026286,
+          0
+        ]
+      ]
+    },
+    "d100": {
+      "mesh": "dice/meshes/d100.glb",
+      "scale": 0.1,
+      "meshRotation": [
+        0,
+        0,
+        0
+      ],
+      "locators": [
+        {
+          "value": 0,
+          "position": [
+            0.4,
+            0.42,
+            -0.56
+          ]
+        },
+        {
+          "value": 10,
+          "position": [
+            -0.7,
+            -0.37,
+            -0.22
+          ]
+        },
+        {
+          "value": 20,
+          "position": [
+            0.01,
+            0.42,
+            0.69
+          ]
+        },
+        {
+          "value": 30,
+          "position": [
+            0.69,
+            -0.37,
+            -0.23
+          ]
+        },
+        {
+          "value": 40,
+          "position": [
+            -0.41,
+            0.42,
+            -0.55
+          ]
+        },
+        {
+          "value": 50,
+          "position": [
+            0.44,
+            -0.37,
+            0.59
+          ]
+        },
+        {
+          "value": 60,
+          "position": [
+            -0.65,
+            0.42,
+            0.22
+          ]
+        },
+        {
+          "value": 70,
+          "position": [
+            -0.01,
+            -0.37,
+            -0.73
+          ]
+        },
+        {
+          "value": 80,
+          "position": [
+            0.66,
+            0.42,
+            0.21
+          ]
+        },
+        {
+          "value": 90,
+          "position": [
+            -0.42,
+            -0.37,
+            0.6
+          ]
+        }
+      ],
+      "collider": [
+        [
+          0,
+          -0.117275,
+          0
+        ],
+        [
+          0,
+          0.117275,
+          0
+        ],
+        [
+          0.11223,
+          -0.012381,
+          0.036466
+        ],
+        [
+          0.069362,
+          0.012381,
+          0.095469
+        ],
+        [
+          0,
+          -0.012381,
+          0.118006
+        ],
+        [
+          0.069362,
+          -0.012381,
+          -0.095469
+        ],
+        [
+          0.11223,
+          0.012381,
+          -0.036466
+        ],
+        [
+          0,
+          0.012381,
+          -0.118006
+        ],
+        [
+          -0.069362,
+          -0.012381,
+          -0.095469
+        ],
+        [
+          -0.11223,
+          -0.012381,
+          0.036466
+        ],
+        [
+          -0.11223,
+          0.012381,
+          -0.036466
+        ],
+        [
+          -0.069362,
+          0.012381,
+          0.095469
+        ]
+      ]
+    }
+  },
+  "tray": {
+    "mesh": "dice/meshes/tray.glb",
+    "scale": 0.1,
+    "offsetY": -0.33,
+    "material": "tray"
+  },
+  "styles": {
+    "galaxy": {
+      "label": "Galassia",
+      "material": "physical",
+      "maps": {
+        "albedo": "dice/materials/galaxy/albedo.jpg",
+        "orm": "dice/materials/galaxy/orm.jpg",
+        "normal": "dice/materials/galaxy/normal.jpg"
+      },
+      "density": 1,
+      "params": {
+        "clearcoat": 1,
+        "clearcoatRoughness": 0.3
+      }
+    },
+    "gemstone": {
+      "label": "Gemma",
+      "material": "physical",
+      "maps": {
+        "albedo": "dice/materials/gemstone/albedo.jpg",
+        "orm": "dice/materials/gemstone/orm.jpg",
+        "normal": "dice/materials/gemstone/normal.jpg"
+      },
+      "density": 1,
+      "params": {}
+    },
+    "glass": {
+      "label": "Vetro",
+      "material": "physical",
+      "maps": {
+        "albedo": "dice/materials/glass/albedo.jpg",
+        "mask": "dice/materials/glass/mask.png",
+        "normal": "dice/materials/glass/normal.jpg"
+      },
+      "density": 1.5,
+      "params": {
+        "sheen": 1,
+        "sheenColor": "#4abff4",
+        "roughness": 0.3,
+        "metalness": 0,
+        "transmission": 1,
+        "thickness": 2,
+        "envMapIntensity": 1,
+        "attenuationColor": "#2bff73",
+        "attenuationDistance": 0.1
+      }
+    },
+    "iron": {
+      "label": "Ferro",
+      "material": "standard",
+      "maps": {
+        "albedo": "dice/materials/iron/albedo.jpg",
+        "orm": "dice/materials/iron/orm.jpg",
+        "normal": "dice/materials/iron/normal.jpg"
+      },
+      "density": 2,
+      "params": {
+        "metalness": 1
+      }
+    },
+    "nebula": {
+      "label": "Nebulosa",
+      "material": "physical",
+      "maps": {
+        "albedo": "dice/materials/nebula/albedo.jpg",
+        "orm": "dice/materials/nebula/orm.jpg",
+        "normal": "dice/materials/nebula/normal.jpg"
+      },
+      "density": 1,
+      "params": {}
+    },
+    "sunrise": {
+      "label": "Alba",
+      "material": "physical",
+      "maps": {
+        "albedo": "dice/materials/sunrise/albedo.jpg",
+        "orm": "dice/materials/sunrise/orm.jpg",
+        "normal": "dice/materials/sunrise/normal.jpg"
+      },
+      "density": 1,
+      "params": {}
+    },
+    "sunset": {
+      "label": "Tramonto",
+      "material": "physical",
+      "maps": {
+        "albedo": "dice/materials/sunset/albedo.jpg",
+        "orm": "dice/materials/sunset/orm.jpg",
+        "normal": "dice/materials/sunset/normal.jpg"
+      },
+      "density": 1,
+      "params": {}
+    },
+    "walnut": {
+      "label": "Noce",
+      "material": "standard",
+      "maps": {
+        "albedo": "dice/materials/walnut/albedo.jpg",
+        "orm": "dice/materials/walnut/orm.jpg",
+        "normal": "dice/materials/walnut/normal.jpg"
+      },
+      "density": 1.5,
+      "params": {}
+    },
+    "tray": {
+      "material": "standard",
+      "maps": {
+        "albedo": "dice/materials/tray/albedo.jpg",
+        "orm": "dice/materials/tray/orm.jpg",
+        "normal": "dice/materials/tray/normal.jpg"
+      },
+      "params": {}
+    }
+  },
+  "environment": "dice/environment.hdr"
+}

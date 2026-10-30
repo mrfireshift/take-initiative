@@ -168,26 +168,38 @@ export function physicalDiceOf(result) {
 
 const round4 = (value) => Math.round(value * 10_000) / 10_000;
 
-// Where and how each physical die is thrown into the tray (unit-free numbers the 3D scene scales): a start point,
-// a push toward the middle, a spin, an orientation. Drawn by the roller and sent with the roll, so every client
-// throws the dice the same way.
+// Where and how each physical die is thrown into the tray, in the tray's units (0.92 × 1.92, the dice about 0.1 wide):
+// a start point above the middle, a push toward the centre, a spin and an orientation, with the ranges of Owlbear
+// Rodeo Dice. Drawn by the roller and sent with the roll, so every client throws the dice the same way. Starts closer
+// than 0.25 to an earlier die are drawn again, a few times.
 export function diceThrowParameters(count, { nextUint32 = cryptoRandomUint32 } = {}) {
   const unit = () => nextUint32() / 0x100000000;
-  const between = (min, max) => round4(min + (max - min) * unit());
-  return Array.from({ length: Math.max(0, Math.min(2 * DICE_MAX_COUNT, Math.floor(Number(count) || 0))) }, () => {
-    const angle = unit() * Math.PI * 2;
-    const half = unit() * Math.PI;
-    const [qx, qy, qz] = [unit() - 0.5, unit() - 0.5, unit() - 0.5];
-    const norm = Math.hypot(qx, qy, qz) || 1;
+  const between = (min, max) => min + (max - min) * unit();
+  const total = Math.max(0, Math.min(2 * DICE_MAX_COUNT, Math.floor(Number(count) || 0)));
+  const starts = [];
+  return Array.from({ length: total }, () => {
+    let position;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      position = { x: between(-0.3, 0.3), y: between(1, 1.2), z: between(-0.8, 0.8) };
+      if (starts.every((other) => Math.hypot(other.x - position.x, other.z - position.z) >= 0.25)) break;
+    }
+    starts.push(position);
+    const distance = Math.hypot(position.x, position.z);
+    const speed = between(1, 2);
+    // A uniformly random orientation (Shoemake).
+    const [u1, u2, u3] = [unit(), unit(), unit()];
+    const [a, b] = [Math.sqrt(1 - u1), Math.sqrt(u1)];
     return {
-      position: { x: between(-1, 1), y: between(1.5, 2.5), z: between(-1, 1) },
-      velocity: { x: round4(-Math.cos(angle) * 4), y: between(-1, 0), z: round4(-Math.sin(angle) * 4) },
-      angularVelocity: { x: between(-12, 12), y: between(-12, 12), z: between(-12, 12) },
+      position: { x: round4(position.x), y: round4(position.y), z: round4(position.z) },
+      velocity: distance > 0
+        ? { x: round4((-position.x / distance) * speed), y: 0, z: round4((-position.z / distance) * speed) }
+        : { x: 0, y: 0, z: 0 },
+      angularVelocity: { x: round4(between(2, 6)), y: round4(between(2, 6)), z: round4(between(2, 6)) },
       rotation: {
-        x: round4((qx / norm) * Math.sin(half)),
-        y: round4((qy / norm) * Math.sin(half)),
-        z: round4((qz / norm) * Math.sin(half)),
-        w: round4(Math.cos(half)),
+        x: round4(a * Math.sin(2 * Math.PI * u2)),
+        y: round4(a * Math.cos(2 * Math.PI * u2)),
+        z: round4(b * Math.sin(2 * Math.PI * u3)),
+        w: round4(b * Math.cos(2 * Math.PI * u3)),
       },
     };
   });
