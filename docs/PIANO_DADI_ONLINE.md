@@ -112,10 +112,26 @@ Un lotto per commit, con test, `npm test`, `npm run build`, `npm run perf:bundle
 | --- | --- | --- |
 | D1 | Dove si apre | Pulsante 🎲 nella testata del tracker |
 | D2 | Aspetto dei dadi | 3D, lo stesso effetto della Dice |
-| D3 | Come vedono gli altri un tiro | Da confermare: riquadro 3D che rigioca il tiro (consigliato) |
+| D3 | Come vedono gli altri un tiro | Riquadro 3D che rigioca il tiro |
 | D4 | Tiri segreti | Solo il GM, tiro nascosto; i giocatori no |
 | D5 | Combat Log | No, per ora |
 | D6 | Tiri rapidi dalla scheda | No, per ora |
 | D7 | Chi genera i valori | Il client di chi tira, broadcast a tutti |
 | D8 | Dice di Owlbear | Nessuna integrazione |
-| D9 | Librerie 3D | Da confermare: three.js + cannon-es (consigliato) |
+| D9 | Librerie 3D | three.js 0.186.1 + cannon-es 0.20.0 |
+| D10 | Riuso della Dice (30/10) | Sì: il plugin passa a GPLv3 e usa modelli arrotondati, materiali, vassoio e mappa di luce della Dice |
+| D11 | Stili (30/10) | Tutti gli 8; ogni giocatore sceglie il suo, si scarica solo quello |
+
+## Stato (30/10/2026)
+
+| Lotto | Commit | Note |
+| --- | --- | --- |
+| Licenza | `d8a157e1` | Plugin in GPLv3, three.js e cannon-es come dipendenze |
+| D-1 | `2e016492` | `src/diceCore.js` |
+| D-2 | `b63689db` | Asset della Dice in `public/dice/` (import con `scripts/import-owlbear-dice-assets.mjs`), `src/diceFaceCore.js`, `src/diceScene.js`, banco in `test-support/dice-bench/` |
+
+Pesi misurati: codice 3D 153 KB (brotli); per tiro al primo uso modelli usati
+(~15 KB l'uno), vassoio 540 KB, uno stile 330–940 KB, mappa di luce 1,6 MB.
+Il bundle di produzione dovrà includere `dist/dice/` (con `git add -f`).
+Idea da adottare in D-4 (dalla Dice): l'ultimo tiro di ogni giocatore nei
+metadata di quel giocatore, letto da tutti con `OBR.party`.
