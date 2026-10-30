@@ -129,6 +129,14 @@ npm run build
 
 Dettagli in [Sviluppo e release](docs/SVILUPPO.md).
 
+## Licenza
+
+Take Initiative! è distribuito secondo la GNU General Public License v3
+([LICENSE](LICENSE)). Dal 30/10/2026 il plugin riusa gli asset dei dadi 3D
+dell'estensione [Owlbear Rodeo Dice](https://github.com/owlbear-rodeo/dice),
+pubblicata con la stessa licenza: chi riceve il plugin può averne i sorgenti
+da questo repository.
+
 ## Licenza dei contenuti
 
 Il catalogo base deriva dal D&D 5e SRD 5.1 ed è distribuito secondo CC BY 4.0.

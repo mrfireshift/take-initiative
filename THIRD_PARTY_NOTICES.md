@@ -40,3 +40,17 @@ glossary content are not included.
 
 - Glossary: https://gist.github.com/rubenspischedda/23c0db6a3b22160c392ae8b0269a0b55
 - Original glossary page: https://www.dragonslair.it/files/file/349-glossario-termini-dd-5e-italiano-inglese/
+
+## three.js
+
+3D rendering of the Online dice tray.
+
+- Package: `three` 0.186.1, https://github.com/mrdoob/three.js
+- License: MIT. Copyright © 2010-2026 three.js authors.
+
+## cannon-es
+
+Physics of the Online dice tray.
+
+- Package: `cannon-es` 0.20.0, https://github.com/pmndrs/cannon-es
+- License: MIT. Copyright (c) 2015 cannon.js Authors, Copyright (c) 2020 pmndrs.
