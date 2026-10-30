@@ -1,4 +1,5 @@
 import { ID } from "./constants.js";
+import { currentAfterOrderChange } from "./initiativeOrderCore.js";
 import { blockSummary, savePerfRun } from "./perfSessionRunner.js";
 
 // Dev tool: the automatic room check of the fluidity lots (docs/PROVA_STANZA_FLUIDITA.md). With the probe on:
@@ -8,6 +9,7 @@ import { blockSummary, savePerfRun } from "./perfSessionRunner.js";
 // broadcast, no network) while the probe is on. The turn moves by pressing the tracker's own buttons, so it goes
 // through every queue and guard of a click; the tool never writes the initiative state. The only scene write is one
 // token's HP (merged into its metadata) for the bar check, put back at the end, also when a step fails.
+// The bugfix plan's room check (`await __tbpPerf.runBugfixCheck()`, lot L23) lives here too: see runBugfixCheck.
 const CHECK_CHANNEL = `${ID}/fluidity-check`;
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -84,6 +86,68 @@ export function evaluateWatchLog(samples, { settleMs = 2500 } = {}) {
     } else {
       mismatchSince = null;
     }
+  }
+  return anomalies;
+}
+
+// A Paragon's extra cards ("<id>::p1") are its creature; other ids with "::" and those starting with "__" are virtual
+// turns (Lair, Epic) with no token.
+const baseActorId = (id) => String(id || "").replace(/::p\d+$/u, "");
+const isVirtualActor = (id) => {
+  const value = String(id || "");
+  return !value || value.startsWith("__") || (value.includes("::") && !/::p\d+$/u.test(value));
+};
+const AURA_SOURCE = [[`${ID}/spellAura`, "casterId"], [`${ID}/classFeatureAura`, "sourceId"], [`${ID}/customAura`, "sourceId"]];
+
+// L6 (decision D3): where the turn must go when the active creature leaves the order, with its Paragon cards: the
+// next one still there, or the first with the round after.
+export function expectedTurnAfterRemoval(state, removedId) {
+  const order = (Array.isArray(state?.order) ? state.order : []).map(String);
+  const removed = baseActorId(removedId);
+  const next = order.filter((id) => baseActorId(id) !== removed);
+  const { current, round } = currentAfterOrderChange(order, state?.current, next, state?.round);
+  return { id: next[current] || "", round };
+}
+
+// L16: what a screen shows of the tokens hidden from the players: a bar, an HP number or an aura not marked hidden,
+// or a tracker card. On the players' side a token the scene does not list counts as hidden.
+export function hiddenTokenLeaks(items, cardIds = []) {
+  const list = Array.isArray(items) ? items : [];
+  const byId = new Map(list.map((item) => [item?.id, item]));
+  const hidden = (id) => !!id && (!byId.has(id) || byId.get(id)?.visible === false);
+  const leaks = [];
+  for (const item of list) {
+    if (!item || item.visible === false) continue;
+    const metadata = item.metadata || {};
+    const barOf = metadata[HPBAR_META]?.targetId || metadata[HPTEXT_META]?.targetId;
+    if (barOf && hidden(barOf)) leaks.push({ tokenId: barOf, kind: metadata[HPTEXT_META] ? "numero-pf" : "barra-pf", itemId: item.id });
+    const [auraKey, sourceField] = AURA_SOURCE.find(([key]) => metadata[key]) || [];
+    const auraOf = auraKey ? metadata[auraKey]?.[sourceField] || item.attachedTo : "";
+    if (auraOf && hidden(auraOf)) leaks.push({ tokenId: auraOf, kind: "aura", itemId: item.id });
+  }
+  for (const id of Array.isArray(cardIds) ? cardIds : []) {
+    if (!isVirtualActor(id) && hidden(baseActorId(id))) leaks.push({ tokenId: baseActorId(id), kind: "card", itemId: id });
+  }
+  return leaks;
+}
+
+// The table screen's samples: a leak that stays longer than the settle time (the time to hide what was just hidden)
+// is an anomaly, once per token and kind.
+export function evaluateHiddenLeakLog(samples, { settleMs = 2500 } = {}) {
+  const anomalies = [];
+  const since = new Map();
+  for (const sample of Array.isArray(samples) ? samples : []) {
+    const present = new Set();
+    for (const leak of sample?.hiddenLeaks || []) {
+      const key = `${leak.tokenId}:${leak.kind}`;
+      present.add(key);
+      if (!since.has(key)) since.set(key, sample.at);
+      if (sample.at - since.get(key) >= settleMs) {
+        anomalies.push({ at: sample.at, kind: "token-nascosto-visibile", what: leak.kind, tokenId: leak.tokenId, itemId: leak.itemId });
+        since.set(key, Infinity);
+      }
+    }
+    for (const key of [...since.keys()]) if (!present.has(key)) since.delete(key);
   }
   return anomalies;
 }
@@ -175,6 +239,21 @@ export function installFluidityCheckRemote({
         if (data.command === "turn") {
           const pressed = pressTrackerButton(documentRef, data.direction < 0 ? "Turno precedente" : "Turno successivo");
           return reply(data.id, { ...base, ok: pressed, error: pressed ? "" : "pulsante del turno non trovato o disattivato" });
+        }
+        // L27: the HP of a card's inline editor, opened as a press on its left half and saved as Enter saves it.
+        if (data.command === "card-hp") {
+          const pill = Array.from(documentRef.querySelectorAll("[data-badge='hp']")).find((node) => node.dataset?.itemId === data.itemId);
+          if (!pill) return reply(data.id, { ...base, ok: false, error: "PF della card non modificabili qui (servono la vista del GM e i PF esatti)" });
+          const bounds = pill.getBoundingClientRect?.() || { left: 0 };
+          const PointerEventType = windowRef.PointerEvent || windowRef.MouseEvent;
+          pill.dispatchEvent(new PointerEventType("pointerdown", { bubbles: true, cancelable: true, clientX: Number(bounds.left) + 1 }));
+          documentRef.dispatchEvent?.(new PointerEventType("pointerup", { bubbles: true }));
+          const deadline = now() + 3000;
+          while ((!pill.__iHP || typeof pill.__commitFn !== "function") && now() < deadline) await sleep(50);
+          if (!pill.__iHP || typeof pill.__commitFn !== "function") return reply(data.id, { ...base, ok: false, error: "l'editor dei PF non si è aperto" });
+          pill.__iHP.value = String(data.value);
+          const saved = await pill.__commitFn();
+          return reply(data.id, { ...base, ok: saved !== false, error: saved === false ? "salvataggio dei PF rifiutato" : "" });
         }
         if (data.command === "chip-check") {
           const cards = Array.from(documentRef.querySelectorAll("[data-chip-dock-card='1']"));
@@ -561,6 +640,9 @@ export async function watchFluidity({
     ]);
     if (notice?.received) lastReceived = notice.received;
     const active = tracker?.active || null;
+    // L16: the bars, auras and cards of the tokens hidden from the players (runBugfixCheck hides one for a while).
+    const sceneItems = await obr?.scene?.items?.getItems?.().catch(() => null);
+    const hiddenLeaks = sceneItems?.length && tracker ? hiddenTokenLeaks(sceneItems, (tracker.cards || []).map((card) => card.itemId)) : [];
     samples.push({
       at: now(),
       activeId: active?.itemId || "",
@@ -573,11 +655,12 @@ export async function watchFluidity({
       ...(notice?.framesRun !== null && notice?.framesRun !== undefined ? { noticeFramesRun: notice.framesRun } : {}),
       ...(notice?.visibility ? { noticeVisibility: notice.visibility } : {}),
       enemyHp: (tracker?.cards || []).filter((card) => card.hpMode && card.hpMode !== "exact").map((card) => `${card.itemId}:${card.hpText}${card.knockedOut ? ":KO" : ""}`).join(" "),
+      ...(hiddenLeaks.length ? { hiddenLeaks } : {}),
     });
     await wait(stepMs);
   }
   const trackerDiagnostics = trackerDiagnosticsOf(await client.tryRequest("index", "diagnostics", { action: "stop" }, { timeout: 2000 }));
-  const anomalies = evaluateWatchLog(samples);
+  const anomalies = [...evaluateWatchLog(samples), ...evaluateHiddenLeakLog(samples)];
   const order = evaluateNoticeOrder(lastReceived);
   if (order.outOfOrder) anomalies.push({ kind: "avvisi-fuori-ordine", count: order.outOfOrder });
   const noticeSeen = {
@@ -604,4 +687,271 @@ export async function watchFluidity({
   if (anomalies.length) console.table?.(anomalies);
   client.close?.();
   return { anomalies, samples: samples.length, noticeOrder: order };
+}
+
+// ---- the bugfix plan's room check (lot L23, docs/PIANO_BUGFIX_POLISHING.md section 7) ----
+
+const TEST_CONDITION = "Prova verifica";
+const conditionsOf = (meta) => (Array.isArray(meta?.conditions) ? meta.conditions : []);
+
+/**
+ * The GM's run, from the background's console: `await __tbpPerf.runBugfixCheck()`, with the tracker open and, on the
+ * table screen, `watchFluidity()` started first. It does what a GM would, through the same paths, and puts it back:
+ * - L2: the tracker closed and opened again (a new page), then ▶: a test condition ending at the active creature's
+ *   turn end goes away;
+ * - L27: the HP from a Paragon boss's second card, through its inline editor (Cronologia: «Modifica HP»);
+ * - L6: the active creature out of the initiative, as «Rimuovi dall'iniziativa» writes it: the turn goes to the next;
+ * - L3: the two History entries undone together, as «Annulla N azioni» does;
+ * - L16: a token hidden for hideMs: its bars and auras hidden on the GM's scene (the table screen checks its own).
+ * It never writes the initiative state: the turn moves with the tracker's buttons and goes back with ◀ at the end.
+ * Each step adds a row { verifica, esito, dettaglio }; the rows are printed, saved as perf-runs/verifica-bugfix.json
+ * and returned.
+ */
+export async function runBugfixCheck({
+  probe, obr, tickTimeoutMs = 15000, hideMs = 8000,
+  client = createFluidityCheckClient(), save = savePerfRun, wait = sleep, now = () => Date.now(), log = console.log,
+  importTrackerPopover = () => import("./trackerPopover.js"),
+  importEffectsMutations = () => import("./effectsMutations.js"),
+  importHistory = () => import("./history.js"),
+} = {}) {
+  if (!probe?.enabled) throw new Error("Accendi prima il probe: __tbpPerf.enable() e ricarica Owlbear.");
+  if (!obr) throw new Error("SDK del background non disponibile: esegui dal contesto background.html.");
+  if (await obr.player.getRole() !== "GM") throw new Error("La verifica guidata si esegue sulla finestra del GM.");
+  if (!await client.tryRequest("index", "ping")) throw new Error("Il tracker non risponde: aprilo in questa finestra e riprova.");
+  const rows = [];
+  const row = (verifica, esito, dettaglio = "") => { rows.push({ verifica, esito, dettaglio }); log(`[verifica] ${verifica}: ${esito}${dettaglio ? ` · ${dettaglio}` : ""}`); };
+  const readState = async () => {
+    const state = (await obr.scene.getMetadata())?.[STATE_KEY] || {};
+    const order = (Array.isArray(state.order) ? state.order : []).map(String);
+    const current = Math.max(0, Math.min(order.length - 1, Number(state.current) || 0));
+    return { order, current, round: Number(state.round) || 0, activeId: order[current] || "" };
+  };
+  const itemOf = async (id) => (await obr.scene.items.getItems([id]).catch(() => []))?.[0] || null;
+  const writeMeta = (id, change) => obr.scene.items.updateItems([id], (drafts) => {
+    for (const draft of drafts) {
+      const meta = { ...(draft.metadata[META_KEY] || {}) };
+      change(meta);
+      draft.metadata[META_KEY] = meta;
+    }
+  });
+  const writeVisible = (id, visible) => obr.scene.items.updateItems([id], (drafts) => { for (const draft of drafts) draft.visible = visible; });
+  let forwardTurns = 0;
+  // ▶ through the tracker, then the state that follows it.
+  const advance = async () => {
+    const before = await readState();
+    const answer = await client.request("index", "turn", { direction: 1 });
+    if (!answer.ok) throw new Error(answer.error || "turno non avanzato");
+    forwardTurns += 1;
+    const after = await waitFor(async () => {
+      const state = await readState();
+      return state.current !== before.current || state.round !== before.round ? state : null;
+    }, { timeoutMs: 6000, wait, now });
+    if (!after) throw new Error("dopo ▶ lo stato del turno non è cambiato");
+    return after;
+  };
+  const start = await readState();
+  if (!start.order.length) throw new Error("Nessuna creatura in iniziativa: prepara un combattimento e riprova.");
+  const restore = { condition: null, removedId: "", hp: null, hiddenId: "" };
+  let historyBefore = null;
+  let paragon = null;
+  let effects = null;
+  try {
+    // L2: a new tracker page still drives the turn's expiries.
+    {
+      const token = `l2-${now().toString(36)}`;
+      await client.request("index", "mark", { token });
+      log("[verifica] L2: il tracker si chiude e si riapre.");
+      const { openTrackerPopover } = await importTrackerPopover();
+      await openTrackerPopover({ refresh: true });
+      await wait(1200);
+      const reopened = await waitFor(async () => {
+        const answer = await client.tryRequest("index", "ping", {}, { timeout: 800 });
+        return answer && answer.mark !== token ? answer : null;
+      }, { timeoutMs: 15000, wait, now });
+      if (!reopened) throw new Error("il tracker non risponde dopo la riapertura");
+      let state = await readState();
+      for (let step = 0; isVirtualActor(state.activeId) && step < state.order.length; step += 1) state = await advance();
+      const actorId = baseActorId(state.activeId);
+      const actor = await itemOf(actorId);
+      if (!actor) throw new Error("nessuna creatura attiva con un token");
+      effects = await importEffectsMutations();
+      const instanceId = `verifica-l2-${now().toString(36)}`;
+      effects.requireAppliedEffectsMutation(await effects.runEffectsMutation([{
+        type: "condition:add", targetIds: [actorId], conditionName: TEST_CONDITION, instanceIds: { [actorId]: instanceId },
+        options: { expiry: { mode: "turn-end", actor: "target", actorId, remaining: 1 } },
+      }], { kind: "condition", label: `Verifica: ${TEST_CONDITION}`, targetIds: [actorId], history: false }));
+      restore.condition = { id: actorId, instanceId };
+      await waitFor(async () => conditionsOf((await itemOf(actorId))?.metadata?.[META_KEY]).some((entry) => entry?.id === instanceId), { timeoutMs: 5000, wait, now });
+      await advance();
+      const gone = await waitFor(async () => !conditionsOf((await itemOf(actorId))?.metadata?.[META_KEY]).some((entry) => entry?.id === instanceId),
+        { timeoutMs: tickTimeoutMs, stepMs: 250, wait, now });
+      row("L2 · scadenze dopo la riapertura del tracker", gone ? "ok" : "ATTENZIONE",
+        gone ? `pagina nuova; «${TEST_CONDITION}» su ${actor.name} scaduta alla fine del suo turno`
+          : `«${TEST_CONDITION}» ancora su ${actor.name} ${Math.round(tickTimeoutMs / 1000)} s dopo ▶`);
+    }
+
+    const { getHistoryEntries, undoHistoryThrough } = await importHistory();
+    historyBefore = new Set((await getHistoryEntries()).map((entry) => entry.id));
+
+    // L27: the second card of a Paragon boss writes the boss's HP.
+    {
+      const state = await readState();
+      const cardId = state.order.find((id) => /::p1$/u.test(id));
+      const bossId = cardId ? baseActorId(cardId) : "";
+      const boss = bossId ? await itemOf(bossId) : null;
+      const meta = boss?.metadata?.[META_KEY] || {};
+      const hp = Number(meta.hp) || 0;
+      const hpMax = Number(meta.hpMax) || 0;
+      if (!boss || hpMax <= 0) {
+        row("L27 · PF dalla seconda card di un boss Paragon", "saltata", "nessun boss Paragon con PF in iniziativa");
+      } else {
+        const value = hp > 1 ? hp - 1 : Math.min(hpMax, hp + 1);
+        restore.hp = { id: bossId, hp: meta.hp };
+        const answer = await client.request("index", "card-hp", { itemId: cardId, value }, { timeout: 8000 });
+        const written = answer.ok && await waitFor(async () => Number((await itemOf(bossId))?.metadata?.[META_KEY]?.hp) === value, { timeoutMs: 5000, wait, now });
+        if (written) paragon = { id: bossId, name: boss.name, hp, value };
+        else if (Number((await itemOf(bossId))?.metadata?.[META_KEY]?.hp) === hp) restore.hp = null;
+        row("L27 · PF dalla seconda card di un boss Paragon", written ? "ok" : "ATTENZIONE",
+          written ? `${boss.name}: ${hp} → ${value} dalla card ${cardId}` : answer.error || `i PF di ${boss.name} non sono diventati ${value}`);
+      }
+    }
+
+    // L6: the active creature leaves the initiative; the turn goes to the next one still there.
+    let removed = null;
+    {
+      let state = await readState();
+      for (let step = 0; (isVirtualActor(state.activeId) || baseActorId(state.activeId) === paragon?.id) && step < state.order.length; step += 1) {
+        state = await advance();
+      }
+      const removedId = baseActorId(state.activeId);
+      const item = await itemOf(removedId);
+      if (!item || isVirtualActor(state.activeId) || removedId === paragon?.id) throw new Error("nessuna creatura di turno da togliere");
+      const expected = expectedTurnAfterRemoval(state, removedId);
+      restore.removedId = removedId;
+      await writeMeta(removedId, (meta) => { delete meta.inInitiative; });
+      const after = await waitFor(async () => {
+        const next = await readState();
+        return next.order.some((id) => baseActorId(id) === removedId) ? null : next;
+      }, { timeoutMs: 6000, wait, now });
+      const tracker = after && await waitFor(async () => {
+        const snapshot = await client.tryRequest("index", "snapshot");
+        return snapshot?.active?.itemId === after.activeId ? snapshot : null;
+      }, { timeoutMs: 4000, wait, now });
+      const expectedName = (await itemOf(baseActorId(expected.id)))?.name || expected.id;
+      const actualName = after ? (await itemOf(baseActorId(after.activeId)))?.name || after.activeId : "";
+      const ok = !!after && after.activeId === expected.id && after.round === expected.round && !!tracker;
+      removed = { id: removedId, name: item.name };
+      row("L6 · tolta la creatura di turno", ok ? "ok" : "ATTENZIONE",
+        !after ? `${item.name} è ancora nell'ordine`
+          : `${item.name} tolta: di turno ${actualName} al round ${after.round} (atteso ${expectedName} al round ${expected.round})${tracker ? "" : "; il tracker non mostra attiva la card giusta"}`);
+    }
+
+    // L3: the two entries undone together from the History, as «Annulla N azioni» does.
+    {
+      const found = await waitFor(async () => {
+        const entries = await getHistoryEntries();
+        const fresh = entries.filter((entry) => !historyBefore.has(entry.id));
+        const changesOf = (entry) => (Array.isArray(entry?.changes) ? entry.changes : []);
+        const removal = fresh.find((entry) => entry.kind === "initiative-remove" && changesOf(entry).some((change) => change?.id === removed.id));
+        const hpEntry = paragon ? fresh.find((entry) => entry !== removal && changesOf(entry).some((change) => change?.id === paragon.id)) : null;
+        return removal && (!paragon || hpEntry) ? { entries, ours: [hpEntry, removal].filter(Boolean) } : null;
+      }, { timeoutMs: 8000, stepMs: 300, wait, now });
+      if (!found) {
+        row("L3 · Annulla di due voci dalla Cronologia", "ATTENZIONE", "le voci di questa verifica non sono arrivate nella Cronologia (il tracker del GM è aperto?)");
+      } else {
+        const oldest = found.ours.reduce((first, entry) => (found.entries.indexOf(entry) < found.entries.indexOf(first) ? entry : first));
+        const count = found.entries.length - found.entries.indexOf(oldest);
+        let undone = null;
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          undone = await undoHistoryThrough(oldest.id);
+          if (undone?.status !== "rejected") break;
+          await wait(800);
+        }
+        const back = await waitFor(async () => {
+          const removedBack = (await itemOf(removed.id))?.metadata?.[META_KEY]?.inInitiative === true;
+          const hpBack = !paragon || Number((await itemOf(paragon.id))?.metadata?.[META_KEY]?.hp) === paragon.hp;
+          return removedBack && hpBack;
+        }, { timeoutMs: 6000, wait, now });
+        if (back) { restore.removedId = ""; restore.hp = null; }
+        const labels = found.ours.map((entry) => `«${entry.label}»`).join(" e ");
+        row(`L3 · Annulla di ${found.ours.length === 2 ? "due voci" : "una voce"} dalla Cronologia`, back ? "ok" : "ATTENZIONE",
+          `${labels}${count > found.ours.length ? ` (più ${count - found.ours.length} voci arrivate dopo)` : ""}: ${back
+            ? `${removed.name} di nuovo in iniziativa${paragon ? `, ${paragon.name} di nuovo a ${paragon.hp} PF` : ""}`
+            : `annullamento ${undone?.status || "senza risposta"}${undone?.result?.reason ? ` (${undone.result.reason})` : ""}`}${paragon ? "" : "; senza un boss Paragon una voce sola"}`);
+      }
+    }
+
+    // L16: a hidden token keeps its bars and auras to the GM.
+    {
+      const items = await obr.scene.items.getItems();
+      const state = await readState();
+      const candidates = items.filter((item) => item?.metadata?.[META_KEY]?.inInitiative === true && item.visible !== false
+        && Number(item.metadata[META_KEY].hpMax) > 0 && item.id !== baseActorId(state.activeId));
+      const ownOf = (tokenId, list) => list.filter((item) => item?.metadata?.[HPBAR_META]?.targetId === tokenId || item?.metadata?.[HPTEXT_META]?.targetId === tokenId
+        || AURA_SOURCE.some(([key, field]) => item?.metadata?.[key] && (item.metadata[key][field] || item.attachedTo) === tokenId));
+      // A token with something on the map to hide, an enemy first.
+      const withWidgets = candidates.filter((item) => ownOf(item.id, items).length);
+      const token = withWidgets.find((item) => item.metadata[META_KEY].attitude === "enemy") || withWidgets[0];
+      if (!token) {
+        row("L16 · token nascosto: barre e aure solo al GM", "saltata", "nessun token visibile in iniziativa con barre o aure sulla mappa, oltre a quello di turno");
+      } else {
+        const own = (list) => ownOf(token.id, list);
+        restore.hiddenId = token.id;
+        log(`[verifica] L16: ${token.name} nascosto per ${Math.round(hideMs / 1000)} s. Sul tavolo non deve vedersi nulla di suo.`);
+        await writeVisible(token.id, false);
+        const hiddenOk = await waitFor(async () => {
+          const current = await obr.scene.items.getItems();
+          return hiddenTokenLeaks(current, []).every((leak) => leak.tokenId !== token.id) ? current : null;
+        }, { timeoutMs: 5000, wait, now });
+        const widgets = own(hiddenOk || await obr.scene.items.getItems());
+        const leaks = hiddenOk ? [] : hiddenTokenLeaks(await obr.scene.items.getItems(), []).filter((leak) => leak.tokenId === token.id);
+        await wait(hideMs);
+        await writeVisible(token.id, true);
+        restore.hiddenId = "";
+        const shownAgain = await waitFor(async () => {
+          const mine = own(await obr.scene.items.getItems());
+          return mine.length && mine.every((item) => item.visible !== false) ? mine : null;
+        }, { timeoutMs: 5000, wait, now });
+        row("L16 · token nascosto: barre e aure solo al GM", hiddenOk && shownAgain ? "ok" : "ATTENZIONE",
+          `${token.name}: ${widgets.length} tra barre, testo e aure${hiddenOk ? " nascosti ai giocatori" : `, visibili ai giocatori: ${leaks.map((leak) => leak.kind).join(", ")}`}`
+          + `${shownAgain ? ", di nuovo visibili dopo" : "; dopo averlo mostrato non sono tornati visibili"}. Il tracker e la mappa del tavolo li controlla watchFluidity.`);
+      }
+    }
+  } catch (error) {
+    row("Verifica interrotta", "ATTENZIONE", String(error?.message || error));
+  } finally {
+    const put = async (label, action) => { try { await action(); } catch (error) { log(`[verifica] ${label} non ripristinato: ${error?.message || error}`); } };
+    if (restore.hiddenId) await put("token nascosto", () => writeVisible(restore.hiddenId, true));
+    // The test condition, if it is still there or came back (an Undo that reached its expiry entry).
+    if (restore.condition) {
+      const { id, instanceId } = restore.condition;
+      await put("condizione di prova", async () => {
+        if (!conditionsOf((await itemOf(id))?.metadata?.[META_KEY]).some((entry) => entry?.id === instanceId)) return;
+        effects ||= await importEffectsMutations();
+        effects.requireAppliedEffectsMutation(await effects.runEffectsMutation([{
+          type: "condition:remove-instances", targetIds: [id], removals: [{ itemId: id, instanceId }],
+        }], { kind: "condition", label: `Verifica: ${TEST_CONDITION}`, targetIds: [id], history: false }));
+      });
+    }
+    if (restore.removedId) await put("iniziativa", () => writeMeta(restore.removedId, (meta) => { meta.inInitiative = true; }));
+    if (restore.hp) await put("PF", () => writeMeta(restore.hp.id, (meta) => { meta.hp = restore.hp.hp; }));
+    // The turn goes back to where it started, through the tracker's "previous" button.
+    const startId = start.activeId;
+    for (let step = 0; step < forwardTurns + 2; step += 1) {
+      await wait(700);
+      const state = await readState().catch(() => null);
+      if (!state || (state.activeId === startId && state.round === start.round)) break;
+      const answer = await client.tryRequest("index", "turn", { direction: -1 });
+      if (!answer?.ok) { log("[verifica] turno non riportato indietro: fallo a mano."); break; }
+    }
+    const final = await readState().catch(() => null);
+    if (final && (final.activeId !== startId || final.round !== start.round)) {
+      log(`[verifica] il turno non è tornato a quello di partenza (round ${start.round}): riportalo a mano.`);
+    }
+  }
+  console.table?.(rows);
+  await save({ name: "verifica-bugfix", content: JSON.stringify({ label: "verifica-bugfix", at: new Date(now()).toISOString(), rows }, null, 2) });
+  log("[verifica] fine. A mano: F5 sulla finestra del tavolo, il tracker deve tornare (L9); statblock su un goblin con omonimi feriti, poi cambio scena (L1). Sul tavolo leggi le anomalie di watchFluidity.");
+  client.close?.();
+  return rows;
 }

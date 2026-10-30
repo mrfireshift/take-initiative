@@ -57,6 +57,37 @@ Il confronto con la misura del 24/10:
 node scripts/perf-compare.mjs perf-runs/gm-turni-flag-locale.json perf-runs/gm-turni-fluidita.json
 ```
 
+## Verifica del passaggio di bugfix (L23)
+
+Una seconda verifica, per i lotti del [piano di bugfix](PIANO_BUGFIX_POLISHING.md) (sezione 7). Si prepara come sopra. Sul tavolo parte prima `watchFluidity()`, che ora controlla anche i token nascosti. Poi, nella console del GM, contesto **background.html**, con il tracker appena aperto:
+
+```js
+await __tbpPerf.runBugfixCheck()
+```
+
+Dura circa un minuto. Serve un combattimento in corso con almeno due creature. Per L27 serve un boss Paragon in iniziativa, per L16 un token con barra o aura sulla mappa. I passi:
+
+| Verifica | Cosa fa | Lotto |
+|---|---|---|
+| Scadenze dopo la riapertura | Chiude e riapre il tracker (pagina nuova). Mette alla creatura di turno la condizione «Prova verifica», che scade alla fine del suo turno, poi preme ▶: la condizione deve sparire | L2 |
+| PF dalla seconda card Paragon | Apre l'editor dei PF della card `::p1` del boss, scrive un PF in meno e conferma. Cambiano i PF del token del boss | L27 |
+| Tolta la creatura di turno | Le toglie l'iniziativa, come «Rimuovi dall'iniziativa». Il turno va alla successiva ancora presente, o alla prima con il round dopo | L6 |
+| Annulla di due voci | Annulla insieme «Modifica HP» e «Rimosso dall'iniziativa» dalla Cronologia, come «Annulla N azioni». Creatura di nuovo in iniziativa, PF del boss come prima. Senza Paragon annulla una voce sola | L3 |
+| Token nascosto | Nasconde per 8 s un token con barra o aura. Sul GM le sue barre, il numero e le aure devono essere nascosti ai giocatori. Sul tavolo `watchFluidity` segnala `token-nascosto-visibile` se la sua card, una barra o un'aura restano visibili | L16 |
+
+Alla fine rimette tutto com'era: la condizione di prova se è rimasta, l'iniziativa e i PF se l'Annulla non ci è riuscito, la visibilità del token. Con «Turno precedente» riporta il turno sulla creatura e sul round di partenza. Salva la tabella in `perf-runs/verifica-bugfix.json`. Opzioni: `runBugfixCheck({ hideMs: 8000, tickTimeoutMs: 15000 })`.
+
+Restano a mano:
+
+- F5 sulla finestra del tavolo: il tracker deve tornare (L9);
+- statblock su un goblin con omonimi feriti, poi cambio scena: i PF degli altri goblin non cambiano (L1).
+
+Da sapere:
+
+- Va lanciata con il tracker appena aperto o ricaricato. Dopo un ◀ il tracker conta le scadenze solo oltre il turno più avanzato già raggiunto. La riapertura del primo passo serve anche a questo.
+- La scadenza della condizione di prova lascia nella Cronologia la voce «Scadenza effetti di turno».
+- Lo stato dell'iniziativa non viene mai scritto dallo script. Scrive soltanto, unendoli al `meta` del token, la condizione di prova, `inInitiative` e i PF (passando dall'editor della card); in più la visibilità di un token.
+
 ## Da guardare a occhio
 
 Lo script non vede come si muovono le cose sullo schermo:

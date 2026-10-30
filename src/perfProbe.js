@@ -508,7 +508,13 @@ globalThis.__tbpPerf = {
     const { runFluidityCheck } = await import("./fluidityRoomCheck.js");
     return runFluidityCheck({ probe: globalThis.__tbpPerf, obr: obrRef, ...options });
   },
-  // The table screen's side of the same check, started there before the GM's run.
+  // Dev tool (docs/PROVA_STANZA_FLUIDITA.md, lot L23): the bugfix plan's room check, from the GM's background console.
+  async runBugfixCheck(options = {}) {
+    if (realm !== "background") return "Esegui dal contesto background.html della Console.";
+    const { runBugfixCheck } = await import("./fluidityRoomCheck.js");
+    return runBugfixCheck({ probe: globalThis.__tbpPerf, obr: obrRef, ...options });
+  },
+  // The table screen's side of both checks, started there before the GM's run.
   async watchFluidity(options = {}) {
     if (realm !== "background") return "Esegui dal contesto background.html della Console.";
     const { watchFluidity } = await import("./fluidityRoomCheck.js");
