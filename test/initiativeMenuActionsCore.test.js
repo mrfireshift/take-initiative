@@ -103,6 +103,7 @@ test("il payload card conserva titolo, scope e visibilità del menu", () => {
     attitude: "enemy",
     activeMode: "legendary",
     groupCollapsed: false,
+    showRecentChanges: true,
     showInitiativeCard: false,
     showBossMenu: true,
     showReadiedActionMenu: true,
@@ -126,9 +127,23 @@ test("il payload card conserva titolo, scope e visibilità del menu", () => {
     attitude: "pc",
     activeMode: "none",
     groupCollapsed: true,
+    showRecentChanges: false,
     showInitiativeCard: false,
     showBossMenu: false,
   });
+});
+
+// Lot U3c of the system UX audit: "Ultime modifiche…" opens the combat log filtered on the card's creature.
+test("U3c: «Ultime modifiche…» apre il registro filtrato sulla creatura della card", async () => {
+  const opened = [];
+  assert.equal(await routeInitiativeCardContextMenuAction(
+    { sourceEntry: { id: "klos", name: "Klos" }, scopeIds: ["klos"] },
+    { action: "recent-changes" },
+    { openRecentChanges: (entry) => opened.push(entry.name) },
+  ), true);
+  assert.deepEqual(opened, ["Klos"]);
+  const nameless = buildInitiativeCardContextMenuPayload({ sourceEntry: { attitude: "enemy" }, scopeIds: ["x"] });
+  assert.equal(nameless.showRecentChanges, false, "without a name the log has nothing to filter on");
 });
 
 test("il routing conditions e spells seleziona lo scope prima del popup", async () => {

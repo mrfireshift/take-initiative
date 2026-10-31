@@ -137,6 +137,13 @@ const combatLogUiState = {
   selectionStart: null as number | null,
   selectionEnd: null as number | null,
 };
+// Lot U3c of the system UX audit: "Ultime modifiche…" on a card opens the log filtered on that creature
+// (?participant=<its name>, the value of the Partecipante filter).
+const requestedParticipant = (new URLSearchParams(globalThis.location?.search || "").get("participant") || "").trim().slice(0, 120);
+if (requestedParticipant) {
+  combatLogUiState.participant = requestedParticipant;
+  preferredPanel = "log";
+}
 
 const combatLogPageState = createCombatLogPageState();
 

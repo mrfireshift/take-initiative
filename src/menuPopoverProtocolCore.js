@@ -22,6 +22,7 @@ export const INITIATIVE_CARD_MENU_ACTIONS = Object.freeze([
   "class-feature-deactivate",
   "class-feature-reset-resources",
   "initiative-card",
+  "recent-changes",
   "attitude",
   "boss-mode",
   "table-side",

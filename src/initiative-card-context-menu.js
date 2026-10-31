@@ -336,10 +336,15 @@ function render(payload) {
     divider(root);
   }
 
+  if (payload.showRecentChanges) {
+    makeAction(root, "Ultime modifiche…", "history.svg", "recent-changes", {
+      title: "Apri il registro combattimento filtrato su questa creatura",
+    });
+  }
   if (payload.showInitiativeCard) {
     makeAction(root, "Scheda personaggio", "character-sheet.svg", "initiative-card");
     divider(root);
-  } else if (!payload.expandedTokenMenu) {
+  } else if (!payload.expandedTokenMenu || payload.showRecentChanges) {
     divider(root);
   }
 

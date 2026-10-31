@@ -2149,32 +2149,42 @@ function makeHistoryBtn() {
     pointerEvents: "none",
   });
   b.appendChild(icon);
-  b.addEventListener("click", async (e) => {
+  b.addEventListener("click", (e) => {
     e.stopPropagation();
-    const popupId = `${ID}/history-modal`;
-    if (!await beginTrackerPopoverToggle(popupId)) return;
-    try {
-      const anchorPosition = await trackerPanelAnchorAfterToggle(popupId);
-      await openTrackedPopover({
-        id: popupId,
-        url: "/history-modal.html",
-        width: 480,
-        height: 640,
-        anchorReference: "POSITION",
-        anchorPosition,
-        anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
-        transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
-        disableClickAway: true,
-        marginThreshold: 12,
-        hidePaper: true,
-      });
-      __openTrackerPopoverId = popupId;
-    } catch (err) {
-      __openTrackerPopoverId = "";
-      console.warn("[history] popover open error:", err?.message || err);
-    }
+    void openHistoryPopover();
   });
   return b;
+}
+
+// The History and combat log panel, toggled by its button. participant (lot U3c of the system UX audit): a creature's
+// name, from "Ultime modifiche…" on its card; the panel opens on the log filtered on it, and reopens when it is open.
+async function openHistoryPopover({ participant = "" } = {}) {
+  const popupId = `${ID}/history-modal`;
+  if (participant && __openTrackerPopoverId === popupId) {
+    await OBR.popover.close(popupId).catch(() => {});
+    setOpenTrackerPopoverId();
+  }
+  if (!await beginTrackerPopoverToggle(popupId)) return;
+  try {
+    const anchorPosition = await trackerPanelAnchorAfterToggle(popupId);
+    await openTrackedPopover({
+      id: popupId,
+      url: participant ? `/history-modal.html?participant=${encodeURIComponent(participant)}` : "/history-modal.html",
+      width: 480,
+      height: 640,
+      anchorReference: "POSITION",
+      anchorPosition,
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+    __openTrackerPopoverId = popupId;
+  } catch (err) {
+    __openTrackerPopoverId = "";
+    console.warn("[history] popover open error:", err?.message || err);
+  }
 }
 
 const topRow = document.createElement("div");
@@ -9161,6 +9171,7 @@ async function __handleInitiativeCardContextMenuAction(context, data, sceneEpoch
     deactivateClassFeature: __deactivateClassFeatureFromContext,
     resetClassFeatureResources: __resetClassFeatureResourcesFromContext,
     openInitiativeCard: openInitiativeCardPopup,
+    openRecentChanges: (entry) => openHistoryPopover({ participant: String(entry?.name || "") }),
     setAttitude: (ids, attitude) => __setCardAttitude(ids, attitude, sceneEpoch),
     setBossMode: (entry, mode) => __setCardBossMode(entry, mode, sceneEpoch),
     setTableSide: (entry, side) => writeTableSide([entry?.id], side, {

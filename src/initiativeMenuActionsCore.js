@@ -68,6 +68,8 @@ export function buildInitiativeCardContextMenuPayload({
     attitude: sourceEntry?.attitude,
     activeMode: deriveInitiativeCardBossMode(sourceEntry),
     groupCollapsed: !!sourceEntry?.__groupCollapsed,
+    // Lot U3c: the combat log filtered on this creature (by its name, as the log's Partecipante filter).
+    showRecentChanges: !isBulkScope && !sourceEntry?.__groupCollapsed && !!String(sourceEntry?.name || "").trim(),
     showInitiativeCard: !isBulkScope &&
       ["pc", "ally"].includes(sourceEntry?.attitude),
     showBossMenu: !isBulkScope && sourceEntry?.attitude === "enemy",
@@ -135,6 +137,9 @@ export async function routeInitiativeCardContextMenuAction(
   }
   if (action === "initiative-card") {
     return invoke("openInitiativeCard", sourceEntry);
+  }
+  if (action === "recent-changes") {
+    return invoke("openRecentChanges", sourceEntry);
   }
   if (action === "attitude") {
     return invoke("setAttitude", scopeIds, value);
