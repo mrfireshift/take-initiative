@@ -202,6 +202,30 @@ test("Rock: no manual prerequisite (Gather is checked from the round log) and an
   f.controller.destroy();
 });
 
+// Lot U4: the button pressed says the command is on its way, and says Applica again when the draft stays.
+test("Applica reads Applico… while the command runs, and Applica again on an uncertain outcome",async()=>{
+  const f=fixture({selection:["dars"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
+  await open(f,"Rock");await outcome(f,"hit").click();
+  let release;f.runtime.executeBossAction=request=>{f.calls.push(request);return new Promise((_,reject)=>{release=()=>reject(new Error("Conferma incerta"));});};
+  const running=f.$("boss-resolution").querySelector("#boss-action-form").emit("submit");await tick();
+  assert.equal(apply(f).textContent,"Applico…");assert.equal(apply(f).disabled,true);
+  await submit(f);
+  assert.equal(f.calls.length,1,"a second submit while the first runs sends nothing");
+  release();await running;await tick();
+  assert.equal(apply(f).textContent,"Applica");assert.equal(apply(f).disabled,false);
+  f.controller.destroy();
+});
+
+test("refresh and other non-resolution commands leave the Applica label alone",async()=>{
+  const f=fixture({selection:["dars"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
+  await open(f,"Rock");await outcome(f,"hit").click();
+  const refreshing=f.$("boss-refresh").click();
+  assert.equal(apply(f).textContent,"Applica");
+  await refreshing;await tick();
+  assert.equal(apply(f).textContent,"Applica");
+  f.controller.destroy();
+});
+
 test("definitive conflict closes the stale draft; reopening creates a fresh identity",async()=>{
   const f=fixture({selection:["dars"]});await f.controller.ready;await importAndBind(f,"auril-phase-2.html");
   const execute=f.runtime.executeBossAction;

@@ -99,10 +99,19 @@ export function bootBossActions(documentRef=document, overrides={}) {
     lastUndo=entry?.undoAvailable && entry.historyEntryId ? {historyEntryId:entry.historyEntryId} : null;
     if(undoButton){undoButton.hidden=!lastUndo;undoButton.disabled=busy;}
   }
-  async function perform(work) {
+  // commit (lot U4): the work applies the resolution open in the console; the button pressed reads "Applico…"
+  // meanwhile, as the attack console's Registra reads "Registro…".
+  function labelCommit(button) {
+    if(!button) return;
+    if(button.dataset.idleLabel===undefined){button.dataset.idleLabel=button.textContent;button.textContent="Applico…";}
+    else {button.textContent=button.dataset.idleLabel;delete button.dataset.idleLabel;}
+  }
+  async function perform(work,{commit=false}={}) {
     if(busy || invalidated || !lifecycle.isReady()) return;
     const operation=lifecycle.capture();
-    busy=true;toolbarState();renderBusy();
+    const pressed=documentRef.activeElement?.closest?.("[data-resource-commit]");
+    const commitButton=commit ? (pressed?.closest?.("#boss-resolution") ? pressed : $("boss-apply")) : null;
+    busy=true;toolbarState();renderBusy();labelCommit(commitButton);
     try {await work(operation);}
     catch(error) {
       if(lifecycle.isCurrent(operation)) {
@@ -114,6 +123,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       }
     }
     finally {
+      if(commitButton?.dataset.idleLabel!==undefined)labelCommit(commitButton);
       busy=false;toolbarState();renderBusy();
       // The cleanup buttons are drawn while busy (e.g. the first, asking click): re-enable them now.
       renderCleanup();renderResources();renderAuras();
@@ -121,6 +131,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       if(refreshPending)scheduleRefresh();
     }
   }
+  const commitPerform=work=>perform(work,{commit:true});
 
   // ---- draft persistence: survives a popover reload only while nothing has been sent ----
   const draftStorageKey=()=>DRAFT_STORAGE_PREFIX+sourceId;
@@ -654,7 +665,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const reason=seamBlocker();
     if(reason){setStatus(reason);return;}
     const active=draft,seam=structuredClone(draft.seam);
-    return perform(async operation=>{
+    return commitPerform(async operation=>{
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({sourceId,actionId:active.action.id,seam,...active.binding});
       if(!lifecycle.isCurrent(operation))return;
@@ -1033,7 +1044,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         cast.disabled=busy || !available(action);
         cast.addEventListener("click",()=>{
           if(!available(action) || busy)return;
-          return perform(async operation=>{
+          return commitPerform(async operation=>{
             await runtime.launchBossActionSpell({sourceId,actionId:action.id,spellId:spell.spellId,...draft.binding});
             if(lifecycle.isCurrent(operation))setStatus(`Pannello ${capitalize(spell.name)} aperto: scegli area e bersagli e risolvi lì.`);
           });
@@ -1062,7 +1073,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
         register.addEventListener("click",()=>{
           if(!available(action) || busy)return;
           if(!draft.manualConfirmed){setStatus("Conferma la risoluzione manuale prima di registrare l’uso.");return;}
-          return perform(async operation=>{
+          return commitPerform(async operation=>{
             draft.attempted=true;persistDraft();
             const result=await runtime.registerBossActionUse({sourceId,actionId:action.id,manualConfirmed:true,...draft.binding});
             if(!lifecycle.isCurrent(operation))return;
@@ -1326,7 +1337,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       distance:frozen.distance,damage:frozen.damage,landing:frozen.landing,collisionTargetId:frozen.collisionTargetId,collisionOutcome:frozen.collisionOutcome});
     if(!validation.ok){setStatus(validation.error);return;}
     const active=draft;
-    return perform(async operation=>{
+    return commitPerform(async operation=>{
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({...validation.value,ignoredDefenses:ignoredFor(frozen.targetId),expectedDefenses:frozen.defenses,
         ...(frozen.collisionTargetId?{collisionIgnoredDefenses:ignoredFor(frozen.collisionTargetId),collisionExpectedDefenses:frozen.collisionDefenses}:{}),...active.binding});
@@ -1342,7 +1353,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const validation=validateBossEffectEndSelection({sourceId,action:draft.action,effects:effectsOnBoss(),effect:draft.effect,roll:draft.roll});
     if(!validation.ok){setStatus(validation.error);return;}
     const active=draft;
-    return perform(async operation=>{
+    return commitPerform(async operation=>{
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({...validation.value,...active.binding});
       if(!lifecycle.isCurrent(operation))return;
@@ -1812,7 +1823,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       areas:frozen.areas,innerIds:frozen.innerIds,targetAmounts:frozen.targetAmounts});
     if(!validation.ok){setStatus(validation.error);return;}
     const active=draft;
-    return perform(async operation=>{
+    return commitPerform(async operation=>{
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({...validation.value,ignoredDefenses:frozen.ignoredDefenses,
         sharedHp:active.sharedHp || {},
@@ -1837,7 +1848,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
       componentAmounts:frozen.amounts,rider:frozen.rider,teleport:frozen.teleport,critical:frozen.critical});
     if(!validation.ok){setStatus(validation.error);return;}
     const active=draft;
-    return perform(async operation=>{
+    return commitPerform(async operation=>{
       active.attempted=true;active.locked=true;persistDraft();
       const result=await runtime.executeBossAction({...validation.value,ignoredDefenses:ignoredFor(frozen.targetId),
         expectedDefenses:frozen.defenses,expectedMarkedIds:frozen.marked?[frozen.targetId]:[],

@@ -80,6 +80,8 @@ let selectionPollBusy = false;
 let selectionUnsubscribe = null;
 let selectionTimer = null;
 let busy = false;
+// While Apply runs: its button reads "Applico…" (busy alone also covers the Undo).
+let applying = false;
 let lastEntryId = "";
 let effectSaveDamageSequence = 0;
 
@@ -619,7 +621,9 @@ function updateControls() {
   renderSharedHpControls(document.getElementById("sharedHpControls"), sharedPreview, sharedHpSelection,
     next => { sharedHpSelection = next; renderTargets(); }, { disabled: busy });
   applyButton.className = `apply ${mode === QUICK_HP_MODES.SAVE ? QUICK_HP_MODES.DAMAGE : mode}`;
-  applyButton.textContent = mode === QUICK_HP_MODES.HEAL
+  applyButton.textContent = applying
+    ? "Applico…"
+    : mode === QUICK_HP_MODES.HEAL
     ? "Applica cura"
     : mode === QUICK_HP_MODES.TEMP
       ? "Applica PF temp."
@@ -753,11 +757,26 @@ async function showEffectSaveDamageWarnings(entries) {
   });
 }
 
+// Lot U4: the console is busy from the click, before the reads below, so a second click cannot apply twice; every
+// way out of applyOperationNow, an error included, frees it.
 async function applyOperation() {
   if (busy || !sceneAvailable()) {
     if (!sceneAvailable()) status.textContent = "Scena cambiata: riapri la console Effetti.";
     return;
   }
+  busy = true;
+  applying = true;
+  renderTargets();
+  try {
+    await applyOperationNow();
+  } finally {
+    busy = false;
+    applying = false;
+    renderTargets();
+  }
+}
+
+async function applyOperationNow() {
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId() });
   if (!sceneLifecycle.isCurrent(operation)) {
     status.textContent = "Scena cambiata: riapri la console Effetti.";
@@ -781,8 +800,6 @@ async function applyOperation() {
   sharedHpItems = liveSceneItems;
   if (!sceneLifecycle.isCurrent(operation)) {
     status.textContent = "Scena cambiata: riapri la console Effetti.";
-    busy = false;
-    renderTargets();
     return;
   }
   const entries = liveItems.filter(hasTrackedHP).map((item) => ({
@@ -813,8 +830,6 @@ async function applyOperation() {
     return;
   }
 
-  busy = true;
-  renderTargets();
   let hpVisualTransaction = null;
   let recordedEntry = null;
   let concentrationCauseHistoryEntryId = "";
@@ -823,8 +838,6 @@ async function applyOperation() {
   const affectedIds = uniqueIds([...ids, ...failedIds]);
   if (!sceneLifecycle.isCurrent(operation)) {
     status.textContent = "Scena cambiata: riapri la console Effetti.";
-    busy = false;
-    renderTargets();
     return;
   }
   const optimisticUpdates = sharedPreview.updates;
@@ -848,14 +861,10 @@ async function applyOperation() {
     } catch (error) {
       console.warn("[quick-hp] scene context:", error?.message || error);
       status.textContent = "La scena non è disponibile: riapri la console Effetti.";
-      busy = false;
-      renderTargets();
       return;
     }
     if (!sceneLifecycle.isCurrent(operation)) {
       status.textContent = "Scena cambiata: riapri la console Effetti.";
-      busy = false;
-      renderTargets();
       return;
     }
   }
@@ -958,9 +967,6 @@ async function applyOperation() {
     status.textContent = canonicalCommitted
       ? "Modifica applicata; aggiornamento degli output incompleto. Non ripetere l'azione."
       : "Applicazione non riuscita.";
-  } finally {
-    busy = false;
-    renderTargets();
   }
 }
 
