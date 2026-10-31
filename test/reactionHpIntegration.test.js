@@ -368,6 +368,26 @@ test("massive damage: Morto carries its reason on the pill and in the combat log
   assert.ok(lines.some((line) => line.includes(`+ Morto (${MASSIVE_DAMAGE_DETAIL})`)), lines.join("\n"));
 });
 
+// Lot U6' of the system UX audit: a long rest takes the temporary hit points away with a "rest" intent; that is no
+// damage, so neither Warding Bond nor a condition that ends on damage reacts to it.
+test("a rest that takes the temporary hit points away is no damage: no Warding Bond, no condition ended", async () => {
+  const charm = pill("hero-charm", "Affascinato", { endsOnDamage: true }, { targetId: "hero" });
+  const bonded = bond("hero").conditions.instances;
+  await resetScene([token(CASTER, 30, 30), token("hero", 40, 40, { tempHp: 6, conditions: { version: 2, instances: [...bonded, charm] } })]);
+  const result = await clientEffects.runEffectsMutation([{ type: "hp:set", damageEnds: false, updates: [{
+    itemId: "hero", hp: 40, hpMax: 40, tempHp: 0, hpIntent: { mode: "rest", amount: 0, eventId: "rest-1" },
+    expectedHP: { present: true, value: 40 }, expectedHPMax: { present: true, value: 40 },
+  }] }], { kind: "rest", label: "Riposo lungo del gruppo · 1 PG", targetIds: ["hero"], history: { kind: "rest", label: "Riposo" } });
+  clientEffects.requireAppliedEffectsMutation(result);
+  await convergeDeferredEffectsHistory();
+  assert.equal(meta("hero").tempHp ?? 0, 0);
+  assert.equal(meta(CASTER).hp, 30, "Warding Bond shares no rest");
+  assert.deepEqual(pills("hero"), ["Affascinato", "Vincolo di interdizione"]);
+  const entry = (await history.getHistoryEntries()).at(-1);
+  assert.equal(entry.payload?.reactions, undefined);
+  assert.deepEqual(entry.payload?.tempHp, [{ id: "hero", before: 6, after: 0, mode: "removed" }]);
+});
+
 test("Warding Bond in the area command: the caster's own entry, with its History", async () => {
   await resetScene([token(CASTER, 30, 30), token("wizard", 30, 30), token("hero", 40, 40, bond("hero"))]);
   await castOn("disintegrate", 6, "hero", { amount: 12, outcome: "failed" });

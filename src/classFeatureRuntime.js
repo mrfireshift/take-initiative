@@ -49,6 +49,8 @@ import {
 import { emitMatchedClassFeatureVisual } from "./embersMatchedVisualRenderer.js";
 import { spellSlotPoolId, spellSlotStatus } from "./spellSlotCore.js";
 import { quickActionResourcePools } from "./quickActionsCore.js";
+import { groupRestBenefits, groupRestMembers, planGroupRestHpWrites } from "./groupRestCore.js";
+import { spellbookPreparation } from "./spellbookCatalog.js";
 import { getHistoryEntries } from "./history.js";
 import { planSpeciesHpTrait, SPECIES_HP_TRAIT_KINDS, speciesHpTraitAmount, speciesLastDamageTaken } from "./speciesHpTraitCore.js";
 import { planSpeciesTeleport } from "./speciesTeleportCore.js";
@@ -2097,4 +2099,65 @@ async function resetCharacterResources(sourceId, { shortRest = false } = {}) {
     targetIds: [sourceId],
   });
   return requireClassFeatureStateMutation(mutation, operationId);
+}
+
+// Lot U6' of the system UX audit: the rest of the whole party in ONE command (one History entry, one Undo): each
+// member's resources as its sheet's rest restores them, and its HP (groupRestCore.js). sourceIds: the members chosen;
+// recovered: { [id]: HP } of a short rest. Returns the History entry, the HP writes (for the HP memory and the map
+// bars) and the members who prepare their spells (a long rest asks to review them, as the sheet does).
+export async function takeGroupRest({ sourceIds = [], longRest = false, recovered = {} } = {}) {
+  const wanted = new Set((Array.isArray(sourceIds) ? sourceIds : []).map(String));
+  const sceneItems = await OBR.scene.items.getItems();
+  const members = groupRestMembers(sceneItems).filter((member) => wanted.has(member.id));
+  if (!members.length) throw classFeatureError("source-not-found");
+  const itemsById = new Map(sceneItems.map((item) => [item.id, item]));
+  const resourceOperations = [];
+  const preparingIds = [];
+  for (const member of members) {
+    if (!groupRestBenefits(member, longRest)) continue;
+    const item = itemsById.get(member.id);
+    const profile = getInitiativeCard(item);
+    const pools = characterResourcePools(item, profile).filter((pool) => (
+      longRest || classFeatureResourceRefreshEvents(pool, profile.characterBuild).includes("riposo_breve")
+    ));
+    if (longRest && spellbookPreparation(profile).preparing) preparingIds.push(member.id);
+    if (!pools.length) continue;
+    resourceOperations.push({
+      type: "class-feature:reset-resources",
+      operationId: classFeatureStateOperationId(longRest ? "group-long-rest" : "group-short-rest"),
+      sourceId: member.id,
+      pools,
+      characterBuild: profile.characterBuild,
+      abilityModifiers: profile.abilityModifiers,
+      poolIds: pools.map((pool) => pool.id),
+      ignoreMissing: true,
+    });
+  }
+  const hpUpdates = planGroupRestHpWrites({ members, longRest, recovered,
+    eventId: classFeatureStateOperationId("group-rest") });
+  const operations = [
+    ...resourceOperations,
+    // damageEnds: false as well: the temporary hit points a long rest takes away end no condition (hpWriteIsRest).
+    ...(hpUpdates.length ? [{ type: "hp:set", damageEnds: false, updates: hpUpdates }] : []),
+  ];
+  const label = `${longRest ? "Riposo lungo" : "Riposo breve"} del gruppo · ${members.length} PG`;
+  if (!operations.length) return { historyEntryId: "", members, hpUpdates, restoredIds: [], preparingIds, label };
+  const mutation = await runEffectsMutation(operations, {
+    history: true,
+    kind: "rest",
+    label,
+    targetIds: members.map((member) => member.id),
+  });
+  const conflict = (Array.isArray(mutation?.conflicts) ? mutation.conflicts : []).find((entry) => entry?.reason);
+  if (conflict) throw classFeatureError(conflict.reason, conflict.poolId);
+  requireAppliedEffectsMutation(mutation);
+  return {
+    historyEntryId: mutation.historyEntry?.id || "",
+    historyPending: mutation.historyPending === true,
+    members,
+    hpUpdates,
+    restoredIds: resourceOperations.map((operation) => operation.sourceId),
+    preparingIds,
+    label,
+  };
 }

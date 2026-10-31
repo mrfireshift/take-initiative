@@ -62,6 +62,7 @@ export default defineConfig(() => {
         spellUnifiedPanel: path.resolve(process.cwd(), "spell-unified-panel.html"),
         referenceModal: path.resolve(process.cwd(), "reference-modal.html"),
         quickHpModal: path.resolve(process.cwd(), "quick-hp-modal.html"),
+        groupRest: path.resolve(process.cwd(), "group-rest.html"),
         historyModal: path.resolve(process.cwd(), "history-modal.html"),
         clocksModal: path.resolve(process.cwd(), "clocks-modal.html"),
         distance3dModal: path.resolve(process.cwd(), "distance-3d-modal.html"),

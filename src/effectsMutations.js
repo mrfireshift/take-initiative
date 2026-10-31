@@ -882,8 +882,16 @@ function hpWriteDeclaredDamage(update) {
     .reduce((sum, intent) => sum + Math.max(0, Math.floor(Number(intent.amount) || 0)), 0);
 }
 
+// A rest (lot U6' of the system UX audit, "Riposo del gruppo"): HP back up and, on a long rest, the temporary hit points
+// gone. Losing them that way is no damage: no Warding Bond on the caster, no condition that ends on damage, no death save.
+function hpWriteIsRest(update) {
+  const intents = update?.hpIntents?.length ? update.hpIntents : [update?.hpIntent].filter(Boolean);
+  return intents.some((intent) => intent?.mode === "rest");
+}
+
 // The damage of an HP write: its damage intents, or the HP and temporary hit points it takes away when it has none.
 function hpWriteDamage(update, meta) {
+  if (hpWriteIsRest(update)) return 0;
   const before = quickHPStateOf(meta || {});
   const after = Math.floor(Number(update?.hp) || 0) + hpWriteTempHp(update, meta);
   return hpWriteDeclaredDamage(update) || Math.max(0, before.hp + before.tempHp - after);
@@ -892,6 +900,7 @@ function hpWriteDamage(update, meta) {
 // The part of that damage that reaches the HP, past the temporary hit points (death saves, Death Ward): a creature at
 // 0 HP whose temporary hit points take the hit fails no death save.
 function hpWriteDamageToHp(update, meta) {
+  if (hpWriteIsRest(update)) return 0;
   const before = quickHPStateOf(meta || {});
   const declared = hpWriteDeclaredDamage(update);
   if (!declared) return Math.max(0, before.hp - Math.floor(Number(update?.hp) || 0));
@@ -1455,7 +1464,8 @@ export async function prepareEffectsMutation(operations = [], {
       } });
       // Damage the temporary hit points took is damage too (a charm that ends when the creature takes damage).
       const before = quickHPStateOf(meta);
-      if (operation.damageEnds !== false && update.sharedHpMirror !== true && Number.isFinite(Number(meta.hp))
+      if (operation.damageEnds !== false && update.sharedHpMirror !== true && !hpWriteIsRest(update)
+        && Number.isFinite(Number(meta.hp))
         && update.hp + hpWriteTempHp(update, meta) < before.hp + before.tempHp) {
         const removals = resolveDamageEndsConditionRemovals(getConditionInstances(meta.conditions || {}))
           .map((instanceId) => ({ itemId: item.id, instanceId }));

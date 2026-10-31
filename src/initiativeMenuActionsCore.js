@@ -8,6 +8,7 @@ import { canOpenInitiativeCardSheet, initiativeCardSheetLabel } from "./initiati
 const COMPACT_ADMIN_MENU_ACTION_SELECTORS = Object.freeze({
   "reset-round": "[data-reset-round='1']",
   history: "[data-history='1']",
+  "group-rest": "[data-group-rest='1']",
   "add-all": "[data-add-all-initiative='1']",
   "fill-initiative": "[data-fill-initiative='1']",
   "map-labels": "[data-map-labels-cycle='1']",

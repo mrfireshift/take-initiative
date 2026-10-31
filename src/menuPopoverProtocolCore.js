@@ -4,6 +4,7 @@ import { isPlayerAssignmentValue } from "./playerAssignmentCore.js";
 export const COMPACT_ADMIN_MENU_ACTIONS = Object.freeze([
   "reset-round",
   "history",
+  "group-rest",
   "add-all",
   "fill-initiative",
   "map-labels",

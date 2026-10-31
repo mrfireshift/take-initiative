@@ -288,6 +288,11 @@ test("il payload e il routing del menu espongono attivazione e terminazione Feat
 
 // Lot U2 of the system UX audit: the card menu opens every creature's sheet, as the icon on the card; a monster's is
 // its stat block.
+test("U6': «Riposo del gruppo» del menu … clicca il pulsante della testata", () => {
+  assert.deepEqual(resolveCompactAdminMenuAction({ type: "action", action: "group-rest" }),
+    { action: "group-rest", selector: "[data-group-rest='1']" });
+});
+
 test("U2: la voce della scheda compare per ogni creatura, «Statblock» per chi non è PG o alleato", () => {
   const payload = (attitude) => buildInitiativeCardContextMenuPayload({ sourceEntry: { name: "X", attitude }, scopeIds: ["x"] });
   assert.equal(payload("pc").sheetLabel, "Scheda personaggio");

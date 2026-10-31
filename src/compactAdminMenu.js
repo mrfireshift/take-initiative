@@ -67,6 +67,7 @@ if (requestId) {
   [
     { action: "reset-round", label: "Reset round", icon: "↺" },
     { action: "history", label: "Cronologia", icon: "history.svg" },
+    { action: "group-rest", label: "Riposo del gruppo", icon: "group-rest.svg" },
     { action: "add-all", label: "Aggiungi attori", icon: "+" },
     { action: "fill-initiative", label: "Compila iniziativa", icon: "✎" },
     { action: "map-labels", label: "Etichette mappa", detail: mapLabelsMode, icon: "☷" },

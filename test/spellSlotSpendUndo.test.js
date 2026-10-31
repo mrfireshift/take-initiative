@@ -435,6 +435,47 @@ test("a short rest restores Pact Magic but not the other slots; the long rest re
   assert.deepEqual([resources["spell-slot-1"].current, resources["stregone-punti-stregoneria"].current, resources["quick-action-uses:misty"].current], [4, 3, 1]);
 });
 
+// Lot U6' of the system UX audit: the party's rest in ONE command through the real coordinator and History.
+const { takeGroupRest } = await import("../src/classFeatureRuntime.js?slot-real-runtime");
+
+test("U6': il riposo lungo del gruppo ripristina risorse, PF e PF temporanei in una sola voce, e un Annulla torna indietro", async () => {
+  await resetScene();
+  const caster = sceneState.items.find((item) => item.id === CASTER_ID);
+  Object.assign(caster.metadata[META_KEY], { hp: 20, hpMax: 60, tempHp: 5 });
+  caster.metadata[META_KEY].classFeatureState = { version: 1, instances: [], resources: {
+    "spell-slot-1": { current: 0, maximum: 4 },
+    "spell-slot-3": { current: 1, maximum: 3 },
+  } };
+  const ally = sceneState.items.find((item) => item.id === TARGET_ID);
+  Object.assign(ally.metadata[META_KEY], { attitude: "pc", hp: 12, hpMax: 40 });
+  ally.name = "Guerriero";
+  const before = (await history.getHistoryEntries()).length;
+  const outcome = await takeGroupRest({ sourceIds: [CASTER_ID, TARGET_ID], longRest: true });
+  await convergeDeferredEffectsHistory();
+  const [mage, fighter] = await sdkStub.scene.items.getItems([CASTER_ID, TARGET_ID]);
+  assert.deepEqual([mage.metadata[META_KEY].hp, mage.metadata[META_KEY].tempHp ?? 0], [60, 0]);
+  assert.equal(fighter.metadata[META_KEY].hp, 40);
+  const resources = await casterSlots();
+  assert.deepEqual([resources["spell-slot-1"].current, resources["spell-slot-3"].current], [4, 3]);
+  const entries = await history.getHistoryEntries();
+  assert.equal(entries.length, before + 1, "one History entry for the whole party");
+  assert.equal(entries.at(-1).label, "Riposo lungo del gruppo · 2 PG");
+  assert.deepEqual(outcome.restoredIds, [CASTER_ID], "the fighter has no resource to restore");
+  await undoLast();
+  const [mageBack, fighterBack] = await sdkStub.scene.items.getItems([CASTER_ID, TARGET_ID]);
+  assert.deepEqual([mageBack.metadata[META_KEY].hp, mageBack.metadata[META_KEY].tempHp, fighterBack.metadata[META_KEY].hp], [20, 5, 12]);
+  assert.equal((await casterSlots())["spell-slot-1"].current, 0);
+});
+
+test("U6': il riposo breve del gruppo aggiunge i PF recuperati e non tocca i PF temporanei", async () => {
+  await resetScene();
+  const caster = sceneState.items.find((item) => item.id === CASTER_ID);
+  Object.assign(caster.metadata[META_KEY], { hp: 20, hpMax: 60, tempHp: 5 });
+  await takeGroupRest({ sourceIds: [CASTER_ID], longRest: false, recovered: { [CASTER_ID]: 9 } });
+  const [mage] = await sdkStub.scene.items.getItems([CASTER_ID]);
+  assert.deepEqual([mage.metadata[META_KEY].hp, mage.metadata[META_KEY].tempHp], [29, 5]);
+});
+
 // A spell the plugin does not automate (spellCastRecord.js): the cast spends its slot in its own command and History
 // entry, with no pill, and the production Undo gives the slot back; a cast that spends nothing goes to the combat log.
 const { getActiveCombatLogData } = await import("../src/combatLog.js");

@@ -2156,6 +2156,66 @@ function makeHistoryBtn() {
   return b;
 }
 
+// Lot U6' of the system UX audit: "Riposo del gruppo", the party's short and long rest (group-rest.html). A header
+// button beside the History's; in the compact layout the "…" menu's item clicks it ([data-group-rest]).
+function makeGroupRestBtn() {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.dataset.groupRest = "1";
+  b.title = "Riposo del gruppo: breve o lungo per tutti i PG (solo GM)";
+  b.setAttribute("aria-label", "Riposo del gruppo");
+  // The History button's look, beside it.
+  Object.assign(b.style, {
+    width: "24px",
+    height: "24px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(147,197,253,.62)",
+    background: "rgba(30,64,175,.58)",
+    color: "#fff",
+    borderRadius: "8px",
+    cursor: "pointer",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    padding: "0",
+  });
+  const icon = document.createElement("img");
+  icon.src = (import.meta.env.BASE_URL || "/") + "group-rest.svg";
+  icon.alt = "";
+  Object.assign(icon.style, { width: "14px", height: "14px", display: "block", pointerEvents: "none" });
+  b.appendChild(icon);
+  b.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void openGroupRestPopover();
+  });
+  return b;
+}
+
+async function openGroupRestPopover() {
+  const popupId = `${ID}/group-rest`;
+  if (!await beginTrackerPopoverToggle(popupId)) return;
+  try {
+    const anchorPosition = await trackerPanelAnchorAfterToggle(popupId);
+    await openTrackedPopover({
+      id: popupId,
+      url: "/group-rest.html",
+      width: 420,
+      height: 520,
+      anchorReference: "POSITION",
+      anchorPosition,
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+    __openTrackerPopoverId = popupId;
+  } catch (err) {
+    __openTrackerPopoverId = "";
+    console.warn("[group-rest] popover open error:", err?.message || err);
+  }
+}
+
 // The History and combat log panel, toggled by its button. participant (lot U3c of the system UX audit): a creature's
 // name, from "Ultime modifiche…" on its card; the panel opens on the log filtered on it, and reopens when it is open.
 async function openHistoryPopover({ participant = "" } = {}) {
@@ -3243,7 +3303,7 @@ const compactMoreButton = mkBtn("…");
 const COMPACT_ADMIN_MENU_ID = `${ID}/compact-admin-menu`;
 const COMPACT_ADMIN_MENU_CHANNEL = `${ID}/compact-admin-menu`;
 const COMPACT_ADMIN_MENU_WIDTH = 216;
-const COMPACT_ADMIN_MENU_HEIGHT = 256;
+const COMPACT_ADMIN_MENU_HEIGHT = 290;
 // The compact panel has no room for the map labels' mode: the "…" menu cycles it through this hidden button, and
 // a notification says the mode just chosen.
 const EFFECTS_DISPLAY_MODE_MENU_LABELS = Object.freeze({
@@ -3582,6 +3642,7 @@ function applyAdminMenuPresentation(compact) {
     [roundActions.querySelector("[data-add-all-initiative='1']"), "Aggiungi attori", false],
     [roundActions.querySelector("[data-fill-initiative='1']"), "Compila iniziativa", false],
     [roundHistorySlot.querySelector("[data-options-panel='1']"), "Opzioni", false],
+    [roundHistorySlot.querySelector("[data-group-rest='1']"), "Riposo del gruppo", false],
     [roundPill.querySelector("[data-clear-initiative='1']"), "Svuota iniziativa", true],
   ];
 
@@ -7976,6 +8037,7 @@ async function openOptionsPopup() {
 const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
 const TRACKER_POPOVER_IDS = [
   `${ID}/history-modal`,
+  `${ID}/group-rest`,
   `${ID}/effects-modal`,
   `${ID}/spells-modal`,
   `${ID}/reference-modal`,
@@ -11746,6 +11808,7 @@ try {
   const hasOptionsBtn = !!roundPill.querySelector('[data-options-panel="1"]');
   const hasClearBtn = !!roundPill.querySelector('[data-clear-initiative="1"]');
   const hasHistoryBtn = !!roundPill.querySelector('[data-history="1"]');
+  const hasGroupRestBtn = !!roundPill.querySelector('[data-group-rest="1"]');
   if (IS_GM) {
     if (!roundResetSlot.isConnected) roundPill.prepend(roundResetSlot);
     if (!roundActions.isConnected) roundPill.appendChild(roundActions);
@@ -11755,6 +11818,7 @@ try {
     if (!hasFillBtn) roundActions.appendChild(makeInitiativeFillBtn());
     if (!hasOptionsBtn) roundHistorySlot.appendChild(optionsPanelButton);
     if (!hasHistoryBtn) roundHistorySlot.appendChild(makeHistoryBtn());
+    if (!hasGroupRestBtn) roundHistorySlot.querySelector('[data-history="1"]')?.after(makeGroupRestBtn());
     // "Svuota iniziativa" at the header's far end, past a divider: away from "+" and "✎", which it sat next to.
     if (!hasClearBtn) roundHistorySlot.append(roundDangerDivider, makeClearInitiativeBtn());
   } else {
@@ -11764,6 +11828,7 @@ try {
     if (hasOptionsBtn) roundPill.querySelector('[data-options-panel="1"]').remove();
     if (hasClearBtn) roundPill.querySelector('[data-clear-initiative="1"]').remove();
     if (hasHistoryBtn) roundPill.querySelector('[data-history="1"]').remove();
+    if (hasGroupRestBtn) roundPill.querySelector('[data-group-rest="1"]').remove();
     if (roundResetSlot.isConnected) roundResetSlot.remove();
     if (roundActions.isConnected) roundActions.remove();
     if (roundHistorySlot.isConnected) roundHistorySlot.remove();

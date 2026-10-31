@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Riposo del gruppo</title>
+  <link rel="stylesheet" href="/ui-typography.css" />
+  <link rel="stylesheet" href="/popover-glass.css" />
+  <link rel="stylesheet" href="/group-rest.css" />
+</head>
+<body>
+  <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/group-rest">
+    <header data-drag-handle draggable="true">
+      <div class="heading"><h1>Riposo del gruppo</h1><div class="subtitle" id="summary">Caricamento…</div></div>
+      <button id="close" class="close" type="button" aria-label="Chiudi">×</button>
+    </header>
+    <main>
+      <div class="list-heading"><span class="caption">Personaggi</span><span class="caption">PF recuperati</span></div>
+      <div id="members" class="list"></div>
+      <label class="option"><input id="exhaustion" type="checkbox" /> <span>Riposo lungo: Indebolimento −1</span></label>
+      <p class="hint">Il riposo breve ripristina le risorse che tornano con un riposo breve e aggiunge i PF recuperati con i Dadi Vita. Il riposo lungo ripristina tutte le risorse, porta i PF al massimo e toglie i PF temporanei. Un solo Annulla nella Cronologia; l’Indebolimento ha una voce per personaggio, come dalla scheda.</p>
+    </main>
+    <footer>
+      <div id="status" role="status" aria-live="polite"></div>
+      <div class="footer-actions"><button id="short-rest" class="button" type="button" disabled>Riposo breve</button><button id="long-rest" class="button primary" type="button" disabled>Riposo lungo</button></div>
+    </footer>
+  </div>
+  <script type="module" src="/src/popoverDrag.js"></script>
+  <script type="module" src="/src/group-rest.js"></script>
+</body>
+</html>
