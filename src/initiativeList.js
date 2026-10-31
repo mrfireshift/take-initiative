@@ -3900,10 +3900,11 @@ function restoreClassicHeader() {
   compactAdminMenu.replaceChildren();
   compactBottomControls.replaceChildren();
   compactRoundControls.replaceChildren(compactMoreButton);
+  // The GM's layout switch sits in the navigation row, beside the drag handle, as in the compact column: the header
+  // keeps its room for the encounter's buttons (it overflowed with "Riposo del gruppo", lot U6').
   roundPill.replaceChildren(...(IS_GM ? [
     roundResetSlot,
     roundStatus,
-    layoutToggleButton,
     roundActions,
     roundHistorySlot,
   ] : [roundStatus, layoutToggleButton, playerScreenButton]));
@@ -4184,8 +4185,8 @@ function applyTrackerLayout() {
       width: "calc(100% - 12px)",
       height: "30px",
       display: "grid",
-      // The tracker handle sits in the middle (GM) or alone (players): it moves the extended tracker.
-      gridTemplateColumns: IS_GM ? "1fr 28px 1fr" : "28px",
+      // The tracker handle and, for the GM, the layout switch sit in the middle; the players have the handle alone.
+      gridTemplateColumns: IS_GM ? "1fr 28px 28px 1fr" : "28px",
       justifyContent: "center",
       alignItems: "center",
       gap: "4px",
@@ -4217,7 +4218,7 @@ function applyTrackerLayout() {
         fontSize: "15px",
       });
     }
-    classicNavigationRow.replaceChildren(...(IS_GM ? [btnPrev, trackerDragHandle, btnNext] : [trackerDragHandle]));
+    classicNavigationRow.replaceChildren(...(IS_GM ? [btnPrev, trackerDragHandle, layoutToggleButton, btnNext] : [trackerDragHandle]));
     col.replaceChildren(topRow, trackWrap, classicNavigationRow);
   }
   movementReadout.style.display = movementReadoutVisible && !compact ? "flex" : "none";
