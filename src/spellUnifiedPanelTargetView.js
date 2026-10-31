@@ -455,6 +455,10 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
     section.append(bulk);
   }
 
+  if (targets.context.visible && targets.context.magicMissile) {
+    section.append(renderMagicMissileDarts(documentRef, targets.context.magicMissile, callbacks));
+    return section;
+  }
   if (targets.context.visible && targets.context.fields.length) {
     const contextSection = createNode(documentRef, "div", {
       className: "unified-target-context",
@@ -536,6 +540,112 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
     section.append(contextSection);
   }
   return section;
+}
+
+// Magic Missile: a column per target with a box per dart (its 1d4+1), − and + for the darts it takes. A box writes
+// once the focus has moved (Tab, a click elsewhere): the panel renders again and the focus goes back where it went.
+function magicMissileDartsValue(values) {
+  return values.map((value) => (value === null || value === undefined || String(value).trim() === ""
+    ? "-" : String(Math.max(0, Math.floor(Number(value) || 0))))).join(" ");
+}
+
+function renderMagicMissileDarts(documentRef, view, callbacks = {}) {
+  const block = createNode(documentRef, "div", {
+    className: `unified-darts${view.invalid ? " is-invalid" : ""}`,
+    attributes: { "data-magic-missile-darts": "" },
+  });
+  block.append(createNode(documentRef, "div", {
+    className: "unified-darts__head",
+    children: [
+      createNode(documentRef, "span", { className: "unified-field__label", text: "Dardi" }),
+      createNode(documentRef, "span", { className: "unified-darts__count", text: view.countLabel }),
+      createNode(documentRef, "span", {
+        className: "unified-darts__status",
+        text: `${view.dice} ciascuno · ${view.status}`,
+        attributes: { "data-darts-status": "" },
+      }),
+    ],
+  }));
+  const write = (target, values) => callbacks.onTargetContextChange?.(target.key, "darts", magicMissileDartsValue(values));
+  const grid = createNode(documentRef, "div", { className: "unified-darts__grid" });
+  for (const target of view.targets || []) {
+    const card = createNode(documentRef, "div", {
+      className: "unified-darts__target",
+      attributes: { "data-target-key": target.key },
+    });
+    const remove = createButton(documentRef, {
+      label: "−",
+      className: "unified-darts__step",
+      ariaLabel: `Un dardo in meno a ${target.label}`,
+      disabled: !target.canRemove,
+      // Out of the Tab order: Tab goes from a dart's box to the next, across the targets.
+      attributes: { "data-darts-step": "remove", tabindex: "-1" },
+    });
+    remove.addEventListener("click", () => write(target, target.values.slice(0, -1)));
+    const add = createButton(documentRef, {
+      label: "+",
+      className: "unified-darts__step",
+      ariaLabel: `Un dardo in più a ${target.label}`,
+      disabled: !target.canAdd,
+      attributes: { "data-darts-step": "add", tabindex: "-1" },
+    });
+    add.addEventListener("click", () => write(target, [...target.values, null]));
+    card.append(createNode(documentRef, "div", {
+      className: "unified-darts__target-head",
+      children: [
+        createNode(documentRef, "strong", { className: "unified-darts__name", text: target.label, attributes: { title: target.label } }),
+        createNode(documentRef, "div", {
+          className: "unified-darts__stepper",
+          children: [remove, createNode(documentRef, "span", { className: "unified-darts__target-count", text: String(target.count) }), add],
+        }),
+      ],
+    }));
+    const boxes = createNode(documentRef, "div", { className: "unified-darts__boxes" });
+    target.values.forEach((value, index) => {
+      const input = createNode(documentRef, "input", {
+        id: `spell-unified-dart-${target.key}-${index}`,
+        className: "unified-darts__box",
+        attributes: {
+          type: "number",
+          min: "0",
+          step: "1",
+          inputmode: "numeric",
+          placeholder: "–",
+          "aria-label": `Dardo ${index + 1} su ${target.label}`,
+          "data-dart-index": index,
+        },
+      });
+      input.value = value === null || value === undefined ? "" : String(value);
+      input.addEventListener("change", () => {
+        const next = [...target.values];
+        next[index] = input.value === "" ? null : input.value;
+        setTimeout(() => {
+          const focusedId = documentRef.activeElement?.id || "";
+          write(target, next);
+          const focused = focusedId ? documentRef.getElementById?.(focusedId) : null;
+          focused?.focus?.();
+          focused?.select?.();
+        }, 0);
+      });
+      boxes.append(input);
+    });
+    if (!target.values.length) {
+      boxes.append(createNode(documentRef, "span", { className: "unified-darts__empty", text: "Nessun dardo" }));
+    }
+    card.append(boxes);
+    const rolled = target.values.some((value) => value !== null && value !== undefined && String(value) !== "");
+    const footer = [rolled ? `${target.total} danni` : "", rolled ? target.hpLabel : "", target.note].filter(Boolean).join(" · ");
+    if (footer) card.append(createNode(documentRef, "span", { className: "unified-darts__footer", text: footer }));
+    grid.append(card);
+  }
+  if (!(view.targets || []).length) {
+    grid.append(createNode(documentRef, "span", {
+      className: "unified-field__hint",
+      text: "Seleziona i bersagli dei dardi.",
+    }));
+  }
+  block.append(grid);
+  return block;
 }
 
 export function renderPlacementStage(documentRef, model, callbacks = {}) {

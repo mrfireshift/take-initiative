@@ -87,10 +87,14 @@ test("the panel resolves it in the area command: no save, no single damage, the 
     return buildUnifiedPanelViewModel({ contract, session, targetCandidates: candidates });
   };
   const view = model({ targetIds: ["goblin", "orc"], targetContext: { goblin: { darts: "4 2" }, orc: { darts: "5" } } });
-  assert.equal(view.targets.context.summary, "Dardi assegnati 3/3 · un tiro di 1d4+1 per dardo");
-  assert.equal(view.targets.context.summaryInvalid, false);
-  assert.deepEqual(view.targets.context.fields.map((field) => [field.id, field.label, field.type]),
-    [["darts", "Danni dei dardi", "text"]]);
+  const darts = view.targets.context.magicMissile;
+  assert.equal(darts.countLabel, "3/3 dardi");
+  assert.equal(darts.invalid, false);
+  assert.equal(darts.status, "Pronto.");
+  assert.deepEqual(darts.targets.map((target) => [target.key, target.values, target.canAdd, target.hpLabel, target.note]), [
+    ["goblin", [4, 2], false, "10 → 4 PF", ""],
+    ["orc", [5], false, "15 → 13 PF", "Resistenza: metà per dardo"],
+  ], "a box per dart, the + off with every dart assigned");
   assert.equal(view.effects.fields.some((field) => field.id === "damage"), false);
   assert.deepEqual(view.effects.preview.targets.map((target) => [target.key, target.afterHP, target.factorLabel]), [
     ["goblin", 4, "2 dardi · 4 + 2 = 6"],
@@ -105,6 +109,45 @@ test("the panel resolves it in the area command: no save, no single damage, the 
   const over = validation({ goblin: { darts: "4 2 3" }, orc: { darts: "5" } });
   assert.equal(over.valid, false);
   assert.equal(over.firstInvalidField, "darts");
-  assert.equal(model({ targetIds: ["goblin", "orc"], targetContext: { goblin: { darts: "4 2 3" }, orc: { darts: "5" } } })
-    .targets.context.summary, "Dardi assegnati 4/3 · un tiro di 1d4+1 per dardo");
+  const tooMany = model({ targetIds: ["goblin", "orc"], targetContext: { goblin: { darts: "4 2 3" }, orc: { darts: "5" } } })
+    .targets.context.magicMissile;
+  assert.deepEqual([tooMany.countLabel, tooMany.invalid], ["4/3 dardi", true]);
+  // Untouched targets share the darts, their boxes empty: the cast waits for every damage.
+  const fresh = model({ targetIds: ["goblin", "orc"] }).targets.context.magicMissile;
+  assert.deepEqual(fresh.targets.map((target) => [target.values, target.auto]), [[[null, null], true], [[null], true]]);
+  assert.equal(fresh.status, "3 danni da inserire.");
+  assert.equal(validation({}).valid, false, "no damage yet");
+  assert.equal(validation({ goblin: { darts: "4 -" }, orc: { darts: "5" } }).firstInvalidField, "darts", "one box still empty");
+});
+
+test("the boxes' value: a dart still to roll is \"-\", read back as empty", async () => {
+  const { magicMissileDartsValue } = await import("../src/magicMissileCore.js");
+  assert.equal(magicMissileDartsValue([4, null, "3"]), "4 - 3");
+  assert.deepEqual(parseMagicMissileDarts("4 - 3"), [4, null, 3]);
+  const split = magicMissileDartAllocation({ targetIds: ["a", "b"], targetContexts: { a: { darts: "4 -" } }, slotLevel: 1 });
+  assert.deepEqual([split.byTarget, split.missing, split.error], [{ a: 2, b: 1 }, 2, "missing"]);
+});
+
+test("the darts block: a column per target, a box per dart, − and + rewrite the target's darts", async () => {
+  const { FakeNode } = await import("../test-support/fakeBossActionsDom.js");
+  const { renderTargetMatrix } = await import("../src/spellUnifiedPanelTargetView.js");
+  const doc = { createElement: (tag) => new FakeNode(doc, tag), createTextNode: (text) => new FakeNode(doc, "#text") };
+  const contract = buildSpellUnifiedPanelContract({ spellId: "magic-missile", phase: "cast", castContext: { slotLevel: 1 } });
+  const session = createSpellPanelSession({ contract, casterId: "wizard", slotLevel: 1, targetIds: ["goblin", "orc"],
+    targetContext: { goblin: { darts: "4 -" } } });
+  const model = buildUnifiedPanelViewModel({ contract, session, targetCandidates: [
+    { key: "goblin", label: "Goblin", hp: 10, hpMax: 10 }, { key: "orc", label: "Orco", hp: 15, hpMax: 15 },
+  ] });
+  const writes = [];
+  const section = renderTargetMatrix(doc, model, { onTargetContextChange: (key, field, value) => writes.push([key, field, value]) });
+  const columns = section.querySelectorAll(".unified-darts__target");
+  assert.equal(columns.length, 2, "a column per target");
+  assert.deepEqual(columns.map((column) => column.querySelectorAll(".unified-darts__box").length), [2, 1], "a box per dart");
+  assert.deepEqual(section.querySelectorAll(".unified-darts__box").map((box) => box.value), ["4", "", ""]);
+  const steps = columns[0].querySelectorAll(".unified-darts__step");
+  assert.deepEqual(steps.map((step) => [step.getAttribute("data-darts-step"), step.getAttribute("tabindex")]),
+    [["remove", "-1"], ["add", "-1"]], "out of the Tab order");
+  await steps[0].click();
+  assert.deepEqual(writes.at(-1), ["goblin", "darts", "4"], "one dart less keeps the rolled one");
+  assert.equal(steps[1].disabled, true, "every dart already has a target");
 });

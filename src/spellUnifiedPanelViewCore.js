@@ -54,7 +54,6 @@ import {
 import {
   MAGIC_MISSILE_DART_DICE,
   MAGIC_MISSILE_SPELL_ID,
-  magicMissileAllocationText,
   magicMissileDartAllocation,
   magicMissileTargetDamage,
   magicMissileTargetText,
@@ -237,7 +236,8 @@ function placementLabels(placement, contract = null) {
       ? (isTeleport ? "Riprova destinazione" : "Riprova area")
       : policy === "optional"
         ? "Aggiungi area"
-        : isBatch
+        // Animate Objects: its objects, placed one at a time, before the batch starts too.
+        : isBatch || contract?.presentation?.composition?.required
           ? "Posiziona oggetti"
         : isTeleport
           ? "Posiziona destinazione"
@@ -490,6 +490,52 @@ function hpPreviewFor(
   return preview;
 }
 
+// Magic Missile's darts (magicMissileCore.js): a column per target, a box per dart with its roll, the darts to add
+// or take away, and the HP each target is left with (its force defense and Shield, as the commit).
+function magicMissileDartsView(allocation, selectedTargets = []) {
+  const full = allocation.assigned >= allocation.total;
+  return {
+    total: allocation.total,
+    assigned: allocation.assigned,
+    missing: allocation.missing,
+    dice: MAGIC_MISSILE_DART_DICE,
+    countLabel: `${allocation.assigned}/${allocation.total} dardi`,
+    // Red only for too many darts or an unreadable box: missing darts are the normal state while typing.
+    invalid: allocation.error === "over" || allocation.error === "invalid",
+    status: allocation.error === "over"
+      ? "Troppi dardi: togline qualcuno."
+      : allocation.error === "under"
+        ? `${allocation.total - allocation.assigned} da assegnare.`
+        : allocation.missing
+          ? `${allocation.missing} ${allocation.missing === 1 ? "danno" : "danni"} da inserire.`
+          : "Pronto.",
+    targets: (Array.isArray(selectedTargets) ? selectedTargets : []).map((target) => {
+      const key = asText(target?.key);
+      const values = clone(allocation.damagesByTarget[key] || []);
+      const darts = magicMissileTargetDamage({ rolls: values, guard: target?.magicMissileGuard });
+      const hp = numberOrNull(target?.hp);
+      const hpMax = numberOrNull(target?.hpMax);
+      const change = hp === null || hpMax === null ? null : calculateQuickHPChange({
+        mode: QUICK_HP_MODES.DAMAGE, value: darts.damage, factor: QUICK_HP_FACTORS.FULL, hp, hpMax,
+      });
+      return {
+        key,
+        label: asText(target?.label) || key,
+        count: values.length,
+        values,
+        auto: (allocation.autoIds || []).includes(key),
+        canAdd: !full,
+        canRemove: values.length > 0,
+        total: darts.damage,
+        note: darts.shielded ? "Scudo: nessun danno"
+          : darts.defense === "resistance" ? "Resistenza: metà per dardo"
+            : darts.defense === "immunity" ? "Immune" : darts.defense === "vulnerability" ? "Vulnerabile: doppio" : "",
+        hpLabel: change ? `${hp} → ${change.afterHP} PF` : "",
+      };
+    }),
+  };
+}
+
 function targetContextFields(presentation, session, selectedTargets = [], spellId = "") {
   const workflow = presentation?.targeting?.workflow;
   const fields = Array.isArray(workflow?.context?.fields)
@@ -511,12 +557,8 @@ function targetContextFields(presentation, session, selectedTargets = [], spellI
     : null;
   return {
     visible: presentation?.inputs?.targetContext?.visible === true && visibleFields.length > 0,
-    label: darts ? "Dardi per bersaglio" : "Contesto bersaglio",
-    ...(darts ? {
-      summary: `${magicMissileAllocationText(darts)} · un tiro di ${MAGIC_MISSILE_DART_DICE} per dardo`,
-      // Red only for too many darts or an unreadable list: missing darts are the normal state while typing.
-      summaryInvalid: darts.error === "over" || darts.error === "invalid",
-    } : {}),
+    label: darts ? "Dardi" : "Contesto bersaglio",
+    ...(darts ? { magicMissile: magicMissileDartsView(darts, selectedTargets) } : {}),
     fields: clone(visibleFields),
     values: clone(session?.targetContext || {}),
     targets: (Array.isArray(selectedTargets) ? selectedTargets : []).map((target) => {

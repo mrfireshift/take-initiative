@@ -203,14 +203,21 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   più alti segna nel campo **Prova** l'esito della prova del caster: se lo
   lasci vuoto restano, e il messaggio del pannello li elenca con la CD.
 - Dardo incantato si lancia dal pannello con tutti i suoi dardi (3 al 1°
-  livello, uno in più per slot sopra il 1°): scegli le creature e nel campo
-  **Danni dei dardi** di ognuna scrivi il tiro (1d4+1) di ogni dardo che la
-  colpisce, separati da spazi: «4 3» sono due dardi da 4 e da 3. «Dardi
-  assegnati X/Y» dice quando sono tutti assegnati. Ogni dardo è un danno a
+  livello, uno in più per slot sopra il 1°): scegli le creature e sotto
+  **Dardi** ognuna ha la sua colonna, con una casella per dardo. I dardi
+  partono divisi in parti uguali; **−** e **+** li spostano da una creatura
+  all'altra. Scrivi il tiro (1d4+1) di ogni dardo e passa al successivo con
+  Tab: la colonna mostra il totale e i PF che restano, l'intestazione quanti
+  dardi mancano da assegnare o da tirare. Ogni dardo è un danno a
   sé: la resistenza alla forza dimezza ogni dardo, Scudo li blocca tutti, chi
   è in concentrazione fa un TS per dardo e un PG a 0 PF segna un fallimento
   per dardo. In alternativa la console attacchi registra
   un dardo alla volta.
+- Animare oggetti: nella sezione **Oggetti animati** aggiungi gli oggetti per
+  taglia con **−** e **+**; ogni scheda mostra PF, CA e Schianto della taglia,
+  l'intestazione gli oggetti e il peso usato su 10, e il **+** si spegne
+  quando un altro oggetto lo supererebbe. Poi **Posiziona oggetti** li mette
+  sulla mappa uno alla volta.
 - Alcuni incantesimi hanno un contatore, che la loro pill mostra al posto dei
   round e che a zero termina l'incantesimo. Immagine speculare parte con 3
   duplicati: quando un attacco colpisce un duplicato premi **Duplicato

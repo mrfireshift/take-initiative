@@ -166,14 +166,14 @@ effetto su un costrutto) tornano nel risultato come `notes` e compaiono nel
 messaggio del pannello.
 
 Dardo incantato (`src/magicMissileCore.js`) si risolve nella console ad area
-senza TS e senza un danno unico: il campo per bersaglio «Danni dei dardi»
-elenca il tiro di ogni dardo che lo colpisce («4 3»), e da lì si contano i
-dardi. `magicMissileHPEntries` nell'esecutore somma i dardi, ognuno dopo la
+senza TS e senza un danno unico: ogni bersaglio ha una colonna con una
+casella per dardo (il campo «darts» conserva i tiri, «-» per un dardo ancora da
+tirare: «4 - 3»), e i bersagli non toccati si dividono i dardi restanti. `magicMissileHPEntries` nell'esecutore somma i dardi, ognuno dopo la
 difesa alla forza e Scudo. Ogni dardo resta un danno a sé: `hitsAtZero` e
 `damageInstance` vanno ai TS contro la morte (un fallimento per dardo, mai
 danno massiccio dalla somma), e gli avvisi di concentrazione partono uno per
 dardo, col suo danno. Il
-pannello blocca il lancio finché «Dardi assegnati X/Y» non torna pari.
+pannello blocca il lancio finché ogni dardo non ha un bersaglio e un danno.
 
 CAP-RESOURCE usa il contatore `castContext.uses` dell'istanza: lo imposta al
 lancio `initialSpellUses` (`src/spellApplicationPlanCore.js`), la pill mostra

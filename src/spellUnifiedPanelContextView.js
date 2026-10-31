@@ -180,58 +180,91 @@ export function renderAutomationAndVariantPanel() {
   return null;
 }
 
+// Animate Objects: the section heading of the panel (caption and count), a meter of the weight used, and a card per
+// size with its statistics and − / + for the objects of that size.
 export function renderCompositionPanel(documentRef, model, callbacks = {}) {
   const context = model.context.composition;
   if (!context?.visible) return null;
+  const maximum = Math.max(1, Number(context.maximumCost) || 1);
+  const countOf = (option) => Math.max(0, Math.floor(Number(context.counts?.[option.id]) || 0));
+  const costOf = (option) => Math.max(1, Number(option.cost) || 1);
+  const cost = (context.options || []).reduce((total, option) => total + countOf(option) * costOf(option), 0);
+  const count = (context.options || []).reduce((total, option) => total + countOf(option), 0);
+  const over = cost > maximum;
   const section = createNode(documentRef, "section", {
-    className: "unified-section unified-composition",
-    attributes: { "aria-label": context.label },
+    className: `unified-section unified-composition${over ? " is-invalid" : ""}`,
+    attributes: { "aria-labelledby": "unified-composition-heading" },
   });
-  section.append(createNode(documentRef, "h3", {
+  section.append(createNode(documentRef, "div", {
     className: "unified-section__heading",
-    text: context.label,
+    children: [
+      createNode(documentRef, "h2", { id: "unified-composition-heading", text: "Oggetti animati" }),
+      createNode(documentRef, "span", {
+        className: "unified-section__eyebrow unified-target-count",
+        text: `${count} ${count === 1 ? "oggetto" : "oggetti"} · ${cost}/${maximum} peso`,
+        attributes: { "data-composition-total": "" },
+      }),
+    ],
   }));
-  section.append(createNode(documentRef, "p", {
+  const meter = createNode(documentRef, "div", {
+    className: "unified-composition__meter",
+    attributes: { role: "meter", "aria-valuemin": 0, "aria-valuemax": maximum, "aria-valuenow": cost, "aria-label": "Peso usato" },
+  });
+  const fill = createNode(documentRef, "span", { className: "unified-composition__meter-fill" });
+  fill.style.width = `${Math.min(100, Math.round((cost / maximum) * 100))}%`;
+  meter.append(fill);
+  section.append(meter, createNode(documentRef, "p", {
     className: "unified-section__description",
-    text: `Componi fino a ${context.maximumCost} oggetti-peso, poi posizionali uno alla volta sulla mappa.`,
+    text: over
+      ? `Oltre ${maximum} di peso: togli qualche oggetto.`
+      : "Minuscola e piccola pesano 1, media 2, grande 4, enorme 8. Poi posizioni gli oggetti uno alla volta.",
   }));
-  const grid = createNode(documentRef, "div", { className: "unified-context-grid" });
+  const grid = createNode(documentRef, "div", { className: "unified-composition__grid" });
   for (const option of context.options || []) {
-    const input = createNode(documentRef, "input", {
-      id: `spell-unified-composition-${option.id}`,
-      attributes: {
-        type: "number",
-        min: "0",
-        max: String(Math.floor(context.maximumCost / Math.max(1, Number(option.cost) || 1))),
-        step: "1",
-        inputmode: "numeric",
-        "data-field": "composition",
-        "data-composition-size": option.id,
-      },
+    const current = countOf(option);
+    const step = (delta) => callbacks.onCompositionChange?.(option.id, String(Math.max(0, current + delta)));
+    const remove = createButton(documentRef, {
+      label: "−",
+      className: "unified-darts__step",
+      ariaLabel: `Un oggetto ${option.label.toLocaleLowerCase("it")} in meno`,
+      disabled: current <= 0,
+      attributes: { "data-composition-step": "remove", "data-composition-size": option.id },
     });
-    input.value = String(Math.max(0, Math.floor(Number(context.counts?.[option.id]) || 0)));
-    input.addEventListener("change", (event) => callbacks.onCompositionChange?.(
-      option.id,
-      event.target.value,
-    ));
-    grid.append(createField(documentRef, {
-      id: input.id,
-      label: `${option.label} · ${option.cost} peso`,
-      control: input,
-      hint: `PF ${option.hp} · CA ${option.armorClass} · Schianto ${option.attackDamage}`,
-      invalid: model.workflow.validation.firstInvalidField === "composition",
+    remove.addEventListener("click", () => step(-1));
+    const add = createButton(documentRef, {
+      label: "+",
+      className: "unified-darts__step",
+      ariaLabel: `Un oggetto ${option.label.toLocaleLowerCase("it")} in più`,
+      disabled: cost + costOf(option) > maximum,
+      attributes: { "data-composition-step": "add", "data-composition-size": option.id },
+    });
+    add.addEventListener("click", () => step(1));
+    grid.append(createNode(documentRef, "div", {
+      className: `unified-composition__size${current ? " is-used" : ""}`,
+      attributes: { "data-composition-size": option.id },
+      children: [
+        createNode(documentRef, "div", {
+          className: "unified-composition__size-head",
+          children: [
+            createNode(documentRef, "strong", { className: "unified-composition__name", text: option.label }),
+            createNode(documentRef, "span", { className: "unified-composition__cost", text: `${costOf(option)} peso` }),
+          ],
+        }),
+        createNode(documentRef, "div", {
+          className: "unified-composition__stats",
+          text: `PF ${option.hp} · CA ${option.armorClass} · Schianto ${option.attackDamage}`,
+        }),
+        createNode(documentRef, "div", {
+          className: "unified-darts__stepper unified-composition__stepper",
+          children: [remove, createNode(documentRef, "span", {
+            className: "unified-darts__target-count",
+            text: String(current),
+            attributes: { "data-composition-count": option.id },
+          }), add],
+        }),
+      ],
     }));
   }
-  const cost = (context.options || []).reduce((total, option) => (
-    total + Math.max(0, Math.floor(Number(context.counts?.[option.id]) || 0))
-      * Math.max(1, Number(option.cost) || 1)
-  ), 0);
-  const count = (context.options || []).reduce((total, option) => (
-    total + Math.max(0, Math.floor(Number(context.counts?.[option.id]) || 0))
-  ), 0);
-  section.append(
-    grid,
-    createStatusChip(documentRef, "Combinazione", `${count} oggetti · ${cost}/${context.maximumCost}`),
-  );
+  section.append(grid);
   return section;
 }

@@ -140,7 +140,7 @@ const SPELL_PANEL_VALIDATION_MESSAGES = Object.freeze({
   targets: "Seleziona almeno un bersaglio",
   "primary-target": "Seleziona il bersaglio primario",
   "target-context": "Completa il contesto dei bersagli",
-  darts: "Assegna ogni dardo a un bersaglio",
+  darts: "Assegna ogni dardo e inseriscine il danno",
   placement: "Posiziona e conferma l'area",
   outcomes: "Registra l'esito di ogni bersaglio",
   damage: "Inserisci il valore del danno",
@@ -2516,6 +2516,9 @@ function primaryActionFor(contract, session, validation, placement, activeAction
       id: "place",
       label: isTeleportCast
         ? "Posiziona destinazione"
+        // Animate Objects: its objects are placed one at a time, never an area.
+        : contract?.presentation?.composition?.required
+          ? "Posiziona oggetti"
         : isBoardTokenCast
           ? "Posiziona pedina"
           : "Posiziona area",

@@ -3,9 +3,9 @@ import { componentDamageAfterDefense, damageDefenseFor, damageDefensesForItem } 
 
 // Magic Missile (PHB 2014): three darts, one more per slot above 1st; each one hits a creature of the caster's
 // choice automatically for 1d4 + 1 force damage, several on the same creature if the caster wants. Each dart is its
-// own roll and its own damage: the GM writes on each target the damage of the darts it takes ("4 3": two darts),
-// a resistance halves each one, a concentrating target saves once per dart and a dying PC takes one failure per
-// dart. Shield blocks every dart.
+// own roll and its own damage: each target has a box per dart it takes ("4 - 3": three darts, the second still to
+// roll), a resistance halves each one, a concentrating target saves once per dart and a dying PC takes one failure
+// per dart. Shield blocks every dart.
 const META_KEY = `${ID}/meta`;
 
 export const MAGIC_MISSILE_SPELL_ID = "magic-missile";
@@ -21,36 +21,62 @@ export function magicMissileDartTotal(slotLevel) {
   return BASE_DARTS + (slot - BASE_SLOT);
 }
 
-// The damage of each dart written on a target: whole numbers separated by spaces, commas or "+". null when unreadable.
+// The darts written on a target, one per box: a whole number is its damage, "-" a dart still to roll (null).
+// Separated by spaces, commas or "+". null when unreadable.
 export function parseMagicMissileDarts(value) {
   const raw = String(value ?? "").trim();
   if (!raw) return [];
   const parts = raw.split(/[\s,;+]+/u).filter(Boolean);
-  const darts = parts.map((part) => (/^\d+$/u.test(part) ? Number(part) : Number.NaN));
+  const darts = parts.map((part) => (/^\d+$/u.test(part) ? Number(part) : part === "-" ? null : Number.NaN));
   return darts.some((dart) => Number.isNaN(dart)) ? null : darts;
 }
 
-// The darts of each target, from the damage written on it. Valid when every dart has a target.
+// The value stored for a target's boxes: the damage of each dart, "-" where it is still empty.
+export function magicMissileDartsValue(values = []) {
+  return (Array.isArray(values) ? values : [])
+    .map((value) => (value === null || value === undefined || String(value).trim() === ""
+      ? "-" : String(Math.max(0, Math.floor(Number(value) || 0)))))
+    .join(" ");
+}
+
+// The darts of each target: the boxes written on it, and for the targets left untouched an even share of the darts
+// left (the first in the order take the extra ones), still to roll. Valid when every dart has a target and a damage.
 export function magicMissileDartAllocation({ targetIds = [], targetContexts = {}, slotLevel } = {}) {
   const total = magicMissileDartTotal(slotLevel);
   const ids = [...new Set((Array.isArray(targetIds) ? targetIds : []).map((id) => String(id || "").trim()).filter(Boolean))];
   const byTarget = {};
   const damagesByTarget = {};
   const invalidIds = [];
+  const autoIds = [];
   for (const id of ids) {
-    const darts = parseMagicMissileDarts(targetContexts?.[id]?.[MAGIC_MISSILE_DARTS_FIELD]);
+    const raw = String(targetContexts?.[id]?.[MAGIC_MISSILE_DARTS_FIELD] ?? "").trim();
+    if (!raw) {
+      autoIds.push(id);
+      continue;
+    }
+    const darts = parseMagicMissileDarts(raw);
     if (!darts) invalidIds.push(id);
     damagesByTarget[id] = darts || [];
     byTarget[id] = (darts || []).length;
   }
+  const written = Object.values(byTarget).reduce((sum, darts) => sum + darts, 0);
+  const remaining = Math.max(0, total - written);
+  autoIds.forEach((id, index) => {
+    const count = Math.floor(remaining / autoIds.length) + (index < remaining % autoIds.length ? 1 : 0);
+    byTarget[id] = count;
+    damagesByTarget[id] = Array.from({ length: count }, () => null);
+  });
   const assigned = Object.values(byTarget).reduce((sum, darts) => sum + darts, 0);
+  const missing = Object.values(damagesByTarget).reduce((sum, darts) => sum + darts.filter((dart) => dart === null).length, 0);
   const error = invalidIds.length ? "invalid" : !ids.length ? "no-targets"
-    : assigned > total ? "over" : assigned < total ? "under" : "";
-  return { total, assigned, byTarget, damagesByTarget, invalidIds, valid: !error, error };
+    : assigned > total ? "over" : assigned < total ? "under" : missing ? "missing" : "";
+  return { total, assigned, missing, byTarget, damagesByTarget, autoIds, invalidIds, valid: !error, error };
 }
 
 export function magicMissileAllocationText(allocation) {
-  return `Dardi assegnati ${allocation?.assigned ?? 0}/${allocation?.total ?? BASE_DARTS}`;
+  const missing = Number(allocation?.missing) || 0;
+  return `Dardi assegnati ${allocation?.assigned ?? 0}/${allocation?.total ?? BASE_DARTS}`
+    + (missing ? ` · ${missing} da tirare` : "");
 }
 
 function activeInstances(item) {
@@ -77,6 +103,7 @@ export function magicMissileTargetGuard(item) {
 
 // The damage of each dart after the guard, and their sum.
 export function magicMissileTargetDamage({ rolls = [], guard = {} } = {}) {
+  // A dart still to roll counts 0 in the preview (the cast waits for every damage).
   const darts = (Array.isArray(rolls) ? rolls : []).map((roll) => Math.max(0, Math.floor(Number(roll) || 0)));
   const dartDamages = darts.map((roll) => (
     guard?.shielded === true ? 0 : componentDamageAfterDefense(roll, "full", guard?.defense || null)

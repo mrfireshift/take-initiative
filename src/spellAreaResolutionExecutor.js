@@ -1979,6 +1979,8 @@ async function buildPlan(command, runtime) {
       code: "magic-missile-darts",
       message: magicMissileAllocation.error === "invalid"
         ? "Scrivi i danni dei dardi come numeri separati da spazi (es. 4 3)."
+        : magicMissileAllocation.error === "missing"
+        ? `${magicMissileAllocationText(magicMissileAllocation)}: inserisci il danno di ogni dardo.`
         : `${magicMissileAllocationText(magicMissileAllocation)}: ogni dardo deve avere un bersaglio.`,
     }] };
   }
