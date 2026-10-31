@@ -150,7 +150,7 @@ export function buildClassicCardShell(
   card.dataset.knockedOut = knockedOut ? "1" : "0";
   card.dataset.isEpicAction = entry.isEpicAction ? "1" : "0";
   card.__selectionItemIds = selectionItemIds;
-  card.title = "Click: seleziona token. Ctrl/Shift+click: selezione multipla. Click destro: azioni";
+  card.title = "Clic: seleziona token. Ctrl/Shift+clic: selezione multipla. Clic destro: azioni";
   card.style.cursor = selectionItemIds.length ? "pointer" : "default";
   card.setAttribute("draggable", dragAllowed ? "true" : "false");
   return card;

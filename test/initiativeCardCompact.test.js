@@ -886,10 +886,10 @@ test("le card dei turni virtuali dicono che turno sono, le altre no", () => {
 
   const epic = buildCompactVirtualTurnLabel({ id: "__EPIC__::boss::after::pc", isEpicAction: true }, options);
   const lair = buildCompactVirtualTurnLabel({ id: "__LAIR__" }, { ...options, isLair: true });
-  assert.equal(epic.textContent, "Azione epica");
+  assert.equal(epic.textContent, "Azione Epica");
   assert.equal(epic.dataset.cardVirtualTurnLabel, "1");
   assert.equal(epic.style.border, "1px dashed #ef4444@0.7");
-  assert.equal(lair.textContent, "Azione di tana");
+  assert.equal(lair.textContent, "Azione di Tana");
   assert.equal(buildCompactVirtualTurnLabel({ id: "goblin" }, options), null);
 });
 

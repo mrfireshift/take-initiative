@@ -269,7 +269,7 @@ async function toggleEpicBossOn(ids) {
     OBR.contextMenu.create({
       id: `${ID}/boss-actions`,
       group: MENU_GROUP,
-      // Only an Epic boss (Abilita Epic Boss) has the console of its actions.
+      // Only an Epic boss (Abilita Boss Epico) has the console of its actions.
       icons: [{ icon: ICON_BOSS, label: "Console Boss", filter: { roles: ["GM"], every: [
         isCharacter(), { key: "type", value: "IMAGE" },
         { key: ["metadata", META_KEY, "epic"], operator: "!=", value: undefined },
@@ -281,7 +281,7 @@ async function toggleEpicBossOn(ids) {
 
     OBR.contextMenu.create({
       id: `${ID}/shared-hp`, group: MENU_GROUP,
-      icons: [{ icon: ASSET("quick-damage.svg"), label: "HP condivisi", filter: { roles: ["GM"], every: [isCharacter()] } }],
+      icons: [{ icon: ASSET("shared-hp.svg"), label: "HP condivisi", filter: { roles: ["GM"], every: [isCharacter()] } }],
       onClick: async ({ items }) => {
         if (await OBR.player.getRole() !== "GM") return;
         const query = new URLSearchParams();
@@ -586,13 +586,13 @@ async function toggleEpicBossOn(ids) {
     },
   });
 
-  /* ===================== “Abilita Paragon Boss” (CLICK) ===================== */
+  /* ===================== “Abilita Boss Paragon” (CLICK) ===================== */
   OBR.contextMenu.create({
     id: `${ID}/paragon-enable`,
     group: MENU_GROUP,
     icons: [{
       icon: ICON_BOSS,
-      label: "Abilita Paragon Boss",
+      label: "Abilita Boss Paragon",
       // Mostra solo su CHARACTER tracciati, senza Legendary e senza Paragon
       filter: {
         roles: ["GM"],
@@ -615,13 +615,13 @@ async function toggleEpicBossOn(ids) {
     },
   });
 
-  /* ===================== “Disabilita Paragon Boss” (CLICK) ===================== */
+  /* ===================== “Disabilita Boss Paragon” (CLICK) ===================== */
   OBR.contextMenu.create({
     id: `${ID}/paragon-disable`,
     group: MENU_GROUP,
     icons: [{
       icon: ICON_BOSS_OFF,
-      label: "Disabilita Paragon Boss",
+      label: "Disabilita Boss Paragon",
       // Mostra solo su CHARACTER tracciati, senza Legendary e con Paragon presente
       filter: {
         roles: ["GM"],
@@ -642,13 +642,13 @@ async function toggleEpicBossOn(ids) {
       }
     },
   });
-  /* ===================== “Abilita Epic Boss” (CLICK) ===================== */
+  /* ===================== “Abilita Boss Epico” (CLICK) ===================== */
 OBR.contextMenu.create({
   id: `${ID}/epic-enable`,
   group: MENU_GROUP,
   icons: [{
     icon: ICON_BOSS,
-    label: "Abilita Epic Boss",
+    label: "Abilita Boss Epico",
     // Mostra solo su CHARACTER tracciati, senza Legendary, senza Paragon, senza Epic
     filter: {
       roles: ["GM"],
@@ -669,13 +669,13 @@ OBR.contextMenu.create({
   },
 });
 
-/* ===================== “Disabilita Epic Boss” (CLICK) ===================== */
+/* ===================== “Disabilita Boss Epico” (CLICK) ===================== */
 OBR.contextMenu.create({
   id: `${ID}/epic-disable`,
   group: MENU_GROUP,
   icons: [{
     icon: ICON_BOSS_OFF,
-    label: "Disabilita Epic Boss",
+    label: "Disabilita Boss Epico",
     // Mostra solo su CHARACTER tracciati, con Epic presente
     filter: {
       roles: ["GM"],

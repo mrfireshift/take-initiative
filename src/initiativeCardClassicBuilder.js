@@ -741,7 +741,7 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
   const badge = document.createElement("div");
   badge.textContent = String(e.initiative);
   // Only the GM edits the initiative, in both views (the compact card's badge already is the GM's alone).
-  badge.title = IS_GM ? "Click per modificare l'iniziativa" : "Iniziativa";
+  badge.title = IS_GM ? "Clic: modifica l'iniziativa" : "Iniziativa";
   Object.assign(badge.style, {
   position: "absolute",
   right: BADGE_RIGHT + "px",
@@ -860,7 +860,7 @@ bindReferenceChips(condDock);
 
 if (e.__groupCollapsed) {
   // Sulla card collassata l’iniziativa modifica l’intero gruppo
-  badge.title = "Click per modificare l'iniziativa del gruppo";
+  badge.title = "Clic: modifica l'iniziativa del gruppo";
   badge.style.cursor = "text";
 }
 

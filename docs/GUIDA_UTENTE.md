@@ -101,7 +101,7 @@ Saggezza, Intelligenza o Carisma più il livello di classe, metà livello per
 il paladino; servono i modificatori nella scheda). **Prepara** permette di
 spuntare gli incantesimi preparati oggi e **Salva preparazione** li conserva.
 Gli incantesimi non preparati restano nel libro, attenuati e senza lancio, e
-non compaiono nel menu 🪄; i trucchetti sono sempre pronti. Oltre il limite il
+non compaiono nella console attacchi; i trucchetti sono sempre pronti. Oltre il limite il
 contatore diventa arancio ma nulla viene bloccato. Gli altri incantatori
 conoscono i loro incantesimi: tutto ciò che è nel libro è pronto.
 
@@ -122,16 +122,17 @@ druido solo quelli preparati; il bardo quelli che conosce. Le altre classi no:
 un talento come Incantatore Rituale passa da un'azione rapida con costo
 "Gratuito", che apre il pannello già impostato su "Senza slot".
 
-Sulla card del tracker il GM trova tre pulsanti in colonna sul bordo del
-ritratto: ⚡ azioni rapide, 🪄 incantesimi, 🗡️ attacchi. Il menu 🪄 mostra in
-alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
-(Trucchetti, 1° livello…) con i suoi incantesimi; "‹" torna al menu.
+Sulla card del tracker il GM trova due pulsanti in colonna sul ritratto: ⚡
+azioni rapide e 🗡️, che apre in un clic la console attacchi del personaggio.
+La console elenca attacchi, incantesimi del libro (i preferiti in cima a ogni
+livello) e capacità; aperta senza una voce scelta, torna all'ultima usata con
+quel personaggio.
 
 - Il pulsante dell'incantesimo lo lancia come un'azione rapida: applicato
   subito quando non serve altro, altrimenti aperto nel pannello incantesimi.
 - ⚙ apre sempre il pannello, per scegliere slot, bersagli e varianti.
 - I trucchetti d'attacco aprono la console attacchi quando negli **Attacchi**
-  c'è un'azione Trucchetto, anche dal menu 🪄.
+  c'è un'azione Trucchetto.
 - Allo stesso modo Infliggi ferite, Dardo tracciante, Dardo incantato, Raggio
   rovente, Globo cromatico, Dardo di caos e Tocco del vampiro aprono la console
   sull'incantesimo scelto quando negli **Attacchi** c'è un'azione
@@ -147,7 +148,8 @@ alto i preferiti, lanciabili subito, e sotto un sottomenu per livello
   spende lo slot e finisce nel registro di combattimento, senza etichette; gli
   effetti si risolvono al tavolo. I bersagli selezionati compaiono nel
   registro, ma non servono. Nel pannello il pulsante si chiama **Registra
-  lancio**; dal menu 🪄 un avviso dice quale slot è stato speso.
+  lancio**; nella console attacchi la riga del lancio dice quale slot è stato
+  speso.
 - Protezione dai veleni, Protezione dall'energia e Invulnerabilità danno
   difese vere finché durano: la console attacchi e la console boss dimezzano
   o azzerano il danno di quel tipo, e il GM può ignorare il chip della difesa
@@ -739,13 +741,13 @@ La card mostra due risorse indipendenti:
 
 Entrambi i contatori dispongono di controlli per modificare valore corrente e totale. Le azioni leggendarie si ripristinano secondo il flusso del combattimento.
 
-### Paragon Boss
+### Boss Paragon
 
-Un boss Paragon riceve più turni nell'ordine. Le voci aggiuntive sono virtuali e fanno riferimento allo stesso token e agli stessi HP.
+Un Boss Paragon (menu del token: **Abilita Boss Paragon**) riceve più turni nell'ordine. Le voci aggiuntive sono virtuali e fanno riferimento allo stesso token e agli stessi HP.
 
-### Epic Boss
+### Boss Epico
 
-Un Epic Boss opera a iniziativa 20 e genera voci **Azione Epica** nell'ordine. La card usa una cornice boss dedicata; le voci epiche non sono token duplicati. Durante un'Azione Epica l'etichetta **Turno di…**, la selezione e la vista della mappa vanno sul boss.
+Un Boss Epico (menu del token: **Abilita Boss Epico**) opera a iniziativa 20 e genera voci **Azione Epica** nell'ordine. La card usa una cornice boss dedicata; le voci epiche non sono token duplicati. Durante un'Azione Epica l'etichetta **Turno di…**, la selezione e la vista della mappa vanno sul boss.
 
 ## 10. Cronologia e registro combattimento
 

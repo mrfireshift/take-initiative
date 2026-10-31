@@ -446,7 +446,7 @@ export function buildCompactCardShell(
   );
   card.title = virtual
     ? entry.name
-    : "Click: seleziona token. Ctrl/Shift+click: selezione multipla. Click destro: azioni";
+    : "Clic: seleziona token. Ctrl/Shift+clic: selezione multipla. Clic destro: azioni";
   Object.assign(card.style, {
     position: "relative",
     flex: `0 0 ${COMPACT_CARD_WIDTH}px`,
@@ -762,7 +762,7 @@ export function buildCompactVirtualTurnLabel(
   if (!entry?.isEpicAction && !isLair) return null;
   const label = compactDocument(documentRef).createElement("div");
   label.dataset.cardVirtualTurnLabel = "1";
-  label.textContent = entry.isEpicAction ? "Azione epica" : "Azione di tana";
+  label.textContent = entry.isEpicAction ? "Azione Epica" : "Azione di Tana";
   Object.assign(label.style, {
     maxWidth: "100%",
     marginTop: "4px",

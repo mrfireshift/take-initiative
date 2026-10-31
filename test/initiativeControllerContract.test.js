@@ -766,7 +766,7 @@ test("barra compatta: il testo HP in modifica resta al suo posto, tutto bianco a
 
 // Lot L27 of the bugfix pass: what a player's classic card shows and lets do.
 test("L27: il badge dell'iniziativa si modifica solo dal GM, nella vista classica come nella compatta", () => {
-  assert.ok(classicBuilderSource.includes(`badge.title = IS_GM ? "Click per modificare l'iniziativa" : "Iniziativa";`));
+  assert.ok(classicBuilderSource.includes(`badge.title = IS_GM ? "Clic: modifica l'iniziativa" : "Iniziativa";`));
   assert.ok(classicBuilderSource.includes(`cursor: IS_GM ? "text" : "default",`));
   assert.ok(classicBuilderSource.includes("if (IS_GM) bindInitiativeEditorForEntry(badge, e);"));
   assert.ok(!classicBuilderSource.includes("\nbindInitiativeEditorForEntry(badge, e);"));

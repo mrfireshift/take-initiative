@@ -1389,7 +1389,7 @@ Object.assign(trackerDragGrip.style, {
   pointerEvents: "none",
 });
 trackerDragHandle.appendChild(trackerDragGrip);
-trackerDragHandle.title = "Trascina per spostare il tracker. Doppio click per ricentrare";
+trackerDragHandle.title = "Trascina per spostare il tracker. Doppio clic per ricentrare";
 trackerDragHandle.setAttribute("aria-label", trackerDragHandle.title);
 Object.assign(trackerDragHandle.style, {
   flex: "0 0 auto",
@@ -1503,8 +1503,8 @@ function updateLayoutToggleButton() {
   const compact = isCompactTrackerLayout();
   trackerDragHandle.style.display = "inline-flex";
   trackerDragHandle.title = compact
-    ? "Trascina per spostare il tracker. Doppio click per ricentrare"
-    : "Trascina per spostare il tracker. Click per portarlo sull'altro lato dello schermo";
+    ? "Trascina per spostare il tracker. Doppio clic per ricentrare"
+    : "Trascina per spostare il tracker. Clic per portarlo sull'altro lato dello schermo";
   trackerDragHandle.setAttribute("aria-label", trackerDragHandle.title);
   layoutToggleIcon.src = compact
     ? "/modalita-estesa.svg"

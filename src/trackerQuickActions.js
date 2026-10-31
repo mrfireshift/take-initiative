@@ -77,7 +77,7 @@ export function trackerQuickActionSummary(action) {
   return `Incantesimo · ${launch} · ${target}`;
 }
 
-// The quick actions (⚡), the spellbook (🪄) and the attacks (⚔) of a card: one launcher each, over the same menu.
+// The quick actions (⚡), the spellbook (🪄) and the attacks (🗡️) of a card: one launcher each, over the same menu.
 const TRACKER_LAUNCHER_GROUPS = Object.freeze({
   quick: { icon: "⚡", name: "azioni rapide", border: "#fde047", color: "#fef08a", open: "rgba(161,98,7,.94)", ring: "rgba(253,224,71,.22)" },
   spells: { icon: "🪄", name: "incantesimi", border: "#a78bfa", color: "#ddd6fe", open: "rgba(91,33,182,.94)", ring: "rgba(167,139,250,.24)" },

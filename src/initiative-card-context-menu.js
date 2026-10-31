@@ -416,8 +416,8 @@ function render(payload) {
     const modes = [
       { value: "none", label: "Nessuno", icon: "boss-remove.svg" },
       { value: "legendary", label: "Azioni Leggendarie", icon: "boss.svg" },
-      { value: "paragon", label: "Paragon Boss", icon: "boss.svg" },
-      { value: "epic", label: "Epic Boss", icon: "boss.svg" },
+      { value: "paragon", label: "Boss Paragon", icon: "boss.svg" },
+      { value: "epic", label: "Boss Epico", icon: "boss.svg" },
     ];
     addSubmenu(root, "Tipo di Boss", "boss.svg", modes.map((item) => ({
       label: item.label,
@@ -432,7 +432,7 @@ function render(payload) {
   }
 
   divider(root);
-  makeAction(root, "Rimuovi dall'iniziativa", "remove.svg", "remove", {
+  makeAction(root, "Rimuovi dall’iniziativa", "remove.svg", "remove", {
     danger: true,
     trailing: payload.isBulkScope ? String(payload.scopeCount || "") : "",
   });
