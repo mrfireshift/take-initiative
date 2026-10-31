@@ -793,6 +793,10 @@ export function buildEffectsMutationHistoryEntry({
   if (Array.isArray(plan?.tempHpChanges) && plan.tempHpChanges.length) {
     historyPayload = { ...(historyPayload || {}), tempHp: cloneValue(plan.tempHpChanges) };
   }
+  // Lot U3b: why some HP differ from what the command asked (Warding Bond, Death Ward), for the combat log.
+  if (Array.isArray(plan?.reactionRecords) && plan.reactionRecords.length) {
+    historyPayload = { ...(historyPayload || {}), reactions: cloneValue(plan.reactionRecords) };
+  }
   const entry = {
     id: command.commandId ? `effects-history:${command.commandId}` : createEntryId(),
     version: HISTORY_VERSION,

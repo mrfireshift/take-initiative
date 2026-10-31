@@ -22,6 +22,12 @@ export function deathWardPill(item) {
 
 // hpAfter: the HP the write would leave; damage: the damage of the write (0 for a death without damage).
 // null when the ward does not trigger; else the HP to write instead and the ward's pill to remove.
+// Lot U3b of the system UX audit: why a creature's HP changed, for its History entry (payload.reactions) and the
+// combat log line of that creature. { id, text }: the text is short, the log puts it after the creature's name.
+function wardRecord(item, text) {
+  return { id: String(item?.id || ""), kind: "death-ward", text };
+}
+
 export function planDeathWard({ item = null, hpAfter, damage = 0, instantDeath = false } = {}) {
   const ward = deathWardPill(item);
   if (!ward) return null;
@@ -30,11 +36,13 @@ export function planDeathWard({ item = null, hpAfter, damage = 0, instantDeath =
   const name = item?.name || "La creatura";
   if (instantDeath && integer(damage) <= 0) {
     return { hp: before, removeInstanceIds: [String(ward.id)], negatedDeath: true,
-      note: `Interdizione alla morte: ${name} non muore e l'interdizione termina.` };
+      note: `Interdizione alla morte: ${name} non muore e l'interdizione termina.`,
+      record: wardRecord(item, "Interdizione alla morte: non muore, l'interdizione termina") };
   }
   if (before > 0 && Number.isFinite(after) && after <= 0 && integer(damage) > 0) {
     return { hp: 1, removeInstanceIds: [String(ward.id)], negatedDeath: instantDeath,
-      note: `Interdizione alla morte: ${name} resta a 1 PF e l'interdizione termina.` };
+      note: `Interdizione alla morte: ${name} resta a 1 PF e l'interdizione termina.`,
+      record: wardRecord(item, "Interdizione alla morte: resta a 1 PF, l'interdizione termina") };
   }
   return null;
 }
@@ -51,6 +59,7 @@ export function planWardingBondDamage({ writes = [], itemsById = new Map(), hpBy
   const casterWrites = new Map();
   const removals = [];
   const notes = [];
+  const records = [];
   for (const write of Array.isArray(writes) ? writes : []) {
     const damage = integer(write?.damage);
     const target = itemsById.get(String(write?.itemId || ""));
@@ -74,12 +83,15 @@ export function planWardingBondDamage({ writes = [], itemsById = new Map(), hpBy
       sources: [...(previous?.sources || []), target.id],
     });
     notes.push(`Vincolo di interdizione: ${caster.name || "il caster"} subisce ${damage} danni con ${target.name || "il protetto"}.`);
+    records.push({ id: casterId, kind: "warding-bond",
+      text: `Vincolo di interdizione: ${damage} danni con ${target.name || "il protetto"}` });
     if (hpBefore > 0 && hp <= 0) {
       removals.push({ itemId: target.id, instanceId: String(bond.id) });
       notes.push(`Vincolo di interdizione: ${caster.name || "il caster"} è a 0 PF, il vincolo termina.`);
+      records.push({ id: casterId, kind: "warding-bond", text: "Vincolo di interdizione: a 0 PF, il vincolo termina" });
     }
   }
-  return { writes: [...casterWrites.values()], removals, notes };
+  return { writes: [...casterWrites.values()], removals, notes, records };
 }
 
 // Lot U3a of the system UX audit: what these two spells do to an Effetti console command, for its preview. The

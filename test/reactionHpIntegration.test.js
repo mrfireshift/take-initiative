@@ -338,6 +338,22 @@ test("Death Ward in the area command: Power Word Kill does nothing but end the w
   assert.deepEqual(pills("orc"), []);
 });
 
+// Lot U3b: the reasons reach the History entry, from the coordinator and from the area command's own HP write.
+test("the History keeps why the HP differ: Warding Bond on the caster, Death Ward on the warded creature", async () => {
+  await resetScene([token(CASTER, 30, 30), token("hero", 40, 40, bond("hero"))]);
+  await damage("hero", 7);
+  assert.deepEqual((await history.getHistoryEntries()).at(-1).payload?.reactions,
+    [{ id: CASTER, kind: "warding-bond", text: "Vincolo di interdizione: 7 danni con hero" }]);
+  await resetScene([token("hero", 10, 40, { attitude: "pc", ...ward("hero") })]);
+  await damage("hero", 25);
+  assert.deepEqual((await history.getHistoryEntries()).at(-1).payload?.reactions,
+    [{ id: "hero", kind: "death-ward", text: "Interdizione alla morte: resta a 1 PF, l'interdizione termina" }]);
+  await resetScene([token("wizard", 30, 30), token("orc", 20, 60, { attitude: "enemy", ...ward("orc") })]);
+  await castOn("disintegrate", 6, "orc", { amount: 75, outcome: "failed" });
+  assert.deepEqual((await history.getHistoryEntries()).at(-1).payload?.reactions,
+    [{ id: "orc", kind: "death-ward", text: "Interdizione alla morte: resta a 1 PF, l'interdizione termina" }]);
+});
+
 test("Warding Bond in the area command: the caster's own entry, with its History", async () => {
   await resetScene([token(CASTER, 30, 30), token("wizard", 30, 30), token("hero", 40, 40, bond("hero"))]);
   await castOn("disintegrate", 6, "hero", { amount: 12, outcome: "failed" });

@@ -3,7 +3,8 @@ import {
 } from "./combatLogCore.js";
 import { normalizeCombatLogCausality } from "./combatLogCausalityCore.js";
 import { normalizeCombatLogEventV3 } from "./combatLogV3Core.js";
-import { DEATH_SAVE_OUTCOME_LABELS, deathSaveTallyText } from "./deathSaveCore.js";
+import { DEATH_SAVE_DEAD_CONDITION, DEATH_SAVE_OUTCOME_LABELS, deathSaveTallyText } from "./deathSaveCore.js";
+import { damageTypeLabel } from "./damageDefensesCore.js";
 import { counterspellLogLines } from "./counterspellCore.js";
 import { wildMagicSurgeLogLines } from "./wildMagicSurgeCore.js";
 
@@ -275,7 +276,10 @@ function collectionItemName(item, field) {
 }
 
 function facetItemText(item, field) {
-  return collectionItemName(item, field);
+  const name = collectionItemName(item, field);
+  // Lot U3b: Morto says why when it came without the third failure (massive damage, a spell's death).
+  const detail = stringValue(item?.effectDetail);
+  return detail && name === DEATH_SAVE_DEAD_CONDITION ? `${name} (${detail})` : name;
 }
 
 function facetChangeLines(facet, field) {
@@ -361,11 +365,17 @@ function hpTargetLine(target, event = null) {
   const tempChange = tempHpChangeOf(target, event, beforeTemp, afterTemp, hpDelta);
   if (beforeHp === null && afterHp === null && tempChange) return `${name}: ${tempHpChangeText(tempChange, null)}`;
   const tempText = tempHpChangeText(tempChange, hpDelta);
-  const detail = !tempText
+  const hpDetail = !tempText
     ? `${deltaText} PF`
     : tempChange.mode === "absorbed" || hpDelta === 0 || hpDelta === null
       ? tempText
       : `${signedNumber(hpDelta)} PF · ${tempText}`;
+  // Lot U3b: why the HP are not what the command asked (Warding Bond, Death Ward), from the History's record.
+  const reasons = (Array.isArray(event?.payload?.reactions) ? event.payload.reactions : [])
+    .filter((record) => stringValue(record?.id) && stringValue(record.id) === stringValue(target?.id))
+    .map((record) => stringValue(record.text))
+    .filter(Boolean);
+  const detail = [hpDetail, ...reasons].join(" · ");
   const temp = (value) => (value > 0 ? ` +${numberText(value)}` : "");
   const shownBeforeTemp = tempChange ? tempChange.before : beforeTemp;
   const shownAfterTemp = tempChange ? tempChange.after : afterTemp;
@@ -895,6 +905,12 @@ function causalityDetailLines(event) {
     }
     if (finiteNumber(target.damageFactor) !== null && target.damageFactor > 0) {
       targetLines.push(`fattore ${numberText(target.damageFactor)}`);
+    }
+    // Lot U3b: the defenses that changed a damage component, or that the GM chose to ignore.
+    for (const defense of Array.isArray(target.defenses) ? target.defenses : []) {
+      const word = { immunity: "immunità", resistance: "resistenza", vulnerability: "vulnerabilità" }[defense.defense];
+      if (!word) continue;
+      targetLines.push(`${word} (${damageTypeLabel(defense.type)})${defense.ignored ? " ignorata" : ""}`);
     }
     if (targetLines.length) lines.push(`${targetName(target)}: ${targetLines.join(", ")}`);
     else if (target?.name) lines.push(targetName(target));

@@ -28,6 +28,8 @@ export const DEATH_SAVE_OUTCOME_LABELS = Object.freeze({
 });
 const OUTCOME_SET = new Set(Object.values(DEATH_SAVE_OUTCOMES));
 const LIMIT = 3;
+// Lot U3b of the system UX audit: why Morto came without three failures, on its pill and in the combat log.
+export const MASSIVE_DAMAGE_DETAIL = "Danno massiccio: il danno restante raggiunge i PF massimi";
 const META_KEY = `${ID}/meta`;
 
 function count(value) {
@@ -182,7 +184,7 @@ export function planDeathSaveHpChange({
         : (tally.successes || tally.failures) ? { deathSaves: { mode: "delete" } } : {}),
       removeInstanceIds: massive ? deathSaveConditionIds(instances, DEATH_SAVE_STABLE_CONDITION) : [],
       addCondition: massive ? DEATH_SAVE_DEAD_CONDITION : "",
-      ...(massive ? { instantDeath: true } : {}),
+      ...(massive ? { instantDeath: true, deathDetail: MASSIVE_DAMAGE_DETAIL } : {}),
     };
   }
   const hit = Math.max(0, Math.floor(Number(damage) || 0));
@@ -199,7 +201,7 @@ export function planDeathSaveHpChange({
       deathSaves: { value: { successes: stableIds.length ? 0 : tally.successes, failures: dead ? LIMIT : failures } },
       removeInstanceIds: [...stableIds, ...unconsciousIds],
       addCondition: dead ? DEATH_SAVE_DEAD_CONDITION : "",
-      ...(dead ? { instantDeath: true } : {}),
+      ...(dead ? { instantDeath: true, ...(hit >= max ? { deathDetail: MASSIVE_DAMAGE_DETAIL } : {}) } : {}),
     };
   }
   return null;

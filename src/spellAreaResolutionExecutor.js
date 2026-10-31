@@ -542,6 +542,8 @@ function planAreaHpBranch({ spell, command, resolution, liveItems, allItems, cas
 function applyAreaReactionHp(entries, allItems = [], wardedIds = new Set()) {
   const operations = [];
   const notes = [];
+  // Lot U3b: the same reasons, one per creature, for the History's payload.reactions and the combat log.
+  const records = [];
   const itemsById = new Map((Array.isArray(allItems) ? allItems : []).filter((item) => item?.id).map((item) => [item.id, item]));
   const bond = planWardingBondDamage({
     writes: entries.map((entry) => ({ itemId: entry.item.id,
@@ -568,6 +570,7 @@ function applyAreaReactionHp(entries, allItems = [], wardedIds = new Set()) {
   }
   if (bond.removals.length) operations.push({ type: "condition:remove-instances", removals: bond.removals });
   notes.push(...bond.notes);
+  records.push(...bond.records);
   const wardsUsed = new Set();
   for (const entry of entries) {
     if (entry.change.mode !== QUICK_HP_MODES.DAMAGE) continue;
@@ -580,6 +583,7 @@ function applyAreaReactionHp(entries, allItems = [], wardedIds = new Set()) {
       removals: ward.removeInstanceIds.map((instanceId) => ({ itemId: entry.item.id, instanceId })) });
     wardsUsed.add(entry.item.id);
     notes.push(ward.note);
+    records.push(ward.record);
   }
   // A death negated without damage (Power Word Kill, Divine Word): the ward ends all the same.
   for (const itemId of wardedIds) {
@@ -588,8 +592,9 @@ function applyAreaReactionHp(entries, allItems = [], wardedIds = new Set()) {
     if (!pill) continue;
     operations.push({ type: "condition:remove-instances", removals: [{ itemId, instanceId: String(pill.id) }] });
     notes.push(`Interdizione alla morte: ${item?.name || "la creatura"} non muore e l'interdizione termina.`);
+    records.push({ id: itemId, kind: "death-ward", text: "Interdizione alla morte: non muore, l'interdizione termina" });
   }
-  return { operations, notes };
+  return { operations, notes, records };
 }
 
 // CAP-CLEANSE (cleanseSpellRules.js): what ends on each creature, read from the live items: its pills, its spells
@@ -2041,7 +2046,7 @@ async function buildPlan(command, runtime) {
   // Warding Bond itself.
   const reactionHp = !sharedHpPreview.groups.length && !isTeleportSpell(spell.id)
     ? applyAreaReactionHp(entries, allItems, hpBranch?.wardedIds || new Set())
-    : { operations: [], notes: [] };
+    : { operations: [], notes: [], records: [] };
   effectOperations.push(...reactionHp.operations);
   // CAP-TEMP, lotto T3a: the pill that ends when the temporary hit points it gave are gone (Armor of Agathys), for the
   // HP this command writes itself (the coordinator does it for its own).
@@ -2207,6 +2212,7 @@ async function buildPlan(command, runtime) {
     prismaticSprayPlan: resolution.prismaticSpray || null,
     // CAP-CLEANSE: what the GM still has to do (Dispel Magic's spells above its limit, a construct Heal leaves).
     zoneResourceSideEffects: zoneResource?.sideEffects || [],
+    reactionRecords: reactionHp.records,
     notes: [
       ...(cleanse?.notes || []),
       ...(zoneResource?.note ? [zoneResource.note] : []),
@@ -2746,6 +2752,8 @@ export async function executeSpellAreaResolution(
           payload: {
             ...(decorated?.payload || {}),
             ...(ownTempHp.length ? { tempHp: [...(decorated?.payload?.tempHp || []), ...ownTempHp] } : {}),
+            ...(plan.reactionRecords?.length
+              ? { reactions: [...(decorated?.payload?.reactions || []), ...plan.reactionRecords] } : {}),
             causality: withSpellCastCost(spellAreaCausality(plan), runtime.castCost),
             ...(castWithoutSave ? { castWithoutSave: true } : {}),
           },

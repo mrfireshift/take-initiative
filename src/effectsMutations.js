@@ -952,7 +952,7 @@ function withWardingBondWrites(operations, itemsById) {
     }
   }
   const bond = planWardingBondDamage({ writes, itemsById, hpById, tempHpById });
-  if (!bond.writes.length) return { operations, removals: [] };
+  if (!bond.writes.length) return { operations, removals: [], records: [] };
   const pending = new Map(bond.writes.map((write) => [write.itemId, write]));
   const next = operations.map((operation) => {
     if (operation?.type !== "hp:set") return operation;
@@ -976,7 +976,8 @@ function withWardingBondWrites(operations, itemsById) {
       hpIntent: { mode: "damage", amount: write.damage, eventId: "warding-bond" },
       expectedHP: metadataFieldSnapshot(meta, "hp"), expectedHPMax: metadataFieldSnapshot(meta, "hpMax") };
   });
-  return { operations: [...next, ...(added.length ? [{ type: "hp:set", updates: added }] : [])], removals: bond.removals };
+  return { operations: [...next, ...(added.length ? [{ type: "hp:set", updates: added }] : [])], removals: bond.removals,
+    records: bond.records };
 }
 
 // A spell's token with hit points (Mano arcana, an animated object) is an object, not a creature: no death saves and
@@ -1387,6 +1388,8 @@ export async function prepareEffectsMutation(operations = [], {
   const instantDeathIds = new Set();
   const zeroHpBoardTokenIds = new Set();
   const tempHpRecords = [];
+  // Lot U3b: why the HP of a creature are not what its write asked (Warding Bond, Death Ward), for the combat log.
+  const reactionRecords = [];
   // CAP-TEMP, lotto T3a: the temporary hit points and their source each written creature is left with.
   const tempHpAfterById = new Map();
   const tempHpSourceAfterById = new Map();
@@ -1394,6 +1397,7 @@ export async function prepareEffectsMutation(operations = [], {
   const bonded = withWardingBondWrites(operations.map((operation) => (operation?.type === "hp:set"
     ? { ...operation, updates: (operation.updates || []).map(quickHPWriteWithinMax) } : operation)), hpItemsById);
   if (bonded.removals.length) hpOperations.push({ type: "condition:remove-instances", removals: bonded.removals });
+  reactionRecords.push(...bonded.records);
   for (const operation of bonded.operations) {
     if (operation?.type !== "hp:set") {
       hpOperations.push(operation);
@@ -1411,6 +1415,7 @@ export async function prepareEffectsMutation(operations = [], {
       const ward = boardToken ? null : planDeathWard({ item, hpAfter: update.hp, damage: hpWriteDamageToHp(update, meta),
         instantDeath: !!hpWriteInstantDeath(update) });
       if (ward) {
+        reactionRecords.push(ward.record);
         update = withoutInstantDeath({ ...update, hp: ward.hp });
         hpOperations.push({ type: "condition:remove-instances",
           removals: ward.removeInstanceIds.map((instanceId) => ({ itemId: item.id, instanceId })) });
@@ -1493,6 +1498,7 @@ export async function prepareEffectsMutation(operations = [], {
     const ward = item && !spellBoardTokenHpTarget(item) ? planDeathWard({ item, hpAfter: patchWrite.hp,
       damage: hpWriteDamageToHp(patchWrite, meta), instantDeath: !!hpWriteInstantDeath(patchWrite) }) : null;
     if (ward) {
+      reactionRecords.push(ward.record);
       patch = { ...withoutInstantDeath(patch), fields: { ...patch.fields, hp: { ...hpField, value: ward.hp } } };
       metadataPatches[patchIndex] = patch;
       hpOperations.push({ type: "condition:remove-instances",
@@ -1617,6 +1623,7 @@ export async function prepareEffectsMutation(operations = [], {
   plan.sharedHpGroups = sharedHpGroups;
   // CAP-TEMP: what the command did to the temporary hit points, for the combat log (History payload.tempHp).
   if (tempHpRecords.length) plan.tempHpChanges = tempHpRecords;
+  if (reactionRecords.length) plan.reactionRecords = reactionRecords;
   if (bossLinkNotices.length) plan.bossLinkNotices = bossLinkNotices;
   if (zeroHpBoardTokenIds.size) plan.zeroHpBoardTokenIds = [...zeroHpBoardTokenIds];
   plan.classFeatureMutationResults = classFeatureStatePlan.results;

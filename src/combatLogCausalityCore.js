@@ -317,6 +317,25 @@ function normalizeCause(value, source) {
   };
 }
 
+// Lot U3b of the system UX audit: the resistances, immunities and vulnerabilities the consoles applied to a target's
+// damage components (Boss and attack consoles), or that the GM ignored; one per damage type. A causality already
+// normalized keeps its own list (record.defenses).
+function componentDefenses(record) {
+  const seen = new Set();
+  const defenses = [];
+  const add = (type, defense, ignored) => {
+    if (typeof type !== "string" || !type || typeof defense !== "string" || !defense || seen.has(`${type}:${defense}`)) return;
+    seen.add(`${type}:${defense}`);
+    defenses.push({ type, defense, ...(ignored ? { ignored: true } : {}) });
+  };
+  for (const component of Array.isArray(record?.damageComponents) ? record.damageComponents : []) {
+    const applied = typeof component?.defense === "string" ? component.defense : "";
+    add(component?.type, applied || component?.defenseIgnored, !applied);
+  }
+  for (const defense of Array.isArray(record?.defenses) ? record.defenses : []) add(defense?.type, defense?.defense, defense?.ignored === true);
+  return defenses;
+}
+
 function normalizedTargets(source) {
   const records = targetEntries(source);
   return records.map(({ id, name, record }) => {
@@ -340,6 +359,8 @@ function normalizedTargets(source) {
     if (requestedDamage !== undefined) target.requestedDamage = requestedDamage;
     if (appliedHpDelta !== undefined) target.appliedHpDelta = appliedHpDelta;
     if (damageFactor !== undefined) target.damageFactor = damageFactor;
+    const defenses = componentDefenses(record);
+    if (defenses.length) target.defenses = defenses;
     return target;
   });
 }
