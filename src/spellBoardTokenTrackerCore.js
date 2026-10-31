@@ -262,7 +262,7 @@ export function buildSpellBoardTokenCompanionCard(
     card.dataset.spellBoardTokenId = companion.itemId;
     card.dataset.spellBoardTokenCasterId = companion.casterId;
   }
-  card.title = companion.sharedHp ? `${companion.label} · HP condivisi` : `${companion.label} nel turno del caster`;
+  card.title = companion.sharedHp ? `${companion.label} · PF condivisi` : `${companion.label} nel turno del caster`;
   card.setAttribute("aria-label", card.title);
   const portrait = companionPortraitDimensions(compact);
   Object.assign(card.style, {
@@ -434,7 +434,7 @@ export function buildSpellBoardTokenCompanionCard(
     for (const detail of Array.from(content.children).slice(1)) detail.style.display = collapsed ? "none" : "";
     card.style.padding = collapsed ? "2px 24px 2px 7px" : originalPadding;
     card.title = summary || originalTitle;
-    card.setAttribute("aria-label", summary || (companion.sharedHp ? `${companion.label} · HP condivisi` : `${companion.label} nel turno del caster`));
+    card.setAttribute("aria-label", summary || (companion.sharedHp ? `${companion.label} · PF condivisi` : `${companion.label} nel turno del caster`));
   };
   return card;
 }

@@ -6,10 +6,10 @@ export function createSharedHpController({ api, runMutation, getSceneContext, is
   let busy = false;
   async function read(tokenIds = []) {
     const context = await getSceneContext();
-    if (!isCurrent(context)) throw new Error("Scena cambiata: riapri HP condivisi.");
-    if (await api.player.getRole() !== "GM") throw new Error("Solo il GM può gestire gli HP condivisi.");
+    if (!isCurrent(context)) throw new Error("Scena cambiata: riapri PF condivisi.");
+    if (await api.player.getRole() !== "GM") throw new Error("Solo il GM può gestire i PF condivisi.");
     const items = await api.scene.items.getItems();
-    if (!isCurrent(context)) throw new Error("Scena cambiata: riapri HP condivisi.");
+    if (!isCurrent(context)) throw new Error("Scena cambiata: riapri PF condivisi.");
     const real = items.filter(item => item.layer === "CHARACTER" && !item.attachedTo);
     const tokens = real.filter(item => tokenIds.includes(item.id));
     const candidates = real.filter(item => {
@@ -29,8 +29,8 @@ export function createSharedHpController({ api, runMutation, getSceneContext, is
       if (!isCurrent(context)) return { status: "rejected", reason: "shared-hp-stale-scene" };
       return await runMutation([operation], { commandId: context.commandId, sceneIdentity: context.sceneIdentity,
         history: true, kind: operation.type === "shared-hp:visibility" ? "shared-hp-settings" : "hp",
-        label: operation.type === "shared-hp:visibility" ? "Visibilità dei token con HP condivisi"
-          : operation.type === "shared-hp:link" ? "Collegati HP condivisi" : "Scollegati HP condivisi",
+        label: operation.type === "shared-hp:visibility" ? "Visibilità dei token con PF condivisi"
+          : operation.type === "shared-hp:link" ? "Collegati PF condivisi" : "Scollegati PF condivisi",
         targetIds: operation.targetIds });
     } finally { busy = false; }
   }

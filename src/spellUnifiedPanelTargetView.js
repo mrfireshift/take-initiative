@@ -14,7 +14,7 @@ const DEFAULT_OUTCOME_OPTIONS = Object.freeze([
 function targetHPChangeLabel(target) {
   const preview = target.hpPreview;
   if (!preview || preview.available !== true || preview.afterHP === null) return "";
-  return `${preview.beforeHP} \u2192 ${preview.afterHP} HP`;
+  return `${preview.beforeHP} \u2192 ${preview.afterHP} PF`;
 }
 
 function renderOutcomeButtons(documentRef, target, callbacks) {
@@ -350,8 +350,8 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
         className: "unified-target-row__hp-change",
         text: hpChange,
         attributes: {
-          "aria-label": `HP: ${hpChange}`,
-          title: `HP: ${hpChange}`,
+          "aria-label": `PF: ${hpChange}`,
+          title: `PF: ${hpChange}`,
         },
       }));
     }

@@ -267,8 +267,8 @@ const AREA_FEEDBACK_MESSAGES = Object.freeze({
   "primary-not-selected": "Il bersaglio primario deve appartenere alla selezione.",
   "outcomes-incomplete": "Registra un esito per ogni bersaglio.",
   "outcome-invalid": "Uno degli esiti non è riconosciuto.",
-  "hp-required": "Inserisci il valore HP richiesto.",
-  "hp-invalid": "Il valore HP non è valido.",
+  "hp-required": "Inserisci il valore dei PF richiesto.",
+  "hp-invalid": "Il valore dei PF non è valido.",
   "caster-required": "Seleziona il caster.",
   "slot-level-invalid": "Lo slot scelto non è valido.",
   "choice-required": "Scegli una variante.",
@@ -1988,7 +1988,7 @@ export function bootSpellUnifiedPanel(
     const operation = captureSceneOperation("spell-panel-board-token-update");
     if (!sceneLifecycle.isCurrent(operation)) return;
     state.session = updateSpellPanelSession(state.session, {
-      feedback: { state: "loading", message: "Aggiornamento HP della pedina in corso…" },
+      feedback: { state: "loading", message: "Aggiornamento dei PF della pedina in corso…" },
     });
     state.revision += 1;
     render();
@@ -2000,7 +2000,7 @@ export function bootSpellUnifiedPanel(
     if (!sceneLifecycle.isCurrent(operation)) return;
     if (result.status === SPELL_UNIFIED_PERSISTENT_STATUS.UPDATED) {
       state.session = updateSpellPanelSession(state.session, {
-        feedback: { state: "success", message: "HP della pedina aggiornati." },
+        feedback: { state: "success", message: "PF della pedina aggiornati." },
       });
       state.revision += 1;
       render();
@@ -2010,7 +2010,7 @@ export function bootSpellUnifiedPanel(
     state.session = updateSpellPanelSession(state.session, {
       feedback: {
         state: "error",
-        message: persistentResultMessage(result, "Aggiornamento HP della pedina non riuscito."),
+        message: persistentResultMessage(result, "Aggiornamento dei PF della pedina non riuscito."),
       },
     });
     state.revision += 1;

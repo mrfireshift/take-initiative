@@ -356,7 +356,7 @@ export function buildBossActionMutation({
   let change = null;
   if (!miss) {
     if (!Number.isFinite(targetMeta.hp) || !Number.isFinite(targetMeta.hpMax)
-        || targetMeta.hp < 0 || targetMeta.hpMax < 0) throw new Error("Il bersaglio non ha HP canonici validi.");
+        || targetMeta.hp < 0 || targetMeta.hpMax < 0) throw new Error("Il bersaglio non ha PF canonici validi.");
     change = calculateQuickHPChange({value:requestedDamage,hp:targetMeta.hp,hpMax:targetMeta.hpMax,tempHp:targetMeta.tempHp,deathSaveDamage:takesDeathSaveDamage(targetMeta)});
   }
   const use=buildBossActionUse({profile,action,sourceItem,actionInstanceId,round});
@@ -618,7 +618,7 @@ export function buildBossActionGroupMutation({
     if (!["failed", "passed"].includes(outcomes?.[target.id])) throw new Error(`Manca l’esito del tiro salvezza per ${target.name || target.id}.`);
     const meta = target.metadata?.[META_KEY] || {};
     if (components.length && (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax) || meta.hp < 0 || meta.hpMax < 0))
-      throw new Error(`${target.name || target.id} non ha HP canonici validi.`);
+      throw new Error(`${target.name || target.id} non ha PF canonici validi.`);
   }
   const immunity = execution.onPassed?.immunity || null;
   const immuneIds = new Set(targets.filter((target) => bossTargetImmune(target, action)).map((target) => target.id));
@@ -832,7 +832,7 @@ export function buildBossActionGroupAttackMutation({
     if (!["hit", "miss"].includes(outcome)) throw new Error(`Manca l’esito dell’attacco contro ${target.name || target.id}.`);
     const meta = target.metadata?.[META_KEY] || {};
     if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax) || meta.hp < 0 || meta.hpMax < 0)
-      throw new Error(`${target.name || target.id} non ha HP canonici validi.`);
+      throw new Error(`${target.name || target.id} non ha PF canonici validi.`);
     // Only conscious creatures: a creature at 0 HP is not a valid target of the reaction.
     if (execution.target.conscious && meta.hp <= 0) throw new Error(`${target.name || target.id} è a 0 PF: non è cosciente.`);
     const typed = targetAmounts?.[target.id] || {};
@@ -935,7 +935,7 @@ export function buildBossThrowMutation({
   const requestedDamage = damageComponents.reduce((sum, entry) => sum + entry.amount, 0);
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
   if (!Number.isFinite(targetMeta.hp) || !Number.isFinite(targetMeta.hpMax) || targetMeta.hp < 0 || targetMeta.hpMax < 0)
-    throw new Error("Il bersaglio non ha HP canonici validi.");
+    throw new Error("Il bersaglio non ha PF canonici validi.");
   const change = calculateQuickHPChange({ value: requestedDamage, hp: targetMeta.hp, hpMax: targetMeta.hpMax, tempHp: targetMeta.tempHp,
     deathSaveDamage: takesDeathSaveDamage(targetMeta) });
   // Scagliare: a creature the target is thrown against takes the same roll (its own defenses) and Prono on a failure.
@@ -943,7 +943,7 @@ export function buildBossThrowMutation({
   if (collisionItem) {
     const collisionMeta = collisionItem.metadata?.[META_KEY] || {};
     if (!Number.isFinite(collisionMeta.hp) || !Number.isFinite(collisionMeta.hpMax) || collisionMeta.hp < 0 || collisionMeta.hpMax < 0)
-      throw new Error("La creatura colpita non ha HP canonici validi.");
+      throw new Error("La creatura colpita non ha PF canonici validi.");
     const failed = collisionOutcome === "failed";
     const collisionComponents = defendedComponents([component], inputs, failed ? "full" : "zero", collisionItem, collisionIgnoredDefenses, collisionExpectedDefenses, false);
     const collisionDamage = collisionComponents.reduce((sum, entry) => sum + entry.amount, 0);

@@ -41,7 +41,7 @@ test("shared child cards bind the regular HP editor to the actual token and have
   assert.equal(row.dataset.spellBoardTokenCompanion, undefined);
   assert.equal(bound[0].target.itemId, "hand");
   assert.equal(bound[0].pill.dataset.sharedHpBadge, "1");
-  assert.match(row.title, /HP condivisi/);
+  assert.match(row.title, /PF condivisi/);
 });
 test("collapsed shared groups have a generic label and no first-token HP or selection action", () => {
   const doc = { createElement: tag => { const node = new FakeNode(doc, tag); node.style = {}; return node; } };

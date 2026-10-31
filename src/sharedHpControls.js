@@ -3,8 +3,8 @@ export function renderSharedHpControls(container, preview, selection, onChange, 
   container.hidden = !preview.groups.length && !preview.choiceGroups.length && !preview.conflicts.length;
   if (container.hidden) return;
   if (preview.multiTarget) {
-    const label = documentRef.createElement("label"); label.textContent = "HP condivisi · ";
-    const policy = documentRef.createElement("select"); policy.setAttribute("aria-label", "Policy HP condivisi"); policy.disabled = disabled;
+    const label = documentRef.createElement("label"); label.textContent = "PF condivisi · ";
+    const policy = documentRef.createElement("select"); policy.setAttribute("aria-label", "Policy PF condivisi"); policy.disabled = disabled;
     for (const [value, text] of [["once", "Una volta per gruppo"], ["per-token", "Per ogni token colpito"]]) {
       const option = documentRef.createElement("option"); option.value = value; option.textContent = text; policy.append(option);
     }
@@ -17,7 +17,7 @@ export function renderSharedHpControls(container, preview, selection, onChange, 
     const choice = documentRef.createElement("select"); choice.setAttribute("aria-label", `Importo condiviso di ${group.name}`); choice.disabled = disabled;
     const empty = documentRef.createElement("option"); empty.value = ""; empty.textContent = "Scegli il bersaglio…"; choice.append(empty);
     for (const target of group.options) {
-      const option = documentRef.createElement("option"); option.value = target.targetId; option.textContent = `${target.name}: ${target.amount} HP`; choice.append(option);
+      const option = documentRef.createElement("option"); option.value = target.targetId; option.textContent = `${target.name}: ${target.amount} PF`; choice.append(option);
     }
     choice.value = selection.chosenTargetIds?.[group.sourceId] || "";
     choice.addEventListener("change", () => onChange({ ...selection,
@@ -26,11 +26,11 @@ export function renderSharedHpControls(container, preview, selection, onChange, 
   }
   for (const group of preview.groups) {
     const line = documentRef.createElement("div");
-    line.textContent = `${group.hitIds.length} token collegati colpiti → ${group.requestedAmount} HP sulla riserva · ${group.beforeHP} → ${group.afterHP}/${group.hpMax}`;
+    line.textContent = `${group.hitIds.length} token collegati colpiti → ${group.requestedAmount} PF sulla riserva · ${group.beforeHP} → ${group.afterHP}/${group.hpMax}`;
     container.append(line);
   }
   if (preview.conflicts.some(conflict => conflict.reason !== "shared-hp-selection-required")) {
-    const error = documentRef.createElement("div"); error.textContent = "Collegamento HP non valido: apri HP condivisi per verificarlo.";
+    const error = documentRef.createElement("div"); error.textContent = "Collegamento dei PF non valido: apri PF condivisi per verificarlo.";
     container.append(error);
   }
 }

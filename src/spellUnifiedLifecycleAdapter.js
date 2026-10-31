@@ -113,7 +113,7 @@ export function getSpellUnifiedLifecycleEligibility(contract = null) {
     || inputs.damage?.required === true
     || inputs.healing?.required === true)
     && !preparedResolution) {
-    return reject("hp-input-not-supported", "Gli input HP restano nella lane area.");
+    return reject("hp-input-not-supported", "Gli input dei PF restano nella lane area.");
   }
   return { eligible: true, code: null, message: "" };
 }

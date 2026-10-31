@@ -1794,7 +1794,7 @@ export function buildReminderResolutionPlan({
     || !Number.isFinite(hpMax)
     || hpMax <= 0
   )) {
-    return { status: "unsupported", message: "Il bersaglio non ha HP canonici configurati." };
+    return { status: "unsupported", message: "Il bersaglio non ha PF canonici configurati." };
   }
   // CAP-TEMP: the damage goes to the temporary hit points first, a healing leaves them as they are (quickHpCore.js).
   const quickChange = hasDamage || hasHealing

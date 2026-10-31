@@ -281,7 +281,7 @@ async function toggleEpicBossOn(ids) {
 
     OBR.contextMenu.create({
       id: `${ID}/shared-hp`, group: MENU_GROUP,
-      icons: [{ icon: ASSET("shared-hp.svg"), label: "HP condivisi", filter: { roles: ["GM"], every: [isCharacter()] } }],
+      icons: [{ icon: ASSET("shared-hp.svg"), label: "PF condivisi", filter: { roles: ["GM"], every: [isCharacter()] } }],
       onClick: async ({ items }) => {
         if (await OBR.player.getRole() !== "GM") return;
         const query = new URLSearchParams();

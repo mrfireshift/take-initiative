@@ -246,7 +246,7 @@ const WILD_MAGIC_GUIDANCE = Object.freeze({
   "09-10": { where: "Bersagli scelti al tavolo", duration: "Istantanea", resolve: "Risolvi il lancio di 5° livello manualmente; nessun danno automatico." },
   "11-12": { where: "Sullo Stregone", duration: "Finché il tavolo non ripristina l'altezza", resolve: "Tira d10 e misura manualmente; nessun token scalato." },
   "13-14": { where: "Centrato sullo Stregone", duration: "1 minuto completo, senza concentrazione", resolve: "TS e area al tavolo; il link all'incantesimo non crea concentrazione." },
-  "15-16": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Ricorda 5 PF all'inizio del turno; non mutare HP automaticamente." },
+  "15-16": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Ricorda 5 PF all'inizio del turno; non mutare i PF automaticamente." },
   "17-18": { where: "Sullo Stregone", duration: "Fino allo starnuto", resolve: "Promemoria cosmetico; fine manuale." },
   "19-20": { where: "Centrato sullo Stregone", duration: "1 minuto", resolve: "Link all'incantesimo consultivo; nessuna zona o TS automatici." },
   "21-22": { where: "Creature contro il prossimo incantesimo idoneo", duration: "Primo incantesimo con TS entro 1 minuto", resolve: "Ricorda il prossimo TS; fine manuale." },
@@ -258,8 +258,8 @@ const WILD_MAGIC_GUIDANCE = Object.freeze({
   "33-34": { where: "Prossimo incantesimo dannoso dello Stregone", duration: "Primo incantesimo idoneo o 1 minuto", resolve: "Massimizzazione dei danni al tavolo; nessun calcolo automatico." },
   "35-36": { where: "Sullo Stregone", duration: "Indefinita", resolve: "Tira d10 e aggiorna età manualmente." },
   "37-38": { where: "Spazi liberi entro 18 m", duration: "Scompaiono dopo 1 minuto", resolve: "Numero, token e stat block dei flumph restano manuali." },
-  "39-40": { where: "Sullo Stregone", duration: "Istantanea", resolve: "Tiro 2d10 e modifica HP manualmente." },
-  "41-42": { where: "Sullo Stregone", duration: "Fino all'inizio del turno successivo", resolve: "Ricorda incapacità e vulnerabilità; nessun watcher HP." },
+  "39-40": { where: "Sullo Stregone", duration: "Istantanea", resolve: "Tiro 2d10 e modifica i PF manualmente." },
+  "41-42": { where: "Sullo Stregone", duration: "Fino all'inizio del turno successivo", resolve: "Ricorda incapacità e vulnerabilità; nessun watcher dei PF." },
   "43-44": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Riuso come azione bonus e distanza restano manuali." },
   "45-46": { where: "Sullo Stregone", duration: "10 minuti completi, senza concentrazione", resolve: "Link all'incantesimo consultivo; TS e movimento restano al tavolo." },
   "47-48": { where: "Spazio entro 1,5 m dallo Stregone", duration: "Scompare dopo 1 minuto", resolve: "Nessun token o stat block creato." },
@@ -280,11 +280,11 @@ const WILD_MAGIC_GUIDANCE = Object.freeze({
   "77-78": { where: "Sullo Stregone", duration: "1 ora completa, senza concentrazione", resolve: "TS e forma di pecora al tavolo; nessuno stat block copiato." },
   "79-80": { where: "Entro 3 m dallo Stregone", duration: "1 minuto", resolve: "Effetto cosmetico; nessuna aura con etichette." },
   "81-82": { where: "Sullo Stregone", duration: "Istantanea", resolve: "Azione aggiuntiva da gestire manualmente." },
-  "83-84": { where: "Ogni creatura entro 9 m", duration: "Istantanea", resolve: "Bersagli, 1d10, danni e cura restano manuali; non mutare HP." },
+  "83-84": { where: "Ogni creatura entro 9 m", duration: "Istantanea", resolve: "Bersagli, 1d10, danni e cura restano manuali; non mutare i PF." },
   "85-86": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Link all'incantesimo consultivo; risoluzione manuale." },
   "87-88": { where: "Una creatura casuale entro 18 m", duration: "10 minuti completi, senza concentrazione", resolve: "Bersaglio casuale e durata completa al tavolo." },
   "89-90": { where: "Sullo Stregone", duration: "1 minuto; fine ad attacco o incantesimo", resolve: "Promemoria con fine anticipata manuale." },
-  "91-92": { where: "Sullo Stregone", duration: "Finestra di 1 minuto o innesco", resolve: "Nessun watcher morte/HP e nessun incantesimo automatico." },
+  "91-92": { where: "Sullo Stregone", duration: "Finestra di 1 minuto o innesco", resolve: "Nessun watcher morte/PF e nessun incantesimo automatico." },
   "93-94": { where: "Sullo Stregone", duration: "1 minuto", resolve: "Promemoria; non scalare il token." },
   "95-96": { where: "Fotografia iniziale dello Stregone e creature entro 9 m", duration: "1 minuto", resolve: "Non è un'aura dinamica; vulnerabilità resta manuale." },
   "97-98": { where: "Attorno allo Stregone", duration: "1 minuto", resolve: "Promemoria cosmetico." },
@@ -2678,7 +2678,7 @@ function buildLayOnHandsControls(feature, state) {
   };
   const heal = makeButton(
     "Cura",
-    "Spendi punti per ripristinare HP",
+    "Spendi punti per ripristinare i PF",
     async () => {
       const targetIds = await classFeatureSelectionTargetIds(feature);
       await applyLayOnHands({

@@ -14,7 +14,7 @@ const menuFor = (label) => menus.find((menu) => menu.labels.includes(label));
 test("on a player's client the initiative and boss entries never show", () => {
   for (const label of ["Console Boss", "Segna come…", "Rimuovi dall’iniziativa", "Aggiungi all’iniziativa…",
     "Abilita Azioni Leggendarie", "Disabilita Azioni Leggendarie", "Abilita Boss Epico", "Disabilita Boss Epico",
-    "Abilita Boss Paragon", "Disabilita Boss Paragon", "Condizioni…", "HP condivisi"]) {
+    "Abilita Boss Paragon", "Disabilita Boss Paragon", "Condizioni…", "PF condivisi"]) {
     assert.ok(menuFor(label), `${label} is registered`);
     assert.equal(menuFor(label).gmOnly, true, `${label} is for the GM only`);
   }

@@ -67,7 +67,7 @@ La barra resta alta sempre uguale: quello che non sta nella card si apre di lato
 
 Il GM vede i controlli di incontro, tracker, modifica e strumenti. I giocatori vedono il round e l'ordine di iniziativa, ma non le toolbar di regia.
 
-Nella vista giocatori gli HP dei PG restano visibili. La modalità estesa può mostrare anche gli HP degli alleati, mentre quella compatta privilegia i soli PG; neutrali e nemici non espongono i propri HP ai giocatori. Quando un valore non è visibile non viene lasciato un testo o una barra vuota. Gli strumenti di amministrazione non sono interattivi per i giocatori.
+Nella vista giocatori i PF dei PG restano visibili. La modalità estesa può mostrare anche i PF degli alleati, mentre quella compatta privilegia i soli PG; neutrali e nemici non espongono i propri PF ai giocatori. Quando un valore non è visibile non viene lasciato un testo o una barra vuota. Gli strumenti di amministrazione non sono interattivi per i giocatori.
 
 Un token che il GM tiene nascosto non arriva ai giocatori in nessuna forma: niente card nel loro tracker, niente barra né aure sulla mappa, niente avviso di turno, promemoria, avvisi di concentrazione o animazioni che lo riguardano; la selezione del GM inviata al tavolo lo esclude. Durante il suo turno il tracker dei giocatori lascia evidenziata l'ultima card attiva visibile. Il GM lo riconosce dal ritratto oscurato con l'occhio barrato al centro. Quando il GM lo mostra, la sua card compare subito.
 
@@ -77,8 +77,8 @@ Ogni card può contenere:
 
 - nome e ritratto;
 - iniziativa;
-- HP attuali e massimi;
-- barra HP;
+- PF attuali e massimi;
+- barra PF;
 - fazione;
 - condizioni e incantesimi;
 - dati di movimento;
@@ -157,7 +157,7 @@ quel personaggio.
   coriacea, Pelle di pietra…) sono promemoria per il tavolo.
 - Cura ferite, Parola guaritrice, Preghiera di guarigione e Parola
   guaritrice di massa si risolvono nel pannello come Cura ferite di massa: si
-  scelgono le creature (una, o fino a sei), si scrive la cura e gli HP salgono,
+  scelgono le creature (una, o fino a sei), si scrive la cura e i PF salgono,
   mai oltre il massimo, annullabile dalla cronologia. Catapulta, Intimorire infernale, Sussurri
   dissonanti e Inaridire chiedono l'esito del TS e il danno, con i dadi dello
   slot.
@@ -313,9 +313,9 @@ campi già compilati.
 
 Fai doppio clic sul nome per rinominare rapidamente il token. Il nuovo nome viene sincronizzato anche sotto il token sulla battlemap.
 
-Il GM modifica gli HP con un clic sul valore, nella card estesa come in quella compatta: si aprono due campi, HP attuali e massimi, dove puoi scrivere il nuovo valore, un delta (`-7`, `+5`) o un piccolo calcolo. **Invio** conferma, **Esc** annulla, **Tab** passa al massimo e poi alla card successiva. Nella card compatta il testo resta al suo posto: diventa tutto bianco e i numeri modificabili sono sottolineati. Ogni modifica è una voce annullabile della Cronologia.
+Il GM modifica i PF con un clic sul valore, nella card estesa come in quella compatta: si aprono due campi, PF attuali e massimi, dove puoi scrivere il nuovo valore, un delta (`-7`, `+5`) o un piccolo calcolo. **Invio** conferma, **Esc** annulla, **Tab** passa al massimo e poi alla card successiva. Nella card compatta il testo resta al suo posto: diventa tutto bianco e i numeri modificabili sono sottolineati. Ogni modifica è una voce annullabile della Cronologia.
 
-L'icona blu della scheda (accanto agli HP nella card estesa, sotto l'iniziativa in quella compatta) apre in un clic la scheda personaggio di PG e alleati, anche per i giocatori. Il GM la apre anche per nemici e neutrali, per importarne lo statblock (vedi [Console attacchi per i mostri](#console-attacchi-per-i-mostri)). Il pulsante **±** della card estesa ricalibra insieme HP attuali e massimi.
+L'icona blu della scheda (accanto ai PF nella card estesa, sotto l'iniziativa in quella compatta) apre in un clic la scheda personaggio di PG e alleati, anche per i giocatori. Il GM la apre anche per nemici e neutrali, per importarne lo statblock (vedi [Console attacchi per i mostri](#console-attacchi-per-i-mostri)). Il pulsante **±** della card estesa ricalibra insieme PF attuali e massimi.
 
 Allo stesso modo un clic sul badge dell'iniziativa lo rende modificabile (solo GM, in entrambe le viste); **Invio** salva, riordina le card e passa alla card successiva. **Compila iniziativa** apre in fila le creature ancora da compilare e le evidenzia con un bordo tratteggiato: **Invio** o **Tab** passa alla successiva, **Ctrl+Invio** chiude, e le card si riordinano alla fine.
 
@@ -368,7 +368,7 @@ Quando il tracker ha il focus della tastiera (dopo un clic nel tracker, per esem
 
 ### Reazione e azione preparata
 
-Nella riga HP di ogni card c'è l'icona della reazione (una freccia curva):
+Nella riga PF di ogni card c'è l'icona della reazione (una freccia curva):
 verde quando la reazione è disponibile, rossa e spenta quando è stata usata. Il GM la segna o la
 ripristina con un clic; i giocatori la vedono sulle card dei PG e degli
 alleati. La reazione usata torna da sola all'inizio del turno successivo della
@@ -472,16 +472,16 @@ La scheda di un mostro resta sul token e nella memoria di questo browser, che
 la ritrova per nome su un nuovo token; non occupa la memoria condivisa della
 room, riservata alle schede dei personaggi.
 
-## 5. HP e modifiche rapide
+## 5. PF e modifiche rapide
 
-Gli HP canonici sono quelli della card/token. Le barre sulla mappa sono una rappresentazione derivata e si aggiornano insieme al tracker.
+I PF canonici sono quelli della card/token. Le barre sulla mappa sono una rappresentazione derivata e si aggiornano insieme al tracker.
 
-Puoi modificare un singolo attore dalla sua card (clic sugli HP) oppure usare la **Console effetti manuali** per un'operazione su più bersagli.
+Puoi modificare un singolo attore dalla sua card (clic sui PF) oppure usare la **Console effetti manuali** per un'operazione su più bersagli.
 
 ### Console effetti manuali
 
 1. Apri **Effetti** dalla toolbar del tracker: la console parte dalla scheda **Effetti** (tiri salvezza e condizioni). Dal menu di un modello d'area, **Seleziona e apri Console effetti ad area** la apre già su **Danno**.
-2. Scegli **Danno**, **Cura** o **HP temp.**.
+2. Scegli **Danno**, **Cura** o **PF temp.**.
 3. Inserisci il valore nel campo accanto al pulsante di applicazione.
 4. Filtra i bersagli per nome e/o fazione.
 5. Seleziona i bersagli dalla lista o direttamente sulla mappa.
@@ -687,7 +687,7 @@ mantenere l'effetto oppure applicare la condizione dichiarata dal catalogo.
 
 I controlli sono esclusivi della vista GM. La vista giocatori riceve lo stesso
 promemoria informativo, ma non mostra pulsanti o input. Ogni conferma passa dal
-coordinatore di effetti: HP, etichette, tracker e barre mappa restano derivati dai
+coordinatore di effetti: PF, etichette, tracker e barre mappa restano derivati dai
 metadata canonici, mentre una sola voce della cronologia alimenta anche il
 registro combattimento. Un promemoria già risolto, duplicato o diventato obsoleto non viene
 riapplicato; il GM può chiudere l'avviso e continuare senza conseguenze.
@@ -743,7 +743,7 @@ Entrambi i contatori dispongono di controlli per modificare valore corrente e to
 
 ### Boss Paragon
 
-Un Boss Paragon (menu del token: **Abilita Boss Paragon**) riceve più turni nell'ordine. Le voci aggiuntive sono virtuali e fanno riferimento allo stesso token e agli stessi HP.
+Un Boss Paragon (menu del token: **Abilita Boss Paragon**) riceve più turni nell'ordine. Le voci aggiuntive sono virtuali e fanno riferimento allo stesso token e agli stessi PF.
 
 ### Boss Epico
 
@@ -833,7 +833,7 @@ magie) compare come incantesimo, non come tiro salvezza.
 
 Il plugin crea elementi derivati e bloccati per evitare trascinamenti accidentali:
 
-- barra e numero HP;
+- barra e numero PF;
 - nome sincronizzato;
 - indicatore di turno;
 - `C` di concentrazione;
@@ -848,7 +848,7 @@ Dimensione, spaziatura e allineamento delle etichette si adattano allo zoom. Que
 Prima della sessione:
 
 1. prepara i token e assegna le fazioni;
-2. completa HP, iniziativa, velocità e risorse boss;
+2. completa PF, iniziativa, velocità e risorse boss;
 3. verifica la vista giocatori sul display del tavolo;
 4. crea eventuali clock iniziali, nascondendo quelli solo GM.
 
@@ -857,7 +857,7 @@ Durante il combattimento:
 1. usa le frecce del tracker (o Spazio, → e ←) per avanzare;
 2. usa le azioni rapide oppure applica incantesimi e condizioni dai pannelli
    dedicati; per le condizioni comuni basta il clic destro sulla card o sul
-   token (**Condizioni rapide**), per i danni a una creatura il clic sui suoi HP;
+   token (**Condizioni rapide**), per i danni a una creatura il clic sui suoi PF;
 3. per gli incantesimi ad area, posiziona la zona dalla Console effetti ad area e
    verifica che l'istanza compaia nel registro;
 4. avanza l'iniziativa e usa i promemoria per sapere quali tiri effettuare al

@@ -933,7 +933,7 @@ test("trait auras: activated with the binding, tagged in the passives, listed an
   f.runtime.restoreBossAuras=async request=>{restores.push(request);const merged=mergeBossAuras(boss.customAuras,f.getBound(),{replace:true});boss.customAuras=merged.auras;
     return {restored:merged.restored,added:merged.added,removed:merged.removed,changed:merged.changed};};
   await importAndBind(f,"auril-phase-3.html");
-  assert.match(f.$("boss-status").textContent,/Profilo collegato\. HP del token preservati\. Aure attivate sul token: Primal Blizzard, Primal Blizzard · Vento, Aura Gelida\./);
+  assert.match(f.$("boss-status").textContent,/Profilo collegato\. PF del token preservati\. Aure attivate sul token: Primal Blizzard, Primal Blizzard · Vento, Aura Gelida\./);
   await f.$("boss-tab-passives").click();await tick();
   const passive=name=>f.$("boss-passives").children.find(item=>item.children[0].textContent.startsWith(name));
   assert.match(textOf(passive("Primal Blizzard")),/Aura sul token/);

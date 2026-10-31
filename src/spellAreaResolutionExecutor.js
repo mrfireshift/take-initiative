@@ -2023,7 +2023,7 @@ async function buildPlan(command, runtime) {
   const casterHealingRatio = Number(getSpellCastResolutionRule(spell.id)?.casterHealingFromAppliedDamage) || 0;
   const damagePreview = casterHealingRatio > 0 ? buildSharedHpPreview(allItems, entries, command.sharedHp || {}) : null;
   if (damagePreview?.conflicts.length) return { valid: false,
-    errors: damagePreview.conflicts.map(conflict => ({ code: conflict.reason, message: "Scegli l'importo per la riserva HP condivisa." })) };
+    errors: damagePreview.conflicts.map(conflict => ({ code: conflict.reason, message: "Scegli l'importo per la riserva di PF condivisa." })) };
   const casterHealingEntry = casterHealingEntryFromAppliedDamage({
     entries: damagePreview?.groups.length ? sharedHpDamageEntries(entries, damagePreview.groups) : entries,
     caster,
@@ -2035,7 +2035,7 @@ async function buildPlan(command, runtime) {
   const sharedHpPreview = buildSharedHpPreview(allItems, entries, command.sharedHp || {});
   if (sharedHpPreview.conflicts.length) return { valid: false, errors: sharedHpPreview.conflicts.map(conflict => ({
     code: conflict.reason, message: conflict.reason === "shared-hp-selection-required"
-      ? "Scegli l'importo da applicare alla riserva HP condivisa." : "Verifica il collegamento HP del bersaglio.",
+      ? "Scegli l'importo da applicare alla riserva di PF condivisa." : "Verifica il collegamento dei PF del bersaglio.",
   })) };
   // With shared HP or a teleport the HP go through the coordinator, which applies the death saves, Death Ward and
   // Warding Bond itself.

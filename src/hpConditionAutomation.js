@@ -22,7 +22,7 @@ export async function reconcileZeroHPConditionsForItems(
   }], {
     history: false,
     kind: "condition:hp-automation",
-    label: "Aggiornata condizione a 0 HP",
+    label: "Aggiornata condizione a 0 PF",
     targetIds: ids,
   });
   if (mutation.status === "rejected") return [];

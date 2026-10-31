@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HP condivisi</title>
+  <title>PF condivisi</title>
   <link rel="stylesheet" href="/ui-typography.css" />
   <link rel="stylesheet" href="/popover-glass.css" />
   <link rel="stylesheet" href="/shared-hp-modal.css" />
@@ -11,8 +11,8 @@
 <body>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/shared-hp-modal">
     <header data-drag-handle draggable="true">
-      <div class="heading"><h1>HP condivisi</h1><div class="subtitle" id="selection">Caricamento selezione…</div></div>
-      <button id="refresh" class="button subtle" type="button" title="Aggiorna HP e collegamenti">Aggiorna</button>
+      <div class="heading"><h1>PF condivisi</h1><div class="subtitle" id="selection">Caricamento selezione…</div></div>
+      <button id="refresh" class="button subtle" type="button" title="Aggiorna PF e collegamenti">Aggiorna</button>
       <button id="close" class="close" type="button" aria-label="Chiudi">×</button>
     </header>
     <main>
@@ -23,21 +23,21 @@
           <div class="identity"><span class="caption">Riserva condivisa</span><strong id="source-name"></strong></div>
           <span class="hp" id="source-hp"></span>
         </div>
-        <p class="hint">I token collegati condividono HP e massimo, e restano fuori dall’iniziativa.</p>
+        <p class="hint">I token collegati condividono PF e massimo, e restano fuori dall’iniziativa.</p>
         <label class="caption" for="tracker-visibility">Righe dei secondari nel tracker</label>
         <select id="tracker-visibility" disabled><option value="gm">Solo GM</option><option value="all">Tutto il tavolo</option></select>
-        <p class="hint">Compaiono sotto al principale, come le pedine evocate. Il GM modifica gli HP direttamente dalla loro riga.</p>
+        <p class="hint">Compaiono sotto al principale, come le pedine evocate. Il GM modifica i PF direttamente dalla loro riga.</p>
       </section>
       <section id="preview-section" class="section" aria-labelledby="preview-label">
         <div class="section-heading"><h2 id="preview-label">Anteprima collegamento</h2><span class="count" id="preview-count"></span></div>
         <div id="preview" class="list"></div>
-        <p class="hint">Collegando i token selezionati, i loro HP saranno allineati alla riserva del principale.</p>
+        <p class="hint">Collegando i token selezionati, i loro PF saranno allineati alla riserva del principale.</p>
       </section>
       <section class="section" aria-labelledby="members-label">
         <div class="section-heading"><h2 id="members-label">Token collegati</h2><span class="count" id="member-count"></span></div>
         <div id="members" class="list"></div>
         <div class="section-actions"><button id="unlink-all" class="button subtle" type="button" disabled>Scollega tutti dal principale</button></div>
-        <p class="hint">Il log indica il secondario modificato nel tracker. La visibilità degli HP per i giocatori segue le opzioni del plugin. Scollegare mantiene gli ultimi HP.</p>
+        <p class="hint">Il log indica il secondario modificato nel tracker. La visibilità dei PF per i giocatori segue le opzioni del plugin. Scollegare mantiene gli ultimi PF.</p>
       </section>
     </main>
     <footer>

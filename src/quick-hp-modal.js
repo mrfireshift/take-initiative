@@ -315,7 +315,7 @@ function signed(value) {
 
 function modeLabel() {
   if (mode === QUICK_HP_MODES.HEAL) return "cura";
-  if (mode === QUICK_HP_MODES.TEMP) return "HP temporanei";
+  if (mode === QUICK_HP_MODES.TEMP) return "PF temporanei";
   if (mode === QUICK_HP_MODES.SAVE) return "effetto manuale";
   return "danno";
 }
@@ -503,15 +503,15 @@ function renderTargets() {
     const name = document.createElement("span");
     name.className = "name";
     name.textContent = displayName(item);
-    if (item.metadata?.[META_KEY]?.sharedHpSourceId) name.title = "HP condivisi · token secondario";
+    if (item.metadata?.[META_KEY]?.sharedHpSourceId) name.title = "PF condivisi · token secondario";
     identity.append(faction, name);
 
     const preview = document.createElement("div");
     preview.className = "hp-preview";
     if (!trackedHP) {
       preview.textContent = mode === QUICK_HP_MODES.SAVE
-        ? "HP non tracciati · solo condizioni"
-        : "HP non tracciati";
+        ? "PF non tracciati · solo condizioni"
+        : "PF non tracciati";
     } else if (saveOutcomeRequired() && !saveOutcomes.has(item.id)) {
       preview.textContent = "Esito mancante";
     } else {
@@ -608,7 +608,7 @@ function updateControls() {
     const total = changes.reduce((sum, entry) => sum + Math.abs(entry.change.delta), 0);
     summary.textContent = !selected.length
       ? "Nessun bersaglio selezionato"
-      : `${selected.length} bersagli · ${changes.length} modificati · ${total} HP`;
+      : `${selected.length} bersagli · ${changes.length} modificati · ${total} PF`;
   }
   const outcomesComplete = !saveOutcomeRequired()
     || selected.every((item) => saveOutcomes.has(item.id));
@@ -622,7 +622,7 @@ function updateControls() {
   applyButton.textContent = mode === QUICK_HP_MODES.HEAL
     ? "Applica cura"
     : mode === QUICK_HP_MODES.TEMP
-      ? "Applica HP temp."
+      ? "Applica PF temp."
       : mode === QUICK_HP_MODES.SAVE
         ? "Applica effetti"
         : "Applica danno";
@@ -755,12 +755,12 @@ async function showEffectSaveDamageWarnings(entries) {
 
 async function applyOperation() {
   if (busy || !sceneAvailable()) {
-    if (!sceneAvailable()) status.textContent = "Scena cambiata: riapri la console HP.";
+    if (!sceneAvailable()) status.textContent = "Scena cambiata: riapri la console Effetti.";
     return;
   }
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId() });
   if (!sceneLifecycle.isCurrent(operation)) {
-    status.textContent = "Scena cambiata: riapri la console HP.";
+    status.textContent = "Scena cambiata: riapri la console Effetti.";
     renderTargets();
     return;
   }
@@ -780,7 +780,7 @@ async function applyOperation() {
   const liveItems = liveSceneItems.filter(item => selectedInView.has(item.id));
   sharedHpItems = liveSceneItems;
   if (!sceneLifecycle.isCurrent(operation)) {
-    status.textContent = "Scena cambiata: riapri la console HP.";
+    status.textContent = "Scena cambiata: riapri la console Effetti.";
     busy = false;
     renderTargets();
     return;
@@ -791,14 +791,14 @@ async function applyOperation() {
   })).filter((entry) => entry.change);
   const sharedPreview = buildSharedHpPreview(liveSceneItems, entries, sharedHpSelection);
   if (sharedPreview.conflicts.length) {
-    status.textContent = "Verifica il collegamento HP e scegli un importo per ogni riserva con esiti diversi.";
+    status.textContent = "Verifica il collegamento dei PF e scegli un importo per ogni riserva con esiti diversi.";
     renderTargets(); return;
   }
   let effectOperations = [];
   if (failedIds.length && conditionName) {
     const appliedAtState = await appliedAt();
     if (!sceneLifecycle.isCurrent(operation)) {
-      status.textContent = "Scena cambiata: riapri la console HP.";
+      status.textContent = "Scena cambiata: riapri la console Effetti.";
       return;
     }
     effectOperations = conditionMutationOperations({
@@ -822,7 +822,7 @@ async function applyOperation() {
   const ids = entries.map((entry) => entry.item.id);
   const affectedIds = uniqueIds([...ids, ...failedIds]);
   if (!sceneLifecycle.isCurrent(operation)) {
-    status.textContent = "Scena cambiata: riapri la console HP.";
+    status.textContent = "Scena cambiata: riapri la console Effetti.";
     busy = false;
     renderTargets();
     return;
@@ -847,13 +847,13 @@ async function applyOperation() {
       });
     } catch (error) {
       console.warn("[quick-hp] scene context:", error?.message || error);
-      status.textContent = "La scena non è disponibile: riapri la console HP.";
+      status.textContent = "La scena non è disponibile: riapri la console Effetti.";
       busy = false;
       renderTargets();
       return;
     }
     if (!sceneLifecycle.isCurrent(operation)) {
-      status.textContent = "Scena cambiata: riapri la console HP.";
+      status.textContent = "Scena cambiata: riapri la console Effetti.";
       busy = false;
       renderTargets();
       return;
@@ -885,8 +885,8 @@ async function applyOperation() {
     concentrationCauseHistoryEntryId = recordedEntry?.id || "";
     if (!sceneLifecycle.isCurrent(operation)) {
       status.textContent = canonicalCommitted
-        ? "HP applicati nella scena precedente; riapri la console HP per i passaggi successivi."
-        : "Scena cambiata: riapri la console HP.";
+        ? "PF applicati nella scena precedente; riapri la console Effetti per i passaggi successivi."
+        : "Scena cambiata: riapri la console Effetti.";
       return;
     }
     if (hpVisualTransaction) await hpVisualTransaction.completion;
@@ -895,8 +895,8 @@ async function applyOperation() {
     const committedItems = await OBR.scene.items.getItems(committedUpdates.map(update => update.tokenId));
     if (!sceneLifecycle.isCurrent(operation)) {
       status.textContent = canonicalCommitted
-        ? "HP applicati nella scena precedente; riapri la console HP per i passaggi successivi."
-        : "Scena cambiata: riapri la console HP.";
+        ? "PF applicati nella scena precedente; riapri la console Effetti per i passaggi successivi."
+        : "Scena cambiata: riapri la console Effetti.";
       return;
     }
     await Promise.all([
@@ -918,8 +918,8 @@ async function applyOperation() {
     ]);
     if (!sceneLifecycle.isCurrent(operation)) {
       status.textContent = canonicalCommitted
-        ? "HP applicati nella scena precedente; riapri la console HP per i passaggi successivi."
-        : "Scena cambiata: riapri la console HP.";
+        ? "PF applicati nella scena precedente; riapri la console Effetti per i passaggi successivi."
+        : "Scena cambiata: riapri la console Effetti.";
       return;
     }
     lastEntryId = recordedEntry?.id || "";
@@ -942,8 +942,8 @@ async function applyOperation() {
     console.error("[quick-hp] apply:", error);
     if (!sceneLifecycle.isCurrent(operation)) {
       status.textContent = canonicalCommitted
-        ? "HP applicati nella scena precedente; riapri la console HP per i passaggi successivi."
-        : "Scena cambiata: riapri la console HP.";
+        ? "PF applicati nella scena precedente; riapri la console Effetti per i passaggi successivi."
+        : "Scena cambiata: riapri la console Effetti.";
       return;
     }
     if (hpVisualTransaction) {
@@ -966,12 +966,12 @@ async function applyOperation() {
 
 async function undoLastOperation() {
   if (busy || !lastEntryId || !sceneAvailable()) {
-    if (!sceneAvailable() && lastEntryId) status.textContent = "Scena cambiata: riapri la console HP.";
+    if (!sceneAvailable() && lastEntryId) status.textContent = "Scena cambiata: riapri la console Effetti.";
     return;
   }
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId("quick-hp-undo") });
   if (!sceneLifecycle.isCurrent(operation)) {
-    status.textContent = "Scena cambiata: riapri la console HP.";
+    status.textContent = "Scena cambiata: riapri la console Effetti.";
     return;
   }
   busy = true;
@@ -979,7 +979,7 @@ async function undoLastOperation() {
   try {
     const history = await getHistoryEntries();
     if (!sceneLifecycle.isCurrent(operation)) {
-      status.textContent = "Scena cambiata: riapri la console HP.";
+      status.textContent = "Scena cambiata: riapri la console Effetti.";
       return;
     }
     const latest = history[history.length - 1];
@@ -992,7 +992,7 @@ async function undoLastOperation() {
       sceneEpoch: operation.epoch,
     });
     if (!sceneLifecycle.isCurrent(operation)) {
-      status.textContent = "Annullamento della scena precedente completato o sospeso; riapri la console HP.";
+      status.textContent = "Annullamento della scena precedente completato o sospeso; riapri la console Effetti.";
       return;
     }
     const outcome = normalizeHistoryUndoResult(undone);
@@ -1016,7 +1016,7 @@ async function undoLastOperation() {
   } catch (error) {
     console.error("[quick-hp] undo:", error);
     if (!sceneLifecycle.isCurrent(operation)) {
-      status.textContent = "Annullamento della scena precedente completato o sospeso; riapri la console HP.";
+      status.textContent = "Annullamento della scena precedente completato o sospeso; riapri la console Effetti.";
       return;
     }
     status.textContent = "Annullamento non riuscito.";
@@ -1114,7 +1114,7 @@ OBR.onReady(async () => {
       saveOutcomes.clear();
       targets = [];
       lastEntryId = "";
-      status.textContent = "Scena cambiata: riapri la console HP.";
+      status.textContent = "Scena cambiata: riapri la console Effetti.";
       renderTargets();
       return;
     }
@@ -1134,13 +1134,13 @@ OBR.onReady(async () => {
   });
   await sceneLifecycle.mount();
   if (!sceneLifecycle.isReady()) {
-    status.textContent = "Scena non disponibile: riapri la console HP.";
+    status.textContent = "Scena non disponibile: riapri la console Effetti.";
     renderTargets();
     return;
   }
   await mountCombatLogEventSink();
   if (await OBR.player.getRole() !== "GM") {
-    targetList.textContent = "La console HP rapida è disponibile solo per il GM.";
+    targetList.textContent = "La console Effetti è disponibile solo per il GM.";
     return;
   }
   populateConditionOptions();

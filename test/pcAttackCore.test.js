@@ -109,7 +109,7 @@ test("invalid actors, decisions and amounts fail before any mutation", () => {
   assert.throws(() => plan({ componentAmounts: { c1: 1, c2: 2, c9: 3 } }), /sconosciuta/);
   assert.throws(() => plan({ attackInstanceId: "" }), /Identità/);
   assert.throws(() => plan({ action: { ...sword, kind: "condition", conditionName: "Prono" } }), /non valida/);
-  assert.throws(() => plan({ targetItem: target({ hp: undefined }) }), /HP canonici/);
+  assert.throws(() => plan({ targetItem: target({ hp: undefined }) }), /PF canonici/);
 });
 
 test("the preview names the next missing decision and shows the HP the attack leaves", () => {

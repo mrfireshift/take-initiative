@@ -213,7 +213,7 @@ function renderPreview() {
     ? "; TS contro la morte nascosti"
     : "";
   const cards = [
-    ["Tracker", `HP nemici: ${hpModeLabels[hp.trackerClassic.enemy]}. Effetti: ${effectLabels[shared.effects.conditions]}.`],
+    ["Tracker", `PF nemici: ${hpModeLabels[hp.trackerClassic.enemy]}. Effetti: ${effectLabels[shared.effects.conditions]}.`],
     ["Promemoria", `${reminderLabels[shared.reminders.visibility]}${reminderDetails}${deathSaveDetail}.`],
     ["Turno e mappa", `Avviso di turno ${shared.popup ? "attivo" : "disattivo"}; risoluzione ${shared.directResolution === "assisted" ? "assistita" : "informativa"}; promemoria di movimento ${shared.movementReminder ? "attivo" : "disattivo"}; nome sulla mappa ${shared.activeTurnLabel ? "attivo" : "disattivo"}; dettagli sotto le etichette ${shared.summaryParts ? "attivi" : "disattivati"}.`],
   ];
@@ -443,7 +443,7 @@ async function cleanRuntimeData() {
   const operation = sceneLifecycle.capture({ operationId: `options-cleanup:${Date.now().toString(36)}` });
   if (!sceneLifecycle.isCurrent(operation)) return;
   const confirmed = window.confirm(
-    "Pulire i dati derivati orfani di questa scena? I metadata dei token, HP, condizioni, incantesimi, concentrazione e iniziativa non verranno modificati.",
+    "Pulire i dati derivati orfani di questa scena? I metadata dei token, PF, condizioni, incantesimi, concentrazione e iniziativa non verranno modificati.",
   );
   if (!confirmed) return;
   cleaning = true;

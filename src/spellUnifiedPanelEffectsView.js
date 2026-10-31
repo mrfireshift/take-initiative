@@ -235,7 +235,7 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
             },
           });
           const save = createButton(documentRef, {
-            label: "Aggiorna HP",
+            label: "Aggiorna PF",
             className: "unified-secondary-button",
           });
           save.addEventListener("click", async () => {
@@ -501,10 +501,10 @@ export function renderEffectInputPanel(documentRef, model, callbacks = {}) {
       });
       for (const target of preview.targets) {
         const detail = !target.available
-          ? "HP autorevoli non disponibili"
+          ? "PF autorevoli non disponibili"
           : target.pendingOutcome
-            ? `${target.beforeHP} HP · registra l'esito`
-            : `${target.beforeHP} → ${target.afterHP} HP (max ${target.hpMax}) · ${target.factorLabel}`;
+            ? `${target.beforeHP} PF · registra l'esito`
+            : `${target.beforeHP} → ${target.afterHP} PF (max ${target.hpMax}) · ${target.factorLabel}`;
         list.append(createNode(documentRef, "li", {
           children: [
             createNode(documentRef, "strong", { text: target.label }),

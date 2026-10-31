@@ -392,7 +392,7 @@ export function buildCombatSnapshot({
 }
 
 function hpText(hp, hpMax) {
-  if (hp === null && hpMax === null) return "HP ?";
+  if (hp === null && hpMax === null) return "PF ?";
   return `${hp ?? "?"}/${hpMax ?? "?"}`;
 }
 

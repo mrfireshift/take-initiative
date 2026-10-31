@@ -5958,13 +5958,13 @@ async function updateHP(itemId, nextHP, nextHPMax, expectedValues = null, tempHp
   const sceneEpoch = currentSceneEpoch();
   const sceneContext = await getEffectsMutationSceneContext();
   const items = await OBR.scene.items.getItems();
-  if (!isCurrentSceneEpoch(sceneEpoch)) throw new Error("Scena cambiata durante la modifica HP.");
+  if (!isCurrentSceneEpoch(sceneEpoch)) throw new Error("Scena cambiata durante la modifica dei PF.");
   const update = { itemId, hp: n, hpMax: nm, ...(nt === null ? {} : { tempHp: nt }),
     ...(nt !== null && tempHpCause ? { tempHpCause } : {}),
     ...(Number.isFinite(expectedValues?.hp) ? { expectedHP: { present: true, value: expectedValues.hp } } : {}),
     ...(Number.isFinite(expectedValues?.hpMax) ? { expectedHPMax: { present: true, value: expectedValues.hpMax } } : {}) };
   const shared = planSharedHpMutation({ items, operations: [{ type: "hp:set", updates: [update] }] });
-  if (shared.status) throw new Error("La riserva HP è cambiata: riapri l'editor.");
+  if (shared.status) throw new Error("La riserva di PF è cambiata: riapri l'editor.");
   const visualIds = shared.affectedIds.length ? shared.affectedIds : [itemId];
 
   // Avvia subito l'aggiornamento visivo, senza aspettare il round-trip dei metadata.

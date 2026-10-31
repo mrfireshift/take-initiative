@@ -34,7 +34,7 @@ function renderPreview() {
   $("selection").textContent = count === 1 ? name(view.tokens[0]) : `${count} token selezionati`;
   $("source-summary").hidden = !source;
   $("source-name").textContent = source ? name(source) : "";
-  $("source-hp").textContent = source ? `${hp(source)} HP` : "";
+  $("source-hp").textContent = source ? `${hp(source)} PF` : "";
   $("tracker-visibility").value = source?.metadata?.[KEY]?.sharedHpTrackerVisibility === "all" ? "all" : "gm";
   $("tracker-visibility").disabled = busy || !source;
   $("preview-count").textContent = source && targets.length ? String(targets.length) : "";
@@ -49,8 +49,8 @@ function renderPreview() {
       row.append(identity, node("span", "hp", `${hp(item)} → ${hp(source)}`)); $("preview").append(row);
     }
   } else $("preview").append(node("div", "empty", source
-    ? "Seleziona i token secondari sulla mappa e riapri HP condivisi per collegarli."
-    : "Scegli il token principale per vedere gli HP che verranno condivisi."));
+    ? "Seleziona i token secondari sulla mappa e riapri PF condivisi per collegarli."
+    : "Scegli il token principale per vedere i PF che verranno condivisi."));
   const alreadyLinked = !!source && targets.length > 0
     && targets.every(item => item.metadata?.[KEY]?.sharedHpSourceId === source.id);
   $("preview-section").hidden = alreadyLinked;
@@ -64,12 +64,12 @@ function renderPreview() {
     const row = node("div", `row${root ? "" : " broken"}`);
     const identity = node("div", "identity");
     const label = node("span", "token-name", name(item)); label.title = name(item);
-    identity.append(label, node("span", "token-detail", root ? `Condivide HP con ${name(root)}` : "Collegamento interrotto: principale assente"));
+    identity.append(label, node("span", "token-detail", root ? `Condivide i PF con ${name(root)}` : "Collegamento interrotto: principale assente"));
     const actions = node("div", "row-actions");
     const button = node("button", "button subtle", "Scollega"); button.type = "button"; button.disabled = busy;
     button.setAttribute("aria-label", `Scollega ${name(item)}`);
     button.addEventListener("click", () => act("unlink", [item.id]));
-    actions.append(button); row.append(identity, node("span", "hp", `${hp(item)} HP`), actions); $("members").append(row);
+    actions.append(button); row.append(identity, node("span", "hp", `${hp(item)} PF`), actions); $("members").append(row);
   }
   $("member-count").textContent = members.length ? String(members.length) : "";
   if (!members.length) $("members").append(node("div", "empty", "Nessun token collegato a questa riserva."));
@@ -126,14 +126,14 @@ $("link").addEventListener("click", () => act("link"));
 $("unlink-selection").addEventListener("click", () => act("unlink", view.tokens.filter(item => item.metadata?.[KEY]?.sharedHpSourceId).map(item => item.id)));
 $("unlink-all").addEventListener("click", () => act("unlink", view.items.filter(item => item.metadata?.[KEY]?.sharedHpSourceId === $("source").value).map(item => item.id)));
 $("close").addEventListener("click", () => OBR.popover.close(`${ID}/shared-hp-modal`));
-$("refresh").addEventListener("click", () => { if (!busy) return load().catch(() => setStatus("Impossibile aggiornare. Riapri HP condivisi.", "error")); });
+$("refresh").addEventListener("click", () => { if (!busy) return load().catch(() => setStatus("Impossibile aggiornare. Riapri PF condivisi.", "error")); });
 OBR.onReady(async () => {
   try {
     await lifecycle.mount(); await load();
     unsubscribeItems = subscribeSceneItemChanges(() => {
-      if (!busy) void load().catch(() => setStatus("Impossibile aggiornare. Riapri HP condivisi.", "error"));
+      if (!busy) void load().catch(() => setStatus("Impossibile aggiornare. Riapri PF condivisi.", "error"));
     }, { filter: event => event.flags.hpBars || event.flags.trackerStructure });
   } catch (error) { setStatus(error.message, "error"); }
 });
-lifecycle.subscribe(event => { if (event.phase === "unavailable") { busy = true; ++loadRevision; renderPreview(); setStatus("Scena cambiata: riapri HP condivisi.", "error"); } });
+lifecycle.subscribe(event => { if (event.phase === "unavailable") { busy = true; ++loadRevision; renderPreview(); setStatus("Scena cambiata: riapri PF condivisi.", "error"); } });
 window.addEventListener("pagehide", () => { unsubscribeItems?.(); lifecycle.dispose(); });

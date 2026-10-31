@@ -1079,7 +1079,7 @@ export function pcAttackPreview({
   const secondaryBlocker = !secondaryWanted ? ""
     : wovenSecondary && activationSecondary ? "Una sola seconda creatura per attacco."
     : !secondaryItem || secondaryItem.id === targetItem?.id || secondaryItem.id !== secondarySource.targetId ? "Scegli un'altra creatura come seconda."
-    : !secondary?.hp ? "La seconda creatura non ha HP canonici validi."
+    : !secondary?.hp ? "La seconda creatura non ha PF canonici validi."
     : "";
   const groups = new Set();
   const activationBlock = chosenActivations.map((activation) => {
@@ -1128,7 +1128,7 @@ export function pcAttackPreview({
     : activationBlock ? activationBlock
     : secondaryBlocker ? secondaryBlocker
     : hitPlan?.blocker ? hitPlan.blocker
-    : !hp ? "Il bersaglio non ha HP canonici validi."
+    : !hp ? "Il bersaglio non ha PF canonici validi."
     : "";
   return { ready: !blocker, blocker, defenses, profileDefenses, total, hp, ...(secondary ? { secondary } : {}),
     ...(hitPlan?.causality ? { hitEffect: hitPlan.causality } : {}),
@@ -1233,7 +1233,7 @@ export function buildPcAttackMutation({
   let change = null;
   if (!miss) {
     if (!Number.isFinite(targetMeta.hp) || !Number.isFinite(targetMeta.hpMax)
-        || targetMeta.hp < 0 || targetMeta.hpMax < 0) throw new Error("Il bersaglio non ha HP canonici validi.");
+        || targetMeta.hp < 0 || targetMeta.hpMax < 0) throw new Error("Il bersaglio non ha PF canonici validi.");
     change = calculateQuickHPChange({ value: requestedDamage, hp: targetMeta.hp, hpMax: targetMeta.hpMax, tempHp: targetMeta.tempHp,
       deathSaveDamage: takesDeathSaveDamage(targetMeta) });
   }
@@ -1266,7 +1266,7 @@ export function buildPcAttackMutation({
   let secondaryChange = null;
   if (secondaryItemUsed) {
     if (!Number.isFinite(secondaryMeta.hp) || !Number.isFinite(secondaryMeta.hpMax) || secondaryMeta.hp < 0 || secondaryMeta.hpMax < 0)
-      throw new Error("La seconda creatura non ha HP canonici validi.");
+      throw new Error("La seconda creatura non ha PF canonici validi.");
     secondaryChange = calculateQuickHPChange({ value: secondaryComponents.reduce((sum, component) => sum + component.amount, 0),
       hp: secondaryMeta.hp, hpMax: secondaryMeta.hpMax, tempHp: secondaryMeta.tempHp, deathSaveDamage: takesDeathSaveDamage(secondaryMeta) });
   }
@@ -1274,7 +1274,7 @@ export function buildPcAttackMutation({
   const burstRows = (activationPlan.burst?.items || []).map((item) => {
     const meta = item.metadata?.[META_KEY] || {};
     if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax) || meta.hp < 0 || meta.hpMax < 0)
-      throw new Error(`${item.name || item.id} non ha HP canonici validi.`);
+      throw new Error(`${item.name || item.id} non ha PF canonici validi.`);
     const components = defendedComponents([{ id: "b1", type: activationPlan.burst.type, source: { kind: "class-feature",
       featureId: activationPlan.burst.id, name: activationPlan.burst.option.label, activation: true } }],
     { b1: activationPlan.burst.amount }, "full", item, [], expectedBurstDefenses?.[item.id]);
@@ -1687,7 +1687,7 @@ function tempHpBlocker(option, request, { items = [], targetItem = null, seconda
     const item = items.find((candidate) => candidate.id === entry.targetId);
     const meta = item?.metadata?.[META_KEY] || {};
     if (!item || !isBossActionCreature(item)) return `${option.label}: una creatura scelta non è più nella scena.`;
-    if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax)) return `${option.label}: ${item.name || item.id} non ha HP canonici validi.`;
+    if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax)) return `${option.label}: ${item.name || item.id} non ha PF canonici validi.`;
     if (!validAmount(entry.amount) || Number(entry.amount) <= 0) return `${option.label}: inserisci i PF temporanei di ${item.name || item.id}.`;
   }
   const sum = entries.reduce((total, entry) => total + Number(entry.amount), 0);
@@ -1723,7 +1723,7 @@ export function buildPcAttackQuiveringPalmMutation({
   const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
   if (outcome !== "none" && (!Number.isFinite(targetMeta.hp) || !Number.isFinite(targetMeta.hpMax) || targetMeta.hp < 0 || targetMeta.hpMax < 0))
-    throw new Error("Il bersaglio non ha HP canonici validi.");
+    throw new Error("Il bersaglio non ha PF canonici validi.");
   const name = getClassFeatureDefinition(PC_ATTACK_QUIVERING_PALM_FEATURE_ID)?.name || "Palmo Tremante";
   let damageComponents = [];
   let change = null;
@@ -1790,7 +1790,7 @@ function burstBlocker(option, request, { items = [], targetItem = null, secondar
     const item = items.find((candidate) => candidate.id === id);
     const meta = item?.metadata?.[META_KEY] || {};
     if (!item || !isBossActionCreature(item)) return `${option.label}: una creatura scelta non è più nella scena.`;
-    if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax)) return `${option.label}: ${item.name || item.id} non ha HP canonici validi.`;
+    if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax)) return `${option.label}: ${item.name || item.id} non ha PF canonici validi.`;
   }
   return "";
 }
@@ -1874,7 +1874,7 @@ export function pcAttackAreaPreview({
     : chosenExtras.some((extra) => !damageTypeSet.has(extra.type)) ? "Scegli il tipo di ogni componente extra."
     : [...riders, ...chosenExtras].some((entry) => !validAmount(entry.amount)) ? "Inserisci il danno di ogni extra."
     : modeOption && !validAmount(modeAmount) ? `Inserisci il danno di ${modeOption.label}.`
-    : rows.find((row) => !row.hp) ? `${rows.find((row) => !row.hp).name} non ha HP canonici validi.`
+    : rows.find((row) => !row.hp) ? `${rows.find((row) => !row.hp).name} non ha PF canonici validi.`
     : "";
   return { ready: !blocker, blocker, rows, total: rows.reduce((sum, row) => sum + row.total, 0) };
 }
@@ -1935,7 +1935,7 @@ export function buildPcAttackAreaMutation({
   const rows = list.map((member) => {
     const meta = member.item.metadata?.[META_KEY] || {};
     if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax) || meta.hp < 0 || meta.hpMax < 0)
-      throw new Error(`${member.item.name || member.item.id} non ha HP canonici validi.`);
+      throw new Error(`${member.item.name || member.item.id} non ha PF canonici validi.`);
     const evasion = pcAttackTargetEvasion(attack, member.item);
     const factor = areaFactor(attack, member.outcome, card, evasion);
     const damageComponents = defendedComponents(components, inputs, factor, member.item, [], expectedDefenses?.[member.item.id]);

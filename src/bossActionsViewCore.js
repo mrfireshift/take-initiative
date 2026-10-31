@@ -272,7 +272,7 @@ export function bossActionAutomationSummary(action, availability = {}) {
     };
   }
   if (!["attack-damage", "save-damage"].includes(kind)) return null;
-  const automatic = [kind === "save-damage" ? `danni per tipo agli HP del bersaglio (${action.execution.success === "none" ? "nessun danno" : "metà"} su TS superato)` : "danni per tipo agli HP del bersaglio"];
+  const automatic = [kind === "save-damage" ? `danni per tipo ai PF del bersaglio (${action.execution.success === "none" ? "nessun danno" : "metà"} su TS superato)` : "danni per tipo ai PF del bersaglio"];
   const failedConditions = kind === "save-damage" ? action.execution.onFailed?.conditions || [] : [];
   if (failedConditions.length) automatic.push(`${failedConditions.map((entry) => entry.condition).join(" e ")} sul TS fallito, fino a rimozione manuale`);
   if (action.execution?.grapple === "grab") automatic.push("blocco se il boss tiene già una creatura Afferrata");

@@ -180,7 +180,7 @@ function classFeatureError(reason, poolId = "") {
     return new Error("Conferma se applicare l'effetto ai fallimenti oppure consumare l'uso senza bersagli.");
   }
   if (reason === "hp-invalid") {
-    return new Error("Il bersaglio non ha HP validi per questa operazione.");
+    return new Error("Il bersaglio non ha PF validi per questa operazione.");
   }
   if (reason === "spell-slot-level-invalid") {
     return new Error("Scegli un livello di slot valido per Fonte di Magia.");

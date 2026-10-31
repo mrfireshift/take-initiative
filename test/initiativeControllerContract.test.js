@@ -753,7 +753,7 @@ test("barra compatta: il testo HP in modifica resta al suo posto, tutto bianco a
   const start = indexHtml.indexOf('[data-card-hp-text="1"][data-hp-editing="1"] {');
   const rules = indexHtml.slice(start, indexHtml.indexOf("</style>", start));
   assert.ok(start > 0);
-  assert.ok(rules.includes(String.raw`content: "HP\00a0";`), "the caption stays");
+  assert.ok(rules.includes(String.raw`content: "PF\00a0";`), "the caption stays");
   assert.ok(rules.includes("color: #fff !important;"), "all white while editing");
   assert.ok(rules.includes("font-weight: 600 !important;"), "the maximum's weight for both numbers");
   assert.ok(rules.includes("box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .5);"), "a faint line under the numbers");

@@ -1964,7 +1964,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const bound=await runtime.bindBossActionProfile(sourceId,profile);
     const added=bound?.auraChange?.added || [],updated=bound?.auraChange?.updated || [],removed=bound?.auraChange?.removed || [];
     if(lifecycle.isCurrent(operation)){await refresh(operation);setView("list");
-      setStatus(`Profilo collegato. HP del token preservati.${added.length?` Aure attivate sul token: ${added.join(", ")}.`:""}${updated.length?` Aure allineate al profilo (bersagli, etichette, promemoria; raggio e colori restano i tuoi): ${updated.join(", ")}.`:""}${removed.length?` Aure rimosse: ${removed.join(", ")}.`:""}`);}
+      setStatus(`Profilo collegato. PF del token preservati.${added.length?` Aure attivate sul token: ${added.join(", ")}.`:""}${updated.length?` Aure allineate al profilo (bersagli, etichette, promemoria; raggio e colori restano i tuoi): ${updated.join(", ")}.`:""}${removed.length?` Aure rimosse: ${removed.join(", ")}.`:""}`);}
   }));
   $("boss-unbind").addEventListener("click",()=>perform(async operation=>{
     const unbound=await runtime.unbindBossActionProfile(sourceId);
