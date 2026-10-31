@@ -321,13 +321,15 @@ test("Inspiring Smite: with a Divine Smite, the total shared as temporary hit po
   assert.equal(preview({ ...request, tempHp: [{ targetId: "mira", amount: 5 }, { targetId: "mira", amount: 5 }] }), "Punizione Ispiratrice: la stessa creatura è indicata due volte.");
   assert.equal(preview({ ...request, tempHp: [{ targetId: "", amount: 5 }] }), "Punizione Ispiratrice: scegli chi riceve i PF temporanei.");
   const result = plan(paladin, [request], { riders: [smite], tempHpItems: items });
-  assert.deepEqual(result.operations.find((operation) => operation.type === "hp:set").updates.map((update) => [update.itemId, update.hp, update.hpIntent.mode]),
-    [["ghoul", 22, "damage"], ["dars", 37, "temp"], ["mira", 28, "temp"]]);
-  assert.deepEqual(result.tempHpChanges.map((row) => [row.item.id, row.change.afterHP]), [["dars", 37], ["mira", 28]]);
+  assert.deepEqual(result.operations.find((operation) => operation.type === "hp:set").updates
+    .map((update) => [update.itemId, update.hp, update.tempHp, update.hpIntent.mode]),
+    [["ghoul", 22, 0, "damage"], ["dars", 30, 7, "temp"], ["mira", 20, 8, "temp"]], "the wounded Mira keeps her 20 HP (CAP-TEMP)");
+  assert.deepEqual(result.tempHpChanges.map((row) => [row.item.id, row.change.afterHP, row.change.afterTempHp]),
+    [["dars", 30, 7], ["mira", 20, 8]]);
   assert.equal(sourcePatch(result)[CLASS_FEATURE_STATE_FIELD].value.resources["paladino-incanalare-divinita-usi"].current, 0);
   assert.equal(result.followUps.some((note) => note.startsWith("Punizione Ispiratrice")), false, "used here: no reminder");
   const lines = buildCombatLogPresentation(null, [{ category: "attack", payload: result.options.history.payload }]).events[0].details.flatMap((section) => section.lines);
-  assert.ok(lines.some((line) => line.includes("PF temporanei 15: Aldric +7 (30 → 37), Mira +8 (20 → 28)")), lines.join("\n"));
+  assert.ok(lines.some((line) => line.includes("PF temporanei 15: Aldric +7 (0 → 7), Mira +8 (0 → 8)")), lines.join("\n"));
 });
 
 test("Quivering Palm: the vibrations on a hit (3 Ki), then ending them apart: 0 HP, 10d10 necrotic or no effect", async () => {

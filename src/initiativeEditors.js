@@ -1,3 +1,5 @@
+import { TEMP_HP_COLOR } from "./quickHpCore.js";
+
 export function parseInlineMath(input, baseValue) {
   const value = String(input || "").trim();
   if (value === "") return baseValue;
@@ -235,6 +237,9 @@ export function inlineHPInputWidth(value) {
   return length <= 3 ? "22px" : `max(22px, ${length + 0.5}ch)`;
 }
 
+// The colour of the temporary hit points, as the cards show them (quickHpCore.js).
+const TEMP_HP_FIELD_COLOR = TEMP_HP_COLOR;
+
 export function bindClassicHPEditor({
   pill,
   itemId,
@@ -262,6 +267,9 @@ export function bindClassicHPEditor({
   commitAndOpenNeighbor,
   editableHPMax = true,
   readOnlyHPMaxTitle = "Il massimo segue gli HP massimi del caster",
+  // CAP-TEMP: a third field for the temporary hit points, out of the Tab order (T or a click reaches it).
+  editableTempHp = false,
+  snapshotTempHp = 0,
   documentRef = globalThis.document,
   requestAnimationFrameRef = globalThis.requestAnimationFrame,
   setTimeoutRef = globalThis.setTimeout,
@@ -270,11 +278,14 @@ export function bindClassicHPEditor({
 
   const focusHalf = (clientX) => {
     const bounds = pill.getBoundingClientRect();
-    const input = !editableHPMax
+    let input = !editableHPMax
       ? pill.__iHP
       : (clientX - bounds.left) > (bounds.width / 2)
       ? pill.__iMax
       : pill.__iHP;
+    // The temporary hit points follow the maximum: a click on them, or past them, edits them.
+    const tempBounds = pill.__iTemp?.getBoundingClientRect?.();
+    if (tempBounds && tempBounds.width > 0 && clientX >= tempBounds.left - 2) input = pill.__iTemp;
     input?.focus({ preventScroll: true });
     input?.select();
   };
@@ -322,7 +333,7 @@ export function bindClassicHPEditor({
 
     const liveValues = await readLiveValues();
     const pillText = String(pill.textContent || "").trim();
-    const pillMatch = /^(\d+)\s*\/\s*(\d+)$/.exec(pillText);
+    const pillMatch = /^(\d+)\s*\/\s*(\d+)(?:\s*\+\s*\d+)?$/.exec(pillText);
     const pillHP = pillMatch ? parseInt(pillMatch[1], 10) : null;
     const pillHPMax = pillMatch ? parseInt(pillMatch[2], 10) : null;
     const hp = liveValues?.hp ?? pillHP ??
@@ -337,7 +348,9 @@ export function bindClassicHPEditor({
 
     const hpInput = documentRef.createElement("input");
     const hpMaxInput = documentRef.createElement("input");
-    for (const input of [hpInput, hpMaxInput]) {
+    const tempInput = editableTempHp ? documentRef.createElement("input") : null;
+    const fields = tempInput ? [hpInput, hpMaxInput, tempInput] : [hpInput, hpMaxInput];
+    for (const input of fields) {
       input.type = "text";
       input.inputMode = "numeric";
       input.autocomplete = "off";
@@ -374,7 +387,16 @@ export function bindClassicHPEditor({
     }
     hpInput.value = String(Number.isFinite(hp) ? hp : 0);
     hpMaxInput.value = String(Number.isFinite(hpMax) ? hpMax : 0);
-    for (const input of [hpInput, hpMaxInput]) input.style.width = inlineHPInputWidth(input.value);
+    const tempHp = Math.max(0, Math.floor(Number(liveValues?.tempHp ?? snapshotTempHp) || 0));
+    if (tempInput) {
+      tempInput.value = String(tempHp);
+      tempInput.tabIndex = -1;
+      tempInput.title = "PF temporanei (T): 8 li imposta, +3 aggiunge, -3 toglie, 0 li toglie";
+      tempInput.setAttribute("aria-label", "PF temporanei");
+      tempInput.dataset.hpTempField = "1";
+      tempInput.style.color = TEMP_HP_FIELD_COLOR;
+    }
+    for (const input of fields) input.style.width = inlineHPInputWidth(input.value);
 
     let linkedHPMaxDelta = false;
     const syncLinkedHPMaxDelta = () => {
@@ -397,7 +419,7 @@ export function bindClassicHPEditor({
     };
     hpInput.addEventListener("input", syncLinkedHPMaxDelta);
 
-    for (const input of [hpInput, hpMaxInput]) {
+    for (const input of fields) {
       input.addEventListener("pointerdown", (pointerEvent) => {
         if (pill.dataset.hpEditing !== "1" || !isCurrentEditor()) return;
         pointerEvent.preventDefault();
@@ -421,9 +443,19 @@ export function bindClassicHPEditor({
     const oldHTML = pill.innerHTML;
     pill.textContent = "";
     wrap.append(hpInput, slash, hpMaxInput);
+    if (tempInput) {
+      const plus = documentRef.createElement("span");
+      plus.textContent = "+";
+      plus.style.color = TEMP_HP_FIELD_COLOR;
+      plus.addEventListener("click", (clickEvent) => {
+        clickEvent.stopPropagation();
+      });
+      wrap.append(plus, tempInput);
+    }
     pill.appendChild(wrap);
     pill.__iHP = hpInput;
     pill.__iMax = hpMaxInput;
+    pill.__iTemp = tempInput;
     pill.__setLinkedHPMaxDelta = setLinkedHPMaxDelta;
     if (pill.dataset.hpOpenLinkedDelta === "1") {
       delete pill.dataset.hpOpenLinkedDelta;
@@ -444,6 +476,7 @@ export function bindClassicHPEditor({
       delete pill.dataset.hpEditing;
       delete pill.__iHP;
       delete pill.__iMax;
+      delete pill.__iTemp;
       delete pill.__setLinkedHPMaxDelta;
       delete pill.__linkedHPMaxDelta;
       delete pill.__commitFn;
@@ -455,8 +488,8 @@ export function bindClassicHPEditor({
       }
     };
 
-    const applyProjection = (currentHP, currentHPMax) => {
-      pill.innerHTML = formatHP(currentHP, currentHPMax);
+    const applyProjection = (currentHP, currentHPMax, currentTempHp = tempHp) => {
+      pill.innerHTML = formatHP(currentHP, currentHPMax, currentTempHp);
       const percentage = currentHPMax > 0
         ? Math.max(0, Math.min(1, currentHP / currentHPMax))
         : 0;
@@ -481,12 +514,14 @@ export function bindClassicHPEditor({
       const recoveredHPMax = Number.isFinite(liveValues?.hpMax)
         ? liveValues.hpMax
         : hpMax;
-      applyProjection(recoveredHP, recoveredHPMax);
+      const recoveredTempHp = Number.isFinite(liveValues?.tempHp) ? liveValues.tempHp : tempHp;
+      applyProjection(recoveredHP, recoveredHPMax, recoveredTempHp);
       if (typeof syncRecoveredValues === "function") {
         try {
           await syncRecoveredValues({
             hp: recoveredHP,
             hpMax: recoveredHPMax,
+            tempHp: recoveredTempHp,
           });
         } catch (error) {
           console.warn("[hp] editor recovery visuals:", error?.message || error);
@@ -505,7 +540,7 @@ export function bindClassicHPEditor({
 
       const hpText = hpInput.value.trim();
       const hpMaxText = hpMaxInput.value.trim();
-      const nextHP = parseInlineMath(hpText, hp);
+      let nextHP = parseInlineMath(hpText, hp);
       let nextHPMax = parseInlineMath(hpMaxText, hpMax);
       const hpDelta = parseRelativeDelta(hpText);
       const hpMaxWasInvalid = !Number.isFinite(hpMax) || hpMax <= 0;
@@ -516,7 +551,21 @@ export function bindClassicHPEditor({
         nextHPMax = nextHP;
       }
 
-      applyProjection(nextHP, nextHPMax);
+      // CAP-TEMP: the temporary hit points of their field; a damage typed in the HP ("-7") takes them first, unless
+      // the field was changed too (the GM says them) or the maximum follows the HP (a recalibration, no damage).
+      let nextTempHp = null;
+      let tempHpCause = null;
+      if (tempInput) {
+        nextTempHp = parseInlineMath(tempInput.value.trim(), tempHp);
+        if (hpDelta !== null && hpDelta < 0 && !linkedHPMaxDelta && nextTempHp === tempHp && tempHp > 0) {
+          const absorbed = Math.min(tempHp, -hpDelta);
+          nextTempHp = tempHp - absorbed;
+          nextHP = Math.max(0, hp + hpDelta + absorbed);
+          tempHpCause = "damage";
+        }
+      }
+
+      applyProjection(nextHP, nextHPMax, nextTempHp ?? tempHp);
 
       const recalibratesMax = linkedHPMaxDelta && hpDelta !== null;
       const concentrationDamage = hpDelta !== null && hpDelta < 0
@@ -529,6 +578,8 @@ export function bindClassicHPEditor({
       const result = {
         nextHP,
         nextHPMax,
+        ...(tempInput ? { nextTempHp } : {}),
+        ...(tempHpCause ? { tempHpCause } : {}),
         recalibratesMax,
         concentrationDamage,
         baseHP: Number.isFinite(liveValues?.hp) ? liveValues.hp : null,
@@ -577,7 +628,16 @@ export function bindClassicHPEditor({
     const commitAndNavigate = (goPrev = false) =>
       commitAndOpenNeighbor({ goPrev, commit });
 
+    const focusTempField = (keyEvent) => {
+      if (!tempInput || String(keyEvent.key).toLowerCase() !== "t") return false;
+      keyEvent.preventDefault();
+      tempInput.focus({ preventScroll: true });
+      tempInput.select();
+      return true;
+    };
+
     hpInput.addEventListener("keydown", async (keyEvent) => {
+      if (focusTempField(keyEvent)) return;
       if (keyEvent.key === "Enter") {
         keyEvent.preventDefault();
         if (keyEvent.altKey) setLinkedHPMaxDelta(true);
@@ -601,6 +661,7 @@ export function bindClassicHPEditor({
     });
 
     hpMaxInput.addEventListener("keydown", async (keyEvent) => {
+      if (focusTempField(keyEvent)) return;
       if (keyEvent.key === "Enter") {
         keyEvent.preventDefault();
         await commit();
@@ -616,6 +677,30 @@ export function bindClassicHPEditor({
         if (keyEvent.shiftKey) {
           hpInput.focus({ preventScroll: true });
           hpInput.select();
+        } else {
+          await commitAndNavigate(false);
+        }
+      }
+    });
+
+    // The temporary hit points: Tab goes on to the next card as from the maximum, Shift+Tab back to the maximum.
+    tempInput?.addEventListener("keydown", async (keyEvent) => {
+      if (keyEvent.key === "Enter") {
+        keyEvent.preventDefault();
+        await commit();
+        return;
+      }
+      if (keyEvent.key === "Escape") {
+        keyEvent.preventDefault();
+        cancel();
+        return;
+      }
+      if (keyEvent.key === "Tab") {
+        keyEvent.preventDefault();
+        if (keyEvent.shiftKey) {
+          const back = editableHPMax ? hpMaxInput : hpInput;
+          back.focus({ preventScroll: true });
+          back.select();
         } else {
           await commitAndNavigate(false);
         }

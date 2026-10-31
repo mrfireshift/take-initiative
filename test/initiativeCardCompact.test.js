@@ -21,6 +21,7 @@ import {
   enableCompactCardRename,
   syncCompactEffectsToggleState,
   writeCompactHPText,
+  TEMP_HP_COLOR,
   appendCompactEffectsDrawer,
   compactEffectsDrawerColumns,
   compactEffectsDrawerWidth,
@@ -127,6 +128,7 @@ test("un player vede gli HP dei PG ma non quelli dei nemici", () => {
   assert.equal(enemy.showHP, false);
 });
 
+// CAP-TEMP: an HP above the maximum (the old encoding) is the maximum and its temporary hit points, written apart.
 test("il GM vede il KO senza perdere gli HP temporanei oltre il massimo", () => {
   const knockedOut = deriveCompactCardPresentation(
     { id: "enemy", attitude: "enemy", hp: -3, hpMax: 20 },
@@ -141,8 +143,25 @@ test("il GM vede il KO senza perdere gli HP temporanei oltre il massimo", () => 
 
   assert.equal(knockedOut.safeHP, 0);
   assert.equal(knockedOut.knockedOut, true);
-  assert.equal(surplus.safeHP, 27);
+  assert.equal(surplus.safeHP, 20);
   assert.equal(surplus.hpPercent, 1);
+  const hpText = createTestDocument().createElement("div");
+  writeCompactHPText(hpText, 27, 20, { documentRef: createTestDocument() });
+  assert.deepEqual(hpText.children.map((part) => part.textContent), ["HP ", "20", " / 20", " +7"]);
+});
+
+test("CAP-TEMP: the temporary hit points beside the HP, in blue, and in the editor's HTML", () => {
+  const documentRef = createTestDocument();
+  const hpText = documentRef.createElement("div");
+  writeCompactHPText(hpText, 12, 30, { documentRef, tempHp: 5 });
+  assert.deepEqual(hpText.children.map((part) => part.textContent), ["HP ", "12", " / 30", " +5"]);
+  assert.equal(hpText.children[3].style.color, TEMP_HP_COLOR);
+  assert.equal(hpText.dataset.tempHp, "5");
+  writeCompactHPText(hpText, 12, 30, { documentRef });
+  assert.deepEqual(hpText.children.map((part) => part.textContent), ["HP ", "12", " / 30"], "none: no part");
+  assert.equal(compactHPTextHTML(12, 30, 5), `<span>HP </span><span>12</span><span> / 30</span><span style="color:${TEMP_HP_COLOR}"> +5</span>`);
+  const wounded = deriveCompactCardPresentation({ id: "pc", attitude: "pc", hp: 12, hpMax: 30, tempHp: 5 }, null, { isGM: true });
+  assert.deepEqual([wounded.safeHP, wounded.hpPercent], [12, 0.4], "the bar follows the HP alone");
 });
 
 test("le entry virtuali non espongono HP anche se valorizzati", () => {
@@ -1308,4 +1327,15 @@ test("il testo HP compatto è bianco e a peso 600; abbassato solo per una creatu
   assert.equal(healthy.hpText.style.color, "#fff");
   assert.equal(healthy.hpText.style.fontWeight, "600");
   assert.equal(buildCompactCardHP({ id: "brann" }, options(true)).hpText.style.color, "rgba(255,255,255,.58)");
+});
+
+test("CAP-TEMP: the card's HP bar holds the temporary hit points right after the fill, and drops them when none", async () => {
+  const { writeHPBarTempSegment } = await import("../src/initiativeCardCompact.js");
+  const documentRef = createTestDocument();
+  const track = documentRef.createElement("div");
+  const part = writeHPBarTempSegment(track, { hpRatio: 0.5, tempRatio: 0.25 }, { documentRef });
+  assert.deepEqual([part.style.left, part.style.width, part.style.background, track.style.position], ["50%", "25%", TEMP_HP_COLOR, "relative"]);
+  assert.equal(writeHPBarTempSegment(track, { hpRatio: 0.6, tempRatio: 0.1 }, { documentRef }), part, "the same part, moved");
+  assert.equal(part.style.left, "60%");
+  assert.equal(writeHPBarTempSegment(track, { hpRatio: 1, tempRatio: 0 }, { documentRef }), null);
 });

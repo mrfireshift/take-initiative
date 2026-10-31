@@ -25,7 +25,7 @@ export async function applyRetaliationDamage({ attackerId = "", amount = 0, type
   const defense = damageDefenseFor(damageDefensesForItem(item, META_KEY), type);
   const damage = componentDamageAfterDefense(rolled, "full", defense);
   const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.DAMAGE, value: damage, factor: QUICK_HP_FACTORS.FULL,
-    hp: meta.hp, hpMax: meta.hpMax, deathSaveDamage: takesDeathSaveDamage(meta) });
+    hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp, deathSaveDamage: takesDeathSaveDamage(meta) });
   const name = item.name || item.id;
   const message = `${label}: ${damage} danni da ${damageTypeLabel(type)} a ${name}${defense === "resistance" ? " (resistenza)" : defense === "immunity" ? " (immune)" : ""}.`;
   if (!change.changed) return { ok: true, damage, message };
@@ -37,7 +37,7 @@ export async function applyRetaliationDamage({ attackerId = "", amount = 0, type
   if (!isCurrentSceneEpoch(sceneEpoch)) return { ok: false, message: "Scena cambiata: riprova." };
   const historyLabel = `${label} · ${name}`;
   const result = await runEffectsMutation([{ type: "hp:set", updates: [{
-    itemId: item.id, hp: change.afterHP, hpMax: change.hpMax,
+    itemId: item.id, hp: change.afterHP, hpMax: change.hpMax, tempHp: change.afterTempHp,
     hpIntent: { mode: "damage", amount: change.requested, eventId: commandId },
     expectedHP: snapshot(meta, "hp"), expectedHPMax: snapshot(meta, "hpMax"),
   }] }], {

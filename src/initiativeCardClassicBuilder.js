@@ -17,7 +17,8 @@ import {
   bindGroupHPDeltaEditor,
   enableClassicCardRename,
 } from "./initiativeEditors.js";
-import { compactStatusBadge } from "./initiativeCardCompact.js";
+import { compactStatusBadge, writeHPBarTempSegment } from "./initiativeCardCompact.js";
+import { quickHPBarSegments } from "./quickHpCore.js";
 import { canOpenInitiativeCardSheet } from "./initiativeCardSheetAccessCore.js";
 import { cardPlayerAssignmentTitle } from "./playerAssignmentCore.js";
 import { fitCardToChipDock } from "./initiativeChipOverflow.js";
@@ -111,6 +112,7 @@ export function buildClassicTrackerCard(e, context) {
       isBoss: IS_BOSS,
       hpValue: CLASSIC_HP_VALUE,
       hpMax: CLASSIC_HP_MAX,
+      tempHp: CLASSIC_TEMP_HP,
       hpVisible: CLASSIC_HP_VISIBLE,
       knockedOut: KNOCKED_OUT,
       playerCardHasHP: PLAYER_CARD_HAS_HP,
@@ -1065,7 +1067,8 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     ? ""
     : _hpMode === "status"
       ? (_statusLabels[_hpDisclosure?.status] || "Stato sconosciuto")
-      : formatHPHTML(hpVal, hpMaxV);
+      : formatHPHTML(hpVal, hpMaxV, CLASSIC_TEMP_HP);
+  pill.dataset.tempHp = String(CLASSIC_TEMP_HP || 0);
   pill.style.display = _hpMode === "bar" ? "none" : "block";
   if (KNOCKED_OUT) pill.style.color = "rgba(255,255,255,.58)";
   pill.dataset.badge  = "hp";
@@ -1088,16 +1091,20 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   hpBarWrap.style.boxShadow = "inset 0 1px 2px rgba(0,0,0,.65)";
 
   const initPct = hpMaxV > 0 ? Math.max(0, Math.min(1, hpVal / hpMaxV)) : 0;
+  // CAP-TEMP: the temporary hit points after the HP, on their total (none without the exact HP).
+  const hpBar = CLASSIC_TEMP_HP > 0 ? quickHPBarSegments({ hp: hpVal, hpMax: hpMaxV, tempHp: CLASSIC_TEMP_HP })
+    : { hpRatio: initPct, tempRatio: 0 };
   const hpFill = document.createElement("div");
   hpFill.dataset.hpFill = "1";
   hpFill.dataset.itemId = e.id;
-  hpFill.style.width = (initPct * 100) + "%";
+  hpFill.style.width = (hpBar.hpRatio * 100) + "%";
   hpFill.style.height = "100%";
   hpFill.style.background = KNOCKED_OUT
     ? "#475569"
     : initPct > 0.66 ? "#16a34a" : initPct > 0.33 ? "#facc15" : "#dc2626";
 
   hpBarWrap.appendChild(hpFill);
+  writeHPBarTempSegment(hpBarWrap, hpBar, { documentRef: document });
 
   let hpDeltaButton = null;
   const setHPDeltaButtonActive = (active) => {

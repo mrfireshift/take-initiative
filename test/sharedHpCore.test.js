@@ -57,7 +57,10 @@ test("distinct attacks accumulate against live source HP and healing is not mult
   assert.deepEqual(Object.values(values(plan(scene(275), [intent("hand", 10, "heal", "heal"),
     intent("head", 10, "heal", "heal")], { policy: "per-token" }))), [285, 285, 285, 285]);
   assert.deepEqual(Object.values(values(plan(scene(395), [intent("hand", 10, "heal", "heal")]))), [400, 400, 400, 400]);
-  assert.deepEqual(Object.values(values(plan(scene(405), [intent("hand", 10, "temp", "temp")]))), [410, 410, 410, 410]);
+  // CAP-TEMP: the group shares its temporary hit points in their own field (405 of 400: 5 in the old encoding).
+  const temp = plan(scene(405), [intent("hand", 10, "temp", "temp")]);
+  assert.deepEqual(Object.values(values(temp)), [400, 400, 400, 400]);
+  assert.deepEqual(temp.metadataPatches.map((patch) => patch.fields.tempHp?.value), [10, 10, 10, 10]);
 });
 
 test("absolute conflicts, stale expectations and invalid intentions never choose a last writer", () => {

@@ -62,7 +62,7 @@ test("Healing Hands: the level (Volo) or the d4s rolled (Mostri del Multiverso),
 
 test("temporary hit points: Adrenaline Rush, Hungry Jaws (hit or miss) and Shifting with Beasthide's d6", () => {
   const rush = planSpeciesHpTrait({ feature: feature("specie-orco-multiverso-scarica-di-adrenalina"), card: card(5), targetMeta: meta(40) });
-  assert.deepEqual([rush.amount, rush.change.afterHP], [3, 43], "the part above hpMax is the temporary one");
+  assert.deepEqual([rush.amount, rush.change.afterHP, rush.change.afterTempHp], [3, 40, 3], "in their own field (CAP-TEMP)");
   const kept = planSpeciesHpTrait({ feature: feature("specie-orco-multiverso-scarica-di-adrenalina"), card: card(5), targetMeta: meta(45) });
   assert.equal(kept.change.changed, false);
   assert.match(kept.warning, /non si sommano/);
@@ -74,7 +74,7 @@ test("temporary hit points: Adrenaline Rush, Hungry Jaws (hit or miss) and Shift
   const beasthide = feature("specie-shifter-mutazione-pelle-bestiale");
   assert.match(planSpeciesHpTrait({ feature: beasthide, card: card(4), targetMeta: meta(40) }).blocker, /1d6 tirato/);
   const shifted = planSpeciesHpTrait({ feature: beasthide, card: card(4), targetMeta: meta(40), value: "5" });
-  assert.deepEqual([shifted.amount, shifted.change.afterHP], [11, 51], "level 4 + Con 2 + d6 5");
+  assert.deepEqual([shifted.amount, shifted.change.afterHP, shifted.change.afterTempHp], [11, 40, 11], "level 4 + Con 2 + d6 5");
   assert.equal(planSpeciesHpTrait({ feature: feature("specie-shifter-multiverso-mutazione-zanna-lunga"), card: card(5), targetMeta: meta(40) }).amount, 6);
 });
 
@@ -83,7 +83,8 @@ test("Stone's Endurance: the smaller of the roll and the damage comes back, temp
   const plan = planSpeciesHpTrait({ feature: stone, card: card(5), targetMeta: meta(22), value: "9", damage: "18" });
   assert.deepEqual([plan.amount, plan.change.afterHP], [9, 31]);
   const all = planSpeciesHpTrait({ feature: stone, card: card(5), targetMeta: meta(38), value: "12", damage: "5" });
-  assert.equal(all.change.afterHP, 43, "5 damage taken from 43 (3 temporary): all of it comes back");
+  assert.deepEqual([all.change.afterHP, all.change.afterTempHp], [40, 3],
+    "5 damage taken from 40 and 3 temporary: all of it comes back, the part above hpMax as temporary hit points");
   assert.match(planSpeciesHpTrait({ feature: stone, card: card(5), targetMeta: meta(22), value: "9" }).blocker, /danni subiti/);
 });
 

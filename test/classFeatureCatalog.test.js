@@ -425,8 +425,11 @@ test("il catalogo distingue bersaglio singolo e aura", () => {
     event: "turn-end",
     targetMode: "actor",
     frequency: "once-per-turn",
-    resolution: "informational",
-    label: "Santuario: per questa creatura, tira manualmente 1d6 + livello da Chierico e applica PF temporanei, oppure termina Affascinata o Spaventata.",
+    // CAP-TEMP: the manual roll of the heal reminder, for temporary hit points (reminderResolutionCore.js).
+    resolution: "manual-heal",
+    label: "Santuario: PF temporanei pari a 1d6 + livello da Chierico (inserisci il totale), oppure termina a mano Affascinato o Spaventato e Ignora.",
+    healing: { dice: "1d6", baseSlot: 0, additionalPerSlotAbove: 0 },
+    resolutionData: { temporaryHp: true, healing: { dice: "1d6", baseSlot: 0, additionalPerSlotAbove: 0 } },
   });
 });
 

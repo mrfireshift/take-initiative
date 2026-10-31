@@ -134,6 +134,14 @@ function reminderHpSnapshotChanges(changes, reminderHpChange, targetId) {
   return changes.map((change, changeIndex) => changeIndex === index ? patched : change);
 }
 
+// CAP-TEMP: the temporary hit points of a change on one side, when its History recorded them (0 when the field was
+// absent), else null: an entry written before them stays as it was.
+function tempHpSnapshot(change, side) {
+  const recorded = [change?.[side], change?.[`${side}Metadata`]].some((container) => hasOwn(container, "tempHp"));
+  if (!recorded) return null;
+  return Math.max(0, numericOrNull(snapshotValue(change, side, "tempHp")) || 0);
+}
+
 function hpPayload(
   changes,
   names = null,
@@ -147,25 +155,36 @@ function hpPayload(
       || fieldSnapshot(change, "after", "hp").present
       || fieldSnapshot(change, "before", "hpMax").present
       || fieldSnapshot(change, "after", "hpMax").present
+      || tempHpSnapshot(change, "before") !== null
+      || tempHpSnapshot(change, "after") !== null
     ))
     .map((change) => {
     const beforeHP = numericOrNull(snapshotValue(change, "before", "hp"));
     const afterHP = numericOrNull(snapshotValue(change, "after", "hp"));
     const beforeMax = numericOrNull(snapshotValue(change, "before", "hpMax"));
     const afterMax = numericOrNull(snapshotValue(change, "after", "hpMax"));
+    const recordedTemp = tempHpSnapshot(change, "before") !== null || tempHpSnapshot(change, "after") !== null;
+    const beforeTemp = recordedTemp ? tempHpSnapshot(change, "before") ?? 0 : null;
+    const afterTemp = recordedTemp ? tempHpSnapshot(change, "after") ?? 0 : null;
+    const bothHP = Number.isFinite(beforeHP) && Number.isFinite(afterHP);
     return {
       ...targetSnapshot(change, names),
       before: {
         hp: beforeHP,
         hpMax: beforeMax,
+        ...(recordedTemp ? { tempHp: beforeTemp } : {}),
       },
       after: {
         hp: afterHP,
         hpMax: afterMax,
+        ...(recordedTemp ? { tempHp: afterTemp } : {}),
       },
-      delta: Number.isFinite(beforeHP) && Number.isFinite(afterHP)
-        ? afterHP - beforeHP
-        : null,
+      // Damage the temporary hit points took is damage: the delta counts them (CAP-TEMP).
+      delta: recordedTemp
+        ? (bothHP ? afterHP + afterTemp - beforeHP - beforeTemp : afterTemp - beforeTemp)
+        : bothHP
+          ? afterHP - beforeHP
+          : null,
       hpMaxDelta: Number.isFinite(beforeMax) && Number.isFinite(afterMax)
         ? afterMax - beforeMax
         : null,

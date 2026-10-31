@@ -28,19 +28,48 @@ test("damage never reduces HP below zero", () => {
   assert.equal(calculateQuickHPChange({ mode: QUICK_HP_MODES.DAMAGE, value: 50, hp: 12, hpMax: 12 }).afterHP, 0);
 });
 
-test("healing stops at max HP and preserves an existing surplus", () => {
+// CAP-TEMP (PHB 2014, p. 198): the temporary hit points sit in meta.tempHp, apart from the HP up to hpMax.
+const hpAndTemp = (change) => [change.afterHP, change.afterTempHp];
+
+test("healing stops at max HP and never gives temporary hit points back", () => {
   assert.equal(calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: 20, hp: 45, hpMax: 50 }).afterHP, 50);
-  assert.equal(calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: 20, hp: 55, hpMax: 50 }).afterHP, 55);
+  assert.deepEqual(hpAndTemp(calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: 20, hp: 30, hpMax: 50, tempHp: 5 })),
+    [50, 5]);
+  assert.deepEqual(hpAndTemp(calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: 20, hp: 55, hpMax: 50 })), [50, 5],
+    "the old encoding: the part above hpMax is temporary");
 });
 
-test("temporary HP replace only a smaller existing surplus", () => {
-  assert.equal(calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 10, hp: 50, hpMax: 50 }).afterHP, 60);
-  assert.equal(calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 5, hp: 60, hpMax: 50 }).afterHP, 60);
-  assert.equal(calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 15, hp: 60, hpMax: 50 }).afterHP, 65);
+test("temporary HP don't add up: the higher stays", () => {
+  assert.deepEqual(hpAndTemp(calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 10, hp: 50, hpMax: 50 })), [50, 10]);
+  assert.deepEqual(hpAndTemp(calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 5, hp: 50, hpMax: 50, tempHp: 10 })), [50, 10]);
+  const higher = calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 15, hp: 50, hpMax: 50, tempHp: 10 });
+  assert.deepEqual([...hpAndTemp(higher), higher.delta, higher.changed], [50, 15, 5, true]);
+  assert.equal(calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 5, hp: 50, hpMax: 50, tempHp: 10 }).changed, false);
 });
 
-test("temporary HP add effective health without restoring missing normal HP", () => {
-  assert.equal(calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 10, hp: 30, hpMax: 50 }).afterHP, 40);
+test("temporary HP on a wounded creature restore none of its HP", () => {
+  assert.deepEqual(hpAndTemp(calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 10, hp: 30, hpMax: 50 })), [30, 10],
+    "30/50 with 10 temporary, not 40");
+});
+
+test("damage takes the temporary hit points first, the rest from the HP", () => {
+  const partial = calculateQuickHPChange({ mode: QUICK_HP_MODES.DAMAGE, value: 4, hp: 30, hpMax: 50, tempHp: 10 });
+  assert.deepEqual([...hpAndTemp(partial), partial.absorbedByTempHp, partial.delta, isQuickHPDamageChange(partial)],
+    [30, 6, 4, -4, true], "damage they take is damage all the same");
+  const through = calculateQuickHPChange({ mode: QUICK_HP_MODES.DAMAGE, value: 14, hp: 30, hpMax: 50, tempHp: 10 });
+  assert.deepEqual([...hpAndTemp(through), through.absorbedByTempHp, through.hpDelta], [26, 0, 10, -4]);
+  assert.deepEqual(hpAndTemp(calculateQuickHPChange({ mode: QUICK_HP_MODES.DAMAGE, value: 8, hp: 55, hpMax: 50 })), [47, 0],
+    "the old encoding: 5 temporary, then 3 from the HP");
+});
+
+test("quickHPWriteWithinMax: a write above hpMax keeps the part above as temporary hit points", async () => {
+  const { quickHPWriteWithinMax, quickHPTempHpPatchField } = await import("../src/quickHpCore.js");
+  assert.deepEqual(quickHPWriteWithinMax({ itemId: "a", hp: 13, hpMax: 10 }), { itemId: "a", hp: 10, hpMax: 10, tempHp: 3 });
+  const within = { itemId: "a", hp: 8, hpMax: 10 };
+  assert.equal(quickHPWriteWithinMax(within), within, "within hpMax and without tempHp: unchanged");
+  assert.deepEqual(quickHPTempHpPatchField({}, 4), { value: 4 });
+  assert.equal(quickHPTempHpPatchField({}, 0), null, "absent at 0");
+  assert.deepEqual(quickHPTempHpPatchField({ tempHp: 3 }, 0), { mode: "delete" });
 });
 
 test("classifica come danno solo una diminuzione effettiva degli HP", () => {
@@ -165,13 +194,23 @@ test("Ctrl+Z usa l'undo atomico della Console HP solo quando disponibile", () =>
   }), false);
 });
 
-// Lot L7 of the bugfix pass (HP-03, decision D6): temporary hit points given at 0 HP read as hit points regained.
-test("L7: i PF temporanei a 0 PF non cambiano nulla e lo dicono", () => {
+// CAP-TEMP replaces lot L7's refusal (D6): at 0 HP the temporary hit points neither wake nor stabilize the creature,
+// as they sit apart from its HP, and they take the damage first (PHB 2014, p. 198).
+test("i PF temporanei a 0 PF non svegliano, ma assorbono i danni prima dei TS contro la morte", () => {
   const atZero = calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 6, hp: 0, hpMax: 20 });
-  assert.equal(atZero.afterHP, 0);
-  assert.equal(atZero.changed, false);
-  assert.equal(atZero.tempAtZeroHP, true);
-  const awake = calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 6, hp: 12, hpMax: 20 });
-  assert.equal(awake.afterHP, 18);
-  assert.equal(awake.tempAtZeroHP, undefined);
+  assert.deepEqual([atZero.afterHP, atZero.afterTempHp, atZero.changed], [0, 6, true]);
+  const absorbed = calculateQuickHPChange({ mode: QUICK_HP_MODES.DAMAGE, value: 4, hp: 0, hpMax: 20, tempHp: 6,
+    deathSaveDamage: true });
+  assert.equal(absorbed.deathSaveDamage, undefined, "no death save failure: the temporary hit points took it");
+  const through = calculateQuickHPChange({ mode: QUICK_HP_MODES.DAMAGE, value: 9, hp: 0, hpMax: 20, tempHp: 6,
+    deathSaveDamage: true });
+  assert.equal(through.deathSaveDamage, true);
+});
+
+test("the HP bar's parts: the HP, then the temporary hit points, on the maximum or on their total past it", async () => {
+  const { quickHPBarSegments } = await import("../src/quickHpCore.js");
+  assert.deepEqual(quickHPBarSegments({ hp: 20, hpMax: 40, tempHp: 10 }), { hpRatio: 0.5, tempRatio: 0.25, colorRatio: 0.5 });
+  assert.deepEqual(quickHPBarSegments({ hp: 40, hpMax: 40, tempHp: 10 }), { hpRatio: 0.8, tempRatio: 0.2, colorRatio: 1 });
+  assert.deepEqual(quickHPBarSegments({ hp: 50, hpMax: 40 }), { hpRatio: 0.8, tempRatio: 0.2, colorRatio: 1 }, "the old encoding");
+  assert.deepEqual(quickHPBarSegments({ hp: 0, hpMax: 0 }), { hpRatio: 0, tempRatio: 0, colorRatio: 0 });
 });

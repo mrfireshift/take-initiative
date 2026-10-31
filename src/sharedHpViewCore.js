@@ -46,12 +46,12 @@ export function buildSharedHpPreview(items, entries, sharedHp = {}) {
     return sharedHp.policy !== "per-token" && new Set(group.options.map(option => option.amount)).size > 1;
   });
   const result = planSharedHpMutation({ items, sharedHp, operations: [{ type: "hp:set", updates: active.map(entry => ({
-    itemId: entry.item.id, hp: entry.change.afterHP, hpMax: entry.change.hpMax, hpIntents: sharedHpIntents(entry),
+    itemId: entry.item.id, hp: entry.change.afterHP, hpMax: entry.change.hpMax, tempHp: entry.change.afterTempHp, hpIntents: sharedHpIntents(entry),
   })) }] });
   if (result.status) return { groups: [], updates: [], choiceGroups, multiTarget, conflicts: result.conflicts };
   const updates = new Map(quickHPVisualUpdates(active).map(update => [update.tokenId, update]));
   for (const group of result.groups) for (const tokenId of group.memberIds) {
-    updates.set(tokenId, { tokenId, hp: group.afterHP, hpMax: group.hpMax });
+    updates.set(tokenId, { tokenId, hp: group.afterHP, hpMax: group.hpMax, tempHp: group.afterTempHp });
   }
   return { groups: result.groups, updates: [...updates.values()].sort((a, b) => a.tokenId.localeCompare(b.tokenId)),
     choiceGroups, multiTarget, conflicts: [] };
@@ -60,7 +60,7 @@ export function buildSharedHpPreview(items, entries, sharedHp = {}) {
 export function sharedHpCommittedUpdates(result, entries = []) {
   const updates = new Map(quickHPVisualUpdates(entries).map(update => [update.tokenId, update]));
   for (const group of result?.plan?.sharedHpGroups || []) for (const tokenId of group.memberIds) {
-    updates.set(tokenId, { tokenId, hp: group.afterHP, hpMax: group.hpMax });
+    updates.set(tokenId, { tokenId, hp: group.afterHP, hpMax: group.hpMax, tempHp: group.afterTempHp });
   }
   // Partial/final commit snapshots take precedence over the optimistic plan.
   for (const change of result?.changes || result?.commitResult?.changes || []) {

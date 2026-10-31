@@ -769,6 +769,21 @@ const SPELL_EFFECTS = Object.freeze({
   ]),
   // CAP-REACTION (2014): an attacker of the warded creature saves on Wisdom first (the consoles show it); the spell
   // ends when the warded creature attacks.
+  // CAP-TEMP, lotto T3b (2014): the pill that holds False Life's temporary hit points; when it ends (1 hour, or by
+  // hand) the ones left go with it (spellTemporaryHpRules.js).
+  "false-life": Object.freeze([
+    Object.freeze({
+      id: "false-life-temporary-hit-points",
+      kind: "buff",
+      label: "Vita falsata",
+      detail: "1d4 + 4 PF temporanei per la durata, 5 in più per ogni slot sopra il 1°: dati al lancio, spariscono con l'incantesimo.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "false-life-temporary-hit-points", label: "PF temporanei" }),
+      ]),
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+    }),
+  ]),
   "sanctuary": Object.freeze([
     Object.freeze({
       id: "sanctuary-ward",

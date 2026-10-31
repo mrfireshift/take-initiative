@@ -181,3 +181,18 @@ test("a reaction feature with nothing to spend: Usa reazione marks only the reac
   const row = pcAttackFeatureEntries(rogue).find((entry) => entry.featureId === "ladro-schivata-prodigiosa");
   assert.deepEqual([row.mode, row.group, row.activation], ["activate", "usable", "reazione"]);
 });
+
+// CAP-TEMP, lotto T2a: Rage with Wild Surge's Shadowy Tendrils as its automatic outcome asks the 1d12 of the
+// barbarian's temporary hit points, its field shown only for that outcome.
+test("Rage asks the 1d12 of Shadowy Tendrils' temporary hit points, only when that outcome is chosen", () => {
+  const wild = { characterBuild: [{ classId: "barbaro", level: 3, subclassId: "barbaro-cammino-della-magia-selvaggia" }] };
+  const rage = form("barbaro-ira", wild);
+  const SURGE = "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio";
+  const die = rage.fields.find((field) => field.id === `autoValue:${SURGE}:1`);
+  assert.deepEqual([die?.type, die?.max, die?.showWhen], ["number", 12, { field: `auto:${SURGE}`, value: "1" }]);
+  assert.equal(rage.fields.filter((field) => field.id.startsWith("autoValue:")).length, 1, "the other outcomes ask none");
+  const request = (values) => pcAttackFeatureRequest(feature("barbaro-ira"), rage, values, { sourceId: "bar" });
+  assert.deepEqual(request({ [`auto:${SURGE}`]: "1", [`autoValue:${SURGE}:1`]: "7" }).params.autoChoiceValues, { [SURGE]: 7 });
+  assert.match(request({ [`auto:${SURGE}`]: "1" }).error, /1d12/u, "the roll is required");
+  assert.equal(request({ [`auto:${SURGE}`]: "2" }).params.autoChoiceValues, undefined, "Teleport asks none");
+});

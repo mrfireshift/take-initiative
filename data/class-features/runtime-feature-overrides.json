@@ -409,7 +409,7 @@
       "duration": { "untilFeatureId": "barbaro-ira" },
       "trackingMode": "active",
       "choiceOptions": [
-        { "id": "1", "label": "Magia Selvaggia: Viti Oscure", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Viti Oscure", "detail": "Risoluzione manuale: tiro salvezza su Costituzione, 1d12 danni necrotici alle creature scelte e 1d12 HP temporanei al barbaro." } },
+        { "id": "1", "label": "Magia Selvaggia: Viti Oscure", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Viti Oscure", "detail": "Risoluzione manuale: tiro salvezza su Costituzione e 1d12 danni necrotici alle creature scelte. I 1d12 PF temporanei del barbaro si applicano entrando in Ira, con il tiro inserito al tavolo.", "temporaryHp": { "amount": { "die": "1d12" }, "applyTo": "source" } } },
         { "id": "2", "label": "Magia Selvaggia: Teletrasporto", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Teletrasporto", "detail": "Il barbaro può usare Teletrasporto fino a 9 m come azione bonus fino al termine di Ira." } },
         { "id": "3", "label": "Magia Selvaggia: Spirito Esplosivo", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Spirito Esplosivo", "detail": "Risoluzione manuale: posiziona lo spirito, poi gestisci esplosione, tiro salvezza e 1d6 danni da forza." } },
         { "id": "4", "label": "Magia Selvaggia: Arma Infusa", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Arma Infusa", "detail": "Risoluzione manuale: l'arma diventa da forza, leggera e da lancio fino alla fine del turno corrente." } },
@@ -484,7 +484,7 @@
       "choiceOptions": [
         { "id": "deserto", "label": "Deserto", "effectPlan": { "kind": "aura", "conditionName": "Aura Tempestosa: Deserto", "detail": "Area di 3 m: quando l'effetto viene attivato, le altre creature subiscono danni da fuoco (2-6 in base al livello)." } },
         { "id": "mare", "label": "Mare", "effectPlan": { "kind": "aura", "conditionName": "Aura Tempestosa: Mare", "detail": "Area di 3 m: quando l'effetto viene attivato, scegli una creatura nell'aura per il tiro salvezza su Destrezza e i danni da fulmine (1-4d6)." } },
-        { "id": "tundra", "label": "Tundra", "effectPlan": { "kind": "aura", "conditionName": "Aura Tempestosa: Tundra", "detail": "Area di 3 m: quando l'effetto viene attivato, le creature scelte nell'aura ottengono HP temporanei (2-6)." } }
+        { "id": "tundra", "label": "Tundra", "effectPlan": { "kind": "aura", "conditionName": "Aura Tempestosa: Tundra", "detail": "Area di 3 m: quando l'effetto viene attivato, le creature scelte nell'aura ottengono PF temporanei (2, poi 3 al 5°, 4 al 10°, 5 al 15°, 6 al 20° livello). All'attivazione vanno alle creature selezionate sulla mappa (nessuna: solo il barbaro); nei turni dopo, con l'azione bonus, dalla console PF rapidi.", "temporaryHp": { "amount": { "byClassLevel": { "3": 2, "5": 3, "10": 4, "15": 5, "20": 6 } }, "applyTo": "selection" } } }
       ],
       "effectPlan": {
         "kind": "aura",
@@ -755,8 +755,10 @@
               "event": "turn-end",
               "targetMode": "actor",
               "frequency": "once-per-turn",
-              "resolution": "informational",
-              "label": "Santuario: per questa creatura, tira manualmente 1d6 + livello da Chierico e applica PF temporanei, oppure termina Affascinata o Spaventata."
+              "resolution": "manual-heal",
+              "label": "Santuario: PF temporanei pari a 1d6 + livello da Chierico (inserisci il totale), oppure termina a mano Affascinato o Spaventato e Ignora.",
+              "healing": { "dice": "1d6", "baseSlot": 0, "additionalPerSlotAbove": 0 },
+              "resolutionData": { "temporaryHp": true, "healing": { "dice": "1d6", "baseSlot": 0, "additionalPerSlotAbove": 0 } }
             }
           ]
         }
@@ -3799,7 +3801,8 @@
             "kind": "condition",
             "conditionName": "Totem Spirituale",
             "displayLabel": "Totem Spirituale · Orso",
-            "detail": "Spirito in un punto entro 18 m con aura di 9 m attorno allo spirito (posizionalo sulla mappa), mobile di 18 m con azione bonus. All'evocazione le creature scelte nell'aura ottengono 5 + livello da druido PF temporanei (controllo HP); vantaggio a prove e TS su Forza nell'aura. Dura 1 minuto o finché il druido è incapacitato."
+            "detail": "Spirito in un punto entro 18 m con aura di 9 m attorno allo spirito (posizionalo sulla mappa), mobile di 18 m con azione bonus. All'evocazione le creature scelte nell'aura ottengono 5 + livello da druido PF temporanei: selezionale sulla mappa prima di Attiva (nessuna: solo il druido); vantaggio a prove e TS su Forza nell'aura. Dura 1 minuto o finché il druido è incapacitato.",
+            "temporaryHp": { "amount": { "base": 5, "plusClassLevel": true }, "applyTo": "selection" }
           }
         },
         {
@@ -4226,7 +4229,8 @@
       "effectPlan": {
         "kind": "condition",
         "conditionName": "Entità Simbiotica",
-        "detail": "Per 10 minuti, finché ha PF temporanei di questo privilegio o finché usa di nuovo Forma Selvatica: 4 PF temporanei per livello da druido (controllo HP), Alone di Spore tira due volte i danni, +1d6 necrotici con le armi da mischia."
+        "detail": "Per 10 minuti, finché ha PF temporanei di questo privilegio o finché usa di nuovo Forma Selvatica: 4 PF temporanei per livello da druido (applicati all'attivazione), Alone di Spore tira due volte i danni, +1d6 necrotici con le armi da mischia.",
+        "temporaryHp": { "amount": { "perClassLevel": 4 }, "applyTo": "source" }
       }
     },
     "druido-circolo-delle-spore-infestazione-fungina": {
@@ -11035,7 +11039,8 @@
         "kind": "condition",
         "conditionName": "Tomba di Levistus",
         "displayLabel": "Tomba di Levistus · Incapacitato",
-        "detail": "Fino alla fine del prossimo turno del warlock: 10 PF temporanei per livello da warlock (applicali con il controllo HP, assorbono il danno innescante), vulnerabilità al fuoco, velocità 0 e incapacitato. Al termine spariscono anche i PF temporanei rimasti.",
+        "detail": "Fino alla fine del prossimo turno del warlock: 10 PF temporanei per livello da warlock (applicati all'attivazione: attivala prima del danno che la fa scattare, così lo assorbono), vulnerabilità al fuoco, velocità 0 e incapacitato. Al termine spariscono anche i PF temporanei rimasti.",
+        "temporaryHp": { "amount": { "perClassLevel": 10 }, "applyTo": "source" },
         "mechanics": {
           "movement": {
             "setMeters": 0

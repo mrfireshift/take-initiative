@@ -757,6 +757,8 @@ function buildResolutionControls(line: HTMLElement, row: any) {
   }
   const draft = resolutionDraftFor(activationId);
   const manualHeal = row.resolution?.mode === "manual-heal";
+  // CAP-TEMP: the same manual roll for temporary hit points (Twilight Sanctuary).
+  const manualTempHp = manualHeal && row.resolution?.activation?.resolutionData?.temporaryHp === true;
   const manualDamage = row.resolution?.mode === "manual-damage";
   const turbine = row.resolution?.activation?.resolutionData?.turbine === true;
   const controls = document.createElement("div");
@@ -767,7 +769,7 @@ function buildResolutionControls(line: HTMLElement, row: any) {
   if (reminderResolutionNeedsDamage(row.resolution) || manualHeal) {
     const damageLabel = document.createElement("label");
     damageLabel.className = "zone-resolution-damage";
-    damageLabel.textContent = manualHeal ? "Cura" : "Danni";
+    damageLabel.textContent = manualTempHp ? "PF temporanei" : manualHeal ? "Cura" : "Danni";
     damageInput = document.createElement("input");
     damageInput.type = manualDamage ? "text" : "number";
     damageInput.min = "0";
@@ -953,7 +955,7 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     : manualDamage
     ? [{ value: "confirmed", label: "Conferma" }]
     : manualHeal
-      ? [{ value: "apply", label: "Applica cura" }, { value: "ignore", label: "Ignora" }]
+      ? [{ value: "apply", label: manualTempHp ? "Applica PF temporanei" : "Applica cura" }, { value: "ignore", label: "Ignora" }]
       : RESOLUTION_BUTTON_OUTCOMES.map((value) => ({
       value,
       label: row.resolution?.choiceLabels?.[value]

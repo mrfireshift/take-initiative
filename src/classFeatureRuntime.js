@@ -4,7 +4,7 @@ import {
   gridFootprintSize,
   gridGeometryFromBounds,
 } from "./distance3dCore.js";
-import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
+import { calculateQuickHPChange, QUICK_HP_MODES, quickHPTempHpPatchField } from "./quickHpCore.js";
 import { getInitiativeCard } from "./initiativeCards.js";
 import { getConditionInstances, refreshConditionLabels } from "./conditions.js";
 import { EXHAUSTION_CONDITION } from "./exhaustionCore.js";
@@ -30,6 +30,7 @@ import {
   classFeatureTargetIds,
   classFeatureTargetWithinRange,
   classFeatureTargeting,
+  classFeatureEffectPlan,
   resolveClassFeatureResourceDie,
   classFeatureResourceRefreshEvents,
   classFeatureResourceEntries,
@@ -231,6 +232,18 @@ function classFeatureReactionSpend(feature, sourceItem, initiativeState, applies
 }
 const reactionResult = (reaction) => (reaction.applies ? { reaction: { spent: !reaction.alreadyUsed, alreadyUsed: reaction.alreadyUsed } } : {});
 
+// CAP-TEMP, lotto T2a: the creatures selected on the map for a plan that gives them temporary hit points
+// (applyTo "selection": the Bear spirit's creatures of the druid's choice in its aura), whatever the feature targets.
+async function selectedTemporaryHpCreatureIds(feature, choiceId, requestedTargetIds) {
+  if (classFeatureEffectPlan(feature, choiceId)?.temporaryHp?.applyTo !== "selection") return [];
+  const selected = Array.isArray(requestedTargetIds)
+    ? requestedTargetIds
+    : await OBR.player.getSelection().catch(() => []);
+  if (!Array.isArray(selected) || !selected.length) return [];
+  const items = await OBR.scene.items.getItems(selected);
+  return items.filter((entry) => entry?.layer === "CHARACTER" && !entry.attachedTo).map((entry) => entry.id);
+}
+
 async function resolveTargetIds(sourceId, feature, requestedTargetIds, characterBuild = []) {
   const targeting = classFeatureTargeting(feature, characterBuild);
   if (targeting.mode === "self" || targeting.mode === "aura") return [sourceId];
@@ -401,8 +414,11 @@ async function applyLayOnHandsResolved({
       value: requestedValue,
       hp,
       hpMax,
+      tempHp: targetMeta.tempHp,
     });
     if (hpChange.changed) {
+      const tempHpField = quickHPTempHpPatchField(targetMeta, hpChange.afterTempHp,
+        metadataFieldExpectation(targetMeta, "tempHp"));
       metadataPatches.push({
         id: targetId,
         fields: {
@@ -411,6 +427,7 @@ async function applyLayOnHandsResolved({
             value: hpChange.afterHP,
             expected: metadataFieldExpectation(targetMeta, "hp"),
           },
+          ...(tempHpField ? { tempHp: tempHpField } : {}),
           hpMax: {
             mode: "assert",
             expected: metadataFieldExpectation(targetMeta, "hpMax"),
@@ -623,6 +640,7 @@ async function applySpeciesHpTraitResolved({
         itemId: targetId,
         hp: change.afterHP,
         hpMax: change.hpMax,
+        tempHp: change.afterTempHp,
         hpIntent: { mode: plan.mode, amount: plan.amount, eventId: instanceId },
         expectedHP: metadataFieldExpectation(targetMeta, "hp"),
         expectedHPMax: metadataFieldExpectation(targetMeta, "hpMax"),
@@ -722,6 +740,7 @@ async function applySpeciesTeleportResolved({ feature, sourceItem, profile, targ
         itemId: row.item.id,
         hp: row.change.afterHP,
         hpMax: row.change.hpMax,
+        tempHp: row.change.afterTempHp,
         hpIntent: { mode: "damage", amount: row.change.requested, eventId: instanceId },
         expectedHP: metadataFieldExpectation(row.item.metadata?.[META_KEY] || {}, "hp"),
         expectedHPMax: metadataFieldExpectation(row.item.metadata?.[META_KEY] || {}, "hpMax"),
@@ -1348,6 +1367,9 @@ export async function activateClassFeature({
   targetIds,
   choiceId,
   autoChoiceIds = {},
+  // The die rolled at the table for an automatic choice that gives temporary hit points (Wild Surge's Shadowy
+  // Tendrils, 1d12 on entering Rage), by child feature.
+  autoChoiceValues = {},
   suppressAutoActivation = false,
   value,
   mode = "heal",
@@ -1382,6 +1404,7 @@ export async function activateClassFeature({
       targetIds,
       choiceId: prepared.choiceId,
       autoChoiceIds,
+      autoChoiceValues,
       suppressAutoActivation,
       resourceValues,
       featureOverride: prepared.feature,
@@ -1445,6 +1468,7 @@ export async function activateClassFeature({
       targetIds,
       choiceId: prepared.choiceId,
       autoChoiceIds,
+      autoChoiceValues,
       suppressAutoActivation,
       resourceValues,
       featureOverride: prepared.feature,
@@ -1468,6 +1492,7 @@ export async function activateClassFeature({
       targetIds,
       choiceId: prepared.choiceId,
       autoChoiceIds,
+      autoChoiceValues,
       suppressAutoActivation,
       resourceValues,
       featureOverride: prepared.feature,
@@ -1492,6 +1517,7 @@ export async function activateClassFeature({
       targetIds,
       choiceId: prepared.choiceId,
       autoChoiceIds,
+      autoChoiceValues,
       suppressAutoActivation,
       resourceValues,
       featureOverride: prepared.feature,
@@ -1518,6 +1544,7 @@ export async function activateClassFeature({
       targetIds,
       choiceId: prepared.choiceId,
       autoChoiceIds,
+      autoChoiceValues,
       suppressAutoActivation,
       resourceValues,
       featureOverride: prepared.feature,
@@ -1566,16 +1593,6 @@ export async function activateClassFeature({
   const instanceId = createInstanceId();
   let activation = null;
   const itemIds = Array.from(new Set([sourceItem.id, ...resolvedTargetIds]));
-  const temporaryHpApplications = [
-    ...classFeatureTemporaryHpApplications(feature, {
-      sourceId: sourceItem.id,
-      targetIds: resolvedTargetIds,
-      choiceId,
-    }),
-    // A shifter's Shifting: temporary hit points from the sheet (Beasthide's d6 entered at the table, as value).
-    ...speciesShiftTemporaryHp(feature, profile, sourceItem, value),
-    ...speciesChoiceTemporaryHp(feature, profile, choiceId, sourceItem, resolvedTargetIds, value),
-  ];
   activation = planClassFeatureActivation({
     state: sourceItem.metadata?.[META_KEY]?.[CLASS_FEATURE_STATE_FIELD],
     feature,
@@ -1593,6 +1610,26 @@ export async function activateClassFeature({
   });
   if (!activation.ok) {
     throw classFeatureError(activation.reason || "invalid-activation", activation.poolId);
+  }
+  // The choice the activation took: the one asked, or the one configured on the sheet (Storm Aura's Tundra).
+  const plannedChoiceId = String(activation.instance?.choiceId || choiceId || "").trim();
+  const temporaryHpApplications = [
+    ...classFeatureTemporaryHpApplications(feature, {
+      sourceId: sourceItem.id,
+      targetIds: resolvedTargetIds,
+      selectedTargetIds: await selectedTemporaryHpCreatureIds(feature, plannedChoiceId, targetIds),
+      choiceId: plannedChoiceId,
+      characterBuild: profile.characterBuild,
+      value,
+    }),
+    // A shifter's Shifting: temporary hit points from the sheet (Beasthide's d6 entered at the table, as value).
+    ...speciesShiftTemporaryHp(feature, profile, sourceItem, value),
+    ...speciesChoiceTemporaryHp(feature, profile, choiceId, sourceItem, resolvedTargetIds, value),
+  ];
+  // The creatures that gain temporary hit points without being the feature's targets (the Bear spirit's) are read
+  // and written by the same command.
+  for (const application of temporaryHpApplications) {
+    if (!itemIds.includes(application.targetId)) itemIds.push(application.targetId);
   }
   const conditionFeature = adapter === "bardic-inspiration"
     ? featureWithEloquenceInfallibleReminder(feature, profile)
@@ -1635,8 +1672,11 @@ export async function activateClassFeature({
       value: application.amount,
       hp,
       hpMax,
+      tempHp: meta.tempHp,
     });
     if (!change.changed) continue;
+    // CAP-TEMP: the temporary hit points in their own field (quickHpCore.js).
+    const tempHpField = quickHPTempHpPatchField(meta, change.afterTempHp, metadataFieldExpectation(meta, "tempHp"));
     metadataPatches.push({
       id: application.targetId,
       fields: {
@@ -1645,6 +1685,7 @@ export async function activateClassFeature({
           value: change.afterHP,
           expected: metadataFieldExpectation(meta, "hp"),
         },
+        ...(tempHpField ? { tempHp: tempHpField } : {}),
         hpMax: {
           mode: "assert",
           expected: metadataFieldExpectation(meta, "hpMax"),
@@ -1715,6 +1756,7 @@ export async function activateClassFeature({
         sourceId: sourceItem.id,
         featureId: childId,
         choiceId: String(autoChoiceIds?.[childId] || "").trim(),
+        ...(autoChoiceValues?.[childId] !== undefined ? { value: autoChoiceValues[childId] } : {}),
         suppressAutoActivation: true,
         sceneEpoch: originEpoch,
         spendReaction: false,

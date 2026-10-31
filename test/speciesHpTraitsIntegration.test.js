@@ -213,7 +213,7 @@ test("Stone's Endurance: the damage just taken is read from the history, and the
 test("Shifting: the pill and the temporary hit points of Beasthide (level + Con + d6) in one command", async () => {
   await assert.rejects(classFeatureRuntime.activateClassFeature({ sourceId: "tek", featureId: "specie-shifter-mutazione-pelle-bestiale" }), /1d6 tirato/);
   await classFeatureRuntime.activateClassFeature({ sourceId: "tek", featureId: "specie-shifter-mutazione-pelle-bestiale", value: "4" });
-  assert.equal(metaOf("tek").hp, 51, "40 + 5 + 2 + 4 temporary");
+  assert.deepEqual([metaOf("tek").hp, metaOf("tek").tempHp], [40, 11], "5 + 2 + 4 temporary");
   assert.equal(uses("tek", "specie-shifter-mutazione-usi"), 0);
   assert.ok(conditionNames("tek").some((name) => /Pelle bestiale/.test(name)), conditionNames("tek").join(","));
 });
@@ -247,8 +247,8 @@ test("Fey Gift: Passage puts its pill on the hobgoblin too; Hospitality gives bo
     choiceId: "ospitalita" }), /1d6 tirato/);
   await classFeatureRuntime.activateClassFeature({ sourceId: "hob", featureId: "specie-hobgoblin-multiverso-dono-fatato", targetIds: ["zar"],
     choiceId: "ospitalita", value: "4" });
-  assert.equal(metaOf("hob").hp, 47, "40 + 3 + 4 temporary");
-  assert.equal(metaOf("zar").hp, 37, "30 + 7: the representation of temporary hit points on a wounded creature");
+  assert.deepEqual([metaOf("hob").hp, metaOf("hob").tempHp], [40, 7], "3 + 4 temporary");
+  assert.deepEqual([metaOf("zar").hp, metaOf("zar").tempHp], [30, 7], "a wounded creature keeps its HP (CAP-TEMP)");
   assert.deepEqual(conditionNames("zar"), ["Aiutato"]);
   assert.equal(uses("hob", "specie-hobgoblin-multiverso-dono-fatato-usi"), 2);
 });
@@ -298,4 +298,43 @@ test("a yuan-ti pureblood is never poisoned, whoever applies the condition", asy
   effects.requireAppliedEffectsMutation(mutation);
   assert.deepEqual(conditionNames("yt"), []);
   assert.deepEqual(conditionNames("grom"), ["Avvelenato"]);
+});
+
+// CAP-TEMP, lotto T2a: a class feature's temporary hit points by its level, to the creatures selected on the map.
+test("Spirit Totem, Bear: 5 + the druid's level in temporary hit points to the creatures selected, with the pill", async () => {
+  scene.items.push({ id: "dru", name: "Dru", layer: "CHARACTER", position: { x: 9000, y: 0 },
+    metadata: { [META_KEY]: { hp: 20, hpMax: 30, attitude: "pc", conditions: { version: 2, instances: [] },
+      initiativeCard: { characterBuild: [{ classId: "druido", level: 4, subclassId: "druido-circolo-del-pastore" }],
+        abilityModifiers: { str: 0, dex: 1, con: 1, int: 0, wis: 3, cha: 0 },
+        // The spirit is the one configured on the sheet: the Bear alone.
+        classFeaturesConfigured: true, enabledClassFeatureIds: ["druido-circolo-del-pastore-totem-spirituale",
+          "druido-circolo-del-pastore-totem-spirituale-spirito-orso"] } } } });
+  await classFeatureRuntime.activateClassFeature({ sourceId: "dru", featureId: "druido-circolo-del-pastore-totem-spirituale",
+    targetIds: ["dru", "zar"] });
+  assert.deepEqual([metaOf("dru").hp, metaOf("dru").tempHp], [20, 9], "the wounded druid keeps its HP");
+  assert.deepEqual([metaOf("zar").hp, metaOf("zar").tempHp], [30, 9]);
+  assert.ok(conditionNames("dru").some((name) => /Totem Spirituale/u.test(name)), conditionNames("dru").join(","));
+  assert.equal(metaOf("dru").classFeatureState?.instances?.[0]?.choiceId, "orso");
+});
+
+const barbarian = (id, subclassId, enabledClassFeatureIds) => ({ id, name: id, layer: "CHARACTER", position: { x: 9500, y: 0 },
+  metadata: { [META_KEY]: { hp: 30, hpMax: 40, attitude: "pc", conditions: { version: 2, instances: [] },
+    initiativeCard: { characterBuild: [{ classId: "barbaro", level: 5, subclassId }], abilityModifiers: { str: 3, dex: 1, con: 2, int: 0, wis: 0, cha: 0 },
+      classFeaturesConfigured: true, enabledClassFeatureIds } } } });
+
+test("Rage with Shadowy Tendrils: the 1d12 entered at the table becomes the barbarian's temporary hit points", async () => {
+  const SURGE = "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio";
+  scene.items.push(barbarian("wb", "barbaro-cammino-della-magia-selvaggia", ["barbaro-ira", SURGE]));
+  await classFeatureRuntime.activateClassFeature({ sourceId: "wb", featureId: "barbaro-ira", autoChoiceIds: { [SURGE]: "1" },
+    autoChoiceValues: { [SURGE]: 8 } });
+  assert.deepEqual([metaOf("wb").hp, metaOf("wb").tempHp], [30, 8]);
+  assert.ok(conditionNames("wb").some((name) => /Viti Oscure/u.test(name)), conditionNames("wb").join(","));
+});
+
+test("Storm Aura, Tundra configured on the sheet: its temporary hit points to the creatures selected when it starts", async () => {
+  const AURA = "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa";
+  scene.items.push(barbarian("sh", "barbaro-cammino-dell-araldo-della-tempesta", ["barbaro-ira", AURA, `${AURA}-tundra`]));
+  await classFeatureRuntime.activateClassFeature({ sourceId: "sh", featureId: "barbaro-ira" });
+  await classFeatureRuntime.activateClassFeature({ sourceId: "sh", featureId: AURA, targetIds: ["sh", "zar"] });
+  assert.deepEqual([metaOf("sh").tempHp, metaOf("zar").tempHp], [3, 3], "3 at the 5th level, from the Tundra configured");
 });

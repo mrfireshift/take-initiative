@@ -116,7 +116,8 @@ function contractReviewReason(contract, phasePlan) {
     || execution.phaseHasHP === true
     || inputs.hp?.required === true
     || inputs.damage?.required === true
-    || inputs.healing?.required === true) {
+    || inputs.healing?.required === true
+    || inputs.temporaryHp?.required === true) {
     return "hp-input-required";
   }
   if (inputs.outcomes?.required === true) return "outcomes-required";
@@ -219,6 +220,7 @@ export function getQuickActionDirectSaveEligibility({
     || hasRequiredInput(inputs, "damage")
     || hasRequiredInput(inputs, "primaryDamage")
     || hasRequiredInput(inputs, "healing")
+    || hasRequiredInput(inputs, "temporaryHp")
   ) {
     return reject("hp-input-required");
   }

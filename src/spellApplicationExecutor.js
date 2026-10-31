@@ -38,8 +38,10 @@ import {
   calculateQuickHPChange,
   QUICK_HP_FACTORS,
   QUICK_HP_MODES,
+  quickHPTempHpPatchField,
 } from "./quickHpCore.js";
 import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
+import { spellCastTemporaryHpAmount, spellCastTemporaryHpRule } from "./spellTemporaryHpRules.js";
 import {
   resolveZeroHPUnconsciousAction,
   resolveDamageEndsConditionRemovals,
@@ -460,6 +462,18 @@ export async function executeSpellActiveAction({
   return attachSpellExecutionHistory(changedIds, mutation);
 }
 
+// CAP-TEMP: the temporary hit points field of an HP patch (quickHpCore.js), or none.
+function tempHpPatchFields(meta, change) {
+  const field = quickHPTempHpPatchField(meta, change.afterTempHp, metadataSnapshot(meta, "tempHp"));
+  return field ? { tempHp: field } : {};
+}
+
+// The same, on a patch already written by an earlier hit of the same command.
+function setTempHpPatchFields(patch, meta, change) {
+  delete patch.fields.tempHp;
+  Object.assign(patch.fields, tempHpPatchFields(meta, change));
+}
+
 function metadataSnapshot(meta, field) {
   return Object.prototype.hasOwnProperty.call(meta || {}, field)
     ? { present: true, value: meta[field] }
@@ -552,6 +566,52 @@ async function preparedInstanceIsCurrent(casterId, activeConcentration, spellId)
   ));
 }
 
+// CAP-TEMP, lotto T3b: the temporary hit points a cast gives (spellTemporaryHpRules.js), as metadata patches of the
+// same command as its pill. The pill's id is given here, before the coordinator would, so it can be their source
+// (lotto T3a): its end takes the ones left. targets: each creature's temporary hit points before and after.
+async function buildCastTemporaryHpMutation({ spell, phase = "", targetIds = [], operations = [], slotLevel = null, roll = undefined } = {}) {
+  const rule = spellCastTemporaryHpRule(spell?.id);
+  if (!rule || phase === "prepare") return { metadataPatches: [], targets: [] };
+  const amount = spellCastTemporaryHpAmount(rule, { slotLevel, roll });
+  if (amount === null) throw new Error("spell-temporary-hp-roll-required");
+  const ids = Array.from(new Set((targetIds || []).filter(Boolean)));
+  const pillOperation = rule.effectId
+    ? operations.find((operation) => operation?.type === "condition:add" && operation.options?.effectId === rule.effectId)
+    : null;
+  const items = ids.length ? await OBR.scene.items.getItems(ids) : [];
+  const metadataPatches = [];
+  const targets = [];
+  for (const item of items) {
+    const meta = item?.metadata?.[`${ID}/meta`] || {};
+    if (!Object.prototype.hasOwnProperty.call(meta, "hp") || !Object.prototype.hasOwnProperty.call(meta, "hpMax")) continue;
+    let sourceId = "";
+    if (pillOperation && (pillOperation.targetIds || []).includes(item.id)) {
+      pillOperation.instanceIds = { ...(pillOperation.instanceIds || {}) };
+      pillOperation.instanceIds[item.id] ||= `condition-${createSpellInstanceId()}`;
+      sourceId = pillOperation.instanceIds[item.id];
+    }
+    const change = calculateQuickHPChange({
+      mode: QUICK_HP_MODES.TEMP,
+      value: amount,
+      hp: meta.hp,
+      hpMax: meta.hpMax,
+      tempHp: meta.tempHp,
+    });
+    targets.push({ id: item.id, name: item.name || item.id, amount, before: change.tempHp, after: change.afterTempHp });
+    if (!change.changed) continue;
+    metadataPatches.push({
+      id: item.id,
+      ...(sourceId ? { tempHpSourceId: sourceId } : {}),
+      fields: {
+        hp: { expected: metadataSnapshot(meta, "hp"), value: change.afterHP },
+        hpMax: { expected: metadataSnapshot(meta, "hpMax"), value: change.hpMax },
+        ...tempHpPatchFields(meta, change),
+      },
+    });
+  }
+  return { metadataPatches, targets };
+}
+
 async function buildPreparedInitialDamageMutation({
   targetIds = [],
   amount = null,
@@ -580,23 +640,23 @@ async function buildPreparedInitialDamageMutation({
     ) {
       throw new Error("spell-initial-damage-hp-required");
     }
-    const currentHp = currentHpById.has(targetId)
-      ? currentHpById.get(targetId)
-      : meta.hp;
+    const current = currentHpById.get(targetId) || { hp: meta.hp, tempHp: meta.tempHp };
+    const currentHp = current.hp;
     const hpChange = calculateQuickHPChange({
       mode: QUICK_HP_MODES.DAMAGE,
       value: damage,
       factor: QUICK_HP_FACTORS.FULL,
-      hp: currentHp,
+      hp: current.hp,
       hpMax: meta.hpMax,
+      tempHp: current.tempHp,
       deathSaveDamage: takesDeathSaveDamage(meta),
     });
-    currentHpById.set(targetId, hpChange.afterHP);
+    currentHpById.set(targetId, { hp: hpChange.afterHP, tempHp: hpChange.afterTempHp });
     targets.push({
       id: targetId,
       name: item.name,
       requestedDamage: damage,
-      appliedDamage: Math.max(0, Number(currentHp) - Number(hpChange.afterHP)),
+      appliedDamage: Math.max(0, -hpChange.delta),
       beforeHP: currentHp,
       afterHP: hpChange.afterHP,
     });
@@ -613,6 +673,7 @@ async function buildPreparedInitialDamageMutation({
           expected: metadataSnapshot(meta, "hpMax"),
           value: hpChange.hpMax,
         },
+        ...tempHpPatchFields(meta, hpChange),
       },
     });
     const zeroAction = resolveZeroHPUnconsciousAction({
@@ -625,7 +686,7 @@ async function buildPreparedInitialDamageMutation({
       itemId: targetId,
       instanceId,
     })));
-    if (hpChange.afterHP < Number(currentHp)) {
+    if (hpChange.delta < 0) {
       for (const instanceId of resolveDamageEndsConditionRemovals(
         getConditionInstances(meta.conditions || {}),
       )) {
@@ -1322,23 +1383,23 @@ export async function executeSpellActiveResolution({
         ) {
           throw new Error("active-resolution-hp-required");
         }
-        const currentHp = currentHpById.has(contribution.targetId)
-          ? currentHpById.get(contribution.targetId)
-          : meta.hp;
+        const current = currentHpById.get(contribution.targetId) || { hp: meta.hp, tempHp: meta.tempHp };
         const hpChange = calculateQuickHPChange({
           mode: QUICK_HP_MODES.DAMAGE,
           value: amount,
           factor: QUICK_HP_FACTORS.FULL,
-          hp: currentHp,
+          hp: current.hp,
           hpMax: meta.hpMax,
+          tempHp: current.tempHp,
           deathSaveDamage: takesDeathSaveDamage(meta),
         });
-        currentHpById.set(contribution.targetId, hpChange.afterHP);
+        currentHpById.set(contribution.targetId, { hp: hpChange.afterHP, tempHp: hpChange.afterTempHp });
         const existingPatch = metadataPatches.find((patch) => patch.id === contribution.targetId);
         if (hpChange.changed) {
           if (existingPatch) {
             existingPatch.fields.hp.value = hpChange.afterHP;
             existingPatch.fields.hpMax.value = hpChange.hpMax;
+            setTempHpPatchFields(existingPatch, meta, hpChange);
           } else {
             metadataPatches.push({
               id: contribution.targetId,
@@ -1351,6 +1412,7 @@ export async function executeSpellActiveResolution({
                   expected: metadataSnapshot(meta, "hpMax"),
                   value: hpChange.hpMax,
                 },
+                ...tempHpPatchFields(meta, hpChange),
               },
             });
           }
@@ -1505,6 +1567,7 @@ export async function executeSpellActiveResolution({
         factor: QUICK_HP_FACTORS.FULL,
         hp: meta.hp,
         hpMax: meta.hpMax,
+        tempHp: meta.tempHp,
       });
       resolutionHealingByTarget.set(targetId, { healing, hpChange });
       sharedHpIntents.push({ targetId, mode: "heal", amount: healing.amount, eventId: "active-healing" });
@@ -1520,6 +1583,7 @@ export async function executeSpellActiveResolution({
               expected: metadataSnapshot(meta, "hpMax"),
               value: hpChange.hpMax,
             },
+            ...tempHpPatchFields(meta, hpChange),
           },
         });
       }
@@ -1569,23 +1633,23 @@ export async function executeSpellActiveResolution({
           || !Object.prototype.hasOwnProperty.call(meta, "hpMax")) {
           throw new Error("active-resolution-hp-required");
         }
-        const currentHp = currentHpById.has(targetId)
-          ? currentHpById.get(targetId)
-          : meta.hp;
+        const current = currentHpById.get(targetId) || { hp: meta.hp, tempHp: meta.tempHp };
         const hpChange = calculateQuickHPChange({
           mode: QUICK_HP_MODES.DAMAGE,
           value: damage.amount,
           factor: QUICK_HP_FACTORS.FULL,
-          hp: currentHp,
+          hp: current.hp,
           hpMax: meta.hpMax,
+          tempHp: current.tempHp,
           deathSaveDamage: takesDeathSaveDamage(meta),
         });
-        currentHpById.set(targetId, hpChange.afterHP);
+        currentHpById.set(targetId, { hp: hpChange.afterHP, tempHp: hpChange.afterTempHp });
         if (!hpChange.changed) continue;
         const existingPatch = metadataPatches.find((patch) => patch.id === targetId);
         if (existingPatch) {
           existingPatch.fields.hp.value = hpChange.afterHP;
           existingPatch.fields.hpMax.value = hpChange.hpMax;
+          setTempHpPatchFields(existingPatch, meta, hpChange);
         } else {
           metadataPatches.push({
             id: targetId,
@@ -1598,6 +1662,7 @@ export async function executeSpellActiveResolution({
                 expected: metadataSnapshot(meta, "hpMax"),
                 value: hpChange.hpMax,
               },
+              ...tempHpPatchFields(meta, hpChange),
             },
           });
         }
@@ -1621,6 +1686,7 @@ export async function executeSpellActiveResolution({
           ratio: casterHealingRatio,
           hp: casterMeta.hp,
           hpMax: casterMeta.hpMax,
+          tempHp: casterMeta.tempHp,
         });
         if (healingChange.changed) {
           metadataPatches.push({
@@ -2066,6 +2132,8 @@ export async function executeSpellApplication({
   extraOperations = [],
   // What the cast spends (planSpellCastCost's spent), named in the combat log: "slot di 3° livello".
   castCost = "",
+  // The die rolled at the table for the temporary hit points of the cast (False Life's 1d4, lotto T3b of CAP-TEMP).
+  temporaryHpRoll = undefined,
   // A spell the plugin does not automate, launched from a quick action, the spellbook or the spell panel: the cast is
   // recorded with what it spends, without a pill (spellCastRecord.js).
   recordOnly = false,
@@ -2214,6 +2282,17 @@ export async function executeSpellApplication({
     ...initialDamageMutation.operations,
     ...(Array.isArray(extraOperations) ? extraOperations : []),
   ];
+  const castTemporaryHp = await buildCastTemporaryHpMutation({
+    spell,
+    phase: applicationPlan.phasePlan?.phase,
+    targetIds: intent.subjects,
+    operations: applicationOperations,
+    slotLevel: intent.persistedCastContext?.slotLevel ?? castContext?.slotLevel,
+    roll: temporaryHpRoll,
+  });
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-spell-application");
+  }
   const removeReplacedZones = intent.wantsConcentration
     && applicationPlan.concentrationAction === "replace"
     && casterId;
@@ -2231,7 +2310,7 @@ export async function executeSpellApplication({
     kind: "spell",
     label: applicationPlan.historyLabel,
     targetIds: [casterId, ...targetIds],
-    metadataPatches: initialDamageMutation.metadataPatches,
+    metadataPatches: [...initialDamageMutation.metadataPatches, ...castTemporaryHp.metadataPatches],
     sideEffects,
     history: {
       kind: "spell",

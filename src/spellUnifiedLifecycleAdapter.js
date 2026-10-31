@@ -207,6 +207,9 @@ function validationErrors(contract, session, targetIds, phasePlan, slotLevel, du
   if (inputs.damage?.required && !preparedResolution && !hasValue(session.hpValues?.damage)) {
     add("damage", "damage-required");
   }
+  if (inputs.temporaryHp?.required && !hasValue(session.hpValues?.temporaryHp)) {
+    add("temporaryHp", "temporary-hp-required");
+  }
   if (inputs.healing?.required && !hasValue(session.hpValues?.healing)) {
     add("healing", "healing-required");
   }
@@ -316,6 +319,8 @@ export function buildSpellUnifiedLifecycleRequest({
       : undefined,
     saveOutcomes: session.outcomes,
     damageValue: session.hpValues?.damage,
+    // CAP-TEMP, lotto T3b: False Life's 1d4, rolled at the table.
+    ...(hasValue(session.hpValues?.temporaryHp) ? { temporaryHpRoll: session.hpValues.temporaryHp } : {}),
     manualAttackOutcomeRequired: attackOutcomeRequired,
     ...(appliedAt !== undefined ? { appliedAt } : {}),
     ...(text(casterName) ? { casterName: text(casterName) } : {}),

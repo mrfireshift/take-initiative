@@ -357,7 +357,7 @@ export function buildBossActionMutation({
   if (!miss) {
     if (!Number.isFinite(targetMeta.hp) || !Number.isFinite(targetMeta.hpMax)
         || targetMeta.hp < 0 || targetMeta.hpMax < 0) throw new Error("Il bersaglio non ha HP canonici validi.");
-    change = calculateQuickHPChange({value:requestedDamage,hp:targetMeta.hp,hpMax:targetMeta.hpMax,deathSaveDamage:takesDeathSaveDamage(targetMeta)});
+    change = calculateQuickHPChange({value:requestedDamage,hp:targetMeta.hp,hpMax:targetMeta.hpMax,tempHp:targetMeta.tempHp,deathSaveDamage:takesDeathSaveDamage(targetMeta)});
   }
   const use=buildBossActionUse({profile,action,sourceItem,actionInstanceId,round});
   recordMarkUses(use.runtimeState,marked?[targetItem.id]:[],round);
@@ -369,7 +369,7 @@ export function buildBossActionMutation({
   let drain = null;
   if (execution.drain && change) {
     const necrotic = damageComponents.find((component) => component.id === execution.drain.component)?.amount || 0;
-    const healing = calculateQuickHPChange({mode:QUICK_HP_MODES.HEAL,value:necrotic,hp:sourceMeta.hp,hpMax:sourceMeta.hpMax});
+    const healing = calculateQuickHPChange({mode:QUICK_HP_MODES.HEAL,value:necrotic,hp:sourceMeta.hp,hpMax:sourceMeta.hpMax,tempHp:sourceMeta.tempHp});
     drain = {component:execution.drain.component,amount:necrotic,healing,
       maxHpReduction:{targetId:targetItem.id,amount:necrotic,manual:true}};
   }
@@ -412,10 +412,10 @@ export function buildBossActionMutation({
   return {
     change,damageComponents,manualText,causality,conditions,drain:causality.drain || null,
     operations:[...(change?.changed || drain?.healing.changed ? [{type:"hp:set",updates:[
-      ...(change?.changed?[{itemId:targetItem.id,hp:change.afterHP,hpMax:change.hpMax,
+      ...(change?.changed?[{itemId:targetItem.id,hp:change.afterHP,hpMax:change.hpMax,tempHp:change.afterTempHp,
         hpIntent:{mode:"damage",amount:change.requested,eventId:actionInstanceId,...(criticalHit && change.deathSaveDamage?{critical:true}:{})},
         expectedHP:bossMetadataSnapshot(targetMeta,"hp"),expectedHPMax:bossMetadataSnapshot(targetMeta,"hpMax")}]:[]),
-      ...(drain?.healing.changed?[{itemId:sourceItem.id,hp:drain.healing.afterHP,hpMax:drain.healing.hpMax,
+      ...(drain?.healing.changed?[{itemId:sourceItem.id,hp:drain.healing.afterHP,hpMax:drain.healing.hpMax,tempHp:drain.healing.afterTempHp,
         expectedHP:bossMetadataSnapshot(sourceMeta,"hp"),expectedHPMax:bossMetadataSnapshot(sourceMeta,"hpMax")}]:[]),
     ]}] : []),...conditionOperations,
     ...(consumedMarks.length?[{type:"condition:remove-instances",targetIds:[targetItem.id],removals:consumedMarks.map((instanceId)=>({itemId:targetItem.id,instanceId}))}]:[]),
@@ -659,9 +659,9 @@ export function buildBossActionGroupMutation({
       expectedDefenses === undefined ? undefined : expectedDefenses?.[target.id] || {},markedIds.includes(target.id));
     const requestedDamage = damageComponents.reduce((sum,component)=>sum+component.amount,0);
     const meta = target.metadata?.[META_KEY] || {};
-    const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax,deathSaveDamage:takesDeathSaveDamage(meta)});
+    const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax,tempHp:meta.tempHp,deathSaveDamage:takesDeathSaveDamage(meta)});
     changes.push({targetId:target.id,targetName:target.name || target.id,outcome,change});
-    if (change.changed || components.length && (meta.sharedHpSourceId || targets.some(item=>item.metadata?.[META_KEY]?.sharedHpSourceId===target.id))) hpUpdates.push({itemId:target.id,hp:change.afterHP,hpMax:change.hpMax,
+    if (change.changed || components.length && (meta.sharedHpSourceId || targets.some(item=>item.metadata?.[META_KEY]?.sharedHpSourceId===target.id))) hpUpdates.push({itemId:target.id,hp:change.afterHP,hpMax:change.hpMax,tempHp:change.afterTempHp,
       hpIntent:{mode:"damage",amount:change.requested,eventId:actionInstanceId},
       expectedHP:bossMetadataSnapshot(meta,"hp"),expectedHPMax:bossMetadataSnapshot(meta,"hpMax")});
     // An immune creature still takes the damage; only the condition it is immune to is skipped.
@@ -852,9 +852,9 @@ export function buildBossActionGroupAttackMutation({
       ignoredDefenses?.[target.id] || [],expectedDefenses === undefined ? undefined : expectedDefenses?.[target.id] || {},markedIds.includes(target.id));
     const requestedDamage = damageComponents.reduce((sum,component)=>sum+component.amount,0);
     const meta = target.metadata?.[META_KEY] || {};
-    const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax,deathSaveDamage:takesDeathSaveDamage(meta)});
+    const change = calculateQuickHPChange({value:requestedDamage,hp:meta.hp,hpMax:meta.hpMax,tempHp:meta.tempHp,deathSaveDamage:takesDeathSaveDamage(meta)});
     changes.push({targetId:target.id,targetName:target.name || target.id,outcome,change});
-    if (change.changed) hpUpdates.push({itemId:target.id,hp:change.afterHP,hpMax:change.hpMax,
+    if (change.changed) hpUpdates.push({itemId:target.id,hp:change.afterHP,hpMax:change.hpMax,tempHp:change.afterTempHp,
       hpIntent:{mode:"damage",amount:change.requested,eventId:`${actionInstanceId}:${target.id}`},
       expectedHP:bossMetadataSnapshot(meta,"hp"),expectedHPMax:bossMetadataSnapshot(meta,"hpMax")});
     causalTargets.push({id:target.id,name:target.name,outcome,requestedDamage,appliedHpDelta:change.delta,hpBefore:change.hp,hpAfter:change.afterHP,
@@ -936,7 +936,7 @@ export function buildBossThrowMutation({
   const targetMeta = targetItem.metadata?.[META_KEY] || {};
   if (!Number.isFinite(targetMeta.hp) || !Number.isFinite(targetMeta.hpMax) || targetMeta.hp < 0 || targetMeta.hpMax < 0)
     throw new Error("Il bersaglio non ha HP canonici validi.");
-  const change = calculateQuickHPChange({ value: requestedDamage, hp: targetMeta.hp, hpMax: targetMeta.hpMax,
+  const change = calculateQuickHPChange({ value: requestedDamage, hp: targetMeta.hp, hpMax: targetMeta.hpMax, tempHp: targetMeta.tempHp,
     deathSaveDamage: takesDeathSaveDamage(targetMeta) });
   // Scagliare: a creature the target is thrown against takes the same roll (its own defenses) and Prono on a failure.
   let collision = null;
@@ -948,7 +948,7 @@ export function buildBossThrowMutation({
     const collisionComponents = defendedComponents([component], inputs, failed ? "full" : "zero", collisionItem, collisionIgnoredDefenses, collisionExpectedDefenses, false);
     const collisionDamage = collisionComponents.reduce((sum, entry) => sum + entry.amount, 0);
     collision = { item: collisionItem, meta: collisionMeta, outcome: collisionOutcome, components: collisionComponents, damage: collisionDamage,
-      change: calculateQuickHPChange({ value: collisionDamage, hp: collisionMeta.hp, hpMax: collisionMeta.hpMax,
+      change: calculateQuickHPChange({ value: collisionDamage, hp: collisionMeta.hp, hpMax: collisionMeta.hpMax, tempHp: collisionMeta.tempHp,
         deathSaveDamage: takesDeathSaveDamage(collisionMeta) }),
       condition: failed ? { condition: execution.collision.onFailed.condition, instanceId: bossGroupConditionInstanceId(actionInstanceId, `collision-${execution.collision.onFailed.condition}`, collisionItem.id) } : null };
   }
@@ -968,9 +968,9 @@ export function buildBossThrowMutation({
   } : null;
   const operations = [
     ...(change.changed || collision?.change.changed ? [{ type: "hp:set", updates: [
-      ...(change.changed ? [{ itemId: targetItem.id, hp: change.afterHP, hpMax: change.hpMax,
+      ...(change.changed ? [{ itemId: targetItem.id, hp: change.afterHP, hpMax: change.hpMax, tempHp: change.afterTempHp,
         expectedHP: bossMetadataSnapshot(targetMeta, "hp"), expectedHPMax: bossMetadataSnapshot(targetMeta, "hpMax") }] : []),
-      ...(collision?.change.changed ? [{ itemId: collisionItem.id, hp: collision.change.afterHP, hpMax: collision.change.hpMax,
+      ...(collision?.change.changed ? [{ itemId: collisionItem.id, hp: collision.change.afterHP, hpMax: collision.change.hpMax, tempHp: collision.change.afterTempHp,
         expectedHP: bossMetadataSnapshot(collision.meta, "hp"), expectedHPMax: bossMetadataSnapshot(collision.meta, "hpMax") }] : []),
     ] }] : []),
     ...(released.length ? [{ type: "condition:remove-instances", targetIds: [targetItem.id], removals: released.map((entry) => ({ itemId: targetItem.id, instanceId: entry.id })) }] : []),

@@ -173,6 +173,8 @@ function completeSession(contract, overrides = {}) {
       damage: inputs.damage?.required ? 12 : null,
       primaryDamage: inputs.primaryDamage?.required ? 13 : null,
       healing: inputs.healing?.required ? 12 : null,
+      // CAP-TEMP, lotto T3b: the die of the temporary hit points (False Life's 1d4).
+      ...(inputs.temporaryHp?.required ? { temporaryHp: 3 } : {}),
     },
     activeConcentration: overrides.activeConcentration || null,
     phase: overrides.phase || contract.presentation.phase.selected,

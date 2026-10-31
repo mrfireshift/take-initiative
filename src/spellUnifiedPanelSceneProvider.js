@@ -253,6 +253,8 @@ function targetCandidate(item, dpi = 150) {
     factionLabel: FACTION_LABELS[faction],
     hp: Number.isFinite(hp) ? hp : null,
     hpMax: Number.isFinite(hpMax) ? hpMax : null,
+    // CAP-TEMP: the temporary hit points, so the preview takes them first as the commit does (quickHpCore.js).
+    tempHp: Math.max(0, Math.floor(Number(meta.tempHp) || 0)),
     turbineSize: turbineSizeFromToken({ item, dpi }) || null,
     layer: item?.layer || null,
     isCreature: item?.layer === "CHARACTER",

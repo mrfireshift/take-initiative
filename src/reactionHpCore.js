@@ -1,4 +1,5 @@
 import { ID } from "./constants.js";
+import { calculateQuickHPChange, quickHPStateOf } from "./quickHpCore.js";
 
 // CAP-REACTION, lotto 2 (PHB 2014): the hit points two active spells change in the same command as the damage,
 // where the death saves are planned (the coordinator's HP block and the area command's own HP write).
@@ -43,9 +44,10 @@ export function wardingBondPill(item) {
 }
 
 // The damage the warded creatures of these writes take, mirrored on their casters.
-// writes: [{ itemId, damage }]; hpById: the HP of the casters before (or after other writes of the same command).
-// Returns the casters' writes ({ itemId, hp, hpMax, damage, sources }) and the bonds that end (their pills).
-export function planWardingBondDamage({ writes = [], itemsById = new Map(), hpById = new Map() } = {}) {
+// writes: [{ itemId, damage }]; hpById, tempHpById: the HP and temporary hit points of the casters before (or after
+// other writes of the same command). The caster's temporary hit points take the damage first (CAP-TEMP).
+// Returns the casters' writes ({ itemId, hp, hpMax, tempHp, damage, sources }) and the bonds that end (their pills).
+export function planWardingBondDamage({ writes = [], itemsById = new Map(), hpById = new Map(), tempHpById = new Map() } = {}) {
   const casterWrites = new Map();
   const removals = [];
   const notes = [];
@@ -58,12 +60,16 @@ export function planWardingBondDamage({ writes = [], itemsById = new Map(), hpBy
     const casterMeta = caster?.metadata?.[META_KEY] || {};
     if (!bond || !caster || !Object.hasOwn(casterMeta, "hp") || !Object.hasOwn(casterMeta, "hpMax")) continue;
     const previous = casterWrites.get(casterId);
-    const hpBefore = previous ? previous.hp : integer(hpById.has(casterId) ? hpById.get(casterId) : casterMeta.hp);
-    const hp = Math.max(0, hpBefore - damage);
+    const state = quickHPStateOf(casterMeta);
+    const hpBefore = previous ? previous.hp : hpById.has(casterId) ? integer(hpById.get(casterId)) : state.hp;
+    const tempHpBefore = previous ? previous.tempHp : tempHpById.has(casterId) ? integer(tempHpById.get(casterId)) : state.tempHp;
+    const change = calculateQuickHPChange({ value: damage, hp: hpBefore, hpMax: state.hpMax, tempHp: tempHpBefore });
+    const hp = change.afterHP;
     casterWrites.set(casterId, {
       itemId: casterId,
       hp,
       hpMax: integer(casterMeta.hpMax),
+      tempHp: change.afterTempHp,
       damage: (previous?.damage || 0) + damage,
       sources: [...(previous?.sources || []), target.id],
     });

@@ -1486,7 +1486,7 @@ export function bootBossActions(documentRef=document, overrides={}) {
     const sharedEntries=draft.targetIds.map(id=>({item:targetById(id),amount:groupRowDamage(draft.outcomes[id],id)}))
       .filter(entry=>entry.item && entry.amount!==null).map(({item,amount})=>({item,
         eventId:attackGroup()?`boss-attack:${item.id}`:"boss-damage",change:calculateQuickHPChange({value:amount,
-          hp:item.metadata?.[META_KEY]?.hp,hpMax:item.metadata?.[META_KEY]?.hpMax})}));
+          hp:item.metadata?.[META_KEY]?.hp,hpMax:item.metadata?.[META_KEY]?.hpMax,tempHp:item.metadata?.[META_KEY]?.tempHp})}));
     const sharedPreview=buildSharedHpPreview([presentation.item,...targets],sharedEntries,draft.sharedHp || {});
     renderSharedHpControls(sharedControls,sharedPreview,draft.sharedHp || {},next=>{draft.sharedHp=next;renderGroupState();persistDraft();},
       {documentRef,disabled:busy});
@@ -1881,6 +1881,8 @@ export function bootBossActions(documentRef=document, overrides={}) {
     return JSON.stringify([boss.bossActionState ?? null,boss.initiativeCard?.bossActionBinding ?? null,boss.hp ?? null,boss.conditions ?? null,boss[ID+"/spells"] ?? null,
       // A target's reaction and its active spells' counters (Mirror Image, Shield): the reactions box under it (CAP-REACTION).
       bossActionTargets(items,sourceId).map(item=>[item.id,item.name,item.metadata?.[META_KEY]?.hp,item.metadata?.[META_KEY]?.hpMax,
+        // Its temporary hit points and their source (Armor of Agathys' retaliation, CAP-TEMP).
+        item.metadata?.[META_KEY]?.tempHp ?? null,item.metadata?.[META_KEY]?.tempHpSource ?? null,
         damageDefensesForItem(item,META_KEY),immunityKeys(item),hasReactionUsed(item.metadata?.[META_KEY]?.conditions),
         (Array.isArray(item.metadata?.[META_KEY]?.[ID+"/spells"])?item.metadata[META_KEY][ID+"/spells"]:[])
           .map(spell=>[spell?.spellId || "",spell?.castContext?.uses?.remaining ?? null])]),bossGrappledIds(items,sourceId)]);

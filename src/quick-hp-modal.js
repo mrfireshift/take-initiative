@@ -284,6 +284,7 @@ function previewFor(item) {
     factor,
     hp: meta.hp,
     hpMax: meta.hpMax,
+    tempHp: meta.tempHp,
     deathSaveDamage: takesDeathSaveDamage(meta),
   });
 }
@@ -516,21 +517,17 @@ function renderTargets() {
     } else {
       const result = previewFor(item);
       if (result) {
+        // CAP-TEMP: the temporary hit points beside the HP, "+N" (quickHpCore.js).
+        const temp = (value) => (value > 0 ? ` +${value}` : "");
         const before = document.createElement("span");
         before.className = "before";
-        before.textContent = `${result.hp}/${result.hpMax} → `;
+        before.textContent = `${result.hp}/${result.hpMax}${temp(result.tempHp)} → `;
         const after = document.createElement("strong");
-        after.textContent = String(result.afterHP);
+        after.textContent = `${result.afterHP}${temp(result.afterTempHp)}`;
         const delta = document.createElement("span");
         delta.className = `delta ${mode === QUICK_HP_MODES.SAVE ? QUICK_HP_MODES.DAMAGE : mode}`;
         delta.textContent = ` (${signed(result.delta)})`;
         preview.append(before, after, delta);
-        if (result.tempAtZeroHP) {
-          const note = document.createElement("span");
-          note.className = "delta";
-          note.textContent = " · a 0 PF i PF temporanei non si danno";
-          preview.append(note);
-        }
         if (result.deathSaveDamage) {
           const deathSave = document.createElement("span");
           deathSave.className = "delta damage";
@@ -834,7 +831,7 @@ async function applyOperation() {
 
   const coordinatedOperations = [
     ...(entries.length ? [{ type: "hp:set", updates: entries.map(({ item, change }) => ({
-      itemId: item.id, hp: change.afterHP, hpMax: change.hpMax,
+      itemId: item.id, hp: change.afterHP, hpMax: change.hpMax, tempHp: change.afterTempHp,
       hpIntent: { ...sharedHpIntent({ change }, operation.operationId),
         ...(change.deathSaveDamage && criticalIds.has(item.id) ? { critical: true } : {}) },
       expectedHP: { present: true, value: item.metadata[META_KEY].hp },

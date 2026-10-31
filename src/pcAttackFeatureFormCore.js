@@ -12,6 +12,7 @@ import {
   classFeatureRuntimeSupport,
   classFeatureSpellSlotCreationCost,
   classFeatureTargeting,
+  classFeatureTemporaryHpDie,
   classFeatureTwinnedSpellCost,
   resolveClassFeatureResourceDie,
 } from "./classFeatureCore.js";
@@ -241,6 +242,14 @@ export function pcAttackFeatureForm(feature, state = {}, { characterBuild = [], 
     const child = CLASS_FEATURE_BY_ID.get(childId);
     const field = child ? choiceField(child, enabledIds, { id: `auto:${childId}`, label: `Esito automatico: ${child.name}` }) : null;
     if (field) fields.push(field);
+    // CAP-TEMP: an automatic choice whose temporary hit points take a die (Wild Surge's Shadowy Tendrils): its roll,
+    // shown only for that choice.
+    for (const option of field ? classFeatureChoiceOptions(child) : []) {
+      const die = classFeatureTemporaryHpDie(child, option.id);
+      if (!die) continue;
+      fields.push({ id: `autoValue:${childId}:${option.id}`, type: "number", label: `${option.label}: ${die} di PF temporanei`,
+        min: 1, max: Number(die.slice(2)), value: "", showWhen: { field: `auto:${childId}`, value: option.id } });
+    }
   }
   return {
     kind: aura ? "toggle" : "activate",
@@ -312,6 +321,19 @@ export function pcAttackFeatureRequest(feature, form, values = {}, { sourceId = 
   }
   const autoChoiceIds = Object.fromEntries(Object.entries(values)
     .filter(([key, value]) => key.startsWith("auto:") && value).map(([key, value]) => [key.slice(5), value]));
+  // The die of the automatic choice taken, when it asks one (its field shows only for that choice).
+  const autoChoiceValues = {};
+  for (const [childId, choiceId] of Object.entries(autoChoiceIds)) {
+    const child = CLASS_FEATURE_BY_ID.get(childId);
+    const die = classFeatureTemporaryHpDie(child, choiceId);
+    if (!die) continue;
+    const roll = Number(String(values[`autoValue:${childId}:${choiceId}`] ?? "").trim());
+    if (!Number.isInteger(roll) || roll < 1 || roll > Number(die.slice(2))) {
+      return { error: `Inserisci il ${die} tirato per i PF temporanei (1–${die.slice(2)}).` };
+    }
+    autoChoiceValues[childId] = roll;
+  }
   return { fn: "activateClassFeature", params: { sourceId, featureId: feature.id, ...targets,
-    ...(values.choice ? { choiceId: values.choice } : {}), ...(Object.keys(autoChoiceIds).length ? { autoChoiceIds } : {}) } };
+    ...(values.choice ? { choiceId: values.choice } : {}), ...(Object.keys(autoChoiceIds).length ? { autoChoiceIds } : {}),
+    ...(Object.keys(autoChoiceValues).length ? { autoChoiceValues } : {}) } };
 }

@@ -135,12 +135,15 @@ export function spellResultSummary(spell) {
     ...(spell.leapPending?["d8 uguali: registra il balzo su un'altra creatura entro 9 m"]:[])].join(" · ")+".";
 }
 
+// CAP-TEMP: the temporary hit points beside the HP of the result, "+N".
+const tempHpText=value=>Number(value)>0?` +${value}`:"";
+
 export function resultSummary(result) {
   const outcome=PC_ATTACK_OUTCOME_LABELS[result?.outcome] || "";
   const name=result?.target?.name || "bersaglio";
   // No damage at all: a miss or a passed save (Potent Cantrip still deals half on a passed save).
   if((result?.outcome==="miss" || result?.outcome==="passed") && !result?.hpChange) return `Registrato: ${outcome} su ${name}.`;
-  const hp=result?.hpChange?` PF ${result.hpChange.before} → ${result.hpChange.after}.`:"";
+  const hp=result?.hpChange?` PF ${result.hpChange.before}${tempHpText(result.hpChange.tempBefore)} → ${result.hpChange.after}${tempHpText(result.hpChange.tempAfter)}.`:"";
   const damage=(result?.damageComponents || []).reduce((sum,component)=>sum+(Number(component.amount) || 0),0);
   const extras=[...(result?.weaponCantrip?[result.weaponCantrip.name]:[]),...(result?.riders || []).map(rider=>rider.name),
     ...(result?.activations || []).map(activation=>activation.save?`${activation.name} (${PC_ATTACK_OUTCOME_LABELS[activation.save.outcome] || ""})`:activation.name),
@@ -159,7 +162,7 @@ export function resultSummary(result) {
 export function quiveringPalmSummary(result) {
   const name=result?.target?.name || "bersaglio";
   if(result?.outcome==="none") return `Registrato: vibrazioni del Palmo Tremante terminate su ${name}, senza effetto.`;
-  const hp=result?.hpChange?` PF ${result.hpChange.before} → ${result.hpChange.after}.`:"";
+  const hp=result?.hpChange?` PF ${result.hpChange.before}${tempHpText(result.hpChange.tempBefore)} → ${result.hpChange.after}${tempHpText(result.hpChange.tempAfter)}.`:"";
   return `Registrato: Palmo Tremante su ${name}, ${PC_ATTACK_OUTCOME_LABELS[result?.outcome] || ""}.${hp}`;
 }
 
@@ -2108,6 +2111,8 @@ export function bootPcAttack(documentRef=document,overrides={}) {
     return JSON.stringify([source.initiativeCard ?? null,source.classFeatureState ?? null,source.conditions ?? null,source.pcAttackState ?? null,
       source.hp ?? null,source[`${ID}/concentration`] ?? null,
       bossActionTargets(items,sourceId).map(item=>[item.id,item.name,item.metadata?.[META_KEY]?.hp,item.metadata?.[META_KEY]?.hpMax,
+        // Its temporary hit points and their source (Armor of Agathys' retaliation, CAP-TEMP).
+        item.metadata?.[META_KEY]?.tempHp ?? null,item.metadata?.[META_KEY]?.tempHpSource ?? null,
         item.metadata?.[META_KEY]?.initiativeCard?.damageDefenses ?? null,item.metadata?.[META_KEY]?.conditions ?? null,
         // Its active spells' counters (Mirror Image): the notices under the target (CAP-REACTION).
         (Array.isArray(item.metadata?.[META_KEY]?.[ID+"/spells"])?item.metadata[META_KEY][ID+"/spells"]:[])

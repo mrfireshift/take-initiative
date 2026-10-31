@@ -353,7 +353,9 @@ export function bossActionResultSummary(result = {}) {
     parts.push(`${total} danni (${components.map((component) => `${bossDamageTypeLabel(component.type)} ${component.amount}`).join(" + ")})`);
   } else if (result.outcome === "miss") parts.push("nessun danno");
   const hp = result.hpChange;
-  if (hp && Number.isFinite(hp.before) && Number.isFinite(hp.after)) parts.push(`PF ${hp.before} → ${hp.after}${Number.isFinite(hp.hpMax) ? "/" + hp.hpMax : ""}`);
+  // CAP-TEMP: the temporary hit points beside the HP, "+N".
+  const temp = (value) => (Number(value) > 0 ? ` +${value}` : "");
+  if (hp && Number.isFinite(hp.before) && Number.isFinite(hp.after)) parts.push(`PF ${hp.before}${temp(hp.tempBefore)} → ${hp.after}${Number.isFinite(hp.hpMax) ? "/" + hp.hpMax : ""}${temp(hp.tempAfter)}`);
   // A grab chosen on a hit is named once, with its escape DC.
   const conditions = (Array.isArray(result.conditions) ? result.conditions : []).filter((name) => !(result.onHit?.choice === "grab" && name === "Afferrato"));
   if (conditions.length) parts.push(conditions.join(", "));

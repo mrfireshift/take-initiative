@@ -142,6 +142,8 @@ export function projectTrackerEntry(entry, {
     hpDisclosure: disclosure,
     hp: disclosure.mode === "exact" ? disclosure.hp : null,
     hpMax: disclosure.mode === "exact" ? disclosure.hpMax : null,
+    // CAP-TEMP (D5): the temporary hit points only with the exact HP.
+    tempHp: disclosure.mode === "exact" ? entry.tempHp ?? null : null,
   };
   next = projectEntryEffects(next, effectsPolicy);
   next = projectBoss(next, bossDetails);

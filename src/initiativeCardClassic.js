@@ -1,3 +1,5 @@
+import { quickHPStateOf } from "./quickHpCore.js";
+
 function classicDocument(documentRef) {
   if (!documentRef?.createElement) {
     throw new TypeError("A document with createElement is required");
@@ -76,12 +78,16 @@ export function deriveClassicCardPresentation(
   const disclosure = entry?.hpDisclosure && typeof entry.hpDisclosure === "object"
     ? entry.hpDisclosure
     : null;
-  const hpValue = disclosure && disclosure.mode !== "exact"
-    ? Number(disclosure.ratio) || 0
-    : Number.isFinite(Number(entry?.hp)) ? Number(entry.hp) : 0;
   const hpMax = disclosure && disclosure.mode !== "exact"
     ? (disclosure.mode === "hidden" ? 0 : 1)
     : Number.isFinite(Number(entry?.hpMax)) ? Number(entry.hpMax) : 0;
+  // CAP-TEMP: the HP up to the maximum and the temporary hit points apart (quickHpCore.js), shown only with the exact HP.
+  const exactHP = quickHPStateOf({ hp: Number.isFinite(Number(entry?.hp)) ? Number(entry.hp) : 0, hpMax,
+    tempHp: entry?.__groupCollapsed ? 0 : entry?.tempHp });
+  const hpValue = disclosure && disclosure.mode !== "exact"
+    ? Number(disclosure.ratio) || 0
+    : exactHP.hp;
+  const tempHp = disclosure && disclosure.mode !== "exact" ? 0 : exactHP.tempHp;
   const attitude = String(entry?.attitude || "").toLowerCase();
   const hpVisible = isGM || (disclosure
     ? disclosure.mode !== "hidden"
@@ -110,6 +116,7 @@ export function deriveClassicCardPresentation(
     isBoss,
     hpValue,
     hpMax,
+    tempHp,
     hpVisible,
     knockedOut,
     playerCardHasHP,

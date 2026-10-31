@@ -282,8 +282,11 @@ import {
   compactKnockedOutBadgeStyle,
   markCompactHPTextEditable,
   markCompactInitiativeBadgeEditable,
+  TEMP_HP_COLOR,
   writeCompactHPText,
+  writeHPBarTempSegment,
 } from "./initiativeCardCompact.js";
+import { quickHPBarSegments, quickHPStateOf } from "./quickHpCore.js";
 import { compactScrollFadeEdges } from "./compactScrollFadeCore.js";
 import {
   compactTrackerGroupProgress,
@@ -5261,6 +5264,7 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
       : null,
     hp: (meta.hp ?? null),
     hpMax: (meta.hpMax ?? null),
+    tempHp: (meta.tempHp ?? null),
     isEpic: !!meta.epic,
     paragonActions:
       (meta.paragon && Number(meta.paragon.actions) > 0)
@@ -5945,14 +5949,18 @@ async function enforceUniqueNamePrefixes(sceneEpoch = currentSceneEpoch()) {
   }
 }
 
-async function updateHP(itemId, nextHP, nextHPMax, expectedValues = null) {
+// tempHp: the temporary hit points to write (CAP-TEMP), or null to leave them as they are; tempHpCause "damage" when a
+// typed damage took them (the combat log says them absorbed, not removed).
+async function updateHP(itemId, nextHP, nextHPMax, expectedValues = null, tempHp = null, tempHpCause = null) {
   const n  = nextHP    === "" ? 0 : Math.floor(Number(nextHP)    || 0);
   const nm = nextHPMax === "" ? 0 : Math.floor(Number(nextHPMax) || 0);
+  const nt = tempHp === null || tempHp === undefined ? null : Math.max(0, Math.floor(Number(tempHp) || 0));
   const sceneEpoch = currentSceneEpoch();
   const sceneContext = await getEffectsMutationSceneContext();
   const items = await OBR.scene.items.getItems();
   if (!isCurrentSceneEpoch(sceneEpoch)) throw new Error("Scena cambiata durante la modifica HP.");
-  const update = { itemId, hp: n, hpMax: nm,
+  const update = { itemId, hp: n, hpMax: nm, ...(nt === null ? {} : { tempHp: nt }),
+    ...(nt !== null && tempHpCause ? { tempHpCause } : {}),
     ...(Number.isFinite(expectedValues?.hp) ? { expectedHP: { present: true, value: expectedValues.hp } } : {}),
     ...(Number.isFinite(expectedValues?.hpMax) ? { expectedHPMax: { present: true, value: expectedValues.hpMax } } : {}) };
   const shared = planSharedHpMutation({ items, operations: [{ type: "hp:set", updates: [update] }] });
@@ -5963,7 +5971,7 @@ async function updateHP(itemId, nextHP, nextHPMax, expectedValues = null) {
   for (const id of visualIds) {
     syncHPBarNow(id, n, nm);
     void syncHPTextNow(id, n, nm);
-    syncTrackerHPNow(id, n, nm);
+    syncTrackerHPNow(id, n, nm, nt);
   }
 
   let mutation;
@@ -5979,7 +5987,7 @@ async function updateHP(itemId, nextHP, nextHPMax, expectedValues = null) {
         const meta = item.metadata?.[META_KEY] || {};
         syncHPBarNow(item.id, meta.hp, meta.hpMax);
         void syncHPTextNow(item.id, meta.hp, meta.hpMax);
-        syncTrackerHPNow(item.id, meta.hp, meta.hpMax);
+        syncTrackerHPNow(item.id, meta.hp, meta.hpMax, meta.tempHp ?? 0);
       }
     }
     throw error;
@@ -6723,7 +6731,7 @@ async function applyGroupHPMaxDelta(itemId, delta) {
     label: `Ricalibrazione HP/Max gruppo: ${groupName} (×${updates.length})`,
     decorateEntry: (entry) => decorateCompositeEffectsHistoryEntry({ entry, mutation: hpMutation, effectMetadataFields: ["conditions", SPELLS_META_KEY, CONC_META_KEY] }),
     itemIds: historyIds,
-    fields: ["hp", "hpMax", "conditions", SPELLS_META_KEY, CONC_META_KEY],
+    fields: ["hp", "hpMax", "tempHp", "tempHpSource", "conditions", SPELLS_META_KEY, CONC_META_KEY],
   }, async () => { hpMutation = await updateMultipleHP(updates); });
   if (historyResult?.partial) {
     try { await OBR.notification.show("HP applicati parzialmente; usa la cronologia per annullare prima di ripetere.", "WARNING"); }
@@ -6794,23 +6802,22 @@ function getEditingHPForId() {
 
   // Mostra "cur/max"; se cur > max, colora cur per indicare Temp HP
   // Mostra "cur/max"; se cur > max, colora cur per indicare Temp HP
-  function formatHPHTML(cur, max) {
-  const nCur = Math.max(0, Math.floor(Number(cur) || 0));
-  const nMax = Math.max(0, Math.floor(Number(max) || 0));
-  const hasTemp = nMax > 0 && nCur > nMax;
+  function formatHPHTML(cur, max, tempHp = 0) {
+  // CAP-TEMP: the HP up to the maximum, then the temporary hit points as "+N" (an HP above the maximum is the old
+  // encoding of them).
+  const state = quickHPStateOf({ hp: cur, hpMax: max, tempHp });
 
-  // azzurro leggibile (coerente con palette PC)
-  const tempColor = "#3AA7FF";
-
-  if (hasTemp) {
+  if (state.tempHp > 0) {
     // pointer-events:none → il click passa alla pill (evitiamo target=span)
-    return `<span style="color:${tempColor};pointer-events:none">${nCur}</span>/${nMax}`;
+    return `${state.hp}/${state.hpMax}<span style="color:${TEMP_HP_COLOR};pointer-events:none"> +${state.tempHp}</span>`;
   }
-  return `${nCur}/${nMax}`;
+  return `${state.hp}/${state.hpMax}`;
 }
 
-function syncTrackerHPNow(itemId, hp, hpMax) {
-  const nHP = Math.max(0, Math.floor(Number(hp) || 0));
+// tempHp: the creature's temporary hit points (CAP-TEMP); without them each card keeps those it shows.
+function syncTrackerHPNow(itemId, hp, hpMax, tempHp = null) {
+  const knownTempHp = tempHp === null || tempHp === undefined ? null : Math.max(0, Math.floor(Number(tempHp) || 0));
+  const nHP = quickHPStateOf({ hp, hpMax }).hp;
   const nHPMax = Math.max(0, Math.floor(Number(hpMax) || 0));
   const hasHP = nHPMax > 0;
   const pct = hasHP ? Math.max(0, Math.min(1, nHP / nHPMax)) : 0;
@@ -6857,15 +6864,18 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
     const pill = card.querySelector(
       "[data-badge='hp']:not([data-card-hp-text='1']):not([data-spell-board-token-hp='1']):not([data-shared-hp-badge='1'])",
     );
+    const shownTempHp = (element) => quickHPStateOf({ hp, hpMax, tempHp: knownTempHp ?? element?.dataset?.tempHp }).tempHp;
     if (pill && pill.dataset.hpEditing !== "1") {
-      pill.innerHTML = formatHPHTML(nHP, nHPMax);
+      const cardTempHp = shownTempHp(pill);
+      pill.innerHTML = formatHPHTML(nHP, nHPMax, cardTempHp);
+      pill.dataset.tempHp = String(cardTempHp);
       pill.style.color = knockedOut ? "rgba(255,255,255,.58)" : "#fff";
     }
 
     const hpText = card.querySelector("[data-card-hp-text='1']");
     // An open editor keeps its fields: it shows the result itself when it commits.
     if (hpText && hpText.dataset.hpEditing !== "1") {
-      if (showHP) writeCompactHPText(hpText, nHP, nHPMax);
+      if (showHP) writeCompactHPText(hpText, nHP, nHPMax, { tempHp: shownTempHp(hpText) });
       else hpText.textContent = "";
       hpText.style.display = showHP ? "block" : "none";
       hpText.style.color = knockedOut ? "rgba(255,255,255,.58)" : "#fff";
@@ -6873,7 +6883,11 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
 
     const fill = card.querySelector("[data-hp-fill='1']");
     if (fill) {
-      fill.style.width = `${pct * 100}%`;
+      // CAP-TEMP: the temporary hit points right after the HP, on their total (none on a status or bar-only card).
+      const bar = showHP ? quickHPBarSegments({ hp: nHP, hpMax: nHPMax, tempHp: shownTempHp(pill || hpText) })
+        : { hpRatio: pct, tempRatio: 0 };
+      fill.style.width = `${bar.hpRatio * 100}%`;
+      writeHPBarTempSegment(fill.parentElement, bar);
       fill.style.background = knockedOut ? "#475569" : hpColorByPct(pct);
       if (fill.parentElement) fill.parentElement.style.display = showHP ? "block" : "none";
     }
@@ -7077,6 +7091,27 @@ function bindInitiativeEditorForEntry(badge, entry) {
   });
 }
 
+// Tab from a card's HP opens the next card's editor, which first reads its values from the scene: a Tab pressed in
+// that moment found no field and the browser moved the focus to the tracker's buttons. Until that editor is ready
+// (or for two seconds at most) Tab stays where it is; the editor's own fields handle it as before.
+let __hpEditorTabHandoffUntil = 0;
+let __hpEditorTabGuardMounted = false;
+
+function __holdTabUntilHPEditorReady() {
+  __hpEditorTabHandoffUntil = Date.now() + 2000;
+  if (__hpEditorTabGuardMounted) return;
+  __hpEditorTabGuardMounted = true;
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab" || Date.now() >= __hpEditorTabHandoffUntil) return;
+    if (event.target?.closest?.("[data-badge='hp']")) return;
+    event.preventDefault();
+  }, true);
+}
+
+function __releaseTabAfterHPEditorHandoff() {
+  __hpEditorTabHandoffUntil = 0;
+}
+
 function bindHPEditorForEntry(
   pill,
   hpFill,
@@ -7106,6 +7141,9 @@ function bindHPEditorForEntry(
     itemId: entry.id,
     snapshotHP: entry.hp,
     snapshotHPMax: entry.hpMax,
+    // CAP-TEMP: the temporary hit points' field, on the creature's own HP (not a spell token's, not a shared badge).
+    editableTempHp: options.editableTempHp ?? (!customSaveValues && options.editableHPMax !== false),
+    snapshotTempHp: entry.tempHp,
     hpFill,
     getEditingItemId: () => __editingHPForId,
     isCurrentEditor: () => __editingHPForId === entry.id,
@@ -7152,11 +7190,13 @@ function bindHPEditorForEntry(
         const meta = live?.metadata?.[META_KEY] || {};
         if (Number.isFinite(meta.hp)) values.hp = meta.hp;
         if (Number.isFinite(meta.hpMax)) values.hpMax = meta.hpMax;
+        if (live) values.tempHp = Math.max(0, Math.floor(Number(meta.tempHp) || 0));
       } catch {}
       return values;
     },
     editorReady: () => {
       __suspendRenders = false;
+      __releaseTabAfterHPEditorHandoff();
     },
     cleanupEdit: () => {
       const operationSceneEpoch = editorSceneEpoch;
@@ -7166,11 +7206,11 @@ function bindHPEditorForEntry(
         __scheduleEditorDirtyFlush();
       }
     },
-    syncRecoveredValues: ({ hp, hpMax }) => {
+    syncRecoveredValues: ({ hp, hpMax, tempHp }) => {
       if (!isCurrentHPEditorOperation()) return;
       syncHPBarNow(tokenId, hp, hpMax);
       void syncHPTextNow(tokenId, hp, hpMax);
-      syncTrackerHPNow(tokenId, hp, hpMax);
+      syncTrackerHPNow(tokenId, hp, hpMax, tempHp);
     },
     parseRelativeDelta: parseRelativeHPDelta,
     setDeltaButtonActive: setHPDeltaButtonActive,
@@ -7185,6 +7225,8 @@ function bindHPEditorForEntry(
     saveValues: customSaveValues || (async ({
       nextHP,
       nextHPMax,
+      nextTempHp,
+      tempHpCause,
       recalibratesMax,
       baseHP,
       baseHPMax,
@@ -7220,6 +7262,8 @@ function bindHPEditorForEntry(
         fields: [
           "hp",
           "hpMax",
+          "tempHp",
+          "tempHpSource",
           "conditions",
           SPELLS_META_KEY,
           CONC_META_KEY,
@@ -7227,7 +7271,8 @@ function bindHPEditorForEntry(
         sceneEpoch: operationSceneEpoch,
         isCurrent: (candidateEpoch) => isCurrentSceneEpoch(candidateEpoch),
       }, async () => {
-        hpMutations.push(await updateHP(tokenId, nextHP, nextHPMax, { hp: baseHP ?? entry.hp, hpMax: baseHPMax ?? entry.hpMax }));
+        hpMutations.push(await updateHP(tokenId, nextHP, nextHPMax, { hp: baseHP ?? entry.hp, hpMax: baseHPMax ?? entry.hpMax },
+          nextTempHp, tempHpCause));
         if (options.seedGroupHP !== false) {
           await trySeedGroupHP(tokenId, nextHP, nextHPMax, (mutation) => hpMutations.push(mutation));
         }
@@ -7265,6 +7310,7 @@ function bindHPEditorForEntry(
       const direction = goPrev ? -1 : 1;
       let targetId = null;
       __suspendRenders = true;
+      __holdTabUntilHPEditorReady();
       try {
         let preOrder = [];
         try {
@@ -7297,6 +7343,7 @@ function bindHPEditorForEntry(
 
         if (!targetId) {
           __suspendRenders = false;
+          __releaseTabAfterHPEditorHandoff();
           return;
         }
         requestAnimationFrame(() => {
@@ -7305,6 +7352,7 @@ function bindHPEditorForEntry(
           );
           if (!nextPill) {
             __suspendRenders = false;
+            __releaseTabAfterHPEditorHandoff();
             return;
           }
           armDocClickIgnore(250);
@@ -7322,6 +7370,7 @@ function bindHPEditorForEntry(
         });
       } catch (error) {
         __suspendRenders = false;
+        __releaseTabAfterHPEditorHandoff();
         throw error;
       }
     }),
@@ -12069,7 +12118,7 @@ OBR.scene.onMetadataChange((meta) => {
     for (const item of items || []) {
       const meta = item?.metadata?.[META_KEY];
       if (!meta || meta.inInitiative !== true) continue;
-      syncTrackerHPNow(item.id, meta.hp, meta.hpMax);
+      syncTrackerHPNow(item.id, meta.hp, meta.hpMax, meta.tempHp ?? 0);
     }
   }, {
     filter: (event) => event.flags.hpBars,

@@ -24,28 +24,32 @@ export function renderAttackReactions(box, context = {}, {
   if (model.sanctuary) rows.push(element(documentRef, "p", model.sanctuary.text, "attack-reaction-note"));
   for (const row of model.retaliations) {
     const line = element(documentRef, "div", "", "attack-reaction");
-    const input = element(documentRef, "input", "", "attack-reaction-amount");
-    input.type = "number";
-    input.min = "0";
-    input.placeholder = row.dice;
-    input.setAttribute("aria-label", `Danni di ${row.label}`);
-    input.dataset.retaliation = row.instanceId;
-    const button = element(documentRef, "button", "Applica", buttonClass);
+    // A fixed amount (Armor of Agathys) asks no roll: the button applies it.
+    const fixed = Number.isFinite(Number(row.amount)) && Number(row.amount) > 0;
+    const input = fixed ? null : element(documentRef, "input", "", "attack-reaction-amount");
+    if (input) {
+      input.type = "number";
+      input.min = "0";
+      input.placeholder = row.dice;
+      input.setAttribute("aria-label", `Danni di ${row.label}`);
+      input.dataset.retaliation = row.instanceId;
+    }
+    const button = element(documentRef, "button", fixed ? `Applica ${row.amount}` : "Applica", buttonClass);
     button.type = "button";
     button.disabled = busy;
     button.dataset.retaliationApply = row.instanceId;
     button.addEventListener("click", () => {
-      if (typeof retaliate === "function") void retaliate(row, input.value);
+      if (typeof retaliate === "function") void retaliate(row, fixed ? row.amount : input.value);
     });
     // Enter in the amount applies this retaliation only (lot L17, AT-03): it does not reach the console's own Enter
     // (the PC console's main button) nor submit the Boss console's form with its average damage.
-    input.addEventListener("keydown", (event) => {
+    input?.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" || event.isComposing) return;
       event.preventDefault();
       event.stopPropagation();
       if (!button.disabled) button.click();
     });
-    line.append(element(documentRef, "p", row.text, "attack-reaction-note"), input, button);
+    line.append(element(documentRef, "p", row.text, "attack-reaction-note"), ...(input ? [input] : []), button);
     rows.push(line);
   }
   for (const offer of model.offers) {

@@ -47,6 +47,14 @@ import {
 import { getSpellAreaRuleById } from "./spellAreaRules.js";
 import { DEATH_SAVES_FIELD, deathSaveConditionOperation, planDeathSaveHpChange } from "./deathSaveCore.js";
 import { planDeathWard, planWardingBondDamage } from "./reactionHpCore.js";
+import {
+  quickHPStateOf,
+  quickHPTempHpChangeMode,
+  quickHPTempHpPatchField,
+  quickHPTempHpSourceAfter,
+  quickHPTempHpSourcePatchField,
+  quickHPWriteWithinMax,
+} from "./quickHpCore.js";
 import { spellAreaOriginWithinRange } from "./spellAreaPlacementCore.js";
 import { planSpellZoneMovement } from "./spellZoneMovementCore.js";
 import {
@@ -417,7 +425,7 @@ export function compactBackgroundApplyTransportResult(result) {
       ...(change?.name ? { name: change.name } : {}),
       fields: Object.fromEntries(Object.entries(change?.fields || {}).filter(([, touched]) => touched)),
       metadataFields: Object.fromEntries(Object.entries(change?.metadataFields || {}).filter(([, touched]) => touched)),
-      afterMetadata: Object.fromEntries(["hp", "hpMax"]
+      afterMetadata: Object.fromEntries(["hp", "hpMax", "tempHp"]
         .filter((field) => change?.afterMetadata?.[field])
         .map((field) => [field, clone(change.afterMetadata[field])])),
     }));
@@ -834,12 +842,60 @@ function hpWriteInstantDeath(update) {
   return intents.find((intent) => intent?.instantDeath === true) || null;
 }
 
-// The damage of an HP write: its damage intents, or the HP it takes away when it has none.
-function hpWriteDamage(update, meta) {
+// CAP-TEMP: the temporary hit points an HP write leaves (quickHpCore.js): its own or, without one, the creature's
+// field (its hp within hpMax overwrites the old encoding's part above).
+function hpWriteTempHp(update, meta) {
+  return update?.tempHp !== undefined && update?.tempHp !== null && Number.isFinite(Number(update.tempHp))
+    ? Math.max(0, Math.floor(Number(update.tempHp)))
+    : Math.max(0, Math.floor(Number(meta?.tempHp) || 0));
+}
+
+// The combat log's record of the temporary hit points a write changes (quickHPTempHpChangeMode), or null.
+function hpWriteTempHpRecord(itemId, meta, update, tempHp) {
+  const before = quickHPStateOf(meta || {}).tempHp;
+  const mode = quickHPTempHpChangeMode({ before, after: tempHp,
+    damage: hpWriteDeclaredDamage(update) > 0 || update?.tempHpCause === "damage",
+    instantDeath: !!hpWriteInstantDeath(update) && !(hpWriteDeclaredDamage(update) > 0) });
+  return mode ? { id: itemId, before, after: tempHp, mode } : null;
+}
+
+// CAP-TEMP, lotto T3a: the pill that ends when the temporary hit points it gave are gone (Armor of Agathys), as a
+// removal, after a write that leaves none of them.
+function tempHpSourcePillEnding(item, meta, beforeTemp, afterTemp) {
+  const source = String(meta?.tempHpSource || "").trim();
+  if (!source || afterTemp > 0 || !(beforeTemp > 0)) return null;
+  const pill = getConditionInstances(meta?.conditions || {})
+    .find((instance) => instance?.active !== false && String(instance?.id || "") === source
+      && instance?.mechanics?.endsWhenTempHpGone === true);
+  return pill ? { type: "condition:remove-instances", removals: [{ itemId: item.id, instanceId: pill.id }] } : null;
+}
+
+// The conditions of a plan's change, on one side, by id (active ones only).
+function activeConditionIds(conditions) {
+  const list = Array.isArray(conditions) ? conditions : getConditionInstances(conditions || {});
+  return new Set(list.filter((instance) => instance && instance.active !== false).map((instance) => String(instance.id || "")));
+}
+
+function hpWriteDeclaredDamage(update) {
   const intents = update?.hpIntents?.length ? update.hpIntents : [update?.hpIntent].filter(Boolean);
-  const declared = intents.filter((intent) => intent?.mode === "damage")
+  return intents.filter((intent) => intent?.mode === "damage")
     .reduce((sum, intent) => sum + Math.max(0, Math.floor(Number(intent.amount) || 0)), 0);
-  return declared || Math.max(0, Math.floor(Number(meta?.hp) || 0) - Math.floor(Number(update?.hp) || 0));
+}
+
+// The damage of an HP write: its damage intents, or the HP and temporary hit points it takes away when it has none.
+function hpWriteDamage(update, meta) {
+  const before = quickHPStateOf(meta || {});
+  const after = Math.floor(Number(update?.hp) || 0) + hpWriteTempHp(update, meta);
+  return hpWriteDeclaredDamage(update) || Math.max(0, before.hp + before.tempHp - after);
+}
+
+// The part of that damage that reaches the HP, past the temporary hit points (death saves, Death Ward): a creature at
+// 0 HP whose temporary hit points take the hit fails no death save.
+function hpWriteDamageToHp(update, meta) {
+  const before = quickHPStateOf(meta || {});
+  const declared = hpWriteDeclaredDamage(update);
+  if (!declared) return Math.max(0, before.hp - Math.floor(Number(update?.hp) || 0));
+  return Math.max(0, declared - Math.max(0, before.tempHp - hpWriteTempHp(update, meta)));
 }
 
 // Death saves (deathSaveCore.js) in the same command as the HP write: back above 0 HP the tally goes
@@ -852,7 +908,7 @@ function planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds) {
     instances: getConditionInstances(meta.conditions || {}),
     hpAfter: update.hp,
     hpMax: update.hpMax,
-    damage: hpWriteDamage(update, meta),
+    damage: hpWriteDamageToHp(update, meta),
     critical: hpWriteCritical(update),
     instantDeath: !!hpWriteInstantDeath(update),
     deathDetail: hpWriteInstantDeath(update)?.deathDetail || "",
@@ -879,21 +935,23 @@ function planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds) {
 function withWardingBondWrites(operations, itemsById) {
   const writes = [];
   const hpById = new Map();
+  const tempHpById = new Map();
   for (const operation of operations) {
     if (operation?.type !== "hp:set") continue;
     for (const update of operation.updates || []) {
       const item = itemsById.get(update.itemId);
       if (!item || !Number.isFinite(update.hp)) continue;
-      hpById.set(update.itemId, update.hp);
-      if (update.sharedHpMirror === true || spellBoardTokenHpTarget(item)) continue;
       const meta = item.metadata?.[META_KEY] || {};
+      hpById.set(update.itemId, update.hp);
+      tempHpById.set(update.itemId, hpWriteTempHp(update, meta));
+      if (update.sharedHpMirror === true || spellBoardTokenHpTarget(item)) continue;
       const damage = hpWriteDamage(update, meta);
-      if (damage > 0 && (update.hp < Number(meta.hp) || hpWriteDamage(update, { hp: update.hp }) > 0)) {
+      if (damage > 0) {
         writes.push({ itemId: update.itemId, damage });
       }
     }
   }
-  const bond = planWardingBondDamage({ writes, itemsById, hpById });
+  const bond = planWardingBondDamage({ writes, itemsById, hpById, tempHpById });
   if (!bond.writes.length) return { operations, removals: [] };
   const pending = new Map(bond.writes.map((write) => [write.itemId, write]));
   const next = operations.map((operation) => {
@@ -906,15 +964,15 @@ function withWardingBondWrites(operations, itemsById) {
       const intents = update.hpIntents?.length ? update.hpIntents : [update.hpIntent].filter(Boolean);
       const declared = intents.some((intent) => intent?.mode === "damage");
       const { hpIntent: _ownIntent, ...rest } = update;
-      return { ...rest, hp: write.hp, hpIntents: [
-        ...(declared ? intents : [...intents, { mode: "damage", amount: Math.max(0, Number(meta.hp) - update.hp), eventId: "own-damage" }]),
+      return { ...rest, hp: write.hp, tempHp: write.tempHp, hpIntents: [
+        ...(declared ? intents : [...intents, { mode: "damage", amount: hpWriteDamage(update, meta), eventId: "own-damage" }]),
         { mode: "damage", amount: write.damage, eventId: "warding-bond" },
       ] };
     }) };
   });
   const added = [...pending.values()].map((write) => {
     const meta = itemsById.get(write.itemId)?.metadata?.[META_KEY] || {};
-    return { itemId: write.itemId, hp: write.hp, hpMax: write.hpMax,
+    return { itemId: write.itemId, hp: write.hp, hpMax: write.hpMax, tempHp: write.tempHp,
       hpIntent: { mode: "damage", amount: write.damage, eventId: "warding-bond" },
       expectedHP: metadataFieldSnapshot(meta, "hp"), expectedHPMax: metadataFieldSnapshot(meta, "hpMax") };
   });
@@ -1303,7 +1361,7 @@ export async function prepareEffectsMutation(operations = [], {
     // against those copied values in this same mutation and History entry.
     const sourceMeta = sceneItems.find(item => item.id === linkOperations[0].sourceId)?.metadata?.[META_KEY];
     operations = linkOperations[0].type === "shared-hp:link" ? [{ type: "hp:set", damageEnds: false,
-      updates: linked.affectedIds.map(itemId => ({ itemId, hp: Number(sourceMeta.hp), hpMax: Number(sourceMeta.hpMax) })),
+      updates: linked.affectedIds.map(itemId => ({ itemId, ...quickHPStateOf(sourceMeta) })),
     }] : [];
   } else {
     const shared = planSharedHpMutation({ items: sceneItems, operations, metadataPatches, sharedHp: command.sharedHp });
@@ -1328,7 +1386,13 @@ export async function prepareEffectsMutation(operations = [], {
   const hpItemsById = new Map(hpProjectedItems.map((item) => [item.id, item]));
   const instantDeathIds = new Set();
   const zeroHpBoardTokenIds = new Set();
-  const bonded = withWardingBondWrites(operations, hpItemsById);
+  const tempHpRecords = [];
+  // CAP-TEMP, lotto T3a: the temporary hit points and their source each written creature is left with.
+  const tempHpAfterById = new Map();
+  const tempHpSourceAfterById = new Map();
+  // CAP-TEMP: a write of the old encoding (hp above hpMax) puts the part above in its temporary hit points.
+  const bonded = withWardingBondWrites(operations.map((operation) => (operation?.type === "hp:set"
+    ? { ...operation, updates: (operation.updates || []).map(quickHPWriteWithinMax) } : operation)), hpItemsById);
   if (bonded.removals.length) hpOperations.push({ type: "condition:remove-instances", removals: bonded.removals });
   for (const operation of bonded.operations) {
     if (operation?.type !== "hp:set") {
@@ -1344,7 +1408,7 @@ export async function prepareEffectsMutation(operations = [], {
       const meta = item.metadata?.[META_KEY] || {};
       const boardToken = spellBoardTokenHpTarget(item);
       // CAP-REACTION, lotto 2: Death Ward leaves 1 HP (or the HP it has, against a death without damage) and ends.
-      const ward = boardToken ? null : planDeathWard({ item, hpAfter: update.hp, damage: hpWriteDamage(update, meta),
+      const ward = boardToken ? null : planDeathWard({ item, hpAfter: update.hp, damage: hpWriteDamageToHp(update, meta),
         instantDeath: !!hpWriteInstantDeath(update) });
       if (ward) {
         update = withoutInstantDeath({ ...update, hp: ward.hp });
@@ -1356,18 +1420,40 @@ export async function prepareEffectsMutation(operations = [], {
         continue;
       }
       const deathSaveFields = boardToken ? {} : planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds);
+      // CAP-TEMP: the temporary hit points the write leaves, when it says them (quickHpCore.js).
+      const tempHp = update.tempHp === undefined || update.tempHp === null ? null : hpWriteTempHp(update, meta);
+      const tempHpField = tempHp === null ? null : quickHPTempHpPatchField(meta, tempHp);
+      const tempHpRecord = tempHp === null ? null : hpWriteTempHpRecord(item.id, meta, update, tempHp);
+      if (tempHpRecord) tempHpRecords.push(tempHpRecord);
+      // Their source (lotto T3a): the pill of a grant that takes over the pool, none when none are left.
+      const beforeTempHp = quickHPStateOf(meta).tempHp;
+      const tempHpSource = tempHp === null ? null : quickHPTempHpSourceAfter({ beforeTemp: beforeTempHp, afterTemp: tempHp,
+        currentSource: meta.tempHpSource, grantSource: update.tempHpSourceId });
+      const tempHpSourceField = tempHpSource === null ? null : quickHPTempHpSourcePatchField(meta, tempHpSource);
+      if (tempHp !== null) {
+        tempHpAfterById.set(item.id, tempHp);
+        const ending = boardToken ? null : tempHpSourcePillEnding(item, meta, beforeTempHp, tempHp);
+        if (ending) hpOperations.push(ending);
+      }
+      if (tempHpSource !== null) tempHpSourceAfterById.set(item.id, tempHpSource);
       hpPatches.push({ id: item.id, fields: {
         hp: { value: update.hp, ...(update.expectedHP ? { expected: update.expectedHP } : {}) },
         hpMax: { value: update.hpMax, ...(update.expectedHPMax ? { expected: update.expectedHPMax } : {}) },
+        ...(tempHpField ? { tempHp: tempHpField } : {}),
+        ...(tempHpSourceField ? { tempHpSource: tempHpSourceField } : {}),
         ...deathSaveFields,
       } });
-      if (operation.damageEnds !== false && update.sharedHpMirror !== true && Number.isFinite(Number(meta.hp)) && update.hp < Number(meta.hp)) {
+      // Damage the temporary hit points took is damage too (a charm that ends when the creature takes damage).
+      const before = quickHPStateOf(meta);
+      if (operation.damageEnds !== false && update.sharedHpMirror !== true && Number.isFinite(Number(meta.hp))
+        && update.hp + hpWriteTempHp(update, meta) < before.hp + before.tempHp) {
         const removals = resolveDamageEndsConditionRemovals(getConditionInstances(meta.conditions || {}))
           .map((instanceId) => ({ itemId: item.id, instanceId }));
         if (removals.length) hpOperations.push({ type: "condition:remove-instances", removals });
       }
       if (!boardToken) planZeroHpConcentrationBreak(item, meta.hp, update.hp, hpOperations);
-      item.metadata[META_KEY] = { ...meta, hp: update.hp, hpMax: update.hpMax };
+      item.metadata[META_KEY] = { ...meta, hp: update.hp, hpMax: update.hpMax, ...(tempHp === null ? {} : { tempHp }),
+        ...(tempHpSource === null ? {} : { tempHpSource }) };
       if (!boardToken) hpOperations.push({ type: "condition:reconcile-zero-hp", targetIds: [item.id] });
     }
   }
@@ -1382,9 +1468,30 @@ export async function prepareEffectsMutation(operations = [], {
     const item = hpItemsById.get(patch.id);
     const meta = item?.metadata?.[META_KEY] || {};
     // CAP-REACTION, lotto 2: Death Ward, as in the hp:set block above.
-    const patchWrite = { hp: Number(hpField.value), hpIntent: patch.hpIntent, hpIntents: patch.hpIntents };
+    const tempHpField = patch.fields.tempHp;
+    const patchTempHp = !tempHpField || tempHpField.mode === "assert" ? undefined
+      : tempHpField.mode === "delete" ? 0 : Number(tempHpField.value);
+    const patchWrite = { hp: Number(hpField.value), tempHp: patchTempHp, hpIntent: patch.hpIntent, hpIntents: patch.hpIntents };
+    const patchTempHpRecord = item && patchTempHp !== undefined && Number.isFinite(patchTempHp)
+      ? hpWriteTempHpRecord(item.id, meta, patchWrite, patchTempHp) : null;
+    if (patchTempHpRecord) tempHpRecords.push(patchTempHpRecord);
+    // Their source (lotto T3a), as in the hp:set block above: the patch's grant source is patch.tempHpSourceId.
+    if (item && patchTempHp !== undefined && Number.isFinite(patchTempHp)) {
+      const beforeTempHp = quickHPStateOf(meta).tempHp;
+      const source = quickHPTempHpSourceAfter({ beforeTemp: beforeTempHp, afterTemp: patchTempHp,
+        currentSource: meta.tempHpSource, grantSource: patch.tempHpSourceId });
+      const sourceField = source === null || patch.fields.tempHpSource ? null : quickHPTempHpSourcePatchField(meta, source);
+      if (sourceField) {
+        patch = { ...patch, fields: { ...patch.fields, tempHpSource: sourceField } };
+        metadataPatches[patchIndex] = patch;
+      }
+      tempHpAfterById.set(item.id, patchTempHp);
+      if (source !== null) tempHpSourceAfterById.set(item.id, source);
+      const ending = spellBoardTokenHpTarget(item) ? null : tempHpSourcePillEnding(item, meta, beforeTempHp, patchTempHp);
+      if (ending) hpOperations.push(ending);
+    }
     const ward = item && !spellBoardTokenHpTarget(item) ? planDeathWard({ item, hpAfter: patchWrite.hp,
-      damage: hpWriteDamage(patchWrite, meta), instantDeath: !!hpWriteInstantDeath(patchWrite) }) : null;
+      damage: hpWriteDamageToHp(patchWrite, meta), instantDeath: !!hpWriteInstantDeath(patchWrite) }) : null;
     if (ward) {
       patch = { ...withoutInstantDeath(patch), fields: { ...patch.fields, hp: { ...hpField, value: ward.hp } } };
       metadataPatches[patchIndex] = patch;
@@ -1396,8 +1503,8 @@ export async function prepareEffectsMutation(operations = [], {
     if (!item || !Number.isFinite(hp) || !Number.isFinite(hpMax)) continue;
     // A spell's token never has death saves (its own HP writers remove it at 0 HP).
     if (spellBoardTokenHpTarget(item)) continue;
-    const deathSaveFields = planDeathSaveHpWrite(item, { hp, hpMax, hpIntent: patch.hpIntent, hpIntents: patch.hpIntents },
-      hpOperations, instantDeathIds);
+    const deathSaveFields = planDeathSaveHpWrite(item, { hp, hpMax, tempHp: patchTempHp, hpIntent: patch.hpIntent,
+      hpIntents: patch.hpIntents }, hpOperations, instantDeathIds);
     if (Object.keys(deathSaveFields).length) hpPatches.push({ id: patch.id, fields: deathSaveFields });
     planZeroHpConcentrationBreak(item, meta.hp, hp, hpOperations);
   }
@@ -1465,17 +1572,51 @@ export async function prepareEffectsMutation(operations = [], {
       maxCustomConditions: 3,
     }
   );
+  // CAP-TEMP, lotto T3a: the temporary hit points of a pill that ends in this command go with it ("for the duration":
+  // False Life, Armor of Agathys, Heroism), unless the command gave others. A patch of this command that writes them
+  // is rewritten, so the last word is theirs being gone.
+  const tempHpExpiryPatches = [];
+  for (const change of Array.isArray(plan.changes) ? plan.changes : []) {
+    const original = sceneItems.find((entry) => entry?.id === change?.id)?.metadata?.[META_KEY] || {};
+    const source = String(tempHpSourceAfterById.has(change.id) ? tempHpSourceAfterById.get(change.id) : original.tempHpSource || "")
+      .trim();
+    const tempHp = tempHpAfterById.has(change.id) ? tempHpAfterById.get(change.id) : quickHPStateOf(original).tempHp;
+    if (!source || !(tempHp > 0)) continue;
+    if (!activeConditionIds(change.before?.conditions).has(source) || activeConditionIds(change.after?.conditions).has(source)) continue;
+    let written = 0;
+    for (const list of [hpPatches, metadataPatches]) {
+      for (const [index, patch] of list.entries()) {
+        if (patch?.id !== change.id || !patch.fields?.tempHp) continue;
+        list[index] = { ...patch, fields: { ...patch.fields, tempHp: { mode: "delete" }, tempHpSource: { mode: "delete" } } };
+        written += 1;
+      }
+    }
+    if (!written) {
+      const fields = {
+        ...(quickHPTempHpPatchField(original, 0) ? { tempHp: quickHPTempHpPatchField(original, 0) } : {}),
+        ...(quickHPTempHpSourcePatchField(original, "") ? { tempHpSource: quickHPTempHpSourcePatchField(original, "") } : {}),
+      };
+      // The old encoding (hp above hpMax) keeps its temporary hit points in hp: they go with the HP brought to hpMax.
+      const state = quickHPStateOf(original);
+      if (Number(original.hp) > state.hp) fields.hp = { value: state.hp };
+      if (Object.keys(fields).length) tempHpExpiryPatches.push({ id: change.id, fields });
+    }
+    tempHpRecords.push({ id: change.id, before: tempHp, after: 0, mode: "expired" });
+  }
   const patchedPlan = applyMetadataPatchesToPlan(
     plan,
     sceneItems,
     [
       ...hpPatches,
       ...metadataPatches,
+      ...tempHpExpiryPatches,
       ...classFeatureStatePlan.patches,
     ],
   );
   if (patchedPlan?.status) return patchedPlan;
   plan.sharedHpGroups = sharedHpGroups;
+  // CAP-TEMP: what the command did to the temporary hit points, for the combat log (History payload.tempHp).
+  if (tempHpRecords.length) plan.tempHpChanges = tempHpRecords;
   if (bossLinkNotices.length) plan.bossLinkNotices = bossLinkNotices;
   if (zeroHpBoardTokenIds.size) plan.zeroHpBoardTokenIds = [...zeroHpBoardTokenIds];
   plan.classFeatureMutationResults = classFeatureStatePlan.results;

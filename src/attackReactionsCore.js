@@ -1,5 +1,5 @@
 import { ID } from "./constants.js";
-import { damageTypeLabel } from "./damageDefensesCore.js";
+import { DAMAGE_TYPES, damageTypeLabel } from "./damageDefensesCore.js";
 import { hasReactionUsed } from "./reactionTrackerCore.js";
 import { spellbookGroupsForProfile } from "./spellbookCatalog.js";
 import { speciesFeaturesForProfile } from "./speciesTraitCore.js";
@@ -9,6 +9,8 @@ import { totalCharacterLevel } from "./abilityModifiersCore.js";
 // meets on its target, shown under the target (the same place as Mirror Image):
 // - Sanctuary: the attacker saves on Wisdom first, against the DC of the warding caster;
 // - Fire Shield, Shadow of Moil: an attacker that hits takes the shield's 2d8 (the retaliation of the pill's mechanics);
+// - Armor of Agathys (CAP-TEMP, lotto T3c): a melee hit while the target has the armor's temporary hit points (their
+//   source is its pill) costs the attacker 5 cold damage per slot level, a fixed amount;
 // - the reactions the target can still cast: Shield when hit, Absorb Elements on its damage types, Hellish Rebuke
 //   when damaged.
 const META_KEY = `${ID}/meta`;
@@ -29,6 +31,12 @@ function activePills(item) {
   const value = metaOf(item).conditions;
   const instances = Array.isArray(value) ? value : Array.isArray(value?.instances) ? value.instances : [];
   return instances.filter((instance) => instance && instance.active !== false);
+}
+
+// A damage type by its key or its Italian label ("freddo": cold).
+function damageTypeKey(value) {
+  const wanted = text(value).toLocaleLowerCase("it");
+  return DAMAGE_TYPES.find((entry) => entry.id === wanted || entry.label === wanted)?.id || wanted;
 }
 
 function hasActiveSpell(item, spellId) {
@@ -84,6 +92,27 @@ export function attackTargetReactions({ target = null, attacker = null, attack =
         + `${rule.reachMeters ? ` se è entro ${String(rule.reachMeters).replace(".", ",")} m` : ""}.`,
     };
   }) : [];
+
+  // Armor of Agathys: only while the target still has the temporary hit points its pill gave.
+  const targetMeta = metaOf(target);
+  if (hit && attack.melee === true && Number(targetMeta.tempHp) > 0) {
+    for (const pill of pills) {
+      const rule = pill.mechanics?.retaliationDamage;
+      const amount = Math.max(0, Math.floor(Number(rule?.amount) || 0));
+      if (!rule || rule.trigger !== "melee-hit" || !amount || text(targetMeta.tempHpSource) !== text(pill.id)) continue;
+      const type = damageTypeKey(rule.type);
+      const label = text(rule.label) || "Ritorsione";
+      retaliations.push({
+        instanceId: text(pill.id),
+        label,
+        dice: String(amount),
+        amount,
+        type,
+        typeLabel: damageTypeLabel(type),
+        text: `${label}: ${attackerName} subisce ${amount} danni da ${damageTypeLabel(type)} (finché restano i PF temporanei dell'armatura).`,
+      });
+    }
+  }
 
   const offers = [];
   if (!hasReactionUsed(metaOf(target).conditions)) {

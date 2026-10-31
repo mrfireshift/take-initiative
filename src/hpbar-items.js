@@ -6,10 +6,11 @@ import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { mapHpDisclosure } from "./options/optionsProjection.js";
 import { unrotatedTokenBounds } from "./tokenFootprintCore.js";
+import { quickHPBarSegments, quickHPStateOf, TEMP_HP_COLOR } from "./quickHpCore.js";
 
 /* ========= Chiavi metadata ========= */
 const META_KEY         = `${ID}/meta`;    // nei token: { hp, hpMax, ... }
-const HPBAR_META_FLAG  = `${ID}/hpbar`;   // nelle shape-barre: { kind: "bg"|"fg", targetId }
+const HPBAR_META_FLAG  = `${ID}/hpbar`;   // nelle shape-barre: { kind: "bg"|"fg"|"temp", targetId }
 const HPTEXT_META_FLAG = `${ID}/hptext`;  // text item: { targetId }
 
 /* ========= Parametri estetici/posizionamento ========= */
@@ -133,10 +134,17 @@ function hpColorByPct(p){
   return "#ef4444";               // rosso
 }
 
-function hpTextValue(hp, hpMax) {
-  const nHP  = Math.max(0, Math.floor(Number(hp) || 0));
-  const nMax = Math.max(0, Math.floor(Number(hpMax) || 0));
-  return `${nHP}/${nMax}`;
+// CAP-TEMP: the temporary hit points of each token, from its metadata as last read; the text shows them as "+N". The
+// text is the players' only with the exact HP (D5), as before.
+const _tempHpById = new Map();
+
+function rememberTempHp(tokenId, meta) {
+  if (tokenId && meta) _tempHpById.set(tokenId, Math.max(0, Math.floor(Number(meta.tempHp) || 0)));
+}
+
+function hpTextValue(hp, hpMax, tokenId = "") {
+  const state = quickHPStateOf({ hp, hpMax, tempHp: _tempHpById.get(tokenId) || 0 });
+  return `${state.hp}/${state.hpMax}${state.tempHp > 0 ? ` +${state.tempHp}` : ""}`;
 }
 
 function hpTextPosition(leftX, topY, barW, barH, value) {
@@ -196,12 +204,25 @@ async function flushFastFills() {
       if (!ref) continue;
 
       const pct = clamp01(next.hpMax > 0 ? next.hp / next.hpMax : 0);
+      // CAP-TEMP: the fill on the total with the temporary hit points, and their part after it, as the flush does;
+      // a part that appears or goes is the flush's to create or remove.
+      const segments = ref.showTemp
+        ? quickHPBarSegments({ hp: next.hp, hpMax: next.hpMax, tempHp: _tempHpById.get(tokenId) || 0 })
+        : { hpRatio: pct, tempRatio: 0 };
+      const fillW = Math.floor(ref.inner * segments.hpRatio);
       updatesById.set(ref.fgId, {
-        width: Math.floor(ref.inner * pct),
+        width: fillW,
         fillColor: hpColorByPct(pct),
       });
+      if (ref.tempId && segments.tempRatio > 0) {
+        updatesById.set(ref.tempId, {
+          width: Math.floor(ref.inner * segments.tempRatio),
+          fillColor: TEMP_HP_COLOR,
+          position: { x: ref.leftX + BAR_INSET + fillW, y: ref.topY + BAR_INSET },
+        });
+      }
       if (ref.textId) {
-        const plainText = hpTextValue(next.hp, next.hpMax);
+        const plainText = hpTextValue(next.hp, next.hpMax, tokenId);
         updatesById.set(ref.textId, {
           plainText,
           position: hpTextPosition(ref.leftX, ref.topY, ref.barW, ref.barH, plainText),
@@ -352,18 +373,21 @@ function hpBarIdentity(tokenId, kind) {
   return `${tokenId}|${kind}`;
 }
 
+// CAP-TEMP: "temp" is the light cyan part of the temporary hit points, after the fill, only while there are some.
 function hpBarItemIdentity(item) {
   const metadata = item?.metadata?.[HPBAR_META_FLAG];
-  return metadata?.targetId && (metadata.kind === "bg" || metadata.kind === "fg")
+  return metadata?.targetId && (metadata.kind === "bg" || metadata.kind === "fg" || metadata.kind === "temp")
     ? hpBarIdentity(metadata.targetId, metadata.kind)
     : "";
 }
 
+// withTemp: the token has temporary hit points shown on its bar; without, an old temporary part is removed.
 async function createHPBars(
   tokenId,
   sceneEpoch = currentSceneEpoch(),
   layout = null,
   itemsSnapshot = null,
+  { withTemp = false } = {},
 ){
   const L = layout || await computeBarLayout(tokenId);
   if (!L) return null;
@@ -400,10 +424,27 @@ async function createHPBars(
     .name("HPBAR_FG")
     .build();
 
+  const temp = withTemp ? buildShape()
+    .shapeType("RECTANGLE")
+    .width(0) // impostata nel layout
+    .height(Math.max(1, barH - BAR_INSET * 2))
+    .position({ x: leftX + BAR_INSET, y: topY + BAR_INSET })
+    .attachedTo(tokenId).locked(true).disableHit(true)
+    .layer("ATTACHMENT")
+    .disableAttachmentBehavior(["ROTATION","VISIBLE","COPY","SCALE"])
+    .visible(false)
+    .zIndex(tokenZ + 4)
+    .fillColor(TEMP_HP_COLOR).fillOpacity(BAR_FILL_OPACITY)
+    .strokeColor("transparent").strokeWidth(0)
+    .metadata({ [HPBAR_META_FLAG]: { kind: "temp", targetId: tokenId } })
+    .name("HPBAR_TEMP")
+    .build() : null;
+
   const result = await reconcileOwnedSceneItems({
     desired: [
       { identity: hpBarIdentity(tokenId, "bg"), item: bg, tokenId },
       { identity: hpBarIdentity(tokenId, "fg"), item: fg, tokenId },
+      ...(temp ? [{ identity: hpBarIdentity(tokenId, "temp"), item: temp, tokenId }] : []),
     ],
     readItems: () => OBR.scene.items.getItems((item) => (
       item?.metadata?.[HPBAR_META_FLAG]?.targetId === tokenId
@@ -425,6 +466,7 @@ async function createHPBars(
   return {
     bg: result.itemsByIdentity.get(hpBarIdentity(tokenId, "bg")) || null,
     fg: result.itemsByIdentity.get(hpBarIdentity(tokenId, "fg")) || null,
+    temp: withTemp ? result.itemsByIdentity.get(hpBarIdentity(tokenId, "temp")) || null : null,
   };
 }
 
@@ -477,7 +519,7 @@ async function flushQueued(){
         if (!hpbarKindsByToken.has(barMeta.targetId)) hpbarKindsByToken.set(barMeta.targetId, new Map());
         const counts = hpbarKindsByToken.get(barMeta.targetId);
         counts.set(barMeta.kind, (counts.get(barMeta.kind) || 0) + 1);
-        if ((barMeta.kind === "bg" || barMeta.kind === "fg") && (
+        if ((barMeta.kind === "bg" || barMeta.kind === "fg" || barMeta.kind === "temp") && (
           it.type !== "SHAPE"
           || it.attachedTo !== barMeta.targetId
           || it.layer !== "ATTACHMENT"
@@ -492,6 +534,7 @@ async function flushQueued(){
       // Ricava item+nome (solo per log)
       const item = itemsById.get(tokenId) || null;
       if (!item) continue;
+      rememberTempHp(tokenId, item.metadata?.[META_KEY]);
 
       // Layout
       const layout = await computeBarLayout(tokenId, item);
@@ -510,10 +553,19 @@ async function flushQueued(){
       const tokenVisible = item.visible !== false;
       const playerBarVisible = disclosure.mode !== "hidden" && tokenVisible;
       const playerTextVisible = disclosure.mode === "exact" && tokenVisible;
+      // CAP-TEMP: the temporary hit points after the HP, on their total, where the players see the exact HP or
+      // nothing of them (D5): a bar or a status they see would tell them the reserve.
+      const showTemp = disclosure.mode === "exact" || disclosure.mode === "hidden";
+      const segments = showTemp
+        ? quickHPBarSegments({ hp, hpMax, tempHp: _tempHpById.get(tokenId) || 0 })
+        : { hpRatio: pct, tempRatio: 0 };
+      const inner = Math.max(0, barW - BAR_INSET * 2);
+      const fillW = Math.floor(inner * segments.hpRatio);
+      const tempW = Math.floor(inner * segments.tempRatio);
 
       // Firma di dedup (include hp/hpMax)
       const sig = {
-        barW, barH, leftX, topY, pct, color, hp, hpMax,
+        barW, barH, leftX, topY, pct, color, hp, hpMax, fillW, tempW,
         playerMode: disclosure.mode,
         playerBarVisible,
         playerTextVisible,
@@ -528,11 +580,12 @@ async function flushQueued(){
           && textItem?.type === "TEXT"
           && textItem?.attachedTo === tokenId
           && textItem?.layer === "ATTACHMENT"
-          && textItem?.text?.plainText === hpTextValue(hp, hpMax)
+          && textItem?.text?.plainText === hpTextValue(hp, hpMax, tokenId)
           && textItem?.visible === playerTextVisible;
         if (!keysChanged.length
           && barKinds?.get("bg") === 1
           && barKinds?.get("fg") === 1
+          && (barKinds?.get("temp") || 0) === (tempW > 0 ? 1 : 0)
           && !barKinds?.get("shadow")
           && !barKinds?.get("invalid")
           && textIsCurrent) {
@@ -542,17 +595,14 @@ async function flushQueued(){
 
       // Crea prima gli elementi mancanti e pulisce duplicati/legacy soltanto
       // dopo aver verificato una coppia completa nella scena corrente.
-      const { bg, fg } = await createHPBars(
+      const { bg, fg, temp } = await createHPBars(
         tokenId,
         operationEpoch,
         layout,
         allItemsNow,
+        { withTemp: tempW > 0 },
       );
       if (!bg || !fg) continue;
-
-      // Geometria e fill
-      const inner = Math.max(0, barW - BAR_INSET * 2);
-      const fillW = Math.floor(inner * pct);
 
       // La policy Player controlla separatamente geometria pubblica e testo;
       // il GM vede comunque gli attachment anche quando visible=false.
@@ -576,11 +626,23 @@ async function flushQueued(){
         visible: playerBarVisible,
       });
       idsToUpdate.push(bg.id, fg.id);
+      if (temp) {
+        updatesById.set(temp.id, {
+          width: tempW, height: Math.max(1, barH - BAR_INSET * 2),
+          position: { x: leftX + BAR_INSET + fillW, y: topY + BAR_INSET },
+          zIndex: tokenZ + 4,
+          fillColor: TEMP_HP_COLOR, fillOpacity: BAR_FILL_OPACITY,
+          strokeColor: "transparent",
+          strokeWidth: 0,
+          visible: playerBarVisible,
+        });
+        idsToUpdate.push(temp.id);
+      }
 
       // riallinea anche il TEXT se esiste (NO width/height sui TextItem)
       const txt = hptextByToken.get(tokenId);
       if (txt) {
-        const plainText = hpTextValue(hp, hpMax);
+        const plainText = hpTextValue(hp, hpMax, tokenId);
         updatesById.set(txt.id, {
           position: hpTextPosition(leftX, topY, barW, barH, plainText),
           zIndex: tokenZ + 1000,
@@ -596,7 +658,8 @@ async function flushQueued(){
         idsToUpdate.push(txt.id);
       }
 
-      candidates.push({ tokenId, hp, hpMax, revision, epoch, sig, bgId: bg.id, fgId: fg.id, textId: txt?.id || null, inner });
+      candidates.push({ tokenId, hp, hpMax, revision, epoch, sig, bgId: bg.id, fgId: fg.id, tempId: temp?.id || null,
+        showTemp, textId: txt?.id || null, inner });
     }
 
     let updatedIds = new Set();
@@ -679,9 +742,12 @@ async function flushQueued(){
       if (candidate.epoch !== _sceneEpoch) continue;
       if (_tokenRevision.get(candidate.tokenId) !== candidate.revision) continue;
       if (!updatedIds.has(candidate.bgId) || !updatedIds.has(candidate.fgId)) continue;
+      if (candidate.tempId && !updatedIds.has(candidate.tempId)) continue;
       _last.set(candidate.tokenId, candidate.sig);
       _barRefs.set(candidate.tokenId, {
         fgId: candidate.fgId,
+        tempId: candidate.tempId,
+        showTemp: candidate.showTemp,
         inner: candidate.inner,
         textId: candidate.textId,
         leftX: candidate.sig.leftX,
@@ -739,6 +805,7 @@ async function queueCanonicalHPItems() {
   for (const item of items) {
     const meta = item.metadata?.[META_KEY];
     if (!hasCanonicalHP(meta)) continue;
+    rememberTempHp(item.id, meta);
     queueToken(item.id, Number(meta.hp) || 0, Number(meta.hpMax) || 0);
   }
   if (_flushT) clearTimeout(_flushT);
@@ -828,6 +895,7 @@ export async function mountHPBars(){
         if (cur.metadata?.[HPBAR_META_FLAG]) continue;
         const m = cur.metadata?.[META_KEY];
         if (!hasCanonicalHP(m)) continue;
+        rememberTempHp(cur.id, m);
         queueToken(cur.id, Number(m.hp)||0, Number(m.hpMax)||0);
       }
     }, { filter: (event) => event.flags.hpBars || event.flags.tokenScale });
@@ -971,7 +1039,8 @@ async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
     if (!L) return;
     const { leftX, topY, barH, tokenZ } = L;
 
-    const textStr = hpTextValue(hp, hpMax);
+    rememberTempHp(tokenId, token.metadata?.[META_KEY]);
+    const textStr = hpTextValue(hp, hpMax, tokenId);
 
     // Visibilità lato player (GM vede comunque anche se false)
     const att = getAttitude(token);
@@ -1063,12 +1132,13 @@ export async function syncHPTextBatchNow(updates = []) {
   const textIds = [];
   const foundTargets = new Set();
   const textCountsByTarget = new Map();
+  for (const item of sceneItems) if (valuesByToken.has(item.id)) rememberTempHp(item.id, item.metadata?.[META_KEY]);
   for (const item of sceneItems) {
     const targetId = item.metadata?.[HPTEXT_META_FLAG]?.targetId;
     if (!valuesByToken.has(targetId)) continue;
     // A label that already shows this value is not written again.
     const value = valuesByToken.get(targetId);
-    if (item.text?.type !== "PLAIN" || item.text?.plainText !== hpTextValue(value.hp, value.hpMax)) {
+    if (item.text?.type !== "PLAIN" || item.text?.plainText !== hpTextValue(value.hp, value.hpMax, targetId)) {
       textIds.push(item.id);
     }
     foundTargets.add(targetId);
@@ -1083,7 +1153,7 @@ export async function syncHPTextBatchNow(updates = []) {
           const targetId = item.metadata?.[HPTEXT_META_FLAG]?.targetId;
           const value = valuesByToken.get(targetId);
           if (!value) continue;
-          const plainText = hpTextValue(value.hp, value.hpMax);
+          const plainText = hpTextValue(value.hp, value.hpMax, targetId);
           if (!item.text) item.text = { type: "PLAIN", plainText };
           item.text.type = "PLAIN";
           item.text.plainText = plainText;

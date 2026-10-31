@@ -295,7 +295,7 @@ export function createPcAttackRuntime({
         riders:structuredClone(plan.causality.riders || []),extras:structuredClone(plan.causality.extras || []),
         activations:structuredClone(plan.causality.activations || []),
         ...(plan.causality.vampiricBite?{vampiricBite:{...plan.causality.vampiricBite}}:{}),
-        tempHp:(plan.tempHpChanges || []).map(row=>({id:row.item.id,name:row.item.name || row.item.id,before:row.change.hp,after:row.change.afterHP})),
+        tempHp:(plan.tempHpChanges || []).map(row=>({id:row.item.id,name:row.item.name || row.item.id,before:row.change.tempHp,after:row.change.afterTempHp})),
         followUps:[...(plan.followUps || [])],cantrip:plan.causality.cantrip ? structuredClone(plan.causality.cantrip) : null,
         spell:plan.causality.spell ? structuredClone(plan.causality.spell) : null,
         manualRemainder:plan.options?.history?.payload?.manualRemainder || "",conditions:(plan.causality.conditionsApplied || []).map(entry=>entry.condition),
@@ -304,7 +304,8 @@ export function createPcAttackRuntime({
         ...(plan.causality.weaponCantrip?{weaponCantrip:structuredClone(plan.causality.weaponCantrip)}:{}),
         ...(plan.secondaryChange?{secondary:{id:plan.secondaryItem.id,name:plan.secondaryItem.name || plan.secondaryItem.id,
           before:plan.secondaryChange.hp,after:plan.secondaryChange.afterHP}}:{}),
-        hpChange:plan.change?{before:plan.change.hp,after:committedHpFor(result,targetItem.id) ?? plan.change.afterHP,hpMax:plan.change.hpMax}:null,
+        hpChange:plan.change?{before:plan.change.hp,after:committedHpFor(result,targetItem.id) ?? plan.change.afterHP,hpMax:plan.change.hpMax,
+          ...(plan.change.tempHp || plan.change.afterTempHp?{tempBefore:plan.change.tempHp,tempAfter:plan.change.afterTempHp}:{})}:null,
         historyEntryId:result.historyEntry?.id || null,
         undoAvailable:!result.historyPending && !result.historySkipped && !!result.historyEntry?.id};
       return structuredClone(draft.result);
@@ -440,7 +441,8 @@ export function createPcAttackRuntime({
       }
       draft.result={...result,attackInstanceId,outcome:request.outcome,quiveringPalm:true,damageComponents:plan.damageComponents,warnings,
         target:{id:targetItem.id,name:targetItem.name || targetItem.id},
-        hpChange:plan.change?{before:plan.change.hp,after:committedHpFor(result,targetItem.id) ?? plan.change.afterHP,hpMax:plan.change.hpMax}:null,
+        hpChange:plan.change?{before:plan.change.hp,after:committedHpFor(result,targetItem.id) ?? plan.change.afterHP,hpMax:plan.change.hpMax,
+          ...(plan.change.tempHp || plan.change.afterTempHp?{tempBefore:plan.change.tempHp,tempAfter:plan.change.afterTempHp}:{})}:null,
         historyEntryId:result.historyEntry?.id || null,
         undoAvailable:!result.historyPending && !result.historySkipped && !!result.historyEntry?.id};
       return structuredClone(draft.result);

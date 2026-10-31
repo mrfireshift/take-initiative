@@ -415,6 +415,8 @@ export const PHB2014_EFFECTS = Object.freeze({
     endsParentOnRemoval: true,
     mechanics: Object.freeze({
       deriveLabel: true,
+      // CAP-TEMP, lotto T3b: its temporary hit points are given at the cast; the pill ends when they are gone.
+      endsWhenTempHpGone: true,
       tempHp: Object.freeze({
         amount: Object.freeze({ base: 5, baseSlot: 1, perSlotAbove: 5 }),
       }),
@@ -422,6 +424,7 @@ export const PHB2014_EFFECTS = Object.freeze({
         amount: Object.freeze({ base: 5, baseSlot: 1, perSlotAbove: 5 }),
         type: "freddo",
         trigger: "melee-hit",
+        label: "Armatura di Agathys",
       }),
     }),
   })]),

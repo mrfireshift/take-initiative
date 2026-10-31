@@ -1,5 +1,5 @@
 import { ID } from "./constants.js";
-import { calculateQuickHPChange } from "./quickHpCore.js";
+import { calculateQuickHPChange, quickHPStateOf, quickHPTempHpPatchField, quickHPWriteWithinMax } from "./quickHpCore.js";
 
 const META_KEY = `${ID}/meta`;
 const text = value => typeof value === "string" ? value.trim() : "";
@@ -89,10 +89,14 @@ export function planSharedHpLinks(items, operation, { metadataKey = META_KEY } =
     }
     const meta = metaOf(item, metadataKey);
     const fields = {};
-    for (const [field, value] of Object.entries({ hp: Number(sourceMeta.hp), hpMax: Number(sourceMeta.hpMax),
+    // CAP-TEMP: the source's HP and temporary hit points (quickHpCore.js).
+    const state = quickHPStateOf(sourceMeta);
+    for (const [field, value] of Object.entries({ hp: state.hp, hpMax: Number(sourceMeta.hpMax),
       sharedHpSourceId: source.id, sharedHpExcludeFromInitiative: true, attitude: sourceMeta.attitude || "ally" })) {
       fields[field] = { value, expected: snapshot(meta, field) };
     }
+    const tempHpField = quickHPTempHpPatchField(meta, state.tempHp, snapshot(meta, "tempHp"));
+    if (tempHpField) fields.tempHp = tempHpField;
     fields.inInitiative = { mode: "delete", expected: snapshot(meta, "inInitiative") };
     patches.push({ id, fields });
   }
@@ -167,7 +171,8 @@ export function planSharedHpMutation({ items, operations = [], metadataPatches =
   const patchesById = new Map();
   for (const patch of metadataPatches) {
     const fields = Object.fromEntries(Object.entries(patch.fields || {})
-      .filter(([field, descriptor]) => !groupedIds.has(patch.id) || !["hp", "hpMax"].includes(field) || descriptor?.mode === "assert"));
+      .filter(([field, descriptor]) => !groupedIds.has(patch.id) || !["hp", "hpMax", "tempHp"].includes(field)
+        || descriptor?.mode === "assert"));
     if (Object.keys(fields).length) patchesById.set(patch.id, { ...patch,
       fields: { ...patchesById.get(patch.id)?.fields, ...fields } });
   }
@@ -175,8 +180,8 @@ export function planSharedHpMutation({ items, operations = [], metadataPatches =
   const allHitIds = new Set();
   for (const group of bySource.values()) {
     const sourceMeta = metaOf(group.source, metadataKey);
-    let hp = Number(sourceMeta.hp);
-    let hpMax = Number(sourceMeta.hpMax);
+    // CAP-TEMP: the group shares its temporary hit points too (quickHpCore.js).
+    let { hp, hpMax, tempHp } = quickHPStateOf(sourceMeta);
     let requestedAmount = 0;
     const events = new Map();
     const absolute = group.contributions.filter(update => !update.hpIntent);
@@ -194,7 +199,11 @@ export function planSharedHpMutation({ items, operations = [], metadataPatches =
       if (update.hp !== absolute[0].hp || update.hpMax !== absolute[0].hpMax) return conflict(update.itemId, "shared-hp-incompatible-values");
       if (update.damageEnds !== false && update.hp < hp) damageHitIds.add(update.itemId);
     }
-    if (absolute.length) { hp = absolute[0].hp; hpMax = absolute[0].hpMax; }
+    if (absolute.length) {
+      const write = quickHPWriteWithinMax(absolute[0]);
+      hp = write.hp; hpMax = write.hpMax;
+      if (write.tempHp !== undefined && write.tempHp !== null) tempHp = write.tempHp;
+    }
     for (const update of relative) {
       const intent = update.hpIntent;
       if (!["damage", "heal", "temp"].includes(intent.mode) || !Number.isFinite(intent.amount) || intent.amount < 0
@@ -216,21 +225,25 @@ export function planSharedHpMutation({ items, operations = [], metadataPatches =
         amount = chosen ? chosen.hpIntent.amount : event[0].hpIntent.amount;
       }
       requestedAmount += amount;
-      hp = calculateQuickHPChange({ mode, value: amount, hp, hpMax }).afterHP;
+      const change = calculateQuickHPChange({ mode, value: amount, hp, hpMax, tempHp });
+      hp = change.afterHP;
+      tempHp = change.afterTempHp;
     }
     for (const id of group.memberIds) {
       const meta = metaOf(byId.get(id), metadataKey);
       const patch = patchesById.get(id) || { id, fields: {} };
       patch.fields.hp = { value: hp, expected: snapshot(meta, "hp") };
       patch.fields.hpMax = { value: hpMax, expected: snapshot(meta, "hpMax") };
+      const tempHpField = quickHPTempHpPatchField(meta, tempHp, snapshot(meta, "tempHp"));
+      if (tempHpField) patch.fields.tempHp = tempHpField;
       patch.fields.sharedHpSourceId = { mode: "assert", expected: snapshot(meta, "sharedHpSourceId") };
       patchesById.set(id, patch);
     }
-    remainingOperations.push({ type: "hp:set", updates: group.memberIds.map(itemId => ({ itemId, hp, hpMax,
+    remainingOperations.push({ type: "hp:set", updates: group.memberIds.map(itemId => ({ itemId, hp, hpMax, tempHp,
       sharedHpMirror: !damageHitIds.has(itemId) })) });
     // damageHitIds: the members that took damage in this command (Rimebound Link reads which manifestation was hit).
     groups.push({ sourceId: group.sourceId, memberIds: group.memberIds, hitIds, damageHitIds: unique([...damageHitIds]),
-      beforeHP: Number(sourceMeta.hp), beforeHPMax: Number(sourceMeta.hpMax), afterHP: hp, hpMax, requestedAmount,
+      beforeHP: Number(sourceMeta.hp), beforeHPMax: Number(sourceMeta.hpMax), afterHP: hp, hpMax, afterTempHp: tempHp, requestedAmount,
       policy: sharedHp.policy === "per-token" ? "per-token" : "once", eventIds: [...events.keys()] });
   }
   return { operations: remainingOperations, metadataPatches: [...patchesById.values()], groups,

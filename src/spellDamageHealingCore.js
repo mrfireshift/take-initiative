@@ -16,6 +16,7 @@ export function spellCasterHealingChange({
   ratio = 0,
   hp = 0,
   hpMax = 0,
+  tempHp = 0,
 } = {}) {
   const appliedDamage = (Array.isArray(damageChanges) ? damageChanges : []).reduce((total, change) => {
     const requested = Number(change?.requested);
@@ -33,5 +34,6 @@ export function spellCasterHealingChange({
     factor: QUICK_HP_FACTORS.FULL,
     hp,
     hpMax,
+    tempHp,
   });
 }

@@ -1,5 +1,6 @@
 import { normalizeMonsterActionContext } from "./monsterActionContextCore.js";
 import { spellForCastContext } from "./spellCastContextCore.js";
+import { spellCastTemporaryHpDie } from "./spellTemporaryHpRules.js";
 import {
   getAreaSaveRuleChoices,
   getSpellDefinition,
@@ -126,6 +127,7 @@ export const SPELL_PANEL_VALIDATION_LABELS = Object.freeze({
   outcomes: "esiti dei bersagli",
   damage: "danno",
   healing: "cura",
+  temporaryHp: "PF temporanei",
   execution: "pannello dedicato",
 });
 
@@ -145,6 +147,7 @@ const SPELL_PANEL_VALIDATION_MESSAGES = Object.freeze({
   outcomes: "Registra l'esito di ogni bersaglio",
   damage: "Inserisci il valore del danno",
   healing: "Inserisci il valore della cura",
+  temporaryHp: "Inserisci il tiro dei PF temporanei",
   execution: "Apri il pannello dedicato per continuare",
 });
 
@@ -1147,6 +1150,8 @@ function inputDescriptor({
   const primaryDamageRequired = phasePlan?.phase === "resolve"
     && phasePlan?.attack?.primaryDamageMode === "final-applied";
   const healingRequired = hpInputVisible && healing;
+  // CAP-TEMP, lotto T3b: the die of the temporary hit points the cast gives (False Life's 1d4), rolled at the table.
+  const temporaryHpDie = phasePlan?.phase === "prepare" ? "" : spellCastTemporaryHpDie(spell?.id);
   const compositionRequired = !!composition;
   return {
     phase: { required: phasePlan?.phase === "prepare", visible: false },
@@ -1203,6 +1208,7 @@ function inputDescriptor({
       mode: "damage",
     },
     healing: { required: healingRequired, visible: healingRequired },
+    temporaryHp: { required: !!temporaryHpDie, visible: !!temporaryHpDie, die: temporaryHpDie },
     automation: { required: false, visible: automation.available },
   };
 }
@@ -1855,6 +1861,9 @@ function normalizedHpValues(value = {}, overrides = {}) {
       overrides.primaryDamage !== undefined ? overrides.primaryDamage : source.primaryDamage,
     );
   }
+  if (overrides.temporaryHp !== undefined || source.temporaryHp !== undefined) {
+    normalized.temporaryHp = inputValue(overrides.temporaryHp !== undefined ? overrides.temporaryHp : source.temporaryHp);
+  }
   return normalized;
 }
 
@@ -2410,6 +2419,14 @@ function validationFor(contract, session, placement) {
   }
   if (inputs.healing?.required && !hasSessionValue(session.hpValues.healing)) {
     add("healing", "healing-required");
+  }
+  // The die's roll, 1 to its faces (False Life: 1–4).
+  if (inputs.temporaryHp?.required) {
+    const faces = Number(String(inputs.temporaryHp.die || "").match(/^1d(\d+)$/u)?.[1]) || 0;
+    const roll = Number(session.hpValues?.temporaryHp);
+    if (!hasSessionValue(session.hpValues?.temporaryHp) || !Number.isInteger(roll) || roll < 1 || roll > faces) {
+      add("temporaryHp", "temporary-hp-required");
+    }
   }
   return {
     valid: errors.length === 0,

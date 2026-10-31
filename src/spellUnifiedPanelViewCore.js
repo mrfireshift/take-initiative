@@ -3,6 +3,7 @@ import {
   spellPanelValidationMessage,
 } from "./spellUnifiedPanelCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
+import { spellCastTemporaryHpHint, spellCastTemporaryHpRule } from "./spellTemporaryHpRules.js";
 import { ID } from "./constants.js";
 import { buildSharedHpPreview } from "./sharedHpViewCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
@@ -286,6 +287,7 @@ function normalizeTargetCandidates(
         || asText(candidate?.faction),
       hp: numberOrNull(candidate?.hp),
       hpMax: numberOrNull(candidate?.hpMax),
+      tempHp: Math.max(0, Math.floor(Number(candidate?.tempHp) || 0)),
       sharedHpSourceId: asText(candidate?.sharedHpSourceId),
       ...(candidate?.magicMissileGuard ? { magicMissileGuard: clone(candidate.magicMissileGuard) } : {}),
       turbineSize: asText(candidate?.turbineSize) || null,
@@ -425,7 +427,8 @@ function hpPreviewFor(
           rolls: magicMissile.damagesByTarget[candidate.key] || [],
           guard: candidate.magicMissileGuard,
         });
-        const change = calculateQuickHPChange({ mode, value: darts.damage, factor: QUICK_HP_FACTORS.FULL, hp: beforeHP, hpMax });
+        const change = calculateQuickHPChange({ mode, value: darts.damage, factor: QUICK_HP_FACTORS.FULL, hp: beforeHP, hpMax,
+          tempHp: candidate.tempHp });
         return {
           ...base,
           factor: QUICK_HP_FACTORS.FULL,
@@ -457,15 +460,17 @@ function hpPreviewFor(
         factor: attackMiss ? QUICK_HP_FACTORS.FULL : factor,
         hp: beforeHP,
         hpMax,
+        tempHp: candidate.tempHp,
       });
       if (isDamage && inputs.primaryDamage?.visible && session?.phase === "resolve"
         && asText(session?.primaryTargetId) === candidate.key) {
         const primary = calculateQuickHPChange({ mode, value: Number(session?.hpValues?.primaryDamage) || 0,
-          factor: QUICK_HP_FACTORS.FULL, hp: beforeHP, hpMax });
+          factor: QUICK_HP_FACTORS.FULL, hp: beforeHP, hpMax, tempHp: candidate.tempHp });
         const area = calculateQuickHPChange({ mode, value: change.requested,
-          factor: QUICK_HP_FACTORS.FULL, hp: primary.afterHP, hpMax });
-        change = { ...area, factor: change.factor, hp: beforeHP, requested: primary.requested + area.requested,
-          delta: area.afterHP - beforeHP, changed: area.afterHP !== beforeHP,
+          factor: QUICK_HP_FACTORS.FULL, hp: primary.afterHP, hpMax, tempHp: primary.afterTempHp });
+        const delta = area.afterHP + area.afterTempHp - primary.hp - primary.tempHp;
+        change = { ...area, factor: change.factor, hp: primary.hp, tempHp: primary.tempHp,
+          requested: primary.requested + area.requested, delta, changed: delta !== 0,
           primaryRequested: primary.requested, areaRequested: area.requested };
       }
       return {
@@ -517,6 +522,7 @@ function magicMissileDartsView(allocation, selectedTargets = []) {
       const hpMax = numberOrNull(target?.hpMax);
       const change = hp === null || hpMax === null ? null : calculateQuickHPChange({
         mode: QUICK_HP_MODES.DAMAGE, value: darts.damage, factor: QUICK_HP_FACTORS.FULL, hp, hpMax,
+        tempHp: target?.tempHp,
       });
       return {
         key,
@@ -672,6 +678,20 @@ function normalizeEffectFields(
       min: 0,
       value: hpValues.healing ?? "",
       invalid: validation.firstInvalidField === "healing",
+    });
+  }
+  // CAP-TEMP, lotto T3b: the die of the temporary hit points (False Life's 1d4); the plugin adds the rest.
+  if (inputs.temporaryHp?.visible) {
+    const die = asText(inputs.temporaryHp.die);
+    fields.push({
+      id: "temporaryHp",
+      type: "number",
+      label: `PF temporanei · tiro del ${die}`,
+      hint: spellCastTemporaryHpHint(spellCastTemporaryHpRule(spellId), session?.slotLevel),
+      min: 1,
+      max: Number(die.slice(2)) || undefined,
+      value: hpValues.temporaryHp ?? "",
+      invalid: validation.firstInvalidField === "temporaryHp",
     });
   }
   return fields;
@@ -935,7 +955,7 @@ export function buildUnifiedPanelViewModel({
   if (allCandidates.some(candidate => candidate.sharedHpSourceId) && hpPreview.valid) {
     const items = allCandidates.map(candidate => ({ id: candidate.key, name: candidate.label,
       layer: candidate.layer || "CHARACTER", metadata: { [`${ID}/meta`]: {
-        hp: candidate.hp, hpMax: candidate.hpMax, sharedHpSourceId: candidate.sharedHpSourceId,
+        hp: candidate.hp, hpMax: candidate.hpMax, tempHp: candidate.tempHp, sharedHpSourceId: candidate.sharedHpSourceId,
       } } }));
     hpPreview.sharedHp = buildSharedHpPreview(items, hpPreview.targets.filter(target => target.change)
       .map(target => ({ item: items.find(item => item.id === target.key), change: target.change })), session.sharedHp || {});

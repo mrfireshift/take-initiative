@@ -1408,20 +1408,60 @@ export function classFeatureStatusName(feature) {
   ).trim();
 }
 
+// CAP-TEMP, lotto T2a: the temporary hit points of a feature's plan. amount is a number, or one of
+// { perClassLevel: 4 } (4 per level in the feature's class), { base: 5, plusClassLevel: true } (5 + that level),
+// { byClassLevel: { "3": 2, "5": 3 } } (the highest level reached), or { die: "1d12" } (the roll entered at the table,
+// activation.value: none entered, none given). null when the amount can't be read.
+export function classFeatureTemporaryHpAmount(feature, spec, { characterBuild = [], value = null } = {}) {
+  if (typeof spec === "number" || typeof spec === "string") return Math.max(0, Math.floor(Number(spec) || 0));
+  if (!spec || typeof spec !== "object") return 0;
+  const level = characterClassLevel(characterBuild, feature?.classId);
+  if (spec.die) {
+    const faces = Number(String(spec.die).match(/^1d(\d+)$/u)?.[1]) || 0;
+    const roll = Number(value);
+    if (!faces || !Number.isInteger(roll) || roll < 1 || roll > faces) return null;
+    return roll + (spec.plusClassLevel === true ? level : 0);
+  }
+  if (!level) return null;
+  if (Number(spec.perClassLevel) > 0) return Math.floor(Number(spec.perClassLevel) * level);
+  if (spec.plusClassLevel === true) return Math.max(0, Math.floor(Number(spec.base) || 0)) + level;
+  if (spec.byClassLevel && typeof spec.byClassLevel === "object") {
+    const reached = Object.entries(spec.byClassLevel)
+      .filter(([minimum]) => level >= Number(minimum))
+      .sort(([a], [b]) => Number(b) - Number(a))[0];
+    return reached ? Math.max(0, Math.floor(Number(reached[1]) || 0)) : 0;
+  }
+  return 0;
+}
+
+// The die a feature's temporary hit points ask at the table for this choice ("1d12": Wild Surge's Shadowy Tendrils), or
+// "" when they ask none.
+export function classFeatureTemporaryHpDie(feature, choiceId = "") {
+  const amount = classFeatureEffectPlan(feature, choiceId)?.temporaryHp?.amount;
+  return amount && typeof amount === "object" && /^1d\d+$/u.test(String(amount.die || "")) ? String(amount.die) : "";
+}
+
 export function classFeatureTemporaryHpApplications(feature, activation = {}) {
   const plan = classFeatureEffectPlan(feature, activation?.choiceId);
   const temporaryHp = plan?.temporaryHp && typeof plan.temporaryHp === "object"
     ? plan.temporaryHp
     : null;
-  const amount = Math.max(0, Math.floor(Number(temporaryHp?.amount) || 0));
+  const amount = classFeatureTemporaryHpAmount(feature, temporaryHp?.amount, activation) || 0;
   if (!amount) return [];
   const sourceId = shortText(activation?.sourceId, 220);
-  const targetIds = Array.from(new Set(
-    (Array.isArray(activation?.targetIds) ? activation.targetIds : [])
+  const ids = (values) => Array.from(new Set(
+    (Array.isArray(values) ? values : [])
       .map((id) => shortText(id, 220))
       .filter(Boolean)
   ));
+  const targetIds = ids(activation?.targetIds);
   const applyTo = String(temporaryHp?.applyTo || "").trim().toLowerCase();
+  // The creatures selected on the map (an aura's creatures of the character's choice: the Bear spirit), the
+  // character itself when none is.
+  if (applyTo === "selection") {
+    const selected = ids(activation?.selectedTargetIds);
+    return (selected.length ? selected : sourceId ? [sourceId] : []).map((targetId) => ({ targetId, amount }));
+  }
   if (applyTo === "source-per-target-count") {
     return sourceId && targetIds.length
       ? [{ targetId: sourceId, amount: amount * targetIds.length }]

@@ -913,3 +913,30 @@ test("SP-R06A regression — un reminder ricorrente compatta i marker obsoleti d
     },
   });
 });
+
+// CAP-TEMP, lotto T2a: Twilight Sanctuary at the end of a creature's turn, the manual roll of the heal reminder for
+// temporary hit points: the total entered (1d6 + cleric level), a wounded or undead creature included, kept apart from
+// its HP and never added to those it has.
+test("Santuario del Crepuscolo: il tiro manuale dà PF temporanei, non cura", () => {
+  const activation = {
+    id: "twilight-end",
+    resolution: "manual-heal",
+    zoneItemId: "zone",
+    instanceId: "twilight-instance",
+    targetIds: ["target"],
+    turnKey: "turn-twilight",
+    resolutionData: { temporaryHp: true, healing: { dice: "1d6", baseSlot: 0, additionalPerSlotAbove: 0 } },
+  };
+  const resolution = buildZoneTriggerReminderResolution({ activation, targetId: "target", sourceId: "caster",
+    sourceName: "Chierico", metadataKey: SPELL_STATIC_ZONE_META_KEY });
+  const plan = (meta, damageRoll) => buildReminderResolutionPlan({
+    notice: { activationId: activation.id, targets: [{ id: "target" }], resolution },
+    items: sceneItems(meta, activation.id), outcome: "apply", damageRoll });
+  const wounded = plan({ hp: 4, hpMax: 10, attitude: "pc", creatureType: "non morto" }, 9);
+  assert.equal(wounded.status, "ready", wounded.message);
+  assert.deepEqual([wounded.hpChange.after, wounded.hpChange.afterTempHp], [4, 9], "4 HP and 9 temporary, not 10 HP");
+  const patch = wounded.metadataPatches[0].fields;
+  assert.deepEqual([patch.hp.value, patch.tempHp.value], [4, 9]);
+  const kept = plan({ hp: 10, hpMax: 10, tempHp: 12, attitude: "pc" }, 7);
+  assert.equal(kept.hpChange?.afterTempHp ?? 12, 12, "they don't add up: the higher stays");
+});

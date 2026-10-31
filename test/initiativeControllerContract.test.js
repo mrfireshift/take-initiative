@@ -616,7 +616,7 @@ test("i reminder di zona usano il layer persistente del turno senza un secondo p
 
 test("il sync HP immediato scrive il testo della card compatta con lo stesso formato della card, poi la barra", () => {
   const syncSection = sourceSection("function syncTrackerHPNow(", "const fill = card.querySelector(\"[data-hp-fill='1']\");");
-  assert.match(syncSection, /if \(showHP\) writeCompactHPText\(hpText, nHP, nHPMax\);\s*else hpText\.textContent = "";/);
+  assert.match(syncSection, /if \(showHP\) writeCompactHPText\(hpText, nHP, nHPMax, \{ tempHp: shownTempHp\(hpText\) \}\);\s*else hpText\.textContent = "";/);
   assert.doesNotMatch(syncSection, /hpText\.textContent = showHP \?/);
 });
 
@@ -625,7 +625,7 @@ test("HP immediati e rendering incrementale restano separati dal fallback global
     "subscribeSceneItemChanges(({ items }) => {",
     "subscribeSceneItemChanges(async (event) => {"
   );
-  assert.match(hpSection, /syncTrackerHPNow\(item\.id, meta\.hp, meta\.hpMax\)/);
+  assert.match(hpSection, /syncTrackerHPNow\(item\.id, meta\.hp, meta\.hpMax, meta\.tempHp \?\? 0\)/);
   assert.match(hpSection, /immediate:\s*true/);
 
   const trackerSection = sourceSection(
@@ -851,4 +851,15 @@ test("L7: la console PF spegne «Crit» dopo un'applicazione riuscita", () => {
   const consoleSource = readFileSync(new URL("../src/quick-hp-modal.js", import.meta.url), "utf8");
   const applied = sourceSectionIn(consoleSource, "sharedHpSelection = { policy: \"once\", chosenTargetIds: {} };\n    //", "await refreshConditionSourceOptions(");
   assert.ok(applied.includes("criticalIds = new Set();"));
+});
+
+// A Tab pressed while the next card's HP editor is still reading its values found no field and the browser moved the
+// focus to the tracker's buttons: until that editor is ready, Tab stays in the tracker.
+test("Tab tra le card dei PF non scappa sui pulsanti mentre si apre l'editor successivo", () => {
+  const guard = sourceSection("function __holdTabUntilHPEditorReady()", "function bindHPEditorForEntry(");
+  assert.match(guard, /event\.key !== "Tab" \|\| Date\.now\(\) >= __hpEditorTabHandoffUntil/);
+  assert.match(guard, /event\.target\?\.closest\?\.\("\[data-badge='hp'\]"\)\) return;\s*event\.preventDefault\(\);/);
+  const editor = sourceSection("function bindHPEditorForEntry(", "function bindSpellBoardTokenHPEditor(");
+  assert.match(editor, /editorReady: \(\) => \{\s*__suspendRenders = false;\s*__releaseTabAfterHPEditorHandoff\(\);/);
+  assert.match(editor, /__suspendRenders = true;\s*__holdTabUntilHPEditorReady\(\);/);
 });

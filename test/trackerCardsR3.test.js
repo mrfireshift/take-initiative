@@ -15,7 +15,9 @@ test("L20: i campi dei PF in linea si allargano per «-120», restano di 22 px p
   assert.equal(inlineHPInputWidth("1200"), "max(22px, 4.5ch)");
   const editors = read("../src/initiativeEditors.js");
   assert.match(editors, /input\.value = normalizeSignedIntegerInput\(input\.value\);\n\s+input\.style\.width = inlineHPInputWidth\(input\.value\);/);
-  assert.match(editors, /for \(const input of \[hpInput, hpMaxInput\]\) input\.style\.width = inlineHPInputWidth\(input\.value\);/);
+  // The temporary hit points' field too (CAP-TEMP): the editor's fields are hpInput, hpMaxInput and tempInput.
+  assert.match(editors, /const fields = tempInput \? \[hpInput, hpMaxInput, tempInput\] : \[hpInput, hpMaxInput\];/);
+  assert.match(editors, /for \(const input of fields\) input\.style\.width = inlineHPInputWidth\(input\.value\);/);
   assert.equal(editors.split("hpMaxInput.style.width = inlineHPInputWidth(hpMaxInput.value);").length - 1, 2, "the linked maximum too");
 });
 

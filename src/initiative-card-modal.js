@@ -128,6 +128,7 @@ import {
   classFeatureRequiresActivationChoice,
   classFeatureSpecialRefresh,
   classFeatureSpellSlotCreationCost,
+  classFeatureTemporaryHpDie,
   classFeatureTwinnedSpellCost,
   purifyingSpellSelectionOptions,
   resolvePurifyingSpellChoice,
@@ -471,6 +472,25 @@ function classFeatureAutoChoiceSelection(controls) {
   );
 }
 
+// An automatic choice whose temporary hit points take a die rolled at the table (Wild Surge's Shadowy Tendrils on
+// entering Rage, CAP-TEMP): the roll, asked before the activation, by child feature. Cancelling cancels the activation.
+function promptAutoChoiceDieValues(autoChoiceIds = {}) {
+  const values = {};
+  for (const [childId, choiceId] of Object.entries(autoChoiceIds || {})) {
+    const child = CLASS_FEATURE_BY_ID.get(childId);
+    const die = classFeatureTemporaryHpDie(child, choiceId);
+    if (!die) continue;
+    const label = classFeatureChoiceOptions(child).find((option) => option.id === choiceId)?.label || child.name;
+    const raw = window.prompt(`${label}: risultato del ${die} di PF temporanei.`, "");
+    if (raw === null) throw { cancelled: true };
+    const faces = Number(die.slice(2));
+    const roll = Number(String(raw).trim());
+    if (!Number.isInteger(roll) || roll < 1 || roll > faces) throw new Error(`${label}: inserisci il ${die} tirato (1–${faces}).`);
+    values[childId] = roll;
+  }
+  return values;
+}
+
 function classFeatureSelectionTargetIds(feature) {
   return classFeatureTargetMode(feature, profile?.characterBuild) === "selection"
     ? OBR.player.getSelection().catch(() => [])
@@ -812,12 +832,14 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}, surf
           value = window.prompt(`${feature.name}: risultato del ${dieOption.temporaryHp.bonusDie} di PF temporanei.`, "");
           if (value === null) throw { cancelled: true };
         }
+        const autoChoiceValues = promptAutoChoiceDieValues(autoChoiceIds);
         await activateClassFeature({
           sourceId: item.id,
           featureId: action.featureId,
           targetIds,
           choiceId,
           autoChoiceIds,
+          autoChoiceValues,
           resourceValues,
           ...(dieOption ? { value } : {}),
         });
@@ -3048,11 +3070,14 @@ function renderClassFeatures() {
                 await deactivateClassFeature(item.id, activeInstance.instanceId);
                 return;
               }
+              const autoChoiceIds = classFeatureAutoChoiceSelection(autoChoiceControls);
+              const autoChoiceValues = promptAutoChoiceDieValues(autoChoiceIds);
               await activateClassFeature({
                 sourceId: item.id,
                 featureId: feature.id,
                 choiceId: classFeatureChoiceSelection(choiceControl),
-                autoChoiceIds: classFeatureAutoChoiceSelection(autoChoiceControls),
+                autoChoiceIds,
+                autoChoiceValues,
                 ...(speciesDieInput ? { value: speciesDieInput.value } : {}),
               });
             },

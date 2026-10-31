@@ -2183,7 +2183,8 @@ function render() {
       const damage = resolveSpellActiveResolutionDamage({ action: payload.action, slotLevel: payload.slotLevel,
         outcome: outcomes.get(item.id), roll: Number($("damage").value) });
       return { item, change: damage.valid ? calculateQuickHPChange({ mode: "damage", value: damage.amount,
-        hp: item.metadata?.[META_KEY]?.hp, hpMax: item.metadata?.[META_KEY]?.hpMax }) : null };
+        hp: item.metadata?.[META_KEY]?.hp, hpMax: item.metadata?.[META_KEY]?.hpMax,
+        tempHp: item.metadata?.[META_KEY]?.tempHp }) : null };
     });
     const preview = buildSharedHpPreview(sceneItems, entries, sharedHpSelection);
     renderSharedHpControls(sharedControls, preview, sharedHpSelection,

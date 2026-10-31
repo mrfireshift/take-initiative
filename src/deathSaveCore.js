@@ -1,6 +1,7 @@
 import { ID } from "./constants.js";
 import { conditionKey } from "./conditionRulesCore.js";
 import { resolveZeroHPUnconsciousAction, shouldPCBeUnconsciousAtZeroHP } from "./hpConditionRulesCore.js";
+import { quickHPStateOf } from "./quickHpCore.js";
 
 // Death saving throws (PHB 2014, p. 197). A PC at 0 HP rolls a d20 at the start of each of its turns:
 // 10 or more is a success, less a failure; a natural 1 counts as two failures, a natural 20 brings the
@@ -141,7 +142,9 @@ export function planDeathSaveHpChange({
     };
   }
   if (!pc) return null;
-  const before = Number(meta?.hp);
+  // The HP before, without the temporary ones of the old encoding (CAP-TEMP): the damage given here is the part that
+  // reached the HP, so its leftover past 0 decides the massive damage.
+  const before = Number.isFinite(Number(meta?.hp)) ? quickHPStateOf(meta).hp : Number(meta?.hp);
   const after = Number(hpAfter);
   const max = Number(hpMax ?? meta?.hpMax);
   if (!Number.isFinite(before) || !Number.isFinite(after) || !Number.isFinite(max) || max <= 0) return null;

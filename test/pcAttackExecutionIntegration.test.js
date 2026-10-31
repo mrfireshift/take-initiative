@@ -436,13 +436,16 @@ test("Inspiring Smite: damage and temporary hit points to the paladin and an all
   sceneItems.push({ id: "imp", name: "Imp", type: "IMAGE", layer: "CHARACTER", position: { x: 60, y: 20 }, metadata: { [META_KEY]: { hp: 4, hpMax: 10, inInitiative: true } } });
   const result = await attack({ attackInstanceId: "inspire", riders: [{ id: "paladino-punizione-divina", type: "radiant", amount: 9, slotLevel: 1 }],
     activations: [{ id: ISPIRATRICE, amount: 12, tempHp: [{ targetId: "aria", amount: 5 }, { targetId: "imp", amount: 7 }] }] });
-  assert.deepEqual([meta("ghoul").hp, meta("aria").hp, meta("imp").hp], [4, 35, 11]);
-  assert.deepEqual(result.tempHp, [{ id: "aria", name: "Aria", before: 30, after: 35 }, { id: "imp", name: "Imp", before: 4, after: 11 }]);
+  assert.deepEqual([meta("ghoul").hp, meta("aria").hp, meta("imp").hp], [4, 30, 4]);
+  assert.deepEqual([meta("aria").tempHp, meta("imp").tempHp], [5, 7], "in their own field: the wounded imp keeps its 4 HP");
+  assert.deepEqual(result.tempHp, [{ id: "aria", name: "Aria", before: 0, after: 5 }, { id: "imp", name: "Imp", before: 0, after: 7 }]);
   assert.deepEqual(projected, ["aria", "imp"]);
   const entries = (await history.getHistoryEntries()).filter((entry) => entry.kind === "pc-attack");
   assert.equal(entries.length, 1);
   await history.undoHistoryThrough(entries[0].id, { sceneEpoch: currentSceneEpoch() });
   assert.deepEqual([meta("ghoul").hp, meta("aria").hp, meta("imp").hp], [30, 30, 4]);
+  assert.deepEqual([Object.hasOwn(meta("aria"), "tempHp"), Object.hasOwn(meta("imp"), "tempHp")], [false, false],
+    "the Undo takes the temporary hit points away");
 });
 
 test("Quivering Palm: the vibrations on a hit, then ending them (0 HP) as a command of its own; Undo brings the vibrations back", async () => {

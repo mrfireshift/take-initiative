@@ -17,6 +17,8 @@ const REMINDER_RESOLUTIONS_META_FIELD = "reminderResolutions";
 export const TRACKER_LOCAL_METADATA_KEYS = new Set([
   "hp",
   "hpMax",
+  "tempHp",
+  "tempHpSource",
   "conditions",
   SPELLS_META_KEY,
   CONCENTRATION_META_KEY,
@@ -192,7 +194,8 @@ function snapshotItem(item) {
     speedCheckSignature,
     metadataSignatures,
     externalMetadataSignature,
-    hpSignature: `${metadataSignature("hp")}\u0001${metadataSignature("hpMax")}`,
+    // The temporary hit points too (CAP-TEMP): the map text and the card show them beside the HP.
+    hpSignature: `${metadataSignature("hp")}\u0001${metadataSignature("hpMax")}\u0001${metadataSignature("tempHp")}`,
     attitudeSignature: metadataSignature("attitude"),
     conditionsSignature: metadataSignature("conditions"),
     spellsSignature: metadataSignature(SPELLS_META_KEY),

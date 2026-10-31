@@ -90,9 +90,12 @@ test("defenses changed since the preview reject the attack", () => {
   assert.throws(() => plan({ targetItem: target({ initiativeCard: { damageDefenses: { resistances: ["slashing"] } } }), expectedDefenses: {} }), /difese/);
 });
 
-test("temporary hit points (hp above hpMax) are consumed first", () => {
-  const result = plan({ targetItem: target({ hp: 35, hpMax: 30 }), componentAmounts: { c1: 3, c2: 0 } });
-  assert.equal(result.change.afterHP, 32);
+test("temporary hit points are consumed first", () => {
+  const legacy = plan({ targetItem: target({ hp: 35, hpMax: 30 }), componentAmounts: { c1: 3, c2: 0 } });
+  assert.deepEqual([legacy.change.afterHP, legacy.change.afterTempHp], [30, 2], "the old encoding: hp above hpMax");
+  const result = plan({ targetItem: target({ hp: 20, hpMax: 30, tempHp: 5 }), componentAmounts: { c1: 8, c2: 0 } });
+  assert.deepEqual([result.change.afterHP, result.change.afterTempHp], [17, 0]);
+  assert.equal(result.operations.find((operation) => operation.type === "hp:set").updates[0].tempHp, 0);
 });
 
 test("invalid actors, decisions and amounts fail before any mutation", () => {

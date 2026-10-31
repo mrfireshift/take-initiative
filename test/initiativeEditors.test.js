@@ -843,3 +843,61 @@ test("L19: un salvataggio dei PF rifiutato lo dice", async () => {
   const tracker = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(tracker, /onSaveError: \(\) => \{\n\s+void OBR\.notification\.show\("PF non salvati: il token è cambiato nel frattempo\./);
 });
+
+// CAP-TEMP: the temporary hit points' field, out of the Tab order: T reaches it, a damage typed in the HP takes them
+// first, and Tab from it goes on to the next card as from the maximum.
+test("il campo dei PF temporanei: fuori dal Tab, raggiunto con T, il danno li consuma per primi", async () => {
+  const open = async ({ type, value, key = "Enter" }) => {
+    const documentRef = createTestDocument();
+    const card = documentRef.createElement("article");
+    card.dataset.itemId = "goblin-1";
+    const pill = documentRef.createElement("div");
+    pill.innerHTML = "12/20 +4";
+    card.appendChild(pill);
+    let editingItemId = null;
+    const calls = [];
+    bindClassicHPEditor({
+      pill, itemId: "goblin-1", snapshotHP: 12, snapshotHPMax: 20, hpFill: null,
+      getEditingItemId: () => editingItemId, isCurrentEditor: () => editingItemId === "goblin-1",
+      armClickIgnore: () => {}, handoffEditor: async () => {},
+      beginEdit: async () => { editingItemId = "goblin-1"; },
+      readLiveValues: async () => ({ hp: 12, hpMax: 20, tempHp: 4 }),
+      editorReady: () => {}, cleanupEdit: () => { editingItemId = null; },
+      parseRelativeDelta: (text) => {
+        const match = /^([+\-])(\d+)$/.exec(String(text || "").trim());
+        return match ? (match[1] === "-" ? -1 : 1) * parseInt(match[2], 10) : null;
+      },
+      setDeltaButtonActive: () => {}, shouldIgnoreDocumentClick: () => false,
+      formatHP: (hp, hpMax, tempHp) => `${hp}/${hpMax}${tempHp ? ` +${tempHp}` : ""}`,
+      hpColorByPct: () => "#fff",
+      saveValues: async (result) => calls.push(["save", result]),
+      afterCommit: async () => {},
+      commitAndOpenNeighbor: async ({ commit }) => { calls.push(["neighbor"]); await commit(); },
+      editableTempHp: true,
+      documentRef,
+      requestAnimationFrameRef: (callback) => callback(),
+      setTimeoutRef: (callback) => callback(),
+    });
+    await pill.dispatch("pointerdown", createTestEvent({ clientX: 5 }));
+    assert.equal(pill.__iTemp.value, "4");
+    assert.equal(pill.__iTemp.tabIndex, -1, "out of the Tab order");
+    if (type === "hp") pill.__iHP.value = value;
+    else {
+      await pill.__iHP.dispatch("keydown", createTestEvent({ key: "t" }));
+      assert.equal(pill.__iTemp.focused, true, "T reaches it");
+      pill.__iTemp.value = value;
+    }
+    const field = type === "hp" ? pill.__iHP : pill.__iTemp;
+    await field.dispatch("keydown", createTestEvent({ key }));
+    return { calls, pill };
+  };
+  const damage = await open({ type: "hp", value: "-5" });
+  assert.deepEqual([damage.calls[0][1].nextHP, damage.calls[0][1].nextTempHp, damage.calls[0][1].concentrationDamage], [11, 0, 5],
+    "4 from the temporary hit points, 1 from the HP; the concentration counts all 5");
+  assert.equal(damage.pill.innerHTML, "11/20");
+  const added = await open({ type: "temp", value: "+3" });
+  assert.deepEqual([added.calls[0][1].nextHP, added.calls[0][1].nextTempHp], [12, 7]);
+  assert.equal(added.pill.innerHTML, "12/20 +7");
+  const tabbed = await open({ type: "temp", value: "9", key: "Tab" });
+  assert.deepEqual(tabbed.calls.map((call) => call[0]), ["neighbor", "save"], "Tab from it opens the next card");
+});

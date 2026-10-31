@@ -1045,7 +1045,7 @@ export function pcAttackPreview({
     + (hitPlan?.components || []).reduce((sum, component) => sum + component.amount, 0);
   const meta = targetItem?.metadata?.[META_KEY] || {};
   const hp = targetItem && Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
-    ? { before: meta.hp, after: miss ? meta.hp : calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax }).afterHP, hpMax: meta.hpMax }
+    ? { before: meta.hp, after: miss ? meta.hp : calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }).afterHP, hpMax: meta.hpMax }
     : null;
   const options = chosenRiders.length && sourceItem ? riderOptionsFor(attack, { sourceItem, targetItem, turnState }) : [];
   const riderBlock = chosenRiders.map((rider) => {
@@ -1069,7 +1069,7 @@ export function pcAttackPreview({
     ? bossDefendedDamage([{ id: "s1", type: secondarySource.type }], { s1: secondarySource.amount }, "hit", secondaryDefenses, []) : 0;
   const secondary = secondaryWanted && secondaryItem ? { id: secondaryItem.id, total: secondaryTotal, profileDefenses: secondaryDefenses,
     hp: Number.isFinite(secondaryMeta.hp) && Number.isFinite(secondaryMeta.hpMax)
-      ? { before: secondaryMeta.hp, after: calculateQuickHPChange({ value: secondaryTotal, hp: secondaryMeta.hp, hpMax: secondaryMeta.hpMax }).afterHP, hpMax: secondaryMeta.hpMax }
+      ? { before: secondaryMeta.hp, after: calculateQuickHPChange({ value: secondaryTotal, hp: secondaryMeta.hp, hpMax: secondaryMeta.hpMax, tempHp: secondaryMeta.tempHp }).afterHP, hpMax: secondaryMeta.hpMax }
       : null } : null;
   const wovenBlocker = !weaponCantrip?.spellId || !extrasAllowed ? ""
     : !wovenOption ? "Trucchetto con l'arma non disponibile per questo attacco."
@@ -1111,7 +1111,7 @@ export function pcAttackPreview({
   const spellDamage = spellPlan?.ok && attack.spell.casterHealRatio && targetItem && outcome && !miss && validAmount(amounts?.c1)
     ? bossDefendedDamage([attack.components[0]], { c1: amounts.c1 }, "hit", profileDefenses, ignoredDefenses) : 0;
   const casterHeal = spellDamage > 0 && Number.isFinite(sourceMeta.hp) && Number.isFinite(sourceMeta.hpMax)
-    ? spellCasterHealingChange({ damageChanges: [{ requested: spellDamage }], ratio: attack.spell.casterHealRatio, hp: sourceMeta.hp, hpMax: sourceMeta.hpMax })
+    ? spellCasterHealingChange({ damageChanges: [{ requested: spellDamage }], ratio: attack.spell.casterHealRatio, hp: sourceMeta.hp, hpMax: sourceMeta.hpMax, tempHp: sourceMeta.tempHp })
     : null;
   const spellBlocker = attack.spell && !spellPlan ? "Scegli l'attaccante." : spellPlan && !spellPlan.ok ? spellPlan.reason : "";
   const usesBlocker = sourceItem ? monsterUsesBlocker(action, sourceItem) : "";
@@ -1234,7 +1234,7 @@ export function buildPcAttackMutation({
   if (!miss) {
     if (!Number.isFinite(targetMeta.hp) || !Number.isFinite(targetMeta.hpMax)
         || targetMeta.hp < 0 || targetMeta.hpMax < 0) throw new Error("Il bersaglio non ha HP canonici validi.");
-    change = calculateQuickHPChange({ value: requestedDamage, hp: targetMeta.hp, hpMax: targetMeta.hpMax,
+    change = calculateQuickHPChange({ value: requestedDamage, hp: targetMeta.hp, hpMax: targetMeta.hpMax, tempHp: targetMeta.tempHp,
       deathSaveDamage: takesDeathSaveDamage(targetMeta) });
   }
   // The second creature: Green-Flame Blade's fire, or an activation's die (Sweeping Attack, Slashing Flourish, Wails from
@@ -1258,9 +1258,9 @@ export function buildPcAttackMutation({
     .reduce((sum, component) => sum + (Number(component.amount) || 0), 0) : 0;
   const biteHeal = bite?.effect?.kind === "caster-heal" ? biteDamage : 0;
   const casterHealChange = spellNecrotic > 0 && Number.isFinite(sourceHpMeta.hp) && Number.isFinite(sourceHpMeta.hpMax)
-    ? spellCasterHealingChange({ damageChanges: [{ requested: spellNecrotic }], ratio: attack.spell.casterHealRatio, hp: sourceHpMeta.hp, hpMax: sourceHpMeta.hpMax })
+    ? spellCasterHealingChange({ damageChanges: [{ requested: spellNecrotic }], ratio: attack.spell.casterHealRatio, hp: sourceHpMeta.hp, hpMax: sourceHpMeta.hpMax, tempHp: sourceHpMeta.tempHp })
     : biteHeal > 0 && Number.isFinite(sourceHpMeta.hp) && Number.isFinite(sourceHpMeta.hpMax)
-      ? spellCasterHealingChange({ damageChanges: [{ requested: biteHeal }], ratio: 1, hp: sourceHpMeta.hp, hpMax: sourceHpMeta.hpMax })
+      ? spellCasterHealingChange({ damageChanges: [{ requested: biteHeal }], ratio: 1, hp: sourceHpMeta.hp, hpMax: sourceHpMeta.hpMax, tempHp: sourceHpMeta.tempHp })
       : null;
   const secondaryMeta = secondaryItemUsed?.metadata?.[META_KEY] || {};
   let secondaryChange = null;
@@ -1268,7 +1268,7 @@ export function buildPcAttackMutation({
     if (!Number.isFinite(secondaryMeta.hp) || !Number.isFinite(secondaryMeta.hpMax) || secondaryMeta.hp < 0 || secondaryMeta.hpMax < 0)
       throw new Error("La seconda creatura non ha HP canonici validi.");
     secondaryChange = calculateQuickHPChange({ value: secondaryComponents.reduce((sum, component) => sum + component.amount, 0),
-      hp: secondaryMeta.hp, hpMax: secondaryMeta.hpMax, deathSaveDamage: takesDeathSaveDamage(secondaryMeta) });
+      hp: secondaryMeta.hp, hpMax: secondaryMeta.hpMax, tempHp: secondaryMeta.tempHp, deathSaveDamage: takesDeathSaveDamage(secondaryMeta) });
   }
   // Bursting Arrow: the die hits every creature the GM kept around the target, each with its own defenses and HP.
   const burstRows = (activationPlan.burst?.items || []).map((item) => {
@@ -1279,7 +1279,7 @@ export function buildPcAttackMutation({
       featureId: activationPlan.burst.id, name: activationPlan.burst.option.label, activation: true } }],
     { b1: activationPlan.burst.amount }, "full", item, [], expectedBurstDefenses?.[item.id]);
     return { item, meta, components, change: calculateQuickHPChange({ value: components.reduce((sum, component) => sum + component.amount, 0),
-      hp: meta.hp, hpMax: meta.hpMax, deathSaveDamage: takesDeathSaveDamage(meta) }) };
+      hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp, deathSaveDamage: takesDeathSaveDamage(meta) }) };
   });
   const sourceName = sourceItem.name || sourceItem.id;
   const targetName = targetItem.name || targetItem.id;
@@ -1344,7 +1344,8 @@ export function buildPcAttackMutation({
       ...(activation.effect ? { effect: { kind: activation.effect.kind, label: activation.effect.label,
         ...(activation.effect.self ? { self: true } : {}), applied: activation.applies } } : {}),
       ...(activation.tempHp ? { dice: activation.option.dice, total: activation.amount, tempHp: activation.tempHp.map((row) => ({
-        targetId: row.item.id, name: row.item.name || row.item.id, amount: row.amount, before: row.change.hp, after: row.change.afterHP })) } : {}),
+        // The temporary hit points before and after (CAP-TEMP: apart from the HP).
+        targetId: row.item.id, name: row.item.name || row.item.id, amount: row.amount, before: row.change.tempHp, after: row.change.afterTempHp })) } : {}),
       ...(activation.spent.length ? { spent: activation.spent } : {}),
       ...(activation.option.rollBonus ? { rollBonus: activation.option.rollBonus } : {}),
       ...(activationSecondary?.id === activation.id ? { secondary: { targetId: activationSecondary.item.id,
@@ -1449,31 +1450,31 @@ export function buildPcAttackMutation({
     operations: [...(change?.changed || secondaryChange?.changed || activationPlan.tempHp.some((row) => row.change.changed)
       || burstRows.some((row) => row.change.changed) || casterHealChange?.changed ? [{ type: "hp:set", updates: [
       ...(change?.changed ? [{
-        itemId: targetItem.id, hp: change.afterHP, hpMax: change.hpMax,
+        itemId: targetItem.id, hp: change.afterHP, hpMax: change.hpMax, tempHp: change.afterTempHp,
         // A critical hit on a PC at 0 HP: two death save failures.
         hpIntent: { mode: "damage", amount: change.requested, eventId: attackInstanceId,
           ...(outcome === "critical" && change.deathSaveDamage ? { critical: true } : {}) },
         expectedHP: bossMetadataSnapshot(targetMeta, "hp"), expectedHPMax: bossMetadataSnapshot(targetMeta, "hpMax"),
       }] : []),
       ...(secondaryChange?.changed ? [{
-        itemId: secondaryItemUsed.id, hp: secondaryChange.afterHP, hpMax: secondaryChange.hpMax,
+        itemId: secondaryItemUsed.id, hp: secondaryChange.afterHP, hpMax: secondaryChange.hpMax, tempHp: secondaryChange.afterTempHp,
         hpIntent: { mode: "damage", amount: secondaryChange.requested, eventId: attackInstanceId },
         expectedHP: bossMetadataSnapshot(secondaryMeta, "hp"), expectedHPMax: bossMetadataSnapshot(secondaryMeta, "hpMax"),
       }] : []),
       ...burstRows.filter((row) => row.change.changed).map((row) => ({
-        itemId: row.item.id, hp: row.change.afterHP, hpMax: row.change.hpMax,
+        itemId: row.item.id, hp: row.change.afterHP, hpMax: row.change.hpMax, tempHp: row.change.afterTempHp,
         hpIntent: { mode: "damage", amount: row.change.requested, eventId: attackInstanceId },
         expectedHP: bossMetadataSnapshot(row.meta, "hp"), expectedHPMax: bossMetadataSnapshot(row.meta, "hpMax"),
       })),
       ...activationPlan.tempHp.filter((row) => row.change.changed).map((row) => ({
-        itemId: row.item.id, hp: row.change.afterHP, hpMax: row.change.hpMax,
+        itemId: row.item.id, hp: row.change.afterHP, hpMax: row.change.hpMax, tempHp: row.change.afterTempHp,
         hpIntent: { mode: QUICK_HP_MODES.TEMP, amount: row.change.requested, eventId: attackInstanceId },
         expectedHP: bossMetadataSnapshot(row.item.metadata?.[META_KEY] || {}, "hp"),
         expectedHPMax: bossMetadataSnapshot(row.item.metadata?.[META_KEY] || {}, "hpMax"),
       })),
       // One write for the caster in the same command, as the boss's drain: the target is never the caster.
       ...(casterHealChange?.changed ? [{
-        itemId: sourceItem.id, hp: casterHealChange.afterHP, hpMax: casterHealChange.hpMax,
+        itemId: sourceItem.id, hp: casterHealChange.afterHP, hpMax: casterHealChange.hpMax, tempHp: casterHealChange.afterTempHp,
         hpIntent: { mode: QUICK_HP_MODES.HEAL, amount: casterHealChange.requested, eventId: attackInstanceId },
         expectedHP: bossMetadataSnapshot(sourceHpMeta, "hp"), expectedHPMax: bossMetadataSnapshot(sourceHpMeta, "hpMax"),
       }] : []),
@@ -1615,7 +1616,7 @@ function planPcAttackActivations({ requests = [], attack, outcome, sourceItem, t
         const item = tempHpItems.find((candidate) => candidate.id === entry.targetId);
         const meta = item.metadata?.[META_KEY] || {};
         const amount = damageAmount(entry.amount);
-        return { item, amount, change: calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: amount, hp: meta.hp, hpMax: meta.hpMax }) };
+        return { item, amount, change: calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: amount, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }) };
       });
     }
     // The second creature of the activation's die: one per attack, another creature than the attacker and the target.
@@ -1728,12 +1729,13 @@ export function buildPcAttackQuiveringPalmMutation({
   let change = null;
   if (outcome === "failed") {
     // Reduced to 0 hit points, temporary ones included: not damage of a type, no defense applies.
-    change = calculateQuickHPChange({ value: targetMeta.hp, hp: targetMeta.hp, hpMax: targetMeta.hpMax });
+    change = calculateQuickHPChange({ value: (Number(targetMeta.hp) || 0) + (Number(targetMeta.tempHp) || 0), hp: targetMeta.hp,
+      hpMax: targetMeta.hpMax, tempHp: targetMeta.tempHp });
   } else if (outcome === "passed") {
     if (!validAmount(amount)) throw new Error("Inserisci i danni necrotici (10d10).");
     damageComponents = defendedComponents([{ id: "c1", type: "necrotic", source: { kind: "class-feature", featureId: PC_ATTACK_QUIVERING_PALM_FEATURE_ID, name } }],
       { c1: damageAmount(amount) }, "full", targetItem, ignoredDefenses, expectedDefenses);
-    change = calculateQuickHPChange({ value: damageComponents.reduce((sum, component) => sum + component.amount, 0), hp: targetMeta.hp, hpMax: targetMeta.hpMax,
+    change = calculateQuickHPChange({ value: damageComponents.reduce((sum, component) => sum + component.amount, 0), hp: targetMeta.hp, hpMax: targetMeta.hpMax, tempHp: targetMeta.tempHp,
       deathSaveDamage: takesDeathSaveDamage(targetMeta) });
   }
   // The active class feature on this target ends with the vibrations (the card shows it no more).
@@ -1758,7 +1760,7 @@ export function buildPcAttackQuiveringPalmMutation({
   };
   return {
     change, damageComponents, causality, labelTargetIds: [targetItem.id],
-    operations: [...(change?.changed ? [{ type: "hp:set", updates: [{ itemId: targetItem.id, hp: change.afterHP, hpMax: change.hpMax,
+    operations: [...(change?.changed ? [{ type: "hp:set", updates: [{ itemId: targetItem.id, hp: change.afterHP, hpMax: change.hpMax, tempHp: change.afterTempHp,
       hpIntent: { mode: "damage", amount: change.requested, eventId: attackInstanceId },
       expectedHP: bossMetadataSnapshot(targetMeta, "hp"), expectedHPMax: bossMetadataSnapshot(targetMeta, "hpMax") }] }] : []),
     { type: "condition:remove-instances", removals: [{ itemId: targetItem.id, instanceId: palm.instanceId }] }],
@@ -1847,7 +1849,7 @@ export function pcAttackAreaPreview({
     const total = member.outcome && factor !== "zero" && amountsReady
       ? bossDefendedDamage(components, inputs, factor === "half" ? "passed" : "hit", profileDefenses, []) : 0;
     const hp = Number.isFinite(meta.hp) && Number.isFinite(meta.hpMax)
-      ? { before: meta.hp, after: calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax }).afterHP, hpMax: meta.hpMax } : null;
+      ? { before: meta.hp, after: calculateQuickHPChange({ value: total, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }).afterHP, hpMax: meta.hpMax } : null;
     const conditionImmune = attack.monster?.onFail ? pcAttackTargetConditionImmune(member.item, attack.monster.onFail.condition) : false;
     return { id: member.item.id, name: member.item.name || member.item.id, outcome: member.outcome || "", factor, total, hp, profileDefenses,
       ...(evasion ? { evasion: true } : {}), ...(conditionImmune ? { conditionImmune: true } : {}) };
@@ -1940,7 +1942,7 @@ export function buildPcAttackAreaMutation({
     const requested = damageComponents.reduce((sum, component) => sum + component.amount, 0);
     return { item: member.item, meta, outcome: member.outcome, factor, damageComponents, evasion,
       conditionImmune: attack.monster?.onFail ? pcAttackTargetConditionImmune(member.item, attack.monster.onFail.condition) : false,
-      change: calculateQuickHPChange({ value: requested, hp: meta.hp, hpMax: meta.hpMax, deathSaveDamage: takesDeathSaveDamage(meta) }) };
+      change: calculateQuickHPChange({ value: requested, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp, deathSaveDamage: takesDeathSaveDamage(meta) }) };
   });
   const newUses = [
     ...(turn ? chosenRiders.filter((rider) => rider.option.limit).map((rider) => ({ riderId: rider.id, turnKey: turn.turnKey })) : []),
@@ -2043,7 +2045,7 @@ export function buildPcAttackAreaMutation({
     causality, rows, changes: changed.map((row) => ({ item: row.item, change: row.change })),
     labelTargetIds: [...new Set(conditionOperations.flatMap((operation) => operation.targetIds))],
     operations: [...(changed.length ? [{ type: "hp:set", updates: changed.map((row) => ({
-      itemId: row.item.id, hp: row.change.afterHP, hpMax: row.change.hpMax,
+      itemId: row.item.id, hp: row.change.afterHP, hpMax: row.change.hpMax, tempHp: row.change.afterTempHp,
       hpIntent: { mode: "damage", amount: row.change.requested, eventId: attackInstanceId },
       expectedHP: bossMetadataSnapshot(row.meta, "hp"), expectedHPMax: bossMetadataSnapshot(row.meta, "hpMax"),
     })) }] : []), ...conditionOperations],

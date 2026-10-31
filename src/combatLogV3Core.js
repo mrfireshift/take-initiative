@@ -227,11 +227,14 @@ function normalizeHpTarget(target) {
   const afterHp = numberOrNull(after.hp);
   const beforeMax = numberOrNull(before.hpMax);
   const afterMax = numberOrNull(after.hpMax);
+  // CAP-TEMP: the temporary hit points, when the event has them.
+  const beforeTemp = numberOrNull(before.tempHp);
+  const afterTemp = numberOrNull(after.tempHp);
   return {
     id: textOrNull(raw.id),
     name: textOrNull(raw.name),
-    before: { hp: beforeHp, hpMax: beforeMax },
-    after: { hp: afterHp, hpMax: afterMax },
+    before: { hp: beforeHp, hpMax: beforeMax, ...(beforeTemp !== null ? { tempHp: beforeTemp } : {}) },
+    after: { hp: afterHp, hpMax: afterMax, ...(afterTemp !== null ? { tempHp: afterTemp } : {}) },
     delta: numberOrNull(hasOwn(raw, "delta") ? raw.delta : (beforeHp !== null && afterHp !== null ? afterHp - beforeHp : null)),
     hpMaxDelta: numberOrNull(hasOwn(raw, "hpMaxDelta")
       ? raw.hpMaxDelta

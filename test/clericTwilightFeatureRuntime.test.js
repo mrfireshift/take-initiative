@@ -414,7 +414,9 @@ test("Santuario conserva costo, durata e aura, con pill diretta solo sulla Card"
   assert.equal(aura.targetEffects.length, 1);
   assert.equal(aura.targetEffect.label, "Nel Santuario del Crepuscolo");
   assert.equal(aura.targetEffect.detail.includes("Sudario"), true);
-  assert.equal(JSON.stringify(value.effectPlan).includes("temporaryHp"), false);
+  // No temporary hit points at the activation: the sanctuary gives them at the end of a creature's turn (CAP-TEMP).
+  assert.equal(value.effectPlan.temporaryHp, undefined);
+  assert.equal(value.effectPlan.triggerPolicy.triggers[0].resolutionData.temporaryHp, true);
 
   const directPills = classFeatureConditionInstancesForActivation(
     value,
@@ -469,7 +471,7 @@ test("Santuario conserva costo, durata e aura, con pill diretta solo sulla Card"
   );
 });
 
-test("Santuario invia un solo reminder informativo a fine turno senza mutare HP o condizioni", () => {
+test("Santuario invia un solo reminder a fine turno, con il tiro dei PF temporanei, senza mutare HP o condizioni", () => {
   const fixture = sanctuaryFixture();
   const desiredTargetIds = ["cleric", "ally", "neutral", "enemy"];
   const state = (current) => ({
@@ -508,9 +510,11 @@ test("Santuario invia un solo reminder informativo a fine turno senza mutare HP 
   assert.equal(clericEnd.notices.length, 1);
   assert.equal(clericEnd.notices[0].targets[0].id, "cleric");
   assert.match(clericEnd.notices[0].label, /1d6/iu);
-  assert.match(clericEnd.notices[0].label, /Affascinata/iu);
-  assert.match(clericEnd.notices[0].label, /Spaventata/iu);
-  assert.equal(clericEnd.newActivations[0].resolution, "informational");
+  assert.match(clericEnd.notices[0].label, /Affascinato/iu);
+  assert.match(clericEnd.notices[0].label, /Spaventato/iu);
+  assert.equal(clericEnd.newActivations[0].resolution, "manual-heal");
+  assert.equal(clericEnd.notices[0].resolution?.mode, "manual-heal");
+  assert.equal(clericEnd.notices[0].resolution?.activation?.resolutionData?.temporaryHp, true);
 
   const duplicate = planClassFeatureAuraReminder({
     aura: fixture.aura,

@@ -375,8 +375,9 @@ function sameValues(a, b) {
 // Only the fields an action changed go in its entry: a heal on six characters full of effects used to carry every
 // effect of every one of them twice (before and after), over 16 kB, and the entry could not reach the History owner.
 // Undo reads the fields an entry holds, so an unchanged field it no longer holds is one it leaves alone. HP and max HP
-// stay together, as the combat log shows them ("40/60 → 33/60").
-const HISTORY_FIELDS_KEPT_TOGETHER = Object.freeze([["hp", "hpMax"]]);
+// stay together, as the combat log shows them ("40/60 → 33/60"), and the temporary hit points with them (CAP-TEMP): an
+// Undo of the HP puts back the temporary hit points of the same moment.
+const HISTORY_FIELDS_KEPT_TOGETHER = Object.freeze([["hp", "hpMax", "tempHp", "tempHpSource"]]);
 
 export function changedHistoryFields(beforeValues = {}, afterValues = {}) {
   const fields = Object.keys({ ...beforeValues, ...afterValues });
@@ -788,6 +789,10 @@ export function buildEffectsMutationHistoryEntry({
     : null;
   const sharedHp = sharedHpHistorySnapshot(plan);
   if (sharedHp) historyPayload = { ...(historyPayload || {}), sharedHp };
+  // CAP-TEMP: what the command did to the temporary hit points (granted, absorbed, removed...), for the combat log.
+  if (Array.isArray(plan?.tempHpChanges) && plan.tempHpChanges.length) {
+    historyPayload = { ...(historyPayload || {}), tempHp: cloneValue(plan.tempHpChanges) };
+  }
   const entry = {
     id: command.commandId ? `effects-history:${command.commandId}` : createEntryId(),
     version: HISTORY_VERSION,

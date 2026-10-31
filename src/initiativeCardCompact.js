@@ -13,6 +13,10 @@ import { cardPlayerAssignmentTitle } from "./playerAssignmentCore.js";
 import { HIT_AREA_MIN_SIZE, extendHitArea } from "./hitAreaCore.js";
 import { CARD_ICON_BUTTON_SIZE, buildCardIconGlyph, markHiddenTokenPortrait, styleCardIconButton } from "./cardIconButton.js";
 import { canOpenInitiativeCardSheet } from "./initiativeCardSheetAccessCore.js";
+import { quickHPBarSegments, quickHPStateOf, TEMP_HP_COLOR } from "./quickHpCore.js";
+
+// CAP-TEMP: the colour of the temporary hit points beside the HP (quickHpCore.js), for the cards built from here.
+export { TEMP_HP_COLOR };
 
 export { COMPACT_CARD_WIDTH };
 export const COMPACT_CARD_HEIGHT = 120;
@@ -779,17 +783,44 @@ export function buildCompactVirtualTurnLabel(
   return label;
 }
 
+// CAP-TEMP: the temporary hit points inside an HP bar, right after the HP's fill, as a reserve on top of them
+// (quickHPBarSegments): a light cyan part, created when there are some and removed when none. track: the bar that holds
+// the fill; segments: { hpRatio, tempRatio }.
+export function writeHPBarTempSegment(track, segments = {}, { documentRef = globalThis.document } = {}) {
+  if (!track) return null;
+  let part = Array.from(track.children || []).find((child) => child?.dataset?.hpTempFill === "1") || null;
+  const ratio = Math.max(0, Math.min(1, Number(segments.tempRatio) || 0));
+  if (!ratio) {
+    part?.remove?.();
+    return null;
+  }
+  if (!part) {
+    part = compactDocument(documentRef).createElement("div");
+    part.dataset.hpTempFill = "1";
+    Object.assign(part.style, { position: "absolute", top: "0", bottom: "0", background: TEMP_HP_COLOR, pointerEvents: "none" });
+    track.appendChild(part);
+  }
+  if (!track.style.position) track.style.position = "relative";
+  part.style.left = `${Math.max(0, Math.min(1, Number(segments.hpRatio) || 0)) * 100}%`;
+  part.style.width = `${ratio * 100}%`;
+  return part;
+}
+
 // "HP 78 / 100" with the current value standing out and the label and the maximum quieter. The card and the live HP
 // sync (syncTrackerHPNow) both write it here, so an HP change keeps the same look. It never throws: if the parts
-// cannot be built, the plain text is written instead, and the caller goes on to update the bar.
+// cannot be built, the plain text is written instead, and the caller goes on to update the bar. The temporary hit
+// points follow as "+N" in blue (CAP-TEMP).
 export function writeCompactHPText(
   hpText,
   hp,
   hpMax,
-  { documentRef = globalThis.document } = {},
+  { documentRef = globalThis.document, tempHp = 0 } = {},
 ) {
-  const current = String(Math.round(Number(hp) || 0));
+  const state = quickHPStateOf({ hp: Math.round(Number(hp) || 0), hpMax: Math.round(Number(hpMax) || 0), tempHp });
+  const current = String(state.hp);
   const maximum = String(Math.round(Number(hpMax) || 0));
+  const temporary = state.tempHp > 0 ? ` +${state.tempHp}` : "";
+  if (hpText?.dataset) hpText.dataset.tempHp = String(state.tempHp);
   try {
     const document = compactDocument(documentRef);
     const part = (text, style) => {
@@ -803,17 +834,19 @@ export function writeCompactHPText(
       part("HP ", {}),
       part(current, {}),
       part(` / ${maximum}`, {}),
+      ...(temporary ? [part(temporary, { color: TEMP_HP_COLOR })] : []),
     );
   } catch {
-    hpText.textContent = `HP ${current} / ${maximum}`;
+    hpText.textContent = `HP ${current} / ${maximum}${temporary}`;
   }
 }
 
 // The same text as writeCompactHPText, as HTML: the inline HP editor writes its result with innerHTML (formatHP).
-export function compactHPTextHTML(hp, hpMax) {
-  const current = Math.round(Number(hp) || 0);
+export function compactHPTextHTML(hp, hpMax, tempHp = 0) {
+  const state = quickHPStateOf({ hp: Math.round(Number(hp) || 0), hpMax: Math.round(Number(hpMax) || 0), tempHp });
   const maximum = Math.round(Number(hpMax) || 0);
-  return `<span>HP </span><span>${current}</span><span> / ${maximum}</span>`;
+  const temporary = state.tempHp > 0 ? `<span style="color:${TEMP_HP_COLOR}"> +${state.tempHp}</span>` : "";
+  return `<span>HP </span><span>${state.hp}</span><span> / ${maximum}</span>${temporary}`;
 }
 
 // GM: a click on the HP text opens the classic card's inline editor (bindHPEditorForEntry), with the same save path.
@@ -1013,7 +1046,7 @@ export function buildCompactCardHP(
     healthy: "In salute",
   };
   if (showHP && hpMode === "exact") {
-    writeCompactHPText(hpText, safeHP, hpMax, { documentRef });
+    writeCompactHPText(hpText, safeHP, hpMax, { documentRef, tempHp: entry?.__groupCollapsed ? 0 : entry?.tempHp });
   } else {
     hpText.textContent = !showHP || hpMode === "bar"
       ? ""
@@ -1050,12 +1083,17 @@ export function buildCompactCardHP(
   const hpFill = document.createElement("div");
   hpFill.dataset.hpFill = "1";
   hpFill.dataset.itemId = entry.id;
+  // CAP-TEMP: the temporary hit points after the HP, on their total (only with the exact HP).
+  const bar = showHP && hpMode === "exact" && !entry?.__groupCollapsed
+    ? quickHPBarSegments({ hp: safeHP, hpMax, tempHp: entry?.tempHp })
+    : { hpRatio: hpPercent, tempRatio: 0 };
   Object.assign(hpFill.style, {
-    width: showHP ? `${hpPercent * 100}%` : "0%",
+    width: showHP ? `${bar.hpRatio * 100}%` : "0%",
     height: "100%",
     background: knockedOut ? "#475569" : hpColorByPct(hpPercent),
   });
   hpTrack.appendChild(hpFill);
+  if (showHP) writeHPBarTempSegment(hpTrack, bar, { documentRef });
 
   let knockedOutBadge = null;
   if (knockedOut) {
@@ -1369,7 +1407,10 @@ export function deriveCompactCardPresentation(
   // A collapsed group shows no HP, as the classic card (lot L20): they were its first member's, read as the group's.
   const hasHP = !virtual && !entry?.__groupCollapsed && Number.isFinite(hpMax) && hpMax > 0;
   const showHP = canSeeHP && hasHP;
-  const safeHP = hasHP && Number.isFinite(hp) ? Math.max(0, hp) : 0;
+  // The HP up to the maximum: a token of the old encoding keeps its part above as temporary hit points (CAP-TEMP).
+  const safeHP = hasHP && Number.isFinite(hp)
+    ? (disclosure && disclosure.mode !== "exact" ? Math.max(0, hp) : quickHPStateOf({ hp, hpMax }).hp)
+    : 0;
   const hpPercent = hasHP ? Math.max(0, Math.min(1, safeHP / hpMax)) : 0;
   const knockedOut = showHP && !entry?.__groupCollapsed && safeHP <= 0;
   const effectMembers = entry?.__groupCollapsed ? [] : members;

@@ -14,6 +14,9 @@ import {
   QUICK_HP_FACTORS,
   QUICK_HP_MODES,
   calculateQuickHPChange,
+  quickHPStateOf,
+  quickHPTempHpChangeMode,
+  quickHPTempHpSourceAfter,
   createQuickHPVisualTransaction,
   quickHPVisualUpdates,
   quickHPZeroReconcileTargetIds,
@@ -323,6 +326,7 @@ function casterHealingEntryFromAppliedDamage({ entries = [], caster = null, rati
     ratio,
     hp: meta.hp,
     hpMax: meta.hpMax,
+    tempHp: meta.tempHp,
   });
   return change.changed ? { item: caster, change, outcome: "healing" } : null;
 }
@@ -351,6 +355,7 @@ function prismaticSprayHPEntries(items, prismaticSprayPlan) {
         factor: QUICK_HP_FACTORS.FULL,
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
+        tempHp: itemMeta(item).tempHp,
         deathSaveDamage: takesDeathSaveDamage(itemMeta(item)),
       });
       return {
@@ -390,6 +395,7 @@ function magicMissileHPEntries(command, items, allItems = items) {
         factor: QUICK_HP_FACTORS.FULL,
         hp: meta.hp,
         hpMax: meta.hpMax,
+        tempHp: meta.tempHp,
         deathSaveDamage: takesDeathSaveDamage(meta) && magicMissile.damage > 0,
       });
       return {
@@ -399,7 +405,7 @@ function magicMissileHPEntries(command, items, allItems = items) {
           ...change,
           magicMissile,
           // Each dart is its own damage: never massive damage from the sum, one death save failure per dart at 0 HP.
-          ...magicMissileDeathSaveHits({ hp: meta.hp, dartDamages: magicMissile.dartDamages }),
+          ...magicMissileDeathSaveHits({ ...quickHPStateOf(meta), dartDamages: magicMissile.dartDamages }),
         },
       };
     })
@@ -437,6 +443,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
         factor: factorName,
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
+        tempHp: itemMeta(item).tempHp,
         deathSaveDamage: takesDeathSaveDamage(itemMeta(item)),
       });
       if (mode !== QUICK_HP_MODES.DAMAGE
@@ -452,6 +459,7 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
           : normalizeFactor(hp.primaryOutcomeFactor),
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
+        tempHp: itemMeta(item).tempHp,
         deathSaveDamage: takesDeathSaveDamage(itemMeta(item)),
       });
       const combinedChange = calculateQuickHPChange({
@@ -460,8 +468,10 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
         factor: QUICK_HP_FACTORS.FULL,
         hp: primaryChange.afterHP,
         hpMax: itemMeta(item).hpMax,
+        tempHp: primaryChange.afterTempHp,
         deathSaveDamage: takesDeathSaveDamage(itemMeta(item)),
       });
+      const delta = combinedChange.afterHP + combinedChange.afterTempHp - primaryChange.hp - primaryChange.tempHp;
       return {
         item,
         outcome,
@@ -469,10 +479,14 @@ function hpEntries({ command, items, allItems = items, spell, prismaticSprayPlan
           ...combinedChange,
           factor: areaChange.factor,
           hp: primaryChange.hp,
+          tempHp: primaryChange.tempHp,
           requested: primaryChange.requested + combinedChange.requested,
-          delta: combinedChange.afterHP - primaryChange.hp,
+          absorbedByTempHp: primaryChange.absorbedByTempHp + combinedChange.absorbedByTempHp,
+          hpDelta: combinedChange.afterHP - primaryChange.hp,
+          tempDelta: combinedChange.afterTempHp - primaryChange.tempHp,
+          delta,
           // A PC already at 0 HP: no HP change, but the hit counts on its death saves.
-          changed: combinedChange.afterHP !== primaryChange.hp
+          changed: delta !== 0
             || primaryChange.deathSaveDamage === true || combinedChange.deathSaveDamage === true,
           primaryRequested: primaryChange.requested,
           primaryFactor: primaryChange.factor,
@@ -534,11 +548,15 @@ function applyAreaReactionHp(entries, allItems = [], wardedIds = new Set()) {
       damage: entry.change.mode === QUICK_HP_MODES.DAMAGE && entry.change.withoutDamage !== true ? entry.change.requested : 0 })),
     itemsById,
     hpById: new Map(entries.map((entry) => [entry.item.id, entry.change.afterHP])),
+    tempHpById: new Map(entries.map((entry) => [entry.item.id, entry.change.afterTempHp])),
   });
   for (const write of bond.writes) {
     const entry = entries.find((candidate) => candidate.item.id === write.itemId);
     if (entry) {
-      entry.change = { ...entry.change, afterHP: write.hp, delta: write.hp - entry.change.hp, changed: true,
+      const absorbed = Math.max(0, entry.change.afterTempHp - write.tempHp);
+      entry.change = { ...entry.change, afterHP: write.hp, afterTempHp: write.tempHp, changed: true,
+        delta: write.hp + write.tempHp - entry.change.hp - entry.change.tempHp,
+        absorbedByTempHp: (entry.change.mode === QUICK_HP_MODES.DAMAGE ? entry.change.absorbedByTempHp || 0 : 0) + absorbed,
         requested: (entry.change.mode === QUICK_HP_MODES.DAMAGE ? entry.change.requested : 0) + write.damage,
         mode: QUICK_HP_MODES.DAMAGE };
       continue;
@@ -546,7 +564,7 @@ function applyAreaReactionHp(entries, allItems = [], wardedIds = new Set()) {
     const item = itemsById.get(write.itemId);
     const meta = itemMeta(item);
     entries.push({ item, outcome: "", change: calculateQuickHPChange({ mode: QUICK_HP_MODES.DAMAGE, value: write.damage,
-      factor: QUICK_HP_FACTORS.FULL, hp: meta.hp, hpMax: meta.hpMax, deathSaveDamage: takesDeathSaveDamage(meta) }) });
+      factor: QUICK_HP_FACTORS.FULL, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp, deathSaveDamage: takesDeathSaveDamage(meta) }) });
   }
   if (bond.removals.length) operations.push({ type: "condition:remove-instances", removals: bond.removals });
   notes.push(...bond.notes);
@@ -556,7 +574,8 @@ function applyAreaReactionHp(entries, allItems = [], wardedIds = new Set()) {
     const ward = planDeathWard({ item: entry.item, hpAfter: entry.change.afterHP,
       damage: entry.change.withoutDamage === true ? 0 : entry.change.requested, instantDeath: entry.change.instantDeath === true });
     if (!ward) continue;
-    entry.change = { ...entry.change, afterHP: ward.hp, delta: ward.hp - entry.change.hp, instantDeath: false, deathDetail: "" };
+    entry.change = { ...entry.change, afterHP: ward.hp, instantDeath: false, deathDetail: "",
+      delta: ward.hp + (entry.change.afterTempHp || 0) - entry.change.hp - (entry.change.tempHp || 0) };
     operations.push({ type: "condition:remove-instances",
       removals: ward.removeInstanceIds.map((instanceId) => ({ itemId: entry.item.id, instanceId })) });
     wardsUsed.add(entry.item.id);
@@ -628,6 +647,7 @@ function applyCleanseHeals(entries, heals = []) {
       factor: QUICK_HP_FACTORS.FULL,
       hp: meta.hp,
       hpMax: meta.hpMax,
+      tempHp: meta.tempHp,
     });
     if (change.changed) entries.push({ item, change, outcome: SAVE_SPELL_OUTCOMES.FAILED });
   }
@@ -641,13 +661,16 @@ function applyHpBranchDeaths(entries, deaths, items = []) {
     const item = entry?.item || items.find((candidate) => candidate?.id === itemId);
     if (!item || !trackedHP(item)) continue;
     const meta = itemMeta(item);
-    const hp = Math.max(0, Math.floor(Number(entry?.change?.hp ?? meta.hp) || 0));
+    const state = quickHPStateOf(meta);
+    const hp = Math.max(0, Math.floor(Number(entry?.change?.hp ?? state.hp) || 0));
     const hpMax = Math.max(0, Math.floor(Number(entry?.change?.hpMax ?? meta.hpMax) || 0));
+    const tempHp = Math.max(0, Math.floor(Number(entry?.change?.tempHp ?? state.tempHp) || 0));
     const change = {
-      ...(entry?.change || { mode: QUICK_HP_MODES.DAMAGE, factor: QUICK_HP_FACTORS.FULL, hp, hpMax, requested: hp,
+      ...(entry?.change || { mode: QUICK_HP_MODES.DAMAGE, factor: QUICK_HP_FACTORS.FULL, hp, hpMax, tempHp, requested: hp,
         withoutDamage: true }),
       afterHP: 0,
-      delta: -hp,
+      afterTempHp: 0,
+      delta: -hp - tempHp,
       changed: true,
       instantDeath: true,
       deathDetail: death.detail,
@@ -670,7 +693,7 @@ function planAreaDeathSaves(entries) {
       hpAfter: entry.change.afterHP,
       hpMax: entry.change.hpMax,
       damage: entry.change.mode === QUICK_HP_MODES.DAMAGE
-        ? entry.change.damageInstance ?? entry.change.requested
+        ? entry.change.damageInstance ?? Math.max(0, entry.change.requested - (entry.change.absorbedByTempHp || 0))
         : 0,
       ...(entry.change.hitsAtZero !== undefined ? { hitsAtZero: entry.change.hitsAtZero } : {}),
       instantDeath: entry.change.instantDeath === true,
@@ -2020,6 +2043,19 @@ async function buildPlan(command, runtime) {
     ? applyAreaReactionHp(entries, allItems, hpBranch?.wardedIds || new Set())
     : { operations: [], notes: [] };
   effectOperations.push(...reactionHp.operations);
+  // CAP-TEMP, lotto T3a: the pill that ends when the temporary hit points it gave are gone (Armor of Agathys), for the
+  // HP this command writes itself (the coordinator does it for its own).
+  if (!sharedHpPreview.groups.length && !isTeleportSpell(spell.id)) {
+    for (const entry of entries) {
+      const meta = itemMeta(entry.item);
+      const source = String(meta.tempHpSource || "").trim();
+      if (!source || !(entry.change.tempHp > 0) || entry.change.afterTempHp !== 0) continue;
+      const pill = getConditionInstances(meta.conditions || {})
+        .find((instance) => instance?.active !== false && String(instance?.id || "") === source
+          && instance?.mechanics?.endsWhenTempHpGone === true);
+      if (pill) effectOperations.push({ type: "condition:remove-instances", removals: [{ itemId: entry.item.id, instanceId: pill.id }] });
+    }
+  }
   const areaDeathSaves = !sharedHpPreview.groups.length && !isTeleportSpell(spell.id)
     ? planAreaDeathSaves(entries)
     : { operations: [], instantDeathIds: new Set() };
@@ -2032,7 +2068,7 @@ async function buildPlan(command, runtime) {
     ))
     .map((entry) => entry.item.id));
   const damageEndsRemovals = entries
-    .filter((entry) => entry.change?.afterHP < entry.change?.hp)
+    .filter((entry) => entry.change?.delta < 0)
     .flatMap((entry) => {
       const meta = itemMeta(entry.item);
       const instances = getConditionInstances(meta.conditions || {});
@@ -2051,6 +2087,7 @@ async function buildPlan(command, runtime) {
         ...meta,
         hp: entry.change.afterHP,
         hpMax: entry.change.hpMax,
+        tempHp: entry.change.afterTempHp,
       }, getConditionInstances(meta.conditions || {}));
     },
   );
@@ -2335,6 +2372,15 @@ async function updateHP(runtime, entries) {
       if (!update) continue;
       const previous = item.metadata?.[META_KEY] || {};
       const next = { ...previous, hp: update.afterHP, hpMax: update.hpMax };
+      // CAP-TEMP: the temporary hit points the change leaves (absent at 0), and their source (lotto T3a): none
+      // left, none; the command gives none from a pill.
+      if (update.afterTempHp > 0) next.tempHp = update.afterTempHp;
+      else if (update.afterTempHp === 0) delete next.tempHp;
+      if (update.afterTempHp !== undefined) {
+        const source = quickHPTempHpSourceAfter({ beforeTemp: quickHPStateOf(previous).tempHp, afterTemp: update.afterTempHp,
+          currentSource: previous.tempHpSource });
+        if (source === "") delete next.tempHpSource;
+      }
       // The death saves tally (planAreaDeathSaves), with the HP it follows.
       if (update.deathSaves?.mode === "delete") delete next[DEATH_SAVES_FIELD];
       else if (update.deathSaves?.value) next[DEATH_SAVES_FIELD] = clone(update.deathSaves.value);
@@ -2358,8 +2404,18 @@ async function restoreHPIfUnchanged(runtime, entries) {
       if (!entry || !currentItem) continue;
       const meta = itemMeta(item);
       if (Number(meta.hp) !== Number(entry.change.afterHP)
-        || Number(meta.hpMax) !== Number(entry.change.hpMax)) continue;
+        || Number(meta.hpMax) !== Number(entry.change.hpMax)
+        || entry.change.afterTempHp !== undefined && Math.max(0, Number(meta.tempHp) || 0) !== entry.change.afterTempHp) continue;
       const restored = { ...meta, hp: entry.change.hp, hpMax: entry.change.hpMax };
+      // The temporary hit points as they were (the field as it was, the old encoding included).
+      const before = itemMeta(entry.item);
+      if (entry.change.afterTempHp !== undefined) {
+        restored.hp = before.hp;
+        for (const field of ["tempHp", "tempHpSource"]) {
+          if (Object.prototype.hasOwnProperty.call(before, field)) restored[field] = before[field];
+          else delete restored[field];
+        }
+      }
       // The death saves tally written with these HP goes back to its value before the command.
       if (entry.change.deathSaves) {
         const original = itemMeta(entry.item);
@@ -2565,6 +2621,7 @@ export async function executeSpellAreaResolution(
         itemId: entry.item.id,
         hp: entry.change.afterHP,
         hpMax: entry.change.hpMax,
+        tempHp: entry.change.afterTempHp,
         hpIntents: sharedHpIntents(entry, command.commandId || runtime.operationId || plan.spellInstanceId),
         expectedHP: entry.change.hp,
         expectedHPMax: entry.change.hpMax,
@@ -2644,7 +2701,7 @@ export async function executeSpellAreaResolution(
         label: `${castWithoutSave ? "Incantesimo" : "Effetti ad area"} · ${plan.spell.displayName || plan.spell.name || plan.spell.id}`,
       itemIds: plan.historyIds,
       sceneItemIds: plan.staticZoneSceneItemIds,
-      fields: ["hp", "hpMax", DEATH_SAVES_FIELD, "conditions", SPELLS_KEY, CONCENTRATION_KEY,
+      fields: ["hp", "hpMax", "tempHp", "tempHpSource", DEATH_SAVES_FIELD, "conditions", SPELLS_KEY, CONCENTRATION_KEY,
         ...(plan.bossActionUse ? [BOSS_ACTION_STATE_FIELD] : [])],
       onRecorded: (entry) => { recordedEntry = entry; },
       decorateEntry: (entry) => {
@@ -2676,10 +2733,19 @@ export async function executeSpellAreaResolution(
           mutation: coordinatedMutation,
           effectMetadataFields: ["conditions", SPELLS_KEY, CONCENTRATION_KEY, BOSS_ACTION_STATE_FIELD],
         });
+        // CAP-TEMP: the temporary hit points the command's own HP write changed, for the combat log (the
+        // coordinator records its own when the HP go through it).
+        const ownTempHp = plan.sharedHpPreview.groups.length ? [] : entries.map((entry) => {
+          const mode = quickHPTempHpChangeMode({ before: entry.change.tempHp, after: entry.change.afterTempHp,
+            damage: entry.change.mode === QUICK_HP_MODES.DAMAGE && entry.change.withoutDamage !== true,
+            instantDeath: entry.change.instantDeath === true && entry.change.withoutDamage === true });
+          return mode ? { id: entry.item.id, before: entry.change.tempHp, after: entry.change.afterTempHp, mode } : null;
+        }).filter(Boolean);
         return {
           ...decorated,
           payload: {
             ...(decorated?.payload || {}),
+            ...(ownTempHp.length ? { tempHp: [...(decorated?.payload?.tempHp || []), ...ownTempHp] } : {}),
             causality: withSpellCastCost(spellAreaCausality(plan), runtime.castCost),
             ...(castWithoutSave ? { castWithoutSave: true } : {}),
           },
@@ -2704,7 +2770,7 @@ export async function executeSpellAreaResolution(
         }
         const operations = [
           ...(sharedHp && entries.length ? [{ type: "hp:set", updates: entries.map(entry => ({
-            itemId: entry.item.id, hp: entry.change.afterHP, hpMax: entry.change.hpMax,
+            itemId: entry.item.id, hp: entry.change.afterHP, hpMax: entry.change.hpMax, tempHp: entry.change.afterTempHp,
             hpIntents: sharedHpIntents(entry, command.commandId || runtime.operationId || plan.spellInstanceId),
           })) }] : []),
           ...(plan.zeroHPReconcileIds.length ? [{

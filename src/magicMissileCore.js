@@ -120,15 +120,20 @@ export function magicMissileTargetDamage({ rolls = [], guard = {} } = {}) {
 
 // The darts one after the other from the target's hit points: those landing at 0 HP (one death save failure each)
 // and the damage that counts for the death saves, as one hit would: up to the dart that drops the target (its
-// leftover decides the massive damage), or the largest dart for a target already at 0 HP.
-export function magicMissileDeathSaveHits({ hp = 0, dartDamages = [] } = {}) {
+// leftover decides the massive damage), or the largest dart for a target already at 0 HP. The temporary hit points
+// take the darts first (CAP-TEMP): a dart they take whole reaches no HP.
+export function magicMissileDeathSaveHits({ hp = 0, tempHp = 0, dartDamages = [] } = {}) {
   const before = Math.max(0, Math.floor(Number(hp) || 0));
   const damages = (Array.isArray(dartDamages) ? dartDamages : []).map((damage) => Math.max(0, Math.floor(Number(damage) || 0)));
   let current = before;
+  let pool = Math.max(0, Math.floor(Number(tempHp) || 0));
   let dealt = 0;
   let hitsAtZero = 0;
   let largestAtZero = 0;
-  for (const damage of damages) {
+  for (const dart of damages) {
+    const absorbed = Math.min(pool, dart);
+    pool -= absorbed;
+    const damage = dart - absorbed;
     if (damage <= 0) continue;
     if (current <= 0) {
       hitsAtZero += 1;

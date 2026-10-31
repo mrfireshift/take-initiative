@@ -298,7 +298,49 @@ function facetChangeLines(facet, field) {
   return lines;
 }
 
-function hpTargetLine(target) {
+// CAP-TEMP: what happened to the temporary hit points of a target, from the History's record (payload.tempHp) or,
+// for an entry without it, from the change: a rise is granted or raised, a fall is damage when the HP fell too or the
+// entry is not a hand edit of the HP.
+function tempHpChangeOf(target, event, beforeTemp, afterTemp, hpDelta = null) {
+  const records = (Array.isArray(event?.payload?.tempHp) ? event.payload.tempHp : [])
+    .filter((record) => stringValue(record?.id) && stringValue(record.id) === stringValue(target?.id));
+  if (records.length) {
+    const before = finiteNumber(records[0].before) ?? beforeTemp ?? 0;
+    const after = finiteNumber(records.at(-1).after) ?? afterTemp ?? 0;
+    const modes = records.map((record) => stringValue(record.mode));
+    const mode = ["absorbed", "expired", "lost", "removed", "raised", "granted"].find((candidate) => modes.includes(candidate));
+    return mode ? { mode, before, after } : null;
+  }
+  if (beforeTemp === null && afterTemp === null) return null;
+  const before = beforeTemp ?? 0;
+  const after = afterTemp ?? 0;
+  if (before === after) return null;
+  if (after > before) return { mode: before > 0 ? "raised" : "granted", before, after };
+  return { mode: event?.category === "hp" && !(hpDelta < 0) ? "removed" : "absorbed", before, after };
+}
+
+// The temporary hit points in words: added, raised, taken by the damage (with the part that reached the HP),
+// removed or lost. hpDelta: the change of the HP alone.
+function tempHpChangeText(change, hpDelta) {
+  if (!change) return "";
+  const { mode, before, after } = change;
+  if (mode === "granted") return `+${numberText(after)} PF temporanei`;
+  if (mode === "raised") return `PF temporanei da ${numberText(before)} a ${numberText(after)}`;
+  if (mode === "lost") return `PF temporanei persi: ${numberText(before)}`;
+  // Their pill ended (lotto T3a): the ones left go with it.
+  if (mode === "expired") return `PF temporanei scaduti: ${numberText(before)}`;
+  if (mode === "removed") {
+    return after > 0 ? `PF temporanei da ${numberText(before)} a ${numberText(after)}` : `PF temporanei tolti: ${numberText(before)}`;
+  }
+  const absorbed = before - after;
+  const spent = after > 0 ? "" : ", esauriti";
+  if (hpDelta !== null && hpDelta < 0) {
+    return `danno ${numberText(absorbed - hpDelta)}: ${numberText(absorbed)} sui PF temporanei${spent}, ${numberText(-hpDelta)} sui PF`;
+  }
+  return `danno ${numberText(absorbed)} assorbito dai PF temporanei${spent}`;
+}
+
+function hpTargetLine(target, event = null) {
   const before = target?.before || {};
   const after = target?.after || {};
   const beforeHp = finiteNumber(before.hp);
@@ -311,7 +353,24 @@ function hpTargetLine(target) {
     ?? (beforeHpMax !== null && afterHpMax !== null ? afterHpMax - beforeHpMax : null);
   const name = targetName(target);
   const deltaText = delta === null ? "?" : signedNumber(delta);
-  const line = `${name}: ${numberText(before.hp)}/${numberText(before.hpMax)} → ${numberText(after.hp)}/${numberText(after.hpMax)} (${deltaText} PF)`;
+  // CAP-TEMP: the temporary hit points beside the HP ("30/45 +8") and what happened to them, or alone when the entry
+  // recorded only them.
+  const beforeTemp = finiteNumber(before.tempHp);
+  const afterTemp = finiteNumber(after.tempHp);
+  const hpDelta = beforeHp !== null && afterHp !== null ? afterHp - beforeHp : null;
+  const tempChange = tempHpChangeOf(target, event, beforeTemp, afterTemp, hpDelta);
+  if (beforeHp === null && afterHp === null && tempChange) return `${name}: ${tempHpChangeText(tempChange, null)}`;
+  const tempText = tempHpChangeText(tempChange, hpDelta);
+  const detail = !tempText
+    ? `${deltaText} PF`
+    : tempChange.mode === "absorbed" || hpDelta === 0 || hpDelta === null
+      ? tempText
+      : `${signedNumber(hpDelta)} PF · ${tempText}`;
+  const temp = (value) => (value > 0 ? ` +${numberText(value)}` : "");
+  const shownBeforeTemp = tempChange ? tempChange.before : beforeTemp;
+  const shownAfterTemp = tempChange ? tempChange.after : afterTemp;
+  const line = `${name}: ${numberText(before.hp)}/${numberText(before.hpMax)}${temp(shownBeforeTemp)} → `
+    + `${numberText(after.hp)}/${numberText(after.hpMax)}${temp(shownAfterTemp)} (${detail})`;
   return hpMaxDelta === null || hpMaxDelta === 0
     ? line
     : `${line}; PF max ${signedNumber(hpMaxDelta)}`;
@@ -861,7 +920,7 @@ function eventSummary(event, targets, outcomes) {
   const counterspell = counterspellLogLines(event?.payload?.counterspell);
   if (counterspell.length) return counterspell.slice(0, 2).join(" · ");
   const category = event.category;
-  const hpLines = hpTargets(event).map(hpTargetLine);
+  const hpLines = hpTargets(event).map((target) => hpTargetLine(target, event));
   const facetLines = [
     ...["conditions", "spells", "concentrations"].flatMap((field) => facetChangeLines(event?.facets?.[field], field)),
     ...deathSaveLines(event, targets),
@@ -874,7 +933,7 @@ function eventSummary(event, targets, outcomes) {
   const sharedHpLines = sharedHpSummaryLines(event);
   if (sharedHpLines.length) {
     const memberIds = new Set(event.payload.sharedHp.groups.flatMap(group => group.memberIds || []));
-    const independentLines = hpTargets(event).filter(target => !memberIds.has(target.id)).map(hpTargetLine);
+    const independentLines = hpTargets(event).filter(target => !memberIds.has(target.id)).map((target) => hpTargetLine(target, event));
     return [...sharedHpLines, ...independentLines, ...outcomes, ...facetLines].join(" · ");
   }
   if (category === "hp") {
@@ -915,7 +974,7 @@ function detailSections(event, targets, outcomes, turnName) {
   const sections = [];
   const sharedHpLines = sharedHpSummaryLines(event);
   if (sharedHpLines.length) sections.push({ label: "PF condivisi", lines: sharedHpLines });
-  const hpLines = hpTargets(event).map(hpTargetLine);
+  const hpLines = hpTargets(event).map((target) => hpTargetLine(target, event));
   if (hpLines.length) sections.push({ label: "PF", lines: hpLines });
   for (const [field, label] of [
     ["conditions", "Condizioni"],

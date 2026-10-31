@@ -109,7 +109,7 @@ export function planSpeciesTeleport({ feature, card = {}, sourceItem, targets = 
       if (!Number.isFinite(meta.hp) || !Number.isFinite(meta.hpMax)) return blocked(`${item.name || item.id} non ha PF validi.`);
       const defense = damageDefenseFor(defensesFor(item), "fire");
       const value = componentDamageAfterDefense(amount, "full", defense);
-      damage.push({ item, amount: value, defense, change: calculateQuickHPChange({ value, hp: meta.hp, hpMax: meta.hpMax }) });
+      damage.push({ item, amount: value, defense, change: calculateQuickHPChange({ value, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp }) });
     }
     details.push(`${spec.label}: ${amount ?? 0} danni da fuoco${others.length ? ` a ${others.map((item) => item.name || item.id).join(", ")}` : ", nessuna creatura"}`);
   }

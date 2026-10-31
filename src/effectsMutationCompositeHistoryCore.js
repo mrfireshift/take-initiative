@@ -8,6 +8,9 @@ export function decorateCompositeEffectsHistoryEntry({
 } = {}) {
   const sharedHpGroups = (Array.isArray(mutation) ? mutation : [mutation])
     .flatMap(result => sharedHpHistorySnapshot(result?.plan)?.groups || []);
+  // CAP-TEMP: the coordinator's record of the temporary hit points (granted, absorbed, removed...), for the combat log.
+  const tempHpChanges = (Array.isArray(mutation) ? mutation : [mutation])
+    .flatMap(result => (Array.isArray(result?.plan?.tempHpChanges) ? clone(result.plan.tempHpChanges) : []));
   if (Array.isArray(mutation)) {
     const combined = new Map();
     for (const result of mutation.filter(Boolean)) {
@@ -153,7 +156,9 @@ export function decorateCompositeEffectsHistoryEntry({
   ])));
   return {
     ...entry,
-    ...(sharedHpGroups.length ? { payload: { ...(entry?.payload || {}), sharedHp: { groups: sharedHpGroups } } } : {}),
+    ...(sharedHpGroups.length || tempHpChanges.length ? { payload: { ...(entry?.payload || {}),
+      ...(sharedHpGroups.length ? { sharedHp: { groups: sharedHpGroups } } : {}),
+      ...(tempHpChanges.length ? { tempHp: tempHpChanges } : {}) } } : {}),
     changes: effectiveChanges,
     effectsMutation: {
       version: 1,

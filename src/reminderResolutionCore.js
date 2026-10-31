@@ -1,4 +1,5 @@
 import { ID } from "./constants.js";
+import { calculateQuickHPChange, QUICK_HP_MODES, quickHPTempHpPatchField } from "./quickHpCore.js";
 import {
   resolveDamageEndsConditionRemovals,
   resolveZeroHPUnconsciousAction,
@@ -1580,6 +1581,9 @@ export function buildReminderResolutionPlan({
   const turbine = resolutionData.turbine === true;
   const consumeOnly = resolution?.mode === "consume";
   const manualHeal = resolution?.mode === "manual-heal";
+  // CAP-TEMP: a manual roll that gives temporary hit points instead of healing (Twilight Sanctuary at the end of a
+  // creature's turn): the same popup and roll, the hit points apart from the HP (quickHpCore.js).
+  const manualTempHp = manualHeal && resolutionData.temporaryHp === true;
   const manualDamage = resolution?.mode === "manual-damage";
   const manualCondition = resolution?.mode === "manual-condition";
   const deathSave = resolution?.mode === DEATH_SAVE_RESOLUTION_MODE;
@@ -1750,7 +1754,7 @@ export function buildReminderResolutionPlan({
   const creatureType = String(
     meta.creatureType || meta.creatureTypeName || meta.creatureTypeLabel || "",
   ).trim().toLocaleLowerCase("it");
-  if (manualHeal && normalizedOutcome === "apply" && /costrutt|non.?morto/u.test(creatureType)) {
+  if (manualHeal && !manualTempHp && normalizedOutcome === "apply" && /costrutt|non.?morto/u.test(creatureType)) {
     return { status: "unsupported", message: "Costrutti e Non Morti non possono recuperare PF." };
   }
   if (manualHeal && normalizedOutcome === "apply"
@@ -1767,7 +1771,9 @@ export function buildReminderResolutionPlan({
     && targetAttitude === "enemy") {
     return { status: "unsupported", message: "Aura di Vita non cura una creatura ostile." };
   }
-  const healing = manualHeal && normalizedOutcome === "apply"
+  const healing = manualTempHp && normalizedOutcome === "apply"
+    ? { roll: Math.max(0, Math.floor(Number(healingRoll) || 0)), amount: Math.max(0, Math.floor(Number(healingRoll) || 0)) }
+    : manualHeal && normalizedOutcome === "apply"
     ? {
       roll: Math.max(0, Math.floor(Number(healingRoll) || 0)),
       amount: Math.max(
@@ -1790,19 +1796,25 @@ export function buildReminderResolutionPlan({
   )) {
     return { status: "unsupported", message: "Il bersaglio non ha HP canonici configurati." };
   }
-  const hpChange = hasDamage
+  // CAP-TEMP: the damage goes to the temporary hit points first, a healing leaves them as they are (quickHpCore.js).
+  const quickChange = hasDamage || hasHealing
+    ? calculateQuickHPChange({
+      mode: hasDamage ? QUICK_HP_MODES.DAMAGE : manualTempHp ? QUICK_HP_MODES.TEMP : QUICK_HP_MODES.HEAL,
+      value: hasDamage ? damage.amount : healing.amount,
+      hp: hpBefore,
+      hpMax,
+      tempHp: meta.tempHp,
+    })
+    : null;
+  const hpChange = quickChange
     ? {
-      before: Math.max(0, Math.floor(hpBefore)),
-      after: Math.max(0, Math.floor(hpBefore) - damage.amount),
-      hpMax: Math.max(0, Math.floor(hpMax)),
+      before: quickChange.hp,
+      after: quickChange.afterHP,
+      hpMax: quickChange.hpMax,
+      ...(quickChange.tempHp || quickChange.afterTempHp
+        ? { beforeTempHp: quickChange.tempHp, afterTempHp: quickChange.afterTempHp } : {}),
     }
-    : hasHealing
-      ? {
-        before: Math.max(0, Math.floor(hpBefore)),
-        after: Math.min(Math.max(0, Math.floor(hpMax)), Math.max(0, Math.floor(hpBefore) + healing.amount)),
-        hpMax: Math.max(0, Math.floor(hpMax)),
-      }
-      : null;
+    : null;
 
   const operations = [];
   const actionSideEffects = [];
@@ -1844,7 +1856,7 @@ export function buildReminderResolutionPlan({
   }
 
   if (hpChange && !manualHeal) {
-    if (hpChange.after < hpChange.before) {
+    if (hpChange.after < hpChange.before || hpChange.afterTempHp < hpChange.beforeTempHp) {
       const damageEndsRemovalIds = resolveDamageEndsConditionRemovals(conditionInstances(target));
       if (damageEndsRemovalIds.length) {
         operations.push({
@@ -1933,6 +1945,8 @@ export function buildReminderResolutionPlan({
       expected: metadataSnapshot(meta, "hpMax"),
       value: hpChange.hpMax,
     };
+    const tempHpField = quickHPTempHpPatchField(meta, hpChange.afterTempHp, metadataSnapshot(meta, "tempHp"));
+    if (tempHpField) metadataFields.tempHp = tempHpField;
   }
   const commandTargetIds = uniqueIds([
     targetId,

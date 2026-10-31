@@ -2,10 +2,10 @@
 // Rush, Hungry Jaws and Shifting, and the reactions that reduce the damage just taken (Stone's Endurance, Hadozee
 // Dodge). The amounts come from the sheet (level, proficiency bonus, Constitution); the plans say what the HP write is.
 // Texts of the 2014 books: Player's Handbook, Volo, Eberron, Mostri del Multiverso, Spelljammer.
-// HP stay on the canonical fields: temporary hit points are the part of meta.hp above meta.hpMax (quickHpCore.js).
+// HP stay on the canonical fields, the temporary hit points in meta.tempHp (quickHpCore.js).
 // Pure: no SDK, DOM or runtime state.
 import { abilityModifier, proficiencyBonusForLevel, totalCharacterLevel } from "./abilityModifiersCore.js";
-import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
+import { calculateQuickHPChange, QUICK_HP_MODES, quickHPStateOf } from "./quickHpCore.js";
 import { DEATH_SAVE_DEAD_CONDITION, readDeathSaves } from "./deathSaveCore.js";
 
 export const SPECIES_HP_TRAIT_KINDS = Object.freeze({
@@ -142,7 +142,7 @@ export function planSpeciesHpTrait({ feature, card = {}, targetMeta = {}, target
     if (hp > 0) return blocked(`${name}: vale solo a 0 PF.`);
     const tally = readDeathSaves(targetMeta);
     if (tally.successes || tally.failures) return blocked(`${name}: vale solo nel momento in cui scendi a 0 PF, non durante i tiri contro la morte.`);
-    const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: 1, hp, hpMax });
+    const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: 1, hp, hpMax, tempHp: targetMeta?.tempHp });
     return { ok: true, mode: QUICK_HP_MODES.HEAL, amount: 1, change, detail: "Resta a 1 PF invece di scendere a 0" };
   }
 
@@ -160,12 +160,12 @@ export function planSpeciesHpTrait({ feature, card = {}, targetMeta = {}, target
       detail = `${amount} PF, ${speciesHpTraitAmountLabel(spec.amount)}`;
     }
     if (hp >= hpMax) return blocked(`${name}: ${who} ha già tutti i PF.`);
-    const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: amount, hp, hpMax });
+    const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: amount, hp, hpMax, tempHp: targetMeta?.tempHp });
     return { ok: true, mode: QUICK_HP_MODES.HEAL, amount, change, detail };
   }
 
   if (spec.kind === SPECIES_HP_TRAIT_KINDS.TEMP || spec.kind === SPECIES_HP_TRAIT_KINDS.SHIFT) {
-    // At 0 HP the temporary hit points would read as hit points regained (the part above hpMax is the temporary one).
+    // At 0 HP the creature is unconscious: it can't use the trait.
     if (hp <= 0) return blocked(`${name}: a 0 PF non si può usare.`);
     if (spec.onHit && hit === false) {
       return { ok: true, mode: QUICK_HP_MODES.TEMP, amount: 0, change: null, detail: "Morso mancato: l'uso è speso, nessun PF temporaneo" };
@@ -179,8 +179,8 @@ export function planSpeciesHpTrait({ feature, card = {}, targetMeta = {}, target
       if (bonus === null || bonus > faces) return blocked(`${name}: inserisci il ${spec.bonusDie} tirato (1–${faces}).`);
     }
     const amount = base + bonus;
-    const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: amount, hp, hpMax });
-    const existing = Math.max(0, hp - hpMax);
+    const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: amount, hp, hpMax, tempHp: targetMeta?.tempHp });
+    const existing = quickHPStateOf({ hp, hpMax, tempHp: targetMeta?.tempHp }).tempHp;
     return {
       ok: true, mode: QUICK_HP_MODES.TEMP, amount, change,
       detail: `${amount} PF temporanei${bonus ? ` (${base} + ${spec.bonusDie} ${bonus})` : ""}, ${speciesHpTraitAmountLabel(spec.amount)}`,
@@ -194,8 +194,12 @@ export function planSpeciesHpTrait({ feature, card = {}, targetMeta = {}, target
     const taken = positiveInteger(damage);
     if (taken === null) return blocked(`${name}: inserisci i danni subiti.`);
     const restored = Math.min(reduction, taken);
-    const afterHP = hp + restored;
-    const change = { mode: QUICK_HP_MODES.HEAL, factor: "full", hp, hpMax, requested: restored, afterHP, delta: restored, changed: restored > 0 };
+    // The damage the temporary hit points took comes back to them: the HP up to hpMax, the rest temporary (CAP-TEMP).
+    const state = quickHPStateOf({ hp, hpMax, tempHp: targetMeta?.tempHp });
+    const afterHP = Math.min(state.hpMax, state.hp + restored);
+    const afterTempHp = state.tempHp + state.hp + restored - afterHP;
+    const change = { mode: QUICK_HP_MODES.HEAL, factor: "full", hp: state.hp, hpMax: state.hpMax, tempHp: state.tempHp,
+      requested: restored, afterHP, afterTempHp, delta: restored, changed: restored > 0 };
     return { ok: true, mode: QUICK_HP_MODES.HEAL, amount: restored, change,
       detail: `Riduzione ${reduction} su ${taken} danni: ${restored} PF restituiti` };
   }

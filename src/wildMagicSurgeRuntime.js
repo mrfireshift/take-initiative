@@ -97,7 +97,7 @@ function healOperation(item, { amount }) {
   const hp = Number(meta.hp);
   const hpMax = Number(meta.hpMax);
   if (!Number.isFinite(hp) || !Number.isFinite(hpMax) || hpMax <= 0) throw new Error("PF dello Stregone non validi.");
-  const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: amount, hp, hpMax });
+  const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: amount, hp, hpMax, tempHp: meta.tempHp });
   return {
     change,
     operation: change.changed ? {
@@ -106,6 +106,7 @@ function healOperation(item, { amount }) {
         itemId: item.id,
         hp: change.afterHP,
         hpMax: change.hpMax,
+        tempHp: change.afterTempHp,
         hpIntent: { mode: QUICK_HP_MODES.HEAL, amount, eventId: `wild-magic-${Date.now()}` },
         expectedHP: expectation(meta, "hp"),
         expectedHPMax: expectation(meta, "hpMax"),

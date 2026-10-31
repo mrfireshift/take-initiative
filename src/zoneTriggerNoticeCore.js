@@ -189,6 +189,7 @@ export function zoneTriggerNoticeFromActivation(
   }
   if (
     activation?.resolution === "manual-heal"
+    && activation?.resolutionData?.temporaryHp !== true
     && targets.length === 1
     && !String(
       source.get(targets[0].id)?.metadata?.[META_KEY]?.creatureType
