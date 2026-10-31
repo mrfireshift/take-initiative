@@ -19,6 +19,12 @@ test("U13: chiudendo, i membri svaniscono insieme alla vecchia card del gruppo",
   assert.match(transition, /for \(const moving of record\.movingRecords\) \{\n\s+play\(moving\.card, \[\{ opacity: 0 \}\], \{\n\s+duration: GROUP_CARD_SWAP_FADE_MS,\n\s+delay: fadeDelay,/);
 });
 
+test("U13: nella vista compatta le posizioni vengono dal layout, non dal rettangolo della card attiva ingrandita", () => {
+  assert.match(transition, /\? snapshot\.layoutLeft - firstSnapshot\.layoutLeft\n\s+: snapshot\.layoutTop - firstSnapshot\.layoutTop;/);
+  assert.match(transition, /\? lastRecord\.snapshot\.layoutLeft \+ lastRecord\.snapshot\.width - firstSnapshot\.layoutLeft/);
+  assert.doesNotMatch(transition, /snapshot\.rect\.left - firstSnapshot\.rect\.left|snapshot\.rect\.right - firstRect\.left/);
+});
+
 test("U13: aprendo, la lista segue il bordo del gruppo in entrambe le viste, senza far uscire la card attiva", () => {
   assert.match(transition, /__revealExpandingGroup\(stages, compact, \(\) => finished\);/);
   const reveal = source.slice(source.indexOf("function __revealExpandingGroup("));

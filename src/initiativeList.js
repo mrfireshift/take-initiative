@@ -10104,9 +10104,11 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
   }
   const stages = [];
 
+  // Layout positions, as the classic view: the active card is scaled up, and its box (rect) is wider than its place in
+  // the strip, so offsets from it left the compact cards 1.6px off and they snapped back when the stage went (U13).
   const setAbsoluteCard = (card, snapshot, firstSnapshot, stageWidth, stageHeight) => {
     const offset = compact
-      ? snapshot.rect.left - firstSnapshot.rect.left
+      ? snapshot.layoutLeft - firstSnapshot.layoutLeft
       : snapshot.layoutTop - firstSnapshot.layoutTop;
     Object.assign(card.style, {
       position: "absolute",
@@ -10148,10 +10150,9 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
     stage.dataset.groupTransitionStage = "1";
     const source = type === "collapse" ? oldGroup : rendered;
     const firstSnapshot = source[0].snapshot;
-    const firstRect = firstSnapshot.rect;
     const lastRecord = source[source.length - 1];
     const expandedSize = compact
-      ? lastRecord.snapshot.rect.right - firstRect.left
+      ? lastRecord.snapshot.layoutLeft + lastRecord.snapshot.width - firstSnapshot.layoutLeft
       : lastRecord.snapshot.layoutTop + lastRecord.snapshot.height - firstSnapshot.layoutTop;
     const motherSize = compact
       ? (type === "collapse" ? rendered[0].snapshot.width : oldGroup[0].snapshot.width)

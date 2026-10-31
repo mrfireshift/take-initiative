@@ -623,7 +623,9 @@ Riprese a velocità reale con lo screencast di Chrome, partenza identica (lista 
   visibile della barra non coincide con `trackWrap` mentre il popover si allarga.
 - **Resta, ed è voluto:** chiudendo un gruppo in fondo alla lista, il contenuto sopra scende per riempire lo spazio,
   in un solo movimento continuo.
-- **Resta da fare:** lo scatto di 1,6 px della vista compatta e il ritardo di circa 1 s sul tavolo.
+- **Scatto di 1,6 px della vista compatta:** corretto. Le posizioni ora vengono dal layout (`layoutLeft`), come nella vista
+  espansa; nella misura le distanze tra le card restano 98,6 px prima e dopo la fine dello stage.
+- **Resta da fare:** il ritardo di circa 1 s sul tavolo e la sincronizzazione dello scorrimento nella vista compatta.
 
 ### Nuove decisioni
 
