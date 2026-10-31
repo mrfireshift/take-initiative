@@ -354,6 +354,20 @@ test("the History keeps why the HP differ: Warding Bond on the caster, Death War
     [{ id: "orc", kind: "death-ward", text: "Interdizione alla morte: resta a 1 PF, l'interdizione termina" }]);
 });
 
+test("massive damage: Morto carries its reason on the pill and in the combat log line", async () => {
+  const { combatEventFromHistoryEntry } = await import("../src/combatLogCore.js");
+  const { buildCombatLogPresentation } = await import("../src/combatLogPresentationCore.js");
+  const { MASSIVE_DAMAGE_DETAIL } = await import("../src/deathSaveCore.js");
+  await resetScene([token("hero", 10, 20, { attitude: "pc" })]);
+  await damage("hero", 31);
+  const dead = (meta("hero").conditions?.instances || []).find((entry) => entry.condition === "Morto");
+  assert.equal(dead?.effectDetail, MASSIVE_DAMAGE_DETAIL);
+  const entry = (await history.getHistoryEntries()).at(-1);
+  const lines = buildCombatLogPresentation({}, [combatEventFromHistoryEntry(entry, { round: 1 })])
+    .events[0].details.flatMap((section) => section.lines);
+  assert.ok(lines.some((line) => line.includes(`+ Morto (${MASSIVE_DAMAGE_DETAIL})`)), lines.join("\n"));
+});
+
 test("Warding Bond in the area command: the caster's own entry, with its History", async () => {
   await resetScene([token(CASTER, 30, 30), token("wizard", 30, 30), token("hero", 40, 40, bond("hero"))]);
   await castOn("disintegrate", 6, "hero", { amount: 12, outcome: "failed" });
