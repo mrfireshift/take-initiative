@@ -54,11 +54,13 @@ Sono disponibili due layout:
 
 Il pulsante di modalità passa da un layout all'altro. La posizione della barra compatta può essere trascinata e viene ricordata localmente.
 
+Nella vista estesa la striscia sottile sopra la testata serve a trascinare il tracker; il cambio di vista sta nella testata, accanto al round, e in fondo alla colonna restano solo i pulsanti ▲ ▼ del turno (GM).
+
 ### La barra compatta
 
 La barra resta alta sempre uguale: quello che non sta nella card si apre di lato, non verso il basso.
 
-- **Colonna sinistra**: maniglia per trascinare la barra, il **Round** corrente (visibile anche ai giocatori), il cambio di vista e, per il GM, il menu `…` con Reset round, Cronologia, Aggiungi attori, Compila iniziativa, Opzioni, Etichette mappa e Svuota iniziativa.
+- **Colonna sinistra**: maniglia per trascinare la barra, il **Round** corrente (visibile anche ai giocatori), il cambio di vista e, per il GM, il menu `…` con Reset round, Cronologia, Riposo del gruppo, Aggiungi attori, Etichette mappa, Opzioni e Svuota iniziativa.
 - **Card**: in alto a sinistra il badge dell'iniziativa e, sotto, l'icona blu della scheda personaggio (PG e alleati; per il GM ogni creatura); a destra del ritratto la colonna dei pulsanti ⚡ 🪄 🗡️ (solo GM); il badge **KO** compare sul ritratto quando una creatura va a 0 PF.
 - **Effetti**: la card mostra la prima etichetta; un clic sull'etichetta o sul pulsante `+N` apre accanto alla card un cassetto con tutte le altre, in colonne. Un nuovo clic sull'etichetta lo chiude. È aperto un cassetto alla volta e scorrendo la barra resta aperto.
 - **Token collegati ed evocazioni**: una linguetta stretta accanto alla card mostra i ritratti e il numero; un clic la apre e mostra le righe dei compagni, con i loro PF (modificabili dal GM) e il clic per selezionare la pedina. Le card successive scorrono a destra.
@@ -317,7 +319,7 @@ Il GM modifica i PF con un clic sul valore, nella card estesa come in quella com
 
 L'icona blu della scheda (accanto ai PF nella card estesa, sotto l'iniziativa in quella compatta) apre in un clic la scheda personaggio di PG e alleati, anche per i giocatori. Il GM la apre anche per nemici e neutrali, per importarne lo statblock (vedi [Console attacchi per i mostri](#console-attacchi-per-i-mostri)). Il pulsante **±** della card estesa ricalibra insieme PF attuali e massimi.
 
-Allo stesso modo un clic sul badge dell'iniziativa lo rende modificabile (solo GM, in entrambe le viste); **Invio** salva, riordina le card e passa alla card successiva. **Compila iniziativa** apre in fila le creature ancora da compilare e le evidenzia con un bordo tratteggiato: **Invio** o **Tab** passa alla successiva, **Ctrl+Invio** chiude, e le card si riordinano alla fine.
+Allo stesso modo un clic sul badge dell'iniziativa lo rende modificabile (solo GM, in entrambe le viste); **Invio** salva, riordina le card e passa alla card successiva. Quando nuove creature entrano in iniziativa la compilazione parte da sola: apre in fila le creature ancora da compilare e le evidenzia con un bordo tratteggiato; **Invio** o **Tab** passa alla successiva, **Ctrl+Invio** o **Esc** chiude, e le card si riordinano alla fine.
 
 Le card di creature con lo stesso nome vengono raggruppate. Una card collassata mostra **(Gruppo)** e il numero di membri. Il gruppo si espande automaticamente quando il turno entra nello stack e si richiude quando lo lascia; può anche essere aperto manualmente. L'animazione mantiene la prima card come ancora.
 
@@ -359,7 +361,7 @@ I gruppi omonimi, le azioni di tana, i turni Paragon e le azioni epiche possono 
 
 ### Tasti per il turno
 
-Quando il tracker ha il focus della tastiera (dopo un clic nel tracker, per esempio su una card), il GM può usare **Spazio** o **→** per il turno successivo e **←** per il precedente. Sono gli stessi comandi dei pulsanti. Non funzionano mentre scrivi in un campo, con un editor aperto o durante Compila iniziativa. Owlbear Rodeo non offre scorciatoie globali alle estensioni: dopo un clic sulla mappa i tasti tornano a Owlbear.
+Quando il tracker ha il focus della tastiera (dopo un clic nel tracker, per esempio su una card), il GM può usare **Spazio** o **→** per il turno successivo e **←** per il precedente. Sono gli stessi comandi dei pulsanti. Non funzionano mentre scrivi in un campo, con un editor aperto o durante la compilazione delle iniziative. Owlbear Rodeo non offre scorciatoie globali alle estensioni: dopo un clic sulla mappa i tasti tornano a Owlbear.
 
 ### Focus token e tana
 

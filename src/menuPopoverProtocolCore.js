@@ -6,7 +6,6 @@ export const COMPACT_ADMIN_MENU_ACTIONS = Object.freeze([
   "history",
   "group-rest",
   "add-all",
-  "fill-initiative",
   "map-labels",
   "options",
   "clear-initiative",

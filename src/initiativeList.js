@@ -1491,8 +1491,8 @@ const layoutToggleIcon = document.createElement("img");
 layoutToggleIcon.alt = "";
 layoutToggleIcon.setAttribute("aria-hidden", "true");
 Object.assign(layoutToggleIcon.style, {
-  width: "18px",
-  height: "18px",
+  width: "15px",
+  height: "15px",
   display: "block",
   objectFit: "contain",
   pointerEvents: "none",
@@ -3303,7 +3303,7 @@ const compactMoreButton = mkBtn("…");
 const COMPACT_ADMIN_MENU_ID = `${ID}/compact-admin-menu`;
 const COMPACT_ADMIN_MENU_CHANNEL = `${ID}/compact-admin-menu`;
 const COMPACT_ADMIN_MENU_WIDTH = 216;
-const COMPACT_ADMIN_MENU_HEIGHT = 290;
+const COMPACT_ADMIN_MENU_HEIGHT = 256;
 // The compact panel has no room for the map labels' mode: the "…" menu cycles it through this hidden button, and
 // a notification says the mode just chosen.
 const EFFECTS_DISPLAY_MODE_MENU_LABELS = Object.freeze({
@@ -3640,7 +3640,6 @@ function applyAdminMenuPresentation(compact) {
     [roundResetSlot.querySelector("button"), "Reset round", false],
     ...(compact ? [[roundHistorySlot.querySelector("[data-history='1']"), "Cronologia", false]] : []),
     [roundActions.querySelector("[data-add-all-initiative='1']"), "Aggiungi attori", false],
-    [roundActions.querySelector("[data-fill-initiative='1']"), "Compila iniziativa", false],
     [roundHistorySlot.querySelector("[data-options-panel='1']"), "Opzioni", false],
     [roundHistorySlot.querySelector("[data-group-rest='1']"), "Riposo del gruppo", false],
     [roundPill.querySelector("[data-clear-initiative='1']"), "Svuota iniziativa", true],
@@ -3720,7 +3719,6 @@ function applyClassicRoundButtonColors() {
   for (const [button, buttonStyle] of styles) {
     if (button) Object.assign(button.style, buttonStyle);
   }
-  updateInitiativeFillButton();
 }
 
 function applyHeaderLayoutPresentation(compact) {
@@ -3792,29 +3790,41 @@ function applyHeaderLayoutPresentation(compact) {
     });
   }
 
-  // The handle moves the tracker in both layouts (extended: drag, or a click to switch side).
+  // The handle moves the tracker in both layouts (extended: drag, or a click to switch side). Extended: a grab strip
+  // above the header, its dots lying down; compact: the top of the left column.
   Object.assign(trackerDragHandle.style, {
     display: "flex",
-    width: compact ? "26px" : "28px",
-    minWidth: compact ? "26px" : "28px",
-    height: compact ? "26px" : "28px",
+    flex: "0 0 auto",
+    width: compact ? "26px" : "64px",
+    minWidth: compact ? "26px" : "64px",
+    height: compact ? "26px" : "12px",
     justifyContent: "center",
+    alignItems: "center",
     padding: "0",
-    border: compact ? "none" : "1px solid rgba(148,163,184,.28)",
-    background: compact ? "transparent" : "rgba(0,0,0,.34)",
-    boxShadow: compact ? "none" : "",
+    margin: compact ? "0" : "-2px auto 2px",
+    border: "none",
+    borderRadius: compact ? "9px" : "6px",
+    background: "transparent",
+    boxShadow: "none",
+    color: compact ? "" : "rgba(203,213,225,.72)",
+    cursor: "grab",
   });
+  Object.assign(trackerDragGrip.style, compact
+    ? { width: "10px", height: "16px", backgroundSize: "5px 5.33px" }
+    : { width: "16px", height: "10px", backgroundSize: "5.33px 5px" });
+  // Extended: one of the header's blue buttons (Opzioni, Cronologia), same size and look.
   Object.assign(layoutToggleButton.style, classic ? {
-    width: "28px",
-    minWidth: "28px",
+    width: "26px",
+    minWidth: "26px",
     height: "28px",
     padding: "0",
     gap: "0",
     justifyContent: "center",
-    border: "1px solid rgba(96,165,250,.52)",
-    background: "linear-gradient(180deg, rgba(37,99,235,.34), rgba(30,64,175,.22))",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.10)",
-    color: "#dbeafe",
+    border: "1px solid rgba(147,197,253,.62)",
+    borderRadius: "10px",
+    background: "rgba(30,64,175,.58)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    color: "#fff",
     fontSize: "9px",
   } : {
     width: "26px",
@@ -3900,11 +3910,10 @@ function restoreClassicHeader() {
   compactAdminMenu.replaceChildren();
   compactBottomControls.replaceChildren();
   compactRoundControls.replaceChildren(compactMoreButton);
-  // The GM's layout switch sits in the navigation row, beside the drag handle, as in the compact column: the header
-  // keeps its room for the encounter's buttons (it overflowed with "Riposo del gruppo", lot U6').
   roundPill.replaceChildren(...(IS_GM ? [
     roundResetSlot,
     roundStatus,
+    layoutToggleButton,
     roundActions,
     roundHistorySlot,
   ] : [roundStatus, layoutToggleButton, playerScreenButton]));
@@ -4185,8 +4194,7 @@ function applyTrackerLayout() {
       width: "calc(100% - 12px)",
       height: "30px",
       display: "grid",
-      // The tracker handle and, for the GM, the layout switch sit in the middle; the players have the handle alone.
-      gridTemplateColumns: IS_GM ? "1fr 28px 28px 1fr" : "28px",
+      gridTemplateColumns: "1fr 1fr",
       justifyContent: "center",
       alignItems: "center",
       gap: "4px",
@@ -4196,7 +4204,8 @@ function applyTrackerLayout() {
       borderRadius: "10px",
       background: "rgba(9,13,21,.44)",
     });
-    classicNavigationRow.style.display = "grid";
+    // Only the turn buttons: the drag handle is the grab strip above the header; the players have no row.
+    classicNavigationRow.style.display = IS_GM ? "grid" : "none";
     for (const [button, text, label, primary] of [
       [btnPrev, "▲", "Turno precedente", false],
       [btnNext, "▼", "Turno successivo", true],
@@ -4218,8 +4227,8 @@ function applyTrackerLayout() {
         fontSize: "15px",
       });
     }
-    classicNavigationRow.replaceChildren(...(IS_GM ? [btnPrev, trackerDragHandle, layoutToggleButton, btnNext] : [trackerDragHandle]));
-    col.replaceChildren(topRow, trackWrap, classicNavigationRow);
+    classicNavigationRow.replaceChildren(...(IS_GM ? [btnPrev, btnNext] : []));
+    col.replaceChildren(trackerDragHandle, topRow, trackWrap, classicNavigationRow);
   }
   movementReadout.style.display = movementReadoutVisible && !compact ? "flex" : "none";
   applyHeaderLayoutPresentation(compact);
@@ -7535,16 +7544,6 @@ async function saveClassicTrackerEntryName(entry, nextName) {
   entry.name = nextName;
 }
 
-function updateInitiativeFillButton() {
-  const button = roundPill.querySelector('[data-fill-initiative="1"]');
-  if (!button) return;
-  button.setAttribute("aria-pressed", String(__initiativeFillMode));
-  button.title = __initiativeFillMode
-    ? "Esci dalla compilazione iniziativa"
-    : "Compila iniziativa: inserisci i valori senza riordinare le card";
-  button.style.background = __initiativeFillMode ? "rgba(161,98,7,.72)" : "rgba(161,98,7,.42)";
-  button.style.borderColor = __initiativeFillMode ? "rgba(250,204,21,.92)" : "rgba(250,204,21,.58)";
-}
 
 function initiativeFillGroupEntries(entries, groupKey) {
   return entries.filter((entry) => _groupKeyFromEntry(entry) === groupKey);
@@ -7608,7 +7607,6 @@ async function finishInitiativeFillMode(sceneEpoch = currentSceneEpoch()) {
   __initiativeFillMode = false;
   __initiativeFillSession = null;
   __suspendRenders = false;
-  updateInitiativeFillButton();
   refreshInitiativeFillVisuals();
   await reconcileStateWithItems(sceneEpoch);
   if (!__isCurrentSceneOperation(sceneEpoch, "finish-initiative-fill")) return;
@@ -7630,7 +7628,6 @@ async function startInitiativeFillMode(options = {}) {
   __initiativeFillMode = true;
   __initiativeFillSession = { ids, completed: new Set(), sceneEpoch };
   __suspendRenders = true;
-  updateInitiativeFillButton();
   refreshInitiativeFillVisuals();
   await openInitiativeFillCandidate(ids[0], sceneEpoch);
 }
@@ -7669,7 +7666,6 @@ async function interruptInitiativeFillForRemovedActor(event) {
   __initiativeFillMode = false;
   __initiativeFillSession = null;
   __suspendRenders = false;
-  updateInitiativeFillButton();
 
   if (openInit?.dataset?.initEditing === "1" && typeof openInit.__cancelFn === "function") {
     await openInit.__cancelFn({ deferRender: true });
@@ -7716,16 +7712,6 @@ function initiativeFillShowsAddedActors(event) {
   ));
 }
 
-async function toggleInitiativeFillMode(sceneEpoch = currentSceneEpoch()) {
-  if (!__isCurrentSceneOperation(sceneEpoch, "toggle-initiative-fill")) return;
-  if (__initiativeFillMode) {
-    await closeOpenEditors();
-    if (!__isCurrentSceneOperation(sceneEpoch, "toggle-initiative-fill")) return;
-    await finishInitiativeFillMode(sceneEpoch);
-  } else {
-    await startInitiativeFillMode({ sceneEpoch });
-  }
-}
 
 async function openInitiativeFillNeighbor(currentId, goPrev = false, sceneEpoch = currentSceneEpoch()) {
   const session = __initiativeFillSession;
@@ -7740,38 +7726,6 @@ async function openInitiativeFillNeighbor(currentId, goPrev = false, sceneEpoch 
   await openInitiativeFillCandidate(session.ids[targetIndex], sceneEpoch);
 }
 
-function makeInitiativeFillBtn() {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.dataset.fillInitiative = "1";
-  b.textContent = "\u270e";
-  Object.assign(b.style, {
-    width: "24px",
-    height: "24px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    border: "1px solid rgba(250,204,21,.58)",
-    background: "rgba(161,98,7,.42)",
-    color: "#fff",
-    fontSize: "14px",
-    fontWeight: "700",
-    lineHeight: "1",
-    borderRadius: "8px",
-    cursor: "pointer",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
-    padding: "0",
-  });
-  b.setAttribute("aria-label", "Compila iniziativa");
-  b.addEventListener("click", (event) => {
-    event.stopPropagation();
-    void toggleInitiativeFillMode().catch((error) => {
-      console.warn("[initiative-fill] errore modalità compilazione:", error?.message || error);
-    });
-  });
-  updateInitiativeFillButton();
-  return b;
-}
 
 // ===== Legendary helpers =====
 
@@ -11805,7 +11759,6 @@ try {
 try {
   const hasBtn = !!roundPill.querySelector('[data-reset-round="1"]');
   const hasAddAllBtn = !!roundPill.querySelector('[data-add-all-initiative="1"]');
-  const hasFillBtn = !!roundPill.querySelector('[data-fill-initiative="1"]');
   const hasOptionsBtn = !!roundPill.querySelector('[data-options-panel="1"]');
   const hasClearBtn = !!roundPill.querySelector('[data-clear-initiative="1"]');
   const hasHistoryBtn = !!roundPill.querySelector('[data-history="1"]');
@@ -11816,7 +11769,6 @@ try {
     if (!roundHistorySlot.isConnected) roundPill.appendChild(roundHistorySlot);
     if (!hasBtn) roundResetSlot.appendChild(makeRoundResetBtn());
     if (!hasAddAllBtn) roundActions.appendChild(makeAddAllInitiativeBtn());
-    if (!hasFillBtn) roundActions.appendChild(makeInitiativeFillBtn());
     if (!hasOptionsBtn) roundHistorySlot.appendChild(optionsPanelButton);
     if (!hasHistoryBtn) roundHistorySlot.appendChild(makeHistoryBtn());
     if (!hasGroupRestBtn) roundHistorySlot.querySelector('[data-history="1"]')?.after(makeGroupRestBtn());
@@ -11825,7 +11777,6 @@ try {
   } else {
     if (hasBtn) roundPill.querySelector('[data-reset-round="1"]').remove();
     if (hasAddAllBtn) roundPill.querySelector('[data-add-all-initiative="1"]').remove();
-    if (hasFillBtn) roundPill.querySelector('[data-fill-initiative="1"]').remove();
     if (hasOptionsBtn) roundPill.querySelector('[data-options-panel="1"]').remove();
     if (hasClearBtn) roundPill.querySelector('[data-clear-initiative="1"]').remove();
     if (hasHistoryBtn) roundPill.querySelector('[data-history="1"]').remove();

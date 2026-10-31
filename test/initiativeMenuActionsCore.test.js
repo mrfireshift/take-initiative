@@ -30,13 +30,8 @@ test("il menu amministrativo risolve ogni azione sul controllo esistente", () =>
     action: "add-all",
     selector: "[data-add-all-initiative='1']",
   });
-  assert.deepEqual(resolveCompactAdminMenuAction({
-    type: "action",
-    action: "fill-initiative",
-  }), {
-    action: "fill-initiative",
-    selector: "[data-fill-initiative='1']",
-  });
+  // "Compila iniziativa" has no button any more: the fill mode starts by itself when creatures join the initiative.
+  assert.equal(resolveCompactAdminMenuAction({ type: "action", action: "fill-initiative" }), null);
   // The map labels' mode left the compact panel for the "…" menu.
   assert.deepEqual(resolveCompactAdminMenuAction({
     type: "action",
