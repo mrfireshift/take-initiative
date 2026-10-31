@@ -10313,6 +10313,11 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
 
   requestAnimationFrame(() => {
     if (finished) return;
+    // Lot U13: the cards rebuilt for this render get their chip rows measured before this frame
+    // (initiativeChipOverflow.js); until then they were shorter, and the scroll position restored above was cut to
+    // that height, so the expanded list jumped (~90px) as the transition began. Restore it again at the real height.
+    trackWrap.scrollLeft = Math.min(scrollLeftBefore, Math.max(0, trackWrap.scrollWidth - trackWrap.clientWidth));
+    trackWrap.scrollTop = Math.min(scrollTopBefore, Math.max(0, trackWrap.scrollHeight - trackWrap.clientHeight));
     for (const record of stages) {
       const compactFrames = [
         { flexBasis: `${record.initialSize}px`, width: `${record.initialSize}px`, minWidth: `${record.initialSize}px` },
@@ -10373,6 +10378,16 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
           easing: GROUP_CARD_SWAP_EASING,
           fill: "forwards",
         });
+        // Lot U13: the members fade out with the old lead while the group's card fades in, so their names never
+        // show through it (they used to finish under it, readable until the end).
+        for (const moving of record.movingRecords) {
+          play(moving.card, [{ opacity: 0 }], {
+            duration: GROUP_CARD_SWAP_FADE_MS,
+            delay: fadeDelay,
+            easing: GROUP_CARD_SWAP_EASING,
+            fill: "forwards",
+          });
+        }
         record.finalLead.style.visibility = "";
         play(record.finalLead, [
           { opacity: 0 },
@@ -10407,9 +10422,40 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
         }),
       ),
     });
+    __revealExpandingGroup(stages, compact, () => finished);
     window.setTimeout(finish, totalDuration + 80);
   });
   return true;
+}
+
+// Lot U13 of the system UX audit: a group opening at the end of the list (the bottom of the expanded column, the right
+// of the compact strip at its widest) grew out of sight. Now, frame by frame, the list scrolls just enough to keep the
+// growing edge of the group in view (none while the compact popover widens with it), and never so far that the group's
+// active card would leave the list.
+function __revealExpandingGroup(stages, compact, isFinished) {
+  const record = stages.find((candidate) => candidate.type === "expand"
+    && candidate.finalCards.some((card) => card.dataset.active === "1"));
+  if (!record || record.finalSize <= record.initialSize) return;
+  const activeCard = record.finalCards.find((card) => card.dataset.active === "1");
+  const activeOffset = Number.parseFloat(compact ? activeCard.style.left : activeCard.style.top) || 0;
+  const margin = 8;
+  const step = () => {
+    if (isFinished() || !record.stage.isConnected) return;
+    const wrapRect = trackWrap.getBoundingClientRect();
+    const stageRect = record.stage.getBoundingClientRect();
+    const stageStart = compact ? stageRect.left : stageRect.top;
+    const size = compact ? stageRect.width : stageRect.height;
+    const overflow = Math.min(
+      stageStart + size + margin - (compact ? wrapRect.right : wrapRect.bottom),
+      stageStart + activeOffset - margin - (compact ? wrapRect.left : wrapRect.top),
+    );
+    if (overflow > 0.5) {
+      if (compact) trackWrap.scrollLeft += overflow;
+      else trackWrap.scrollTop += overflow;
+    }
+    if (size < record.finalSize - 0.5) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 function __replaceTrackCardsAnimated(nodes, options) {

@@ -563,6 +563,68 @@ code del turno o `renderAll()`. Ma la funzione sta nel percorso di render del
 tracker, che `AGENTS.md` tratta come fragile: prima della patch spiego il
 rischio e aspetto il via.
 
+### Misura del 31/10 (Chrome headless, circa 160 fotogrammi al secondo)
+
+Il pannello del browser dell'app disegna solo quando la finestra è in primo piano, quindi la misura gira in Chrome
+headless sul banco `ui-audit-browser`, con quattro goblin, nella vista compatta.
+
+| | Apertura | Chiusura |
+| --- | --- | --- |
+| Durata dello stage | 632 ms | 618 ms |
+| Fotogrammi oltre 20 ms | 2 (massimo 37 ms, all'inizio) | 0 |
+| Scatto finale | 1,6 px su tutte le card | 1,6 px sulla card madre |
+| Incroci | la card 4 parte 34 ms dopo e passa la 3 a circa 30 px dalla pila | lo stesso, alla fine |
+| Sfondo durante la transizione | trasparente | `rgb(31, 39, 51)` sulle card non attive |
+
+- **Causa dello scatto:** la card attiva è ingrandita (larga 95,2 px invece di 92). Nella vista compatta le posizioni
+  partono dal suo rettangolo ingrandito (`rect.left`), mentre la vista classica usa già la posizione di layout
+  (`layoutLeft`, `IL:10033`). A fine animazione le card tornano alla posizione vera: metà dei 3,2 px in più.
+- **Lo sfondo grigio è voluto:** le card a opacità 0,84 si sovrappongono nella pila; uno sfondo pieno evita di vederci
+  attraverso. Da toccare solo se si vede in stanza.
+- **Gli incroci avvengono sotto la pila,** dove le card si coprono già: poco visibili.
+- **Non misurabile qui:** sul tavolo il gruppo si apre circa 1 s dopo l'evidenziazione (misura del 28/10, ritardo dei
+  metadata di OBR).
+
+#### Vista espansa (classica), stessa prova
+
+| | Apertura | Chiusura |
+| --- | --- | --- |
+| Durata dello stage | 625 ms | 624 ms |
+| Fotogrammi oltre 20 ms | 1 (37 ms) | 1 (31 ms) |
+| Scatto finale | nessuno (0,1 px: qui le posizioni vengono dal layout) | nessuno |
+| Salto della lista all'inizio | **+87 px** in 120 ms (Lupo da 507 a 594) | **+86 px** in 110 ms (Lupo da 309 a 395) |
+| Dopo lo stage | **la lista scorre di circa 300 px** in 250 ms per mostrare la card attiva: un secondo movimento dopo il primo | la lista scende di altri 110 px mentre il gruppo si chiude (contenuto più corto in fondo alla lista) |
+| Sfondo durante la transizione | trasparente | `rgb(31, 39, 51)` sulle card non attive |
+
+- **Nella vista espansa il difetto vero è lo scorrimento, non il gruppo.** Il gruppo si apre e si chiude pulito, ma la
+  lista salta di circa 87 px nel primo decimo di secondo. Poi, solo a fine apertura, scorre di nuovo per portare in
+  vista la card attiva: in tutto circa 0,9 s di movimenti in sequenza.
+- Causa probabile del salto (dedotta, da verificare nella patch): la posizione di scorrimento viene ripristinata
+  (`IL:10248`, `trackWrap.scrollTop = Math.min(scrollTopBefore, …)`) mentre lo stage ha ancora la misura di partenza,
+  quindi il browser la limita all'altezza disponibile in quel momento.
+- Lo scorrimento verso la card attiva parte da `__afterGroupLayoutTransition`, cioè dopo la fine dello stage
+  (`IL:10291-10293`).
+- **Nella vista compatta la barra non scorre** durante la prova: resta solo lo scatto di 1,6 px.
+
+#### Correzione della vista espansa (31/10)
+
+Riprese a velocità reale con lo screencast di Chrome, partenza identica (lista in fondo). GIF prima/dopo in
+`docs/ui-audit/after/u13/`.
+
+- **Causa del salto:** quando parte la transizione tutte le card vengono ricostruite, e per un momento quelle con le
+  pill sono alte 74 px invece di 95, finché `initiativeChipOverflow` non le misura. Lo scorrimento veniva
+  ripristinato proprio allora, con la lista più corta, e il browser lo tagliava (da 897 a 790). Ora viene
+  ripristinato una seconda volta nel fotogramma in cui partono le animazioni, con le altezze vere: niente salto.
+- **Nomi sovrapposti in chiusura:** i membri ora svaniscono nei 220 ms in cui compare la card del gruppo.
+- **Apertura fuori schermo:** a ogni fotogramma la lista scorre quanto basta a tenere in vista il bordo del gruppo
+  che cresce, senza mai far uscire la card attiva (`__revealExpandingGroup`). Nella vista espansa il gruppo si apre
+  sotto gli occhi e a circa 480 ms è tutto in vista. Nella vista compatta, dove prima il gruppo non entrava mai in
+  vista, ora ci arriva con uno scorrimento continuo a fine apertura: non è ancora sincronizzato, perché il bordo
+  visibile della barra non coincide con `trackWrap` mentre il popover si allarga.
+- **Resta, ed è voluto:** chiudendo un gruppo in fondo alla lista, il contenuto sopra scende per riempire lo spazio,
+  in un solo movimento continuo.
+- **Resta da fare:** lo scatto di 1,6 px della vista compatta e il ritardo di circa 1 s sul tavolo.
+
 ### Nuove decisioni
 
 | # | Decisione | Consiglio |
