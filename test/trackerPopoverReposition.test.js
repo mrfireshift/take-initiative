@@ -72,3 +72,15 @@ test("the handle's moves and the side switch reposition the tracker", async () =
     assert.equal(opened.filter((options) => options.id === TRACKER).length, 1);
   }
 });
+
+// The menus of the extended tracker (the card's context menu, ⚡) are placed from the tracker's frame. A page in the
+// tracker cannot read its frame's position in Owlbear: docked on the right, they opened at the screen's left edge.
+test("the extended tracker's frame on screen follows its side, for the menus opened from it", async () => {
+  reset(true);
+  const screen = { viewportWidth: 1600, viewportHeight: 900 };
+  store.delete(`${ID}/tracker-classic-placement`);
+  assert.deepEqual(tracker.getClassicTrackerFrameOrigin(1, screen), { left: 22, top: 52, side: "left" });
+  await tracker.toggleClassicTrackerSide();
+  assert.deepEqual(tracker.getClassicTrackerFrameOrigin(1, screen), { left: 1600 - 96 - 340, top: 52, side: "right" });
+  store.delete(`${ID}/tracker-classic-placement`);
+});

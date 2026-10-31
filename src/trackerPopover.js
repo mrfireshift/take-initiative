@@ -183,6 +183,17 @@ export function getClassicTrackerScaledFrame(scale, { viewportWidth = 1200, view
   });
 }
 
+// The extended tracker's top-left corner on screen and its docked side, as it is opened (side, distance and scale).
+// A page in the tracker cannot read its own frame's position: Owlbear's page is another origin (no frameElement).
+export function getClassicTrackerFrameOrigin(scale, { viewportWidth = 1200, viewportHeight = 900 } = {}) {
+  const frame = trackerPlacementFrame(getClassicTrackerPlacement(), {
+    width: getClassicTrackerScaledFrame(scale, { viewportWidth, viewportHeight }).width,
+    viewportWidth,
+    viewportHeight,
+  });
+  return { left: frame.left, top: frame.top, side: frame.side };
+}
+
 // A drag of the extended tracker: it docks to the nearer side at the dropped distance.
 export async function moveClassicTrackerPopover(deltaX, deltaY) {
   const [{ viewportWidth, viewportHeight }, scale] = await Promise.all([viewportSize(), getTrackerViewScale()]);

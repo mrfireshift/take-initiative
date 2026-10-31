@@ -101,11 +101,13 @@ import {
 import {
   getZeroHPConditionHistoryIds,
 } from "./hpConditionAutomation.js";
+import { contextMenuHorizontalOrigin } from "./trackerPlacementCore.js";
 import {
   TRACKER_LAYOUT_CHANNEL,
   TRACKER_LAYOUT_CLASSIC,
   TRACKER_LAYOUT_COMPACT,
   TRACKER_POPOVER_ID,
+  getClassicTrackerFrameOrigin,
   getClassicTrackerScaledFrame,
   getCompactTrackerPopoverAnchor,
   syncCompactTrackerCompanionParts,
@@ -9036,6 +9038,7 @@ async function __getInitiativeCardContextMenuPlacement(event) {
 
   let frameLeft = 0;
   let frameTop = 0;
+  let dockedSide = "";
   if (isCompactTrackerLayout()) {
     const fallbackTrackerWidth = Math.max(260, Math.min(1180, Math.floor(viewportWidth - 32)));
     const [trackerAnchor, trackerWidth, trackerHeight] = await Promise.all([
@@ -9060,19 +9063,22 @@ async function __getInitiativeCardContextMenuPlacement(event) {
       )
     );
   } else {
-    try {
-      const frameRect = window.frameElement?.getBoundingClientRect?.();
-      frameLeft = Number(frameRect?.left) || 0;
-      frameTop = Number(frameRect?.top) || 0;
-    } catch {}
+    // In Owlbear the frame's position cannot be read (frameElement is null: another origin), and the menus opened as
+    // if the tracker stood at the screen's left edge, also when it is docked on the right. The tracker's placement
+    // gives it.
+    const placed = getClassicTrackerFrameOrigin(__trackerViewScale, { viewportWidth, viewportHeight });
+    let frameRect = null;
+    try { frameRect = window.frameElement?.getBoundingClientRect?.() || null; } catch {}
+    const origin = frameRect && Number.isFinite(frameRect.left) && Number.isFinite(frameRect.top) ? frameRect : placed;
+    frameLeft = Number(origin.left) || 0;
+    frameTop = Number(origin.top) || 0;
+    dockedSide = placed.side;
   }
 
   const left = frameLeft + Number(event.clientX || 0);
   const top = frameTop + Number(event.clientY || 0);
   const margin = 12;
-  const horizontal = left + width > viewportWidth - margin
-    ? "RIGHT"
-    : "LEFT";
+  const horizontal = contextMenuHorizontalOrigin({ left, width, viewportWidth, margin, dockedSide });
   // Downwards when the estimate fits below the click or below has more room, upwards otherwise. maxHeight is the
   // room on that side: the menu never grows past it (beyond it, it scrolls), or its last items would be cut.
   const roomBelow = viewportHeight - margin - top;

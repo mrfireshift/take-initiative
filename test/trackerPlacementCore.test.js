@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { defaultTrackerPlacement, moveTrackerPlacement, normalizeTrackerPlacement, toggleTrackerSide, trackerPlacementFrame,
+import { contextMenuHorizontalOrigin, defaultTrackerPlacement, moveTrackerPlacement, normalizeTrackerPlacement, toggleTrackerSide, trackerPlacementFrame,
   trackerSidePanelAnchor } from "../src/trackerPlacementCore.js";
 
 const screen = { width: 340, viewportWidth: 2000, viewportHeight: 1000 };
@@ -58,4 +58,16 @@ test("wiring: the handle shows in both layouts, a click switches side, the drag 
   assert.match(sync, /"tracker-side-toggle"[\s\S]*toggleClassicTrackerSide\(\)/);
   const popover = await readFile(new URL("../src/trackerPopover.js", import.meta.url), "utf8");
   assert.match(popover, /anchorPosition: compact \? compactAnchor : classic\.anchorPosition/);
+});
+
+test("a menu opened from the tracker grows towards the map: leftwards when the tracker docks on the right", async () => {
+  const menu = { width: 280, viewportWidth: 2000, margin: 12 };
+  assert.equal(contextMenuHorizontalOrigin({ ...menu, left: 1700, dockedSide: "right" }), "RIGHT", "its right edge at the click");
+  assert.equal(contextMenuHorizontalOrigin({ ...menu, left: 200, dockedSide: "right" }), "LEFT", "no room on the left");
+  assert.equal(contextMenuHorizontalOrigin({ ...menu, left: 200, dockedSide: "left" }), "LEFT");
+  assert.equal(contextMenuHorizontalOrigin({ ...menu, left: 1900, dockedSide: "left" }), "RIGHT", "no room on the right");
+  assert.equal(contextMenuHorizontalOrigin({ ...menu, left: 1900 }), "RIGHT", "the compact bar: as before");
+  const list = (await readFile(new URL("../src/initiativeList.js", import.meta.url), "utf8")).replace(/\r\n/g, "\n");
+  assert.match(list, /const placed = getClassicTrackerFrameOrigin\(__trackerViewScale, \{ viewportWidth, viewportHeight \}\);/);
+  assert.match(list, /const horizontal = contextMenuHorizontalOrigin\(\{ left, width, viewportWidth, margin, dockedSide \}\);/);
 });

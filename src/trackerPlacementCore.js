@@ -66,6 +66,16 @@ export function trackerSidePanelAnchor(placement, { trackerWidth = 340, viewport
   return { left: Math.ceil(trackerWidth + Math.max(0, current.inset - TRACKER_CLASSIC_LEFT_INSET)) + 14, top: TRACKER_CLASSIC_DEFAULT_TOP };
 }
 
+// The side a menu opened from the extended tracker grows towards, from the click at `left`: "LEFT" is its left edge
+// at the click (it grows rightwards), "RIGHT" its right edge. Towards the map: leftwards when the tracker docks on
+// the right, so it never covers the tracker; then rightwards where there is no room on the left, and the other way.
+export function contextMenuHorizontalOrigin({ left = 0, width = 0, viewportWidth = 1200, margin = 12, dockedSide = "" } = {}) {
+  const fitsRight = left + width <= viewportWidth - margin;
+  const fitsLeft = left - width >= margin;
+  if (dockedSide === "right") return fitsLeft || !fitsRight ? "RIGHT" : "LEFT";
+  return fitsRight ? "LEFT" : "RIGHT";
+}
+
 // ---- GM -> players: the shared tracker view (room metadata `${ID}/ui`, field `view`) ----
 // Screens differ, so the shared view is proportional: the layout, the extended tracker's side with its distance
 // and height as fractions of the screen, the compact bar's anchor as fractions too.
