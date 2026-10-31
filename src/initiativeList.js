@@ -1587,13 +1587,30 @@ async function __playerScreenPlacement() {
   };
 }
 
+// Lot U11 (UX-17): the player's own character, the card marked «Tu» (first in the order when they play several).
+function __myTrackerEntry() {
+  for (const entry of __activeLabelEntriesById?.values?.() || []) {
+    if (entry?.assignedPlayer?.mine === true && !isLairId(entry.id) && !isEpicActionId(entry.id)) return entry;
+  }
+  return null;
+}
+
+function mountPlayerScreenActionsListener() {
+  OBR.broadcast.onMessage(`${ID}/player-screen-actions`, (event) => {
+    if (IS_GM || event?.data?.type !== "open-my-sheet") return;
+    const entry = __myTrackerEntry();
+    if (entry) void openInitiativeCardPopup(entry);
+  });
+}
+
 playerScreenButton.addEventListener("click", (event) => {
   event.stopPropagation();
   void (async () => {
     const placement = await __playerScreenPlacement();
+    const mine = __myTrackerEntry();
     await OBR.popover.open({
       id: PLAYER_SCREEN_POPOVER_ID,
-      url: "/player-screen.html",
+      url: `/player-screen.html${mine ? `?mine=${encodeURIComponent(String(mine.name || "").trim() || "Il mio personaggio")}` : ""}`,
       width: PLAYER_SCREEN_POPOVER_WIDTH,
       height: PLAYER_SCREEN_POPOVER_HEIGHT,
       anchorReference: "POSITION",
@@ -2919,6 +2936,59 @@ track.style.gap = "6px";
 track.style.paddingTop = "8px";
 track.style.paddingBottom = "8px";
 trackWrap.appendChild(track);
+// Lot U11 (UX-08): the GM's empty tracker says so and offers "Aggiungi attori", the header's "+" (in the compact
+// layout, the "…" menu's). Players see nothing. Beside the track, not in it: the card renders replace the track's nodes.
+const trackerEmptyNotice = document.createElement("div");
+trackerEmptyNotice.dataset.trackerEmptyNotice = "1";
+Object.assign(trackerEmptyNotice.style, {
+  display: "none",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
+  padding: "16px 12px",
+  boxSizing: "border-box",
+  color: "rgba(226,232,240,.78)",
+  fontSize: "12px",
+  fontWeight: "600",
+  textAlign: "center",
+  whiteSpace: "nowrap",
+});
+const trackerEmptyText = document.createElement("span");
+trackerEmptyText.textContent = "Nessuna creatura in iniziativa";
+const trackerEmptyAddButton = document.createElement("button");
+trackerEmptyAddButton.type = "button";
+trackerEmptyAddButton.textContent = "+ Aggiungi attori";
+trackerEmptyAddButton.title = "Aggiungi tutti i token della scena all'iniziativa";
+Object.assign(trackerEmptyAddButton.style, {
+  height: "28px",
+  padding: "0 12px",
+  border: "1px solid rgba(74,222,128,.68)",
+  borderRadius: "10px",
+  background: "rgba(21,128,61,.62)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+  color: "#fff",
+  fontFamily: "inherit",
+  fontSize: "12px",
+  fontWeight: "700",
+  cursor: "pointer",
+});
+trackerEmptyAddButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  roundPill.querySelector('[data-add-all-initiative="1"]')?.click();
+});
+trackerEmptyNotice.append(trackerEmptyText, trackerEmptyAddButton);
+trackWrap.appendChild(trackerEmptyNotice);
+// The compact strip's room for it when no card is drawn (resizeCompactTrackerPopover).
+const COMPACT_EMPTY_NOTICE_WIDTH = 120;
+function __syncTrackerEmptyNotice(empty) {
+  const compact = isCompactTrackerLayout();
+  // Extended: under the header, in the list's flow. Compact: centred over the empty strip.
+  Object.assign(trackerEmptyNotice.style, compact
+    ? { position: "absolute", inset: "0", padding: "0 8px", fontSize: "11px" }
+    : { position: "static", inset: "", padding: "16px 12px", fontSize: "12px" });
+  trackerEmptyNotice.style.display = IS_GM && empty ? "flex" : "none";
+}
 // A full render waits while a card is being renamed (it would destroy the input): it runs once the rename closes.
 // Registered here, after track exists: earlier in mountInitiativeList it is still in its temporal dead zone.
 track.addEventListener(TRACKER_RENAME_FINISHED_EVENT, () => __scheduleEditorDirtyFlush());
@@ -9684,7 +9754,9 @@ function resizeCompactTrackerPopover(
       showToolbar: IS_GM,
       showNavigation: IS_GM,
       // Open side drawers (effects, companions) widen the strip as far as the maximum width.
-      extraWidth: compactCards.reduce((total, card) => total + (Number.parseFloat(card.style.marginRight) || 0), 0),
+      extraWidth: compactCards.reduce((total, card) => total + (Number.parseFloat(card.style.marginRight) || 0), 0)
+        // Lot U11: the GM's empty strip holds "Nessuna creatura in iniziativa" and its button.
+        + (IS_GM && !entries?.length ? COMPACT_EMPTY_NOTICE_WIDTH : 0),
     });
   const requestedHeight = compactTrackerCompanionHeight(
     compactCards.map(card => Number.parseFloat(card.style.marginBottom) || 0),
@@ -10768,6 +10840,29 @@ function renderCompactTrack(
         onSpellActions: IS_GM && !virtual
           ? (spell, event) => __openSpellPillActions(entry, spell, event)
           : null,
+        // Lot U11 (UX-04): the drawer's × removes a condition or ends a spell, as the extended card's ×, on the
+        // member that holds it.
+        onRemoveEffect: IS_GM && !virtual
+          ? async (effect) => {
+            for (const member of effectMembers) {
+              const memberId = member.__paragonBaseId || member.id;
+              const instance = effect.instanceId
+                ? getEffectiveConditionInstances(member.conditions || {})
+                  .find((candidate) => String(candidate?.id || "") === effect.instanceId)
+                : null;
+              if (instance) {
+                return __removeConditionOnTrackerCard(memberId, { name: instance.condition, instances: [instance] });
+              }
+              // A spell without an instance (older records) by its name, as the extended card ends it.
+              const spell = effect.kind === "spell"
+                ? (Array.isArray(member.spells) ? member.spells : []).find((candidate) => effect.spellInstanceId
+                  ? String(candidate?.instanceId || "") === effect.spellInstanceId
+                  : __spellKey(candidate?.name) === effect.key)
+                : null;
+              if (spell) return __terminateSpellOnTrackerCard(memberId, spell);
+            }
+          }
+          : null,
       });
       if (effectsDrawer) bindReferenceChips(effectsDrawer);
     }
@@ -11627,6 +11722,7 @@ try {
     const animateActive = (activeIdNow !== __prevActiveId);
 
     renderTrack(ordered, stateClean, { animateActive });  // <-- passa il flag
+    __syncTrackerEmptyNotice(!ordered.length);
     __fullRenderDirty = false;
     __initiativeDiag("render:committed", {
       renderRevision,
@@ -11649,6 +11745,7 @@ try {
       mountTrackerQuickActionsPopoverListener();
       mountPcAttackSpellLaunchListener();
       mountCompactAdminMenuListener();
+      mountPlayerScreenActionsListener();
       mountSpeedCheckStateBroadcast();
     mountConcentrationWarningBroadcast();
     const speedWarningBootstrap = mountSpeedWarningBroadcast().catch(() => {});

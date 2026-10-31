@@ -1297,6 +1297,35 @@ test("gli altri effetti si aprono in un cassetto a destra della card, in colonne
   assert.equal(appendCompactEffectsDrawer(documentRef.createElement("article"), [], { documentRef }), null);
 });
 
+test("U11: nel cassetto la × toglie condizioni e incantesimi, non sulla pill della card", async () => {
+  const documentRef = createTestDocument();
+  const removed = [];
+  const onRemoveEffect = (effect) => { removed.push(effect.label); };
+  const condition = { kind: "condition", instanceId: "c1", label: "Prono" };
+  const spell = { kind: "spell", spellInstanceId: "s1", label: "Benedizione",
+    actionsSpell: { instanceId: "s1", spellId: "bless", name: "Benedizione" } };
+  const concentration = { kind: "concentration", label: "Concentrazione" };
+  const card = documentRef.createElement("article");
+  const drawer = appendCompactEffectsDrawer(card, [condition, spell, concentration], {
+    documentRef, onRemoveEffect, onSpellActions: () => {},
+  });
+  const [prono, bless, conc] = drawer.children[0].children;
+  assert.equal(prono.children.length, 1);
+  assert.equal(prono.children[0].title, "Rimuovi Prono");
+  await prono.children[0].dispatch("click", createTestEvent());
+  // The spell keeps its ⚡, moved left of the ×.
+  const [actions, terminate] = bless.children;
+  assert.equal(actions.dataset.spellPillActions, "1");
+  assert.equal(actions.style.right, "14px");
+  assert.equal(bless.style.paddingRight, "26px");
+  assert.equal(terminate.title, "Termina Benedizione");
+  await terminate.dispatch("click", createTestEvent());
+  assert.deepEqual(removed, ["Prono", "Benedizione"]);
+  assert.equal(conc.children.length, 0, "a bare concentration has nothing to end from here");
+  // The card's own pill gets no ×: turned down on 23/10 as too easy to hit.
+  assert.equal(__buildCompactEffectPill(condition, false, { documentRef }).children.length, 0);
+});
+
 test("lotto 6.5: il badge di iniziativa compatto ha le etichette del classico per l'editor e Compila iniziativa", () => {
   const documentRef = createTestDocument();
   const { initiativeBadge } = buildCompactCardIndicators({ id: "wolf", initiative: 7 }, {

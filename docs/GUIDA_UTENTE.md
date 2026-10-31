@@ -5,7 +5,8 @@ Questa guida descrive l'uso di Take Initiative! nel suo scenario principale: un 
 Le impostazioni locali e condivise sono raccolte nel pannello **Opzioni**; per
 scope, precedenza e limiti consulta [Architettura Options](OPTIONS-ARCHITECTURE.md).
 Le animazioni visuali degli incantesimi sono opzionali e descritte in
-[Embers/JB2A](EMBERS.md).
+[Embers/JB2A](EMBERS.md). In **Opzioni → Manutenzione** la riga **Versione in
+uso** dice quale build gira nella stanza: versione, data e sigla del commit.
 
 ## 1. Preparare la scena
 
@@ -62,12 +63,16 @@ La barra resta alta sempre uguale: quello che non sta nella card si apre di lato
 
 - **Colonna sinistra**: maniglia per trascinare la barra, il **Round** corrente (visibile anche ai giocatori), il cambio di vista e, per il GM, il menu `…` con Reset round, Cronologia, Riposo del gruppo, Etichette mappa, Opzioni e, in fondo, Aggiungi attori e Svuota iniziativa.
 - **Card**: in alto a sinistra il badge dell'iniziativa e, sotto, l'icona blu della scheda personaggio (PG e alleati; per il GM ogni creatura); a destra del ritratto la colonna dei pulsanti ⚡ 🪄 🗡️ (solo GM); il badge **KO** compare sul ritratto quando una creatura va a 0 PF.
-- **Effetti**: la card mostra la prima etichetta; un clic sull'etichetta o sul pulsante `+N` apre accanto alla card un cassetto con tutte le altre, in colonne. Un nuovo clic sull'etichetta lo chiude. È aperto un cassetto alla volta e scorrendo la barra resta aperto.
+- **Effetti**: la card mostra la prima etichetta; un clic sull'etichetta o sul pulsante `+N` apre accanto alla card un cassetto con tutte le altre, in colonne. Un nuovo clic sull'etichetta lo chiude. È aperto un cassetto alla volta e scorrendo la barra resta aperto. Per il GM la **×** di un'etichetta nel cassetto rimuove la condizione o termina l'incantesimo, come la × della vista estesa; l'etichetta sulla card non ha la ×, così non si tocca per sbaglio.
 - **Token collegati ed evocazioni**: una linguetta stretta accanto alla card mostra i ritratti e il numero; un clic la apre e mostra le righe dei compagni, con i loro PF (modificabili dal GM) e il clic per selezionare la pedina. Le card successive scorrono a destra.
 
 ### Vista GM e vista giocatori
 
 Il GM vede i controlli di incontro, tracker, modifica e strumenti. I giocatori vedono il round e l'ordine di iniziativa, ma non le toolbar di regia.
+
+Con l'iniziativa vuota il tracker del GM mostra «Nessuna creatura in iniziativa» con il pulsante **+ Aggiungi attori**; quello dei giocatori resta vuoto.
+
+Nel profilo Online il giocatore ha il menu **Il mio schermo** (l'icona delle opzioni). Se il GM gli ha assegnato un personaggio, la riga **La mia scheda** apre la scheda del PG segnato «Tu».
 
 Nella vista giocatori i PF dei PG restano visibili. La modalità estesa può mostrare anche i PF degli alleati, mentre quella compatta privilegia i soli PG; neutrali e nemici non espongono i propri PF ai giocatori. Quando un valore non è visibile non viene lasciato un testo o una barra vuota. Gli strumenti di amministrazione non sono interattivi per i giocatori.
 

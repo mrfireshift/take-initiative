@@ -233,6 +233,68 @@ export function compactStatusBadge(
   return badge;
 }
 
+// The × that ends an effect, pinned to the pill's right edge, so a long label is cut before it and never hides it. Its
+// 24px clickable square reaches past the pill, so the pill clips with a margin instead of at its border (the text still
+// ends in "…").
+function appendCompactEffectRemoveButton(pill, title, run, documentRef) {
+  const terminate = compactDocument(documentRef).createElement("button");
+  terminate.type = "button";
+  terminate.textContent = "×";
+  terminate.dataset.cardSelectionIgnore = "1";
+  terminate.title = title;
+  terminate.setAttribute("aria-label", terminate.title);
+  pill.style.paddingRight = "14px";
+  pill.style.overflow = "clip";
+  pill.style.overflowClipMargin = "8px";
+  Object.assign(terminate.style, {
+    position: "absolute",
+    right: "2px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    minWidth: "10px",
+    width: "10px",
+    height: "10px",
+    padding: "0",
+    border: "0",
+    borderRadius: "50%",
+    background: "rgba(0,0,0,.22)",
+    color: "inherit",
+    font: "inherit",
+    fontSize: "9px",
+    fontWeight: "800",
+    lineHeight: "10px",
+    cursor: "pointer",
+  });
+  terminate.addEventListener("mouseenter", () => {
+    terminate.style.background = "rgba(220,38,38,.72)";
+  });
+  terminate.addEventListener("mouseleave", () => {
+    terminate.style.background = "rgba(0,0,0,.22)";
+  });
+  terminate.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (terminate.disabled) return;
+    terminate.disabled = true;
+    Promise.resolve(run())
+      .catch((error) => {
+        terminate.disabled = false;
+        console.warn("[initiative-card] terminate effect:", error?.message || error);
+      });
+  });
+  extendHitArea(terminate, { documentRef: compactDocument(documentRef) });
+  pill.appendChild(terminate);
+  return terminate;
+}
+
+// Lot U11 (UX-04): what the drawer's × can end besides a class feature. Not on the card's own pill, where a × was
+// turned down on 23/10 as too easy to hit by mistake; the drawer is opened on purpose.
+function compactEffectRemovable(effect) {
+  return (effect?.kind === "condition" || effect?.kind === "buff" || effect?.kind === "debuff")
+    ? !!effect.instanceId
+    : effect?.kind === "spell" && !!(effect.spellInstanceId || effect.key);
+}
+
 export function __buildCompactEffectPill(
   effect,
   preview = false,
@@ -241,6 +303,7 @@ export function __buildCompactEffectPill(
     spellColor = null,
     onTerminateClassFeature = null,
     onSpellActions = null,
+    onRemoveEffect = null,
   } = {},
 ) {
   const pill = compactDocument(documentRef).createElement("span");
@@ -350,55 +413,17 @@ export function __buildCompactEffectPill(
   }
   if (effect.kind === "class-feature" && effect.classFeatureInstance &&
       typeof onTerminateClassFeature === "function") {
-    const terminate = compactDocument(documentRef).createElement("button");
-    terminate.type = "button";
-    terminate.textContent = "×";
-    terminate.dataset.cardSelectionIgnore = "1";
-    terminate.title = `Termina ${effect.label}`;
-    terminate.setAttribute("aria-label", terminate.title);
-    // Pinned to the right edge, so a long label is cut before the × and never hides it. Its 24px clickable square
-    // reaches past the pill, so the pill clips with a margin instead of at its border (the text still ends in "…").
-    pill.style.paddingRight = "14px";
-    pill.style.overflow = "clip";
-    pill.style.overflowClipMargin = "8px";
-    Object.assign(terminate.style, {
-      position: "absolute",
-      right: "2px",
-      top: "50%",
-      transform: "translateY(-50%)",
-      minWidth: "10px",
-      width: "10px",
-      height: "10px",
-      padding: "0",
-      border: "0",
-      borderRadius: "50%",
-      background: "rgba(0,0,0,.22)",
-      color: "inherit",
-      font: "inherit",
-      fontSize: "9px",
-      fontWeight: "800",
-      lineHeight: "10px",
-      cursor: "pointer",
-    });
-    terminate.addEventListener("mouseenter", () => {
-      terminate.style.background = "rgba(220,38,38,.72)";
-    });
-    terminate.addEventListener("mouseleave", () => {
-      terminate.style.background = "rgba(0,0,0,.22)";
-    });
-    terminate.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (terminate.disabled) return;
-      terminate.disabled = true;
-      Promise.resolve(onTerminateClassFeature(effect.classFeatureInstance))
-        .catch((error) => {
-          terminate.disabled = false;
-          console.warn("[initiative-card] terminate class feature:", error?.message || error);
-        });
-    });
-    extendHitArea(terminate, { documentRef: compactDocument(documentRef) });
-    pill.appendChild(terminate);
+    appendCompactEffectRemoveButton(pill, `Termina ${effect.label}`,
+      () => onTerminateClassFeature(effect.classFeatureInstance), documentRef);
+  } else if (typeof onRemoveEffect === "function" && compactEffectRemovable(effect)) {
+    appendCompactEffectRemoveButton(pill, `${effect.kind === "spell" ? "Termina" : "Rimuovi"} ${effect.label}`,
+      () => onRemoveEffect(effect), documentRef);
+    // The spell's ⚡ moves left of the ×.
+    const actions = Array.from(pill.children || []).find((child) => child.dataset?.spellPillActions === "1");
+    if (actions) {
+      actions.style.right = "14px";
+      pill.style.paddingRight = "26px";
+    }
   }
   return buildEffectSummaryContainer(effect, pill, {
     documentRef,
@@ -954,6 +979,7 @@ export function appendCompactEffectsDrawer(
     spellColor = null,
     onTerminateClassFeature = null,
     onSpellActions = null,
+    onRemoveEffect = null,
     documentRef = globalThis.document,
   } = {},
 ) {
@@ -993,7 +1019,8 @@ export function appendCompactEffectsDrawer(
     });
     for (const effect of columnEffects) {
       // The card's pill (preview): same height, text and width as the one on the card.
-      const pill = __buildCompactEffectPill(effect, true, { documentRef, spellColor, onTerminateClassFeature, onSpellActions });
+      const pill = __buildCompactEffectPill(effect, true,
+        { documentRef, spellColor, onTerminateClassFeature, onSpellActions, onRemoveEffect });
       Object.assign(pill.style, { display: "block", width: "100%" });
       column.appendChild(buildEffectSummaryContainer(effect, pill, { documentRef, preview: true }));
     }

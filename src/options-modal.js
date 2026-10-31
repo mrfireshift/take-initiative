@@ -18,8 +18,14 @@ import { selectOptionsPanelModel } from "./options/optionsSelectors.js";
 import { setTrackerLayout } from "./trackerPopover.js";
 import { planPluginDerivedDataCleanup } from "./pluginDataCleanupCore.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
+import { buildInfoLabel } from "./buildInfo.js";
 
 const MODAL_ID = `${ID}/options-modal`;
+// Lot U11 (UX-18): which build the room is running.
+{
+  const buildInfoNode = document.getElementById("build-info-label");
+  if (buildInfoNode) buildInfoNode.textContent = buildInfoLabel();
+}
 const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
 const HP_SURFACES = Object.freeze([
   ["trackerClassic", "Tracker esteso"],

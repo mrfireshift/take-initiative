@@ -11,6 +11,7 @@ import {
 } from "./playerScreenCore.js";
 
 const POPOVER_ID = `${ID}/player-screen`;
+const PLAYER_SCREEN_CHANNEL = `${ID}/player-screen-actions`;
 const follow = document.getElementById("playerScreenFollow");
 const scale = document.getElementById("playerScreenScale");
 const animations = document.getElementById("playerScreenAnimations");
@@ -48,6 +49,19 @@ animations.addEventListener("change", () => save({ animations: animations.checke
 reminders.addEventListener("change", () => save({ remindersMineOnly: reminders.value === "mine" }));
 const close = () => void OBR.popover.close(POPOVER_ID).catch(() => {});
 document.getElementById("playerScreenClose").addEventListener("click", close);
+
+// Lot U11 (UX-17): the sheet of the player's own character (the card marked «Tu»), named by the tracker that opened
+// this menu; the tracker opens it, as from the card's sheet icon.
+const mineName = new URLSearchParams(location.search).get("mine") || "";
+if (mineName) {
+  document.getElementById("playerScreenMineName").textContent = mineName;
+  document.getElementById("playerScreenMineRow").hidden = false;
+  document.getElementById("playerScreenMine").addEventListener("click", () => {
+    void OBR.broadcast.sendMessage(PLAYER_SCREEN_CHANNEL, { type: "open-my-sheet" }, { destination: "LOCAL" })
+      .catch(() => {})
+      .finally(close);
+  });
+}
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") close();
 });

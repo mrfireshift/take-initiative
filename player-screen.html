@@ -84,7 +84,20 @@
         color: #fff;
         font: inherit;
       }
-      input:focus-visible, select:focus-visible { outline: 2px solid rgba(147, 197, 253, .9); outline-offset: 2px; }
+      .row[hidden] { display: none; }
+      .open {
+        height: 26px;
+        padding: 0 12px;
+        border: 1px solid rgba(147, 197, 253, .62);
+        border-radius: 8px;
+        background: rgba(30, 64, 175, .58);
+        color: #fff;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .open:hover { background: rgba(37, 99, 235, .72); }
+      input:focus-visible, select:focus-visible, .open:focus-visible { outline: 2px solid rgba(147, 197, 253, .9); outline-offset: 2px; }
     </style>
   </head>
   <body>
@@ -99,6 +112,10 @@
           <h1>Il mio schermo</h1>
           <button id="playerScreenClose" class="close" type="button" aria-label="Chiudi" title="Chiudi">×</button>
         </header>
+        <div class="row" id="playerScreenMineRow" hidden>
+          <span>La mia scheda<small id="playerScreenMineName"></small></span>
+          <button id="playerScreenMine" class="open" type="button">Apri</button>
+        </div>
         <label class="row" for="playerScreenFollow">
           <span>Segui il turno<small>La vista va sul token di turno</small></span>
           <input id="playerScreenFollow" type="checkbox" />
