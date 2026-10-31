@@ -269,10 +269,13 @@ async function toggleEpicBossOn(ids) {
     OBR.contextMenu.create({
       id: `${ID}/boss-actions`,
       group: MENU_GROUP,
-      // Only an Epic boss (Abilita Boss Epico) has the console of its actions.
+      // The creatures whose card shows the Boss Actions launcher (lot U2): an Epic boss (Abilita Boss Epico) or one
+      // bound to a boss profile; without a profile the console opens on its binding.
       icons: [{ icon: ICON_BOSS, label: "Console Boss", filter: { roles: ["GM"], every: [
         isCharacter(), { key: "type", value: "IMAGE" },
+      ], some: [
         { key: ["metadata", META_KEY, "epic"], operator: "!=", value: undefined },
+        { key: ["metadata", META_KEY, "initiativeCard", "bossActionBinding"], operator: "!=", value: undefined },
       ] } }],
       onClick: async (context) => {
         if (context.items?.length === 1) await openBossActionsPopover(context.items[0].id);

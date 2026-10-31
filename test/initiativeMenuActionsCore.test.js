@@ -104,7 +104,8 @@ test("il payload card conserva titolo, scope e visibilità del menu", () => {
     activeMode: "legendary",
     groupCollapsed: false,
     showRecentChanges: true,
-    showInitiativeCard: false,
+    showInitiativeCard: true,
+    sheetLabel: "Statblock",
     showBossMenu: true,
     showReadiedActionMenu: true,
     hasReadiedAction: false,
@@ -283,4 +284,16 @@ test("il payload e il routing del menu espongono attivazione e terminazione Feat
     { deactivateClassFeature: async (...args) => calls.push(["deactivate", ...args]) },
   ), true);
   assert.deepEqual(calls, [["deactivate", sourceEntry, "instance-1"]]);
+});
+
+// Lot U2 of the system UX audit: the card menu opens every creature's sheet, as the icon on the card; a monster's is
+// its stat block.
+test("U2: la voce della scheda compare per ogni creatura, «Statblock» per chi non è PG o alleato", () => {
+  const payload = (attitude) => buildInitiativeCardContextMenuPayload({ sourceEntry: { name: "X", attitude }, scopeIds: ["x"] });
+  assert.equal(payload("pc").sheetLabel, "Scheda personaggio");
+  assert.equal(payload("ally").sheetLabel, "Scheda personaggio");
+  assert.equal(payload("neutral").sheetLabel, "Statblock");
+  assert.equal(payload("enemy").showInitiativeCard, true);
+  assert.equal(buildInitiativeCardContextMenuPayload({ sourceEntry: { name: "Goblin", attitude: "enemy" },
+    scopeIds: ["g1", "g2"] }).showInitiativeCard, false, "never for several creatures");
 });

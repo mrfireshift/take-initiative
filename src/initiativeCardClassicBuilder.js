@@ -19,7 +19,7 @@ import {
 } from "./initiativeEditors.js";
 import { compactStatusBadge, writeHPBarTempSegment } from "./initiativeCardCompact.js";
 import { quickHPBarSegments } from "./quickHpCore.js";
-import { canOpenInitiativeCardSheet } from "./initiativeCardSheetAccessCore.js";
+import { canOpenInitiativeCardSheet, initiativeCardSheetLabel } from "./initiativeCardSheetAccessCore.js";
 import { cardPlayerAssignmentTitle } from "./playerAssignmentCore.js";
 import { fitCardToChipDock } from "./initiativeChipOverflow.js";
 import { buildReactionIndicator } from "./reactionIndicator.js";
@@ -1123,7 +1123,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   if (canOpenInitiativeCardSheet(e, { isGM: IS_GM })) {
     initiativeCardButton = document.createElement("button");
     initiativeCardButton.type = "button";
-    initiativeCardButton.title = "Apri scheda personaggio";
+    initiativeCardButton.title = `Apri ${initiativeCardSheetLabel(e).toLocaleLowerCase("it")}`;
     initiativeCardButton.setAttribute("aria-label", initiativeCardButton.title);
     // Same look as the reaction indicator (cardIconButton.js), in the sheet's blue.
     styleCardIconButton(initiativeCardButton, "sheet");

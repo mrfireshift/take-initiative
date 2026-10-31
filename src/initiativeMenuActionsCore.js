@@ -3,6 +3,7 @@ import {
   isAllowedInitiativeCardMenuAction,
 } from "./menuPopoverProtocolCore.js";
 import { hasReadiedAction } from "./reactionTrackerCore.js";
+import { canOpenInitiativeCardSheet, initiativeCardSheetLabel } from "./initiativeCardSheetAccessCore.js";
 
 const COMPACT_ADMIN_MENU_ACTION_SELECTORS = Object.freeze({
   "reset-round": "[data-reset-round='1']",
@@ -70,8 +71,10 @@ export function buildInitiativeCardContextMenuPayload({
     groupCollapsed: !!sourceEntry?.__groupCollapsed,
     // Lot U3c: the combat log filtered on this creature (by its name, as the log's Partecipante filter).
     showRecentChanges: !isBulkScope && !sourceEntry?.__groupCollapsed && !!String(sourceEntry?.name || "").trim(),
-    showInitiativeCard: !isBulkScope &&
-      ["pc", "ally"].includes(sourceEntry?.attitude),
+    // Lot U2: the same rule as the sheet icon on the card (the GM opens every creature's), named as the icon.
+    showInitiativeCard: !isBulkScope && canOpenInitiativeCardSheet(sourceEntry, { isGM: true }),
+    ...(!isBulkScope && canOpenInitiativeCardSheet(sourceEntry, { isGM: true })
+      ? { sheetLabel: initiativeCardSheetLabel(sourceEntry) } : {}),
     showBossMenu: !isBulkScope && sourceEntry?.attitude === "enemy",
     ...(classFeatures.length ? { classFeatures } : {}),
     ...(showClassFeatureResourceReset ? { showClassFeatureResourceReset: true } : {}),

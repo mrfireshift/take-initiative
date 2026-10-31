@@ -342,7 +342,7 @@ function render(payload) {
     });
   }
   if (payload.showInitiativeCard) {
-    makeAction(root, "Scheda personaggio", "character-sheet.svg", "initiative-card");
+    makeAction(root, payload.sheetLabel || "Scheda personaggio", "character-sheet.svg", "initiative-card");
     divider(root);
   } else if (!payload.expandedTokenMenu || payload.showRecentChanges) {
     divider(root);

@@ -12,7 +12,7 @@ import { COMPACT_CARD_WIDTH } from "./constants.js";
 import { cardPlayerAssignmentTitle } from "./playerAssignmentCore.js";
 import { HIT_AREA_MIN_SIZE, extendHitArea } from "./hitAreaCore.js";
 import { CARD_ICON_BUTTON_SIZE, buildCardIconGlyph, markHiddenTokenPortrait, styleCardIconButton } from "./cardIconButton.js";
-import { canOpenInitiativeCardSheet } from "./initiativeCardSheetAccessCore.js";
+import { canOpenInitiativeCardSheet, initiativeCardSheetLabel } from "./initiativeCardSheetAccessCore.js";
 import { quickHPBarSegments, quickHPStateOf, TEMP_HP_COLOR } from "./quickHpCore.js";
 
 // CAP-TEMP: the colour of the temporary hit points beside the HP (quickHpCore.js), for the cards built from here.
@@ -587,7 +587,7 @@ export function buildCompactSheetButton(
   const button = document.createElement("button");
   button.type = "button";
   button.dataset.compactSheetButton = "1";
-  button.title = "Apri scheda personaggio";
+  button.title = `Apri ${initiativeCardSheetLabel(entry).toLocaleLowerCase("it")}`;
   button.setAttribute("aria-label", button.title);
   styleCardIconButton(button, "sheet");
   Object.assign(button.style, {

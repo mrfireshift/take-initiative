@@ -29,7 +29,9 @@ test("a player sets the height of a player character only; the GM that of any cr
   assert.match(icons[1], /key: \["metadata", META_KEY, "attitude"\], value: "pc"/u);
 });
 
-test("Boss Actions shows only on an Epic boss", () => {
-  const block = source.split("OBR.contextMenu.create(").find((entry) => entry.includes('label: "Console Boss"'));
-  assert.match(block, /key: \["metadata", META_KEY, "epic"\], operator: "!=", value: undefined/u);
+// Lot U2 of the system UX audit: the token's Console Boss follows the card's launcher, an Epic boss or a creature bound
+// to a boss profile.
+test("U2: la Console Boss del token compare per il boss epico e per chi ha un profilo collegato", () => {
+  const block = source.split("OBR.contextMenu.create(").find((entry) => entry.includes("/boss-actions`"));
+  assert.match(block, /some: \[\s*\{ key: \["metadata", META_KEY, "epic"\], operator: "!=", value: undefined \},\s*\{ key: \["metadata", META_KEY, "initiativeCard", "bossActionBinding"\], operator: "!=", value: undefined \},/u);
 });
