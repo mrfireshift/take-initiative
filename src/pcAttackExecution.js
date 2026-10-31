@@ -20,6 +20,7 @@ import { CLASS_FEATURE_STATE_FIELD, planClassFeatureResourceAdjustment } from ".
 import { getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { pcAttackFeatureState } from "./pcAttackFeatureFormCore.js";
 import { isOffTurn, planReactionSpend } from "./reactionTrackerCore.js";
+import { committedHpFor } from "./sharedHpViewCore.js";
 
 // The slot each smite of the attack spends (Divine Smite at its level, Eldritch Smite from Pact Magic), in order:
 // [{rider,name,plan}]. riders are the console's ({id}) or the plan's causality ({featureId,name}).
@@ -303,7 +304,7 @@ export function createPcAttackRuntime({
         ...(plan.causality.weaponCantrip?{weaponCantrip:structuredClone(plan.causality.weaponCantrip)}:{}),
         ...(plan.secondaryChange?{secondary:{id:plan.secondaryItem.id,name:plan.secondaryItem.name || plan.secondaryItem.id,
           before:plan.secondaryChange.hp,after:plan.secondaryChange.afterHP}}:{}),
-        hpChange:plan.change?{before:plan.change.hp,after:plan.change.afterHP,hpMax:plan.change.hpMax}:null,
+        hpChange:plan.change?{before:plan.change.hp,after:committedHpFor(result,targetItem.id) ?? plan.change.afterHP,hpMax:plan.change.hpMax}:null,
         historyEntryId:result.historyEntry?.id || null,
         undoAvailable:!result.historyPending && !result.historySkipped && !!result.historyEntry?.id};
       return structuredClone(draft.result);
@@ -439,7 +440,7 @@ export function createPcAttackRuntime({
       }
       draft.result={...result,attackInstanceId,outcome:request.outcome,quiveringPalm:true,damageComponents:plan.damageComponents,warnings,
         target:{id:targetItem.id,name:targetItem.name || targetItem.id},
-        hpChange:plan.change?{before:plan.change.hp,after:plan.change.afterHP,hpMax:plan.change.hpMax}:null,
+        hpChange:plan.change?{before:plan.change.hp,after:committedHpFor(result,targetItem.id) ?? plan.change.afterHP,hpMax:plan.change.hpMax}:null,
         historyEntryId:result.historyEntry?.id || null,
         undoAvailable:!result.historyPending && !result.historySkipped && !!result.historyEntry?.id};
       return structuredClone(draft.result);

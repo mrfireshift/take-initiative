@@ -165,3 +165,14 @@ test("L17: a per-turn effect of a concentration spell that runs out leaves the s
   assert.deepEqual(next.find((state) => state.id === "orc").conditions, []);
   assert.equal(next.find((state) => state.id === "cleric").spells.length, 1, "the concentration goes on");
 });
+
+test("lotto 2: the casts of Death Ward and Warding Bond put on their target the pill the HP writes read", async () => {
+  const { deathWardPill, wardingBondPill, planDeathWard } = await import("../src/reactionHpCore.js");
+  const warded = creature("t", { hp: 10, ...pills(...castPills("death-ward", "", "t").map((entry, index) => ({ ...entry, id: `w${index}` }))) });
+  assert.ok(deathWardPill(warded));
+  assert.equal(planDeathWard({ item: warded, hpAfter: 0, damage: 12 }).hp, 1);
+  assert.equal(planDeathWard({ item: warded, hpAfter: 3, damage: 7 }), null, "above 0: nothing");
+  assert.equal(planDeathWard({ item: warded, hpAfter: 0, damage: 0, instantDeath: true }).hp, 10, "no death, its HP");
+  const bonded = creature("t", pills(...castPills("warding-bond", "", "t").map((entry, index) => ({ ...entry, id: `b${index}`, sourceId: "caster" }))));
+  assert.equal(wardingBondPill(bonded)?.sourceId, "caster");
+});

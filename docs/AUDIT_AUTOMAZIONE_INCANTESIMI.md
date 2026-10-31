@@ -646,7 +646,7 @@ da questo audit.
 - Opzioni trackable del runtime: **362**; definizioni con tracking persistente verificate dall'audit: **359**; definizioni con regole d'area: **139** (144 regole).
 - Workflow che richiedono smoke test runtime: **407**.
 - Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `f63c055056bd3c6c`.
+- Impronta deterministica: `fdad20ee0c26287e`.
 
 ## Decisioni di prodotto chiuse
 
@@ -660,8 +660,8 @@ da questo audit.
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 66 |
-| PARTIAL | 225 |
-| TRACK_ONLY | 120 |
+| PARTIAL | 226 |
+| TRACK_ONLY | 119 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -702,7 +702,7 @@ da questo audit.
 | --- | ---: |
 | ACTIVE_ACTION | 49 |
 | AREA_GEOMETRY | 139 |
-| CAST | 260 |
+| CAST | 261 |
 | CLEANUP | 116 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 359 |
@@ -973,7 +973,7 @@ Nessuna voce.
 | Infliggi ferite | `inflict-wounds` | SRD 5.1 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Ingrandire/ridurre | `enlarge-reduce` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Insetto gigante | `giant-insect` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Interdizione alla morte | `death-ward` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Interdizione alla morte | `death-ward` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Interdizione alle Lame | `phb2014-interdizione-alle-lame` | PHB 2014 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Interdizione Primordiale | `xanathar-interdizione-primordiale` | Xanathar / 6 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | trigger condizionale durante la durata assente; conseguenza alla fine della spell assente |
 | Intermittenza | `blink` | SRD 5.1 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |

@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "f63c055056bd3c6c",
+  "fingerprint": "fdad20ee0c26287e",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -19,8 +19,8 @@
     "currentAutomationLevel": {
       "FULL": 66,
       "MANUAL": 66,
-      "PARTIAL": 225,
-      "TRACK_ONLY": 120
+      "PARTIAL": 226,
+      "TRACK_ONLY": 119
     },
     "coverageStatus": {
       "ACCEPTED": 72,
@@ -101,7 +101,7 @@
     "smokeCategories": {
       "ACTIVE_ACTION": 49,
       "AREA_GEOMETRY": 139,
-      "CAST": 260,
+      "CAST": 261,
       "CLEANUP": 116,
       "CONCENTRATION": 218,
       "PERSISTENCE": 359,
@@ -25457,12 +25457,13 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CAST",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -25488,11 +25489,12 @@
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
-        "effectCount": 0,
+        "effectCount": 1,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "CAST",
           "PERSISTENCE"
         ]
       },
@@ -25513,16 +25515,19 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "automation"
           ]
         },
         "cast": {
           "adapter": "spell-lifecycle",
           "valid": true,
           "operationTypes": [
-            "spell:upsert"
+            "spell:upsert",
+            "condition:add",
+            "condition:automate"
           ],
-          "mutationMode": "tracking",
+          "mutationMode": "mechanical",
           "errors": []
         },
         "persistence": {
@@ -25539,6 +25544,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CAST",
           "PERSISTENCE"
         ]
       },

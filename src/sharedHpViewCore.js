@@ -71,6 +71,15 @@ export function sharedHpCommittedUpdates(result, entries = []) {
   return [...updates.values()].sort((a, b) => a.tokenId.localeCompare(b.tokenId));
 }
 
+// The HP a creature was left with by the committed command (Death Ward may have written 1 instead of the planned 0):
+// null when the command's changes do not say.
+export function committedHpFor(result, tokenId) {
+  const change = (result?.changes || result?.commitResult?.changes || [])
+    .find((entry) => entry?.id === tokenId && entry.afterMetadata?.hp?.present);
+  const hp = Number(change?.afterMetadata?.hp?.value);
+  return Number.isFinite(hp) ? hp : null;
+}
+
 export function sharedHpDamageEntries(entries, groups = []) {
   const memberIds = new Set(groups.flatMap(group => group.memberIds));
   const effective = entries.filter(entry => !memberIds.has(entry.item.id));

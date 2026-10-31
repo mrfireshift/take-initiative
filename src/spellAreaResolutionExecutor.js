@@ -43,6 +43,7 @@ import {
   SAVE_SPELL_OUTCOMES,
 } from "./saveSpellCore.js";
 import { CLEANSE_SPELL_ID_SET, planCleanseTarget } from "./cleanseSpellRules.js";
+import { deathWardPill, planDeathWard, planWardingBondDamage } from "./reactionHpCore.js";
 import { initialSpellUses } from "./spellApplicationPlanCore.js";
 import { ZONE_RESOURCE_SPENDS, zoneTriggerResourceSpend } from "./zoneResourceCore.js";
 import {
@@ -493,6 +494,7 @@ function planAreaHpBranch({ spell, command, resolution, liveItems, allItems, cas
     .map((entry) => [entry.item.id, entry.change]));
   const conditionApplications = [];
   const deaths = new Map();
+  const wardedIds = new Set();
   for (const item of liveItems) {
     const outcome = outcomeOf(item.id);
     const context = targetContexts?.[item.id] || {};
@@ -501,7 +503,10 @@ function planAreaHpBranch({ spell, command, resolution, liveItems, allItems, cas
       spellId: spell.id, outcome, item, change: changes.get(item.id), context,
       casterId: text(caster?.id), casterName: itemName(caster),
     });
-    for (const pill of [...before.pills, ...after.pills]) {
+    // CAP-REACTION, lotto 2: Death Ward negates the death (and what follows it: the zombie, the dust); it ends.
+    const warded = !!(before.death || after.death) && !!deathWardPill(item);
+    if (warded) wardedIds.add(item.id);
+    for (const pill of [...before.pills, ...(warded ? [] : after.pills)]) {
       const rule = normalizeConditionRule(pill);
       if (rule) {
         conditionApplications.push({
@@ -513,9 +518,59 @@ function planAreaHpBranch({ spell, command, resolution, liveItems, allItems, cas
       }
     }
     const death = before.death || after.death;
-    if (death) deaths.set(item.id, death);
+    if (death && !warded) deaths.set(item.id, death);
   }
-  return { conditionApplications, deaths };
+  return { conditionApplications, deaths, wardedIds };
+}
+
+// CAP-REACTION, lotto 2 (reactionHpCore.js), on the HP this command writes itself: Warding Bond's damage on the
+// caster (its own entry, or on top of it) and Death Ward (1 HP instead of 0, or no death), with their pills removed.
+function applyAreaReactionHp(entries, allItems = [], wardedIds = new Set()) {
+  const operations = [];
+  const notes = [];
+  const itemsById = new Map((Array.isArray(allItems) ? allItems : []).filter((item) => item?.id).map((item) => [item.id, item]));
+  const bond = planWardingBondDamage({
+    writes: entries.map((entry) => ({ itemId: entry.item.id,
+      damage: entry.change.mode === QUICK_HP_MODES.DAMAGE && entry.change.withoutDamage !== true ? entry.change.requested : 0 })),
+    itemsById,
+    hpById: new Map(entries.map((entry) => [entry.item.id, entry.change.afterHP])),
+  });
+  for (const write of bond.writes) {
+    const entry = entries.find((candidate) => candidate.item.id === write.itemId);
+    if (entry) {
+      entry.change = { ...entry.change, afterHP: write.hp, delta: write.hp - entry.change.hp, changed: true,
+        requested: (entry.change.mode === QUICK_HP_MODES.DAMAGE ? entry.change.requested : 0) + write.damage,
+        mode: QUICK_HP_MODES.DAMAGE };
+      continue;
+    }
+    const item = itemsById.get(write.itemId);
+    const meta = itemMeta(item);
+    entries.push({ item, outcome: "", change: calculateQuickHPChange({ mode: QUICK_HP_MODES.DAMAGE, value: write.damage,
+      factor: QUICK_HP_FACTORS.FULL, hp: meta.hp, hpMax: meta.hpMax, deathSaveDamage: takesDeathSaveDamage(meta) }) });
+  }
+  if (bond.removals.length) operations.push({ type: "condition:remove-instances", removals: bond.removals });
+  notes.push(...bond.notes);
+  const wardsUsed = new Set();
+  for (const entry of entries) {
+    if (entry.change.mode !== QUICK_HP_MODES.DAMAGE) continue;
+    const ward = planDeathWard({ item: entry.item, hpAfter: entry.change.afterHP,
+      damage: entry.change.withoutDamage === true ? 0 : entry.change.requested, instantDeath: entry.change.instantDeath === true });
+    if (!ward) continue;
+    entry.change = { ...entry.change, afterHP: ward.hp, delta: ward.hp - entry.change.hp, instantDeath: false, deathDetail: "" };
+    operations.push({ type: "condition:remove-instances",
+      removals: ward.removeInstanceIds.map((instanceId) => ({ itemId: entry.item.id, instanceId })) });
+    wardsUsed.add(entry.item.id);
+    notes.push(ward.note);
+  }
+  // A death negated without damage (Power Word Kill, Divine Word): the ward ends all the same.
+  for (const itemId of wardedIds) {
+    const item = itemsById.get(itemId);
+    const pill = wardsUsed.has(itemId) ? null : deathWardPill(item);
+    if (!pill) continue;
+    operations.push({ type: "condition:remove-instances", removals: [{ itemId, instanceId: String(pill.id) }] });
+    notes.push(`Interdizione alla morte: ${item?.name || "la creatura"} non muore e l'interdizione termina.`);
+  }
+  return { operations, notes };
 }
 
 // CAP-CLEANSE (cleanseSpellRules.js): what ends on each creature, read from the live items: its pills, its spells
@@ -589,7 +644,8 @@ function applyHpBranchDeaths(entries, deaths, items = []) {
     const hp = Math.max(0, Math.floor(Number(entry?.change?.hp ?? meta.hp) || 0));
     const hpMax = Math.max(0, Math.floor(Number(entry?.change?.hpMax ?? meta.hpMax) || 0));
     const change = {
-      ...(entry?.change || { mode: QUICK_HP_MODES.DAMAGE, factor: QUICK_HP_FACTORS.FULL, hp, hpMax, requested: hp }),
+      ...(entry?.change || { mode: QUICK_HP_MODES.DAMAGE, factor: QUICK_HP_FACTORS.FULL, hp, hpMax, requested: hp,
+        withoutDamage: true }),
       afterHP: 0,
       delta: -hp,
       changed: true,
@@ -1956,7 +2012,12 @@ async function buildPlan(command, runtime) {
     code: conflict.reason, message: conflict.reason === "shared-hp-selection-required"
       ? "Scegli l'importo da applicare alla riserva HP condivisa." : "Verifica il collegamento HP del bersaglio.",
   })) };
-  // With shared HP or a teleport the HP go through the coordinator, which applies the death saves itself.
+  // With shared HP or a teleport the HP go through the coordinator, which applies the death saves, Death Ward and
+  // Warding Bond itself.
+  const reactionHp = !sharedHpPreview.groups.length && !isTeleportSpell(spell.id)
+    ? applyAreaReactionHp(entries, allItems, hpBranch?.wardedIds || new Set())
+    : { operations: [], notes: [] };
+  effectOperations.push(...reactionHp.operations);
   const areaDeathSaves = !sharedHpPreview.groups.length && !isTeleportSpell(spell.id)
     ? planAreaDeathSaves(entries)
     : { operations: [], instantDeathIds: new Set() };
@@ -2110,6 +2171,7 @@ async function buildPlan(command, runtime) {
     notes: [
       ...(cleanse?.notes || []),
       ...(zoneResource?.note ? [zoneResource.note] : []),
+      ...reactionHp.notes,
       // Every target of the darts, those Shield protects included (no HP change, so no entry).
       ...(magicMissileAllocation ? liveItems.filter((item) => magicMissileAllocation.byTarget[item.id] > 0)
         .map((item) => `${item.name || "Bersaglio"}: ${magicMissileTargetText(

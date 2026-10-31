@@ -615,6 +615,21 @@ Interdizione primordiale ha nel ⚡ le cinque **Immunità: tipo**: la reazione
 toglie le resistenze e dà l'immunità al tipo scelto fino alla fine del
 prossimo turno del caster, poi l'incantesimo termina.
 
+Due incantesimi cambiano i PF da soli, nello stesso comando del danno (console
+attacchi e Boss, PF rapidi, console ad area, promemoria):
+
+- **Interdizione alla morte**: il primo danno che porterebbe la creatura a
+  0 PF la lascia a 1 PF, e l'etichetta sparisce. Parola del potere uccidere e
+  Parola divina non la uccidono; Disintegrazione e Dito della morte la lasciano
+  a 1 PF.
+- **Vincolo di interdizione**: ogni danno al protetto lo subisce anche il
+  caster, con i suoi TS contro la morte e l'avviso di concentrazione; se il
+  caster scende a 0 PF il vincolo finisce. Se i due si allontanano oltre 18 m,
+  termina il vincolo a mano (la × sulla pill).
+
+Un Annulla riporta tutto, anche i PF del caster. Le modifiche a mano dei PF
+sulla card del tracker non ne tengono conto.
+
 ### Concentrazione e pulizia
 
 Un incantatore in concentrazione mostra una `C` sulla card e sul token.

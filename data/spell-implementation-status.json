@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 259,
-      "PARTIAL": 43,
+      "COMPLETE / CURRENT": 261,
+      "PARTIAL": 41,
       "NO AUTOMATION REQUIRED": 144,
       "MISSING": 16,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 59,
+    "implementableBacklog": 57,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 48,
-        "percent": 81.35593220338984
+        "count": 46,
+        "percent": 80.7017543859649
       },
       "RED": {
         "count": 11,
-        "percent": 18.64406779661017
+        "percent": 19.298245614035086
       }
     },
     "scenarios": [
@@ -12108,14 +12108,16 @@
       "id": "death-ward",
       "spell": "Interdizione alla morte",
       "level": 4,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/reactionHpCore.js",
+        "src/effectsMutations.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "CAP-REACTION lotto 2: il primo danno che porta a 0 PF lascia a 1 PF e termina l'interdizione, nei due punti dei TS contro la morte; annulla le morti istantanee senza danno."
+        "CAP-REACTION lotto 2: pill sul bersaglio; il primo danno che porterebbe a 0 PF lascia 1 PF e termina l'interdizione, nello stesso comando (coordinatore e console ad area, dove si pianificano i TS contro la morte); Parola del potere uccidere, Parola divina, Disintegrazione e Dito della morte non lo uccidono."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -12127,9 +12129,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-REACTION"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -12166,8 +12166,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "DAMAGE-REACTION",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-REACTION",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "death-ward",
@@ -12176,6 +12176,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/reactionHpIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -40535,14 +40536,16 @@
       "id": "warding-bond",
       "spell": "Vincolo di interdizione",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/reactionHpCore.js",
+        "src/effectsMutations.js",
+        "src/spellAreaResolutionExecutor.js"
       ],
       "mechanicsRequired": [
-        "CAP-REACTION: lotto 1 fatto (pill sul bersaglio con +1 CA e TS e resistenza vera a tutti i danni); resta il lotto 2, il danno condiviso col caster nello stesso comando."
+        "CAP-REACTION: lotto 1 (pill con +1 CA e TS e resistenza a tutti i danni) e lotto 2: ogni danno al bersaglio lo subisce anche il caster nello stesso comando, con i suoi TS contro la morte e la Cronologia; a 0 PF del caster il vincolo termina. I 18 m restano al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -40554,9 +40557,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-REACTION"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -40593,8 +40594,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "DAMAGE-REACTION",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-REACTION",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "warding-bond",
@@ -40603,6 +40604,7 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/reactionHpIntegration.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",

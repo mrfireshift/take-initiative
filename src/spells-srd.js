@@ -752,6 +752,21 @@ const SPELL_END_CONSEQUENCES = Object.freeze({
 });
 
 const SPELL_EFFECTS = Object.freeze({
+  // CAP-REACTION, lotto 2 (2014): the first drop to 0 hit points leaves 1, a death without damage is negated, and the
+  // ward ends (reactionHpCore.js, in the command of the damage).
+  "death-ward": Object.freeze([
+    Object.freeze({
+      id: "death-ward-ward",
+      kind: "buff",
+      label: "Interdizione alla morte",
+      detail: "La prima volta che scenderebbe a 0 PF per un danno, resta a 1 PF; un effetto che lo ucciderebbe senza danni non ha effetto. In entrambi i casi l'interdizione termina.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "death-ward-one-hit-point", label: "0 PF → 1 PF" }),
+      ]),
+      mechanics: Object.freeze({ deathWard: true }),
+      endsParentOnRemoval: true,
+    }),
+  ]),
   // CAP-REACTION (2014): an attacker of the warded creature saves on Wisdom first (the consoles show it); the spell
   // ends when the warded creature attacks.
   "sanctuary": Object.freeze([
@@ -781,6 +796,8 @@ const SPELL_EFFECTS = Object.freeze({
         Object.freeze({ id: "warding-bond-shared-damage", label: "Danni anche al caster" }),
       ]),
       mechanics: Object.freeze({
+        // The caster takes the same damage (reactionHpCore.js, lotto 2).
+        wardingBond: true,
         armorClass: Object.freeze({ bonus: 1 }),
         damageDefenses: Object.freeze({ resistances: Object.freeze(["acid", "bludgeoning", "cold", "fire", "force", "lightning", "necrotic", "piercing", "poison", "psychic", "radiant", "slashing", "thunder"]) }),
       }),

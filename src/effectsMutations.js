@@ -46,6 +46,7 @@ import {
 } from "./spellChildZoneCore.js";
 import { getSpellAreaRuleById } from "./spellAreaRules.js";
 import { DEATH_SAVES_FIELD, deathSaveConditionOperation, planDeathSaveHpChange } from "./deathSaveCore.js";
+import { planDeathWard, planWardingBondDamage } from "./reactionHpCore.js";
 import { spellAreaOriginWithinRange } from "./spellAreaPlacementCore.js";
 import { planSpellZoneMovement } from "./spellZoneMovementCore.js";
 import {
@@ -820,6 +821,13 @@ function hpWriteCritical(update) {
   return intents.some((intent) => intent?.mode === "damage" && intent?.critical === true);
 }
 
+// The same write without its instant death (Death Ward negated it).
+function withoutInstantDeath(update) {
+  const strip = (intent) => (intent?.instantDeath === true ? { ...intent, instantDeath: false, deathDetail: undefined } : intent);
+  return { ...update, ...(update.hpIntent ? { hpIntent: strip(update.hpIntent) } : {}),
+    ...(Array.isArray(update.hpIntents) ? { hpIntents: update.hpIntents.map(strip) } : {}) };
+}
+
 // An instant death declared by the HP write (hpBranchSpellRules.js): the creature dies, whatever its HP.
 function hpWriteInstantDeath(update) {
   const intents = update?.hpIntents?.length ? update.hpIntents : [update?.hpIntent].filter(Boolean);
@@ -863,6 +871,54 @@ function planDeathSaveHpWrite(item, update, hpOperations, instantDeathIds) {
   return consequence.deathSaves
     ? { [DEATH_SAVES_FIELD]: { ...consequence.deathSaves, expected: metadataFieldSnapshot(meta, DEATH_SAVES_FIELD) } }
     : {};
+}
+
+// CAP-REACTION, lotto 2: Warding Bond's damage on the caster joins the HP writes of this command (reactionHpCore.js),
+// before they are planned, so its death saves, its Death Ward and its History come with them. A caster already written
+// by the command takes it on top of its own write. Returns the operations and the bonds that end.
+function withWardingBondWrites(operations, itemsById) {
+  const writes = [];
+  const hpById = new Map();
+  for (const operation of operations) {
+    if (operation?.type !== "hp:set") continue;
+    for (const update of operation.updates || []) {
+      const item = itemsById.get(update.itemId);
+      if (!item || !Number.isFinite(update.hp)) continue;
+      hpById.set(update.itemId, update.hp);
+      if (update.sharedHpMirror === true || spellBoardTokenHpTarget(item)) continue;
+      const meta = item.metadata?.[META_KEY] || {};
+      const damage = hpWriteDamage(update, meta);
+      if (damage > 0 && (update.hp < Number(meta.hp) || hpWriteDamage(update, { hp: update.hp }) > 0)) {
+        writes.push({ itemId: update.itemId, damage });
+      }
+    }
+  }
+  const bond = planWardingBondDamage({ writes, itemsById, hpById });
+  if (!bond.writes.length) return { operations, removals: [] };
+  const pending = new Map(bond.writes.map((write) => [write.itemId, write]));
+  const next = operations.map((operation) => {
+    if (operation?.type !== "hp:set") return operation;
+    return { ...operation, updates: (operation.updates || []).map((update) => {
+      const write = pending.get(update.itemId);
+      if (!write) return update;
+      pending.delete(update.itemId);
+      const meta = itemsById.get(update.itemId)?.metadata?.[META_KEY] || {};
+      const intents = update.hpIntents?.length ? update.hpIntents : [update.hpIntent].filter(Boolean);
+      const declared = intents.some((intent) => intent?.mode === "damage");
+      const { hpIntent: _ownIntent, ...rest } = update;
+      return { ...rest, hp: write.hp, hpIntents: [
+        ...(declared ? intents : [...intents, { mode: "damage", amount: Math.max(0, Number(meta.hp) - update.hp), eventId: "own-damage" }]),
+        { mode: "damage", amount: write.damage, eventId: "warding-bond" },
+      ] };
+    }) };
+  });
+  const added = [...pending.values()].map((write) => {
+    const meta = itemsById.get(write.itemId)?.metadata?.[META_KEY] || {};
+    return { itemId: write.itemId, hp: write.hp, hpMax: write.hpMax,
+      hpIntent: { mode: "damage", amount: write.damage, eventId: "warding-bond" },
+      expectedHP: metadataFieldSnapshot(meta, "hp"), expectedHPMax: metadataFieldSnapshot(meta, "hpMax") };
+  });
+  return { operations: [...next, ...(added.length ? [{ type: "hp:set", updates: added }] : [])], removals: bond.removals };
 }
 
 // A spell's token with hit points (Mano arcana, an animated object) is an object, not a creature: no death saves and
@@ -1272,18 +1328,29 @@ export async function prepareEffectsMutation(operations = [], {
   const hpItemsById = new Map(hpProjectedItems.map((item) => [item.id, item]));
   const instantDeathIds = new Set();
   const zeroHpBoardTokenIds = new Set();
-  for (const operation of operations) {
+  const bonded = withWardingBondWrites(operations, hpItemsById);
+  if (bonded.removals.length) hpOperations.push({ type: "condition:remove-instances", removals: bonded.removals });
+  for (const operation of bonded.operations) {
     if (operation?.type !== "hp:set") {
       hpOperations.push(operation);
       continue;
     }
-    for (const update of operation.updates || []) {
+    for (const plannedUpdate of operation.updates || []) {
+      let update = plannedUpdate;
       const item = hpItemsById.get(update.itemId);
       if (!item || !Number.isFinite(update.hp) || !Number.isFinite(update.hpMax)) {
         return { status: EFFECTS_MUTATION_STATUS.CONFLICT, reason: "invalid-hp-target", conflicts: [{ itemId: update.itemId }] };
       }
       const meta = item.metadata?.[META_KEY] || {};
       const boardToken = spellBoardTokenHpTarget(item);
+      // CAP-REACTION, lotto 2: Death Ward leaves 1 HP (or the HP it has, against a death without damage) and ends.
+      const ward = boardToken ? null : planDeathWard({ item, hpAfter: update.hp, damage: hpWriteDamage(update, meta),
+        instantDeath: !!hpWriteInstantDeath(update) });
+      if (ward) {
+        update = withoutInstantDeath({ ...update, hp: ward.hp });
+        hpOperations.push({ type: "condition:remove-instances",
+          removals: ward.removeInstanceIds.map((instanceId) => ({ itemId: item.id, instanceId })) });
+      }
       if (boardToken && update.hp <= 0 && !(Number(meta.hp) <= 0)) {
         planZeroHpSpellBoardToken(item, boardToken, hpOperations, zeroHpBoardTokenIds);
         continue;
@@ -1305,13 +1372,26 @@ export async function prepareEffectsMutation(operations = [], {
     }
   }
   // The HP written by a metadata patch (area consoles, reminders), unless the patch already writes the tally.
-  for (const patch of metadataPatches) {
+  // A copy: Death Ward may rewrite a patch's HP, never the caller's own list.
+  metadataPatches = [...metadataPatches];
+  for (const [patchIndex, plannedPatch] of metadataPatches.entries()) {
+    let patch = plannedPatch;
     const hpField = patch?.fields?.hp;
     if (!hpField || hpField.mode === "assert" || hpField.mode === "delete"
       || Object.prototype.hasOwnProperty.call(patch.fields, DEATH_SAVES_FIELD)) continue;
     const item = hpItemsById.get(patch.id);
     const meta = item?.metadata?.[META_KEY] || {};
-    const hp = Number(hpField.value);
+    // CAP-REACTION, lotto 2: Death Ward, as in the hp:set block above.
+    const patchWrite = { hp: Number(hpField.value), hpIntent: patch.hpIntent, hpIntents: patch.hpIntents };
+    const ward = item && !spellBoardTokenHpTarget(item) ? planDeathWard({ item, hpAfter: patchWrite.hp,
+      damage: hpWriteDamage(patchWrite, meta), instantDeath: !!hpWriteInstantDeath(patchWrite) }) : null;
+    if (ward) {
+      patch = { ...withoutInstantDeath(patch), fields: { ...patch.fields, hp: { ...hpField, value: ward.hp } } };
+      metadataPatches[patchIndex] = patch;
+      hpOperations.push({ type: "condition:remove-instances",
+        removals: ward.removeInstanceIds.map((instanceId) => ({ itemId: item.id, instanceId })) });
+    }
+    const hp = Number(patch.fields.hp.value);
     const hpMax = Number(patch.fields.hpMax?.mode === "assert" ? meta.hpMax : patch.fields.hpMax?.value ?? meta.hpMax);
     if (!item || !Number.isFinite(hp) || !Number.isFinite(hpMax)) continue;
     // A spell's token never has death saves (its own HP writers remove it at 0 HP).

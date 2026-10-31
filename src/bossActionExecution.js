@@ -1,5 +1,5 @@
 import OBR, { buildImage } from "@owlbear-rodeo/sdk";
-import { sharedHpCommittedUpdates } from "./sharedHpViewCore.js";
+import { committedHpFor, sharedHpCommittedUpdates } from "./sharedHpViewCore.js";
 import { ID, EFFECT_SAVE_REMINDER_NOTICE_CHANNEL } from "./constants.js";
 import { getInitiativeCard, saveInitiativeCard } from "./initiativeCards.js";
 import { sanitizeBossActionBinding, bossSpellReferenceIds } from "./bossActionProfileCore.js";
@@ -429,7 +429,7 @@ export function createBossActionRuntime({
       draft.result={...result,damageComponents:plan.damageComponents,manualText:plan.manualText,warnings,
         outcome:manualRegistration?"":request.outcome || "",
         target:targetItem?{id:targetItem.id,name:targetItem.name || targetItem.id}:null,
-        hpChange:plan.change?{before:plan.change.hp,after:plan.change.afterHP,hpMax:plan.change.hpMax}:null,
+        hpChange:plan.change?{before:plan.change.hp,after:(targetItem?committedHpFor(result,targetItem.id):null) ?? plan.change.afterHP,hpMax:plan.change.hpMax}:null,
         ...(!group && plan.conditions?.length?{conditions:plan.conditions.map(entry=>entry.condition)}:{}),
         ...(!group && plan.drain?{drain:structuredClone(plan.drain)}:{}),
         ...(!group && plan.causality?.markConsumed?{markConsumed:true}:{}),

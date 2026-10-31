@@ -196,6 +196,13 @@ in un comando suo e lancia Scudo come il libro degli incantesimi. Le azioni di
 un incantesimo possono spendere la Reazione con `spendsReaction`
 (Interdizione primordiale).
 
+CAP-REACTION (lotto 2) cambia i PF dove si pianificano i TS contro la morte
+(`src/reactionHpCore.js`): il blocco HP del coordinatore e la scrittura della
+console ad area. `mechanics.deathWard` (Interdizione alla morte) lascia 1 PF
+invece di 0 e annulla le morti senza danni; `mechanics.wardingBond` (Vincolo
+di interdizione) aggiunge il danno del protetto al caster nella stessa
+scrittura. Le etichette consumate si tolgono nello stesso comando.
+
 Gli avvisi di concentrazione della console ad area partono dopo il commit
 (`defaultConcentrationWarnings`), con la voce della Cronologia come causa:
 prima il gancio `onConcentrationWarnings` era vuoto e i danni del pannello non
