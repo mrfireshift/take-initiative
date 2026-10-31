@@ -901,6 +901,235 @@ select:disabled {
   min-width: 0;
 }
 
+/* Magic Missile: a column per target, a box per dart (its 1d4+1), − and + for the darts it takes. */
+.unified-darts {
+  display: grid;
+  gap: 6px;
+  margin-top: 7px;
+  padding: 8px;
+  border: 1px solid var(--unified-line);
+  border-radius: 9px;
+  background: var(--unified-surface-soft);
+}
+
+.unified-darts__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.unified-darts__count {
+  color: var(--unified-text);
+  font-size: var(--obrt-type-caption);
+  font-weight: var(--obrt-weight-bold);
+}
+
+.unified-darts__status {
+  margin-left: auto;
+  color: var(--unified-muted);
+  font-size: var(--obrt-type-caption);
+}
+
+.unified-darts.is-invalid .unified-darts__count,
+.unified-darts.is-invalid .unified-darts__status {
+  color: var(--unified-error);
+}
+
+.unified-darts__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.unified-darts__target {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--unified-line);
+  border-radius: 8px;
+  background: var(--unified-surface);
+}
+
+.unified-darts__target-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.unified-darts__name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--unified-text);
+  font-size: var(--obrt-type-secondary);
+  font-weight: var(--obrt-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-darts__stepper {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.unified-darts__step {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 6px;
+  background: var(--unified-surface-strong);
+  color: var(--unified-text);
+  font-size: 13px;
+  font-weight: var(--obrt-weight-bold);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.unified-darts__step:not(:disabled):hover {
+  border-color: var(--unified-line-strong);
+}
+
+.unified-darts__target-count {
+  min-width: 18px;
+  color: var(--unified-text);
+  font-size: var(--obrt-type-secondary);
+  font-weight: var(--obrt-weight-bold);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.unified-darts__boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 32px;
+  align-items: center;
+}
+
+.unified-darts .unified-darts__box {
+  width: 40px;
+  min-height: 32px;
+  padding: 4px 2px;
+  border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 7px;
+  outline: none;
+  background: var(--unified-surface-strong);
+  color: var(--unified-text);
+  font-weight: var(--obrt-weight-bold);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+
+.unified-darts .unified-darts__box::-webkit-outer-spin-button,
+.unified-darts .unified-darts__box::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.unified-darts .unified-darts__box:placeholder-shown {
+  border-style: dashed;
+}
+
+.unified-darts__empty,
+.unified-darts__footer {
+  color: var(--unified-muted);
+  font-size: var(--obrt-type-caption);
+  line-height: 1.3;
+}
+
+/* Animate Objects: the weight used and a card per size with its statistics and − / +. */
+.unified-composition__meter {
+  height: 4px;
+  margin: 2px 0 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, .2);
+}
+
+.unified-composition__meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--unified-primary);
+  transition: width .15s ease;
+}
+
+.unified-composition.is-invalid .unified-composition__meter-fill {
+  background: #ef4444;
+}
+
+.unified-composition.is-invalid .unified-target-count,
+.unified-composition.is-invalid .unified-section__description {
+  color: var(--unified-error);
+}
+
+.unified-composition__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.unified-composition__size {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "head stepper" "stats stepper";
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--unified-line);
+  border-radius: 8px;
+  background: var(--unified-surface);
+}
+
+.unified-composition__size.is-used {
+  border-color: var(--unified-line-strong);
+  background: rgba(37, 99, 235, .14);
+}
+
+.unified-composition__size-head {
+  grid-area: head;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.unified-composition__name {
+  color: var(--unified-text);
+  font-size: var(--obrt-type-secondary);
+  font-weight: var(--obrt-weight-semibold);
+}
+
+.unified-composition__cost {
+  color: #bfdbfe;
+  font-size: var(--obrt-type-caption);
+  font-weight: var(--obrt-weight-medium);
+}
+
+.unified-composition__stats {
+  grid-area: stats;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--unified-muted);
+  font-size: var(--obrt-type-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-composition__stepper {
+  grid-area: stepper;
+}
+
 .unified-target-context {
   display: flex;
   flex-direction: column;
@@ -1361,6 +1590,11 @@ select:disabled {
 }
 
 @media (max-width: 520px) {
+  .unified-darts__grid,
+  .unified-composition__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .unified-panel-topbar {
     padding-inline: 10px;
   }
