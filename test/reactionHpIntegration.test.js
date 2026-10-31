@@ -313,6 +313,19 @@ test("Warding Bond in the coordinator: the caster takes the same damage in the s
   assert.deepEqual(pills("hero"), ["Vincolo di interdizione"]);
 });
 
+// Lot U3a: the Effetti console's preview of the reactions says what the coordinator then writes.
+test("the console's reaction preview matches the coordinator: Warding Bond, then the caster's Death Ward", async () => {
+  const { previewReactionHp } = await import("../src/reactionHpCore.js");
+  const { calculateQuickHPChange } = await import("../src/quickHpCore.js");
+  await resetScene([token(CASTER, 6, 30, ward(CASTER)), token("hero", 40, 40, bond("hero"))]);
+  const hero = sceneState.items.find((item) => item.id === "hero");
+  const change = calculateQuickHPChange({ mode: "damage", value: 9, hp: 40, hpMax: 40 });
+  const preview = previewReactionHp({ entries: [{ item: hero, change }], items: sceneState.items.map(clone) });
+  await damage("hero", 9);
+  assert.deepEqual([meta("hero").hp, meta(CASTER).hp], [preview.byId.get("hero").hp, preview.byId.get(CASTER).hp]);
+  assert.deepEqual([meta("hero").hp, meta(CASTER).hp], [31, 1]);
+});
+
 test("Death Ward in the area command: Power Word Kill does nothing but end the ward; Disintegrate leaves 1 HP", async () => {
   await resetScene([token("wizard", 30, 30), token("orc", 50, 60, { attitude: "enemy", ...ward("orc") })]);
   const result = await castOn("power-word-kill", 9, "orc");

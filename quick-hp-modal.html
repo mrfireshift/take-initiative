@@ -97,6 +97,9 @@
     .bulk-panel > .status { min-height: 30px; padding: var(--obrt-space-md); border-top: 1px solid rgba(148, 163, 184, .14); color: #bfdbfe; font-size: var(--obrt-type-secondary); }
     /* No message, no row: the empty status left a bordered box under "Imposta selezionati". */
     .bulk-panel > .status:empty { display: none; }
+    /* Lot U3a: what Warding Bond and Death Ward will do to this command, one line each. */
+    .bulk-panel > .reaction-notes { display: grid; gap: 2px; padding: var(--obrt-space-sm) var(--obrt-space-md); border-top: 1px solid rgba(148, 163, 184, .14); color: #fde68a; font-size: var(--obrt-type-secondary); }
+    .bulk-panel > .reaction-notes:empty { display: none; }
     .footer { flex: 0 0 auto; min-height: 42px; padding-top: 9px; border-top: 1px solid var(--obrt-footer-border, rgba(148, 163, 184, .20)); }
     .summary { min-width: 0; flex: 1 1 auto; color: var(--muted); font-size: var(--obrt-type-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .footer-actions { flex: 0 0 auto; }
@@ -138,7 +141,7 @@
           <div class="target-actions"><input class="target-name-filter" id="targetNameFilter" type="search" placeholder="Cerca nome…" aria-label="Filtra bersagli per nome" /><button class="small faction-toggle" type="button" data-hp-faction="pc" aria-pressed="false">PG</button><button class="small faction-toggle" type="button" data-hp-faction="ally" aria-pressed="false">Alleati</button><button class="small faction-toggle" type="button" data-hp-faction="neutral" aria-pressed="false">Neutrali</button><button class="small faction-toggle" type="button" data-hp-faction="enemy" aria-pressed="false">Nemici</button></div>
         </div>
         <div class="target-list" id="targetList"></div>
-        <div class="bulk-panel"><div class="bulk-row"><span class="caption">Imposta selezionati</span><div class="bulk-actions" id="bulkActions"></div></div><div class="status" id="status" role="status"></div></div>
+        <div class="bulk-panel"><div class="bulk-row"><span class="caption">Imposta selezionati</span><div class="bulk-actions" id="bulkActions"></div></div><div class="reaction-notes" id="reactionNotes"></div><div class="status" id="status" role="status"></div></div>
       </section>
       <div id="sharedHpControls" hidden style="padding:10px;border:1px solid var(--line);border-radius:8px;font-size:12px;line-height:1.8"></div>
       <footer class="footer"><div class="summary" id="summary">Nessun bersaglio selezionato</div><div class="footer-actions"><label class="amount-wrap"><span class="caption">Valore</span><input class="amount" id="amount" type="text" inputmode="numeric" pattern="[0-9]*" value="0" autocomplete="off" /></label><button class="apply damage" id="apply" type="button" disabled>Applica effetti</button></div></footer>

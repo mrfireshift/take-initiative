@@ -26,6 +26,7 @@ import {
 } from "./quickHpCore.js";
 import { APPLICABLE_CONDITION_LIST, getConditionInstances } from "./conditions.js";
 import { takesDeathSaveDamage } from "./deathSaveCore.js";
+import { previewReactionHp } from "./reactionHpCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import {
@@ -91,6 +92,7 @@ const targetList = document.getElementById("targetList");
 const bulkActions = document.getElementById("bulkActions");
 const summary = document.getElementById("summary");
 const status = document.getElementById("status");
+const reactionNotes = document.getElementById("reactionNotes");
 const applyButton = document.getElementById("apply");
 const targetNameFilter = document.getElementById("targetNameFilter");
 const saveOptions = document.getElementById("saveOptions");
@@ -291,6 +293,16 @@ function previewFor(item) {
   });
 }
 
+// Lot U3a: Warding Bond and Death Ward as the coordinator will apply them to this command, for the preview only:
+// the command itself still sends previewFor's values and the coordinator plans the reactions.
+function currentReactionPreview() {
+  const entries = selectedTargetItems()
+    .filter(hasTrackedHP)
+    .map((item) => ({ item, change: previewFor(item) }))
+    .filter((entry) => entry.change);
+  return previewReactionHp({ entries, items: sharedHpItems.length ? sharedHpItems : targets });
+}
+
 function activeChanges() {
   return selectedTargetItems()
     .filter(hasTrackedHP)
@@ -483,6 +495,7 @@ function renderTargets() {
     updateControls();
     return;
   }
+  const reactions = currentReactionPreview().byId;
   for (const item of visible) {
     const trackedHP = hasTrackedHP(item);
     const disabled = mode !== QUICK_HP_MODES.SAVE && !trackedHP;
@@ -524,12 +537,32 @@ function renderTargets() {
         const before = document.createElement("span");
         before.className = "before";
         before.textContent = `${result.hp}/${result.hpMax}${temp(result.tempHp)} → `;
+        // U3a: a selected creature the reactions change shows what the command will really leave it with.
+        const reaction = selected ? reactions.get(item.id) : null;
         const after = document.createElement("strong");
-        after.textContent = `${result.afterHP}${temp(result.afterTempHp)}`;
+        after.textContent = reaction
+          ? `${reaction.hp}${temp(reaction.tempHp)}`
+          : `${result.afterHP}${temp(result.afterTempHp)}`;
         const delta = document.createElement("span");
         delta.className = `delta ${mode === QUICK_HP_MODES.SAVE ? QUICK_HP_MODES.DAMAGE : mode}`;
-        delta.textContent = ` (${signed(result.delta)})`;
+        delta.textContent = ` (${signed(reaction?.ward
+          ? reaction.hp + reaction.tempHp - result.hp - result.tempHp
+          : result.delta)})`;
         preview.append(before, after, delta);
+        if (reaction?.bondDamage) {
+          const bond = document.createElement("span");
+          bond.className = "delta damage";
+          bond.textContent = ` · Vincolo −${reaction.bondDamage}`;
+          bond.title = "Vincolo di interdizione: subisce anche i danni del protetto";
+          preview.append(bond);
+        }
+        if (reaction?.ward) {
+          const ward = document.createElement("span");
+          ward.className = "delta heal";
+          ward.textContent = " · Interdizione: resta a 1";
+          ward.title = "Interdizione alla morte: resta a 1 PF e l'interdizione termina";
+          preview.append(ward);
+        }
         if (result.deathSaveDamage) {
           const deathSave = document.createElement("span");
           deathSave.className = "delta damage";
@@ -612,6 +645,11 @@ function updateControls() {
       ? "Nessun bersaglio selezionato"
       : `${selected.length} bersagli · ${changes.length} modificati · ${total} PF`;
   }
+  reactionNotes?.replaceChildren(...currentReactionPreview().notes.map((note) => {
+    const line = document.createElement("div");
+    line.textContent = note;
+    return line;
+  }));
   const outcomesComplete = !saveOutcomeRequired()
     || selected.every((item) => saveOutcomes.has(item.id));
   const hasManualCondition = mode === QUICK_HP_MODES.SAVE && failedIds.length > 0 && !!text(conditionSelect.value);

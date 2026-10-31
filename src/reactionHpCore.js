@@ -81,3 +81,41 @@ export function planWardingBondDamage({ writes = [], itemsById = new Map(), hpBy
   }
   return { writes: [...casterWrites.values()], removals, notes };
 }
+
+// Lot U3a of the system UX audit: what these two spells do to an Effetti console command, for its preview. The
+// coordinator plans the command the same way (effectsMutations.js): Warding Bond first, on the damage each write
+// declares (the console's `requested`), then Death Ward on every write, the casters' included.
+// entries: [{ item, change }] with calculateQuickHPChange's change; items: the scene's items, where the casters are.
+// Returns the HP and temporary hit points each creature is left with, by id ({ hp, tempHp, bondDamage, ward }), and
+// the notes the coordinator would write.
+export function previewReactionHp({ entries = [], items = [] } = {}) {
+  const itemsById = new Map((Array.isArray(items) ? items : []).filter((item) => item?.id).map((item) => [item.id, item]));
+  const results = new Map();
+  const hpById = new Map();
+  const tempHpById = new Map();
+  const writes = [];
+  for (const { item, change } of Array.isArray(entries) ? entries : []) {
+    if (!item?.id || !change || !Number.isFinite(change.afterHP)) continue;
+    if (!itemsById.has(item.id)) itemsById.set(item.id, item);
+    results.set(item.id, { hp: change.afterHP, tempHp: integer(change.afterTempHp), bondDamage: 0, ward: false });
+    hpById.set(item.id, change.afterHP);
+    tempHpById.set(item.id, integer(change.afterTempHp));
+    const damage = change.mode === "damage" ? integer(change.requested) : 0;
+    if (damage > 0) writes.push({ itemId: item.id, damage });
+  }
+  const bond = planWardingBondDamage({ writes, itemsById, hpById, tempHpById });
+  for (const write of bond.writes) {
+    results.set(write.itemId, { hp: write.hp, tempHp: write.tempHp, bondDamage: write.damage, ward: false });
+  }
+  const notes = [...bond.notes];
+  for (const [itemId, result] of results) {
+    const item = itemsById.get(itemId);
+    const damage = Math.max(0, integer(item?.metadata?.[META_KEY]?.hp) - result.hp);
+    const ward = planDeathWard({ item, hpAfter: result.hp, damage });
+    if (!ward) continue;
+    result.hp = ward.hp;
+    result.ward = true;
+    notes.push(ward.note);
+  }
+  return { byId: results, notes };
+}
