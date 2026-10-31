@@ -68,9 +68,9 @@ if (requestId) {
     { action: "reset-round", label: "Reset round", icon: "↺" },
     { action: "history", label: "Cronologia", icon: "history.svg" },
     { action: "group-rest", label: "Riposo del gruppo", icon: "group-rest.svg" },
-    { action: "add-all", label: "Aggiungi attori", icon: "+" },
     { action: "map-labels", label: "Etichette mappa", detail: mapLabelsMode, icon: "☷" },
     { action: "options", label: "Opzioni", icon: "options.svg" },
+    { action: "add-all", label: "Aggiungi attori", icon: "+" },
     { action: "clear-initiative", label: "Svuota iniziativa", icon: "×", danger: true },
   ].forEach(addAction);
 

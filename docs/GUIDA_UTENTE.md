@@ -54,13 +54,13 @@ Sono disponibili due layout:
 
 Il pulsante di modalità passa da un layout all'altro. La posizione della barra compatta può essere trascinata e viene ricordata localmente.
 
-Nella vista estesa la striscia sottile sopra la testata serve a trascinare il tracker; il cambio di vista sta nella testata, accanto al round, e in fondo alla colonna restano solo i pulsanti ▲ ▼ del turno (GM).
+Nella vista estesa la striscia sottile sopra la testata serve a trascinare il tracker; il cambio di vista sta nella testata, accanto al round; in fondo alla testata **+** (aggiungi attori) e **×** (svuota iniziativa) formano un gruppo, e in fondo alla colonna restano solo i pulsanti ▲ ▼ del turno (GM).
 
 ### La barra compatta
 
 La barra resta alta sempre uguale: quello che non sta nella card si apre di lato, non verso il basso.
 
-- **Colonna sinistra**: maniglia per trascinare la barra, il **Round** corrente (visibile anche ai giocatori), il cambio di vista e, per il GM, il menu `…` con Reset round, Cronologia, Riposo del gruppo, Aggiungi attori, Etichette mappa, Opzioni e Svuota iniziativa.
+- **Colonna sinistra**: maniglia per trascinare la barra, il **Round** corrente (visibile anche ai giocatori), il cambio di vista e, per il GM, il menu `…` con Reset round, Cronologia, Riposo del gruppo, Etichette mappa, Opzioni e, in fondo, Aggiungi attori e Svuota iniziativa.
 - **Card**: in alto a sinistra il badge dell'iniziativa e, sotto, l'icona blu della scheda personaggio (PG e alleati; per il GM ogni creatura); a destra del ritratto la colonna dei pulsanti ⚡ 🪄 🗡️ (solo GM); il badge **KO** compare sul ritratto quando una creatura va a 0 PF.
 - **Effetti**: la card mostra la prima etichetta; un clic sull'etichetta o sul pulsante `+N` apre accanto alla card un cassetto con tutte le altre, in colonne. Un nuovo clic sull'etichetta lo chiude. È aperto un cassetto alla volta e scorrendo la barra resta aperto.
 - **Token collegati ed evocazioni**: una linguetta stretta accanto alla card mostra i ritratti e il numero; un clic la apre e mostra le righe dei compagni, con i loro PF (modificabili dal GM) e il clic per selezionare la pedina. Le card successive scorrono a destra.

@@ -1676,13 +1676,14 @@ Object.assign(roundActions.style, {
   alignItems: "center",
   gap: "3px",
   padding: "2px",
-  border: "1px solid rgba(96,165,250,.26)",
+  marginLeft: "1px",
+  border: "1px solid rgba(148,163,184,.26)",
   borderRadius: "10px",
-  background: "rgba(30,64,175,.12)",
+  background: "rgba(255,255,255,.035)",
   boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
 });
 
-// Separates the destructive "Svuota iniziativa" from the options and history in the extended header.
+// Separates the destructive "Svuota iniziativa" from "Aggiungi attori" in the extended header.
 const roundDangerDivider = document.createElement("span");
 roundDangerDivider.dataset.roundDangerDivider = "1";
 roundDangerDivider.setAttribute("aria-hidden", "true");
@@ -3797,11 +3798,12 @@ function applyHeaderLayoutPresentation(compact) {
     flex: "0 0 auto",
     width: compact ? "26px" : "64px",
     minWidth: compact ? "26px" : "64px",
-    height: compact ? "26px" : "12px",
+    height: compact ? "26px" : "11px",
     justifyContent: "center",
     alignItems: "center",
     padding: "0",
-    margin: compact ? "0" : "-2px auto 2px",
+    // The dots sit halfway between the panel's top edge and the header's border.
+    margin: compact ? "0" : "0 auto -3px",
     border: "none",
     borderRadius: compact ? "9px" : "6px",
     background: "transparent",
@@ -3809,9 +3811,12 @@ function applyHeaderLayoutPresentation(compact) {
     color: compact ? "" : "rgba(203,213,225,.72)",
     cursor: "grab",
   });
+  // Extended: a thin strip, 6x2 small dots.
   Object.assign(trackerDragGrip.style, compact
-    ? { width: "10px", height: "16px", backgroundSize: "5px 5.33px" }
-    : { width: "16px", height: "10px", backgroundSize: "5.33px 5px" });
+    ? { width: "10px", height: "16px", backgroundSize: "5px 5.33px",
+      backgroundImage: "radial-gradient(circle, currentColor 1.5px, transparent 1.8px)" }
+    : { width: "24px", height: "8px", backgroundSize: "4px 4px",
+      backgroundImage: "radial-gradient(circle, currentColor 1.1px, transparent 1.45px)" });
   // Extended: one of the header's blue buttons (Opzioni, Cronologia), same size and look.
   Object.assign(layoutToggleButton.style, classic ? {
     width: "26px",
@@ -3914,8 +3919,8 @@ function restoreClassicHeader() {
     roundResetSlot,
     roundStatus,
     layoutToggleButton,
-    roundActions,
     roundHistorySlot,
+    roundActions,
   ] : [roundStatus, layoutToggleButton, playerScreenButton]));
   topRow.replaceChildren(roundPill, viewOptionsRow, movementReadout);
 }
@@ -11772,8 +11777,8 @@ try {
     if (!hasOptionsBtn) roundHistorySlot.appendChild(optionsPanelButton);
     if (!hasHistoryBtn) roundHistorySlot.appendChild(makeHistoryBtn());
     if (!hasGroupRestBtn) roundHistorySlot.querySelector('[data-history="1"]')?.after(makeGroupRestBtn());
-    // "Svuota iniziativa" at the header's far end, past a divider: away from "+" and "✎", which it sat next to.
-    if (!hasClearBtn) roundHistorySlot.append(roundDangerDivider, makeClearInitiativeBtn());
+    // "Aggiungi attori" and "Svuota iniziativa" in one group at the header's far end, a divider between them.
+    if (!hasClearBtn) roundActions.append(roundDangerDivider, makeClearInitiativeBtn());
   } else {
     if (hasBtn) roundPill.querySelector('[data-reset-round="1"]').remove();
     if (hasAddAllBtn) roundPill.querySelector('[data-add-all-initiative="1"]').remove();
