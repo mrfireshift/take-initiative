@@ -308,6 +308,18 @@ test("a cantrip attack: one History entry, an Attack event in the Combat Log nam
     outcome: "hit", componentAmounts: { c1: 1 } }), /Trucchetto non disponibile/);
 });
 
+// Found at the table: a missed cantrip still played its Embers animation on the target.
+test("a missed cantrip attack plays no Embers animation", async () => {
+  Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "mago", level: 11 }],
+    quickActions: [sword, { id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip" } }] });
+  const presentation = await runtime.getPcAttackPresentation("aria", "cantrip");
+  await runtime.executePcAttack({ sourceId: "aria", actionId: "cantrip", spellId: "ray-of-frost", targetId: "ghoul",
+    sceneIdentity: presentation.sceneIdentity, expectedAction: presentation.action, expectedDefenses: {}, outcome: "miss", componentAmounts: {},
+    attackInstanceId: "frost-miss" });
+  await tick();
+  assert.deepEqual(visuals, []);
+});
+
 test("a failed save against Frostbite: damage, spell instance and pill in one command; one Undo removes them all", async () => {
   Object.assign(meta("aria").initiativeCard, { characterBuild: [{ classId: "druido", level: 5 }], spellSaveDC: 13,
     quickActions: [sword, { id: "cantrip", label: "Trucchetto", kind: "attack", source: { kind: "cantrip" } }] });

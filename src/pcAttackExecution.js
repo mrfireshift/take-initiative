@@ -128,8 +128,8 @@ export function createPcAttackRuntime({
   getEpoch=currentSceneEpoch,isCurrentEpoch=isCurrentSceneEpoch,emitVisual=emitCantripVisual,
 }={}) {
   const busy=new Set();
-  // After the commit, once (never on a retry): the cantrip's animation from the caster to its targets, whatever the
-  // outcome (a missed Fire Bolt still flies). Never awaited: the animation never delays or fails the command.
+  // After the commit, once (never on a retry): the cantrip's animation from the caster to its targets, but never on a
+  // miss («Mancato»: nothing reached the target). Never awaited: the animation never delays or fails the command.
   const animateCantrip=({spellId,casterId,targetIds,eventId,lifecycleId=eventId,persistent=false,scope})=>{
     if(!spellId || !scope.isCurrent()) return;
     void Promise.resolve().then(()=>emitVisual({spellId,casterId,targetIds,eventId,lifecycleId,persistent,sceneEpoch:scope.epoch}))
@@ -262,7 +262,7 @@ export function createPcAttackRuntime({
       // its second creature). The pill's spell instance is the loop's lifecycle.
       const woven=plan.causality.weaponCantrip;
       const withPill=plan.operations.some(operation=>operation.type==="spell:upsert");
-      if(result.duplicate!==true) animateCantrip({spellId:plan.causality.cantrip?.spellId || plan.causality.spell?.spellId || woven?.spellId,casterId:scope.item.id,
+      if(result.duplicate!==true && request.outcome!=="miss") animateCantrip({spellId:plan.causality.cantrip?.spellId || plan.causality.spell?.spellId || woven?.spellId,casterId:scope.item.id,
         targetIds:[targetItem.id,...(woven?.secondaryTargetId?[woven.secondaryTargetId]:[])],eventId:attackInstanceId,
         lifecycleId:withPill?`${attackInstanceId}:spell`:attackInstanceId,persistent:withPill,scope});
       const warnings=[];
