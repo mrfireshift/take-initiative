@@ -51,6 +51,13 @@ for (let index = 0; index < 10; index++) {
       [KEY]: { hp: 25, hpMax: 25, attitude: "pc" },
     } });
 }
+// `?online=1`: players assigned to some PCs (the bench's own player id is "gm", so Omar is "mine" with
+// `role=PLAYER`), and the Online room profile with the room options below.
+if (new URLSearchParams(location.search).get("online") === "1") {
+  const players = { omar: { id: "gm", name: "Federico", color: "#facc15" }, lavera: { id: "p2", name: "Tessa", color: "#7c3aed" },
+    klos: { id: "p3", name: "Spartaco", color: "#22c55e" } };
+  for (const item of fakeHost.state.items) if (players[item.id]) item.metadata[KEY].assignedPlayer = players[item.id];
+}
 fakeHost.state.sceneMetadata = { "com.thebigpicture.initiative/state": { round: 1, current: 0, order: ["omar", "auril", "lavera", "klos", "legendary", "goblin-boss", "brann", "wolf", "goblin"] } };
 const frames = new Map();
 fakeHost.onPopover = (action, options, previous) => {
@@ -87,7 +94,8 @@ localStorage.setItem("com.thebigpicture.initiative/tracker-layout", layoutParam)
 localStorage.setItem("com.thebigpicture.initiative/options-local",
   JSON.stringify({ version: 1, updatedAt: Date.now(), tracker: { layout: layoutParam, scale: scaleParam } }));
 fakeHost.state.roomMetadata["com.thebigpicture.initiative/options-room"] =
-  { version: 1, updatedAt: Date.now(), playerView: { trackerScale: scaleParam } };
+  { version: 1, updatedAt: Date.now(), playerView: { trackerScale: scaleParam },
+    ...(params.get("online") === "1" ? { profile: "online" } : {}) };
 markSceneEpochReady("ui-audit-preview");
 await mountHistoryOwner(); await mountEffectsMutationCoordinatorService();
 await openTrackerPopover({ refresh: true });

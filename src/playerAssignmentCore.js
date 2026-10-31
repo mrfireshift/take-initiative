@@ -73,6 +73,22 @@ export function cardPlayerAssignment(player, { selfId = "", isGm = false } = {})
   return { id: normalized.id, name: normalized.name, color: normalized.color, mine };
 }
 
+// The pill over a character's name with its player's name (Online room profile), in the player's Owlbear colour, as
+// the user asked on 31/10; the text dark or white, whichever reads better on it. No colour: the neutral dark pill.
+export function playerPillColors(color) {
+  const hex = String(color || "").trim().replace(/^#/, "");
+  const full = hex.length === 3 || hex.length === 4
+    ? [...hex.slice(0, 3)].map((digit) => digit + digit).join("")
+    : hex.slice(0, 6);
+  if (!/^[0-9a-f]{6}$/i.test(full)) return { background: "rgba(8,12,21,.85)", text: "#fff" };
+  const [red, green, blue] = [0, 2, 4]
+    .map((index) => Number.parseInt(full.slice(index, index + 2), 16) / 255)
+    .map((channel) => (channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4));
+  const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  // Above about 0.19 the dark text has the higher contrast.
+  return { background: `#${full.toLowerCase()}`, text: luminance > 0.19 ? "#0b1220" : "#fff" };
+}
+
 export function cardPlayerAssignmentTitle(assignment) {
   if (!assignment) return "";
   return assignment.mine ? "Il tuo personaggio" : `Giocatore: ${assignment.name || "assegnato"}`;

@@ -6,7 +6,7 @@ Controlli a mano dei lotti dell'[audit UX](AUDIT_UX_SISTEMA.md) fatti il 31/10 (
 
 1. La build locale deve essere attiva (`npm run dev`, porta 5173). L'etichetta «LOCALE · commit» in basso nel tracker resta quella dell'avvio del server: per vederla aggiornata, riavvia `npm run dev`.
 2. Apri la room **Auril (Testbench)** con **Take Initiative! (LOCALE)**. Servono due finestre: la finestra del GM e quella dei giocatori in incognito sullo schermo del tavolo. Ricarica entrambe.
-3. Per il punto 2.3 serve il profilo **Online** (Opzioni). Assegna poi al giocatore della finestra del tavolo un PG: menu della card → **Giocatore**. Alla fine torna al profilo **Tavolo**.
+3. Per il terzo controllo del punto 2 serve il profilo **Online** (Opzioni). Assegna poi al giocatore della finestra del tavolo un PG: menu della card → **Giocatore**. Alla fine torna al profilo **Tavolo**.
 
 ## 1. Testata, maniglia e compilazione
 
@@ -37,10 +37,12 @@ Controlli a mano dei lotti dell'[audit UX](AUDIT_UX_SISTEMA.md) fatti il 31/10 (
   - La **×** di un incantesimo lo termina. Se era a concentrazione, la concentrazione del lanciatore finisce.
   - Annulla dalla Cronologia rimette l'effetto.
   - Sulla card stessa l'etichetta non ha la ×.
-- [ ] **La mia scheda (Online):** sullo schermo del tavolo apri **Il mio schermo** (icona delle opzioni).
-  - La prima riga è «La mia scheda» con il nome del PG assegnato.
-  - **Apri** chiude il menu e apre la scheda in sola lettura.
-  - Senza un PG assegnato la riga non c'è.
+- [ ] **Vista del giocatore (Online), sullo schermo del tavolo:**
+  - nella vista estesa, sopra il nome di ogni PG assegnato, c'è una pill con il nome del giocatore, nel colore che ha in Owlbear;
+  - l'icona della scheda compare solo sul proprio PG;
+  - l'icona della reazione non compare su nessuna card.
+
+  Il GM vede tutto come prima. Nel menu **Il mio schermo** nessun testo finisce sotto le tendine.
 - [ ] **Versione:** **Opzioni → Manutenzione → Versione in uso** mostra «Versione 1.5.0 · commit del …» con la sigla del commit.
 
 ## 3. Riposo del gruppo (U6′)

@@ -19,8 +19,8 @@ import {
 } from "./initiativeEditors.js";
 import { compactStatusBadge, writeHPBarTempSegment } from "./initiativeCardCompact.js";
 import { quickHPBarSegments } from "./quickHpCore.js";
-import { canOpenInitiativeCardSheet, initiativeCardSheetLabel } from "./initiativeCardSheetAccessCore.js";
-import { cardPlayerAssignmentTitle } from "./playerAssignmentCore.js";
+import { canOpenInitiativeCardSheet, initiativeCardSheetLabel, showsReactionIndicator } from "./initiativeCardSheetAccessCore.js";
+import { cardPlayerAssignmentTitle, playerPillColors } from "./playerAssignmentCore.js";
 import { fitCardToChipDock } from "./initiativeChipOverflow.js";
 import { buildReactionIndicator } from "./reactionIndicator.js";
 import {
@@ -473,33 +473,41 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
     },
   });
 }
-// Online room profile (lot O3): the player who plays it, as a small neutral tag before the name: their initial, or
-// «Tu» on the player's own character. Never their Owlbear colour, which can read as a faction (red is the enemies').
+// Online room profile (lot O3): the player who plays it, as a pill over the name in the player's Owlbear colour,
+// overhanging the card's top like the "Azione Epica" tag (asked by the user on 31/10, in place of a dot before the
+// name).
+let playerPillOverhang = 0;
 if (e.assignedPlayer && !e.__groupCollapsed) {
-  const playerTag = document.createElement("span");
   const mine = e.assignedPlayer.mine === true;
-  playerTag.dataset.cardPlayer = mine ? "mine" : "assigned";
-  playerTag.textContent = mine ? "Tu" : (String(e.assignedPlayer.name || "?").trim().slice(0, 1).toUpperCase() || "?");
-  playerTag.title = cardPlayerAssignmentTitle(e.assignedPlayer);
-  playerTag.setAttribute("aria-label", playerTag.title);
-  Object.assign(playerTag.style, {
-    flex: "0 0 auto",
-    minWidth: "18px",
-    height: "18px",
-    padding: mine ? "0 6px" : "0",
-    boxSizing: "border-box",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
+  const colors = playerPillColors(e.assignedPlayer.color);
+  const playerPill = document.createElement("span");
+  playerPill.dataset.cardPlayer = mine ? "mine" : "assigned";
+  playerPill.textContent = String(e.assignedPlayer.name || "").trim() || "Giocatore";
+  playerPill.title = cardPlayerAssignmentTitle(e.assignedPlayer);
+  playerPill.setAttribute("aria-label", playerPill.title);
+  Object.assign(playerPill.style, {
+    position: "absolute",
+    top: "-6px",
+    left: `${CONTENT_LEFT}px`,
+    maxWidth: "150px",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    padding: "2px 8px",
     borderRadius: "999px",
-    border: "1px solid rgba(255,255,255,.75)",
-    background: mine ? "#fff" : "rgba(8,12,21,.6)",
-    color: mine ? "#0b1220" : "#fff",
-    fontSize: "10px",
-    fontWeight: "800",
-    lineHeight: "1",
+    border: "1px solid rgba(0,0,0,.72)",
+    background: colors.background,
+    color: colors.text,
+    fontSize: "9px",
+    fontWeight: "700",
+    letterSpacing: ".2px",
+    lineHeight: "12px",
+    whiteSpace: "nowrap",
+    userSelect: "none",
+    pointerEvents: "auto",
+    zIndex: "5",
   });
-  name.appendChild(playerTag);
+  header.appendChild(playerPill);
+  playerPillOverhang = 6;
 }
 name.appendChild(nameLabel);
 
@@ -665,6 +673,8 @@ if (epicTagDocks.length) {
   const overhang = classicEpicTagOverhang(EPIC_TAG_CFG, { isEpic: IS_EPIC, isEpicAction: !!e.isEpicAction });
   if (overhang) card.style.marginTop = `${overhang}px`;
 }
+// The player pill overhangs it the same way.
+if (playerPillOverhang && !epicTagDocks.length) card.style.marginTop = `${playerPillOverhang}px`;
 // --- CHIP ×N SULL'AVATAR (solo se collassato) ---
 if (e.__groupCollapsed && e.__groupCount > 1) {
   const CHIP = 32;            // diametro chip (regola qui)
@@ -1200,8 +1210,8 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     hpDeltaButton.style.fontSize = "12px";
   }
 
-  // Reaction indicator (reactionTrackerCore.js): the GM marks it on any creature, players see it on PCs and allies.
-  const reactionIndicator = IS_GM || ["pc", "ally"].includes(e.attitude)
+  // Reaction indicator (reactionTrackerCore.js): who sees it in showsReactionIndicator.
+  const reactionIndicator = showsReactionIndicator(e, { isGM: IS_GM })
     ? buildReactionIndicator({
       used: hasReactionUsed(cardEffectData),
       interactive: IS_GM && typeof toggleReactionUsedOnTrackerCard === "function",

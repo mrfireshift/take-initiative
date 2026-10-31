@@ -8,8 +8,10 @@ import {
   isPlayerAssignmentValue,
   playerAssignmentMenuChoices,
   playerAssignmentOfItem,
+  playerPillColors,
   pluginMetaWithPlayerAssignment,
 } from "../src/playerAssignmentCore.js";
+import { canOpenInitiativeCardSheet, showsReactionIndicator } from "../src/initiativeCardSheetAccessCore.js";
 import { isAllowedInitiativeCardMenuAction } from "../src/menuPopoverProtocolCore.js";
 import {
   buildInitiativeCardContextMenuPayload,
@@ -140,6 +142,33 @@ test("la card estesa e il tracker mostrano il giocatore solo nel profilo Online"
   assert.match(tracker, /assignedPlayer: __onlineRoomProfile\(\)\s*\? cardPlayerAssignment\(/);
   assert.match(tracker, /\.\.\.\(__onlineRoomProfile\(\) && IS_GM && sourceItem \? \{\s*playerChoices:/);
   assert.match(classic, /if \(e\.assignedPlayer && !e\.__groupCollapsed\) \{/);
-  assert.match(classic, /playerTag\.textContent = mine \? "Tu" :/);
-  assert.doesNotMatch(classic, /assignedPlayer\.color/);
+  // 31/10: a pill with the player's name over the name, in the player's colour, instead of the initial or «Tu».
+  assert.match(classic, /playerPill\.textContent = String\(e\.assignedPlayer\.name/);
+  assert.match(classic, /playerPillColors\(e\.assignedPlayer\.color\)/);
+  assert.doesNotMatch(classic, /"Tu"/);
+  assert.match(tracker, /onlinePlayerView: !IS_GM && __onlineRoomProfile\(\)/);
+});
+
+test("la pill del giocatore ha il suo colore e il testo che si legge meglio", () => {
+  assert.deepEqual(playerPillColors("#facc15"), { background: "#facc15", text: "#0b1220" });
+  assert.deepEqual(playerPillColors("#7c3aed"), { background: "#7c3aed", text: "#fff" });
+  assert.deepEqual(playerPillColors("#0F0"), { background: "#00ff00", text: "#0b1220" });
+  assert.deepEqual(playerPillColors("#1d4ed8cc"), { background: "#1d4ed8", text: "#fff" });
+  assert.deepEqual(playerPillColors(""), { background: "rgba(8,12,21,.85)", text: "#fff" });
+});
+
+test("profilo Online: il giocatore apre solo la propria scheda e non vede la reazione", () => {
+  const own = { id: "a", attitude: "pc", onlinePlayerView: true, assignedPlayer: { mine: true } };
+  const other = { id: "b", attitude: "pc", onlinePlayerView: true, assignedPlayer: { mine: false } };
+  const ally = { id: "c", attitude: "ally", onlinePlayerView: true };
+  assert.equal(canOpenInitiativeCardSheet(own), true);
+  assert.equal(canOpenInitiativeCardSheet(other), false);
+  assert.equal(canOpenInitiativeCardSheet(ally), false);
+  assert.equal(canOpenInitiativeCardSheet(other, { isGM: true }), true);
+  assert.equal(showsReactionIndicator(own), false);
+  assert.equal(showsReactionIndicator(own, { isGM: true }), true);
+  // The Table profile's player screen (the table screen) keeps both.
+  assert.equal(canOpenInitiativeCardSheet({ id: "d", attitude: "pc" }), true);
+  assert.equal(showsReactionIndicator({ id: "d", attitude: "ally" }), true);
+  assert.equal(showsReactionIndicator({ id: "e", attitude: "enemy" }), false);
 });

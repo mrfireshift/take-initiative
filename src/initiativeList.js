@@ -1587,30 +1587,13 @@ async function __playerScreenPlacement() {
   };
 }
 
-// Lot U11 (UX-17): the player's own character, the card marked «Tu» (first in the order when they play several).
-function __myTrackerEntry() {
-  for (const entry of __activeLabelEntriesById?.values?.() || []) {
-    if (entry?.assignedPlayer?.mine === true && !isLairId(entry.id) && !isEpicActionId(entry.id)) return entry;
-  }
-  return null;
-}
-
-function mountPlayerScreenActionsListener() {
-  OBR.broadcast.onMessage(`${ID}/player-screen-actions`, (event) => {
-    if (IS_GM || event?.data?.type !== "open-my-sheet") return;
-    const entry = __myTrackerEntry();
-    if (entry) void openInitiativeCardPopup(entry);
-  });
-}
-
 playerScreenButton.addEventListener("click", (event) => {
   event.stopPropagation();
   void (async () => {
     const placement = await __playerScreenPlacement();
-    const mine = __myTrackerEntry();
     await OBR.popover.open({
       id: PLAYER_SCREEN_POPOVER_ID,
-      url: `/player-screen.html${mine ? `?mine=${encodeURIComponent(String(mine.name || "").trim() || "Il mio personaggio")}` : ""}`,
+      url: "/player-screen.html",
       width: PLAYER_SCREEN_POPOVER_WIDTH,
       height: PLAYER_SCREEN_POPOVER_HEIGHT,
       anchorReference: "POSITION",
@@ -5418,6 +5401,9 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
     assignedPlayer: __onlineRoomProfile()
       ? cardPlayerAssignment(meta.assignedPlayer, { selfId: __selfPlayerId(), isGm: IS_GM })
       : null,
+    // A player's screen in the Online room profile: only their own sheet, no reaction indicator
+    // (initiativeCardSheetAccessCore.js).
+    onlinePlayerView: !IS_GM && __onlineRoomProfile(),
     hp: (meta.hp ?? null),
     hpMax: (meta.hpMax ?? null),
     tempHp: (meta.tempHp ?? null),
@@ -11745,7 +11731,6 @@ try {
       mountTrackerQuickActionsPopoverListener();
       mountPcAttackSpellLaunchListener();
       mountCompactAdminMenuListener();
-      mountPlayerScreenActionsListener();
       mountSpeedCheckStateBroadcast();
     mountConcentrationWarningBroadcast();
     const speedWarningBootstrap = mountSpeedWarningBroadcast().catch(() => {});

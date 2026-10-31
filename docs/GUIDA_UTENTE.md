@@ -72,7 +72,7 @@ Il GM vede i controlli di incontro, tracker, modifica e strumenti. I giocatori v
 
 Con l'iniziativa vuota il tracker del GM mostra «Nessuna creatura in iniziativa» con il pulsante **+ Aggiungi attori**; quello dei giocatori resta vuoto.
 
-Nel profilo Online il giocatore ha il menu **Il mio schermo** (l'icona delle opzioni). Se il GM gli ha assegnato un personaggio, la riga **La mia scheda** apre la scheda del PG segnato «Tu».
+Nel profilo Online, nella vista estesa, sopra il nome di ogni PG assegnato c'è una pill con il nome del suo giocatore, nel colore che il giocatore ha in Owlbear. Nella vista compatta il nome resta sottolineato. Sul proprio schermo il giocatore vede l'icona della scheda solo sulla card del suo PG, e non vede l'icona della reazione.
 
 Nella vista giocatori i PF dei PG restano visibili. La modalità estesa può mostrare anche i PF degli alleati, mentre quella compatta privilegia i soli PG; neutrali e nemici non espongono i propri PF ai giocatori. Quando un valore non è visibile non viene lasciato un testo o una barra vuota. Gli strumenti di amministrazione non sono interattivi per i giocatori.
 
@@ -377,8 +377,8 @@ Quando il tracker ha il focus della tastiera (dopo un clic nel tracker, per esem
 
 Nella riga PF di ogni card c'è l'icona della reazione (una freccia curva):
 verde quando la reazione è disponibile, rossa e spenta quando è stata usata. Il GM la segna o la
-ripristina con un clic; i giocatori la vedono sulle card dei PG e degli
-alleati. La reazione usata torna da sola all'inizio del turno successivo della
+ripristina con un clic; lo schermo del tavolo la mostra sulle card dei PG e
+degli alleati, mentre nel profilo Online i giocatori non la vedono. La reazione usata torna da sola all'inizio del turno successivo della
 creatura.
 
 Dal menu contestuale della card, **Azione preparata** la segna fino
