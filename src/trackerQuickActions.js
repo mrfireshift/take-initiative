@@ -2,11 +2,6 @@ import { isAttackQuickAction, sanitizeQuickAction, sanitizeQuickActions } from "
 import { isSpellbookQuickAction } from "./spellbookCore.js";
 import { extendHitArea } from "./hitAreaCore.js";
 
-const QUICK_ACTION_BUTTON_SIZE = 22;
-const CLASSIC_COMBAT_BADGE_SIZE = 18;
-const CLASSIC_COMBAT_BADGE_LEFT = -15;
-const CLASSIC_QUICK_ACTION_LEFT = CLASSIC_COMBAT_BADGE_LEFT
-  - ((QUICK_ACTION_BUTTON_SIZE - CLASSIC_COMBAT_BADGE_SIZE) / 2);
 // ⚡ and the attack console's 🗡️ are 15px circles with a 1px ring. In the classic card they stand in a column
 // centred on the portrait (the card's header, whatever rows of chips the card grows), rings touching: they are the
 // GM's, and the GM view has no active-turn badge on that side of the portrait (initiativeCardClassicBuilder.js: the
@@ -15,11 +10,12 @@ const LAUNCHER_SIZE = 15;
 const LAUNCHER_RING = 1;
 const LAUNCHER_PITCH = LAUNCHER_SIZE + 2 * LAUNCHER_RING;
 // Fixed slots in pitches from the portrait's centre, so each keeps its place on a card without the other: ⚡ half a
-// pitch above, the console half a pitch below (the 🪄 and 🗡️ menus, no longer on the card, keep their slots).
+// pitch above, the console half a pitch below, an Epic Boss's Console Boss first, above ⚡ (the 🪄 and 🗡️ menus, no
+// longer on the card, keep their slots).
 // The column straddles the portrait rim, a few px left of where the badge stands in the player view, towards
 // the list's edge; no further, or the list would clip the ring of the active card (scaled 1.035 about its centre).
 const CLASSIC_LAUNCHER_AXIS = -12;
-const CLASSIC_LAUNCHER_SLOT = Object.freeze({ quick: -0.5, console: 0.5, spells: 0, attacks: 1 });
+const CLASSIC_LAUNCHER_SLOT = Object.freeze({ boss: -1.5, quick: -0.5, console: 0.5, spells: 0, attacks: 1 });
 // The compact card: a column on the portrait's right, rings touching as in the classic card, the first circle level
 // with the portrait's top. The initiative badge and the character sheet hold the left side, the KO badge sits on the
 // portrait; only an Epic Boss keeps a badge in the top-right corner ("E"), and there the column starts below it.
@@ -42,9 +38,9 @@ function px(value) {
   return `${Math.round(value * 10) / 10}px`;
 }
 
-function launcherPosition(group, offset, compact, belowCorner = false) {
+function launcherPosition(group, offset, compact, belowCorner = false, classicSlot = null) {
   if (compact) return compactLauncherSlot(offset, LAUNCHER_SIZE, { belowCorner });
-  const slot = CLASSIC_LAUNCHER_SLOT[group] ?? 0;
+  const slot = Number.isFinite(classicSlot) ? classicSlot : CLASSIC_LAUNCHER_SLOT[group] ?? 0;
   const top = Math.round((slot * LAUNCHER_PITCH - LAUNCHER_SIZE / 2) * 10) / 10;
   return {
     left: px(CLASSIC_LAUNCHER_AXIS - LAUNCHER_SIZE / 2),
@@ -239,13 +235,15 @@ export function buildTrackerQuickActionLauncher({
   return container;
 }
 
-// Boss Actions entry on an Epic Boss card: the same round control as the quick-actions toggle, red like
-// the "Boss Epico" pill. Without a bound profile it is dimmed and still opens the console (to bind one).
-// offset moves it one slot aside when the card also shows the quick-actions toggle.
+// Boss Actions entry on an Epic Boss card: the first circle of the launchers' column, as ⚡ and the console's 🗡️, red
+// like the "Boss Epico" pill. Without a bound profile it is dimmed and still opens the console (to bind one).
+// offset: its place in the compact card's column; classicSlot: its slot in the classic card's column (pitches from
+// the portrait's centre), above ⚡ unless it is alone on the card (an Epic Action's reminder).
 export function buildBossActionsLauncher({
   bound = false,
   compact = false,
   offset = 0,
+  classicSlot = CLASSIC_LAUNCHER_SLOT.boss,
   belowCorner = false,
   iconUrl = "",
   onOpen = () => {},
@@ -258,42 +256,43 @@ export function buildBossActionsLauncher({
   button.setAttribute("aria-label", button.title);
   button.dataset.cardSelectionIgnore = "1";
   button.dataset.bossActionsLauncher = bound ? "bound" : "unbound";
-  const step = Math.max(0, Number(offset) || 0) * (QUICK_ACTION_BUTTON_SIZE + 4);
-  // Compact: a slot of the launchers' column, centred on its axis.
-  const compactSlot = compact ? compactLauncherSlot(offset, QUICK_ACTION_BUTTON_SIZE, { belowCorner }) : null;
+  // The same circle as ⚡ and 🗡️ (15px, a 1px ring), in the launchers' column.
+  const position = launcherPosition("boss", offset, compact, belowCorner, classicSlot);
   Object.assign(button.style, {
     position: "absolute",
-    left: compact ? compactSlot.left : `${CLASSIC_QUICK_ACTION_LEFT + step}px`,
-    right: compact ? compactSlot.right : "auto",
-    top: compact ? compactSlot.top : "2px",
+    left: position.left,
+    right: position.right,
+    top: position.top,
     zIndex: "12",
     pointerEvents: "auto",
     boxSizing: "border-box",
-    minWidth: `${QUICK_ACTION_BUTTON_SIZE}px`,
-    width: `${QUICK_ACTION_BUTTON_SIZE}px`,
-    height: `${QUICK_ACTION_BUTTON_SIZE}px`,
+    minWidth: `${LAUNCHER_SIZE}px`,
+    width: `${LAUNCHER_SIZE}px`,
+    height: `${LAUNCHER_SIZE}px`,
     padding: "0",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    border: `2px solid ${bound ? "#f87171" : "rgba(248,113,113,.45)"}`,
+    border: "0",
     borderRadius: "50%",
     background: "linear-gradient(180deg,rgba(51,65,85,.98),rgba(15,23,42,.98))",
     color: bound ? "#fecaca" : "rgba(254,202,202,.5)",
-    fontSize: "11px",
+    fontSize: "9px",
     lineHeight: "1",
     cursor: "pointer",
-    boxShadow: "0 2px 7px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.12)",
+    boxShadow: `0 0 0 ${LAUNCHER_RING}px ${bound ? "#f87171" : "rgba(248,113,113,.45)"},0 2px 6px rgba(0,0,0,.85)`,
   });
   if (iconUrl) {
-    // The boss.svg outline, painted in the button colour through a mask.
+    // The boss.svg outline, painted in the button colour through a mask. The skull is drawn left of the file's
+    // centre (x 0.9–18.9 of 24): moved by that much, it sits in the middle of the circle.
     const icon = documentRef.createElement("span");
     icon.setAttribute("aria-hidden", "true");
     const mask = `url("${iconUrl}") center / contain no-repeat`;
     Object.assign(icon.style, {
       display: "block",
-      width: "14px",
-      height: "14px",
+      width: "10px",
+      height: "10px",
+      transform: "translateX(0.9px)",
       backgroundColor: "currentColor",
       mask,
       WebkitMask: mask,
@@ -312,5 +311,7 @@ export function buildBossActionsLauncher({
     event.stopPropagation();
     onOpen(event);
   });
+  // The same 24px click area as the other launchers.
+  extendHitArea(button, { documentRef });
   return button;
 }

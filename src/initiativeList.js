@@ -1031,6 +1031,8 @@ function makeEpicActionEntry(bossEntry, pcEntry) {
     hpMax: null,
     isEpicAction: true,
     epicBossId: bossEntry.id,
+    // Its card's Boss Actions circle opens the boss's console, bound or not as the boss.
+    epicBossActionBinding: !!bossEntry.bossActionBinding,
     epicAfterPCId: pcEntry.id,
     conditions: __safeConditions(null),
   };
@@ -8951,17 +8953,40 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false, anchor
     || !sourceEntry
     || sourceEntry.__groupCollapsed
     || isLairId(sourceEntry.id)
-    || isEpicActionId(sourceEntry.id)
   ) {
     return;
   }
-  const sourceId = splitParagonId(sourceEntry.id).baseId;
+  // An Epic Action card is its boss's turn: only the Boss Actions circle, a reminder that opens its boss's console.
+  const epicAction = isEpicActionId(sourceEntry.id);
+  const sourceId = epicAction ? String(sourceEntry.epicBossId || "") : splitParagonId(sourceEntry.id).baseId;
+  if (!sourceId) return;
   // On the compact card the column starts below the top-right corner when an Epic Boss's "E" holds it.
   const belowCorner = compact && !!sourceEntry.isEpic;
   const host = anchor || card;
+  let launchers = 0;
+  // Boss Actions: the first circle of the launchers' column, at the top (a slot of its own above ⚡ in the classic
+  // card, which keeps fixed slots; alone on an Epic Action card, where ⚡ stands on the other cards).
+  const bound = epicAction ? !!sourceEntry.epicBossActionBinding : !!sourceEntry.bossActionBinding;
+  if (epicAction || sourceEntry.isEpic || sourceEntry.bossActionBinding) {
+    const bossLauncher = buildBossActionsLauncher({
+      bound,
+      compact,
+      offset: launchers,
+      ...(epicAction ? { classicSlot: -0.5 } : {}),
+      belowCorner,
+      iconUrl: (import.meta.env.BASE_URL || "/") + "boss.svg",
+      onOpen: () => {
+        void openBossActionsPopover(sourceId);
+      },
+    });
+    if (bossLauncher) {
+      host.appendChild(bossLauncher);
+      launchers += 1;
+    }
+  }
+  if (epicAction) return;
   // The quick actions (⚡, a menu) and the attack console (🗡️, one click): the console lists the spellbook and the
   // attacks the 🪄 and 🗡️ menus held, and the features too.
-  let launchers = 0;
   for (const group of ["quick"]) {
     const expanded = !!__trackerQuickActionsRequestId
       && __trackerQuickActionsSourceId === sourceId
@@ -8995,20 +9020,6 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false, anchor
       host.appendChild(consoleLauncher);
       launchers += 1;
     }
-  }
-  // Boss Actions: a round icon in the quick-actions slot (Epic Bosses have no quick actions; otherwise after ⚡ and ⚔).
-  if (sourceEntry.isEpic || sourceEntry.bossActionBinding) {
-    const bossLauncher = buildBossActionsLauncher({
-      bound: !!sourceEntry.bossActionBinding,
-      compact,
-      offset: launchers,
-      belowCorner,
-      iconUrl: (import.meta.env.BASE_URL || "/") + "boss.svg",
-      onOpen: () => {
-        void openBossActionsPopover(sourceId);
-      },
-    });
-    if (bossLauncher) card.appendChild(bossLauncher);
   }
 }
 

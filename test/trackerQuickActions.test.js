@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   buildBossActionsLauncher,
@@ -146,7 +147,7 @@ test("riassume tipo e bersaglio senza dipendere dal pannello", () => {
     source: { kind: "cantrip", spellIds: ["fire-bolt", "eldritch-blast"] } }), "Trucchetto · 2 conosciuti");
 });
 
-test("Boss Actions: icona tonda nello slot delle azioni rapide, rossa se collegata, attenuata senza profilo", async () => {
+test("Boss Actions: un cerchio della colonna dei launcher, come ⚡ e 🗡️, rosso se collegato, attenuato senza profilo", async () => {
   const documentRef = createTestDocument();
   const opened = [];
   const button = buildBossActionsLauncher({ bound: true, iconUrl: "/boss.svg", documentRef, onOpen: () => opened.push(true) });
@@ -156,14 +157,17 @@ test("Boss Actions: icona tonda nello slot delle azioni rapide, rossa se collega
   assert.equal(button.dataset.bossActionsLauncher, "bound");
   assert.equal(button.dataset.cardSelectionIgnore, "1");
   assert.equal(button.style.position, "absolute");
-  assert.equal(button.style.left, "-17px", "same slot as the quick-actions toggle");
-  assert.equal(button.style.top, "2px");
-  assert.equal(button.style.width, "22px");
+  // The classic card: the column's axis on the portrait rim, the first slot at the top, above ⚡.
+  assert.deepEqual([button.style.left, button.style.top], ["-19.5px", "calc(50% - 33px)"]);
+  assert.deepEqual([button.style.width, button.style.height], ["15px", "15px"], "the size of ⚡ and 🗡️");
   assert.equal(button.style.borderRadius, "50%");
-  assert.equal(button.style.border, "2px solid #f87171");
+  assert.equal(button.style.boxShadow, "0 0 0 1px #f87171,0 2px 6px rgba(0,0,0,.85)", "the 1px ring of the other launchers");
   assert.equal(button.textContent, "", "an icon, not a text label");
-  assert.equal(button.children[0].attributes["aria-hidden"], "true");
-  assert.match(button.children[0].style.mask, /url\("\/boss\.svg"\)/);
+  const icon = button.children[0];
+  assert.equal(icon.attributes["aria-hidden"], "true");
+  assert.match(icon.style.mask, /url\("\/boss\.svg"\)/);
+  assert.equal(icon.style.transform, "translateX(0.9px)", "the skull, drawn left of the file's centre, in the middle of the circle");
+  assert.equal(button.children[1].dataset.hitArea, "1", "the 24px click area of the other launchers");
   let stopped = 0;
   await button.dispatch("click", { stopPropagation() { stopped += 1; } });
   assert.equal(opened.length, 1);
@@ -172,15 +176,19 @@ test("Boss Actions: icona tonda nello slot delle azioni rapide, rossa se collega
   const unbound = buildBossActionsLauncher({ bound: false, documentRef });
   assert.equal(unbound.title, "Console Boss: collega un profilo");
   assert.equal(unbound.dataset.bossActionsLauncher, "unbound");
-  assert.equal(unbound.style.border, "2px solid rgba(248,113,113,.45)");
+  assert.match(unbound.style.boxShadow, /^0 0 0 1px rgba\(248,113,113,\.45\)/);
 
-  const beside = buildBossActionsLauncher({ bound: true, offset: 1, documentRef });
-  assert.equal(beside.style.left, "9px", "one slot to the right of ⚡");
+  // In column with ⚡, a pitch above it (rings touching).
+  const quickLauncher = buildTrackerQuickActionLauncher({ actions: [action], documentRef: createTestDocument() });
+  assert.equal(button.style.left, quickLauncher.style.left, "in column with ⚡");
+  assert.equal(quickLauncher.style.top, "calc(50% - 16px)");
+  // Alone on an Epic Action card: where ⚡ stands on the other cards.
+  assert.equal(buildBossActionsLauncher({ bound: true, classicSlot: -0.5, documentRef }).style.top, "calc(50% - 16px)");
+  // The compact card: the first circle of the column, the others after it.
   const compact = buildBossActionsLauncher({ bound: true, compact: true, documentRef });
-  // The 22px boss icon on the same column axis.
-  assert.deepEqual([compact.style.left, compact.style.right, compact.style.top], ["auto", "2.5px", "4.5px"]);
+  assert.deepEqual([compact.style.left, compact.style.right, compact.style.top], ["auto", "6px", "8px"]);
   const belowE = buildBossActionsLauncher({ bound: true, compact: true, belowCorner: true, documentRef });
-  assert.equal(belowE.style.top, "31.5px");
+  assert.equal(belowE.style.top, "35px");
 });
 
 test("azioni rapide (⚡) e attacchi (🗡️) hanno ciascuno il proprio launcher, in colonna sopra il badge del turno", () => {
@@ -252,4 +260,18 @@ test("the spellbook's spells have a launcher of their own (🪄), between ⚡ an
   assert.equal(spells.style.top, "calc(50% - 7.5px)");
   assert.match(spells.__quickActionToggle.style.boxShadow, /^0 0 0 1px #a78bfa,/);
   assert.equal(trackerQuickActionSummary(book), "Lancio rapido · su di sé");
+});
+
+// The tracker mounts the Boss Actions circle first, at the top of the column, and on the Epic Action cards too: a
+// reminder of the boss's console, which it opens.
+test("il tracker monta il cerchio Boss per primo, e anche sulle card delle Azioni Epiche", () => {
+  const list = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const start = list.indexOf("function __mountTrackerQuickActions(");
+  const mount = list.slice(start, list.indexOf("\n}\n", start));
+  assert.ok(mount.indexOf("buildBossActionsLauncher(") < mount.indexOf("buildTrackerQuickActionLauncher("), "the boss circle first");
+  assert.ok(mount.indexOf("if (epicAction) return;") > mount.indexOf("buildBossActionsLauncher("), "only the boss circle on an Epic Action");
+  assert.ok(!/\|\| isEpicActionId\(sourceEntry\.id\)\n/.test(mount), "the Epic Action cards are no longer left out");
+  assert.ok(mount.includes("const sourceId = epicAction ? String(sourceEntry.epicBossId || \"\") : splitParagonId(sourceEntry.id).baseId;"));
+  assert.ok(mount.includes("void openBossActionsPopover(sourceId);"));
+  assert.ok(list.includes("epicBossActionBinding: !!bossEntry.bossActionBinding,"), "bound or not as its boss");
 });
