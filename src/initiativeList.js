@@ -6728,13 +6728,13 @@ async function applyGroupHPMaxDelta(itemId, delta) {
   let hpMutation = null;
   const historyResult = await withItemMetaHistory({
     kind: "hp",
-    label: `Ricalibrazione HP/Max gruppo: ${groupName} (×${updates.length})`,
+    label: `Ricalibrazione PF/Max gruppo: ${groupName} (×${updates.length})`,
     decorateEntry: (entry) => decorateCompositeEffectsHistoryEntry({ entry, mutation: hpMutation, effectMetadataFields: ["conditions", SPELLS_META_KEY, CONC_META_KEY] }),
     itemIds: historyIds,
     fields: ["hp", "hpMax", "tempHp", "tempHpSource", "conditions", SPELLS_META_KEY, CONC_META_KEY],
   }, async () => { hpMutation = await updateMultipleHP(updates); });
   if (historyResult?.partial) {
-    try { await OBR.notification.show("HP applicati parzialmente; usa la cronologia per annullare prima di ripetere.", "WARNING"); }
+    try { await OBR.notification.show("PF applicati parzialmente; usa la cronologia per annullare prima di ripetere.", "WARNING"); }
     catch (error) { console.warn("[hp] partial commit notification:", error); }
   }
 
@@ -6823,7 +6823,7 @@ function syncTrackerHPNow(itemId, hp, hpMax, tempHp = null) {
   const pct = hasHP ? Math.max(0, Math.min(1, nHP / nHPMax)) : 0;
   for (const pill of document.querySelectorAll('[data-spell-board-token-hp="1"], [data-shared-hp-badge="1"]')) {
     if (pill.dataset.itemId !== String(itemId) || pill.dataset.hpEditing === "1") continue;
-    pill.textContent = `HP ${nHP} / ${nHPMax}`;
+    pill.textContent = `PF ${nHP} / ${nHPMax}`;
     const label = pill.dataset.sharedHpLabel || pill.dataset.spellBoardTokenLabel || "Mano arcana";
     pill.title = `Punti ferita di ${label}. Clicca per modificare`;
   }
@@ -7249,7 +7249,7 @@ function bindHPEditorForEntry(
       const hpMutations = [];
       const historyResult = await withItemMetaHistory({
         kind: "hp",
-        label: recalibratesMax ? "Ricalibrazione HP/Max" : "Modifica HP",
+        label: recalibratesMax ? "Ricalibrazione PF/Max" : "Modifica PF",
         decorateEntry: (entry) => decorateCompositeEffectsHistoryEntry({ entry, mutation: hpMutations, effectMetadataFields: ["conditions", SPELLS_META_KEY, CONC_META_KEY] }),
         itemIds: historyIds,
         onHistoryStatus: ({ entry: historyEntry }) => {
@@ -7278,7 +7278,7 @@ function bindHPEditorForEntry(
         }
       });
       if (historyResult?.partial) {
-        try { await OBR.notification.show("HP applicati parzialmente; usa la cronologia per annullare prima di ripetere.", "WARNING"); }
+        try { await OBR.notification.show("PF applicati parzialmente; usa la cronologia per annullare prima di ripetere.", "WARNING"); }
         catch (error) { console.warn("[hp] partial commit notification:", error); }
       }
     }),
@@ -7396,7 +7396,7 @@ function bindSpellBoardTokenHPEditor(pill, boardToken, spell) {
     {
       editableHPMax: false,
       formatHP: (current, maximum) => (
-        `HP ${Math.max(0, Math.floor(Number(current) || 0))} / ${Math.max(0, Math.floor(Number(maximum) || 0))}`
+        `PF ${Math.max(0, Math.floor(Number(current) || 0))} / ${Math.max(0, Math.floor(Number(maximum) || 0))}`
       ),
       saveValues: async ({ nextHP }) => {
         await executeSpellBoardTokenStateUpdate({
@@ -7435,8 +7435,8 @@ function bindSpellBoardTokenCompanionHPEditor(pill, companion) {
     }, {
       seedGroupHP: false,
       editableHPMax: false,
-      readOnlyHPMaxTitle: "Il massimo segue gli HP massimi del token principale",
-      formatHP: (hp, hpMax) => `HP ${Math.max(0, Math.floor(Number(hp) || 0))} / ${Math.max(0, Math.floor(Number(hpMax) || 0))}`,
+      readOnlyHPMaxTitle: "Il massimo segue i PF massimi del token principale",
+      formatHP: (hp, hpMax) => `PF ${Math.max(0, Math.floor(Number(hp) || 0))} / ${Math.max(0, Math.floor(Number(hpMax) || 0))}`,
       commitAndOpenNeighbor: async ({ commit }) => { await commit(); __suspendRenders = false; },
     });
     return;

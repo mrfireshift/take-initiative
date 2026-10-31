@@ -831,13 +831,13 @@ export function writeCompactHPText(
     };
     // One look for the whole text (white, the container's weight): no part stands out from the others.
     hpText.replaceChildren(
-      part("HP ", {}),
+      part("PF ", {}),
       part(current, {}),
       part(` / ${maximum}`, {}),
       ...(temporary ? [part(temporary, { color: TEMP_HP_COLOR })] : []),
     );
   } catch {
-    hpText.textContent = `HP ${current} / ${maximum}${temporary}`;
+    hpText.textContent = `PF ${current} / ${maximum}${temporary}`;
   }
 }
 
@@ -846,7 +846,7 @@ export function compactHPTextHTML(hp, hpMax, tempHp = 0) {
   const state = quickHPStateOf({ hp: Math.round(Number(hp) || 0), hpMax: Math.round(Number(hpMax) || 0), tempHp });
   const maximum = Math.round(Number(hpMax) || 0);
   const temporary = state.tempHp > 0 ? `<span style="color:${TEMP_HP_COLOR}"> +${state.tempHp}</span>` : "";
-  return `<span>HP </span><span>${state.hp}</span><span> / ${maximum}</span>${temporary}`;
+  return `<span>PF </span><span>${state.hp}</span><span> / ${maximum}</span>${temporary}`;
 }
 
 // GM: a click on the HP text opens the classic card's inline editor (bindHPEditorForEntry), with the same save path.
@@ -855,7 +855,7 @@ export function markCompactHPTextEditable(hpText, entryId) {
   if (!hpText?.dataset || !entryId) return hpText;
   hpText.dataset.badge = "hp";
   hpText.dataset.itemId = String(entryId);
-  hpText.title = "Clic: modifica HP (-7 danno, +5 cura, oppure il nuovo valore)";
+  hpText.title = "Clic: modifica i PF (-7 danno, +5 cura, oppure il nuovo valore)";
   Object.assign(hpText.style, {
     position: "relative",
     cursor: "text",

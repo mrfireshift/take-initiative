@@ -699,7 +699,7 @@ const conditionsOf = (meta) => (Array.isArray(meta?.conditions) ? meta.condition
  * table screen, `watchFluidity()` started first. It does what a GM would, through the same paths, and puts it back:
  * - L2: the tracker closed and opened again (a new page), then ▶: a test condition ending at the active creature's
  *   turn end goes away;
- * - L27: the HP from a Paragon boss's second card, through its inline editor (Cronologia: «Modifica HP»);
+ * - L27: the HP from a Paragon boss's second card, through its inline editor (Cronologia: «Modifica PF»);
  * - L6: the active creature out of the initiative, as «Rimuovi dall'iniziativa» writes it: the turn goes to the next;
  * - L3: the two History entries undone together, as «Annulla N azioni» does;
  * - L16: a token hidden for hideMs: its bars and auras hidden on the GM's scene (the table screen checks its own).

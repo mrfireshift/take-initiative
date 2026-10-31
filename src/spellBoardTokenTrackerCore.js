@@ -357,7 +357,7 @@ export function buildSpellBoardTokenCompanionCard(
       hpBadge.dataset.spellBoardTokenHp = "1";
       hpBadge.dataset.spellBoardTokenLabel = companion.label;
     }
-    hpBadge.textContent = `HP ${hp} / ${hpMax}`;
+    hpBadge.textContent = `PF ${hp} / ${hpMax}`;
     hpBadge.title = `Punti ferita di ${companion.label}. Clicca per modificare`;
     Object.assign(hpBadge.style, {
       flex: "0 0 auto",

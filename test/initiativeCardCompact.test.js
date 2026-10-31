@@ -147,19 +147,19 @@ test("il GM vede il KO senza perdere gli HP temporanei oltre il massimo", () => 
   assert.equal(surplus.hpPercent, 1);
   const hpText = createTestDocument().createElement("div");
   writeCompactHPText(hpText, 27, 20, { documentRef: createTestDocument() });
-  assert.deepEqual(hpText.children.map((part) => part.textContent), ["HP ", "20", " / 20", " +7"]);
+  assert.deepEqual(hpText.children.map((part) => part.textContent), ["PF ", "20", " / 20", " +7"]);
 });
 
 test("CAP-TEMP: the temporary hit points beside the HP, in blue, and in the editor's HTML", () => {
   const documentRef = createTestDocument();
   const hpText = documentRef.createElement("div");
   writeCompactHPText(hpText, 12, 30, { documentRef, tempHp: 5 });
-  assert.deepEqual(hpText.children.map((part) => part.textContent), ["HP ", "12", " / 30", " +5"]);
+  assert.deepEqual(hpText.children.map((part) => part.textContent), ["PF ", "12", " / 30", " +5"]);
   assert.equal(hpText.children[3].style.color, TEMP_HP_COLOR);
   assert.equal(hpText.dataset.tempHp, "5");
   writeCompactHPText(hpText, 12, 30, { documentRef });
-  assert.deepEqual(hpText.children.map((part) => part.textContent), ["HP ", "12", " / 30"], "none: no part");
-  assert.equal(compactHPTextHTML(12, 30, 5), `<span>HP </span><span>12</span><span> / 30</span><span style="color:${TEMP_HP_COLOR}"> +5</span>`);
+  assert.deepEqual(hpText.children.map((part) => part.textContent), ["PF ", "12", " / 30"], "none: no part");
+  assert.equal(compactHPTextHTML(12, 30, 5), `<span>PF </span><span>12</span><span> / 30</span><span style="color:${TEMP_HP_COLOR}"> +5</span>`);
   const wounded = deriveCompactCardPresentation({ id: "pc", attitude: "pc", hp: 12, hpMax: 30, tempHp: 5 }, null, { isGM: true });
   assert.deepEqual([wounded.safeHP, wounded.hpPercent], [12, 0.4], "the bar follows the HP alone");
 });
@@ -719,7 +719,7 @@ test("la presentazione HP compatta conserva dataset, barra e badge KO", () => {
 
   assert.equal(visible.hpText.dataset.cardHpText, "1");
   // The exact HP is written in three parts (see writeCompactHPText); together they read the same as before.
-  assert.equal(visible.hpText.children.map((part) => part.textContent).join(""), "HP 0 / 12");
+  assert.equal(visible.hpText.children.map((part) => part.textContent).join(""), "PF 0 / 12");
   assert.equal(visible.hpFill.dataset.hpFill, "1");
   assert.equal(visible.hpFill.dataset.itemId, "enemy-1");
   assert.equal(visible.hpFill.style.background, "#475569");
@@ -737,7 +737,7 @@ test("il testo HP compatto è tutto bianco a un solo peso e si riscrive senza ac
   const hpText = documentRef.createElement("div");
 
   writeCompactHPText(hpText, 78, 100, { documentRef });
-  assert.deepEqual(hpText.children.map((part) => part.textContent), ["HP ", "78", " / 100"]);
+  assert.deepEqual(hpText.children.map((part) => part.textContent), ["PF ", "78", " / 100"]);
   // No part stands out: weight and colour come from the text itself.
   for (const part of hpText.children) {
     assert.equal(part.style.fontWeight, undefined);
@@ -746,13 +746,13 @@ test("il testo HP compatto è tutto bianco a un solo peso e si riscrive senza ac
 
   // The live HP sync writes again on every change: the parts are replaced, never appended.
   writeCompactHPText(hpText, 41.6, 100, { documentRef });
-  assert.deepEqual(hpText.children.map((part) => part.textContent), ["HP ", "42", " / 100"]);
+  assert.deepEqual(hpText.children.map((part) => part.textContent), ["PF ", "42", " / 100"]);
 });
 
 test("il testo HP compatto ripiega sul testo semplice se non può costruire le parti", () => {
   const hpText = { textContent: "", replaceChildren() { throw new Error("no DOM"); } };
   writeCompactHPText(hpText, 7, 12, { documentRef: createTestDocument() });
-  assert.equal(hpText.textContent, "HP 7 / 12");
+  assert.equal(hpText.textContent, "PF 7 / 12");
 });
 
 test("la shell compatta conserva tutti i contratti di riconciliazione", () => {
@@ -1251,8 +1251,8 @@ test("la scheda personaggio si apre dal compatto in un clic, per PG e alleati", 
 test("il testo HP compatto si apre all'editor del classico e conserva il suo formato", () => {
   const documentRef = createTestDocument();
   const html = compactHPTextHTML(78.4, 100);
-  assert.equal(html.replace(/<[^>]+>/g, ""), "HP 78 / 100");
-  assert.equal(html, "<span>HP </span><span>78</span><span> / 100</span>");
+  assert.equal(html.replace(/<[^>]+>/g, ""), "PF 78 / 100");
+  assert.equal(html, "<span>PF </span><span>78</span><span> / 100</span>");
 
   const hpText = documentRef.createElement("div");
   hpText.dataset.cardHpText = "1";
@@ -1261,7 +1261,7 @@ test("il testo HP compatto si apre all'editor del classico e conserva il suo for
   assert.equal(hpText.dataset.badge, "hp");
   assert.equal(hpText.dataset.itemId, "omar");
   assert.equal(hpText.style.cursor, "text");
-  assert.match(hpText.title, /modifica HP/);
+  assert.match(hpText.title, /modifica i PF/);
   const untouched = documentRef.createElement("div");
   markCompactHPTextEditable(untouched, "");
   assert.equal(untouched.dataset.badge, undefined);

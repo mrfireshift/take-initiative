@@ -560,7 +560,7 @@ if (cardToolsDock && e.__groupCollapsed) {
   const groupDeltaButton = document.createElement("button");
   groupDeltaButton.type = "button";
   groupDeltaButton.textContent = "±";
-  groupDeltaButton.title = "Ricalibra HP correnti e massimi di tutto il gruppo";
+  groupDeltaButton.title = "Ricalibra PF correnti e massimi di tutto il gruppo";
   groupDeltaButton.setAttribute("aria-label", groupDeltaButton.title);
   Object.assign(groupDeltaButton.style, {
     flex: "0 0 auto",
@@ -1035,7 +1035,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   const pill = document.createElement("div");
   pill.title = IS_GM
     ? "Clic: modifica i PF. +N/-N su questo token e sul suo gruppo; ± modifica anche i PF massimi"
-    : _hpMode === "status" ? "Stato HP" : "Barra HP";
+    : _hpMode === "status" ? "Stato PF" : "Barra PF";
   pill.style.position = "relative";
   pill.style.marginRight = "0";
   pill.style.padding = "0";
@@ -1144,7 +1144,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     hpDeltaButton = document.createElement("button");
     hpDeltaButton.type = "button";
     hpDeltaButton.textContent = "±";
-    hpDeltaButton.title = "Ricalibra HP correnti e massimi dello stesso +N/-N";
+    hpDeltaButton.title = "Ricalibra PF correnti e massimi dello stesso +N/-N";
     hpDeltaButton.setAttribute("aria-label", hpDeltaButton.title);
     hpDeltaButton.setAttribute("aria-pressed", "false");
     Object.assign(hpDeltaButton.style, {
@@ -1210,7 +1210,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     : null;
 
   const hpCaption = document.createElement("span");
-  hpCaption.textContent = "HP";
+  hpCaption.textContent = "PF";
   Object.assign(hpCaption.style, {
     color: "rgba(255,255,255,.62)",
     fontSize: "11px",

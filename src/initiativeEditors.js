@@ -266,7 +266,7 @@ export function bindClassicHPEditor({
   afterCommit,
   commitAndOpenNeighbor,
   editableHPMax = true,
-  readOnlyHPMaxTitle = "Il massimo segue gli HP massimi del caster",
+  readOnlyHPMaxTitle = "Il massimo segue i PF massimi del caster",
   // CAP-TEMP: a third field for the temporary hit points, out of the Tab order (T or a click reaches it).
   editableTempHp = false,
   snapshotTempHp = 0,

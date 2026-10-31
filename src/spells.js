@@ -265,7 +265,7 @@ export function buildSpellChips(spells, options = {}) {
       hp.dataset.badge = "hp";
       hp.dataset.spellBoardTokenHp = "1";
       hp.dataset.itemId = String(boardTokenHP.itemId);
-      hp.textContent = `HP ${Math.max(0, Math.floor(Number(boardTokenHP.hp)))} / ${Math.max(0, Math.floor(Number(boardTokenHP.hpMax)))}`;
+      hp.textContent = `PF ${Math.max(0, Math.floor(Number(boardTokenHP.hp)))} / ${Math.max(0, Math.floor(Number(boardTokenHP.hpMax)))}`;
       hp.title = `Punti ferita di ${displayName}. Clicca per modificare`;
       hp.setAttribute("aria-label", hp.title);
       Object.assign(hp.style, {

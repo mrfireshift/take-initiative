@@ -158,7 +158,7 @@ test("la ricerca della pedina usa caster e istanza, senza associazioni incrociat
 
 test("la pill della Mano espone gli HP della PROP come badge canonico", () => {
   assert.match(spellsSource, /dataset\.spellBoardTokenHp = "1"/);
-  assert.match(spellsSource, /HP \$\{Math\.max\(0, Math\.floor\(Number\(boardTokenHP\.hp\)\)\)\}/);
+  assert.match(spellsSource, /PF \$\{Math\.max\(0, Math\.floor\(Number\(boardTokenHP\.hp\)\)\)\}/);
   assert.match(spellsSource, /dataset\.badge = "hp"/);
 });
 
@@ -176,7 +176,7 @@ test("la mini-card della Mano espone gli HP canonici e usa la fazione", () => {
   });
   const content = card.children[1];
   assert.equal(content.children[1].dataset.spellBoardTokenHp, "1");
-  assert.equal(content.children[1].textContent, "HP 84 / 84");
+  assert.equal(content.children[1].textContent, "PF 84 / 84");
   assert.match(card.style.background, /rgba\(58,167,255,0\.76\)/);
   assert.equal(card.style.background.includes("#3aa7ff"), false);
 });
