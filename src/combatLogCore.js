@@ -161,8 +161,10 @@ function hpPayload(
     .map((change) => {
     const beforeHP = numericOrNull(snapshotValue(change, "before", "hp"));
     const afterHP = numericOrNull(snapshotValue(change, "after", "hp"));
-    const beforeMax = numericOrNull(snapshotValue(change, "before", "hpMax"));
-    const afterMax = numericOrNull(snapshotValue(change, "after", "hpMax"));
+    // An unchanged maximum is not a field of the entry: History keeps it as context (effectsMutations.js).
+    const contextMax = numericOrNull(change?.context?.hpMax);
+    const beforeMax = numericOrNull(snapshotValue(change, "before", "hpMax")) ?? contextMax;
+    const afterMax = numericOrNull(snapshotValue(change, "after", "hpMax")) ?? contextMax;
     const recordedTemp = tempHpSnapshot(change, "before") !== null || tempHpSnapshot(change, "after") !== null;
     const beforeTemp = recordedTemp ? tempHpSnapshot(change, "before") ?? 0 : null;
     const afterTemp = recordedTemp ? tempHpSnapshot(change, "after") ?? 0 : null;

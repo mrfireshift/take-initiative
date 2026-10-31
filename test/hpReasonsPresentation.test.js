@@ -61,6 +61,25 @@ test("U3b: la causalità conserva le difese applicate o ignorate di ogni compone
   assert.match(causalityLine, /resistenza \(freddo\), immunità \(fuoco\) ignorata/);
 });
 
+// The entry the coordinator writes for 4 damage on Klos, 143/133 in the old encoding (10 temporary hit points inside
+// the HP): only the fields it wrote, the unchanged maximum as context.
+test("il registro mostra il massimo invariato e non conta due volte i PF temporanei della vecchia codifica", () => {
+  const entry = { id: "h-legacy", kind: "hp", label: "Danno rapido: 4 · 1 bersagli",
+    payload: { tempHp: [{ id: "klos", before: 10, after: 6, mode: "absorbed" }] },
+    changes: [{ id: "klos", name: "Klos", fields: {}, before: {}, after: {},
+      metadataFields: { hp: true, tempHp: true },
+      beforeMetadata: { hp: { present: true, value: 143 }, tempHp: { present: false } },
+      afterMetadata: { hp: { present: true, value: 133 }, tempHp: { present: true, value: 6 } },
+      context: { hpMax: 133 } }] };
+  assert.ok(lines(entry).includes("Klos: 133/133 +10 → 133/133 +6 (danno 4 assorbito dai PF temporanei)"), lines(entry).join("\n"));
+
+  const plain = { id: "h-plain", kind: "hp", label: "Danno rapido: 5 · 1 bersagli",
+    changes: [{ id: "lavera", name: "Lavera", fields: {}, before: {}, after: {}, metadataFields: { hp: true },
+      beforeMetadata: { hp: { present: true, value: 98 } }, afterMetadata: { hp: { present: true, value: 93 } },
+      context: { hpMax: 98 } }] };
+  assert.ok(lines(plain).includes("Lavera: 98/98 → 93/98 (-5 PF)"), lines(plain).join("\n"));
+});
+
 test("U3b: il danno massiccio porta Morto con il suo motivo, sulla pill e nel registro", () => {
   const atFull = planDeathSaveHpChange({ meta: { attitude: "pc", hp: 10, hpMax: 20 }, hpAfter: 0, hpMax: 20, damage: 31 });
   assert.equal(atFull.addCondition, "Morto");

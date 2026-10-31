@@ -1067,7 +1067,12 @@ function applyMetadataPatchesToPlan(plan, sceneItems, metadataPatches = []) {
       const after = descriptor?.mode === "delete"
         ? { present: false }
         : { present: true, value: clone(descriptor?.value) };
-      if (sameValue(actual, after)) continue;
+      if (sameValue(actual, after)) {
+        // An unchanged maximum is not written, but the combat log still shows it beside the HP ("30/45"): History
+        // keeps it as context, never as a field to undo.
+        if (field === "hpMax" && after.present) (change.historyContext ||= {}).hpMax = clone(after.value);
+        continue;
+      }
       change.metadataFields[field] = true;
       change.commitBeforeMetadata ||= {};
       change.commitBeforeMetadata[field] = actual;

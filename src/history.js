@@ -715,6 +715,7 @@ function effectHistoryChange(change, namesById = new Map()) {
       ...(change.historyAfterMetadata || {}),
     });
   }
+  if (change?.historyContext) output.context = cloneValue(change.historyContext);
   return output;
 }
 
@@ -753,6 +754,8 @@ export function buildEffectsMutationHistoryChanges(plan = null) {
           ...(change.afterMetadata || {}),
           ...(change.historyAfterMetadata || {}),
         }),
+        // The unchanged values the combat log shows beside the changed ones (the HP maximum); never undone.
+        ...(change.historyContext ? { context: cloneValue(change.historyContext) } : {}),
       };
     })
     .filter(Boolean);

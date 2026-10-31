@@ -361,8 +361,14 @@ function hpTargetLine(target, event = null) {
   // recorded only them.
   const beforeTemp = finiteNumber(before.tempHp);
   const afterTemp = finiteNumber(after.tempHp);
-  const hpDelta = beforeHp !== null && afterHp !== null ? afterHp - beforeHp : null;
-  const tempChange = tempHpChangeOf(target, event, beforeTemp, afterTemp, hpDelta);
+  const rawHpDelta = beforeHp !== null && afterHp !== null ? afterHp - beforeHp : null;
+  const tempChange = tempHpChangeOf(target, event, beforeTemp, afterTemp, rawHpDelta);
+  // CAP-TEMP, old encoding: HP above the maximum held the temporary hit points, with no tempHp field. The History's
+  // record says how many there were; the HP before are the rest, so the damage is not counted twice.
+  const legacyTemp = tempChange && !(beforeTemp > 0) && tempChange.before > 0 && beforeHp !== null
+    && beforeHp - tempChange.before >= 0 ? tempChange.before : 0;
+  const shownBeforeHp = beforeHp === null ? null : beforeHp - legacyTemp;
+  const hpDelta = shownBeforeHp !== null && afterHp !== null ? afterHp - shownBeforeHp : null;
   if (beforeHp === null && afterHp === null && tempChange) return `${name}: ${tempHpChangeText(tempChange, null)}`;
   const tempText = tempHpChangeText(tempChange, hpDelta);
   const hpDetail = !tempText
@@ -379,7 +385,7 @@ function hpTargetLine(target, event = null) {
   const temp = (value) => (value > 0 ? ` +${numberText(value)}` : "");
   const shownBeforeTemp = tempChange ? tempChange.before : beforeTemp;
   const shownAfterTemp = tempChange ? tempChange.after : afterTemp;
-  const line = `${name}: ${numberText(before.hp)}/${numberText(before.hpMax)}${temp(shownBeforeTemp)} → `
+  const line = `${name}: ${numberText(shownBeforeHp ?? before.hp)}/${numberText(before.hpMax)}${temp(shownBeforeTemp)} → `
     + `${numberText(after.hp)}/${numberText(after.hpMax)}${temp(shownAfterTemp)} (${detail})`;
   return hpMaxDelta === null || hpMaxDelta === 0
     ? line

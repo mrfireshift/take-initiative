@@ -41,7 +41,8 @@ test("independent HP entries retain their existing presentation and payload", as
   const [entry] = await history.getHistoryEntries();
   assert.equal(entry.payload?.sharedHp, undefined);
   const displayed = buildCombatLogPresentation(null, [combatEventFromHistoryEntry(entry)]).events[0];
-  assert.equal(displayed.summary, "single: 300/— → 275/— (-25 PF)");
+  // The unchanged maximum is History context, no longer "—".
+  assert.equal(displayed.summary, "single: 300/400 → 275/400 (-25 PF)");
 });
 
 test("composite history also retains the actual shared target and the outer payload", async () => {
