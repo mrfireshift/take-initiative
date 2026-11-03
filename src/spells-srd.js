@@ -370,7 +370,71 @@ const AUTOMATION = Object.freeze({
   ...PHB2014_AUTOMATION,
 });
 
+// The forms of Alter Self: the variant chosen at the cast (SPELL_EFFECT_CHOICES) and the pill an action swaps for
+// another (SRD_ACTIVE_ACTIONS), both lasting with the concentration.
+const ALTER_SELF_EFFECTS = Object.freeze({
+  "aquatic-adaptation": Object.freeze({
+    id: "aquatic-adaptation",
+    kind: "buff",
+    label: "Respirare sott'acqua · nuotare = base",
+    detail: "Concede respirazione subacquea e una velocità di nuotare pari alla velocità base.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "alter-self-water-breathing", label: "Respira sott'acqua" }),
+      Object.freeze({ id: "alter-self-swim-speed", label: "Nuoto = Vel. base" }),
+    ]),
+    mechanics: Object.freeze({
+      movement: Object.freeze({
+        modes: Object.freeze({
+          swim: Object.freeze({ copyFrom: "walk" }),
+        }),
+        label: "Alterare sé stesso: nuotare",
+      }),
+    }),
+  }),
+  "natural-weapons": Object.freeze({
+    id: "alter-self-natural-weapons",
+    kind: "buff",
+    label: "Armi naturali magiche · +1",
+    detail: "Concede un'arma naturale magica, competenza e +1 ai tiri per colpire e per i danni.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "alter-self-natural-weapon", label: "Arma nat. magica" }),
+      Object.freeze({ id: "alter-self-natural-weapon-proficiency", label: "Comp. arma" }),
+      Object.freeze({ id: "alter-self-natural-weapon-bonus", label: "+1 Att/danni" }),
+    ]),
+  }),
+  "change-appearance": Object.freeze({
+    id: "alter-self-appearance",
+    kind: "buff",
+    label: "Aspetto alterato",
+    detail: "L'aspetto fisico è alterato senza modificare le statistiche.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "alter-self-appearance-changed", label: "Aspetto alterato" }),
+    ]),
+  }),
+});
+const ALTER_SELF_EFFECT_IDS = Object.freeze(Object.values(ALTER_SELF_EFFECTS).map((effect) => effect.id));
+const alterSelfForm = (formId, label) => Object.freeze({
+  id: `alter-self-form-${formId}`,
+  label: `Forma: ${label}`,
+  buttonLabel: label,
+  detail: "Con un'azione termina la forma attuale e ne ottiene un'altra; l'incantesimo e la concentrazione restano.",
+  economy: "action",
+  subjectMode: "caster",
+  showInOverview: true,
+  repeatableThisTurn: true,
+  requiresParentInstance: true,
+  // CAP-MODE: only one form at a time; the one in place, whichever it is, makes way.
+  replacesEffectIds: ALTER_SELF_EFFECT_IDS,
+  effects: Object.freeze([Object.freeze({ ...ALTER_SELF_EFFECTS[formId], expiry: Object.freeze({ mode: "concentration" }) })]),
+});
+
 const SRD_ACTIVE_ACTIONS = Object.freeze({
+  // CAP-MODE (2014): the caster can end a form with an action to gain another.
+  "alter-self": Object.freeze([
+    alterSelfForm("aquatic-adaptation", "Adattamento acquatico"),
+    alterSelfForm("natural-weapons", "Armi naturali"),
+    alterSelfForm("change-appearance", "Cambiare aspetto"),
+  ]),
   // CAP-RESOURCE (2014): an attack that hits a duplicate destroys it; the spell ends with the last one.
   "mirror-image": Object.freeze([
     Object.freeze({
@@ -575,6 +639,14 @@ const TARGETING_OVERRIDES = Object.freeze({
 });
 
 const SLOT_DURATION_OVERRIDES = Object.freeze({
+  // 2014: concentration up to 1 minute, up to 10 minutes with a 4th-level slot; from the 5th no concentration, 8 hours,
+  // 24 hours with a 7th-level slot, until dispelled with a 9th-level one.
+  "bestow-curse": Object.freeze({
+    baseSlot: 3,
+    turnsBySlot: Object.freeze({ 3: 10, 4: 100, 5: 4800, 7: 14400 }),
+    concentrationBelowSlot: 5,
+    manualFromSlot: 9,
+  }),
   // 2014: concentration up to 1 hour; 8 hours with a 3rd or 4th-level slot, 24 hours with a 5th-level slot or higher.
   "hunters-mark": Object.freeze({
     baseSlot: 1,
@@ -813,6 +885,24 @@ const SPELL_EFFECTS = Object.freeze({
         mode: "manual-heal",
         timing: "turn-start",
         temporaryHp: "source-spell-modifier",
+      }),
+    }),
+  ]),
+  // CAP-REPEAT-HEAL (2014): 4d8 + 15 at the cast (spellTemporaryHpRules.js), then 1 hit point at the start of each of its
+  // turns: a reminder with the 1 entered (decision R3), as Heroism's, not on the dead or at full hit points (R4).
+  "regenerate": Object.freeze([
+    Object.freeze({
+      id: "regenerate-healing",
+      kind: "buff",
+      label: "Rigenerazione",
+      detail: "All'inizio di ogni suo turno recupera 1 PF. Le parti del corpo recise ricrescono dopo 2 minuti.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "regenerate-healing-per-turn", label: "+1 PF a inizio turno" }),
+      ]),
+      saveReminder: Object.freeze({
+        mode: "manual-heal",
+        timing: "turn-start",
+        fixedHealing: 1,
       }),
     }),
   ]),
@@ -1608,52 +1698,17 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
     Object.freeze({
       id: "aquatic-adaptation",
       label: "Adattamento acquatico",
-      effects: Object.freeze([Object.freeze({
-        id: "aquatic-adaptation",
-        kind: "buff",
-        label: "Respirare sott'acqua · nuotare = base",
-        detail: "Concede respirazione subacquea e una velocità di nuotare pari alla velocità base.",
-        summaryParts: Object.freeze([
-          Object.freeze({ id: "alter-self-water-breathing", label: "Respira sott'acqua" }),
-          Object.freeze({ id: "alter-self-swim-speed", label: "Nuoto = Vel. base" }),
-        ]),
-        mechanics: Object.freeze({
-          movement: Object.freeze({
-            modes: Object.freeze({
-              swim: Object.freeze({ copyFrom: "walk" }),
-            }),
-            label: "Alterare sé stesso: nuotare",
-          }),
-        }),
-      })]),
+      effects: Object.freeze([ALTER_SELF_EFFECTS["aquatic-adaptation"]]),
     }),
     Object.freeze({
       id: "natural-weapons",
       label: "Armi naturali",
-      effects: Object.freeze([Object.freeze({
-        id: "alter-self-natural-weapons",
-        kind: "buff",
-        label: "Armi naturali magiche · +1",
-        detail: "Concede un'arma naturale magica, competenza e +1 ai tiri per colpire e per i danni.",
-        summaryParts: Object.freeze([
-          Object.freeze({ id: "alter-self-natural-weapon", label: "Arma nat. magica" }),
-          Object.freeze({ id: "alter-self-natural-weapon-proficiency", label: "Comp. arma" }),
-          Object.freeze({ id: "alter-self-natural-weapon-bonus", label: "+1 Att/danni" }),
-        ]),
-      })]),
+      effects: Object.freeze([ALTER_SELF_EFFECTS["natural-weapons"]]),
     }),
     Object.freeze({
       id: "change-appearance",
       label: "Cambiare aspetto",
-      effects: Object.freeze([Object.freeze({
-        id: "alter-self-appearance",
-        kind: "buff",
-        label: "Aspetto alterato",
-        detail: "L'aspetto fisico è alterato senza modificare le statistiche.",
-        summaryParts: Object.freeze([
-          Object.freeze({ id: "alter-self-appearance-changed", label: "Aspetto alterato" }),
-        ]),
-      })]),
+      effects: Object.freeze([ALTER_SELF_EFFECTS["change-appearance"]]),
     }),
   ]),
   "xanathar-assorbire-elementi": Object.freeze([

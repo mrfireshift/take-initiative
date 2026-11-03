@@ -13,6 +13,8 @@ import {
 } from "./reminderResolutionCore.js";
 import { normalizeDeferredEffects } from "./spellLifecycleContracts.js";
 import { abilitySaveDC, spellcastingModifierFromProfile } from "./abilityModifiersCore.js";
+import { quickHPStateOf } from "./quickHpCore.js";
+import { creatureIsDead } from "./stabilizeSpellRules.js";
 import { deathSaveNotice, isDyingPC } from "./deathSaveCore.js";
 
 const META_KEY = `${ID}/meta`;
@@ -84,7 +86,10 @@ export function normalizeEffectSaveReminder(value) {
   // CAP-TEMP, lotto T3d: a reminder that offers temporary hit points (Heroism): "source-spell-modifier" is the amount.
   const temporaryHp = mode === "manual-heal" && value.temporaryHp === "source-spell-modifier"
     ? "source-spell-modifier" : "";
-  if ((!ability && !hasValidDamage && !informational && !actionableChoice && !temporaryHp) || !TIMINGS.has(timing)) return null;
+  // CAP-REPEAT-HEAL: a reminder that offers a fixed healing (Regenerate's 1 hit point).
+  const fixedHealing = mode === "manual-heal" && Number.isInteger(Number(value.fixedHealing)) && Number(value.fixedHealing) > 0
+    ? Number(value.fixedHealing) : 0;
+  if ((!ability && !hasValidDamage && !informational && !actionableChoice && !temporaryHp && !fixedHealing) || !TIMINGS.has(timing)) return null;
   const dc = optionalDC(value.dc);
   // "source-ability": CD 8 + competenza + modificatore della card della sorgente.
   const dcAbility = value.dcSource === "source-ability" ? normalizedAbility(value.dcAbility) : null;
@@ -98,6 +103,7 @@ export function normalizeEffectSaveReminder(value) {
     actor: value.actor === "source" ? "source" : "target",
     ...(mode ? { mode } : {}),
     ...(temporaryHp ? { temporaryHp } : {}),
+    ...(fixedHealing ? { fixedHealing } : {}),
     ...(ability ? { success: value.success === "keep-effect" ? "keep-effect" : "remove-effect" } : {}),
     ...(dc !== null ? { dc } : {}),
     ...(dcSource ? { dcSource } : {}),
@@ -419,7 +425,14 @@ function reminderNotice({
   const informational = !ability && !hasDamageOnly && reminder.mode === "consume";
   const actionableChoice = !ability && !hasDamageOnly && reminder.mode === "choice";
   const offersTempHp = !ability && !hasDamageOnly && !!reminder.temporaryHp;
-  if (!item?.id || !instance?.id || (!ability && !hasDamageOnly && !informational && !actionableChoice && !offersTempHp) || !activationId) return null;
+  const offersHealing = !ability && !hasDamageOnly && !offersTempHp && !!reminder.fixedHealing;
+  if (!item?.id || !instance?.id || (!ability && !hasDamageOnly && !informational && !actionableChoice && !offersTempHp && !offersHealing) || !activationId) return null;
+  // Nothing to heal: not on the dead, not at full hit points (decision R4).
+  if (offersHealing) {
+    const meta = item?.metadata?.[META_KEY] || {};
+    const state = quickHPStateOf(meta);
+    if (creatureIsDead(meta) || state.hp >= state.hpMax) return null;
+  }
   const dc = ability ? reminderDC(reminder, instance, itemsById) : null;
   const sourceName = String(
     itemsById.get(String(instance?.sourceId || "").trim())?.name
@@ -446,11 +459,15 @@ function reminderNotice({
       ? `Danni (${reminder.damage.dice})`
       : offersTempHp
       ? "PF temporanei"
+      : offersHealing
+      ? "Cura"
       : (reminder.label || "Promemoria effetto"));
   const instruction = offersTempHp
     ? (suggestedTempHp === null
       ? `Inserisci il modificatore da incantatore di ${sourceName || "chi l'ha lanciato"}.`
       : `Modificatore da incantatore di ${sourceName || "chi l'ha lanciato"}: ${suggestedTempHp}.`)
+    : offersHealing
+    ? `Recupera ${reminder.fixedHealing} PF all'inizio del turno.`
     : reminder.label || (
     ability
       ? (reminder.success === "remove-effect"
@@ -485,7 +502,7 @@ function reminderNotice({
     ...(sourceName ? { sourceName } : {}),
     kind: ability ? "effect-save" : "effect-reminder",
     ...(ability ? {} : {
-      eyebrow: informational || actionableChoice || offersTempHp ? "Promemoria effetto" : "Danno continuo",
+      eyebrow: informational || actionableChoice || offersTempHp || offersHealing ? "Promemoria effetto" : "Danno continuo",
     }),
     ...(resolution ? { resolution } : {}),
     target: {

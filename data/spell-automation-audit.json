@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "c08a4f00e9d76903",
+  "fingerprint": "7ec5ad2028859d38",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -19,14 +19,14 @@
     "currentAutomationLevel": {
       "FULL": 66,
       "MANUAL": 59,
-      "PARTIAL": 235,
-      "TRACK_ONLY": 117
+      "PARTIAL": 236,
+      "TRACK_ONLY": 116
     },
     "coverageStatus": {
       "ACCEPTED": 72,
       "CLOSED": 14,
-      "GAP": 11,
-      "UNREVIEWED": 380
+      "GAP": 12,
+      "UNREVIEWED": 379
     },
     "targetAutomationLevel": {
       "FULL": 66,
@@ -45,27 +45,28 @@
     "trackable": 359,
     "withAreaRules": 139,
     "areaRuleEntries": 144,
-    "openRows": 11,
+    "openRows": 12,
     "confirmed": 10,
-    "highConfidence": 1,
+    "highConfidence": 2,
     "reviewCandidates": 0,
     "curatedP1": 10,
     "manuallyReviewed": 95,
     "knownIntegrationGaps": 0,
-    "knownRawGaps": 11,
+    "knownRawGaps": 12,
     "byPriority": {
-      "—": 466,
+      "—": 465,
       "P1": 10,
-      "P2": 1
+      "P2": 2
     },
     "byAssessment": {
       "coperto": 286,
       "escluso: casting time": 70,
       "escluso: decisione curata": 11,
       "escluso: evocazione": 19,
-      "istantaneo: gestione manuale": 57,
+      "istantaneo: gestione manuale": 56,
       "manuale intenzionale": 3,
       "parziale: revisione curata": 10,
+      "revisione testuale": 1,
       "revisione: testo mancante": 1,
       "riferimento/utilità": 20
     },
@@ -79,6 +80,7 @@
       "CHOICE_WORKFLOW_MISSING": 3,
       "CONDITIONAL_TRIGGER": 3,
       "ENTRY_EXIT_FALL": 1,
+      "LINGERING_EFFECT_MISSING": 1,
       "MOVEMENT_MECHANICS_MISSING": 4,
       "POST_EXPIRY_EFFECT": 1,
       "REPEATED_ACTION": 4,
@@ -89,8 +91,8 @@
       "ZONE_TRIGGER_MISSING": 2
     },
     "byIntegrationStatus": {
-      "partial": 11,
-      "reachable": 466
+      "partial": 12,
+      "reachable": 465
     },
     "byIntegrationPriority": {
       "—": 477
@@ -99,13 +101,13 @@
       "CAST_NO_MUTATIONS": 3
     },
     "smokeCategories": {
-      "ACTIVE_ACTION": 49,
+      "ACTIVE_ACTION": 50,
       "AREA_GEOMETRY": 139,
-      "CAST": 270,
+      "CAST": 271,
       "CLEANUP": 116,
       "CONCENTRATION": 218,
       "PERSISTENCE": 359,
-      "TURN_TRIGGER": 98
+      "TURN_TRIGGER": 99
     },
     "unifiedCatalogExposed": 477,
     "integrationDisconnected": 0,
@@ -1226,6 +1228,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -1241,6 +1244,7 @@
       "coverage": [
         "tracking",
         "movimento",
+        "fasi/azioni",
         "varianti"
       ],
       "assessment": "escluso: decisione curata",
@@ -1258,10 +1262,15 @@
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 3,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "alter-self-form-aquatic-adaptation",
+          "alter-self-form-natural-weapons",
+          "alter-self-form-change-appearance"
+        ],
         "phaseOptions": [],
         "movementMechanics": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -1306,14 +1315,23 @@
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "alter-self-form-aquatic-adaptation",
+            "alter-self-form-natural-weapons",
+            "alter-self-form-change-appearance"
+          ],
+          "panelActionIds": [
+            "alter-self-form-aquatic-adaptation",
+            "alter-self-form-natural-weapons",
+            "alter-self-form-change-appearance"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -19065,7 +19083,7 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "MANUAL",
-      "coverageStatus": "UNREVIEWED",
+      "coverageStatus": "GAP",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
@@ -19076,12 +19094,19 @@
       "reviewBasis": "screening testuale conservativo",
       "scope": "combattimento",
       "signals": [
-        "TS:singolo"
+        "TS:singolo",
+        "effetto istantaneo persistente"
       ],
       "coverage": [],
-      "assessment": "istantaneo: gestione manuale",
-      "priority": "—",
-      "gaps": [],
+      "assessment": "revisione testuale",
+      "priority": "P2",
+      "gaps": [
+        {
+          "code": "LINGERING_EFFECT_MISSING",
+          "label": "effetto persistente di una spell istantanea assente",
+          "evidence": []
+        }
+      ],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -19100,7 +19125,7 @@
         "smokeCategories": []
       },
       "integration": {
-        "status": "reachable",
+        "status": "partial",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -19147,7 +19172,7 @@
         "area": [],
         "save": [
           "Il bersaglio deve effettuare un tiro salvezza su Costituzione subendo 14d6 danni necrotici in caso di fallimento, o la metà dei danni in caso di successo.",
-          "Se il bersaglio fallisce il tiro salvezza, i suoi punti ferita massimi vengono ridotti di un ‘ammontare pari ai danni necrotici subiti."
+          "Se il bersaglio fallisce il tiro salvezza, i suoi punti ferita massimi vengono ridotti per 1 ora di un ammontare pari ai danni necrotici subiti."
         ],
         "movement": [],
         "turn": [],
@@ -43727,13 +43752,15 @@
       "saveScope": "—",
       "inAuditScope": false,
       "exclusionReason": "casting time maggiore di 1 azione",
-      "currentAutomationLevel": "TRACK_ONLY",
+      "currentAutomationLevel": "PARTIAL",
       "coverageStatus": "UNREVIEWED",
       "targetAutomationLevel": "UNREVIEWED",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
-        "PERSISTENCE"
+        "CAST",
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -43742,7 +43769,8 @@
       "scope": "fuori perimetro: casting time",
       "signals": [],
       "coverage": [
-        "tracking"
+        "tracking",
+        "turni"
       ],
       "assessment": "escluso: casting time",
       "priority": "—",
@@ -43758,12 +43786,14 @@
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
-        "effectCount": 0,
+        "effectCount": 1,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
-          "PERSISTENCE"
+          "CAST",
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
@@ -43783,16 +43813,20 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "healing",
+            "automation"
           ]
         },
         "cast": {
           "adapter": "spell-lifecycle",
           "valid": true,
           "operationTypes": [
-            "spell:upsert"
+            "spell:upsert",
+            "condition:add",
+            "condition:automate"
           ],
-          "mutationMode": "tracking",
+          "mutationMode": "mechanical",
           "errors": []
         },
         "persistence": {
@@ -43809,7 +43843,9 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
-          "PERSISTENCE"
+          "CAST",
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {

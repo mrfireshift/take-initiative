@@ -681,7 +681,7 @@ function normalizeEffectFields(
     fields.push({
       id: "healing",
       type: "number",
-      label: "Cura",
+      label: asText(inputs.healing.dice) ? `Cura · ${asText(inputs.healing.dice)}` : "Cura",
       hint: "",
       min: 0,
       value: hpValues.healing ?? "",
@@ -1023,11 +1023,15 @@ export function buildUnifiedPanelViewModel({
       concentration: workflow.spell?.concentration === true,
     },
     workflow,
-    catalog: buildCatalogViewModel({
-      entries: catalogEntries,
-      selectedKey: selectedCatalogKey || session?.spellId || "",
-      ...catalogState,
-    }),
+    catalog: {
+      ...buildCatalogViewModel({
+        entries: catalogEntries,
+        selectedKey: selectedCatalogKey || session?.spellId || "",
+        ...catalogState,
+      }),
+      // The spell as this cast has it: a slot can lift the concentration (Bestow Curse from the 5th level).
+      ...(workflow.spell ? { selectedConcentration: workflow.spell.concentration === true } : {}),
+    },
     execution: {
       lane: asText(executionContract.lane),
       laneLabel: LANES[executionContract.lane] || "Catalogo pronto",

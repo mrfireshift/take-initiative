@@ -10,7 +10,17 @@ const uniqueIds = (values = []) => Array.from(new Set(
 export function spellForCastContext(spell, castContext = {}) {
   if (!spell || typeof spell !== "object" || spell.concentration !== true) return spell;
   const exempt = String(castContext?.withoutConcentration || "").trim();
-  return exempt && exempt === String(spell.id || "").trim() ? { ...spell, concentration: false } : spell;
+  if (exempt && exempt === String(spell.id || "").trim()) return { ...spell, concentration: false };
+  // A slot high enough lifts the concentration (Bestow Curse from the 5th level), and lifts the end too from
+  // manualFromSlot ("until dispelled", its 9th level): no expiry, the pill ends by hand or by another spell.
+  const rule = spell.durationBySlot;
+  const slot = Math.floor(Number(castContext?.slotLevel));
+  if (!Number.isFinite(slot) || !(Number(rule?.concentrationBelowSlot) <= slot)) return spell;
+  return {
+    ...spell,
+    concentration: false,
+    ...(Number(rule.manualFromSlot) <= slot ? { expiry: { mode: "manual" } } : {}),
+  };
 }
 
 export function resolveSpellConcentration(spell, requestedConcentration = false) {

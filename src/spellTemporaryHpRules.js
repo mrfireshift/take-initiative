@@ -21,6 +21,14 @@ export function spellUndeadTemporaryHpAmount(spellId, outcome, roll) {
   return Math.floor(Math.max(0, Math.floor(Number(roll) || 0)) / 2);
 }
 
+// CAP-REPEAT-HEAL (2014): the healing a tracked spell gives when it is cast: its total entered in the panel, with its dice
+// as the field's label (Regenerate).
+const SPELL_CAST_HEALING_DICE = Object.freeze({ "regenerate": "4d8+15" });
+
+export function spellCastHealingDice(spellId) {
+  return SPELL_CAST_HEALING_DICE[String(spellId || "").trim()] || "";
+}
+
 export function spellCastTemporaryHpRule(spellId) {
   return SPELL_CAST_TEMPORARY_HP[String(spellId || "").trim()] || null;
 }

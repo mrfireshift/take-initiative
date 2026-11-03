@@ -41,7 +41,7 @@ import {
   quickHPTempHpPatchField,
 } from "./quickHpCore.js";
 import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
-import { spellCastTemporaryHpAmount, spellCastTemporaryHpRule } from "./spellTemporaryHpRules.js";
+import { spellCastHealingDice, spellCastTemporaryHpAmount, spellCastTemporaryHpRule } from "./spellTemporaryHpRules.js";
 import {
   resolveZeroHPUnconsciousAction,
   resolveDamageEndsConditionRemovals,
@@ -569,6 +569,33 @@ async function preparedInstanceIsCurrent(casterId, activeConcentration, spellId)
 // CAP-TEMP, lotto T3b: the temporary hit points a cast gives (spellTemporaryHpRules.js), as metadata patches of the
 // same command as its pill. The pill's id is given here, before the coordinator would, so it can be their source
 // (lotto T3a): its end takes the ones left. targets: each creature's temporary hit points before and after.
+// CAP-REPEAT-HEAL: the healing of the cast of a tracked spell (Regenerate), in the command of its pill. The HP write
+// goes through the coordinator's patches, which empties the death saves of a PC back above 0 HP.
+async function buildCastHealingMutation({ spell, phase = "", targetIds = [], value = undefined } = {}) {
+  if (!spellCastHealingDice(spell?.id) || phase === "prepare") return { metadataPatches: [] };
+  const amount = Math.floor(Number(value));
+  if (value === undefined || value === "" || !Number.isFinite(amount) || amount < 0) throw new Error("spell-healing-required");
+  const ids = Array.from(new Set((targetIds || []).filter(Boolean)));
+  const items = ids.length ? await OBR.scene.items.getItems(ids) : [];
+  const metadataPatches = [];
+  for (const item of items) {
+    const meta = item?.metadata?.[`${ID}/meta`] || {};
+    if (!Object.prototype.hasOwnProperty.call(meta, "hp") || !Object.prototype.hasOwnProperty.call(meta, "hpMax")) continue;
+    const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: amount, hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp });
+    if (!change.changed) continue;
+    metadataPatches.push({
+      id: item.id,
+      hpIntent: { mode: QUICK_HP_MODES.HEAL, amount, eventId: `cast-healing:${spell.id}:${item.id}` },
+      fields: {
+        hp: { expected: metadataSnapshot(meta, "hp"), value: change.afterHP },
+        hpMax: { expected: metadataSnapshot(meta, "hpMax"), value: change.hpMax },
+        ...tempHpPatchFields(meta, change),
+      },
+    });
+  }
+  return { metadataPatches };
+}
+
 async function buildCastTemporaryHpMutation({ spell, phase = "", targetIds = [], operations = [], slotLevel = null, roll = undefined } = {}) {
   const rule = spellCastTemporaryHpRule(spell?.id);
   if (!rule || phase === "prepare") return { metadataPatches: [], targets: [] };
@@ -2134,6 +2161,8 @@ export async function executeSpellApplication({
   castCost = "",
   // The die rolled at the table for the temporary hit points of the cast (False Life's 1d4, lotto T3b of CAP-TEMP).
   temporaryHpRoll = undefined,
+  // The healing of the cast, its total entered in the panel (Regenerate's 4d8 + 15).
+  castHealingValue = undefined,
   // A spell the plugin does not automate, launched from a quick action, the spellbook or the spell panel: the cast is
   // recorded with what it spends, without a pill (spellCastRecord.js).
   recordOnly = false,
@@ -2290,6 +2319,12 @@ export async function executeSpellApplication({
     slotLevel: intent.persistedCastContext?.slotLevel ?? castContext?.slotLevel,
     roll: temporaryHpRoll,
   });
+  const castHealing = await buildCastHealingMutation({
+    spell,
+    phase: applicationPlan.phasePlan?.phase,
+    targetIds: intent.subjects,
+    value: castHealingValue,
+  });
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
     throw new Error("scene-epoch-stale-before-spell-application");
   }
@@ -2310,7 +2345,7 @@ export async function executeSpellApplication({
     kind: "spell",
     label: applicationPlan.historyLabel,
     targetIds: [casterId, ...targetIds],
-    metadataPatches: [...initialDamageMutation.metadataPatches, ...castTemporaryHp.metadataPatches],
+    metadataPatches: [...initialDamageMutation.metadataPatches, ...castTemporaryHp.metadataPatches, ...castHealing.metadataPatches],
     sideEffects,
     history: {
       kind: "spell",

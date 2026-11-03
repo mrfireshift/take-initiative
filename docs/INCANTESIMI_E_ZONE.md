@@ -226,6 +226,14 @@ nome; `planGroupRestReturnFromDeath` la sostituisce nel comando del riposo lungo
 Una pill di un incantesimo istantaneo non deve avere `effectKind`: la card mostra
 buff e debuff solo dentro la pill del loro incantesimo.
 
+`spellForCastContext` dà l'incantesimo come lo ha questo lancio: `durationBySlot`
+può togliere la concentrazione da uno slot in su (`concentrationBelowSlot`) e la
+scadenza (`manualFromSlot`), come per Scagliare maledizione. Un'azione attiva con
+`replacesEffectIds` toglie la pill presente tra quelle indicate, senza errore se non
+ce n'è (le forme di Alterare sé stesso). `saveReminder.fixedHealing` offre una cura
+fissa a inizio turno (Rigenerazione); `spellCastHealingDice` aggiunge il campo «Cura»
+a un incantesimo tracciato, scritto nel comando della sua pill.
+
 Gli avvisi di concentrazione della console ad area partono dopo il commit
 (`defaultConcentrationWarnings`), con la voce della Cronologia come causa:
 prima il gancio `onConcentrationWarnings` era vuoto e i danni del pannello non

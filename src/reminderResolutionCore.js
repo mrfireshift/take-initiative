@@ -396,20 +396,24 @@ export function buildEffectSaveReminderResolution({
   const sourceId = text(instance?.sourceId, "", 200);
   // CAP-TEMP, lotto T3d: the popup of a manual roll for temporary hit points (Twilight Sanctuary's), the pill their
   // source (buildReminderResolutionPlan). healing only says the popup has an amount to read: nothing is rolled.
-  if (reminder?.temporaryHp) {
+  // A fixed healing (Regenerate's 1 hit point) is the same popup, with the amount entered and any creature type.
+  if (reminder?.temporaryHp || reminder?.fixedHealing) {
+    const fixedHealing = Number(reminder.fixedHealing) || 0;
     return normalizeReminderResolution({
       mode: "manual-heal",
-      healing: { dice: "mod. incantatore", additionalPerSlotAbove: 0, baseSlot: 0 },
+      healing: { dice: fixedHealing ? String(fixedHealing) : "mod. incantatore", additionalPerSlotAbove: 0, baseSlot: 0 },
       target: { id: targetId },
       source: { id: sourceId },
       activation: {
         kind: "effect-save",
         activationId: text(activationId, "", 300),
         turnKey: text(turnKey, "", 300),
-        resolutionData: {
-          temporaryHp: true,
-          ...(Number.isInteger(suggestedTempHp) ? { suggestedAmount: suggestedTempHp } : {}),
-        },
+        resolutionData: fixedHealing
+          ? { suggestedAmount: fixedHealing, anyCreature: true }
+          : {
+            temporaryHp: true,
+            ...(Number.isInteger(suggestedTempHp) ? { suggestedAmount: suggestedTempHp } : {}),
+          },
       },
       effect: {
         kind: "condition",
@@ -1782,7 +1786,8 @@ export function buildReminderResolutionPlan({
   const creatureType = String(
     meta.creatureType || meta.creatureTypeName || meta.creatureTypeLabel || "",
   ).trim().toLocaleLowerCase("it");
-  if (manualHeal && !manualTempHp && normalizedOutcome === "apply" && /costrutt|non.?morto/u.test(creatureType)) {
+  if (manualHeal && !manualTempHp && normalizedOutcome === "apply" && resolutionData.anyCreature !== true
+    && /costrutt|non.?morto/u.test(creatureType)) {
     return { status: "unsupported", message: "Costrutti e Non Morti non possono recuperare PF." };
   }
   if (manualHeal && normalizedOutcome === "apply"

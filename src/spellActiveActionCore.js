@@ -423,6 +423,15 @@ export function buildSpellActiveActionPlan({
       if (itemId && instanceId) removals.push({ itemId, instanceId });
     }
   }
+  // replacesEffectIds: the pills in place make way, whichever of them there is (Alter Self's forms); none is no error.
+  const replacedEffectIds = new Set(uniqueIds(action?.replacesEffectIds));
+  for (const entry of effectInstances) {
+    const itemId = String(entry?.itemId || "").trim();
+    const instanceId = String(entry?.instanceId || "").trim();
+    if (entry?.active !== false && replacedEffectIds.has(String(entry?.effectId || "")) && itemId && instanceId) {
+      removals.push({ itemId, instanceId });
+    }
+  }
 
   let resourceOperations = [];
   if (action?.resource && !errors.length) {

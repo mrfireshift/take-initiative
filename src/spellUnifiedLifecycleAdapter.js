@@ -111,7 +111,8 @@ export function getSpellUnifiedLifecycleEligibility(contract = null) {
     && contract.presentation?.phase?.plan?.attack?.required === true;
   if ((inputs.hp?.required === true
     || inputs.damage?.required === true
-    || inputs.healing?.required === true)
+    // CAP-REPEAT-HEAL: the healing of the cast of a tracked spell is written here (Regenerate's dice in the field).
+    || (inputs.healing?.required === true && !inputs.healing.dice))
     && !preparedResolution) {
     return reject("hp-input-not-supported", "Gli input dei PF restano nella lane area.");
   }
@@ -321,6 +322,8 @@ export function buildSpellUnifiedLifecycleRequest({
     damageValue: session.hpValues?.damage,
     // CAP-TEMP, lotto T3b: False Life's 1d4, rolled at the table.
     ...(hasValue(session.hpValues?.temporaryHp) ? { temporaryHpRoll: session.hpValues.temporaryHp } : {}),
+    // CAP-REPEAT-HEAL: Regenerate's 4d8 + 15, rolled at the table.
+    ...(hasValue(session.hpValues?.healing) ? { castHealingValue: session.hpValues.healing } : {}),
     manualAttackOutcomeRequired: attackOutcomeRequired,
     ...(appliedAt !== undefined ? { appliedAt } : {}),
     ...(text(casterName) ? { casterName: text(casterName) } : {}),

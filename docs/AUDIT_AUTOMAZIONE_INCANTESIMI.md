@@ -645,8 +645,8 @@ da questo audit.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
 - Opzioni trackable del runtime: **362**; definizioni con tracking persistente verificate dall'audit: **359**; definizioni con regole d'area: **139** (144 regole).
 - Workflow che richiedono smoke test runtime: **414**.
-- Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `c08a4f00e9d76903`.
+- Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **2**.
+- Impronta deterministica: `7ec5ad2028859d38`.
 
 ## Decisioni di prodotto chiuse
 
@@ -660,8 +660,8 @@ da questo audit.
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 59 |
-| PARTIAL | 235 |
-| TRACK_ONLY | 117 |
+| PARTIAL | 236 |
+| TRACK_ONLY | 116 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -671,8 +671,8 @@ da questo audit.
 | --- | ---: |
 | ACCEPTED | 72 |
 | CLOSED | 14 |
-| GAP | 11 |
-| UNREVIEWED | 380 |
+| GAP | 12 |
+| UNREVIEWED | 379 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
@@ -700,20 +700,20 @@ da questo audit.
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 49 |
+| ACTIVE_ACTION | 50 |
 | AREA_GEOMETRY | 139 |
-| CAST | 270 |
+| CAST | 271 |
 | CLEANUP | 116 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 359 |
-| TURN_TRIGGER | 98 |
+| TURN_TRIGGER | 99 |
 
 ### Stato di integrazione console unificata
 
 | Stato | Totale |
 | --- | ---: |
-| partial | 11 |
-| reachable | 466 |
+| partial | 12 |
+| reachable | 465 |
 
 ### Problemi di integrazione
 
@@ -750,6 +750,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 
 | Incantesimo | Fonte | Lacune | Evidenza/valutazione |
 | --- | --- | --- | --- |
+| Ferire | SRD 5.1 | effetto persistente di una spell istantanea assente | Segnalazione strutturale senza estratto testuale breve. |
 | Manto del Crociato | Legacy | testo regolamentare locale mancante | Segnalazione strutturale senza estratto testuale breve. |
 
 ## P3 — candidate da revisionare
@@ -918,7 +919,7 @@ Nessuna voce.
 | Faro di speranza | `beacon-of-hope` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fatale | `weird` | SRD 5.1 / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Favore divino | `divine-favor` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Ferire | `harm` | SRD 5.1 / 6 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Ferire | `harm` | SRD 5.1 / 6 | MANUAL | GAP | UNREVIEWED | UNIFIED | partial | P2 | effetto persistente di una spell istantanea assente |
 | Fermare il tempo | `time-stop` | SRD 5.1 / 9 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Ferocia Primordiale | `xanathar-ferocia-primordiale` | Xanathar / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fiamma perenne | `continual-flame` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1122,7 +1123,7 @@ Nessuna voce.
 | Resurrezione pura | `true-resurrection` | SRD 5.1 / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rianimare morti | `raise-dead` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Richiamo Infernale | `xanathar-richiamo-infernale` | Xanathar / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Rigenerazione | `regenerate` | SRD 5.1 / 7 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Rigenerazione | `regenerate` | SRD 5.1 / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rimuovi maledizione | `remove-curse` | SRD 5.1 / 3 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rinascita | `revivify` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rintocco dei Morti | `xanathar-rintocco-dei-morti` | Xanathar / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

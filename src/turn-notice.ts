@@ -759,9 +759,9 @@ function buildResolutionControls(line: HTMLElement, row: any) {
   const manualHeal = row.resolution?.mode === "manual-heal";
   // CAP-TEMP: the same manual roll for temporary hit points (Twilight Sanctuary).
   const manualTempHp = manualHeal && row.resolution?.activation?.resolutionData?.temporaryHp === true;
-  // The amount already known (Heroism: the caster's modifier), entered for the GM, who can still change it.
-  const suggestedTempHp = manualTempHp ? row.resolution?.activation?.resolutionData?.suggestedAmount : undefined;
-  if (Number.isInteger(suggestedTempHp) && !draft.outcome && draft.damageRoll === "") draft.damageRoll = String(suggestedTempHp);
+  // The amount already known (Heroism: the caster's modifier; Regenerate: 1), entered for the GM, who can still change it.
+  const suggestedAmount = manualHeal ? row.resolution?.activation?.resolutionData?.suggestedAmount : undefined;
+  if (Number.isInteger(suggestedAmount) && !draft.outcome && draft.damageRoll === "") draft.damageRoll = String(suggestedAmount);
   const manualDamage = row.resolution?.mode === "manual-damage";
   const turbine = row.resolution?.activation?.resolutionData?.turbine === true;
   const controls = document.createElement("div");

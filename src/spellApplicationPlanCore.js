@@ -8,7 +8,7 @@ import {
   getSpellAttackResolution,
 } from "./spells-srd.js";
 import { buildSpellCastAutomationPlan } from "./spellCastAutomationCore.js";
-import { resolveSpellConcentration } from "./spellCastContextCore.js";
+import { resolveSpellConcentration, spellForCastContext } from "./spellCastContextCore.js";
 import { resolveSaveSpellResolution } from "./saveSpellCore.js";
 import { getSpellSaveWorkflowRule } from "./spellSaveWorkflowRules.js";
 import {
@@ -144,6 +144,8 @@ export function buildSpellApplicationIntent({
   const subjects = uniqueIds(targetIds);
   if (!subjects.length) return null;
 
+  // The spell as this cast has it: its slot may lift the concentration (Bestow Curse).
+  spell = spellForCastContext(spell, castContext);
   const name = spell?.displayName || enteredName;
   const resolvedPhasePlan = phasePlan || getSpellCastPhasePlan(spell, "", castContext);
   const wantsConcentration = resolveSpellConcentration(spell, requestedConcentration);

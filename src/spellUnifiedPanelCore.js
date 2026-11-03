@@ -1,6 +1,6 @@
 import { normalizeMonsterActionContext } from "./monsterActionContextCore.js";
 import { spellForCastContext } from "./spellCastContextCore.js";
-import { spellCastTemporaryHpDie } from "./spellTemporaryHpRules.js";
+import { spellCastHealingDice, spellCastTemporaryHpDie } from "./spellTemporaryHpRules.js";
 import {
   getAreaSaveRuleChoices,
   getSpellDefinition,
@@ -1152,6 +1152,8 @@ function inputDescriptor({
   const healingRequired = hpInputVisible && healing;
   // CAP-TEMP, lotto T3b: the die of the temporary hit points the cast gives (False Life's 1d4), rolled at the table.
   const temporaryHpDie = phasePlan?.phase === "prepare" ? "" : spellCastTemporaryHpDie(spell?.id);
+  // CAP-REPEAT-HEAL: the healing of the cast of a tracked spell (Regenerate's 4d8 + 15).
+  const castHealingDice = phasePlan?.phase === "prepare" ? "" : spellCastHealingDice(spell?.id);
   const compositionRequired = !!composition;
   return {
     phase: { required: phasePlan?.phase === "prepare", visible: false },
@@ -1207,7 +1209,8 @@ function inputDescriptor({
       visible: primaryDamageRequired,
       mode: "damage",
     },
-    healing: { required: healingRequired, visible: healingRequired },
+    healing: { required: healingRequired || !!castHealingDice, visible: healingRequired || !!castHealingDice,
+      ...(castHealingDice ? { dice: castHealingDice } : {}) },
     temporaryHp: { required: !!temporaryHpDie, visible: !!temporaryHpDie, die: temporaryHpDie },
     automation: { required: false, visible: automation.available },
   };

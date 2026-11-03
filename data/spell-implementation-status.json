@@ -2730,25 +2730,25 @@
     "total": 477,
     "statuses": {
       "COMPLETE / LEGACY": 13,
-      "COMPLETE / CURRENT": 272,
-      "PARTIAL": 37,
+      "COMPLETE / CURRENT": 275,
+      "PARTIAL": 34,
       "NO AUTOMATION REQUIRED": 144,
       "MISSING": 9,
       "REQUIRES RULE VERIFICATION": 2
     },
-    "implementableBacklog": 46,
+    "implementableBacklog": 43,
     "readiness": {
       "GREEN": {
         "count": 0,
         "percent": 0
       },
       "YELLOW": {
-        "count": 35,
-        "percent": 76.08695652173914
+        "count": 32,
+        "percent": 74.4186046511628
       },
       "RED": {
         "count": 11,
-        "percent": 23.91304347826087
+        "percent": 25.581395348837212
       }
     },
     "scenarios": [
@@ -3437,14 +3437,15 @@
       "id": "alter-self",
       "spell": "Alterare sé stesso",
       "level": 2,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
+        "src/spellActiveActionCore.js",
         "src/spellApplicationPlanCore.js"
       ],
       "mechanicsRequired": [
-        "Varianti del cast presenti; dry-run: active action può consumare effect IDs propri, ma sostituzione modalità esclusiva conservando parent/concentrazione non è descriptor generico completo."
+        "CAP-MODE: tre azioni nel ⚡ della pill sostituiscono la forma attiva (replacesEffectIds), senza toccare incantesimo e concentrazione. Il +1 delle armi naturali è un'etichetta."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -3457,9 +3458,7 @@
         "C-HISTORY",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "CAP-MODE"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -3467,7 +3466,7 @@
         "mode": "none",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Varianti del cast presenti; dry-run: active action può consumare effect IDs propri, ma sostituzione modalità esclusiva conservando parent/concentrazione non è descriptor generico completo."
+        "required": "CAP-MODE: tre azioni nel ⚡ della pill sostituiscono la forma attiva (replacesEffectIds), senza toccare incantesimo e concentrazione. Il +1 delle armi naturali è un'etichetta."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -3496,8 +3495,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "ACTIVE-EFFECT-DATA",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-MODE",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "alter-self",
@@ -3506,6 +3505,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/tempHpIntegration.test.js",
+          "test/castModeSpells.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -3529,7 +3530,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Varianti del cast presenti; dry-run: active action può consumare effect IDs propri, ma sostituzione modalità esclusiva conservando parent/concentrazione non è descriptor generico completo.",
+        "reason": "CAP-MODE: tre azioni nel ⚡ della pill sostituiscono la forma attiva (replacesEffectIds), senza toccare incantesimo e concentrazione. Il +1 delle armi naturali è un'etichetta.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -6003,23 +6004,22 @@
       "id": "bestow-curse",
       "spell": "Scagliare maledizione",
       "level": 3,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
+        "src/spellCastContextCore.js",
         "src/spellApplicationPlanCore.js"
       ],
       "mechanicsRequired": [
-        "Repeat-save componibile; scaling durata per slot esiste ma il cambio di concentrazione sopra slot 4 non è descritto dal resolver che usa spell.concentration fisso."
+        "CAP-DURATION: lo slot decide durata e concentrazione (spellForCastContext): concentrazione fino al 4°, poi 8 ore, 24 ore dal 7°, pill senza scadenza al 9°. Rimuovi maledizione resta a mano."
       ],
       "existingReusableCapabilities": [
         "C-REPEATSAVE",
         "C-DEFERRED",
         "C-CONCENTRATION"
       ],
-      "missingCapabilities": [
-        "CAP-DURATION"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -6027,7 +6027,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Repeat-save componibile; scaling durata per slot esiste ma il cambio di concentrazione sopra slot 4 non è descritto dal resolver che usa spell.concentration fisso."
+        "required": "CAP-DURATION: lo slot decide durata e concentrazione (spellForCastContext): concentrazione fino al 4°, poi 8 ore, 24 ore dal 7°, pill senza scadenza al 9°. Rimuovi maledizione resta a mano."
       },
       "concentration": true,
       "durationLifecycle": {
@@ -6056,8 +6056,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "REPEAT-SAVE-DATA",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-DURATION",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "bestow-curse",
@@ -6066,6 +6066,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/tempHpIntegration.test.js",
+          "test/castModeSpells.test.js",
           "test/holdPersonSaveWorkflow.test.js",
           "test/blindnessDeafnessWorkflow.test.js",
           "test/deferredSpellWorkflow.test.js",
@@ -6081,7 +6083,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Repeat-save componibile; scaling durata per slot esiste ma il cambio di concentrazione sopra slot 4 non è descritto dal resolver che usa spell.concentration fisso.",
+        "reason": "CAP-DURATION: lo slot decide durata e concentrazione (spellForCastContext): concentrazione fino al 4°, poi 8 ore, 24 ore dal 7°, pill senza scadenza al 9°. Rimuovi maledizione resta a mano.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -32179,14 +32181,17 @@
       "id": "regenerate",
       "spell": "Rigenerazione",
       "level": 7,
-      "status": "PARTIAL",
-      "readiness": "YELLOW",
+      "status": "COMPLETE / CURRENT",
+      "readiness": null,
       "currentImplementationOwner": [
         "src/spells-srd.js",
-        "src/spellApplicationPlanCore.js"
+        "src/spellTemporaryHpRules.js",
+        "src/spellApplicationExecutor.js",
+        "src/effectSaveReminderCore.js",
+        "src/reminderResolutionCore.js"
       ],
       "mechanicsRequired": [
-        "Dry-run: zone healing existe, ma buildEffectSaveReminderResolution scala solo damage e deferred resolution rimuove l effetto. Serve wiring di healing ripetibile non spaziale su target, preservando parent."
+        "CAP-REPEAT-HEAL: il pannello chiede il totale di 4d8 + 15, scritto nel comando della pill; a inizio turno un promemoria con 1 PF già inserito, non su un morto né a PF pieni. Le parti recise restano al tavolo."
       ],
       "existingReusableCapabilities": [
         "C-CATALOG",
@@ -32198,9 +32203,7 @@
         "C-EFFECTS",
         "C-HISTORY"
       ],
-      "missingCapabilities": [
-        "CAP-REPEAT-HEAL"
-      ],
+      "missingCapabilities": [],
       "legacyBespokePath": null,
       "historyUndoImplications": "Shared Effects/History, instance-scoped cleanup",
       "recoveryImplications": "Use supportsEffectsRecovery envelope; no promise for unsupported side effects",
@@ -32208,7 +32211,7 @@
         "mode": "discrete",
         "rule": null,
         "contract": "resolveTargetingCapacity + minimal ignoreTargetLimit; legality/LOS at table",
-        "required": "Dry-run: zone healing existe, ma buildEffectSaveReminderResolution scala solo damage e deferred resolution rimuove l effetto. Serve wiring di healing ripetibile non spaziale su target, preservando parent."
+        "required": "CAP-REPEAT-HEAL: il pannello chiede il totale di 4d8 + 15, scritto nel comando della pill; a inizio turno un promemoria con 1 PF già inserito, non su un morto né a PF pieni. Le parti recise restano al tavolo."
       },
       "concentration": false,
       "durationLifecycle": {
@@ -32220,7 +32223,7 @@
       },
       "reminderTurnTriggers": {
         "zone": [],
-        "effectSaveReminder": false,
+        "effectSaveReminder": true,
         "required": [
           "CAP-REPEAT-HEAL"
         ]
@@ -32239,8 +32242,8 @@
         "contract": "C-VFX / C-VFXEND; cosmetic mapping only, no runtime blocker"
       },
       "implementationFamily": "REPEAT-HEAL",
-      "estimatedEffort": "See shared gap effort; then LOW/MEDIUM configuration",
-      "recommendedBatch": "Y: CAP-REPEAT-HEAL",
+      "estimatedEffort": "No implementation work",
+      "recommendedBatch": "Maintain / no migration",
       "ruleEvidence": {
         "file": "src/spell-reference-it.json",
         "spellId": "regenerate",
@@ -32249,6 +32252,8 @@
       },
       "behavioralEvidence": {
         "familyTests": [
+          "test/tempHpIntegration.test.js",
+          "test/castModeSpells.test.js",
           "test/spellUnifiedExecutionParity.test.js",
           "test/spellApplicationPlanCore.test.js",
           "test/spellCastAutomationCore.test.js",
@@ -32268,7 +32273,7 @@
       },
       "annotation": {
         "humanMaintained": true,
-        "reason": "Dry-run: zone healing existe, ma buildEffectSaveReminderResolution scala solo damage e deferred resolution rimuove l effetto. Serve wiring di healing ripetibile non spaziale su target, preservando parent.",
+        "reason": "CAP-REPEAT-HEAL: il pannello chiede il totale di 4d8 + 15, scritto nel comando della pill; a inizio turno un promemoria con 1 PF già inserito, non su un morto né a PF pieni. Le parti recise restano al tavolo.",
         "scope": "Assisted combat tracker: physical dice, LOS, immunities and narrative decisions at table"
       },
       "observed": {
@@ -62822,6 +62827,10 @@
     {
       "date": "2026-11-03",
       "note": "CAP-STABILIZE: 6 incantesimi completi (Salvare i morenti, Rinascita, Rianimare morti, Reincarnazione, Resurrezione, Resurrezione pura) in stabilizeSpellRules.js. Di CAP-CALENDAR serviva solo la penalità di Rianimare morti e Resurrezione, in Riposo del gruppo; resta Costrizione."
+    },
+    {
+      "date": "2026-11-03",
+      "note": "CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL: Scagliare maledizione, Alterare sé stesso e Rigenerazione completi."
     }
   ]
 }

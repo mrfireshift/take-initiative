@@ -629,3 +629,153 @@ test("T3d: Ignora writes no hit points; a target under Heroism cannot be frighte
   await convergeDeferredEffectsHistory();
   assert.deepEqual([pills("hero"), pills("ally")], [["Eroismo"], ["Spaventato"]]);
 });
+
+// CAP-DURATION, CAP-MODE, CAP-REPEAT-HEAL (2014 texts): Bestow Curse, Alter Self, Regenerate, through the real coordinator.
+const castWith = async (spellId, slotLevel, targetIds, extra = {}) => {
+  const spell = getSpellDefinition(spellId);
+  const result = await executeSpellApplication({ spell, casterId: CASTER, casterName: "Maga", targetIds,
+    turns: getSpellDurationTurns(spell, { slotLevel }) || spell.defaultTurns || 10, castContext: { slotLevel },
+    sceneEpoch: currentSceneEpoch(), isCurrent: () => true, ...extra });
+  await convergeDeferredEffectsHistory();
+  return result;
+};
+const { getSpellDurationTurns } = await import("../src/spells-srd.js");
+const { buildSpellActiveActionPlan } = await import("../src/spellActiveActionCore.js");
+const instancesOf = (id) => (meta(id).conditions?.instances || []).filter((entry) => entry.active !== false);
+const spellOf = (id, spellId) => (meta(id)[SPELLS_KEY] || []).find((entry) => entry.spellId === spellId);
+
+const curse = (slot) => castWith("bestow-curse", slot, ["hero"], { selectedChoice: "ability-strength", saveOutcomes: { hero: "failed" } });
+
+test("Bestow Curse: concentration up to the 4th-level slot, with its duration", async () => {
+  for (const [slot, turns] of [[3, 10], [4, 100]]) {
+    await resetScene([token(CASTER, 30, 30), token("hero", 20, 40)]);
+    await curse(slot);
+    assert.equal(spellOf("hero", "bestow-curse").conc, true, `slot ${slot}`);
+    assert.equal(spellOf("hero", "bestow-curse").turns, turns, `slot ${slot}`);
+    assert.equal(instancesOf("hero")[0].expiry.mode, "concentration");
+    assert.equal(Object.keys(meta(CASTER)[CONCENTRATION_KEY]).length, 1);
+  }
+});
+
+test("Bestow Curse: from the 5th-level slot no concentration: an ongoing spell of the caster stays, the pill lasts its rounds", async () => {
+  for (const [slot, turns] of [[5, 4800], [6, 4800], [7, 14400], [8, 14400]]) {
+    await resetScene([token(CASTER, 30, 30), token("hero", 20, 40)]);
+    await curse(slot);
+    assert.equal(spellOf("hero", "bestow-curse").conc, false, `slot ${slot}`);
+    assert.equal(spellOf("hero", "bestow-curse").turns, turns, `slot ${slot}`);
+    assert.deepEqual([instancesOf("hero")[0].expiry.mode, instancesOf("hero")[0].expiry.remaining], ["rounds", turns]);
+    assert.deepEqual(meta(CASTER)[CONCENTRATION_KEY] || {}, {}, `slot ${slot}: no concentration`);
+  }
+  await resetScene([token(CASTER, 30, 30), token("hero", 20, 40)]);
+  await castWith("bless", 1, ["hero"], { selectedChoice: "" });
+  await curse(5);
+  assert.ok(spellOf("hero", "bless"), "the concentration on another spell is not broken");
+  assert.ok(Object.values(meta(CASTER)[CONCENTRATION_KEY]).some((entry) => /Benedizione/u.test(entry.name)));
+});
+
+test("Bestow Curse with a 9th-level slot lasts until dispelled: the rounds do not end it; one Undo takes it off", async () => {
+  await resetScene([token(CASTER, 30, 30), token("hero", 20, 40)]);
+  await curse(9);
+  assert.equal(instancesOf("hero")[0].expiry.mode, "manual");
+  assert.equal(spellOf("hero", "bestow-curse").conc, false);
+  const ticked = await clientEffects.runEffectsMutation([{ type: "effects:tick-round", targetIds: ["hero"] }], { history: false, kind: "effects:tick-round", targetIds: ["hero"] });
+  clientEffects.requireAppliedEffectsMutation(ticked);
+  assert.ok(spellOf("hero", "bestow-curse"), "still there after a round");
+  assert.equal(instancesOf("hero").length, 1);
+  await undoLast();
+  assert.equal(spellOf("hero", "bestow-curse"), undefined);
+});
+
+const swapForm = async (formId) => {
+  const spell = getSpellDefinition("alter-self");
+  const entry = spellOf(CASTER, "alter-self");
+  const plan = buildSpellActiveActionPlan({ spell, actionId: `alter-self-form-${formId}`, casterName: "Maga", group: {
+    casterId: CASTER, instanceId: entry.instanceId, castContext: entry.castContext,
+    effectInstances: instancesOf(CASTER).map((instance) => ({ itemId: CASTER, instanceId: instance.id, effectId: instance.effectId, active: true })),
+  } });
+  assert.equal(plan.valid, true, JSON.stringify(plan.errors));
+  const result = await clientEffects.runEffectsMutation(plan.operations,
+    { kind: "spell", label: plan.historyLabel, targetIds: [CASTER], history: { kind: "spell", label: plan.historyLabel } });
+  clientEffects.requireAppliedEffectsMutation(result);
+  await convergeDeferredEffectsHistory();
+};
+
+test("Alter Self: an action swaps the form, one at a time; the spell and the concentration stay; one Undo goes back", async () => {
+  await resetScene([token(CASTER, 30, 30)]);
+  await castWith("alter-self", 2, [CASTER], { selectedChoice: "natural-weapons" });
+  const instanceId = spellOf(CASTER, "alter-self").instanceId;
+  assert.deepEqual(instancesOf(CASTER).map((entry) => entry.effectId), ["alter-self-natural-weapons"]);
+  await swapForm("aquatic-adaptation");
+  assert.deepEqual(instancesOf(CASTER).map((entry) => entry.effectId), ["aquatic-adaptation"]);
+  assert.equal(instancesOf(CASTER)[0].expiry.mode, "concentration");
+  assert.deepEqual(instancesOf(CASTER)[0].mechanics.movement.modes.swim, { copyFrom: "walk" });
+  assert.equal(spellOf(CASTER, "alter-self").instanceId, instanceId, "the same spell");
+  assert.equal(Object.keys(meta(CASTER)[CONCENTRATION_KEY]).length, 1);
+  await undoLast();
+  assert.deepEqual(instancesOf(CASTER).map((entry) => entry.effectId), ["alter-self-natural-weapons"]);
+  await swapForm("change-appearance");
+  await swapForm("change-appearance");
+  assert.deepEqual(instancesOf(CASTER).map((entry) => entry.effectId), ["alter-self-appearance"], "the appearance can change again");
+  const ended = await clientEffects.runEffectsMutation([{ type: "concentration:break", casterIds: [CASTER] }],
+    { kind: "concentration", label: "Fine", targetIds: [CASTER], history: { kind: "concentration", label: "Fine" } });
+  clientEffects.requireAppliedEffectsMutation(ended);
+  assert.deepEqual([instancesOf(CASTER), spellOf(CASTER, "alter-self")], [[], undefined], "the swapped form ends with the spell");
+});
+
+const regenerateNotice = (itemId = "hero", round = 1) => {
+  const state = sceneState.metadata[STATE_KEY];
+  const index = state.order.indexOf(itemId);
+  const notice = planEffectSaveReminderNotices({ items: sceneState.items, previousInitiativeState: { ...state, round, current: index - 1 },
+    initiativeState: { ...state, round, current: index } }).find((entry) => entry.effectName === "Rigenerazione" && entry.target.id === itemId);
+  return notice ? { ...notice, targets: [notice.target] } : null;
+};
+
+test("Regenerate: the total of its 4d8 + 15 at the cast, required, with its pill; one Undo takes both back", async () => {
+  await resetScene([token(CASTER, 30, 30), token("hero", 5, 60)]);
+  await assert.rejects(castWith("regenerate", 7, ["hero"]), /spell-healing-required/u, "no total, no cast");
+  await castWith("regenerate", 7, ["hero"], { castHealingValue: 33 });
+  assert.equal(meta("hero").hp, 38);
+  assert.equal(spellOf("hero", "regenerate").turns, 600);
+  assert.deepEqual(instancesOf("hero").map((entry) => entry.effectId), ["regenerate-healing"]);
+  await undoLast();
+  assert.deepEqual([meta("hero").hp, instancesOf("hero"), spellOf("hero", "regenerate")], [5, [], undefined]);
+});
+
+test("Regenerate: at the start of its turn the reminder has the 1 entered; a dying PC wakes up; one Undo", async () => {
+  await resetScene([token(CASTER, 30, 30), token("hero", 20, 60)]);
+  await castWith("regenerate", 7, ["hero"], { castHealingValue: 10 });
+  const notice = regenerateNotice();
+  assert.equal(notice.resolution.mode, "manual-heal");
+  assert.equal(notice.resolution.activation.resolutionData.suggestedAmount, 1);
+  assert.equal(notice.resolution.activation.resolutionData.temporaryHp, undefined);
+  assert.deepEqual([notice.saveLabel, notice.eyebrow], ["Cura", "Promemoria effetto"]);
+  const applied = await resolveReminder({ notice, outcome: "apply", damageRoll: "1", sceneEpoch: currentSceneEpoch() });
+  assert.equal(applied.status, "applied", JSON.stringify(applied));
+  await convergeDeferredEffectsHistory();
+  assert.equal(meta("hero").hp, 31);
+  assert.equal(regenerateNotice(), null, "answered: not offered again in this turn");
+  assert.ok(regenerateNotice("hero", 2), "and it is back in the next");
+  await undoLast();
+  assert.equal(meta("hero").hp, 30);
+
+  await resetScene([token(CASTER, 30, 30), token("hero", 0, 60, { attitude: "pc", deathSaves: { successes: 1, failures: 2 } })]);
+  await castWith("regenerate", 7, ["hero"], { castHealingValue: 0 });
+  assert.deepEqual(meta("hero").deathSaves, { successes: 1, failures: 2 }, "a total of 0 changes nothing");
+  await resolveReminder({ notice: regenerateNotice(), outcome: "apply", damageRoll: "1", sceneEpoch: currentSceneEpoch() });
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual([meta("hero").hp, meta("hero").deathSaves], [1, undefined], "the tally goes with the first hit point");
+});
+
+test("Regenerate: no reminder at full hit points nor on the dead; any creature type can be healed", async () => {
+  await resetScene([token(CASTER, 30, 30), token("hero", 60, 60)]);
+  await castWith("regenerate", 7, ["hero"], { castHealingValue: 10 });
+  assert.equal(regenerateNotice(), null, "full");
+  await resetScene([token(CASTER, 30, 30), token("ogre", 0, 59, { attitude: "enemy" })]);
+  await castWith("regenerate", 7, ["ogre"], { castHealingValue: 0 });
+  assert.equal(regenerateNotice("ogre"), null, "dead");
+  await resetScene([token(CASTER, 30, 30), token("ghoul", 3, 22, { attitude: "enemy", creatureType: "Non morto" })]);
+  await castWith("regenerate", 7, ["ghoul"], { castHealingValue: 2 });
+  await resolveReminder({ notice: regenerateNotice("ghoul"), outcome: "apply", damageRoll: "1", sceneEpoch: currentSceneEpoch() });
+  await convergeDeferredEffectsHistory();
+  assert.equal(meta("ghoul").hp, 6, "the text excludes no type");
+});

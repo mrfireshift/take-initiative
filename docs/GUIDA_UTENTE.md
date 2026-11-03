@@ -668,6 +668,19 @@ Nello stesso punto le console mostrano le difese e le reazioni del bersaglio:
   danno da acido, freddo, fuoco, fulmine o tuono e **Intimorire infernale ›**
   dopo un danno aprono il pannello incantesimi già pronto.
 
+Tre incantesimi dipendono dallo slot o proseguono dopo il lancio:
+
+- **Scagliare maledizione**: lo slot decide durata e concentrazione. Al 3° e al 4°
+  è concentrazione (1 minuto, 10 minuti); dal 5° non lo è più e dura 8 ore, 24 ore
+  dal 7°. Al 9° la pill non ha scadenza: la togli tu quando viene dissolta.
+- **Alterare sé stesso**: nel ⚡ della pill ci sono le tre forme. Un clic sostituisce
+  quella attiva, con la stessa concentrazione. Il +1 delle armi naturali è da
+  sommare al tavolo.
+- **Rigenerazione**: il pannello chiede il totale di 4d8 + 15. A inizio di ogni turno
+  del bersaglio un promemoria offre **Applica cura** con 1 già inserito; non compare
+  su un morto né a PF pieni. Se a PF pieni subisce un danno durante il suo turno, il
+  promemoria può comparire in ritardo: premi **Ignora**.
+
 Le resistenze di Scudo di fuoco, Ombra di Moil, Interdizione primordiale,
 Vincolo di interdizione e Assorbire elementi valgono davvero nelle console.
 Interdizione primordiale ha nel ⚡ le cinque **Immunità: tipo**: la reazione
