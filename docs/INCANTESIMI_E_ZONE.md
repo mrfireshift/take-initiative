@@ -215,6 +215,17 @@ ed Eroismo a inizio turno, con `saveReminder.temporaryHp` che propone il
 modificatore del caster e la pill come fonte. Flusso di Energia Negativa usa
 l'esito `immune`, sul pulsante «Non morto», per dare metà del tiro in `hpEntries`.
 
+CAP-STABILIZE (`src/stabilizeSpellRules.js`, applicato da `planAreaStabilize`)
+legge dagli item vivi se la creatura è morente o morta: un bersaglio non valido
+restituisce l'errore `stabilize-target-invalid` prima di ogni scrittura, e il
+pannello ne mostra il messaggio. Un ritorno in vita toglie Morto e la pill dello
+zombi nello stesso comando dei PF; `planAreaDeathSaves` azzera il conteggio.
+Salvare i morenti non cambia i PF: passa da una voce con i soli TS. La pill
+`return-from-death` tiene il valore in `mechanics.returnFromDeathPenalty` e nel
+nome; `planGroupRestReturnFromDeath` la sostituisce nel comando del riposo lungo.
+Una pill di un incantesimo istantaneo non deve avere `effectKind`: la card mostra
+buff e debuff solo dentro la pill del loro incantesimo.
+
 Gli avvisi di concentrazione della console ad area partono dopo il commit
 (`defaultConcentrationWarnings`), con la voce della Cronologia come causa:
 prima il gancio `onConcentrationWarnings` era vuoto e i danni del pannello non

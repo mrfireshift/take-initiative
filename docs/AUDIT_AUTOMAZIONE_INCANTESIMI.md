@@ -644,9 +644,9 @@ da questo audit.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
 - Opzioni trackable del runtime: **362**; definizioni con tracking persistente verificate dall'audit: **359**; definizioni con regole d'area: **139** (144 regole).
-- Workflow che richiedono smoke test runtime: **408**.
+- Workflow che richiedono smoke test runtime: **414**.
 - Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `1aab3f756324f060`.
+- Impronta deterministica: `c08a4f00e9d76903`.
 
 ## Decisioni di prodotto chiuse
 
@@ -659,8 +659,8 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 65 |
-| PARTIAL | 229 |
+| MANUAL | 59 |
+| PARTIAL | 235 |
 | TRACK_ONLY | 117 |
 
 ### Stato di copertura (coverageStatus)
@@ -702,7 +702,7 @@ da questo audit.
 | --- | ---: |
 | ACTIVE_ACTION | 49 |
 | AREA_GEOMETRY | 139 |
-| CAST | 264 |
+| CAST | 270 |
 | CLEANUP | 116 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 359 |
@@ -1115,16 +1115,16 @@ Nessuna voce.
 | Randello incantato | `shillelagh` | SRD 5.1 / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Reggia meravigliosa | `magnificent-mansion` | SRD 5.1 / 7 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Regressione mentale | `feeblemind` | SRD 5.1 / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Reincarnazione | `reincarnate` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Reincarnazione | `reincarnate` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Resistenza | `resistance` | SRD 5.1 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Respirare sott'acqua | `water-breathing` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Resurrezione | `resurrection` | SRD 5.1 / 7 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Resurrezione pura | `true-resurrection` | SRD 5.1 / 9 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Rianimare morti | `raise-dead` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Resurrezione | `resurrection` | SRD 5.1 / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Resurrezione pura | `true-resurrection` | SRD 5.1 / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Rianimare morti | `raise-dead` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Richiamo Infernale | `xanathar-richiamo-infernale` | Xanathar / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rigenerazione | `regenerate` | SRD 5.1 / 7 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rimuovi maledizione | `remove-curse` | SRD 5.1 / 3 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Rinascita | `revivify` | SRD 5.1 / 3 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Rinascita | `revivify` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rintocco dei Morti | `xanathar-rintocco-dei-morti` | Xanathar / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Riparare | `mending` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Riposo inviolato | `gentle-repose` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1136,7 +1136,7 @@ Nessuna voce.
 | Ritirata rapida | `expeditious-retreat` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Rombo di Tuono | `xanathar-rombo-di-tuono` | Xanathar / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Saltare | `jump` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Salvare i morenti | `spare-the-dying` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Salvare i morenti | `spare-the-dying` | SRD 5.1 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Santificare | `hallow` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Santuario | `sanctuary` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Santuario privato | `private-sanctum` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

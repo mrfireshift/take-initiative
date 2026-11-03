@@ -476,6 +476,31 @@ test("U6': il riposo breve del gruppo aggiunge i PF recuperati e non tocca i PF 
   assert.deepEqual([mage.metadata[META_KEY].hp, mage.metadata[META_KEY].tempHp], [29, 5]);
 });
 
+test("CAP-STABILIZE: il riposo lungo abbassa il ritorno dalla morte nella stessa voce, l'Annulla lo riporta, a 0 finisce", async () => {
+  await resetScene();
+  const pillNames = async () => ((await sdkStub.scene.items.getItems([CASTER_ID]))[0].metadata[META_KEY].conditions?.instances || [])
+    .filter((entry) => entry.active !== false).map((entry) => entry.condition);
+  const caster = sceneState.items.find((item) => item.id === CASTER_ID);
+  Object.assign(caster.metadata[META_KEY], { hp: 20, hpMax: 60, conditions: { version: 2, instances: [
+    { id: "return-1", condition: "Ritorno dalla morte −2", active: true, targetId: CASTER_ID, effectId: "return-from-death",
+      mechanics: { returnFromDeathPenalty: 2 }, expiry: { mode: "manual" } }] } });
+  const before = (await history.getHistoryEntries()).length;
+  await takeGroupRest({ sourceIds: [CASTER_ID], longRest: true });
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual(await pillNames(), ["Ritorno dalla morte −1"]);
+  assert.equal((await history.getHistoryEntries()).length, before + 1, "the rest's own entry");
+  await undoLast();
+  assert.deepEqual(await pillNames(), ["Ritorno dalla morte −2"]);
+  await takeGroupRest({ sourceIds: [CASTER_ID], longRest: false, recovered: { [CASTER_ID]: 1 } });
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual(await pillNames(), ["Ritorno dalla morte −2"], "a short rest leaves it");
+  await takeGroupRest({ sourceIds: [CASTER_ID], longRest: true });
+  await convergeDeferredEffectsHistory();
+  await takeGroupRest({ sourceIds: [CASTER_ID], longRest: true });
+  await convergeDeferredEffectsHistory();
+  assert.deepEqual(await pillNames(), [], "at 0 it ends");
+});
+
 // A spell the plugin does not automate (spellCastRecord.js): the cast spends its slot in its own command and History
 // entry, with no pill, and the production Undo gives the slot back; a cast that spends nothing goes to the combat log.
 const { getActiveCombatLogData } = await import("../src/combatLog.js");

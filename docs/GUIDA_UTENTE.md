@@ -528,10 +528,29 @@ Alcuni li danno da soli:
 Un PG a 0 PF, né stabile né morto, riceve a inizio turno il promemoria **TS contro la morte**, con i successi e i fallimenti accumulati (●●○ / ✕○○). Il popup compare anche sullo schermo del tavolo, ma i pulsanti li ha solo il GM: dopo il tiro del d20 segna **Successo**, **Fallimento**, **1 naturale** (due fallimenti) o **20 naturale** (torna a 1 PF). Ogni tiro è una voce annullabile della Cronologia. Se il GM chiude la sua carta con la × senza registrare, si chiude anche quella sullo schermo del tavolo.
 
 - Tre successi: l'etichetta **Stabile**; i tiri si fermano e il conteggio si azzera.
-- Tre fallimenti: l'etichetta **Morto** prende il posto di Privo di sensi. La toglie il GM.
+- Tre fallimenti: l'etichetta **Morto** prende il posto di Privo di sensi. La toglie il GM, o un incantesimo che riporta in vita.
 - Una cura sopra 0 PF azzera il conteggio e toglie Stabile.
 - Un danno che porta a 0 PF e avanza almeno quanto i PF massimi è morte istantanea.
 - Un danno subito mentre il PG è già a 0 PF conta un fallimento, due se critico; un danno pari ai PF massimi lo uccide; un PG stabile torna a tirare. Vale per la Console effetti manuali, la console attacchi (l'esito **Critico** conta due fallimenti), le azioni boss e le console degli incantesimi. Nella Console effetti manuali, sulla riga di un PG a 0 PF, il pulsante **Crit** segna il colpo critico; l'anteprima mostra «TS morte +1 fallimento».
+
+### Stabilizzare e riportare in vita
+
+Dal pannello incantesimi basta scegliere il bersaglio: nessun TS, nessun valore da inserire. Un Annulla riporta tutto indietro. Per il plugin è morta una creatura con l'etichetta **Morto**, o una creatura che non è un PG a 0 PF.
+
+| Incantesimo | Effetto | Oltre a togliere Morto |
+| --- | --- | --- |
+| **Salvare i morenti** | Un PG a 0 PF diventa **Stabile** e il conteggio dei TS si azzera | Non si usa su un morto |
+| **Rinascita** | Torna a 1 PF | — |
+| **Rianimare morti** | Torna a 1 PF, con **Ritorno dalla morte −4** | Toglie il veleno |
+| **Reincarnazione** | Torna a 1 PF: il testo non indica i PF, regolali tu; il d100 e la nuova razza sulla scheda sono del GM | — |
+| **Resurrezione** | Tutti i PF, con **Ritorno dalla morte −4** | Toglie il veleno |
+| **Resurrezione pura** | Tutti i PF, anche da disintegrato | Toglie veleni, malattie e maledizioni |
+
+Se il bersaglio non è valido (Rinascita su un vivo, Salvare i morenti su un morto, un disintegrato) il pannello dice perché e non applica nulla: lo slot non si spende. Chi torna in vita perde anche **Si rianima come zombi**.
+
+**Ritorno dalla morte** ricorda il −N a tiri per colpire, TS e prove: i dadi si tirano al tavolo, quindi il plugin non lo somma. Ogni riposo lungo di **Riposo del gruppo** lo abbassa di 1, e a 0 l'etichetta sparisce; il riepilogo lo dice. Chi è a 0 PF non ne beneficia. Un mostro non riposa: togli l'etichetta a mano con la ×.
+
+Restano al tavolo i limiti di tempo, il costo dei componenti e l'anima consenziente. Resurrezione pura termina Scagliare maledizione e Sortilegio sul bersaglio; una maledizione scritta come etichetta personalizzata la togli a mano.
 
 ## 6. Condizioni
 

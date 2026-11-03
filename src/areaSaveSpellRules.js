@@ -125,6 +125,13 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "xanathar-flusso-di-energia-negativa",
   "power-word-kill",
   "feeblemind",
+  // CAP-STABILIZE (2014 texts): one creature, dying or dead (stabilizeSpellRules.js).
+  "spare-the-dying",
+  "revivify",
+  "raise-dead",
+  "resurrection",
+  "reincarnate",
+  "true-resurrection",
   // CAP-CLEANSE (2014 texts): one creature, the pills and spells that end on it (cleanseSpellRules.js).
   "heal",
   "phb2014-parola-del-potere-guarire",

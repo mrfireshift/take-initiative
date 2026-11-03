@@ -41,12 +41,12 @@ function creatureKind(context = {}, value = {}) {
   return "other";
 }
 
+// No effectKind: an instantaneous spell leaves no spell pill to show a buff or debuff inside, and the card would hide it.
 function pill(condition, { turns, effectId, detail, deferredEffect = null }) {
   return {
     condition,
     expiry: turns ? { mode: "rounds", remaining: turns } : { mode: "manual" },
     effectId,
-    effectKind: "debuff",
     effectDetail: detail,
     options: { parentEffectId: "" },
     ...(deferredEffect ? { deferredEffect, manualRemoval: true } : {}),

@@ -165,6 +165,13 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
     }),
   }),
   "power-word-kill": Object.freeze({ initialHP: false }),
+  // CAP-STABILIZE: the hit points of a return to life are computed by stabilizeSpellRules.js, never asked.
+  "spare-the-dying": Object.freeze({ initialHP: false }),
+  "revivify": Object.freeze({ initialHP: false }),
+  "raise-dead": Object.freeze({ initialHP: false }),
+  "resurrection": Object.freeze({ initialHP: false }),
+  "reincarnate": Object.freeze({ initialHP: false }),
+  "true-resurrection": Object.freeze({ initialHP: false }),
   // CAP-CLEANSE: the healing of Heal and Power Word Heal is computed by cleanseSpellRules.js, never entered.
   "heal": Object.freeze({ initialHP: false }),
   "phb2014-parola-del-potere-guarire": Object.freeze({ initialHP: false }),

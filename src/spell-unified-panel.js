@@ -292,6 +292,8 @@ const AREA_FEEDBACK_MESSAGES = Object.freeze({
 
 function areaMessageForResult(result) {
   const code = String(result?.errors?.[0]?.code || "").trim();
+  // CAP-STABILIZE: why the spell refuses this creature, in the words of stabilizeSpellRules.js.
+  if (code === "stabilize-target-invalid" && result.errors[0].message) return result.errors[0].message;
   return AREA_FEEDBACK_MESSAGES[code]
     || (result?.status === SPELL_UNIFIED_AREA_STATUS.NOOP
       ? "Nessuna modifica da applicare."

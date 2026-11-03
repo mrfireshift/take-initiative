@@ -2,6 +2,7 @@ import { ID } from "./constants.js";
 import { quickHPStateOf } from "./quickHpCore.js";
 import { isSpellBoardTokenItem } from "./spellBoardTokenTrackerCore.js";
 import { DEATH_SAVE_DEAD_CONDITION } from "./deathSaveCore.js";
+import { returnFromDeathCondition, returnFromDeathPill } from "./stabilizeSpellRules.js";
 
 // Lot U6' of the system UX audit, "Riposo del gruppo": the party's short and long rest in one command (PHB 2014,
 // p. 186). The resources come back as on each character's sheet (classFeatureRuntime.js); on a long rest the HP go to
@@ -45,6 +46,8 @@ export function groupRestMembers(items = []) {
         // PHB 2014, p. 186: a long rest needs at least 1 HP at its start; the dead do not rest at all.
         down: tracked && state.hp <= 0,
         dead: activePills(meta).some((instance) => text(instance.condition) === DEATH_SAVE_DEAD_CONDITION),
+        // CAP-STABILIZE: the return from death of Raise Dead and Resurrection (stabilizeSpellRules.js).
+        returnPill: returnFromDeathPill(meta),
       };
     })
     .sort((left, right) => left.name.localeCompare(right.name, "it"));
@@ -76,6 +79,21 @@ export function planGroupRestHpWrites({ members = [], longRest = false, recovere
   return updates;
 }
 
+// CAP-STABILIZE: each long rest takes 1 from the return from death's penalty, in the rest's own command: the pill makes
+// way for one with the new value, none at 0. Nothing for a member the rest does not benefit.
+export function planGroupRestReturnFromDeath({ members = [], longRest = false } = {}) {
+  if (!longRest) return [];
+  return (Array.isArray(members) ? members : []).flatMap((member) => {
+    const pill = member?.returnPill;
+    if (!pill || !groupRestBenefits(member, longRest)) return [];
+    const next = integer(pill.mechanics?.returnFromDeathPenalty) - 1;
+    return [
+      { type: "condition:remove-instances", removals: [{ itemId: member.id, instanceId: text(pill.id) }] },
+      ...(next > 0 ? [{ type: "condition:add", targetIds: [member.id], ...returnFromDeathCondition(next) }] : []),
+    ];
+  });
+}
+
 // Whether the member gains anything from this rest: not the dead, and on a long rest not one at 0 HP.
 export function groupRestBenefits(member, longRest = false) {
   return !member?.dead && !(longRest && member?.down);
@@ -88,6 +106,10 @@ export function groupRestMemberSummary(member, update, { resourcesRestored = fal
   const parts = [];
   if (update && update.hp !== integer(member?.hp)) parts.push(`PF ${integer(member?.hp)} → ${update.hp}`);
   if (update && integer(member?.tempHp) > 0 && update.tempHp === 0) parts.push("PF temporanei tolti");
+  if (longRest && member?.returnPill) {
+    const next = integer(member.returnPill.mechanics?.returnFromDeathPenalty) - 1;
+    parts.push(next > 0 ? `ritorno dalla morte −${next}` : "ritorno dalla morte finito");
+  }
   if (resourcesRestored) parts.push("risorse ripristinate");
   if (member?.sharedHp) parts.push("PF condivisi: da aggiornare a mano");
   return parts.length ? parts.join(" · ") : "nulla da ripristinare";

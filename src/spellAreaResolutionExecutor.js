@@ -5,6 +5,7 @@ import { buildSharedHpPreview, sharedHpIntents, sharedHpCommittedUpdates, shared
 import { resolveSharedHpGroup, sharedHpScopeIds } from "./sharedHpCore.js";
 import { ID } from "./constants.js";
 import {
+  DEATH_SAVE_STABLE_CONDITION,
   DEATH_SAVES_FIELD,
   deathSaveConditionOperation,
   planDeathSaveHpChange,
@@ -64,6 +65,7 @@ import {
   planHpBranchBeforeDamage,
 } from "./hpBranchSpellRules.js";
 import { spellUndeadTemporaryHpAmount } from "./spellTemporaryHpRules.js";
+import { planStabilizeTarget, returnFromDeathCondition, STABILIZE_SPELL_ID_SET } from "./stabilizeSpellRules.js";
 import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import {
   getSpellSaveWorkflowRule,
@@ -646,6 +648,45 @@ function planAreaCleanse({ spell, command, liveItems, targetContexts = {} }) {
     subjectIds: uniqueIds(subjectIds),
     notes,
   };
+}
+
+// CAP-STABILIZE (stabilizeSpellRules.js): the cast on each creature, read from the live items. errors refuses it; a
+// creature whose HP do not change but whose death saves empty (Spare the Dying) goes in tallies.
+function planAreaStabilize({ spell, liveItems }) {
+  const plans = liveItems.map((item) => ({ item, plan: planStabilizeTarget({ spellId: spell.id, item }) }));
+  const removals = plans.flatMap(({ item, plan }) => plan.removeInstanceIds.map((instanceId) => ({ itemId: item.id, instanceId })));
+  return {
+    errors: plans.filter(({ plan }) => plan.error)
+      .map(({ plan }) => ({ code: "stabilize-target-invalid", message: plan.error })),
+    operations: [
+      ...plans.filter(({ plan }) => plan.stabilize)
+        .map(({ item }) => deathSaveConditionOperation(item.id, DEATH_SAVE_STABLE_CONDITION)),
+      ...(removals.length ? [{ type: "condition:remove-instances", removals }] : []),
+      ...plans.flatMap(({ item, plan }) => (plan.endSpells || [])
+        .map((ended) => ({ type: "spell:remove-requested", targetIds: [item.id], instanceId: ended.instanceId }))),
+      ...plans.filter(({ plan }) => plan.returnPenalty > 0).map(({ item, plan }) => (
+        { type: "condition:add", targetIds: [item.id], ...returnFromDeathCondition(plan.returnPenalty) })),
+    ],
+    heals: plans.filter(({ plan }) => plan.healing > 0).map(({ item, plan }) => ({ item, amount: plan.healing })),
+    tallies: plans.filter(({ plan }) => plan.clearTally).map(({ item }) => item),
+    subjectIds: uniqueIds([
+      ...plans.filter(({ plan }) => plan.stabilize || plan.removeInstanceIds.length || plan.endSpells?.length || plan.returnPenalty > 0)
+        .map(({ item }) => item.id),
+      ...plans.flatMap(({ plan }) => (plan.endSpells || []).map((ended) => ended.casterId)),
+    ]),
+    notes: plans.map(({ plan }) => plan.note).filter(Boolean),
+  };
+}
+
+// The death saves emptied without an HP change: the command's own HP write takes them with the same HP.
+function applyStabilizeTallies(entries, items = []) {
+  for (const item of items) {
+    if (!trackedHP(item) || entries.some((entry) => entry.item?.id === item.id)) continue;
+    const meta = itemMeta(item);
+    const change = calculateQuickHPChange({ mode: QUICK_HP_MODES.HEAL, value: 0, factor: QUICK_HP_FACTORS.FULL,
+      hp: meta.hp, hpMax: meta.hpMax, tempHp: meta.tempHp });
+    entries.push({ item, change: { ...change, deathSaves: { mode: "delete" } }, outcome: SAVE_SPELL_OUTCOMES.FAILED });
+  }
 }
 
 // The healing of Heal and Power Word Heal: an HP write of the area command, temporary hit points untouched.
@@ -1495,6 +1536,10 @@ async function buildPlan(command, runtime) {
   const cleanse = !trigger && CLEANSE_SPELL_ID_SET.has(spell.id)
     ? planAreaCleanse({ spell, command, liveItems, targetContexts })
     : null;
+  const stabilize = !trigger && STABILIZE_SPELL_ID_SET.has(spell.id)
+    ? planAreaStabilize({ spell, liveItems })
+    : null;
+  if (stabilize?.errors.length) return { valid: false, errors: stabilize.errors };
   if ((mobileAura || boardToken) && casterId) {
     resolved.spellTargetIds = boardToken && placementRule?.boardToken?.spellOwner === "caster"
       ? [casterId]
@@ -2032,6 +2077,12 @@ async function buildPlan(command, runtime) {
     effectOperations.push(...cleanse.operations);
     effectSubjectIds.push(...cleanse.subjectIds);
   }
+  if (stabilize) {
+    applyCleanseHeals(entries, stabilize.heals);
+    applyStabilizeTallies(entries, stabilize.tallies);
+    effectOperations.push(...stabilize.operations);
+    effectSubjectIds.push(...stabilize.subjectIds);
+  }
   const casterHealingRatio = Number(getSpellCastResolutionRule(spell.id)?.casterHealingFromAppliedDamage) || 0;
   const damagePreview = casterHealingRatio > 0 ? buildSharedHpPreview(allItems, entries, command.sharedHp || {}) : null;
   if (damagePreview?.conflicts.length) return { valid: false,
@@ -2222,6 +2273,7 @@ async function buildPlan(command, runtime) {
     reactionRecords: reactionHp.records,
     notes: [
       ...(cleanse?.notes || []),
+      ...(stabilize?.notes || []),
       ...(zoneResource?.note ? [zoneResource.note] : []),
       ...reactionHp.notes,
       // Every target of the darts, those Shield protects included (no HP change, so no entry).

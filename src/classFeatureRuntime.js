@@ -49,7 +49,7 @@ import {
 import { emitMatchedClassFeatureVisual } from "./embersMatchedVisualRenderer.js";
 import { spellSlotPoolId, spellSlotStatus } from "./spellSlotCore.js";
 import { quickActionResourcePools } from "./quickActionsCore.js";
-import { groupRestBenefits, groupRestMembers, planGroupRestHpWrites } from "./groupRestCore.js";
+import { groupRestBenefits, groupRestMembers, planGroupRestHpWrites, planGroupRestReturnFromDeath } from "./groupRestCore.js";
 import { spellbookPreparation } from "./spellbookCatalog.js";
 import { getHistoryEntries } from "./history.js";
 import { planSpeciesHpTrait, SPECIES_HP_TRAIT_KINDS, speciesHpTraitAmount, speciesLastDamageTaken } from "./speciesHpTraitCore.js";
@@ -2139,6 +2139,7 @@ export async function takeGroupRest({ sourceIds = [], longRest = false, recovere
     ...resourceOperations,
     // damageEnds: false as well: the temporary hit points a long rest takes away end no condition (hpWriteIsRest).
     ...(hpUpdates.length ? [{ type: "hp:set", damageEnds: false, updates: hpUpdates }] : []),
+    ...planGroupRestReturnFromDeath({ members, longRest }),
   ];
   const label = `${longRest ? "Riposo lungo" : "Riposo breve"} del gruppo · ${members.length} PG`;
   if (!operations.length) return { historyEntryId: "", members, hpUpdates, restoredIds: [], preparingIds, label };

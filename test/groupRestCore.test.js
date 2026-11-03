@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { groupRestMemberSummary, groupRestMembers, planGroupRestHpWrites } from "../src/groupRestCore.js";
+import { groupRestMemberSummary, groupRestMembers, planGroupRestHpWrites, planGroupRestReturnFromDeath } from "../src/groupRestCore.js";
 
 // Lot U6' of the system UX audit: "Riposo del gruppo", the party's short and long rest in one command.
 const META_KEY = "com.thebigpicture.initiative/meta";
@@ -75,6 +75,31 @@ test("U6': a 0 PF il riposo lungo non dà benefici (PHB 2014); un morto non ripo
   // A short rest still gives the HP its Hit Dice recover to one at 0 HP, never to the dead.
   const short = planGroupRestHpWrites({ members, longRest: false, recovered: { brann: 6, dead: 6 } });
   assert.deepEqual(short.map((update) => [update.itemId, update.hp]), [["brann", 6]]);
+});
+
+const returning = (id, penalty, extra = {}) => token(id, id, { attitude: "pc", hp: 20, hpMax: 40, conditions: { version: 2, instances: [
+  { id: `${id}-return`, condition: `Ritorno dalla morte −${penalty}`, active: true, effectId: "return-from-death", mechanics: { returnFromDeathPenalty: penalty } },
+  ...(extra.pills || [])] }, ...(extra.hp !== undefined ? { hp: extra.hp } : {}) });
+
+test("CAP-STABILIZE: ogni riposo lungo toglie 1 al ritorno dalla morte, a 0 la pill finisce; il riposo breve no", () => {
+  const members = groupRestMembers([returning("aria", 4), returning("omar", 1), token("sera", "sera", { attitude: "pc", hp: 20, hpMax: 40 })]);
+  const operations = planGroupRestReturnFromDeath({ members, longRest: true });
+  assert.deepEqual(operations.filter((op) => op.type === "condition:remove-instances").map((op) => op.removals[0].instanceId), ["aria-return", "omar-return"]);
+  const added = operations.filter((op) => op.type === "condition:add");
+  assert.deepEqual(added.map((op) => [op.targetIds[0], op.conditionName, op.options.mechanics.returnFromDeathPenalty]), [["aria", "Ritorno dalla morte −3", 3]], "omar's ends");
+  assert.deepEqual(planGroupRestReturnFromDeath({ members, longRest: false }), []);
+});
+
+test("CAP-STABILIZE: chi è a 0 PF o morto non abbassa la penalità; il riepilogo la dice", () => {
+  const [down] = groupRestMembers([returning("aria", 3, { hp: 0 })]);
+  assert.deepEqual(planGroupRestReturnFromDeath({ members: [down], longRest: true }), []);
+  const [dead] = groupRestMembers([returning("omar", 3, { hp: 0, pills: [{ id: "x", condition: "Morto", active: true }] })]);
+  assert.deepEqual(planGroupRestReturnFromDeath({ members: [dead], longRest: true }), []);
+  const [aria] = groupRestMembers([returning("aria", 3)]);
+  assert.match(groupRestMemberSummary(aria, null, { longRest: true }), /ritorno dalla morte −2/u);
+  const [omar] = groupRestMembers([returning("omar", 1)]);
+  assert.match(groupRestMemberSummary(omar, null, { longRest: true }), /ritorno dalla morte finito/u);
+  assert.doesNotMatch(groupRestMemberSummary(aria, null, { longRest: false }), /ritorno/u);
 });
 
 test("U6': il riepilogo dice cosa è cambiato", () => {
