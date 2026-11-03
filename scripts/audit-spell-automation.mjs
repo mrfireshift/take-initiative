@@ -745,6 +745,7 @@ function syntheticSession(contract) {
     hpValues: {
       damage: inputs.damage?.required ? 12 : null,
       healing: inputs.healing?.required ? 12 : null,
+      ...(inputs.temporaryHp?.required ? { temporaryHp: 1 } : {}),
     },
     requestedConcentration: contract?.presentation?.concentration?.required === true,
     phase: contract?.presentation?.phase?.selected,

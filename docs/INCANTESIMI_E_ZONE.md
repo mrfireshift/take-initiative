@@ -203,6 +203,18 @@ invece di 0 e annulla le morti senza danni; `mechanics.wardingBond` (Vincolo
 di interdizione) aggiunge il danno del protetto al caster nella stessa
 scrittura. Le etichette consumate si tolgono nello stesso comando.
 
+CAP-TEMP tiene i PF temporanei in `meta.tempHp`, accanto a `meta.hp` che non
+supera mai `meta.hpMax` (`quickHPStateOf`, `calculateQuickHPChange` in
+`src/quickHpCore.js`). `meta.tempHpSource` è l'id della pill che li ha dati: il
+coordinatore prende quelli rimasti quando la pill termina, e chiude la pill con
+`mechanics.endsWhenTempHpGone` (Armatura di Agathys) quando finiscono. Le regole
+al lancio sono in `src/spellTemporaryHpRules.js` (`buildCastTemporaryHpMutation`
+scrive PF e pill nello stesso comando). Un promemoria può offrirli con il popup
+di una cura (`resolutionData.temporaryHp`): Santuario del crepuscolo a fine turno
+ed Eroismo a inizio turno, con `saveReminder.temporaryHp` che propone il
+modificatore del caster e la pill come fonte. Flusso di Energia Negativa usa
+l'esito `immune`, sul pulsante «Non morto», per dare metà del tiro in `hpEntries`.
+
 Gli avvisi di concentrazione della console ad area partono dopo il commit
 (`defaultConcentrationWarnings`), con la voce della Cronologia come causa:
 prima il gancio `onConcentrationWarnings` era vuoto e i danni del pannello non

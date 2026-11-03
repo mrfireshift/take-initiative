@@ -499,6 +499,30 @@ I bersagli selezionati salgono in cima alla lista. L'applicazione è atomica: un
 
 Se il GM ha i pulsanti **Superato** / **Fallito** sull'avviso di concentrazione, la × in alto lo chiude senza registrare il tiro: la concentrazione resta com'è.
 
+### PF temporanei
+
+I PF temporanei stanno accanto ai PF: si vedono come **+N** azzurro su card, console e numero sotto il token, e come un tratto azzurro dentro le barre, proporzionale al totale. Una creatura ferita che li riceve non viene curata.
+
+- **Non si sommano**: se ne riceve altri resta il valore più alto.
+- **Il danno li consuma per primi**; quello che avanza arriva ai PF. Le cure non li toccano.
+- **Il riposo lungo li toglie.** Con **Riposo del gruppo** il riepilogo lo dice.
+- **I giocatori** li vedono solo sulle creature di cui vedono i PF esatti.
+- **Il registro di combattimento** dice cosa è successo: aggiunti, alzati, assorbiti dal danno, tolti o scaduti.
+
+Per darli a mano ci sono due strade:
+
+- **Sulla card**: clic sui PF, poi tasto **T** o clic sul campo dei temporanei. `8` li imposta, `+3` ne aggiunge, `-3` ne toglie, `0` li toglie tutti. Il campo è fuori dal giro del Tab, che continua a passare da una creatura all'altra. Un `-5` scritto nel campo dei PF consuma prima i temporanei, come un danno.
+- **Nella Console effetti manuali**: scheda **PF temp.**, per più bersagli insieme.
+
+Alcuni li danno da soli:
+
+- **Vita falsata**: il pannello chiede l'1d4 tirato e aggiunge il resto. I temporanei rimasti spariscono quando finisce l'incantesimo.
+- **Armatura di Agathys**: 5 per livello di slot. Finché restano, le console attacchi e Boss propongono **Applica N** dopo un colpo in mischia, per i danni da freddo all'attaccante: applicali prima di confermare il colpo. Quando i temporanei finiscono, l'etichetta sparisce.
+- **Trasformazione di Tenser**: 50, che restano anche dopo la fine dell'incantesimo.
+- **Eroismo**: immunità a Spaventato e, a inizio di ogni turno del bersaglio, un promemoria con il modificatore da incantatore già inserito (si ricava da CD e livello della scheda di chi lancia; se mancano, lo scrivi tu). Premi **Applica PF temporanei** o **Ignora**. Quelli rimasti spariscono alla fine della concentrazione. Uno Spaventato già presente al lancio lo togli a mano.
+- **Flusso di Energia Negativa**: per un non morto premi **Non morto** al posto dell'esito del TS, e inserisci il tiro di 5d12: riceve metà del tiro come temporanei, senza danni. Il tipo di creatura lo indichi sempre tu. Chi viene ucciso riceve l'etichetta **Si rianima come zombi**, con il promemoria al prossimo turno di chi ha lanciato; il token dello zombi lo aggiungi tu.
+- **Capacità di classe**: Entità Simbiotica, Tomba di Levistus, Chiamata alla caccia, Totem spirituale (Orso), Aura tempestosa (Tundra, all'attivazione; nei turni dopo dalla Console effetti manuali) e Impeto selvaggio (Viti Oscure, che chiede l'1d12 tirato) li danno all'attivazione. Santuario del crepuscolo offre **Applica PF temporanei** nel promemoria di fine turno. Questi temporanei non scadono da soli con la capacità: se serve, togli i rimasti dalla card.
+
 ### TS contro la morte
 
 Un PG a 0 PF, né stabile né morto, riceve a inizio turno il promemoria **TS contro la morte**, con i successi e i fallimenti accumulati (●●○ / ✕○○). Il popup compare anche sullo schermo del tavolo, ma i pulsanti li ha solo il GM: dopo il tiro del d20 segna **Successo**, **Fallimento**, **1 naturale** (due fallimenti) o **20 naturale** (torna a 1 PF). Ogni tiro è una voce annullabile della Cronologia. Se il GM chiude la sua carta con la × senza registrare, si chiude anche quella sullo schermo del tavolo.

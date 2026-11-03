@@ -644,9 +644,9 @@ da questo audit.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **477**; disconnessi: **0**; fragili: **0**.
 - Opzioni trackable del runtime: **362**; definizioni con tracking persistente verificate dall'audit: **359**; definizioni con regole d'area: **139** (144 regole).
-- Workflow che richiedono smoke test runtime: **407**.
+- Workflow che richiedono smoke test runtime: **408**.
 - Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `fdad20ee0c26287e`.
+- Impronta deterministica: `1aab3f756324f060`.
 
 ## Decisioni di prodotto chiuse
 
@@ -659,9 +659,9 @@ da questo audit.
 | Stato | Totale |
 | --- | ---: |
 | FULL | 66 |
-| MANUAL | 66 |
-| PARTIAL | 226 |
-| TRACK_ONLY | 119 |
+| MANUAL | 65 |
+| PARTIAL | 229 |
+| TRACK_ONLY | 117 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -702,11 +702,11 @@ da questo audit.
 | --- | ---: |
 | ACTIVE_ACTION | 49 |
 | AREA_GEOMETRY | 139 |
-| CAST | 261 |
+| CAST | 264 |
 | CLEANUP | 116 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 359 |
-| TURN_TRIGGER | 97 |
+| TURN_TRIGGER | 98 |
 
 ### Stato di integrazione console unificata
 
@@ -887,7 +887,7 @@ Nessuna voce.
 | Dominare persona | `dominate-person` | SRD 5.1 / 5 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Drago Illusorio | `xanathar-drago-illusorio` | Xanathar / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Duello Obbligato | `phb2014-duello-obbligato` | PHB 2014 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Eroismo | `heroism` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Eroismo | `heroism` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Eruzione Terrestre | `xanathar-eruzione-terrestre` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Esilio | `banishment` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Esplosione solare | `sunburst` | SRD 5.1 / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -924,7 +924,7 @@ Nessuna voce.
 | Fiamma perenne | `continual-flame` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fiamma sacra | `sacred-flame` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fiotto acido | `acid-splash` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Flusso di Energia Negativa | `xanathar-flusso-di-energia-negativa` | Xanathar / 5 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Flusso di Energia Negativa | `xanathar-flusso-di-energia-negativa` | Xanathar / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Folata | `xanathar-folata` | Xanathar / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Folata di vento | `gust-of-wind` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Fondersi nella pietra | `meld-into-stone` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -1233,7 +1233,7 @@ Nessuna voce.
 | Vincolo della Terra | `xanathar-vincolo-della-terra` | Xanathar / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Vincolo di interdizione | `warding-bond` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Visione del vero | `true-seeing` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Vita falsata | `false-life` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Vita falsata | `false-life` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Volare | `fly` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Vuoto mentale | `mind-blank` | SRD 5.1 / 8 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Zona di verità | `zone-of-truth` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

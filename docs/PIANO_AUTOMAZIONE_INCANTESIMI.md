@@ -12,7 +12,7 @@ li aggiorna con il lavoro di ottobre e risponde a due domande:
 
 La seconda è risolta (sezione 2). La prima è un piano a lotti: i lotti L1–L4
 sono fatti (sezioni 5.1 e 5.2), L5+ procede una capacità per volta (sezione 5.3,
-CAP-LINK, CAP-HP-BRANCH, CAP-CLEANSE, CAP-RESOURCE e CAP-REACTION fatte). Chi lavora a
+CAP-LINK, CAP-HP-BRANCH, CAP-CLEANSE, CAP-RESOURCE, CAP-REACTION e CAP-TEMP fatte). Chi lavora a
 un lotto parte dalle note pratiche della sezione 8.
 
 Il perimetro è quello di sempre: un **tracker assistito**. Dadi, linea di
@@ -24,19 +24,19 @@ conferma.
 
 | Categoria | Incantesimi | Che cosa fa oggi il plugin |
 | --- | ---: | --- |
-| Automatizzati | 274 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
+| Automatizzati | 279 | Lancio e risoluzione assistiti: pannello, console ad area o console attacchi. |
 | Tracciati, nessuna automazione utile | 112 | Pill con durata e concentrazione; informazioni, evocazioni e ambiente al tavolo. |
 | Solo registrazione, nessuna automazione utile | 32 | Istantanei di utilità: lo slot e il registro di combattimento. |
 | **Pronti: bastano i dati** | **0** | Si lanciano e registrano; l'automazione richiede soltanto dati e test. |
-| **Dopo una capacità condivisa** | **46** | Si lanciano e registrano; serve prima una capacità del motore. |
+| **Dopo una capacità condivisa** | **41** | Si lanciano e registrano; serve prima una capacità del motore. |
 | Su misura | 11 | Si lanciano e registrano; lo stato è troppo specifico per un'automazione generica. |
 | Da verificare | 2 | Testo o perimetro delle regole mancanti. |
 | **Totale** | **477** | **Tutti lanciabili dal libro, dalle azioni rapide e dal pannello, con il loro slot.** |
 
-Il lavoro di automazione residuo è di **57 incantesimi** (46 + 11) più i 2 da
+Il lavoro di automazione residuo è di **52 incantesimi** (41 + 11) più i 2 da
 verificare, contro i 152 di settembre: nel frattempo la console attacchi ha
 chiuso 17 trucchetti, Prigione Mentale è stata completata, i lotti L1–L4
-hanno chiuso altri 50 incantesimi, CAP-LINK altri 8, CAP-HP-BRANCH altri 5, CAP-CLEANSE altri 4, CAP-RESOURCE altri 4 e CAP-REACTION altri 6.
+hanno chiuso altri 50 incantesimi, CAP-LINK altri 8, CAP-HP-BRANCH altri 5, CAP-CLEANSE altri 4, CAP-RESOURCE altri 4, CAP-REACTION altri 6 e CAP-TEMP altri 5.
 
 Ordine consigliato, dal più sicuro al più costoso:
 
@@ -46,7 +46,7 @@ Ordine consigliato, dal più sicuro al più costoso:
 | L2 ✓ | 14 | Cure, TS con danno, condizioni che finiscono al danno, TS ripetuti (fatto il 22 ottobre) | Sì, dal comando ad area esistente |
 | L3 ✓ | 12 | Zone e aree persistenti, due azioni ad area ripetibili (fatto il 22 ottobre) | Sì, dai percorsi di zona e azioni attive esistenti |
 | L4 ✓ | 7 | Incantesimi d'attacco nella console attacchi, con il loro slot (fatto il 22 ottobre) | Sì, dalla console attacchi; Tocco del vampiro cura il caster |
-| L5+ | 46 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre, CAP-HP-BRANCH e CAP-CLEANSE il 23, CAP-RESOURCE e il lotto 1 di CAP-REACTION il 28, il lotto 2 il 31 | Spesso |
+| L5+ | 41 | Una capacità condivisa per volta (sezione 5.3); CAP-LINK fatta il 22 ottobre, CAP-HP-BRANCH e CAP-CLEANSE il 23, CAP-RESOURCE e il lotto 1 di CAP-REACTION il 28, il lotto 2 il 31, CAP-TEMP tra il 31 ottobre e il 3 novembre | Spesso |
 
 ## 2. Registrare il lancio di qualunque incantesimo (fatto)
 
@@ -304,7 +304,7 @@ Una capacità per volta, con i suoi test di contratto, poi la famiglia.
 | CAP-CLEANSE ✓ (4 di 6) | 6 (4) | Scegliere e terminare effetti attivi: Ristorare inferiore, Dissolvi magie, Guarigione, Parola del potere guarire fatti; restano Dissolvi il bene e il male (lotto a parte, con la console attacchi) e Guarigione di massa (CAP-ALLOCATION) | Medio |
 | CAP-RESOURCE ✓ (4 di 5) | 5 (4) | Contatore consumato: Bacche benefiche, Guardiano della fede, Immagine speculare, Cordone di frecce, tutti fatti; Minuscole meteore aspetta CAP-MULTIAREA | Medio |
 | CAP-REACTION ✓ | 6 (6) | Reazione assistita al danno o all'attacco: Scudo di fuoco, Santuario, Interdizione primordiale, Ombra di Moil, Interdizione alla morte, Vincolo di interdizione, tutti fatti | Alto: HP |
-| CAP-TEMP | 5 (5) | PF temporanei consumati dal danno: Vita falsata, Eroismo, Armatura di Agathys, Trasformazione di Tenser, Flusso di energia negativa | Alto: HP |
+| CAP-TEMP ✓ | 5 (5) | PF temporanei consumati dal danno: Vita falsata, Eroismo, Armatura di Agathys, Trasformazione di Tenser, Flusso di energia negativa, tutti fatti | Alto: HP |
 | CAP-MAXHP | 4 (4) | PF massimi reversibili: Aiuto, Banchetto degli eroi, Ferire, Ristorare superiore | Alto: HP e barre |
 | CAP-TERRAIN | 6 (6) | Modalità e sottozone di terreno: Crescita vegetale, Parlare con i vegetali, Simbolo, Boschetto druidico, Muro d'acqua, Trasmutare roccia | Medio |
 | CAP-STABILIZE (+ CAP-CALENDAR) | 6 (2) | Stabilizzare, riportare a 1 PF, penalità che scendono ai riposi: Salvare i morenti, Rinascita, Rianimare morti, Reincarnazione, Resurrezione, Resurrezione pura | Alto: HP |
@@ -484,11 +484,55 @@ scrittura propria della console ad area. Le regole sono in
 Test: `test/reactionHpIntegration.test.js` (coordinatore, esecutore e
 Cronologia veri, con Annulla).
 
+**CAP-TEMP, fatta tra il 31 ottobre e il 3 novembre.** I PF temporanei in un
+campo proprio, `meta.tempHp`, approvato dal proprietario del progetto: `meta.hp`
+resta entro `meta.hpMax`, così una creatura ferita che li riceve non viene
+curata. Il vecchio formato (`hp` sopra `hpMax`) si legge come massimo più
+temporanei e migra alla prima scrittura (`quickHPStateOf` in
+`src/quickHpCore.js`).
+
+- Il modello: non si sommano, resta il più alto; il danno li consuma per primi;
+  il danno che resta arriva ai PF, con i TS contro la morte e l'avviso di
+  concentrazione calcolati su di lui. `meta.tempHpSource` è l'id della pill che
+  li ha dati: quando la pill termina, nello stesso comando, si porta via quelli
+  rimasti (coordinatore in `src/effectsMutations.js`). `src/hpMemory.js` non li
+  salva e il riposo lungo li toglie.
+- Dove si vedono: «+N» azzurro su card, editor, console e mappa, un tratto dentro
+  le barre proporzionale al totale (`quickHPBarSegments`), le parole del registro
+  di combattimento (aggiunti, alzati, assorbiti, tolti, persi, scaduti, dal
+  record `payload.tempHp` della Cronologia). I giocatori li vedono solo con i PF
+  esatti.
+- Vita falsata (l'1d4 tirato, dal pannello), Armatura di Agathys (la pill termina
+  quando finiscono, ritorsione nelle console) e Trasformazione di Tenser (senza
+  fonte: restano dopo la fine) al lancio, in `src/spellTemporaryHpRules.js`.
+- Eroismo: un promemoria a inizio turno, non automatico; il valore proposto viene
+  dalla scheda del caster (CD - 8 - competenza, `spellcastingModifierFromProfile`),
+  e senza livello il campo resta vuoto.
+- Flusso di Energia Negativa: il terzo esito del pannello si chiama «Non morto»
+  (`immune` nel comando) e dà metà del tiro; lo zombi è un promemoria, nel ramo di
+  `src/hpBranchSpellRules.js`. Nessuna parte del plugin scrive `meta.creatureType`:
+  il tipo lo indica sempre il GM. Scriverlo all'import dei mostri da 5eTools
+  servirebbe anche a Guarigione e agli altri controlli sul tipo.
+- Sei capacità di classe li danno da sole (`temporaryHp` in
+  `data/class-features/runtime-feature-overrides.json`): Entità Simbiotica, Tomba di
+  Levistus, Totem spirituale (Orso), Aura tempestosa (Tundra, solo all'attivazione),
+  Impeto selvaggio e Santuario del crepuscolo, che usa un promemoria a fine turno.
+  Non hanno fonte: non scadono con la pill.
+- Scartato dal proprietario: il divieto di cure e temporanei del Gelo di Auril, che
+  sarebbe una funzione per un solo mostro.
+
+Test: `test/tempHpIntegration.test.js` (coordinatore, esecutore e Cronologia veri,
+con Annulla), `test/spellTemporaryHp.test.js`, `test/tempHpPresentation.test.js`,
+`test/classFeatureTemporaryHp.test.js`, `test/hpBarTempHp.test.js` e, per il Flusso,
+`test/hpBranchSpells.test.js`. Le barre e il testo sulla mappa non si montano nel
+banco: restano da provare in una stanza vera.
+
 L'ordine consigliato resta quello dell'audit (LINK, HP-BRANCH, CLEANSE,
 RESOURCE), con CAP-ATTACK sostituita dalla console attacchi (L4). Le capacità
 che toccano gli HP (HP-BRANCH, REACTION, TEMP, MAXHP, STABILIZE) vanno
 progettate con `src/hpMemory.js`, le barre HP sulla mappa e i PF condivisi:
-mai campi HP alternativi a `meta.hp` e `meta.hpMax`.
+mai campi HP alternativi a `meta.hp` e `meta.hpMax`, salvo i temporanei in
+`meta.tempHp`, decisi con CAP-TEMP.
 
 ### 5.4 Su misura
 
@@ -677,16 +721,13 @@ lotto. Gli incantesimi senza lavoro residuo sono elencati per livello.
 
 Nessuno: i lotti L1–L3 li hanno chiusi tutti il 22 ottobre.
 
-### Dopo una capacità condivisa (46)
+### Dopo una capacità condivisa (41)
 
 Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi la famiglia si completa con i dati.
 
 | Incantesimo | Liv. | Come automatizzarlo | Lotto |
 | --- | --- | --- | --- |
 | Salvare i morenti (`spare-the-dying`) | T | CAP-STABILIZE: stabilizzare o riportare a 1 PF. | L5+ |
-| Armatura di Agathys (`phb2014-armatura-di-agathys`) | 1° | CAP-TEMP: PF temporanei consumati dal danno. | L5+ |
-| Eroismo (`heroism`) | 1° | CAP-TEMP: PF temporanei consumati dal danno. | L5+ |
-| Vita falsata (`false-life`) | 1° | CAP-TEMP: PF temporanei consumati dal danno. | L5+ |
 | Aiuto (`aid`) | 2° | CAP-MAXHP: modificatore reversibile dei PF massimi. | L5+ |
 | Alterare sé stesso (`alter-self`) | 2° | CAP-MODE: cambio esclusivo di modalità. | L5+ |
 | Calmare emozioni (`calm-emotions`) | 2° | CAP-SUPPRESSION: sospendere condizioni senza toglierle. | L5+ |
@@ -705,7 +746,6 @@ Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi l
 | Colpo del Vento d'Acciaio (`xanathar-colpo-del-vento-dacciaio`) | 5° | Console attacchi (5 attacchi) + teletrasporto finale (CAP-TELEPORT). | L5+ |
 | Costrizione (`geas`) | 5° | CAP-CALENDAR: limiti per giorno o riposo. | L5+ |
 | Dissolvi il bene e il male (`dispel-evil-and-good`) | 5° | CAP-CLEANSE: scegliere un effetto attivo e terminarlo. | L5+ |
-| Flusso di Energia Negativa (`xanathar-flusso-di-energia-negativa`) | 5° | CAP-TEMP: PF temporanei consumati dal danno. | L5+ |
 | Muro di pietra (`wall-of-stone`) | 5° | CAP-STRUCTURE: segmenti con PF, distruzione e residui. | L5+ |
 | Passo Remoto (`xanathar-passo-remoto`) | 5° | CAP-TELEPORT: teletrasporto ripetibile da un parent. | L5+ |
 | Reincarnazione (`reincarnate`) | 5° | CAP-STABILIZE + CAP-CALENDAR: ritorno in vita e penalità ai riposi. | L5+ |
@@ -719,7 +759,6 @@ Serve prima una capacità condivisa del motore (sigla CAP-…, sezione 5); poi l
 | Ossa della Terra (`xanathar-ossa-della-terra`) | 6° | CAP-STRUCTURE: segmenti con PF, distruzione e residui. | L5+ |
 | Portale Arcano (`phb2014-portale-arcano`) | 6° | CAP-TELEPORT: coppia di portali con attraversamento. | L5+ |
 | Sfera congelante (`freezing-sphere`) | 6° | CAP-ORIGIN: globo conservato e detonazione differita. | L5+ |
-| Trasformazione di Tenser (`xanathar-trasformazione-di-tenser`) | 6° | CAP-TEMP: PF temporanei consumati dal danno. | L5+ |
 | Resurrezione (`resurrection`) | 7° | CAP-STABILIZE + CAP-CALENDAR: ritorno in vita e penalità ai riposi. | L5+ |
 | Rigenerazione (`regenerate`) | 7° | CAP-REPEAT-HEAL: cura ripetuta a ogni turno. | L5+ |
 | Simbolo (`symbol`) | 7° | CAP-TERRAIN: modalità e sottozone di terreno. | L5+ |
@@ -757,17 +796,17 @@ Mancano testo o perimetro delle regole.
 | Manto del Crociato (`legacy-crusaders-mantle`) | 3° | Regole da verificare prima di decidere. | — |
 | Imprigionare (`imprisonment`) | 9° | Regole da verificare prima di decidere. | — |
 
-### Automatizzati (274)
+### Automatizzati (279)
 
 Lancio e risoluzione assistiti dal pannello, dalla console ad area o dalla console attacchi.
 
 - **Trucchetti**: Amicizia, Beffa crudele, Colpo accurato, Creare Falò, Dardo di fuoco, Deflagrazione occulta, Ferocia Primordiale, Fiamma sacra, Fiotto acido, Frusta di Spine, Guida, Infestazione, Interdizione alle Lame, Lama Roboante, Lama Verdefiamma, Lenza Elettrizzante, Morsa del Gelo, Parola Radiosa, Produrre fiamma, Raggio di gelo, Resistenza, Rintocco dei Morti, Rombo di Tuono, Scheggia della Mente, Spruzzo velenoso, Stretta folgorante, Tocco gelido, Turbine di Spade.
-- **1° livello**: Amicizia con gli animali, Anatema, Armatura magica, Assorbire Elementi (reazione), Bacche benefiche, Benedizione, Braccia di Hadar, Catapulta, Cerimonia (R), Charme su persone, Colpo dello Zefiro, Colpo Intrappolante, Coltello di Ghiaccio, Comando, Cura ferite, Dardo di Caos, Dardo incantato, Dardo Stregato, Dardo tracciante, Duello Obbligato, Favore divino, Globo Cromatico, Incuti Paura, Infliggi ferite, Intimorire infernale (reazione), Intralciare, Legame con le Bestie, Luminescenza, Mani brucianti, Marchio del cacciatore, Miscela Caustica di Tasha, Nube di nebbia, Onda tonante, Parola guaritrice, Passo veloce, Protezione dal bene e dal male, Punizione Collerica, Punizione Incandescente, Punizione Tonante, Raffica di Spine, Raggio di Infermità, Risata incontenibile, Ritirata rapida, Saltare, Santuario, Scossa Tellurica, Scudo (reazione), Scudo della fede, Sonno, Sortilegio, Spruzzo colorato, Sussurri Dissonanti, Trabocchetto, Unto.
+- **1° livello**: Amicizia con gli animali, Anatema, Armatura di Agathys, Armatura magica, Assorbire Elementi (reazione), Bacche benefiche, Benedizione, Braccia di Hadar, Catapulta, Cerimonia (R), Charme su persone, Colpo dello Zefiro, Colpo Intrappolante, Coltello di Ghiaccio, Comando, Cura ferite, Dardo di Caos, Dardo incantato, Dardo Stregato, Dardo tracciante, Duello Obbligato, Eroismo, Favore divino, Globo Cromatico, Incuti Paura, Infliggi ferite, Intimorire infernale (reazione), Intralciare, Legame con le Bestie, Luminescenza, Mani brucianti, Marchio del cacciatore, Miscela Caustica di Tasha, Nube di nebbia, Onda tonante, Parola guaritrice, Passo veloce, Protezione dal bene e dal male, Punizione Collerica, Punizione Incandescente, Punizione Tonante, Raffica di Spine, Raggio di Infermità, Risata incontenibile, Ritirata rapida, Saltare, Santuario, Scossa Tellurica, Scudo (reazione), Scudo della fede, Sonno, Sortilegio, Spruzzo colorato, Sussurri Dissonanti, Trabocchetto, Unto, Vita falsata.
 - **2° livello**: Aculeo Mentale, Allucinazione di Forza, Arma magica, Arma spirituale, Bagliore lunare, Blocca persone, Caratteristica potenziata, Cecità/sordità, Cordone di Frecce, Corona di Follia, Crescita di spine, Diavoletto di Polvere, Estasiare, Folata di vento, Frantumare, Freccia acida, Immagine speculare, Ingrandire/ridurre, Invisibilità, Levitazione, Movimenti del ragno, Nube di Pugnali, Oscurità, Passare senza tracce, Passo velato, Pelle coriacea, Percezione delle Bestie (R), Pirotecnica, Preghiera di guarigione, Protezione dai veleni, Punizione Marchiante, Raggio di affaticamento, Raggio rovente, Ragnatela, Riscaldare il metallo, Ristorare inferiore, Sciame di Palle di Neve di Snilloc, Scudiscio Mentale di Tasha, Sfera infuocata, Sfocatura, Silenzio (R), Spirito Guaritore, Stretta della Terra di Maximilian, Suggestione, Vampa di Aganazzar, Vento di Interdizione, Vincolo della Terra, Vincolo di interdizione, Zona di verità.
 - **3° livello**: Arma Elementale, Aura di Vitalità, Cerchio magico, Dissolvi magie, Eruzione Terrestre, Evoca Raffica, Fame di Hadar, Faro di speranza, Forma gassosa, Fortezza della Mente, Frecce Infuocate, Freccia Folgorante, Fulmine, Guardiani spirituali, Intermittenza, Invocare il fulmine, Lentezza, Luce diurna, Morte Apparente (R), Muro di Sabbia, Muro di vento, Nemici in Abbondanza, Nube maleodorante, Onda di Marea, Palla di fuoco, Parola guaritrice di massa, Paura, Protezione dall'energia, Punizione Accecante, Sonnellino, Sudario Spirituale, Tempesta di nevischio, Tocco del vampiro, Trama ipnotica, Velocità, Volare.
 - **4° livello**: Allucinazione mortale, Anatema Elementale, Aura di Purezza, Aura di Vita, Charme sui Mostri, Compulsione, Confusione, Controllare acqua, Dominare bestie, Esilio, Fulgore Nauseante, Guardiano della fede, Guardiano della Natura, Inaridire, Interdizione alla morte, Invisibilità superiore, Libertà di movimento, Muro di fuoco, Ombra di Moil, Pelle di pietra, Porta dimensionale, Punizione Demoralizzante, Scudo di fuoco, Sfera al Vetriolo, Sfera della Tempesta, Sfera elastica, Tempesta di ghiaccio, Tentacoli neri.
-- **5° livello**: Abilità Potenziata, Alba, Animare oggetti, Arma Sacra, Blocca mostri, Cerchio di Potere, Collera della Natura, Colpo infuocato, Cono di freddo, Contagio, Controllare Venti, Cura ferite di massa, Debilitazione, Dominare persona, Evoca Pioggia di Armi, Guscio anti-vita, Immolazione, Maelstrom, Mano arcana, Muro di forza, Muro di Luce, Nube mortale, Onda Distruttiva, Piaga degli insetti, Punizione Esiliante, Risveglio, Santificare, Scossa Sinaptica, Telecinesi.
-- **6° livello**: Abito Ultraterreno di Tasha, Bagliore solare, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Disintegrazione, Globo di invulnerabilità, Guarigione, Interdizione Primordiale, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di spine, Prigione Mentale, Proibizione (R), Sguardo penetrante, Suggestione di massa.
+- **5° livello**: Abilità Potenziata, Alba, Animare oggetti, Arma Sacra, Blocca mostri, Cerchio di Potere, Collera della Natura, Colpo infuocato, Cono di freddo, Contagio, Controllare Venti, Cura ferite di massa, Debilitazione, Dominare persona, Evoca Pioggia di Armi, Flusso di Energia Negativa, Guscio anti-vita, Immolazione, Maelstrom, Mano arcana, Muro di forza, Muro di Luce, Nube mortale, Onda Distruttiva, Piaga degli insetti, Punizione Esiliante, Risveglio, Santificare, Scossa Sinaptica, Telecinesi.
+- **6° livello**: Abito Ultraterreno di Tasha, Bagliore solare, Barriera di lame, Camminare nel vento, Carne in pietra, Catena di fulmini, Cerchio di morte, Danza irresistibile, Disintegrazione, Globo di invulnerabilità, Guarigione, Interdizione Primordiale, Investitura del Ghiaccio, Investitura del Vento, Investitura della Fiamma, Investitura della Pietra, Muro di spine, Prigione Mentale, Proibizione (R), Sguardo penetrante, Suggestione di massa, Trasformazione di Tenser.
 - **7° livello**: Corona di Stelle, Dito della morte, Gabbia di forza, Palla di fuoco ritardata, Parola del Potere Dolore, Parola divina, Spada arcana, Spruzzo prismatico, Turbine.
 - **8° livello**: Antipatia/simpatia, Aura sacra, Dominare mostri, Drago Illusorio, Esplosione solare, Labirinto, Nube incendiaria, Orrido Avvizzimento di Abi-Dalzim, Oscurità della Follia, Parola del potere stordire, Regressione mentale, Terremoto.
 - **9° livello**: Fatale, Invulnerabilità, Lama del Disastro, Muro prismatico, Parola del Potere Guarire, Parola del potere uccidere, Previsione, Urlo Psichico.
